@@ -209,6 +209,12 @@ Server-only env should include at least:
 4. `AIR_JAM_ALLOWED_ORIGINS`
 5. `AIR_JAM_HOST_GRANT_SECRET`
 
+`AIR_JAM_ALLOWED_ORIGINS` accepts comma-separated exact origins, a leading
+subdomain wildcard such as `https://*.vercel.app`, or `*`. Prefer the narrowest
+policy that covers the deployment topology. A leading wildcard matches exactly
+one DNS label and never matches the apex, nested subdomains, another protocol,
+or a lookalike suffix.
+
 The realtime server should not need the platform's release-storage or moderation env.
 
 ### Browser Worker Env
