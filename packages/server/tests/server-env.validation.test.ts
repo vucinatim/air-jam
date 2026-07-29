@@ -100,4 +100,17 @@ describe("loadServerEnv", () => {
 
     expect(config.allowedOrigins).toEqual(["https://airjam.io"]);
   });
+
+  it("preserves leading-subdomain origin patterns in production", () => {
+    const config = loadServerEnv({
+      AIR_JAM_AUTH_MODE: "disabled",
+      AIR_JAM_ALLOWED_ORIGINS: "https://airjam.io,https://*.vercel.app",
+      RAILWAY_ENVIRONMENT_NAME: "production",
+    });
+
+    expect(config.allowedOrigins).toEqual([
+      "https://airjam.io",
+      "https://*.vercel.app",
+    ]);
+  });
 });

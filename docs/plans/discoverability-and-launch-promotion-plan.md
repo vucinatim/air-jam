@@ -34,9 +34,9 @@ Companion to: [discoverability-vision.md](../discoverability-vision.md)
 - `hesreallyhim/awesome-claude-code` — mid-restructure, README is a stub with "TODO" for the new ToC. No place to PR. Revisit in a few weeks.
 - `Calinou/awesome-gamedev` — last pushed 17+ months ago, likely abandoned. Skipped.
 
-**Discussed, not implemented** (worth a future session):
+**Discussed and subsequently implemented**:
 
-- Preview-server CORS architecture. PR-30 surfaced an infra bug: the server isn't deployed per PR (watchPatterns excludes platform changes), so PR previews can't reach a working signal server. Even if it deployed, CORS allow-list would block the PR-specific platform origin. Recommended path: shared persistent preview-server environment + pattern-based CORS allowlist in `normalizeAllowedOrigins`. See discussion in session transcript.
+- Preview-server CORS architecture. PR-30 surfaced an infra bug: the server isn't deployed per PR (watchPatterns excludes platform changes), so PR previews couldn't reach a working signal server. The shared production server now supports narrow leading-subdomain CORS patterns such as `https://*.vercel.app`; per-app bootstrap origin policy remains the authoritative host boundary.
 
 ## Purpose
 
@@ -362,7 +362,7 @@ This plan is large but the dependencies are loose. A sensible order:
 2. **Medium cross-post** (Section 3.3) — ~15 min. Import from dev.to URL, set canonical to `airjam.io/blog/every-phone-a-game-controller`, publish.
 3. **`/docs/why-air-jam` page** (Section 2.1) — the on-site search landing page for `"open source airconsole alternative"`. H1 + body uses the framing honestly with a real comparison.
 4. **`modelcontextprotocol/servers` PR** (Section 2.2) — official MCP registry. Air Jam's MCP server (`@air-jam/mcp-server`) is a strong fit.
-5. **Preview-server CORS architecture fix** (see Session log) — affects future contributors more than current users; cheap to do; unblocks per-PR full-stack testing.
+5. ~~**Preview-server CORS architecture fix**~~ — implemented with narrow leading-subdomain origin patterns so PR-specific hosts can reach the shared realtime server without opening production CORS globally.
 6. **Manual validators** (Section 1.6) — drop `airjam.io` through [Google Rich Results test](https://search.google.com/test/rich-results) and [opengraph.xyz](https://www.opengraph.xyz/). Confirm JSON-LD + OG cards render. Request indexing of the two launch posts.
 7. **`/llms.txt` + `/llms-full.txt`** (Section 2.2) — generate at build time from docs MDX. Link from docs nav.
 

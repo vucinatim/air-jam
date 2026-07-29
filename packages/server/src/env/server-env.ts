@@ -212,7 +212,7 @@ export const loadServerEnv = (
       AIR_JAM_TRUST_PROXY_HEADERS:
         "Choose auto/enabled/disabled. Use auto to trust proxy headers only when the socket peer looks like a local/private proxy hop.",
       AIR_JAM_ALLOWED_ORIGINS:
-        "Use a comma-separated list of origins, or '*' to allow all origins.",
+        "Use comma-separated exact origins, a leading subdomain wildcard such as 'https://*.vercel.app', or '*' to allow all origins.",
       PORT: "Set a positive integer port (for example: PORT=4000).",
     },
   });

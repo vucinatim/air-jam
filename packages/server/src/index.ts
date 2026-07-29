@@ -27,6 +27,7 @@ import {
 } from "./logging/dev-log-collector.js";
 import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
 import { createServerLogger, type ServerLogger } from "./logging/logger.js";
+import { resolveCorsOrigin, type AllowedOrigins } from "./origin-policy.js";
 import {
   AuthService,
   type HostBootstrapAuthService,
@@ -48,7 +49,7 @@ export interface CreateAirJamServerOptions {
   hostRegistrationRateLimitMax?: number;
   controllerJoinRateLimitMax?: number;
   staticAppRateLimitMax?: number;
-  allowedOrigins?: string[] | "*";
+  allowedOrigins?: AllowedOrigins;
   logger?: ServerLogger;
   authService?: HostBootstrapAuthService;
   runtimeUsagePublisher?: RuntimeUsagePublisher;
@@ -72,21 +73,6 @@ export interface AirJamServerRuntime {
 }
 
 let hasWarnedAboutBlockedRemoteDatabase = false;
-
-const parseAllowedOrigins = (
-  input: string[] | "*" | undefined,
-  fallback: string[] | "*",
-): string[] | "*" => {
-  if (input === "*") {
-    return "*";
-  }
-
-  if (input && input.length > 0) {
-    return input.includes("*") ? "*" : input;
-  }
-
-  return fallback;
-};
 
 export const createAirJamServer = (
   options: CreateAirJamServerOptions = {},
@@ -162,7 +148,7 @@ export const createAirJamServer = (
     options.controllerJoinRateLimitMax ?? envConfig.controllerJoinRateLimitMax;
   const staticAppRateLimitMax =
     options.staticAppRateLimitMax ?? envConfig.staticAppRateLimitMax;
-  const corsOrigin = parseAllowedOrigins(
+  const corsOrigin = resolveCorsOrigin(
     options.allowedOrigins,
     envConfig.allowedOrigins,
   );
