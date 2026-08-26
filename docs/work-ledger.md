@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-07-24
+Last updated: 2026-08-26
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,56 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-08-26 - First-Party Product Telemetry Replaced The Dormant Analytics Path
+
+- replaced the unused external website-analytics adapter with one small,
+  platform-owned telemetry plane shaped around Air Jam's discovery questions
+- landed a closed, versioned event contract for canonical page views, quick
+  start, scaffold copy, Arcade entry, GitHub/npm intent, and server-observed
+  agent-resource reach
+- kept anonymous session identity ephemeral and memory-only, with no cookies,
+  browser storage, fingerprinting, raw IP persistence, full user-agent storage,
+  full URLs, query strings, raw referrers, or arbitrary metadata
+- added hardened same-origin ingestion, trusted-proxy-aware transient
+  throttling, append-only evidence, idempotent transactional projection,
+  deterministic rebuild, and explicit 90-day raw/session-contribution
+  retention
+- added an ops-only 7/30/90-day report that visibly separates approximate
+  product telemetry from authoritative platform lifecycle and runtime usage
+  facts
+- exposed the full telemetry operator lifecycle through the canonical repo CLI:
+  authority-separated overview, storage/retention health, deterministic rebuild,
+  and retention, with stable JSON and explicit preview/apply mutation semantics
+- made agent-first operability a durable repo rule: UI-only operator features
+  are incomplete, and future machine surfaces must share domain services with
+  their human presentations
+- removed the obsolete script component, browser adapter, environment contract,
+  layout mount, and CSP allowance instead of keeping two analytics models
+- closed with a fresh PostgreSQL migration/ingest/replay/dedupe/rebuild proof,
+  202 passing platform tests, 11 passing repo CLI contract tests, clean
+  typecheck/lint/build gates, and local browser
+  proof across landing, Arcade, agent resources, auth protection, and the ops
+  report
+
+## 2026-08-26 - First Organic AI-Mediated Discovery Signal Recorded
+
+- preserved the quantified timeline, production-usage evidence, public traffic
+  signals, measurement caveats, and release-story interpretation in the
+  [organic discovery retrospective](./archive/2026-08-26-organic-discovery-retrospective.md)
+- recorded that Air Jam had been publicly playable for 101 days when an
+  external developer reported that Claude had recommended it for an
+  independently formed "open-source Jackbox" idea
+- treated the message as organic positioning and agent-discoverability evidence,
+  not as product-market fit or established user adoption
+- confirmed that the formal v1 release remained incomplete despite the public
+  prerelease, `airjam.io` Arcade, `0.9.2` packages, and May launch content
+- identified a real observability gap: production had authoritative runtime
+  usage analytics but no active website-traffic authority because the optional
+  external analytics path was never configured
+- recorded the preferred follow-up direction as first-party, typed product
+  telemetry that remains separate from runtime accounting and fully replaces
+  the inactive external path when implemented
 
 ## Historical Baseline Before The Reset
 

@@ -34,7 +34,6 @@ describe("platform security headers", () => {
 
     // Default deny-ish baseline.
     expect(csp).toContain("default-src 'self'");
-    expect(csp).toMatch(/script-src[^;]*https:\/\/cloud\.umami\.is/);
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain("form-action 'self'");
@@ -57,6 +56,9 @@ describe("platform security headers", () => {
     expect(byKey.get("X-Frame-Options")).toBe("SAMEORIGIN");
     expect(csp).toContain("frame-ancestors 'self'");
     expect(csp).not.toMatch(/frame-ancestors[^;]*http:/);
+    expect(csp).toMatch(
+      /script-src 'self' 'unsafe-inline' 'unsafe-eval'(?:;|$)/,
+    );
   });
 
   it("allows non-production local Arcade embeds across localhost and LAN origins", () => {

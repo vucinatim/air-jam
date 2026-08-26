@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   BookOpen,
   Bug,
   ChevronLeft,
@@ -197,6 +198,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith("/dashboard/ops/telemetry")}
+                      tooltip="Internal product discovery and intent telemetry."
+                    >
+                      <Link href="/dashboard/ops/telemetry">
+                        <Activity />
+                        <span>Product Telemetry</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroup>
             )}
@@ -274,6 +287,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       <Link href="/dashboard/ops/releases">
                         <Shield />
                         <span>Release Ops</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith("/dashboard/ops/telemetry")}
+                      tooltip="Internal product discovery and intent telemetry."
+                    >
+                      <Link href="/dashboard/ops/telemetry">
+                        <Activity />
+                        <span>Product Telemetry</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

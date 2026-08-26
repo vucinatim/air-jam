@@ -87,17 +87,71 @@ Reference docs:
 3. [ai-pack-manifest-contract.md](../../docs/contracts/ai-pack-manifest-contract.md)
 4. [ai-pack-workflow-guide.md](../../docs/guides/ai-pack-workflow-guide.md)
 
-## Website Analytics (Optional)
+## First-Party Product Telemetry
 
-The platform supports an optional Umami integration for lightweight web analytics.
+The platform owns a small first-party telemetry plane for approximate public
+discovery and product-intent evidence. It does not load an external analytics
+script and requires no analytics-provider environment variables.
 
-Set these in `.env.local`:
+The browser records canonical page transitions and typed intent actions through
+the same-origin `/api/telemetry` route. A server-owned request boundary records
+agent-facing resource reach. Collection failures never block navigation, copy
+actions, external links, Arcade entry, or public resource responses.
 
-1. `NEXT_PUBLIC_WEBSITE_ANALYTICS_PROVIDER=umami`
-2. `NEXT_PUBLIC_UMAMI_WEBSITE_ID=<your-website-id>`
-3. Optional self-host/custom script URL: `NEXT_PUBLIC_UMAMI_SCRIPT_URL=<script-url>`
+Telemetry is privacy-bounded:
 
-If `NEXT_PUBLIC_WEBSITE_ANALYTICS_PROVIDER` is not `umami`, no analytics script is injected.
+1. anonymous session identity exists only in browser memory
+2. no cookies, browser storage, or fingerprinting are used
+3. raw IP addresses, full user agents, full URLs, query strings, and raw
+   referrers are not persisted
+4. production, preview, development, and test traffic stay separable
+
+The internal report at `/dashboard/ops/telemetry` presents product telemetry
+beside separately labeled platform lifecycle and runtime usage facts. Product
+telemetry is not a source of gameplay, quota, billing, or creator-reward truth.
+
+Apply the platform database migrations before collecting telemetry. The
+canonical agent and maintainer surface is discoverable through:
+
+```bash
+pnpm run repo -- platform telemetry --help
+```
+
+It exposes stable JSON reads and the full maintenance lifecycle:
+
+```bash
+pnpm --silent run repo -- platform telemetry overview --days 30 --environment production --json
+pnpm --silent run repo -- platform telemetry health --json
+pnpm --silent run repo -- platform telemetry rebuild --json
+pnpm --silent run repo -- platform telemetry rebuild --apply --json
+pnpm --silent run repo -- platform telemetry retain --json
+pnpm --silent run repo -- platform telemetry retain --apply --json
+```
+
+`overview` returns the same authority-separated report used by the ops UI.
+`health` inspects storage, projection, and retention state. Rebuild and retention
+are read-only previews unless `--apply` is explicit. All commands use
+`DATABASE_URL` from the environment or `apps/platform/.env.local`; they do not
+embed or print database credentials.
+
+Agents can operate an explicit hosted environment without manually extracting
+its database secret:
+
+```bash
+pnpm --silent run repo -- platform telemetry health \
+  --railway-environment <environment-id> \
+  --railway-project <project-id> \
+  --json
+```
+
+`--railway-project` may be omitted when `RAILWAY_PROJECT_ID` is configured. The
+repo command resolves the environment PostgreSQL connection internally and
+passes it only to the telemetry subprocess.
+
+Reference docs:
+
+1. [product-telemetry-architecture.md](../../docs/architecture/product-telemetry-architecture.md)
+2. [product-telemetry-contract.md](../../docs/contracts/product-telemetry-contract.md)
 
 ## Hosted Releases Setup
 

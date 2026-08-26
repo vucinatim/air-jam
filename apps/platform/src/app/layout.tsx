@@ -1,4 +1,4 @@
-import { WebsiteAnalytics } from "@/components/analytics/website-analytics";
+import { ProductTelemetry } from "@/components/analytics/product-telemetry";
 import { getSiteUrl } from "@/lib/site-url";
 import { TRPCReactProvider } from "@/trpc/react";
 import type { Metadata, Viewport } from "next";
@@ -20,8 +20,7 @@ const geistMono = Geist_Mono({
 
 const siteUrl = getSiteUrl();
 const siteName = "Air Jam";
-const siteTitle =
-  "Air Jam — Phone-controller multiplayer games for the AI era";
+const siteTitle = "Air Jam — Phone-controller multiplayer games for the AI era";
 const siteDescription =
   "Open-source framework for QR-code multiplayer party games. Networking, rooms, and input pipelines handled — bring the game, deploy anywhere, play on any phone.";
 
@@ -135,7 +134,7 @@ export default function RootLayout({
           }}
         />
         <TRPCReactProvider>{children}</TRPCReactProvider>
-        <WebsiteAnalytics />
+        <ProductTelemetry />
       </body>
     </html>
   );

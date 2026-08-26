@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-07-24
+Last updated: 2026-08-26
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -105,6 +105,25 @@ These are now baseline truths, not open architecture debates:
    3. local bootstrap and 16-player Arcade capacity are re-proven
    4. the top-center controller menu consumes the real phone safe-area inset
    5. the Android wrapper carries the canonical installed Air Jam icon
+10. first-party product telemetry is now part of the platform baseline:
+    1. one closed, versioned event contract covers canonical page views and
+       meaningful public intent
+    2. same-origin browser ingestion is bounded, rate-limited, idempotent, and
+       non-blocking to product UX
+    3. agent-facing resources record server-observed reach without changing
+       their public response contracts
+    4. append-only raw evidence projects deterministically into daily event and
+       ephemeral-session metrics
+    5. the ops-only report keeps product telemetry, platform lifecycle facts,
+       and authoritative runtime activity visibly separate
+    6. anonymous identity is memory-only and the system does not fingerprint or
+       persist raw IP addresses, full user agents, full URLs, query strings, or
+       raw referrers
+    7. the dormant external website-analytics integration and its environment
+       and CSP contract are fully removed
+    8. the full operator lifecycle is available through the repo CLI with
+       stable JSON reads, health inspection, and explicit preview/apply
+       maintenance commands backed by the same domain services as the ops UI
 
 ## What Is Still Open
 
@@ -126,9 +145,14 @@ The v1 release plan remains the governing product plan:
 
 ## Recent Closures
 
-The Android Auto road-trip release, preview system closeout, Railway API
-control-surface replacement, and repo operating system reset are closed and
-archived.
+The first-party telemetry implementation, Android Auto road-trip release,
+preview system closeout, Railway API control-surface replacement, and repo
+operating system reset are closed.
+
+The telemetry implementation plan is preserved in the
+[2026-08-26 telemetry archive](./archive/2026-08-26-first-party-product-telemetry-plan.md).
+Other closed plans are archived according to the repository documentation
+taxonomy.
 
 They should no longer compete with launch execution.
 
@@ -148,17 +172,19 @@ These are real next-step tracks, but they should not displace the launch closeou
 1. include the live Last Band Standing `0.2.1` release in the remaining v1
    launch-set proof
 2. treat further clip-start listening and tuning as non-blocking content polish
-2. run the final manual release proof against the five-game launch set
-3. run the hosted upload and managed media proof on the real platform lane
-4. complete the Railway domain cutover and re-run the production smoke checks
-5. close any real blockers without reopening broad platform work
-6. execute the final landing, media, blog, discoverability, and launch
+3. run the final manual release proof against the five-game launch set
+4. run the hosted upload and managed media proof on the real platform lane
+5. complete the Railway domain cutover and re-run the production smoke checks
+6. close any real blockers without reopening broad platform work
+7. execute the final landing, media, blog, discoverability, and launch
    distribution sequence
 
 ## Current Caveats
 
 1. the remaining deployment risk is mostly domain cutover and provider-state verification, not missing app architecture
 2. the repo now has enough finished infrastructure that the main risk is orientation drift, not missing foundation
+3. product telemetry anonymous-session and actor-class counts are approximate
+   discovery measures, not durable people or identity proof
 
 ## Canonical Read Order
 

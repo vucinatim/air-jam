@@ -146,6 +146,10 @@ The architecture should keep moving toward these rules:
 6. human workflows and agent workflows should use the same core contracts whenever possible
 7. browser automation should be a fallback, not the primary long-term control path
 8. public docs, package surfaces, and machine-readable endpoints should reflect the real architecture instead of drifting into a second inconsistent story
+9. every operator capability should expose a discoverable CLI, MCP, or equivalent
+   machine contract for inspection, health, and its supported lifecycle
+10. a human dashboard should be treated as one presentation of an underlying
+    agent-operable contract, never as the only way to operate the system
 
 ## Future Agent Control Model
 

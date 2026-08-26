@@ -5,6 +5,17 @@ import type {
   GameMediaStatus,
 } from "@/lib/games/game-media-contract";
 import type {
+  ProductTelemetryActorClass,
+  ProductTelemetryAgentFamily,
+  ProductTelemetryAgentResource,
+  ProductTelemetryDeploymentEnvironment,
+  ProductTelemetryExternalTarget,
+  ProductTelemetryPlacement,
+  ProductTelemetryReferrerSource,
+  ProductTelemetryStoredEventKind,
+  ProductTelemetrySurface,
+} from "@/lib/product-telemetry-contract";
+import type {
   GameReleaseSourceKind,
   GameReleaseStatus,
   ReleaseCheckKind,
@@ -17,6 +28,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -24,6 +36,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["creator", "ops_admin"]);
@@ -509,6 +522,145 @@ export const runtimeUsageDailyGameMetrics = pgTable(
     ),
     gameIdx: index("runtime_usage_daily_game_metrics_game_id_idx").on(
       table.gameId,
+    ),
+  }),
+);
+
+export const productTelemetryEvents = pgTable(
+  "product_telemetry_events",
+  {
+    id: text("id").primaryKey(),
+    schemaVersion: integer("schema_version").notNull(),
+    kind: text("kind").$type<ProductTelemetryStoredEventKind>().notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    anonymousSessionId: text("anonymous_session_id"),
+    surface: text("surface").$type<ProductTelemetrySurface>().notNull(),
+    pageKey: text("page_key").notNull(),
+    actorClass: text("actor_class")
+      .$type<ProductTelemetryActorClass>()
+      .notNull(),
+    agentFamily: text("agent_family").$type<ProductTelemetryAgentFamily>(),
+    referrerSource: text("referrer_source")
+      .$type<ProductTelemetryReferrerSource>()
+      .notNull(),
+    referrerHost: text("referrer_host"),
+    campaignSource: text("campaign_source"),
+    campaignMedium: text("campaign_medium"),
+    campaignName: text("campaign_name"),
+    placement: text("placement").$type<ProductTelemetryPlacement>(),
+    externalTarget:
+      text("external_target").$type<ProductTelemetryExternalTarget>(),
+    agentResource:
+      text("agent_resource").$type<ProductTelemetryAgentResource>(),
+    deploymentEnvironment: text("deployment_environment")
+      .$type<ProductTelemetryDeploymentEnvironment>()
+      .notNull(),
+    deploymentId: text("deployment_id").notNull(),
+  },
+  (table) => ({
+    occurredAtIdx: index("product_telemetry_events_occurred_at_idx").on(
+      table.occurredAt,
+    ),
+    receivedAtIdx: index("product_telemetry_events_received_at_idx").on(
+      table.receivedAt,
+    ),
+    kindIdx: index("product_telemetry_events_kind_idx").on(table.kind),
+    surfaceIdx: index("product_telemetry_events_surface_idx").on(table.surface),
+    actorClassIdx: index("product_telemetry_events_actor_class_idx").on(
+      table.actorClass,
+    ),
+    deploymentIdx: index("product_telemetry_events_deployment_idx").on(
+      table.deploymentEnvironment,
+      table.deploymentId,
+    ),
+  }),
+);
+
+export const productTelemetryDailyMetrics = pgTable(
+  "product_telemetry_daily_metrics",
+  {
+    id: text("id").primaryKey(),
+    bucketDate: date("bucket_date").notNull(),
+    kind: text("kind").$type<ProductTelemetryStoredEventKind>().notNull(),
+    surface: text("surface").$type<ProductTelemetrySurface>().notNull(),
+    pageKey: text("page_key").notNull(),
+    actorClass: text("actor_class")
+      .$type<ProductTelemetryActorClass>()
+      .notNull(),
+    agentFamily: text("agent_family").$type<ProductTelemetryAgentFamily>(),
+    referrerSource: text("referrer_source")
+      .$type<ProductTelemetryReferrerSource>()
+      .notNull(),
+    referrerHost: text("referrer_host"),
+    campaignSource: text("campaign_source"),
+    campaignMedium: text("campaign_medium"),
+    campaignName: text("campaign_name"),
+    placement: text("placement").$type<ProductTelemetryPlacement>(),
+    externalTarget:
+      text("external_target").$type<ProductTelemetryExternalTarget>(),
+    agentResource:
+      text("agent_resource").$type<ProductTelemetryAgentResource>(),
+    deploymentEnvironment: text("deployment_environment")
+      .$type<ProductTelemetryDeploymentEnvironment>()
+      .notNull(),
+    deploymentId: text("deployment_id").notNull(),
+    eventCount: integer("event_count").default(0).notNull(),
+    anonymousSessionCount: integer("anonymous_session_count")
+      .default(0)
+      .notNull(),
+    firstOccurredAt: timestamp("first_occurred_at", {
+      withTimezone: true,
+    }).notNull(),
+    lastOccurredAt: timestamp("last_occurred_at", {
+      withTimezone: true,
+    }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    bucketDateIdx: index("product_telemetry_daily_metrics_bucket_date_idx").on(
+      table.bucketDate,
+    ),
+    kindIdx: index("product_telemetry_daily_metrics_kind_idx").on(table.kind),
+    surfaceIdx: index("product_telemetry_daily_metrics_surface_idx").on(
+      table.surface,
+    ),
+    deploymentIdx: index("product_telemetry_daily_metrics_deployment_idx").on(
+      table.deploymentEnvironment,
+      table.deploymentId,
+    ),
+  }),
+);
+
+export const productTelemetryDailySessionContributions = pgTable(
+  "product_telemetry_daily_session_contributions",
+  {
+    id: text("id").primaryKey(),
+    metricId: text("metric_id").notNull(),
+    bucketDate: date("bucket_date").notNull(),
+    anonymousSessionId: text("anonymous_session_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    metricFk: foreignKey({
+      name: "pt_session_contributions_metric_fk",
+      columns: [table.metricId],
+      foreignColumns: [productTelemetryDailyMetrics.id],
+    }).onDelete("cascade"),
+    metricSessionIdx: uniqueIndex(
+      "pt_session_contributions_metric_session_uidx",
+    ).on(table.metricId, table.anonymousSessionId),
+    bucketDateIdx: index("pt_session_contributions_bucket_date_idx").on(
+      table.bucketDate,
     ),
   }),
 );

@@ -1,6 +1,6 @@
 # Air Jam Analytics Architecture
 
-Last updated: 2026-03-27  
+Last updated: 2026-08-26
 Status: implemented architecture
 
 Related docs:
@@ -9,17 +9,23 @@ Related docs:
 2. [Framework Paradigm](../framework-paradigm.md)
 3. [Vision](../vision.md)
 4. [Docs Index](../docs-index.md)
+5. [Product Telemetry Architecture](./product-telemetry-architecture.md)
+6. [Product Telemetry Contract](../contracts/product-telemetry-contract.md)
 
 ## Purpose
 
-This document defines the intended analytics architecture for Air Jam.
+This document defines the authoritative runtime usage analytics architecture
+for Air Jam. Approximate public discovery and product-intent evidence belongs
+to the separate first-party product telemetry plane.
 
-It exists to make four things explicit:
+It exists to make five things explicit:
 
 1. what should count as authoritative usage truth
 2. where analytics logic should live
 3. how analytics should support monetization without distorting the framework
 4. how Air Jam can stay ready for future creator-reward systems without promising unsafe payout logic too early
+5. why product telemetry, platform lifecycle facts, and runtime usage facts must
+   retain separate authority even when one operator view presents them together
 
 ## Implementation Status
 
@@ -45,7 +51,8 @@ Still intentionally deferred:
 
 ## Core Position
 
-Air Jam analytics should be built around authoritative runtime facts, not browser beacons or dashboard-side counters.
+Air Jam runtime analytics is built around authoritative runtime facts, not
+browser beacons or dashboard-side counters.
 
 The correct shape is:
 
@@ -59,6 +66,50 @@ This keeps analytics aligned with the broader product strategy:
 1. open framework
 2. first-class self-host path
 3. hosted platform value in analytics, operational tooling, and trusted accounting
+
+## Analytics Plane Boundary
+
+Air Jam has two analytics planes with different jobs, plus platform lifecycle
+records that remain authoritative in their own domain.
+
+### Product Telemetry Plane
+
+The platform-owned product telemetry plane records bounded, approximate
+discovery evidence:
+
+1. page views and ephemeral anonymous browsing sessions
+2. normalized referrer and campaign sources
+3. a closed set of public product-intent actions
+4. indicative human, bot, agent, and unknown traffic classification
+5. server-observed requests for canonical agent-facing resources
+
+It is appropriate for discovery and product-funnel questions. It is not a
+source for gameplay, quota, billing, or creator-reward facts, and its anonymous
+sessions must not be described as durable unique people.
+
+Reference:
+[Product Telemetry Architecture](./product-telemetry-architecture.md)
+
+### Platform Lifecycle Facts
+
+Account, game, release, publication, media, and catalog lifecycle facts come
+from their existing platform records. Product telemetry reporting reads those
+records directly instead of creating browser events that duplicate completion
+state.
+
+### Runtime Usage Plane
+
+The system documented below remains the authoritative plane for:
+
+1. room and runtime sessions
+2. controller participation
+3. game activity and eligible playtime
+4. creator analytics and quota reporting
+5. future billing or reward accounting
+
+An ops report may align these three evidence sources over the same window. It
+must label them separately and must not imply that temporal proximity proves
+causation.
 
 ## Product Goal
 
