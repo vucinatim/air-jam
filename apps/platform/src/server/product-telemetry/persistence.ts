@@ -135,6 +135,22 @@ export interface ProductTelemetryRebuildResult {
   sessionContributionCount: number;
 }
 
+export const previewProductTelemetryProjectionRebuild = async (
+  database: ProductTelemetryDatabase = db,
+): Promise<ProductTelemetryRebuildResult> => {
+  const rawEvents = await database
+    .select()
+    .from(productTelemetryEvents)
+    .orderBy(productTelemetryEvents.occurredAt, productTelemetryEvents.id);
+  const projection = rebuildProductTelemetryProjectionRows(rawEvents);
+
+  return {
+    rawEventCount: rawEvents.length,
+    metricCount: projection.metrics.length,
+    sessionContributionCount: projection.contributions.length,
+  };
+};
+
 export const rebuildProductTelemetryProjections = async (
   database: ProductTelemetryDatabase = db,
 ): Promise<ProductTelemetryRebuildResult> =>
@@ -177,6 +193,40 @@ export interface ProductTelemetryRetentionResult {
 const subtractUtcDays = (date: Date, days: number): Date =>
   new Date(date.getTime() - days * 24 * 60 * 60 * 1_000);
 
+export interface ProductTelemetryRetentionCutoffs {
+  rawCutoff: Date;
+  sessionContributionCutoffDate: string;
+}
+
+export const resolveProductTelemetryRetentionCutoffs = ({
+  now = new Date(),
+  rawRetentionDays = PRODUCT_TELEMETRY_RAW_RETENTION_DAYS,
+  sessionContributionRetentionDays = PRODUCT_TELEMETRY_SESSION_CONTRIBUTION_RETENTION_DAYS,
+}: {
+  now?: Date;
+  rawRetentionDays?: number;
+  sessionContributionRetentionDays?: number;
+} = {}): ProductTelemetryRetentionCutoffs => {
+  if (
+    !Number.isInteger(rawRetentionDays) ||
+    !Number.isInteger(sessionContributionRetentionDays) ||
+    rawRetentionDays < 1 ||
+    sessionContributionRetentionDays < 1
+  ) {
+    throw new Error("Telemetry retention periods must be positive whole days.");
+  }
+
+  return {
+    rawCutoff: subtractUtcDays(now, rawRetentionDays),
+    sessionContributionCutoffDate: subtractUtcDays(
+      now,
+      sessionContributionRetentionDays,
+    )
+      .toISOString()
+      .slice(0, 10),
+  };
+};
+
 export const applyProductTelemetryRetention = async ({
   now = new Date(),
   rawRetentionDays = PRODUCT_TELEMETRY_RAW_RETENTION_DAYS,
@@ -188,22 +238,12 @@ export const applyProductTelemetryRetention = async ({
   sessionContributionRetentionDays?: number;
   database?: ProductTelemetryDatabase;
 } = {}): Promise<ProductTelemetryRetentionResult> => {
-  if (
-    !Number.isInteger(rawRetentionDays) ||
-    !Number.isInteger(sessionContributionRetentionDays) ||
-    rawRetentionDays < 1 ||
-    sessionContributionRetentionDays < 1
-  ) {
-    throw new Error("Telemetry retention periods must be positive whole days.");
-  }
-
-  const rawCutoff = subtractUtcDays(now, rawRetentionDays);
-  const sessionContributionCutoffDate = subtractUtcDays(
-    now,
-    sessionContributionRetentionDays,
-  )
-    .toISOString()
-    .slice(0, 10);
+  const { rawCutoff, sessionContributionCutoffDate } =
+    resolveProductTelemetryRetentionCutoffs({
+      now,
+      rawRetentionDays,
+      sessionContributionRetentionDays,
+    });
 
   return database.transaction(async (tx) => {
     const deletedContributions = await tx

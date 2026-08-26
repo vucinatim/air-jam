@@ -60,6 +60,31 @@ pnpm run repo -- --help
 
 Use that surface to discover and prefer repo-owned operations when they exist.
 
+## Agent-First Operability Rule
+
+Air Jam is an agent-first project. A product or operator capability is not
+complete when it can only be used through a human UI.
+
+For every new operational surface:
+
+1. expose a canonical repo CLI, MCP action, or equally explicit machine
+   contract for the full supported lifecycle
+2. make discovery available through `--help` or contract inspection
+3. provide stable structured output, using JSON for repo CLI reads; document
+   `pnpm --silent run repo -- ... --json` when callers need stdout to contain
+   only the JSON document
+4. keep UI, API, CLI, and agent tools on the same domain services rather than
+   duplicating business logic
+5. include inspection, health, and safe repair or maintenance operations where
+   the subsystem owns them
+6. make destructive operations explicit and non-accidental while keeping them
+   automatable
+7. test and document the machine path in the same change as the human path
+
+Agents should use the canonical machine surface whenever one exists. Ad hoc SQL,
+UI clicking, and one-off shell logic are diagnostic fallbacks, not the normal
+operating model.
+
 For Railway work specifically, prefer the repo-native Railway toolkit over the
 generic Railway CLI:
 

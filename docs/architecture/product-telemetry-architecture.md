@@ -201,6 +201,32 @@ Each group carries its own evidence-source label. The read layer may align
 counts by time window, but it does not manufacture causal conversion claims.
 Raw events are not sent to the browser.
 
+## Agent And CLI Operability
+
+The ops dashboard is not the only operator surface. The canonical repo CLI
+exposes the same domain behavior through:
+
+1. `platform telemetry overview` for the authority-separated 7-, 30-, or
+   90-day report
+2. `platform telemetry health` for storage, projection, and retention state
+3. `platform telemetry rebuild` for deterministic projection preview and apply
+4. `platform telemetry retain` for retention preview and apply
+
+Reads support a stable versioned JSON envelope. Mutating commands are read-only
+previews unless `--apply` is present. The CLI calls the same reporting,
+projection, and retention services as the platform rather than reimplementing
+queries or policy.
+
+Local operation uses `DATABASE_URL` or `apps/platform/.env.local`. Hosted
+operation accepts an explicit Railway environment and project identity,
+resolves the environment PostgreSQL connection internally through the repo's
+Railway boundary, and never prints the credential. Machine consumers use the
+silent repo invocation so stdout contains only the JSON contract.
+
+This is an architectural requirement: future telemetry operations must land in
+the machine contract alongside any human UI. Direct SQL and browser automation
+remain diagnostic fallbacks, not canonical operation.
+
 ## Privacy Model
 
 The browser creates a random anonymous session ID in memory. It is discarded
@@ -258,3 +284,5 @@ queries do not delete or conceal expired evidence as a side effect.
 6. Keep lifecycle, product-telemetry, and runtime facts visibly distinct at
    read time.
 7. Prefer one canonical first-party system over parallel analytics adapters.
+8. Keep the full operator lifecycle discoverable and machine-readable through
+   the repo CLI.

@@ -32,6 +32,7 @@ import {
   sql,
   sum,
 } from "drizzle-orm";
+import type { ProductTelemetryDatabase } from "./persistence";
 
 const INTENT_KINDS = [
   "quick_start_opened",
@@ -331,10 +332,12 @@ export const getProductTelemetryOpsOverview = async ({
   days,
   deploymentEnvironment,
   now = new Date(),
+  database = db,
 }: {
   days: number;
   deploymentEnvironment: ProductTelemetryDeploymentEnvironment;
   now?: Date;
+  database?: ProductTelemetryDatabase;
 }): Promise<ProductTelemetryOpsOverview> => {
   const today = utcDayStart(now);
   const since = addUtcDays(today, -(days - 1));
@@ -364,7 +367,7 @@ export const getProductTelemetryOpsOverview = async ({
     runtimeSessions,
     runtimeUsage,
   ] = await Promise.all([
-    db
+    database
       .select({
         bucketDate: productTelemetryDailyMetrics.bucketDate,
         kind: productTelemetryDailyMetrics.kind,
@@ -378,7 +381,7 @@ export const getProductTelemetryOpsOverview = async ({
         productTelemetryDailyMetrics.kind,
         productTelemetryDailyMetrics.actorClass,
       ),
-    db
+    database
       .select({
         bucketDate: productTelemetryDailySessionContributions.bucketDate,
         count: countDistinct(
@@ -395,7 +398,7 @@ export const getProductTelemetryOpsOverview = async ({
       )
       .where(metricWindow)
       .groupBy(productTelemetryDailySessionContributions.bucketDate),
-    db
+    database
       .select({
         count: countDistinct(
           productTelemetryDailySessionContributions.anonymousSessionId,
@@ -410,7 +413,7 @@ export const getProductTelemetryOpsOverview = async ({
         ),
       )
       .where(metricWindow),
-    db
+    database
       .select({
         surface: productTelemetryDailyMetrics.surface,
         pageKey: productTelemetryDailyMetrics.pageKey,
@@ -426,7 +429,7 @@ export const getProductTelemetryOpsOverview = async ({
       )
       .orderBy(sql`sum(${productTelemetryDailyMetrics.eventCount}) desc`)
       .limit(12),
-    db
+    database
       .select({
         source: productTelemetryDailyMetrics.referrerSource,
         count: sum(productTelemetryDailyMetrics.eventCount),
@@ -437,7 +440,7 @@ export const getProductTelemetryOpsOverview = async ({
       )
       .groupBy(productTelemetryDailyMetrics.referrerSource)
       .orderBy(sql`sum(${productTelemetryDailyMetrics.eventCount}) desc`),
-    db
+    database
       .select({
         kind: productTelemetryDailyMetrics.kind,
         count: sum(productTelemetryDailyMetrics.eventCount),
@@ -450,7 +453,7 @@ export const getProductTelemetryOpsOverview = async ({
         ),
       )
       .groupBy(productTelemetryDailyMetrics.kind),
-    db
+    database
       .select({
         resource: productTelemetryDailyMetrics.agentResource,
         count: sum(productTelemetryDailyMetrics.eventCount),
@@ -464,7 +467,7 @@ export const getProductTelemetryOpsOverview = async ({
       )
       .groupBy(productTelemetryDailyMetrics.agentResource)
       .orderBy(sql`sum(${productTelemetryDailyMetrics.eventCount}) desc`),
-    db
+    database
       .select({
         family: productTelemetryDailyMetrics.agentFamily,
         count: sum(productTelemetryDailyMetrics.eventCount),
@@ -479,19 +482,19 @@ export const getProductTelemetryOpsOverview = async ({
       )
       .groupBy(productTelemetryDailyMetrics.agentFamily)
       .orderBy(sql`sum(${productTelemetryDailyMetrics.eventCount}) desc`),
-    db
+    database
       .select({ count: count() })
       .from(users)
       .where(gte(users.createdAt, since)),
-    db
+    database
       .select({ count: count() })
       .from(games)
       .where(gte(games.createdAt, since)),
-    db
+    database
       .select({ count: count() })
       .from(gameReleases)
       .where(gte(gameReleases.createdAt, since)),
-    db
+    database
       .select({ count: count() })
       .from(gameReleases)
       .where(
@@ -500,11 +503,11 @@ export const getProductTelemetryOpsOverview = async ({
           gte(gameReleases.publishedAt, since),
         ),
       ),
-    db
+    database
       .select({ count: count() })
       .from(runtimeUsageSessions)
       .where(gte(runtimeUsageSessions.startedAt, since)),
-    db
+    database
       .select({
         gameSessions: sum(runtimeUsageDailyGameMetrics.sessionCount),
         eligiblePlaytimeSeconds: sum(

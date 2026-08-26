@@ -121,6 +121,9 @@ These are now baseline truths, not open architecture debates:
        raw referrers
     7. the dormant external website-analytics integration and its environment
        and CSP contract are fully removed
+    8. the full operator lifecycle is available through the repo CLI with
+       stable JSON reads, health inspection, and explicit preview/apply
+       maintenance commands backed by the same domain services as the ops UI
 
 ## What Is Still Open
 

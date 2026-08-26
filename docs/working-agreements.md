@@ -43,6 +43,28 @@ Use this loop unless a task clearly requires something more specific:
 
 If an agent jumps from chat context straight into edits without checking the current repo surfaces, it is operating incorrectly.
 
+## Agent-First Operability
+
+Air Jam treats agent operation as a product contract, not an internal
+convenience.
+
+A new operator capability is complete only when:
+
+1. agents can discover it through the repo CLI, MCP, or another canonical
+   machine-readable contract
+2. agents can inspect current state and health without scraping a UI
+3. the supported lifecycle, including safe maintenance and repair, is available
+   through that contract
+4. structured reads have stable JSON output; machine consumers invoke repo
+   commands through `pnpm --silent run repo -- ... --json` when stdout must be
+   the JSON document alone
+5. mutations are explicit, safe to automate, and share domain logic with the UI
+6. tests and docs cover the machine path
+
+The canonical repo entrypoint is `pnpm run repo -- --help`. Agents should prefer
+repo-owned commands over ad hoc SQL, browser-only operation, or provider-specific
+shell sequences whenever the repo CLI owns the job.
+
 ## Doc Roles
 
 ### `README.md`

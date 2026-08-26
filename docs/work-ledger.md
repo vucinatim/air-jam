@@ -35,10 +35,17 @@ The pre-reset overloaded ledger has been preserved at:
 - added an ops-only 7/30/90-day report that visibly separates approximate
   product telemetry from authoritative platform lifecycle and runtime usage
   facts
+- exposed the full telemetry operator lifecycle through the canonical repo CLI:
+  authority-separated overview, storage/retention health, deterministic rebuild,
+  and retention, with stable JSON and explicit preview/apply mutation semantics
+- made agent-first operability a durable repo rule: UI-only operator features
+  are incomplete, and future machine surfaces must share domain services with
+  their human presentations
 - removed the obsolete script component, browser adapter, environment contract,
   layout mount, and CSP allowance instead of keeping two analytics models
 - closed with a fresh PostgreSQL migration/ingest/replay/dedupe/rebuild proof,
-  201 passing platform tests, clean typecheck/lint/build gates, and local browser
+  202 passing platform tests, 11 passing repo CLI contract tests, clean
+  typecheck/lint/build gates, and local browser
   proof across landing, Arcade, agent resources, auth protection, and the ops
   report
 

@@ -636,16 +636,19 @@ Current capabilities:
 9. ops-only product telemetry reporting with 7-, 30-, and 90-day windows
 10. separately labeled platform lifecycle and runtime activity evidence in the
     same operator view
-11. server-side runtime usage publisher
-12. stable runtime analytics identity
-13. append-only raw runtime usage ledger
-14. deterministic runtime projection into normalized segments
-15. controller, game, and eligibility segments
-16. game-session metrics
-17. daily runtime aggregate metrics
-18. creator analytics API and dashboard panels
-19. operator rebuild path for runtime ledger replay
-20. trust guards and runtime analytics debug visibility
+11. repo-native telemetry CLI with discoverable help and stable JSON output
+12. agent-operable overview, health, rebuild-preview/apply, and
+    retention-preview/apply commands backed by the canonical domain services
+13. server-side runtime usage publisher
+14. stable runtime analytics identity
+15. append-only raw runtime usage ledger
+16. deterministic runtime projection into normalized segments
+17. controller, game, and eligibility segments
+18. game-session metrics
+19. daily runtime aggregate metrics
+20. creator analytics API and dashboard panels
+21. operator rebuild path for runtime ledger replay
+22. trust guards and runtime analytics debug visibility
 
 Key implementation areas:
 
@@ -656,9 +659,11 @@ Key implementation areas:
 5. `apps/platform/src/lib/product-telemetry-client.ts`
 6. `apps/platform/src/server/product-telemetry`
 7. `apps/platform/src/app/dashboard/ops/telemetry`
-8. `docs/architecture/product-telemetry-architecture.md`
-9. `docs/contracts/product-telemetry-contract.md`
-10. `docs/architecture/analytics-architecture.md`
+8. `apps/platform/scripts/product-telemetry-cli.ts`
+9. `scripts/repo/commands/platform.mjs`
+10. `docs/architecture/product-telemetry-architecture.md`
+11. `docs/contracts/product-telemetry-contract.md`
+12. `docs/architecture/analytics-architecture.md`
 
 ## Platform Security And Auth
 

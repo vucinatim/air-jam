@@ -308,6 +308,10 @@ Required automated proof:
 11. agent-facing resources still return their exact canonical content while
     recording reach
 12. no live code, env, CSP, or documentation reference to Umami remains
+13. the full operator lifecycle is discoverable through the repo CLI with
+    stable JSON output and safe preview/apply mutation semantics
+14. CLI and UI operation share reporting, projection, and retention domain
+    services rather than duplicating policy
 
 Required repository gates:
 
@@ -364,6 +368,14 @@ Required browser proof:
 6. push the feature branch
 7. open the PR with architecture, privacy, migration, and proof notes
 
+### Phase 6. Agent-First Operator Contract
+
+1. expose overview and health reads through the canonical repo CLI
+2. expose deterministic rebuild and retention preview/apply commands
+3. add stable JSON envelopes and discoverable help
+4. encode agent-first operability in the repository governing rules
+5. prove the CLI against local PostgreSQL and repo contract tests
+
 ## Done Criteria
 
 This plan is complete only when:
@@ -378,3 +390,5 @@ This plan is complete only when:
 8. all required automated and browser proofs pass
 9. the full implementation is committed, pushed, and represented by an open PR
 10. this plan is archived and the canonical docs describe the shipped system
+11. agents can inspect, verify, rebuild, and retain telemetry without UI
+    scraping or ad hoc SQL

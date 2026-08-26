@@ -270,6 +270,41 @@ selected window when it labels those as separate evidence sources.
 The reporting API is ops-authorized. It does not expand creator-facing game
 analytics and does not expose raw telemetry events to the browser.
 
+## Agent Operator Contract
+
+The canonical machine entrypoint is:
+
+```bash
+pnpm run repo -- platform telemetry --help
+```
+
+The supported lifecycle is:
+
+1. `overview --days <7|30|90> --environment <environment> --json`
+2. `health --json`
+3. `rebuild [--apply] --json`
+4. `retain [--apply] --json`
+5. optional `--railway-environment <id>` and `--railway-project <id>` targeting
+   on every operation
+
+JSON responses use a top-level contract version, command name, optional applied
+flag, and result object. Dates serialize as offset-aware ISO strings.
+Machine consumers invoke `pnpm --silent run repo -- ... --json` so the package
+runner does not prefix the JSON document with human-oriented script output.
+
+`overview` preserves the same three authority labels as the ops UI. `health`
+returns aggregate storage and retention state and never exposes raw telemetry
+rows. Rebuild and retention omit mutation by default; only `--apply` authorizes
+the operation.
+
+The CLI must call the canonical reporting, projection, and retention domain
+services. It must not own alternate SQL, aggregation rules, retention rules, or
+privacy behavior.
+
+Hosted targeting must resolve the database credential internally and pass it
+only to the bounded telemetry subprocess. It must not print or persist the
+credential.
+
 ## Retention Contract
 
 The initial retention rules are:

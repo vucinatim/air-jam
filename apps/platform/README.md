@@ -111,17 +111,42 @@ beside separately labeled platform lifecycle and runtime usage facts. Product
 telemetry is not a source of gameplay, quota, billing, or creator-reward truth.
 
 Apply the platform database migrations before collecting telemetry. The
-explicit maintenance commands are:
+canonical agent and maintainer surface is discoverable through:
 
 ```bash
-pnpm --filter platform telemetry:rebuild
-pnpm --filter platform telemetry:retain
+pnpm run repo -- platform telemetry --help
 ```
 
-`telemetry:rebuild` regenerates daily metrics and session contributions from
-the retained raw ledger. `telemetry:retain` applies the 90-day raw-event and
-session-contribution retention policy; reporting reads never perform cleanup as
-a side effect.
+It exposes stable JSON reads and the full maintenance lifecycle:
+
+```bash
+pnpm --silent run repo -- platform telemetry overview --days 30 --environment production --json
+pnpm --silent run repo -- platform telemetry health --json
+pnpm --silent run repo -- platform telemetry rebuild --json
+pnpm --silent run repo -- platform telemetry rebuild --apply --json
+pnpm --silent run repo -- platform telemetry retain --json
+pnpm --silent run repo -- platform telemetry retain --apply --json
+```
+
+`overview` returns the same authority-separated report used by the ops UI.
+`health` inspects storage, projection, and retention state. Rebuild and retention
+are read-only previews unless `--apply` is explicit. All commands use
+`DATABASE_URL` from the environment or `apps/platform/.env.local`; they do not
+embed or print database credentials.
+
+Agents can operate an explicit hosted environment without manually extracting
+its database secret:
+
+```bash
+pnpm --silent run repo -- platform telemetry health \
+  --railway-environment <environment-id> \
+  --railway-project <project-id> \
+  --json
+```
+
+`--railway-project` may be omitted when `RAILWAY_PROJECT_ID` is configured. The
+repo command resolves the environment PostgreSQL connection internally and
+passes it only to the telemetry subprocess.
 
 Reference docs:
 
