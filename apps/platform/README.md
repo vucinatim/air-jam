@@ -87,17 +87,46 @@ Reference docs:
 3. [ai-pack-manifest-contract.md](../../docs/contracts/ai-pack-manifest-contract.md)
 4. [ai-pack-workflow-guide.md](../../docs/guides/ai-pack-workflow-guide.md)
 
-## Website Analytics (Optional)
+## First-Party Product Telemetry
 
-The platform supports an optional Umami integration for lightweight web analytics.
+The platform owns a small first-party telemetry plane for approximate public
+discovery and product-intent evidence. It does not load an external analytics
+script and requires no analytics-provider environment variables.
 
-Set these in `.env.local`:
+The browser records canonical page transitions and typed intent actions through
+the same-origin `/api/telemetry` route. A server-owned request boundary records
+agent-facing resource reach. Collection failures never block navigation, copy
+actions, external links, Arcade entry, or public resource responses.
 
-1. `NEXT_PUBLIC_WEBSITE_ANALYTICS_PROVIDER=umami`
-2. `NEXT_PUBLIC_UMAMI_WEBSITE_ID=<your-website-id>`
-3. Optional self-host/custom script URL: `NEXT_PUBLIC_UMAMI_SCRIPT_URL=<script-url>`
+Telemetry is privacy-bounded:
 
-If `NEXT_PUBLIC_WEBSITE_ANALYTICS_PROVIDER` is not `umami`, no analytics script is injected.
+1. anonymous session identity exists only in browser memory
+2. no cookies, browser storage, or fingerprinting are used
+3. raw IP addresses, full user agents, full URLs, query strings, and raw
+   referrers are not persisted
+4. production, preview, development, and test traffic stay separable
+
+The internal report at `/dashboard/ops/telemetry` presents product telemetry
+beside separately labeled platform lifecycle and runtime usage facts. Product
+telemetry is not a source of gameplay, quota, billing, or creator-reward truth.
+
+Apply the platform database migrations before collecting telemetry. The
+explicit maintenance commands are:
+
+```bash
+pnpm --filter platform telemetry:rebuild
+pnpm --filter platform telemetry:retain
+```
+
+`telemetry:rebuild` regenerates daily metrics and session contributions from
+the retained raw ledger. `telemetry:retain` applies the 90-day raw-event and
+session-contribution retention policy; reporting reads never perform cleanup as
+a side effect.
+
+Reference docs:
+
+1. [product-telemetry-architecture.md](../../docs/architecture/product-telemetry-architecture.md)
+2. [product-telemetry-contract.md](../../docs/contracts/product-telemetry-contract.md)
 
 ## Hosted Releases Setup
 

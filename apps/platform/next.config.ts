@@ -1,10 +1,10 @@
-import path from "node:path";
 import {
   resolveRuntimeTopology,
   serializeRuntimeTopology,
 } from "@air-jam/sdk/runtime-topology";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
+import path from "node:path";
 import { resolvePlatformDeploymentConfig } from "./src/lib/platform-deployment-config";
 
 const repoRoot = path.resolve(process.cwd(), "../..");
@@ -51,10 +51,7 @@ export const createPlatformSecurityHeaders = ({
   const frameAncestors = allowInsecureDevFrames
     ? "frame-ancestors 'self' http: https:"
     : "frame-ancestors 'self'";
-  const scriptSrcHosts = [
-    "https://cloud.umami.is",
-    ...(allowInsecureDevFrames ? ["https://unpkg.com"] : []),
-  ].join(" ");
+  const scriptSrcHosts = allowInsecureDevFrames ? " https://unpkg.com" : "";
   const workerSrc = allowInsecureDevFrames
     ? "worker-src 'self' blob:"
     : "worker-src 'self'";
@@ -69,14 +66,14 @@ export const createPlatformSecurityHeaders = ({
   //   during local smoke/dev, Socket.IO still uses loopback http polling
   // - creator-provided media URLs may live on any https host
   // - Sentry SDK is bundled; DSN traffic is a generic https: connect target
-  // - first-party product telemetry loads the explicit Umami script only
+  // - first-party product telemetry uses the same-origin ingestion route
   //
   // `'unsafe-inline'` and `'unsafe-eval'` are required for Next.js runtime
   // bootstrap scripts. Keep this as the single authoritative CSP — individual
   // routes should not override it unless there is a concrete product reason.
   const contentSecurityPolicy = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${scriptSrcHosts}`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval'${scriptSrcHosts}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",

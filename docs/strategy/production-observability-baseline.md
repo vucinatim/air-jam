@@ -1,14 +1,16 @@
 # Air Jam Production Observability Baseline
 
-Last updated: 2026-05-08  
+Last updated: 2026-08-26
 Status: stable baseline
 
 Related docs:
 
 1. [Framework Paradigm](../framework-paradigm.md)
 2. [Analytics Architecture](../architecture/analytics-architecture.md)
-3. [Deployment Topology](./deployment-topology.md)
-4. [Railway Deployment Guide](../guides/railway-deployment-guide.md)
+3. [Product Telemetry Architecture](../architecture/product-telemetry-architecture.md)
+4. [Product Telemetry Contract](../contracts/product-telemetry-contract.md)
+5. [Deployment Topology](./deployment-topology.md)
+6. [Railway Deployment Guide](../guides/railway-deployment-guide.md)
 
 ## Purpose
 
@@ -60,23 +62,45 @@ Expected checks:
 2. platform login page
 3. runtime server health endpoint
 
-### 2. Umami Website Analytics
+### 2. Website Traffic Visibility
 
-Use Umami for public-site traffic and high-level frontend usage visibility.
+Air Jam's first-party product telemetry plane is the canonical source of
+approximate public discovery evidence.
 
-Why:
+It records:
 
-1. it is lightweight
-2. it is already the platform's explicit website analytics integration
-3. it gives enough public-surface signal without introducing a second product-truth system
+1. canonical public page views
+2. ephemeral anonymous browsing sessions
+3. normalized referrer and campaign sources
+4. typed quick-start, scaffold-copy, Arcade-entry, and allowlisted external-link
+   intent
+5. human, bot, agent, and unknown traffic splits
+6. server-observed requests for canonical agent-facing resources
 
-This is for:
+Reference:
+[Product Telemetry Architecture](../architecture/product-telemetry-architecture.md)
 
-1. landing and docs traffic
-2. general platform frontend usage patterns
-3. basic public-site credibility checks after release
+Do not infer website visits from:
 
-This is not the source of truth for gameplay usage or monetization-facing metrics.
+1. runtime room sessions
+2. npm downloads
+3. GitHub's rolling traffic window
+4. provider request volume
+
+Those are different signals with different authority boundaries.
+
+Runtime gameplay and monetization facts remain owned by Air Jam Runtime
+Analytics. Browser-observed product telemetry must not become a second source
+of gameplay truth.
+
+Platform account, game, and release lifecycle records remain authoritative for
+their own facts. The ops reporting surface may align all three evidence groups
+over the same time window, but it labels them separately and does not claim
+causation.
+
+Anonymous sessions are in-memory, page-context measures. They are not durable
+identities or unique people. The platform does not persist raw IP addresses,
+full user agents, full URLs, query strings, raw referrers, or fingerprint data.
 
 ### 3. Air Jam Runtime Analytics
 
@@ -107,19 +131,32 @@ Why:
 2. they keep the stack small
 3. they are sufficient until real production debugging pain proves otherwise
 
+### 5. Platform Error Tracking
+
+The platform contains a minimal optional Sentry integration for server, edge,
+client, and global-render failures.
+
+It is active only when the required Sentry environment is configured. This is
+a narrow platform capability, not evidence that the realtime server, embedded
+games, or controller/browser-runtime surfaces have equivalent coverage.
+
 ## What Is Intentionally Deferred
 
 The following are intentionally not part of the prerelease baseline:
 
-### 1. Sentry
+### 1. Broader Sentry Coverage
 
-Deferred because:
+Broader server and browser-runtime coverage remains deferred because:
 
-1. the current stage does not yet justify another always-on vendor integration
-2. uptime plus provider logs plus runtime analytics should be enough for the first adoption wave
-3. it is better added later in one intentional pass than half-added now
+1. the minimal platform integration already covers the first-party web control
+   surface
+2. provider logs and runtime analytics remain the stronger current tools for
+   realtime-server and gameplay failure stories
+3. expansion should follow real production debugging pain instead of assuming
+   every surface needs the same vendor integration
 
-Add it later only if real production debugging pain appears, and start with the platform app only.
+If broader coverage becomes necessary, add the smallest correct release-aware
+server and browser-runtime baseline in one intentional pass.
 
 ### 2. PostHog
 
@@ -134,7 +171,8 @@ Deferred because:
 Deferred because:
 
 1. Railway hosting does not force a separate RUM choice yet
-2. the current public surface can live with simple website analytics plus manual performance verification
+2. the current public surface can live with provider logs, manual performance
+   verification, and the first-party product telemetry boundary
 3. we should add a dedicated performance tool only when real pain appears
 
 ### 4. Custom Observability Infrastructure
@@ -164,7 +202,8 @@ Default rule:
 Add more observability only when one of these becomes true:
 
 1. production failures are hard to diagnose from existing logs
-2. platform frontend regressions are not explainable from existing website analytics and provider logs
+2. platform frontend and discovery questions cannot be answered from first-party
+   product telemetry and provider logs
 3. creator and product questions require richer hosted rollups than the current analytics surface provides
 4. support load grows enough that structured error correlation becomes clearly worth it
 
@@ -173,8 +212,9 @@ Add more observability only when one of these becomes true:
 For prerelease and the first meaningful wave of public users, the right Air Jam observability stack is:
 
 1. Better Stack uptime
-2. Umami website analytics
+2. first-party product telemetry for approximate discovery and intent evidence
 3. Air Jam runtime analytics
 4. provider logs
+5. optional platform Sentry when configured
 
 Anything more should wait for real evidence.

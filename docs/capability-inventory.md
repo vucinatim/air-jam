@@ -1,6 +1,6 @@
 # Air Jam Capability Inventory
 
-Last updated: 2026-05-03  
+Last updated: 2026-08-26
 Status: current reference
 
 ## Purpose
@@ -607,31 +607,58 @@ Key implementation areas:
 5. `docs/current-state.md`
 6. `docs/working-agreements.md`
 
-## Analytics
+## Analytics And Product Telemetry
 
-Air Jam has an implemented hosted analytics foundation based on authoritative
-runtime events.
+Air Jam has two implemented analytics planes with intentionally different
+authority:
+
+1. first-party product telemetry provides approximate public discovery,
+   product-intent, and agent-resource reach evidence
+2. runtime usage analytics provides authoritative room, controller, gameplay,
+   eligible-playtime, quota, and future accounting facts
+
+Platform lifecycle records remain authoritative for accounts, games, releases,
+and managed product state. The internal operator view combines these evidence
+sources only at read time and labels each one separately.
 
 Current capabilities:
 
-1. server-side runtime usage publisher
-2. stable runtime analytics identity
-3. append-only raw runtime usage ledger
-4. deterministic projection into normalized segments
-5. controller, game, and eligibility segments
-6. game-session metrics
-7. daily aggregate metrics
-8. platform analytics API
-9. dashboard analytics panels
-10. operator rebuild path for ledger replay
-11. trust guards and analytics debug visibility
+1. closed, versioned browser product-event contract
+2. same-origin, size-bounded, rate-limited product telemetry ingestion
+3. ephemeral in-memory anonymous browsing sessions without fingerprinting or
+   browser persistence
+4. deterministic source, page, actor, agent, campaign, and environment
+   classification
+5. append-only raw product-event evidence
+6. transactional daily event and anonymous-session projection
+7. deterministic product-projection rebuild and explicit retention seams
+8. server-observed reach for canonical agent-facing resources
+9. ops-only product telemetry reporting with 7-, 30-, and 90-day windows
+10. separately labeled platform lifecycle and runtime activity evidence in the
+    same operator view
+11. server-side runtime usage publisher
+12. stable runtime analytics identity
+13. append-only raw runtime usage ledger
+14. deterministic runtime projection into normalized segments
+15. controller, game, and eligibility segments
+16. game-session metrics
+17. daily runtime aggregate metrics
+18. creator analytics API and dashboard panels
+19. operator rebuild path for runtime ledger replay
+20. trust guards and runtime analytics debug visibility
 
 Key implementation areas:
 
 1. `packages/server/src/analytics`
 2. `apps/platform/src/server/analytics`
 3. `apps/platform/src/components/game-analytics`
-4. `docs/architecture/analytics-architecture.md`
+4. `apps/platform/src/lib/product-telemetry-contract.ts`
+5. `apps/platform/src/lib/product-telemetry-client.ts`
+6. `apps/platform/src/server/product-telemetry`
+7. `apps/platform/src/app/dashboard/ops/telemetry`
+8. `docs/architecture/product-telemetry-architecture.md`
+9. `docs/contracts/product-telemetry-contract.md`
+10. `docs/architecture/analytics-architecture.md`
 
 ## Platform Security And Auth
 

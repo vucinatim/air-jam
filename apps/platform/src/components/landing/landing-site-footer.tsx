@@ -1,6 +1,7 @@
 "use client";
 
 import { useDashboardAccess } from "@/hooks/use-dashboard-access";
+import { trackExternalLinkOpened } from "@/lib/product-telemetry-client";
 import { airJamGithubDiscussionsUrl } from "@/lib/social-links";
 import { Github, MessagesSquare } from "lucide-react";
 import Link from "next/link";
@@ -50,6 +51,7 @@ export const LandingSiteFooter = () => {
                 href="https://www.npmjs.com/package/@air-jam/sdk"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackExternalLinkOpened("footer", "npm")}
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="NPM Package"
               >
@@ -66,6 +68,7 @@ export const LandingSiteFooter = () => {
                 href="https://github.com/vucinatim/air-jam"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackExternalLinkOpened("footer", "github")}
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="GitHub Repository"
               >
@@ -75,6 +78,7 @@ export const LandingSiteFooter = () => {
                 href={airJamGithubDiscussionsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackExternalLinkOpened("footer", "github")}
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="GitHub Discussions"
               >

@@ -3,6 +3,8 @@
 _Building an open AI-native framework for multiplayer games controlled by
 phones._
 
+<!-- Release-story source: ../archive/2026-08-26-organic-discovery-retrospective.md -->
+
 ---
 
 Every phone in your pocket has a gyroscope, a touchscreen, speakers, a

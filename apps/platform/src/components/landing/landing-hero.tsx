@@ -8,7 +8,11 @@ import { Navbar } from "@/components/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/copy-to-clipboard";
-import { trackWebsiteEvent } from "@/lib/website-analytics";
+import {
+  trackArcadeEntered,
+  trackQuickStartOpened,
+  trackScaffoldCommandCopied,
+} from "@/lib/product-telemetry-client";
 import { Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,12 +26,12 @@ function CopyCommand() {
 
   const copy = useCallback(async () => {
     const didCopy = await copyToClipboard(COMMAND);
-    trackWebsiteEvent("landing_copy_command_clicked");
     if (!didCopy) {
       setCopied(false);
       return;
     }
 
+    trackScaffoldCommandCopied("landing_hero");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, []);
@@ -128,7 +132,7 @@ export const LandingHero = () => {
             >
               <Link
                 href={hero.primaryCta.href}
-                onClick={() => trackWebsiteEvent("landing_primary_cta_clicked")}
+                onClick={() => trackQuickStartOpened("landing_hero")}
               >
                 {hero.primaryCta.label}
               </Link>
@@ -141,9 +145,7 @@ export const LandingHero = () => {
             >
               <Link
                 href={hero.secondaryCta.href}
-                onClick={() =>
-                  trackWebsiteEvent("landing_secondary_cta_clicked")
-                }
+                onClick={() => trackArcadeEntered("landing_hero")}
               >
                 {hero.secondaryCta.label}
               </Link>

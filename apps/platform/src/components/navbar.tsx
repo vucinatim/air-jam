@@ -6,6 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useDashboardAccess } from "@/hooks/use-dashboard-access";
+import { trackExternalLinkOpened } from "@/lib/product-telemetry-client";
 import {
   airJamGithubDiscussionsUrl,
   airJamGithubRepoUrl,
@@ -202,7 +203,10 @@ export const Navbar = memo(function Navbar() {
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={close}
+                    onClick={() => {
+                      trackExternalLinkOpened("header", "github");
+                      close();
+                    }}
                     className="text-muted-foreground hover:text-foreground hover:bg-muted/20 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
                   >
                     <Icon className="h-5 w-5 shrink-0" aria-hidden />
@@ -304,6 +308,7 @@ export const Navbar = memo(function Navbar() {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackExternalLinkOpened("header", "github")}
                   className="text-muted-foreground hover:text-foreground hover:bg-muted/20 rounded-md p-2 transition-colors"
                   aria-label={label}
                 >

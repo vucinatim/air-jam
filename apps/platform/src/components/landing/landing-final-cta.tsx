@@ -3,7 +3,10 @@
 import { landingCopy } from "@/components/landing/landing-content";
 import { Reveal } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
-import { trackWebsiteEvent } from "@/lib/website-analytics";
+import {
+  trackArcadeEntered,
+  trackQuickStartOpened,
+} from "@/lib/product-telemetry-client";
 import Link from "next/link";
 
 export const LandingFinalCta = () => {
@@ -28,9 +31,7 @@ export const LandingFinalCta = () => {
             >
               <Link
                 href={finalCta.primary.href}
-                onClick={() =>
-                  trackWebsiteEvent("landing_final_primary_cta_clicked")
-                }
+                onClick={() => trackQuickStartOpened("landing_final")}
               >
                 {finalCta.primary.label}
               </Link>
@@ -43,9 +44,7 @@ export const LandingFinalCta = () => {
             >
               <Link
                 href={finalCta.secondary.href}
-                onClick={() =>
-                  trackWebsiteEvent("landing_final_secondary_cta_clicked")
-                }
+                onClick={() => trackArcadeEntered("landing_final")}
               >
                 {finalCta.secondary.label}
               </Link>

@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-07-24
+Last updated: 2026-08-26
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -29,10 +29,12 @@ The v1 release plan is the governing product track:
 
 1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
 
-The completed Android Auto work is preserved in the
+The completed first-party telemetry work is preserved in the
+[2026-08-26 telemetry archive](./archive/2026-08-26-first-party-product-telemetry-plan.md),
+and the completed Android Auto work is preserved in the
 [2026-07-24 road-trip archive](./archive/2026-07-24-android-auto-road-trip-plan.md).
-Its durable Last Band Standing and platform improvements now feed into the v1
-release proof rather than a parallel product architecture.
+Their durable improvements now feed into the v1 release proof rather than
+competing as parallel product architectures.
 
 ## Planned Next
 
