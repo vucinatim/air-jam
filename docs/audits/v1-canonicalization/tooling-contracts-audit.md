@@ -508,3 +508,32 @@ external developer or agent actually receives.
    hosted manifests, while `create-airjam` owns the local update client and base
    pack. CAN-203 and CAN-204 require one cross-lane authority for schema,
    versioning, validation, and user-owned extension boundaries.
+
+## R3 Resolution Evidence
+
+Bundle `R3` resolved `CAN-200` through `CAN-205` and the tooling portion of
+`CAN-301` in commit `bf7d0630097638deec919f01f5bbc4e3e50a627d`.
+The findings above remain unchanged as historical audit evidence; this section
+records the implemented end state.
+
+1. `create-airjam` is bootstrap-only and no longer publishes an `airjam`
+   alias. The installed `@air-jam/cli` package is the sole project lifecycle
+   owner, while the server binary owns only server start and unified logs.
+2. CLI and MCP now share typed devtools services. Terminal agents have JSON
+   reads and mutations for MCP setup, AI-pack state, local status, and a
+   persistent semantic session lifecycle.
+3. The MCP package declares its consumer TypeScript loader and external ZIP
+   runtime dependencies. Its packed binary completes a real protocol
+   initialize and tool-list exchange without monorepo dependency leakage.
+4. Managed Air Jam references now live under `docs/airjam/`; bootstrap-created
+   `AGENTS.md`, `CLAUDE.md`, and skills become project-owned and survive later
+   managed-pack updates.
+5. Portable stdio declaration, Codex configuration, and Claude Desktop
+   configuration are separate inspectable profiles over the same MCP server
+   command.
+6. Every scaffoldable game is checked against its actual exported store and
+   semantic actions, and a packed Pong project proves the complete public
+   install boundary.
+7. `CAN-206` remains intentionally outside this bundle because durable release
+   job authority belongs to later platform/reliability work. `CAN-207` was
+   resolved in `R2` by deleting the unreachable visual MCP definitions.

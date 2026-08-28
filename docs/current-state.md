@@ -132,6 +132,16 @@ These are now baseline truths, not open architecture debates:
     8. the full operator lifecycle is available through the repo CLI with
        stable JSON reads, health inspection, and explicit preview/apply
        maintenance commands backed by the same domain services as the ops UI
+11. Gate 1 tooling and public-contract convergence is complete:
+    1. `create-airjam` is one-shot bootstrap only
+    2. installed project lifecycle has one owner in `@air-jam/cli`
+    3. the server binary owns only signal-server start and unified logs
+    4. CLI and MCP operate the same semantic sessions and typed services
+    5. managed framework references cannot overwrite project-owned instructions
+       or skills
+    6. all six scaffold games pass semantic store/action conformance
+    7. a packed clean-room project proves CLI discovery, MCP protocol startup,
+       semantic session control, typecheck, tests, and production build
 
 ## What Is Still Open
 
@@ -175,6 +185,12 @@ Gate 0 is closed with the product name, development-harness contract, supported
 client profiles, free-cloud allowances, cost ceilings, capacity target, and
 autonomy ceiling ratified on `2026-08-28`.
 
+Gate 1 bundles `R1`, `R2`, and `R3` are closed. They removed duplicate topology,
+obsolete visual/control paths, copied project CLI implementations, unsafe
+guidance ownership, and accidental public runtime exports. Platform authority
+convergence (`R4`) and final clean-checkout crystallization (`R5`) remain before
+Gate 1 closes.
+
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
 [2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md).
@@ -195,7 +211,8 @@ They should no longer compete with launch execution.
 Execute the roadmap in dependency order:
 
 1. keep the ratified Gate 0 contract frozen
-2. perform the Gate 1 audit and shared canonicalization work
+2. complete Gate 1 platform authority convergence and clean-checkout
+   crystallization
 3. after the shared boundaries stabilize, parallelize independent golden-path,
    reliability, operations, security, and public-surface work
 4. retain evidence for every gate and integrate through one central validation
@@ -206,7 +223,8 @@ Execute the roadmap in dependency order:
 ## Immediate Next Steps
 
 1. agents select and claim from the canonical readiness queue
-2. produce the Gate 1 canonical-path and duplication audit
+2. execute platform application-authority convergence without reopening the
+   now-stable public CLI/MCP/runtime boundaries
 3. continue the reliability inventory, golden-path specification, and threat
    model as dependency-ready work
 4. stabilize shared contracts through Gate 1 before broad parallel

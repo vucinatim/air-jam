@@ -1,7 +1,7 @@
 # Air Jam 1.0 Canonicalization Execution Set
 
 Last updated: 2026-08-28
-Status: implementation active; `R1` and `R2` complete
+Status: implementation active; `R1`, `R2`, and `R3` complete
 Implementation owner: `G1-05`
 Approval checkpoint: `G1-04`
 
@@ -81,7 +81,10 @@ git diff --numstat --find-renames=90% <base>..<head> -- \
   ':(exclude,glob)**/*.test.*' \
   ':(exclude,glob)**/tests/**' \
   ':(exclude,glob)**/dist/**' \
-  ':(exclude,glob)**/generated/**'
+  ':(exclude,glob)**/generated/**' \
+  ':(exclude,glob)**/template-assets/**' \
+  ':(exclude,glob)**/scaffold-templates/**' \
+  ':(exclude,glob)**/*.md'
 ```
 
 Recommended test measurement:
@@ -95,7 +98,8 @@ Recommended documentation and guidance measurement:
 
 ```bash
 git diff --numstat --find-renames=90% <base>..<head> -- \
-  docs content packages/cli/template-assets/managed \
+  docs content packages/create-airjam/template-assets/base \
+  packages/cli/template-assets/managed \
   packages/cli/template-assets/bootstrap \
   apps/platform/public/ai-pack AGENTS.md README.md
 ```
@@ -241,6 +245,39 @@ Acceptance:
 5. Codex and Claude profiles discover the same stdio server contract
 6. every scaffoldable game passes semantic contract conformance
 7. user-owned instructions survive managed guidance updates
+
+Completion evidence:
+
+1. commit: `bf7d0630097638deec919f01f5bbc4e3e50a627d`
+2. range: `4c6466d..bf7d063`
+3. production and operational source, excluding docs, tests, generated
+   templates, and binaries: `+4,755 / -5,735` (`-980` net)
+4. tests and contract guards: `+598 / -246` (`+352` net)
+5. documentation and guidance, with old and new ownership roots included for
+   rename detection: `+1,086 / -1,062` (`+24` net)
+6. generated scaffold archives: `6` binary artifacts, excluded from line
+   claims
+7. retained owners: `create-airjam` for one-shot bootstrap, `@air-jam/cli` for
+   installed project lifecycle, `@air-jam/server` for signal-server start and
+   logs, `@air-jam/mcp-server` for the portable MCP adapter, and
+   `@air-jam/sdk/arcade/runtime` for explicit platform-only raw composition
+8. removed surfaces include the `airjam` alias and ongoing lifecycle from the
+   bootstrap package, all server-owned project CLI commands, the duplicated
+   server project-runtime tree, duplicated environment validators, and raw
+   runtime components from the SDK root
+9. machine proof: stable JSON for local status, MCP setup, AI-pack operations,
+   and persistent semantic sessions; all six scaffold games pass real
+   store/action conformance
+10. packed clean-room proof: registry-isolated Pong scaffold installation,
+    CLI/MCP discovery, raw MCP initialize and tool listing, semantic session
+    open/read/close, typecheck, `22` tests, and production build
+11. full proof: frozen install, generated-artifact freshness, repo contracts,
+    CLI `50` tests, MCP `8` tests, devtools `46` tests, server `134` tests with
+    `2` explicit skips, SDK `260` tests, platform `202` tests, full workspace
+    build, and performance sanity passed
+12. clean-build correction: repo contract tests now establish SDK output before
+    parallel tests instead of rebuilding and cleaning shared `dist` state from
+    inside one test file
 
 ## Bundle R4: Platform Application Authority Convergence
 

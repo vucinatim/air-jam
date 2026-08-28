@@ -18,6 +18,42 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-28 - Gate 1 R3 Made The Public Harness Actually Agent-Operable
+
+- completed bundle `R3` at
+  `bf7d0630097638deec919f01f5bbc4e3e50a627d`
+- turned `create-airjam` back into a one-shot bootstrap package and created one
+  installed `@air-jam/cli` owner for ongoing project lifecycle
+- removed all project lifecycle commands and copied runtime implementations
+  from `@air-jam/server`; its binary now owns server start and unified logs only
+- added persistent JSON semantic sessions to the CLI over the same typed
+  devtools services used by MCP, including safe broker inspection and shutdown
+- separated portable MCP declaration from Codex and Claude Desktop profiles
+  without mutating global client configuration implicitly
+- moved managed framework references into `docs/airjam/` and made generated
+  root instructions and local skills project-owned after scaffolding
+- narrowed the SDK root to the intended framework API and isolated raw platform
+  composition under the explicit `@air-jam/sdk/arcade/runtime` leaf
+- added real semantic conformance for all six scaffoldable games
+- proved the packed public boundary from an isolated Pong scaffold: dependency
+  install, CLI and MCP discovery, raw MCP initialize/tool listing, semantic
+  session open/read/close, typecheck, `22` tests, and production build
+- found and fixed two failures that workspace-only checks had hidden:
+  - the published MCP ESM bundle had inlined a CommonJS ZIP dependency that
+    crashed on `require("fs")`
+  - one parallel repo test rebuilt and cleaned shared SDK output while another
+    test imported it
+- closed with frozen install, generated freshness, all focused package tests,
+  `134` server tests (`2` skipped), `260` SDK tests, `202` platform tests, full
+  workspace build, and performance sanity
+- recorded an implementation shape of `-980` net production/operational source
+  lines, `+352` net test/guard lines, and `+24` net documentation/guidance lines;
+  six generated scaffold archives remain outside line-count claims
+- removed `2.6 GB` of old reproducible local tarball-set cache after the disk
+  filled during the production build; no source, database, or user-authored
+  content was removed
+- published nothing and changed no production infrastructure
+
 ## 2026-08-28 - Gate 1 Canonicalization Removed Two Duplicate System Families
 
 - established exact baseline `18ca38957c19c7ee5d9e39aac2bb91f0393a8902`
