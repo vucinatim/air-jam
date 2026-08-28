@@ -4,4 +4,4 @@ export {
   loadRepoWorkspaceGames as loadRepoGames,
   toLocalReferenceControllerUrlEnvKey,
   toLocalReferenceUrlEnvKey,
-} from "../../../packages/devtools-core/runtime/repo-workspace.mjs";
+} from "../../../packages/devtools-core/runtime/repo-workspace-games.mjs";

@@ -12,7 +12,7 @@ import {
 import {
   defaultWorkspaceGameId,
   findRepoWorkspaceGame,
-} from "./repo-workspace.mjs";
+} from "./repo-workspace-games.mjs";
 import { waitForUrl } from "./url-readiness.mjs";
 import {
   createWorkspaceProcessGroup,
