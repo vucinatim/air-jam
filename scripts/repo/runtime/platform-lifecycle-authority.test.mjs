@@ -23,6 +23,30 @@ test("creator transports expose semantic lifecycle operations only", async () =>
   }
 });
 
+test("human and machine transports share actor-aware application services", async () => {
+  const [releaseRouter, machineRelease, mediaRouter, machineMedia] =
+    await Promise.all([
+      readRepoSource("apps/platform/src/server/api/routers/release.ts"),
+      readRepoSource("apps/platform/src/server/releases/machine-release.ts"),
+      readRepoSource("apps/platform/src/server/api/routers/game-media.ts"),
+      readRepoSource("apps/platform/src/server/games/machine-game-media.ts"),
+    ]);
+
+  for (const source of [releaseRouter, machineRelease]) {
+    assert.match(source, /release-application-service/u);
+    assert.doesNotMatch(source, /release-artifact-service/u);
+    assert.doesNotMatch(source, /release-status-service/u);
+    assert.doesNotMatch(source, /assert-owned-release/u);
+  }
+
+  for (const source of [mediaRouter, machineMedia]) {
+    assert.match(source, /game-media-application-service/u);
+    assert.match(source, /game-media-projection/u);
+    assert.doesNotMatch(source, /game-media-service["']/u);
+    assert.doesNotMatch(source, /assert-owned-game/u);
+  }
+});
+
 test("platform and server import one shared runtime database contract", async () => {
   const [platformSchema, serverDatabase, sharedContract] = await Promise.all([
     readRepoSource("apps/platform/src/db/schema.ts"),

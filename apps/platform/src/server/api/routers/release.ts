@@ -1,31 +1,23 @@
 import { db } from "@/db";
-import {
-  gameReleaseArtifacts,
-  gameReleaseChecks,
-  gameReleaseReports,
-  gameReleases,
-  games,
-} from "@/db/schema";
+import { gameReleaseReports } from "@/db/schema";
 import {
   gameReleaseStatusValues,
   releaseReportSourceSchema,
 } from "@/lib/releases/release-contract";
 import { MAX_RELEASE_ZIP_BYTES } from "@/lib/releases/release-policy";
-import { assertOwnedGame } from "@/server/games/assert-owned-game";
-import { assertOwnedRelease } from "@/server/releases/assert-owned-release";
-import { assertReleaseExists } from "@/server/releases/assert-release-exists";
 import { findPublicReleaseBySlugOrId } from "@/server/releases/public-release-record";
 import {
-  finalizeReleaseUpload,
-  requestReleaseUploadTarget,
-} from "@/server/releases/release-artifact-service";
-import { runReleaseModeration } from "@/server/releases/release-moderation-service";
-import {
-  archiveRelease,
-  publishRelease,
-  quarantineRelease,
-} from "@/server/releases/release-status-service";
-import { desc, inArray } from "drizzle-orm";
+  archiveOwnedRelease,
+  createOwnedDraftRelease,
+  finalizeOwnedReleaseUpload,
+  getOwnedRelease,
+  listOwnedGameReleases,
+  listReleasesForOperations,
+  moderateReleaseForOperations,
+  publishOwnedRelease,
+  quarantineReleaseForOperations,
+  requestOwnedReleaseUploadTarget,
+} from "@/server/releases/release-application-service";
 import { z } from "zod";
 import {
   RATE_LIMITS,
@@ -59,197 +51,59 @@ const reportPublicReleaseInput = z.object({
   reporterEmail: z.string().trim().email().max(320).optional(),
 });
 
+type OwnedReleaseDetails = Awaited<ReturnType<typeof getOwnedRelease>>;
+
+const toReleaseRecord = (details: OwnedReleaseDetails) => {
+  const { artifact, checks, game, owner, reports, ...release } = details;
+  return release;
+};
+
+const toCreatorReleaseRecord = (details: OwnedReleaseDetails) => {
+  const { game, owner, ...release } = details;
+  return release;
+};
+
 export const releaseRouter = createTRPCRouter({
   listByGame: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input, ctx }) => {
-      await assertOwnedGame(input.gameId, ctx.user.id);
-
-      const releases = await db.query.gameReleases.findMany({
-        where: (gameReleases, { eq }) => eq(gameReleases.gameId, input.gameId),
-        orderBy: (gameReleases, { desc }) => [desc(gameReleases.createdAt)],
+      const { releases } = await listOwnedGameReleases({
+        actor: { userId: ctx.user.id },
+        gameReference: { kind: "id", gameId: input.gameId },
       });
-
-      const releaseIds = releases.map((release) => release.id);
-      if (releaseIds.length === 0) {
-        return [];
-      }
-
-      const [artifacts, checks, reports] = await Promise.all([
-        db
-          .select()
-          .from(gameReleaseArtifacts)
-          .where(inArray(gameReleaseArtifacts.releaseId, releaseIds)),
-        db
-          .select()
-          .from(gameReleaseChecks)
-          .where(inArray(gameReleaseChecks.releaseId, releaseIds))
-          .orderBy(desc(gameReleaseChecks.createdAt)),
-        db
-          .select()
-          .from(gameReleaseReports)
-          .where(inArray(gameReleaseReports.releaseId, releaseIds))
-          .orderBy(desc(gameReleaseReports.createdAt)),
-      ]);
-
-      const artifactByReleaseId = new Map(
-        artifacts.map((artifact) => [artifact.releaseId, artifact]),
-      );
-      const checksByReleaseId = new Map<string, (typeof checks)[number][]>();
-      const reportsByReleaseId = new Map<string, (typeof reports)[number][]>();
-
-      for (const check of checks) {
-        const existingChecks = checksByReleaseId.get(check.releaseId) ?? [];
-        existingChecks.push(check);
-        checksByReleaseId.set(check.releaseId, existingChecks);
-      }
-
-      for (const report of reports) {
-        const existingReports = reportsByReleaseId.get(report.releaseId) ?? [];
-        existingReports.push(report);
-        reportsByReleaseId.set(report.releaseId, existingReports);
-      }
-
-      return releases.map((release) => ({
-        ...release,
-        artifact: artifactByReleaseId.get(release.id) ?? null,
-        checks: checksByReleaseId.get(release.id) ?? [],
-        reports: reportsByReleaseId.get(release.id) ?? [],
-      }));
+      return releases.map(toCreatorReleaseRecord);
     }),
 
   get: protectedProcedure
     .input(z.object({ releaseId: z.string() }))
     .query(async ({ input, ctx }) => {
-      return assertOwnedRelease(input.releaseId, ctx.user.id);
+      return getOwnedRelease({
+        actor: { userId: ctx.user.id },
+        releaseId: input.releaseId,
+      });
     }),
 
   createDraft: protectedProcedure
     .use(rateLimitMiddleware("release.createDraft", RATE_LIMITS.releaseCreate))
     .input(createDraftReleaseInput)
     .mutation(async ({ input, ctx }) => {
-      await assertOwnedGame(input.gameId, ctx.user.id);
-
-      const [release] = await db
-        .insert(gameReleases)
-        .values({
-          id: crypto.randomUUID(),
-          gameId: input.gameId,
-          sourceKind: "upload",
-          status: "draft",
-          versionLabel: input.versionLabel?.trim() || null,
-        })
-        .returning();
-
-      return release;
+      const release = await createOwnedDraftRelease({
+        actor: { userId: ctx.user.id },
+        gameReference: { kind: "id", gameId: input.gameId },
+        versionLabel: input.versionLabel,
+      });
+      return toReleaseRecord(release);
     }),
 
   listStatuses: protectedProcedure.query(async () => {
     return gameReleaseStatusValues;
   }),
 
-  listOps: opsProcedure.query(async () => {
-    const releases = await db.query.gameReleases.findMany({
-      where: (gameReleases, { notInArray }) =>
-        notInArray(gameReleases.status, ["draft"]),
-      orderBy: (gameReleases, { desc }) => [desc(gameReleases.createdAt)],
-      limit: 100,
-    });
-
-    const releaseIds = releases.map((release) => release.id);
-    if (releaseIds.length === 0) {
-      return [];
-    }
-
-    const [artifacts, checks, reports, releaseGames] = await Promise.all([
-      db
-        .select()
-        .from(gameReleaseArtifacts)
-        .where(inArray(gameReleaseArtifacts.releaseId, releaseIds)),
-      db
-        .select()
-        .from(gameReleaseChecks)
-        .where(inArray(gameReleaseChecks.releaseId, releaseIds))
-        .orderBy(desc(gameReleaseChecks.createdAt)),
-      db
-        .select()
-        .from(gameReleaseReports)
-        .where(inArray(gameReleaseReports.releaseId, releaseIds))
-        .orderBy(desc(gameReleaseReports.createdAt)),
-      db
-        .select({
-          id: games.id,
-          name: games.name,
-          slug: games.slug,
-          userId: games.userId,
-        })
-        .from(games)
-        .where(
-          inArray(
-            games.id,
-            releases.map((release) => release.gameId),
-          ),
-        ),
-    ]);
-
-    const ownerIds = Array.from(
-      new Set(releaseGames.map((game) => game.userId)),
-    );
-    const releaseOwners =
-      ownerIds.length === 0
-        ? []
-        : await db.query.users.findMany({
-            where: (users, { inArray }) => inArray(users.id, ownerIds),
-          });
-
-    const artifactByReleaseId = new Map(
-      artifacts.map((artifact) => [artifact.releaseId, artifact]),
-    );
-    const checksByReleaseId = new Map<string, (typeof checks)[number][]>();
-    const reportsByReleaseId = new Map<string, (typeof reports)[number][]>();
-    const gameById = new Map(releaseGames.map((game) => [game.id, game]));
-    const ownerById = new Map(
-      releaseOwners.map((owner) => [
-        owner.id,
-        {
-          id: owner.id,
-          name: owner.name,
-          email: owner.email,
-          role: owner.role,
-        },
-      ]),
-    );
-
-    for (const check of checks) {
-      const existingChecks = checksByReleaseId.get(check.releaseId) ?? [];
-      existingChecks.push(check);
-      checksByReleaseId.set(check.releaseId, existingChecks);
-    }
-
-    for (const report of reports) {
-      const existingReports = reportsByReleaseId.get(report.releaseId) ?? [];
-      existingReports.push(report);
-      reportsByReleaseId.set(report.releaseId, existingReports);
-    }
-
-    return releases.map((release) => {
-      const game = gameById.get(release.gameId);
-
-      return {
-        ...release,
-        game:
-          game === undefined
-            ? null
-            : {
-                ...game,
-                owner: ownerById.get(game.userId) ?? null,
-              },
-        artifact: artifactByReleaseId.get(release.id) ?? null,
-        checks: checksByReleaseId.get(release.id) ?? [],
-        reports: reportsByReleaseId.get(release.id) ?? [],
-      };
-    });
-  }),
+  listOps: opsProcedure.query(async ({ ctx }) =>
+    listReleasesForOperations({
+      actor: { userId: ctx.user.id, role: ctx.user.role },
+    }),
+  ),
 
   requestUploadTarget: protectedProcedure
     .use(
@@ -260,71 +114,60 @@ export const releaseRouter = createTRPCRouter({
     )
     .input(requestUploadTargetInput)
     .mutation(async ({ input, ctx }) => {
-      const release = await assertOwnedRelease(input.releaseId, ctx.user.id);
-
-      return requestReleaseUploadTarget({
-        release,
+      const result = await requestOwnedReleaseUploadTarget({
+        actor: { userId: ctx.user.id },
+        releaseId: input.releaseId,
         originalFilename: input.originalFilename,
         sizeBytes: input.sizeBytes,
       });
+      return { ...result, release: toReleaseRecord(result.release) };
     }),
 
   finalizeUpload: protectedProcedure
     .input(releaseStatusMutationInput)
     .mutation(async ({ input, ctx }) => {
-      const release = await assertOwnedRelease(input.releaseId, ctx.user.id);
-      await finalizeReleaseUpload({
-        release,
+      return finalizeOwnedReleaseUpload({
+        actor: { userId: ctx.user.id },
+        releaseId: input.releaseId,
       });
-
-      return assertOwnedRelease(input.releaseId, ctx.user.id);
     }),
 
   publish: protectedProcedure
     .input(releaseStatusMutationInput)
     .mutation(async ({ input, ctx }) => {
-      await assertOwnedRelease(input.releaseId, ctx.user.id);
-
-      return publishRelease({
+      const release = await publishOwnedRelease({
+        actor: { userId: ctx.user.id },
         releaseId: input.releaseId,
       });
+      return toReleaseRecord(release);
     }),
 
   archive: protectedProcedure
     .input(releaseStatusMutationInput)
     .mutation(async ({ input, ctx }) => {
-      const release = await assertOwnedRelease(input.releaseId, ctx.user.id);
-      if (release.status === "archived") {
-        return release;
-      }
-
-      return archiveRelease({
+      const release = await archiveOwnedRelease({
+        actor: { userId: ctx.user.id },
         releaseId: input.releaseId,
       });
+      return toReleaseRecord(release);
     }),
 
   quarantine: opsProcedure
     .input(releaseStatusMutationInput)
-    .mutation(async ({ input }) => {
-      const release = await assertReleaseExists(input.releaseId);
-      if (release.status === "quarantined") {
-        return release;
-      }
-
-      return quarantineRelease({
+    .mutation(async ({ input, ctx }) => {
+      return quarantineReleaseForOperations({
+        actor: { userId: ctx.user.id, role: ctx.user.role },
         releaseId: input.releaseId,
       });
     }),
 
   runModeration: opsProcedure
     .input(releaseStatusMutationInput)
-    .mutation(async ({ input }) => {
-      const release = await assertReleaseExists(input.releaseId);
-      await runReleaseModeration({
-        releaseId: release.id,
+    .mutation(async ({ input, ctx }) => {
+      return moderateReleaseForOperations({
+        actor: { userId: ctx.user.id, role: ctx.user.role },
+        releaseId: input.releaseId,
       });
-
-      return assertReleaseExists(input.releaseId);
     }),
 
   reportPublic: publicProcedure
