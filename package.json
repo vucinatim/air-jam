@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "repo": "node --env-file-if-exists=.env.local scripts/repo/cli.mjs",
+    "dev": "node scripts/repo/cli.mjs workspace arcade:dev",
     "standalone:dev": "node scripts/repo/cli.mjs workspace standalone:dev",
     "arcade:dev": "node scripts/repo/cli.mjs workspace arcade:dev",
     "arcade:test": "node scripts/repo/cli.mjs workspace arcade:test",

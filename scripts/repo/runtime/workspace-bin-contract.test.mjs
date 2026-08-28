@@ -14,6 +14,34 @@ const packagesToCheck = [
   "packages/server/package.json",
   "packages/mcp-server/package.json",
 ];
+
+test("the repo has one discoverable default development front door", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+  );
+  assert.equal(
+    packageJson.scripts.dev,
+    "node scripts/repo/cli.mjs workspace arcade:dev",
+  );
+
+  const result = spawnSync("pnpm", ["run", "dev", "--", "--help"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      NO_COLOR: "1",
+      FORCE_COLOR: "0",
+    },
+  });
+
+  assert.equal(
+    result.status,
+    0,
+    `pnpm run dev -- --help failed: ${result.stderr || result.stdout}`,
+  );
+  assert.match(result.stdout, /Start live Arcade workspace dev/u);
+});
+
 test("workspace package bin entrypoints exist before build", () => {
   for (const relativePackageJsonPath of packagesToCheck) {
     const packageJsonPath = path.join(repoRoot, relativePackageJsonPath);
