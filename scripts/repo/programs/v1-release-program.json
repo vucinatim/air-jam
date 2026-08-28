@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-28T14:14:35.667Z",
+  "updatedAt": "2026-08-28T18:14:32.308Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -288,7 +288,7 @@
       "priority": 40,
       "title": "Implement the canonicalization and purge obsolete paths",
       "authority": "autonomous",
-      "status": "in_progress",
+      "status": "complete",
       "dependsOn": [
         "G1-04"
       ],
@@ -300,8 +300,17 @@
         "focused tests and removal proof for every accepted audit item"
       ],
       "owner": "/root",
-      "note": "Execute approved canonicalization bundles from an exact committed baseline",
-      "updatedAt": "2026-08-28T14:14:35.667Z"
+      "note": "R1-R4 canonicalization implementation complete; R5 clean-checkout proof moves to G1-06",
+      "updatedAt": "2026-08-28T18:14:32.308Z",
+      "evidence": [
+        "artifact:git-range:f7eff9d..fb59754",
+        "document:docs/audits/v1-canonicalization/canonicalization-execution-set.md#bundle-r4-platform-application-authority-convergence",
+        "command:pnpm --filter platform typecheck",
+        "command:pnpm --filter platform lint",
+        "command:pnpm --filter platform test",
+        "command:pnpm test:repo-contracts"
+      ],
+      "completedAt": "2026-08-28T18:14:32.308Z"
     },
     {
       "id": "G1-06",
