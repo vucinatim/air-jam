@@ -22,3 +22,34 @@ test("creator transports expose semantic lifecycle operations only", async () =>
     assert.match(mediaRouter, new RegExp(`\\b${operation}\\s*:`));
   }
 });
+
+test("platform and server import one shared runtime database contract", async () => {
+  const [platformSchema, serverDatabase, sharedContract] = await Promise.all([
+    readRepoSource("apps/platform/src/db/schema.ts"),
+    readRepoSource("packages/server/src/db.ts"),
+    readRepoSource("packages/database-contract/src/index.ts"),
+  ]);
+
+  for (const source of [platformSchema, serverDatabase]) {
+    assert.match(source, /@air-jam\/database-contract/u);
+    assert.doesNotMatch(source, /pgTable\("runtime_usage_/u);
+  }
+
+  for (const tableName of [
+    "app_ids",
+    "runtime_usage_sessions",
+    "runtime_usage_events",
+    "runtime_usage_controller_segments",
+    "runtime_usage_game_segments",
+    "runtime_usage_eligible_segments",
+    "runtime_usage_game_session_metrics",
+    "runtime_usage_daily_game_metrics",
+  ]) {
+    assert.equal(
+      sharedContract.match(new RegExp(`pgTable\\(\\s*"${tableName}"`, "gu"))
+        ?.length,
+      1,
+      `${tableName} must have one shared declaration`,
+    );
+  }
+});

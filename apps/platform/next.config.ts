@@ -122,7 +122,7 @@ const nextConfig: NextConfig = {
     "/": ["./drizzle/**/*"],
   },
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
-  transpilePackages: ["@air-jam/sdk"],
+  transpilePackages: ["@air-jam/database-contract", "@air-jam/sdk"],
   env: {
     // Publish the resolved public app URL as one canonical client-visible identity.
     NEXT_PUBLIC_APP_URL: resolvedAppUrl,
