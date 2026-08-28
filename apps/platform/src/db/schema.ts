@@ -28,6 +28,7 @@ import type { PlatformMachineDeviceGrantStatus } from "@air-jam/sdk/platform-mac
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   foreignKey,
   index,
@@ -35,6 +36,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -134,9 +136,6 @@ export const games = pgTable(
     slug: text("slug").unique(), // For pretty URLs
     description: text("description"),
     url: text("url"), // Optional creator-only preview URL used for local/external iframe testing
-    thumbnailMediaAssetId: text("thumbnail_media_asset_id"),
-    coverMediaAssetId: text("cover_media_asset_id"),
-    previewVideoMediaAssetId: text("preview_video_media_asset_id"),
     arcadeVisibility: text("arcade_visibility")
       .$type<ArcadeVisibility>()
       .default("hidden")
@@ -302,6 +301,45 @@ export const gameMediaAssets = pgTable(
     kindIdx: index("game_media_assets_kind_idx").on(table.kind),
     statusIdx: index("game_media_assets_status_idx").on(table.status),
     createdAtIdx: index("game_media_assets_created_at_idx").on(table.createdAt),
+    assignmentTargetIdx: uniqueIndex(
+      "game_media_assets_assignment_target_idx",
+    ).on(table.id, table.gameId, table.kind, table.status),
+  }),
+);
+
+export const gameMediaAssignments = pgTable(
+  "game_media_assignments",
+  {
+    gameId: text("game_id")
+      .references(() => games.id, { onDelete: "cascade" })
+      .notNull(),
+    kind: text("kind").$type<GameMediaKind>().notNull(),
+    assetId: text("asset_id").notNull(),
+    assetStatus: text("asset_status")
+      .$type<GameMediaStatus>()
+      .default("ready")
+      .notNull(),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    primaryKey: primaryKey({ columns: [table.gameId, table.kind] }),
+    assetIdx: uniqueIndex("game_media_assignments_asset_id_idx").on(
+      table.assetId,
+    ),
+    readyAssetCheck: check(
+      "game_media_assignments_ready_asset_check",
+      sql`${table.assetStatus} = 'ready'`,
+    ),
+    assetIntegrity: foreignKey({
+      name: "game_media_assignments_asset_integrity_fk",
+      columns: [table.assetId, table.gameId, table.kind, table.assetStatus],
+      foreignColumns: [
+        gameMediaAssets.id,
+        gameMediaAssets.gameId,
+        gameMediaAssets.kind,
+        gameMediaAssets.status,
+      ],
+    }).onDelete("cascade"),
   }),
 );
 

@@ -1,12 +1,13 @@
-import { db } from "@/db";
 import { gameMediaKindSchema } from "@/lib/games/game-media-contract";
 import { MAX_GAME_MEDIA_BYTES } from "@/lib/games/game-media-policy";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
+import { getActiveGameMediaAssetId } from "@/server/media/game-media-assignments";
 import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
 import {
   archiveGameMediaAsset,
   assignGameMediaAsset,
   finalizeGameMediaUpload,
+  inspectGameMedia,
   requestGameMediaUploadTarget,
 } from "@/server/media/game-media-service";
 import { z } from "zod";
@@ -34,54 +35,21 @@ const mediaAssetMutationInput = z.object({
   assetId: z.string(),
 });
 
-const getActiveAssetIdByKind = ({
-  game,
-  kind,
-}: {
-  game: {
-    thumbnailMediaAssetId: string | null;
-    coverMediaAssetId: string | null;
-    previewVideoMediaAssetId: string | null;
-  };
-  kind: "thumbnail" | "cover" | "preview_video";
-}): string | null => {
-  switch (kind) {
-    case "thumbnail":
-      return game.thumbnailMediaAssetId;
-    case "cover":
-      return game.coverMediaAssetId;
-    case "preview_video":
-      return game.previewVideoMediaAssetId;
-  }
-};
-
 export const gameMediaRouter = createTRPCRouter({
   listByGame: protectedProcedure
     .input(z.object({ gameId: z.string() }))
     .query(async ({ input, ctx }) => {
-      const game = await assertOwnedGame(input.gameId, ctx.user.id);
-      const assets = await db.query.gameMediaAssets.findMany({
-        where: (table, { eq }) => eq(table.gameId, input.gameId),
-        orderBy: (table, { desc }) => [desc(table.createdAt)],
+      await assertOwnedGame(input.gameId, ctx.user.id);
+      const { active, assets } = await inspectGameMedia({
+        gameId: input.gameId,
       });
 
       return {
-        active: {
-          thumbnailMediaAssetId: game.thumbnailMediaAssetId,
-          coverMediaAssetId: game.coverMediaAssetId,
-          previewVideoMediaAssetId: game.previewVideoMediaAssetId,
-        },
+        active,
         assets: assets.map((asset) => ({
           ...asset,
-          activeAssetId: getActiveAssetIdByKind({
-            game,
-            kind: asset.kind,
-          }),
-          isActive:
-            getActiveAssetIdByKind({
-              game,
-              kind: asset.kind,
-            }) === asset.id,
+          activeAssetId: getActiveGameMediaAssetId(active, asset.kind),
+          isActive: getActiveGameMediaAssetId(active, asset.kind) === asset.id,
           publicUrl: buildManagedGameMediaUrl({
             gameId: input.gameId,
             assetId: asset.status === "ready" ? asset.id : null,

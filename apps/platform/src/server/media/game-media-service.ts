@@ -1,13 +1,17 @@
 import { db } from "@/db";
-import { gameMediaAssets, games } from "@/db/schema";
+import { gameMediaAssets, gameMediaAssignments } from "@/db/schema";
 import type { GameMediaKind } from "@/lib/games/game-media-contract";
 import {
   ALLOWED_GAME_MEDIA_CONTENT_TYPES,
   ALLOWED_GAME_MEDIA_FILENAME_EXTENSIONS,
   MAX_GAME_MEDIA_BYTES,
 } from "@/lib/games/game-media-policy";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
+import {
+  getActiveGameMediaAssetId,
+  loadGameMediaActive,
+} from "./game-media-assignments";
 import { getGameMediaStorage } from "./game-media-storage";
 import { buildGameMediaStorageKeys } from "./game-media-storage-keys";
 
@@ -62,22 +66,6 @@ const assertValidMediaContentType = ({
   }
 
   return normalizedContentType;
-};
-
-const getGameMediaSlotColumn = (
-  kind: GameMediaKind,
-):
-  | "thumbnailMediaAssetId"
-  | "coverMediaAssetId"
-  | "previewVideoMediaAssetId" => {
-  switch (kind) {
-    case "thumbnail":
-      return "thumbnailMediaAssetId";
-    case "cover":
-      return "coverMediaAssetId";
-    case "preview_video":
-      return "previewVideoMediaAssetId";
-  }
 };
 
 export const requestGameMediaUploadTarget = async ({
@@ -201,8 +189,6 @@ export const finalizeGameMediaUpload = async ({
 
   const buffer = await storage.readObject(asset.storageKey);
   const checksum = createHash("sha256").update(buffer).digest("hex");
-  const slotColumn = getGameMediaSlotColumn(asset.kind);
-
   return db.transaction(async (tx) => {
     const [updatedAsset] = await tx
       .update(gameMediaAssets)
@@ -217,75 +203,111 @@ export const finalizeGameMediaUpload = async ({
       .returning();
 
     await tx
-      .update(games)
-      .set({
-        [slotColumn]: asset.id,
-        updatedAt: new Date(),
+      .insert(gameMediaAssignments)
+      .values({
+        gameId,
+        kind: asset.kind,
+        assetId: asset.id,
+        assetStatus: "ready",
       })
-      .where(eq(games.id, gameId));
+      .onConflictDoUpdate({
+        target: [gameMediaAssignments.gameId, gameMediaAssignments.kind],
+        set: {
+          assetId: asset.id,
+          assetStatus: "ready",
+          assignedAt: new Date(),
+        },
+      });
 
     return updatedAsset;
   });
 };
 
-export const assignGameMediaAsset = async ({
+export const assignGameMediaAssetWithDatabase = async ({
+  database,
   gameId,
   assetId,
 }: {
+  database: typeof db;
   gameId: string;
   assetId: string;
 }) => {
-  const asset = await db.query.gameMediaAssets.findFirst({
-    where: (table, { and, eq }) =>
-      and(eq(table.id, assetId), eq(table.gameId, gameId)),
+  return database.transaction(async (tx) => {
+    const asset = await tx.query.gameMediaAssets.findFirst({
+      where: (table, { and, eq }) =>
+        and(eq(table.id, assetId), eq(table.gameId, gameId)),
+    });
+
+    if (!asset) {
+      throw new Error("Media asset not found.");
+    }
+
+    if (asset.status !== "ready") {
+      throw new Error("Only ready media assets can be assigned.");
+    }
+
+    await tx
+      .insert(gameMediaAssignments)
+      .values({
+        gameId,
+        kind: asset.kind,
+        assetId: asset.id,
+        assetStatus: "ready",
+      })
+      .onConflictDoUpdate({
+        target: [gameMediaAssignments.gameId, gameMediaAssignments.kind],
+        set: {
+          assetId: asset.id,
+          assetStatus: "ready",
+          assignedAt: new Date(),
+        },
+      });
+
+    return asset;
   });
-
-  if (!asset) {
-    throw new Error("Media asset not found.");
-  }
-
-  if (asset.status !== "ready") {
-    throw new Error("Only ready media assets can be assigned.");
-  }
-
-  const slotColumn = getGameMediaSlotColumn(asset.kind);
-  await db
-    .update(games)
-    .set({
-      [slotColumn]: asset.id,
-      updatedAt: new Date(),
-    })
-    .where(eq(games.id, gameId));
-
-  return asset;
 };
 
-export const archiveGameMediaAsset = async ({
+export const assignGameMediaAsset = ({
   gameId,
   assetId,
 }: {
   gameId: string;
   assetId: string;
+}) => assignGameMediaAssetWithDatabase({ database: db, gameId, assetId });
+
+export const archiveGameMediaAssetWithDatabase = async ({
+  database,
+  gameId,
+  assetId,
+}: {
+  database: typeof db;
+  gameId: string;
+  assetId: string;
 }) => {
-  const asset = await db.query.gameMediaAssets.findFirst({
-    where: (table, { and, eq }) =>
-      and(eq(table.id, assetId), eq(table.gameId, gameId)),
-  });
+  return database.transaction(async (tx) => {
+    const asset = await tx.query.gameMediaAssets.findFirst({
+      where: (table, { and, eq }) =>
+        and(eq(table.id, assetId), eq(table.gameId, gameId)),
+    });
 
-  if (!asset) {
-    throw new Error("Media asset not found.");
-  }
+    if (!asset) {
+      throw new Error("Media asset not found.");
+    }
 
-  if (asset.status === "archived") {
-    return asset;
-  }
+    if (asset.status === "archived") {
+      return asset;
+    }
 
-  const slotColumn = getGameMediaSlotColumn(asset.kind);
-  const game = await db.query.games.findFirst({
-    where: (table, { eq }) => eq(table.id, gameId),
-  });
+    await tx
+      .delete(gameMediaAssignments)
+      .where(
+        and(
+          eq(gameMediaAssignments.gameId, gameId),
+          eq(gameMediaAssignments.kind, asset.kind),
+          eq(gameMediaAssignments.assetId, asset.id),
+        ),
+      );
 
-  return db.transaction(async (tx) => {
     const [updatedAsset] = await tx
       .update(gameMediaAssets)
       .set({
@@ -295,19 +317,17 @@ export const archiveGameMediaAsset = async ({
       .where(eq(gameMediaAssets.id, asset.id))
       .returning();
 
-    if (game?.[slotColumn] === asset.id) {
-      await tx
-        .update(games)
-        .set({
-          [slotColumn]: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(games.id, gameId));
-    }
-
     return updatedAsset;
   });
 };
+
+export const archiveGameMediaAsset = ({
+  gameId,
+  assetId,
+}: {
+  gameId: string;
+  assetId: string;
+}) => archiveGameMediaAssetWithDatabase({ database: db, gameId, assetId });
 
 export const getGameMediaAssetForKind = async ({
   gameId,
@@ -316,12 +336,8 @@ export const getGameMediaAssetForKind = async ({
   gameId: string;
   kind: GameMediaKind;
 }) => {
-  const slotColumn = getGameMediaSlotColumn(kind);
-  const game = await db.query.games.findFirst({
-    where: (table, { eq }) => eq(table.id, gameId),
-  });
-
-  const assetId = game?.[slotColumn];
+  const active = await loadGameMediaActive({ gameId });
+  const assetId = getActiveGameMediaAssetId(active, kind);
   if (!assetId) {
     return null;
   }
@@ -335,4 +351,16 @@ export const getGameMediaAssetForKind = async ({
         eq(table.status, "ready"),
       ),
   });
+};
+
+export const inspectGameMedia = async ({ gameId }: { gameId: string }) => {
+  const [active, assets] = await Promise.all([
+    loadGameMediaActive({ gameId }),
+    db.query.gameMediaAssets.findMany({
+      where: (table, { eq }) => eq(table.gameId, gameId),
+      orderBy: (table, { desc }) => [desc(table.createdAt)],
+    }),
+  ]);
+
+  return { active, assets };
 };

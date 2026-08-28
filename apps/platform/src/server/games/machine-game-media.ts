@@ -8,17 +8,20 @@ import {
   assertOwnedGameBySlugOrIdForMachine,
   serializeOwnedGameForMachine,
 } from "@/server/games/machine-game";
+import {
+  getActiveGameMediaAssetId,
+  loadGameMediaActive,
+  type GameMediaActiveProjection,
+} from "@/server/media/game-media-assignments";
 import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
 import {
   archiveGameMediaAsset,
   assignGameMediaAsset,
   finalizeGameMediaUpload,
+  inspectGameMedia,
   requestGameMediaUploadTarget,
 } from "@/server/media/game-media-service";
-import type {
-  PlatformMachineOwnedGameMediaActive,
-  PlatformMachineOwnedGameMediaAsset,
-} from "@air-jam/sdk/platform-machine";
+import type { PlatformMachineOwnedGameMediaAsset } from "@air-jam/sdk/platform-machine";
 import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
 
 const toMachineNotFoundError = (message: string) =>
@@ -28,57 +31,14 @@ const toMachineNotFoundError = (message: string) =>
     status: 404,
   });
 
-const getActiveAssetIdByKind = ({
-  game,
-  kind,
-}: {
-  game: {
-    thumbnailMediaAssetId: string | null;
-    coverMediaAssetId: string | null;
-    previewVideoMediaAssetId: string | null;
-  };
-  kind: GameMediaKind;
-}): string | null => {
-  switch (kind) {
-    case "thumbnail":
-      return game.thumbnailMediaAssetId;
-    case "cover":
-      return game.coverMediaAssetId;
-    case "preview_video":
-      return game.previewVideoMediaAssetId;
-  }
-};
-
-const serializeGameMediaActive = ({
-  thumbnailMediaAssetId,
-  coverMediaAssetId,
-  previewVideoMediaAssetId,
-}: {
-  thumbnailMediaAssetId: string | null;
-  coverMediaAssetId: string | null;
-  previewVideoMediaAssetId: string | null;
-}): PlatformMachineOwnedGameMediaActive => ({
-  thumbnailMediaAssetId,
-  coverMediaAssetId,
-  previewVideoMediaAssetId,
-});
-
 const serializeGameMediaAsset = ({
   asset,
-  game,
+  active,
 }: {
   asset: typeof gameMediaAssets.$inferSelect;
-  game: {
-    id: string;
-    thumbnailMediaAssetId: string | null;
-    coverMediaAssetId: string | null;
-    previewVideoMediaAssetId: string | null;
-  };
+  active: GameMediaActiveProjection;
 }): PlatformMachineOwnedGameMediaAsset => {
-  const activeAssetId = getActiveAssetIdByKind({
-    game,
-    kind: asset.kind,
-  });
+  const activeAssetId = getActiveGameMediaAssetId(active, asset.kind);
 
   return {
     id: asset.id,
@@ -112,15 +72,12 @@ export const inspectOwnedGameMediaForMachine = async ({
   userId: string;
 }) => {
   const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-  const assets = await db.query.gameMediaAssets.findMany({
-    where: (table, { eq }) => eq(table.gameId, game.id),
-    orderBy: (table, { desc }) => [desc(table.createdAt)],
-  });
+  const { active, assets } = await inspectGameMedia({ gameId: game.id });
 
   return {
     game: serializeOwnedGameForMachine(game),
-    active: serializeGameMediaActive(game),
-    assets: assets.map((asset) => serializeGameMediaAsset({ asset, game })),
+    active,
+    assets: assets.map((asset) => serializeGameMediaAsset({ asset, active })),
   };
 };
 
@@ -147,10 +104,11 @@ export const requestOwnedGameMediaUploadTargetForMachine = async ({
     contentType,
     sizeBytes,
   });
+  const active = await loadGameMediaActive({ gameId: game.id });
 
   return {
     game: serializeOwnedGameForMachine(game),
-    asset: serializeGameMediaAsset({ asset, game }),
+    asset: serializeGameMediaAsset({ asset, active }),
     upload,
   };
 };
@@ -194,11 +152,12 @@ const serializeMutatedOwnedGameMediaResult = async ({
     userId,
     assetId,
   });
+  const active = await loadGameMediaActive({ gameId: game.id });
 
   return {
     game: serializeOwnedGameForMachine(game),
-    active: serializeGameMediaActive(game),
-    asset: serializeGameMediaAsset({ asset, game }),
+    active,
+    asset: serializeGameMediaAsset({ asset, active }),
   };
 };
 

@@ -78,3 +78,37 @@ test("live release authority is serialized and database-enforced", async () => {
   assert.match(releaseService, /release\.status === "live"/u);
   assert.match(publicRecord, /desc\(gameReleases\.publishedAt\)/u);
 });
+
+test("active media is a normalized database-enforced assignment", async () => {
+  const [platformSchema, migration, mediaService] = await Promise.all([
+    readRepoSource("apps/platform/src/db/schema.ts"),
+    readRepoSource("apps/platform/drizzle/0022_media-assignment-integrity.sql"),
+    readRepoSource("apps/platform/src/server/media/game-media-service.ts"),
+  ]);
+
+  assert.match(platformSchema, /gameMediaAssignments = pgTable/u);
+  assert.match(platformSchema, /game_media_assignments_asset_integrity_fk/u);
+  assert.match(platformSchema, /game_media_assignments_ready_asset_check/u);
+  assert.doesNotMatch(platformSchema, /thumbnail_media_asset_id/u);
+  assert.doesNotMatch(platformSchema, /cover_media_asset_id/u);
+  assert.doesNotMatch(platformSchema, /preview_video_media_asset_id/u);
+  assert.doesNotMatch(mediaService, /getGameMediaSlotColumn/u);
+
+  const targetIndex = migration.indexOf(
+    'CREATE UNIQUE INDEX "game_media_assets_assignment_target_idx"',
+  );
+  const integrityConstraint = migration.indexOf(
+    'ADD CONSTRAINT "game_media_assignments_asset_integrity_fk"',
+  );
+  const dataMigration = migration.indexOf(
+    'INSERT INTO "game_media_assignments"',
+  );
+  const oldColumnRemoval = migration.indexOf(
+    'DROP COLUMN "thumbnail_media_asset_id"',
+  );
+
+  assert.ok(targetIndex >= 0);
+  assert.ok(integrityConstraint > targetIndex);
+  assert.ok(dataMigration > integrityConstraint);
+  assert.ok(oldColumnRemoval > dataMigration);
+});
