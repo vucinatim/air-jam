@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-28T18:14:56.465Z",
+  "updatedAt": "2026-08-28T18:54:40.610Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -319,7 +319,7 @@
       "priority": 50,
       "title": "Close canonicalization with clean-checkout quality and generated-artifact gates",
       "authority": "autonomous",
-      "status": "in_progress",
+      "status": "complete",
       "dependsOn": [
         "G1-05"
       ],
@@ -331,8 +331,14 @@
         "canonical, typecheck, lint, test, build, scaffold, and release-doctor results"
       ],
       "owner": "/root",
-      "note": "Run R5 clean-checkout crystallization from R4 head 18af702",
-      "updatedAt": "2026-08-28T18:14:56.465Z"
+      "note": "Closed Gate 1 from exact clean implementation head with full release, browser, scaffold, generated, and Git-delta evidence",
+      "updatedAt": "2026-08-28T18:54:40.610Z",
+      "evidence": [
+        "document:docs/audits/v1-canonicalization/canonicalization-execution-set.md",
+        "command:clean-checkout-release-matrix@da835f6",
+        "artifact:git:da835f650d929c5873bf55e8e5db2e8df5c74f81"
+      ],
+      "completedAt": "2026-08-28T18:54:40.610Z"
     },
     {
       "id": "G2-01",
