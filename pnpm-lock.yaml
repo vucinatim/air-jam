@@ -11,6 +11,9 @@ importers:
       '@air-jam/harness':
         specifier: workspace:^
         version: link:packages/harness
+      '@air-jam/sdk':
+        specifier: workspace:^
+        version: link:packages/sdk
       '@eslint/js':
         specifier: ^9.39.1
         version: 9.39.1
@@ -59,6 +62,9 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
+      tsx:
+        specifier: ^4.20.6
+        version: 4.20.6
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

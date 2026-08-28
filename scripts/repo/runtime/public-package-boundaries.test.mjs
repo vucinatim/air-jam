@@ -18,7 +18,7 @@ test("public package ownership has one canonical project CLI", () => {
   const createAirJam = readJson("packages/create-airjam/package.json");
   const server = readJson("packages/server/package.json");
 
-  assert.deepEqual(cli.bin, { airjam: "./dist/index.js" });
+  assert.deepEqual(cli.bin, { airjam: "./bin/airjam.mjs" });
   assert.deepEqual(Object.keys(cli.exports).sort(), [
     "./scaffold",
     "./vite-config",

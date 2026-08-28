@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@air-jam/harness": "workspace:^",
+    "@air-jam/sdk": "workspace:^",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",
     "@resvg/resvg-js": "^2.6.2",
@@ -59,6 +60,7 @@
     "prettier-plugin-organize-imports": "^4.3.0",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "remark-gfm": "^4.0.1",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "wrangler": "^4.80.0"
