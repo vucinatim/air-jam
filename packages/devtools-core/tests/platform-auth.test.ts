@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const originalFetch = globalThis.fetch;
 const tempRoots: string[] = [];
 
-const createTempHome = async () => {
+const createTempStateDirectory = async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-platform-auth-"));
   tempRoots.push(root);
   return root;
@@ -27,7 +27,7 @@ afterEach(async () => {
 
 describe("platform auth client", () => {
   it("normalizes platform base urls", async () => {
-    const { resolvePlatformBaseUrl } = await import("./platform-auth.js");
+    const { resolvePlatformBaseUrl } = await import("../src/platform-auth.js");
 
     expect(resolvePlatformBaseUrl("airjam.example.com")).toBe(
       "https://airjam.example.com",
@@ -38,8 +38,8 @@ describe("platform auth client", () => {
   });
 
   it("runs the device login flow and stores the resulting session", async () => {
-    const tempHome = await createTempHome();
-    vi.stubEnv("HOME", tempHome);
+    const stateDirectory = await createTempStateDirectory();
+    vi.stubEnv("AIRJAM_STATE_DIR", stateDirectory);
 
     const responses = [
       new Response(
@@ -50,7 +50,7 @@ describe("platform auth client", () => {
           verificationUriComplete:
             "https://airjam.example.com/dashboard/cli-auth?userCode=ABCD-EFGH",
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
-          intervalSeconds: 0,
+          intervalSeconds: 1,
         }),
         { status: 200 },
       ),
@@ -91,7 +91,7 @@ describe("platform auth client", () => {
     }) as typeof fetch;
 
     const { loginPlatformWithDeviceFlow, readStoredPlatformMachineSession } =
-      await import("./platform-auth.js");
+      await import("../src/platform-auth.js");
 
     const prompts: string[] = [];
     const result = await loginPlatformWithDeviceFlow({
@@ -109,5 +109,18 @@ describe("platform auth client", () => {
     expect(stored).not.toBeNull();
     expect(stored?.platformBaseUrl).toBe("https://airjam.example.com");
     expect(stored?.session.token).toBe("token_1");
+  });
+
+  it("isolates platform credentials in the configured Air Jam state directory", async () => {
+    const stateDirectory = await createTempStateDirectory();
+    vi.stubEnv("AIRJAM_STATE_DIR", stateDirectory);
+
+    const { getPlatformAuthStoragePath, resolveAirJamStateDirectory } =
+      await import("../src/platform-auth.js");
+
+    expect(resolveAirJamStateDirectory()).toBe(stateDirectory);
+    expect(getPlatformAuthStoragePath()).toBe(
+      path.join(stateDirectory, "auth", "platform-session.json"),
+    );
   });
 });

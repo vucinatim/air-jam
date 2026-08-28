@@ -233,6 +233,7 @@ pnpm --silent run repo -- golden-path --help
 pnpm --silent run repo -- golden-path spec --json
 pnpm --silent run repo -- golden-path validate --json
 pnpm --silent run repo -- golden-path bootstrap --json
+pnpm --silent run repo -- golden-path run-primary --staging-url <url> --json
 ```
 
 `spec` returns the canonical machine scenario and `validate` rejects malformed
@@ -241,10 +242,13 @@ client profiles. `bootstrap` builds the exact public package set, publishes it
 to a disposable loopback registry with Air Jam upstream fallback disabled,
 installs a clean scaffold through registry specs, proves CLI/MCP discovery and
 the managed dev lifecycle, runs quality gates, and removes its run-owned state.
-Gate `G2-03` may extend this same owner with `run`, `status`, `verify`, or
-`clean` operations. It must not create a parallel tracker or duplicate
-lifecycle business logic already owned by the public Air Jam CLI/MCP/domain
-services.
+`run-primary` launches a fresh ephemeral Codex process in the isolated
+workspace, streams a normalized transcript, injects only the declared fault
+after observed passing quality commands, and emits the primary-lane verifier
+result. It retains failed and blocked runs rather than converting them into a
+success claim. Future `status`, `verify`, or `clean` operations must remain on
+this same owner and must not duplicate lifecycle business logic already owned
+by the public Air Jam CLI/MCP/domain services.
 
 ## Gate Boundaries And Acceptance
 

@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { runGoldenPathBootstrap } from "../lib/golden-path-bootstrap.mjs";
+import { runGoldenPathPrimary } from "../lib/golden-path-primary-run.mjs";
 import {
   defaultGoldenPathManifestPath,
   readGoldenPathProgram,
@@ -105,5 +106,43 @@ export const registerGoldenPathCommands = (program) => {
       if (result.retainedWorkspace) {
         console.log(`Retained workspace: ${result.retainedWorkspace}`);
       }
+    });
+
+  goldenPathCommand
+    .command("run-primary")
+    .description(
+      "Run the canonical clean-room lifecycle through an external Codex process",
+    )
+    .requiredOption(
+      "--staging-url <url>",
+      "Isolated hidden-staging platform URL",
+    )
+    .option("--run-id <id>", "Stable run identity")
+    .option("--evidence-dir <path>", "Run-owned evidence directory")
+    .option("--model <model>", "Codex model override")
+    .option(
+      "--discard-workspace",
+      "Remove the workspace after indexing evidence",
+    )
+    .option("--json", "Print stable JSON")
+    .action(async (options) => {
+      const result = await runGoldenPathPrimary({
+        runId: options.runId,
+        stagingUrl: options.stagingUrl,
+        evidenceDirectory: options.evidenceDir,
+        keepWorkspace: options.discardWorkspace !== true,
+        model: options.model,
+        onProgress: (stage) => {
+          process.stderr.write(`[golden-path primary] ${stage}\n`);
+        },
+      });
+      if (options.json) printJson(result);
+      else {
+        console.log(
+          `Golden-path primary run ${result.runId}: ${result.result}.`,
+        );
+        console.log(`Evidence: ${result.evidenceDirectory}`);
+      }
+      if (!result.ok) process.exitCode = 1;
     });
 };

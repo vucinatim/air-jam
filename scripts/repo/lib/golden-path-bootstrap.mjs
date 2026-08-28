@@ -22,7 +22,7 @@ const normalizeOutput = (value, runRoot) =>
     .replaceAll(repoRoot, "<repo>")
     .replaceAll(runRoot, "<run>");
 
-const reserveLoopbackPort = () =>
+export const reserveLoopbackPort = () =>
   new Promise((resolve, reject) => {
     const server = net.createServer();
     server.unref();
@@ -60,7 +60,7 @@ const waitForRegistry = async ({ registryUrl, child, readOutput }) => {
   throw new Error(`Timed out waiting for candidate registry.\n${readOutput()}`);
 };
 
-const stopChild = async (child) => {
+export const stopChild = async (child) => {
   if (child.exitCode !== null) return;
   child.kill("SIGTERM");
   await Promise.race([
@@ -347,6 +347,75 @@ const verifyMcpProtocol = async ({ projectDir, env }) => {
   }
 };
 
+export const prepareGoldenPathCandidateRegistry = async ({
+  runRoot,
+  port,
+  commandEnv,
+  run,
+  onProgress = () => {},
+}) => {
+  const packDir = path.join(runRoot, "packages");
+  fs.mkdirSync(packDir, { recursive: true });
+  for (const packageFilter of [
+    "@air-jam/sdk",
+    "@air-jam/mcp-server",
+    "@air-jam/server",
+    "@air-jam/cli",
+    "create-airjam",
+  ]) {
+    run(
+      `build:${packageFilter}`,
+      "pnpm",
+      ["--filter", packageFilter, "build"],
+      repoRoot,
+    );
+  }
+
+  const tarballs = new Map();
+  const packageSizes = {};
+  for (const packageDefinition of resolvePublicPackages()) {
+    const packageDir = path.join(repoRoot, packageDefinition.workingDirectory);
+    const output = run(
+      `pack:${packageDefinition.packageName}`,
+      "pnpm",
+      ["pack", "--pack-destination", packDir],
+      packageDir,
+    );
+    const tarballPath = findPackedTarball({ output, packageDir });
+    tarballs.set(packageDefinition.packageName, tarballPath);
+    packageSizes[packageDefinition.packageName] = fs.statSync(tarballPath).size;
+  }
+
+  onProgress("registry:start");
+  const registry = await startCandidateRegistry({ runRoot, port });
+  try {
+    await configureRunScopedRegistryAuth({
+      registryUrl: registry.registryUrl,
+      runRoot,
+      commandEnv,
+    });
+    for (const packageDefinition of resolvePublicPackages()) {
+      run(`publish:${packageDefinition.packageName}`, "npm", [
+        "publish",
+        tarballs.get(packageDefinition.packageName),
+        "--registry",
+        registry.registryUrl,
+        "--access",
+        "public",
+        "--ignore-scripts",
+      ]);
+    }
+    return {
+      registry,
+      version: resolvePublicPackages()[0].version,
+      packageSizes,
+    };
+  } catch (error) {
+    await stopChild(registry.child);
+    throw error;
+  }
+};
+
 export const runGoldenPathBootstrap = async ({
   template = "minimal",
   keepWorkspace = false,
@@ -357,7 +426,6 @@ export const runGoldenPathBootstrap = async ({
   );
   const projectName = "signal-relay-bootstrap";
   const projectDir = path.join(runRoot, "workspace", projectName);
-  const packDir = path.join(runRoot, "packages");
   const commands = [];
   let registry;
   let managedDevStarted = false;
@@ -405,62 +473,17 @@ export const runGoldenPathBootstrap = async ({
   };
 
   try {
-    fs.mkdirSync(packDir, { recursive: true });
-    for (const packageFilter of [
-      "@air-jam/sdk",
-      "@air-jam/mcp-server",
-      "@air-jam/server",
-      "@air-jam/cli",
-      "create-airjam",
-    ]) {
-      run(
-        `build:${packageFilter}`,
-        "pnpm",
-        ["--filter", packageFilter, "build"],
-        repoRoot,
-      );
-    }
-
-    const tarballs = new Map();
-    const packageSizes = {};
-    for (const packageDefinition of resolvePublicPackages()) {
-      const packageDir = path.join(
-        repoRoot,
-        packageDefinition.workingDirectory,
-      );
-      const output = run(
-        `pack:${packageDefinition.packageName}`,
-        "pnpm",
-        ["pack", "--pack-destination", packDir],
-        packageDir,
-      );
-      const tarballPath = findPackedTarball({ output, packageDir });
-      tarballs.set(packageDefinition.packageName, tarballPath);
-      packageSizes[packageDefinition.packageName] =
-        fs.statSync(tarballPath).size;
-    }
-
-    onProgress("registry:start");
-    registry = await startCandidateRegistry({ runRoot, port });
-    await configureRunScopedRegistryAuth({
-      registryUrl: registry.registryUrl,
+    const prepared = await prepareGoldenPathCandidateRegistry({
       runRoot,
+      port,
       commandEnv,
+      run,
+      onProgress,
     });
-    for (const packageDefinition of resolvePublicPackages()) {
-      run(`publish:${packageDefinition.packageName}`, "npm", [
-        "publish",
-        tarballs.get(packageDefinition.packageName),
-        "--registry",
-        registry.registryUrl,
-        "--access",
-        "public",
-        "--ignore-scripts",
-      ]);
-    }
+    registry = prepared.registry;
+    const { version, packageSizes } = prepared;
 
     fs.mkdirSync(path.dirname(projectDir), { recursive: true });
-    const version = resolvePublicPackages()[0].version;
     run(
       "scaffold:create",
       "pnpm",

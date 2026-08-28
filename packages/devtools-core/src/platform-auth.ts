@@ -20,12 +20,20 @@ import type {
   StartPlatformDeviceAuthorizationOptions,
 } from "./types.js";
 
-const PLATFORM_AUTH_DIR = path.join(os.homedir(), ".airjam", "auth");
-const PLATFORM_AUTH_FILE = path.join(
-  PLATFORM_AUTH_DIR,
-  "platform-session.json",
-);
 const LOCAL_PLATFORM_FALLBACK = "http://localhost:3000";
+
+export const resolveAirJamStateDirectory = (): string => {
+  const configured = process.env.AIRJAM_STATE_DIR?.trim();
+  return configured
+    ? path.resolve(configured)
+    : path.join(os.homedir(), ".airjam");
+};
+
+const resolvePlatformAuthDirectory = () =>
+  path.join(resolveAirJamStateDirectory(), "auth");
+
+const resolvePlatformAuthFile = () =>
+  path.join(resolvePlatformAuthDirectory(), "platform-session.json");
 
 const storedPlatformSessionSchema = z.object({
   version: z.literal(1),
@@ -150,7 +158,9 @@ export const readStoredPlatformMachineSession =
   async (): Promise<AirJamPlatformMachineSessionStore | null> => {
     try {
       return storedPlatformSessionSchema.parse(
-        JSON.parse(await readFile(PLATFORM_AUTH_FILE, "utf8")) as unknown,
+        JSON.parse(
+          await readFile(resolvePlatformAuthFile(), "utf8"),
+        ) as unknown,
       );
     } catch (error) {
       if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
@@ -164,16 +174,16 @@ export const readStoredPlatformMachineSession =
 export const writeStoredPlatformMachineSession = async (
   value: AirJamPlatformMachineSessionStore,
 ): Promise<void> => {
-  await mkdir(PLATFORM_AUTH_DIR, { recursive: true });
+  await mkdir(resolvePlatformAuthDirectory(), { recursive: true });
   await writeFile(
-    PLATFORM_AUTH_FILE,
+    resolvePlatformAuthFile(),
     `${JSON.stringify(storedPlatformSessionSchema.parse(value), null, 2)}\n`,
     "utf8",
   );
 };
 
 export const clearStoredPlatformMachineSession = async (): Promise<void> => {
-  await rm(PLATFORM_AUTH_FILE, { force: true });
+  await rm(resolvePlatformAuthFile(), { force: true });
 };
 
 export const startPlatformDeviceAuthorization = async ({
@@ -323,7 +333,7 @@ export const getPlatformMachineAuthStatus =
     if (!stored) {
       return {
         authenticated: false,
-        storagePath: PLATFORM_AUTH_FILE,
+        storagePath: resolvePlatformAuthFile(),
         platformBaseUrl: null,
         clientName: null,
         storedAt: null,
@@ -334,7 +344,7 @@ export const getPlatformMachineAuthStatus =
 
     return {
       authenticated: true,
-      storagePath: PLATFORM_AUTH_FILE,
+      storagePath: resolvePlatformAuthFile(),
       platformBaseUrl: stored.platformBaseUrl,
       clientName: stored.clientName,
       storedAt: stored.storedAt,
@@ -348,4 +358,4 @@ export const getPlatformMachineAuthStatus =
     };
   };
 
-export const getPlatformAuthStoragePath = () => PLATFORM_AUTH_FILE;
+export const getPlatformAuthStoragePath = () => resolvePlatformAuthFile();
