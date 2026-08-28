@@ -7,14 +7,10 @@ import {
   games,
 } from "@/db/schema";
 import {
-  gameReleaseStatusSchema,
   gameReleaseStatusValues,
   releaseReportSourceSchema,
 } from "@/lib/releases/release-contract";
-import {
-  MAX_RELEASE_ZIP_BYTES,
-  canTransitionReleaseStatus,
-} from "@/lib/releases/release-policy";
+import { MAX_RELEASE_ZIP_BYTES } from "@/lib/releases/release-policy";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
 import { assertOwnedRelease } from "@/server/releases/assert-owned-release";
 import { assertReleaseExists } from "@/server/releases/assert-release-exists";
@@ -29,7 +25,7 @@ import {
   publishRelease,
   quarantineRelease,
 } from "@/server/releases/release-status-service";
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import {
   RATE_LIMITS,
@@ -353,59 +349,5 @@ export const releaseRouter = createTRPCRouter({
         .returning();
 
       return report;
-    }),
-
-  updateStatus: protectedProcedure
-    .input(
-      z.object({
-        releaseId: z.string(),
-        status: gameReleaseStatusSchema,
-      }),
-    )
-    .mutation(async ({ input, ctx }) => {
-      const release = await assertOwnedRelease(input.releaseId, ctx.user.id);
-      if (release.status === input.status) {
-        return release;
-      }
-      if (input.status === "live") {
-        throw new Error("Use publish() to promote a release to live.");
-      }
-      if (!canTransitionReleaseStatus(release.status, input.status)) {
-        throw new Error(
-          `Illegal release status transition: ${release.status} -> ${input.status}`,
-        );
-      }
-
-      const now = new Date();
-      const statusTimestamps = {
-        checkedAt: input.status === "ready" ? now : release.checkedAt,
-        publishedAt: release.publishedAt,
-        quarantinedAt:
-          input.status === "quarantined" ? now : release.quarantinedAt,
-        archivedAt: input.status === "archived" ? now : release.archivedAt,
-      };
-
-      return db.transaction(async (tx) => {
-        const [updatedRelease] = await tx
-          .update(gameReleases)
-          .set({
-            status: input.status,
-            ...statusTimestamps,
-          })
-          .where(eq(gameReleases.id, input.releaseId))
-          .returning();
-
-        if (release.status === "live") {
-          await tx
-            .update(games)
-            .set({
-              arcadeVisibility: "hidden",
-              updatedAt: new Date(),
-            })
-            .where(eq(games.id, release.gameId));
-        }
-
-        return updatedRelease;
-      });
     }),
 });

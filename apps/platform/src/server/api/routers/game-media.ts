@@ -1,9 +1,5 @@
 import { db } from "@/db";
-import { gameMediaAssets, games } from "@/db/schema";
-import {
-  gameMediaKindSchema,
-  gameMediaStatusSchema,
-} from "@/lib/games/game-media-contract";
+import { gameMediaKindSchema } from "@/lib/games/game-media-contract";
 import { MAX_GAME_MEDIA_BYTES } from "@/lib/games/game-media-policy";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
 import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
@@ -13,7 +9,6 @@ import {
   finalizeGameMediaUpload,
   requestGameMediaUploadTarget,
 } from "@/server/media/game-media-service";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import {
   createTRPCRouter,
@@ -140,67 +135,5 @@ export const gameMediaRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       await assertOwnedGame(input.gameId, ctx.user.id);
       return archiveGameMediaAsset(input);
-    }),
-
-  updateStatus: protectedProcedure
-    .input(
-      z.object({
-        gameId: z.string(),
-        assetId: z.string(),
-        status: gameMediaStatusSchema,
-      }),
-    )
-    .mutation(async ({ input, ctx }) => {
-      await assertOwnedGame(input.gameId, ctx.user.id);
-
-      const [updatedAsset] = await db
-        .update(gameMediaAssets)
-        .set({
-          status: input.status,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(gameMediaAssets.id, input.assetId),
-            eq(gameMediaAssets.gameId, input.gameId),
-          ),
-        )
-        .returning();
-
-      if (!updatedAsset) {
-        throw new Error("Media asset not found.");
-      }
-
-      if (input.status === "archived") {
-        const game = await db.query.games.findFirst({
-          where: (table, { eq }) => eq(table.id, input.gameId),
-        });
-
-        if (game) {
-          const activeAssetId = getActiveAssetIdByKind({
-            game,
-            kind: updatedAsset.kind,
-          });
-
-          if (activeAssetId === updatedAsset.id) {
-            const clearColumn =
-              updatedAsset.kind === "thumbnail"
-                ? { thumbnailMediaAssetId: null }
-                : updatedAsset.kind === "cover"
-                  ? { coverMediaAssetId: null }
-                  : { previewVideoMediaAssetId: null };
-
-            await db
-              .update(games)
-              .set({
-                ...clearColumn,
-                updatedAt: new Date(),
-              })
-              .where(eq(games.id, input.gameId));
-          }
-        }
-      }
-
-      return updatedAsset;
     }),
 });
