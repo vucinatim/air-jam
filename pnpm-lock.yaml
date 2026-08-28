@@ -361,6 +361,9 @@ importers:
         specifier: ^5.0.3
         version: 5.0.8(@types/react@19.2.6)(react@19.2.0)(use-sync-external-store@1.6.0(react@19.2.0))
     devDependencies:
+      '@air-jam/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -437,6 +440,9 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
     devDependencies:
+      '@air-jam/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -549,6 +555,9 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
     devDependencies:
+      '@air-jam/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -622,6 +631,9 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
     devDependencies:
+      '@air-jam/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -698,6 +710,9 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
     devDependencies:
+      '@air-jam/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -795,6 +810,9 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
     devDependencies:
+      '@air-jam/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -847,7 +865,7 @@ importers:
         specifier: ^4.1.2
         version: 4.1.2(@opentelemetry/api@1.9.1)(@types/node@22.19.3)(jsdom@29.0.1(@noble/hashes@2.0.1))(msw@2.12.14(@types/node@22.19.3)(typescript@5.9.3))(vite@6.4.1(@types/node@22.19.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.20.6))
 
-  packages/create-airjam:
+  packages/cli:
     dependencies:
       '@air-jam/mcp-server':
         specifier: workspace:^
@@ -861,15 +879,15 @@ importers:
       fs-extra:
         specifier: ^11.3.0
         version: 11.3.3
-      json5:
-        specifier: ^2.2.3
-        version: 2.2.3
       kleur:
         specifier: ^4.1.5
         version: 4.1.5
-      prompts:
-        specifier: ^2.4.2
-        version: 2.4.2
+      playwright-core:
+        specifier: ^1.58.2
+        version: 1.58.2
+      socket.io-client:
+        specifier: ^4.8.1
+        version: 4.8.1
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -886,6 +904,43 @@ importers:
       '@air-jam/devtools-core':
         specifier: workspace:^
         version: link:../devtools-core
+      '@air-jam/env':
+        specifier: workspace:^
+        version: link:../env
+      '@types/fs-extra':
+        specifier: ^11.0.4
+        version: 11.0.4
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.14)(tsx@4.20.6)(typescript@5.9.3)
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
+  packages/create-airjam:
+    dependencies:
+      '@air-jam/cli':
+        specifier: workspace:^
+        version: link:../cli
+      commander:
+        specifier: ^14.0.0
+        version: 14.0.2
+      fs-extra:
+        specifier: ^11.3.0
+        version: 11.3.3
+      json5:
+        specifier: ^2.2.3
+        version: 2.2.3
+      kleur:
+        specifier: ^4.1.5
+        version: 4.1.5
+      prompts:
+        specifier: ^2.4.2
+        version: 2.4.2
+      yauzl:
+        specifier: ^3.2.1
+        version: 3.2.1
+    devDependencies:
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4
@@ -904,6 +959,9 @@ importers:
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
+      yazl:
+        specifier: ^3.3.1
+        version: 3.3.1
 
   packages/devtools-core:
     dependencies:
@@ -962,8 +1020,8 @@ importers:
       '@air-jam/sdk':
         specifier: workspace:^
         version: link:../sdk
-      '@playwright/test':
-        specifier: ^1.56.1
+      playwright-core:
+        specifier: ^1.58.2
         version: 1.58.2
       typescript:
         specifier: ~5.9.3
@@ -1002,6 +1060,15 @@ importers:
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1
+      tsx:
+        specifier: ^4.20.6
+        version: 4.20.6
+      yauzl:
+        specifier: ^3.2.1
+        version: 3.2.1
+      yazl:
+        specifier: ^3.3.1
+        version: 3.3.1
       zod:
         specifier: ^4.2.1
         version: 4.2.1
@@ -1015,9 +1082,6 @@ importers:
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.14)(tsx@4.20.6)(typescript@5.9.3)
-      tsx:
-        specifier: ^4.20.6
-        version: 4.20.6
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

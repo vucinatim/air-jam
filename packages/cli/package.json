@@ -1,0 +1,70 @@
+{
+  "name": "@air-jam/cli",
+  "version": "0.9.2",
+  "description": "Canonical project and operator CLI for Air Jam game development, agent sessions, and hosted releases",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vucinatim/air-jam.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/vucinatim/air-jam#readme",
+  "bugs": {
+    "url": "https://github.com/vucinatim/air-jam/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "airjam": "./dist/index.js"
+  },
+  "exports": {
+    "./scaffold": {
+      "types": "./dist/scaffold.d.ts",
+      "import": "./dist/scaffold.js"
+    },
+    "./vite-config": {
+      "types": "./runtime/vite-config.d.mts",
+      "import": "./runtime/vite-config.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "runtime/vite-config.mjs",
+    "runtime/vite-config.d.mts",
+    "runtime/vite-https.mjs",
+    "runtime/vite-https.d.mts",
+    "template-assets"
+  ],
+  "scripts": {
+    "ai-pack:check": "node scripts/check-ai-pack.mjs",
+    "docs-pack:generate": "node scripts/generate-base-docs-pack.mjs",
+    "build": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && pnpm docs-pack:generate && tsup && tsup --config tsup.tooling.config.ts",
+    "typecheck": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && tsc --noEmit",
+    "test": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && pnpm build && node --test runtime/*.test.mjs",
+    "prepublishOnly": "pnpm ai-pack:check && pnpm build",
+    "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
+    "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
+  },
+  "dependencies": {
+    "@air-jam/mcp-server": "workspace:^",
+    "@air-jam/sdk": "workspace:^",
+    "commander": "^14.0.0",
+    "fs-extra": "^11.3.0",
+    "kleur": "^4.1.5",
+    "playwright-core": "^1.58.2",
+    "socket.io-client": "^4.8.1",
+    "tsx": "^4.20.6",
+    "yauzl": "^3.2.1",
+    "yazl": "^3.3.1",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@air-jam/devtools-core": "workspace:^",
+    "@air-jam/env": "workspace:^",
+    "@types/fs-extra": "^11.0.4",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9.3"
+  }
+}

@@ -5,7 +5,14 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach } from "vitest";
-import { createAirJamMcpServer, inspectMcpProjectSetup } from "../dist/index.js";
+import {
+  renderMcpClientProfile,
+  writeProjectLocalMcpConfig,
+} from "../dist/config.js";
+import {
+  createAirJamMcpServer,
+  inspectMcpProjectSetup,
+} from "../dist/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tempRoots: string[] = [];
@@ -337,6 +344,61 @@ describe("inspectMcpProjectSetup", () => {
           args: ["exec", "airjam-mcp"],
         },
       },
+    });
+  });
+
+  it("renders one server declaration for portable, Codex, and Claude Desktop clients", async () => {
+    const root = await createStandaloneGameRoot();
+    const portable = renderMcpClientProfile({
+      profile: "portable",
+      projectDir: root,
+    });
+    const codex = renderMcpClientProfile({
+      profile: "codex",
+      projectDir: root,
+    });
+    const claudeDesktop = renderMcpClientProfile({
+      profile: "claude-desktop",
+      projectDir: root,
+    });
+
+    expect(JSON.parse(portable.content)).toEqual({
+      mcpServers: {
+        airjam: {
+          command: "pnpm",
+          args: ["exec", "airjam-mcp"],
+        },
+      },
+    });
+    expect(codex).toMatchObject({
+      profile: "codex",
+      format: "toml",
+      scope: "project",
+      configPath: path.join(root, ".codex", "config.toml"),
+    });
+    expect(codex.content).toContain("[mcp_servers.airjam]");
+    expect(codex.content).toContain('command = "pnpm"');
+    expect(codex.content).toContain('args = ["exec", "airjam-mcp"]');
+    expect(codex.content).toContain(`cwd = "${root}"`);
+    expect(JSON.parse(claudeDesktop.content)).toEqual(
+      JSON.parse(portable.content),
+    );
+  });
+
+  it("keeps the portable declaration separate from client registration state", async () => {
+    const root = await createStandaloneGameRoot();
+    await writeProjectLocalMcpConfig({ cwd: root });
+
+    const inspection = await inspectMcpProjectSetup({ cwd: root });
+    expect(inspection.portableDeclaration).toEqual({
+      configPath: path.join(root, ".mcp.json"),
+      present: true,
+    });
+    expect(inspection.clients.codex).toMatchObject({
+      profile: "codex",
+      configPath: path.join(root, ".codex", "config.toml"),
+      configPresent: false,
+      registered: false,
     });
   });
 });

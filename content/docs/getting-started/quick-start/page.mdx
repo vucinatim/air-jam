@@ -78,7 +78,7 @@ pnpm run dev -- --secure --secure-mode=tunnel
 This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster.
 
 - **Check `AGENTS.md`**: Project-wide coding contract and workflow for AI coding assistants.
-- **Check `docs/docs-index.md`**: Local docs pack bundled with the template.
+- **Check `docs/airjam/docs-index.md`**: Canonical local framework references bundled with the template.
 - **Modify `src/airjam.config.ts`**: Canonical runtime setup and input wiring.
 - **Modify `src/game/input.ts`**: Define your input schema.
 - **Use the starter module map in the template `README.md`**: Follow the current starter structure before creating new homes for code.
@@ -90,9 +90,9 @@ This project is "vibecode friendly"—it includes documentation and AI instructi
 These paths are the current starter template shape.
 They are recommended defaults for new projects, not framework-mandated filenames.
 
-### Refresh Managed Docs And Skills
+### Refresh Managed Framework Guidance
 
-Scaffolded projects include an AI pack that owns the canonical local docs, skills, and related guidance files.
+Scaffolded projects include an AI pack that owns canonical framework references under `docs/airjam/`. Top-level agent instructions and project-local skills are bootstrap files: after creation, they belong to the project and Air Jam never overwrites them.
 
 Use these commands from your project root:
 
@@ -102,7 +102,7 @@ pnpm exec airjam ai-pack diff --dir .
 pnpm exec airjam ai-pack update --dir .
 ```
 
-`ai-pack:update` replaces AI-pack-managed files such as local docs, skills, and `AGENTS.md` with the current canonical versions. It is intentionally a replace operation, not a merge tool, and it does not own user-created project notes.
+`ai-pack update` replaces only AI-pack-managed framework references with the current canonical versions. It is intentionally a replace operation, not a merge tool, and it does not own `AGENTS.md`, `CLAUDE.md`, project-local skills, application code, or user-created notes.
 
 ## Troubleshooting
 

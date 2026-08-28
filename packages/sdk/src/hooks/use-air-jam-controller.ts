@@ -46,21 +46,21 @@ import type { AirJamStore } from "../state/connection-store";
  * @example Basic runtime boundary usage (room from URL)
  * ```tsx
  * // URL: https://yourgame.com/controller?room=ABCD
- * <AirJamControllerRuntime>
+ * <airjam.Controller>
  *   <ControllerView />
- * </AirJamControllerRuntime>
+ * </airjam.Controller>
  * ```
  *
  * @example With nickname
  * ```tsx
- * <AirJamControllerRuntime
+ * <airjam.Controller
  *   nickname={playerName}
  *   onState={(state) => {
  *     if (state.runtimeState === "playing") startGame();
  *   }}
  * >
  *   <ControllerView />
- * </AirJamControllerRuntime>
+ * </airjam.Controller>
  * ```
  */
 export interface AirJamControllerOptions {
@@ -201,8 +201,8 @@ const toControllerState = (state: AirJamStore): AirJamControllerState => {
 /**
  * Read the mounted controller runtime API.
  *
- * Use this inside `AirJamControllerRuntime` or another explicit controller runtime
- * boundary such as `airjam.Controller`. Runtime ownership is mounted once at the
+ * Use this inside the explicit `airjam.Controller` runtime boundary. Runtime
+ * ownership is mounted once at the
  * boundary; child code reads from that runtime through this hook.
  *
  * **Typical usage flow:**
@@ -234,7 +234,7 @@ const toControllerState = (state: AirJamStore): AirJamControllerState => {
  *
  * @example With state callback
  * ```tsx
- * <AirJamControllerRuntime
+ * <airjam.Controller
  *   onState={(state) => {
  *     if (state.message) {
  *       showNotification(state.message);
@@ -242,7 +242,7 @@ const toControllerState = (state: AirJamStore): AirJamControllerState => {
  *   }}
  * >
  *   <ControllerView />
- * </AirJamControllerRuntime>
+ * </airjam.Controller>
  * ```
  */
 export function useAirJamController(): AirJamControllerApi;
@@ -268,7 +268,7 @@ export function useAirJamController<TSelected>(
   if (!runtime) {
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",
-      "useAirJamController requires a mounted controller runtime boundary. Wrap the controller tree with <AirJamControllerRuntime> or <airjam.Controller> before reading controller state.",
+      "useAirJamController requires a mounted controller runtime boundary. Wrap the controller tree with <airjam.Controller> before reading controller state.",
       {
         hookName: "useAirJamController",
         expectedScope: "controller",

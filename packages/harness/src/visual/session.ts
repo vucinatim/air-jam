@@ -1,7 +1,7 @@
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
-} from "@air-jam/sdk";
+} from "@air-jam/sdk/runtime-inspection";
 import {
   chromium,
   type Browser,
@@ -9,7 +9,7 @@ import {
   type Frame,
   type FrameLocator,
   type Page,
-} from "@playwright/test";
+} from "playwright-core";
 import type {
   VisualHarnessMode,
   VisualHarnessPageSurface,
@@ -300,12 +300,37 @@ export const openVisualHarnessSession = async ({
   }
 };
 
-export const launchHarnessBrowser = async (): Promise<Browser> =>
-  chromium.launch({
+export const launchHarnessBrowser = async (): Promise<Browser> => {
+  const options = {
     headless: true,
     args: [
       "--enable-webgl",
       "--ignore-gpu-blocklist",
       "--use-angle=swiftshader",
     ],
-  });
+  };
+
+  if (process.env.AIRJAM_BROWSER_EXECUTABLE_PATH) {
+    return chromium.launch({
+      ...options,
+      executablePath: process.env.AIRJAM_BROWSER_EXECUTABLE_PATH,
+    });
+  }
+
+  try {
+    return await chromium.launch(options);
+  } catch (bundledBrowserError) {
+    try {
+      return await chromium.launch({ ...options, channel: "chrome" });
+    } catch (systemBrowserError) {
+      throw new Error(
+        [
+          "Air Jam could not launch a browser runtime for semantic sessions.",
+          "Install Playwright Chromium or set AIRJAM_BROWSER_EXECUTABLE_PATH to a Chromium-compatible browser.",
+          `Bundled browser: ${bundledBrowserError instanceof Error ? bundledBrowserError.message : String(bundledBrowserError)}`,
+          `System Chrome: ${systemBrowserError instanceof Error ? systemBrowserError.message : String(systemBrowserError)}`,
+        ].join("\n\n"),
+      );
+    }
+  }
+};

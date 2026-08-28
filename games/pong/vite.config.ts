@@ -1,6 +1,6 @@
+import { createAirJamViteConfig } from "@air-jam/cli/vite-config";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { createAirJamViteConfig } from "@air-jam/server/vite-config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";

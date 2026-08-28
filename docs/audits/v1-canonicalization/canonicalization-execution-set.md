@@ -95,7 +95,8 @@ Recommended documentation and guidance measurement:
 
 ```bash
 git diff --numstat --find-renames=90% <base>..<head> -- \
-  docs content packages/create-airjam/template-assets/base \
+  docs content packages/cli/template-assets/managed \
+  packages/cli/template-assets/bootstrap \
   apps/platform/public/ai-pack AGENTS.md README.md
 ```
 

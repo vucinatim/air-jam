@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import {
+  AirJamControllerRuntime,
+  AirJamHostRuntime,
+} from "../src/arcade/runtime";
 import { createPrefabCatalog, definePrefab } from "../src/prefabs";
 import {
   createControllerRuntimeInspectionContract,
@@ -42,5 +46,10 @@ describe("runtime experimental subpaths", () => {
     ] as const);
 
     expect(catalog[0]?.id).toBe("test.prefab.default");
+  });
+
+  it("keeps raw runtimes on the platform composition leaf", () => {
+    expect(typeof AirJamHostRuntime).toBe("function");
+    expect(typeof AirJamControllerRuntime).toBe("function");
   });
 });

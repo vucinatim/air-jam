@@ -49,13 +49,15 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
     "socket.io-client": "^4.8.1",
+    "tsx": "^4.20.6",
+    "yauzl": "^3.2.1",
+    "yazl": "^3.3.1",
     "zod": "^4.2.1"
   },
   "devDependencies": {
     "@air-jam/devtools-core": "workspace:^",
     "@types/node": "^24.10.1",
     "tsup": "^8.5.1",
-    "tsx": "^4.20.6",
     "typescript": "~5.9.3",
     "vitest": "^3.2.4"
   }

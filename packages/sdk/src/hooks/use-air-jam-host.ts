@@ -47,7 +47,7 @@ export type JoinUrlStatus = "loading" | "ready" | "unavailable";
  *
  * @example Runtime boundary usage with callbacks
  * ```tsx
- * <AirJamHostRuntime
+ * <airjam.Host
  *   onPlayerJoin={(player) => {
  *     console.log(`${player.label} joined!`);
  *     spawnPlayerShip(player.id);
@@ -58,14 +58,14 @@ export type JoinUrlStatus = "loading" | "ready" | "unavailable";
  *   }}
  * >
  *   <HostView />
- * </AirJamHostRuntime>
+ * </airjam.Host>
  * ```
  *
  * @example With custom room ID
  * ```tsx
- * <AirJamHostRuntime roomId="GAME1">
+ * <airjam.Host roomId="GAME1">
  *   <HostView />
- * </AirJamHostRuntime>
+ * </airjam.Host>
  * ```
  */
 export interface AirJamHostOptions {
@@ -217,8 +217,8 @@ const toHostState = (state: AirJamStore): AirJamHostState => ({
 /**
  * Read the mounted host runtime API.
  *
- * Use this inside `AirJamHostRuntime` or another explicit host runtime boundary
- * such as `airjam.Host`. Runtime ownership is mounted once at the boundary; child
+ * Use this inside the explicit `airjam.Host` runtime boundary. Runtime ownership
+ * is mounted once at the boundary; child
  * code reads from that runtime through this hook.
  *
  * This hook is runtime-aware:
@@ -320,7 +320,7 @@ export function useAirJamHost<
   if (!runtime) {
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",
-      "useAirJamHost requires a mounted host runtime boundary. Wrap the host tree with <AirJamHostRuntime> or <airjam.Host> before reading host state.",
+      "useAirJamHost requires a mounted host runtime boundary. Wrap the host tree with <airjam.Host> before reading host state.",
       {
         hookName: "useAirJamHost",
         expectedScope: "host",

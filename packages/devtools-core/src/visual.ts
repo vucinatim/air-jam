@@ -1,7 +1,4 @@
-import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { runCommandResult } from "./commands.js";
 import {
   getTopology,
@@ -11,6 +8,10 @@ import {
 } from "./dev.js";
 import { pathExists, readJsonFile } from "./fs-utils.js";
 import { inspectGame, readVisualCaptureSummary } from "./games.js";
+import {
+  resolveDevtoolsHelperScript,
+  resolveTsxCliPath,
+} from "./helper-scripts.js";
 import { inspectAirJamAgentConfig } from "./tooling/airjam-agent-inspection.js";
 import type {
   AirJamVisualCaptureInspection,
@@ -20,23 +21,6 @@ import type {
   CaptureVisualsResult,
   ListVisualScenariosOptions,
 } from "./types.js";
-
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const resolveHelperScriptPath = (fileName: string): string => {
-  const builtHelperPath = path.resolve(__dirname, "tooling", fileName);
-  return existsSync(builtHelperPath)
-    ? builtHelperPath
-    : path.resolve(__dirname, "..", "src", "tooling", fileName);
-};
-
-const resolveTsxCliPath = (): string =>
-  path.join(
-    path.dirname(require.resolve("tsx/package.json")),
-    "dist",
-    "cli.mjs",
-  );
 
 type ResolvedVisualSource = {
   configPath: string;
@@ -133,7 +117,7 @@ export const listVisualScenarios = async ({
     gameId: string;
     scenarios: AirJamVisualScenarioList["scenarios"];
   }>({
-    helperFile: resolveHelperScriptPath("list-visual-scenarios.ts"),
+    helperFile: resolveDevtoolsHelperScript("list-visual-scenarios.ts"),
     cwd: game.rootDir,
     args: [`--config=${source.configPath}`],
   });
@@ -216,7 +200,7 @@ export const captureVisuals = async ({
       );
 
       runTsxHelper<unknown>({
-        helperFile: resolveHelperScriptPath("run-visual-capture.ts"),
+        helperFile: resolveDevtoolsHelperScript("run-visual-capture.ts"),
         cwd: game.rootDir,
         args: [
           `--game-id=${game.id}`,

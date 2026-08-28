@@ -128,18 +128,16 @@ Selectors receive state fields only; call `useAirJamHost()` when a component
 also needs runtime controls such as `joinUrl`, `sendSignal`, or `getInput`.
 
 ```tsx
-import { AirJamHostRuntime, env, useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost } from "@air-jam/sdk";
+import { airjam } from "./airjam.config";
 
 const HostShell = () => (
-  <AirJamHostRuntime
-    topology={env.vite(import.meta.env).topology}
-    appId={import.meta.env.VITE_AIR_JAM_APP_ID}
-    input={{ schema: inputSchema }}
+  <airjam.Host
     onPlayerJoin={(player) => console.log("joined", player.id)}
     onPlayerLeave={(controllerId) => console.log("left", controllerId)}
   >
     <HostView />
-  </AirJamHostRuntime>
+  </airjam.Host>
 );
 
 export const HostView = () => {
@@ -212,22 +210,17 @@ component also needs controls such as `sendSystemCommand`.
 
 ```tsx
 import {
-  AirJamControllerRuntime,
-  env,
   useAirJamController,
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
+import { airjam } from "./airjam.config";
 
 const ControllerShell = () => (
-  <AirJamControllerRuntime
-    topology={env.vite(import.meta.env).topology}
-    appId={import.meta.env.VITE_AIR_JAM_APP_ID}
-    nickname="Player 1"
-  >
+  <airjam.Controller nickname="Player 1">
     <ControllerView />
-  </AirJamControllerRuntime>
+  </airjam.Controller>
 );
 
 export const ControllerView = () => {
@@ -277,7 +270,7 @@ instead of creating a duplicate player.
 
 The important rule is:
 
-1. mount `AirJamHostRuntime` / `AirJamControllerRuntime` once per runtime surface
+1. mount `airjam.Host` / `airjam.Controller` once per runtime surface
 2. use `useAirJamHost()` / `useAirJamController()` only as read hooks below that boundary
 3. wrap controller UI in `SurfaceViewport` and set its `orientation` there
 
@@ -412,7 +405,7 @@ Mount `AudioRuntime` once per runtime surface, then call `useAudio()` only below
 Shared user settings are platform-owned and inherited by embedded games.
 
 Mount `PlatformSettingsRuntime` once in the platform shell when you want a persisted owner runtime.
-`AirJamHostRuntime` / `AirJamControllerRuntime` already provide a settings boundary for games, so repo games should not wrap each host/controller surface in another redundant `PlatformSettingsRuntime`.
+`airjam.Host` / `airjam.Controller` already provide a settings boundary for games, so repo games should not wrap each host/controller surface in another redundant `PlatformSettingsRuntime`.
 
 ```tsx
 import {
@@ -446,7 +439,7 @@ const EmbeddedGame = () => {
 Rules:
 
 1. mount `PlatformSettingsRuntime persistence="local"` once in the platform shell
-2. let `airjam.Host`, `airjam.Controller`, `AirJamHostRuntime`, and `AirJamControllerRuntime` supply the in-game settings boundary automatically
+2. let `airjam.Host` and `airjam.Controller` supply the in-game settings boundary automatically
 3. embedded games inherit platform settings read-only
 4. keep platform settings limited to shared cross-game concerns like audio, accessibility, and feedback
 5. do not recreate feature-specific global settings stores alongside this runtime

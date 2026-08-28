@@ -1,4 +1,3 @@
-import type { HostRuntimeInspectionContract } from "@air-jam/sdk";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   arcadeSurfaceRuntimeIdentitySchema,
@@ -19,16 +18,17 @@ import type {
   ServerToClientEvents,
   SignalPayload,
 } from "@air-jam/sdk/protocol";
+import type { HostRuntimeInspectionContract } from "@air-jam/sdk/runtime-inspection";
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { io, type Socket } from "socket.io-client";
 import { detectProjectContext } from "./context.js";
 import { getTopology } from "./dev.js";
+import {
+  resolveDevtoolsHelperScript,
+  resolveTsxCliPath,
+} from "./helper-scripts.js";
 import type {
   AirJamProjectMode,
   AirJamRuntimeSnapshotInspection,
@@ -46,9 +46,6 @@ import type {
   SendControllerInputOptions,
   SendControllerInputResult,
 } from "./types.js";
-
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 type ControllerSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -76,22 +73,6 @@ type InternalControllerSession = {
 const DEFAULT_TIMEOUT_MS = 5_000;
 const WAIT_INTERVAL_MS = 25;
 const virtualControllerSessions = new Map<string, InternalControllerSession>();
-
-const resolveHelperScriptPath = (fileName: string): string => {
-  const builtHelperPath = path.resolve(__dirname, "tooling", fileName);
-  if (existsSync(builtHelperPath)) {
-    return builtHelperPath;
-  }
-
-  return path.resolve(__dirname, "..", "src", "tooling", fileName);
-};
-
-const resolveTsxCliPath = (): string =>
-  path.join(
-    path.dirname(require.resolve("tsx/package.json")),
-    "dist",
-    "cli.mjs",
-  );
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -464,7 +445,7 @@ const startIsolatedRuntimeOwner = async ({
     );
   }
 
-  const helperFile = resolveHelperScriptPath("hold-runtime-host.ts");
+  const helperFile = resolveDevtoolsHelperScript("hold-runtime-host.ts");
   const args = [
     resolveTsxCliPath(),
     helperFile,

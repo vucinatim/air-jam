@@ -13,6 +13,7 @@ import {
   resolveControllerSessionGameRuntime,
   sendControllerInput,
 } from "./controller.js";
+import { startDev, stopDev } from "./dev.js";
 import {
   classifyGameActionOutcome,
   computeGameSnapshotObservation,
@@ -53,10 +54,57 @@ type InternalGameSession = {
     gameId?: string;
   };
   actionRegistry: Map<string, SessionAction>;
+  devProcessId: string | null;
 };
 
 const DEFAULT_TIMEOUT_MS = 5_000;
+const DEFAULT_SESSION_OPEN_TIMEOUT_MS = 30_000;
 const gameSessions = new Map<string, InternalGameSession>();
+const devProcessLeases = new Map<
+  string,
+  { cwd: string; referenceCount: number; stopOnZero: boolean }
+>();
+
+const acquireDevProcessLease = async (
+  options: OpenGameSessionOptions,
+): Promise<string | null> => {
+  if (options.controllerJoinUrl) {
+    return null;
+  }
+  const started = await startDev({
+    cwd: options.cwd,
+    gameId: options.gameId,
+    mode: options.mode,
+    secure: options.secure,
+  });
+  const processId = started.process.id;
+  const existing = devProcessLeases.get(processId);
+  devProcessLeases.set(processId, {
+    cwd: started.process.cwd,
+    referenceCount: (existing?.referenceCount ?? 0) + 1,
+    stopOnZero: existing?.stopOnZero ?? !started.reusedExistingProcess,
+  });
+  return processId;
+};
+
+const releaseDevProcessLease = async (processId: string): Promise<void> => {
+  const lease = devProcessLeases.get(processId);
+  if (!lease) {
+    return;
+  }
+  if (lease.referenceCount > 1) {
+    devProcessLeases.set(processId, {
+      ...lease,
+      referenceCount: lease.referenceCount - 1,
+    });
+    return;
+  }
+
+  devProcessLeases.delete(processId);
+  if (lease.stopOnZero) {
+    await stopDev({ cwd: lease.cwd, processId });
+  }
+};
 
 const toSessionActionId = (lane: "player" | "host", actionId: string): string =>
   `${lane}:${actionId}`;
@@ -127,11 +175,21 @@ const updateSummary = (
 export const openGameSession = async (
   options: OpenGameSessionOptions = {},
 ): Promise<AirJamGameSessionSummary> => {
-  const controllerSession = await connectController(options);
+  const devProcessId = await acquireDevProcessLease(options);
+  const timeoutMs = options.timeoutMs ?? DEFAULT_SESSION_OPEN_TIMEOUT_MS;
+  let controllerSession: Awaited<ReturnType<typeof connectController>>;
+  try {
+    controllerSession = await connectController({ ...options, timeoutMs });
+  } catch (error) {
+    if (devProcessId) {
+      await releaseDevProcessLease(devProcessId).catch(() => undefined);
+    }
+    throw error;
+  }
   try {
     const runtime = await resolveControllerSessionGameRuntime({
       controllerSessionId: controllerSession.controllerSessionId,
-      timeoutMs: options.timeoutMs,
+      timeoutMs,
     });
     const gameId =
       runtime.gameId ?? controllerSession.gameId ?? options.gameId ?? null;
@@ -171,12 +229,16 @@ export const openGameSession = async (
         ...(gameId ? { gameId } : {}),
       },
       actionRegistry: buildActionRegistry(gameActions),
+      devProcessId,
     });
     return summary;
   } catch (error) {
     await disconnectController({
       controllerSessionId: controllerSession.controllerSessionId,
     }).catch(() => undefined);
+    if (devProcessId) {
+      await releaseDevProcessLease(devProcessId).catch(() => undefined);
+    }
     throw error;
   }
 };
@@ -324,5 +386,8 @@ export const closeGameSession = async ({
     process: disconnected.session.process,
   });
   gameSessions.delete(gameSessionId);
+  if (session.devProcessId) {
+    await releaseDevProcessLease(session.devProcessId);
+  }
   return { closed: true, session: session.summary };
 };

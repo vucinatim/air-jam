@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 
 const packageRoot = path.resolve(__dirname, "..");
 const createAirJamPackageJsonPath = path.resolve(packageRoot, "package.json");
+const cliPackageJsonPath = path.resolve(packageRoot, "../cli/package.json");
 const sdkPackageJsonPath = path.resolve(packageRoot, "../sdk/package.json");
 const serverPackageJsonPath = path.resolve(
   packageRoot,
@@ -30,6 +31,7 @@ const readPackageVersion = (filePath) => {
 
 const manifest = {
   "create-airjam": readPackageVersion(createAirJamPackageJsonPath),
+  "@air-jam/cli": readPackageVersion(cliPackageJsonPath),
   "@air-jam/sdk": readPackageVersion(sdkPackageJsonPath),
   "@air-jam/server": readPackageVersion(serverPackageJsonPath),
   "@air-jam/mcp-server": readPackageVersion(mcpServerPackageJsonPath),

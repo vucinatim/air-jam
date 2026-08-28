@@ -1,4 +1,4 @@
-import { runSecureInitCli } from "../../../packages/create-airjam/runtime/secure-dev.mjs";
+import { runSecureInitCli } from "../../../packages/cli/runtime/secure-dev.mjs";
 
 export const runWorkspaceSecureInitCommand = async ({
   rootDir = process.cwd(),

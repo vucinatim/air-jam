@@ -1,7 +1,4 @@
-import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { runCommandResult } from "./commands.js";
 import {
   inspectControllerSessionContext,
@@ -14,6 +11,10 @@ import {
   computeGameSnapshotObservation,
 } from "./game-action-observation.js";
 import { inspectGame } from "./games.js";
+import {
+  resolveDevtoolsHelperScript,
+  resolveTsxCliPath,
+} from "./helper-scripts.js";
 import type {
   AirJamAgentContractInspection,
   AirJamGameSnapshotInspection,
@@ -24,26 +25,7 @@ import type {
   ReadGameSnapshotOptions,
 } from "./types.js";
 
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const DEFAULT_TIMEOUT_MS = 5_000;
-
-const resolveHelperScriptPath = (fileName: string): string => {
-  const builtHelperPath = path.resolve(__dirname, "tooling", fileName);
-  if (existsSync(builtHelperPath)) {
-    return builtHelperPath;
-  }
-
-  return path.resolve(__dirname, "..", "src", "tooling", fileName);
-};
-
-const resolveTsxCliPath = (): string =>
-  path.join(
-    path.dirname(require.resolve("tsx/package.json")),
-    "dist",
-    "cli.mjs",
-  );
 
 const parseHelperJson = <T>(output: string): T => {
   const startIndex = output.indexOf("{");
@@ -76,7 +58,7 @@ const runGameAgentHelper = <T>({
     command: process.execPath,
     args: [
       resolveTsxCliPath(),
-      resolveHelperScriptPath("agent-contract.ts"),
+      resolveDevtoolsHelperScript("agent-contract.ts"),
       "--operation",
       operation,
       ...(configPath ? ["--config", configPath] : []),

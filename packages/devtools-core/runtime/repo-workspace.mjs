@@ -1,17 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { detectLocalIpv4 } from "../../create-airjam/runtime/dev-utils.mjs";
+import { detectLocalIpv4 } from "../../cli/runtime/dev-utils.mjs";
 import {
   buildEmbeddedGameTopology,
   buildPlatformShellTopology,
   buildStandaloneGameTopology,
   serializeResolvedTopology,
-} from "../../create-airjam/runtime/runtime-topology.mjs";
+} from "../../cli/runtime/runtime-topology.mjs";
 import {
   DEFAULT_GAME_PORT,
   DEFAULT_PLATFORM_PORT,
-} from "../../create-airjam/runtime/secure-dev.mjs";
+} from "../../cli/runtime/secure-dev.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

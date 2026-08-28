@@ -84,12 +84,14 @@ This manifest owns:
 The version manifest file list is the source of truth for managed AI-pack
 files.
 
-That includes things like:
+For the current contract, that includes:
 
-1. local docs
-2. generated docs
-3. skills
-4. top-level guidance files such as `AGENTS.md`
+1. canonical local framework references under `docs/airjam/`
+2. generated public-doc snapshots under `docs/airjam/generated/`
+3. the local manifest at `.airjam/ai-pack.json`
+
+Project-owned entry instructions and skills are deliberately outside this file
+list so a framework update cannot overwrite user policy.
 
 ## Update Rule
 

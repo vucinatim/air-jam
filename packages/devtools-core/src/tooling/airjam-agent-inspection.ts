@@ -1,37 +1,14 @@
-import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { runCommandResult } from "../commands.js";
-
-const require = createRequire(import.meta.url);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import {
+  resolveDevtoolsHelperScript,
+  resolveTsxCliPath,
+} from "../helper-scripts.js";
 
 type AirJamAgentInspection = {
   hasAgent: boolean;
   visualScenariosModulePath: string | null;
 };
-
-const resolveHelperScriptPath = (fileName: string): string => {
-  const builtHelperPath = path.resolve(__dirname, "tooling", fileName);
-  if (existsSync(builtHelperPath)) {
-    return builtHelperPath;
-  }
-
-  const sourceHelperPath = path.resolve(__dirname, "..", "tooling", fileName);
-  if (existsSync(sourceHelperPath)) {
-    return sourceHelperPath;
-  }
-
-  return path.resolve(__dirname, "..", "src", "tooling", fileName);
-};
-
-const resolveTsxCliPath = (): string =>
-  path.join(
-    path.dirname(require.resolve("tsx/package.json")),
-    "dist",
-    "cli.mjs",
-  );
 
 const parseHelperJson = <T>(output: string): T => {
   const startIndex = output.indexOf("{");
@@ -50,7 +27,7 @@ export const inspectAirJamAgentConfig = async (
     command: process.execPath,
     args: [
       resolveTsxCliPath(),
-      resolveHelperScriptPath("inspect-airjam-agent.ts"),
+      resolveDevtoolsHelperScript("inspect-airjam-agent.ts"),
       "--config",
       configPath,
     ],

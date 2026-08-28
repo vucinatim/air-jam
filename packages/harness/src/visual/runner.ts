@@ -1,6 +1,6 @@
-import type { Browser, Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import type { Browser, Page } from "playwright-core";
 import {
   DEFAULT_HOST_VIEWPORT,
   dismissHarnessControllerFullscreenPrompt,

@@ -99,7 +99,7 @@ export const StandaloneHostDiagram = () => {
           fontFamily="monospace"
           dominantBaseline="middle"
         >
-          AirJamHostRuntime
+          airjam.Host
         </text>
 
         {/* Air Jam Server - Right */}

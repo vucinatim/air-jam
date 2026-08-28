@@ -16,6 +16,13 @@ const PUBLIC_PACKAGE_DEFINITIONS = [
     tagPrefix: "sdk",
   },
   {
+    id: "cli",
+    packageName: "@air-jam/cli",
+    packageFilter: "@air-jam/cli",
+    workingDirectory: "packages/cli",
+    tagPrefix: "cli",
+  },
+  {
     id: "mcp-server",
     packageName: "@air-jam/mcp-server",
     packageFilter: "@air-jam/mcp-server",

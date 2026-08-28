@@ -1,5 +1,5 @@
 import type { AirJamAgentContract, AnyAirJamAgentContract } from "@air-jam/sdk";
-import type { Page } from "@playwright/test";
+import type { Page } from "playwright-core";
 
 export type { AnyAirJamAgentContract } from "@air-jam/sdk";
 

@@ -25,6 +25,7 @@ const runPlatformGeneratedPrepare = async () => {
 };
 
 const runPlatformGeneratedCheck = async () => {
+  runCommand("pnpm", ["--filter", "@air-jam/cli", "ai-pack:check"]);
   await Promise.all([
     assertGeneratedContentDocsSourceIsFresh(),
     assertGeneratedContentBlogSourceIsFresh(),

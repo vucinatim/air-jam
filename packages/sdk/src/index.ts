@@ -22,18 +22,18 @@ export {
   type MusicPlaylistProps,
 } from "./audio/music";
 export {
-  DEFAULT_ROOM_PLATFORM_SETTINGS,
   DEFAULT_PLATFORM_SETTINGS,
+  DEFAULT_ROOM_PLATFORM_SETTINGS,
   getEffectiveAudioVolume,
   mergeRoomPlatformSettingsSnapshot,
   toRoomPlatformSettingsSnapshot,
 } from "./settings/platform-settings";
 export type {
+  PartialRoomPlatformSettingsPatch,
   PlatformAccessibilitySettings,
   PlatformAudioSettings,
   PlatformFeedbackSettings,
   PlatformPreviewControllerSettings,
-  PartialRoomPlatformSettingsPatch,
   PlatformSettings,
   PlatformSettingsPersistence,
   PlatformSettingsSnapshot,
@@ -85,38 +85,19 @@ export {
 } from "./hooks/use-controller-toasts";
 export { useGetInput } from "./hooks/use-get-input";
 export {
+  useHostAudioMutePreference,
+  type HostAudioMutePreference,
+} from "./hooks/use-host-audio-mute-preference";
+export {
   useHostTick,
   type HostFrameInfo,
   type HostTickInfo,
   type HostTickOptions,
 } from "./hooks/use-host-tick";
-export {
-  useHostAudioMutePreference,
-  type HostAudioMutePreference,
-} from "./hooks/use-host-audio-mute-preference";
 export { useInputWriter } from "./hooks/use-input-writer";
 export { usePlayers } from "./hooks/use-players";
 export { useRoom, type RoomState } from "./hooks/use-room";
 export { useSendSignal, type SendSignalFn } from "./hooks/use-send-signal";
-export {
-  AIR_JAM_RUNTIME_INSPECTION_KEY,
-  createControllerRuntimeInspectionContract,
-  createHostRuntimeInspectionContract,
-  publishRuntimeInspectionContract,
-  readRuntimeInspectionContract,
-  useControllerRuntimeInspectionContract,
-  useHostRuntimeInspectionContract,
-  type ControllerRuntimeInspectionContract,
-  type HostRuntimeInspectionContract,
-  type RuntimeInspectionContract,
-} from "./runtime-inspection";
-export {
-  AirJamControllerRuntime,
-  AirJamHostRuntime,
-  type AirJamControllerRuntimeProps,
-  type AirJamHostRuntimeProps,
-} from "./runtime/session-runtimes";
-
 export {
   isActiveMatchPhase,
   isEndedMatchPhase,

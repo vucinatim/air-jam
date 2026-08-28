@@ -15,6 +15,7 @@ export default defineConfig({
     "src/arcade/bridge/host.ts",
     "src/arcade/bridge/iframe.ts",
     "src/arcade/host.ts",
+    "src/arcade/runtime.ts",
     "src/arcade/surface.ts",
     "src/arcade/url.ts",
     "src/ui.ts",
@@ -26,6 +27,7 @@ export default defineConfig({
     "src/preview.ts",
     "src/agent-tooling.ts",
     "src/runtime-topology.ts",
+    "src/runtime-inspection.ts",
   ],
   format: ["cjs", "esm"],
   dts: true, // Generate declaration files

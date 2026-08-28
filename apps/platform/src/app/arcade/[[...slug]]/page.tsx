@@ -16,7 +16,8 @@ import {
   getLocalReferenceArcadeGames,
 } from "@/lib/local-reference-games";
 import { api } from "@/trpc/react";
-import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
+import { PlatformSettingsRuntime } from "@air-jam/sdk";
+import { AirJamHostRuntime } from "@air-jam/sdk/arcade/runtime";
 import { use, useMemo } from "react";
 
 export default function ArcadePage({

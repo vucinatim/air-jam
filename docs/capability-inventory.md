@@ -139,8 +139,8 @@ surfaces.
 Current capabilities:
 
 1. canonical app setup through `createAirJamApp`
-2. host runtime boundary through `airjam.Host` or `AirJamHostRuntime`
-3. controller runtime boundary through `airjam.Controller` or `AirJamControllerRuntime`
+2. host runtime boundary through `airjam.Host`
+3. controller runtime boundary through `airjam.Controller`
 4. route-aware controller path resolution
 5. Vite and Next-style runtime environment helpers
 6. scoped runtime providers
@@ -158,8 +158,8 @@ Main APIs:
 
 1. `createAirJamApp`
 2. `env`
-3. `AirJamHostRuntime`
-4. `AirJamControllerRuntime`
+3. `airjam.Host`
+4. `airjam.Controller`
 5. `useAirJamHost`
 6. `useAirJamController`
 7. `usePlayers`
@@ -566,13 +566,13 @@ Current capabilities:
 5. generated AI docs pack
 6. generated scaffold source checks
 7. template version manifest generation
-8. published CLI aliases: `create-airjam` and `airjam`
+8. bootstrap binary `create-airjam` plus the canonical project binary `airjam`
 
 Key implementation areas:
 
 1. `packages/create-airjam`
 2. `packages/create-airjam/scaffold-templates`
-3. `packages/create-airjam/runtime`
+3. `packages/cli`
 4. `apps/platform/public/ai-pack`
 
 ## AI Pack And Documentation Delivery

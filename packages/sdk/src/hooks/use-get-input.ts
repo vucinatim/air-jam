@@ -28,7 +28,7 @@ import { useAssertSessionScope } from "../context/session-scope";
  * to host session state, so it won't cause re-renders when connection state changes.
  *
  * **Requirements:**
- * - Must be used within `AirJamHostRuntime`, `airjam.Host`, or the underlying scoped host runtime
+ * - Must be used within `airjam.Host` or the underlying scoped host runtime
  * - Input configuration must be provided to the provider
  *
  * @template TSchema - Zod schema type for input (from provider)
