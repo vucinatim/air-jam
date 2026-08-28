@@ -159,6 +159,19 @@ These are now baseline truths, not open architecture debates:
        from the exact canonicalization head
     4. authored production source, tests, and guidance are `6,050` lines net
        smaller than the exact pre-canonicalization baseline
+14. Gate 2 now has one canonical external-agent proof contract:
+    1. a repo-validated JSON manifest fixes the clients, isolation boundary,
+       ten ordered lifecycle stages, hidden-staging publication policy, and
+       machine evidence paths
+    2. Codex owns the complete create-through-release proof; Claude Desktop
+       owns a separate independent install, discovery, and semantic-session
+       proof
+    3. a deterministic three-to-two win-score mutation exercises the bounded
+       inspect-diagnose-repair loop without claiming general self-healing
+    4. `pnpm --silent run repo -- golden-path spec|validate --json` makes the
+       scenario discoverable and rejects malformed or production-unsafe specs
+    5. defining the harness does not certify the result: Gates `G2-02` through
+       `G2-05` still own public-only installation and successful replay evidence
 
 ## What Is Still Open
 
@@ -209,6 +222,13 @@ invariants, and Arcade callback-ref lifecycle synchronization. The exact
 clean-checkout release matrix passes at `da835f6`, and authored source, tests,
 and guidance are `6,050` lines net smaller than the Gate 1 baseline.
 
+Gate `G2-01` is closed with the
+[external-agent golden-path contract](./contracts/external-agent-golden-path-contract.md),
+its exact Signal Relay prompt, versioned evidence format, and repository-owned
+validator. Current Anthropic guidance makes Desktop Extensions the preferred
+Claude Desktop packaging path, so the older raw JSON setup remains explicitly
+uncertified until the independent `G2-04` proof settles and canonicalizes it.
+
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
 [2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md).
@@ -240,8 +260,8 @@ Execute the roadmap in dependency order:
 ## Immediate Next Steps
 
 1. agents select and claim from the canonical readiness queue
-2. execute the external-agent golden path through the now-stable CLI/MCP/runtime
-   boundaries
+2. close public-only installation, root dev-loop, contract-resolution, and MCP
+   bootstrap blockers against the fixed external-agent scenario
 3. continue the dependency-ready reliability inventory, operational-event
    contract, and threat model
 4. preserve Gate 1 contracts while those independent implementation lanes run

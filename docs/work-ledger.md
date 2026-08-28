@@ -18,6 +18,35 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-28 - Gate 2 Received A Replayable External-Agent Proof Contract
+
+- fixed one machine-readable Signal Relay scenario across ten ordered stages:
+  preflight, create, discover, build, control, inspect, repair, evaluate,
+  release, and verify
+- separated the supported-client claim into Codex's complete lifecycle proof
+  and Claude Desktop's independent local MCP installation, discovery, and
+  semantic-session proof
+- defined a strict clean room: registry packages only, no monorepo/private
+  paths or docs, run-scoped identities/configuration, and no maintainer-authored
+  product edits after the agent starts
+- added one deterministic `WIN_SCORE` mutation so inspect-diagnose-repair is
+  repeatable without turning the release claim into an unbounded self-healing
+  promise
+- required a normalized, digest-indexed evidence bundle with commands,
+  sessions, logs, quality, visuals, release facts, retained failures, redaction,
+  cleanup disposition, and independent verification
+- structurally disabled production publishing and required isolated hidden
+  staging for the release stage
+- aligned client assumptions with current official vendor guidance: Codex's
+  project-scoped STDIO MCP configuration is supported, while Claude Desktop's
+  preferred Desktop Extension path still needs independent Air Jam proof
+- exposed the contract through `pnpm run repo -- golden-path spec|validate`
+  with stable JSON and tests that reject unsafe publication or stage drift
+- passed canonical guard, full typecheck, lint with one pre-existing ignored
+  vendored warning, and all `32` repository contract tests
+- published nothing and changed no production infrastructure; Gates `G2-02`
+  through `G2-05` retain responsibility for actually passing the scenario
+
 ## 2026-08-28 - Gate 1 Closed From An Exact Clean Checkout
 
 - closed canonicalization bundle `R5` at
