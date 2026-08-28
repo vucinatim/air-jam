@@ -19,10 +19,9 @@ against v1:
    `@air-jam/sdk/metadata`, and `@air-jam/sdk/prefabs` are intentionally
    unstable future-facing seams. They may change within `1.x` — each carries
    a documented purpose in its leaf, and changes are noted in release notes.
-   The agent-facing `runtime-control`, `runtime-inspection`,
-   `runtime-observability`, and `contracts/v2` seams exist in-source but are
-   **not exported publicly** until a first-party consumer lands; they will be
-   re-exported as explicit experimental leaves when that happens.
+   Runtime inspection is moving to an explicit experimental leaf because it
+   has real machine-tooling consumers. Speculative control, observability, and
+   `contracts/v2` seams are not retained without a concrete consumer.
 4. **v2 migration.** When v2 ships, we commit to publishing a codemod (or
    migration notes if the surface is too narrow to automate) alongside the
    release. v1 games will not be silently broken — the v1 SDK will remain
@@ -343,22 +342,12 @@ runtime so hosts can persist their preferred transparency level.
 Keep preview usage inside explicit host-side UI and do not treat it as a stable
 root-SDK contract yet.
 
-## Runtime Contract Seams (In-Source, Not Public Exports)
+## Runtime Inspection Contract
 
-Air Jam also carries agent-facing runtime seams for control, inspection, and
-observability. Those modules still exist in-source, but they are **not public
-package exports in v1**, so consumers should not import:
-
-1. `@air-jam/sdk/runtime-control`
-2. `@air-jam/sdk/runtime-inspection`
-3. `@air-jam/sdk/runtime-observability`
-4. `@air-jam/sdk/contracts/v2`
-
-Current policy:
-
-1. keep these seams private until a real first-party consumer lands
-2. treat them as future agent-facing homes for bots, tests, previews, and agent tooling
-3. re-export them later as explicit experimental leaves instead of implying they are stable root-SDK contracts
+Runtime inspection is a real machine-tooling requirement and is published from
+an explicit experimental leaf. Agent control remains game-semantic, and runtime
+logs remain in the unified log stream; Air Jam does not keep parallel dormant
+control or observability contracts for hypothetical consumers.
 
 ## Prefab Contract Leaf (Experimental)
 

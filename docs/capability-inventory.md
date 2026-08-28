@@ -393,7 +393,7 @@ Current capabilities:
 
 Key implementation areas:
 
-1. `packages/runtime-topology`
+1. `packages/sdk/src/runtime-topology.ts`
 2. `packages/devtools-core/src/dev.ts`
 3. `packages/sdk/src/runtime/runtime-session-params.ts`
 

@@ -1,12 +1,12 @@
 import {
-  isLocalDevControlSurfaceTopology,
-  readRuntimeTopologyFromWindow,
-} from "@air-jam/runtime-topology";
-import {
   type AirJamSyncedStoreHook,
   type AnyAirJamAgentContract,
 } from "@air-jam/sdk";
 import { resolveAirJamAgentActionPayload } from "@air-jam/sdk/agent-tooling";
+import {
+  isLocalDevControlSurfaceTopology,
+  readRuntimeTopologyFromWindow,
+} from "@air-jam/sdk/runtime-topology";
 import {
   Fragment,
   createElement,

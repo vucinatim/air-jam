@@ -1,4 +1,4 @@
-import { AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY } from "@air-jam/runtime-topology";
+import { AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY } from "@air-jam/sdk/runtime-topology";
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

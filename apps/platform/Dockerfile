@@ -32,12 +32,8 @@ COPY packages/env/package.json                  ./packages/env/
 COPY packages/server/package.json               ./packages/server/
 COPY packages/harness/package.json              ./packages/harness/
 COPY packages/devtools-core/package.json        ./packages/devtools-core/
-COPY packages/runtime-topology/package.json     ./packages/runtime-topology/
 COPY packages/create-airjam/package.json        ./packages/create-airjam/
 COPY packages/mcp-server/package.json           ./packages/mcp-server/
-# NOTE: packages/bot-lab is excluded from git (.git/info/exclude) so it
-# isn't present in Railway's build context. pnpm install tolerates the
-# missing workspace package because pnpm-workspace.yaml uses a glob.
 COPY packages/release-browser-worker/package.json ./packages/release-browser-worker/
 COPY games/air-capture/package.json             ./games/air-capture/
 COPY games/code-review/package.json             ./games/code-review/
