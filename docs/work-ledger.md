@@ -18,6 +18,26 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-28 - Gate 1 Canonicalization Removed Two Duplicate System Families
+
+- established exact baseline `18ca38957c19c7ee5d9e39aac2bb91f0393a8902`
+  so cleanup claims exclude earlier roadmap, telemetry, story, and audit work
+- completed bundle `R1` at `958e071829dc9794484ded4f8cdc9f98b3af6217`:
+  removed the duplicate runtime-topology package, dormant SDK control and
+  observability seams, empty Studio placeholder, and bot-lab workspace coupling
+- completed bundle `R2` at `408fdbf45c123dc60e4721e137f7fa43e955fb60`:
+  removed the production visual command bus, browser action bridge, unreachable
+  MCP visual definitions, speculative capability manifest, and pre-1.0 runtime
+  compatibility paths
+- made semantic game sessions the only state/action automation model, runtime
+  inspection the source of mounted-runtime facts, and browser scenario capture
+  visual proof only
+- recorded a combined bundle shape of `+687 / -8,199` lines across production
+  source, tests, and docs, with exact category evidence retained in the
+  [canonicalization execution set](./audits/v1-canonicalization/canonicalization-execution-set.md)
+- preserved the user's local bot-lab files and performed no package publish or
+  production deployment
+
 ## 2026-08-28 - Gate 0 Ratified The Air Jam 1.0 Product And Operating Contract
 
 - ratified `Air Jam` as the one public product name and retired `Air Jam

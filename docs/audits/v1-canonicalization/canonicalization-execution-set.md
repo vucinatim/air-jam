@@ -1,7 +1,7 @@
 # Air Jam 1.0 Canonicalization Execution Set
 
 Last updated: 2026-08-28
-Status: bounded refactor set for `G1-03`
+Status: implementation active; `R1` and `R2` complete
 Implementation owner: `G1-05`
 Approval checkpoint: `G1-04`
 
@@ -139,6 +139,19 @@ Acceptance:
 3. frozen install, topology tests, workspace list, and canonical guard pass
 4. user-local bot-lab files remain untouched
 
+Completion evidence:
+
+1. commit: `958e071829dc9794484ded4f8cdc9f98b3af6217`
+2. range: `3159913..958e071`
+3. production and operational source: `+17 / -1,951` (`-1,934` net)
+4. tests and contract guards: `+5 / -403` (`-398` net)
+5. documentation and guidance: `+9 / -20` (`-11` net)
+6. focused proof: frozen install, SDK and harness typecheck/tests, workspace
+   enumeration, and canonical guard passed
+7. retained owner: `@air-jam/sdk/runtime-topology`; removed owners include the
+   duplicate topology package, dormant SDK agent seams, empty Studio
+   placeholder, and tracked bot-lab workspace knowledge
+
 ## Bundle R2: Runtime And Agent-Control Surface Purge
 
 Primary findings: `CAN-002`, `CAN-005`, `CAN-012`, `CAN-207`.
@@ -165,6 +178,28 @@ Acceptance:
 2. public MCP schema contains only registered supported tools
 3. semantic sessions and browser visual capture still pass focused proof
 4. no deprecated runtime alias or capabilities-manifest consumer remains
+
+Completion evidence:
+
+1. commit: `408fdbf45c123dc60e4721e137f7fa43e955fb60`
+2. range: `958e071..408fdbf`
+3. production and operational source: `+358 / -4,308` (`-3,950` net)
+4. tests and contract guards: `+271 / -1,482` (`-1,211` net)
+5. documentation and guidance: `+27 / -35` (`-8` net)
+6. focused proof: SDK `259` tests, devtools `45` tests, server `135` passing
+   tests (`2` explicitly skipped), MCP `6` tests, harness visual-proof tests,
+   Air Capture `83` tests and production build, repo contract tests, lint, and
+   canonical guard passed
+7. retained owners: semantic game sessions for state/actions, runtime
+   inspection for mounted-runtime facts, and browser scenario capture for
+   visual proof
+8. removed surfaces include `5` production HTTP command routes, `4` unreachable
+   MCP definitions, the browser bridge/action runtime, the speculative SDK
+   capabilities leaf, incomplete topology inference, config/socket aliases,
+   legacy settings migration, null action normalization, and game compatibility
+   accessors
+9. no compatibility adapter was introduced; visual scenario modules now have
+   one canonical `visualScenarios` export
 
 ## Bundle R3: Project CLI And Public Contract Convergence
 
