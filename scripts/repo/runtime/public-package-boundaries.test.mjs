@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -76,4 +77,38 @@ test("the canonical CLI participates in the public release set", () => {
     "utf8",
   );
   assert.match(releaseSource, /packages\/cli/u);
+});
+
+test("the canonical AI pack manifest is committed with the CLI assets", () => {
+  const manifestPath =
+    "packages/cli/template-assets/managed/.airjam/ai-pack.json";
+  const trackedFiles = execFileSync(
+    "git",
+    ["ls-files", "--error-unmatch", manifestPath],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(trackedFiles.trim(), manifestPath);
+  assert.deepEqual(readJson(manifestPath), {
+    schemaVersion: 1,
+    packVersion: "0.1.0",
+    channel: "stable",
+    releaseDate: "2026-03-29T00:00:00.000Z",
+    source: {
+      mode: "packaged-snapshot",
+      canonicalDocsSource: "content/docs",
+      canonicalBasePackSource: "packages/cli/template-assets/managed",
+    },
+    scaffold: {
+      template: null,
+      createAirjamVersion: null,
+    },
+    update: {
+      manifestUrl: "https://airjam.io/ai-pack/manifest.json",
+      docsBaseUrl: "https://airjam.io/docs",
+    },
+  });
 });

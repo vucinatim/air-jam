@@ -26,8 +26,8 @@ dist-ssr
 
 # Local package artifacts and disposable validation copies
 .airjam/
-!packages/create-airjam/template-assets/base/.airjam/
-!packages/create-airjam/template-assets/base/.airjam/ai-pack.json
+!packages/cli/template-assets/managed/.airjam/
+!packages/cli/template-assets/managed/.airjam/ai-pack.json
 backups/
 
 # Generated hosted AI pack artifacts
@@ -46,4 +46,3 @@ apps/platform/.next-smoke/
 # The canonical post.mdx, post.meta.ts, and devto.config.ts ARE tracked.
 content/blog/*/dev-to.md
 content/blog/*/media/
-
