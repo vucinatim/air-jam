@@ -249,35 +249,43 @@ Acceptance:
 Completion evidence:
 
 1. commit: `bf7d0630097638deec919f01f5bbc4e3e50a627d`
-2. range: `4c6466d..bf7d063`
-3. production and operational source, excluding docs, tests, generated
+2. clean-checkout corrections: `4980af1dcd2f865c30acd0a45afd916b04425471`
+   and `59d5657a4a76a875746ea54587eb6179c7deeef3`
+3. primary consolidation range: `4c6466d..bf7d063`
+4. production and operational source, excluding docs, tests, generated
    templates, and binaries: `+4,755 / -5,735` (`-980` net)
-4. tests and contract guards: `+598 / -246` (`+352` net)
-5. documentation and guidance, with old and new ownership roots included for
+5. tests and contract guards: `+598 / -246` (`+352` net)
+6. documentation and guidance, with old and new ownership roots included for
    rename detection: `+1,086 / -1,062` (`+24` net)
-6. generated scaffold archives: `6` binary artifacts, excluded from line
+7. generated scaffold archives: `6` binary artifacts, excluded from line
    claims
-7. retained owners: `create-airjam` for one-shot bootstrap, `@air-jam/cli` for
+8. retained owners: `create-airjam` for one-shot bootstrap, `@air-jam/cli` for
    installed project lifecycle, `@air-jam/server` for signal-server start and
    logs, `@air-jam/mcp-server` for the portable MCP adapter, and
    `@air-jam/sdk/arcade/runtime` for explicit platform-only raw composition
-8. removed surfaces include the `airjam` alias and ongoing lifecycle from the
+9. removed surfaces include the `airjam` alias and ongoing lifecycle from the
    bootstrap package, all server-owned project CLI commands, the duplicated
    server project-runtime tree, duplicated environment validators, and raw
    runtime components from the SDK root
-9. machine proof: stable JSON for local status, MCP setup, AI-pack operations,
-   and persistent semantic sessions; all six scaffold games pass real
-   store/action conformance
-10. packed clean-room proof: registry-isolated Pong scaffold installation,
+10. machine proof: stable JSON for local status, MCP setup, AI-pack operations,
+    and persistent semantic sessions; all six scaffold games pass real
+    store/action conformance
+11. packed clean-room proof: registry-isolated Pong scaffold installation,
     CLI/MCP discovery, raw MCP initialize and tool listing, semantic session
     open/read/close, typecheck, `22` tests, and production build
-11. full proof: frozen install, generated-artifact freshness, repo contracts,
+12. full proof: frozen install, generated-artifact freshness, repo contracts,
     CLI `50` tests, MCP `8` tests, devtools `46` tests, server `134` tests with
     `2` explicit skips, SDK `260` tests, platform `202` tests, full workspace
     build, and performance sanity passed
-12. clean-build correction: repo contract tests now establish SDK output before
+13. clean-build correction: repo contract tests now establish SDK output before
     parallel tests instead of rebuilding and cleaning shared `dist` state from
     inside one test file
+14. clean-checkout source correction: the CLI-owned AI-pack manifest is now
+    committed under its new canonical path, with a Git tracking contract that
+    fails when a future ownership move leaves the source ignored
+15. agent-first front-door correction: `pnpm run dev` once again discovers and
+    launches the default live Arcade workspace path, and its help lifecycle is
+    executed by the repo contracts
 
 ## Bundle R4: Platform Application Authority Convergence
 
