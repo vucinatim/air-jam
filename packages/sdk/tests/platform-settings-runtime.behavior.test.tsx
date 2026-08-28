@@ -5,7 +5,6 @@ import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_PLATFORM_SETTINGS,
-  LEGACY_AUDIO_SETTINGS_STORAGE_KEY,
   PLATFORM_SETTINGS_STORAGE_KEY,
 } from "../src/settings/platform-settings";
 import {
@@ -34,40 +33,6 @@ describe("PlatformSettingsRuntime", () => {
     const { result } = renderHook(() => usePlatformSettings(), { wrapper });
 
     expect(result.current.settings).toEqual(DEFAULT_PLATFORM_SETTINGS);
-  });
-
-  it("migrates legacy audio storage into platform settings storage", () => {
-    window.localStorage.setItem(
-      LEGACY_AUDIO_SETTINGS_STORAGE_KEY,
-      JSON.stringify({
-        masterVolume: 0.3,
-        musicVolume: 0.6,
-        sfxVolume: 0.9,
-      }),
-    );
-
-    const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(
-        PlatformSettingsRuntime,
-        { persistence: "local" },
-        children,
-      );
-
-    const { result } = renderHook(() => usePlatformSettings(), { wrapper });
-
-    expect(result.current.settings.audio).toEqual({
-      masterVolume: 0.3,
-      musicVolume: 0.6,
-      sfxVolume: 0.9,
-    });
-    expect(window.localStorage.getItem(LEGACY_AUDIO_SETTINGS_STORAGE_KEY)).toBe(
-      null,
-    );
-    expect(
-      JSON.parse(
-        window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY) ?? "null",
-      ),
-    ).toEqual(result.current.settings);
   });
 
   it("persists owner updates to local storage", async () => {

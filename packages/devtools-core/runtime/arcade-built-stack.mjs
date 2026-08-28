@@ -24,12 +24,6 @@ import {
 
 const BACKEND_PROXY_URL = "http://127.0.0.1:4000";
 
-const appendVisualHarnessParam = (url) => {
-  const nextUrl = new URL(url);
-  nextUrl.searchParams.set("aj_visual_harness", "enabled");
-  return nextUrl.toString();
-};
-
 const buildWorkspaceGame = ({ rootDir, activeGame }) => {
   ensureWorkspacePackageBuild({
     rootDir,
@@ -69,7 +63,6 @@ export const startWorkspaceArcadeBuiltStack = async ({
   secureMode = SECURE_MODE_LOCAL,
   build = true,
   browserOrigin = "public",
-  visualHarness = false,
 } = {}) => {
   const activeGame = findRepoWorkspaceGame({ rootDir, gameId });
   if (!activeGame) {
@@ -110,12 +103,8 @@ export const startWorkspaceArcadeBuiltStack = async ({
       : arcadeOrigins.publicPlatformOrigin;
   const browserBuildUrlBase = `${browserPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
   const publicBuildUrlBase = `${arcadeOrigins.publicPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
-  const browserBuildUrl = visualHarness
-    ? appendVisualHarnessParam(browserBuildUrlBase)
-    : browserBuildUrlBase;
-  const publicBuildUrl = visualHarness
-    ? appendVisualHarnessParam(publicBuildUrlBase)
-    : publicBuildUrlBase;
+  const browserBuildUrl = browserBuildUrlBase;
+  const publicBuildUrl = publicBuildUrlBase;
   const arcadeTopologies = createRepoWorkspaceArcadeTopologies({
     runtimeMode: "arcade-built",
     hostPlatformOrigin: arcadeOrigins.hostPlatformOrigin,

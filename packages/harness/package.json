@@ -22,14 +22,6 @@
     "./visual": {
       "types": "./dist/visual.d.ts",
       "import": "./dist/visual.js"
-    },
-    "./dev-control": {
-      "types": "./dist/core/dev-control.d.ts",
-      "import": "./dist/core/dev-control.js"
-    },
-    "./runtime": {
-      "types": "./dist/runtime.d.ts",
-      "import": "./dist/runtime.js"
     }
   },
   "main": "./dist/index.js",
@@ -43,12 +35,6 @@
     "*": {
       "visual": [
         "dist/visual.d.ts"
-      ],
-      "dev-control": [
-        "dist/core/dev-control.d.ts"
-      ],
-      "runtime": [
-        "dist/runtime.d.ts"
       ]
     }
   },

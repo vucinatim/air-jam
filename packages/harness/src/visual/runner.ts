@@ -1,12 +1,6 @@
 import type { Browser, Page } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import type {
-  AnyVisualHarnessBridgeDefinition,
-  InferVisualHarnessBridgeActions,
-  InferVisualHarnessBridgeSnapshot,
-  VisualHarnessActionInvokerMap,
-} from "../core/bridge-contract.js";
 import {
   DEFAULT_HOST_VIEWPORT,
   dismissHarnessControllerFullscreenPrompt,
@@ -22,7 +16,6 @@ import type {
   VisualHarnessUrls,
   VisualScenario,
   VisualScenarioAgent,
-  VisualScenarioBridge,
   VisualScenarioContext,
   VisualScenarioPack,
   VisualScreenshotRecord,
@@ -74,10 +67,7 @@ const appendFailureScreenshot = async ({
 };
 
 const captureFailureScreenshots = async (
-  runContext: VisualScenarioContext<
-    AnyAirJamAgentContract,
-    AnyVisualHarnessBridgeDefinition | null
-  > | null,
+  runContext: VisualScenarioContext<AnyAirJamAgentContract> | null,
 ): Promise<void> => {
   if (!runContext) {
     return;
@@ -97,43 +87,6 @@ const captureFailureScreenshots = async (
       screenshotRecords: runContext.screenshotRecords,
     }),
   ]);
-};
-
-const createBridgeClient = <TBridge extends AnyVisualHarnessBridgeDefinition>({
-  bridge,
-  session,
-}: {
-  bridge: TBridge;
-  session: Awaited<ReturnType<typeof openVisualHarnessSession>>;
-}): VisualScenarioBridge<TBridge> => {
-  const read = async () =>
-    session.readBridgeSnapshot<InferVisualHarnessBridgeSnapshot<TBridge>>();
-
-  const waitFor: VisualScenarioBridge<TBridge>["waitFor"] = async (
-    predicate,
-    description = "visual harness bridge predicate",
-    timeout = 30_000,
-  ) =>
-    session.waitForBridgeSnapshot<InferVisualHarnessBridgeSnapshot<TBridge>>(
-      predicate,
-      description,
-      timeout,
-    );
-
-  const actionEntries = Object.keys(bridge.actions).map((actionName) => {
-    const invoke = async (payload?: unknown) =>
-      session.invokeBridgeAction(actionName, payload);
-
-    return [actionName, invoke] as const;
-  });
-
-  return {
-    read,
-    waitFor,
-    actions: Object.fromEntries(actionEntries) as VisualHarnessActionInvokerMap<
-      InferVisualHarnessBridgeActions<TBridge>
-    >,
-  };
 };
 
 const createUnavailableAgentClient = <
@@ -191,13 +144,9 @@ const createLazyAgentClient = <TSnapshot extends Record<string, unknown>>({
   };
 };
 
-const createScenarioRunContext = async <
-  TAgent extends AnyAirJamAgentContract,
-  TBridge extends AnyVisualHarnessBridgeDefinition | null,
->({
+const createScenarioRunContext = async <TAgent extends AnyAirJamAgentContract>({
   browser,
   gameId,
-  bridge,
   scenario,
   scenarioDir,
   urls,
@@ -207,8 +156,7 @@ const createScenarioRunContext = async <
 }: {
   browser: Browser;
   gameId: string;
-  bridge: TBridge;
-  scenario: VisualScenario<TAgent, TBridge>;
+  scenario: VisualScenario<TAgent>;
   scenarioDir: string;
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
   mode: VisualHarnessMode;
@@ -216,12 +164,11 @@ const createScenarioRunContext = async <
   createAgentSession?: (options: {
     gameId: string;
     scenarioId: string;
-    harnessSessionId: string | null;
     urls: VisualHarnessUrls;
     mode: VisualHarnessMode;
     secure: boolean;
   }) => Promise<VisualScenarioAgent<InferVisualScenarioSnapshot<TAgent>>>;
-}): Promise<VisualScenarioContext<TAgent, TBridge>> => {
+}): Promise<VisualScenarioContext<TAgent>> => {
   const session = await openVisualHarnessSession({
     browser,
     urls,
@@ -271,20 +218,12 @@ const createScenarioRunContext = async <
     });
   };
 
-  const bridgeClient =
-    bridge === null
-      ? null
-      : createBridgeClient({
-          bridge,
-          session,
-        });
   const agent = createLazyAgentClient<InferVisualScenarioSnapshot<TAgent>>({
     createAgentSession: createAgentSession
       ? () =>
           createAgentSession({
             gameId,
             scenarioId: scenario.id,
-            harnessSessionId: session.harnessSessionId,
             urls: session.urls,
             mode,
             secure,
@@ -307,7 +246,6 @@ const createScenarioRunContext = async <
       await dismissHarnessControllerFullscreenPrompt(controllerPage);
     },
     agent,
-    bridge: bridgeClient as VisualScenarioContext<TAgent, TBridge>["bridge"],
     captureHost: async (viewportName: string, viewport: VisualViewport) =>
       captureSurface({ surface: "host", viewportName, ...viewport }),
     captureController: async (viewportName: string, viewport: VisualViewport) =>
@@ -333,10 +271,7 @@ const buildScenarioMetadata = ({
 }: {
   artifactRoot: string;
   gameId: string;
-  scenario: VisualScenario<
-    AnyAirJamAgentContract,
-    AnyVisualHarnessBridgeDefinition | null
-  >;
+  scenario: VisualScenario<AnyAirJamAgentContract>;
   mode: VisualHarnessMode;
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl"> | VisualHarnessUrls;
   screenshotRecords: VisualScreenshotRecord[];
@@ -369,14 +304,10 @@ const buildScenarioMetadata = ({
       : null,
 });
 
-const runScenarioCapture = async <
-  TAgent extends AnyAirJamAgentContract,
-  TBridge extends AnyVisualHarnessBridgeDefinition | null,
->({
+const runScenarioCapture = async <TAgent extends AnyAirJamAgentContract>({
   artifactRoot,
   browser,
   gameId,
-  bridge,
   scenario,
   urls,
   mode,
@@ -386,15 +317,13 @@ const runScenarioCapture = async <
   artifactRoot: string;
   browser: Browser;
   gameId: string;
-  bridge: TBridge;
-  scenario: VisualScenario<TAgent, TBridge>;
+  scenario: VisualScenario<TAgent>;
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
   mode: VisualHarnessMode;
   secure: boolean;
   createAgentSession?: (options: {
     gameId: string;
     scenarioId: string;
-    harnessSessionId: string | null;
     urls: VisualHarnessUrls;
     mode: VisualHarnessMode;
     secure: boolean;
@@ -403,7 +332,7 @@ const runScenarioCapture = async <
   const scenarioDir = path.join(artifactRoot, gameId, scenario.id);
   resetDir(scenarioDir);
 
-  let runContext: VisualScenarioContext<TAgent, TBridge> | null = null;
+  let runContext: VisualScenarioContext<TAgent> | null = null;
   let metadata: VisualCaptureScenarioMetadata | null = null;
   let scenarioError: unknown = null;
 
@@ -411,7 +340,6 @@ const runScenarioCapture = async <
     runContext = await createScenarioRunContext({
       browser,
       gameId,
-      bridge,
       scenario,
       scenarioDir,
       urls,
@@ -482,10 +410,7 @@ const runScenarioCapture = async <
 };
 
 const listScenarioIds = (
-  scenarioPack: VisualScenarioPack<
-    AnyAirJamAgentContract,
-    AnyVisualHarnessBridgeDefinition | null
-  >,
+  scenarioPack: VisualScenarioPack<AnyAirJamAgentContract>,
 ): string[] => scenarioPack.scenarios.map((scenario) => scenario.id);
 
 export type VisualHarnessStackHandle = {
@@ -501,32 +426,20 @@ export type RunVisualHarnessOptions = {
   artifactRoot: string;
   loadScenarioPack: (
     gameId: string,
-  ) => Promise<
-    VisualScenarioPack<
-      AnyAirJamAgentContract,
-      AnyVisualHarnessBridgeDefinition | null
-    >
-  >;
+  ) => Promise<VisualScenarioPack<AnyAirJamAgentContract>>;
   startStack: (options: {
     gameId: string;
     mode: VisualHarnessMode;
     secure: boolean;
-    visualHarness: boolean;
   }) => Promise<VisualHarnessStackHandle>;
   createAgentSession?: (options: {
     gameId: string;
     scenarioId: string;
-    harnessSessionId: string | null;
     urls: VisualHarnessUrls;
     mode: VisualHarnessMode;
     secure: boolean;
   }) => Promise<VisualScenarioAgent<Record<string, unknown>>>;
-  onScenarioStart?: (
-    scenario: VisualScenario<
-      AnyAirJamAgentContract,
-      AnyVisualHarnessBridgeDefinition | null
-    >,
-  ) => void;
+  onScenarioStart?: (scenario: VisualScenario<AnyAirJamAgentContract>) => void;
   onCaptureStart?: (info: {
     gameId: string;
     mode: VisualHarnessMode;
@@ -576,7 +489,6 @@ export const runVisualHarness = async ({
     gameId,
     mode,
     secure,
-    visualHarness: true,
   });
 
   const browser = await launchHarnessBrowser();
@@ -596,7 +508,6 @@ export const runVisualHarness = async ({
         artifactRoot,
         browser,
         gameId,
-        bridge: scenarioPack.bridge ?? null,
         scenario,
         urls: stack.urls,
         mode,

@@ -104,11 +104,6 @@
       "import": "./dist/protocol.js",
       "require": "./dist/protocol.cjs"
     },
-    "./capabilities": {
-      "types": "./dist/capabilities.d.ts",
-      "import": "./dist/capabilities.js",
-      "require": "./dist/capabilities.cjs"
-    },
     "./metadata": {
       "types": "./dist/metadata.d.ts",
       "import": "./dist/metadata.js",
@@ -181,9 +176,6 @@
       ],
       "protocol": [
         "dist/protocol.d.ts"
-      ],
-      "capabilities": [
-        "dist/capabilities.d.ts"
       ],
       "metadata": [
         "dist/metadata.d.ts"

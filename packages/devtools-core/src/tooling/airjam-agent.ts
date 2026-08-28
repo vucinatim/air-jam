@@ -1,6 +1,5 @@
 import type {
   AnyAirJamAgentContract,
-  AnyVisualHarnessBridgeDefinition,
   VisualScenarioPack,
 } from "@air-jam/harness/visual";
 import type { AirJamAgentContract, AirJamApp } from "@air-jam/sdk";
@@ -32,10 +31,7 @@ const readPublishedAgent = (
 
 const isVisualScenarioPack = (
   value: unknown,
-): value is VisualScenarioPack<
-  AnyAirJamAgentContract,
-  AnyVisualHarnessBridgeDefinition | null
-> =>
+): value is VisualScenarioPack<AnyAirJamAgentContract> =>
   Boolean(
     value &&
     typeof value === "object" &&
@@ -97,12 +93,7 @@ export const resolveVisualScenarioModulePathFromConfig = async (
 
 export const loadVisualScenarioPackFromConfig = async (
   configPath: string,
-): Promise<
-  VisualScenarioPack<
-    AnyAirJamAgentContract,
-    AnyVisualHarnessBridgeDefinition | null
-  >
-> => {
+): Promise<VisualScenarioPack<AnyAirJamAgentContract>> => {
   const modulePath =
     await resolveVisualScenarioModulePathFromConfig(configPath);
   if (!modulePath) {
@@ -112,22 +103,10 @@ export const loadVisualScenarioPackFromConfig = async (
   }
 
   const loaded = (await import(pathToFileURL(modulePath).href)) as {
-    visualHarness?: VisualScenarioPack<
-      AnyAirJamAgentContract,
-      AnyVisualHarnessBridgeDefinition | null
-    >;
-    visualScenarios?: VisualScenarioPack<
-      AnyAirJamAgentContract,
-      AnyVisualHarnessBridgeDefinition | null
-    >;
-    harness?: VisualScenarioPack<
-      AnyAirJamAgentContract,
-      AnyVisualHarnessBridgeDefinition | null
-    >;
+    visualScenarios?: VisualScenarioPack<AnyAirJamAgentContract>;
   };
 
-  const scenarioPack =
-    loaded.visualHarness ?? loaded.visualScenarios ?? loaded.harness ?? null;
+  const scenarioPack = loaded.visualScenarios ?? null;
 
   if (!isVisualScenarioPack(scenarioPack)) {
     throw new Error(

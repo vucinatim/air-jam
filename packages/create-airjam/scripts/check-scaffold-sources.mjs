@@ -126,7 +126,7 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
 
       if (configSource.includes("visualScenariosModule:")) {
         missing.push(
-          `scaffold template ${templateId} declares visualScenariosModule; visual harness is internal/experimental and must not ship in scaffolded templates`,
+          `scaffold template ${templateId} declares visualScenariosModule; visual capture scenarios are repo-internal and must not ship in scaffolded templates`,
         );
       }
     }

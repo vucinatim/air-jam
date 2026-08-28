@@ -500,36 +500,33 @@ Main APIs:
 5. `useHostRuntimeInspectionContract`
 6. `useControllerRuntimeInspectionContract`
 
-## Visual Harness And Preview Tooling
+## Visual Capture And Preview Tooling
 
-Air Jam includes an experimental visual harness for deterministic visual
-capture and agent-facing UI interaction.
+Air Jam includes repo-internal visual scenario tooling for deterministic host
+and controller proof. It does not define game actions or state: semantic game
+sessions remain the only machine-control contract.
 
 Current capabilities:
 
 1. visual scenario packs
 2. scenario listing
-3. host and controller harness sessions
-4. harness action descriptors
-5. harness action invocation
-6. published visual snapshots
-7. visual capture artifact writing
-8. capture summary listing and reading
-9. prefab visual contracts
-10. preview controller workspaces
-11. host preview controller windows
+3. host and controller browser surfaces
+4. semantic game-session setup for scenario actions
+5. visual capture artifact writing
+6. capture summary listing and reading
+7. prefab visual contracts
+8. preview controller workspaces
+9. host preview controller windows
 
 Main APIs and tools:
 
 1. `@air-jam/harness`
 2. `@air-jam/harness/visual`
-3. `airjam.list_visual_scenarios`
-4. `airjam.capture_visuals`
-5. `airjam.list_visual_capture_summaries`
-6. `airjam.read_visual_capture_summary`
-7. `HostPreviewControllerWorkspace`
-8. `PreviewControllerWorkspace`
-9. `PreviewControllerWindow`
+3. `pnpm run repo -- visual capture`
+4. `pnpm run repo -- visual prefab-capture`
+5. `HostPreviewControllerWorkspace`
+6. `PreviewControllerWorkspace`
+7. `PreviewControllerWindow`
 
 ## Game Metadata And Catalog Contracts
 
@@ -765,12 +762,9 @@ This inventory also exposes a few high-impact cleanup opportunities.
 
 1. The capability surface is broad enough that public docs, AI-pack docs, and
    repo docs need a single generated capability map eventually.
-2. Visual harness tooling is powerful but still marked internal experimental in
-   MCP descriptions; it should either graduate into a stable contract or stay
-   explicitly internal.
-3. Hosted release, media, and analytics capabilities are spread across platform,
+2. Hosted release, media, and analytics capabilities are spread across platform,
    devtools, SDK contracts, and strategy docs; a generated API matrix would make
    these easier to keep aligned.
-4. Agent contracts, runtime inspection contracts, and visual harness contracts
+3. Agent contracts, runtime inspection contracts, and visual capture tooling
    are adjacent but distinct; future docs should keep their boundaries crisp so
-   agents know which control surface to use for each job.
+   agents know which surface to use for control, runtime facts, and visual proof.

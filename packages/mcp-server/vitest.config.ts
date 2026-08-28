@@ -16,13 +16,6 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "../sdk/src/index.ts"),
       },
       {
-        find: "@air-jam/harness/dev-control",
-        replacement: path.resolve(
-          __dirname,
-          "../harness/src/core/dev-control.ts",
-        ),
-      },
-      {
         find: "@air-jam/harness",
         replacement: path.resolve(__dirname, "../harness/src/index.ts"),
       },
@@ -36,7 +29,10 @@ export default defineConfig({
       },
       {
         find: "@air-jam/devtools-core/context",
-        replacement: path.resolve(__dirname, "../devtools-core/dist/context.js"),
+        replacement: path.resolve(
+          __dirname,
+          "../devtools-core/dist/context.js",
+        ),
       },
       {
         find: "@air-jam/devtools-core/dev",

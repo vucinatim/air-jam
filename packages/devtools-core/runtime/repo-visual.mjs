@@ -12,7 +12,6 @@ export const startRepoVisualStack = async ({
   gameId,
   mode,
   secure,
-  visualHarness,
 }) =>
   mode === "arcade-built"
     ? startWorkspaceArcadeBuiltStack({
@@ -20,7 +19,6 @@ export const startRepoVisualStack = async ({
         gameId,
         secure,
         browserOrigin: "host",
-        visualHarness: visualHarness === true,
       })
     : startWorkspaceStandaloneLiveStack({
         rootDir,

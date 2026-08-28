@@ -11,9 +11,8 @@ import { z } from "zod";
  * consumers can keep assuming the shape is stable. External creators should be
  * able to target this contract before the first third-party catalog submission.
  *
- * This contract is distinct from `@air-jam/sdk/capabilities` — capabilities
- * describe what a game exposes at runtime (actions, state, evaluation seams);
- * metadata describes what the catalog needs to present the game.
+ * Runtime behavior belongs to the semantic agent contract; metadata describes
+ * only what the catalog needs to present the game.
  */
 
 /** Broad taxonomy for catalog filtering and landing-page grouping. */

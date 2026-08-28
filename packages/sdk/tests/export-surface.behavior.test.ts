@@ -117,7 +117,6 @@ describe("sdk export surface", () => {
         "./arcade/url",
         "./ui",
         "./protocol",
-        "./capabilities",
         "./metadata",
         "./prefabs",
         "./preview",

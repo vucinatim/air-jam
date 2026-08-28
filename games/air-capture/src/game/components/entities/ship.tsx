@@ -34,8 +34,10 @@ function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
     [number, number, number] | null
   >(null);
 
-  const currentAbility = useAbilitiesStore((state) =>
-    state.getAbility(controllerId),
+  const currentAbility = useAbilitiesStore(
+    (state) =>
+      state.getActiveAbility(controllerId) ??
+      state.getQueuedAbility(controllerId),
   );
   const isAbilityActive = useAbilitiesStore((state) =>
     state.isAbilityActive(controllerId),

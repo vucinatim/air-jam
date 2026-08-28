@@ -1,3 +1,9 @@
+import { DEFAULT_MAX_PLAYERS } from "../constants";
+import {
+  createAirJamDiagnosticError,
+  emitAirJamDiagnostic,
+} from "../diagnostics";
+import type { HostSessionKind } from "../protocol/host";
 import {
   parseRuntimeTopologyFromSearchParams,
   readRuntimeTopologyFromEnv,
@@ -9,12 +15,6 @@ import {
   type RuntimeTopologyInput,
   type SurfaceRole,
 } from "../runtime-topology";
-import { DEFAULT_MAX_PLAYERS } from "../constants";
-import {
-  createAirJamDiagnosticError,
-  emitAirJamDiagnostic,
-} from "../diagnostics";
-import type { HostSessionKind } from "../protocol/host";
 
 export interface AirJamConfig {
   topology: ResolvedAirJamRuntimeTopology;
@@ -22,14 +22,6 @@ export interface AirJamConfig {
   hostGrantEndpoint?: string;
   maxPlayers: number;
   hostSessionKind: HostSessionKind;
-  /**
-   * Deprecated compatibility alias. Prefer `topology.backendOrigin`.
-   */
-  serverUrl: string;
-  /**
-   * Deprecated compatibility alias. Prefer `topology.publicHost`.
-   */
-  publicHost: string;
   backendOrigin: string;
   socketOrigin: string;
   appOrigin: string;
@@ -277,8 +269,6 @@ export const resolveAirJamConfig = ({
     hostGrantEndpoint: hostGrantEndpoint ?? getEnvHostGrantEndpoint(),
     maxPlayers,
     hostSessionKind,
-    serverUrl: resolvedTopology.backendOrigin,
-    publicHost: resolvedTopology.publicHost,
     backendOrigin: resolvedTopology.backendOrigin,
     socketOrigin: resolvedTopology.socketOrigin,
     appOrigin: resolvedTopology.appOrigin,

@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 
-import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
+import {
+  resolveRuntimeTopology,
+  runtimeTopologyToQueryParams,
+} from "@air-jam/sdk/runtime-topology";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import React from "react";
@@ -8,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { onAirJamDiagnostic } from "../src/diagnostics";
 import { useAirJamController } from "../src/hooks/use-air-jam-controller";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
+import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
 import { resetControllerRealtimeClientForTests } from "../src/runtime/controller-realtime-client";
 import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
 import {
@@ -100,6 +104,35 @@ const PROVIDER_CONFIG = {
   }),
   appId: "test_app_id",
 };
+const TEST_CONFIG = resolveAirJamConfig({
+  topology: PROVIDER_CONFIG.topology,
+  resolveEnv: false,
+});
+const withArcadeRuntimeTopology = (
+  path: string,
+  surfaceRole: "host" | "controller",
+): string => {
+  const url = new URL(path, window.location.origin);
+  const topology = resolveRuntimeTopology({
+    runtimeMode: "arcade-live",
+    surfaceRole,
+    appOrigin: window.location.origin,
+    backendOrigin: window.location.origin,
+    socketOrigin: window.location.origin,
+    publicHost: "https://platform.example",
+    assetBasePath: "/",
+    secureTransport: false,
+    embedded: true,
+    embedParentOrigin: "https://platform.example",
+    proxyStrategy: "none",
+  });
+  for (const [key, value] of Object.entries(
+    runtimeTopologyToQueryParams(topology),
+  )) {
+    url.searchParams.set(key, value);
+  }
+  return `${url.pathname}${url.search}`;
+};
 
 const createHostWrapper =
   () =>
@@ -135,12 +168,8 @@ describe("session reconnect behavior", () => {
 
     mocked.useAirJamContext.mockReturnValue({
       config: {
+        ...TEST_CONFIG,
         appId: undefined,
-        hostSessionKind: "game",
-        maxPlayers: 8,
-        publicHost: "http://localhost:3000",
-        resolveEnv: true,
-        serverUrl: "http://localhost:3001",
       },
       store: mocked.store,
       getSocket: (role: "host" | "controller") =>
@@ -449,13 +478,9 @@ describe("session reconnect behavior", () => {
     sessionStorage.setItem("airjam_room_id", "ROOM1");
     mocked.useAirJamContext.mockReturnValue({
       config: {
+        ...TEST_CONFIG,
         appId: "aj_app_demo",
-        hostSessionKind: "game",
         hostGrantEndpoint: "/api/airjam/host-grant",
-        maxPlayers: 8,
-        publicHost: "http://localhost:3000",
-        resolveEnv: true,
-        serverUrl: "http://localhost:3001",
       },
       store: mocked.store,
       getSocket: (role: "host" | "controller") =>
@@ -655,7 +680,10 @@ describe("session reconnect behavior", () => {
     window.history.replaceState(
       {},
       "",
-      "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+      withArcadeRuntimeTopology(
+        "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+        "host",
+      ),
     );
 
     const { result, unmount } = renderHook(() => useAirJamHost(), {
@@ -675,7 +703,10 @@ describe("session reconnect behavior", () => {
     window.history.replaceState(
       {},
       "",
-      "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+      withArcadeRuntimeTopology(
+        "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+        "host",
+      ),
     );
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
@@ -727,7 +758,10 @@ describe("session reconnect behavior", () => {
     window.history.replaceState(
       {},
       "",
-      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong&aj_player_label=Captain&aj_player_avatar=aj-3",
+      withArcadeRuntimeTopology(
+        "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong&aj_player_label=Captain&aj_player_avatar=aj-3",
+        "controller",
+      ),
     );
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 

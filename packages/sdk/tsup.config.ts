@@ -19,7 +19,6 @@ export default defineConfig({
     "src/arcade/url.ts",
     "src/ui.ts",
     "src/protocol.ts",
-    "src/capabilities.ts",
     "src/metadata.ts",
     "src/prefabs.ts",
     "src/release.ts",

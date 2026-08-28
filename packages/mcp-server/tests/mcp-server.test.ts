@@ -68,6 +68,28 @@ describe("createAirJamMcpServer", () => {
     ]);
 
     const listed = await client.listTools();
+    expect(listed.tools.map((tool) => tool.name)).toEqual([
+      "airjam.inspect_project",
+      "airjam.auth_status",
+      "airjam.list_games",
+      "airjam.inspect_game",
+      "airjam.inspect_game_agent_contract",
+      "airjam.read_logs",
+      "airjam.run_quality_gate",
+      "airjam.release_list",
+      "airjam.release_inspect",
+      "airjam.release_publish",
+      "airjam.start_dev",
+      "airjam.stop_dev",
+      "airjam.status",
+      "airjam.reset_local",
+      "airjam.topology",
+      "airjam.open_game_session",
+      "airjam.send_game_session_input",
+      "airjam.read_game_session",
+      "airjam.invoke_game_session_action",
+      "airjam.close_game_session",
+    ]);
 
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.inspect_project",

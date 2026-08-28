@@ -12,7 +12,6 @@ import { emitAirJamDevRuntimeEvent } from "../runtime/dev-runtime-events";
 import {
   DEFAULT_PLATFORM_SETTINGS,
   getEffectiveAudioVolume,
-  LEGACY_AUDIO_SETTINGS_STORAGE_KEY,
   mergePlatformSettings,
   persistPlatformSettings,
   PLATFORM_SETTINGS_STORAGE_KEY,
@@ -153,11 +152,7 @@ export function PlatformSettingsRuntime({
         return;
       }
 
-      if (
-        event.key !== null &&
-        event.key !== PLATFORM_SETTINGS_STORAGE_KEY &&
-        event.key !== LEGACY_AUDIO_SETTINGS_STORAGE_KEY
-      ) {
+      if (event.key !== null && event.key !== PLATFORM_SETTINGS_STORAGE_KEY) {
         return;
       }
 

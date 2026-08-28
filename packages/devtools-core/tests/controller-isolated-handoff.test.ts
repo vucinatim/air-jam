@@ -147,37 +147,6 @@ vi.mock("../src/dev.js", () => ({
   })),
 }));
 
-vi.mock("../src/visual.js", () => ({
-  readHarnessSnapshot: vi.fn(async () => ({
-    gameId: "solo-fixture",
-    projectMode: "standalone-game",
-    mode: "standalone-dev",
-    topologyMode: "standalone-dev",
-    secure: false,
-    roomId: "ROOM1",
-    sessionId: null,
-    controlSurface: "isolated-session",
-    process: null,
-    actions: [],
-    availableActions: [],
-    urls: {
-      appOrigin: "http://127.0.0.1:7777",
-      hostUrl: "http://127.0.0.1:7777",
-      controllerBaseUrl: "http://127.0.0.1:7777/controller",
-      publicHost: "http://127.0.0.1:7777",
-      localBuildUrl: null,
-      browserBuildUrl: null,
-      controllerJoinUrl:
-        "http://127.0.0.1:7777/controller?room=ROOM1&aj_controller_cap=dead",
-    },
-    snapshot: {
-      roomId: "ROOM1",
-      controllerJoinUrl:
-        "http://127.0.0.1:7777/controller?room=ROOM1&aj_controller_cap=dead",
-    },
-  })),
-}));
-
 vi.mock("node:child_process", async () => {
   const actual =
     await vi.importActual<typeof import("node:child_process")>(
@@ -208,12 +177,6 @@ vi.mock("node:child_process", async () => {
                 mode: "standalone",
                 runtimeState: "playing",
               },
-              snapshot: {
-                roomId: "ROOM2",
-                controllerJoinUrl:
-                  "http://127.0.0.1:7777/controller?room=ROOM2&aj_controller_cap=held",
-                matchPhase: "lobby",
-              },
             },
             null,
             2,
@@ -236,7 +199,7 @@ vi.mock("socket.io-client", () => ({
   }),
 }));
 
-describe("isolated harness controller handoff", () => {
+describe("isolated runtime controller handoff", () => {
   beforeEach(() => {
     joinAttempts.length = 0;
     spawnedOwners.length = 0;
@@ -251,7 +214,7 @@ describe("isolated harness controller handoff", () => {
     }
   });
 
-  it("keeps an isolated host alive when joining from an isolated harness snapshot", async () => {
+  it("keeps an isolated runtime host alive while its controller is connected", async () => {
     const { connectController, disconnectController } =
       await import("../src/controller.js");
 
@@ -286,83 +249,6 @@ describe("isolated harness controller handoff", () => {
 
     expect(joinAttempts).toEqual(["ROOM1", "ROOM2"]);
     expect(session.roomId).toBe("ROOM2");
-    expect(spawnedOwners).toHaveLength(1);
-
-    await disconnectController({
-      controllerSessionId: session.controllerSessionId,
-    });
-
-    expect(spawnedOwners[0]?.killed).toBe(true);
-  });
-
-  it("falls back to an owned isolated host when a registered harness session points at a stale room", async () => {
-    const { readHarnessSnapshot } = await import("../src/visual.js");
-    vi.mocked(readHarnessSnapshot).mockResolvedValueOnce({
-      gameId: "solo-fixture",
-      projectMode: "standalone-game",
-      mode: "standalone-dev",
-      topologyMode: "standalone-dev",
-      secure: false,
-      roomId: "ROOM1",
-      sessionId: "registered-room",
-      controlSurface: "registered-session",
-      process: null,
-      actions: [],
-      availableActions: [],
-      urls: {
-        appOrigin: "http://127.0.0.1:7777",
-        hostUrl: "http://127.0.0.1:7777",
-        controllerBaseUrl: "http://127.0.0.1:7777/controller",
-        publicHost: "http://127.0.0.1:7777",
-        localBuildUrl: null,
-        browserBuildUrl: null,
-        controllerJoinUrl:
-          "http://127.0.0.1:7777/controller?room=ROOM1&aj_controller_cap=dead",
-      },
-      snapshot: {
-        roomId: "ROOM1",
-        controllerJoinUrl:
-          "http://127.0.0.1:7777/controller?room=ROOM1&aj_controller_cap=dead",
-      },
-    });
-
-    const { connectController, disconnectController } =
-      await import("../src/controller.js");
-
-    const session = await connectController({
-      cwd: "/tmp/solo",
-      timeoutMs: 1_000,
-    });
-
-    expect(joinAttempts).toEqual(["ROOM1", "ROOM2"]);
-    expect(session.roomId).toBe("ROOM2");
-    expect(spawnedOwners).toHaveLength(1);
-
-    await disconnectController({
-      controllerSessionId: session.controllerSessionId,
-    });
-
-    expect(spawnedOwners[0]?.killed).toBe(true);
-  });
-
-  it("bootstraps an isolated runtime owner when no visual harness is published", async () => {
-    const { readHarnessSnapshot } = await import("../src/visual.js");
-    vi.mocked(readHarnessSnapshot).mockRejectedValueOnce(
-      new Error('No visual harness published for "solo-fixture" in /tmp/solo.'),
-    );
-
-    const { connectController, disconnectController } =
-      await import("../src/controller.js");
-
-    const session = await connectController({
-      cwd: "/tmp/solo",
-      gameId: "solo-fixture",
-      timeoutMs: 1_000,
-    });
-
-    expect(joinAttempts).toEqual(["ROOM2"]);
-    expect(session.roomId).toBe("ROOM2");
-    expect(session.controllerJoinUrl).toContain("room=ROOM2");
     expect(spawnedOwners).toHaveLength(1);
 
     await disconnectController({

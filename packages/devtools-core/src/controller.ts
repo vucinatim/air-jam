@@ -46,7 +46,6 @@ import type {
   SendControllerInputOptions,
   SendControllerInputResult,
 } from "./types.js";
-import { readHarnessSnapshot } from "./visual.js";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -64,7 +63,6 @@ type InternalControllerSession = {
   summary: AirJamVirtualControllerSessionSummary;
   socket: ControllerSocket;
   projectMode: AirJamProjectMode;
-  harnessSnapshot: JsonObject | null;
   welcome: JsonObject | null;
   controllerState: JsonObject | null;
   players: JsonObject[];
@@ -72,7 +70,7 @@ type InternalControllerSession = {
   pendingSyncWaiters: Map<string, Set<PendingStateSyncWaiter>>;
   lastSignal: JsonObject | null;
   lastError: JsonObject | null;
-  isolatedHarnessOwner: ChildProcess | null;
+  isolatedRuntimeOwner: ChildProcess | null;
 };
 
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -334,18 +332,7 @@ const isRoomNotFoundJoinError = (error: unknown): boolean => {
   return /room not found/i.test(error.message);
 };
 
-const isMissingVisualHarnessError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    /no visual harness published/i.test(error.message) ||
-    /does not publish game\.visualScenariosModule/i.test(error.message)
-  );
-};
-
-const terminateIsolatedHarnessOwner = async (
+const terminateIsolatedRuntimeOwner = async (
   process: ChildProcess | null,
 ): Promise<void> => {
   if (!process || process.killed || process.exitCode !== null) {
@@ -440,165 +427,6 @@ const resolveControllerJoinUrlFromTopology = async ({
   return joinUrl.toString();
 };
 
-const startIsolatedHarnessOwner = async ({
-  cwd,
-  gameId,
-  mode,
-  secure,
-  roomId,
-  timeoutMs,
-}: {
-  cwd: string;
-  gameId?: string;
-  mode: NonNullable<ConnectControllerOptions["mode"]>;
-  secure: boolean;
-  roomId?: string;
-  timeoutMs: number;
-}): Promise<{
-  process: ChildProcess;
-  roomId: string | null;
-  controllerJoinUrl: string | null;
-  snapshot: JsonObject | null;
-}> => {
-  const topology = await getTopology({
-    cwd,
-    gameId,
-    mode,
-    secure,
-  });
-
-  const appOrigin = topology.urls.appOrigin;
-  const hostUrl = topology.urls.hostUrl;
-  const controllerBaseUrl = topology.urls.controllerBaseUrl;
-  const publicHost = topology.urls.publicHost;
-  if (!appOrigin || !hostUrl || !controllerBaseUrl || !publicHost) {
-    throw new Error(
-      "Unable to start an isolated harness owner because the resolved topology is incomplete.",
-    );
-  }
-
-  const helperFile = resolveHelperScriptPath("hold-harness-host.ts");
-  const args = [
-    resolveTsxCliPath(),
-    helperFile,
-    "--app-origin",
-    appOrigin,
-    "--host-url",
-    hostUrl,
-    "--controller-base-url",
-    controllerBaseUrl,
-    "--public-host",
-    publicHost,
-    "--mode",
-    mode,
-    "--timeout-ms",
-    String(timeoutMs),
-  ];
-  if (topology.urls.localBuildUrl) {
-    args.push("--local-build-url", topology.urls.localBuildUrl);
-  }
-  if (topology.urls.browserBuildUrl) {
-    args.push("--browser-build-url", topology.urls.browserBuildUrl);
-  }
-  if (roomId) {
-    args.push("--room-id", roomId);
-  }
-
-  const helperProcess = spawn(process.execPath, args, {
-    cwd,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  return await new Promise((resolve, reject) => {
-    let stdoutBuffer = "";
-    let stderrBuffer = "";
-    let settled = false;
-    const timeout = setTimeout(() => {
-      cleanup();
-      void terminateIsolatedHarnessOwner(helperProcess).finally(() => {
-        const stderrSummary = stderrBuffer.trim();
-        const stderrSuffix = stderrSummary
-          ? ` Helper stderr: ${stderrSummary}`
-          : "";
-        reject(
-          new Error(
-            "Timed out waiting for isolated harness ownership. Another local game session may still own the isolated harness lease. Close the previous game session and try again." +
-              stderrSuffix,
-          ),
-        );
-      });
-    }, timeoutMs);
-
-    const cleanup = () => {
-      clearTimeout(timeout);
-      helperProcess.stdout?.off("data", onStdout);
-      helperProcess.stderr?.off("data", onStderr);
-      helperProcess.off("exit", onExit);
-      helperProcess.off("error", onError);
-    };
-
-    const maybeResolve = () => {
-      try {
-        const payload = parseHelperJson<{
-          roomId: string | null;
-          controllerJoinUrl: string | null;
-          snapshot: JsonObject | null;
-        }>(stdoutBuffer);
-        settled = true;
-        cleanup();
-        resolve({
-          process: helperProcess,
-          roomId: payload.roomId,
-          controllerJoinUrl: payload.controllerJoinUrl,
-          snapshot: payload.snapshot,
-        });
-      } catch {
-        // Wait for the full JSON payload.
-      }
-    };
-
-    const onStdout = (chunk: Buffer | string) => {
-      stdoutBuffer += chunk.toString();
-      maybeResolve();
-    };
-
-    const onStderr = (chunk: Buffer | string) => {
-      stderrBuffer += chunk.toString();
-    };
-
-    const onError = (error: Error) => {
-      if (settled) {
-        return;
-      }
-      cleanup();
-      reject(error);
-    };
-
-    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-      if (settled) {
-        return;
-      }
-      cleanup();
-      reject(
-        new Error(
-          [
-            "Isolated harness owner exited before producing a join URL.",
-            stderrBuffer.trim(),
-            `exit=${code ?? "null"} signal=${signal ?? "null"}`,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        ),
-      );
-    };
-
-    helperProcess.stdout?.on("data", onStdout);
-    helperProcess.stderr?.on("data", onStderr);
-    helperProcess.once("error", onError);
-    helperProcess.once("exit", onExit);
-  });
-};
-
 const startIsolatedRuntimeOwner = async ({
   cwd,
   gameId,
@@ -674,7 +502,7 @@ const startIsolatedRuntimeOwner = async ({
     let settled = false;
     const timeout = setTimeout(() => {
       cleanup();
-      void terminateIsolatedHarnessOwner(helperProcess).finally(() => {
+      void terminateIsolatedRuntimeOwner(helperProcess).finally(() => {
         const stderrSummary = stderrBuffer.trim();
         const stderrSuffix = stderrSummary
           ? ` Helper stderr: ${stderrSummary}`
@@ -771,7 +599,6 @@ const buildRuntimeSnapshot = ({
   welcome: session.welcome,
   controllerState: session.controllerState,
   players: session.players.slice(),
-  harnessSnapshot: session.harnessSnapshot,
   storeSnapshots: Array.from(session.storeSnapshots.values()).sort(
     (left, right) => left.storeDomain.localeCompare(right.storeDomain),
   ),
@@ -1011,9 +838,9 @@ const attachSocketListeners = (session: InternalControllerSession): void => {
     session.summary.connected = false;
     session.summary.disconnectedAt = nowIso();
     session.summary.disconnectReason = reason ?? "unknown";
-    void terminateIsolatedHarnessOwner(session.isolatedHarnessOwner).finally(
+    void terminateIsolatedRuntimeOwner(session.isolatedRuntimeOwner).finally(
       () => {
-        session.isolatedHarnessOwner = null;
+        session.isolatedRuntimeOwner = null;
       },
     );
     for (const waiters of session.pendingSyncWaiters.values()) {
@@ -1031,7 +858,6 @@ export const connectController = async ({
   mode = "standalone-dev",
   secure = false,
   roomId,
-  harnessSessionId,
   controllerJoinUrl,
   controllerId,
   deviceId,
@@ -1043,35 +869,15 @@ export const connectController = async ({
   const context = await detectProjectContext({ cwd });
   const normalizedRequestedRoomId = roomId?.trim().toUpperCase() || undefined;
   const normalizedCapabilityToken = capabilityToken?.trim() || undefined;
-  const harnessSession =
-    controllerJoinUrl === undefined
-      ? await readHarnessSnapshot({
-          cwd,
-          gameId,
-          mode,
-          secure,
-          roomId: normalizedRequestedRoomId,
-          sessionId: harnessSessionId,
-          timeoutMs,
-        }).catch((error) => {
-          if (isMissingVisualHarnessError(error)) {
-            return null;
-          }
-          throw error;
-        })
-      : null;
   const canUseIsolatedOwner =
-    Boolean(harnessSession?.gameId ?? gameId) ||
-    context.mode === "standalone-game";
+    Boolean(gameId) || context.mode === "standalone-game";
 
   const connectWithJoinUrl = async ({
     joinUrlString,
-    ownedHarnessProcess,
-    snapshot,
+    ownedRuntimeProcess,
   }: {
     joinUrlString: string;
-    ownedHarnessProcess: ChildProcess | null;
-    snapshot: JsonObject | null;
+    ownedRuntimeProcess: ChildProcess | null;
   }): Promise<AirJamVirtualControllerSession> => {
     const joinUrl = new URL(joinUrlString);
     const resolvedRoomId =
@@ -1088,17 +894,13 @@ export const connectController = async ({
       `ctrl_mcp_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const resolvedDeviceId =
       deviceId?.trim() || `aj-mcp-device-${randomUUID()}`;
-    const resolvedGameId =
-      harnessSession?.gameId ??
-      gameId ??
-      (await getTopology({
-        cwd,
-        gameId,
-        mode,
-        secure,
-      })
-        .then((topology) => topology.gameId)
-        .catch(() => null));
+    const topology = await getTopology({
+      cwd,
+      gameId,
+      mode,
+      secure,
+    }).catch(() => null);
+    const resolvedGameId = gameId ?? topology?.gameId ?? null;
     const resolvedSocketOrigin =
       (await resolveSocketOriginFromTopology({
         cwd,
@@ -1124,10 +926,10 @@ export const connectController = async ({
         controllerSessionId,
         gameId: resolvedGameId,
         projectMode: context.mode,
-        mode: harnessSession?.mode ?? mode,
-        topologyMode: harnessSession?.topologyMode ?? null,
-        secure: harnessSession?.secure ?? secure,
-        process: harnessSession?.process ?? null,
+        mode,
+        topologyMode: topology?.topologyMode ?? null,
+        secure,
+        process: topology?.process ?? null,
         roomId: resolvedRoomId,
         controllerId: resolvedControllerId,
         deviceId: resolvedDeviceId,
@@ -1140,7 +942,6 @@ export const connectController = async ({
       },
       socket,
       projectMode: context.mode,
-      harnessSnapshot: snapshot,
       welcome: null,
       controllerState: null,
       players: [],
@@ -1148,7 +949,7 @@ export const connectController = async ({
       pendingSyncWaiters: new Map(),
       lastSignal: null,
       lastError: null,
-      isolatedHarnessOwner: ownedHarnessProcess,
+      isolatedRuntimeOwner: ownedRuntimeProcess,
     };
 
     attachSocketListeners(internalSession);
@@ -1189,43 +990,16 @@ export const connectController = async ({
       return buildRuntimeSnapshot({ session: internalSession });
     } catch (error) {
       socket.disconnect();
-      await terminateIsolatedHarnessOwner(ownedHarnessProcess);
+      await terminateIsolatedRuntimeOwner(ownedRuntimeProcess);
       throw error;
     }
   };
 
-  if (
-    controllerJoinUrl === undefined &&
-    harnessSession?.controlSurface === "isolated-session"
-  ) {
-    const owner = await startIsolatedHarnessOwner({
-      cwd,
-      gameId: harnessSession.gameId ?? gameId,
-      mode,
-      secure,
-      roomId: normalizedRequestedRoomId,
-      timeoutMs,
-    });
-    if (!owner.controllerJoinUrl) {
-      await terminateIsolatedHarnessOwner(owner.process);
-      throw new Error(
-        "Isolated harness owner did not produce a controller join URL.",
-      );
-    }
-
-    return connectWithJoinUrl({
-      joinUrlString: owner.controllerJoinUrl,
-      ownedHarnessProcess: owner.process,
-      snapshot: owner.snapshot,
-    });
-  }
-
   const resolvedJoinUrl =
     controllerJoinUrl ??
-    harnessSession?.urls.controllerJoinUrl ??
     (await resolveControllerJoinUrlFromTopology({
       cwd,
-      gameId: harnessSession?.gameId ?? gameId,
+      gameId,
       mode,
       secure,
       roomId: normalizedRequestedRoomId,
@@ -1240,14 +1014,14 @@ export const connectController = async ({
 
     const owner = await startIsolatedRuntimeOwner({
       cwd,
-      gameId: harnessSession?.gameId ?? gameId,
+      gameId,
       mode,
       secure,
       roomId: normalizedRequestedRoomId,
       timeoutMs,
     });
     if (!owner.controllerJoinUrl) {
-      await terminateIsolatedHarnessOwner(owner.process);
+      await terminateIsolatedRuntimeOwner(owner.process);
       throw new Error(
         "Isolated runtime owner did not produce a controller join URL.",
       );
@@ -1255,36 +1029,33 @@ export const connectController = async ({
 
     return connectWithJoinUrl({
       joinUrlString: owner.controllerJoinUrl,
-      ownedHarnessProcess: owner.process,
-      snapshot: null,
+      ownedRuntimeProcess: owner.process,
     });
   }
 
   try {
     return await connectWithJoinUrl({
       joinUrlString: resolvedJoinUrl,
-      ownedHarnessProcess: null,
-      snapshot: harnessSession?.snapshot ?? null,
+      ownedRuntimeProcess: null,
     });
   } catch (error) {
     if (canUseIsolatedOwner && isRoomNotFoundJoinError(error)) {
       const owner = await startIsolatedRuntimeOwner({
         cwd,
-        gameId: harnessSession?.gameId ?? gameId,
+        gameId,
         mode,
         secure,
         roomId: normalizedRequestedRoomId,
         timeoutMs,
       });
       if (!owner.controllerJoinUrl) {
-        await terminateIsolatedHarnessOwner(owner.process);
+        await terminateIsolatedRuntimeOwner(owner.process);
         throw error;
       }
 
       return await connectWithJoinUrl({
         joinUrlString: owner.controllerJoinUrl,
-        ownedHarnessProcess: owner.process,
-        snapshot: null,
+        ownedRuntimeProcess: owner.process,
       });
     }
 
@@ -1469,8 +1240,8 @@ export const disconnectController = async ({
   session.summary.disconnectedAt = session.summary.disconnectedAt ?? nowIso();
   session.summary.disconnectReason =
     session.summary.disconnectReason ?? "manual_disconnect";
-  await terminateIsolatedHarnessOwner(session.isolatedHarnessOwner);
-  session.isolatedHarnessOwner = null;
+  await terminateIsolatedRuntimeOwner(session.isolatedRuntimeOwner);
+  session.isolatedRuntimeOwner = null;
   virtualControllerSessions.delete(controllerSessionId);
 
   return {

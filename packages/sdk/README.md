@@ -15,8 +15,8 @@ against v1:
    no incompatible type changes, and no silent behavior changes on the stable
    lanes above. New functionality lands as additive APIs.
 3. **Experimental leaves.** `@air-jam/sdk/preview`, `@air-jam/sdk/arcade*`,
-   `@air-jam/sdk/protocol`, `@air-jam/sdk/capabilities`,
-   `@air-jam/sdk/metadata`, and `@air-jam/sdk/prefabs` are intentionally
+   `@air-jam/sdk/protocol`, `@air-jam/sdk/metadata`, and
+   `@air-jam/sdk/prefabs` are intentionally
    unstable future-facing seams. They may change within `1.x` — each carries
    a documented purpose in its leaf, and changes are noted in release notes.
    Runtime inspection is moving to an explicit experimental leaf because it
@@ -26,10 +26,9 @@ against v1:
    migration notes if the surface is too narrow to automate) alongside the
    release. v1 games will not be silently broken — the v1 SDK will remain
    installable.
-5. **Metadata and capability contracts.** The `defineAirJamGameMetadata` and
-   `defineAirJamGameCapabilities` helpers produce versioned, frozen objects.
-   Contract versions are bumped explicitly so the platform can accept mixed
-   versions during a transition window.
+5. **Metadata and agent contracts.** Catalog metadata is versioned explicitly;
+   machine-operable game behavior is declared once through the semantic agent
+   contract used by CLI and MCP sessions.
 
 Games built against v1 should declare `supportedSdkRange: "^1.0.0"` in their
 metadata unless they intentionally pin tighter.
@@ -631,9 +630,8 @@ export const App = () => (
 );
 ```
 
-This keeps runtime config, host input schema, route path ownership, and optional agent-facing contracts in one place.
-
-Optional future-facing game capability metadata should also live here, but the schema is intentionally experimental and lives in `@air-jam/sdk/capabilities`.
+This keeps runtime config, host input schema, route path ownership, and the
+optional semantic agent contract in one place.
 
 ## Environment Variables
 

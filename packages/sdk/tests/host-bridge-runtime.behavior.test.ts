@@ -3,6 +3,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
 import {
+  resolveRuntimeTopology,
+  runtimeTopologyToQueryParams,
+} from "../src/runtime-topology";
+import {
   AIRJAM_DEV_RUNTIME_EVENT,
   type AirJamDevRuntimeEventDetail,
 } from "../src/runtime/dev-runtime-events";
@@ -20,11 +24,29 @@ describe("embedded host bridge runtime", () => {
 
   beforeEach(() => {
     vi.useRealTimers();
-    window.history.replaceState(
-      {},
-      "",
-      "/host?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
-    );
+    const topology = resolveRuntimeTopology({
+      runtimeMode: "arcade-live",
+      surfaceRole: "host",
+      appOrigin: window.location.origin,
+      backendOrigin: window.location.origin,
+      socketOrigin: window.location.origin,
+      publicHost: window.location.origin,
+      assetBasePath: "/",
+      secureTransport: false,
+      embedded: true,
+      embedParentOrigin: window.location.origin,
+      proxyStrategy: "none",
+    });
+    const params = new URLSearchParams({
+      aj_room: "ROOM1",
+      aj_cap: "join_123",
+      aj_cap_exp: "1700000000000",
+      aj_arcade_epoch: "2",
+      aj_arcade_kind: "game",
+      aj_arcade_game_id: "pong",
+      ...runtimeTopologyToQueryParams(topology),
+    });
+    window.history.replaceState({}, "", `/host?${params.toString()}`);
   });
 
   afterEach(() => {

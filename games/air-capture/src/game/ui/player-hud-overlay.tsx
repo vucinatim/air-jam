@@ -188,7 +188,12 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   // --- Data Stores ---
   const health = useHealthStore((state) => state.health[controllerId] ?? 100);
   const maxHealth = 100;
-  const ability = useAbilitiesStore((state) => state.getAbility(controllerId));
+  const ability = useAbilitiesStore((state) => {
+    const playerAbilities = state.abilities[controllerId];
+    return (
+      playerAbilities?.activeAbility ?? playerAbilities?.queuedAbility ?? null
+    );
+  });
   const isAbilityActive = useAbilitiesStore((state) =>
     state.isAbilityActive(controllerId),
   );
@@ -213,7 +218,9 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
     // Start countdown animation loop
     const updateCountdown = () => {
       const store = useAbilitiesStore.getState();
-      const currentAbility = store.getAbility(controllerId);
+      const currentAbility =
+        store.getActiveAbility(controllerId) ??
+        store.getQueuedAbility(controllerId);
       const currentIsActive = store.isAbilityActive(controllerId);
 
       if (
