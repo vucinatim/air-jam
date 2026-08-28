@@ -297,7 +297,6 @@ const verifyPrimaryRun = ({
 export const runGoldenPathPrimary = async ({
   runId = defaultRunId(),
   stagingUrl,
-  evidenceDirectory,
   keepWorkspace = true,
   model,
   onProgress = () => {},
@@ -308,22 +307,30 @@ export const runGoldenPathPrimary = async ({
   const programState = readGoldenPathProgram(defaultGoldenPathManifestPath);
   validateGoldenPathProgram(programState);
 
-  const runRoot = path.join(repoRoot, ".airjam", "golden-path-runs", runId);
-  if (fs.existsSync(runRoot))
+  const artifactRoot = path.join(
+    repoRoot,
+    ".airjam",
+    "golden-path-runs",
+    runId,
+  );
+  if (fs.existsSync(artifactRoot))
     throw new Error(`Golden-path run already exists: ${runId}`);
+  const runRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), `airjam-golden-path-${runId}-`),
+  );
   const workspaceDir = path.join(runRoot, "workspace");
   const projectName = `signal-relay-${runId}`;
   const projectDir = path.join(workspaceDir, projectName);
-  const evidenceDir = evidenceDirectory
-    ? path.resolve(evidenceDirectory)
-    : path.join(runRoot, "evidence");
-  if (evidenceDir !== path.join(runRoot, "evidence")) {
-    const relative = path.relative(runRoot, evidenceDir);
-    if (relative.startsWith("..") || path.isAbsolute(relative)) {
-      throw new Error(
-        "--evidence-dir must resolve inside the run-owned directory.",
-      );
-    }
+  const evidenceDir = path.join(runRoot, "evidence");
+  const retainedEvidenceDir = path.join(artifactRoot, "evidence");
+  const workspaceRelativeToRepo = path.relative(repoRoot, workspaceDir);
+  const workspaceOutsideRepo =
+    workspaceRelativeToRepo.startsWith("..") &&
+    !path.isAbsolute(workspaceRelativeToRepo);
+  if (!workspaceOutsideRepo) {
+    throw new Error(
+      "The golden-path workspace must be outside the Air Jam monorepo.",
+    );
   }
   fs.mkdirSync(workspaceDir, { recursive: true });
   fs.mkdirSync(evidenceDir, { recursive: true });
@@ -391,6 +398,15 @@ export const runGoldenPathPrimary = async ({
   let codexChild;
   let fault = null;
   let codexExitCode = null;
+  let interruptedSignal = null;
+  const handleSignal = (signal) => {
+    interruptedSignal = signal;
+    if (codexChild && codexChild.exitCode === null) codexChild.kill("SIGTERM");
+  };
+  const handleSigint = () => handleSignal("SIGINT");
+  const handleSigterm = () => handleSignal("SIGTERM");
+  process.once("SIGINT", handleSigint);
+  process.once("SIGTERM", handleSigterm);
   const completedInitialQuality = new Set();
   const transcriptPath = path.join(evidenceDir, "transcript", "events.ndjson");
   writeText(transcriptPath, "");
@@ -440,6 +456,7 @@ export const runGoldenPathPrimary = async ({
       productionAllowed: false,
       arcadeVisibility: "hidden",
       privateRepositoryContextProvided: false,
+      workspaceOutsideAirJamMonorepo: workspaceOutsideRepo,
       maintainerEditsAfterStart: ["declared-win-score-fault-only"],
     });
     writeJson(path.join(evidenceDir, "project", "git", "initial.json"), {
@@ -545,6 +562,16 @@ export const runGoldenPathPrimary = async ({
       });
     }
     onProgress(`primary-agent:exit:${codexExitCode}`);
+    if (interruptedSignal) {
+      fs.appendFileSync(
+        transcriptPath,
+        `${JSON.stringify({
+          type: "controller.interrupted",
+          signal: interruptedSignal,
+          timestamp: new Date().toISOString(),
+        })}\n`,
+      );
+    }
 
     writeRequiredEmptyIndexes(evidenceDir);
     writeJson(path.join(evidenceDir, "commands", "controller.json"), {
@@ -602,18 +629,26 @@ export const runGoldenPathPrimary = async ({
       runId,
       result: report.result,
       failures: report.failures,
-      evidenceDirectory: evidenceDir,
+      evidenceDirectory: retainedEvidenceDir,
       workspace: keepWorkspace ? workspaceDir : null,
       primaryAgentExitCode: codexExitCode,
       declaredFaultInjected: Boolean(fault),
     };
   } finally {
+    process.removeListener("SIGINT", handleSigint);
+    process.removeListener("SIGTERM", handleSigterm);
     if (codexChild && codexChild.exitCode === null) await stopChild(codexChild);
     if (registry) await stopChild(registry.child);
+    if (fs.existsSync(evidenceDir)) {
+      fs.mkdirSync(artifactRoot, { recursive: true });
+      fs.cpSync(evidenceDir, retainedEvidenceDir, { recursive: true });
+    }
     fs.rmSync(path.join(runRoot, "registry"), { recursive: true, force: true });
     fs.rmSync(path.join(runRoot, "state"), { recursive: true, force: true });
+    fs.rmSync(path.join(runRoot, "packages"), { recursive: true, force: true });
+    fs.rmSync(evidenceDir, { recursive: true, force: true });
     if (!keepWorkspace) {
-      fs.rmSync(workspaceDir, { recursive: true, force: true });
+      fs.rmSync(runRoot, { recursive: true, force: true });
     }
   }
 };

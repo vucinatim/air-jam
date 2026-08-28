@@ -118,7 +118,6 @@ export const registerGoldenPathCommands = (program) => {
       "Isolated hidden-staging platform URL",
     )
     .option("--run-id <id>", "Stable run identity")
-    .option("--evidence-dir <path>", "Run-owned evidence directory")
     .option("--model <model>", "Codex model override")
     .option(
       "--discard-workspace",
@@ -129,7 +128,6 @@ export const registerGoldenPathCommands = (program) => {
       const result = await runGoldenPathPrimary({
         runId: options.runId,
         stagingUrl: options.stagingUrl,
-        evidenceDirectory: options.evidenceDir,
         keepWorkspace: options.discardWorkspace !== true,
         model: options.model,
         onProgress: (stage) => {
