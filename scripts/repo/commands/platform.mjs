@@ -5,7 +5,6 @@ import { assertGeneratedContentBlogSourceIsFresh } from "../../content/lib/conte
 import { assertGeneratedContentDocsSourceIsFresh } from "../../content/lib/content-docs-source-generator.mjs";
 import {
   generatePlatformAiPackArtifacts,
-  platformPublicAiPackRoot,
   readRelativeTree,
 } from "../../platform/lib/platform-ai-pack-artifacts.mjs";
 import { preparePlatformGeneratedArtifacts } from "../../platform/lib/platform-generated-prepare.mjs";
@@ -24,6 +23,71 @@ const runPlatformGeneratedPrepare = async () => {
   logGeneratedPrepareResult(result);
 };
 
+const assertPlatformAiPackGenerationIsDeterministic = async () => {
+  const firstRoot = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), "airjam-platform-ai-pack-check-a-"),
+  );
+  const secondRoot = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), "airjam-platform-ai-pack-check-b-"),
+  );
+
+  try {
+    const [firstResult, secondResult] = await Promise.all([
+      generatePlatformAiPackArtifacts({ targetRoot: firstRoot }),
+      generatePlatformAiPackArtifacts({ targetRoot: secondRoot }),
+    ]);
+    const [firstTree, secondTree] = await Promise.all([
+      readRelativeTree(firstRoot),
+      readRelativeTree(secondRoot),
+    ]);
+    const firstPaths = [...firstTree.keys()].sort();
+    const secondPaths = [...secondTree.keys()].sort();
+
+    if (JSON.stringify(firstPaths) !== JSON.stringify(secondPaths)) {
+      throw new Error("Hosted AI pack generation produced unstable file sets.");
+    }
+
+    for (const relativePath of firstPaths) {
+      if (firstTree.get(relativePath) !== secondTree.get(relativePath)) {
+        throw new Error(
+          `Hosted AI pack generation is nondeterministic: ${relativePath}.`,
+        );
+      }
+    }
+
+    const requiredManifestPaths = [
+      "manifest.json",
+      `${firstResult.channel}/manifest.json`,
+      `${firstResult.channel}/${firstResult.packVersion}/manifest.json`,
+    ];
+    for (const relativePath of requiredManifestPaths) {
+      if (!firstTree.has(relativePath)) {
+        throw new Error(
+          `Hosted AI pack generation omitted required artifact: ${relativePath}.`,
+        );
+      }
+    }
+
+    if (
+      firstResult.channel !== secondResult.channel ||
+      firstResult.packVersion !== secondResult.packVersion ||
+      firstResult.fileCount !== secondResult.fileCount ||
+      firstPaths.length !== firstResult.fileCount + requiredManifestPaths.length
+    ) {
+      throw new Error(
+        "Hosted AI pack generation returned inconsistent metadata.",
+      );
+    }
+
+    return firstResult;
+  } finally {
+    await Promise.all([
+      fs.promises.rm(firstRoot, { recursive: true, force: true }),
+      fs.promises.rm(secondRoot, { recursive: true, force: true }),
+    ]);
+  }
+};
+
 const runPlatformGeneratedCheck = async () => {
   runCommand("pnpm", ["--filter", "@air-jam/cli", "ai-pack:check"]);
   await Promise.all([
@@ -31,81 +95,17 @@ const runPlatformGeneratedCheck = async () => {
     assertGeneratedContentBlogSourceIsFresh(),
   ]);
 
-  const tempRoot = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), "airjam-platform-ai-pack-check-"),
+  const result = await assertPlatformAiPackGenerationIsDeterministic();
+  console.log(
+    `✓ Platform generated sources are fresh and AI pack generation is deterministic (${result.channel}@${result.packVersion}, ${result.fileCount} files)`,
   );
-
-  try {
-    await generatePlatformAiPackArtifacts({ targetRoot: tempRoot });
-
-    if (!fs.existsSync(platformPublicAiPackRoot)) {
-      throw new Error(
-        'Hosted AI pack artifacts are missing. Run "pnpm run repo -- platform ai-pack generate".',
-      );
-    }
-
-    const actual = await readRelativeTree(platformPublicAiPackRoot);
-    const expected = await readRelativeTree(tempRoot);
-    const actualPaths = [...actual.keys()].sort();
-    const expectedPaths = [...expected.keys()].sort();
-
-    if (JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths)) {
-      throw new Error(
-        `Hosted AI pack artifact set is stale.\nExpected: ${expectedPaths.join(", ")}\nActual: ${actualPaths.join(", ")}`,
-      );
-    }
-
-    for (const relativePath of expectedPaths) {
-      if (actual.get(relativePath) !== expected.get(relativePath)) {
-        throw new Error(
-          `Hosted AI pack artifact is stale: ${relativePath}. Run "pnpm run repo -- platform ai-pack generate".`,
-        );
-      }
-    }
-
-    console.log("✓ Platform generated artifacts are complete and fresh");
-  } finally {
-    await fs.promises.rm(tempRoot, { recursive: true, force: true });
-  }
 };
 
 const runPlatformAiPackCheck = async () => {
-  const tempRoot = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), "airjam-platform-ai-pack-check-"),
+  const result = await assertPlatformAiPackGenerationIsDeterministic();
+  console.log(
+    `✓ Hosted platform AI pack generation is deterministic (${result.channel}@${result.packVersion}, ${result.fileCount} files)`,
   );
-
-  try {
-    await generatePlatformAiPackArtifacts({ targetRoot: tempRoot });
-
-    if (!fs.existsSync(platformPublicAiPackRoot)) {
-      throw new Error(
-        'Hosted AI pack artifacts are missing. Run "pnpm run repo -- platform ai-pack generate".',
-      );
-    }
-
-    const actual = await readRelativeTree(platformPublicAiPackRoot);
-    const expected = await readRelativeTree(tempRoot);
-    const actualPaths = [...actual.keys()].sort();
-    const expectedPaths = [...expected.keys()].sort();
-
-    if (JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths)) {
-      throw new Error(
-        `Hosted AI pack artifact set is stale.\nExpected: ${expectedPaths.join(", ")}\nActual: ${actualPaths.join(", ")}`,
-      );
-    }
-
-    for (const relativePath of expectedPaths) {
-      if (actual.get(relativePath) !== expected.get(relativePath)) {
-        throw new Error(
-          `Hosted AI pack artifact is stale: ${relativePath}. Run "pnpm run repo -- platform ai-pack generate".`,
-        );
-      }
-    }
-
-    console.log("✓ Hosted platform AI pack artifacts are fresh");
-  } finally {
-    await fs.promises.rm(tempRoot, { recursive: true, force: true });
-  }
 };
 
 const runRailwayJson = (args, operation) => {
@@ -292,7 +292,7 @@ export const registerPlatformCommands = (program) => {
 
   aiPackCommand
     .command("check")
-    .description("Verify hosted platform AI pack artifacts are fresh")
+    .description("Verify hosted platform AI pack generation is deterministic")
     .action(async () => {
       await runPlatformAiPackCheck();
     });
