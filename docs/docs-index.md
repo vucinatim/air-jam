@@ -53,6 +53,12 @@ The assessment preserves the architectural judgment. The execution set owns
 the deletion-first bundles and Git measurement contract. The readiness manifest
 remains the execution-state authority.
 
+The canonical Gate 2 external-agent proof is defined by:
+
+1. [contracts/external-agent-golden-path-contract.md](./contracts/external-agent-golden-path-contract.md)
+2. the machine-readable scenario and prompt exposed through
+   `pnpm --silent run repo -- golden-path spec --json`
+
 The detailed discoverability checklist remains a subordinate launch reference:
 
 1. [plans/discoverability-and-launch-promotion-plan.md](./plans/discoverability-and-launch-promotion-plan.md)
@@ -67,11 +73,11 @@ competing as parallel product architectures.
 ## Planned Next
 
 The roadmap gates define the product sequence and the readiness manifest derives
-the currently executable queue. The initial independent work is:
+the currently executable queue. The next independent work is:
 
-1. the two Gate 0 decision packets
-2. the codebase and canonical-path audit
-3. production capacity, cost, lifecycle, and recovery inventory
+1. external-agent public installation and bootstrap proof
+2. production capacity, cost, lifecycle, and recovery inventory
+3. operational-event and incident contract definition
 4. the public and privileged surface threat model
 5. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)

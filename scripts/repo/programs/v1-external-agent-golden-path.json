@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "id": "air-jam-1.0-external-agent-golden-path",
+  "title": "Air Jam 1.0 external-agent golden path",
+  "contract": "docs/contracts/external-agent-golden-path-contract.md",
+  "promptTemplate": "scripts/repo/programs/v1-external-agent-golden-path-prompt.md",
+  "clients": {
+    "primary": {
+      "profile": "codex",
+      "role": "full-lifecycle",
+      "requiredProof": [
+        "install and configure Air Jam from public artifacts without monorepo knowledge",
+        "complete create, discover, build, control, inspect, repair, evaluate, release, and verify",
+        "retain the complete normalized transcript and evidence bundle"
+      ]
+    },
+    "secondary": {
+      "profile": "claude-desktop",
+      "role": "independent-discovery-session",
+      "requiredProof": [
+        "install the current supported local MCP package without private maintainer knowledge",
+        "discover Air Jam tools and resources through the client",
+        "open, read, invoke, and close one semantic game session",
+        "retain client, tool, and session evidence without vendor authentication data"
+      ]
+    }
+  },
+  "publication": {
+    "target": "isolated-staging",
+    "arcadeVisibility": "hidden",
+    "productionAllowed": false
+  },
+  "isolation": {
+    "required": [
+      "empty run workspace outside the Air Jam monorepo",
+      "registry-resolved Air Jam package specifications only",
+      "run-scoped client configuration and Air Jam credentials",
+      "run-scoped game identity, release identity, and staging records",
+      "recorded toolchain, package-manager, network, and cache state"
+    ],
+    "forbidden": [
+      "workspace, link, file, or monorepo-relative package dependencies",
+      "NODE_PATH or equivalent private module resolution",
+      "private repository documentation or source as agent context",
+      "maintainer-authored edits after the primary agent starts",
+      "production publication or public Arcade visibility",
+      "reuse of another run's game, room, session, release, or evidence identity"
+    ]
+  },
+  "evidenceBundle": {
+    "format": "air-jam-golden-path-evidence/v1",
+    "requiredPaths": [
+      "manifest.json",
+      "inputs/scenario.json",
+      "inputs/prompt.md",
+      "environment/toolchain.json",
+      "environment/isolation.json",
+      "transcript/events.ndjson",
+      "commands/index.json",
+      "project/git/initial.json",
+      "project/git/final.json",
+      "sessions/index.json",
+      "quality/index.json",
+      "visual/index.json",
+      "release/index.json",
+      "failures/index.json",
+      "verifier/report.json"
+    ],
+    "redactions": [
+      "secret and token values",
+      "vendor authentication state",
+      "authorization and cookie headers",
+      "URL query parameters containing credentials",
+      "absolute user and temporary paths"
+    ]
+  },
+  "stages": [
+    {
+      "id": "preflight",
+      "actor": "run-controller",
+      "objective": "Create and attest an isolated, production-safe clean room.",
+      "success": [
+        "workspace, client configuration, evidence directory, identities, and staging scope are run-scoped",
+        "required toolchain and network dependencies are recorded",
+        "production publication and public visibility are structurally disabled"
+      ],
+      "evidence": [
+        "environment/toolchain.json",
+        "environment/isolation.json",
+        "inputs/scenario.json"
+      ]
+    },
+    {
+      "id": "create",
+      "actor": "primary-agent",
+      "objective": "Create Signal Relay from the public minimal scaffold into the empty workspace.",
+      "success": [
+        "the project is generated from the candidate registry package without private paths",
+        "the initial Git state and resolved dependency graph are recorded",
+        "the generated project exposes its documented Air Jam discovery surfaces"
+      ],
+      "evidence": [
+        "commands/index.json",
+        "project/git/initial.json",
+        "transcript/events.ndjson"
+      ]
+    },
+    {
+      "id": "discover",
+      "actor": "primary-agent",
+      "objective": "Discover the supported lifecycle, runtime, semantic-session, evaluation, and release contracts without maintainer knowledge.",
+      "success": [
+        "the agent uses public help, project guidance, CLI JSON, and MCP contract inspection only",
+        "the client discovers the Air Jam server and its required tools or resources",
+        "the chosen implementation plan names the authoritative runtime and controller boundaries"
+      ],
+      "evidence": [
+        "transcript/events.ndjson",
+        "commands/index.json",
+        "sessions/index.json"
+      ]
+    },
+    {
+      "id": "build",
+      "actor": "primary-agent",
+      "objective": "Implement and locally prove the complete Signal Relay game contract.",
+      "success": [
+        "two to four controllers can ready, start, answer, finish, and play again",
+        "the host owns scoring, rounds, win state, and reset behavior",
+        "semantic actions and snapshots expose deterministic machine-readable game state",
+        "typecheck, lint, tests, and production build pass"
+      ],
+      "evidence": [
+        "project/git/final.json",
+        "quality/index.json",
+        "visual/index.json",
+        "transcript/events.ndjson"
+      ]
+    },
+    {
+      "id": "control",
+      "actor": "primary-agent",
+      "objective": "Drive a multiplayer match through the semantic game-session contract.",
+      "success": [
+        "the agent opens one game session and connects at least two virtual controllers",
+        "the agent completes a match without using browser gestures as the automation authority",
+        "action results and snapshots agree on round, score, phase, and winner"
+      ],
+      "evidence": [
+        "sessions/index.json",
+        "transcript/events.ndjson",
+        "quality/index.json"
+      ]
+    },
+    {
+      "id": "inspect",
+      "actor": "primary-agent",
+      "objective": "Inspect semantic state, unified logs, and visible host/controller output before repair.",
+      "success": [
+        "the agent records one authoritative state snapshot and one relevant log slice",
+        "the host and controller surfaces receive visible browser proof",
+        "the agent can explain the current rule contract from public project artifacts"
+      ],
+      "evidence": [
+        "sessions/index.json",
+        "visual/index.json",
+        "transcript/events.ndjson"
+      ]
+    },
+    {
+      "id": "repair",
+      "actor": "primary-agent",
+      "objective": "Diagnose and repair the deterministic win-score contract fault injected by the run controller.",
+      "success": [
+        "the run controller changes only the declared WIN_SCORE rule after the initial passing checkpoint",
+        "the primary agent identifies the inconsistency from tests, state, or evaluation evidence",
+        "the agent restores WIN_SCORE to 3 without maintainer guidance",
+        "the targeted regression and full quality gates pass again"
+      ],
+      "evidence": [
+        "failures/index.json",
+        "project/git/final.json",
+        "quality/index.json",
+        "transcript/events.ndjson"
+      ]
+    },
+    {
+      "id": "evaluate",
+      "actor": "primary-agent",
+      "objective": "Run the documented evaluation loop and close all required game criteria.",
+      "success": [
+        "deterministic rules, semantic control, visible UI, reset behavior, and package quality all pass",
+        "every failed attempt remains retained and classified",
+        "the final evaluation references immutable project and evidence digests"
+      ],
+      "evidence": [
+        "quality/index.json",
+        "failures/index.json",
+        "verifier/report.json"
+      ]
+    },
+    {
+      "id": "release",
+      "actor": "primary-agent",
+      "objective": "Build, submit, and inspect a hidden release in the isolated staging target.",
+      "success": [
+        "release doctor and bundle validation pass",
+        "artifact checksum, release record, visibility, and staging target are retained",
+        "the release is hidden and no production publication path is invoked"
+      ],
+      "evidence": [
+        "release/index.json",
+        "commands/index.json",
+        "transcript/events.ndjson"
+      ]
+    },
+    {
+      "id": "verify",
+      "actor": "verifier",
+      "objective": "Independently validate evidence completeness, isolation, client proofs, and final product behavior.",
+      "success": [
+        "all required evidence paths exist and their digests validate",
+        "the Codex full lifecycle and Claude Desktop independent discovery/session proof are both present",
+        "no forbidden dependency, credential disclosure, maintainer edit, or production publication occurred",
+        "the run receives one terminal result: passed, failed, blocked, or invalid"
+      ],
+      "evidence": [
+        "manifest.json",
+        "verifier/report.json",
+        "failures/index.json"
+      ]
+    }
+  ]
+}

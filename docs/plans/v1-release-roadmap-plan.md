@@ -1095,11 +1095,17 @@ redefine these gates or the 1.0 promise.
 7. archive this plan only after the launch outcome and immediate stabilization
    are recorded in `docs/current-state.md` and `docs/work-ledger.md`
 
+The exact Gate 2 scenario and evidence boundary are canonicalized in the
+[external-agent golden-path contract](../contracts/external-agent-golden-path-contract.md)
+and its repo-validated machine manifest. The roadmap owns the release promise;
+that contract owns how the external-agent claim is tested.
+
 ## Immediate Next Actions
 
-1. produce the Gate 1 codebase/canonical-path audit before starting broad
-   refactors
-2. design the exact external-agent golden-path scenario and evidence bundle
+1. close public-only install and bootstrap blockers against the canonical
+   external-agent golden path
+2. run and retain the Codex full-lifecycle proof, then independently certify
+   Claude Desktop discovery/session bootstrap
 3. inventory the current production observability, alerting, recovery, and
    security controls against Gates 3 through 5
 4. convert only the discovered release gaps into implementation work

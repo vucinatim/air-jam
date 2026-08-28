@@ -3,6 +3,7 @@
 import { Command } from "commander";
 import { registerContentCommands } from "./commands/content.mjs";
 import { registerDbCommands } from "./commands/db.mjs";
+import { registerGoldenPathCommands } from "./commands/golden-path.mjs";
 import { registerLegacyCommands } from "./commands/legacy.mjs";
 import { registerPackCommands } from "./commands/pack.mjs";
 import { registerPerfCommands } from "./commands/perf.mjs";
@@ -22,6 +23,7 @@ program.name("air-jam-repo").description("Repo-local Air Jam maintainer CLI");
 
 registerWorkspaceCommands(program);
 registerDbCommands(program);
+registerGoldenPathCommands(program);
 registerContentCommands(program);
 registerPlatformCommands(program);
 registerRailwayCommands(program);
