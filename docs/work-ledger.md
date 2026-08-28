@@ -18,10 +18,36 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-28 - Gate 1 R4 Established Platform Application Authority
+
+- completed the six-commit implementation range `f7eff9d..fb59754`
+- removed generic release/media status writers and placed creator UI, ops UI,
+  and machine HTTP over shared actor-aware application services
+- made PostgreSQL authoritative for one-live-release and active-ready-media
+  invariants, including explicit concurrent and invalid-write integration proof
+- extracted `@air-jam/database-contract` so platform and realtime server compile
+  against one physical runtime-usage schema while platform remains the only
+  migration owner
+- replaced Arcade launch/close callback-ref synchronization with one stateless
+  semantic event/effect orchestrator without adding another state model
+- covered room reset, launch/ack/failure, restore, history back, explicit exit,
+  and server child close with deterministic scenarios
+- verified the visible local lifecycle through the canonical `pnpm run dev`
+  path: deep-link launch, embedded game render, Back-to-browser server close,
+  and browser-card relaunch all converged
+- passed platform typecheck/lint, `211` platform tests, `28` repo contracts, and
+  `3` explicitly configured real-PostgreSQL invariant tests
+- measured the non-generated implementation at `+2,131 / -1,469` production
+  and operational lines, with `+777 / -1` test/contract lines
+- left no R4-scoped debt; R5 now owns final clean-checkout crystallization
+
 ## 2026-08-28 - Gate 1 R3 Made The Public Harness Actually Agent-Operable
 
 - completed bundle `R3` at
   `bf7d0630097638deec919f01f5bbc4e3e50a627d`
+- followed with clean-checkout corrections `4980af1` and `59d5657` so the
+  CLI-owned AI-pack manifest is committed and `pnpm run dev` remains the
+  executable default agent/human development front door
 - turned `create-airjam` back into a one-shot bootstrap package and created one
   installed `@air-jam/cli` owner for ongoing project lifecycle
 - removed all project lifecycle commands and copied runtime implementations

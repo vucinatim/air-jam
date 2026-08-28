@@ -142,6 +142,14 @@ These are now baseline truths, not open architecture debates:
     6. all six scaffold games pass semantic store/action conformance
     7. a packed clean-room project proves CLI discovery, MCP protocol startup,
        semantic session control, typecheck, tests, and production build
+12. Gate 1 platform application authority convergence is complete:
+    1. release and managed-media lifecycle bypasses are removed
+    2. human and machine adapters share actor-aware application services
+    3. PostgreSQL enforces one live release and valid active media assignments
+    4. platform and realtime server compile against one shared physical-table
+       contract while platform alone owns migrations
+    5. Arcade lifecycle events are planned by one stateless orchestrator without
+       replacing replicated surface state or the local capability reducer
 
 ## What Is Still Open
 
@@ -185,11 +193,12 @@ Gate 0 is closed with the product name, development-harness contract, supported
 client profiles, free-cloud allowances, cost ceilings, capacity target, and
 autonomy ceiling ratified on `2026-08-28`.
 
-Gate 1 bundles `R1`, `R2`, and `R3` are closed. They removed duplicate topology,
+Gate 1 bundles `R1` through `R4` are closed. They removed duplicate topology,
 obsolete visual/control paths, copied project CLI implementations, unsafe
-guidance ownership, and accidental public runtime exports. Platform authority
-convergence (`R4`) and final clean-checkout crystallization (`R5`) remain before
-Gate 1 closes.
+guidance ownership, accidental public runtime exports, platform lifecycle
+bypasses, duplicate physical-table declarations, unenforced release/media
+invariants, and Arcade callback-ref lifecycle synchronization. Final
+clean-checkout crystallization (`R5`) remains before Gate 1 closes.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the

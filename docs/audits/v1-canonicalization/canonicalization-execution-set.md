@@ -317,6 +317,50 @@ Acceptance:
 4. deterministic Arcade scenarios cover launch, restore, back, failure, and exit
 5. complete consumer searches show the bypass paths are gone
 
+Completion evidence:
+
+1. implementation range: `f7eff9d..fb59754`
+2. implementation commits:
+   1. `180f11eab95ea54c7478bedce24c34ad2731f027` removes generic
+      release/media lifecycle bypasses
+   2. `b0b29618409c48aaf0e0c70e469a06036c0d569e` establishes the
+      shared runtime database contract
+   3. `1e2852c33b51507de23f9d77a4552061b0a7520b` enforces and
+      serializes one live release per game
+   4. `6ff268dec13d5c8458d297ebe5b203398dee5e01` normalizes managed
+      media assignment authority
+   5. `4b8d4bb6f28ef3b344cda3bc135020542bca9971` converges human and
+      machine adapters on actor-aware application services
+   6. `fb5975415961f0024ee6de6d2cf3db3a5642ca36` extracts the
+      stateless Arcade session orchestrator
+3. production and operational source, excluding tests and generated Drizzle
+   snapshots: `+2,131 / -1,469` (`+662` net)
+4. tests and executable contract guards: `+777 / -1` (`+776` net)
+5. generated Drizzle snapshots: `+6,170 / -0`, reported separately from source
+   claims
+6. one partial unique PostgreSQL index plus serialized publish transactions now
+   enforce one live release; a normalized `(game_id, kind)` assignment relation
+   with composite integrity enforces active ready media
+7. platform and realtime server import one private `@air-jam/database-contract`
+   schema authority while platform remains the only migration owner
+8. tRPC and machine HTTP routes now retain protocol validation, rate limiting,
+   and serialization only; ownership and semantic release/media workflows live
+   in shared application services
+9. Arcade connect/reset, launch/ack/failure, reconnect restore, history back,
+   explicit exit, and server-child close are deterministic event/effect plans;
+   replicated surface state and the existing local runtime reducer remain the
+   only state authorities
+10. validation: platform typecheck and lint; `211` platform tests with `3`
+    explicit PostgreSQL skips in the default environment; `3` real-PostgreSQL
+    invariant tests when explicitly configured; and `28` repo contracts
+11. visible local browser proof: `pnpm run dev` launched the canonical stack,
+    `/arcade/local-air-capture` rendered the embedded game, browser Back
+    converged to `/arcade` and closed the server child, and selecting the game
+    launched it again through the same lifecycle
+12. remaining R4 debt: none; distributed admission/rate-limit authority remains
+    explicitly assigned to later Gate 3/5 work, and full clean-checkout proof is
+    R5
+
 ## Bundle R5: Clean-Checkout Crystallization
 
 Primary readiness owner: `G1-06`.

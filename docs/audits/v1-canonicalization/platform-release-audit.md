@@ -309,6 +309,42 @@ and readiness manifest own decisions and accepted work.
 - Dependencies and blast radius: Docs build/generated content and a final consumer search.
 - Validation: One implementation/export remains; content generation, platform typecheck/build, and architecture page render pass.
 
+## R4 Resolution Evidence — 2026-08-28
+
+The approved R4 authority cut is implemented in `f7eff9d..fb59754`:
+
+1. `CAN-103`: generic release and media status mutations are deleted; transports
+   expose only semantic lifecycle commands, guarded by a repo contract.
+2. `CAN-104`: a partial unique index enforces one live release per game and the
+   publish transaction serializes on the owning game row before replacing live
+   state. Concurrent publish and direct-invalid-write PostgreSQL tests pass.
+3. `CAN-107`: creator and operations actors enter shared release/media
+   application services; tRPC and machine HTTP are protocol adapters over the
+   same authorization, command, read-back, and projection workflows.
+4. `CAN-111`: `@air-jam/database-contract` owns `app_ids` and all seven
+   `runtime_usage_*` declarations; platform composes and migrates the contract,
+   while the realtime server imports only the shared schema.
+5. `CAN-112`: one stateless event/effect orchestrator plans room reset, launch,
+   acknowledgement, failure, restore, history back, explicit close, and server
+   child close. Replicated `arcade.surface` and the existing host-local runtime
+   reducer remain the only state owners. Scenario tests and a visible local
+   launch/back/relaunch smoke pass without launch/close callback refs.
+6. `CAN-114`: active media is normalized into `game_media_assignments` with
+   `(game_id, kind)` authority and ready/ownership/kind integrity. UI, machine,
+   catalog, archive, finalize, and assign paths share one projection/service
+   model; invalid and concurrent states are PostgreSQL-tested.
+
+The implementation adds `+2,131 / -1,469` non-generated production and
+operational lines, `+777 / -1` test/contract lines, and `6,170` generated
+Drizzle snapshot lines. The positive source delta is the intended replacement
+of conventional invariants and effect synchronization with explicit services,
+database constraints, and deterministic scenarios; duplicate adapters and
+schema declarations were removed in the same range.
+
+No R4-scoped architecture debt remains. Distributed admission and rate-limit
+authority (`CAN-113`) remains intentionally assigned to later Gate 3/5 work,
+and R5 owns the complete clean-checkout matrix.
+
 ## Open Questions and Cross-Lane Dependencies
 
 1. **Runtime/framework:** Can CAN-112 use the existing replicated surface and
