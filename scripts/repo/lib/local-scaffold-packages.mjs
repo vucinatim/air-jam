@@ -32,6 +32,11 @@ export const localScaffoldPackages = [
     directDependency: true,
   },
   {
+    packageName: "@air-jam/cli",
+    packageDir: repoPackageDir("packages", "cli"),
+    directDependency: true,
+  },
+  {
     packageName: "create-airjam",
     packageDir: repoPackageDir("packages", "create-airjam"),
     directDependency: true,
@@ -45,6 +50,7 @@ const localScaffoldPackageByName = new Map(
 const localScaffoldBuildFilters = [
   "@air-jam/sdk",
   "@air-jam/mcp-server",
+  "@air-jam/cli",
   "create-airjam",
   "server",
 ];

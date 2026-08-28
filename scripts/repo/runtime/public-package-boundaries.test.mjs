@@ -5,6 +5,9 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { resolvePublicPackages } from "../../release/public-packages.mjs";
+import { listLocalScaffoldDirectDependencyNames } from "../lib/local-scaffold-packages.mjs";
+
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
@@ -77,6 +80,15 @@ test("the canonical CLI participates in the public release set", () => {
     "utf8",
   );
   assert.match(releaseSource, /packages\/cli/u);
+});
+
+test("the local candidate package set matches the public release graph", () => {
+  assert.deepEqual(
+    listLocalScaffoldDirectDependencyNames().sort(),
+    resolvePublicPackages()
+      .map((entry) => entry.packageName)
+      .sort(),
+  );
 });
 
 test("the canonical AI pack manifest is committed with the CLI assets", () => {

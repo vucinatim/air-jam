@@ -232,14 +232,19 @@ The current repository-owned inspection surface is:
 pnpm --silent run repo -- golden-path --help
 pnpm --silent run repo -- golden-path spec --json
 pnpm --silent run repo -- golden-path validate --json
+pnpm --silent run repo -- golden-path bootstrap --json
 ```
 
 `spec` returns the canonical machine scenario and `validate` rejects malformed
 stage order, missing referenced files, unsafe publication, and unsupported
-client profiles. Gate `G2-02` and `G2-03` may extend this same owner with
-`prepare`, `run`, `status`, `verify`, or `clean` operations. They must not create
-a parallel tracker or duplicate lifecycle business logic already owned by the
-public Air Jam CLI/MCP/domain services.
+client profiles. `bootstrap` builds the exact public package set, publishes it
+to a disposable loopback registry with Air Jam upstream fallback disabled,
+installs a clean scaffold through registry specs, proves CLI/MCP discovery and
+the managed dev lifecycle, runs quality gates, and removes its run-owned state.
+Gate `G2-03` may extend this same owner with `run`, `status`, `verify`, or
+`clean` operations. It must not create a parallel tracker or duplicate
+lifecycle business logic already owned by the public Air Jam CLI/MCP/domain
+services.
 
 ## Gate Boundaries And Acceptance
 

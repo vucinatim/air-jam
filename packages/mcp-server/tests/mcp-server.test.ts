@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,9 @@ import {
 } from "../dist/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const packageVersion = JSON.parse(
+  await readFile(path.resolve(__dirname, "../package.json"), "utf8"),
+).version;
 const tempRoots: string[] = [];
 
 const createTempRoot = async (): Promise<string> => {
@@ -73,6 +76,11 @@ describe("createAirJamMcpServer", () => {
       server.connect(serverTransport),
       client.connect(clientTransport),
     ]);
+
+    expect(client.getServerVersion()).toEqual({
+      name: "air-jam",
+      version: packageVersion,
+    });
 
     const listed = await client.listTools();
     expect(listed.tools.map((tool) => tool.name)).toEqual([

@@ -41,6 +41,7 @@ test("golden path is a discoverable machine-readable repo CLI surface", () => {
   assert.match(rootHelp, /golden-path/);
   assert.match(help, /spec/);
   assert.match(help, /validate/);
+  assert.match(help, /bootstrap/);
 });
 
 test("canonical golden-path program validates its clients, stages, and evidence contract", () => {
