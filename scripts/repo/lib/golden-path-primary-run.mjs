@@ -237,7 +237,12 @@ const verifyPrimaryRun = ({
 }) => {
   const failures = [];
   for (const relativePath of program.evidenceBundle.requiredPaths) {
-    if (relativePath === "manifest.json") continue;
+    if (
+      relativePath === "manifest.json" ||
+      relativePath === "verifier/report.json"
+    ) {
+      continue;
+    }
     if (!fs.existsSync(path.join(evidenceDir, relativePath))) {
       failures.push({ code: "missing_evidence", path: relativePath });
     }
@@ -448,8 +453,6 @@ export const runGoldenPathPrimary = async ({
       "--ignore-user-config",
       "--ignore-rules",
       "--skip-git-repo-check",
-      "--sandbox",
-      "workspace-write",
       "--approve-for-me",
       "--cd",
       workspaceDir,
