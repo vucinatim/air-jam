@@ -18,6 +18,34 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-28 - Gate 2 Proved The Exact Candidate Bootstrap Outside The Monorepo
+
+- built and packed the canonical five-package public release graph, then
+  published the exact tarballs to an authenticated run-scoped loopback registry
+- disabled upstream fallback for all Air Jam packages so a missing candidate
+  package fails instead of resolving an old public release
+- scaffolded and installed a clean minimal project with no `workspace:`,
+  `link:`, `file:`, or private monorepo path resolution
+- discovered the installed project CLI, root development lifecycle, semantic
+  session and release commands, portable MCP declaration, and project-scoped
+  Codex profile
+- initialized the packaged MCP server over raw STDIO, verified all `24` tools,
+  and exercised managed dev start, status, and stop
+- passed the generated project's typecheck, tests, and production build, then
+  removed the run-owned workspace, registry, credentials, and processes
+- fixed MCP identity drift by deriving the announced server version from its
+  shipped package manifest and added client-level regression coverage
+- aligned the local candidate set with the public release graph so
+  `@air-jam/cli` cannot silently disappear from clean-room proofs
+- kept the registry harness compatible with the repository's Node 20 CI floor
+- measured `create-airjam` at `87,264,734` packed bytes; this is functional but
+  material launch friction, and Gate 6 retains the explicit package-size and
+  cold-install decision
+- passed `33` repository contract tests, the full workspace typecheck, the
+  MCP server's `8` tests, lint with one pre-existing ignored vendored warning,
+  and the complete isolated-registry proof at implementation commit `511ee85`
+- published no npm package and changed no production infrastructure
+
 ## 2026-08-28 - Gate 2 Received A Replayable External-Agent Proof Contract
 
 - fixed one machine-readable Signal Relay scenario across ten ordered stages:

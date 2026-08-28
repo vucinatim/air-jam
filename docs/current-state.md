@@ -170,8 +170,19 @@ These are now baseline truths, not open architecture debates:
        inspect-diagnose-repair loop without claiming general self-healing
     4. `pnpm --silent run repo -- golden-path spec|validate --json` makes the
        scenario discoverable and rejects malformed or production-unsafe specs
-    5. defining the harness does not certify the result: Gates `G2-02` through
-       `G2-05` still own public-only installation and successful replay evidence
+    5. the exact candidate package graph now passes an isolated-registry
+       bootstrap proof with no local dependency specs or private repository
+       paths
+    6. the generated project discovers the canonical CLI, all `24` MCP tools,
+       project-scoped Codex configuration, managed dev lifecycle, typecheck,
+       tests, and production build
+    7. the MCP server reports its shipped package version rather than a
+       hard-coded version
+    8. `create-airjam` currently packs to `87,264,734` bytes because it embeds
+       all six scaffold archives; Gate 6 must set and prove the final package
+       size and cold-install budget
+    9. Gates `G2-03` through `G2-05` still own complete Codex replay, independent
+       Claude Desktop proof, and final evidence review
 
 ## What Is Still Open
 
@@ -229,6 +240,14 @@ validator. Current Anthropic guidance makes Desktop Extensions the preferred
 Claude Desktop packaging path, so the older raw JSON setup remains explicitly
 uncertified until the independent `G2-04` proof settles and canonicalizes it.
 
+Gate `G2-02` is closed at `511ee85` with the
+[public bootstrap audit](./audits/v1-golden-path/public-bootstrap-audit.md).
+The exact five-package candidate graph was built, packed, published to a fresh
+loopback registry with Air Jam upstream fallback disabled, installed from a
+clean scaffold, exercised through CLI and raw MCP, and removed after all
+generated-project quality gates passed. No npm package or production system was
+changed.
+
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
 [2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md).
@@ -260,8 +279,8 @@ Execute the roadmap in dependency order:
 ## Immediate Next Steps
 
 1. agents select and claim from the canonical readiness queue
-2. close public-only installation, root dev-loop, contract-resolution, and MCP
-   bootstrap blockers against the fixed external-agent scenario
+2. run the complete Codex Signal Relay authoring, semantic-control, repair,
+   evaluation, and hidden-staging lifecycle against the fixed scenario
 3. continue the dependency-ready reliability inventory, operational-event
    contract, and threat model
 4. preserve Gate 1 contracts while those independent implementation lanes run
