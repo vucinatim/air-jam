@@ -264,11 +264,7 @@ export const publishReleaseForMachine = async ({
   releaseId: string;
   userId: string;
 }) => {
-  const release = await assertOwnedReleaseForMachine({ releaseId, userId });
-
-  if (release.status !== "ready") {
-    throw toMachineConflictError("Only ready releases can be published.");
-  }
+  await assertOwnedReleaseForMachine({ releaseId, userId });
 
   try {
     await publishRelease({ releaseId });

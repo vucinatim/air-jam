@@ -190,6 +190,9 @@ export const gameReleases = pgTable(
     gameIdx: index("game_releases_game_id_idx").on(table.gameId),
     statusIdx: index("game_releases_status_idx").on(table.status),
     createdAtIdx: index("game_releases_created_at_idx").on(table.createdAt),
+    oneLivePerGameIdx: uniqueIndex("game_releases_one_live_per_game_idx")
+      .on(table.gameId)
+      .where(sql`${table.status} = 'live'`),
   }),
 );
 

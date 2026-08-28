@@ -53,3 +53,28 @@ test("platform and server import one shared runtime database contract", async ()
     );
   }
 });
+
+test("live release authority is serialized and database-enforced", async () => {
+  const [platformSchema, migration, releaseService, publicRecord] =
+    await Promise.all([
+      readRepoSource("apps/platform/src/db/schema.ts"),
+      readRepoSource(
+        "apps/platform/drizzle/0021_one-live-release-invariant.sql",
+      ),
+      readRepoSource(
+        "apps/platform/src/server/releases/release-status-service.ts",
+      ),
+      readRepoSource(
+        "apps/platform/src/server/releases/public-release-record.ts",
+      ),
+    ]);
+
+  assert.match(platformSchema, /game_releases_one_live_per_game_idx/u);
+  assert.match(platformSchema, /where\(sql`\$\{table\.status\} = 'live'`\)/u);
+  assert.match(migration, /row_number\(\) OVER/u);
+  assert.match(migration, /"live_rank" > 1/u);
+  assert.match(migration, /CREATE UNIQUE INDEX/u);
+  assert.match(releaseService, /for update/u);
+  assert.match(releaseService, /release\.status === "live"/u);
+  assert.match(publicRecord, /desc\(gameReleases\.publishedAt\)/u);
+});

@@ -283,10 +283,7 @@ export const releaseRouter = createTRPCRouter({
   publish: protectedProcedure
     .input(releaseStatusMutationInput)
     .mutation(async ({ input, ctx }) => {
-      const release = await assertOwnedRelease(input.releaseId, ctx.user.id);
-      if (release.status !== "ready") {
-        throw new Error("Only ready releases can be published.");
-      }
+      await assertOwnedRelease(input.releaseId, ctx.user.id);
 
       return publishRelease({
         releaseId: input.releaseId,
