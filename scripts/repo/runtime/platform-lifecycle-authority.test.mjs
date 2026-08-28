@@ -136,3 +136,29 @@ test("active media is a normalized database-enforced assignment", async () => {
   assert.ok(dataMigration > integrityConstraint);
   assert.ok(oldColumnRemoval > dataMigration);
 });
+
+test("Arcade semantic lifecycle is planned by one stateless orchestrator", async () => {
+  const [arcadeSystem, orchestrator, scenarios] = await Promise.all([
+    readRepoSource("apps/platform/src/components/arcade/arcade-system.tsx"),
+    readRepoSource(
+      "apps/platform/src/components/arcade/arcade-session-orchestrator.ts",
+    ),
+    readRepoSource(
+      "apps/platform/src/components/arcade/arcade-session-orchestrator.test.ts",
+    ),
+  ]);
+
+  assert.match(arcadeSystem, /orchestrateArcadeSession/u);
+  assert.doesNotMatch(arcadeSystem, /launchGameRef|closeGameRef/u);
+  assert.doesNotMatch(arcadeSystem, /normalizeRuntimeUrl/u);
+  assert.match(orchestrator, /type: "room\.connected"/u);
+  assert.match(orchestrator, /type: "launch\.requested"/u);
+  assert.match(orchestrator, /type: "launch\.acknowledged"/u);
+  assert.match(orchestrator, /type: "restore\.requested"/u);
+  assert.match(orchestrator, /type: "history\.back"/u);
+  assert.match(orchestrator, /type: "close\.requested"/u);
+  assert.doesNotMatch(orchestrator, /useState|useReducer|create\(/u);
+  assert.match(scenarios, /pending replicated restore/u);
+  assert.match(scenarios, /authoritative surfaces together/u);
+  assert.match(scenarios, /server child close/u);
+});

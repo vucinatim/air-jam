@@ -4,6 +4,9 @@
  */
 
 export type { ArcadeSurfaceRuntimeIdentity } from "@air-jam/sdk/arcade/surface";
+import type { GamePlayerGame } from "./game-player";
+
+export type ArcadeGame = GamePlayerGame & { slug?: string | null };
 
 export type ArcadeSurfaceKind = "browser" | "game";
 
