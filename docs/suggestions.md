@@ -58,6 +58,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 52. Keep the future bot-driver contract intentionally narrower than the semantic agent contract surface: only extract shared intent primitives once at least two real games need them, so Air Capture does not accidentally hardcode its gameplay semantics into the framework too early.
 53. Revisit Railway selected-service sync only if Railway exposes a real automatable primitive for it; the 2026-05-06 validation showed that `serviceDuplicate` is not that primitive because it creates global `(... Copy)` services instead of syncing the canonical app services into a preview environment.
 54. If Railway native PR environments still prove operationally noisy, add the smallest possible diagnostics pass to `railway doctor` first, such as age-tagged stale-environment reporting, instead of rebuilding a repo-owned preview lifecycle.
+55. Remove the repeated Better Auth default-secret error noise from intentional local clean-checkout production builds through one explicit build-time auth configuration contract, while preserving fail-closed runtime validation and never normalizing a production default secret.
 
 ## Framework Boundary Follow-Ups
 

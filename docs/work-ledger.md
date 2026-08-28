@@ -18,6 +18,33 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-28 - Gate 1 Closed From An Exact Clean Checkout
+
+- closed canonicalization bundle `R5` at
+  `da835f650d929c5873bf55e8e5db2e8df5c74f81`
+- found and removed five populated-worktree assumptions: ignored CLI build
+  output, runtime-heavy help discovery, ignored hosted generated artifacts,
+  undeclared hoisted contract-runner dependencies, and a browser smoke path
+  that could not honor the canonical executable override
+- made all three independently published CLI wrappers execute packaged output
+  when installed and bootstrap only their owning package when run from a clean
+  source checkout
+- proved the complete clean-checkout matrix: frozen install, generated
+  determinism, canonical guard, lint, `29` repo contracts, hermetic platform
+  deployment, all typechecks/tests/builds, strict realtime performance, `17`
+  server smoke tests, `4` real-browser scenarios, and all six packed scaffolds
+- measured strict realtime at `20,553` events sent and received, `0%` loss,
+  `227.10` events/second, and `2.04 ms` p95 latency
+- measured the exact Gate 1 authored delta at `+10,872 / -16,922` (`-6,050`
+  net) across production source, tests/guards, and docs/guidance
+- reported `6,170` generated Drizzle snapshot lines and six binary scaffold
+  archives separately; generated churn is why the raw numeric repository diff
+  is slightly positive despite the authored reduction
+- recovered from local disk exhaustion by removing only ignored build/test
+  output in the disposable proof checkout, then passed browser and scaffold
+  gates against the same commit
+- published no packages and changed no production infrastructure
+
 ## 2026-08-28 - Gate 1 R4 Established Platform Application Authority
 
 - completed the six-commit implementation range `f7eff9d..fb59754`

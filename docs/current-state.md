@@ -150,19 +150,27 @@ These are now baseline truths, not open architecture debates:
        contract while platform alone owns migrations
     5. Arcade lifecycle events are planned by one stateless orchestrator without
        replacing replicated surface state or the local capability reducer
+13. Gate 1 clean-checkout crystallization is complete:
+    1. all published CLI entrypoints bootstrap correctly without ignored build
+       output or populated-worktree hoisting
+    2. generated-artifact validation derives and compares output from authored
+       sources instead of trusting ignored hosted files
+    3. the full release, browser, scaffold, and strict realtime matrix passes
+       from the exact canonicalization head
+    4. authored production source, tests, and guidance are `6,050` lines net
+       smaller than the exact pre-canonicalization baseline
 
 ## What Is Still Open
 
 The roadmap now organizes the remaining work into explicit evidence gates:
 
-1. codebase and contract canonicalization
-2. external-agent golden-path proof
-3. launch-scale reliability, backpressure, cost, backup, restore, and rollback
-4. operational events, synthetics, alerts, incident correlation, GitHub issue
+1. external-agent golden-path proof
+2. launch-scale reliability, backpressure, cost, backup, restore, and rollback
+3. operational events, synthetics, alerts, incident correlation, GitHub issue
    policy, and bounded remediation
-5. security, abuse, privacy, and supply-chain trust
-6. public package, installation, documentation, demo, and article proof
-7. one immutable release rehearsal and final go/no-go decision
+4. security, abuse, privacy, and supply-chain trust
+5. public package, installation, documentation, demo, and article proof
+6. one immutable release rehearsal and final go/no-go decision
 
 ## Active Now
 
@@ -193,12 +201,13 @@ Gate 0 is closed with the product name, development-harness contract, supported
 client profiles, free-cloud allowances, cost ceilings, capacity target, and
 autonomy ceiling ratified on `2026-08-28`.
 
-Gate 1 bundles `R1` through `R4` are closed. They removed duplicate topology,
+Gate 1 bundles `R1` through `R5` are closed. They removed duplicate topology,
 obsolete visual/control paths, copied project CLI implementations, unsafe
 guidance ownership, accidental public runtime exports, platform lifecycle
 bypasses, duplicate physical-table declarations, unenforced release/media
-invariants, and Arcade callback-ref lifecycle synchronization. Final
-clean-checkout crystallization (`R5`) remains before Gate 1 closes.
+invariants, and Arcade callback-ref lifecycle synchronization. The exact
+clean-checkout release matrix passes at `da835f6`, and authored source, tests,
+and guidance are `6,050` lines net smaller than the Gate 1 baseline.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
@@ -220,9 +229,8 @@ They should no longer compete with launch execution.
 Execute the roadmap in dependency order:
 
 1. keep the ratified Gate 0 contract frozen
-2. complete Gate 1 platform authority convergence and clean-checkout
-   crystallization
-3. after the shared boundaries stabilize, parallelize independent golden-path,
+2. keep the now-closed Gate 1 boundaries stable
+3. parallelize independent golden-path,
    reliability, operations, security, and public-surface work
 4. retain evidence for every gate and integrate through one central validation
    pass
@@ -232,12 +240,11 @@ Execute the roadmap in dependency order:
 ## Immediate Next Steps
 
 1. agents select and claim from the canonical readiness queue
-2. execute platform application-authority convergence without reopening the
-   now-stable public CLI/MCP/runtime boundaries
-3. continue the reliability inventory, golden-path specification, and threat
-   model as dependency-ready work
-4. stabilize shared contracts through Gate 1 before broad parallel
-   implementation
+2. execute the external-agent golden path through the now-stable CLI/MCP/runtime
+   boundaries
+3. continue the dependency-ready reliability inventory, operational-event
+   contract, and threat model
+4. preserve Gate 1 contracts while those independent implementation lanes run
 5. complete or block work only through evidence-backed readiness transitions
 
 ## Current Caveats

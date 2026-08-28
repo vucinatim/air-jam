@@ -1,8 +1,8 @@
 # Air Jam 1.0 Canonicalization Execution Set
 
 Last updated: 2026-08-28
-Status: implementation active; `R1`, `R2`, and `R3` complete
-Implementation owner: `G1-05`
+Status: complete; Gate 1 closed through `R5`
+Implementation owners: `G1-05`, `G1-06`
 Approval checkpoint: `G1-04`
 
 Related evidence:
@@ -388,6 +388,75 @@ Acceptance:
    additions, deletions, and net values
 4. Gate 1 closes before feature expansion begins
 
+Completion evidence:
+
+1. clean implementation head:
+   `da835f650d929c5873bf55e8e5db2e8df5c74f81`
+2. R5 range: `18af702..da835f6`
+3. R5 source and operational corrections: `+344 / -182` (`+162` net);
+   the positive shape is the retained clean-checkout bootstrap required by each
+   independently published CLI package, not a second lifecycle implementation
+4. clean-checkout defects found and removed:
+   1. public workspace binaries depended on ignored `dist` output
+   2. discovery and help imported the full runtime stack before a build existed
+   3. generated-artifact checks assumed ignored hosted output was present
+   4. the root semantic-contract runner consumed undeclared hoisted packages
+   5. browser smoke could not honor the canonical browser executable contract
+5. all three public bin wrappers now execute packaged output when installed and
+   build their owning workspace package when run from a clean source checkout;
+   malformed installed packages fail explicitly rather than importing source
+6. generated checks deterministically materialize and compare the hosted pack
+   from authored sources in isolated temporary directories
+7. clean-checkout validation passed frozen install, deterministic generated
+   checks (`stable@0.1.0`, `27` files), canonical guard, lint, `29` repo
+   contracts, hermetic platform deploy build, all workspace typechecks, `134`
+   server tests with `2` skips, `260` SDK tests, `211` platform tests with `3`
+   PostgreSQL skips, all workspace production builds, strict realtime
+   performance, `17` server smoke tests, `4` real-browser smoke scenarios, and
+   the six-template packed scaffold catalog
+8. strict realtime proof sent and received `20,553` events with `0%` loss at
+   `227.10` events/second; latency was `0.75 ms` p50, `2.04 ms` p95, and
+   `5.02 ms` p99, with `0.98 MB` heap growth
+9. the browser matrix used the existing canonical
+   `AIRJAM_BROWSER_EXECUTABLE_PATH` contract with local Chrome; CI and callers
+   without that override retain Playwright's managed-browser default
+10. the first browser attempt was interrupted by host disk exhaustion while
+    creating Playwright's artifact directory; only ignored build/test output in
+    the disposable proof checkout was removed, after which browser and scaffold
+    gates passed against the same commit
+
+## Gate 1 Final Git Delta
+
+Measured range:
+`18ca38957c19c7ee5d9e39aac2bb91f0393a8902..da835f650d929c5873bf55e8e5db2e8df5c74f81`.
+
+The categories are disjoint. Tests include executable repo contract guards;
+documentation includes project-owned and managed agent guidance. Generated
+Drizzle snapshots and binary scaffold archives are excluded from authored
+source claims.
+
+| Category                             | Additions | Deletions |      Net |
+| ------------------------------------ | --------: | --------: | -------: |
+| Production and operational source    |     7,544 |    13,076 | `-5,532` |
+| Tests and executable contract guards |     1,762 |     2,130 |   `-368` |
+| Documentation and agent guidance     |     1,566 |     1,716 |   `-150` |
+| Generated Drizzle snapshots          |     6,170 |         0 | `+6,170` |
+
+Authored source, tests, and guidance therefore total `+10,872 / -16,922`
+(`-6,050` net). The repository-wide numeric diff is `+17,042 / -16,922`
+(`+120` net) only because generated database snapshots add `6,170` lines. Six
+binary scaffold archives are present and intentionally have no line count.
+
+The reduction removed the duplicate topology package, empty Studio placeholder,
+obsolete visual command routes and browser bridge, unreachable MCP tools,
+speculative capability schema, copied server project CLI, bootstrap-owned
+ongoing lifecycle, deprecated aliases and fallbacks, generic release/media
+status writers, duplicate physical-table declarations, and callback-ref Arcade
+lifecycle synchronization. The retained owners are the SDK topology and Arcade
+contracts, semantic game sessions, browser-only visual proof, installed project
+CLI, portable MCP adapter, platform application services, shared private
+database contract, and stateless Arcade lifecycle orchestrator.
+
 ## Explicitly Outside Gate 1
 
 These remain in their existing roadmap gates rather than being smuggled into
@@ -405,18 +474,19 @@ implement their future product behavior.
 
 ## Final Evidence Shape
 
-At Gate 1 closure, report:
+Gate 1 closure report:
 
-| Evidence            | Required value                             |
-| ------------------- | ------------------------------------------ |
-| Base                | exact commit SHA before `G1-05`            |
-| Head                | exact clean canonicalization commit SHA    |
-| Source delta        | additions, deletions, net                  |
-| Test delta          | additions, deletions, net                  |
-| Docs/guidance delta | additions, deletions, net                  |
-| Deleted surfaces    | packages, files, routes, commands, exports |
-| Canonical owners    | one owner for every affected capability    |
-| Validation          | clean-checkout command evidence            |
+| Evidence            | Recorded value                                      |
+| ------------------- | --------------------------------------------------- |
+| Base                | `18ca38957c19c7ee5d9e39aac2bb91f0393a8902`          |
+| Head                | `da835f650d929c5873bf55e8e5db2e8df5c74f81`          |
+| Source delta        | `+7,544 / -13,076` (`-5,532` net)                   |
+| Test delta          | `+1,762 / -2,130` (`-368` net)                      |
+| Docs/guidance delta | `+1,566 / -1,716` (`-150` net)                      |
+| Generated delta     | `+6,170 / -0`, plus `6` binary archives             |
+| Deleted surfaces    | recorded in the Gate 1 final delta section          |
+| Canonical owners    | recorded in bundle evidence and the final delta     |
+| Validation          | full clean-checkout release matrix recorded in `R5` |
 
 The goal is visible reduction and clearer ownership, not winning a line-count
 contest.
