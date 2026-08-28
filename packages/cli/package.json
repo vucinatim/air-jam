@@ -17,7 +17,7 @@
     "access": "public"
   },
   "bin": {
-    "airjam": "./dist/index.js"
+    "airjam": "./bin/airjam.mjs"
   },
   "exports": {
     "./scaffold": {
@@ -30,6 +30,7 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "runtime/vite-config.mjs",
     "runtime/vite-config.d.mts",

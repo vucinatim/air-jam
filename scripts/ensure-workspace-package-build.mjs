@@ -145,8 +145,8 @@ const releaseLock = async (lockDir) => {
   await rm(lockDir, { recursive: true, force: true });
 };
 
-const main = async () => {
-  const packageName = process.argv[2]?.trim();
+export const ensureWorkspacePackageBuild = async (packageNameInput) => {
+  const packageName = packageNameInput?.trim();
   if (!packageName) {
     throw new Error(
       "Usage: node scripts/ensure-workspace-package-build.mjs <package-name>",
@@ -210,4 +210,10 @@ const main = async () => {
   }
 };
 
-await main();
+const isDirectRun =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  await ensureWorkspacePackageBuild(process.argv[2]);
+}

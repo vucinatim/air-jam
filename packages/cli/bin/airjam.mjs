@@ -9,7 +9,7 @@ const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const distEntry = path.join(packageRoot, "dist", "cli.js");
+const distEntry = path.join(packageRoot, "dist", "index.js");
 const repoRoot = path.resolve(packageRoot, "../..");
 const workspaceBuildScript = path.join(
   repoRoot,
@@ -20,14 +20,14 @@ const workspaceBuildScript = path.join(
 const buildWorkspacePackage = async () => {
   if (!existsSync(workspaceBuildScript)) {
     throw new Error(
-      "The installed @air-jam/server package is missing its built CLI entrypoint.",
+      "The installed @air-jam/cli package is missing its built CLI entrypoint.",
     );
   }
 
   await new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      [workspaceBuildScript, "@air-jam/server"],
+      [workspaceBuildScript, "@air-jam/cli"],
       {
         cwd: repoRoot,
         stdio: "inherit",
@@ -44,8 +44,8 @@ const buildWorkspacePackage = async () => {
       reject(
         new Error(
           signal
-            ? `Workspace server build terminated by signal ${signal}.`
-            : `Workspace server build exited with code ${code}.`,
+            ? `Workspace CLI build terminated by signal ${signal}.`
+            : `Workspace CLI build exited with code ${code}.`,
         ),
       );
     });
@@ -59,11 +59,8 @@ if (!existsSync(distEntry)) {
 
 if (!existsSync(distEntry)) {
   throw new Error(
-    "The @air-jam/server build completed without producing dist/cli.js.",
+    "The @air-jam/cli build completed without producing dist/index.js.",
   );
 }
 
-const loaded = await import(pathToFileURL(distEntry).href);
-if (typeof loaded.runServerCli === "function") {
-  process.exitCode = await loaded.runServerCli();
-}
+await import(pathToFileURL(distEntry).href);

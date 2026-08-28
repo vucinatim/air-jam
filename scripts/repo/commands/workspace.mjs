@@ -1,15 +1,34 @@
-import { runWorkspaceArcadeTestCommand } from "../../workspace/commands/arcade-test.mjs";
-import {
-  runWorkspaceArcadeDevCommand,
-  runWorkspaceStandaloneDevCommand,
-} from "../../workspace/commands/dev.mjs";
-import { runWorkspaceSecureInitCommand } from "../../workspace/commands/secure-init.mjs";
-import { runWorkspaceTopologyCommand } from "../../workspace/commands/topology.mjs";
+import { ensureWorkspacePackageBuild } from "../../ensure-workspace-package-build.mjs";
 import {
   defaultWorkspaceGameId,
   loadRepoGames,
 } from "../../workspace/lib/repo-games.mjs";
 import { runCommand } from "../lib/shell.mjs";
+
+let workspaceRuntimePromise;
+
+const loadWorkspaceRuntime = () => {
+  workspaceRuntimePromise ??= (async () => {
+    await ensureWorkspacePackageBuild("@air-jam/sdk");
+
+    const [arcadeTest, dev, secureInit, topology] = await Promise.all([
+      import("../../workspace/commands/arcade-test.mjs"),
+      import("../../workspace/commands/dev.mjs"),
+      import("../../workspace/commands/secure-init.mjs"),
+      import("../../workspace/commands/topology.mjs"),
+    ]);
+
+    return {
+      runWorkspaceArcadeTestCommand: arcadeTest.runWorkspaceArcadeTestCommand,
+      runWorkspaceArcadeDevCommand: dev.runWorkspaceArcadeDevCommand,
+      runWorkspaceStandaloneDevCommand: dev.runWorkspaceStandaloneDevCommand,
+      runWorkspaceSecureInitCommand: secureInit.runWorkspaceSecureInitCommand,
+      runWorkspaceTopologyCommand: topology.runWorkspaceTopologyCommand,
+    };
+  })();
+
+  return workspaceRuntimePromise;
+};
 
 const formatAvailableGames = () => {
   const lines = loadRepoGames().map((game) => `  - ${game.id}`);
@@ -31,6 +50,7 @@ export const registerWorkspaceCommands = (program) => {
       false,
     )
     .action(async (options) => {
+      const { runWorkspaceStandaloneDevCommand } = await loadWorkspaceRuntime();
       await runWorkspaceStandaloneDevCommand({
         gameId: options.game,
         secure: options.secure,
@@ -52,6 +72,7 @@ export const registerWorkspaceCommands = (program) => {
       false,
     )
     .action(async (options) => {
+      const { runWorkspaceArcadeDevCommand } = await loadWorkspaceRuntime();
       await runWorkspaceArcadeDevCommand({
         gameId: options.game,
         secure: options.secure,
@@ -75,6 +96,7 @@ export const registerWorkspaceCommands = (program) => {
       false,
     )
     .action(async (options) => {
+      const { runWorkspaceArcadeTestCommand } = await loadWorkspaceRuntime();
       await runWorkspaceArcadeTestCommand({
         gameId: options.game,
         secure: options.secure,
@@ -91,6 +113,7 @@ export const registerWorkspaceCommands = (program) => {
     )
     .option("--secure", "Resolve the topology using trusted local HTTPS", false)
     .action(async (options) => {
+      const { runWorkspaceTopologyCommand } = await loadWorkspaceRuntime();
       await runWorkspaceTopologyCommand({
         gameId: options.game,
         mode: options.mode,
@@ -107,6 +130,7 @@ export const registerWorkspaceCommands = (program) => {
     .option("--hostname <hostname>", "Tunnel hostname for secure tunnel mode")
     .option("--tunnel <name>", "Cloudflare tunnel name for secure tunnel mode")
     .action(async (options) => {
+      const { runWorkspaceSecureInitCommand } = await loadWorkspaceRuntime();
       const argv = [];
       if (options.mode) {
         argv.push("--mode", options.mode);
