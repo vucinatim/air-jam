@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-08-26
+Last updated: 2026-08-28
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,113 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-08-28 - Gate 0 Ratified The Air Jam 1.0 Product And Operating Contract
+
+- ratified `Air Jam` as the one public product name and retired `Air Jam
+Studio` as a primary 1.0 name
+- defined the shipped capability as the free agent-operable development
+  harness, with terminal and MCP profiles as the portable client contract
+- selected Codex for the complete external-agent lifecycle proof and Claude
+  Desktop for the independent desktop MCP proof
+- kept 1.0 completely free without payments, checkout, credit cards, player
+  paywalls, or expiring trials
+- set generous shadow-first hobby allowances and made active gameplay the last
+  lane degraded under pressure
+- bounded variable infrastructure at `$100` in an ordinary month and `$150` in
+  the 1.0/HN launch billing cycle against a measured Railway baseline of about
+  `$8` per month
+- selected a `100`-room sustained launch target with a required three-times
+  burst proof before it becomes a public support claim
+- allowed only bounded, reversible, verified stateless/provider recovery for
+  1.0; production code promotion and budget increases remain approval-gated
+- recorded the maintainer approval as canonical `G0-03` decision evidence and
+  aligned the live vision, framework, operations, hosting, and release
+  references with the ratified terminology
+
+## 2026-08-26 - The 1.0 Roadmap Became A Machine-Operable Execution Program
+
+- added the subordinate
+  [1.0 release execution plan](./plans/v1-release-execution-plan.md) without
+  weakening the release roadmap as the product and gate authority
+- created one versioned machine execution manifest with 42 dependency-aware
+  work packages across all eight gates and a `285-520` agent-hour planning
+  envelope
+- concentrated maintainer judgment into six batched checkpoints instead of
+  making normal implementation repeatedly wait for informal validation
+- kept production publication behind explicit approval items while allowing
+  local, preview, staging, audit, test, and evidence work to continue
+  autonomously
+- added the canonical `pnpm run repo -- readiness` surface for stable JSON
+  status, ready-work selection, inspection, validation, and preview/apply status
+  transitions
+- required ownership for active work, typed blockers, retained evidence for
+  completion, explicit decision evidence for human checkpoints, and terminal
+  evidence for production work
+- made ready state dependency-derived so a blocked external or human item does
+  not stop independent lanes
+- aligned `AGENTS.md`, working agreements, documentation taxonomy, monorepo OS,
+  docs navigation, current state, roadmap, and README with the new operating
+  contract
+
+## 2026-08-26 - The Free Product Economics Were Bounded Without Paywalling Creation
+
+- ratified that the framework and complete agent-operable development harness remain
+  free, with creators normally bringing their own model client, compute, or
+  cloud account
+- preserved self-hosting and bring-your-own-cloud as first-class escape hatches
+  so adoption does not automatically become an Air Jam infrastructure liability
+- defined the official free cloud as genuinely useful for ordinary hobby use
+  while bounded by an explicit monthly learning budget, quotas, queues, spend
+  alerts, safe degradation, and kill switches
+- rejected an arbitrary signup count such as 1,000 as the monetization trigger;
+  future paid experiments instead follow measured activation, retention,
+  provider cost, repeated play, real limit pressure, and user requests for
+  professional value
+- established the emotional contract that normal hobby use should feel
+  generous and an active social session should never be interrupted by a
+  surprise paywall
+- prioritized eventual revenue from event capacity, agencies and support,
+  managed-cloud convenience, teams/private/analytics, and only later a proven
+  premium Arcade catalog or marketplace
+- prohibited maintainer-funded creator payout liabilities; any reward pool must
+  be capped and funded by realized revenue or sponsors before playtime can
+  allocate it
+- retired speculative fixed price points until actual unit economics and demand
+  are measured
+- recorded the full durable policy in the
+  [deployment and monetization strategy](./strategy/deployment-and-monetization-strategy.md)
+  and made the remaining numeric decisions part of Gate 0 in the
+  [1.0 release roadmap](./plans/v1-release-roadmap-plan.md)
+
+## 2026-08-26 - The 1.0 Release Track Was Re-Baselined Around The External-Agent Harness
+
+- replaced the narrow final-proof-and-publish v1 plan with the
+  [Air Jam 1.0 release roadmap](./plans/v1-release-roadmap-plan.md)
+- preserved the superseded plan as the
+  [pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md)
+- recorded the clarified development-harness thesis:
+  - Air Jam owns the complete creation, runtime, inspection, evaluation, and
+    release harness
+  - Codex, Claude Desktop, T3 Code, terminal agents, and future clients connect
+    through public CLI, MCP, and typed contracts
+  - the hosted UI is an optional control room, not a mandatory authoring model
+- defined a public 1.0 promise centered on a clean-machine external agent
+  completing the full create/run/control/inspect/fix/evaluate/publish lifecycle
+- expanded the release bar into evidence-backed gates for:
+  - product and architecture re-baselining
+  - codebase and contract canonicalization
+  - external-agent golden-path proof
+  - launch-scale reliability and recovery
+  - event-driven incident automation and bounded remediation
+  - security, abuse, privacy, and supply-chain trust
+  - public packages, docs, demo, article, rehearsal, and launch
+- explicitly separated approximate product telemetry, authoritative
+  lifecycle/runtime events, and operational incidents so future autonomy does
+  not use discovery analytics as a correctness authority
+- kept full code-changing self-healing, a mandatory hosted AI editor, universal
+  agent integration, and speculative million-user topology outside the 1.0
+  blocking scope
 
 ## 2026-08-26 - First-Party Product Telemetry Replaced The Dormant Analytics Path
 
@@ -147,7 +254,9 @@ For the detailed pre-reset execution story, use the archived ledger snapshot abo
   - normalized live status labels so stable references stop pretending to be active execution tracks
   - compacted the settings-ownership work into the archived [2026-05-03-landing-arcade-controller-polish-plan.md](./archive/2026-05-03-landing-arcade-controller-polish-plan.md) and archived the separate settings plan
   - archived the now-superseded prerelease agent dev-loop hardening plan after its durable rules were absorbed into the repo operating surfaces
-  - collapsed the remaining live plan surface down to one canonical release plan at [plans/v1-release-plan.md](./plans/v1-release-plan.md)
+  - collapsed the remaining live plan surface down to the release plan now
+    preserved as the
+    [2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md)
   - archived the subordinate prerelease, polish, packaging, and future-architecture plans so they stop competing with the final v1 closeout path
 - preserved the old overloaded ledger as [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md) instead of deleting execution memory
 - centralized plan-role and category rules in [documentation-taxonomy.md](./documentation-taxonomy.md) so they stop living only in chat memory

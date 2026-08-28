@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-08-26
+Last updated: 2026-08-28
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -25,18 +25,26 @@ For historical progress, use [work-ledger.md](./work-ledger.md).
 
 ## Current Focus
 
-Air Jam is no longer blocked on the Android Auto road-trip release or preview
-infrastructure.
+Air Jam is now governed by the
+[1.0 release roadmap](./plans/v1-release-roadmap-plan.md).
 
-The repo is currently focused on three things:
+The focus has moved from a narrow final-proof-and-publish pass to a deliberate
+1.0 re-baseline shaped by six months of progress in general-purpose coding
+agents, MCP, CLI operability, and Air Jam's own harness.
 
-1. working from the cleaned repo operating system baseline instead of from
-   historical drift
-2. running the final prerelease manual proof and hosted release proof for the v1
-   launch set
-3. keeping the now-simpler Railway-first deployment model boring while
-   preparing the launch-facing landing, media, and discoverability execution
-   that follows the final proof pass
+The current priorities are:
+
+1. execute the ratified public 1.0 contract: one `Air Jam` product, a complete
+   agent-operable development harness, and no separate mandatory hosted editor
+2. audit and canonicalize the codebase before public API stability is promised
+3. prove the complete lifecycle through an external agent from a clean
+   environment
+4. harden production capacity, recovery, security, alerts, incident handling,
+   and bounded automated remediation before inviting launch traffic
+5. finish package, documentation, demo, article, and distribution work against
+   one exact release candidate
+6. launch with a free creation harness and useful hobby cloud inside an explicit
+   cost envelope, rather than tying sustainability to signup count
 
 ## What Is Structurally Done
 
@@ -127,23 +135,49 @@ These are now baseline truths, not open architecture debates:
 
 ## What Is Still Open
 
-The important remaining work is now late-stage and launch-facing:
+The roadmap now organizes the remaining work into explicit evidence gates:
 
-1. run the final manual launch proof in [plans/v1-release-plan.md](./plans/v1-release-plan.md)
-2. prove the hosted upload, managed media, and official hosting path against the actual launch set
-3. finish the late prerelease cleanup only where the final proof finds real blockers
-4. finish the external Railway domain cutover and final deploy validation
-5. execute the release-facing landing, media, article, and discoverability work after the go / no-go pass
-6. decide which small user-facing polish items still deserve inclusion before launch, such as creator attribution enhancements
-7. keep the public story aligned around the AI-native framework thesis instead of drifting back into generic platform/framework language
+1. codebase and contract canonicalization
+2. external-agent golden-path proof
+3. launch-scale reliability, backpressure, cost, backup, restore, and rollback
+4. operational events, synthetics, alerts, incident correlation, GitHub issue
+   policy, and bounded remediation
+5. security, abuse, privacy, and supply-chain trust
+6. public package, installation, documentation, demo, and article proof
+7. one immutable release rehearsal and final go/no-go decision
 
 ## Active Now
 
-The v1 release plan remains the governing product plan:
+The 1.0 release roadmap is the governing product plan:
 
-1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
+1. [plans/v1-release-roadmap-plan.md](./plans/v1-release-roadmap-plan.md)
+
+The subordinate execution plan and machine manifest own dependency-aware daily
+work state without becoming a second product authority:
+
+1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
+
+Canonical agent reads are:
+
+```bash
+pnpm --silent run repo -- readiness status --json
+pnpm --silent run repo -- readiness next --json
+```
+
+The discoverability plan is a subordinate launch checklist and cannot redefine
+the 1.0 contract:
+
+1. [plans/discoverability-and-launch-promotion-plan.md](./plans/discoverability-and-launch-promotion-plan.md)
 
 ## Recent Closures
+
+Gate 0 is closed with the product name, development-harness contract, supported
+client profiles, free-cloud allowances, cost ceilings, capacity target, and
+autonomy ceiling ratified on `2026-08-28`.
+
+The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
+preserved in the
+[2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md).
 
 The first-party telemetry implementation, Android Auto road-trip release,
 preview system closeout, Railway API control-surface replacement, and repo
@@ -158,33 +192,40 @@ They should no longer compete with launch execution.
 
 ## Planned Next
 
-These are real next-step tracks, but they should not displace the launch closeout path yet:
+Execute the roadmap in dependency order:
 
-1. turn the discoverability and GTM phases in [plans/v1-release-plan.md](./plans/v1-release-plan.md) into a concrete execution checklist
-2. add creator-attribution polish where it meaningfully improves Arcade trust and self-promotion without turning into a larger account-linking project
-3. use [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md) as the canonical post-v1 architecture sequence:
-   1. Arcade isolation next
-   2. API and auth extraction after that
-4. do not reopen deployment or multi-app architecture churn before the release path settles unless a real release blocker forces it forward
+1. keep the ratified Gate 0 contract frozen
+2. perform the Gate 1 audit and shared canonicalization work
+3. after the shared boundaries stabilize, parallelize independent golden-path,
+   reliability, operations, security, and public-surface work
+4. retain evidence for every gate and integrate through one central validation
+   pass
+5. keep [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
+   non-current unless a measured release risk requires part of it
 
 ## Immediate Next Steps
 
-1. include the live Last Band Standing `0.2.1` release in the remaining v1
-   launch-set proof
-2. treat further clip-start listening and tuning as non-blocking content polish
-3. run the final manual release proof against the five-game launch set
-4. run the hosted upload and managed media proof on the real platform lane
-5. complete the Railway domain cutover and re-run the production smoke checks
-6. close any real blockers without reopening broad platform work
-7. execute the final landing, media, blog, discoverability, and launch
-   distribution sequence
+1. agents select and claim from the canonical readiness queue
+2. produce the Gate 1 canonical-path and duplication audit
+3. continue the reliability inventory, golden-path specification, and threat
+   model as dependency-ready work
+4. stabilize shared contracts through Gate 1 before broad parallel
+   implementation
+5. complete or block work only through evidence-backed readiness transitions
 
 ## Current Caveats
 
-1. the remaining deployment risk is mostly domain cutover and provider-state verification, not missing app architecture
-2. the repo now has enough finished infrastructure that the main risk is orientation drift, not missing foundation
+1. the repo has enough implemented infrastructure that the main risk is now
+   committing to stale assumptions or freezing accidental complexity
+2. production launch confidence has not yet been demonstrated through a defined
+   capacity envelope, recovery drill, and incident-automation proof
 3. product telemetry anonymous-session and actor-class counts are approximate
    discovery measures, not durable people or identity proof
+4. full code-changing self-healing is a post-1.0 direction; 1.0 requires strong
+   detection, automated triage, and only bounded reversible remediation
+5. monetization mechanics are intentionally deferred until activation or
+   requested value is real, but cost metering, quotas, queues, spend alerts,
+   degradation, and kill switches are launch requirements
 
 ## Canonical Read Order
 

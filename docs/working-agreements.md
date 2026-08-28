@@ -23,7 +23,8 @@ When starting work, prefer this order:
 3. [current-state.md](./current-state.md)
 4. [documentation-taxonomy.md](./documentation-taxonomy.md)
 5. the relevant active plan
-6. [work-ledger.md](./work-ledger.md) only if historical context is needed
+6. the canonical machine execution state when the active plan defines one
+7. [work-ledger.md](./work-ledger.md) only if historical context is needed
 
 Agents should not need to scan the ledger before they can tell what matters now.
 
@@ -36,10 +37,14 @@ Use this loop unless a task clearly requires something more specific:
    2. `docs/docs-index.md`
    3. `docs/current-state.md`
 2. open only the relevant active plan
-3. work inside the current ownership boundaries
-4. validate the intended slice
-5. update docs only where the rules below require it
-6. explicitly close the phase if the slice is actually complete
+3. inspect the plan's canonical machine execution state when one exists
+4. claim one dependency-ready work item
+5. work inside the current ownership boundaries
+6. validate the intended slice and retain evidence
+7. complete or block the claimed item explicitly
+8. continue another independent ready item rather than waiting unnecessarily
+9. update docs only where the rules below require it
+10. explicitly close the phase if the slice is actually complete
 
 If an agent jumps from chat context straight into edits without checking the current repo surfaces, it is operating incorrectly.
 
@@ -64,6 +69,16 @@ A new operator capability is complete only when:
 The canonical repo entrypoint is `pnpm run repo -- --help`. Agents should prefer
 repo-owned commands over ad hoc SQL, browser-only operation, or provider-specific
 shell sequences whenever the repo CLI owns the job.
+
+For the active 1.0 program, use:
+
+```bash
+pnpm --silent run repo -- readiness status --json
+pnpm --silent run repo -- readiness next --json
+```
+
+Claim, block, and complete work through `readiness update`. Mutations are
+read-only previews unless `--apply` is explicit.
 
 ## Doc Roles
 
@@ -136,6 +151,22 @@ Use plan docs for:
 3. boundaries
 4. close gates
 5. stop rules
+
+### Machine Execution Programs
+
+Use a machine execution program only when a large active plan benefits from
+dependency-aware autonomous scheduling.
+
+It owns:
+
+1. work-item state and ownership
+2. dependencies and ready-work derivation
+3. estimates and blockers
+4. typed evidence references
+5. explicit human and production checkpoints
+
+It does not own product scope or duplicate the plan narrative. The plan remains
+the product authority, and the repo CLI remains the supported mutation surface.
 
 ### Vision And Strategy Docs
 
@@ -302,5 +333,7 @@ To reduce conflicts:
 2. keep history in `docs/work-ledger.md`
 3. keep active plans bounded and explicit
 4. do not invent parallel status surfaces in ad hoc docs
+5. when a canonical machine execution program exists, claim work before editing
+   and keep one owner per work item
 
 If a new file starts acting like a hidden second ledger, it should be folded back into the proper surfaces.

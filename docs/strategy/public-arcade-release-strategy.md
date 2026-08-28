@@ -1,6 +1,6 @@
 # Air Jam Public Arcade Release Strategy
 
-Last updated: 2026-03-30  
+Last updated: 2026-08-28
 Status: stable strategy
 
 Related docs:
@@ -160,9 +160,10 @@ Without artifact releases, all of those stay awkward.
 
 The same is true for game media. If thumbnails, covers, and preview videos stay as raw URLs, the catalog remains visually dependent on infrastructure Air Jam does not control.
 
-### 4. A Real Foundation For AI Studio
+### 4. A Real Foundation For The Agent Development Harness
 
-Future Air Jam Studio agents should publish build artifacts into a stable deploy API.
+External agents and any future hosted control room should publish build
+artifacts into a stable deploy API.
 
 Artifact releases are the cleanest shared primitive between:
 
@@ -316,7 +317,7 @@ Artifact releases should become the shared base for:
 
 1. direct uploaded builds
 2. Git-connected deploys
-3. Air Jam Studio generated builds
+3. agent-generated Air Jam builds
 4. release analytics
 5. monetized hosted deployment tiers
 6. version rollback and release comparison

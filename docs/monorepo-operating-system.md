@@ -1,6 +1,6 @@
 # Air Jam Monorepo Operating System
 
-Last updated: 2026-05-08  
+Last updated: 2026-08-26
 Status: stable operating reference
 
 ## Purpose
@@ -27,7 +27,8 @@ When starting work, prefer:
 4. [working-agreements.md](./working-agreements.md)
 5. [documentation-taxonomy.md](./documentation-taxonomy.md)
 6. the relevant active plan
-7. [work-ledger.md](./work-ledger.md) only if historical context is needed
+7. the plan's canonical machine execution state when one exists
+8. [work-ledger.md](./work-ledger.md) only if historical context is needed
 
 ## Canonical File Roles
 
@@ -100,6 +101,22 @@ Rule:
 
 1. plan status should be expressed through `current-state.md` and `docs-index.md`, not by letting stale plans linger as if they are active forever
 
+### Machine Execution Programs
+
+Own:
+
+1. dependency-aware work packages for one active plan
+2. work ownership, state, blockers, and estimates
+3. typed completion evidence
+4. ready-work and checkpoint derivation through the repo CLI
+
+Rule:
+
+1. they are subordinate machine state, not a second product plan
+2. agents mutate them through the canonical repo CLI
+3. human snapshots remain in `current-state.md`; history remains in the ledger
+4. retire the machine program when its governing plan closes
+
 ### `docs/documentation-taxonomy.md`
 
 Owns:
@@ -144,9 +161,10 @@ The repo should operate on this loop:
 1. architecture, strategy, and vision docs explain the intended system
 2. `docs/current-state.md` explains what matters now
 3. bounded plans explain how a large track closes
-4. `docs/work-ledger.md` preserves historical execution memory
-5. `docs/suggestions.md` captures non-critical follow-ups
-6. completed or superseded plans move to `docs/archive/` before the repo focus shifts
+4. a machine execution program schedules bounded work when the plan needs it
+5. `docs/work-ledger.md` preserves historical execution memory
+6. `docs/suggestions.md` captures non-critical follow-ups
+7. completed or superseded plans move to `docs/archive/` before the repo focus shifts
 
 ## Active Plan Discipline
 
@@ -193,5 +211,7 @@ It is memory drift:
 2. stale plans pretending to be active
 3. navigation trying to be status reporting
 4. chat context becoming the only reliable current-state surface
+5. multiple agents working from unclaimed prose tasks with no shared execution
+   state
 
 This document exists to keep that from happening again.

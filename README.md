@@ -121,6 +121,14 @@ For the full local release gate:
 pnpm check:release
 ```
 
+For maintainers and agents executing the active 1.0 program:
+
+```bash
+pnpm run repo -- readiness --help
+pnpm --silent run repo -- readiness status --json
+pnpm --silent run repo -- readiness next --json
+```
+
 ## Monorepo Shape
 
 ```text

@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-26
+Last updated: 2026-08-28
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -25,9 +25,37 @@ Default agent loop:
 
 ## Active Now
 
-The v1 release plan is the governing product track:
+The 1.0 release roadmap is the governing product track:
 
-1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
+1. [plans/v1-release-roadmap-plan.md](./plans/v1-release-roadmap-plan.md)
+
+The machine-backed subordinate execution plan owns dependency-aware work
+packages, evidence, and the batched checkpoint model:
+
+1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
+
+Agents inspect the live execution state through:
+
+```bash
+pnpm --silent run repo -- readiness status --json
+pnpm --silent run repo -- readiness next --json
+```
+
+The evidence-backed architecture and simplicity baseline for Gate 1 is:
+
+1. [audits/v1-canonicalization/v1-canonicalization-audit.md](./audits/v1-canonicalization/v1-canonicalization-audit.md)
+2. [audits/v1-canonicalization/codebase-assessment.md](./audits/v1-canonicalization/codebase-assessment.md)
+3. [audits/v1-canonicalization/canonicalization-execution-set.md](./audits/v1-canonicalization/canonicalization-execution-set.md)
+4. [audits/v1-canonicalization/public-surface-source-audit.md](./audits/v1-canonicalization/public-surface-source-audit.md)
+5. [audits/v1-canonicalization/gate-1-removal-approval-packet.md](./audits/v1-canonicalization/gate-1-removal-approval-packet.md)
+
+The assessment preserves the architectural judgment. The execution set owns
+the deletion-first bundles and Git measurement contract. The readiness manifest
+remains the execution-state authority.
+
+The detailed discoverability checklist remains a subordinate launch reference:
+
+1. [plans/discoverability-and-launch-promotion-plan.md](./plans/discoverability-and-launch-promotion-plan.md)
 
 The completed first-party telemetry work is preserved in the
 [2026-08-26 telemetry archive](./archive/2026-08-26-first-party-product-telemetry-plan.md),
@@ -38,15 +66,17 @@ competing as parallel product architectures.
 
 ## Planned Next
 
-These are real next-step tracks, but not the current execution focus:
+The roadmap gates define the product sequence and the readiness manifest derives
+the currently executable queue. The initial independent work is:
 
-1. concrete GTM and discoverability execution derived from:
-   1. [plans/v1-release-plan.md](./plans/v1-release-plan.md)
-   2. [discoverability-vision.md](./discoverability-vision.md)
-2. creator-attribution polish for Arcade trust and self-promotion
-3. post-v1 architecture work is intentionally non-current and now lives in:
+1. the two Gate 0 decision packets
+2. the codebase and canonical-path audit
+3. production capacity, cost, lifecycle, and recovery inventory
+4. the public and privileged surface threat model
+5. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
-4. do not treat future topology work as a second live execution plan while [plans/v1-release-plan.md](./plans/v1-release-plan.md) is still current
+6. do not treat future topology work as a second live execution plan while the
+   [1.0 roadmap](./plans/v1-release-roadmap-plan.md) is still current
 
 ## Core Docs
 
@@ -72,7 +102,8 @@ These are real next-step tracks, but not the current execution focus:
 4. `docs/guides/`
 5. `docs/strategy/`
 6. `docs/content/`
-7. `docs/archive/`
+7. `docs/audits/`
+8. `docs/archive/`
 
 Use the capability inventory for breadth and these directories for the cleaner
 explanatory layer around the same implemented surface.

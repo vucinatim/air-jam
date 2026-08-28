@@ -1,6 +1,6 @@
 # Air Jam Production Observability Baseline
 
-Last updated: 2026-08-26
+Last updated: 2026-08-28
 Status: stable baseline
 
 Related docs:
@@ -180,7 +180,7 @@ Deferred because:
 Deferred because:
 
 1. Air Jam should not build its own monitoring product at this stage
-2. infrastructure effort should go into the framework, platform, and Studio direction first
+2. infrastructure effort should go into the framework, platform, and agent-development direction first
 
 ## Decision Rules
 

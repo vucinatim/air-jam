@@ -1,7 +1,8 @@
 # Discoverability and Launch Promotion Plan
 
 Last updated: 2026-05-19 (post-launch session)
-Status: actionable plan with first-pass execution complete
+Status: subordinate launch reference with first-pass execution complete
+Governed by: [Air Jam 1.0 Release Roadmap](./v1-release-roadmap-plan.md)
 Companion to: [discoverability-vision.md](../discoverability-vision.md)
 
 ## Session log
@@ -51,7 +52,7 @@ Each section ends with a checklist. The plan is intentionally executable in smal
 ## Guiding constraints
 
 - **Published article headlines are frozen.** The dev.to launch piece ("What If Every Phone in the Room Was a Game Controller — in the Age of AI?") and the on-site origin story ("Story of building Air Jam") keep their current titles. Reframing happens in new surfaces, not by rewriting shipped ones.
-- **Lean into the "open-source AirConsole alternative" framing** wherever it does *not* require editing already-published pieces. That phrase has high search intent, zero current competition, and matches what readers actually google.
+- **Lean into the "open-source AirConsole alternative" framing** wherever it does _not_ require editing already-published pieces. That phrase has high search intent, zero current competition, and matches what readers actually google.
 - **Truth density over volume** ([discoverability-vision.md](../discoverability-vision.md)). No thin landing pages, no AI-bait copy, no metadata that overpromises what the surface delivers.
 
 ---
@@ -134,7 +135,7 @@ For each blog post: `BlogPosting` JSON-LD on the post page with `author`, `dateP
 Light, foundation-level only at this stage. We are not buying ads, building backlinks, or shipping content farms.
 
 - **Google Search Console + Bing Webmaster Tools**: register property, submit `sitemap.xml`. Gives crawl visibility and indexed-page count. Do this on launch day or sooner.
-- **Push the "open-source AirConsole alternative" framing on *new* surfaces only.** Specifically:
+- **Push the "open-source AirConsole alternative" framing on _new_ surfaces only.** Specifically:
   - GitHub repo description and the `<repo>/About` section.
   - npm package `description` and `keywords` for `@air-jam/sdk`, `@air-jam/server`, `create-airjam`.
   - Future blog posts, social posts, Product Hunt / HN copy.
@@ -153,14 +154,14 @@ Light, foundation-level only at this stage. We are not buying ads, building back
 
 ### 2.2 Agent / LLM discoverability
 
-This is the surface where Air Jam has an unusual structural advantage — the framework is *designed* for agents — and it should be visible.
+This is the surface where Air Jam has an unusual structural advantage — the framework is _designed_ for agents — and it should be visible.
 
 - **`/llms.txt` and `/llms-full.txt`** at the site root. Emerging convention (Anthropic, Mintlify, Vercel). `llms.txt` is a short markdown index pointing to canonical pages; `llms-full.txt` concatenates the canonical docs into one long markdown file for retrieval. Cheap to generate at build time from existing MDX.
 - **`ai-pack` directory** at `apps/platform/public/ai-pack/` already exists. Confirm:
   - It's reachable at `airjam.io/ai-pack/...`
   - It's referenced from the home page or docs nav so a human/agent can find it
   - Versioned (it already has `stable/0.1.0/`)
-- **`robots.ts` audit**: explicitly *allow* `GPTBot`, `ClaudeBot`, `Claude-Web`, `PerplexityBot`, `Google-Extended`, `Applebot-Extended`, `CCBot`. Do not block. The product wants to be in their retrieval and training surfaces.
+- **`robots.ts` audit**: explicitly _allow_ `GPTBot`, `ClaudeBot`, `Claude-Web`, `PerplexityBot`, `Google-Extended`, `Applebot-Extended`, `CCBot`. Do not block. The product wants to be in their retrieval and training surfaces.
 - **MCP registry submissions.** Air Jam already ships MCP connectors. Submit to:
   - [`modelcontextprotocol/servers`](https://github.com/modelcontextprotocol/servers) — official list
   - [`punkpeye/awesome-mcp-servers`](https://github.com/punkpeye/awesome-mcp-servers) — community list
@@ -236,7 +237,7 @@ dev.to's ranking is approximately: reactions (hearts / unicorns / bookmarks) + c
 - **Comments**: respond to every comment within hours, substantively (2–3 paragraphs where appropriate). Comment depth is a ranking signal.
 - **Bookmarks**: ask explicitly in the closing CTA on social posts — "bookmark on dev.to if you want to come back to it." Bookmarks rank heavily.
 
-#### 3.2 Off-platform amplification (drive traffic *to* dev.to, not away)
+#### 3.2 Off-platform amplification (drive traffic _to_ dev.to, not away)
 
 The instinct on a launch is to send people to `airjam.io`. For the first 72 hours of dev.to ranking work, the inverse is correct: send people to the dev.to URL. External traffic that converts to reactions/comments lifts the post in the algorithm.
 
@@ -312,7 +313,7 @@ Two low-risk subs in parallel. Different audiences from HN, won't cannibalize.
 
 These require more thoughtful framing — wait until you can write them fresh.
 
-- **r/gamedev** (~1.7M members) — *not* "we launched", but "what I learned building a phone-controller multiplayer framework with AI in the loop". Lead with the infra-vs-creative split from the origin story.
+- **r/gamedev** (~1.7M members) — _not_ "we launched", but "what I learned building a phone-controller multiplayer framework with AI in the loop". Lead with the infra-vs-creative split from the origin story.
 - **r/webdev** (~2M members) — same idea, framed for the web audience.
 
 Skip `r/programming` (too anti-self-promo) and `r/javascript`/`r/reactjs` (poor fit for the framework story).
@@ -339,7 +340,7 @@ Skip `r/programming` (too anti-self-promo) and `r/javascript`/`r/reactjs` (poor 
 
 **r/IndieDev post** — same content, slight reframing toward indie game dev audience: lead with the jam-game outcomes (Code Review, Last Band Standing, The Office) as proof that the framework lets you ship a real game in a day.
 
-**r/gamedev post** (Day 2+, more thoughtful framing — *not* a launch announcement)
+**r/gamedev post** (Day 2+, more thoughtful framing — _not_ a launch announcement)
 
 > **Title**: What I learned building a phone-controller multiplayer framework with AI in the loop
 >

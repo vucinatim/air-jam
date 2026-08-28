@@ -1,0 +1,190 @@
+import { metadata } from "./post.meta";
+
+export { metadata };
+
+On the way to our coworker Žiga's bachelor party, we played Last Band Standing
+on the screen in Domen's BMW. The passengers answered from their phones, the
+music played through the car speakers, and the normal Air Jam flow worked much
+like it would on a laptop or television.
+
+We had fun with the quiz, but the bigger reaction was to the setup itself. The
+people in the car already knew Air Jam and had played it before. Some of them
+had even helped build Code Review and The Office during our zerodays game jam.
+What they had not seen was Air Jam running in a BMW.
+
+![Placeholder for the final cover photo showing Last Band Standing running on the BMW display](/blog-assets/we-put-airjam-in-a-car/cover-placeholder.svg)
+
+## "Can Air Jam work in my car?"
+
+It started the morning before the trip, when Domen sent me a message and a
+screenshot from Google's Android Auto Desktop Head Unit.
+
+He had been experimenting with a small Android app that could render Air Jam on
+an Android Auto surface. By the time he messaged me, he had already solved the
+difficult part. The Air Jam Arcade was visibly running inside Android
+Auto, and the normal phone controller flow still worked.
+
+![Domen's first proof of Air Jam rendering in the Android Auto Desktop Head Unit](/blog-assets/we-put-airjam-in-a-car/first-desktop-head-unit-proof.webp)
+
+His request was simple: could I make the UI a little friendlier for the car,
+perhaps with a larger layout or a URL parameter? He would find the screen
+resolution and send it over.
+
+The resolution arrived a few minutes later: `1920x720`, including the permanent
+BMW sidebar. It is a very wide screen with not much height, plus vehicle
+controls around the edges. Air Jam rendered, but that did not yet mean we could
+comfortably play a complete game on it.
+
+## We were not the first people to think of this
+
+Domen had never played AirConsole. Most of the friends and coworkers on the
+trip had never heard of it either. When he presented the idea, I told him that
+AirConsole, the platform that originally inspired Air Jam, had already been
+working with BMW on almost exactly this format for years.
+
+[BMW and AirConsole announced their partnership in 2022](https://corp.airconsole.com/airconsole-bmw-partnership/).
+In their official integration, games run directly in supported vehicle
+infotainment systems and players use their phones as controllers.
+
+The funniest part was that Domen's car was also a BMW.
+
+We definitely had not invented in-car multiplayer gaming. What amused me was
+that Domen had independently arrived at the same conclusion simply by looking
+at Air Jam's architecture. If almost any shared browser-capable screen can
+become the console, why should the screen in his car be any different?
+
+AirConsole's automotive work is an official integration created with vehicle
+manufacturers and supported infotainment systems. Ours was a private experiment
+involving Domen's Android wrapper, a responsive web app, and the deadline: "We
+leave tomorrow."
+
+## Rendering was only the first proof
+
+The car screen did not need to become a controller. That was an important
+constraint from the beginning. The driver was not going to play, and the
+passengers needed to operate everything from their phones.
+
+That meant they had to be able to join the room, choose Last Band Standing,
+select categories, ready up, start the match, answer every question, see the
+results, restart, and return to the Arcade without touching the dashboard.
+
+The host screen still had to do its part. It needed to remain readable inside a
+very wide and shallow viewport. Rankings and timers could not disappear under
+vehicle chrome. YouTube videos had to render through an Android app, a WebView,
+a virtual display, and Android Auto. Audio then had to make it all the way to
+the car speakers.
+
+Domen had proved that the basic route was possible. Our job for the rest of the
+day was to turn "it renders" into "we can trust it for a complete match
+tomorrow."
+
+![The Air Jam Arcade on Domen's wide BMW display during development, with Last Band Standing visible in the bottom right](/blog-assets/we-put-airjam-in-a-car/bmw-wide-screen-proof.webp)
+
+## Making the normal product work better
+
+I did not want to build a separate car edition of Air Jam. The car was one
+unusual shared screen, not a reason to scatter Android Auto conditions
+throughout the framework.
+
+Instead, we made the existing experience respond more cleanly to the space it
+actually had. We tested the Arcade and the game at the BMW's `1920x720`
+resolution, then at smaller and less forgiving layouts down to `800x480`. We
+kept game selection and the entire match lifecycle on the phones. We made the
+on-screen controller launcher less intrusive during normal play, while
+preserving it for first-time visitors who want to try Air Jam without
+connecting another device.
+
+The experiment also exposed things that were not car problems at all. They were
+ordinary product problems that happened to become obvious on a strange screen.
+Fixing them would make the normal browser experience better too.
+
+Last Band Standing needed the most attention. Answer options could occasionally
+repeat. Worse, a Slovenian song could appear beside three international songs,
+which made the correct answer rather easy to spot even if you had never heard
+the track. We changed the quiz so all four choices come from the same category
+as the playing song and are always unique.
+
+We also improved the controller results between rounds, made the final
+standings scroll properly for larger groups, clarified category selection, and
+cleaned up the host layout. Then we expanded and rebalanced the catalog. By the
+end of the day it contained 206 songs across ten categories, including 59
+Slovenian tracks and a much healthier selection of songs that were not obvious
+within the first two seconds.
+
+That work had very little to do with cars. The unusual deadline simply gave us
+a good reason to finish it.
+
+## Proving everything we could without the car
+
+The car could not become our primary test environment. That would have made
+every UI adjustment slow and every bug difficult to reproduce.
+
+We treated the experience as a browser product first. We exercised the real
+screen dimensions, the narrower usable area left by vehicle controls, multiple
+phone sizes, and rooms with up to ten controllers. We played through the lobby,
+countdown, active round, answer reveal, final standings, restart, and return
+flows. We ran the Android wrapper against Google's Desktop Head Unit and a
+physical phone connected over USB.
+
+We each had an AI coding assistant in the loop. Domen worked with Claude on the
+Android wrapper. I worked with Codex on the Air Jam platform, Last Band
+Standing, validation, and release. On my side, that meant using the same
+agent-facing development and testing contracts that Air Jam provides to game
+developers. Domen still owned the proof that only his actual BMW could give us.
+
+By late afternoon, almost every question was answered. The only meaningful
+unknowns were whether the nested YouTube player would render in the real car
+and whether its audio would reach the speakers.
+
+Domen tested both. Video played. Sound played. We built a signed, versioned APK
+that he could install from GitHub, while keeping the earlier version available
+as a fallback. Last Band Standing went through Air Jam's normal hosted release
+pipeline and appeared in the production Arcade.
+
+At that point, it was ready for the trip.
+
+## Then we actually played it
+
+![Placeholder for a final photo of Last Band Standing running in the BMW during the road trip](/blog-assets/we-put-airjam-in-a-car/road-trip-result-placeholder.svg)
+
+The next day, everyone joined from the phones they already had. The car
+displayed the game, the music played through its speakers, and we guessed songs
+on the way to celebrate our friend.
+
+There was no dramatic production failure and no emergency rollback to the
+backup APK. It just worked.
+
+The group enjoyed Last Band Standing, but the thing that made the biggest
+impression was still the setting. They already knew Air Jam, and some of them
+had helped build games for it, but they had never played AirConsole or seen this
+kind of game running in a car. Seeing a familiar project appear in a BMW was
+still surprising.
+
+I agreed with them.
+
+## What the experiment proved
+
+A car is not suddenly the next major platform on the Air Jam roadmap. This was
+not official Android Auto support, and Domen's wrapper is not something we plan
+to publish as a driving app. The passengers operated the game from their
+phones. The driver did not play.
+
+The useful result was much simpler. Air Jam is based on the idea that the
+shared screen should be replaceable. A laptop, television, projector, office
+display, or the unusually wide screen in a BMW can all host the same room. The
+phones people already carry provide the controls.
+
+Air Jam is mostly an after-work pet project, built by one developer. A lot of
+the work happens in tests, architecture decisions, release scripts, and small
+UI adjustments. The road trip was a chance to use it outside a game jam,
+development session, or deliberate playtest. Everyone joined, played, and had
+fun.
+
+For a solo project, that kind of real use is motivating. It is one thing to
+know that the architecture should work on different screens. It is another to
+watch your friends use it in a BMW on a road trip.
+
+Air Jam is open source at
+[github.com/vucinatim/air-jam](https://github.com/vucinatim/air-jam), and the
+[Air Jam Arcade](https://airjam.io/arcade) is available to try in a normal
+browser. A BMW is entirely optional.
