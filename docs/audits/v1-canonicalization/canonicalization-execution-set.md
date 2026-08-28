@@ -39,21 +39,22 @@ correction. Larger reliability and operational systems remain in Gates 3-5.
 
 ## Git Baseline Contract
 
-Canonicalization line evidence requires an exact committed base.
+Canonicalization line evidence uses one exact committed base.
 
-The current worktree cannot be used as that base because it already contains
-mixed roadmap, telemetry, generated-content, blog, and user changes. Before
-`G1-05` implementation begins:
+The pre-canonicalization roadmap, telemetry, generated-content, blog, audit,
+and readiness state was reviewed and preserved in one explicit snapshot before
+`G1-05` implementation began.
 
-1. review and separate the current dirty worktree
-2. commit the accepted pre-canonicalization state
-3. record the exact base commit SHA here and in `G1-05` evidence
-4. implement canonicalization in reviewable bundle commits only
+Canonicalization base commit:
+`18ca38957c19c7ee5d9e39aac2bb91f0393a8902`
 
-Canonicalization base commit: **not yet cut**
+The baseline deliberately retains the two audit-observed generated-artifact
+failures: the missing `air-capture.zip` and three stale base AI-pack docs. Their
+repair therefore remains visible in the Gate 1 delta and is reported as
+generated/binary churn rather than production-source cleanup.
 
-Do not compare Gate 1 against an older `HEAD` and claim unrelated changes as
-cleanup.
+All canonicalization claims compare against this SHA. Do not compare Gate 1
+against an older commit and claim unrelated pre-baseline changes as cleanup.
 
 ## Git Delta Evidence
 

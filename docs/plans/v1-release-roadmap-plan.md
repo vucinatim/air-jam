@@ -1,6 +1,6 @@
 # Air Jam 1.0 Release Roadmap
 
-Last updated: 2026-08-28  
+Last updated: 2026-08-28
 Status: active governing release plan
 
 Related docs:

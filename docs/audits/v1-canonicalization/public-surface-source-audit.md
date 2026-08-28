@@ -193,9 +193,10 @@ Failed and deliberately not repaired during the audit:
 1. base AI-pack freshness: 3 stale generated docs
 2. scaffold source freshness: missing `air-capture.zip`
 
-The failures are retained as evidence because the current worktree contains
-mixed user and program changes. Regenerating before separating the baseline
-would obscure ownership and produce misleading Git cleanup numbers.
+The failures were retained in canonicalization baseline
+`18ca38957c19c7ee5d9e39aac2bb91f0393a8902`. Regenerating them before the
+baseline would have obscured ownership and produced misleading Git cleanup
+numbers.
 
 ## G1-02 Conclusion
 
