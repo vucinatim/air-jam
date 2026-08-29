@@ -23,9 +23,13 @@ WORKDIR /app
 RUN corepack enable
 
 # Workspace manifests only. Any source-only change leaves this layer cached.
+# The repo contract requires this list to cover every pnpm workspace so a new
+# internal package cannot be masked by a populated local node_modules tree.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
 COPY apps/platform/package.json                 ./apps/platform/
+COPY packages/cli/package.json                  ./packages/cli/
+COPY packages/database-contract/package.json    ./packages/database-contract/
 COPY packages/sdk/package.json                  ./packages/sdk/
 COPY packages/env/package.json                  ./packages/env/
 COPY packages/server/package.json               ./packages/server/

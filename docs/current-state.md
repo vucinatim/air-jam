@@ -218,12 +218,12 @@ work state without becoming a second product authority:
 
 The current pull-request stack is in integration closeout, not public-launch
 closeout. Pull requests `#52` through `#60` remain focused review slices, while
-their cross-stack corrections will be merged through one cumulative integration
-pull request to avoid deploying known-incomplete intermediate states. After that
-merge, remaining 1.0 work returns to small independently production-valid pull
-requests. Production code is delivered incrementally; stable package promotion,
-public release visibility, final docs, the launch article, and distribution are
-coordinated only after one exact candidate passes rehearsal.
+cumulative integration pull request `#61` targets `main` with their corrected
+combined head to avoid deploying known-incomplete intermediate states. After
+that merge, remaining 1.0 work returns to small independently production-valid
+pull requests. Production code is delivered incrementally; stable package
+promotion, public release visibility, final docs, the launch article, and
+distribution are coordinated only after one exact candidate passes rehearsal.
 
 Canonical agent reads are:
 

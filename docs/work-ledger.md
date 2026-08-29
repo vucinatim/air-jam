@@ -18,6 +18,24 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Cumulative Integration Entered Provider Preview
+
+- opened pull request `#61` as the single corrected integration target for
+  review slices `#52` through `#60`; merging the component stack bottom-up is
+  no longer the delivery path
+- kept integration separate from stable package promotion, public release
+  visibility, final launch material, and HN distribution
+- let the existing Railway PR-deploy policy create a disposable environment
+  instead of provisioning permanent staging
+- used provider build logs to find that the platform Docker dependency stage
+  omitted the new `@air-jam/database-contract` workspace manifest, allowing a
+  populated local install to mask missing `drizzle-orm` dependencies
+- corrected both production Docker dependency stages and added a repo contract
+  that derives every pnpm workspace manifest and rejects future omissions
+- retained the remaining staging constraint explicitly: the golden-path
+  controller still needs a credential that can attest the ephemeral environment
+  plus isolated release storage before it may start the external agent
+
 ## 2026-08-29 - Golden-Path Staging Authority Became Provider-Owned
 
 - stopped the next `G2-03` replay before external-agent startup because the old
