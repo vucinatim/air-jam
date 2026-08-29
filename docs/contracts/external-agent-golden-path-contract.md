@@ -1,6 +1,6 @@
 # External-Agent Golden-Path Contract
 
-Last verified: 2026-08-28
+Last verified: 2026-08-29
 
 Status: canonical Gate 2 contract
 
@@ -64,6 +64,17 @@ variables, collect evidence, apply the single controlled fault below, and
 enforce time or safety limits. It may not edit product code, answer discovery
 questions, suggest fixes, or provide private paths after the primary agent
 starts.
+
+The Codex primary lane runs with a run-specific permission profile rather than
+the maintainer's ambient terminal authority. Child commands cannot read the Air
+Jam monorepo, can write only the generated workspace and declared run-owned
+state/evidence/cache roots, do not inherit ambient credential variables or a
+login shell, and can reach only loopback plus the exact isolated-staging host
+through Codex's managed network proxy. Local binding is explicitly enabled so
+`pnpm run dev`, semantic sessions, and browser inspection exercise the real
+runtime without granting production network access. The controller mirrors
+evidence into the retained artifact directory while the run is active so a
+terminal interruption cannot erase the observable transcript.
 
 ## Fixed Scenario
 
@@ -244,11 +255,12 @@ installs a clean scaffold through registry specs, proves CLI/MCP discovery and
 the managed dev lifecycle, runs quality gates, and removes its run-owned state.
 `run-primary` launches a fresh ephemeral Codex process in the isolated
 workspace, streams a normalized transcript, injects only the declared fault
-after observed passing quality commands, and emits the primary-lane verifier
-result. It retains failed and blocked runs rather than converting them into a
-success claim. Future `status`, `verify`, or `clean` operations must remain on
-this same owner and must not duplicate lifecycle business logic already owned
-by the public Air Jam CLI/MCP/domain services.
+after observed passing quality commands and a closed semantic control session,
+requires all four quality gates again after repair, and emits the primary-lane
+verifier result. It retains failed, blocked, and interrupted runs rather than
+converting them into a success claim. Future `status`, `verify`, or `clean`
+operations must remain on this same owner and must not duplicate lifecycle
+business logic already owned by the public Air Jam CLI/MCP/domain services.
 
 ## Gate Boundaries And Acceptance
 

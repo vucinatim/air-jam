@@ -5,6 +5,10 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  buildCodexPermissionArgs,
+  buildGoldenPathCommandEnv,
+} from "../lib/golden-path-primary-run.mjs";
+import {
   defaultGoldenPathManifestPath,
   readGoldenPathProgram,
   validateGoldenPathProgram,
@@ -86,4 +90,52 @@ test("golden-path validation rejects unsafe publication and malformed stage orde
       }),
     /Golden-path stages must be exactly/,
   );
+});
+
+test("primary-run isolation permits only run-owned writes and declared network targets", () => {
+  const runRoot = "/tmp/airjam-golden-path-contract-run";
+  const stagingUrl = "https://air-jam-platform-pr-123.example.test";
+  const permissions = buildCodexPermissionArgs({ runRoot, stagingUrl });
+  const joinedArgs = permissions.args.join("\n");
+
+  assert.match(joinedArgs, /network_proxy/);
+  assert.match(joinedArgs, /approval_policy="never"/);
+  assert.doesNotMatch(joinedArgs, /approve-for-me/);
+  assert.match(joinedArgs, /allow_local_binding=true/);
+  assert.match(joinedArgs, /air-jam-platform-pr-123\.example\.test/);
+  assert.match(joinedArgs, /127\.0\.0\.1/);
+  assert.match(joinedArgs, /localhost/);
+  assert.deepEqual(permissions.profile.deniedReadRoots, ["<repo>"]);
+  assert.equal(permissions.profile.network.managedProxy, true);
+  assert.equal(permissions.profile.network.allowLocalBinding, true);
+  assert.equal(permissions.profile.loginShellAllowed, false);
+  assert.deepEqual(permissions.profile.writableRoots, [
+    "<run>/evidence",
+    "<run>/state",
+    "<run>/cache",
+    "<run>/npm-cache",
+    "<run>/pnpm-store",
+  ]);
+});
+
+test("primary-run child environment drops inherited credentials and isolates caches", () => {
+  const runRoot = "/tmp/airjam-golden-path-contract-run";
+  const environment = buildGoldenPathCommandEnv({
+    stagingUrl: "https://air-jam-platform-pr-123.example.test",
+    runRoot,
+    registryUrl: "http://127.0.0.1:4873",
+    sourceEnv: {
+      PATH: process.env.PATH,
+      USER: "external-agent",
+      OPENAI_API_KEY: "must-not-cross-boundary",
+      RAILWAY_TOKEN: "must-not-cross-boundary",
+    },
+  });
+
+  assert.equal(environment.OPENAI_API_KEY, undefined);
+  assert.equal(environment.RAILWAY_TOKEN, undefined);
+  assert.equal(environment.AIRJAM_STATE_DIR, `${runRoot}/state`);
+  assert.equal(environment.XDG_CACHE_HOME, `${runRoot}/cache`);
+  assert.equal(environment.npm_config_cache, `${runRoot}/npm-cache`);
+  assert.equal(environment.pnpm_config_store_dir, `${runRoot}/pnpm-store`);
 });

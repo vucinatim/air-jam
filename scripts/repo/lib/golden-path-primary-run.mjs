@@ -108,7 +108,7 @@ const collectToolchain = ({ codexVersion, registryUrl }) => ({
   codex: codexVersion,
   browserAvailability: "not-attested-by-controller",
   registry: registryUrl,
-  packageManagerCache: "existing-cache-with-registry-resolution-attested",
+  packageManagerCache: "run-scoped-empty",
 });
 
 const readGitState = (projectDir) => {
@@ -128,20 +128,6 @@ const readGitState = (projectDir) => {
         ? status.stdout.trim().split(/\r?\n/u).filter(Boolean)
         : [],
   };
-};
-
-const writeRequiredEmptyIndexes = (evidenceDir) => {
-  for (const relativePath of [
-    "commands/index.json",
-    "sessions/index.json",
-    "quality/index.json",
-    "visual/index.json",
-    "release/index.json",
-    "failures/index.json",
-  ]) {
-    const targetPath = path.join(evidenceDir, relativePath);
-    if (!fs.existsSync(targetPath)) writeJson(targetPath, { records: [] });
-  }
 };
 
 const listEvidenceFiles = (rootDir, currentDir = rootDir) => {
@@ -192,6 +178,135 @@ const detectQualityCommand = (command) => {
   return detected;
 };
 
+const isControlCheckpointEvent = (event) => {
+  if (event.type !== "item.completed") return false;
+  if (event.item?.type === "command_execution" && event.item.exit_code === 0) {
+    return /(?:^|\s)airjam\s+session\s+close(?:\s|$)/u.test(
+      event.item.command ?? "",
+    );
+  }
+  if (event.item?.type !== "mcp_tool_call") return false;
+  return /(?:^|[._])close_game_session$/u.test(
+    event.item.tool_name ?? event.item.name ?? "",
+  );
+};
+
+const permissionProfileName = "airjamGoldenPath";
+
+const tomlInlineStringMap = (value) =>
+  `{${Object.entries(value)
+    .map(([key, entry]) => `${JSON.stringify(key)}=${JSON.stringify(entry)}`)
+    .join(",")}}`;
+
+export const buildCodexPermissionArgs = ({ stagingUrl, runRoot }) => {
+  const stagingHostname = new URL(stagingUrl).hostname;
+  const networkDomains = {
+    "127.0.0.1": "allow",
+    localhost: "allow",
+    [stagingHostname]: "allow",
+  };
+  const filesystem = {
+    [repoRoot]: "deny",
+  };
+  const writableRoots = [
+    "evidence",
+    "state",
+    "cache",
+    "npm-cache",
+    "pnpm-store",
+  ].map((directory) => path.join(runRoot, directory));
+
+  return {
+    args: [
+      "--enable",
+      "network_proxy",
+      "--config",
+      'approval_policy="never"',
+      "--config",
+      `default_permissions=${JSON.stringify(permissionProfileName)}`,
+      "--config",
+      "allow_login_shell=false",
+      "--config",
+      `permissions.${permissionProfileName}.extends=\":workspace\"`,
+      "--config",
+      `permissions.${permissionProfileName}.filesystem=${tomlInlineStringMap(filesystem)}`,
+      "--config",
+      `permissions.${permissionProfileName}.network.enabled=true`,
+      "--config",
+      `permissions.${permissionProfileName}.network.mode=\"full\"`,
+      "--config",
+      `permissions.${permissionProfileName}.network.allow_local_binding=true`,
+      "--config",
+      `permissions.${permissionProfileName}.network.domains=${tomlInlineStringMap(networkDomains)}`,
+      ...writableRoots.flatMap((root) => ["--add-dir", root]),
+    ],
+    profile: {
+      name: permissionProfileName,
+      base: ":workspace",
+      loginShellAllowed: false,
+      deniedReadRoots: ["<repo>"],
+      writableRoots: writableRoots.map((root) =>
+        normalizeEvidenceText(root, {
+          runRoot,
+          registryUrl: "<candidate-registry>",
+        }),
+      ),
+      network: {
+        managedProxy: true,
+        mode: "full",
+        allowLocalBinding: true,
+        allowedDomains: Object.keys(networkDomains),
+      },
+    },
+  };
+};
+
+export const buildGoldenPathCommandEnv = ({
+  stagingUrl,
+  runRoot,
+  registryUrl,
+  sourceEnv = process.env,
+}) => {
+  const safePath = [
+    path.dirname(process.execPath),
+    ...(sourceEnv.PATH ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(
+      path.delimiter,
+    ),
+  ]
+    .filter(
+      (entry) =>
+        entry &&
+        (!entry.startsWith(os.homedir()) ||
+          entry === path.dirname(process.execPath)) &&
+        fs.existsSync(entry),
+    )
+    .filter((entry, index, entries) => entries.indexOf(entry) === index)
+    .join(path.delimiter);
+
+  return {
+    PATH: safePath,
+    HOME: os.homedir(),
+    USER: sourceEnv.USER ?? os.userInfo().username,
+    LOGNAME: sourceEnv.LOGNAME ?? os.userInfo().username,
+    SHELL: sourceEnv.SHELL ?? "/bin/zsh",
+    TMPDIR: os.tmpdir(),
+    LANG: sourceEnv.LANG ?? "en_US.UTF-8",
+    TERM: sourceEnv.TERM ?? "dumb",
+    AIRJAM_PLATFORM_URL: stagingUrl,
+    AIRJAM_STATE_DIR: path.join(runRoot, "state"),
+    CI: sourceEnv.CI ?? "1",
+    NO_UPDATE_NOTIFIER: "1",
+    NO_COLOR: "1",
+    FORCE_COLOR: "0",
+    COREPACK_HOME: path.join(runRoot, "cache", "corepack"),
+    XDG_CACHE_HOME: path.join(runRoot, "cache"),
+    npm_config_audit: "false",
+    npm_config_cache: path.join(runRoot, "npm-cache"),
+    npm_config_registry: registryUrl,
+    pnpm_config_store_dir: path.join(runRoot, "pnpm-store"),
+  };
+};
+
 const injectDeclaredFault = ({
   projectDir,
   evidenceDir,
@@ -232,6 +347,7 @@ const verifyPrimaryRun = ({
   projectDir,
   fault,
   codexExitCode,
+  postFaultQuality,
   runRoot,
   registryUrl,
 }) => {
@@ -265,6 +381,15 @@ const verifyPrimaryRun = ({
       code: "declared_fault_not_injected",
       path: "failures/index.json",
     });
+  for (const qualityCommand of initialQualityCommands) {
+    if (!postFaultQuality.has(qualityCommand)) {
+      failures.push({
+        code: "post_fault_quality_not_observed",
+        command: qualityCommand,
+        path: "transcript/events.ndjson",
+      });
+    }
+  }
   if (codexExitCode !== 0)
     failures.push({ code: "primary_agent_failed", exitCode: codexExitCode });
 
@@ -315,8 +440,8 @@ export const runGoldenPathPrimary = async ({
   );
   if (fs.existsSync(artifactRoot))
     throw new Error(`Golden-path run already exists: ${runId}`);
-  const runRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), `airjam-golden-path-${runId}-`),
+  const runRoot = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), `airjam-golden-path-${runId}-`)),
   );
   const workspaceDir = path.join(runRoot, "workspace");
   const projectName = `signal-relay-${runId}`;
@@ -334,21 +459,44 @@ export const runGoldenPathPrimary = async ({
   }
   fs.mkdirSync(workspaceDir, { recursive: true });
   fs.mkdirSync(evidenceDir, { recursive: true });
+  fs.mkdirSync(retainedEvidenceDir, { recursive: true });
+  for (const directory of ["state", "cache", "npm-cache", "pnpm-store"]) {
+    fs.mkdirSync(path.join(runRoot, directory), { recursive: true });
+  }
+
+  const syncEvidence = () => {
+    if (!fs.existsSync(evidenceDir)) return;
+    fs.cpSync(evidenceDir, retainedEvidenceDir, {
+      recursive: true,
+      force: true,
+    });
+  };
+  const bestEffortSyncEvidence = () => {
+    try {
+      syncEvidence();
+    } catch {
+      // A concurrent agent write can make a periodic snapshot transiently
+      // unreadable. The next interval retries; explicit checkpoints stay strict.
+    }
+  };
+  const writeDurableControllerState = (state, details = {}) => {
+    writeJson(path.join(artifactRoot, "controller.json"), {
+      contract: evidenceFormat,
+      runId,
+      state,
+      updatedAt: new Date().toISOString(),
+      ...details,
+    });
+  };
+  writeDurableControllerState("preparing");
 
   const registryPort = await reserveLoopbackPort();
   const registryUrl = `http://127.0.0.1:${registryPort}`;
-  const commandEnv = {
-    ...process.env,
-    AIRJAM_PLATFORM_URL: normalizedStagingUrl,
-    AIRJAM_STATE_DIR: path.join(runRoot, "state"),
-    CI: process.env.CI ?? "1",
-    NO_UPDATE_NOTIFIER: "1",
-    NO_COLOR: "1",
-    FORCE_COLOR: "0",
-    npm_config_audit: "false",
-    npm_config_registry: registryUrl,
-  };
-  delete commandEnv.npm_config_reporter;
+  const commandEnv = buildGoldenPathCommandEnv({
+    stagingUrl: normalizedStagingUrl,
+    runRoot,
+    registryUrl,
+  });
   const controllerCommands = [];
   const runControllerCommand = (id, command, args, cwd = repoRoot) => {
     onProgress(id);
@@ -401,6 +549,8 @@ export const runGoldenPathPrimary = async ({
   let interruptedSignal = null;
   const handleSignal = (signal) => {
     interruptedSignal = signal;
+    writeDurableControllerState("interrupted", { signal });
+    bestEffortSyncEvidence();
     if (codexChild && codexChild.exitCode === null) codexChild.kill("SIGTERM");
   };
   const handleSigint = () => handleSignal("SIGINT");
@@ -408,8 +558,13 @@ export const runGoldenPathPrimary = async ({
   process.once("SIGINT", handleSigint);
   process.once("SIGTERM", handleSigterm);
   const completedInitialQuality = new Set();
+  const completedPostFaultQuality = new Set();
+  let completedInitialControl = false;
   const transcriptPath = path.join(evidenceDir, "transcript", "events.ndjson");
   writeText(transcriptPath, "");
+  syncEvidence();
+  const evidenceSyncTimer = setInterval(bestEffortSyncEvidence, 1_000);
+  evidenceSyncTimer.unref();
 
   try {
     const prepared = await prepareGoldenPathCandidateRegistry({
@@ -441,6 +596,10 @@ export const runGoldenPathPrimary = async ({
       encoding: "utf8",
     });
     const codexVersion = codexVersionResult.stdout?.trim() || "unknown";
+    const codexPermissions = buildCodexPermissionArgs({
+      stagingUrl: normalizedStagingUrl,
+      runRoot,
+    });
     writeJson(
       path.join(evidenceDir, "environment", "toolchain.json"),
       collectToolchain({ codexVersion, registryUrl: "<candidate-registry>" }),
@@ -457,6 +616,10 @@ export const runGoldenPathPrimary = async ({
       arcadeVisibility: "hidden",
       privateRepositoryContextProvided: false,
       workspaceOutsideAirJamMonorepo: workspaceOutsideRepo,
+      inheritedCredentialEnvironment: false,
+      childAirJamRepositoryReadAccess: false,
+      networkAllowlist: codexPermissions.profile.network.allowedDomains,
+      localServerBindingAllowed: true,
       maintainerEditsAfterStart: ["declared-win-score-fault-only"],
     });
     writeJson(path.join(evidenceDir, "project", "git", "initial.json"), {
@@ -464,13 +627,19 @@ export const runGoldenPathPrimary = async ({
       state: "empty-workspace-before-primary-agent",
     });
 
+    writeJson(
+      path.join(evidenceDir, "environment", "codex-permissions.json"),
+      codexPermissions.profile,
+    );
+    syncEvidence();
+
     const codexArgs = [
       "exec",
       "--ephemeral",
       "--ignore-user-config",
       "--ignore-rules",
       "--skip-git-repo-check",
-      "--approve-for-me",
+      ...codexPermissions.args,
       "--cd",
       workspaceDir,
       "--json",
@@ -478,6 +647,7 @@ export const runGoldenPathPrimary = async ({
       agentPrompt,
     ];
     onProgress("primary-agent:start");
+    writeDurableControllerState("primary-agent-running");
     codexChild = spawn("codex", codexArgs, {
       cwd: workspaceDir,
       env: commandEnv,
@@ -486,7 +656,12 @@ export const runGoldenPathPrimary = async ({
     let stdoutBuffer = "";
     let stderrBuffer = "";
     const appendTranscript = (entry) => {
-      fs.appendFileSync(transcriptPath, `${JSON.stringify(entry)}\n`);
+      const record = `${JSON.stringify(entry)}\n`;
+      fs.appendFileSync(transcriptPath, record);
+      fs.appendFileSync(
+        path.join(retainedEvidenceDir, "transcript", "events.ndjson"),
+        record,
+      );
     };
     const processLine = (line) => {
       if (!line.trim()) return;
@@ -500,31 +675,38 @@ export const runGoldenPathPrimary = async ({
       }
       appendTranscript(event);
       if (
-        !fault &&
         event.type === "item.completed" &&
         event.item?.type === "command_execution" &&
         event.item.exit_code === 0
       ) {
-        for (const id of detectQualityCommand(event.item.command ?? "")) {
-          completedInitialQuality.add(id);
+        const qualityCommands = detectQualityCommand(event.item.command ?? "");
+        for (const id of qualityCommands) {
+          if (fault) completedPostFaultQuality.add(id);
+          else completedInitialQuality.add(id);
         }
-        if (
-          initialQualityCommands.every((id) => completedInitialQuality.has(id))
-        ) {
-          fault = injectDeclaredFault({
-            projectDir,
-            evidenceDir,
-            runRoot,
-            registryUrl,
+      }
+      if (!fault && isControlCheckpointEvent(event)) {
+        completedInitialControl = true;
+      }
+      if (
+        !fault &&
+        completedInitialControl &&
+        initialQualityCommands.every((id) => completedInitialQuality.has(id))
+      ) {
+        fault = injectDeclaredFault({
+          projectDir,
+          evidenceDir,
+          runRoot,
+          registryUrl,
+        });
+        if (fault) {
+          onProgress("controller:fault-injected");
+          syncEvidence();
+          appendTranscript({
+            type: "controller.fault-injected",
+            faultId: fault.id,
+            timestamp: fault.injectedAt,
           });
-          if (fault) {
-            onProgress("controller:fault-injected");
-            appendTranscript({
-              type: "controller.fault-injected",
-              faultId: fault.id,
-              timestamp: fault.injectedAt,
-            });
-          }
         }
       }
     };
@@ -573,7 +755,6 @@ export const runGoldenPathPrimary = async ({
       );
     }
 
-    writeRequiredEmptyIndexes(evidenceDir);
     writeJson(path.join(evidenceDir, "commands", "controller.json"), {
       records: controllerCommands,
     });
@@ -588,6 +769,7 @@ export const runGoldenPathPrimary = async ({
       projectDir,
       fault,
       codexExitCode,
+      postFaultQuality: completedPostFaultQuality,
       runRoot,
       registryUrl,
     });
@@ -623,6 +805,11 @@ export const runGoldenPathPrimary = async ({
       files: indexEvidenceFiles(evidenceDir),
     };
     writeJson(path.join(evidenceDir, "manifest.json"), manifest);
+    syncEvidence();
+    writeDurableControllerState("complete", {
+      terminalResult: report.result,
+      primaryAgentExitCode: codexExitCode,
+    });
     return {
       ok: report.result === "passed",
       contract: evidenceFormat,
@@ -634,14 +821,23 @@ export const runGoldenPathPrimary = async ({
       primaryAgentExitCode: codexExitCode,
       declaredFaultInjected: Boolean(fault),
     };
+  } catch (error) {
+    syncEvidence();
+    writeDurableControllerState("failed", {
+      error: normalizeEvidenceText(
+        error instanceof Error ? error.message : String(error),
+        { runRoot, registryUrl },
+      ),
+    });
+    throw error;
   } finally {
+    clearInterval(evidenceSyncTimer);
     process.removeListener("SIGINT", handleSigint);
     process.removeListener("SIGTERM", handleSigterm);
     if (codexChild && codexChild.exitCode === null) await stopChild(codexChild);
     if (registry) await stopChild(registry.child);
     if (fs.existsSync(evidenceDir)) {
-      fs.mkdirSync(artifactRoot, { recursive: true });
-      fs.cpSync(evidenceDir, retainedEvidenceDir, { recursive: true });
+      syncEvidence();
     }
     fs.rmSync(path.join(runRoot, "registry"), { recursive: true, force: true });
     fs.rmSync(path.join(runRoot, "state"), { recursive: true, force: true });
