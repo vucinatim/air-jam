@@ -376,8 +376,7 @@ const readAgentEvidenceIndex = ({ evidenceDir, relativePath, runId }) => {
       typeof value !== "object" ||
       value.contract !== evidenceFormat ||
       value.runId !== runId ||
-      !Array.isArray(value.records) ||
-      value.records.length === 0
+      !Array.isArray(value.records)
     ) {
       return null;
     }
@@ -442,19 +441,6 @@ export const verifyPrimaryRun = ({
       failures.push({ code: "invalid_evidence_index", path: relativePath });
     }
   }
-  if (!fs.existsSync(projectDir)) {
-    failures.push({ code: "missing_project", path: "workspace" });
-  }
-  const rulesPath = path.join(projectDir, "src", "game", "domain", "rules.ts");
-  const rulesSource = fs.existsSync(rulesPath)
-    ? fs.readFileSync(rulesPath, "utf8")
-    : "";
-  if (!/export const WIN_SCORE\s*=\s*3\s*;/u.test(rulesSource)) {
-    failures.push({
-      code: "win_score_not_repaired",
-      path: "src/game/domain/rules.ts",
-    });
-  }
   if (codexExitCode !== 0)
     failures.push({ code: "primary_agent_failed", exitCode: codexExitCode });
 
@@ -463,20 +449,16 @@ export const verifyPrimaryRun = ({
     [
       "missing_evidence",
       "invalid_evidence_index",
-      "missing_project",
-      "win_score_not_repaired",
       "primary_agent_failed",
     ].includes(failure.code),
   );
   if (blockedRecord && !evidenceIntegrityFailed && !fault) {
     notEvaluated.push(
-      { code: "declared_fault_not_reached", path: "failures/index.json" },
-      ...initialQualityCommands.map((command) => ({
-        code: "post_fault_quality_not_reached",
-        command,
-        path: "transcript/events.ndjson",
+      ...blockedRecord.stagesNotAttempted.map((stage) => ({
+        code: "stage_not_evaluated",
+        stage,
+        path: "failures/index.json",
       })),
-      { code: "hidden_release_not_reached", path: "release/index.json" },
     );
     return {
       contract: evidenceFormat,
@@ -495,6 +477,20 @@ export const verifyPrimaryRun = ({
       notEvaluated,
       note: "This verifier certifies a complete retained Codex primary attempt that stopped at a classified blocker. Claude Desktop remains independently owned by G2-04.",
     };
+  }
+
+  if (!fs.existsSync(projectDir)) {
+    failures.push({ code: "missing_project", path: "workspace" });
+  }
+  const rulesPath = path.join(projectDir, "src", "game", "domain", "rules.ts");
+  const rulesSource = fs.existsSync(rulesPath)
+    ? fs.readFileSync(rulesPath, "utf8")
+    : "";
+  if (!/export const WIN_SCORE\s*=\s*3\s*;/u.test(rulesSource)) {
+    failures.push({
+      code: "win_score_not_repaired",
+      path: "src/game/domain/rules.ts",
+    });
   }
 
   if (!fault)

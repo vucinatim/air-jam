@@ -90,10 +90,10 @@ quality gate, release, or repair that was not observed.
 
 For a terminal non-passing run, update `failures/index.json` with the terminal
 result (`failed`, `blocked`, or `invalid`), first failing stage, responsible
-surface, reproducible observation, expected behavior, classification (`product`,
-`client`, `environment`, `harness`, or `external`), and the stages not attempted
-because of the failure. A later recovery does not remove earlier failure
-records.
+surface, `observation`, `expected`, classification (`product`, `client`,
+`environment`, `harness`, or `external`), and `stagesNotAttempted`. Use those
+exact field names so the independent verifier can classify the outcome. A later
+recovery does not remove earlier failure records.
 
 Never publish publicly or to production. Do not expose credentials in output.
 Do not silently discard failed attempts. If a required capability is missing,

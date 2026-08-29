@@ -200,27 +200,21 @@ test("primary verifier preserves a complete classified blocker", () => {
                 ? [
                     {
                       result: "blocked",
-                      firstFailingStage: "semantic_game_session_open",
-                      responsibleSurface: "managed browser launch environment",
-                      observation: "browser process was denied",
-                      expected: "browser process launches",
-                      classification: "environment",
-                      stagesNotAttempted: ["semantic_match", "release"],
+                      firstFailingStage: "create-project",
+                      responsibleSurface: "public scaffold CLI",
+                      observation: "scaffold command exited before creation",
+                      expected: "scaffold creates the project",
+                      classification: "client",
+                      stagesNotAttempted: ["implementation", "release"],
                     },
                   ]
-                : [{ result: "not_attempted_due_to_blocker" }],
+                : [],
           })}\n`,
         );
       } else {
         fs.writeFileSync(absolutePath, "retained\n");
       }
     }
-    fs.mkdirSync(path.join(projectDir, "src/game/domain"), { recursive: true });
-    fs.writeFileSync(
-      path.join(projectDir, "src/game/domain/rules.ts"),
-      "export const WIN_SCORE = 3;\n",
-    );
-
     const report = verifyPrimaryRun({
       program,
       evidenceDir,
@@ -237,13 +231,24 @@ test("primary verifier preserves a complete classified blocker", () => {
     assert.deepEqual(report.failures, [
       {
         code: "agent_reported_blocker",
-        stage: "semantic_game_session_open",
-        surface: "managed browser launch environment",
-        classification: "environment",
+        stage: "create-project",
+        surface: "public scaffold CLI",
+        classification: "client",
         path: "failures/index.json",
       },
     ]);
-    assert.equal(report.notEvaluated.length, 6);
+    assert.deepEqual(report.notEvaluated, [
+      {
+        code: "stage_not_evaluated",
+        stage: "implementation",
+        path: "failures/index.json",
+      },
+      {
+        code: "stage_not_evaluated",
+        stage: "release",
+        path: "failures/index.json",
+      },
+    ]);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
