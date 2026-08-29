@@ -18,6 +18,29 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Production Cost And Recovery Became Measured
+
+- inventoried the live Railway topology, deployments, usage, memory, traffic,
+  database, volume, backups, rollback eligibility, and provider controls
+  without changing production
+- measured the last complete Railway cycle at `$7.99` and the current cycle at
+  an approximately `$8.43` linear projection, separating today's affordable
+  steady state from launch-spike risk
+- measured `0.631 GB` across 654 R2 objects and showed that archived and failed
+  releases retain most of their artifacts while one media upload has remained
+  incomplete since March
+- confirmed that Postgres has ample current headroom but no recurring backup
+  schedule or isolated restore proof, and that Railway's compute cap protects
+  the shared workspace rather than Air Jam alone
+- mapped every expensive lane to its existing bounds, missing launch control,
+  and owning Gate 3 or Gate 4 work item
+- kept realtime single-replica scaling honest, selected durable bounded release
+  jobs plus isolated cached artifact delivery as the production-valid path, and
+  rejected permanent always-on staging until repeated rehearsals justify it
+- closed `G3-01` as a measured baseline only; quotas, queues, cleanup, lane
+  switches, backups, restore, rollback, replay, and load proof remain explicit
+  implementation work
+
 ## 2026-08-29 - Readiness Evidence Became Immutable And CI-Portable
 
 - traced the post-review CI failure to repository-history evidence that passed
