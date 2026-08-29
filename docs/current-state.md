@@ -312,10 +312,12 @@ Gate `G3-02` is active. Its first production-valid slice establishes the
 persistent and audited lane modes, typed fail-closed admission decisions, and
 preview-first CLI operation. Release submission, artifact ingestion, release
 processing, browser validation, moderation, media ingestion, and telemetry now
-share that application-service authority. Budget evidence, shadow quota
-accounting, durable jobs, cleanup, realtime admission, and overload proof
-remain part of the same unfinished gate rather than being represented as
-complete by the lane-control foundation.
+share that application-service authority. Its second slice adds the
+[production budget evidence proof](./audits/v1-reliability/production-budget-evidence-proof.md):
+Railway project usage now flows through immutable evidence, reviewed thresholds,
+derived state, freshness reporting, idempotent replay, and the canonical repo
+CLI. Shadow quota accounting, durable jobs, cleanup, realtime admission, and
+overload proof remain part of the same unfinished gate.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
@@ -351,9 +353,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. land the persistent expensive-lane control foundation, then add measured
-   budget evidence and shadow quota accounting before durable queues, cleanup,
-   realtime admission, and overload proof
+3. land the persistent lane-control and measured-budget stack, then add shadow
+   quota accounting before durable queues, cleanup, realtime admission, and
+   overload proof
 4. run the isolated backup/restore and rollback/replay work in parallel with
    the operational-event contract and threat model
 5. preserve Gate 1 contracts while those independent implementation lanes run

@@ -121,6 +121,20 @@ Budget behavior is:
 No automated operation may increase a threshold, allowance, replica limit, or
 provider plan.
 
+Budget cycles and evidence are append-only. The current policy stores monetary
+values as integer micro-USD, retains raw provider measurements and the rate
+card used to derive them, and selects only the newest snapshot per provider
+scope when aggregating spend. Evidence older than six hours is explicitly
+`stale`; missing and stale authority return no current state while preserving a
+separately labeled last-known state. They are never silently treated as
+`normal`.
+
+The ordinary threshold sequence is `$25`, `$50`, `$75`, `$90`, and `$100`.
+The one-cycle 1.0 launch sequence is `$50`, `$75`, `$100`, `$135`, and `$150`.
+The launch profile is inactive until the exact provider cycle start is approved
+as a reviewed source change. It cannot be activated through an environment
+variable or operator command.
+
 ## Admission Result
 
 Every decision returns a stable machine-readable result containing:
@@ -242,6 +256,18 @@ The canonical repo surface is:
 pnpm --silent run repo -- platform operations --help
 ```
 
+Budget inspection and evidence collection are:
+
+```bash
+pnpm --silent run repo -- platform operations budget status --json
+pnpm --silent run repo -- platform operations budget sync --help
+```
+
+`budget sync` reads Railway directly, previews by default, and requires actor,
+reason, idempotency key, and explicit `--apply` before persistence. A retry of a
+completed logical collection returns the original evidence before another
+provider request. The CLI exposes no state, threshold, or ceiling override.
+
 The complete lifecycle must expose stable JSON for:
 
 1. overall status and policy inspection
@@ -261,11 +287,12 @@ The production-valid implementation sequence is:
 
 1. persistent lane controls, mutation audit, shared admission errors, and CLI
 2. platform release/media/telemetry enforcement through application services
-3. persistent budget evidence and shadow/enforced quota accounting
-4. durable release and browser-validation jobs
-5. lifecycle cleanup and storage reconciliation
-6. realtime room/controller global admission plus graceful drain
-7. load, overload, dependency-failure, and recovery proof
+3. persistent budget evidence
+4. shadow and enforced quota accounting
+5. durable release and browser-validation jobs
+6. lifecycle cleanup and storage reconciliation
+7. realtime room/controller global admission plus graceful drain
+8. load, overload, dependency-failure, and recovery proof
 
 Each step remains part of the final architecture. No step introduces a
 temporary in-memory queue, transport-only quota, or dashboard-only control.

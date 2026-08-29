@@ -72,13 +72,27 @@ test("cost-creating platform work shares one production-control authority", asyn
 });
 
 test("production controls have one persistent schema and one canonical CLI", async () => {
-  const [databaseContract, migration, repoPlatformCommand, controlCli] =
-    await Promise.all([
-      readRepoSource("packages/database-contract/src/index.ts"),
-      readRepoSource("apps/platform/drizzle/0023_nappy_maria_hill.sql"),
-      readRepoSource("scripts/repo/commands/platform.mjs"),
-      readRepoSource("apps/platform/scripts/production-control-cli.ts"),
-    ]);
+  const [
+    databaseContract,
+    laneMigration,
+    budgetMigration,
+    repoPlatformCommand,
+    controlCli,
+    budgetService,
+    budgetPolicy,
+  ] = await Promise.all([
+    readRepoSource("packages/database-contract/src/index.ts"),
+    readRepoSource("apps/platform/drizzle/0023_nappy_maria_hill.sql"),
+    readRepoSource("apps/platform/drizzle/0024_white_deadpool.sql"),
+    readRepoSource("scripts/repo/commands/platform.mjs"),
+    readRepoSource("apps/platform/scripts/production-control-cli.ts"),
+    readRepoSource(
+      "apps/platform/src/server/operations/production-budget-service.ts",
+    ),
+    readRepoSource(
+      "apps/platform/src/server/operations/production-budget-policy.ts",
+    ),
+  ]);
 
   for (const table of [
     "operational_lane_controls",
@@ -90,12 +104,32 @@ test("production controls have one persistent schema and one canonical CLI", asy
       1,
       `${table} must have one shared declaration`,
     );
-    assert.match(migration, new RegExp(`"${table}"`, "u"));
+    assert.match(laneMigration, new RegExp(`"${table}"`, "u"));
   }
-  assert.doesNotMatch(migration, /\$\d+/u);
+  for (const table of [
+    "operational_budget_cycles",
+    "operational_budget_evidence",
+  ]) {
+    assert.equal(
+      databaseContract.match(new RegExp(`pgTable\\(\\s*"${table}"`, "gu"))
+        ?.length,
+      1,
+      `${table} must have one shared declaration`,
+    );
+    assert.match(budgetMigration, new RegExp(`"${table}"`, "u"));
+  }
+  assert.doesNotMatch(laneMigration, /\$\d+/u);
+  assert.doesNotMatch(budgetMigration, /\$\d+/u);
   assert.match(repoPlatformCommand, /\.command\("operations"\)/u);
+  assert.match(repoPlatformCommand, /\.command\("budget"\)/u);
   assert.match(repoPlatformCommand, /production-control-cli\.ts/u);
   assert.match(controlCli, /listOperationalLaneControls/u);
   assert.match(controlCli, /setOperationalLaneControl/u);
+  assert.match(controlCli, /recordOperationalBudgetEvidence/u);
   assert.match(controlCli, /if \(!input\.apply\)/u);
+  assert.match(budgetPolicy, /OPERATIONAL_BUDGET_POLICIES/u);
+  assert.match(budgetPolicy, /resolveOperationalBudgetState/u);
+  assert.match(budgetService, /normalizeOperationalBudgetEvidenceInput/u);
+  assert.doesNotMatch(budgetPolicy, /process\.env/u);
+  assert.doesNotMatch(budgetService, /process\.env/u);
 });

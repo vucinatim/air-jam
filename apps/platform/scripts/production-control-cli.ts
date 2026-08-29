@@ -8,6 +8,12 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
 import {
+  findOperationalBudgetEvidenceReplay,
+  getOperationalBudgetStatus,
+  previewOperationalBudgetEvidence,
+  recordOperationalBudgetEvidence,
+} from "../src/server/operations/production-budget-service";
+import {
   getOperationalLaneControl,
   listOperationalLaneControls,
   PRODUCTION_CONTROL_CONTRACT_VERSION,
@@ -16,6 +22,26 @@ import {
 
 type ProductionControlCliInput =
   | { command: "status"; json: boolean }
+  | { command: "budget-status"; json: boolean }
+  | {
+      command: "budget-replay";
+      provider: string;
+      scopeKind: string;
+      scopeId: string;
+      reason: string;
+      actor: string;
+      idempotencyKey: string;
+      json: true;
+    }
+  | {
+      command: "budget-sync";
+      evidence: unknown;
+      reason: string;
+      actor: string;
+      idempotencyKey: string;
+      apply: boolean;
+      json: boolean;
+    }
   | {
       command: "lane-set";
       lane: OperationalLane;
@@ -68,6 +94,32 @@ const parseInput = (raw: string | undefined): ProductionControlCliInput => {
   const input = value as Record<string, unknown>;
   const json = input.json === true;
   if (input.command === "status") return { command: "status", json };
+  if (input.command === "budget-status") {
+    return { command: "budget-status", json };
+  }
+  if (input.command === "budget-replay") {
+    return {
+      command: "budget-replay",
+      provider: readRequiredText(input, "provider"),
+      scopeKind: readRequiredText(input, "scopeKind"),
+      scopeId: readRequiredText(input, "scopeId"),
+      reason: readRequiredText(input, "reason"),
+      actor: readRequiredText(input, "actor"),
+      idempotencyKey: readRequiredText(input, "idempotencyKey"),
+      json: true,
+    };
+  }
+  if (input.command === "budget-sync") {
+    return {
+      command: "budget-sync",
+      evidence: input.evidence,
+      reason: readRequiredText(input, "reason"),
+      actor: readRequiredText(input, "actor"),
+      idempotencyKey: readRequiredText(input, "idempotencyKey"),
+      apply: input.apply === true,
+      json,
+    };
+  }
   if (input.command !== "lane-set") {
     return fail("Unknown production-control command.");
   }
@@ -133,6 +185,7 @@ const main = async (): Promise<void> => {
     if (input.command === "status") {
       const result = {
         lanes: await listOperationalLaneControls({ database }),
+        budget: await getOperationalBudgetStatus({ database }),
       };
       if (input.json) printJson(input.command, false, result);
       else {
@@ -141,6 +194,77 @@ const main = async (): Promise<void> => {
             `${lane.lane}: ${lane.mode} (revision ${lane.revision})${lane.reason ? ` — ${lane.reason}` : ""}`,
           );
         }
+      }
+      return;
+    }
+
+    if (input.command === "budget-status") {
+      const result = { budget: await getOperationalBudgetStatus({ database }) };
+      if (input.json) printJson(input.command, false, result);
+      else {
+        const { budget } = result;
+        console.log(
+          budget.state
+            ? `Budget: ${budget.state} at $${(
+                (budget.actualAmountMicrousd ?? 0) / 1_000_000
+              ).toFixed(2)} (${budget.evidenceStatus} evidence).`
+            : `Budget: unavailable (${budget.evidenceStatus} evidence).`,
+        );
+      }
+      return;
+    }
+
+    if (input.command === "budget-replay") {
+      const evidence = await findOperationalBudgetEvidenceReplay({
+        database,
+        input,
+      });
+      const budget = evidence
+        ? await getOperationalBudgetStatus({ database })
+        : null;
+      printJson(evidence ? "budget-sync" : input.command, evidence !== null, {
+        evidence,
+        budget,
+        replayed: evidence !== null,
+      });
+      return;
+    }
+
+    if (input.command === "budget-sync") {
+      const operationInput = {
+        evidence: input.evidence,
+        actor: input.actor,
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey,
+      };
+      if (!input.apply) {
+        const result = await previewOperationalBudgetEvidence({
+          database,
+          input: operationInput,
+        });
+        if (input.json) printJson(input.command, false, result);
+        else {
+          console.log(
+            `Would record provider budget evidence and derive ${result.status.state ?? "unavailable"} state.`,
+          );
+          console.log("Pass --apply to persist this immutable evidence item.");
+        }
+        return;
+      }
+
+      const evidence = await recordOperationalBudgetEvidence({
+        database,
+        input: operationInput,
+      });
+      const budget = await getOperationalBudgetStatus({ database });
+      const result = { evidence, budget, replayed: false };
+      if (input.json) printJson(input.command, true, result);
+      else {
+        console.log(
+          `Recorded ${evidence.provider} budget evidence at $${(
+            evidence.actualAmountMicrousd / 1_000_000
+          ).toFixed(2)}; derived ${budget.state ?? "unavailable"} state.`,
+        );
       }
       return;
     }
