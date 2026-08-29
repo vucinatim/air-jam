@@ -12,8 +12,8 @@ import {
 } from "./game-action-observation.js";
 import { inspectGame } from "./games.js";
 import {
+  resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
-  resolveTsxCliPath,
 } from "./helper-scripts.js";
 import type {
   AirJamAgentContractInspection,
@@ -57,8 +57,9 @@ const runGameAgentHelper = <T>({
   const result = runCommandResult({
     command: process.execPath,
     args: [
-      resolveTsxCliPath(),
-      resolveDevtoolsHelperScript("agent-contract.ts"),
+      ...resolveDevtoolsHelperArgs(
+        resolveDevtoolsHelperScript("agent-contract.ts"),
+      ),
       "--operation",
       operation,
       ...(configPath ? ["--config", configPath] : []),

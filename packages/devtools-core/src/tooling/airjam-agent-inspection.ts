@@ -1,8 +1,8 @@
 import path from "node:path";
 import { runCommandResult } from "../commands.js";
 import {
+  resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
-  resolveTsxCliPath,
 } from "../helper-scripts.js";
 
 type AirJamAgentInspection = {
@@ -26,8 +26,9 @@ export const inspectAirJamAgentConfig = async (
   const result = runCommandResult({
     command: process.execPath,
     args: [
-      resolveTsxCliPath(),
-      resolveDevtoolsHelperScript("inspect-airjam-agent.ts"),
+      ...resolveDevtoolsHelperArgs(
+        resolveDevtoolsHelperScript("inspect-airjam-agent.ts"),
+      ),
       "--config",
       configPath,
     ],

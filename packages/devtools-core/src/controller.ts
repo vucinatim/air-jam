@@ -26,8 +26,8 @@ import { io, type Socket } from "socket.io-client";
 import { detectProjectContext } from "./context.js";
 import { getTopology } from "./dev.js";
 import {
+  resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
-  resolveTsxCliPath,
 } from "./helper-scripts.js";
 import type {
   AirJamProjectMode,
@@ -447,8 +447,7 @@ const startIsolatedRuntimeOwner = async ({
 
   const helperFile = resolveDevtoolsHelperScript("hold-runtime-host.ts");
   const args = [
-    resolveTsxCliPath(),
-    helperFile,
+    ...resolveDevtoolsHelperArgs(helperFile),
     "--app-origin",
     appOrigin,
     "--host-url",

@@ -19,9 +19,7 @@ export const resolveDevtoolsHelperScript = (fileName: string): string => {
   return path.resolve(moduleDir, "..", "src", "tooling", fileName);
 };
 
-export const resolveTsxCliPath = (): string =>
-  path.join(
-    path.dirname(require.resolve("tsx/package.json")),
-    "dist",
-    "cli.mjs",
-  );
+export const resolveDevtoolsHelperArgs = (helperPath: string): string[] =>
+  /\.(?:c|m)?tsx?$/u.test(helperPath)
+    ? ["--import", require.resolve("tsx"), helperPath]
+    : [helperPath];

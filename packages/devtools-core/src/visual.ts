@@ -9,8 +9,8 @@ import {
 import { pathExists, readJsonFile } from "./fs-utils.js";
 import { inspectGame, readVisualCaptureSummary } from "./games.js";
 import {
+  resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
-  resolveTsxCliPath,
 } from "./helper-scripts.js";
 import { inspectAirJamAgentConfig } from "./tooling/airjam-agent-inspection.js";
 import type {
@@ -51,7 +51,7 @@ const runTsxHelper = <T>({
 }): T => {
   const result = runCommandResult({
     command: process.execPath,
-    args: [resolveTsxCliPath(), helperFile, ...args],
+    args: [...resolveDevtoolsHelperArgs(helperFile), ...args],
     cwd,
   });
   if (!result.ok) {
