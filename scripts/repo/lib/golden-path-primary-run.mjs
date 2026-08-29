@@ -218,6 +218,7 @@ export const buildCodexPermissionArgs = ({ stagingUrl, runRoot }) => {
   const writableRoots = [
     "evidence",
     "state",
+    "tmp",
     "cache",
     "npm-cache",
     "pnpm-store",
@@ -245,6 +246,8 @@ export const buildCodexPermissionArgs = ({ stagingUrl, runRoot }) => {
       `permissions.${permissionProfileName}.network.allow_local_binding=true`,
       "--config",
       `permissions.${permissionProfileName}.network.domains=${tomlInlineStringMap(networkDomains)}`,
+      "--config",
+      `permissions.${permissionProfileName}.network.unix_sockets=${tomlInlineStringMap({ [path.join(runRoot, "tmp")]: "allow" })}`,
       ...writableRoots.flatMap((root) => ["--add-dir", root]),
     ],
     profile: {
@@ -263,6 +266,7 @@ export const buildCodexPermissionArgs = ({ stagingUrl, runRoot }) => {
         mode: "full",
         allowLocalBinding: true,
         allowedDomains: Object.keys(networkDomains),
+        allowedUnixSocketRoots: ["<run>/tmp"],
       },
     },
   };
@@ -302,7 +306,7 @@ export const buildGoldenPathCommandEnv = ({
     USER: sourceEnv.USER ?? os.userInfo().username,
     LOGNAME: sourceEnv.LOGNAME ?? os.userInfo().username,
     SHELL: sourceEnv.SHELL ?? "/bin/zsh",
-    TMPDIR: os.tmpdir(),
+    TMPDIR: path.join(runRoot, "tmp"),
     LANG: sourceEnv.LANG ?? "en_US.UTF-8",
     TERM: sourceEnv.TERM ?? "dumb",
     AIRJAM_PLATFORM_URL: stagingUrl,
@@ -473,7 +477,13 @@ export const runGoldenPathPrimary = async ({
   fs.mkdirSync(workspaceDir, { recursive: true });
   fs.mkdirSync(evidenceDir, { recursive: true });
   fs.mkdirSync(retainedEvidenceDir, { recursive: true });
-  for (const directory of ["state", "cache", "npm-cache", "pnpm-store"]) {
+  for (const directory of [
+    "state",
+    "tmp",
+    "cache",
+    "npm-cache",
+    "pnpm-store",
+  ]) {
     fs.mkdirSync(path.join(runRoot, directory), { recursive: true });
   }
 
@@ -622,6 +632,7 @@ export const runGoldenPathPrimary = async ({
       workspace: "<run>/workspace",
       evidenceDirectory: "<run>/evidence",
       stateDirectory: "<run>/state",
+      temporaryDirectory: "<run>/tmp",
       candidateRegistry: "<candidate-registry>",
       airJamUpstreamFallback: false,
       stagingPlatform: normalizedStagingUrl,

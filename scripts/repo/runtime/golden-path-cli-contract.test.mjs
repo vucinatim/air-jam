@@ -102,6 +102,7 @@ test("primary-run isolation permits only run-owned writes and declared network t
   assert.match(joinedArgs, /approval_policy="never"/);
   assert.doesNotMatch(joinedArgs, /approve-for-me/);
   assert.match(joinedArgs, /allow_local_binding=true/);
+  assert.match(joinedArgs, /network\.unix_sockets/);
   assert.match(joinedArgs, /air-jam-platform-pr-123\.example\.test/);
   assert.match(joinedArgs, /127\.0\.0\.1/);
   assert.match(joinedArgs, /localhost/);
@@ -112,6 +113,7 @@ test("primary-run isolation permits only run-owned writes and declared network t
   assert.deepEqual(permissions.profile.writableRoots, [
     "<run>/evidence",
     "<run>/state",
+    "<run>/tmp",
     "<run>/cache",
     "<run>/npm-cache",
     "<run>/pnpm-store",
@@ -135,6 +137,7 @@ test("primary-run child environment drops inherited credentials and isolates cac
   assert.equal(environment.OPENAI_API_KEY, undefined);
   assert.equal(environment.RAILWAY_TOKEN, undefined);
   assert.equal(environment.AIRJAM_STATE_DIR, `${runRoot}/state`);
+  assert.equal(environment.TMPDIR, `${runRoot}/tmp`);
   assert.equal(environment.XDG_CACHE_HOME, `${runRoot}/cache`);
   assert.equal(environment.npm_config_cache, `${runRoot}/npm-cache`);
   assert.equal(environment.pnpm_config_store_dir, `${runRoot}/pnpm-store`);
