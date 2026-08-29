@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -7,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   buildCodexPermissionArgs,
   buildGoldenPathCommandEnv,
+  verifyPrimaryRun,
 } from "../lib/golden-path-primary-run.mjs";
 import {
   defaultGoldenPathManifestPath,
@@ -168,4 +171,80 @@ test("primary-run child environment drops inherited credentials and isolates cac
   assert.equal(environment.XDG_CACHE_HOME, `${runRoot}/cache`);
   assert.equal(environment.npm_config_cache, `${runRoot}/npm-cache`);
   assert.equal(environment.pnpm_config_store_dir, `${runRoot}/pnpm-store`);
+});
+
+test("primary verifier preserves a complete classified blocker", () => {
+  const runId = "g2-contract-blocked";
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-g2-verifier-"));
+  const evidenceDir = path.join(root, "evidence");
+  const projectDir = path.join(root, "project");
+  const program = readGoldenPathProgram(defaultGoldenPathManifestPath);
+  try {
+    for (const relativePath of program.evidenceBundle.requiredPaths) {
+      if (
+        relativePath === "manifest.json" ||
+        relativePath === "verifier/report.json"
+      ) {
+        continue;
+      }
+      const absolutePath = path.join(evidenceDir, relativePath);
+      fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+      if (relativePath.endsWith("/index.json")) {
+        fs.writeFileSync(
+          absolutePath,
+          `${JSON.stringify({
+            contract: "air-jam-golden-path-evidence/v1",
+            runId,
+            records:
+              relativePath === "failures/index.json"
+                ? [
+                    {
+                      result: "blocked",
+                      firstFailingStage: "semantic_game_session_open",
+                      responsibleSurface: "managed browser launch environment",
+                      observation: "browser process was denied",
+                      expected: "browser process launches",
+                      classification: "environment",
+                      stagesNotAttempted: ["semantic_match", "release"],
+                    },
+                  ]
+                : [{ result: "not_attempted_due_to_blocker" }],
+          })}\n`,
+        );
+      } else {
+        fs.writeFileSync(absolutePath, "retained\n");
+      }
+    }
+    fs.mkdirSync(path.join(projectDir, "src/game/domain"), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectDir, "src/game/domain/rules.ts"),
+      "export const WIN_SCORE = 3;\n",
+    );
+
+    const report = verifyPrimaryRun({
+      program,
+      evidenceDir,
+      projectDir,
+      runId,
+      fault: null,
+      codexExitCode: 0,
+      postFaultQuality: new Set(),
+      runRoot: root,
+      registryUrl: "http://127.0.0.1:4873",
+    });
+
+    assert.equal(report.result, "blocked");
+    assert.deepEqual(report.failures, [
+      {
+        code: "agent_reported_blocker",
+        stage: "semantic_game_session_open",
+        surface: "managed browser launch environment",
+        classification: "environment",
+        path: "failures/index.json",
+      },
+    ]);
+    assert.equal(report.notEvaluated.length, 6);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

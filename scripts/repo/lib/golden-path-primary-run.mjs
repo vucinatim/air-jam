@@ -21,6 +21,14 @@ const evidenceFormat = "air-jam-golden-path-evidence/v1";
 const commandMaxBuffer = 64 * 1024 * 1024;
 const runIdPattern = /^[a-z0-9][a-z0-9-]{5,47}$/u;
 const initialQualityCommands = ["typecheck", "lint", "test", "build"];
+const agentOwnedIndexPaths = new Set([
+  "commands/index.json",
+  "sessions/index.json",
+  "quality/index.json",
+  "visual/index.json",
+  "release/index.json",
+  "failures/index.json",
+]);
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -358,10 +366,58 @@ const injectDeclaredFault = ({
   return record;
 };
 
-const verifyPrimaryRun = ({
+const readAgentEvidenceIndex = ({ evidenceDir, relativePath, runId }) => {
+  const absolutePath = path.join(evidenceDir, relativePath);
+  if (!fs.existsSync(absolutePath)) return null;
+  try {
+    const value = JSON.parse(fs.readFileSync(absolutePath, "utf8"));
+    if (
+      !value ||
+      typeof value !== "object" ||
+      value.contract !== evidenceFormat ||
+      value.runId !== runId ||
+      !Array.isArray(value.records) ||
+      value.records.length === 0
+    ) {
+      return null;
+    }
+    return value;
+  } catch {
+    return null;
+  }
+};
+
+const readBlockedTerminalRecord = ({ evidenceDir, runId }) => {
+  const index = readAgentEvidenceIndex({
+    evidenceDir,
+    relativePath: "failures/index.json",
+    runId,
+  });
+  const record = index?.records.findLast(
+    (entry) => entry?.result === "blocked",
+  );
+  if (
+    !record ||
+    typeof record.firstFailingStage !== "string" ||
+    typeof record.responsibleSurface !== "string" ||
+    typeof record.observation !== "string" ||
+    typeof record.expected !== "string" ||
+    !["product", "client", "environment", "harness", "external"].includes(
+      record.classification,
+    ) ||
+    !Array.isArray(record.stagesNotAttempted) ||
+    record.stagesNotAttempted.length === 0
+  ) {
+    return null;
+  }
+  return record;
+};
+
+export const verifyPrimaryRun = ({
   program,
   evidenceDir,
   projectDir,
+  runId,
   fault,
   codexExitCode,
   postFaultQuality,
@@ -369,6 +425,7 @@ const verifyPrimaryRun = ({
   registryUrl,
 }) => {
   const failures = [];
+  const notEvaluated = [];
   for (const relativePath of program.evidenceBundle.requiredPaths) {
     if (
       relativePath === "manifest.json" ||
@@ -378,6 +435,11 @@ const verifyPrimaryRun = ({
     }
     if (!fs.existsSync(path.join(evidenceDir, relativePath))) {
       failures.push({ code: "missing_evidence", path: relativePath });
+    } else if (
+      agentOwnedIndexPaths.has(relativePath) &&
+      !readAgentEvidenceIndex({ evidenceDir, relativePath, runId })
+    ) {
+      failures.push({ code: "invalid_evidence_index", path: relativePath });
     }
   }
   if (!fs.existsSync(projectDir)) {
@@ -393,6 +455,48 @@ const verifyPrimaryRun = ({
       path: "src/game/domain/rules.ts",
     });
   }
+  if (codexExitCode !== 0)
+    failures.push({ code: "primary_agent_failed", exitCode: codexExitCode });
+
+  const blockedRecord = readBlockedTerminalRecord({ evidenceDir, runId });
+  const evidenceIntegrityFailed = failures.some((failure) =>
+    [
+      "missing_evidence",
+      "invalid_evidence_index",
+      "missing_project",
+      "win_score_not_repaired",
+      "primary_agent_failed",
+    ].includes(failure.code),
+  );
+  if (blockedRecord && !evidenceIntegrityFailed && !fault) {
+    notEvaluated.push(
+      { code: "declared_fault_not_reached", path: "failures/index.json" },
+      ...initialQualityCommands.map((command) => ({
+        code: "post_fault_quality_not_reached",
+        command,
+        path: "transcript/events.ndjson",
+      })),
+      { code: "hidden_release_not_reached", path: "release/index.json" },
+    );
+    return {
+      contract: evidenceFormat,
+      scope: "codex-primary",
+      verifiedAt: new Date().toISOString(),
+      result: "blocked",
+      failures: [
+        {
+          code: "agent_reported_blocker",
+          stage: blockedRecord.firstFailingStage,
+          surface: blockedRecord.responsibleSurface,
+          classification: blockedRecord.classification,
+          path: "failures/index.json",
+        },
+      ],
+      notEvaluated,
+      note: "This verifier certifies a complete retained Codex primary attempt that stopped at a classified blocker. Claude Desktop remains independently owned by G2-04.",
+    };
+  }
+
   if (!fault)
     failures.push({
       code: "declared_fault_not_injected",
@@ -407,8 +511,6 @@ const verifyPrimaryRun = ({
       });
     }
   }
-  if (codexExitCode !== 0)
-    failures.push({ code: "primary_agent_failed", exitCode: codexExitCode });
 
   const releaseIndexPath = path.join(evidenceDir, "release", "index.json");
   const releaseSource = fs.existsSync(releaseIndexPath)
@@ -432,6 +534,7 @@ const verifyPrimaryRun = ({
     verifiedAt: new Date().toISOString(),
     result: failures.length === 0 ? "passed" : "failed",
     failures,
+    notEvaluated,
     note: "This verifier certifies only the Codex primary lane. Claude Desktop remains independently owned by G2-04.",
   };
 };
@@ -791,6 +894,7 @@ export const runGoldenPathPrimary = async ({
       program: programState,
       evidenceDir,
       projectDir,
+      runId,
       fault,
       codexExitCode,
       postFaultQuality: completedPostFaultQuality,
