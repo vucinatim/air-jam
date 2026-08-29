@@ -268,10 +268,11 @@ fresh managed-dev plus typecheck, lint, test, and build run. That replay also
 fixed standalone topology so a configured Vite port is advertised consistently
 to hosts, controllers, sockets, and readiness tooling.
 
-Gate `G2-03` is active again. Its completion requires a new controller-owned
-Signal Relay replay whose durable artifacts, isolation checks, quality gates,
-cleanup, and release verification do not depend on agent-authored success
-claims. The old PR-52 hostname is no longer admissible staging proof because it
+Gate `G2-03` is now explicitly blocked on isolated staging credentials and
+controller-readable provider identity. Its completion requires a new
+controller-owned Signal Relay replay whose durable artifacts, isolation checks,
+quality gates, cleanup, and release verification do not depend on agent-authored
+success claims. The old PR-52 hostname is no longer admissible staging proof because it
 still served platform health after Railway reported no corresponding ephemeral
 environment. The runner now requires provider-owned Railway project and
 environment identity and proves separation from production before agent
