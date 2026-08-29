@@ -11,6 +11,9 @@ import { repoRoot } from "./paths.mjs";
 
 const require = createRequire(import.meta.url);
 const commandMaxBuffer = 64 * 1024 * 1024;
+const rootPackageJson = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+);
 const candidatePackageNames = new Set(
   resolvePublicPackages().map((entry) => entry.packageName),
 );
@@ -494,6 +497,16 @@ export const runGoldenPathBootstrap = async ({
       projectDir,
       registryUrl: registry.registryUrl,
     });
+    if (packageJson.packageManager !== rootPackageJson.packageManager) {
+      throw new Error(
+        `Generated project packageManager must be ${rootPackageJson.packageManager}.`,
+      );
+    }
+    if (packageJson.scripts?.lint !== "eslint .") {
+      throw new Error(
+        'Generated project must expose the canonical "eslint ." lint script.',
+      );
+    }
 
     run("discover:cli", "pnpm", ["exec", "airjam", "--help"], projectDir);
     run("discover:dev", "pnpm", ["run", "dev", "--", "--help"], projectDir);
@@ -599,6 +612,7 @@ export const runGoldenPathBootstrap = async ({
     managedDevStarted = false;
 
     run("quality:typecheck", "pnpm", ["typecheck"], projectDir);
+    run("quality:lint", "pnpm", ["lint"], projectDir);
     run("quality:test", "pnpm", ["test"], projectDir);
     run("quality:build", "pnpm", ["build"], projectDir);
 
@@ -624,7 +638,8 @@ export const runGoldenPathBootstrap = async ({
       },
       project: {
         name: packageJson.name,
-        scripts: ["dev", "status", "reset:local", "mcp"].filter(
+        packageManager: packageJson.packageManager,
+        scripts: ["dev", "status", "reset:local", "mcp", "lint"].filter(
           (script) => typeof packageJson.scripts?.[script] === "string",
         ),
         installedVersions,
@@ -642,6 +657,7 @@ export const runGoldenPathBootstrap = async ({
       },
       quality: {
         typecheck: "passed",
+        lint: "passed",
         tests: "passed",
         build: "passed",
       },
