@@ -65,7 +65,8 @@ The measured Gate 3 production baseline is:
 
 1. [audits/v1-reliability/production-capacity-cost-and-recovery-audit.md](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md)
 2. [audits/v1-reliability/production-budget-evidence-proof.md](./audits/v1-reliability/production-budget-evidence-proof.md)
-3. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
+3. [audits/v1-reliability/production-shadow-quota-proof.md](./audits/v1-reliability/production-shadow-quota-proof.md)
+4. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
 
 It distinguishes the current low-cost, low-usage production state from the
 queues, quotas, recovery, static-delivery, and operational controls still
@@ -73,6 +74,8 @@ required before launch-scale traffic is invited. The production-control
 contract fixes the shared admission, budget, job, cleanup, audit, and CLI model
 that Gate 3 implements. The budget proof records the implemented provider-to-
 policy-to-database lifecycle without implying that the remaining gate is done.
+The shadow-quota proof records the source-owned allowance catalog,
+authoritative creator/game usage, and agent-readable prospective decisions.
 
 The detailed discoverability checklist remains a subordinate launch reference:
 

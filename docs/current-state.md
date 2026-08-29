@@ -316,8 +316,13 @@ share that application-service authority. Its second slice adds the
 [production budget evidence proof](./audits/v1-reliability/production-budget-evidence-proof.md):
 Railway project usage now flows through immutable evidence, reviewed thresholds,
 derived state, freshness reporting, idempotent replay, and the canonical repo
-CLI. Shadow quota accounting, durable jobs, cleanup, realtime admission, and
-overload proof remain part of the same unfinished gate.
+CLI. Its third slice adds the
+[production shadow quota proof](./audits/v1-reliability/production-shadow-quota-proof.md):
+the ratified allowances now live in one versioned source catalog, lifecycle and
+runtime records produce creator/game usage, and the canonical CLI explains
+shadow versus enforced decisions. Durable jobs, application-service wiring,
+cleanup, realtime admission, and overload proof remain part of the same
+unfinished gate.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
@@ -353,9 +358,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. land the persistent lane-control and measured-budget stack, then add shadow
-   quota accounting before durable queues, cleanup, realtime admission, and
-   overload proof
+3. land the persistent lane-control, measured-budget, and shadow-quota stack,
+   then add durable queues before enforcement wiring, cleanup, realtime
+   admission, and overload proof
 4. run the isolated backup/restore and rollback/replay work in parallel with
    the operational-event contract and threat model
 5. preserve Gate 1 contracts while those independent implementation lanes run

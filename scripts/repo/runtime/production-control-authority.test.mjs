@@ -76,14 +76,18 @@ test("production controls have one persistent schema and one canonical CLI", asy
     databaseContract,
     laneMigration,
     budgetMigration,
+    quotaLaneMigration,
     repoPlatformCommand,
     controlCli,
     budgetService,
     budgetPolicy,
+    quotaPolicy,
+    quotaService,
   ] = await Promise.all([
     readRepoSource("packages/database-contract/src/index.ts"),
     readRepoSource("apps/platform/drizzle/0023_nappy_maria_hill.sql"),
     readRepoSource("apps/platform/drizzle/0024_white_deadpool.sql"),
+    readRepoSource("apps/platform/drizzle/0025_majestic_selene.sql"),
     readRepoSource("scripts/repo/commands/platform.mjs"),
     readRepoSource("apps/platform/scripts/production-control-cli.ts"),
     readRepoSource(
@@ -91,6 +95,12 @@ test("production controls have one persistent schema and one canonical CLI", asy
     ),
     readRepoSource(
       "apps/platform/src/server/operations/production-budget-policy.ts",
+    ),
+    readRepoSource(
+      "apps/platform/src/server/operations/production-quota-policy.ts",
+    ),
+    readRepoSource(
+      "apps/platform/src/server/operations/production-quota-service.ts",
     ),
   ]);
 
@@ -120,16 +130,27 @@ test("production controls have one persistent schema and one canonical CLI", asy
   }
   assert.doesNotMatch(laneMigration, /\$\d+/u);
   assert.doesNotMatch(budgetMigration, /\$\d+/u);
+  assert.match(quotaLaneMigration, /'game_creation'/u);
+  assert.match(quotaLaneMigration, /'game_listing'/u);
+  assert.doesNotMatch(quotaLaneMigration, /\$\d+/u);
   assert.match(repoPlatformCommand, /\.command\("operations"\)/u);
   assert.match(repoPlatformCommand, /\.command\("budget"\)/u);
+  assert.match(repoPlatformCommand, /\.command\("quota"\)/u);
   assert.match(repoPlatformCommand, /production-control-cli\.ts/u);
   assert.match(controlCli, /listOperationalLaneControls/u);
   assert.match(controlCli, /setOperationalLaneControl/u);
   assert.match(controlCli, /recordOperationalBudgetEvidence/u);
+  assert.match(controlCli, /listOperationalQuotaUsage/u);
+  assert.match(controlCli, /decideOperationalQuotaAdmissionWithDatabase/u);
   assert.match(controlCli, /if \(!input\.apply\)/u);
   assert.match(budgetPolicy, /OPERATIONAL_BUDGET_POLICIES/u);
   assert.match(budgetPolicy, /resolveOperationalBudgetState/u);
   assert.match(budgetService, /normalizeOperationalBudgetEvidenceInput/u);
+  assert.match(quotaPolicy, /OPERATIONAL_QUOTA_POLICIES/u);
+  assert.match(quotaPolicy, /shadow_denied/u);
+  assert.match(quotaService, /runtimeUsageGameSegments/u);
+  assert.doesNotMatch(quotaPolicy, /process\.env/u);
+  assert.doesNotMatch(quotaService, /productTelemetry/u);
   assert.doesNotMatch(budgetPolicy, /process\.env/u);
   assert.doesNotMatch(budgetService, /process\.env/u);
 });

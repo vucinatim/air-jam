@@ -18,6 +18,24 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Free-Cloud Quotas Became Authoritative And Observable
+
+- encoded every ratified creator/game allowance in one versioned source
+  catalog, including semantic `game_creation` and `game_listing` lanes
+- derived games, listing, retained storage, release submissions, browser
+  validations, and room time from lifecycle/runtime authority rather than
+  approximate product telemetry or caller-submitted counters
+- made missing durable-job and global-realtime concurrency owners explicitly
+  unavailable instead of reporting process-local state as exact
+- added one evaluator that combines lane mode, fresh budget evidence, scope
+  usage, and requested amount into `allowed`, `shadow_denied`, or `denied`
+- exposed creator/game status and prospective admission checks through the
+  canonical repo CLI without limit, usage, state, or outcome overrides
+- used a fresh PostgreSQL cluster to catch and fix timestamp-typing and scope-
+  aggregation defects, then passed the full migration and authority proof
+- kept enforcement unwired while observations accumulate; durable queues,
+  adapter wiring, cleanup, realtime admission, and overload proof remain
+
 ## 2026-08-29 - Provider Spend Became Immutable, Derived, And Agent-Operable
 
 - added project-scoped Railway usage evidence with raw measurements, exact

@@ -1,8 +1,10 @@
 import {
   operationalLaneModeValues,
   operationalLaneValues,
+  operationalQuotaKeyValues,
   type OperationalLane,
   type OperationalLaneMode,
+  type OperationalQuotaKey,
 } from "@air-jam/database-contract";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -19,10 +21,33 @@ import {
   PRODUCTION_CONTROL_CONTRACT_VERSION,
   setOperationalLaneControl,
 } from "../src/server/operations/production-control-service";
+import {
+  OPERATIONAL_QUOTA_POLICIES,
+  PRODUCTION_QUOTA_CONTRACT_VERSION,
+} from "../src/server/operations/production-quota-policy";
+import {
+  decideOperationalQuotaAdmissionWithDatabase,
+  listOperationalQuotaUsage,
+} from "../src/server/operations/production-quota-service";
 
 type ProductionControlCliInput =
   | { command: "status"; json: boolean }
   | { command: "budget-status"; json: boolean }
+  | {
+      command: "quota-status";
+      creatorId: string;
+      gameId?: string;
+      json: boolean;
+    }
+  | {
+      command: "quota-check";
+      key: OperationalQuotaKey;
+      lane: OperationalLane;
+      creatorId: string;
+      gameId?: string;
+      requestedAmount: number;
+      json: boolean;
+    }
   | {
       command: "budget-replay";
       provider: string;
@@ -96,6 +121,39 @@ const parseInput = (raw: string | undefined): ProductionControlCliInput => {
   if (input.command === "status") return { command: "status", json };
   if (input.command === "budget-status") {
     return { command: "budget-status", json };
+  }
+  if (input.command === "quota-status") {
+    return {
+      command: "quota-status",
+      creatorId: readRequiredText(input, "creatorId"),
+      gameId:
+        typeof input.gameId === "string" && input.gameId.trim()
+          ? input.gameId.trim()
+          : undefined,
+      json,
+    };
+  }
+  if (input.command === "quota-check") {
+    const key = readRequiredText(input, "key");
+    if (!operationalQuotaKeyValues.includes(key as OperationalQuotaKey)) {
+      fail(`key must be one of: ${operationalQuotaKeyValues.join(", ")}.`);
+    }
+    const lane = readRequiredText(input, "lane");
+    if (!operationalLaneValues.includes(lane as OperationalLane)) {
+      fail(`lane must be one of: ${operationalLaneValues.join(", ")}.`);
+    }
+    return {
+      command: "quota-check",
+      key: key as OperationalQuotaKey,
+      lane: lane as OperationalLane,
+      creatorId: readRequiredText(input, "creatorId"),
+      gameId:
+        typeof input.gameId === "string" && input.gameId.trim()
+          ? input.gameId.trim()
+          : undefined,
+      requestedAmount: readInteger(input, "requestedAmount", 0),
+      json,
+    };
   }
   if (input.command === "budget-replay") {
     return {
@@ -209,6 +267,55 @@ const main = async (): Promise<void> => {
                 (budget.actualAmountMicrousd ?? 0) / 1_000_000
               ).toFixed(2)} (${budget.evidenceStatus} evidence).`
             : `Budget: unavailable (${budget.evidenceStatus} evidence).`,
+        );
+      }
+      return;
+    }
+
+    if (input.command === "quota-status") {
+      const [budget, quotas] = await Promise.all([
+        getOperationalBudgetStatus({ database }),
+        listOperationalQuotaUsage({
+          database,
+          creatorId: input.creatorId,
+          gameId: input.gameId,
+        }),
+      ]);
+      const result = {
+        quotaContractVersion: PRODUCTION_QUOTA_CONTRACT_VERSION,
+        policies: OPERATIONAL_QUOTA_POLICIES,
+        budget,
+        quotas,
+      };
+      if (input.json) printJson(input.command, false, result);
+      else {
+        console.log(
+          `Quota authority for creator ${input.creatorId}${input.gameId ? ` and game ${input.gameId}` : ""}:`,
+        );
+        for (const quota of quotas) {
+          console.log(
+            quota.current === null
+              ? `${quota.key}: unavailable — ${quota.authorityReason}`
+              : `${quota.key}: ${quota.current}/${quota.limit} ${quota.unit}`,
+          );
+        }
+      }
+      return;
+    }
+
+    if (input.command === "quota-check") {
+      const decision = await decideOperationalQuotaAdmissionWithDatabase({
+        database,
+        key: input.key,
+        lane: input.lane,
+        creatorId: input.creatorId,
+        gameId: input.gameId,
+        requestedAmount: input.requestedAmount,
+      });
+      if (input.json) printJson(input.command, false, { decision });
+      else {
+        console.log(
+          `${decision.outcome}: ${decision.quotaKey} would move from ${decision.usage.current ?? "unavailable"} to ${decision.projectedUsage ?? "unavailable"} ${decision.usage.unit}${decision.reason ? ` (${decision.reason})` : ""}.`,
         );
       }
       return;
