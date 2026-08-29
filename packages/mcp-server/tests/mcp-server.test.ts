@@ -1,6 +1,13 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,6 +65,20 @@ afterEach(async () => {
       .splice(0)
       .map((root) => rm(root, { recursive: true, force: true })),
   );
+});
+
+it("ships every devtools helper used by the bundled MCP server", async () => {
+  for (const name of [
+    "agent-contract",
+    "hold-runtime-host",
+    "inspect-airjam-agent",
+    "list-visual-scenarios",
+    "run-visual-capture",
+  ]) {
+    await expect(
+      access(path.resolve(__dirname, `../dist/tooling/${name}.js`)),
+    ).resolves.toBeUndefined();
+  }
 });
 
 describe("createAirJamMcpServer", () => {

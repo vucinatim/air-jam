@@ -82,6 +82,24 @@ test("the canonical CLI participates in the public release set", () => {
   assert.match(releaseSource, /packages\/cli/u);
 });
 
+test("public agent hosts share one canonical devtools-helper build", () => {
+  for (const packagePath of [
+    "packages/cli/package.json",
+    "packages/mcp-server/package.json",
+  ]) {
+    const manifest = readJson(packagePath);
+    assert.match(
+      manifest.scripts.build,
+      /scripts\/build-devtools-helpers\.mjs --out-dir dist\/tooling/u,
+    );
+    assert.ok(manifest.files.includes("dist"));
+  }
+  assert.equal(
+    fs.existsSync(path.join(repoRoot, "packages/cli/tsup.tooling.config.ts")),
+    false,
+  );
+});
+
 test("the local candidate package set matches the public release graph", () => {
   assert.deepEqual(
     listLocalScaffoldDirectDependencyNames().sort(),

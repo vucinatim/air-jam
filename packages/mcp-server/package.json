@@ -39,10 +39,10 @@
     "src"
   ],
   "scripts": {
-    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup && node ../../scripts/build-devtools-helpers.mjs --out-dir dist/tooling",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs",
-    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup && vitest run --config vitest.config.ts",
+    "test": "pnpm build && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },

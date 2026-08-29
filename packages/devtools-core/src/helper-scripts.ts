@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -16,10 +16,25 @@ export const resolveDevtoolsHelperScript = (fileName: string): string => {
     return builtHelperPath;
   }
 
-  return path.resolve(moduleDir, "..", "src", "tooling", fileName);
+  const sourceHelperPath = path.resolve(
+    moduleDir,
+    "..",
+    "src",
+    "tooling",
+    fileName,
+  );
+  if (existsSync(sourceHelperPath)) {
+    return sourceHelperPath;
+  }
+
+  throw new Error(
+    `Air Jam helper script is missing from this installation: ${fileName}`,
+  );
 };
 
+const typescriptExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
+
 export const resolveDevtoolsHelperArgs = (helperPath: string): string[] =>
-  /\.(?:c|m)?tsx?$/u.test(helperPath)
-    ? ["--import", require.resolve("tsx"), helperPath]
+  typescriptExtensions.has(path.extname(helperPath))
+    ? ["--import", require.resolve("tsx"), pathToFileURL(helperPath).href]
     : [helperPath];

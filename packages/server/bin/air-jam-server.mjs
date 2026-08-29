@@ -64,6 +64,9 @@ if (!existsSync(distEntry)) {
 }
 
 const loaded = await import(pathToFileURL(distEntry).href);
-if (typeof loaded.runServerCli === "function") {
-  process.exitCode = await loaded.runServerCli();
+if (typeof loaded.runServerCli !== "function") {
+  throw new Error(
+    "The @air-jam/server built CLI entrypoint does not export runServerCli.",
+  );
 }
+process.exitCode = await loaded.runServerCli();
