@@ -181,11 +181,13 @@ export const findScaffoldTemplate = (
 
 export const normalizeScaffoldPackageJson = ({
   pkg,
+  packageManager,
   cliVersion,
   serverVersion,
   mcpServerVersion,
 }: {
   pkg: ScaffoldPackageJson;
+  packageManager: string;
   cliVersion?: string;
   serverVersion?: string;
   mcpServerVersion?: string;
@@ -206,7 +208,6 @@ export const normalizeScaffoldPackageJson = ({
     "release:bundle",
     "test:watch",
     "test:run",
-    "lint",
   ]) {
     delete existingScripts[redundantScript];
   }
@@ -219,6 +220,7 @@ export const normalizeScaffoldPackageJson = ({
     status: "pnpm exec airjam status",
     "reset:local": "pnpm exec airjam reset local",
     mcp: "pnpm exec airjam-mcp",
+    lint: existingScripts.lint ?? "eslint .",
   };
 
   const nextDevDependencies = {
@@ -234,6 +236,7 @@ export const normalizeScaffoldPackageJson = ({
 
   return {
     ...pkg,
+    packageManager,
     scripts: nextScripts,
     devDependencies: nextDevDependencies,
   };

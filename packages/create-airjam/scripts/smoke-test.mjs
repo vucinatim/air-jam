@@ -616,6 +616,14 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `Expected scaffold package name "${projectName}", received "${scaffoldPkg.name}"`,
       );
     }
+    if (scaffoldPkg.packageManager !== "pnpm@9.9.0") {
+      throw new Error(
+        `Expected scaffold packageManager "pnpm@9.9.0", received "${scaffoldPkg.packageManager}"`,
+      );
+    }
+    if (scaffoldPkg.scripts?.lint !== "eslint .") {
+      throw new Error('Expected scaffold project to define canonical "lint".');
+    }
     if (typeof scaffoldPkg.scripts?.mcp !== "string") {
       throw new Error('Expected scaffold project to define an "mcp" script.');
     }
@@ -656,6 +664,7 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
     }
     await verifyGeneratedDevLogLifecycle(projectDir);
     run("pnpm typecheck", projectDir);
+    run("pnpm lint", projectDir);
     run("pnpm test", projectDir);
     run("pnpm build", projectDir);
   } finally {

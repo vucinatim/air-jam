@@ -39,12 +39,24 @@ const loadTemplateVersionManifest = (): TemplateVersionManifest => {
   return fs.readJsonSync(manifestPath) as TemplateVersionManifest;
 };
 
-const loadCreateAirJamPackageVersion = (): string => {
-  const pkg = fs.readJsonSync(packageJsonPath) as { version?: string };
+const loadCreateAirJamPackageIdentity = (): {
+  version: string;
+  packageManager: string;
+} => {
+  const pkg = fs.readJsonSync(packageJsonPath) as {
+    version?: string;
+    packageManager?: string;
+  };
   if (!pkg.version || typeof pkg.version !== "string") {
     throw new Error("Invalid create-airjam package version");
   }
-  return pkg.version;
+  if (
+    !pkg.packageManager ||
+    !/^pnpm@\d+\.\d+\.\d+$/u.test(pkg.packageManager)
+  ) {
+    throw new Error("Invalid create-airjam package manager");
+  }
+  return { version: pkg.version, packageManager: pkg.packageManager };
 };
 
 const normalizeWorkspaceSpecs = (
@@ -175,7 +187,8 @@ export const runScaffoldCommand = async (
   options: ScaffoldCommandOptions,
 ): Promise<void> => {
   const manifest = loadTemplateVersionManifest();
-  const createAirJamVersion = loadCreateAirJamPackageVersion();
+  const createAirJamPackage = loadCreateAirJamPackageIdentity();
+  const createAirJamVersion = createAirJamPackage.version;
   const dependencySpecs = parseNamedSpecs(options.depSpec);
   const overrideSpecs = parseNamedSpecs(options.overrideSpec);
   const templates = loadAvailableScaffoldTemplates();
@@ -250,6 +263,7 @@ export const runScaffoldCommand = async (
   if (fs.existsSync(pkgPath)) {
     const normalizedPkg = normalizeScaffoldPackageJson({
       pkg: await fs.readJson(pkgPath),
+      packageManager: createAirJamPackage.packageManager,
       cliVersion: manifest["@air-jam/cli"],
       serverVersion: manifest["@air-jam/server"],
       mcpServerVersion: manifest["@air-jam/mcp-server"],

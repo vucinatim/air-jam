@@ -1,7 +1,7 @@
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(
@@ -22,6 +22,19 @@ const lockfileSource = fs.readFileSync(
 
 test("repo declares pnpm through packageManager", () => {
   assert.match(rootPackageJson.packageManager, /^pnpm@\d+\.\d+\.\d+$/);
+});
+
+test("the public scaffold pins the canonical pnpm version", () => {
+  const createAirJamPackage = JSON.parse(
+    fs.readFileSync(
+      path.join(repoRoot, "packages/create-airjam/package.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    createAirJamPackage.packageManager,
+    rootPackageJson.packageManager,
+  );
 });
 
 test("packageManager major matches the lockfile format major", () => {
