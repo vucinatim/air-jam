@@ -8,6 +8,15 @@ import { loadScaffoldableRepoGameManifests } from "./lib/scaffold-source-manifes
 
 const SMOKE_SOURCES = ["registry", "tarball", "workspace"];
 const AGENT_CONTRACT_PATH = path.join("src", "game", "contracts", "agent.ts");
+const templateVersionManifest = JSON.parse(
+  fs.readFileSync(
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../template-version-manifest.json",
+    ),
+    "utf8",
+  ),
+);
 
 const run = (command, cwd) => {
   execSync(command, {
@@ -616,9 +625,9 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `Expected scaffold package name "${projectName}", received "${scaffoldPkg.name}"`,
       );
     }
-    if (scaffoldPkg.packageManager !== "pnpm@9.9.0") {
+    if (scaffoldPkg.packageManager !== templateVersionManifest.packageManager) {
       throw new Error(
-        `Expected scaffold packageManager "pnpm@9.9.0", received "${scaffoldPkg.packageManager}"`,
+        `Expected scaffold packageManager "${templateVersionManifest.packageManager}", received "${scaffoldPkg.packageManager}"`,
       );
     }
     if (scaffoldPkg.scripts?.lint !== "eslint .") {

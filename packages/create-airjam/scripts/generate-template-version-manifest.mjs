@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const packageRoot = path.resolve(__dirname, "..");
+const repoPackageJsonPath = path.resolve(packageRoot, "../../package.json");
 const createAirJamPackageJsonPath = path.resolve(packageRoot, "package.json");
 const cliPackageJsonPath = path.resolve(packageRoot, "../cli/package.json");
 const sdkPackageJsonPath = path.resolve(packageRoot, "../sdk/package.json");
@@ -29,12 +30,23 @@ const readPackageVersion = (filePath) => {
   return packageJson.version;
 };
 
+const readPackageManager = (filePath) => {
+  const packageJson = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  if (!/^pnpm@\d+\.\d+\.\d+$/u.test(packageJson.packageManager ?? "")) {
+    throw new Error(`Missing canonical pnpm packageManager in ${filePath}`);
+  }
+  return packageJson.packageManager;
+};
+
 const manifest = {
-  "create-airjam": readPackageVersion(createAirJamPackageJsonPath),
-  "@air-jam/cli": readPackageVersion(cliPackageJsonPath),
-  "@air-jam/sdk": readPackageVersion(sdkPackageJsonPath),
-  "@air-jam/server": readPackageVersion(serverPackageJsonPath),
-  "@air-jam/mcp-server": readPackageVersion(mcpServerPackageJsonPath),
+  packageManager: readPackageManager(repoPackageJsonPath),
+  packages: {
+    "create-airjam": readPackageVersion(createAirJamPackageJsonPath),
+    "@air-jam/cli": readPackageVersion(cliPackageJsonPath),
+    "@air-jam/sdk": readPackageVersion(sdkPackageJsonPath),
+    "@air-jam/server": readPackageVersion(serverPackageJsonPath),
+    "@air-jam/mcp-server": readPackageVersion(mcpServerPackageJsonPath),
+  },
 };
 
 fs.writeFileSync(

@@ -28,7 +28,10 @@ const packageRoot = path.resolve(
 const manifestPath = path.join(packageRoot, "template-version-manifest.json");
 const packageJsonPath = path.join(packageRoot, "package.json");
 
-type TemplateVersionManifest = Record<string, string>;
+type TemplateVersionManifest = {
+  packageManager: string;
+  packages: Record<string, string>;
+};
 
 const loadTemplateVersionManifest = (): TemplateVersionManifest => {
   if (!fs.existsSync(manifestPath)) {
@@ -36,27 +39,25 @@ const loadTemplateVersionManifest = (): TemplateVersionManifest => {
       "Missing template version manifest. Rebuild create-airjam before scaffolding.",
     );
   }
-  return fs.readJsonSync(manifestPath) as TemplateVersionManifest;
+  const manifest = fs.readJsonSync(
+    manifestPath,
+  ) as Partial<TemplateVersionManifest>;
+  if (
+    !/^pnpm@\d+\.\d+\.\d+$/u.test(manifest.packageManager ?? "") ||
+    !manifest.packages ||
+    typeof manifest.packages !== "object"
+  ) {
+    throw new Error("Invalid template version manifest");
+  }
+  return manifest as TemplateVersionManifest;
 };
 
-const loadCreateAirJamPackageIdentity = (): {
-  version: string;
-  packageManager: string;
-} => {
-  const pkg = fs.readJsonSync(packageJsonPath) as {
-    version?: string;
-    packageManager?: string;
-  };
+const loadCreateAirJamPackageVersion = (): string => {
+  const pkg = fs.readJsonSync(packageJsonPath) as { version?: string };
   if (!pkg.version || typeof pkg.version !== "string") {
     throw new Error("Invalid create-airjam package version");
   }
-  if (
-    !pkg.packageManager ||
-    !/^pnpm@\d+\.\d+\.\d+$/u.test(pkg.packageManager)
-  ) {
-    throw new Error("Invalid create-airjam package manager");
-  }
-  return { version: pkg.version, packageManager: pkg.packageManager };
+  return pkg.version;
 };
 
 const normalizeWorkspaceSpecs = (
@@ -69,7 +70,12 @@ const normalizeWorkspaceSpecs = (
     Object.entries(dependencies).map(([name, range]) => {
       if (!range.startsWith("workspace:")) return [name, range];
       const normalizedRange = range.replace(/^workspace:/, "");
-      return [name, manifest[name] ? `^${manifest[name]}` : normalizedRange];
+      return [
+        name,
+        manifest.packages[name]
+          ? `^${manifest.packages[name]}`
+          : normalizedRange,
+      ];
     }),
   );
 };
@@ -187,8 +193,7 @@ export const runScaffoldCommand = async (
   options: ScaffoldCommandOptions,
 ): Promise<void> => {
   const manifest = loadTemplateVersionManifest();
-  const createAirJamPackage = loadCreateAirJamPackageIdentity();
-  const createAirJamVersion = createAirJamPackage.version;
+  const createAirJamVersion = loadCreateAirJamPackageVersion();
   const dependencySpecs = parseNamedSpecs(options.depSpec);
   const overrideSpecs = parseNamedSpecs(options.overrideSpec);
   const templates = loadAvailableScaffoldTemplates();
@@ -263,10 +268,10 @@ export const runScaffoldCommand = async (
   if (fs.existsSync(pkgPath)) {
     const normalizedPkg = normalizeScaffoldPackageJson({
       pkg: await fs.readJson(pkgPath),
-      packageManager: createAirJamPackage.packageManager,
-      cliVersion: manifest["@air-jam/cli"],
-      serverVersion: manifest["@air-jam/server"],
-      mcpServerVersion: manifest["@air-jam/mcp-server"],
+      packageManager: manifest.packageManager,
+      cliVersion: manifest.packages["@air-jam/cli"],
+      serverVersion: manifest.packages["@air-jam/server"],
+      mcpServerVersion: manifest.packages["@air-jam/mcp-server"],
     });
     normalizedPkg.name = path.basename(targetDir);
     normalizedPkg.dependencies = normalizeWorkspaceSpecs(

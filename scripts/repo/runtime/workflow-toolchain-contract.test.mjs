@@ -25,14 +25,17 @@ test("repo declares pnpm through packageManager", () => {
 });
 
 test("the public scaffold pins the canonical pnpm version", () => {
-  const createAirJamPackage = JSON.parse(
+  const templateVersionManifest = JSON.parse(
     fs.readFileSync(
-      path.join(repoRoot, "packages/create-airjam/package.json"),
+      path.join(
+        repoRoot,
+        "packages/create-airjam/template-version-manifest.json",
+      ),
       "utf8",
     ),
   );
   assert.equal(
-    createAirJamPackage.packageManager,
+    templateVersionManifest.packageManager,
     rootPackageJson.packageManager,
   );
 });
