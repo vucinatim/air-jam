@@ -30,6 +30,10 @@ dist-ssr
 !packages/cli/template-assets/managed/.airjam/ai-pack.json
 backups/
 
+# Atomic readiness-manifest writer state
+scripts/repo/programs/*.json.lock
+scripts/repo/programs/*.json.tmp-*
+
 # Generated hosted AI pack artifacts
 apps/platform/public/ai-pack/
 

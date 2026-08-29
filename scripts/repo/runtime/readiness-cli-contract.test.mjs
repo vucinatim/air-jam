@@ -65,6 +65,21 @@ test("readiness is a discoverable repo CLI surface", () => {
   assert.match(updateHelp, /--reopen/);
 });
 
+test("readiness atomic-writer files stay outside repository state", () => {
+  for (const relativePath of [
+    "scripts/repo/programs/example.json.lock",
+    "scripts/repo/programs/example.json.tmp-123",
+  ]) {
+    assert.equal(
+      execFileSync("git", ["check-ignore", "--no-index", relativePath], {
+        cwd: repoRoot,
+        encoding: "utf8",
+      }).trim(),
+      relativePath,
+    );
+  }
+});
+
 test("v1 readiness manifest validates its program structure and root queue", () => {
   const program = readReadinessProgram(defaultReadinessManifestPath);
   const unstartedProgram = readUnstartedProgramFixture();
