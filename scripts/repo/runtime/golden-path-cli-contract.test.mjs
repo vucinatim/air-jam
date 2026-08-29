@@ -69,6 +69,33 @@ test("canonical golden-path program validates its clients, stages, and evidence 
   });
 });
 
+test("primary prompt discloses every agent-owned evidence index", () => {
+  const program = readGoldenPathProgram(defaultGoldenPathManifestPath);
+  const prompt = execFileSync("sed", ["-n", "1,260p", program.promptTemplate], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  const controllerOwned = new Set([
+    "manifest.json",
+    "inputs/scenario.json",
+    "inputs/prompt.md",
+    "environment/toolchain.json",
+    "environment/isolation.json",
+    "transcript/events.ndjson",
+    "project/git/initial.json",
+    "project/git/final.json",
+    "verifier/report.json",
+  ]);
+
+  for (const evidencePath of program.evidenceBundle.requiredPaths) {
+    if (!controllerOwned.has(evidencePath)) {
+      assert.match(prompt, new RegExp(evidencePath.replace(".", "\\."), "u"));
+    }
+  }
+  assert.match(prompt, /air-jam-golden-path-evidence\/v1/u);
+  assert.match(prompt, /Never create placeholder success records/u);
+});
+
 test("golden-path validation rejects unsafe publication and malformed stage order", () => {
   const source = readGoldenPathProgram(defaultGoldenPathManifestPath);
   const productionProgram = structuredClone(source);

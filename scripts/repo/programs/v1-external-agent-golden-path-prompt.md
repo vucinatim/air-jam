@@ -66,6 +66,35 @@ Complete and retain evidence for this sequence:
    target
 10. verify the hidden release and close all local sessions and processes
 
+## Evidence Output Contract
+
+The run controller owns the root manifest, normalized transcript, environment,
+input, project Git, controller-command, and verifier records. You own the
+machine-readable stage indexes below inside the supplied evidence directory:
+
+- `commands/index.json`
+- `sessions/index.json`
+- `quality/index.json`
+- `visual/index.json`
+- `release/index.json`
+- `failures/index.json`
+
+Each index must be a JSON object with `contract`, `runId`, and `records` fields.
+Use contract `air-jam-golden-path-evidence/v1`, the supplied run identity, and
+non-empty records for every attempted stage. Records must point to retained
+outputs by evidence-directory-relative path and include the command, tool,
+session, capture, fault, or release identity; timestamps; result; and relevant
+exit code, digest, or failure classification. Record failed attempts before
+retrying. Never create placeholder success records or claim a visual, session,
+quality gate, release, or repair that was not observed.
+
+For a terminal non-passing run, update `failures/index.json` with the terminal
+result (`failed`, `blocked`, or `invalid`), first failing stage, responsible
+surface, reproducible observation, expected behavior, classification (`product`,
+`client`, `environment`, `harness`, or `external`), and the stages not attempted
+because of the failure. A later recovery does not remove earlier failure
+records.
+
 Never publish publicly or to production. Do not expose credentials in output.
 Do not silently discard failed attempts. If a required capability is missing,
 record the exact failure and the public surface that should have made it

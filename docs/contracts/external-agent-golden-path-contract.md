@@ -100,6 +100,13 @@ The JSON manifest is authoritative for each stage's actor, objective, success
 criteria, and evidence. Reordering or omitting a stage changes the scenario and
 invalidates comparability with other runs.
 
+The substituted primary-agent prompt exposes the six stage indexes that the
+agent owns and their minimum machine schema. Controller-owned inputs,
+environment records, transcript, project Git state, manifest, and verifier
+records stay outside agent ownership. This boundary prevents the verifier from
+requiring undisclosed files while also preventing agents from self-attesting
+controller or isolation facts.
+
 ## Controlled Repair Proof
 
 After the first complete passing build/control checkpoint, the run controller
