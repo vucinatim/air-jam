@@ -184,9 +184,14 @@ These are now baseline truths, not open architecture debates:
     9. the retained Codex primary run independently built the full Signal Relay
        game, passed all four quality gates, and reached semantic-session control
        before both supported Chromium paths hit the same macOS Mach-port denial
-    10. `G2-03` is complete as durable primary-run evidence; `G2-04` still owns
-        independent Claude Desktop proof and `G2-05` owns the browser/staging
-        fixes plus exact terminal passing replay
+    10. independent review reopened `G2-03`: the retained local run remains
+        useful diagnostic evidence, but its ignored artifact path was not
+        independently retrievable and the controller could trust agent-authored
+        verification claims
+    11. the corrected controller now owns isolation probes, quality gates,
+        cleanup, and release-verification authority; `G2-03` requires a new
+        durable replay before completion, `G2-04` owns independent Claude
+        Desktop proof, and `G2-05` owns browser/staging closure
 
 ## What Is Still Open
 
@@ -210,6 +215,15 @@ The subordinate execution plan and machine manifest own dependency-aware daily
 work state without becoming a second product authority:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
+
+The current pull-request stack is in integration closeout, not public-launch
+closeout. Pull requests `#52` through `#60` remain focused review slices, while
+their cross-stack corrections will be merged through one cumulative integration
+pull request to avoid deploying known-incomplete intermediate states. After that
+merge, remaining 1.0 work returns to small independently production-valid pull
+requests. Production code is delivered incrementally; stable package promotion,
+public release visibility, final docs, the launch article, and distribution are
+coordinated only after one exact candidate passes rehearsal.
 
 Canonical agent reads are:
 

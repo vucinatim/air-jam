@@ -18,6 +18,29 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Independent Review Reopened G2-03 And Fixed The Merge Model
+
+- accepted the independent review finding that the original primary-run
+  verifier could trust agent-authored proof and retained its only detailed run
+  bundle in an ignored local path
+- reopened `G2-03` instead of preserving a completion claim that another
+  reviewer could not reproduce
+- hardened controller-owned isolation, quality, cleanup, release-verification,
+  packaged-helper, machine-session, and readiness contracts on the cumulative
+  branch
+- passed the complete local CI gate on the corrected head and retained the
+  review correction in the canonical primary-run audit
+- established that pull requests `#52` through `#60` remain focused review
+  slices but will close through one corrected cumulative integration pull
+  request because the fixes cross the original stack boundaries
+- separated incremental production delivery from the coordinated 1.0 launch:
+  code and hidden/prerelease surfaces are exercised before launch, while stable
+  package promotion, public visibility, final docs, the article, and
+  distribution remain one exact-candidate event
+- recorded the remaining policy checkpoint: automated issue comments are not
+  formal GitHub approvals, and the solo-repository approval rule must be
+  satisfied legitimately or changed explicitly rather than silently bypassed
+
 ## 2026-08-29 - Gate 2 Retained The Primary External-Agent Run
 
 - ran nine clean-room controller attempts and retained every material failure

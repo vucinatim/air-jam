@@ -1,6 +1,6 @@
 # Air Jam 1.0 Release Execution Plan
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 Status: active subordinate execution plan
 
 Related docs and machine surfaces:
@@ -354,6 +354,64 @@ Primary work:
 6. publish 1.0 and monitor stabilization
 
 Expected elapsed time: `3-5` days plus the required stabilization window.
+
+## Current Stack Closeout And Merge Policy
+
+The 2026-08-28 through 2026-08-29 roadmap, canonicalization, and external-agent
+work was intentionally reviewed as pull request stack `#52` through `#60`.
+Independent review then produced corrections that cross the original slice
+boundaries and now live on the cumulative top of the stack.
+
+The production-valid closeout is therefore:
+
+1. close the remaining correctness, trust, and release-safety findings on the
+   cumulative branch
+2. create one integration pull request from the corrected cumulative head into
+   `main`, linking the component pull requests as its review record
+3. run the complete CI and release-relevant gate on that exact integration head
+4. satisfy the repository's formal approval policy or record an explicit
+   maintainer decision changing an approval policy that a solo repository
+   cannot satisfy; automated issue comments are not formal approvals
+5. merge once and verify the resulting production deployment and health rather
+   than intentionally deploying known-incomplete intermediate stack states
+6. close the component pull requests as superseded only after the cumulative
+   merge is retained on `main`
+7. resume small, independently production-valid pull requests for the remaining
+   release program
+
+This integration is not the Air Jam 1.0 public launch. It lands the corrected
+foundation from which Gates 2 through 7 continue.
+
+## Incremental Delivery, Coordinated Launch
+
+Air Jam should reach production incrementally while the stable 1.0 contract and
+public announcement remain one exact-candidate event.
+
+Before launch:
+
+1. deploy coherent production-valid changes quietly and verify each terminal
+   deployment
+2. use Railway pull-request previews or a disposable release-candidate
+   environment for infrastructure isolation unless Gate `G3-01` proves that a
+   persistent staging environment is worth its recurring cost
+3. publish exact candidate packages to the prerelease channel
+4. submit and inspect hosted games as hidden releases
+5. deploy the immutable release candidate before public traffic is invited and
+   complete the live smoke, rollback, queue-pause, dependency-degradation,
+   telemetry, alerting, and cost-control rehearsal
+6. freeze public claims, screenshots, commands, versions, and links against that
+   exact candidate
+
+At launch, promote the already-proven package versions, public release
+visibility, final documentation, article, and distribution sequence together.
+No first deployment, untested migration, or new infrastructure topology belongs
+in the HN launch action itself.
+
+The current Railway snapshot has one persistent `production` environment with
+three application services and Postgres healthy. Pull-request environments are
+ephemeral and none were retained at the 2026-08-29 inspection. Gate `G3-01`
+owns the measured decision about disposable candidate environments versus paid
+always-on staging; prose here must not pre-commit recurring spend.
 
 ## Parallel Execution Rules
 
