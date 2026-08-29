@@ -82,12 +82,20 @@ const createStagingFixture = () => ({
             RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-52",
             DATABASE_URL: databaseUrl,
             AIRJAM_RELEASES_R2_BUCKET: "air-jam-pr-52-releases",
+            AIRJAM_RELEASES_R2_ACCESS_KEY_ID: "staging-access-key",
+            AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: "staging-secret-key",
+            AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "staging-internal-token",
+            AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "staging-browser-token",
           }
         : {
             RAILWAY_ENVIRONMENT_ID: productionEnvironmentId,
             RAILWAY_ENVIRONMENT_NAME: "production",
             DATABASE_URL: databaseUrl,
             AIRJAM_RELEASES_R2_BUCKET: "air-jam-production-releases",
+            AIRJAM_RELEASES_R2_ACCESS_KEY_ID: "production-access-key",
+            AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: "production-secret-key",
+            AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "production-internal-token",
+            AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "production-browser-token",
           },
   },
   fetchImpl: async (url) => {
@@ -138,6 +146,9 @@ test("primary run resolves and health-checks a Railway-isolated staging identity
     postgresServiceInstanceDistinct: true,
     databaseTargetDistinctOrProviderScoped: true,
     releaseStorageBucketDistinct: true,
+    releaseStorageCredentialsDistinct: true,
+    releasePipelineTokensDistinct: true,
+    productionSecretsNotReused: true,
     publicOriginDistinct: true,
   });
 });
@@ -180,5 +191,38 @@ test("primary run rejects staging that shares production release storage", () =>
         },
       }),
     /release storage bucket must be distinct from production/u,
+  );
+});
+
+test("primary run rejects staging that reuses production-capable credentials", () => {
+  const stagingEnvironment = createEnvironment(stagingEnvironmentId);
+  const primaryEnvironment = createEnvironment(productionEnvironmentId);
+  const sharedVariables = {
+    AIRJAM_RELEASES_R2_ACCESS_KEY_ID: "shared-access-key",
+    AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: "shared-secret-key",
+    AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "shared-internal-token",
+    AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "shared-browser-token",
+  };
+
+  assert.throws(
+    () =>
+      assertGoldenPathStagingVariableIsolation({
+        environmentId: stagingEnvironmentId,
+        environment: stagingEnvironment,
+        primaryEnvironment,
+        stagingVariables: {
+          RAILWAY_ENVIRONMENT_ID: stagingEnvironmentId,
+          RAILWAY_ENVIRONMENT_NAME: stagingEnvironment.name,
+          DATABASE_URL: databaseUrl,
+          AIRJAM_RELEASES_R2_BUCKET: "air-jam-pr-52-releases",
+          ...sharedVariables,
+        },
+        primaryVariables: {
+          DATABASE_URL: databaseUrl,
+          AIRJAM_RELEASES_R2_BUCKET: "air-jam-production-releases",
+          ...sharedVariables,
+        },
+      }),
+    /must not reuse production AIRJAM_RELEASES_R2_ACCESS_KEY_ID/u,
   );
 });

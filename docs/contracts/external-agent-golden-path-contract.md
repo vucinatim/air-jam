@@ -269,9 +269,10 @@ accessible staging- or PR-named environment, resolves the canonical platform
 deployment and a public domain distinct from production, requires a terminal
 successful deployment and platform health response, verifies the provider
 environment variables match the requested identity, requires a distinct
-Postgres service instance and release-storage bucket, and records that provider
-attestation without retaining secret values. A trusted-looking hostname alone
-is not staging evidence. The
+Postgres service instance, release-storage bucket, release-storage credentials,
+release-pipeline tokens, and no reused production-sensitive secret values, and
+records that provider attestation without retaining secret values. A
+trusted-looking hostname alone is not staging evidence. The
 controller then launches a fresh ephemeral Codex process in the isolated
 workspace, streams a normalized transcript, injects only the declared fault
 after observed passing quality commands and a closed semantic control session,

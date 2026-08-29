@@ -47,9 +47,20 @@ identity and no new primary run was started against it.
 The controller now accepts Railway project and environment identities instead
 of a URL. It resolves the environment, platform deployment, distinct public
 domain, environment-variable identity, distinct Postgres instance, distinct
-release-storage bucket, and health response through provider-owned state;
-rejects the primary/base environment; and retains the non-secret provider
-attestation without passing Railway credentials to the external agent.
+release-storage bucket and credentials, distinct release-pipeline tokens,
+non-reused production-sensitive values, and health response through
+provider-owned state; rejects the primary/base environment; and retains the
+non-secret provider attestation without passing Railway credentials to the
+external agent.
+
+Pull request `#61` subsequently caused Railway to create a fresh ephemeral
+environment with a distinct Postgres instance. Safe provider comparisons found
+that the environment cloned the production R2 bucket, R2 credentials,
+release-worker tokens, and other production-sensitive values. The controller
+therefore still cannot admit it, and no external agent was started. The
+repo-loaded Railway credential also cannot read the bot-created environment;
+the provider's account-scoped CLI identity can inspect it without exposing
+secret values.
 
 ## Independent Review Correction
 

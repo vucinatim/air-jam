@@ -275,9 +275,12 @@ claims. The old PR-52 hostname is no longer admissible staging proof because it
 still served platform health after Railway reported no corresponding ephemeral
 environment. The runner now requires provider-owned Railway project and
 environment identity and proves separation from production before agent
-startup. No isolated staging environment currently exists; provisioning one
-remains an explicit cost decision rather than an automatic side effect of the
-proof harness.
+startup. Pull request `#61` produced an ephemeral environment with a distinct
+Postgres instance, but Railway cloned the production R2 bucket, storage
+credentials, release-pipeline tokens, and other sensitive values, while the
+repo-loaded provider credential cannot attest that bot-created environment.
+It is therefore not admissible isolated staging. Correcting those boundaries
+remains explicit work rather than an automatic side effect of the proof harness.
 
 Gate `G2-02` is closed at `511ee85` with the
 [public bootstrap audit](./audits/v1-golden-path/public-bootstrap-audit.md).

@@ -2,6 +2,19 @@ import { createRailwayApiClient } from "./railway-api.mjs";
 
 const railwayPlatformConfigFile = "/apps/platform/railway.json";
 const railwayReadyDeploymentStatuses = new Set(["SUCCESS", "SLEEPING"]);
+const requiredDistinctReleaseCredentials = [
+  "AIRJAM_RELEASES_R2_ACCESS_KEY_ID",
+  "AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY",
+  "AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN",
+  "AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN",
+];
+const optionalProductionSecrets = [
+  "AIR_JAM_HOST_GRANT_SECRET",
+  "AIR_JAM_MASTER_KEY",
+  "BETTER_AUTH_SECRET",
+  "GITHUB_CLIENT_SECRET",
+  "OPENAI_API_KEY",
+];
 
 const listRailwayServiceDomains = (instance) =>
   [
@@ -36,6 +49,48 @@ const isRailwayEnvironmentScopedUrl = (value) => {
     return new URL(value).hostname.endsWith(".railway.internal");
   } catch {
     return false;
+  }
+};
+
+const assertDistinctRequiredVariables = ({
+  names,
+  stagingVariables,
+  primaryVariables,
+  stagingEnvironmentName,
+  primaryEnvironmentName,
+}) => {
+  for (const name of names) {
+    const stagingValue = requireRailwayVariable(
+      stagingVariables,
+      name,
+      stagingEnvironmentName,
+    );
+    const primaryValue = requireRailwayVariable(
+      primaryVariables,
+      name,
+      primaryEnvironmentName,
+    );
+    if (stagingValue === primaryValue) {
+      throw new Error(`Railway staging must not reuse production ${name}.`);
+    }
+  }
+};
+
+const assertOptionalProductionSecretsNotReused = ({
+  stagingVariables,
+  primaryVariables,
+}) => {
+  const reusedNames = optionalProductionSecrets.filter((name) => {
+    const stagingValue = stagingVariables[name]?.trim();
+    const primaryValue = primaryVariables[name]?.trim();
+    return Boolean(
+      stagingValue && primaryValue && stagingValue === primaryValue,
+    );
+  });
+  if (reusedNames.length > 0) {
+    throw new Error(
+      `Railway staging reuses production-sensitive values for: ${reusedNames.join(", ")}.`,
+    );
   }
 };
 
@@ -120,11 +175,26 @@ export const assertGoldenPathStagingVariableIsolation = ({
     );
   }
 
+  assertDistinctRequiredVariables({
+    names: requiredDistinctReleaseCredentials,
+    stagingVariables,
+    primaryVariables,
+    stagingEnvironmentName: environment.name,
+    primaryEnvironmentName: primaryEnvironment.name,
+  });
+  assertOptionalProductionSecretsNotReused({
+    stagingVariables,
+    primaryVariables,
+  });
+
   return {
     providerEnvironmentIdentity: true,
     postgresServiceInstanceDistinct: true,
     databaseTargetDistinctOrProviderScoped: true,
     releaseStorageBucketDistinct: true,
+    releaseStorageCredentialsDistinct: true,
+    releasePipelineTokensDistinct: true,
+    productionSecretsNotReused: true,
     publicOriginDistinct: true,
   };
 };

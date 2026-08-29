@@ -32,9 +32,15 @@ The pre-reset overloaded ledger has been preserved at:
   populated local install to mask missing `drizzle-orm` dependencies
 - corrected both production Docker dependency stages and added a repo contract
   that derives every pnpm workspace manifest and rejects future omissions
-- retained the remaining staging constraint explicitly: the golden-path
-  controller still needs a credential that can attest the ephemeral environment
-  plus isolated release storage before it may start the external agent
+- safely compared provider variables without printing or retaining their values:
+  the PR environment has distinct Postgres but reused the production R2 bucket,
+  R2 credentials, release-pipeline tokens, and other sensitive values
+- hardened the golden-path admission contract to reject reused
+  production-capable credentials even when a future environment uses a
+  different bucket name
+- retained the remaining staging constraint explicitly: the controller still
+  needs an identity that can attest the bot-created environment plus genuinely
+  isolated storage and credentials before it may start the external agent
 
 ## 2026-08-29 - Golden-Path Staging Authority Became Provider-Owned
 
