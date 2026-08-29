@@ -15,7 +15,10 @@ import {
 import { type GameMediaActiveProjection } from "@/server/media/game-media-assignments";
 import { projectGameMediaAsset } from "@/server/media/game-media-projection";
 import type { PlatformMachineOwnedGameMediaAsset } from "@air-jam/sdk/platform-machine";
-import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
+import {
+  PlatformMachineAuthError,
+  rethrowOperationalAdmissionForMachine,
+} from "../auth/machine-auth-errors";
 
 const toMachineNotFoundError = (message: string) =>
   new PlatformMachineAuthError({
@@ -113,6 +116,7 @@ export const requestOwnedGameMediaUploadTargetForMachine = async ({
       upload,
     };
   } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
     rethrowMachineNotFound(error, `No owned game matched "${slugOrId}".`);
     throw error;
   }

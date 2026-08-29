@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/server/operations/production-control-service", () => ({
+  assertOperationalLaneAccepting: vi.fn().mockResolvedValue(undefined),
+  OperationalAdmissionDeniedError: class OperationalAdmissionDeniedError extends Error {},
+}));
+
 vi.mock("./assert-owned-release", () => ({
   assertOwnedRelease: vi.fn(),
 }));

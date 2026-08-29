@@ -45,8 +45,15 @@ export const toMachineApiErrorResponse = (error: unknown) => {
       platformMachineApiErrorSchema.parse({
         error: error.code,
         message: error.message,
+        retryAfterSeconds: error.retryAfterSeconds,
+        details: error.details,
       }),
-      { status: error.status },
+      {
+        status: error.status,
+        headers: error.retryAfterSeconds
+          ? { "retry-after": String(error.retryAfterSeconds) }
+          : undefined,
+      },
     );
   }
 

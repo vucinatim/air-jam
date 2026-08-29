@@ -18,6 +18,24 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Production Lane Controls Became Persistent And Agent-Operable
+
+- defined one canonical production-control contract for lane state, budget
+  response, quotas, durable jobs, lifecycle cleanup, and machine operation
+- added persistent lane controls plus append-only mutation events with actor,
+  reason, before/after state, optimistic revision, and idempotent replay
+- exposed the control lifecycle through the canonical repo CLI with stable JSON,
+  Railway-environment targeting, read-only preview by default, and explicit apply
+- routed release submission, artifact and media ingestion, release processing,
+  browser validation, moderation, and telemetry through one application-service
+  admission authority shared by human and machine transports
+- made paused and unavailable control decisions fail closed with typed `503`
+  details and retry guidance instead of transport-specific arbitrary errors
+- proved the migration, concurrent revision safety, idempotent event replay, and
+  real CLI mutation against an isolated temporary PostgreSQL instance
+- kept `G3-02` explicitly active: budget evidence, shadow/enforced quotas,
+  durable jobs, cleanup, realtime admission, and overload drills remain required
+
 ## 2026-08-29 - Production Cost And Recovery Became Measured
 
 - inventoried the live Railway topology, deployments, usage, memory, traffic,

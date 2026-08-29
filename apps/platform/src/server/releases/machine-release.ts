@@ -1,7 +1,10 @@
 import { PlatformApplicationError } from "@/server/application-error";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import type { PlatformMachineReleaseSummary } from "@air-jam/sdk/platform-machine";
-import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
+import {
+  PlatformMachineAuthError,
+  rethrowOperationalAdmissionForMachine,
+} from "../auth/machine-auth-errors";
 import { serializeOwnedGameForMachine } from "../games/machine-game";
 import { getReleaseDetails } from "./get-release-details";
 import {
@@ -163,6 +166,7 @@ export const createDraftReleaseForMachine = async ({
     });
     return serializeReleaseForMachine(release);
   } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
     rethrowMachineNotFound(error, `No owned game matched "${slugOrId}".`);
     throw toMachineConflictError(
       error instanceof Error
@@ -196,6 +200,7 @@ export const requestReleaseUploadTargetForMachine = async ({
       upload: result.upload,
     };
   } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
     rethrowMachineNotFound(error, `No owned release matched "${releaseId}".`);
     throw toMachineValidationError(
       error instanceof Error
@@ -219,6 +224,7 @@ export const finalizeReleaseUploadForMachine = async ({
     });
     return serializeReleaseForMachine(release);
   } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
     rethrowMachineNotFound(error, `No owned release matched "${releaseId}".`);
     throw toMachineConflictError(
       error instanceof Error

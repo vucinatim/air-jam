@@ -307,6 +307,16 @@ database backup, no app-specific spend brake, incomplete lifecycle cleanup,
 and no continuously proven alert/rollback path. No production state was changed
 by the audit.
 
+Gate `G3-02` is active. Its first production-valid slice establishes the
+[production control contract](./contracts/production-control-contract.md),
+persistent and audited lane modes, typed fail-closed admission decisions, and
+preview-first CLI operation. Release submission, artifact ingestion, release
+processing, browser validation, moderation, media ingestion, and telemetry now
+share that application-service authority. Budget evidence, shadow quota
+accounting, durable jobs, cleanup, realtime admission, and overload proof
+remain part of the same unfinished gate rather than being represented as
+complete by the lane-control foundation.
+
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
 [2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md).
@@ -341,11 +351,13 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. implement the measured quota, queue, cleanup, spend-control, and expensive
-   lane-switch contract, then run the isolated backup/restore and rollback/replay
-   work in parallel with the operational-event contract and threat model
-4. preserve Gate 1 contracts while those independent implementation lanes run
-5. complete or block work only through evidence-backed readiness transitions
+3. land the persistent expensive-lane control foundation, then add measured
+   budget evidence and shadow quota accounting before durable queues, cleanup,
+   realtime admission, and overload proof
+4. run the isolated backup/restore and rollback/replay work in parallel with
+   the operational-event contract and threat model
+5. preserve Gate 1 contracts while those independent implementation lanes run
+6. complete or block work only through evidence-backed readiness transitions
 
 ## Current Caveats
 
