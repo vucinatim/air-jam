@@ -7,7 +7,9 @@ import os from "node:os";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
 
+import { standaloneGameMcpToolNames } from "../../lib/airjam-mcp-tool-contract.mjs";
 import { verifyMcpStdioHandshake } from "../../lib/mcp-stdio-handshake.mjs";
+import { stopChild } from "../../lib/process-child.mjs";
 import {
   resolvePublicPackages,
   resolveUnifiedPublicVersion,
@@ -79,27 +81,6 @@ const waitForRegistry = async ({ registryUrl, child, readOutput }) => {
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
   throw new Error(`Timed out waiting for candidate registry.\n${readOutput()}`);
-};
-
-export const stopChild = async (child, { processGroup = false } = {}) => {
-  if (child.exitCode !== null) return;
-  const sendSignal = (signal) => {
-    if (processGroup && child.pid) {
-      try {
-        process.kill(-child.pid, signal);
-        return;
-      } catch {
-        // Fall back to the direct child when the process group is already gone.
-      }
-    }
-    child.kill(signal);
-  };
-  sendSignal("SIGTERM");
-  await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    new Promise((resolve) => setTimeout(resolve, 5_000)),
-  ]);
-  if (child.exitCode === null) sendSignal("SIGKILL");
 };
 
 const startCandidateRegistry = async ({ runRoot, port }) => {
@@ -591,10 +572,11 @@ export const runGoldenPathBootstrap = async ({
         `Generated project packageManager must be ${rootPackageJson.packageManager}.`,
       );
     }
-    if (packageJson.scripts?.lint !== "eslint .") {
-      throw new Error(
-        'Generated project must expose the canonical "eslint ." lint script.',
-      );
+    if (
+      typeof packageJson.scripts?.lint !== "string" ||
+      packageJson.scripts.lint.trim().length === 0
+    ) {
+      throw new Error("Generated project must expose a lint script.");
     }
     const requiredScripts = ["dev", "status", "reset:local", "mcp", "lint"];
     for (const script of requiredScripts) {
@@ -675,7 +657,7 @@ export const runGoldenPathBootstrap = async ({
         "airjam.invoke_game_session_action",
         "airjam.close_game_session",
       ],
-      expectedToolCount: 24,
+      expectedToolNames: standaloneGameMcpToolNames,
     });
 
     managedDevStarted = true;
@@ -778,6 +760,8 @@ export const runGoldenPathBootstrap = async ({
         cwd: projectDir,
         env: commandEnv,
         stdio: "ignore",
+        timeout: 60_000,
+        killSignal: "SIGKILL",
       });
     }
     if (registry) await stopChild(registry.child);

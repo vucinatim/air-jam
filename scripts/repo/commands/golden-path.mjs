@@ -124,6 +124,11 @@ export const registerGoldenPathCommands = (program) => {
     .option("--run-id <id>", "Stable run identity")
     .option("--model <model>", "Codex model override")
     .option(
+      "--timeout-minutes <minutes>",
+      "Primary Codex agent wall-clock limit",
+      "120",
+    )
+    .option(
       "--discard-workspace",
       "Remove the workspace after indexing evidence",
     )
@@ -135,6 +140,8 @@ export const registerGoldenPathCommands = (program) => {
         railwayEnvironmentId: options.railwayEnvironment,
         keepWorkspace: options.discardWorkspace !== true,
         model: options.model,
+        primaryAgentTimeoutMs:
+          Number.parseInt(options.timeoutMinutes, 10) * 60 * 1_000,
         onProgress: (stage) => {
           process.stderr.write(`[golden-path primary] ${stage}\n`);
         },

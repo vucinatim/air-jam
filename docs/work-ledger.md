@@ -18,6 +18,34 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Integration Review Hardened The Proof Boundaries
+
+- accepted the second independent review of cumulative pull request `#61` and
+  corrected the findings at their owning contracts instead of treating them as
+  isolated test edits
+- made the Docker workspace guard discover every Dockerfile and prove that each
+  required manifest copy occurs in the exact stage, before the frozen install
+- replaced platform-only secret checks with an environment-wide Railway proof:
+  every application service must have a distinct provider instance, every
+  service's rendered variables are compared, and equal production values fail
+  closed unless explicitly classified as harmless metadata or process tuning
+- tied the release-browser endpoint to the staging worker, preserved the
+  runtime's endpoint-dependent token semantics, and stopped emitting origin
+  evidence until the separate domain comparison actually succeeds
+- made retained evidence replacement rollback-safe, sanitized every UTF-8
+  artifact regardless of extension, and rejected binary evidence instead of
+  mirroring it without redaction
+- consolidated child-process teardown and the standalone MCP tool contract,
+  bounded final cleanup and the primary Codex wall clock, and made missing
+  isolated-toolchain binaries fail with direct errors
+- added CLI and MCP package suites to the root CI contract, repaired the
+  canonical generated-content workflow command, validated template package
+  versions and typed artifact evidence, and aligned flexible scaffold lint
+  ownership with bootstrap validation
+- retained `G2-03` as blocked: stronger proof changes what the controller can
+  safely certify; it does not make the current production-derived preview
+  credentials admissible
+
 ## 2026-08-29 - Cumulative Integration Entered Provider Preview
 
 - opened pull request `#61` as the single corrected integration target for

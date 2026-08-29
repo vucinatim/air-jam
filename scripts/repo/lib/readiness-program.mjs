@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -46,6 +47,43 @@ const validateReferencedFile = (relativePath, label) => {
   if (!fs.existsSync(path.join(repoRoot, relativePath))) {
     throw new Error(`${label} does not exist: ${relativePath}`);
   }
+};
+
+const validateGitCommit = (reference, label) => {
+  assertString(reference, label);
+  const result = spawnSync(
+    "git",
+    ["rev-parse", "--verify", `${reference}^{commit}`],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(`${label} does not resolve to a commit: ${reference}`);
+  }
+};
+
+const validateArtifactEvidence = (reference, label) => {
+  const value = reference.slice("artifact:".length);
+  if (value.startsWith("git-range:")) {
+    const range = value.slice("git-range:".length);
+    const [start, end, ...extra] = range.split("..");
+    if (!start || !end || extra.length > 0) {
+      throw new Error(`${label} must use artifact:git-range:<start>..<end>.`);
+    }
+    validateGitCommit(start, `${label} start`);
+    validateGitCommit(end, `${label} end`);
+    return;
+  }
+  if (value.startsWith("git:")) {
+    validateGitCommit(value.slice("git:".length), label);
+    return;
+  }
+  if (value.startsWith("file:")) {
+    validateReferencedFile(value.slice("file:".length), label);
+    return;
+  }
+  throw new Error(
+    `${label} must use artifact:git:<commit>, artifact:git-range:<start>..<end>, or artifact:file:<repo-path>.`,
+  );
 };
 
 const validateGraphIsAcyclic = (itemsById) => {
@@ -193,6 +231,12 @@ export const validateReadinessProgram = (
         validateReferencedFile(
           reference.slice("document:".length).split("#", 1)[0],
           `work item ${item.id} document evidence`,
+        );
+      }
+      if (validateReferencedFiles && reference.startsWith("artifact:")) {
+        validateArtifactEvidence(
+          reference,
+          `work item ${item.id} artifact evidence`,
         );
       }
     }
@@ -601,6 +645,11 @@ export const updateReadinessWorkItem = (
     (current.status === "in_progress" || current.status === "blocked") &&
     owner !== current.owner
   ) {
+    if (owner === undefined) {
+      throw new Error(
+        `work item ${workItemId} is claimed by ${current.owner}; pass --owner ${current.owner} to continue it.`,
+      );
+    }
     throw new Error(
       `work item ${workItemId} is owned by ${current.owner}; ownership takeover is not allowed.`,
     );

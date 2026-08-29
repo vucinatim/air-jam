@@ -32,7 +32,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ripgrep
 
       - name: Content Source Integrity
-        run: pnpm --filter platform content:check-generated
+        run: pnpm --silent run repo -- platform generated check
 
       - name: Typecheck
         run: pnpm typecheck

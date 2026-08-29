@@ -36,7 +36,8 @@
   "files": [
     "bin",
     "dist",
-    "src"
+    "src",
+    "tool-contract.json"
   ],
   "scripts": {
     "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup && node ../../scripts/build-devtools-helpers.mjs --out-dir dist/tooling",

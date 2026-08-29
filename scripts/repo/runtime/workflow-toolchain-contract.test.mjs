@@ -4,6 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { resolvePublicPackages } from "../../release/public-packages.mjs";
+
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
@@ -38,6 +40,23 @@ test("the public scaffold pins the canonical pnpm version", () => {
     templateVersionManifest.packageManager,
     rootPackageJson.packageManager,
   );
+});
+
+test("the public scaffold version manifest matches every public package", () => {
+  const templateVersionManifest = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        repoRoot,
+        "packages/create-airjam/template-version-manifest.json",
+      ),
+      "utf8",
+    ),
+  );
+  const expectedVersions = Object.fromEntries(
+    resolvePublicPackages().map((entry) => [entry.packageName, entry.version]),
+  );
+
+  assert.deepEqual(templateVersionManifest.packages, expectedVersions);
 });
 
 test("packageManager major matches the lockfile format major", () => {

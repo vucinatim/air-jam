@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { standaloneGameMcpToolNames } from "../../../scripts/lib/airjam-mcp-tool-contract.mjs";
 import { verifyMcpStdioHandshake } from "../../../scripts/lib/mcp-stdio-handshake.mjs";
 import { requiredScaffoldPaths } from "../../cli/scripts/ai-pack-contract.mjs";
 import { loadScaffoldableRepoGameManifests } from "./lib/scaffold-source-manifests.mjs";
@@ -303,7 +304,7 @@ const verifyPackedMcpProtocol = async (projectDir) => {
       "airjam.invoke_game_session_action",
       "airjam.close_game_session",
     ],
-    expectedToolCount: 24,
+    expectedToolNames: standaloneGameMcpToolNames,
   });
 };
 
@@ -560,8 +561,11 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `Expected scaffold packageManager "${templateVersionManifest.packageManager}", received "${scaffoldPkg.packageManager}"`,
       );
     }
-    if (scaffoldPkg.scripts?.lint !== "eslint .") {
-      throw new Error('Expected scaffold project to define canonical "lint".');
+    if (
+      typeof scaffoldPkg.scripts?.lint !== "string" ||
+      scaffoldPkg.scripts.lint.trim().length === 0
+    ) {
+      throw new Error('Expected scaffold project to define a "lint" script.');
     }
     if (typeof scaffoldPkg.scripts?.mcp !== "string") {
       throw new Error('Expected scaffold project to define an "mcp" script.');

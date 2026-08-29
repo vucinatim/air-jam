@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
-  assertGoldenPathStagingVariableIsolation,
+  assertGoldenPathStagingEnvironmentIsolation,
   resolveGoldenPathRailwayStagingTarget,
 } from "../lib/golden-path-staging-target.mjs";
 
@@ -19,9 +19,27 @@ const productionEnvironmentId = "environment-production";
 const stagingEnvironmentId = "environment-pr-52";
 const databaseUrl =
   "postgresql://postgres:secret@postgres.railway.internal:5432/railway";
+const applicationServices = [
+  {
+    serviceId: "service-platform",
+    serviceName: "air-jam-platform",
+    railwayConfigFile: "/apps/platform/railway.json",
+  },
+  {
+    serviceId: "service-server",
+    serviceName: "air-jam-server",
+    railwayConfigFile: "/packages/server/railway.json",
+  },
+  {
+    serviceId: "service-browser-worker",
+    serviceName: "air-jam-release-browser-worker",
+    railwayConfigFile: "/packages/release-browser-worker/railway.json",
+  },
+];
 
 const createEnvironment = (id) => {
   const production = id === productionEnvironmentId;
+  const suffix = production ? "production" : "staging";
   return {
     id,
     name: production ? "production" : "air-jam-pr-52",
@@ -29,38 +47,94 @@ const createEnvironment = (id) => {
     isEphemeral: !production,
     canAccess: true,
     serviceInstances: [
-      {
-        id: production
-          ? "platform-instance-production"
-          : "platform-instance-staging",
-        serviceId: production ? "platform-production" : "platform-staging",
-        serviceName: "air-jam-platform",
-        railwayConfigFile: "/apps/platform/railway.json",
+      ...applicationServices.map((service) => ({
+        ...service,
+        id: `${service.serviceId}-instance-${suffix}`,
         latestDeployment: {
-          id: production ? "deployment-production" : "deployment-staging",
+          id: `deployment-${service.serviceId}-${suffix}`,
           status: "SUCCESS",
         },
         domains: {
-          customDomains: production ? [{ domain: "airjam.io" }] : [],
+          customDomains:
+            production && service.serviceId === "service-platform"
+              ? [{ domain: "airjam.io" }]
+              : [],
           serviceDomains: [
             {
-              domain: production
-                ? "air-jam-platform-production.up.railway.app"
-                : "air-jam-platform-air-jam-pr-52.up.railway.app",
+              domain: `${service.serviceName}-${suffix}.up.railway.app`,
             },
           ],
         },
-      },
+      })),
       {
-        id: production
-          ? "postgres-instance-production"
-          : "postgres-instance-staging",
-        serviceId: "postgres",
+        id: `postgres-instance-${suffix}`,
+        serviceId: "service-postgres",
         serviceName: "Postgres",
         railwayConfigFile: null,
       },
     ],
   };
+};
+
+const createServiceVariables = ({ environmentId, serviceId }) => {
+  const production = environmentId === productionEnvironmentId;
+  const environmentName = production ? "production" : "air-jam-pr-52";
+  const suffix = production ? "production" : "staging";
+  const common = {
+    RAILWAY_ENVIRONMENT_ID: environmentId,
+    RAILWAY_ENVIRONMENT_NAME: environmentName,
+    RAILWAY_PROJECT_ID: projectId,
+    RAILWAY_SERVICE_ID: serviceId,
+    NODE_ENV: "production",
+  };
+  if (serviceId === "service-platform") {
+    return {
+      ...common,
+      DATABASE_URL: databaseUrl,
+      AIRJAM_RELEASES_R2_BUCKET: `air-jam-${suffix}-releases`,
+      AIRJAM_RELEASES_R2_ACCESS_KEY_ID: `${suffix}-access-key`,
+      AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: `${suffix}-secret-key`,
+      AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: `${suffix}-internal-token`,
+      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: `wss://air-jam-release-browser-worker-${suffix}.up.railway.app/ws`,
+      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: `${suffix}-browser-token`,
+      BETTER_AUTH_SECRET: `${suffix}-auth-secret`,
+    };
+  }
+  if (serviceId === "service-server") {
+    return {
+      ...common,
+      DATABASE_URL: databaseUrl,
+      AIR_JAM_MASTER_KEY: `${suffix}-master-key`,
+      AIR_JAM_HOST_GRANT_SECRET: `${suffix}-host-secret`,
+    };
+  }
+  return {
+    ...common,
+    AIRJAM_BROWSER_WORKER_ACCESS_TOKEN: `${suffix}-browser-token`,
+    AIRJAM_BROWSER_WORKER_HEADLESS: "true",
+  };
+};
+
+const createServiceVariablePairs = () => {
+  const staging = createEnvironment(stagingEnvironmentId);
+  const production = createEnvironment(productionEnvironmentId);
+  return applicationServices.map((service) => ({
+    serviceName: service.serviceName,
+    stagingInstance: staging.serviceInstances.find(
+      (instance) => instance.serviceId === service.serviceId,
+    ),
+    primaryInstance: production.serviceInstances.find(
+      (instance) => instance.serviceId === service.serviceId,
+    ),
+    stagingVariables: createServiceVariables({
+      environmentId: stagingEnvironmentId,
+      serviceId: service.serviceId,
+    }),
+    primaryVariables: createServiceVariables({
+      environmentId: productionEnvironmentId,
+      serviceId: service.serviceId,
+    }),
+  }));
 };
 
 const createStagingFixture = () => ({
@@ -75,33 +149,13 @@ const createStagingFixture = () => ({
       };
     },
     getEnvironment: async (id) => createEnvironment(id),
-    getVariables: async ({ environmentId }) =>
-      environmentId === stagingEnvironmentId
-        ? {
-            RAILWAY_ENVIRONMENT_ID: stagingEnvironmentId,
-            RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-52",
-            DATABASE_URL: databaseUrl,
-            AIRJAM_RELEASES_R2_BUCKET: "air-jam-pr-52-releases",
-            AIRJAM_RELEASES_R2_ACCESS_KEY_ID: "staging-access-key",
-            AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: "staging-secret-key",
-            AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "staging-internal-token",
-            AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "staging-browser-token",
-          }
-        : {
-            RAILWAY_ENVIRONMENT_ID: productionEnvironmentId,
-            RAILWAY_ENVIRONMENT_NAME: "production",
-            DATABASE_URL: databaseUrl,
-            AIRJAM_RELEASES_R2_BUCKET: "air-jam-production-releases",
-            AIRJAM_RELEASES_R2_ACCESS_KEY_ID: "production-access-key",
-            AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: "production-secret-key",
-            AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "production-internal-token",
-            AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "production-browser-token",
-          },
+    getVariables: async ({ environmentId, serviceId }) =>
+      createServiceVariables({ environmentId, serviceId }),
   },
   fetchImpl: async (url) => {
     assert.equal(
       url.toString(),
-      "https://air-jam-platform-air-jam-pr-52.up.railway.app/api/health",
+      "https://air-jam-platform-staging.up.railway.app/api/health",
     );
     return {
       ok: true,
@@ -111,22 +165,24 @@ const createStagingFixture = () => ({
   },
 });
 
+const isolationInput = () => ({
+  environment: createEnvironment(stagingEnvironmentId),
+  primaryEnvironment: createEnvironment(productionEnvironmentId),
+  serviceVariablePairs: createServiceVariablePairs(),
+});
+
 test("primary run requires provider identities instead of a trusted-looking URL", () => {
   const help = execFileSync(
     process.execPath,
     [cliPath, "golden-path", "run-primary", "--help"],
-    {
-      cwd: repoRoot,
-      encoding: "utf8",
-    },
+    { cwd: repoRoot, encoding: "utf8" },
   );
-
   assert.match(help, /--railway-project/);
   assert.match(help, /--railway-environment/);
   assert.doesNotMatch(help, /--staging-url/);
 });
 
-test("primary run resolves and health-checks a Railway-isolated staging identity", async () => {
+test("primary run proves environment-wide isolation before health-checking staging", async () => {
   const target = await resolveGoldenPathRailwayStagingTarget({
     projectId,
     environmentId: stagingEnvironmentId,
@@ -135,20 +191,16 @@ test("primary run resolves and health-checks a Railway-isolated staging identity
 
   assert.equal(target.provider, "railway");
   assert.equal(target.environmentId, stagingEnvironmentId);
-  assert.equal(target.deploymentId, "deployment-staging");
-  assert.equal(
-    target.url,
-    "https://air-jam-platform-air-jam-pr-52.up.railway.app",
-  );
-  assert.equal(target.productionAllowed, false);
+  assert.equal(target.deploymentId, "deployment-service-platform-staging");
+  assert.equal(target.url, "https://air-jam-platform-staging.up.railway.app");
   assert.deepEqual(target.isolation, {
     providerEnvironmentIdentity: true,
+    applicationServiceInstancesDistinct: true,
     postgresServiceInstanceDistinct: true,
     databaseTargetDistinctOrProviderScoped: true,
-    releaseStorageBucketDistinct: true,
-    releaseStorageCredentialsDistinct: true,
-    releasePipelineTokensDistinct: true,
-    productionSecretsNotReused: true,
+    productionVariableValuesNotReused: true,
+    releaseStorageIsolated: true,
+    releasePipelineIsolated: true,
     publicOriginDistinct: true,
   });
 });
@@ -158,7 +210,6 @@ test("primary run rejects Railway's production environment before resolution", a
   fixture.client.getEnvironment = async () => {
     assert.fail("production rejection must happen before environment reads");
   };
-
   await assert.rejects(
     resolveGoldenPathRailwayStagingTarget({
       projectId,
@@ -169,60 +220,65 @@ test("primary run rejects Railway's production environment before resolution", a
   );
 });
 
-test("primary run rejects staging that shares production release storage", () => {
-  const stagingEnvironment = createEnvironment(stagingEnvironmentId);
-  const primaryEnvironment = createEnvironment(productionEnvironmentId);
-
+test("environment proof rejects reused production values on every service", () => {
+  const input = isolationInput();
+  const server = input.serviceVariablePairs.find(
+    (pair) => pair.stagingInstance.serviceId === "service-server",
+  );
+  server.stagingVariables.AIR_JAM_MASTER_KEY =
+    server.primaryVariables.AIR_JAM_MASTER_KEY;
   assert.throws(
-    () =>
-      assertGoldenPathStagingVariableIsolation({
-        environmentId: stagingEnvironmentId,
-        environment: stagingEnvironment,
-        primaryEnvironment,
-        stagingVariables: {
-          RAILWAY_ENVIRONMENT_ID: stagingEnvironmentId,
-          RAILWAY_ENVIRONMENT_NAME: stagingEnvironment.name,
-          DATABASE_URL: databaseUrl,
-          AIRJAM_RELEASES_R2_BUCKET: "air-jam-production-releases",
-        },
-        primaryVariables: {
-          DATABASE_URL: databaseUrl,
-          AIRJAM_RELEASES_R2_BUCKET: "air-jam-production-releases",
-        },
-      }),
-    /release storage bucket must be distinct from production/u,
+    () => assertGoldenPathStagingEnvironmentIsolation(input),
+    /air-jam-server reuses production value for AIR_JAM_MASTER_KEY/u,
   );
 });
 
-test("primary run rejects staging that reuses production-capable credentials", () => {
-  const stagingEnvironment = createEnvironment(stagingEnvironmentId);
-  const primaryEnvironment = createEnvironment(productionEnvironmentId);
-  const sharedVariables = {
-    AIRJAM_RELEASES_R2_ACCESS_KEY_ID: "shared-access-key",
-    AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: "shared-secret-key",
-    AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "shared-internal-token",
-    AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "shared-browser-token",
-  };
-
+test("environment proof fails closed for an unknown shared variable", () => {
+  const input = isolationInput();
+  const platform = input.serviceVariablePairs[0];
+  platform.stagingVariables.FUTURE_SENSITIVE_SETTING = "shared-value";
+  platform.primaryVariables.FUTURE_SENSITIVE_SETTING = "shared-value";
   assert.throws(
-    () =>
-      assertGoldenPathStagingVariableIsolation({
-        environmentId: stagingEnvironmentId,
-        environment: stagingEnvironment,
-        primaryEnvironment,
-        stagingVariables: {
-          RAILWAY_ENVIRONMENT_ID: stagingEnvironmentId,
-          RAILWAY_ENVIRONMENT_NAME: stagingEnvironment.name,
-          DATABASE_URL: databaseUrl,
-          AIRJAM_RELEASES_R2_BUCKET: "air-jam-pr-52-releases",
-          ...sharedVariables,
-        },
-        primaryVariables: {
-          DATABASE_URL: databaseUrl,
-          AIRJAM_RELEASES_R2_BUCKET: "air-jam-production-releases",
-          ...sharedVariables,
-        },
-      }),
-    /must not reuse production AIRJAM_RELEASES_R2_ACCESS_KEY_ID/u,
+    () => assertGoldenPathStagingEnvironmentIsolation(input),
+    /reuses production value for FUTURE_SENSITIVE_SETTING/u,
+  );
+});
+
+test("environment proof permits absent optional production secrets", () => {
+  const input = isolationInput();
+  const platform = input.serviceVariablePairs[0];
+  delete platform.stagingVariables.GITHUB_CLIENT_SECRET;
+  platform.primaryVariables.GITHUB_CLIENT_SECRET = "production-only";
+  assert.doesNotThrow(() => assertGoldenPathStagingEnvironmentIsolation(input));
+});
+
+test("browser access tokens are conditional on a remote browser endpoint", () => {
+  const input = isolationInput();
+  const platform = input.serviceVariablePairs[0];
+  delete platform.stagingVariables.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT;
+  delete platform.stagingVariables.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN;
+  platform.stagingVariables.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH =
+    "/usr/bin/chromium";
+  assert.doesNotThrow(() => assertGoldenPathStagingEnvironmentIsolation(input));
+});
+
+test("environment proof rejects a browser endpoint outside staging", () => {
+  const input = isolationInput();
+  input.serviceVariablePairs[0].stagingVariables.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT =
+    "wss://unrelated-browser.example/ws";
+  assert.throws(
+    () => assertGoldenPathStagingEnvironmentIsolation(input),
+    /browser endpoint does not target its release browser worker/u,
+  );
+});
+
+test("environment proof rejects shared non-scoped databases", () => {
+  const input = isolationInput();
+  const platform = input.serviceVariablePairs[0];
+  platform.stagingVariables.DATABASE_URL = "postgresql://shared.example/airjam";
+  platform.primaryVariables.DATABASE_URL = "postgresql://shared.example/airjam";
+  assert.throws(
+    () => assertGoldenPathStagingEnvironmentIsolation(input),
+    /reuses production value for DATABASE_URL/u,
   );
 });

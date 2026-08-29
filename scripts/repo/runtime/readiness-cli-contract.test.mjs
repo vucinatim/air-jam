@@ -198,7 +198,7 @@ test("status transitions enforce ownership, dependencies, evidence, and explicit
         status: "complete",
         evidence: ["document:docs/plans/v1-release-roadmap-plan.md"],
       }),
-    /ownership takeover is not allowed/,
+    /pass --owner \/root\/program to continue it/,
   );
 
   const completed = updateReadinessWorkItem(claimed, "G0-01", {
@@ -253,6 +253,29 @@ test("document evidence must resolve to a durable repository file", () => {
     () => validateReadinessProgram(program),
     /document evidence does not exist/,
   );
+});
+
+test("artifact evidence must resolve to a typed durable artifact", () => {
+  const program = readUnstartedProgramFixture();
+  const item = program.workItems.find((entry) => entry.id === "G0-01");
+  item.status = "complete";
+  item.completedAt = "2026-08-26T12:00:00.000Z";
+  item.updatedAt = item.completedAt;
+
+  item.evidence = ["artifact:git:not-a-real-commit"];
+  assert.throws(
+    () => validateReadinessProgram(program),
+    /does not resolve to a commit/u,
+  );
+
+  item.evidence = ["artifact:opaque-value"];
+  assert.throws(
+    () => validateReadinessProgram(program),
+    /must use artifact:git/u,
+  );
+
+  item.evidence = ["artifact:file:docs/current-state.md"];
+  assert.doesNotThrow(() => validateReadinessProgram(program));
 });
 
 test("human and production work cannot complete without their authority evidence", () => {

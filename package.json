@@ -32,7 +32,7 @@
     "smoke:browser": "playwright test --config playwright.smoke.config.ts",
     "playwright:install": "playwright install --with-deps chromium",
     "smoke:release": "pnpm smoke:server && pnpm smoke:browser && pnpm test:scaffold",
-    "test": "pnpm test:repo-contracts && pnpm --filter sdk build && pnpm --filter server test && pnpm --filter sdk test && pnpm --filter platform test",
+    "test": "pnpm test:repo-contracts && pnpm --filter @air-jam/mcp-server test && pnpm --filter @air-jam/cli test && pnpm --filter sdk build && pnpm --filter server test && pnpm --filter sdk test && pnpm --filter platform test",
     "test:repo-contracts": "node scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node --test scripts/repo/runtime/*.test.mjs",
     "test:scaffold": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke",
     "test:scaffold:registry": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:registry",

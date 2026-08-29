@@ -275,7 +275,10 @@ export const registerReadinessCommands = (program) => {
         "--status <status>",
         "pending, in_progress, blocked, or complete",
       )
-      .option("--owner <owner>", "Canonical agent task name or human owner")
+      .option(
+        "--owner <owner>",
+        "Owner identity; required when continuing a claimed work item",
+      )
       .option(
         "--evidence <reference...>",
         "Evidence as artifact:, command:, decision:, document:, or url:",

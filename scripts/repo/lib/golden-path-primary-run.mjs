@@ -4,11 +4,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { stopChild } from "../../lib/process-child.mjs";
 import { resolvePublicPackages } from "../../release/public-packages.mjs";
 import {
   prepareGoldenPathCandidateRegistry,
   reserveLoopbackPort,
-  stopChild,
 } from "./golden-path-bootstrap.mjs";
 import {
   defaultGoldenPathManifestPath,
@@ -20,6 +20,7 @@ import { repoRoot } from "./paths.mjs";
 
 const evidenceFormat = "air-jam-golden-path-evidence/v1";
 const commandMaxBuffer = 64 * 1024 * 1024;
+const defaultPrimaryAgentTimeoutMs = 2 * 60 * 60 * 1_000;
 const runIdPattern = /^[a-z0-9][a-z0-9-]{5,47}$/u;
 const initialQualityCommands = ["typecheck", "lint", "test", "build"];
 const agentOwnedIndexPaths = new Set([
@@ -90,24 +91,30 @@ const substitutePrompt = ({
     .replaceAll("{{stagingPlatformUrl}}", stagingUrl)
     .replaceAll("{{evidenceDir}}", evidenceDir);
 
+const readToolVersion = (command, env) => {
+  const result = spawnSync(command, ["--version"], {
+    encoding: "utf8",
+    env,
+    timeout: 30_000,
+    killSignal: "SIGKILL",
+  });
+  const version = result.stdout?.trim();
+  if (result.error || result.status !== 0 || !version) {
+    throw new Error(
+      `${command} is unavailable in the golden-path toolchain: ${result.error?.message ?? result.stderr?.trim() ?? `exit ${result.status}`}.`,
+    );
+  }
+  return version;
+};
+
 const collectToolchain = ({ codexVersion, registryUrl, env }) => ({
   capturedAt: new Date().toISOString(),
   operatingSystem: `${os.platform()} ${os.release()}`,
   architecture: os.arch(),
   node: process.version,
-  corepack:
-    spawnSync("corepack", ["--version"], {
-      encoding: "utf8",
-      env,
-    }).stdout?.trim() ?? null,
-  pnpm:
-    spawnSync("pnpm", ["--version"], {
-      encoding: "utf8",
-      env,
-    }).stdout?.trim() ?? null,
-  git:
-    spawnSync("git", ["--version"], { encoding: "utf8", env }).stdout?.trim() ??
-    null,
+  corepack: readToolVersion("corepack", env),
+  pnpm: readToolVersion("pnpm", env),
+  git: readToolVersion("git", env),
   codex: codexVersion,
   browserAvailability: "not-attested-by-controller",
   registry: registryUrl,
@@ -169,22 +176,55 @@ const indexEvidenceFiles = (evidenceDir) =>
       };
     });
 
-const textEvidenceExtensions = new Set([
-  ".json",
-  ".ndjson",
-  ".md",
-  ".txt",
-  ".log",
-]);
-
-const sanitizeEvidenceTree = ({ evidenceDir, runRoot, registryUrl }) => {
+export const sanitizeEvidenceTree = ({ evidenceDir, runRoot, registryUrl }) => {
+  const decoder = new TextDecoder("utf-8", { fatal: true });
   for (const relativePath of listEvidenceFiles(evidenceDir)) {
-    if (!textEvidenceExtensions.has(path.extname(relativePath))) continue;
     const absolutePath = path.join(evidenceDir, relativePath);
-    const source = fs.readFileSync(absolutePath, "utf8");
+    const bytes = fs.readFileSync(absolutePath);
+    if (bytes.includes(0)) {
+      throw new Error(
+        `Golden-path evidence must be text; binary file found at ${relativePath}.`,
+      );
+    }
+    let source;
+    try {
+      source = decoder.decode(bytes);
+    } catch (error) {
+      throw new Error(
+        `Golden-path evidence must be valid UTF-8 text: ${relativePath}.`,
+        { cause: error },
+      );
+    }
     const sanitized = normalizeEvidenceText(source, { runRoot, registryUrl });
     if (sanitized !== source) fs.writeFileSync(absolutePath, sanitized);
   }
+};
+
+export const replaceDirectoryAtomically = ({
+  sourceDir,
+  targetDir,
+  rename = fs.renameSync,
+}) => {
+  const backupDir = `${targetDir}.previous-${process.pid}`;
+  fs.rmSync(backupDir, { recursive: true, force: true });
+  const hadTarget = fs.existsSync(targetDir);
+  if (hadTarget) rename(targetDir, backupDir);
+  try {
+    rename(sourceDir, targetDir);
+  } catch (error) {
+    if (hadTarget && !fs.existsSync(targetDir) && fs.existsSync(backupDir)) {
+      try {
+        rename(backupDir, targetDir);
+      } catch (restoreError) {
+        throw new AggregateError(
+          [error, restoreError],
+          `Failed to replace or restore retained evidence at ${targetDir}.`,
+        );
+      }
+    }
+    throw error;
+  }
+  fs.rmSync(backupDir, { recursive: true, force: true });
 };
 
 const detectQualityCommand = (command) => {
@@ -364,7 +404,7 @@ export const probeGoldenPathIsolation = ({
   const probePath = path.join(workspaceDir, ".airjam-isolation-write-probe");
   const commonArgs = [
     "sandbox",
-    ...codexPermissions.globalArgs,
+    ...codexPermissions.args,
     "--permission-profile",
     permissionProfileName,
     "--cd",
@@ -660,9 +700,13 @@ export const runGoldenPathPrimary = async ({
   railwayEnvironmentId,
   keepWorkspace = true,
   model,
+  primaryAgentTimeoutMs = defaultPrimaryAgentTimeoutMs,
   onProgress = () => {},
 } = {}) => {
   assertRunId(runId);
+  if (!Number.isInteger(primaryAgentTimeoutMs) || primaryAgentTimeoutMs <= 0) {
+    throw new Error("Primary-agent timeout must be a positive integer.");
+  }
   onProgress("staging:attest");
   const stagingTarget = await resolveGoldenPathRailwayStagingTarget({
     projectId: railwayProjectId,
@@ -726,8 +770,10 @@ export const runGoldenPathPrimary = async ({
       runRoot,
       registryUrl,
     });
-    fs.rmSync(retainedEvidenceDir, { recursive: true, force: true });
-    fs.renameSync(snapshotDir, retainedEvidenceDir);
+    replaceDirectoryAtomically({
+      sourceDir: snapshotDir,
+      targetDir: retainedEvidenceDir,
+    });
   };
   const bestEffortSyncEvidence = () => {
     try {
@@ -884,8 +930,20 @@ export const runGoldenPathPrimary = async ({
     const codexVersionResult = spawnSync("codex", ["--version"], {
       encoding: "utf8",
       env: commandEnv,
+      timeout: 30_000,
+      killSignal: "SIGKILL",
     });
-    const codexVersion = codexVersionResult.stdout?.trim() || "unknown";
+    if (codexVersionResult.error || codexVersionResult.status !== 0) {
+      throw new Error(
+        `Codex CLI is unavailable in the isolated toolchain: ${codexVersionResult.error?.message ?? codexVersionResult.stderr?.trim() ?? `exit ${codexVersionResult.status}`}.`,
+      );
+    }
+    const codexVersion = codexVersionResult.stdout?.trim();
+    if (!codexVersion) {
+      throw new Error(
+        "Codex CLI returned no version in the isolated toolchain.",
+      );
+    }
     const codexPermissions = buildCodexPermissionArgs({
       stagingUrl: normalizedStagingUrl,
       runRoot,
@@ -983,15 +1041,28 @@ export const runGoldenPathPrimary = async ({
       env: commandEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });
+    let primaryAgentTimedOut = false;
+    let forceKillTimer = null;
+    const primaryAgentTimer = setTimeout(() => {
+      primaryAgentTimedOut = true;
+      signalCodexProcessGroup("SIGTERM");
+      forceKillTimer = setTimeout(
+        () => signalCodexProcessGroup("SIGKILL"),
+        5_000,
+      );
+    }, primaryAgentTimeoutMs);
     let stdoutBuffer = "";
     let stderrBuffer = "";
     const appendTranscript = (entry) => {
       const record = `${JSON.stringify(entry)}\n`;
       fs.appendFileSync(transcriptPath, record);
-      fs.appendFileSync(
-        path.join(retainedEvidenceDir, "transcript", "events.ndjson"),
-        record,
+      const retainedTranscriptPath = path.join(
+        retainedEvidenceDir,
+        "transcript",
+        "events.ndjson",
       );
+      fs.mkdirSync(path.dirname(retainedTranscriptPath), { recursive: true });
+      fs.appendFileSync(retainedTranscriptPath, record);
     };
     const processLine = (line) => {
       if (!line.trim()) return;
@@ -1092,7 +1163,15 @@ export const runGoldenPathPrimary = async ({
     codexExitCode = await new Promise((resolve, reject) => {
       codexChild.once("error", reject);
       codexChild.once("exit", (code) => resolve(code ?? 1));
+    }).finally(() => {
+      clearTimeout(primaryAgentTimer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
     });
+    if (primaryAgentTimedOut) {
+      throw new Error(
+        `Primary Codex agent exceeded its ${primaryAgentTimeoutMs}ms wall-clock limit.`,
+      );
+    }
     if (stdoutBuffer.trim()) processLine(stdoutBuffer);
     if (stderrBuffer.trim()) {
       appendTranscript({

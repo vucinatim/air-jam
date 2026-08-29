@@ -1,17 +1,5 @@
 import { spawn } from "node:child_process";
-
-const stopChild = async (child, timeoutMs) => {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-
-  child.kill("SIGTERM");
-  await Promise.race([
-    new Promise((resolve) => child.once("exit", resolve)),
-    new Promise((resolve) => setTimeout(resolve, timeoutMs)),
-  ]);
-  if (child.exitCode === null && child.signalCode === null) {
-    child.kill("SIGKILL");
-  }
-};
+import { stopChild } from "./process-child.mjs";
 
 export const verifyMcpStdioHandshake = async ({
   cwd,
@@ -21,7 +9,7 @@ export const verifyMcpStdioHandshake = async ({
   clientInfo,
   label = "MCP server",
   requiredToolNames = [],
-  expectedToolCount,
+  expectedToolNames,
   requestTimeoutMs = 10_000,
   shutdownTimeoutMs = 5_000,
 }) => {
@@ -157,11 +145,12 @@ export const verifyMcpStdioHandshake = async ({
       }
     }
     if (
-      expectedToolCount !== undefined &&
-      toolNames.length !== expectedToolCount
+      expectedToolNames &&
+      JSON.stringify(toolNames) !==
+        JSON.stringify([...expectedToolNames].sort())
     ) {
       throw new Error(
-        `${label} exposed ${toolNames.length} tools; expected ${expectedToolCount}.`,
+        `${label} tool contract drifted. Expected ${expectedToolNames.length} canonical tools and received ${toolNames.length}.`,
       );
     }
 
@@ -176,6 +165,6 @@ export const verifyMcpStdioHandshake = async ({
     }
     pending.clear();
     if (!child.stdin.destroyed) child.stdin.end();
-    await stopChild(child, shutdownTimeoutMs);
+    await stopChild(child, { timeoutMs: shutdownTimeoutMs });
   }
 };

@@ -59,6 +59,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 53. If Railway native PR environments still prove operationally noisy, add the smallest possible diagnostics pass to `railway doctor` first, such as age-tagged stale-environment reporting, instead of rebuilding a repo-owned preview lifecycle.
 54. Remove the repeated Better Auth default-secret error noise from intentional local clean-checkout production builds through one explicit build-time auth configuration contract, while preserving fail-closed runtime validation and never normalizing a production default secret.
 55. Split `scripts/repo/lib/golden-path-primary-run.mjs` into narrow isolation, evidence-retention, verification, and lifecycle orchestration modules before expanding the scenario again; the current controller is trustworthy and tested, but its 1,200+ line composition root is now the clearest structural weakness in the agent-proof harness.
+56. Reduce the realtime server production image to the server's transitive production dependency closure before 1.0 capacity rehearsal, so adding an unrelated workspace does not permanently expand runtime image size even though the manifest-stage correctness guard remains repo-wide.
 
 ## Framework Boundary Follow-Ups
 

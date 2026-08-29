@@ -30,6 +30,7 @@ import {
 } from "@air-jam/devtools-core/release";
 import type { ToolExecution } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import toolContract from "../tool-contract.json" with { type: "json" };
 
 type AirJamProjectMode = "monorepo" | "standalone-game" | "unknown";
 type AirJamQualityGate =
@@ -490,59 +491,9 @@ export type AirJamMcpToolDefinitions = ReturnType<typeof buildToolDefinitions>;
 export const getRegisteredToolNamesForProjectMode = (
   projectMode: AirJamProjectMode,
 ): ReadonlyArray<keyof AirJamMcpToolDefinitions> => {
-  if (projectMode === "monorepo") {
-    return [
-      "airjam.inspect_project",
-      "airjam.auth_status",
-      "airjam.list_games",
-      "airjam.inspect_game",
-      "airjam.inspect_game_agent_contract",
-      "airjam.read_logs",
-      "airjam.run_quality_gate",
-      "airjam.release_list",
-      "airjam.release_inspect",
-      "airjam.release_publish",
-      "airjam.start_dev",
-      "airjam.stop_dev",
-      "airjam.status",
-      "airjam.reset_local",
-      "airjam.topology",
-      "airjam.open_game_session",
-      "airjam.send_game_session_input",
-      "airjam.read_game_session",
-      "airjam.invoke_game_session_action",
-      "airjam.close_game_session",
-    ] as const;
-  }
-
-  if (projectMode === "standalone-game") {
-    return [
-      "airjam.inspect_project",
-      "airjam.auth_status",
-      "airjam.list_games",
-      "airjam.inspect_game",
-      "airjam.inspect_game_agent_contract",
-      "airjam.read_logs",
-      "airjam.run_quality_gate",
-      "airjam.release_doctor",
-      "airjam.release_validate",
-      "airjam.release_bundle",
-      "airjam.release_list",
-      "airjam.release_inspect",
-      "airjam.release_submit",
-      "airjam.release_publish",
-      "airjam.start_dev",
-      "airjam.stop_dev",
-      "airjam.status",
-      "airjam.reset_local",
-      "airjam.topology",
-      "airjam.open_game_session",
-      "airjam.send_game_session_input",
-      "airjam.read_game_session",
-      "airjam.invoke_game_session_action",
-      "airjam.close_game_session",
-    ] as const;
-  }
-
-  return ["airjam.inspect_project"] as const;
+  const mode =
+    projectMode === "monorepo" || projectMode === "standalone-game"
+      ? projectMode
+      : "unknown";
+  return toolContract[mode] as ReadonlyArray<keyof AirJamMcpToolDefinitions>;
 };

@@ -24,8 +24,8 @@ WORKDIR /app
 RUN corepack enable
 
 # Workspace manifests only. Any source-only change leaves this layer cached.
-# The repo contract requires this list to cover every pnpm workspace so a new
-# internal package cannot be masked by a populated local node_modules tree.
+# scripts/repo/runtime/docker-workspace-manifest-contract.test.mjs requires
+# this dependency-stage list to cover every pnpm workspace before install.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
 COPY apps/platform/package.json                 ./apps/platform/

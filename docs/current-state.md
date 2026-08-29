@@ -178,20 +178,25 @@ These are now baseline truths, not open architecture debates:
        lint, tests, and production build
     7. the MCP server reports its shipped package version rather than a
        hard-coded version
-    8. `create-airjam` currently packs to `87,264,876` bytes because it embeds
+    8. the standalone MCP tool set now has one canonical machine-readable
+       contract shared by server registration and clean-room verification
+    9. `create-airjam` currently packs to `87,264,876` bytes because it embeds
        all six scaffold archives; Gate 6 must set and prove the final package
        size and cold-install budget
-    9. the retained Codex primary run independently built the full Signal Relay
-       game, passed all four quality gates, and reached semantic-session control
-       before both supported Chromium paths hit the same macOS Mach-port denial
-    10. independent review reopened `G2-03`: the retained local run remains
+    10. the retained Codex primary run independently built the full Signal Relay
+        game, passed all four quality gates, and reached semantic-session control
+        before both supported Chromium paths hit the same macOS Mach-port denial
+    11. independent review reopened `G2-03`: the retained local run remains
         useful diagnostic evidence, but its ignored artifact path was not
         independently retrievable and the controller could trust agent-authored
         verification claims
-    11. the corrected controller now owns isolation probes, quality gates,
+    12. the corrected controller now owns isolation probes, quality gates,
         cleanup, and release-verification authority; `G2-03` requires a new
         durable replay before completion, `G2-04` owns independent Claude
         Desktop proof, and `G2-05` owns browser/staging closure
+    13. the integration review further made staging isolation environment-wide
+        and fail-closed, made evidence retention rollback-safe and extension
+        independent, and bounded external-agent plus cleanup process lifetimes
 
 ## What Is Still Open
 
@@ -279,9 +284,10 @@ environment identity and proves separation from production before agent
 startup. Pull request `#61` produced an ephemeral environment with a distinct
 Postgres instance, but Railway cloned the production R2 bucket, storage
 credentials, release-pipeline tokens, and other sensitive values, while the
-repo-loaded provider credential cannot attest that bot-created environment.
-It is therefore not admissible isolated staging. Correcting those boundaries
-remains explicit work rather than an automatic side effect of the proof harness.
+provider API can now attest those service-by-service facts without exposing the
+values. It is therefore not admissible isolated staging. Correcting those
+boundaries remains explicit work rather than an automatic side effect of the
+proof harness.
 
 Gate `G2-02` is closed at `511ee85` with the
 [public bootstrap audit](./audits/v1-golden-path/public-bootstrap-audit.md).

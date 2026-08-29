@@ -54,7 +54,7 @@ export const resolveProjectSurfaceTopology = ({
   cwd,
 }) => {
   if (runtimeMode === "standalone-dev") {
-    const gamePort = env.VITE_PORT ?? DEFAULT_GAME_PORT;
+    const gamePort = env.VITE_PORT?.trim() || DEFAULT_GAME_PORT;
     const secureState = secure
       ? loadSecureDevState({
           cwd,

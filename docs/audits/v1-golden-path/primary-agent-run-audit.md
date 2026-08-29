@@ -147,8 +147,9 @@ not in the game framework's basic ability to support agent-authored products.
     downstream criteria as not evaluated instead of failed
 12. replaced assertion-only sandbox evidence with deterministic deny/allow
     probes against the installed Codex CLI
-13. made retained evidence snapshots prune stale files and redact all textual
-    artifacts before mirroring
+13. made retained evidence snapshots prune stale files, replace the retained
+    bundle atomically with rollback, redact every valid UTF-8 artifact before
+    mirroring, and reject binary evidence that cannot be safely inspected
 
 ### Product And Scaffold
 
@@ -168,6 +169,33 @@ not in the game framework's basic ability to support agent-authored products.
    one installation owns the workspace at a time
 8. early classified blockers can carry empty downstream indexes without being
    misreported as missing product work
+
+## Independent Integration Review Closeout
+
+The cumulative `#61` review found that several early hardening assertions were
+narrower than their evidence names. The corrected controller now:
+
+1. proves Docker manifest copies in the dependency stage before the frozen
+   install, with Dockerfile discovery rather than a hand-maintained file list
+2. compares rendered variables across every deployed Air Jam Railway service,
+   requires distinct service instances, and fails closed on an equal production
+   value unless its name is explicitly classified as safe configuration
+3. requires a remote browser endpoint to resolve to the staging worker while
+   preserving the runtime contract that its token is conditional on that
+   endpoint
+4. composes `publicOriginDistinct` only after the independent public-domain
+   comparison succeeds
+5. bounds the primary Codex process and final managed-dev cleanup, uses one
+   process-tree shutdown primitive, and reports a missing Codex/toolchain binary
+   directly
+6. consumes one canonical MCP tool-name manifest instead of relying on a magic
+   count and brings both the CLI and MCP package tests into root CI
+7. validates artifact evidence as a Git commit, Git range, or durable
+   repository file instead of accepting an opaque formatted string
+
+These corrections improve the trustworthiness of the next replay but do not
+change the gate result: the current Railway preview is still derived from
+production storage and credentials, so no external agent may start against it.
 
 ## Remaining Closure Work
 

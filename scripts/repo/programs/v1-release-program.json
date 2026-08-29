@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-29T16:09:26.786Z",
+  "updatedAt": "2026-08-29T18:03:33.619Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -419,15 +419,15 @@
       "evidenceRequirements": [
         "retained clean-room transcript and machine-readable artifacts"
       ],
-      "note": "No external agent was started. Resume only after an ephemeral environment has distinct R2 storage credentials and release tokens plus controller-readable provider identity.",
-      "updatedAt": "2026-08-29T16:09:26.786Z",
+      "note": "Independent PR #61 review hardened environment-wide fail-closed staging attestation; current provider facts remain unsafe.",
+      "updatedAt": "2026-08-29T18:03:33.619Z",
       "evidence": [
         "document:docs/audits/v1-golden-path/primary-agent-run-audit.md"
       ],
       "owner": "/root",
       "blocker": {
         "type": "external",
-        "summary": "Railway PR staging reuses production release storage and sensitive credentials, and the repo-loaded provider identity cannot attest the bot-created environment."
+        "summary": "Railway PR staging is provider-attested but reuses production release storage and sensitive credentials; the primary agent must not start until isolated staging values are provisioned."
       }
     },
     {
