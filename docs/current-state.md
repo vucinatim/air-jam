@@ -258,6 +258,21 @@ validator. Current Anthropic guidance makes Desktop Extensions the preferred
 Claude Desktop packaging path, so the older raw JSON setup remains explicitly
 uncertified until the independent `G2-04` proof settles and canonicalizes it.
 
+Gate `G2-02` is independently re-closed after review found that the first
+bootstrap run proved package versions and registry configuration without
+positively binding installed bytes to that run's packed candidates. The proof
+now compares SHA-512 integrity across the tarballs, registry metadata, and
+generated lockfile; requires all lifecycle scripts and all `24` MCP tools; uses
+bounded command, protocol, registry, and workspace-lock waits; and passes a
+fresh managed-dev plus typecheck, lint, test, and build run. That replay also
+fixed standalone topology so a configured Vite port is advertised consistently
+to hosts, controllers, sockets, and readiness tooling.
+
+Gate `G2-03` is active again. Its completion requires a new controller-owned
+Signal Relay replay whose durable artifacts, isolation checks, quality gates,
+cleanup, and release verification do not depend on agent-authored success
+claims.
+
 Gate `G2-02` is closed at `511ee85` with the
 [public bootstrap audit](./audits/v1-golden-path/public-bootstrap-audit.md).
 The exact five-package candidate graph was built, packed, published to a fresh
