@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -109,6 +109,13 @@ describe("platform auth client", () => {
     expect(stored).not.toBeNull();
     expect(stored?.platformBaseUrl).toBe("https://airjam.example.com");
     expect(stored?.session.token).toBe("token_1");
+    expect((await stat(path.join(stateDirectory, "auth"))).mode & 0o777).toBe(
+      0o700,
+    );
+    expect(
+      (await stat(path.join(stateDirectory, "auth", "platform-session.json")))
+        .mode & 0o777,
+    ).toBe(0o600);
   });
 
   it("isolates platform credentials in the configured Air Jam state directory", async () => {
@@ -121,6 +128,37 @@ describe("platform auth client", () => {
     expect(resolveAirJamStateDirectory()).toBe(stateDirectory);
     expect(getPlatformAuthStoragePath()).toBe(
       path.join(stateDirectory, "auth", "platform-session.json"),
+    );
+  });
+
+  it("rejects relative automation state roots", async () => {
+    vi.stubEnv("AIRJAM_STATE_DIR", "relative-state");
+    const { resolveAirJamStateDirectory } =
+      await import("../src/platform-auth.js");
+
+    expect(() => resolveAirJamStateDirectory()).toThrow(
+      "AIRJAM_STATE_DIR must be an absolute path.",
+    );
+  });
+
+  it("classifies corrupt stored sessions without exposing their contents", async () => {
+    const stateDirectory = await createTempStateDirectory();
+    vi.stubEnv("AIRJAM_STATE_DIR", stateDirectory);
+    const authDirectory = path.join(stateDirectory, "auth");
+    const sessionPath = path.join(authDirectory, "platform-session.json");
+    await mkdir(authDirectory, { recursive: true });
+    await writeFile(sessionPath, "not-json-and-secret-token", "utf8");
+    const {
+      AirJamStoredPlatformSessionError,
+      readStoredPlatformMachineSession,
+    } = await import("../src/platform-auth.js");
+
+    await expect(readStoredPlatformMachineSession()).rejects.toMatchObject({
+      name: AirJamStoredPlatformSessionError.name,
+      storagePath: sessionPath,
+    });
+    await expect(readStoredPlatformMachineSession()).rejects.not.toThrow(
+      /secret-token/u,
     );
   });
 });

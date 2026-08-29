@@ -51,9 +51,11 @@ Responsibilities:
 
 Machine credentials default to `~/.airjam/auth/platform-session.json`. Agents,
 CI, clean-room evaluators, and incident tooling set `AIRJAM_STATE_DIR` to a
-run-owned directory when credentials must be isolated. CLI, MCP, and shared
-domain services resolve that same state boundary; callers must not fake
-`HOME`, copy a maintainer session, or invent a second auth store.
+run-owned absolute directory when credentials must be isolated. This variable
+owns Air Jam's machine state boundary, including its private `auth/` directory;
+it is not a general-purpose cache or workspace location. CLI, MCP, and shared
+domain services resolve that same state boundary; callers must not fake `HOME`,
+copy a maintainer session, or invent a second auth store.
 
 ### Runtime Authority Identity
 
@@ -92,4 +94,4 @@ without collapsing all three into one brittle auth model.
 3. Keep runtime host verification explicit and provider-independent.
 4. Prefer narrow auth surfaces over one giant shared session abstraction.
 5. Keep machine state location explicit and overridable through
-   `AIRJAM_STATE_DIR` for isolated automation.
+   an absolute `AIRJAM_STATE_DIR` for isolated automation.

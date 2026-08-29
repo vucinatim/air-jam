@@ -6,7 +6,15 @@ import {
   platformMachineLogoutResultSchema,
   platformMachineMeResultSchema,
 } from "@air-jam/sdk/platform-machine";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
@@ -24,9 +32,11 @@ const LOCAL_PLATFORM_FALLBACK = "http://localhost:3000";
 
 export const resolveAirJamStateDirectory = (): string => {
   const configured = process.env.AIRJAM_STATE_DIR?.trim();
-  return configured
-    ? path.resolve(configured)
-    : path.join(os.homedir(), ".airjam");
+  if (!configured) return path.join(os.homedir(), ".airjam");
+  if (!path.isAbsolute(configured)) {
+    throw new Error("AIRJAM_STATE_DIR must be an absolute path.");
+  }
+  return path.normalize(configured);
 };
 
 const resolvePlatformAuthDirectory = () =>
@@ -72,6 +82,18 @@ export class AirJamPlatformApiError extends Error {
     this.name = "AirJamPlatformApiError";
     this.code = code;
     this.status = status;
+  }
+}
+
+export class AirJamStoredPlatformSessionError extends Error {
+  readonly storagePath: string;
+
+  constructor(storagePath: string, cause: unknown) {
+    super(`The stored Air Jam platform session is unreadable: ${storagePath}`, {
+      cause,
+    });
+    this.name = "AirJamStoredPlatformSessionError";
+    this.storagePath = storagePath;
   }
 }
 
@@ -156,30 +178,43 @@ export const requestPlatformMachineApi = async <T>({
 
 export const readStoredPlatformMachineSession =
   async (): Promise<AirJamPlatformMachineSessionStore | null> => {
+    const storagePath = resolvePlatformAuthFile();
+    let source: string;
     try {
-      return storedPlatformSessionSchema.parse(
-        JSON.parse(
-          await readFile(resolvePlatformAuthFile(), "utf8"),
-        ) as unknown,
-      );
+      source = await readFile(storagePath, "utf8");
     } catch (error) {
       if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
         return null;
       }
-
       throw error;
+    }
+
+    try {
+      return storedPlatformSessionSchema.parse(JSON.parse(source) as unknown);
+    } catch (error) {
+      throw new AirJamStoredPlatformSessionError(storagePath, error);
     }
   };
 
 export const writeStoredPlatformMachineSession = async (
   value: AirJamPlatformMachineSessionStore,
 ): Promise<void> => {
-  await mkdir(resolvePlatformAuthDirectory(), { recursive: true });
-  await writeFile(
-    resolvePlatformAuthFile(),
-    `${JSON.stringify(storedPlatformSessionSchema.parse(value), null, 2)}\n`,
-    "utf8",
-  );
+  const authDirectory = resolvePlatformAuthDirectory();
+  const storagePath = resolvePlatformAuthFile();
+  const temporaryPath = `${storagePath}.tmp-${process.pid}-${randomUUID()}`;
+  await mkdir(authDirectory, { recursive: true, mode: 0o700 });
+  await chmod(authDirectory, 0o700);
+  try {
+    await writeFile(
+      temporaryPath,
+      `${JSON.stringify(storedPlatformSessionSchema.parse(value), null, 2)}\n`,
+      { encoding: "utf8", flag: "wx", mode: 0o600 },
+    );
+    await rename(temporaryPath, storagePath);
+    await chmod(storagePath, 0o600);
+  } finally {
+    await rm(temporaryPath, { force: true });
+  }
 };
 
 export const clearStoredPlatformMachineSession = async (): Promise<void> => {

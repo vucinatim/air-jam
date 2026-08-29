@@ -8,6 +8,8 @@ import {
 } from "@air-jam/devtools-core/dev";
 import {
   AirJamPlatformApiError,
+  AirJamStoredPlatformSessionError,
+  clearStoredPlatformMachineSession,
   getPlatformAuthStoragePath,
   getPlatformMachineProfile,
   loginPlatformWithDeviceFlow,
@@ -937,7 +939,19 @@ const runAuthLogoutCommand = async ({
 }: {
   platformUrl?: string;
 }) => {
-  const storedSession = await readStoredPlatformMachineSession();
+  let storedSession;
+  try {
+    storedSession = await readStoredPlatformMachineSession();
+  } catch (error) {
+    if (!(error instanceof AirJamStoredPlatformSessionError)) throw error;
+    await clearStoredPlatformMachineSession();
+    console.log(
+      kleur.yellow(
+        "Removed an unreadable local Air Jam session. Its remote token could not be revoked.",
+      ),
+    );
+    return;
+  }
   if (!storedSession) {
     console.log(kleur.yellow("No stored Air Jam platform session was found."));
     return;
