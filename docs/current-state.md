@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -175,14 +175,18 @@ These are now baseline truths, not open architecture debates:
        paths
     6. the generated project discovers the canonical CLI, all `24` MCP tools,
        project-scoped Codex configuration, managed dev lifecycle, typecheck,
-       tests, and production build
+       lint, tests, and production build
     7. the MCP server reports its shipped package version rather than a
        hard-coded version
-    8. `create-airjam` currently packs to `87,264,734` bytes because it embeds
+    8. `create-airjam` currently packs to `87,264,876` bytes because it embeds
        all six scaffold archives; Gate 6 must set and prove the final package
        size and cold-install budget
-    9. Gates `G2-03` through `G2-05` still own complete Codex replay, independent
-       Claude Desktop proof, and final evidence review
+    9. the retained Codex primary run independently built the full Signal Relay
+       game, passed all four quality gates, and reached semantic-session control
+       before both supported Chromium paths hit the same macOS Mach-port denial
+    10. `G2-03` is complete as durable primary-run evidence; `G2-04` still owns
+        independent Claude Desktop proof and `G2-05` owns the browser/staging
+        fixes plus exact terminal passing replay
 
 ## What Is Still Open
 

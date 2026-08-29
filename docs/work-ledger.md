@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,32 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-08-29 - Gate 2 Retained The Primary External-Agent Run
+
+- ran nine clean-room controller attempts and retained every material failure
+  instead of converting partial execution into a success claim
+- proved that a credential-free Codex process can discover the public packages,
+  canonical CLI, generated guidance, SDK contracts, MCP, semantic sessions, and
+  release surface from an empty directory with repository reads denied
+- independently built a polished, host-authoritative Signal Relay game with a
+  pure domain core, stable semantic actions, presentation-only host/controller
+  surfaces, and the exact `WIN_SCORE = 3` contract
+- passed typecheck, lint, five focused domain tests, and production build in the
+  final retained attempt, then started and safely stopped managed local dev
+- fixed the clean-room defects exposed along the way: controller permissions,
+  workspace/caches, durable evidence mirroring, helper launch transport,
+  canonical scaffold lint and pnpm metadata, single-writer install guidance,
+  disclosed evidence schemas, and classified-blocker verification
+- independently verified `g2-03-20260829-a9` as `blocked` at the one remaining
+  local boundary: macOS denied Mach-port registration to both bundled Chromium
+  and system Chrome inside the managed Codex permission profile
+- retained twenty-five manifest-indexed artifacts plus the verifier report,
+  removed the run-scoped registry and credentials, and preserved the workspace
+  for inspection
+- handed the canonical browser-runtime/broker solution, run-scoped staging
+  identity, and exact passing replay to `G2-05`; no staging or production
+  release was submitted
 
 ## 2026-08-28 - Gate 2 Proved The Exact Candidate Bootstrap Outside The Monorepo
 
