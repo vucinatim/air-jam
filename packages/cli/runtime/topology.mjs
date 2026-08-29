@@ -20,7 +20,7 @@ const SUPPORTED_MODES = new Set([
   "hosted-release",
 ]);
 
-const getDefaultStandalonePublicHost = (env) => {
+const getDefaultStandalonePublicHost = (env, gamePort) => {
   const explicitPublicHost = env.VITE_AIR_JAM_PUBLIC_HOST?.trim();
   if (explicitPublicHost) {
     return explicitPublicHost;
@@ -28,10 +28,10 @@ const getDefaultStandalonePublicHost = (env) => {
 
   const detectedIp = detectLocalIpv4();
   if (!detectedIp) {
-    return `http://localhost:${DEFAULT_GAME_PORT}`;
+    return `http://localhost:${gamePort}`;
   }
 
-  return `http://${detectedIp}:${DEFAULT_GAME_PORT}`;
+  return `http://${detectedIp}:${gamePort}`;
 };
 
 const requireConfiguredAppOrigin = (env, mode) => {
@@ -46,7 +46,7 @@ const requireConfiguredAppOrigin = (env, mode) => {
   );
 };
 
-const createProjectSurfaceTopology = ({
+export const resolveProjectSurfaceTopology = ({
   runtimeMode,
   secure,
   env,
@@ -54,17 +54,18 @@ const createProjectSurfaceTopology = ({
   cwd,
 }) => {
   if (runtimeMode === "standalone-dev") {
+    const gamePort = env.VITE_PORT ?? DEFAULT_GAME_PORT;
     const secureState = secure
       ? loadSecureDevState({
           cwd,
           mode: SECURE_MODE_LOCAL,
           env,
-          gamePort: DEFAULT_GAME_PORT,
+          gamePort,
         })
       : null;
     const publicHost = secure
       ? secureState.publicHost
-      : getDefaultStandalonePublicHost(env);
+      : getDefaultStandalonePublicHost(env, gamePort);
 
     return resolveProjectRuntimeTopology({
       runtimeMode: secure ? "standalone-secure" : "standalone-dev",
@@ -133,7 +134,7 @@ export const runProjectTopologyCli = async ({
   const surfaces = Object.fromEntries(
     ["host", "controller"].map((surfaceRole) => [
       surfaceRole,
-      createProjectSurfaceTopology({
+      resolveProjectSurfaceTopology({
         runtimeMode: mode,
         secure,
         env: runtimeEnv,

@@ -1,8 +1,8 @@
 # Public Bootstrap Audit
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
-Status: Gate `G2-02` evidence
+Status: Gate `G2-02` independently reviewed and re-proved
 
 ## Question
 
@@ -50,13 +50,17 @@ The command owns the complete disposable lifecycle:
 2. start an authenticated run-scoped Verdaccio registry on loopback
 3. publish only the exact candidate tarballs
 4. create and install the `minimal` scaffold through registry package specs
-5. reject forbidden dependency specs and private monorepo paths
-6. discover CLI, root dev, session, release, MCP doctor, and project-scoped
+5. positively bind registry metadata and every installed Air Jam package to
+   the SHA-512 integrity of the exact packed tarball
+6. reject forbidden dependency specs and private monorepo paths
+7. discover CLI, root dev, session, release, MCP doctor, and project-scoped
    Codex configuration surfaces
-7. initialize raw MCP STDIO and verify the required semantic-session tools
-8. start, inspect, and stop the managed root development loop
-9. pass generated-project typecheck, tests, and production build
-10. stop the registry and remove the run-owned workspace unless retention was
+8. initialize raw MCP STDIO and verify all `24` standalone tools, including the
+   required semantic-session tools
+9. start, inspect, and stop the managed root development loop on a run-owned
+   Vite port
+10. pass generated-project typecheck, lint, tests, and production build
+11. stop the registry and remove the run-owned workspace unless retention was
     explicitly requested
 
 Progress is written to stderr. With `pnpm --silent` and `--json`, stdout is one
@@ -64,40 +68,57 @@ stable JSON result document.
 
 ## Measured Passing Run
 
-The candidate proof passed on 2026-08-28 with:
+The independently reviewed candidate proof passed again on 2026-08-29 with:
 
 1. all five candidate packages at version `0.9.2`
-2. no workspace, link, file, or monorepo path resolution
-3. generated `dev`, `status`, `reset:local`, and `mcp` scripts
-4. a present portable MCP declaration and a valid project-scoped Codex profile
-5. raw MCP initialization plus `24` discovered Air Jam tools, including
+2. registry metadata integrity equal to each newly packed tarball and generated
+   lockfile integrity equal to the exact four installed Air Jam package
+   tarballs; an ambient scoped-registry override can no longer produce a false
+   pass against old public bytes
+3. no workspace, link, file, run-owned, or monorepo path resolution
+4. generated `dev`, `status`, `reset:local`, `mcp`, and `lint` scripts asserted
+   as required rather than filtered into the report
+5. a present portable MCP declaration and a valid project-scoped Codex profile
+6. raw MCP initialization plus exactly `24` discovered Air Jam tools, including
    inspect, open/read/invoke/close semantic session operations
-6. MCP server identity reporting the actual installed package version instead
+7. MCP server identity reporting the actual installed package version instead
    of a hard-coded future version
-7. managed dev start/status/stop and generated-project typecheck/test/build
-8. automatic removal of the disposable workspace and registry
+8. managed dev start/status/stop on a run-owned Vite port and generated-project
+   typecheck/lint/test/build
+9. bounded command, MCP request, registry metadata, and workspace-build lock
+   waits with explicit spawn, signal, parse, and timeout failures
+10. automatic removal of the disposable workspace and registry
 
 The initial proof attempts also found and closed harness defects rather than
 being discarded: tarball path normalization happened too early, registry auth
 was not configured, Verdaccio's default request-size ceiling was below the
 candidate package, pnpm 9 did not accept a registry flag in the attempted
-position, and the expected project mode was named incorrectly. These were
-harness classifications, not hidden product workarounds.
+position, and the expected project mode was named incorrectly. Independent
+review then found that the original result checked configured registry and
+installed versions but did not bind installed bytes to the newly packed
+tarballs. `G2-02` was reopened until the positive integrity proof above passed.
 
 The proof also exposed one product contract defect: MCP initialization reported
 hard-coded version `1.0.0` while the installed package was `0.9.2`. The server
 now reads its identity from its shipped package manifest, and an MCP client test
 prevents version drift.
 
+The reviewed replay exposed another product contract defect: standalone dev
+honored a configured `VITE_PORT`, while `airjam topology` discarded that parsed
+value and advertised port `5173`. This made managed readiness wait on a URL that
+did not belong to the process it started. Topology now derives host,
+controller, socket, and public URLs from the same runtime port, with a direct
+regression test.
+
 ## Package Measurements
 
 | Package               | Candidate tarball bytes |
 | --------------------- | ----------------------: |
 | `@air-jam/sdk`        |               1,234,331 |
-| `@air-jam/cli`        |                 362,580 |
-| `@air-jam/mcp-server` |                 384,905 |
-| `@air-jam/server`     |                 151,299 |
-| `create-airjam`       |              87,264,734 |
+| `@air-jam/cli`        |                 364,299 |
+| `@air-jam/mcp-server` |                 639,017 |
+| `@air-jam/server`     |                 151,319 |
+| `create-airjam`       |              87,264,876 |
 
 `create-airjam` is large because it embeds all six scaffold archives, led by
 the asset-heavy `air-capture` template. This did not block the functional
@@ -105,12 +126,21 @@ bootstrap proof, but it is material installation friction and must be judged
 with explicit package-size and cold-install budgets in Gate 6. It is not hidden
 as a generic suggestion or treated as already acceptable.
 
-## Code Defect Closed
+## Code Defects Closed
 
 The repository's immutable local candidate-package helper omitted
 `@air-jam/cli` even though generated projects require it. The candidate package
 set now derives the same five package names as the canonical public release
 graph, with a contract test preventing future drift.
+
+The shared MCP STDIO probe now rejects malformed stdout through the requesting
+promise and always stops its child instead of throwing from an event handler.
+Both the candidate bootstrap and packed-scaffold smoke use that one probe.
+
+The package-build lock and every bootstrap subprocess now have bounded waits,
+and a managed dev process is marked cleanup-eligible before its JSON result is
+parsed. Autonomous runs therefore fail explicitly instead of hanging forever
+or leaking a successfully started process after malformed output.
 
 ## Residual Boundary
 

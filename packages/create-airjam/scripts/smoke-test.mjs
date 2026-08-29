@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifyMcpStdioHandshake } from "../../../scripts/lib/mcp-stdio-handshake.mjs";
 import { requiredScaffoldPaths } from "../../cli/scripts/ai-pack-contract.mjs";
 import { loadScaffoldableRepoGameManifests } from "./lib/scaffold-source-manifests.mjs";
 
@@ -286,95 +287,24 @@ const verifyPackedSemanticSessionLifecycle = async (projectDir) => {
 };
 
 const verifyPackedMcpProtocol = async (projectDir) => {
-  const child = spawn("pnpm", ["exec", "airjam-mcp"], {
+  await verifyMcpStdioHandshake({
     cwd: projectDir,
     env: {
       ...process.env,
       CI: process.env.CI ?? "1",
       NO_UPDATE_NOTIFIER: "1",
     },
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-  let stdoutBuffer = "";
-  let stderr = "";
-  const pending = new Map();
-
-  child.stdout.on("data", (chunk) => {
-    stdoutBuffer += chunk.toString();
-    while (stdoutBuffer.includes("\n")) {
-      const newline = stdoutBuffer.indexOf("\n");
-      const line = stdoutBuffer.slice(0, newline).trim();
-      stdoutBuffer = stdoutBuffer.slice(newline + 1);
-      if (!line) continue;
-      const message = JSON.parse(line);
-      const waiter = pending.get(message.id);
-      if (waiter) {
-        pending.delete(message.id);
-        waiter.resolve(message);
-      }
-    }
-  });
-  child.stderr.on("data", (chunk) => {
-    stderr += chunk.toString();
-  });
-
-  const request = (id, method, params = {}) =>
-    new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        pending.delete(id);
-        reject(
-          new Error(
-            `Timed out waiting for packed MCP ${method}.${stderr ? `\n${stderr}` : ""}`,
-          ),
-        );
-      }, 10_000);
-      pending.set(id, {
-        resolve: (message) => {
-          clearTimeout(timeout);
-          resolve(message);
-        },
-      });
-      child.stdin.write(
-        `${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`,
-      );
-    });
-
-  try {
-    const initialized = await request(1, "initialize", {
-      protocolVersion: "2025-11-25",
-      capabilities: {},
-      clientInfo: { name: "airjam-packed-smoke", version: "1.0.0" },
-    });
-    if (initialized.error || !initialized.result?.serverInfo) {
-      throw new Error("Packed MCP server rejected protocol initialization.");
-    }
-    child.stdin.write(
-      `${JSON.stringify({
-        jsonrpc: "2.0",
-        method: "notifications/initialized",
-        params: {},
-      })}\n`,
-    );
-
-    const listed = await request(2, "tools/list");
-    const toolNames = listed.result?.tools?.map((tool) => tool.name) ?? [];
-    for (const expected of [
+    clientInfo: { name: "airjam-packed-smoke", version: "1.0.0" },
+    label: "Packed MCP server",
+    requiredToolNames: [
       "airjam.inspect_project",
       "airjam.open_game_session",
       "airjam.read_game_session",
       "airjam.invoke_game_session_action",
       "airjam.close_game_session",
-    ]) {
-      if (!toolNames.includes(expected)) {
-        throw new Error(`Packed MCP server did not expose ${expected}.`);
-      }
-    }
-  } finally {
-    child.stdin.end();
-    if (child.exitCode === null) {
-      child.kill("SIGTERM");
-    }
-  }
+    ],
+    expectedToolCount: 24,
+  });
 };
 
 const removeIfExists = (targetPath) => {

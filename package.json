@@ -64,6 +64,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "verdaccio": "6.2.4",
-    "wrangler": "^4.80.0"
+    "wrangler": "^4.80.0",
+    "yaml": "^2.4.2"
   }
 }

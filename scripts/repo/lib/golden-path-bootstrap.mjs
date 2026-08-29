@@ -5,12 +5,18 @@ import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { parse as parseYaml } from "yaml";
 
-import { resolvePublicPackages } from "../../release/public-packages.mjs";
+import { verifyMcpStdioHandshake } from "../../lib/mcp-stdio-handshake.mjs";
+import {
+  resolvePublicPackages,
+  resolveUnifiedPublicVersion,
+} from "../../release/public-packages.mjs";
 import { repoRoot } from "./paths.mjs";
 
 const require = createRequire(import.meta.url);
 const commandMaxBuffer = 64 * 1024 * 1024;
+const commandTimeoutMs = 10 * 60 * 1_000;
 const rootPackageJson = JSON.parse(
   fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
 );
@@ -19,11 +25,23 @@ const candidatePackageNames = new Set(
 );
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const sha512Integrity = (value) =>
+  `sha512-${createHash("sha512").update(value).digest("base64")}`;
 
 const normalizeOutput = (value, runRoot) =>
   String(value ?? "")
     .replaceAll(repoRoot, "<repo>")
     .replaceAll(runRoot, "<run>");
+
+const parseCommandJson = (id, output) => {
+  try {
+    return JSON.parse(output);
+  } catch (error) {
+    throw new Error(`${id} did not return one valid JSON document.`, {
+      cause: error,
+    });
+  }
+};
 
 export const reserveLoopbackPort = () =>
   new Promise((resolve, reject) => {
@@ -102,10 +120,10 @@ const startCandidateRegistry = async ({ runRoot, port }) => {
       "packages:",
       "  '@air-jam/*':",
       "    access: $all",
-      "    publish: $all",
+      "    publish: $authenticated",
       "  'create-airjam':",
       "    access: $all",
-      "    publish: $all",
+      "    publish: $authenticated",
       "  '**':",
       "    access: $all",
       "    proxy: npmjs",
@@ -191,6 +209,7 @@ const configureRunScopedRegistryAuth = async ({
     npmrcPath,
     [
       `registry=${registryUrl}/`,
+      `@air-jam:registry=${registryUrl}/`,
       `${registryKey}/:_authToken=${result.token}`,
       "",
     ].join("\n"),
@@ -211,7 +230,111 @@ const findPackedTarball = ({ output, packageDir }) => {
   return path.resolve(packageDir, candidate);
 };
 
-const assertRegistrySafeProject = ({ projectDir, registryUrl }) => {
+const packageLockKeyMatches = ({ key, packageName, version }) => {
+  const unquotedKey = String(key).replace(/^\//u, "");
+  const expected = `${packageName}@${version}`;
+  return unquotedKey === expected || unquotedKey.startsWith(`${expected}(`);
+};
+
+const importerVersion = (entry) => {
+  if (typeof entry === "string") return entry;
+  if (entry && typeof entry.version === "string") return entry.version;
+  return null;
+};
+
+export const assertInstalledCandidateIntegrity = ({
+  lockSource,
+  packageArtifacts,
+}) => {
+  const lockfile = parseYaml(lockSource);
+  const importer = lockfile?.importers?.["."];
+  const packages = lockfile?.packages;
+  if (!importer || !packages || typeof packages !== "object") {
+    throw new Error(
+      "Generated pnpm lockfile has no importer/package provenance.",
+    );
+  }
+
+  for (const artifact of packageArtifacts) {
+    if (artifact.name === "create-airjam") continue;
+    const dependency =
+      importer.dependencies?.[artifact.name] ??
+      importer.devDependencies?.[artifact.name] ??
+      importer.optionalDependencies?.[artifact.name];
+    const resolvedVersion = importerVersion(dependency)?.split("(", 1)[0];
+    if (resolvedVersion !== artifact.version) {
+      throw new Error(
+        `Generated lockfile resolved ${artifact.name} as ${resolvedVersion ?? "missing"}; expected ${artifact.version}.`,
+      );
+    }
+
+    const matchingEntries = Object.entries(packages).filter(([key]) =>
+      packageLockKeyMatches({
+        key,
+        packageName: artifact.name,
+        version: artifact.version,
+      }),
+    );
+    if (matchingEntries.length === 0) {
+      throw new Error(
+        `Generated lockfile has no package entry for ${artifact.name}@${artifact.version}.`,
+      );
+    }
+    const integrities = new Set(
+      matchingEntries
+        .map(([, value]) => value?.resolution?.integrity)
+        .filter((value) => typeof value === "string"),
+    );
+    if (integrities.size !== 1 || !integrities.has(artifact.integrity)) {
+      throw new Error(
+        `Generated lockfile integrity for ${artifact.name}@${artifact.version} does not match the packed candidate.`,
+      );
+    }
+  }
+};
+
+const assertRegistryCandidateIntegrity = async ({
+  registryUrl,
+  packageArtifacts,
+}) => {
+  for (const artifact of packageArtifacts) {
+    const encodedName = artifact.name.replace("/", "%2f");
+    const startedAt = Date.now();
+    let metadata;
+    let lastError;
+    while (Date.now() - startedAt < 5_000) {
+      try {
+        const response = await fetch(`${registryUrl}/${encodedName}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        metadata = await response.json();
+        break;
+      } catch (error) {
+        lastError = error;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+    if (!metadata) {
+      throw new Error(
+        `Candidate registry metadata for ${artifact.name} was unavailable after publication.`,
+        { cause: lastError },
+      );
+    }
+    const observed = metadata.versions?.[artifact.version]?.dist?.integrity;
+    if (observed !== artifact.integrity) {
+      throw new Error(
+        `Candidate registry integrity for ${artifact.name}@${artifact.version} does not match the packed tarball.`,
+      );
+    }
+  }
+};
+
+const assertRegistrySafeProject = ({
+  projectDir,
+  registryUrl,
+  packageArtifacts,
+}) => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(projectDir, "package.json"), "utf8"),
   );
@@ -258,11 +381,15 @@ const assertRegistrySafeProject = ({ projectDir, registryUrl }) => {
   if (lockSource.includes(repoRoot)) {
     throw new Error("Generated lockfile contains a private monorepo path.");
   }
+  if (lockSource.includes(path.dirname(projectDir))) {
+    throw new Error("Generated lockfile contains a run-owned private path.");
+  }
   if (
     /^\s*(?:specifier|version):\s+(?:file|link|workspace):/mu.test(lockSource)
   ) {
     throw new Error("Generated lockfile contains a forbidden local spec.");
   }
+  assertInstalledCandidateIntegrity({ lockSource, packageArtifacts });
   return packageJson;
 };
 
@@ -282,85 +409,6 @@ const inspectInstalledAirJamVersions = (projectDir) => {
   return versions;
 };
 
-const verifyMcpProtocol = async ({ projectDir, env }) => {
-  const child = spawn("pnpm", ["exec", "airjam-mcp"], {
-    cwd: projectDir,
-    env,
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-  let stdoutBuffer = "";
-  let stderr = "";
-  const pending = new Map();
-  child.stdout.on("data", (chunk) => {
-    stdoutBuffer += chunk.toString();
-    while (stdoutBuffer.includes("\n")) {
-      const newline = stdoutBuffer.indexOf("\n");
-      const line = stdoutBuffer.slice(0, newline).trim();
-      stdoutBuffer = stdoutBuffer.slice(newline + 1);
-      if (!line) continue;
-      const message = JSON.parse(line);
-      pending.get(message.id)?.(message);
-      pending.delete(message.id);
-    }
-  });
-  child.stderr.on("data", (chunk) => {
-    stderr += chunk.toString();
-  });
-
-  const request = (id, method, params = {}) =>
-    new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        pending.delete(id);
-        reject(new Error(`Timed out waiting for MCP ${method}.\n${stderr}`));
-      }, 10_000);
-      pending.set(id, (message) => {
-        clearTimeout(timeout);
-        resolve(message);
-      });
-      child.stdin.write(
-        `${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`,
-      );
-    });
-
-  try {
-    const initialized = await request(1, "initialize", {
-      protocolVersion: "2025-11-25",
-      capabilities: {},
-      clientInfo: { name: "airjam-golden-path-bootstrap", version: "1.0.0" },
-    });
-    if (initialized.error || !initialized.result?.serverInfo) {
-      throw new Error("Candidate MCP server rejected initialization.");
-    }
-    child.stdin.write(
-      `${JSON.stringify({
-        jsonrpc: "2.0",
-        method: "notifications/initialized",
-        params: {},
-      })}\n`,
-    );
-    const listed = await request(2, "tools/list");
-    const toolNames = listed.result?.tools?.map((tool) => tool.name) ?? [];
-    for (const required of [
-      "airjam.inspect_project",
-      "airjam.open_game_session",
-      "airjam.read_game_session",
-      "airjam.invoke_game_session_action",
-      "airjam.close_game_session",
-    ]) {
-      if (!toolNames.includes(required)) {
-        throw new Error(`Candidate MCP server did not expose ${required}.`);
-      }
-    }
-    return {
-      serverInfo: initialized.result.serverInfo,
-      tools: toolNames.sort(),
-    };
-  } finally {
-    child.stdin.end();
-    await stopChild(child);
-  }
-};
-
 export const prepareGoldenPathCandidateRegistry = async ({
   runRoot,
   port,
@@ -370,13 +418,9 @@ export const prepareGoldenPathCandidateRegistry = async ({
 }) => {
   const packDir = path.join(runRoot, "packages");
   fs.mkdirSync(packDir, { recursive: true });
-  for (const packageFilter of [
-    "@air-jam/sdk",
-    "@air-jam/mcp-server",
-    "@air-jam/server",
-    "@air-jam/cli",
-    "create-airjam",
-  ]) {
+  const publicPackages = resolvePublicPackages();
+  const version = resolveUnifiedPublicVersion();
+  for (const { packageFilter } of publicPackages) {
     run(
       `build:${packageFilter}`,
       "pnpm",
@@ -386,8 +430,8 @@ export const prepareGoldenPathCandidateRegistry = async ({
   }
 
   const tarballs = new Map();
-  const packageSizes = {};
-  for (const packageDefinition of resolvePublicPackages()) {
+  const packageArtifacts = [];
+  for (const packageDefinition of publicPackages) {
     const packageDir = path.join(repoRoot, packageDefinition.workingDirectory);
     const output = run(
       `pack:${packageDefinition.packageName}`,
@@ -397,7 +441,13 @@ export const prepareGoldenPathCandidateRegistry = async ({
     );
     const tarballPath = findPackedTarball({ output, packageDir });
     tarballs.set(packageDefinition.packageName, tarballPath);
-    packageSizes[packageDefinition.packageName] = fs.statSync(tarballPath).size;
+    const tarball = fs.readFileSync(tarballPath);
+    packageArtifacts.push({
+      name: packageDefinition.packageName,
+      version: packageDefinition.version,
+      tarballBytes: tarball.length,
+      integrity: sha512Integrity(tarball),
+    });
   }
 
   onProgress("registry:start");
@@ -408,7 +458,7 @@ export const prepareGoldenPathCandidateRegistry = async ({
       runRoot,
       commandEnv,
     });
-    for (const packageDefinition of resolvePublicPackages()) {
+    for (const packageDefinition of publicPackages) {
       run(`publish:${packageDefinition.packageName}`, "npm", [
         "publish",
         tarballs.get(packageDefinition.packageName),
@@ -419,10 +469,14 @@ export const prepareGoldenPathCandidateRegistry = async ({
         "--ignore-scripts",
       ]);
     }
+    await assertRegistryCandidateIntegrity({
+      registryUrl: registry.registryUrl,
+      packageArtifacts,
+    });
     return {
       registry,
-      version: resolvePublicPackages()[0].version,
-      packageSizes,
+      version,
+      packageArtifacts,
     };
   } catch (error) {
     await stopChild(registry.child);
@@ -445,6 +499,10 @@ export const runGoldenPathBootstrap = async ({
   let managedDevStarted = false;
   let managedDevProcessId = null;
   const port = await reserveLoopbackPort();
+  let gamePort = await reserveLoopbackPort();
+  while (gamePort === port) {
+    gamePort = await reserveLoopbackPort();
+  }
   const registryUrl = `http://127.0.0.1:${port}`;
   const commandEnv = {
     ...process.env,
@@ -452,6 +510,8 @@ export const runGoldenPathBootstrap = async ({
     NO_UPDATE_NOTIFIER: "1",
     NO_COLOR: "1",
     FORCE_COLOR: "0",
+    VITE_PORT: String(gamePort),
+    AIRJAM_DEVTOOLS_KNOWN_PORTS: `4000,${gamePort}`,
     npm_config_audit: "false",
     npm_config_registry: registryUrl,
   };
@@ -465,6 +525,9 @@ export const runGoldenPathBootstrap = async ({
       encoding: "utf8",
       env: commandEnv,
       maxBuffer: commandMaxBuffer,
+      timeout: commandTimeoutMs,
+      killSignal: "SIGTERM",
+      shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"],
     });
     const stdout = String(result.stdout ?? "");
@@ -474,13 +537,22 @@ export const runGoldenPathBootstrap = async ({
     commands.push({
       id,
       exitCode: result.status,
+      signal: result.signal,
+      errorCode: result.error?.code ?? null,
       durationMs: Date.now() - startedAt,
       stdoutSha256: sha256(normalizedStdout),
       stderrSha256: sha256(normalizedStderr),
     });
+    if (result.error) {
+      throw new Error(`${id} failed: ${result.error.message}`, {
+        cause: result.error,
+      });
+    }
     if (result.status !== 0) {
       throw new Error(
-        `${id} failed with exit code ${result.status}.\n${normalizedStdout}\n${normalizedStderr}`,
+        result.signal
+          ? `${id} terminated from signal ${result.signal}.\n${normalizedStdout}\n${normalizedStderr}`
+          : `${id} failed with exit code ${result.status}.\n${normalizedStdout}\n${normalizedStderr}`,
       );
     }
     return stdout;
@@ -495,7 +567,7 @@ export const runGoldenPathBootstrap = async ({
       onProgress,
     });
     registry = prepared.registry;
-    const { version, packageSizes } = prepared;
+    const { version, packageArtifacts } = prepared;
 
     fs.mkdirSync(path.dirname(projectDir), { recursive: true });
     run(
@@ -504,9 +576,15 @@ export const runGoldenPathBootstrap = async ({
       ["dlx", `create-airjam@${version}`, projectName, "--template", template],
       path.dirname(projectDir),
     );
+    fs.writeFileSync(
+      path.join(projectDir, ".env.local"),
+      `VITE_PORT=${gamePort}\n`,
+      { flag: "wx" },
+    );
     const packageJson = assertRegistrySafeProject({
       projectDir,
       registryUrl: registry.registryUrl,
+      packageArtifacts,
     });
     if (packageJson.packageManager !== rootPackageJson.packageManager) {
       throw new Error(
@@ -517,6 +595,12 @@ export const runGoldenPathBootstrap = async ({
       throw new Error(
         'Generated project must expose the canonical "eslint ." lint script.',
       );
+    }
+    const requiredScripts = ["dev", "status", "reset:local", "mcp", "lint"];
+    for (const script of requiredScripts) {
+      if (typeof packageJson.scripts?.[script] !== "string") {
+        throw new Error(`Generated project is missing the ${script} script.`);
+      }
     }
 
     run("discover:cli", "pnpm", ["exec", "airjam", "--help"], projectDir);
@@ -533,7 +617,8 @@ export const runGoldenPathBootstrap = async ({
       ["exec", "airjam", "release", "--help"],
       projectDir,
     );
-    const doctor = JSON.parse(
+    const doctor = parseCommandJson(
+      "discover:mcp-doctor",
       run(
         "discover:mcp-doctor",
         "pnpm",
@@ -541,7 +626,8 @@ export const runGoldenPathBootstrap = async ({
         projectDir,
       ),
     );
-    const codexProfile = JSON.parse(
+    const codexProfile = parseCommandJson(
+      "discover:codex-profile",
       run(
         "discover:codex-profile",
         "pnpm",
@@ -574,12 +660,27 @@ export const runGoldenPathBootstrap = async ({
       throw new Error("Generated Codex MCP profile is not project-scoped.");
     }
     onProgress("discover:mcp-protocol");
-    const mcp = await verifyMcpProtocol({
-      projectDir,
+    const mcp = await verifyMcpStdioHandshake({
+      cwd: projectDir,
       env: commandEnv,
+      clientInfo: {
+        name: "airjam-golden-path-bootstrap",
+        version: "1.0.0",
+      },
+      label: "Candidate MCP server",
+      requiredToolNames: [
+        "airjam.inspect_project",
+        "airjam.open_game_session",
+        "airjam.read_game_session",
+        "airjam.invoke_game_session_action",
+        "airjam.close_game_session",
+      ],
+      expectedToolCount: 24,
     });
 
-    const devStarted = JSON.parse(
+    managedDevStarted = true;
+    const devStarted = parseCommandJson(
+      "lifecycle:dev-start",
       run(
         "lifecycle:dev-start",
         "pnpm",
@@ -587,9 +688,9 @@ export const runGoldenPathBootstrap = async ({
         projectDir,
       ),
     );
-    managedDevStarted = true;
     managedDevProcessId = devStarted.process?.id ?? null;
-    const devStatus = JSON.parse(
+    const devStatus = parseCommandJson(
+      "lifecycle:status",
       run(
         "lifecycle:status",
         "pnpm",
@@ -606,7 +707,8 @@ export const runGoldenPathBootstrap = async ({
         "Generated dev start/status did not expose one managed process.",
       );
     }
-    const devStopped = JSON.parse(
+    const devStopped = parseCommandJson(
+      "lifecycle:dev-stop",
       run(
         "lifecycle:dev-stop",
         "pnpm",
@@ -637,10 +739,7 @@ export const runGoldenPathBootstrap = async ({
         kind: "run-scoped-loopback-verdaccio",
         upstream: "https://registry.npmjs.org/",
         airJamPackagesProxied: false,
-        published: resolvePublicPackages().map((entry) => ({
-          name: entry.packageName,
-          tarballBytes: packageSizes[entry.packageName],
-        })),
+        published: packageArtifacts,
       },
       isolation: {
         forbiddenSpecsAbsent: true,
@@ -650,9 +749,7 @@ export const runGoldenPathBootstrap = async ({
       project: {
         name: packageJson.name,
         packageManager: packageJson.packageManager,
-        scripts: ["dev", "status", "reset:local", "mcp", "lint"].filter(
-          (script) => typeof packageJson.scripts?.[script] === "string",
-        ),
+        scripts: requiredScripts,
         installedVersions,
       },
       discovery: {

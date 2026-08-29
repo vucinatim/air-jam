@@ -26,6 +26,7 @@ const ignoredDirNames = new Set([
 ]);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const defaultLockTimeoutMs = 5 * 60 * 1_000;
 
 const sanitizePackageName = (packageName) =>
   packageName.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -123,8 +124,21 @@ const runPnpmBuild = (packageName) =>
     child.on("error", reject);
   });
 
-const acquireLock = async (lockDir) => {
+export const acquireWorkspaceBuildLock = async (
+  lockDir,
+  { timeoutMs = defaultLockTimeoutMs, pollIntervalMs = 120 } = {},
+) => {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("Workspace build lock timeout must be a positive number.");
+  }
+  if (!Number.isFinite(pollIntervalMs) || pollIntervalMs <= 0) {
+    throw new Error(
+      "Workspace build lock poll interval must be a positive number.",
+    );
+  }
+
   await mkdir(path.dirname(lockDir), { recursive: true });
+  const startedAt = Date.now();
 
   while (true) {
     try {
@@ -132,7 +146,13 @@ const acquireLock = async (lockDir) => {
       return;
     } catch (error) {
       if (error && error.code === "EEXIST") {
-        await sleep(120);
+        const elapsedMs = Date.now() - startedAt;
+        if (elapsedMs >= timeoutMs) {
+          throw new Error(
+            `Timed out after ${timeoutMs}ms waiting for workspace build lock ${lockDir}.`,
+          );
+        }
+        await sleep(Math.min(pollIntervalMs, timeoutMs - elapsedMs));
         continue;
       }
 
@@ -170,7 +190,7 @@ export const ensureWorkspacePackageBuild = async (packageNameInput) => {
     `${safeName}.json`,
   );
 
-  await acquireLock(lockDir);
+  await acquireWorkspaceBuildLock(lockDir);
 
   try {
     const latestInputMtimeMs = await collectLatestInputMtimeMs(packageDir);

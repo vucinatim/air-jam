@@ -18,6 +18,24 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Independent Review Re-Proved Public Bootstrap Provenance
+
+- reopened `G2-02` after review showed the original registry proof checked
+  versions and configured registry state but did not positively bind installed
+  bytes to the exact tarballs packed by that run
+- added SHA-512 provenance checks across packed artifacts, run-scoped registry
+  metadata, direct generated-project resolutions, and pnpm lockfile integrity
+- required all generated lifecycle scripts, all `24` standalone MCP tools, and
+  the lint gate instead of filtering/reporting partial capability
+- replaced duplicate unsafe MCP stream readers with one bounded shared probe
+  that rejects malformed output without leaking its child process
+- bounded bootstrap commands and workspace-build locks and made managed-dev
+  cleanup eligible before parsing command output
+- discovered and fixed a public topology defect where Vite honored a custom
+  `VITE_PORT` but `airjam topology` still advertised `5173`
+- passed the full strengthened clean-registry bootstrap with managed
+  start/status/stop plus generated-project typecheck, lint, tests, and build
+
 ## 2026-08-29 - Independent Review Reopened G2-03 And Fixed The Merge Model
 
 - accepted the independent review finding that the original primary-run
