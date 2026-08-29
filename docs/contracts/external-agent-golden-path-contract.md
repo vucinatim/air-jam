@@ -46,8 +46,8 @@ A valid run starts with all of these conditions:
    tarballs, monorepo-relative paths, `NODE_PATH`, and equivalent private
    resolution are forbidden
 3. run-specific Air Jam client configuration, application identity, staging
-   credentials, game identity, release identity, room/session identities, and
-   evidence directory
+   credentials, provider project/environment identity, game identity, release
+   identity, room/session identities, and evidence directory
 4. no Air Jam source checkout, private repository documentation, prior run
    transcript, or maintainer-authored prompt amendments in agent context
 5. recorded Node.js, Corepack, package manager, Git, operating system,
@@ -251,7 +251,10 @@ pnpm --silent run repo -- golden-path --help
 pnpm --silent run repo -- golden-path spec --json
 pnpm --silent run repo -- golden-path validate --json
 pnpm --silent run repo -- golden-path bootstrap --json
-pnpm --silent run repo -- golden-path run-primary --staging-url <url> --json
+pnpm --silent run repo -- golden-path run-primary \
+  --railway-project <project-id> \
+  --railway-environment <environment-id> \
+  --json
 ```
 
 `spec` returns the canonical machine scenario and `validate` rejects malformed
@@ -260,14 +263,25 @@ client profiles. `bootstrap` builds the exact public package set, publishes it
 to a disposable loopback registry with Air Jam upstream fallback disabled,
 installs a clean scaffold through registry specs, proves CLI/MCP discovery and
 the managed dev lifecycle, runs quality gates, and removes its run-owned state.
-`run-primary` launches a fresh ephemeral Codex process in the isolated
+`run-primary` first resolves the supplied Railway project and environment
+through the provider API. It rejects the primary/base environment, requires an
+accessible staging- or PR-named environment, resolves the canonical platform
+deployment and a public domain distinct from production, requires a terminal
+successful deployment and platform health response, verifies the provider
+environment variables match the requested identity, requires a distinct
+Postgres service instance and release-storage bucket, and records that provider
+attestation without retaining secret values. A trusted-looking hostname alone
+is not staging evidence. The
+controller then launches a fresh ephemeral Codex process in the isolated
 workspace, streams a normalized transcript, injects only the declared fault
 after observed passing quality commands and a closed semantic control session,
 requires all four quality gates again after repair, and emits the primary-lane
-verifier result. It retains failed, blocked, and interrupted runs rather than
-converting them into a success claim. Future `status`, `verify`, or `clean`
-operations must remain on this same owner and must not duplicate lifecycle
-business logic already owned by the public Air Jam CLI/MCP/domain services.
+verifier result. Railway credentials remain controller-only; the child receives
+the verified URL but no provider credentials. Failed, blocked, and interrupted
+runs are retained rather than converted into a success claim. Future `status`,
+`verify`, or `clean` operations must remain on this same owner and must not
+duplicate lifecycle business logic already owned by the public Air Jam
+CLI/MCP/domain services.
 
 ## Gate Boundaries And Acceptance
 

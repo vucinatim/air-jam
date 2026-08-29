@@ -271,7 +271,13 @@ to hosts, controllers, sockets, and readiness tooling.
 Gate `G2-03` is active again. Its completion requires a new controller-owned
 Signal Relay replay whose durable artifacts, isolation checks, quality gates,
 cleanup, and release verification do not depend on agent-authored success
-claims.
+claims. The old PR-52 hostname is no longer admissible staging proof because it
+still served platform health after Railway reported no corresponding ephemeral
+environment. The runner now requires provider-owned Railway project and
+environment identity and proves separation from production before agent
+startup. No isolated staging environment currently exists; provisioning one
+remains an explicit cost decision rather than an automatic side effect of the
+proof harness.
 
 Gate `G2-02` is closed at `511ee85` with the
 [public bootstrap audit](./audits/v1-golden-path/public-bootstrap-audit.md).
@@ -312,7 +318,8 @@ Execute the roadmap in dependency order:
 ## Immediate Next Steps
 
 1. agents select and claim from the canonical readiness queue
-2. run the complete Codex Signal Relay authoring, semantic-control, repair,
+2. provision or select a cost-approved isolated Railway staging environment,
+   then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
 3. continue the dependency-ready reliability inventory, operational-event
    contract, and threat model

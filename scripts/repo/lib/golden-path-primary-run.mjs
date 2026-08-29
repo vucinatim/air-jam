@@ -15,6 +15,7 @@ import {
   readGoldenPathProgram,
   validateGoldenPathProgram,
 } from "./golden-path-program.mjs";
+import { resolveGoldenPathRailwayStagingTarget } from "./golden-path-staging-target.mjs";
 import { repoRoot } from "./paths.mjs";
 
 const evidenceFormat = "air-jam-golden-path-evidence/v1";
@@ -74,23 +75,6 @@ const assertRunId = (runId) => {
       "--run-id must be 6-48 lowercase letters, digits, or hyphens and start with a letter or digit.",
     );
   }
-};
-
-const assertIsolatedStagingUrl = (rawUrl) => {
-  const url = new URL(rawUrl);
-  const hostname = url.hostname.toLowerCase();
-  const isLoopback = hostname === "127.0.0.1" || hostname === "localhost";
-  const isNamedStaging =
-    hostname.includes("staging") || /(?:^|-)pr-\d+(?:\.|-)/u.test(hostname);
-  if (url.protocol !== "https:" && !isLoopback) {
-    throw new Error("The staging URL must use HTTPS unless it is loopback.");
-  }
-  if (!isLoopback && !isNamedStaging) {
-    throw new Error(
-      "The staging URL must be visibly isolated through a staging or PR hostname.",
-    );
-  }
-  return url.toString().replace(/\/$/u, "");
 };
 
 const substitutePrompt = ({
@@ -672,14 +656,19 @@ export const verifyPrimaryRun = ({
 
 export const runGoldenPathPrimary = async ({
   runId = defaultRunId(),
-  stagingUrl,
+  railwayProjectId,
+  railwayEnvironmentId,
   keepWorkspace = true,
   model,
   onProgress = () => {},
 } = {}) => {
   assertRunId(runId);
-  if (!stagingUrl) throw new Error("--staging-url is required.");
-  const normalizedStagingUrl = assertIsolatedStagingUrl(stagingUrl);
+  onProgress("staging:attest");
+  const stagingTarget = await resolveGoldenPathRailwayStagingTarget({
+    projectId: railwayProjectId,
+    environmentId: railwayEnvironmentId,
+  });
+  const normalizedStagingUrl = stagingTarget.url;
   const programState = readGoldenPathProgram(defaultGoldenPathManifestPath);
   validateGoldenPathProgram(programState);
 
@@ -925,6 +914,7 @@ export const runGoldenPathPrimary = async ({
       candidateRegistry: "<candidate-registry>",
       airJamUpstreamFallback: false,
       stagingPlatform: normalizedStagingUrl,
+      stagingProvider: stagingTarget,
       requestedProductionAllowed: false,
       requestedArcadeVisibility: "hidden",
       platformReleaseVerification: null,
@@ -1199,7 +1189,7 @@ export const runGoldenPathPrimary = async ({
       ),
       clients: { primary: { profile: "codex", version: codexVersion } },
       staging: {
-        url: normalizedStagingUrl,
+        ...stagingTarget,
         requestedProductionAllowed: false,
         requestedArcadeVisibility: "hidden",
         verification: null,

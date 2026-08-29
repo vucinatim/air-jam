@@ -413,6 +413,15 @@ ephemeral and none were retained at the 2026-08-29 inspection. Gate `G3-01`
 owns the measured decision about disposable candidate environments versus paid
 always-on staging; prose here must not pre-commit recurring spend.
 
+The old PR-52 hostname still returned platform health after Railway reported no
+matching ephemeral environment. It is not a valid release target. Golden-path
+automation therefore targets immutable Railway project/environment identities,
+rejects the primary/base environment, and derives the platform deployment,
+domain, environment-variable identity, Postgres instance, release-storage
+isolation, and health attestation from provider state before starting an
+external agent. A URL that merely looks like staging cannot authorize
+publication.
+
 ## Parallel Execution Rules
 
 1. shared contract work stays central until its boundary is stable

@@ -114,8 +114,12 @@ export const registerGoldenPathCommands = (program) => {
       "Run the canonical clean-room lifecycle through an external Codex process",
     )
     .requiredOption(
-      "--staging-url <url>",
-      "Isolated hidden-staging platform URL",
+      "--railway-project <id>",
+      "Railway project containing the isolated staging environment",
+    )
+    .requiredOption(
+      "--railway-environment <id>",
+      "Non-production Railway staging or PR environment",
     )
     .option("--run-id <id>", "Stable run identity")
     .option("--model <model>", "Codex model override")
@@ -127,7 +131,8 @@ export const registerGoldenPathCommands = (program) => {
     .action(async (options) => {
       const result = await runGoldenPathPrimary({
         runId: options.runId,
-        stagingUrl: options.stagingUrl,
+        railwayProjectId: options.railwayProject,
+        railwayEnvironmentId: options.railwayEnvironment,
         keepWorkspace: options.discardWorkspace !== true,
         model: options.model,
         onProgress: (stage) => {

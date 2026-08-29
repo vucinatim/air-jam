@@ -37,9 +37,19 @@ Every valid attempt uses:
 8. a redacted, reconciled evidence mirror under
    `.airjam/golden-path-runs/<run-id>/evidence`
 
-The staging target is the isolated Railway PR environment at
-`air-jam-platform-air-jam-pr-52.up.railway.app`. Production was not changed by
-any run.
+Attempts `a4` through `a9` targeted the then-active isolated Railway PR
+environment at `air-jam-platform-air-jam-pr-52.up.railway.app`. Production was
+not changed by any run. On the 2026-08-29 replay preflight, that hostname still
+returned the platform health response while the provider API reported zero
+ephemeral environments. The hostname is therefore no longer admissible staging
+identity and no new primary run was started against it.
+
+The controller now accepts Railway project and environment identities instead
+of a URL. It resolves the environment, platform deployment, distinct public
+domain, environment-variable identity, distinct Postgres instance, distinct
+release-storage bucket, and health response through provider-owned state;
+rejects the primary/base environment; and retains the non-secret provider
+attestation without passing Railway credentials to the external agent.
 
 ## Independent Review Correction
 
@@ -153,9 +163,10 @@ not in the game framework's basic ability to support agent-authored products.
 The following are Gate `G2-05` inputs unless a later `G2-03` replay proves that
 they are already satisfied:
 
-1. provide a canonical, run-scoped staging machine identity without copying a
-   maintainer credential, opening a production backdoor, or requiring an
-   informal human approval during the autonomous proof
+1. provision or select a real isolated Railway staging environment under the
+   cost policy, then provide a canonical run-scoped platform machine identity
+   without copying a maintainer credential, opening a production backdoor, or
+   requiring an informal human approval during the autonomous proof
 2. provide a canonical browser runtime or broker that can complete
    open/read/invoke/close from the exact managed Codex profile without widening
    the entire agent sandbox

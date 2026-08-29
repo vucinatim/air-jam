@@ -18,6 +18,23 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Golden-Path Staging Authority Became Provider-Owned
+
+- stopped the next `G2-03` replay before external-agent startup because the old
+  PR-52 hostname returned platform health while Railway reported no remaining
+  ephemeral environment
+- removed URL-only staging trust from `golden-path run-primary`
+- made the canonical CLI require Railway project and environment identities,
+  reject the primary/base environment, resolve the canonical platform service
+  and a domain distinct from production, verify environment identity plus
+  distinct Postgres and release-storage resources, require a successful
+  deployment and health response, and retain that non-secret provider
+  attestation
+- kept Railway credentials in the controller boundary; the isolated Codex child
+  receives only the verified staging URL
+- left environment provisioning separate and explicit so the proof harness
+  cannot silently create recurring infrastructure cost
+
 ## 2026-08-29 - Independent Review Re-Proved Public Bootstrap Provenance
 
 - reopened `G2-02` after review showed the original registry proof checked
