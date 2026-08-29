@@ -38,6 +38,7 @@ const createFakeDatabase = ({
   let control = initialControl;
   let event: EventRow | null = null;
   let eventInsertCount = 0;
+  let transactionExecuteCount = 0;
 
   const query = {
     operationalLaneControls: {
@@ -50,6 +51,10 @@ const createFakeDatabase = ({
 
   const transactionDatabase = {
     query,
+    execute: async () => {
+      transactionExecuteCount += 1;
+      return [];
+    },
     update: (table: unknown) => {
       if (table !== operationalLaneControls) {
         throw new Error("Unexpected update table.");
@@ -107,6 +112,7 @@ const createFakeDatabase = ({
     getControl: () => control,
     getEvent: () => event,
     getEventInsertCount: () => eventInsertCount,
+    getTransactionExecuteCount: () => transactionExecuteCount,
   };
 };
 
@@ -261,6 +267,7 @@ describe("production control service", () => {
       next: { mode: "paused", revision: 1 },
     });
     expect(fake.getEventInsertCount()).toBe(1);
+    expect(fake.getTransactionExecuteCount()).toBe(1);
   });
 
   it("rejects stale revisions and conflicting idempotency reuse", async () => {

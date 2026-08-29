@@ -7,6 +7,7 @@ import {
   type OperationalLaneMode,
 } from "@air-jam/database-contract";
 import { and, eq } from "drizzle-orm";
+import { acquireOperationalLaneLock } from "./operational-lane-lock";
 
 export const PRODUCTION_CONTROL_CONTRACT_VERSION = 1 as const;
 
@@ -263,6 +264,7 @@ export const setOperationalLaneControl = async ({
 
   try {
     return await database.transaction(async (tx) => {
+      await acquireOperationalLaneLock(tx, normalizedInput.lane);
       const existingEvent = await tx.query.operationalControlEvents.findFirst({
         where: (table, { eq }) =>
           eq(table.idempotencyKey, normalizedInput.idempotencyKey),

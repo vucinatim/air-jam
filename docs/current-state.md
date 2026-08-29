@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -322,7 +322,16 @@ the ratified allowances now live in one versioned source catalog, lifecycle and
 runtime records produce creator/game usage, and the canonical CLI explains
 shadow versus enforced decisions. Durable jobs, application-service wiring,
 cleanup, realtime admission, and overload proof remain part of the same
-unfinished gate.
+unfinished gate. Its fourth slice adds the
+[production durable job authority proof](./audits/v1-reliability/production-durable-job-authority-proof.md):
+PostgreSQL now owns bounded queues, fair transactional claims, fenced leases,
+heartbeats, absolute deadlines, retries, cancellation, replay lineage, repair,
+global immutable command replay, and append-only job events. Claims honor the
+persisted lane mode, release checks cannot cross release scope, and the repo CLI
+uses redacted operator projections rather than lease-bearing worker records.
+Release adapters remain
+synchronous until immutable upload generations and attempt-scoped outputs make
+object-storage replay safe.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
@@ -358,9 +367,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. land the persistent lane-control, measured-budget, and shadow-quota stack,
-   then add durable queues before enforcement wiring, cleanup, realtime
-   admission, and overload proof
+3. land the persistent lane-control, measured-budget, shadow-quota, and durable
+   job-authority stack, then add immutable release storage generations before
+   adapter wiring, cleanup, realtime admission, and overload proof
 4. run the isolated backup/restore and rollback/replay work in parallel with
    the operational-event contract and threat model
 5. preserve Gate 1 contracts while those independent implementation lanes run

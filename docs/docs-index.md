@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -66,7 +66,8 @@ The measured Gate 3 production baseline is:
 1. [audits/v1-reliability/production-capacity-cost-and-recovery-audit.md](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md)
 2. [audits/v1-reliability/production-budget-evidence-proof.md](./audits/v1-reliability/production-budget-evidence-proof.md)
 3. [audits/v1-reliability/production-shadow-quota-proof.md](./audits/v1-reliability/production-shadow-quota-proof.md)
-4. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
+4. [audits/v1-reliability/production-durable-job-authority-proof.md](./audits/v1-reliability/production-durable-job-authority-proof.md)
+5. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
 
 It distinguishes the current low-cost, low-usage production state from the
 queues, quotas, recovery, static-delivery, and operational controls still
@@ -76,6 +77,11 @@ that Gate 3 implements. The budget proof records the implemented provider-to-
 policy-to-database lifecycle without implying that the remaining gate is done.
 The shadow-quota proof records the source-owned allowance catalog,
 authoritative creator/game usage, and agent-readable prospective decisions.
+The durable-job proof records the bounded PostgreSQL queue, database-time lease
+and deadline fencing, lane-synchronized claims, immutable command replay,
+release-scoped provenance, redacted operator reads, retry, cancellation,
+repair, and CLI authority without claiming that release adapters or external
+storage are durable yet.
 
 The detailed discoverability checklist remains a subordinate launch reference:
 

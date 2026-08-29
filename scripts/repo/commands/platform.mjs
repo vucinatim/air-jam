@@ -647,6 +647,197 @@ export const registerPlatformCommands = (program) => {
     });
   });
 
+  const jobsCommand = operationsCommand
+    .command("jobs")
+    .description(
+      "Inspect and safely operate the durable platform job authority",
+    );
+
+  jobsCommand
+    .command("policy")
+    .description("Inspect the source-owned policy for every durable job kind")
+    .option("--kind <kind>", "Canonical operational job kind")
+    .option("--json", "Print the stable machine-readable contract")
+    .action(async (options) => {
+      await runPlatformDatabaseOperator({
+        script: "scripts/production-control-cli.ts",
+        operation: {
+          command: "jobs-policy",
+          kind: options.kind,
+          json: Boolean(options.json),
+        },
+        options,
+      });
+    });
+
+  addPlatformDatabaseTargetOption(
+    jobsCommand
+      .command("status")
+      .description(
+        "Inspect bounded queue, lease, cancellation, and expiry state",
+      )
+      .option("--kind <kind>", "Canonical operational job kind")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "jobs-status",
+        kind: options.kind,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    jobsCommand
+      .command("list")
+      .description("List durable jobs through bounded authority filters")
+      .option("--kind <kind>", "Canonical operational job kind")
+      .option(
+        "--status <status...>",
+        "One or more queued, running, cancel_requested, succeeded, failed, or canceled states",
+      )
+      .option("--creator <creator-id>", "Authoritative creator ID")
+      .option("--release <release-id>", "Authoritative release ID")
+      .option("--limit <limit>", "Maximum jobs to return, from 1 to 500", "100")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "jobs-list",
+        kind: options.kind,
+        statuses: options.status,
+        creatorId: options.creator,
+        releaseId: options.release,
+        limit: options.limit,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    jobsCommand
+      .command("inspect")
+      .description("Inspect one job and its ordered persisted lifecycle events")
+      .requiredOption("--job <job-id>", "Operational job ID")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "jobs-inspect",
+        jobId: options.job,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    jobsCommand
+      .command("cancel")
+      .description(
+        "Preview or apply an optimistic, audited durable-job cancellation",
+      )
+      .requiredOption("--job <job-id>", "Operational job ID")
+      .requiredOption(
+        "--expected-revision <revision>",
+        "Revision returned by jobs inspect",
+      )
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption("--reason <reason>", "Durable operator reason")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable idempotency key for this logical cancellation",
+      )
+      .option(
+        "--apply",
+        "Persist the cancellation; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "jobs-cancel",
+        jobId: options.job,
+        expectedRevision: options.expectedRevision,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    jobsCommand
+      .command("replay")
+      .description("Preview or enqueue an audited replay of one terminal job")
+      .requiredOption("--job <job-id>", "Terminal operational job ID")
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption("--reason <reason>", "Durable operator reason")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable idempotency key for this logical replay",
+      )
+      .option("--apply", "Enqueue the replay; omission is a read-only preview")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "jobs-replay",
+        jobId: options.job,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    jobsCommand
+      .command("repair-expired")
+      .description(
+        "Preview or apply bounded recovery of expired deadlines and leases",
+      )
+      .requiredOption("--kind <kind>", "Canonical operational job kind")
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption("--reason <reason>", "Durable operator reason")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable idempotency key for this repair operation",
+      )
+      .option("--limit <limit>", "Maximum jobs to repair, from 1 to 500", "100")
+      .option("--apply", "Persist the repair; omission is a read-only preview")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "jobs-repair-expired",
+        kind: options.kind,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        limit: options.limit,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
   platformCommand
     .command("db-backup")
     .description("Write a local backup of the platform database")

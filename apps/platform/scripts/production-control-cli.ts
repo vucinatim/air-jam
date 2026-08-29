@@ -1,7 +1,12 @@
 import {
+  operationalJobContractVersion,
+  operationalJobKindValues,
+  operationalJobStatusValues,
   operationalLaneModeValues,
   operationalLaneValues,
   operationalQuotaKeyValues,
+  type OperationalJobKind,
+  type OperationalJobStatus,
   type OperationalLane,
   type OperationalLaneMode,
   type OperationalQuotaKey,
@@ -9,6 +14,21 @@ import {
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
+import {
+  OPERATIONAL_JOB_CREATOR_GLOBAL_CONCURRENCY,
+  OPERATIONAL_JOB_POLICIES,
+} from "../src/server/jobs/operational-job-policy";
+import {
+  getOperationalJob,
+  getOperationalJobAuthorityTime,
+  isOperationalJobExpired,
+  listOperationalJobs,
+  planExpiredOperationalJobRepair,
+  previewOperationalJobCancellation,
+  repairExpiredOperationalJobs,
+  replayOperationalJob,
+  requestOperationalJobCancellation,
+} from "../src/server/jobs/operational-job-service";
 import {
   findOperationalBudgetEvidenceReplay,
   getOperationalBudgetStatus,
@@ -33,6 +53,55 @@ import {
 type ProductionControlCliInput =
   | { command: "status"; json: boolean }
   | { command: "budget-status"; json: boolean }
+  | {
+      command: "jobs-policy";
+      kind?: OperationalJobKind;
+      json: boolean;
+    }
+  | {
+      command: "jobs-status";
+      kind?: OperationalJobKind;
+      json: boolean;
+    }
+  | {
+      command: "jobs-list";
+      kind?: OperationalJobKind;
+      statuses?: OperationalJobStatus[];
+      creatorId?: string;
+      releaseId?: string;
+      limit: number;
+      json: boolean;
+    }
+  | { command: "jobs-inspect"; jobId: string; json: boolean }
+  | {
+      command: "jobs-cancel";
+      jobId: string;
+      expectedRevision: number;
+      actor: string;
+      reason: string;
+      idempotencyKey: string;
+      apply: boolean;
+      json: boolean;
+    }
+  | {
+      command: "jobs-replay";
+      jobId: string;
+      actor: string;
+      reason: string;
+      idempotencyKey: string;
+      apply: boolean;
+      json: boolean;
+    }
+  | {
+      command: "jobs-repair-expired";
+      kind: OperationalJobKind;
+      actor: string;
+      reason: string;
+      idempotencyKey: string;
+      limit: number;
+      apply: boolean;
+      json: boolean;
+    }
   | {
       command: "quota-status";
       creatorId: string;
@@ -104,6 +173,67 @@ const readInteger = (
   return value;
 };
 
+const readIntegerInRange = (
+  input: Record<string, unknown>,
+  key: string,
+  minimum: number,
+  maximum: number,
+): number => {
+  const value = readInteger(input, key, minimum);
+  if (value > maximum) {
+    fail(`${key} must be less than or equal to ${maximum}.`);
+  }
+  return value;
+};
+
+const readOptionalText = (
+  input: Record<string, unknown>,
+  key: string,
+): string | undefined => {
+  const value = typeof input[key] === "string" ? input[key].trim() : "";
+  return value || undefined;
+};
+
+const readOptionalJobKind = (
+  input: Record<string, unknown>,
+): OperationalJobKind | undefined => {
+  const kind = readOptionalText(input, "kind");
+  if (!kind) return undefined;
+  if (!operationalJobKindValues.includes(kind as OperationalJobKind)) {
+    fail(`kind must be one of: ${operationalJobKindValues.join(", ")}.`);
+  }
+  return kind as OperationalJobKind;
+};
+
+const readRequiredJobKind = (
+  input: Record<string, unknown>,
+): OperationalJobKind =>
+  readOptionalJobKind(input) ?? fail("kind is required.");
+
+const readOptionalJobStatuses = (
+  input: Record<string, unknown>,
+): OperationalJobStatus[] | undefined => {
+  if (input.statuses === undefined) return undefined;
+  const rawStatuses = Array.isArray(input.statuses)
+    ? input.statuses
+    : [input.statuses];
+  const statuses = rawStatuses.map((value) =>
+    typeof value === "string" ? value.trim() : "",
+  );
+  if (
+    statuses.length === 0 ||
+    statuses.some(
+      (status) =>
+        !operationalJobStatusValues.includes(status as OperationalJobStatus),
+    )
+  ) {
+    fail(
+      `statuses must contain only: ${operationalJobStatusValues.join(", ")}.`,
+    );
+  }
+  return [...new Set(statuses)] as OperationalJobStatus[];
+};
+
 const parseInput = (raw: string | undefined): ProductionControlCliInput => {
   const serializedInput = raw ?? fail("Missing production-control operation.");
   let value: unknown;
@@ -121,6 +251,71 @@ const parseInput = (raw: string | undefined): ProductionControlCliInput => {
   if (input.command === "status") return { command: "status", json };
   if (input.command === "budget-status") {
     return { command: "budget-status", json };
+  }
+  if (input.command === "jobs-policy") {
+    return { command: "jobs-policy", kind: readOptionalJobKind(input), json };
+  }
+  if (input.command === "jobs-status") {
+    return { command: "jobs-status", kind: readOptionalJobKind(input), json };
+  }
+  if (input.command === "jobs-list") {
+    return {
+      command: "jobs-list",
+      kind: readOptionalJobKind(input),
+      statuses: readOptionalJobStatuses(input),
+      creatorId: readOptionalText(input, "creatorId"),
+      releaseId: readOptionalText(input, "releaseId"),
+      limit:
+        input.limit === undefined
+          ? 100
+          : readIntegerInRange(input, "limit", 1, 500),
+      json,
+    };
+  }
+  if (input.command === "jobs-inspect") {
+    return {
+      command: "jobs-inspect",
+      jobId: readRequiredText(input, "jobId"),
+      json,
+    };
+  }
+  if (input.command === "jobs-cancel") {
+    return {
+      command: "jobs-cancel",
+      jobId: readRequiredText(input, "jobId"),
+      expectedRevision: readInteger(input, "expectedRevision", 0),
+      actor: readRequiredText(input, "actor"),
+      reason: readRequiredText(input, "reason"),
+      idempotencyKey: readRequiredText(input, "idempotencyKey"),
+      apply: input.apply === true,
+      json,
+    };
+  }
+  if (input.command === "jobs-replay") {
+    return {
+      command: "jobs-replay",
+      jobId: readRequiredText(input, "jobId"),
+      actor: readRequiredText(input, "actor"),
+      reason: readRequiredText(input, "reason"),
+      idempotencyKey: readRequiredText(input, "idempotencyKey"),
+      apply: input.apply === true,
+      json,
+    };
+  }
+  if (input.command === "jobs-repair-expired") {
+    return {
+      command: "jobs-repair-expired",
+      kind: readRequiredJobKind(input),
+      actor: readRequiredText(input, "actor"),
+      reason: readRequiredText(input, "reason"),
+      idempotencyKey: readRequiredText(input, "idempotencyKey"),
+      limit:
+        input.limit === undefined
+          ? 100
+          : readIntegerInRange(input, "limit", 1, 500),
+      apply: input.apply === true,
+      json,
+    };
   }
   if (input.command === "quota-status") {
     return {
@@ -210,6 +405,13 @@ const parseInput = (raw: string | undefined): ProductionControlCliInput => {
   };
 };
 
+const selectOperationalJobPolicies = (kind?: OperationalJobKind) =>
+  kind
+    ? [OPERATIONAL_JOB_POLICIES[kind]]
+    : operationalJobKindValues.map(
+        (policyKind) => OPERATIONAL_JOB_POLICIES[policyKind],
+      );
+
 const printJson = (
   command: string,
   applied: boolean,
@@ -231,6 +433,24 @@ const printJson = (
 
 const main = async (): Promise<void> => {
   const input = parseInput(process.argv[2]);
+
+  if (input.command === "jobs-policy") {
+    const result = {
+      jobContractVersion: operationalJobContractVersion,
+      creatorGlobalConcurrency: OPERATIONAL_JOB_CREATOR_GLOBAL_CONCURRENCY,
+      policies: selectOperationalJobPolicies(input.kind),
+    };
+    if (input.json) printJson(input.command, false, result);
+    else {
+      for (const policy of result.policies) {
+        console.log(
+          `${policy.kind}: concurrency ${policy.globalConcurrency}, creator ${policy.perCreatorConcurrency}, queue ${policy.queueDepth}, attempts ${policy.maxAttempts}`,
+        );
+      }
+    }
+    return;
+  }
+
   const databaseUrl =
     process.env.DATABASE_URL?.trim() ||
     fail(
@@ -269,6 +489,271 @@ const main = async (): Promise<void> => {
             : `Budget: unavailable (${budget.evidenceStatus} evidence).`,
         );
       }
+      return;
+    }
+
+    if (input.command === "jobs-status") {
+      const observedAt = await getOperationalJobAuthorityTime({ database });
+      const kinds = input.kind ? [input.kind] : [...operationalJobKindValues];
+      const queues = await Promise.all(
+        kinds.map(async (kind) => {
+          const jobs = await listOperationalJobs({
+            database,
+            kind,
+            statuses: ["queued", "running", "cancel_requested"],
+            limit: 500,
+          });
+          const counts = {
+            queued: jobs.filter((job) => job.status === "queued").length,
+            running: jobs.filter((job) => job.status === "running").length,
+            cancelRequested: jobs.filter(
+              (job) => job.status === "cancel_requested",
+            ).length,
+            expired: jobs.filter((job) =>
+              isOperationalJobExpired(job, observedAt),
+            ).length,
+          };
+          return {
+            kind,
+            policy: OPERATIONAL_JOB_POLICIES[kind],
+            counts,
+            oldestQueuedAt:
+              jobs
+                .filter((job) => job.status === "queued")
+                .sort((left, right) =>
+                  left.createdAt.localeCompare(right.createdAt),
+                )[0]?.createdAt ?? null,
+          };
+        }),
+      );
+      const result = {
+        jobContractVersion: operationalJobContractVersion,
+        creatorGlobalConcurrency: OPERATIONAL_JOB_CREATOR_GLOBAL_CONCURRENCY,
+        observedAt: observedAt.toISOString(),
+        queues,
+      };
+      if (input.json) printJson(input.command, false, result);
+      else {
+        for (const queue of queues) {
+          console.log(
+            `${queue.kind}: ${queue.counts.queued} queued, ${queue.counts.running} running, ${queue.counts.cancelRequested} cancel requested, ${queue.counts.expired} expired`,
+          );
+        }
+      }
+      return;
+    }
+
+    if (input.command === "jobs-list") {
+      const jobs = await listOperationalJobs({
+        database,
+        kind: input.kind,
+        statuses: input.statuses,
+        creatorId: input.creatorId,
+        releaseId: input.releaseId,
+        limit: input.limit,
+      });
+      const result = {
+        jobContractVersion: operationalJobContractVersion,
+        filters: {
+          kind: input.kind ?? null,
+          statuses: input.statuses ?? [],
+          creatorId: input.creatorId ?? null,
+          releaseId: input.releaseId ?? null,
+          limit: input.limit,
+        },
+        jobs,
+      };
+      if (input.json) printJson(input.command, false, result);
+      else {
+        for (const job of jobs) {
+          console.log(
+            `${job.id}: ${job.kind} ${job.status}@${job.revision} release ${job.releaseId}`,
+          );
+        }
+      }
+      return;
+    }
+
+    if (input.command === "jobs-inspect") {
+      const inspection = await getOperationalJob({
+        database,
+        jobId: input.jobId,
+      });
+      const result = {
+        jobContractVersion: operationalJobContractVersion,
+        ...inspection,
+      };
+      if (input.json) printJson(input.command, false, result);
+      else {
+        console.log(
+          `${inspection.job.id}: ${inspection.job.kind} ${inspection.job.status}@${inspection.job.revision}`,
+        );
+        console.log(`${inspection.events.length} persisted lifecycle events.`);
+      }
+      return;
+    }
+
+    if (input.command === "jobs-cancel") {
+      if (!input.apply) {
+        const preview = await previewOperationalJobCancellation({
+          database,
+          jobId: input.jobId,
+          expectedRevision: input.expectedRevision,
+          actor: input.actor,
+          reason: input.reason,
+          idempotencyKey: input.idempotencyKey,
+        });
+        const result = {
+          jobContractVersion: operationalJobContractVersion,
+          ...preview,
+        };
+        if (input.json) printJson(input.command, false, result);
+        else {
+          console.log(
+            result.eligible && result.current
+              ? `${result.wouldReplay ? "Would replay" : "Would request"} cancellation of ${result.current.id}: ${result.current.status}@${result.current.revision} -> ${result.nextStatus}.`
+              : `Cancellation is not eligible: ${result.rejectionReason}`,
+          );
+          console.log(
+            result.eligible && !result.wouldReplay
+              ? "Pass --apply to persist the request."
+              : result.wouldReplay
+                ? "Pass --apply to return the immutable prior command result."
+                : "Apply would reject this new cancellation request.",
+          );
+        }
+        return;
+      }
+      const cancellation = await requestOperationalJobCancellation({
+        database,
+        jobId: input.jobId,
+        expectedRevision: input.expectedRevision,
+        idempotencyKey: input.idempotencyKey,
+        actor: input.actor,
+        reason: input.reason,
+      });
+      if (input.json)
+        printJson(input.command, true, {
+          jobContractVersion: operationalJobContractVersion,
+          ...cancellation,
+        });
+      else
+        console.log(
+          `Cancellation state for ${cancellation.job.id}: ${cancellation.job.status}@${cancellation.job.revision}${cancellation.replayed ? " (replayed command)" : ""}.`,
+        );
+      return;
+    }
+
+    if (input.command === "jobs-replay") {
+      const original = (
+        await getOperationalJob({
+          database,
+          jobId: input.jobId,
+        })
+      ).job;
+      if (!input.apply) {
+        const result = {
+          jobContractVersion: operationalJobContractVersion,
+          original,
+          eligible: ["succeeded", "failed", "canceled"].includes(
+            original.status,
+          ),
+          requested: {
+            actor: input.actor,
+            reason: input.reason,
+            idempotencyKey: input.idempotencyKey,
+          },
+        };
+        if (input.json) printJson(input.command, false, result);
+        else {
+          console.log(
+            `Would replay ${original.id} (${original.status}) with idempotency key ${input.idempotencyKey}.`,
+          );
+          console.log("Pass --apply to enqueue the replay.");
+        }
+        return;
+      }
+      const replay = await replayOperationalJob({
+        database,
+        jobId: input.jobId,
+        idempotencyKey: input.idempotencyKey,
+        actor: input.actor,
+        reason: input.reason,
+      });
+      if (input.json)
+        printJson(input.command, true, {
+          jobContractVersion: operationalJobContractVersion,
+          ...replay,
+        });
+      else
+        console.log(
+          `${replay.replayed ? "Reused" : "Enqueued"} replay job ${replay.job.id}.`,
+        );
+      return;
+    }
+
+    if (input.command === "jobs-repair-expired") {
+      const observedAt = await getOperationalJobAuthorityTime({ database });
+      const active = await listOperationalJobs({
+        database,
+        kind: input.kind,
+        statuses: ["queued", "running", "cancel_requested"],
+        limit: 500,
+      });
+      const candidates = active
+        .filter((job) => isOperationalJobExpired(job, observedAt))
+        .sort(
+          (left, right) =>
+            left.deadlineAt.localeCompare(right.deadlineAt) ||
+            left.createdAt.localeCompare(right.createdAt),
+        )
+        .slice(0, input.limit)
+        .map((job) => planExpiredOperationalJobRepair(job, observedAt))
+        .filter((plan) => plan !== null)
+        .map((plan) => ({
+          ...plan,
+          retryAt: plan.retryAt?.toISOString() ?? null,
+        }));
+      if (!input.apply) {
+        const result = {
+          jobContractVersion: operationalJobContractVersion,
+          observedAt: observedAt.toISOString(),
+          actor: input.actor,
+          reason: input.reason,
+          idempotencyKey: input.idempotencyKey,
+          kind: input.kind,
+          limit: input.limit,
+          candidates,
+        };
+        if (input.json) printJson(input.command, false, result);
+        else {
+          console.log(
+            `Would repair ${candidates.length} expired ${input.kind} jobs.`,
+          );
+          console.log("Pass --apply to persist the repair.");
+        }
+        return;
+      }
+      const repair = await repairExpiredOperationalJobs({
+        database,
+        kind: input.kind,
+        actor: input.actor,
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey,
+        limit: input.limit,
+      });
+      const result = {
+        jobContractVersion: operationalJobContractVersion,
+        observedAt: observedAt.toISOString(),
+        actor: input.actor,
+        reason: input.reason,
+        ...repair,
+      };
+      if (input.json) printJson(input.command, true, result);
+      else
+        console.log(
+          `${repair.replayed ? "Replayed" : "Repaired"} ${repair.jobs.length} expired jobs.`,
+        );
       return;
     }
 

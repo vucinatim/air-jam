@@ -29,7 +29,7 @@ The source-owned catalog implements the roadmap allowances:
 | Game managed storage          |     `500 MiB` | lifetime                  | the same logical-byte authority scoped to one owned game            |
 | Release submissions           |  `200` / `50` | rolling 30 days / UTC day | release lifecycle rows                                              |
 | Browser validations           |  `100` / `20` | rolling 30 days / UTC day | screenshot-capture check attempts                                   |
-| Concurrent release jobs       |           `2` | concurrent                | explicitly unavailable until durable jobs exist                     |
+| Concurrent release jobs       |           `2` | concurrent                | job authority exists; unavailable until all release paths use it    |
 | Creator room time             | `1,000` hours | rolling 30 days           | clipped authoritative runtime game segments                         |
 | Creator/game concurrent rooms |   `50` / `50` | concurrent                | explicitly unavailable until global realtime admission exists       |
 
@@ -120,7 +120,7 @@ This does not close `G3-02`:
 
 1. product application services still need to emit and then honor these exact
    decisions after the observation period
-2. durable release/browser jobs must provide real queue and concurrency state
+2. release/browser adapters must exclusively use the new durable job authority
 3. lifecycle cleanup must reconcile logical records with physical storage
 4. realtime needs global room/controller admission and graceful drain
 5. load, overload, and dependency-degradation behavior remains unproven

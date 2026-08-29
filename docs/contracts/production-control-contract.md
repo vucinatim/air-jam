@@ -201,28 +201,54 @@ gap before the owning subsystem exists, but admission cannot treat it as zero.
 
 ## Durable Job Contract
 
-Release processing and browser validation use durable jobs rather than request
-lifetime.
+Release processing and browser validation must converge on durable jobs rather
+than request lifetime. The authority foundation below exists; adapter migration
+remains an explicit part of this contract rather than an implied current fact.
+
+Every caller-issued job mutation first has one globally idempotent durable
+command. Enqueue, cancel, replay, and repair hash all caller-controlled
+semantic inputs and persist an immutable result in the same transaction as the
+effect. This includes zero-result repair, so reusing an old command key cannot
+repair work that expired later.
 
 Every job has:
 
 1. stable job ID, kind, creator, game, and release identity
-2. caller-supplied idempotency key with a uniqueness boundary
+2. an immutable creating-command reference and canonical request hash
 3. `queued`, `running`, `succeeded`, `failed`, or `canceled` status
 4. bounded attempt count, next-attempt time, deadline, and lease expiry
-5. persisted progress and typed terminal result/error
+5. persisted structured JSON progress and terminal result/error
 6. created, started, finished, and updated timestamps
 7. cancellation and operator pause semantics
 
-Claiming is transactional. A worker owns a time-bounded lease, heartbeats it,
-and cannot complete a stale lease. Retryable failure schedules a bounded retry;
-terminal failure remains inspectable. Queue depth and per-creator/global
-concurrency are checked before admission. One creator cannot occupy every
-worker slot.
+The canonical kinds are `release_artifact_processing`,
+`release_browser_validation`, and `release_image_moderation`. Each maps to its
+own semantic lane so budget, capacity, and retry policy remain independently
+controllable. `cancel_requested` is a persisted cooperative state between
+running and terminal cancellation.
+
+Claiming is transactional and synchronized with persisted lane state. Normal
+and restricted lanes may drain admitted work; paused lanes start none. A worker
+owns a database-time lease capped by the absolute job deadline, heartbeats it,
+and cannot stage, succeed, fail, or extend work at or after that deadline.
+Retryable failure schedules a bounded retry; terminal failure remains
+inspectable. Queue depth and per-creator/global concurrency are checked before
+admission. One creator cannot occupy every worker slot.
 
 The platform owns job orchestration and creator-visible release state. A narrow
 processor owns archive/check execution. The browser worker remains isolated
 and does not become the release-state authority.
+
+The durable PostgreSQL authority and operator CLI are implemented. Creator
+release paths remain synchronous until immutable upload generations and
+attempt-scoped object outputs close the external-side-effect fencing gap. The
+job table must not be presented as complete concurrency authority before every
+hosted release path exclusively uses it.
+
+Contract version `1` governs lifecycle, fencing, and operator semantics only.
+Each real executor must add a separate versioned, runtime-validated payload,
+progress, result, and error contract for its job kind before product wiring;
+arbitrary JSON must not become a permanently public executor API.
 
 ## Lifecycle Cleanup
 
@@ -291,6 +317,19 @@ pnpm --silent run repo -- platform operations quota check --help
 
 The quota CLI reads lifecycle/runtime authority plus persisted lane and budget
 state. It exposes no usage, limit, budget-state, or outcome override.
+
+Durable job inspection and safe operation are:
+
+```bash
+pnpm --silent run repo -- platform operations jobs --help
+```
+
+Policy, queue status, listing, and inspection are read-only. Cancellation,
+replay, and expired-lease repair are preview-first and require actor, reason,
+caller idempotency, and explicit `--apply`; cancellation also requires the
+current expected revision. Operator projections never expose worker lease
+tokens, request hashes, or raw command, payload, progress, result, error, and
+event-detail JSON. Lease-bearing records remain a separate worker authority.
 
 The complete lifecycle must expose stable JSON for:
 
