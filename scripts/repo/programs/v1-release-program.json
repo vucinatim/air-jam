@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-29T15:33:17.928Z",
+  "updatedAt": "2026-08-29T15:34:45.657Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -116,7 +116,10 @@
       "title": "Ratify the batched Gate 0 product and operating decisions",
       "authority": "human_checkpoint",
       "status": "complete",
-      "dependsOn": ["G0-01", "G0-02"],
+      "dependsOn": [
+        "G0-01",
+        "G0-02"
+      ],
       "estimate": {
         "agentHoursMin": 1,
         "agentHoursMax": 2
@@ -139,7 +142,9 @@
       "title": "Publish the final Gate 0 contract, cuts, and supported-client matrix",
       "authority": "autonomous",
       "status": "complete",
-      "dependsOn": ["G0-03"],
+      "dependsOn": [
+        "G0-03"
+      ],
       "estimate": {
         "agentHoursMin": 2,
         "agentHoursMax": 3
@@ -172,7 +177,9 @@
         "agentHoursMin": 6,
         "agentHoursMax": 10
       },
-      "evidenceRequirements": ["written canonical-path and duplication audit"],
+      "evidenceRequirements": [
+        "written canonical-path and duplication audit"
+      ],
       "owner": "/root",
       "note": "Completed three-lane architecture, simplicity, authority, and duplicate-path audit with rotated cross-review and canonical readiness mapping",
       "updatedAt": "2026-08-28T13:15:50.883Z",
@@ -194,12 +201,16 @@
       "title": "Audit package graph, public exports, configuration, generated artifacts, and docs",
       "authority": "autonomous",
       "status": "complete",
-      "dependsOn": ["G1-01"],
+      "dependsOn": [
+        "G1-01"
+      ],
       "estimate": {
         "agentHoursMin": 5,
         "agentHoursMax": 9
       },
-      "evidenceRequirements": ["public-surface and source-of-truth audit"],
+      "evidenceRequirements": [
+        "public-surface and source-of-truth audit"
+      ],
       "owner": "/root",
       "note": "Published the public package/export/configuration/generated-artifact authority audit and prepared the Gate 1 removal decision packet",
       "updatedAt": "2026-08-28T14:06:47.931Z",
@@ -220,7 +231,9 @@
       "title": "Convert audit findings into one end-state removal and refactor set",
       "authority": "autonomous",
       "status": "complete",
-      "dependsOn": ["G1-01"],
+      "dependsOn": [
+        "G1-01"
+      ],
       "estimate": {
         "agentHoursMin": 4,
         "agentHoursMax": 7
@@ -247,7 +260,11 @@
       "title": "Approve public compatibility changes and high-impact removals as one batch",
       "authority": "human_checkpoint",
       "status": "complete",
-      "dependsOn": ["G0-04", "G1-02", "G1-03"],
+      "dependsOn": [
+        "G0-04",
+        "G1-02",
+        "G1-03"
+      ],
       "estimate": {
         "agentHoursMin": 1,
         "agentHoursMax": 2
@@ -272,7 +289,9 @@
       "title": "Implement the canonicalization and purge obsolete paths",
       "authority": "autonomous",
       "status": "complete",
-      "dependsOn": ["G1-04"],
+      "dependsOn": [
+        "G1-04"
+      ],
       "estimate": {
         "agentHoursMin": 20,
         "agentHoursMax": 38
@@ -301,7 +320,9 @@
       "title": "Close canonicalization with clean-checkout quality and generated-artifact gates",
       "authority": "autonomous",
       "status": "complete",
-      "dependsOn": ["G1-05"],
+      "dependsOn": [
+        "G1-05"
+      ],
       "estimate": {
         "agentHoursMin": 6,
         "agentHoursMax": 12
@@ -327,7 +348,9 @@
       "title": "Specify the clean-room external-agent scenario and evidence bundle",
       "authority": "autonomous",
       "status": "complete",
-      "dependsOn": ["G0-01"],
+      "dependsOn": [
+        "G0-01"
+      ],
       "estimate": {
         "agentHoursMin": 3,
         "agentHoursMax": 5
@@ -353,12 +376,17 @@
       "title": "Close public discovery, root dev-loop, contract resolution, and install blockers",
       "authority": "autonomous",
       "status": "complete",
-      "dependsOn": ["G1-01", "G2-01"],
+      "dependsOn": [
+        "G1-01",
+        "G2-01"
+      ],
       "estimate": {
         "agentHoursMin": 8,
         "agentHoursMax": 15
       },
-      "evidenceRequirements": ["public-only install and bootstrap proof"],
+      "evidenceRequirements": [
+        "public-only install and bootstrap proof"
+      ],
       "owner": "/root",
       "note": "Exact candidate bytes, registry metadata, installed lockfile integrity, complete MCP surface, bounded lifecycle, and dynamic topology independently re-proved.",
       "updatedAt": "2026-08-29T15:33:17.602Z",
@@ -380,7 +408,10 @@
       "title": "Run the primary create, control, inspect, fix, evaluate, publish, and verify scenario",
       "authority": "autonomous",
       "status": "in_progress",
-      "dependsOn": ["G1-06", "G2-02"],
+      "dependsOn": [
+        "G1-06",
+        "G2-02"
+      ],
       "estimate": {
         "agentHoursMin": 7,
         "agentHoursMax": 12
@@ -389,7 +420,7 @@
         "retained clean-room transcript and machine-readable artifacts"
       ],
       "note": "Upstream exact package provenance is re-proved; resuming controller-owned primary create-to-verify scenario and durable evidence hardening.",
-      "updatedAt": "2026-08-29T15:33:17.928Z",
+      "updatedAt": "2026-08-29T15:34:45.657Z",
       "evidence": [
         "document:docs/audits/v1-golden-path/primary-agent-run-audit.md"
       ],
@@ -403,7 +434,9 @@
       "title": "Repeat discovery and session bootstrap with a second supported agent client",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G2-03"],
+      "dependsOn": [
+        "G2-03"
+      ],
       "estimate": {
         "agentHoursMin": 3,
         "agentHoursMax": 6
@@ -420,7 +453,10 @@
       "title": "Resolve discovered blockers and replay the golden path to closure",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G2-03", "G2-04"],
+      "dependsOn": [
+        "G2-03",
+        "G2-04"
+      ],
       "estimate": {
         "agentHoursMin": 9,
         "agentHoursMax": 17
@@ -454,7 +490,10 @@
       "title": "Implement quotas, bounded queues, cleanup, spend guards, and kill switches",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G0-03", "G3-01"],
+      "dependsOn": [
+        "G0-03",
+        "G3-01"
+      ],
       "estimate": {
         "agentHoursMin": 18,
         "agentHoursMax": 36
@@ -471,7 +510,9 @@
       "title": "Automate backup and prove isolated restore, deployment rollback, and job replay",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G3-01"],
+      "dependsOn": [
+        "G3-01"
+      ],
       "estimate": {
         "agentHoursMin": 12,
         "agentHoursMax": 22
@@ -488,7 +529,10 @@
       "title": "Run capacity, burst, soak, overload, and dependency-degradation drills",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G3-02", "G3-03"],
+      "dependsOn": [
+        "G3-02",
+        "G3-03"
+      ],
       "estimate": {
         "agentHoursMin": 15,
         "agentHoursMax": 30
@@ -505,7 +549,9 @@
       "title": "Close reliability findings and publish the tested operating envelope",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G3-04"],
+      "dependsOn": [
+        "G3-04"
+      ],
       "estimate": {
         "agentHoursMin": 7,
         "agentHoursMax": 12
@@ -522,7 +568,9 @@
       "title": "Define operational-event, correlation, incident, and runbook contracts",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G1-01"],
+      "dependsOn": [
+        "G1-01"
+      ],
       "estimate": {
         "agentHoursMin": 7,
         "agentHoursMax": 12
@@ -539,7 +587,9 @@
       "title": "Implement durable delivery, structured errors, SLOs, alerts, and synthetics",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G4-01"],
+      "dependsOn": [
+        "G4-01"
+      ],
       "estimate": {
         "agentHoursMin": 16,
         "agentHoursMax": 30
@@ -556,7 +606,9 @@
       "title": "Implement incident correlation, fingerprinting, deduplication, and GitHub issue delivery",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G4-02"],
+      "dependsOn": [
+        "G4-02"
+      ],
       "estimate": {
         "agentHoursMin": 14,
         "agentHoursMax": 24
@@ -573,7 +625,9 @@
       "title": "Implement agent-operable runbooks, preview/apply safety, and action audit trail",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G4-03"],
+      "dependsOn": [
+        "G4-03"
+      ],
       "estimate": {
         "agentHoursMin": 12,
         "agentHoursMax": 22
@@ -590,7 +644,9 @@
       "title": "Approve the production automatic-remediation allowlist as one batch",
       "authority": "human_checkpoint",
       "status": "pending",
-      "dependsOn": ["G4-04"],
+      "dependsOn": [
+        "G4-04"
+      ],
       "estimate": {
         "agentHoursMin": 1,
         "agentHoursMax": 2
@@ -607,7 +663,9 @@
       "title": "Drill reversible remediation, verification, rollback, and escalation",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G4-05"],
+      "dependsOn": [
+        "G4-05"
+      ],
       "estimate": {
         "agentHoursMin": 8,
         "agentHoursMax": 15
@@ -641,7 +699,10 @@
       "title": "Close auth, ownership, secret, limit, abuse, and privileged-endpoint findings",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G1-01", "G5-01"],
+      "dependsOn": [
+        "G1-01",
+        "G5-01"
+      ],
       "estimate": {
         "agentHoursMin": 16,
         "agentHoursMax": 30
@@ -658,7 +719,9 @@
       "title": "Prove supply-chain provenance, privacy claims, and emergency release procedure",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G5-01"],
+      "dependsOn": [
+        "G5-01"
+      ],
       "estimate": {
         "agentHoursMin": 10,
         "agentHoursMax": 18
@@ -675,7 +738,10 @@
       "title": "Review residual security risk and accept or return the complete batch",
       "authority": "human_checkpoint",
       "status": "pending",
-      "dependsOn": ["G5-02", "G5-03"],
+      "dependsOn": [
+        "G5-02",
+        "G5-03"
+      ],
       "estimate": {
         "agentHoursMin": 2,
         "agentHoursMax": 5
@@ -692,7 +758,9 @@
       "title": "Prove public package graph and clean installation across the support matrix",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G1-06"],
+      "dependsOn": [
+        "G1-06"
+      ],
       "estimate": {
         "agentHoursMin": 7,
         "agentHoursMax": 12
@@ -709,12 +777,16 @@
       "title": "Close docs, agent discovery, quickstart, integration matrix, and troubleshooting",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G2-05"],
+      "dependsOn": [
+        "G2-05"
+      ],
       "estimate": {
         "agentHoursMin": 7,
         "agentHoursMax": 12
       },
-      "evidenceRequirements": ["public docs crawl and agent-discovery proof"]
+      "evidenceRequirements": [
+        "public docs crawl and agent-discovery proof"
+      ]
     },
     {
       "id": "G6-03",
@@ -724,7 +796,10 @@
       "title": "Produce the reproducible external-agent demonstration pipeline",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G2-05", "G4-04"],
+      "dependsOn": [
+        "G2-05",
+        "G4-04"
+      ],
       "estimate": {
         "agentHoursMin": 6,
         "agentHoursMax": 10
@@ -741,7 +816,10 @@
       "title": "Finish article, launch assets, release notes, and distribution sequence",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G6-02", "G6-03"],
+      "dependsOn": [
+        "G6-02",
+        "G6-03"
+      ],
       "estimate": {
         "agentHoursMin": 8,
         "agentHoursMax": 14
@@ -758,12 +836,16 @@
       "title": "Review the final social experience, demonstration, and public story as one batch",
       "authority": "human_checkpoint",
       "status": "pending",
-      "dependsOn": ["G6-04"],
+      "dependsOn": [
+        "G6-04"
+      ],
       "estimate": {
         "agentHoursMin": 2,
         "agentHoursMax": 4
       },
-      "evidenceRequirements": ["maintainer product and narrative review record"]
+      "evidenceRequirements": [
+        "maintainer product and narrative review record"
+      ]
     },
     {
       "id": "G6-06",
@@ -773,7 +855,9 @@
       "title": "Apply review feedback and freeze candidate-matched public assets",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G6-05"],
+      "dependsOn": [
+        "G6-05"
+      ],
       "estimate": {
         "agentHoursMin": 5,
         "agentHoursMax": 8
@@ -790,7 +874,12 @@
       "title": "Cut the immutable candidate and run all local and clean-checkout gates",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G3-05", "G4-06", "G5-04", "G6-06"],
+      "dependsOn": [
+        "G3-05",
+        "G4-06",
+        "G5-04",
+        "G6-06"
+      ],
       "estimate": {
         "agentHoursMin": 4,
         "agentHoursMax": 7
@@ -807,7 +896,9 @@
       "title": "Publish the prerelease and deploy the exact candidate to production",
       "authority": "production_approval",
       "status": "pending",
-      "dependsOn": ["G7-01"],
+      "dependsOn": [
+        "G7-01"
+      ],
       "estimate": {
         "agentHoursMin": 3,
         "agentHoursMax": 5
@@ -824,7 +915,9 @@
       "title": "Run the complete production rehearsal, live smoke, rollback, and degradation proof",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G7-02"],
+      "dependsOn": [
+        "G7-02"
+      ],
       "estimate": {
         "agentHoursMin": 5,
         "agentHoursMax": 9
@@ -841,7 +934,9 @@
       "title": "Make the final release go/no-go decision",
       "authority": "human_checkpoint",
       "status": "pending",
-      "dependsOn": ["G7-03"],
+      "dependsOn": [
+        "G7-03"
+      ],
       "estimate": {
         "agentHoursMin": 1,
         "agentHoursMax": 2
@@ -858,7 +953,9 @@
       "title": "Publish 1.0 packages, production release, article, and launch distribution",
       "authority": "production_approval",
       "status": "pending",
-      "dependsOn": ["G7-04"],
+      "dependsOn": [
+        "G7-04"
+      ],
       "estimate": {
         "agentHoursMin": 3,
         "agentHoursMax": 6
@@ -875,7 +972,9 @@
       "title": "Monitor stabilization and record the final 1.0 outcome",
       "authority": "autonomous",
       "status": "pending",
-      "dependsOn": ["G7-05"],
+      "dependsOn": [
+        "G7-05"
+      ],
       "estimate": {
         "agentHoursMin": 4,
         "agentHoursMax": 6

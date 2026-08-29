@@ -112,6 +112,9 @@ Thumbs.db
 *.min.css
 *.map
 
+# Canonical machine-owned release state (formatted by the readiness CLI)
+scripts/repo/programs/v1-release-program.json
+
 # Email templates
 emails/out/
 
@@ -120,4 +123,3 @@ supabase/.temp/
 
 # Shadcn UI components configuration
 **/components.json
-
