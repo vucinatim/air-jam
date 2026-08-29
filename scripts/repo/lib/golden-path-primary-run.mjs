@@ -29,6 +29,13 @@ const writeJson = (targetPath, value) => {
   fs.writeFileSync(targetPath, `${JSON.stringify(value, null, 2)}\n`);
 };
 
+const writeJsonAtomic = (targetPath, value) => {
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  const temporaryPath = `${targetPath}.tmp-${process.pid}`;
+  fs.writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`);
+  fs.renameSync(temporaryPath, targetPath);
+};
+
 const writeText = (targetPath, value) => {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, value);
@@ -268,10 +275,10 @@ export const buildGoldenPathCommandEnv = ({
   sourceEnv = process.env,
 }) => {
   const safePath = [
-    path.dirname(process.execPath),
     ...(sourceEnv.PATH ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(
       path.delimiter,
     ),
+    path.dirname(process.execPath),
   ]
     .filter(
       (entry) =>
@@ -280,6 +287,12 @@ export const buildGoldenPathCommandEnv = ({
           entry === path.dirname(process.execPath)) &&
         fs.existsSync(entry),
     )
+    .sort((left, right) => {
+      const runtimeBin = path.dirname(process.execPath);
+      if (left === runtimeBin && right !== runtimeBin) return 1;
+      if (right === runtimeBin && left !== runtimeBin) return -1;
+      return 0;
+    })
     .filter((entry, index, entries) => entries.indexOf(entry) === index)
     .join(path.delimiter);
 
@@ -480,7 +493,7 @@ export const runGoldenPathPrimary = async ({
     }
   };
   const writeDurableControllerState = (state, details = {}) => {
-    writeJson(path.join(artifactRoot, "controller.json"), {
+    writeJsonAtomic(path.join(artifactRoot, "controller.json"), {
       contract: evidenceFormat,
       runId,
       state,
