@@ -19,12 +19,15 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 
 ## Launch Rule
 
+1. Treat project creation and package-manager mutation as single-writer work.
+   Wait for the active scaffold/install command to finish; never start
+   concurrent installs against the same workspace.
 1. Use `pnpm run dev` for normal local development.
-2. Use the committed `.claude/launch.json` when Claude Code Desktop preview launches the app. It runs `pnpm run dev -- --preview-managed` so Claude Preview sees Vite as the foreground process while Air Jam manages the local server in the background.
-3. Do not replace the Air Jam dev flow with raw `pnpm exec vite` unless you intentionally want frontend-only rendering without the local Air Jam backend.
-4. If you need HTTPS/secure local dev, use `pnpm run dev -- --secure`.
-5. If local runtime state feels stale, use Air Jam status/log/reset tooling before debugging gameplay code.
-6. After editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state.
+1. Use the committed `.claude/launch.json` when Claude Code Desktop preview launches the app. It runs `pnpm run dev -- --preview-managed` so Claude Preview sees Vite as the foreground process while Air Jam manages the local server in the background.
+1. Do not replace the Air Jam dev flow with raw `pnpm exec vite` unless you intentionally want frontend-only rendering without the local Air Jam backend.
+1. If you need HTTPS/secure local dev, use `pnpm run dev -- --secure`.
+1. If local runtime state feels stale, use Air Jam status/log/reset tooling before debugging gameplay code.
+1. After editing host-only runtime refs, physics loops, or `useHostActionListener` side effects, hard refresh the host or run `pnpm exec airjam reset local` if actions appear duplicated or rendered state no longer matches replicated state.
 
 ## Canonical Files
 

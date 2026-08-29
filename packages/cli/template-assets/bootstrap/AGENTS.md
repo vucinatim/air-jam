@@ -36,6 +36,11 @@ For meaningful work:
 7. keep durable notes in the user's requested place, or create a focused plan document only when the task genuinely needs one
 8. run relevant validation
 
+Package-manager mutations are single-writer operations. Wait for project
+creation and its initial install to finish before inspecting or changing the
+generated dependency graph. Never run concurrent `pnpm install`, `add`,
+`update`, or equivalent commands against the same workspace.
+
 ## Canonical Local Guidance
 
 ### `docs/airjam/`
