@@ -18,6 +18,21 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Readiness Evidence Became Immutable And CI-Portable
+
+- traced the post-review CI failure to repository-history evidence that passed
+  in a full local clone but could not resolve in GitHub's default shallow
+  checkout
+- kept existence validation fail-closed rather than weakening the evidence
+  contract to syntax-only acceptance
+- migrated git evidence to full immutable commit SHAs, made abbreviated refs
+  invalid, and gave the CI validation lane complete repository history
+- added regression coverage for both immutable ref enforcement and the CI
+  checkout requirement
+- passed the complete local `pnpm check:ci` pipeline, including generated
+  sources, type checks, lint, canonical guard, package tests, builds, and the
+  multiplayer performance sanity run
+
 ## 2026-08-29 - Integration Review Hardened The Proof Boundaries
 
 - accepted the second independent review of cumulative pull request `#61` and

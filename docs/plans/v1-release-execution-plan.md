@@ -164,11 +164,15 @@ Completion rules:
 
 Evidence reference types:
 
-1. `artifact:` generated proof retained locally or in CI
-2. `command:` a deterministic validation or terminal operation
-3. `decision:` an explicit maintainer or ratified program decision
-4. `document:` a repo document containing the durable result
-5. `url:` a stable external result such as a deployment, workflow, issue, or
+1. `artifact:file:<repo-path>` for durable generated proof retained in the
+   repository
+2. `artifact:git:<commit>` or `artifact:git-range:<start>..<end>` for immutable
+   repository history; git evidence uses full lowercase 40-character commit
+   SHAs and validation requires a checkout containing the referenced history
+3. `command:` a deterministic validation or terminal operation
+4. `decision:` an explicit maintainer or ratified program decision
+5. `document:` a repo document containing the durable result
+6. `url:` a stable external result such as a deployment, workflow, issue, or
    published release
 
 The manifest stores references rather than embedding large logs or screenshots.

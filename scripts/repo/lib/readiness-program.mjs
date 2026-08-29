@@ -26,6 +26,7 @@ const allowedStatuses = new Set([
 const allowedBlockerTypes = new Set(["external", "human", "technical"]);
 const evidenceReferencePattern =
   /^(artifact|command|decision|document|url):\S(?:.*\S)?$/u;
+const immutableGitCommitPattern = /^[0-9a-f]{40}$/u;
 
 const assertString = (value, label) => {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -51,13 +52,20 @@ const validateReferencedFile = (relativePath, label) => {
 
 const validateGitCommit = (reference, label) => {
   assertString(reference, label);
+  if (!immutableGitCommitPattern.test(reference)) {
+    throw new Error(
+      `${label} must be a full lowercase 40-character commit SHA: ${reference}`,
+    );
+  }
   const result = spawnSync(
     "git",
     ["rev-parse", "--verify", `${reference}^{commit}`],
     { cwd: repoRoot, encoding: "utf8" },
   );
   if (result.status !== 0) {
-    throw new Error(`${label} does not resolve to a commit: ${reference}`);
+    throw new Error(
+      `${label} does not resolve to a commit in this checkout: ${reference}. Fetch complete repository history before validating readiness evidence.`,
+    );
   }
 };
 

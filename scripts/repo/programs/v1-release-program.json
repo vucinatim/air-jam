@@ -303,7 +303,7 @@
       "note": "R1-R4 canonicalization implementation complete; R5 clean-checkout proof moves to G1-06",
       "updatedAt": "2026-08-28T18:14:32.308Z",
       "evidence": [
-        "artifact:git-range:f7eff9d..fb59754",
+        "artifact:git-range:f7eff9dd5c9b1d812d0a330fa117561d3eb9bfb5..fb5975415961f0024ee6de6d2cf3db3a5642ca36",
         "document:docs/audits/v1-canonicalization/canonicalization-execution-set.md#bundle-r4-platform-application-authority-convergence",
         "command:pnpm --filter platform typecheck",
         "command:pnpm --filter platform lint",
@@ -364,7 +364,7 @@
       "evidence": [
         "document:docs/contracts/external-agent-golden-path-contract.md",
         "command:pnpm-repo-golden-path-validate",
-        "artifact:git:79a4458"
+        "artifact:git:79a4458f5b0a8a0f81b5cd0b3f87473ccfae592d"
       ],
       "completedAt": "2026-08-28T19:06:56.141Z"
     },

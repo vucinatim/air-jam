@@ -265,8 +265,21 @@ test("artifact evidence must resolve to a typed durable artifact", () => {
   item.evidence = ["artifact:git:not-a-real-commit"];
   assert.throws(
     () => validateReadinessProgram(program),
-    /does not resolve to a commit/u,
+    /full lowercase 40-character commit SHA/u,
   );
+
+  item.evidence = ["artifact:git:79a4458"];
+  assert.throws(
+    () => validateReadinessProgram(program),
+    /full lowercase 40-character commit SHA/u,
+  );
+
+  const currentCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim();
+  item.evidence = [`artifact:git:${currentCommit}`];
+  assert.doesNotThrow(() => validateReadinessProgram(program));
 
   item.evidence = ["artifact:opaque-value"];
   assert.throws(
