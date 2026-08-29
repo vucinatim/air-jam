@@ -106,19 +106,23 @@ const substitutePrompt = ({
     .replaceAll("{{stagingPlatformUrl}}", stagingUrl)
     .replaceAll("{{evidenceDir}}", evidenceDir);
 
-const collectToolchain = ({ codexVersion, registryUrl }) => ({
+const collectToolchain = ({ codexVersion, registryUrl, env }) => ({
   capturedAt: new Date().toISOString(),
   operatingSystem: `${os.platform()} ${os.release()}`,
   architecture: os.arch(),
   node: process.version,
   corepack:
-    spawnSync("corepack", ["--version"], { encoding: "utf8" }).stdout?.trim() ??
-    null,
+    spawnSync("corepack", ["--version"], {
+      encoding: "utf8",
+      env,
+    }).stdout?.trim() ?? null,
   pnpm:
-    spawnSync("pnpm", ["--version"], { encoding: "utf8" }).stdout?.trim() ??
-    null,
+    spawnSync("pnpm", ["--version"], {
+      encoding: "utf8",
+      env,
+    }).stdout?.trim() ?? null,
   git:
-    spawnSync("git", ["--version"], { encoding: "utf8" }).stdout?.trim() ??
+    spawnSync("git", ["--version"], { encoding: "utf8", env }).stdout?.trim() ??
     null,
   codex: codexVersion,
   browserAvailability: "not-attested-by-controller",
@@ -181,6 +185,24 @@ const indexEvidenceFiles = (evidenceDir) =>
       };
     });
 
+const textEvidenceExtensions = new Set([
+  ".json",
+  ".ndjson",
+  ".md",
+  ".txt",
+  ".log",
+]);
+
+const sanitizeEvidenceTree = ({ evidenceDir, runRoot, registryUrl }) => {
+  for (const relativePath of listEvidenceFiles(evidenceDir)) {
+    if (!textEvidenceExtensions.has(path.extname(relativePath))) continue;
+    const absolutePath = path.join(evidenceDir, relativePath);
+    const source = fs.readFileSync(absolutePath, "utf8");
+    const sanitized = normalizeEvidenceText(source, { runRoot, registryUrl });
+    if (sanitized !== source) fs.writeFileSync(absolutePath, sanitized);
+  }
+};
+
 const detectQualityCommand = (command) => {
   const detected = [];
   for (const qualityCommand of initialQualityCommands) {
@@ -193,7 +215,7 @@ const detectQualityCommand = (command) => {
   return detected;
 };
 
-const isControlCheckpointEvent = (event) => {
+export const isControlCheckpointEvent = (event) => {
   if (event.type !== "item.completed") return false;
   if (event.item?.type === "command_execution" && event.item.exit_code === 0) {
     return /(?:^|\s)airjam\s+session\s+close(?:\s|$)/u.test(
@@ -201,8 +223,17 @@ const isControlCheckpointEvent = (event) => {
     );
   }
   if (event.item?.type !== "mcp_tool_call") return false;
-  return /(?:^|[._])close_game_session$/u.test(
-    event.item.tool_name ?? event.item.name ?? "",
+  const item = event.item;
+  const successful =
+    item.status !== "failed" &&
+    item.error == null &&
+    item.is_error !== true &&
+    item.isError !== true &&
+    item.result?.is_error !== true &&
+    item.result?.isError !== true;
+  return (
+    successful &&
+    /(?:^|[._])close_game_session$/u.test(item.tool_name ?? item.name ?? "")
   );
 };
 
@@ -232,32 +263,39 @@ export const buildCodexPermissionArgs = ({ stagingUrl, runRoot }) => {
     "pnpm-store",
   ].map((directory) => path.join(runRoot, directory));
 
+  const globalArgs = [
+    "--enable",
+    "network_proxy",
+    "--config",
+    'approval_policy="never"',
+    "--config",
+    `default_permissions=${JSON.stringify(permissionProfileName)}`,
+    "--config",
+    "allow_login_shell=false",
+    "--config",
+    `permissions.${permissionProfileName}.extends=\":workspace\"`,
+    "--config",
+    `permissions.${permissionProfileName}.filesystem=${tomlInlineStringMap(filesystem)}`,
+    "--config",
+    `permissions.${permissionProfileName}.network.enabled=true`,
+    "--config",
+    `permissions.${permissionProfileName}.network.mode=\"full\"`,
+    "--config",
+    `permissions.${permissionProfileName}.network.allow_local_binding=true`,
+    "--config",
+    `permissions.${permissionProfileName}.network.domains=${tomlInlineStringMap(networkDomains)}`,
+    "--config",
+    `permissions.${permissionProfileName}.network.unix_sockets=${tomlInlineStringMap({ [path.join(runRoot, "tmp")]: "allow" })}`,
+  ];
+  const additionalDirectoryArgs = writableRoots.flatMap((root) => [
+    "--add-dir",
+    root,
+  ]);
+
   return {
-    args: [
-      "--enable",
-      "network_proxy",
-      "--config",
-      'approval_policy="never"',
-      "--config",
-      `default_permissions=${JSON.stringify(permissionProfileName)}`,
-      "--config",
-      "allow_login_shell=false",
-      "--config",
-      `permissions.${permissionProfileName}.extends=\":workspace\"`,
-      "--config",
-      `permissions.${permissionProfileName}.filesystem=${tomlInlineStringMap(filesystem)}`,
-      "--config",
-      `permissions.${permissionProfileName}.network.enabled=true`,
-      "--config",
-      `permissions.${permissionProfileName}.network.mode=\"full\"`,
-      "--config",
-      `permissions.${permissionProfileName}.network.allow_local_binding=true`,
-      "--config",
-      `permissions.${permissionProfileName}.network.domains=${tomlInlineStringMap(networkDomains)}`,
-      "--config",
-      `permissions.${permissionProfileName}.network.unix_sockets=${tomlInlineStringMap({ [path.join(runRoot, "tmp")]: "allow" })}`,
-      ...writableRoots.flatMap((root) => ["--add-dir", root]),
-    ],
+    args: [...globalArgs, ...additionalDirectoryArgs],
+    globalArgs,
+    additionalDirectoryArgs,
     profile: {
       name: permissionProfileName,
       base: ":workspace",
@@ -301,8 +339,8 @@ export const buildGoldenPathCommandEnv = ({
     )
     .sort((left, right) => {
       const runtimeBin = path.dirname(process.execPath);
-      if (left === runtimeBin && right !== runtimeBin) return 1;
-      if (right === runtimeBin && left !== runtimeBin) return -1;
+      if (left === runtimeBin && right !== runtimeBin) return -1;
+      if (right === runtimeBin && left !== runtimeBin) return 1;
       return 0;
     })
     .filter((entry, index, entries) => entries.indexOf(entry) === index)
@@ -329,6 +367,86 @@ export const buildGoldenPathCommandEnv = ({
     npm_config_cache: path.join(runRoot, "npm-cache"),
     npm_config_registry: registryUrl,
     pnpm_config_store_dir: path.join(runRoot, "pnpm-store"),
+  };
+};
+
+export const probeGoldenPathIsolation = ({
+  commandEnv,
+  codexPermissions,
+  registryUrl,
+  runRoot,
+  workspaceDir,
+}) => {
+  const probePath = path.join(workspaceDir, ".airjam-isolation-write-probe");
+  const commonArgs = [
+    "sandbox",
+    ...codexPermissions.globalArgs,
+    "--permission-profile",
+    permissionProfileName,
+    "--cd",
+    workspaceDir,
+    "--include-managed-config",
+  ];
+  const probes = [
+    {
+      id: "deny-private-repository-read",
+      expected: "denied",
+      script: `require("node:fs").readFileSync(${JSON.stringify(path.join(repoRoot, "package.json"))})`,
+    },
+    {
+      id: "allow-workspace-write",
+      expected: "allowed",
+      script: `require("node:fs").writeFileSync(${JSON.stringify(probePath)}, "probe")`,
+    },
+    {
+      id: "deny-undeclared-network",
+      expected: "denied",
+      script:
+        'fetch("https://example.com").then(() => process.exit(0), () => process.exit(1))',
+    },
+    {
+      id: "allow-candidate-registry-network",
+      expected: "allowed",
+      script: `fetch(${JSON.stringify(`${registryUrl}/-/ping`)}).then(() => process.exit(0), () => process.exit(1))`,
+    },
+  ];
+  const records = probes.map((probe) => {
+    const result = spawnSync(
+      "codex",
+      [...commonArgs, "--", process.execPath, "-e", probe.script],
+      {
+        cwd: workspaceDir,
+        encoding: "utf8",
+        env: commandEnv,
+        maxBuffer: commandMaxBuffer,
+        timeout: 60_000,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    const allowed = !result.error && result.status === 0;
+    return {
+      id: probe.id,
+      expected: probe.expected,
+      observed: allowed ? "allowed" : "denied",
+      exitCode: result.status,
+      signal: result.signal,
+      error: result.error?.message ?? null,
+      stdout: normalizeEvidenceText(result.stdout, { runRoot, registryUrl }),
+      stderr: normalizeEvidenceText(result.stderr, { runRoot, registryUrl }),
+    };
+  });
+  fs.rmSync(probePath, { force: true });
+  const mismatches = records.filter(
+    (record) => record.expected !== record.observed,
+  );
+  return {
+    verified: mismatches.length === 0,
+    records,
+    mismatches: mismatches.map(({ id, expected, observed }) => ({
+      id,
+      expected,
+      observed,
+    })),
   };
 };
 
@@ -392,9 +510,7 @@ const readBlockedTerminalRecord = ({ evidenceDir, runId }) => {
     relativePath: "failures/index.json",
     runId,
   });
-  const record = index?.records.findLast(
-    (entry) => entry?.result === "blocked",
-  );
+  const record = index?.records.find((entry) => entry?.result === "blocked");
   if (
     !record ||
     typeof record.firstFailingStage !== "string" ||
@@ -419,7 +535,9 @@ export const verifyPrimaryRun = ({
   runId,
   fault,
   codexExitCode,
-  postFaultQuality,
+  controllerQuality,
+  projectCleanup = [],
+  releaseVerification = null,
   runRoot,
   registryUrl,
 }) => {
@@ -452,7 +570,7 @@ export const verifyPrimaryRun = ({
       "primary_agent_failed",
     ].includes(failure.code),
   );
-  if (blockedRecord && !evidenceIntegrityFailed && !fault) {
+  if (blockedRecord && !evidenceIntegrityFailed) {
     notEvaluated.push(
       ...blockedRecord.stagesNotAttempted.map((stage) => ({
         code: "stage_not_evaluated",
@@ -471,6 +589,8 @@ export const verifyPrimaryRun = ({
           stage: blockedRecord.firstFailingStage,
           surface: blockedRecord.responsibleSurface,
           classification: blockedRecord.classification,
+          observation: blockedRecord.observation,
+          expected: blockedRecord.expected,
           path: "failures/index.json",
         },
       ],
@@ -499,36 +619,51 @@ export const verifyPrimaryRun = ({
       path: "failures/index.json",
     });
   for (const qualityCommand of initialQualityCommands) {
-    if (!postFaultQuality.has(qualityCommand)) {
+    if (!controllerQuality.has(qualityCommand)) {
       failures.push({
-        code: "post_fault_quality_not_observed",
+        code: "controller_quality_failed",
         command: qualityCommand,
-        path: "transcript/events.ndjson",
+        path: "commands/controller.json",
+      });
+    }
+  }
+  for (const cleanup of projectCleanup) {
+    if (!cleanup.ok) {
+      failures.push({
+        code: "project_cleanup_failed",
+        command: cleanup.id,
+        path: "commands/controller.json",
       });
     }
   }
 
-  const releaseIndexPath = path.join(evidenceDir, "release", "index.json");
-  const releaseSource = fs.existsSync(releaseIndexPath)
-    ? normalizeEvidenceText(fs.readFileSync(releaseIndexPath, "utf8"), {
-        runRoot,
-        registryUrl,
-      })
-    : "";
-  const releaseAttested = /"status"\s*:\s*"(?:ready|published|passed)"/u.test(
-    releaseSource,
-  );
-  if (!releaseAttested)
+  if (
+    releaseVerification?.status !== "ready" ||
+    releaseVerification?.arcadeVisibility !== "hidden" ||
+    releaseVerification?.productionAllowed !== false
+  )
     failures.push({
-      code: "hidden_release_not_attested",
+      code: "hidden_release_not_controller_verified",
       path: "release/index.json",
     });
+
+  const invalidFailureCodes = new Set([
+    "missing_evidence",
+    "invalid_evidence_index",
+  ]);
+  const result = failures.some((failure) =>
+    invalidFailureCodes.has(failure.code),
+  )
+    ? "invalid"
+    : failures.length === 0
+      ? "passed"
+      : "failed";
 
   return {
     contract: evidenceFormat,
     scope: "codex-primary",
     verifiedAt: new Date().toISOString(),
-    result: failures.length === 0 ? "passed" : "failed",
+    result,
     failures,
     notEvaluated,
     note: "This verifier certifies only the Codex primary lane. Claude Desktop remains independently owned by G2-04.",
@@ -588,17 +723,29 @@ export const runGoldenPathPrimary = async ({
 
   const syncEvidence = () => {
     if (!fs.existsSync(evidenceDir)) return;
-    fs.cpSync(evidenceDir, retainedEvidenceDir, {
+    const snapshotDir = path.join(
+      artifactRoot,
+      `.evidence-snapshot-${process.pid}`,
+    );
+    fs.rmSync(snapshotDir, { recursive: true, force: true });
+    fs.cpSync(evidenceDir, snapshotDir, {
       recursive: true,
       force: true,
     });
+    sanitizeEvidenceTree({
+      evidenceDir: snapshotDir,
+      runRoot,
+      registryUrl,
+    });
+    fs.rmSync(retainedEvidenceDir, { recursive: true, force: true });
+    fs.renameSync(snapshotDir, retainedEvidenceDir);
   };
   const bestEffortSyncEvidence = () => {
     try {
       syncEvidence();
     } catch {
-      // A concurrent agent write can make a periodic snapshot transiently
-      // unreadable. The next interval retries; explicit checkpoints stay strict.
+      // A concurrent agent write can make an interruption snapshot transiently
+      // unreadable. Explicit lifecycle checkpoints remain strict.
     }
   };
   const writeDurableControllerState = (state, details = {}) => {
@@ -619,8 +766,15 @@ export const runGoldenPathPrimary = async ({
     runRoot,
     registryUrl,
   });
+  const startedAt = new Date().toISOString();
   const controllerCommands = [];
-  const runControllerCommand = (id, command, args, cwd = repoRoot) => {
+  const runControllerCommand = (
+    id,
+    command,
+    args,
+    cwd = repoRoot,
+    { throwOnFailure = true } = {},
+  ) => {
     onProgress(id);
     const startedAt = new Date();
     const result = spawnSync(command, args, {
@@ -628,6 +782,7 @@ export const runGoldenPathPrimary = async ({
       encoding: "utf8",
       env: commandEnv,
       maxBuffer: commandMaxBuffer,
+      timeout: 10 * 60 * 1_000,
       stdio: ["ignore", "pipe", "pipe"],
     });
     const stdout = normalizeEvidenceText(result.stdout, {
@@ -650,18 +805,29 @@ export const runGoldenPathPrimary = async ({
       startedAt: startedAt.toISOString(),
       endedAt: new Date().toISOString(),
       exitCode: result.status,
+      signal: result.signal,
+      error: result.error?.message ?? null,
       stdoutBytes: Buffer.byteLength(stdout),
       stderrBytes: Buffer.byteLength(stderr),
       stdoutSha256: sha256(stdout),
       stderrSha256: sha256(stderr),
     };
     controllerCommands.push(record);
-    if (result.status !== 0) {
+    if (throwOnFailure && (result.error || result.status !== 0)) {
       throw new Error(
-        `${id} failed with exit code ${result.status}.\n${stdout}\n${stderr}`,
+        `${id} failed${
+          result.error
+            ? ` to execute: ${result.error.message}`
+            : ` with exit code ${result.status}`
+        }.\n${stdout}\n${stderr}`,
       );
     }
-    return String(result.stdout ?? "");
+    const outcome = {
+      ok: !result.error && result.status === 0,
+      stdout: String(result.stdout ?? ""),
+      stderr: String(result.stderr ?? ""),
+    };
+    return throwOnFailure ? outcome.stdout : outcome;
   };
 
   let registry;
@@ -669,24 +835,36 @@ export const runGoldenPathPrimary = async ({
   let fault = null;
   let codexExitCode = null;
   let interruptedSignal = null;
+  let registryRemoved = false;
+  let credentialsRemoved = false;
+  let packagesRemoved = false;
+  const projectCleanup = [];
+  const signalCodexProcessGroup = (signal) => {
+    if (!codexChild || codexChild.exitCode !== null) return;
+    try {
+      process.kill(-codexChild.pid, signal);
+    } catch {
+      codexChild.kill(signal);
+    }
+  };
   const handleSignal = (signal) => {
     interruptedSignal = signal;
     writeDurableControllerState("interrupted", { signal });
     bestEffortSyncEvidence();
-    if (codexChild && codexChild.exitCode === null) codexChild.kill("SIGTERM");
+    signalCodexProcessGroup("SIGTERM");
   };
   const handleSigint = () => handleSignal("SIGINT");
   const handleSigterm = () => handleSignal("SIGTERM");
   process.once("SIGINT", handleSigint);
   process.once("SIGTERM", handleSigterm);
   const completedInitialQuality = new Set();
-  const completedPostFaultQuality = new Set();
+  const controllerQuality = new Set();
   let completedInitialControl = false;
+  let checkpointObservationRevision = 0;
+  let lastValidatedCheckpointRevision = 0;
   const transcriptPath = path.join(evidenceDir, "transcript", "events.ndjson");
   writeText(transcriptPath, "");
   syncEvidence();
-  const evidenceSyncTimer = setInterval(bestEffortSyncEvidence, 1_000);
-  evidenceSyncTimer.unref();
 
   try {
     const prepared = await prepareGoldenPathCandidateRegistry({
@@ -716,15 +894,27 @@ export const runGoldenPathPrimary = async ({
     writeJson(path.join(evidenceDir, "inputs", "scenario.json"), programState);
     const codexVersionResult = spawnSync("codex", ["--version"], {
       encoding: "utf8",
+      env: commandEnv,
     });
     const codexVersion = codexVersionResult.stdout?.trim() || "unknown";
     const codexPermissions = buildCodexPermissionArgs({
       stagingUrl: normalizedStagingUrl,
       runRoot,
     });
+    const isolationProbe = probeGoldenPathIsolation({
+      commandEnv,
+      codexPermissions,
+      registryUrl,
+      runRoot,
+      workspaceDir,
+    });
     writeJson(
       path.join(evidenceDir, "environment", "toolchain.json"),
-      collectToolchain({ codexVersion, registryUrl: "<candidate-registry>" }),
+      collectToolchain({
+        codexVersion,
+        registryUrl: "<candidate-registry>",
+        env: commandEnv,
+      }),
     );
     writeJson(path.join(evidenceDir, "environment", "isolation.json"), {
       runId,
@@ -735,16 +925,36 @@ export const runGoldenPathPrimary = async ({
       candidateRegistry: "<candidate-registry>",
       airJamUpstreamFallback: false,
       stagingPlatform: normalizedStagingUrl,
-      productionAllowed: false,
-      arcadeVisibility: "hidden",
+      requestedProductionAllowed: false,
+      requestedArcadeVisibility: "hidden",
+      platformReleaseVerification: null,
       privateRepositoryContextProvided: false,
       workspaceOutsideAirJamMonorepo: workspaceOutsideRepo,
       inheritedCredentialEnvironment: false,
-      childAirJamRepositoryReadAccess: false,
+      childAirJamRepositoryReadAccess:
+        isolationProbe.records.find(
+          (record) => record.id === "deny-private-repository-read",
+        )?.observed === "allowed",
+      workspaceWriteAccess:
+        isolationProbe.records.find(
+          (record) => record.id === "allow-workspace-write",
+        )?.observed === "allowed",
       networkAllowlist: codexPermissions.profile.network.allowedDomains,
-      localServerBindingAllowed: true,
+      candidateRegistryNetworkAccess:
+        isolationProbe.records.find(
+          (record) => record.id === "allow-candidate-registry-network",
+        )?.observed === "allowed",
+      undeclaredNetworkAccess:
+        isolationProbe.records.find(
+          (record) => record.id === "deny-undeclared-network",
+        )?.observed === "allowed",
+      verified: isolationProbe.verified,
       maintainerEditsAfterStart: ["declared-win-score-fault-only"],
     });
+    writeJson(
+      path.join(evidenceDir, "environment", "isolation-probe.json"),
+      isolationProbe,
+    );
     writeJson(path.join(evidenceDir, "project", "git", "initial.json"), {
       capturedAt: new Date().toISOString(),
       state: "empty-workspace-before-primary-agent",
@@ -755,8 +965,14 @@ export const runGoldenPathPrimary = async ({
       codexPermissions.profile,
     );
     syncEvidence();
+    if (!isolationProbe.verified) {
+      throw new Error(
+        `Golden-path isolation preflight failed: ${JSON.stringify(isolationProbe.mismatches)}`,
+      );
+    }
 
     const codexArgs = [
+      "--strict-config",
       "exec",
       "--ephemeral",
       "--ignore-user-config",
@@ -773,6 +989,7 @@ export const runGoldenPathPrimary = async ({
     writeDurableControllerState("primary-agent-running");
     codexChild = spawn("codex", codexArgs, {
       cwd: workspaceDir,
+      detached: true,
       env: commandEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -804,32 +1021,59 @@ export const runGoldenPathPrimary = async ({
       ) {
         const qualityCommands = detectQualityCommand(event.item.command ?? "");
         for (const id of qualityCommands) {
-          if (fault) completedPostFaultQuality.add(id);
-          else completedInitialQuality.add(id);
+          if (!fault) {
+            completedInitialQuality.add(id);
+            checkpointObservationRevision += 1;
+          }
         }
       }
       if (!fault && isControlCheckpointEvent(event)) {
         completedInitialControl = true;
+        checkpointObservationRevision += 1;
       }
       if (
         !fault &&
         completedInitialControl &&
-        initialQualityCommands.every((id) => completedInitialQuality.has(id))
+        initialQualityCommands.every((id) => completedInitialQuality.has(id)) &&
+        checkpointObservationRevision > lastValidatedCheckpointRevision
       ) {
-        fault = injectDeclaredFault({
-          projectDir,
-          evidenceDir,
-          runRoot,
-          registryUrl,
-        });
-        if (fault) {
-          onProgress("controller:fault-injected");
-          syncEvidence();
-          appendTranscript({
-            type: "controller.fault-injected",
-            faultId: fault.id,
-            timestamp: fault.injectedAt,
-          });
+        lastValidatedCheckpointRevision = checkpointObservationRevision;
+        signalCodexProcessGroup("SIGSTOP");
+        try {
+          const initialControllerQuality = new Set();
+          for (const qualityCommand of initialQualityCommands) {
+            const result = runControllerCommand(
+              `checkpoint:quality:${qualityCommand}`,
+              "pnpm",
+              ["run", qualityCommand],
+              projectDir,
+              { throwOnFailure: false },
+            );
+            if (result.ok) initialControllerQuality.add(qualityCommand);
+          }
+          if (
+            initialQualityCommands.every((id) =>
+              initialControllerQuality.has(id),
+            )
+          ) {
+            fault = injectDeclaredFault({
+              projectDir,
+              evidenceDir,
+              runRoot,
+              registryUrl,
+            });
+            if (fault) {
+              onProgress("controller:fault-injected");
+              syncEvidence();
+              appendTranscript({
+                type: "controller.fault-injected",
+                faultId: fault.id,
+                timestamp: fault.injectedAt,
+              });
+            }
+          }
+        } finally {
+          signalCodexProcessGroup("SIGCONT");
         }
       }
     };
@@ -878,6 +1122,48 @@ export const runGoldenPathPrimary = async ({
       );
     }
 
+    if (fault && codexExitCode === 0) {
+      for (const qualityCommand of initialQualityCommands) {
+        const result = runControllerCommand(
+          `verify:quality:${qualityCommand}`,
+          "pnpm",
+          ["run", qualityCommand],
+          projectDir,
+          { throwOnFailure: false },
+        );
+        if (result.ok) controllerQuality.add(qualityCommand);
+      }
+    }
+
+    if (fs.existsSync(projectDir)) {
+      for (const [id, args] of [
+        [
+          "cleanup:session-broker",
+          ["exec", "airjam", "session", "broker", "stop", "--dir", "."],
+        ],
+        [
+          "cleanup:dev-processes",
+          ["exec", "airjam", "dev", "stop", "--dir", "."],
+        ],
+      ]) {
+        const result = runControllerCommand(id, "pnpm", args, projectDir, {
+          throwOnFailure: false,
+        });
+        projectCleanup.push({ id, ok: result.ok });
+      }
+    }
+
+    if (registry) {
+      await stopChild(registry.child);
+      registry = null;
+    }
+    fs.rmSync(path.join(runRoot, "registry"), { recursive: true, force: true });
+    registryRemoved = !fs.existsSync(path.join(runRoot, "registry"));
+    fs.rmSync(path.join(runRoot, "state"), { recursive: true, force: true });
+    credentialsRemoved = !fs.existsSync(path.join(runRoot, "state"));
+    fs.rmSync(path.join(runRoot, "packages"), { recursive: true, force: true });
+    packagesRemoved = !fs.existsSync(path.join(runRoot, "packages"));
+
     writeJson(path.join(evidenceDir, "commands", "controller.json"), {
       records: controllerCommands,
     });
@@ -893,11 +1179,14 @@ export const runGoldenPathPrimary = async ({
       runId,
       fault,
       codexExitCode,
-      postFaultQuality: completedPostFaultQuality,
+      controllerQuality,
+      projectCleanup,
+      releaseVerification: null,
       runRoot,
       registryUrl,
     });
     writeJson(path.join(evidenceDir, "verifier", "report.json"), report);
+    sanitizeEvidenceTree({ evidenceDir, runRoot, registryUrl });
     const manifest = {
       format: evidenceFormat,
       runId,
@@ -911,19 +1200,22 @@ export const runGoldenPathPrimary = async ({
       clients: { primary: { profile: "codex", version: codexVersion } },
       staging: {
         url: normalizedStagingUrl,
-        productionAllowed: false,
-        arcadeVisibility: "hidden",
+        requestedProductionAllowed: false,
+        requestedArcadeVisibility: "hidden",
+        verification: null,
       },
-      startedAt: fs.statSync(transcriptPath).birthtime.toISOString(),
+      startedAt,
       endedAt: new Date().toISOString(),
       terminalResult: report.result,
       primaryAgentExitCode: codexExitCode,
       declaredFault: fault,
       projectGit: readGitState(projectDir),
       cleanup: {
-        registry: "removed",
-        credentials: "removed-with-registry-state",
-        workspace: keepWorkspace ? "retained" : "removed-after-indexing",
+        registry: registryRemoved ? "removed" : "not-removed",
+        credentials: credentialsRemoved ? "removed" : "not-removed",
+        packages: packagesRemoved ? "removed" : "not-removed",
+        projectProcesses: projectCleanup,
+        workspace: keepWorkspace ? "retained" : "scheduled-for-removal",
         evidence: "retained",
       },
       files: indexEvidenceFiles(evidenceDir),
@@ -946,8 +1238,9 @@ export const runGoldenPathPrimary = async ({
       declaredFaultInjected: Boolean(fault),
     };
   } catch (error) {
-    syncEvidence();
-    writeDurableControllerState("failed", {
+    bestEffortSyncEvidence();
+    writeDurableControllerState(interruptedSignal ? "interrupted" : "failed", {
+      ...(interruptedSignal ? { signal: interruptedSignal } : {}),
       error: normalizeEvidenceText(
         error instanceof Error ? error.message : String(error),
         { runRoot, registryUrl },
@@ -955,13 +1248,14 @@ export const runGoldenPathPrimary = async ({
     });
     throw error;
   } finally {
-    clearInterval(evidenceSyncTimer);
     process.removeListener("SIGINT", handleSigint);
     process.removeListener("SIGTERM", handleSigterm);
-    if (codexChild && codexChild.exitCode === null) await stopChild(codexChild);
+    if (codexChild && codexChild.exitCode === null) {
+      await stopChild(codexChild, { processGroup: true });
+    }
     if (registry) await stopChild(registry.child);
     if (fs.existsSync(evidenceDir)) {
-      syncEvidence();
+      bestEffortSyncEvidence();
     }
     fs.rmSync(path.join(runRoot, "registry"), { recursive: true, force: true });
     fs.rmSync(path.join(runRoot, "state"), { recursive: true, force: true });

@@ -63,14 +63,25 @@ const waitForRegistry = async ({ registryUrl, child, readOutput }) => {
   throw new Error(`Timed out waiting for candidate registry.\n${readOutput()}`);
 };
 
-export const stopChild = async (child) => {
+export const stopChild = async (child, { processGroup = false } = {}) => {
   if (child.exitCode !== null) return;
-  child.kill("SIGTERM");
+  const sendSignal = (signal) => {
+    if (processGroup && child.pid) {
+      try {
+        process.kill(-child.pid, signal);
+        return;
+      } catch {
+        // Fall back to the direct child when the process group is already gone.
+      }
+    }
+    child.kill(signal);
+  };
+  sendSignal("SIGTERM");
   await Promise.race([
     new Promise((resolve) => child.once("exit", resolve)),
     new Promise((resolve) => setTimeout(resolve, 5_000)),
   ]);
-  if (child.exitCode === null) child.kill("SIGKILL");
+  if (child.exitCode === null) sendSignal("SIGKILL");
 };
 
 const startCandidateRegistry = async ({ runRoot, port }) => {

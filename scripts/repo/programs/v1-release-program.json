@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-29T12:01:37.664Z",
+  "updatedAt": "2026-08-29T13:46:42.110Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -404,7 +404,7 @@
       "priority": 30,
       "title": "Run the primary create, control, inspect, fix, evaluate, publish, and verify scenario",
       "authority": "autonomous",
-      "status": "complete",
+      "status": "in_progress",
       "dependsOn": [
         "G1-06",
         "G2-02"
@@ -417,14 +417,11 @@
         "retained clean-room transcript and machine-readable artifacts"
       ],
       "owner": "/root",
-      "note": "Retained primary run independently verified as blocked at the browser-runtime boundary; exact lifecycle fix and passing replay remain owned by G2-05.",
-      "updatedAt": "2026-08-29T12:01:37.664Z",
+      "note": "Claude review found that retained evidence was not durable and success criteria were partly agent-self-attested; hardening controller-owned proof before recompleting.",
+      "updatedAt": "2026-08-29T13:46:42.110Z",
       "evidence": [
-        "document:docs/audits/v1-golden-path/primary-agent-run-audit.md",
-        "artifact:.airjam/golden-path-runs/g2-03-20260829-a9/evidence/manifest.json",
-        "command:golden-path-run-primary:g2-03-20260829-a9"
-      ],
-      "completedAt": "2026-08-29T12:01:37.664Z"
+        "document:docs/audits/v1-golden-path/primary-agent-run-audit.md"
+      ]
     },
     {
       "id": "G2-04",

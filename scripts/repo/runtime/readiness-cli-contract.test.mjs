@@ -15,6 +15,7 @@ import {
   readReadinessProgram,
   summarizeReadinessProgram,
   updateReadinessWorkItem,
+  validateReadinessProgram,
 } from "../lib/readiness-program.mjs";
 
 const repoRoot = path.resolve(
@@ -87,6 +88,10 @@ test("v1 readiness manifest validates its program structure and root queue", () 
   assert.throws(
     () => getReadyWorkItems(program, { authority: "typo" }),
     /Unsupported readiness authority/,
+  );
+  assert.throws(
+    () => getReadyWorkItems(program, { lane: "typo" }),
+    /Unknown readiness lane/,
   );
 
   const addedId = "TEST-G1-ADDITION";
@@ -172,6 +177,14 @@ test("status transitions enforce ownership, dependencies, evidence, and explicit
       }),
     /ownership takeover is not allowed/,
   );
+  assert.throws(
+    () =>
+      updateReadinessWorkItem(claimed, "G0-01", {
+        status: "complete",
+        evidence: ["document:docs/plans/v1-release-roadmap-plan.md"],
+      }),
+    /ownership takeover is not allowed/,
+  );
 
   const completed = updateReadinessWorkItem(claimed, "G0-01", {
     status: "complete",
@@ -186,6 +199,44 @@ test("status transitions enforce ownership, dependencies, evidence, and explicit
         status: "pending",
       }),
     /--reopen/,
+  );
+
+  const downstreamClaimed = updateReadinessWorkItem(completed, "G2-01", {
+    status: "in_progress",
+    owner: "/root/downstream",
+  }).program;
+  const downstreamCompleted = updateReadinessWorkItem(
+    downstreamClaimed,
+    "G2-01",
+    {
+      status: "complete",
+      owner: "/root/downstream",
+      evidence: [
+        "document:docs/contracts/external-agent-golden-path-contract.md",
+      ],
+    },
+  ).program;
+  assert.throws(
+    () =>
+      updateReadinessWorkItem(downstreamCompleted, "G0-01", {
+        status: "pending",
+        reopen: true,
+      }),
+    /G2-01 has incomplete dependencies: G0-01/,
+  );
+});
+
+test("document evidence must resolve to a durable repository file", () => {
+  const program = readUnstartedProgramFixture();
+  const item = program.workItems.find((entry) => entry.id === "G0-01");
+  item.status = "complete";
+  item.evidence = ["document:docs/does-not-exist.md"];
+  item.completedAt = "2026-08-26T12:00:00.000Z";
+  item.updatedAt = item.completedAt;
+
+  assert.throws(
+    () => validateReadinessProgram(program),
+    /document evidence does not exist/,
   );
 });
 
@@ -212,6 +263,29 @@ test("human and production work cannot complete without their authority evidence
   );
 
   const withProductionDependency = structuredClone(source);
+  const completeDependencyTree = (workItemId) => {
+    const item = withProductionDependency.workItems.find(
+      (entry) => entry.id === workItemId,
+    );
+    for (const dependencyId of item.dependsOn) {
+      completeDependencyTree(dependencyId);
+    }
+    item.status = "complete";
+    item.evidence = [
+      "document:docs/plans/v1-release-roadmap-plan.md",
+      ...(item.authority === "human_checkpoint" ||
+      item.authority === "production_approval"
+        ? ["decision:test-approved"]
+        : []),
+      ...(item.authority === "production_approval"
+        ? ["command:test-terminal-success"]
+        : []),
+    ];
+    item.completedAt = "2026-08-26T12:00:00.000Z";
+    item.updatedAt = item.completedAt;
+    delete item.owner;
+  };
+  completeDependencyTree("G7-01");
   const candidateItem = withProductionDependency.workItems.find(
     (entry) => entry.id === "G7-01",
   );

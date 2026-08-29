@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   buildCodexPermissionArgs,
   buildGoldenPathCommandEnv,
+  isControlCheckpointEvent,
   verifyPrimaryRun,
 } from "../lib/golden-path-primary-run.mjs";
 import {
@@ -173,6 +174,30 @@ test("primary-run child environment drops inherited credentials and isolates cac
   assert.equal(environment.pnpm_config_store_dir, `${runRoot}/pnpm-store`);
 });
 
+test("primary-run control checkpoint rejects failed MCP closes", () => {
+  const closeEvent = (item) => ({
+    type: "item.completed",
+    item: {
+      type: "mcp_tool_call",
+      tool_name: "airjam.close_game_session",
+      ...item,
+    },
+  });
+
+  assert.equal(
+    isControlCheckpointEvent(closeEvent({ result: { ok: true } })),
+    true,
+  );
+  assert.equal(
+    isControlCheckpointEvent(closeEvent({ result: { isError: true } })),
+    false,
+  );
+  assert.equal(
+    isControlCheckpointEvent(closeEvent({ status: "failed", error: "boom" })),
+    false,
+  );
+});
+
 test("primary verifier preserves a complete classified blocker", () => {
   const runId = "g2-contract-blocked";
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-g2-verifier-"));
@@ -222,7 +247,7 @@ test("primary verifier preserves a complete classified blocker", () => {
       runId,
       fault: null,
       codexExitCode: 0,
-      postFaultQuality: new Set(),
+      controllerQuality: new Set(),
       runRoot: root,
       registryUrl: "http://127.0.0.1:4873",
     });
@@ -234,6 +259,8 @@ test("primary verifier preserves a complete classified blocker", () => {
         stage: "create-project",
         surface: "public scaffold CLI",
         classification: "client",
+        observation: "scaffold command exited before creation",
+        expected: "scaffold creates the project",
         path: "failures/index.json",
       },
     ]);
@@ -249,6 +276,72 @@ test("primary verifier preserves a complete classified blocker", () => {
         path: "failures/index.json",
       },
     ]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("primary verifier never trusts agent-authored quality or release success", () => {
+  const runId = "g2-contract-self-attestation";
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-g2-verifier-"));
+  const evidenceDir = path.join(root, "evidence");
+  const projectDir = path.join(root, "project");
+  const program = readGoldenPathProgram(defaultGoldenPathManifestPath);
+  try {
+    for (const relativePath of program.evidenceBundle.requiredPaths) {
+      if (
+        relativePath === "manifest.json" ||
+        relativePath === "verifier/report.json"
+      ) {
+        continue;
+      }
+      const absolutePath = path.join(evidenceDir, relativePath);
+      fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+      if (relativePath.endsWith("/index.json")) {
+        fs.writeFileSync(
+          absolutePath,
+          `${JSON.stringify({
+            contract: "air-jam-golden-path-evidence/v1",
+            runId,
+            records:
+              relativePath === "release/index.json"
+                ? [{ status: "passed", arcadeVisibility: "hidden" }]
+                : [],
+          })}\n`,
+        );
+      } else {
+        fs.writeFileSync(absolutePath, "retained\n");
+      }
+    }
+    const rulesPath = path.join(
+      projectDir,
+      "src",
+      "game",
+      "domain",
+      "rules.ts",
+    );
+    fs.mkdirSync(path.dirname(rulesPath), { recursive: true });
+    fs.writeFileSync(rulesPath, "export const WIN_SCORE = 3;\n");
+
+    const report = verifyPrimaryRun({
+      program,
+      evidenceDir,
+      projectDir,
+      runId,
+      fault: { id: "declared-win-score-fault" },
+      codexExitCode: 0,
+      controllerQuality: new Set(["typecheck", "lint", "test", "build"]),
+      releaseVerification: null,
+      runRoot: root,
+      registryUrl: "http://127.0.0.1:4873",
+    });
+
+    assert.equal(report.result, "failed");
+    assert.ok(
+      report.failures.some(
+        (failure) => failure.code === "hidden_release_not_controller_verified",
+      ),
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

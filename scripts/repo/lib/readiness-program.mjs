@@ -189,6 +189,12 @@ export const validateReadinessProgram = (
           `work item ${item.id} has invalid evidence reference ${reference}.`,
         );
       }
+      if (validateReferencedFiles && reference.startsWith("document:")) {
+        validateReferencedFile(
+          reference.slice("document:".length).split("#", 1)[0],
+          `work item ${item.id} document evidence`,
+        );
+      }
     }
     if (item.status === "complete" && evidence.length === 0) {
       throw new Error(
@@ -237,6 +243,18 @@ export const validateReadinessProgram = (
       assertString(
         item.blocker?.summary,
         `work item ${item.id}.blocker.summary`,
+      );
+    }
+  }
+
+  for (const item of program.workItems) {
+    if (item.status === "pending") continue;
+    const incompleteDependencies = item.dependsOn.filter(
+      (dependencyId) => itemsById.get(dependencyId)?.status !== "complete",
+    );
+    if (incompleteDependencies.length > 0) {
+      throw new Error(
+        `work item ${item.id} has incomplete dependencies: ${incompleteDependencies.join(", ")}`,
       );
     }
   }
@@ -423,6 +441,12 @@ export const getReadyWorkItems = (
     throw new Error(`Unsupported readiness authority: ${authority}`);
   }
   const itemsById = new Map(program.workItems.map((item) => [item.id, item]));
+  if (lane) {
+    const lanes = new Set(program.workItems.map((item) => item.lane));
+    if (!lanes.has(lane)) {
+      throw new Error(`Unknown readiness lane: ${lane}`);
+    }
+  }
   const matches = program.workItems
     .filter((item) => item.status === "pending")
     .filter((item) => itemDependenciesAreComplete(item, itemsById))
@@ -575,7 +599,6 @@ export const updateReadinessWorkItem = (
   }
   if (
     (current.status === "in_progress" || current.status === "blocked") &&
-    owner &&
     owner !== current.owner
   ) {
     throw new Error(

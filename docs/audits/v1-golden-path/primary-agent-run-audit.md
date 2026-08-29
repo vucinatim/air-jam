@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-29
 
-Status: Gate `G2-03` retained proof complete; active Gate `G2-05` input
+Status: Gate `G2-03` reopened after independent review; Gate `G2-05` input
 
 ## Question
 
@@ -24,17 +24,42 @@ Every valid attempt uses:
 2. a run-scoped Verdaccio registry containing the exact five candidate
    packages, with fallback to old public Air Jam packages disabled
 3. a new ephemeral Codex process with ambient credentials removed
-4. repository reads denied to child commands
+4. a controller-run Codex sandbox preflight that proves repository reads are
+   denied, workspace writes are allowed, undeclared network access is denied,
+   and the run-scoped registry is reachable before the agent starts
 5. writes limited to the workspace and run-owned evidence, state, temporary,
    cache, npm-cache, and pnpm-store roots
 6. network access limited through Codex's managed proxy to loopback and the
    exact isolated Railway staging hostname
-7. production publication and public Arcade visibility structurally forbidden
-8. a live evidence mirror under `.airjam/golden-path-runs/<run-id>/evidence`
+7. production publication and public Arcade visibility requested as forbidden;
+   actual release state must be independently inspected before it can count as
+   proof
+8. a redacted, reconciled evidence mirror under
+   `.airjam/golden-path-runs/<run-id>/evidence`
 
 The staging target is the isolated Railway PR environment at
 `air-jam-platform-air-jam-pr-52.up.railway.app`. Production was not changed by
 any run.
+
+## Independent Review Correction
+
+Claude's stacked-PR review found that the first retained-proof implementation
+still crossed three trust boundaries incorrectly:
+
+1. agent-authored command text could satisfy post-repair quality criteria
+2. an MCP close event could count without proving that the tool call succeeded
+3. hidden-release state and sandbox isolation were recorded as facts without
+   controller-owned observations
+
+It also found that the only `G2-03` artifact reference pointed into ignored
+`.airjam` state. That location is useful operator memory but is not durable
+repository evidence another reviewer can retrieve. `G2-03` was therefore
+reopened on 2026-08-29. The hardened controller now reruns all four quality
+gates before fault injection and after repair, rejects failed MCP closes,
+preflights the installed Codex sandbox, and refuses to pass until the platform
+release is independently verified as ready, hidden, and non-production. A
+passing replay plus durable redacted artifact still remains before this gate
+can close again.
 
 ## Attempt Ledger
 
@@ -91,12 +116,18 @@ not in the game framework's basic ability to support agent-authored products.
 6. isolated `TMPDIR`, Air Jam state, Corepack, XDG, npm, and pnpm caches
 7. mirrored transcripts and evidence during execution instead of only at exit
 8. made durable controller-state writes atomic
-9. delayed the declared fault until all four initial quality gates and one
-   successfully closed semantic session are observed
+9. delayed the declared fault until all four initial quality gates are rerun by
+   the controller and one successfully closed semantic session is observed;
+   the controller reruns the same four gates after repair
 10. exposed every agent-owned evidence index and its minimum schema in the
     primary prompt; placeholder success records are explicitly forbidden
-11. made the independent verifier preserve a structurally valid `blocked` run
-    and report downstream criteria as not evaluated instead of failed
+11. made the independent verifier distinguish `invalid`, `blocked`, `failed`,
+    and `passed`; preserve the first structurally valid blocker; and report
+    downstream criteria as not evaluated instead of failed
+12. replaced assertion-only sandbox evidence with deterministic deny/allow
+    probes against the installed Codex CLI
+13. made retained evidence snapshots prune stale files and redact all textual
+    artifacts before mirroring
 
 ### Product And Scaffold
 
@@ -130,14 +161,13 @@ they are already satisfied:
    the entire agent sandbox
 3. prove visible host and controller captures through a CLI-usable visual path;
    a system `open` command is not inspection evidence
-4. extend the same independent verifier rigor to `invalid` isolation outcomes
-   and validate every referenced digest, not only the index envelope
+4. validate every referenced digest, not only the index envelope
 5. improve npm search and binary-name discoverability: broad `air jam` search
    and the intuitive `air-jam` spelling both produced recoverable friction
 6. set a launch budget for the `87,264,876` byte `create-airjam` candidate
    tarball instead of accepting the asset-heavy package size implicitly
 7. replay the exact immutable scenario after all blockers close, then retain a
-   terminal passing bundle
+   terminal passing bundle in a durable repository or CI artifact location
 
 ## Architectural Assessment
 
@@ -164,6 +194,7 @@ canonical lifecycle for humans and agents.
 `G2-03` owns the retained Codex primary run and its findings. `G2-04` separately
 owns Claude Desktop packaging, discovery, and semantic-session proof. `G2-05`
 owns the browser/staging lifecycle fixes and exact terminal passing replay.
-Completing `G2-03` means the primary attempt and findings are durably captured;
-it does not certify the complete scenario or production readiness, and no
-attempt in this audit authorizes publication.
+Re-completing `G2-03` requires the primary attempt and findings to be durably
+captured outside ignored operator state. It does not certify the complete
+scenario or production readiness, and no attempt in this audit authorizes
+publication.

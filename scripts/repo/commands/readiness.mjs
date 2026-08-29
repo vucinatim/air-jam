@@ -13,10 +13,10 @@ import {
   validateReadinessProgram,
 } from "../lib/readiness-program.mjs";
 
-const parseLimit = (value) => {
+const parsePositiveInteger = (optionName) => (value) => {
   const limit = Number.parseInt(value, 10);
   if (!Number.isInteger(limit) || limit <= 0) {
-    throw new Error("--limit must be a positive integer.");
+    throw new Error(`${optionName} must be a positive integer.`);
   }
   return limit;
 };
@@ -111,7 +111,7 @@ export const registerReadinessCommands = (program) => {
       .requiredOption(
         "--priority <priority>",
         "Positive integer priority",
-        parseLimit,
+        parsePositiveInteger("--priority"),
       )
       .requiredOption("--title <title>", "Concise work-item title")
       .option(
@@ -123,12 +123,12 @@ export const registerReadinessCommands = (program) => {
       .requiredOption(
         "--agent-hours-min <hours>",
         "Minimum active agent-hour estimate",
-        parseLimit,
+        parsePositiveInteger("--agent-hours-min"),
       )
       .requiredOption(
         "--agent-hours-max <hours>",
         "Maximum active agent-hour estimate",
-        parseLimit,
+        parsePositiveInteger("--agent-hours-max"),
       )
       .option(
         "--evidence-requirement <requirement>",
@@ -193,7 +193,11 @@ export const registerReadinessCommands = (program) => {
         "autonomous",
       )
       .option("--lane <lane>", "Only list work in one execution lane")
-      .option("--limit <count>", "Maximum work items to return", parseLimit)
+      .option(
+        "--limit <count>",
+        "Maximum work items to return",
+        parsePositiveInteger("--limit"),
+      )
       .option("--json", "Print stable JSON"),
   ).action((options) => {
     const programState = readReadinessProgram(
