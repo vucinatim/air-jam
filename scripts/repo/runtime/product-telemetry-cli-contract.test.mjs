@@ -4,8 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  resolveRailwayTelemetryDatabaseUrl,
-  resolveRailwayTelemetryDatabaseUrlWithCli,
+  resolveRailwayPlatformDatabaseUrl,
+  resolveRailwayPlatformDatabaseUrlWithCli,
 } from "../commands/platform.mjs";
 
 const repoRoot = path.resolve(
@@ -51,7 +51,7 @@ test("telemetry reads expose JSON and mutations require explicit apply", () => {
 
 test("remote telemetry resolves PostgreSQL without exposing a second operator path", async () => {
   const calls = [];
-  const databaseUrl = resolveRailwayTelemetryDatabaseUrlWithCli(
+  const databaseUrl = resolveRailwayPlatformDatabaseUrlWithCli(
     { environmentId: "environment-1", projectId: "project-1" },
     (args, operation) => {
       calls.push({ args, operation });
@@ -84,7 +84,7 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
     "--json",
   ]);
 
-  const fallbackUrl = await resolveRailwayTelemetryDatabaseUrl(
+  const fallbackUrl = await resolveRailwayPlatformDatabaseUrl(
     { environmentId: "environment-1", projectId: "project-1" },
     {
       createClient: () => ({

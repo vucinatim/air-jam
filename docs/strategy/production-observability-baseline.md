@@ -9,8 +9,9 @@ Related docs:
 2. [Analytics Architecture](../architecture/analytics-architecture.md)
 3. [Product Telemetry Architecture](../architecture/product-telemetry-architecture.md)
 4. [Product Telemetry Contract](../contracts/product-telemetry-contract.md)
-5. [Deployment Topology](./deployment-topology.md)
-6. [Railway Deployment Guide](../guides/railway-deployment-guide.md)
+5. [Operational Events And Incidents Contract](../contracts/operational-events-and-incidents-contract.md)
+6. [Deployment Topology](./deployment-topology.md)
+7. [Railway Deployment Guide](../guides/railway-deployment-guide.md)
 
 ## Purpose
 
@@ -139,6 +140,23 @@ client, and global-render failures.
 It is active only when the required Sentry environment is configured. This is
 a narrow platform capability, not evidence that the realtime server, embedded
 games, or controller/browser-runtime surfaces have equivalent coverage.
+
+## Defined Operational Authority Boundary
+
+Air Jam owns a versioned contract for lifecycle/runtime events, correlation,
+incidents, and governed runbooks. This is domain state needed to operate Air
+Jam safely; it is not a replacement for provider logs, external uptime, or a
+general-purpose observability vendor.
+
+The contract keeps approximate product telemetry outside incident and
+remediation authority, deduplicates confirmed symptoms through deterministic
+fingerprints, and defines preview, approval, blast-radius, verification, and
+rollback rules before automatic actions are implemented.
+
+The durable outbox, correlator, notification adapters, issue delivery, and
+runbook executor remain Gate 4 implementation work. Until those slices are
+proven, provider logs, external uptime, and explicit operator action remain the
+live operational mechanisms.
 
 ## What Is Intentionally Deferred
 

@@ -6,7 +6,7 @@ import {
   ALLOWED_GAME_MEDIA_FILENAME_EXTENSIONS,
   MAX_GAME_MEDIA_BYTES,
 } from "@/lib/games/game-media-policy";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import {
   getActiveGameMediaAssetId,
@@ -155,11 +155,13 @@ export const finalizeGameMediaUpload = async ({
   const storage = getGameMediaStorage();
   const objectHead = await storage.headObject(asset.storageKey);
   if (!objectHead) {
+    const failedAt = new Date();
     await db
       .update(gameMediaAssets)
       .set({
         status: "failed",
-        updatedAt: new Date(),
+        inactiveAt: failedAt,
+        updatedAt: failedAt,
       })
       .where(eq(gameMediaAssets.id, asset.id));
 
@@ -168,11 +170,13 @@ export const finalizeGameMediaUpload = async ({
 
   const maxBytes = MAX_GAME_MEDIA_BYTES[asset.kind];
   if (objectHead.sizeBytes <= 0 || objectHead.sizeBytes > maxBytes) {
+    const failedAt = new Date();
     await db
       .update(gameMediaAssets)
       .set({
         status: "failed",
-        updatedAt: new Date(),
+        inactiveAt: failedAt,
+        updatedAt: failedAt,
       })
       .where(eq(gameMediaAssets.id, asset.id));
 
@@ -194,13 +198,26 @@ export const finalizeGameMediaUpload = async ({
       .update(gameMediaAssets)
       .set({
         status: "ready",
+        inactiveAt: null,
         mimeType: contentType,
         sizeBytes: objectHead.sizeBytes,
         checksum,
         updatedAt: new Date(),
       })
-      .where(eq(gameMediaAssets.id, asset.id))
+      .where(
+        and(
+          eq(gameMediaAssets.id, asset.id),
+          eq(gameMediaAssets.status, "uploading"),
+          isNull(gameMediaAssets.storageCleanupStartedAt),
+        ),
+      )
       .returning();
+
+    if (!updatedAsset) {
+      throw new Error(
+        "Media asset changed or entered cleanup before finalization.",
+      );
+    }
 
     await tx
       .insert(gameMediaAssignments)
@@ -308,11 +325,13 @@ export const archiveGameMediaAssetWithDatabase = async ({
         ),
       );
 
+    const archivedAt = new Date();
     const [updatedAsset] = await tx
       .update(gameMediaAssets)
       .set({
         status: "archived",
-        updatedAt: new Date(),
+        inactiveAt: archivedAt,
+        updatedAt: archivedAt,
       })
       .where(eq(gameMediaAssets.id, asset.id))
       .returning();

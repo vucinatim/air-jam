@@ -86,7 +86,17 @@ export default function GameReleasesPage() {
 
   const { data: releases, isLoading } = api.release.listByGame.useQuery(
     { gameId },
-    { enabled: !!gameId },
+    {
+      enabled: !!gameId,
+      refetchInterval: (query) =>
+        query.state.data?.some((release) =>
+          release.jobs.some((job) =>
+            ["queued", "running", "cancel_requested"].includes(job.status),
+          ),
+        )
+          ? 2_000
+          : false,
+    },
   );
 
   const createDraft = api.release.createDraft.useMutation();
@@ -150,12 +160,13 @@ export default function GameReleasesPage() {
 
       if (!uploadResponse.ok) {
         throw new Error(
-          `Artifact upload failed with status ${uploadResponse.status}. Check the R2 bucket CORS rules and upload credentials.`,
+          `Release upload failed with status ${uploadResponse.status}. Check the R2 bucket CORS rules and upload credentials.`,
         );
       }
 
-      const finalizedRelease = await finalizeUpload.mutateAsync({
+      const finalized = await finalizeUpload.mutateAsync({
         releaseId: createdRelease.id,
+        generationId: uploadTarget.generation.id,
       });
 
       setSelectedFile(null);
@@ -166,14 +177,8 @@ export default function GameReleasesPage() {
 
       setFeedback({
         variant: "default",
-        title:
-          finalizedRelease.status === "quarantined"
-            ? "Release quarantined"
-            : "Release uploaded",
-        description:
-          finalizedRelease.status === "quarantined"
-            ? "The artifact uploaded successfully, but automated moderation quarantined the release."
-            : "The artifact was validated and the release checks were recorded.",
+        title: "Release processing queued",
+        description: `Generation #${finalized.generation.sequence} was uploaded and durable job ${finalized.job.id} will validate and moderate it in the background.`,
       });
       await refreshReleaseData();
     } catch (error) {
@@ -249,11 +254,17 @@ export default function GameReleasesPage() {
               <span className="text-foreground font-medium">
                 {liveRelease.versionLabel?.trim() || "Untitled"}
               </span>
+              {liveRelease.promotedGeneration && (
+                <>
+                  {" \u00B7 "}
+                  Generation #{liveRelease.promotedGeneration.sequence}
+                </>
+              )}
               {" \u00B7 "}
               Published {formatDateShort(liveRelease.publishedAt)}
             </>
           ) : (
-            "No live release yet. Upload a build artifact and make it live."
+            "No live release yet. Upload a build archive and make it live."
           )}
         </p>
       </div>
@@ -297,7 +308,9 @@ export default function GameReleasesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Artifact (.zip)</label>
+              <label className="text-sm font-medium">
+                Build archive (.zip)
+              </label>
               <Input
                 ref={fileInputRef}
                 type="file"
@@ -369,9 +382,16 @@ export default function GameReleasesPage() {
               const openReportCount = release.reports.filter(
                 (r) => r.status === "open",
               ).length;
+              const candidateGeneration = release.candidateGeneration;
+              const activeGeneration =
+                candidateGeneration ??
+                release.promotedGeneration ??
+                release.generations[0] ??
+                null;
               const hasDetails =
-                !!release.artifact ||
+                release.generations.length > 0 ||
                 release.checks.length > 0 ||
+                release.jobs.length > 0 ||
                 release.reports.length > 0;
 
               return (
@@ -387,6 +407,20 @@ export default function GameReleasesPage() {
                                 "Untitled release"}
                             </span>
                             <ReleaseStatusBadge status={release.status} />
+                            {release.promotedGeneration && (
+                              <Badge variant="outline" className="text-[10px]">
+                                Gen #{release.promotedGeneration.sequence}{" "}
+                                promoted
+                              </Badge>
+                            )}
+                            {candidateGeneration && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px]"
+                              >
+                                Gen #{candidateGeneration.sequence} candidate
+                              </Badge>
+                            )}
                             {openReportCount > 0 && (
                               <Badge
                                 variant="destructive"
@@ -399,9 +433,12 @@ export default function GameReleasesPage() {
                           </div>
                           <div className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
                             <span>{formatDateShort(release.createdAt)}</span>
-                            {release.artifact && (
+                            {activeGeneration && (
                               <span>
-                                {formatBytes(release.artifact.sizeBytes)}
+                                {formatBytes(
+                                  activeGeneration.observedSizeBytes ??
+                                    activeGeneration.declaredSizeBytes,
+                                )}
                               </span>
                             )}
                             <span className="font-mono">
@@ -425,7 +462,7 @@ export default function GameReleasesPage() {
                                   }),
                                 successTitle: "Release made live",
                                 successDescription:
-                                  "This artifact is now the live hosted release.",
+                                  "The promoted generation is now the live hosted release.",
                               })
                             }
                             disabled={isActionPending}
@@ -439,32 +476,33 @@ export default function GameReleasesPage() {
                           </Button>
                         )}
 
-                        {release.status === "uploading" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              void runReleaseAction({
-                                releaseId: release.id,
-                                action: () =>
-                                  finalizeUpload.mutateAsync({
-                                    releaseId: release.id,
-                                  }),
-                                successTitle: "Upload finalized",
-                                successDescription:
-                                  "The artifact was re-checked and the release state was refreshed.",
-                              })
-                            }
-                            disabled={isActionPending}
-                          >
-                            {isActionPending ? (
-                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Upload className="mr-1.5 h-3.5 w-3.5" />
-                            )}
-                            Finalize
-                          </Button>
-                        )}
+                        {release.status === "uploading" &&
+                          candidateGeneration && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                void runReleaseAction({
+                                  releaseId: release.id,
+                                  action: () =>
+                                    finalizeUpload.mutateAsync({
+                                      releaseId: release.id,
+                                      generationId: candidateGeneration.id,
+                                    }),
+                                  successTitle: "Processing queued",
+                                  successDescription: `Generation #${candidateGeneration.sequence} is attached to a durable processing job.`,
+                                })
+                              }
+                              disabled={isActionPending}
+                            >
+                              {isActionPending ? (
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Upload className="mr-1.5 h-3.5 w-3.5" />
+                              )}
+                              Finalize
+                            </Button>
+                          )}
 
                         {release.status !== "archived" && (
                           <Button
@@ -504,8 +542,11 @@ export default function GameReleasesPage() {
                       <CollapsibleContent>
                         <div className="border-t px-4 pt-4 pb-4">
                           <ReleaseDetailPanels
-                            artifact={release.artifact}
+                            generations={release.generations}
+                            candidateGeneration={release.candidateGeneration}
+                            promotedGeneration={release.promotedGeneration}
                             checks={release.checks}
+                            jobs={release.jobs}
                             reports={release.reports}
                           />
                         </div>
@@ -523,7 +564,7 @@ export default function GameReleasesPage() {
             </div>
             <p className="mt-4 font-medium">No releases yet</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Upload your first static build artifact above to get started.
+              Upload your first static build archive above to get started.
             </p>
           </div>
         )}

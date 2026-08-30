@@ -48,7 +48,7 @@ credentials:
 pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
-pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/ --railway-project <project-id> --json
+pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id>/ --railway-project <project-id> --json
 ```
 
 The optional `--platform-url` mode verifies the boundary exposed by a deployed
@@ -76,7 +76,8 @@ both platform and release domains. Missing project or provider authority leaves
 an otherwise passing transport attestation diagnostic.
 
 Attestation URLs must be credential-free and query-free. The release URL must
-be the exact `/releases/g/{gameId}/r/{releaseId}/` host root. This prevents
+be the exact `/releases/g/{gameId}/r/{releaseId}/generations/{generationId}/`
+host root. This prevents
 signed URLs or tokens from entering durable JSON evidence and prevents an
 arbitrary descendant asset from standing in for the playable release.
 Attestation independently applies the same conservative cookie-site policy as

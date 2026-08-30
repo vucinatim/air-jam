@@ -51,6 +51,7 @@ import type {
   BundleLocalReleaseOptions,
   BundleLocalReleaseResult,
   CommandResult,
+  FinalizePlatformReleaseGenerationOptions,
   InspectLocalReleaseOptions,
   InspectPlatformReleaseOptions,
   ListPlatformReleaseTargetsOptions,
@@ -58,6 +59,7 @@ import type {
   PublishPlatformReleaseOptions,
   SubmitPlatformReleaseOptions,
   SubmitPlatformReleaseResult,
+  UploadPlatformReleaseGenerationOptions,
   ValidateLocalReleaseOptions,
 } from "./types.js";
 
@@ -71,11 +73,15 @@ const REMOTE_CSS_IMPORT_PATTERN =
   /@import\s*(?:url\(\s*)?(?<quote>["']?)(?<url>https?:\/\/[^"')\s]+)\k<quote>\s*\)?\s*;/g;
 const REMOTE_CSS_URL_PATTERN =
   /url\(\s*(?<quote>["']?)(?<url>https?:\/\/[^"')\s]+)\k<quote>\s*\)/g;
-const FONT_ASSET_EXTENSION_PATTERN =
-  /\.(woff2?|ttf|otf|eot)(?:[?#].*)?$/i;
+const FONT_ASSET_EXTENSION_PATTERN = /\.(woff2?|ttf|otf|eot)(?:[?#].*)?$/i;
 const CSS_EXTENSION_PATTERN = /\.css(?:[?#].*)?$/i;
 const FONT_FETCH_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+const DEFAULT_RELEASE_PROCESSING_TIMEOUT_MS = 10 * 60 * 1000;
+const RELEASE_PROCESSING_POLL_INTERVAL_MS = 2_000;
+
+const wait = async (durationMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, durationMs));
 
 const sanitizePathSegment = (value: string): string =>
   value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-");
@@ -450,10 +456,7 @@ const vendorCssFontDependencies = async ({
           state,
         });
         const relativeAssetPath = ensureExplicitRelativeUrl(
-          ensurePosixRelativePath(
-            cssDir,
-            path.join(bundleRoot, vendoredAsset),
-          ),
+          ensurePosixRelativePath(cssDir, path.join(bundleRoot, vendoredAsset)),
         );
         return `url("${relativeAssetPath}")`;
       },
@@ -718,8 +721,7 @@ const inspectProjectRelease = async ({
     ? await readFile(configPath, "utf8").catch(() => "")
     : "";
   const controllerPath =
-    (await readConfiguredControllerPath(configPath)) ??
-    null;
+    (await readConfiguredControllerPath(configPath)) ?? null;
   const distExists = await pathExists(distDir);
   const distEntryExists = distExists
     ? await pathExists(path.join(distDir, HOSTED_RELEASE_ENTRY_PATH))
@@ -1297,7 +1299,7 @@ const uploadReleaseBundle = async ({
 
   if (!response.ok) {
     throw new Error(
-      `Release artifact upload failed with status ${response.status}.`,
+      `Release generation upload failed with status ${response.status}.`,
     );
   }
 };
@@ -1362,45 +1364,23 @@ export const publishPlatformRelease = async ({
   });
 };
 
-export const submitPlatformRelease = async ({
+export const uploadPlatformReleaseGeneration = async ({
   platformUrl,
   token,
-  slugOrId,
-  versionLabel,
+  releaseId,
   cwd = process.cwd(),
-  distDir,
   bundlePath,
-  skipBuild = false,
-  publish = false,
-}: SubmitPlatformReleaseOptions): Promise<SubmitPlatformReleaseResult> => {
+}: UploadPlatformReleaseGenerationOptions) => {
   const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
-  const effectiveBundlePath = bundlePath
-    ? path.resolve(cwd, bundlePath)
-    : (
-        await bundleLocalRelease({
-          cwd,
-          distDir,
-          skipBuild,
-        })
-      ).outputFile;
-
+  const effectiveBundlePath = path.resolve(cwd, bundlePath);
   const archive = await stat(effectiveBundlePath);
-
-  const createdDraft = await requestPlatformMachineApi({
-    baseUrl: resolved.baseUrl,
-    pathname: "/api/cli/releases",
-    method: "POST",
-    token: resolved.token,
-    body: {
-      slugOrId,
-      ...(versionLabel?.trim() ? { versionLabel: versionLabel.trim() } : {}),
-    },
-    schema: platformMachineCreateReleaseDraftResultSchema,
-  });
+  if (!archive.isFile()) {
+    throw new Error(`Release bundle is not a file: ${effectiveBundlePath}`);
+  }
 
   const uploadTarget = await requestPlatformMachineApi({
     baseUrl: resolved.baseUrl,
-    pathname: `/api/cli/releases/${encodeURIComponent(createdDraft.release.id)}/upload-target`,
+    pathname: `/api/cli/releases/${encodeURIComponent(releaseId)}/upload-target`,
     method: "POST",
     token: resolved.token,
     body: {
@@ -1415,19 +1395,165 @@ export const submitPlatformRelease = async ({
     upload: uploadTarget.upload,
   });
 
-  const finalized = await requestPlatformMachineApi({
+  return { ...uploadTarget, bundlePath: effectiveBundlePath };
+};
+
+export const finalizePlatformReleaseGeneration = async ({
+  platformUrl,
+  token,
+  releaseId,
+  generationId,
+}: FinalizePlatformReleaseGenerationOptions) => {
+  const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
+
+  return requestPlatformMachineApi({
     baseUrl: resolved.baseUrl,
-    pathname: `/api/cli/releases/${encodeURIComponent(createdDraft.release.id)}/finalize`,
+    pathname: `/api/cli/releases/${encodeURIComponent(releaseId)}/generations/${encodeURIComponent(generationId)}/finalize`,
     method: "POST",
     token: resolved.token,
     schema: platformMachineFinalizeReleaseUploadResultSchema,
   });
+};
+
+export const waitForPlatformReleaseGeneration = async ({
+  platformUrl,
+  token,
+  releaseId,
+  generationId,
+  timeoutMs = DEFAULT_RELEASE_PROCESSING_TIMEOUT_MS,
+  pollIntervalMs = RELEASE_PROCESSING_POLL_INTERVAL_MS,
+}: FinalizePlatformReleaseGenerationOptions & {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}) => {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) {
+    throw new Error("Release processing timeout must be a positive integer.");
+  }
+  if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 1) {
+    throw new Error(
+      "Release processing poll interval must be a positive integer.",
+    );
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const inspected = await inspectPlatformRelease({
+      platformUrl,
+      token,
+      releaseId,
+    });
+    const generation = inspected.release.generations.find(
+      (candidate) => candidate.id === generationId,
+    );
+    if (!generation) {
+      throw new Error(
+        `Release ${releaseId} no longer contains generation ${generationId}.`,
+      );
+    }
+    if (
+      generation.status === "ready" &&
+      (inspected.release.status === "ready" ||
+        inspected.release.status === "live") &&
+      inspected.release.promotedGenerationId === generationId
+    ) {
+      return inspected.release;
+    }
+    if (
+      generation.status === "failed" ||
+      generation.status === "abandoned" ||
+      inspected.release.status === "failed" ||
+      inspected.release.status === "quarantined" ||
+      inspected.release.status === "archived"
+    ) {
+      const failedJob = inspected.release.jobs.find(
+        (job) =>
+          job.generationId === generationId &&
+          (job.status === "failed" || job.status === "canceled"),
+      );
+      const errorSuffix = failedJob?.lastErrorCode
+        ? ` (${failedJob.lastErrorCode})`
+        : "";
+      throw new Error(
+        `Release generation ${generationId} ended with release ${inspected.release.status} and generation ${generation.status}${errorSuffix}. Inspect release ${releaseId} for its checks and job history.`,
+      );
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Timed out waiting for release generation ${generationId}. Processing remains durable; inspect release ${releaseId} to continue.`,
+      );
+    }
+    await wait(Math.min(pollIntervalMs, Math.max(1, deadline - Date.now())));
+  }
+};
+
+export const submitPlatformRelease = async ({
+  platformUrl,
+  token,
+  slugOrId,
+  versionLabel,
+  cwd = process.cwd(),
+  distDir,
+  bundlePath,
+  skipBuild = false,
+  waitForProcessing = false,
+  processingTimeoutMs = DEFAULT_RELEASE_PROCESSING_TIMEOUT_MS,
+  processingPollIntervalMs = RELEASE_PROCESSING_POLL_INTERVAL_MS,
+  publish = false,
+}: SubmitPlatformReleaseOptions): Promise<SubmitPlatformReleaseResult> => {
+  const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
+  const effectiveBundlePath = bundlePath
+    ? path.resolve(cwd, bundlePath)
+    : (
+        await bundleLocalRelease({
+          cwd,
+          distDir,
+          skipBuild,
+        })
+      ).outputFile;
+
+  const createdDraft = await requestPlatformMachineApi({
+    baseUrl: resolved.baseUrl,
+    pathname: "/api/cli/releases",
+    method: "POST",
+    token: resolved.token,
+    body: {
+      slugOrId,
+      ...(versionLabel?.trim() ? { versionLabel: versionLabel.trim() } : {}),
+    },
+    schema: platformMachineCreateReleaseDraftResultSchema,
+  });
+
+  const uploadTarget = await uploadPlatformReleaseGeneration({
+    platformUrl: resolved.baseUrl,
+    token: resolved.token,
+    releaseId: createdDraft.release.id,
+    bundlePath: effectiveBundlePath,
+  });
+
+  const submitted = await finalizePlatformReleaseGeneration({
+    platformUrl: resolved.baseUrl,
+    token: resolved.token,
+    releaseId: createdDraft.release.id,
+    generationId: uploadTarget.generation.id,
+  });
+
+  const shouldWaitForProcessing = waitForProcessing || publish;
+  const processedRelease = shouldWaitForProcessing
+    ? await waitForPlatformReleaseGeneration({
+        platformUrl: resolved.baseUrl,
+        token: resolved.token,
+        releaseId: createdDraft.release.id,
+        generationId: uploadTarget.generation.id,
+        timeoutMs: processingTimeoutMs,
+        pollIntervalMs: processingPollIntervalMs,
+      })
+    : null;
 
   let publishedRelease = null;
   if (publish) {
-    if (finalized.release.status !== "ready") {
+    if (processedRelease?.status !== "ready") {
       throw new Error(
-        `Release ${finalized.release.id} is ${finalized.release.status} and cannot be published.`,
+        `Release ${createdDraft.release.id} is ${processedRelease?.status ?? submitted.release.status} and cannot be published.`,
       );
     }
 
@@ -1444,7 +1570,11 @@ export const submitPlatformRelease = async ({
   return {
     bundlePath: effectiveBundlePath,
     createdRelease: createdDraft.release,
-    finalizedRelease: finalized.release,
+    createdGeneration: uploadTarget.generation,
+    submittedRelease: submitted.release,
+    submittedGeneration: submitted.generation,
+    processingJob: submitted.job,
+    processedRelease,
     publishedRelease,
   };
 };

@@ -149,13 +149,16 @@ const withAttestationFixture = async (
     }
 
     if (
-      pathname === "/releases/g/fixture-game/r/fixture-release/" ||
-      pathname === "/releases/g/fixture-game/r/fixture-release/controller"
+      pathname ===
+        "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/" ||
+      pathname ===
+        "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/controller"
     ) {
       assert.ok(platformOrigin);
       const policyIsValid =
         validReleasePolicy ||
-        pathname === "/releases/g/fixture-game/r/fixture-release/controller";
+        pathname ===
+          "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/controller";
       response.writeHead(200, {
         "content-security-policy": [
           "default-src 'self' data: blob:",
@@ -202,7 +205,7 @@ const withAttestationFixture = async (
     response.end();
   }, "localhost");
 
-  const releaseUrl = `${releaseServer.origin}/releases/g/fixture-game/r/fixture-release/`;
+  const releaseUrl = `${releaseServer.origin}/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/`;
   const platformServer = await startHttpServer((request, response) => {
     const pathname = new URL(request.url, "http://fixture.invalid").pathname;
     if (pathname === "/api/health") {
@@ -227,13 +230,16 @@ const withAttestationFixture = async (
     }
 
     if (
-      pathname === "/releases/g/fixture-game/r/fixture-release/" ||
-      pathname === "/releases/g/fixture-game/r/fixture-release/controller"
+      pathname ===
+        "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/" ||
+      pathname ===
+        "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/controller"
     ) {
       response.writeHead(307, {
         "cache-control": "no-store",
         location:
-          pathname === "/releases/g/fixture-game/r/fixture-release/"
+          pathname ===
+          "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/"
             ? releaseUrl
             : `${releaseUrl}controller`,
       });
@@ -558,7 +564,8 @@ test("attestation independently rejects a sibling cookie-site release origin", a
   await assert.rejects(
     attestReleaseOrigin({
       platformUrl: "http://platform.airjam.localhost",
-      releaseUrl: "http://games.airjam.localhost/releases/g/game/r/release/",
+      releaseUrl:
+        "http://games.airjam.localhost/releases/g/game/r/release/generations/generation/",
     }),
     (error) => {
       const result = JSON.parse(error.stdout);
@@ -815,8 +822,8 @@ test("HTTP attestation emits stable failed JSON and exits nonzero when the live 
 test("attestation rejects non-canonical release URLs without echoing query credentials", async () => {
   const token = "must-not-appear-in-machine-output";
   const invalidReleaseUrls = [
-    `http://localhost:1/releases/g/game/r/release/?token=${token}`,
-    "http://localhost:1/releases/g/game/r/release/index.html",
+    `http://localhost:1/releases/g/game/r/release/generations/generation/?token=${token}`,
+    "http://localhost:1/releases/g/game/r/release/generations/generation/index.html",
   ];
 
   for (const releaseUrl of invalidReleaseUrls) {
@@ -841,7 +848,7 @@ test("attestation rejects non-canonical release URLs without echoing query crede
             error: {
               code: "INVALID_RELEASE_URL",
               message:
-                "--release-url must use HTTPS except for loopback diagnostics and identify the exact /releases/g/{gameId}/r/{releaseId}/ host root without credentials, a query, or a fragment.",
+                "--release-url must use HTTPS except for loopback diagnostics and identify the exact /releases/g/{gameId}/r/{releaseId}/generations/{generationId}/ host root without credentials, a query, or a fragment.",
             },
           },
         );
@@ -858,7 +865,7 @@ test("HTTPS loopback can only produce failed diagnostic evidence", async () => {
     attestReleaseOrigin({
       platformUrl: "https://127.0.0.1:1",
       releaseUrl:
-        "https://127.0.0.1:1/releases/g/fixture-game/r/fixture-release/",
+        "https://127.0.0.1:1/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/",
     }),
     (error) => {
       assert.equal(error.code, 1);
@@ -899,9 +906,10 @@ const productionAttestationCandidate = () => ({
   source: {
     platformOrigin: "https://airjam.io",
     releaseOrigin: "https://airjamusercontent.example",
-    releaseUrl: "https://airjamusercontent.example/releases/g/game/r/release/",
+    releaseUrl:
+      "https://airjamusercontent.example/releases/g/game/r/release/generations/generation/",
     controllerUrl:
-      "https://airjamusercontent.example/releases/g/game/r/release/controller",
+      "https://airjamusercontent.example/releases/g/game/r/release/generations/generation/controller",
     deployment: {
       provider: "railway",
       environment: "production",

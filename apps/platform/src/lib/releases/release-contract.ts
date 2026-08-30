@@ -7,6 +7,8 @@ export {
   releaseCheckKindValues,
   releaseCheckStatusSchema,
   releaseCheckStatusValues,
+  releaseGenerationStatusSchema,
+  releaseGenerationStatusValues,
   releaseReportSourceSchema,
   releaseReportSourceValues,
   releaseReportStatusSchema,
@@ -15,6 +17,7 @@ export {
   type GameReleaseStatus,
   type ReleaseCheckKind,
   type ReleaseCheckStatus,
+  type ReleaseGenerationStatus,
   type ReleaseReportSource,
   type ReleaseReportStatus,
 } from "@air-jam/sdk/release";

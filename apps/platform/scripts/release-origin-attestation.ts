@@ -251,11 +251,11 @@ const parseReleaseUrl = (rawUrl: string): URL => {
     url.search ||
     url.hash ||
     (url.protocol === "http:" && !isLoopbackHostname(url.hostname)) ||
-    !/^\/releases\/g\/[^/]+\/r\/[^/]+\/$/.test(url.pathname)
+    !/^\/releases\/g\/[^/]+\/r\/[^/]+\/generations\/[^/]+\/$/.test(url.pathname)
   ) {
     throw new ReleaseOriginOperatorError(
       "INVALID_RELEASE_URL",
-      "--release-url must use HTTPS except for loopback diagnostics and identify the exact /releases/g/{gameId}/r/{releaseId}/ host root without credentials, a query, or a fragment.",
+      "--release-url must use HTTPS except for loopback diagnostics and identify the exact /releases/g/{gameId}/r/{releaseId}/generations/{generationId}/ host root without credentials, a query, or a fragment.",
     );
   }
   return url;

@@ -13,7 +13,8 @@ Related docs:
 
 This guide explains the deploy model that now matters:
 
-1. Railway hosts the platform, realtime server, and browser worker
+1. Railway hosts the platform, realtime server, browser worker, and operational-job
+   worker
 2. Railway native PR environments own preview lifecycle
 3. the repo only owns config clarity, inspection, and validation
 
@@ -21,11 +22,12 @@ Do not treat Air Jam deploys as a split Vercel plus Railway system anymore.
 
 ## Canonical Services
 
-The production Railway project should contain three deployable services:
+The production Railway project should contain four deployable services:
 
 1. `air-jam-platform`
 2. `air-jam-server`
 3. `air-jam-release-browser-worker`
+4. `air-jam-platform-worker`
 
 Persistent infrastructure remains external:
 
@@ -81,7 +83,7 @@ pnpm run repo -- railway doctor --json
 pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
-pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/ --railway-project <project-id> --json
+pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id>/ --railway-project <project-id> --json
 ```
 
 `railway doctor` should answer:
@@ -90,7 +92,8 @@ pnpm --silent run repo -- platform release-origin attest --platform-url https://
 2. whether PR environments are enabled
 3. which environment is primary
 4. which ephemeral environments are currently open
-5. whether platform, server, and worker all have healthy deploy identity
+5. whether platform, server, browser worker, and operational-job worker all have
+   healthy deploy identity
 
 `platform release-origin inspect` assesses local configuration by default.
 Pass the deployed platform origin through `--platform-url` to inspect its public
@@ -105,7 +108,7 @@ deployment: the validation checklist still requires production to reach `200`
 and a `ready` boundary.
 
 After the dedicated domain is routed, use `platform release-origin attest`
-against one exact live release root. The command is safe for unattended agents:
+against one exact live release-generation root. The command is safe for unattended agents:
 it performs bounded DNS-pinned HTTP/TLS checks and does not launch a browser or
 execute release code. It independently rejects a shared cookie site and probes
 the actual Better Auth anonymous-session response in addition to protected API
@@ -130,7 +133,9 @@ Production should stay boring:
 3. `AIRJAM_RELEASES_PUBLIC_ORIGIN` points at a dedicated cookieless site that is
    not `airjam.io` or any `*.airjam.io` sibling
 4. the browser worker is not public product UI and should expose only the narrow routes it needs
-5. the platform should consume the public server URL explicitly rather than guessing from provider-specific env
+5. the operational-job worker exposes only liveness, readiness, and authenticated
+   drain; it owns durable processing, not public API traffic
+6. the platform should consume the public server URL explicitly rather than guessing from provider-specific env
 
 ## Validation Checklist
 
@@ -143,10 +148,17 @@ Before treating a Railway deployment as good, verify:
 5. platform `/api/auth/get-session` returns `200`
 6. platform `/api/airjam/host-grant` works same-origin
 7. server `/health` returns `200`
-8. worker `/health` returns `200`
-9. release-origin attestation returns `status: passed`,
-   `evidenceKind: production-deployment`, and
-   `productionEvidenceEligible: true`
+8. browser worker `/health` returns `200`
+9. operational-job worker `/health` returns `200`
+10. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
+    available
+11. release-origin attestation returns `status: passed`,
+    `evidenceKind: production-deployment`, and
+    `productionEvidenceEligible: true`
+
+Before terminating or replacing the operational-job worker, call its authenticated
+`POST /drain` endpoint and wait for bounded completion. Queue state remains in
+PostgreSQL across deploys; a process restart must never be treated as job loss.
 
 For PR environments, verify the same shape against the ephemeral Railway domains.
 

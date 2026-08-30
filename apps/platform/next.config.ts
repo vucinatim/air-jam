@@ -204,9 +204,18 @@ const nextConfig: NextConfig = {
   },
 };
 
+const uploadSentrySourceMaps =
+  process.env.AIRJAM_SENTRY_UPLOAD_SOURCE_MAPS === "1";
+
 export default withSentryConfig(nextConfig, {
   org: "timvucina-bo",
   project: "airjam-platform",
-  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Local and agent-driven builds must be side-effect free even when a shell
+  // happens to contain provider credentials. Deploys opt in explicitly.
+  authToken: uploadSentrySourceMaps
+    ? process.env.SENTRY_AUTH_TOKEN
+    : undefined,
+  sourcemaps: { disable: !uploadSentrySourceMaps },
+  telemetry: false,
   silent: !process.env.CI,
 });

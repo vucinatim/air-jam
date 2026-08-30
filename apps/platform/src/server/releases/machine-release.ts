@@ -1,7 +1,10 @@
 import { PlatformApplicationError } from "@/server/application-error";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import type { PlatformMachineReleaseSummary } from "@air-jam/sdk/platform-machine";
-import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
+import {
+  PlatformMachineAuthError,
+  rethrowOperationalAdmissionForMachine,
+} from "../auth/machine-auth-errors";
 import { serializeOwnedGameForMachine } from "../games/machine-game";
 import { getReleaseDetails } from "./get-release-details";
 import {
@@ -13,16 +16,58 @@ import {
   requestOwnedReleaseUploadTarget,
 } from "./release-application-service";
 
-export const serializeReleaseForMachine = (
-  release: NonNullable<Awaited<ReturnType<typeof getReleaseDetails>>>,
-) => {
-  const artifact = release.artifact;
+type ReleaseDetails = NonNullable<
+  Awaited<ReturnType<typeof getReleaseDetails>>
+>;
+
+const serializeReleaseGenerationForMachine = (
+  generation: ReleaseDetails["generations"][number],
+) => ({
+  id: generation.id,
+  releaseId: generation.releaseId,
+  sequence: generation.sequence,
+  status: generation.status,
+  originalFilename: generation.originalFilename,
+  contentType: generation.contentType,
+  declaredSizeBytes: generation.declaredSizeBytes,
+  observedSizeBytes: generation.observedSizeBytes,
+  observedContentType: generation.observedContentType,
+  observedEtag: generation.observedEtag,
+  observedLastModifiedAt:
+    generation.observedLastModifiedAt?.toISOString() ?? null,
+  extractedSizeBytes: generation.extractedSizeBytes,
+  fileCount: generation.fileCount,
+  entryPath: generation.entryPath,
+  contentHash: generation.contentHash,
+  createdAt: generation.createdAt.toISOString(),
+  uploadObservedAt: generation.uploadObservedAt?.toISOString() ?? null,
+  processingStartedAt: generation.processingStartedAt?.toISOString() ?? null,
+  readyAt: generation.readyAt?.toISOString() ?? null,
+  failedAt: generation.failedAt?.toISOString() ?? null,
+  abandonedAt: generation.abandonedAt?.toISOString() ?? null,
+});
+
+export const serializeReleaseForMachine = (release: ReleaseDetails) => {
+  const candidateGeneration = release.candidateGeneration
+    ? serializeReleaseGenerationForMachine(release.candidateGeneration)
+    : null;
+  const promotedGeneration = release.promotedGeneration
+    ? serializeReleaseGenerationForMachine(release.promotedGeneration)
+    : null;
+  const publicGeneration =
+    release.status === "live" &&
+    release.game.arcadeVisibility === "listed" &&
+    promotedGeneration
+      ? promotedGeneration
+      : null;
 
   return {
     id: release.id,
     gameId: release.gameId,
     sourceKind: release.sourceKind,
     status: release.status,
+    candidateGenerationId: release.candidateGenerationId,
+    promotedGenerationId: release.promotedGenerationId,
     versionLabel: release.versionLabel,
     createdAt: release.createdAt.toISOString(),
     uploadedAt: release.uploadedAt?.toISOString() ?? null,
@@ -31,28 +76,37 @@ export const serializeReleaseForMachine = (
     quarantinedAt: release.quarantinedAt?.toISOString() ?? null,
     archivedAt: release.archivedAt?.toISOString() ?? null,
     game: serializeOwnedGameForMachine(release.game),
-    artifact: artifact
-      ? {
-          id: artifact.id,
-          releaseId: artifact.releaseId,
-          originalFilename: artifact.originalFilename,
-          contentType: artifact.contentType,
-          sizeBytes: artifact.sizeBytes,
-          extractedSizeBytes: artifact.extractedSizeBytes ?? null,
-          fileCount: artifact.fileCount ?? null,
-          entryPath: artifact.entryPath,
-          contentHash: artifact.contentHash ?? null,
-          createdAt: artifact.createdAt.toISOString(),
-        }
-      : null,
+    candidateGeneration,
+    promotedGeneration,
+    generations: release.generations.map(serializeReleaseGenerationForMachine),
     checks: release.checks.map((check) => ({
       id: check.id,
       releaseId: check.releaseId,
+      generationId: check.generationId,
       kind: check.kind,
       status: check.status,
       summary: check.summary ?? null,
-      payload: check.payload ?? {},
       createdAt: check.createdAt.toISOString(),
+    })),
+    jobs: release.jobs.map((job) => ({
+      id: job.id,
+      kind: job.kind,
+      status: job.status,
+      releaseId: job.releaseId,
+      generationId: job.generationId,
+      correlationId: job.correlationId,
+      attemptCount: job.attemptCount,
+      maxAttempts: job.maxAttempts,
+      progressStage: job.progressStage,
+      progressMessage: job.progressMessage,
+      lastErrorCode: job.lastErrorCode,
+      lastErrorRetryable: job.lastErrorRetryable,
+      availableAt: job.availableAt.toISOString(),
+      deadlineAt: job.deadlineAt.toISOString(),
+      createdAt: job.createdAt.toISOString(),
+      startedAt: job.startedAt?.toISOString() ?? null,
+      finishedAt: job.finishedAt?.toISOString() ?? null,
+      updatedAt: job.updatedAt.toISOString(),
     })),
     reports: release.reports.map((report) => ({
       id: report.id,
@@ -65,17 +119,19 @@ export const serializeReleaseForMachine = (
       createdAt: report.createdAt.toISOString(),
       reviewedAt: report.reviewedAt?.toISOString() ?? null,
     })),
-    hostUrl: artifact
+    hostUrl: publicGeneration
       ? buildHostedReleaseAssetUrl({
           gameId: release.gameId,
           releaseId: release.id,
+          generationId: publicGeneration.id,
           assetPath: "/",
         })
       : null,
-    controllerUrl: artifact
+    controllerUrl: publicGeneration
       ? buildHostedReleaseAssetUrl({
           gameId: release.gameId,
           releaseId: release.id,
+          generationId: publicGeneration.id,
           assetPath: "/controller",
         })
       : null,
@@ -163,6 +219,7 @@ export const createDraftReleaseForMachine = async ({
     });
     return serializeReleaseForMachine(release);
   } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
     rethrowMachineNotFound(error, `No owned game matched "${slugOrId}".`);
     throw toMachineConflictError(
       error instanceof Error
@@ -193,9 +250,11 @@ export const requestReleaseUploadTargetForMachine = async ({
 
     return {
       release: serializeReleaseForMachine(result.release),
+      generation: serializeReleaseGenerationForMachine(result.generation),
       upload: result.upload,
     };
   } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
     rethrowMachineNotFound(error, `No owned release matched "${releaseId}".`);
     throw toMachineValidationError(
       error instanceof Error
@@ -207,18 +266,34 @@ export const requestReleaseUploadTargetForMachine = async ({
 
 export const finalizeReleaseUploadForMachine = async ({
   releaseId,
+  generationId,
   userId,
 }: {
   releaseId: string;
+  generationId: string;
   userId: string;
 }) => {
   try {
-    const release = await finalizeOwnedReleaseUpload({
+    const result = await finalizeOwnedReleaseUpload({
       actor: { userId },
       releaseId,
+      generationId,
     });
-    return serializeReleaseForMachine(release);
+    return {
+      release: serializeReleaseForMachine(result.release),
+      generation: serializeReleaseGenerationForMachine(result.generation),
+      job: {
+        ...result.job,
+        availableAt: result.job.availableAt.toISOString(),
+        deadlineAt: result.job.deadlineAt.toISOString(),
+        createdAt: result.job.createdAt.toISOString(),
+        startedAt: result.job.startedAt?.toISOString() ?? null,
+        finishedAt: result.job.finishedAt?.toISOString() ?? null,
+        updatedAt: result.job.updatedAt.toISOString(),
+      },
+    };
   } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
     rethrowMachineNotFound(error, `No owned release matched "${releaseId}".`);
     throw toMachineConflictError(
       error instanceof Error

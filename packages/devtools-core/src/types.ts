@@ -2,6 +2,7 @@ import type { AirJamActionInvocationResult } from "@air-jam/sdk";
 import type {
   PlatformMachineCreateOwnedGameInput,
   PlatformMachineCreateOwnedGameResult,
+  PlatformMachineFinalizeReleaseUploadResult,
   PlatformMachineGetOwnedGameMediaResult,
   PlatformMachineGetOwnedGameResult,
   PlatformMachineGetReleaseResult,
@@ -9,8 +10,11 @@ import type {
   PlatformMachineListReleasesResult,
   PlatformMachineMutateOwnedGameMediaAssetResult,
   PlatformMachinePublishReleaseResult,
+  PlatformMachineReleaseGeneration,
+  PlatformMachineReleaseJob,
   PlatformMachineRequestOwnedGameMediaUploadTargetInput,
   PlatformMachineRequestOwnedGameMediaUploadTargetResult,
+  PlatformMachineRequestReleaseUploadTargetResult,
   PlatformMachineUpdateOwnedGameInput,
   PlatformMachineUpdateOwnedGameResult,
 } from "@air-jam/sdk/platform-machine";
@@ -272,6 +276,21 @@ export type PublishPlatformReleaseOptions = {
   releaseId: string;
 };
 
+export type UploadPlatformReleaseGenerationOptions = {
+  platformUrl?: string;
+  token?: string;
+  releaseId: string;
+  cwd?: string;
+  bundlePath: string;
+};
+
+export type FinalizePlatformReleaseGenerationOptions = {
+  platformUrl?: string;
+  token?: string;
+  releaseId: string;
+  generationId: string;
+};
+
 export type SubmitPlatformReleaseOptions = {
   platformUrl?: string;
   token?: string;
@@ -281,6 +300,9 @@ export type SubmitPlatformReleaseOptions = {
   distDir?: string;
   bundlePath?: string;
   skipBuild?: boolean;
+  waitForProcessing?: boolean;
+  processingTimeoutMs?: number;
+  processingPollIntervalMs?: number;
   publish?: boolean;
 };
 
@@ -302,6 +324,14 @@ export type InspectPlatformReleaseResult = PlatformMachineGetReleaseResult;
 
 export type PublishPlatformReleaseResult = PlatformMachinePublishReleaseResult;
 
+export type UploadPlatformReleaseGenerationResult =
+  PlatformMachineRequestReleaseUploadTargetResult & {
+    bundlePath: string;
+  };
+
+export type FinalizePlatformReleaseGenerationResult =
+  PlatformMachineFinalizeReleaseUploadResult;
+
 export type ListPlatformGamesResult = PlatformMachineListOwnedGamesResult;
 
 export type InspectPlatformGameResult = PlatformMachineGetOwnedGameResult;
@@ -313,7 +343,11 @@ export type UpdatePlatformGameResult = PlatformMachineUpdateOwnedGameResult;
 export type SubmitPlatformReleaseResult = {
   bundlePath: string;
   createdRelease: PlatformMachineGetReleaseResult["release"];
-  finalizedRelease: PlatformMachineGetReleaseResult["release"];
+  createdGeneration: PlatformMachineReleaseGeneration;
+  submittedRelease: PlatformMachineGetReleaseResult["release"];
+  submittedGeneration: PlatformMachineReleaseGeneration;
+  processingJob: PlatformMachineReleaseJob;
+  processedRelease: PlatformMachineGetReleaseResult["release"] | null;
   publishedRelease: PlatformMachineGetReleaseResult["release"] | null;
 };
 

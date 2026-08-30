@@ -172,6 +172,22 @@ test("airjam exposes release submit help", () => {
   assert.match(output, /--publish/);
 });
 
+test("airjam exposes immutable release upload help", () => {
+  const output = runCliHelp("release", "upload");
+
+  assert.match(output, /Usage: airjam release upload/);
+  assert.match(output, /--release <id>/);
+  assert.match(output, /--bundle <path>/);
+});
+
+test("airjam exposes exact-generation finalize help", () => {
+  const output = runCliHelp("release", "finalize");
+
+  assert.match(output, /Usage: airjam release finalize/);
+  assert.match(output, /--release <id>/);
+  assert.match(output, /--generation <id>/);
+});
+
 test("airjam exposes release publish help", () => {
   const output = runCliHelp("release", "publish");
 

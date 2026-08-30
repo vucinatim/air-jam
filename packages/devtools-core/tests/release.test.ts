@@ -1,9 +1,9 @@
-import { fileURLToPath } from "node:url";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import * as yauzl from "yauzl";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as yauzl from "yauzl";
 import {
   bundleLocalRelease,
   inspectLocalRelease,
@@ -13,7 +13,10 @@ import {
 } from "../src/index.js";
 
 const tempRoots: string[] = [];
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+);
 
 const createTempRoot = async (): Promise<string> => {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-release-"));
@@ -273,7 +276,9 @@ describe("local release tooling", () => {
 
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url === "https://fonts.googleapis.com/css2?family=Chewy&display=swap") {
+      if (
+        url === "https://fonts.googleapis.com/css2?family=Chewy&display=swap"
+      ) {
         return new Response(
           '@font-face{font-family:"Chewy";src:url(https://fonts.gstatic.com/s/chewy/v1/chewy.woff2) format("woff2");}\n',
           {
@@ -368,6 +373,115 @@ describe("local release tooling", () => {
       cwd: root,
       skipBuild: true,
     });
+    const game = {
+      id: "game_1",
+      slug: "pong",
+      name: "Pong",
+      description: null,
+      url: null,
+      arcadeVisibility: "hidden",
+      sourceUrl: null,
+      templateId: "pong",
+      createdAt: "2026-04-25T09:00:00.000Z",
+      updatedAt: "2026-04-25T09:30:00.000Z",
+    };
+    const generation = ({
+      status,
+    }: {
+      status: "awaiting_upload" | "processing" | "ready";
+    }) => ({
+      id: "gen_1",
+      releaseId: "rel_1",
+      sequence: 1,
+      status,
+      originalFilename: path.basename(bundled.outputFile),
+      contentType: "application/zip",
+      declaredSizeBytes: 123,
+      observedSizeBytes: status === "awaiting_upload" ? null : 123,
+      observedContentType:
+        status === "awaiting_upload" ? null : "application/zip",
+      observedEtag: status === "awaiting_upload" ? null : '"etag-1"',
+      observedLastModifiedAt:
+        status === "awaiting_upload" ? null : "2026-04-25T10:05:00.000Z",
+      extractedSizeBytes: status === "ready" ? 456 : null,
+      fileCount: status === "ready" ? 3 : null,
+      entryPath: status === "ready" ? "index.html" : null,
+      contentHash: status === "ready" ? "hash" : null,
+      createdAt: "2026-04-25T10:01:00.000Z",
+      uploadObservedAt:
+        status === "awaiting_upload" ? null : "2026-04-25T10:05:00.000Z",
+      processingStartedAt:
+        status === "awaiting_upload" ? null : "2026-04-25T10:05:30.000Z",
+      readyAt: status === "ready" ? "2026-04-25T10:06:00.000Z" : null,
+      failedAt: null,
+      abandonedAt: null,
+    });
+    const processingJob = ({ status }: { status: "queued" | "succeeded" }) => ({
+      id: "job_1",
+      kind: "release_artifact_processing" as const,
+      status,
+      releaseId: "rel_1",
+      generationId: "gen_1",
+      correlationId: "release:rel_1:generation:gen_1",
+      attemptCount: status === "succeeded" ? 1 : 0,
+      maxAttempts: 3,
+      progressStage: status === "succeeded" ? "completed" : null,
+      progressMessage: null,
+      lastErrorCode: null,
+      lastErrorRetryable: null,
+      availableAt: "2026-04-25T10:05:00.000Z",
+      deadlineAt: "2026-04-25T10:15:00.000Z",
+      createdAt: "2026-04-25T10:05:00.000Z",
+      startedAt: status === "succeeded" ? "2026-04-25T10:05:10.000Z" : null,
+      finishedAt: status === "succeeded" ? "2026-04-25T10:06:00.000Z" : null,
+      updatedAt: "2026-04-25T10:06:00.000Z",
+    });
+    const release = ({
+      status,
+      generation: releaseGeneration = null,
+      promoted = false,
+      jobs = [],
+    }: {
+      status: "draft" | "uploading" | "checking" | "ready" | "live";
+      generation?: ReturnType<typeof generation> | null;
+      promoted?: boolean;
+      jobs?: Array<ReturnType<typeof processingJob>>;
+    }) => ({
+      id: "rel_1",
+      gameId: "game_1",
+      sourceKind: "upload",
+      status,
+      candidateGenerationId: releaseGeneration?.id ?? null,
+      promotedGenerationId: promoted ? (releaseGeneration?.id ?? null) : null,
+      versionLabel: "v1",
+      createdAt: "2026-04-25T10:00:00.000Z",
+      uploadedAt: releaseGeneration?.uploadObservedAt ?? null,
+      checkedAt: releaseGeneration?.readyAt ?? null,
+      publishedAt: promoted ? "2026-04-25T10:07:00.000Z" : null,
+      quarantinedAt: null,
+      archivedAt: null,
+      game,
+      candidateGeneration: releaseGeneration,
+      promotedGeneration: promoted ? releaseGeneration : null,
+      generations: releaseGeneration ? [releaseGeneration] : [],
+      checks: [],
+      jobs,
+      reports: [],
+      hostUrl:
+        status === "ready" || status === "live"
+          ? "https://cdn.airjam.test/games/game_1/releases/rel_1/"
+          : null,
+      controllerUrl:
+        status === "ready" || status === "live"
+          ? "https://cdn.airjam.test/games/game_1/releases/rel_1/controller"
+          : null,
+    });
+    const awaitingGeneration = generation({ status: "awaiting_upload" });
+    const processingGeneration = generation({ status: "processing" });
+    const readyGeneration = generation({ status: "ready" });
+    const queuedJob = processingJob({ status: "queued" });
+    const succeededJob = processingJob({ status: "succeeded" });
+    let inspectionCount = 0;
 
     const fetchMock = vi.fn(async (input, init) => {
       const url = String(input);
@@ -376,36 +490,7 @@ describe("local release tooling", () => {
         expect(init?.method).toBe("POST");
         return new Response(
           JSON.stringify({
-            release: {
-              id: "rel_1",
-              gameId: "game_1",
-              sourceKind: "upload",
-              status: "draft",
-              versionLabel: "v1",
-              createdAt: "2026-04-25T10:00:00.000Z",
-              uploadedAt: null,
-              checkedAt: null,
-              publishedAt: null,
-              quarantinedAt: null,
-              archivedAt: null,
-              game: {
-                id: "game_1",
-                slug: "pong",
-                name: "Pong",
-                description: null,
-                url: null,
-                arcadeVisibility: "hidden",
-                sourceUrl: null,
-                templateId: "pong",
-                createdAt: "2026-04-25T09:00:00.000Z",
-                updatedAt: "2026-04-25T09:30:00.000Z",
-              },
-              artifact: null,
-              checks: [],
-              reports: [],
-              hostUrl: null,
-              controllerUrl: null,
-            },
+            release: release({ status: "draft" }),
           }),
           { status: 200 },
         );
@@ -418,42 +503,17 @@ describe("local release tooling", () => {
         expect(init?.method).toBe("POST");
         return new Response(
           JSON.stringify({
-            release: {
-              id: "rel_1",
-              gameId: "game_1",
-              sourceKind: "upload",
+            release: release({
               status: "uploading",
-              versionLabel: "v1",
-              createdAt: "2026-04-25T10:00:00.000Z",
-              uploadedAt: null,
-              checkedAt: null,
-              publishedAt: null,
-              quarantinedAt: null,
-              archivedAt: null,
-              game: {
-                id: "game_1",
-                slug: "pong",
-                name: "Pong",
-                description: null,
-                url: null,
-                arcadeVisibility: "hidden",
-                sourceUrl: null,
-                templateId: "pong",
-                createdAt: "2026-04-25T09:00:00.000Z",
-                updatedAt: "2026-04-25T09:30:00.000Z",
-              },
-              artifact: null,
-              checks: [],
-              reports: [],
-              hostUrl: null,
-              controllerUrl: null,
-            },
+              generation: awaitingGeneration,
+            }),
+            generation: awaitingGeneration,
             upload: {
-              key: "releases/game_1/rel_1.zip",
               method: "PUT",
               url: "https://uploads.airjam.test/release.zip",
               headers: {
                 "content-type": "application/zip",
+                "if-none-match": "*",
               },
               expiresAt: "2026-04-25T11:00:00.000Z",
             },
@@ -465,57 +525,54 @@ describe("local release tooling", () => {
       if (url === "https://uploads.airjam.test/release.zip") {
         expect(init?.method).toBe("PUT");
         expect(init?.body).toBeInstanceOf(Uint8Array);
+        expect(init?.headers).toEqual({
+          "content-type": "application/zip",
+          "if-none-match": "*",
+        });
         return new Response(null, { status: 200 });
       }
 
       if (
-        url === "https://platform.airjam.test/api/cli/releases/rel_1/finalize"
+        url ===
+        "https://platform.airjam.test/api/cli/releases/rel_1/generations/gen_1/finalize"
       ) {
         expect(init?.method).toBe("POST");
         return new Response(
           JSON.stringify({
-            release: {
-              id: "rel_1",
-              gameId: "game_1",
-              sourceKind: "upload",
+            release: release({
+              status: "checking",
+              generation: processingGeneration,
+              jobs: [queuedJob],
+            }),
+            generation: processingGeneration,
+            job: queuedJob,
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "https://platform.airjam.test/api/cli/releases/rel_1") {
+        expect(init?.method).toBe("GET");
+        inspectionCount += 1;
+        if (inspectionCount === 1) {
+          return new Response(
+            JSON.stringify({
+              release: release({
+                status: "checking",
+                generation: readyGeneration,
+                jobs: [succeededJob],
+              }),
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            release: release({
               status: "ready",
-              versionLabel: "v1",
-              createdAt: "2026-04-25T10:00:00.000Z",
-              uploadedAt: "2026-04-25T10:05:00.000Z",
-              checkedAt: "2026-04-25T10:06:00.000Z",
-              publishedAt: null,
-              quarantinedAt: null,
-              archivedAt: null,
-              game: {
-                id: "game_1",
-                slug: "pong",
-                name: "Pong",
-                description: null,
-                url: null,
-                arcadeVisibility: "hidden",
-                sourceUrl: null,
-                templateId: "pong",
-                createdAt: "2026-04-25T09:00:00.000Z",
-                updatedAt: "2026-04-25T09:30:00.000Z",
-              },
-              artifact: {
-                id: "artifact_1",
-                releaseId: "rel_1",
-                originalFilename: path.basename(bundled.outputFile),
-                contentType: "application/zip",
-                sizeBytes: 123,
-                extractedSizeBytes: 456,
-                fileCount: 3,
-                entryPath: "index.html",
-                contentHash: "hash",
-                createdAt: "2026-04-25T10:05:00.000Z",
-              },
-              checks: [],
-              reports: [],
-              hostUrl: "https://cdn.airjam.test/games/game_1/releases/rel_1/",
-              controllerUrl:
-                "https://cdn.airjam.test/games/game_1/releases/rel_1/controller",
-            },
+              generation: readyGeneration,
+              jobs: [succeededJob],
+            }),
           }),
           { status: 200 },
         );
@@ -527,48 +584,11 @@ describe("local release tooling", () => {
         expect(init?.method).toBe("POST");
         return new Response(
           JSON.stringify({
-            release: {
-              id: "rel_1",
-              gameId: "game_1",
-              sourceKind: "upload",
+            release: release({
               status: "live",
-              versionLabel: "v1",
-              createdAt: "2026-04-25T10:00:00.000Z",
-              uploadedAt: "2026-04-25T10:05:00.000Z",
-              checkedAt: "2026-04-25T10:06:00.000Z",
-              publishedAt: "2026-04-25T10:07:00.000Z",
-              quarantinedAt: null,
-              archivedAt: null,
-              game: {
-                id: "game_1",
-                slug: "pong",
-                name: "Pong",
-                description: null,
-                url: null,
-                arcadeVisibility: "hidden",
-                sourceUrl: null,
-                templateId: "pong",
-                createdAt: "2026-04-25T09:00:00.000Z",
-                updatedAt: "2026-04-25T09:30:00.000Z",
-              },
-              artifact: {
-                id: "artifact_1",
-                releaseId: "rel_1",
-                originalFilename: path.basename(bundled.outputFile),
-                contentType: "application/zip",
-                sizeBytes: 123,
-                extractedSizeBytes: 456,
-                fileCount: 3,
-                entryPath: "index.html",
-                contentHash: "hash",
-                createdAt: "2026-04-25T10:05:00.000Z",
-              },
-              checks: [],
-              reports: [],
-              hostUrl: "https://cdn.airjam.test/games/game_1/releases/rel_1/",
-              controllerUrl:
-                "https://cdn.airjam.test/games/game_1/releases/rel_1/controller",
-            },
+              generation: readyGeneration,
+              promoted: true,
+            }),
           }),
           { status: 200 },
         );
@@ -584,11 +604,17 @@ describe("local release tooling", () => {
       slugOrId: "pong",
       versionLabel: "v1",
       bundlePath: bundled.outputFile,
+      processingPollIntervalMs: 1,
       publish: true,
     });
 
     expect(result.createdRelease.status).toBe("draft");
-    expect(result.finalizedRelease.status).toBe("ready");
+    expect(result.createdGeneration).toEqual(awaitingGeneration);
+    expect(result.submittedRelease.status).toBe("checking");
+    expect(result.submittedGeneration).toEqual(processingGeneration);
+    expect(result.processingJob).toEqual(queuedJob);
+    expect(result.processedRelease?.status).toBe("ready");
     expect(result.publishedRelease?.status).toBe("live");
+    expect(inspectionCount).toBe(2);
   });
 });
