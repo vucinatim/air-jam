@@ -413,10 +413,14 @@ const runPlatformReleaseOriginOperator = async (
 ) => {
   const childOperation =
     operation.command === "attest" ? { ...operation, json: true } : operation;
+  const platformEnvFile = "apps/platform/.env.local";
+  const platformEnvArgs = fs.existsSync(platformEnvFile)
+    ? [`--env-file=${platformEnvFile}`]
+    : [];
   const result = runCommandResult(
     process.execPath,
     [
-      "--env-file-if-exists=apps/platform/.env.local",
+      ...platformEnvArgs,
       "--import",
       "tsx",
       "apps/platform/scripts/release-origin-cli.ts",
