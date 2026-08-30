@@ -48,6 +48,7 @@ credentials:
 pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
+pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/ --railway-project <project-id> --json
 ```
 
 The optional `--platform-url` mode verifies the boundary exposed by a deployed
@@ -58,6 +59,30 @@ Both healthy `200` and valid unhealthy `503` platform health documents are
 inspection results. The remote JSON includes the HTTP status, platform health
 boolean, and boundary assessment; non-health responses fail instead of being
 mistaken for deployed configuration.
+
+The health contract also exposes non-secret, deployment-reported identity:
+`provider`, `environment`, `deploymentId`, and `revision`. The attestation
+command reads health before and after its bounded checks and requires that
+identity to remain stable. Missing identity does not turn a local diagnostic
+into a failure, but it makes `productionEvidenceEligible` impossible. The
+revision is not independently authenticated by the provider query.
+
+Production eligibility additionally requires an expected Railway project from
+`--railway-project <project-id>` or `RAILWAY_PROJECT_ID`, plus one supported
+provider credential: `RAILWAY_PROJECT_TOKEN`, `RAILWAY_API_TOKEN`, or
+`RAILWAY_TOKEN`. Railway verification is time-bounded and independently binds
+the project, production environment, current platform-service deployment, and
+both platform and release domains. Missing project or provider authority leaves
+an otherwise passing transport attestation diagnostic.
+
+Attestation URLs must be credential-free and query-free. The release URL must
+be the exact `/releases/g/{gameId}/r/{releaseId}/` host root. This prevents
+signed URLs or tokens from entering durable JSON evidence and prevents an
+arbitrary descendant asset from standing in for the playable release.
+Attestation independently applies the same conservative cookie-site policy as
+configuration and probes the actual Better Auth anonymous-session surface, so
+a stale or dishonest `ready` health claim cannot certify a sibling platform
+subdomain or substitute for deployed browser-session isolation.
 
 No monorepo-wide mega schema is used.
 

@@ -202,9 +202,16 @@ The detailed findings below reduce to these non-negotiable rules:
   cookie site, gates incoming Host authority and route execution, separates
   response policy, applies one sandbox contract to host/controller frames, and
   exposes a machine-readable operator assessment. Local unit, real-Next-server
-  Host-routing, and hostile-browser proofs pass. The finding remains open until
-  the dedicated production origin is provisioned and the actual hosted route,
-  cookies, CORS, and response headers are attested on the deployed domain.
+  Host-routing, and hostile-browser proofs pass. A bounded repo-CLI attestation
+  now pins DNS, validates TLS, checks exact host and controller documents,
+  representative protected API CORS, stable deployment-reported identity, and
+  the exact Railway project/current deployment/both-domain binding without
+  executing creator code locally. The finding remains open until the dedicated
+  production origin is provisioned, that deployed attestation is eligible, and
+  the controlled hostile-browser plus normal host/controller proof set is
+  retained. Arbitrary deployed browser execution is intentionally deferred to
+  the hardened `AJ-SEC-004` worker boundary rather than performed unsandboxed on
+  a maintainer machine.
 - Evidence at audit time:
   - `apps/platform/src/server/releases/release-public-url.ts:8-12` falls back
     to the platform site when no release base URL is configured.

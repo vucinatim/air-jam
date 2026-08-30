@@ -18,6 +18,35 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-30 - Hosted Release Isolation Became Safely Attestable
+
+- added one repo-owned `platform release-origin attest` lifecycle that produces
+  stable JSON for an exact deployed host/controller release pair without
+  executing creator JavaScript on the maintainer machine
+- rejected the initial local-browser attestation design during hostile review;
+  arbitrary deployed browser execution remains owned by the future hardened
+  browser-worker boundary rather than an unsandboxed operator process
+- converged remote inspect and attest onto one DNS-resolved, address-policy
+  checked, DNS-pinned, TLS-server-name-preserving, logically bounded transport
+- made attestation independently prove conservative cookie-site separation,
+  exact host/controller redirects and response policy, cookie absence, the real
+  Better Auth anonymous-session boundary, representative protected API CORS and
+  preflight denial, and stable deployment-reported identity
+- centralized release response and cookie-site policies so runtime validation
+  and deployed evidence cannot silently define different security boundaries
+- separated transport candidates from production eligibility; Railway must
+  independently match an explicit expected project, production environment,
+  current successful platform-service deployment, and both public domains
+- bounded Railway GraphQL and TLS requests and covered never-resolving provider
+  calls, private/reserved/mixed address families, IPv6 loopback diagnostics,
+  shared cookie sites, malformed contracts, policy drift, and provider mismatch
+- retained the known DNS limitation honestly: Node's OS `getaddrinfo` cannot be
+  cancelled after the logical five-second race, though no request proceeds and
+  the command promise no longer waits for that resolver result
+- kept `G5-02` open: the dedicated production release domain still has to be
+  provisioned and attested, and controlled hostile-browser plus normal-game
+  proof must remain green against the approved candidate
+
 ## 2026-08-30 - Hosted Releases Gained A Fail-Closed Origin Boundary
 
 - implemented the first `G5-02` security slice as a stacked, production-valid

@@ -25,7 +25,9 @@ test("getProject flattens Railway connection fields", async () => {
             workspace: { id: "workspace-1", name: "Tim Vucina's Projects" },
             environments: {
               edges: [
-                { node: { id: "env-1", name: "production", isEphemeral: false } },
+                {
+                  node: { id: "env-1", name: "production", isEphemeral: false },
+                },
               ],
             },
             services: {
@@ -39,12 +41,14 @@ test("getProject flattens Railway connection fields", async () => {
 
   const project = await client.getProject("project-1");
   assert.equal(project.name, "air-jam");
-  assert.deepEqual(project.environments.map((entry) => entry.name), [
-    "production",
-  ]);
-  assert.deepEqual(project.services.map((entry) => entry.name), [
-    "air-jam-server",
-  ]);
+  assert.deepEqual(
+    project.environments.map((entry) => entry.name),
+    ["production"],
+  );
+  assert.deepEqual(
+    project.services.map((entry) => entry.name),
+    ["air-jam-server"],
+  );
 });
 
 test("resolveServicePublicDomain prefers custom domains, then service domains, then deployment URLs", async () => {
@@ -115,4 +119,36 @@ test("waitForDeployment returns success once the deployment reaches a terminal s
   assert.equal(result.ok, true);
   assert.equal(result.deployment.status, "SUCCESS");
   assert.equal(calls, 2);
+});
+
+test("Railway API requests have an absolute aborting deadline", async () => {
+  let aborted = false;
+  const client = createRailwayApiClient({
+    token: "token",
+    requestTimeoutMs: 20,
+    fetchImpl: async (_url, init) =>
+      await new Promise((_resolve) => {
+        init.signal.addEventListener("abort", () => {
+          aborted = true;
+        });
+      }),
+  });
+
+  await assert.rejects(client.getProject("project-1"), (error) => {
+    assert.equal(error.name, "RailwayApiError");
+    assert.match(error.message, /timed out after 20ms/);
+    return true;
+  });
+  assert.equal(aborted, true);
+});
+
+test("Railway API rejects invalid request deadlines before making a request", () => {
+  assert.throws(
+    () =>
+      createRailwayApiClient({
+        token: "token",
+        requestTimeoutMs: 0,
+      }),
+    /positive finite number/,
+  );
 });

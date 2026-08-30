@@ -81,6 +81,7 @@ pnpm run repo -- railway doctor --json
 pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
+pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/ --railway-project <project-id> --json
 ```
 
 `railway doctor` should answer:
@@ -102,6 +103,23 @@ HTTP status is `503`, preserving `health.ok: false` and the exact disabled or
 invalid boundary reason for agents. That is diagnostic evidence, not a healthy
 deployment: the validation checklist still requires production to reach `200`
 and a `ready` boundary.
+
+After the dedicated domain is routed, use `platform release-origin attest`
+against one exact live release root. The command is safe for unattended agents:
+it performs bounded DNS-pinned HTTP/TLS checks and does not launch a browser or
+execute release code. It independently rejects a shared cookie site and probes
+the actual Better Auth anonymous-session response in addition to protected API
+CORS. Preserve its JSON alongside the exact deployment being approved.
+`productionEvidenceEligible: true` requires public HTTPS, a complete
+and stable deployment-reported identity, every routing, response, cookie, and
+protected-endpoint CORS check to pass, and a bounded Railway query that matches
+the exact expected project, production environment, current platform-service
+deployment, and both public domains. Supply `--railway-project <project-id>` or
+`RAILWAY_PROJECT_ID` and one of `RAILWAY_PROJECT_TOKEN`, `RAILWAY_API_TOKEN`, or
+`RAILWAY_TOKEN`. Without either identity or provider authority, passing
+transport evidence remains diagnostic. The provider does not independently
+authenticate the health revision. This is one input to Gate 5 closure, not a
+substitute for the controlled hostile-browser and normal-game proofs.
 
 ## Production Contract
 
@@ -126,6 +144,9 @@ Before treating a Railway deployment as good, verify:
 6. platform `/api/airjam/host-grant` works same-origin
 7. server `/health` returns `200`
 8. worker `/health` returns `200`
+9. release-origin attestation returns `status: passed`,
+   `evidenceKind: production-deployment`, and
+   `productionEvidenceEligible: true`
 
 For PR environments, verify the same shape against the ephemeral Railway domains.
 

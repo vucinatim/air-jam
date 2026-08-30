@@ -225,7 +225,16 @@ These are now baseline truths, not open architecture debates:
        `invalid` state as stable JSON
     6. unit, real-Next-server Host routing, and hostile-browser proofs cover the
        local contract
-    7. `G5-02` deliberately remains open until a dedicated production domain is
+    7. a second repo-CLI surface can attest an exact deployed host/controller
+       pair without executing creator code: it pins DNS, bounds requests and
+       TLS, independently checks cookie-site separation, redirects, exact
+       response policy, Better Auth and protected-endpoint CORS isolation,
+       stable deployment identity, and the exact Railway project/current
+       service deployment/both-domain binding
+    8. only provider-authenticated public-HTTPS runs can become production
+       evidence; loopback, missing project identity, and missing provider
+       authority stay explicitly diagnostic
+    9. `G5-02` deliberately remains open until a dedicated production domain is
        provisioned, deployed, and attested end to end
 
 ## What Is Still Open

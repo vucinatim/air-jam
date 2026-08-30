@@ -8,7 +8,10 @@ import {
   readRelativeTree,
 } from "../../platform/lib/platform-ai-pack-artifacts.mjs";
 import { preparePlatformGeneratedArtifacts } from "../../platform/lib/platform-generated-prepare.mjs";
-import { createRailwayApiClient } from "../lib/railway-api.mjs";
+import {
+  createRailwayApiClient,
+  resolveRailwayApiToken,
+} from "../lib/railway-api.mjs";
 import { runCommand, runCommandResult } from "../lib/shell.mjs";
 import { runRepoPlatformDbBackupCommand } from "./platform-db-backup.mjs";
 
@@ -242,7 +245,174 @@ const runPlatformTelemetryOperator = async (operation, options) => {
   );
 };
 
-const runPlatformReleaseOriginOperator = (operation) => {
+const resolveDomainHostname = (value) => {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    return new URL(value.includes("://") ? value : `https://${value}`).hostname;
+  } catch {
+    return null;
+  }
+};
+
+export const verifyRailwayReleaseOriginAttestation = async ({
+  result,
+  expectedProjectId,
+  client = null,
+  tokenAvailable = null,
+}) => {
+  if (!result.productionEvidenceCandidate) return result;
+
+  if (typeof expectedProjectId !== "string" || !expectedProjectId.trim()) {
+    return {
+      ...result,
+      providerVerification: {
+        status: "unavailable",
+        provider: "railway",
+        reason:
+          "An expected Railway project ID is required for production evidence eligibility.",
+      },
+    };
+  }
+
+  const auth = resolveRailwayApiToken();
+  if (!(tokenAvailable ?? Boolean(auth.token))) {
+    return {
+      ...result,
+      providerVerification: {
+        status: "unavailable",
+        provider: "railway",
+        reason: "No Railway API token is configured for provider verification.",
+      },
+    };
+  }
+
+  const deploymentId = result.source.deployment.deploymentId;
+  try {
+    const railwayClient = client ?? createRailwayApiClient();
+    const deployment = await railwayClient.getDeployment(deploymentId);
+    const environment = await railwayClient.getEnvironment(
+      deployment.environmentId,
+    );
+    const instance = environment.serviceInstances.find(
+      (entry) => entry.serviceId === deployment.serviceId,
+    );
+    const domainHostnames = [
+      ...(instance?.domains?.customDomains ?? []).map((entry) => entry.domain),
+      ...(instance?.domains?.serviceDomains ?? []).map((entry) => entry.domain),
+      instance?.latestDeployment?.staticUrl ?? null,
+      instance?.latestDeployment?.url ?? null,
+    ]
+      .map(resolveDomainHostname)
+      .filter(Boolean);
+    const platformHostname = new URL(result.source.platformOrigin).hostname;
+    const releaseHostname = new URL(result.source.releaseOrigin).hostname;
+    const platformDomainMatched = domainHostnames.includes(platformHostname);
+    const releaseDomainMatched = domainHostnames.includes(releaseHostname);
+    const expectedProjectMatched =
+      environment.projectId === expectedProjectId.trim();
+    const verified =
+      deployment.id === deploymentId &&
+      deployment.status === "SUCCESS" &&
+      environment.name === "production" &&
+      expectedProjectMatched &&
+      instance?.latestDeployment?.id === deploymentId &&
+      platformDomainMatched &&
+      releaseDomainMatched;
+    const providerVerification = {
+      status: verified ? "verified" : "mismatch",
+      provider: "railway",
+      projectId: environment.projectId,
+      environmentId: environment.id,
+      serviceId: deployment.serviceId,
+      deploymentId,
+      productionEnvironment: environment.name === "production",
+      successfulDeployment: deployment.status === "SUCCESS",
+      currentServiceDeployment: instance?.latestDeployment?.id === deploymentId,
+      platformDomainMatched,
+      releaseDomainMatched,
+      expectedProjectMatched,
+    };
+    const providerCheck = {
+      id: "provider.railway-deployment",
+      status: verified ? "passed" : "failed",
+      summary: verified
+        ? "Railway independently confirms the production project, service, current deployment, and both public domains."
+        : "Railway provider state does not match the deployment's public identity claim.",
+      evidence: {
+        productionEnvironment: providerVerification.productionEnvironment,
+        successfulDeployment: providerVerification.successfulDeployment,
+        currentServiceDeployment: providerVerification.currentServiceDeployment,
+        platformDomainMatched: providerVerification.platformDomainMatched,
+        releaseDomainMatched: providerVerification.releaseDomainMatched,
+        expectedProjectMatched: providerVerification.expectedProjectMatched,
+      },
+    };
+    return {
+      ...result,
+      status: verified ? result.status : "failed",
+      evidenceKind: verified ? "production-deployment" : "diagnostic",
+      productionEvidenceEligible: verified,
+      providerVerification,
+      checks: [...result.checks, providerCheck],
+      summary: {
+        passed: result.summary.passed + (verified ? 1 : 0),
+        failed: result.summary.failed + (verified ? 0 : 1),
+      },
+    };
+  } catch {
+    return {
+      ...result,
+      status: "failed",
+      providerVerification: {
+        status: "failed",
+        provider: "railway",
+        reason: "Railway provider verification failed.",
+      },
+      checks: [
+        ...result.checks,
+        {
+          id: "provider.railway-deployment",
+          status: "failed",
+          summary: "Railway provider verification failed.",
+        },
+      ],
+      summary: {
+        passed: result.summary.passed,
+        failed: result.summary.failed + 1,
+      },
+    };
+  }
+};
+
+const printReleaseOriginAttestation = (result, json) => {
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  console.log(`Hosted release origin attestation: ${result.status}`);
+  console.log(`Evidence kind: ${result.evidenceKind}`);
+  console.log(`Attested at: ${result.attestedAt}`);
+  console.log(`Platform origin: ${result.source.platformOrigin}`);
+  console.log(`Release origin: ${result.source.releaseOrigin}`);
+  for (const item of result.checks) {
+    console.log(
+      `${item.status === "passed" ? "✓" : "✗"} ${item.id}: ${item.summary}`,
+    );
+  }
+  console.log(
+    `Checks: ${result.summary.passed} passed, ${result.summary.failed} failed`,
+  );
+  console.log(
+    `Production deployment evidence: ${result.productionEvidenceEligible ? "eligible" : "diagnostic only"}`,
+  );
+};
+
+const runPlatformReleaseOriginOperator = async (
+  operation,
+  { railwayProjectId = null } = {},
+) => {
+  const childOperation =
+    operation.command === "attest" ? { ...operation, json: true } : operation;
   const result = runCommandResult(
     process.execPath,
     [
@@ -250,7 +420,7 @@ const runPlatformReleaseOriginOperator = (operation) => {
       "--import",
       "tsx",
       "apps/platform/scripts/release-origin-cli.ts",
-      JSON.stringify(operation),
+      JSON.stringify(childOperation),
     ],
     {
       stdio: ["ignore", "pipe", "pipe"],
@@ -258,7 +428,33 @@ const runPlatformReleaseOriginOperator = (operation) => {
     },
   );
 
-  if (result.stdout) process.stdout.write(result.stdout);
+  if (operation.command === "attest" && result.stdout) {
+    let payload;
+    try {
+      payload = JSON.parse(result.stdout);
+    } catch {
+      if (result.stdout) process.stdout.write(result.stdout);
+      if (result.stderr) process.stderr.write(result.stderr);
+      throw new Error("Release-origin attestation emitted invalid JSON.");
+    }
+    if (payload.error) {
+      if (operation.json) {
+        console.log(JSON.stringify(payload, null, 2));
+      } else {
+        console.error(payload.error.message);
+      }
+      process.exitCode = 1;
+    } else {
+      const verified = await verifyRailwayReleaseOriginAttestation({
+        result: payload,
+        expectedProjectId: railwayProjectId,
+      });
+      printReleaseOriginAttestation(verified, operation.json);
+      if (verified.status === "failed") process.exitCode = 1;
+    }
+  } else if (result.stdout) {
+    process.stdout.write(result.stdout);
+  }
   if (result.stderr) process.stderr.write(result.stderr);
   if (result.error) {
     throw new Error(
@@ -339,12 +535,45 @@ export const registerPlatformCommands = (program) => {
       "Inspect the deployed platform /api/health contract instead of local environment variables",
     )
     .option("--json", "Print the stable machine-readable contract")
-    .action((options) => {
-      runPlatformReleaseOriginOperator({
+    .action(async (options) => {
+      await runPlatformReleaseOriginOperator({
         command: "inspect",
         json: Boolean(options.json),
         platformUrl: options.platformUrl ?? null,
       });
+    });
+
+  releaseOriginCommand
+    .command("attest")
+    .description(
+      "Collect deployed transport evidence for routing, response policy, and auth isolation without executing creator code",
+    )
+    .requiredOption(
+      "--platform-url <origin>",
+      "Authenticated deployed platform origin, such as https://airjam.io",
+    )
+    .requiredOption(
+      "--release-url <url>",
+      "Exact canonical live /releases/g/{gameId}/r/{releaseId}/ host-root URL",
+    )
+    .option(
+      "--railway-project <id>",
+      "Expected Railway project ID; required for production evidence eligibility",
+    )
+    .option("--json", "Print the stable machine-readable contract")
+    .action(async (options) => {
+      await runPlatformReleaseOriginOperator(
+        {
+          command: "attest",
+          json: Boolean(options.json),
+          platformUrl: options.platformUrl,
+          releaseUrl: options.releaseUrl,
+        },
+        {
+          railwayProjectId:
+            options.railwayProject ?? process.env.RAILWAY_PROJECT_ID ?? null,
+        },
+      );
     });
 
   const telemetryCommand = platformCommand
