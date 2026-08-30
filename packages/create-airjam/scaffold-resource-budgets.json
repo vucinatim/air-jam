@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "archive": {
+    "maxCompressedBytes": 67108864,
+    "maxEntries": 512,
+    "maxTotalUncompressedBytes": 134217728,
+    "maxSingleFileUncompressedBytes": 33554432,
+    "maxCompressionRatio": 100
+  }
+}

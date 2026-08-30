@@ -11,6 +11,7 @@ import { resolvePublicPackages } from "../../release/public-packages.mjs";
 import {
   aggregatePublicInstallMatrixEvidence,
   readPublicInstallMatrix,
+  readScaffoldResourceBudgets,
   summarizePublicInstallMatrix,
 } from "../lib/public-install-matrix.mjs";
 
@@ -126,6 +127,27 @@ test("release install-matrix spec is discoverable as stable JSON", () => {
   const result = JSON.parse(output);
   assert.equal(result.contract, "air-jam-public-install-matrix/v1");
   assert.equal(result.cells.length, 6);
+  assert.deepEqual(
+    result.scaffold.resourceBudgets,
+    readScaffoldResourceBudgets(),
+  );
+});
+
+test("create-airjam ships the canonical scaffold resource budget contract", () => {
+  const packageManifest = JSON.parse(
+    fs.readFileSync(
+      path.join(repoRoot, "packages/create-airjam/package.json"),
+      "utf8",
+    ),
+  );
+  assert.ok(packageManifest.files.includes("scaffold-resource-budgets.json"));
+  const budgets = readScaffoldResourceBudgets();
+  assert.equal(budgets.schemaVersion, 1);
+  assert.ok(budgets.archive.maxCompressedBytes > 0);
+  assert.ok(budgets.archive.maxEntries > 0);
+  assert.ok(budgets.archive.maxTotalUncompressedBytes > 0);
+  assert.ok(budgets.archive.maxSingleFileUncompressedBytes > 0);
+  assert.ok(budgets.archive.maxCompressionRatio > 0);
 });
 
 const createCellEvidence = ({ cell, commit = "a".repeat(40) }) => ({
@@ -141,6 +163,7 @@ const createCellEvidence = ({ cell, commit = "a".repeat(40) }) => ({
     pnpm: "9.9.0",
     npm: "11.0.0",
   },
+  scaffoldResourceBudgets: readScaffoldResourceBudgets(),
   budgets: {
     packages: [],
     totalTarballBytes: { observed: 1, maximum: 2 },

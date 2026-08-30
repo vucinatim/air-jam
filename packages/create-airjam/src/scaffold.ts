@@ -2,7 +2,6 @@ import fs from "fs-extra";
 import JSON5 from "json5";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import yauzl from "yauzl";
 
 export interface ScaffoldTemplateManifest {
   id: string;
@@ -305,96 +304,6 @@ const stripSdkAliasFromConfig = async (filePath: string) => {
   );
 
   await fs.writeFile(filePath, source, "utf8");
-};
-
-const assertArchiveEntryPath = (
-  targetDir: string,
-  entryName: string,
-): string => {
-  const normalized = entryName.replace(/\\/g, "/");
-  if (
-    normalized.startsWith("/") ||
-    normalized.split("/").some((segment) => segment === "..")
-  ) {
-    throw new Error(`Unsafe scaffold template archive entry: ${entryName}`);
-  }
-
-  const resolvedTargetDir = path.resolve(targetDir);
-  const targetPath = path.resolve(resolvedTargetDir, normalized);
-  if (
-    targetPath !== resolvedTargetDir &&
-    !targetPath.startsWith(`${resolvedTargetDir}${path.sep}`)
-  ) {
-    throw new Error(`Unsafe scaffold template archive entry: ${entryName}`);
-  }
-  return targetPath;
-};
-
-export const extractScaffoldTemplateArchive = async ({
-  archivePath,
-  targetDir,
-}: {
-  archivePath: string;
-  targetDir: string;
-}): Promise<void> => {
-  await fs.ensureDir(targetDir);
-
-  await new Promise<void>((resolve, reject) => {
-    yauzl.open(archivePath, { lazyEntries: true }, (openError, zipFile) => {
-      if (openError) {
-        reject(openError);
-        return;
-      }
-      if (!zipFile) {
-        reject(
-          new Error(`Unable to open scaffold template archive ${archivePath}`),
-        );
-        return;
-      }
-
-      zipFile.on("error", reject);
-      zipFile.on("end", resolve);
-      zipFile.readEntry();
-      zipFile.on("entry", (entry) => {
-        const targetPath = assertArchiveEntryPath(targetDir, entry.fileName);
-        if (entry.fileName.endsWith("/")) {
-          fs.ensureDir(targetPath)
-            .then(() => zipFile.readEntry())
-            .catch(reject);
-          return;
-        }
-
-        zipFile.openReadStream(entry, (streamError, readStream) => {
-          if (streamError) {
-            reject(streamError);
-            return;
-          }
-          if (!readStream) {
-            reject(
-              new Error(
-                `Unable to read scaffold template archive entry ${entry.fileName}`,
-              ),
-            );
-            return;
-          }
-
-          fs.ensureDir(path.dirname(targetPath))
-            .then(
-              () =>
-                new Promise<void>((streamResolve, streamReject) => {
-                  const writeStream = fs.createWriteStream(targetPath);
-                  readStream.on("error", streamReject);
-                  writeStream.on("error", streamReject);
-                  writeStream.on("close", streamResolve);
-                  readStream.pipe(writeStream);
-                }),
-            )
-            .then(() => zipFile.readEntry())
-            .catch(reject);
-        });
-      });
-    });
-  });
 };
 
 export const normalizeStandaloneProjectFiles = async (

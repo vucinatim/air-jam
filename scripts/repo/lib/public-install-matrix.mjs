@@ -14,6 +14,8 @@ export const defaultPublicInstallMatrixPath = path.join(
 
 const matrixCellContract = "air-jam-public-install-matrix-cell/v1";
 const matrixAggregateContract = "air-jam-public-install-matrix-aggregate/v1";
+const scaffoldResourceBudgetsRelativePath =
+  "packages/create-airjam/scaffold-resource-budgets.json";
 
 const assertObject = (value, label) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -43,6 +45,37 @@ const assertPositiveInteger = (value, label) => {
 
 const sortStrings = (values) =>
   [...values].sort((left, right) => left.localeCompare(right));
+
+export const readScaffoldResourceBudgets = () => {
+  const document = JSON.parse(
+    fs.readFileSync(
+      path.join(repoRoot, scaffoldResourceBudgetsRelativePath),
+      "utf8",
+    ),
+  );
+  if (document.schemaVersion !== 1) {
+    throw new Error("Scaffold resource budget schemaVersion must be 1.");
+  }
+  const archive = assertObject(document.archive, "Scaffold archive budgets");
+  for (const key of [
+    "maxCompressedBytes",
+    "maxEntries",
+    "maxTotalUncompressedBytes",
+    "maxSingleFileUncompressedBytes",
+  ]) {
+    assertPositiveInteger(archive[key], `Scaffold archive budgets.${key}`);
+  }
+  if (
+    typeof archive.maxCompressionRatio !== "number" ||
+    !Number.isFinite(archive.maxCompressionRatio) ||
+    archive.maxCompressionRatio <= 0
+  ) {
+    throw new Error(
+      "Scaffold archive budgets.maxCompressionRatio must be positive.",
+    );
+  }
+  return document;
+};
 
 export const readPublicInstallMatrix = (
   manifestPath = defaultPublicInstallMatrixPath,
@@ -157,6 +190,15 @@ export const validatePublicInstallMatrix = (manifest) => {
   ) {
     throw new Error("scaffold.template must be a non-empty string.");
   }
+  if (
+    manifest.scaffold.resourceBudgetsFile !==
+    scaffoldResourceBudgetsRelativePath
+  ) {
+    throw new Error(
+      `scaffold.resourceBudgetsFile must be ${scaffoldResourceBudgetsRelativePath}.`,
+    );
+  }
+  readScaffoldResourceBudgets();
 
   const budgets = assertObject(manifest.budgets, "budgets");
   const tarballBudgets = assertObject(
@@ -184,24 +226,30 @@ export const validatePublicInstallMatrix = (manifest) => {
   return manifest;
 };
 
-export const summarizePublicInstallMatrix = (manifest) => ({
-  id: manifest.id,
-  contract: manifest.contract,
-  source: manifest.source,
-  packages: manifest.packages,
-  toolchain: manifest.toolchain,
-  scaffold: manifest.scaffold,
-  budgets: manifest.budgets,
-  cells: manifest.support.operatingSystems.flatMap((operatingSystem) =>
-    manifest.support.nodeMajors.map((nodeMajor) => ({
-      id: `${operatingSystem.id}-node-${nodeMajor}`,
-      operatingSystem: operatingSystem.id,
-      nodePlatform: operatingSystem.nodePlatform,
-      githubRunner: operatingSystem.githubRunner,
-      nodeMajor,
-    })),
-  ),
-});
+export const summarizePublicInstallMatrix = (manifest) => {
+  const scaffoldResourceBudgets = readScaffoldResourceBudgets();
+  return {
+    id: manifest.id,
+    contract: manifest.contract,
+    source: manifest.source,
+    packages: manifest.packages,
+    toolchain: manifest.toolchain,
+    scaffold: {
+      ...manifest.scaffold,
+      resourceBudgets: scaffoldResourceBudgets,
+    },
+    budgets: manifest.budgets,
+    cells: manifest.support.operatingSystems.flatMap((operatingSystem) =>
+      manifest.support.nodeMajors.map((nodeMajor) => ({
+        id: `${operatingSystem.id}-node-${nodeMajor}`,
+        operatingSystem: operatingSystem.id,
+        nodePlatform: operatingSystem.nodePlatform,
+        githubRunner: operatingSystem.githubRunner,
+        nodeMajor,
+      })),
+    ),
+  };
+};
 
 const resolveObservedCell = (manifest) => {
   const operatingSystem = manifest.support.operatingSystems.find(
@@ -228,12 +276,32 @@ const resolveObservedCell = (manifest) => {
 const readCommandVersion = (command, args) =>
   execFileSync(command, args, { encoding: "utf8" }).trim();
 
-const resolveCommit = () =>
-  process.env.GITHUB_SHA ||
-  execFileSync("git", ["rev-parse", "HEAD"], {
+const resolveCleanCommit = () => {
+  const status = execFileSync(
+    "git",
+    ["status", "--porcelain", "--untracked-files=no"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  ).trim();
+  if (status) {
+    throw new Error(
+      "Public install matrix evidence requires a clean tracked worktree.",
+    );
+  }
+  const head = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: repoRoot,
     encoding: "utf8",
   }).trim();
+  const commit = process.env.GITHUB_SHA || head;
+  if (!/^[a-f0-9]{40}$/u.test(commit) || commit !== head) {
+    throw new Error(
+      `Public install matrix commit ${commit} does not match checked-out HEAD ${head}.`,
+    );
+  }
+  return commit;
+};
 
 const assertExpectedCell = ({
   cell,
@@ -328,6 +396,9 @@ const enforceBudgets = ({ manifest, bootstrap, totalDurationMs }) => {
 export const writeJsonAtomically = (outputPath, value) => {
   const absolutePath = path.resolve(outputPath);
   fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+  if (fs.existsSync(absolutePath)) {
+    throw new Error(`Refusing to replace existing evidence: ${absolutePath}`);
+  }
   const temporaryPath = `${absolutePath}.tmp-${process.pid}`;
   fs.writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
     flag: "wx",
@@ -345,6 +416,7 @@ export const runPublicInstallMatrixCell = async ({
   const manifest = readPublicInstallMatrix(manifestPath);
   const cell = resolveObservedCell(manifest);
   assertExpectedCell({ cell, expectedOperatingSystem, expectedNodeMajor });
+  const commit = resolveCleanCommit();
   const startedAt = Date.now();
   const bootstrap = await runGoldenPathBootstrap({
     template: manifest.scaffold.template,
@@ -353,13 +425,19 @@ export const runPublicInstallMatrixCell = async ({
   });
   const totalDurationMs = Date.now() - startedAt;
   const budgets = enforceBudgets({ manifest, bootstrap, totalDurationMs });
+  const verifiedCommit = resolveCleanCommit();
+  if (verifiedCommit !== commit) {
+    throw new Error(
+      `Public install matrix HEAD changed from ${commit} to ${verifiedCommit} during verification.`,
+    );
+  }
 
   return {
     ok: true,
     contract: matrixCellContract,
     matrix: manifest.id,
     source: manifest.source,
-    commit: resolveCommit(),
+    commit,
     cell,
     environment: {
       platform: process.platform,
@@ -376,6 +454,7 @@ export const runPublicInstallMatrixCell = async ({
         imageVersion: process.env.ImageVersion ?? null,
       },
     },
+    scaffoldResourceBudgets: readScaffoldResourceBudgets(),
     budgets,
     proof: bootstrap,
   };
@@ -407,6 +486,14 @@ export const aggregatePublicInstallMatrixEvidence = ({
     }
     if (evidence.matrix !== manifest.id) {
       throw new Error(`${filePath} belongs to a different install matrix.`);
+    }
+    if (
+      JSON.stringify(evidence.scaffoldResourceBudgets) !==
+      JSON.stringify(summary.scaffold.resourceBudgets)
+    ) {
+      throw new Error(
+        `${filePath} does not prove the canonical scaffold resource budgets.`,
+      );
     }
     return evidence;
   });
@@ -440,6 +527,7 @@ export const aggregatePublicInstallMatrixEvidence = ({
     matrix: manifest.id,
     commit: [...commits][0],
     source: manifest.source,
+    scaffoldResourceBudgets: summary.scaffold.resourceBudgets,
     cells: expectedIds.map((id) => {
       const evidence = cellsById.get(id);
       return {

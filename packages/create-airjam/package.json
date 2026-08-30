@@ -50,6 +50,7 @@
   "files": [
     "dist",
     "scaffold-templates",
+    "scaffold-resource-budgets.json",
     "template-version-manifest.json"
   ],
   "scripts": {
@@ -64,7 +65,7 @@
     "smoke:registry": "node scripts/smoke-test.mjs --source=registry --template=all",
     "smoke:tarball": "node scripts/smoke-test.mjs --source=tarball --template=all",
     "smoke:workspace": "node scripts/smoke-test.mjs --source=workspace --template=all",
-    "test": "pnpm build && node --test runtime/*.test.mjs",
+    "test": "pnpm build && node --test runtime/*.test.mjs && tsx --test runtime/*.test.ts",
     "prepublishOnly": "node scripts/prepublish.js && pnpm build",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
@@ -85,6 +86,7 @@
     "@types/yazl": "^2.4.5",
     "yazl": "^3.3.1",
     "tsup": "^8.5.1",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.3"
   }
 }

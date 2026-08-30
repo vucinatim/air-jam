@@ -11,7 +11,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
 import {
-  extractScaffoldTemplateArchive,
   findScaffoldTemplate,
   loadAvailableScaffoldTemplates,
   normalizeScaffoldPackageJson,
@@ -20,6 +19,7 @@ import {
   type ScaffoldPackageJson,
   type ScaffoldTemplateSource,
 } from "./scaffold";
+import { extractScaffoldTemplateArchive } from "./scaffold-archive";
 
 const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

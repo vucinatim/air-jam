@@ -78,6 +78,8 @@ Each candidate cell must prove:
 10. managed development start, status, and stop work
 11. generated-project typecheck, lint, tests, and production build pass
 12. package-size, scaffold-install, and total-cell budgets pass
+13. the packaged scaffold extraction budgets are present in the cell evidence
+    and match the runtime-enforced contract
 
 ## Candidate Versus Public npm
 
@@ -100,6 +102,19 @@ The machine manifest owns launch budgets rather than prose or CI YAML:
 2. one total public-graph tarball ceiling
 3. a ten-minute cold scaffold-and-install ceiling per cell
 4. a thirty-minute complete cell ceiling
+5. a 64 MiB compressed archive ceiling
+6. a 512-entry archive ceiling
+7. a 128 MiB total extracted-byte ceiling
+8. a 32 MiB single extracted-file ceiling
+9. a 100:1 per-file and aggregate compression-ratio ceiling
+
+The extraction values live in the shipped
+`packages/create-airjam/scaffold-resource-budgets.json` contract. The runtime
+preflights entry type, portable path uniqueness, count, size, and compression
+ratio before writing. It extracts into a hidden sibling staging directory,
+removes that staging output on failure, and only exposes the requested project
+directory after every archive entry is complete. Malicious count, size, ratio,
+and corrupted-stream fixtures protect that behavior.
 
 `create-airjam` currently carries the six version-matched templates and has a
 larger explicit ceiling than the runtime packages. The measured value remains

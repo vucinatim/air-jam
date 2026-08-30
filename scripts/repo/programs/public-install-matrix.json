@@ -42,6 +42,7 @@
   ],
   "scaffold": {
     "template": "minimal",
+    "resourceBudgetsFile": "packages/create-airjam/scaffold-resource-budgets.json",
     "requiredScripts": ["dev", "status", "reset:local", "mcp", "lint"],
     "requiredMcpTools": [
       "airjam.inspect_project",
