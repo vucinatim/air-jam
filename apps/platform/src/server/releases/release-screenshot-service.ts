@@ -2,7 +2,7 @@ import { HOSTED_RELEASE_HOST_PATH } from "@/lib/releases/hosted-release-artifact
 import { getReleaseModerationConfig } from "@/server/releases/release-moderation-config";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { getReleaseStorage } from "@/server/releases/release-storage";
-import { buildReleaseScreenshotObjectKey } from "@/server/releases/release-storage-keys";
+import { buildReleaseGenerationScreenshotObjectKey } from "@/server/releases/release-storage-keys";
 import { chromium } from "playwright-core";
 import {
   createReleaseInspectionAccessToken,
@@ -10,6 +10,8 @@ import {
 } from "./release-inspection-access";
 
 export type ReleaseScreenshotCaptureResult = {
+  generationId: string;
+  captureId: string;
   screenshotObjectKey: string;
   contentType: "image/png";
   sizeBytes: number;
@@ -20,15 +22,20 @@ export type ReleaseScreenshotCaptureResult = {
 export const captureReleaseScreenshot = async ({
   gameId,
   releaseId,
+  generationId,
+  captureId: requestedCaptureId,
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
+  captureId?: string;
 }): Promise<ReleaseScreenshotCaptureResult> => {
   const config = getReleaseModerationConfig();
   const storage = getReleaseStorage();
   const targetUrl = buildHostedReleaseAssetUrl({
     gameId,
     releaseId,
+    generationId,
     assetPath: HOSTED_RELEASE_HOST_PATH,
   });
   const inspectionAccessToken = createReleaseInspectionAccessToken({
@@ -80,9 +87,12 @@ export const captureReleaseScreenshot = async ({
         type: "png",
         fullPage: true,
       });
-      const screenshotObjectKey = buildReleaseScreenshotObjectKey({
+      const captureId = requestedCaptureId?.trim() || crypto.randomUUID();
+      const screenshotObjectKey = buildReleaseGenerationScreenshotObjectKey({
         gameId,
         releaseId,
+        generationId,
+        captureId,
       });
 
       await storage.putObject({
@@ -90,9 +100,12 @@ export const captureReleaseScreenshot = async ({
         body: screenshot,
         contentType: "image/png",
         cacheControl: "no-store",
+        writeMode: "create",
       });
 
       return {
+        generationId,
+        captureId,
         screenshotObjectKey,
         contentType: "image/png",
         sizeBytes: screenshot.byteLength,

@@ -56,7 +56,7 @@ external agent.
 Pull request `#61` subsequently caused Railway to create a fresh ephemeral
 environment with a distinct Postgres instance. Safe provider comparisons found
 that the environment cloned the production R2 bucket, R2 credentials,
-release-worker tokens, and other production-sensitive values. The controller
+platform-worker tokens, and other production-sensitive values. The controller
 therefore still cannot admit it, and no external agent was started. The
 repo-loaded Railway credential also cannot read the bot-created environment;
 the provider's account-scoped CLI identity can inspect it without exposing

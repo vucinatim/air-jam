@@ -2,8 +2,11 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, type RateLimitConfig } from "@/server/api/rate-limit";
+import { PlatformApplicationError } from "@/server/application-error";
 import { assertOpsAdmin } from "@/server/auth/assert-ops-admin";
+import { OperationalAdmissionDeniedError } from "@/server/operations/production-control-service";
 import { initTRPC, TRPCError } from "@trpc/server";
+import type { ResponseMeta } from "@trpc/server/http";
 import { eq } from "drizzle-orm";
 import superjson from "superjson";
 import { ZodError } from "zod";
@@ -47,27 +50,77 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
         ...shape.data,
         zodError:
           error.cause instanceof ZodError ? error.cause.flatten() : null,
+        operationalDecision:
+          error.cause instanceof OperationalAdmissionDeniedError
+            ? error.cause.decision
+            : null,
       },
     };
   },
 });
 
-export const createTRPCRouter = t.router;
-export const publicProcedure = t.procedure;
+export const getTRPCResponseMeta = ({
+  errors,
+}: {
+  errors: TRPCError[];
+}): ResponseMeta => {
+  const retryAfterSeconds = errors.reduce<number | null>((longest, error) => {
+    const cause = error.cause;
+    if (!(cause instanceof OperationalAdmissionDeniedError)) return longest;
+    const retryAfter = cause.decision.retryAfterSeconds;
+    if (retryAfter === null) return longest;
+    return longest === null ? retryAfter : Math.max(longest, retryAfter);
+  }, null);
 
-export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-  if (!ctx.session || !ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
+  return retryAfterSeconds === null
+    ? {}
+    : { headers: { "retry-after": String(retryAfterSeconds) } };
+};
+
+export const createTRPCRouter = t.router;
+
+const applicationErrorMiddleware = t.middleware(async ({ next }) => {
+  const result = await next();
+  if (result.ok) return result;
+
+  const cause = result.error.cause;
+  if (cause instanceof OperationalAdmissionDeniedError) {
+    throw new TRPCError({
+      code: "SERVICE_UNAVAILABLE",
+      message: cause.message,
+      cause,
+    });
   }
-  return next({
-    ctx: {
-      ...ctx,
-      // infers the `session` as non-nullable
-      session: ctx.session,
-      user: ctx.user,
-    },
-  });
+  if (cause instanceof PlatformApplicationError) {
+    const code = {
+      not_found: "NOT_FOUND",
+      forbidden: "FORBIDDEN",
+      conflict: "CONFLICT",
+      validation_failed: "BAD_REQUEST",
+    }[cause.code] as "NOT_FOUND" | "FORBIDDEN" | "CONFLICT" | "BAD_REQUEST";
+    throw new TRPCError({ code, message: cause.message, cause });
+  }
+
+  return result;
 });
+
+export const publicProcedure = t.procedure.use(applicationErrorMiddleware);
+
+export const protectedProcedure = t.procedure
+  .use(applicationErrorMiddleware)
+  .use(({ ctx, next }) => {
+    if (!ctx.session || !ctx.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    return next({
+      ctx: {
+        ...ctx,
+        // infers the `session` as non-nullable
+        session: ctx.session,
+        user: ctx.user,
+      },
+    });
+  });
 
 export const opsProcedure = protectedProcedure.use(({ ctx, next }) => {
   assertOpsAdmin(ctx.user);

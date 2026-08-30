@@ -1,5 +1,20 @@
 import { __resetRateLimitState } from "@/server/api/rate-limit";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/server/operations/production-control-service", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/server/operations/production-control-service")
+  >("@/server/operations/production-control-service");
+  return {
+    ...actual,
+    assertOperationalLaneAccepting: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
+import {
+  assertOperationalLaneAccepting,
+  OperationalAdmissionDeniedError,
+} from "@/server/operations/production-control-service";
 import { handleProductTelemetryRequest } from "./ingestion";
 
 const NOW = new Date("2026-08-26T12:00:00.000Z");
@@ -40,9 +55,44 @@ const makeRequest = ({
 
 afterEach(() => {
   __resetRateLimitState();
+  vi.mocked(assertOperationalLaneAccepting).mockReset();
+  vi.mocked(assertOperationalLaneAccepting).mockResolvedValue(undefined);
 });
 
 describe("product telemetry ingestion request", () => {
+  it("returns structured retry guidance when telemetry intake is paused", async () => {
+    const decision = {
+      contractVersion: 1 as const,
+      decisionId: "decision-telemetry",
+      lane: "product_telemetry" as const,
+      controlStatus: "available" as const,
+      mode: "paused" as const,
+      outcome: "denied" as const,
+      reason: "lane_paused" as const,
+      retryAfterSeconds: 180,
+      controlRevision: 4,
+    };
+    vi.mocked(assertOperationalLaneAccepting).mockRejectedValueOnce(
+      new OperationalAdmissionDeniedError(decision),
+    );
+    const write = vi.fn();
+
+    const response = await handleProductTelemetryRequest({
+      request: makeRequest(),
+      env: ENV,
+      now: NOW,
+      write,
+    });
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("180");
+    expect(await response.json()).toEqual({
+      error: "lane_paused",
+      decision,
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it("accepts a guarded batch and writes only normalized bounded fields", async () => {
     const write = vi.fn().mockResolvedValue({ accepted: 1, duplicates: 0 });
     const response = await handleProductTelemetryRequest({

@@ -7,14 +7,17 @@ export const getHostedReleasesBaseUrl = (): string =>
 export const buildHostedReleaseAssetUrl = ({
   gameId,
   releaseId,
+  generationId,
   assetPath,
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
   assetPath: string;
 }): string =>
   `${getHostedReleasesBaseUrl()}${buildHostedReleaseAssetPath({
     gameId,
     releaseId,
+    generationId,
     assetPath,
   })}`;

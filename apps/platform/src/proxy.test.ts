@@ -84,7 +84,7 @@ describe("hosted release request routing", () => {
   it("serves only release paths requested directly from the release origin", () => {
     expect(
       resolveHostedReleaseRequestDisposition(
-        "https://airjamusercontent.net/releases/g/game-1/r/release-1/index.html",
+        "https://airjamusercontent.net/releases/g/game-1/r/release-1/generations/generation-1/index.html",
         "airjamusercontent.net",
         releaseEnv,
       ),
@@ -101,14 +101,14 @@ describe("hosted release request routing", () => {
   it("redirects platform release paths to the isolated origin without losing query state", () => {
     expect(
       resolveHostedReleaseRequestDisposition(
-        "https://airjam.io/releases/g/game-1/r/release-1/?controller=abc%201",
+        "https://airjam.io/releases/g/game-1/r/release-1/generations/generation-1/?controller=abc%201",
         "airjam.io",
         releaseEnv,
       ),
     ).toEqual({
       kind: "redirect_release",
       destination:
-        "https://airjamusercontent.net/releases/g/game-1/r/release-1/?controller=abc%201",
+        "https://airjamusercontent.net/releases/g/game-1/r/release-1/generations/generation-1/?controller=abc%201",
     });
   });
 
@@ -124,7 +124,7 @@ describe("hosted release request routing", () => {
 
   it("fails closed when a release path is requested without a ready origin", () => {
     const disposition = resolveHostedReleaseRequestDisposition(
-      "https://airjam.io/releases/g/game-1/r/release-1/",
+      "https://airjam.io/releases/g/game-1/r/release-1/generations/generation-1/",
       "airjam.io",
       {
         NODE_ENV: "production",
@@ -178,7 +178,7 @@ describe("hosted release request routing", () => {
     try {
       const direct = proxy(
         new NextRequest(
-          "https://airjamusercontent.net/releases/g/game-1/r/release-1/",
+          "https://airjamusercontent.net/releases/g/game-1/r/release-1/generations/generation-1/",
           { headers: { host: "airjamusercontent.net" } },
         ),
         makeEvent(),
@@ -190,9 +190,12 @@ describe("hosted release request routing", () => {
         makeEvent(),
       );
       const redirected = proxy(
-        new NextRequest("https://airjam.io/releases/g/game-1/r/release-1/", {
-          headers: { host: "airjam.io" },
-        }),
+        new NextRequest(
+          "https://airjam.io/releases/g/game-1/r/release-1/generations/generation-1/",
+          {
+            headers: { host: "airjam.io" },
+          },
+        ),
         makeEvent(),
       );
 
@@ -208,14 +211,17 @@ describe("hosted release request routing", () => {
       expect(redirected.status).toBe(307);
       expect(redirected.headers.get("cache-control")).toBe("no-store");
       expect(redirected.headers.get("location")).toBe(
-        "https://airjamusercontent.net/releases/g/game-1/r/release-1/",
+        "https://airjamusercontent.net/releases/g/game-1/r/release-1/generations/generation-1/",
       );
 
       vi.stubEnv("AIRJAM_RELEASES_PUBLIC_ORIGIN", "");
       const unavailable = proxy(
-        new NextRequest("https://airjam.io/releases/g/game-1/r/release-1/", {
-          headers: { host: "airjam.io" },
-        }),
+        new NextRequest(
+          "https://airjam.io/releases/g/game-1/r/release-1/generations/generation-1/",
+          {
+            headers: { host: "airjam.io" },
+          },
+        ),
         makeEvent(),
       );
       expect(unavailable.status).toBe(503);

@@ -13,7 +13,8 @@ Related docs:
 
 This guide explains the deploy model that now matters:
 
-1. Railway hosts the platform, realtime server, and browser worker
+1. Railway hosts the platform, realtime server, browser worker, and operational-job
+   worker
 2. Railway native PR environments own preview lifecycle
 3. the repo only owns config clarity, inspection, and validation
 
@@ -21,11 +22,12 @@ Do not treat Air Jam deploys as a split Vercel plus Railway system anymore.
 
 ## Canonical Services
 
-The production Railway project should contain three deployable services:
+The production Railway project should contain four deployable services:
 
 1. `air-jam-platform`
 2. `air-jam-server`
 3. `air-jam-release-browser-worker`
+4. `air-jam-platform-worker`
 
 Persistent infrastructure remains external:
 
@@ -89,7 +91,8 @@ pnpm --silent run repo -- platform release-origin inspect --platform-url https:/
 2. whether PR environments are enabled
 3. which environment is primary
 4. which ephemeral environments are currently open
-5. whether platform, server, and worker all have healthy deploy identity
+5. whether platform, server, browser worker, and operational-job worker all have
+   healthy deploy identity
 
 `platform release-origin inspect` assesses local configuration by default.
 Pass the deployed platform origin through `--platform-url` to inspect its public
@@ -112,7 +115,9 @@ Production should stay boring:
 3. `AIRJAM_RELEASES_PUBLIC_ORIGIN` points at a dedicated cookieless site that is
    not `airjam.io` or any `*.airjam.io` sibling
 4. the browser worker is not public product UI and should expose only the narrow routes it needs
-5. the platform should consume the public server URL explicitly rather than guessing from provider-specific env
+5. the operational-job worker exposes only liveness, readiness, and authenticated
+   drain; it owns durable processing, not public API traffic
+6. the platform should consume the public server URL explicitly rather than guessing from provider-specific env
 
 ## Validation Checklist
 
@@ -125,7 +130,14 @@ Before treating a Railway deployment as good, verify:
 5. platform `/api/auth/get-session` returns `200`
 6. platform `/api/airjam/host-grant` works same-origin
 7. server `/health` returns `200`
-8. worker `/health` returns `200`
+8. browser worker `/health` returns `200`
+9. operational-job worker `/health` returns `200`
+10. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
+    available
+
+Before terminating or replacing the operational-job worker, call its authenticated
+`POST /drain` endpoint and wait for bounded completion. Queue state remains in
+PostgreSQL across deploys; a process restart must never be treated as job loss.
 
 For PR environments, verify the same shape against the ephemeral Railway domains.
 

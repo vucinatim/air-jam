@@ -197,7 +197,18 @@ These are now baseline truths, not open architecture debates:
     13. the integration review further made staging isolation environment-wide
         and fail-closed, made evidence retention rollback-safe and extension
         independent, and bounded external-agent plus cleanup process lifetimes
-15. Gate `G5-01` now has one ranked threat model:
+15. Gate 4 now has one agent-operable operational authority contract:
+    1. product telemetry, authoritative lifecycle/runtime facts, and durable
+       incidents remain separate evidence planes
+    2. deterministic fingerprints bind incident identity to exact normalized
+       failure scope
+    3. runbook preview/apply binds exact descriptor, parameters, context,
+       expiry, actions, and blast radius through SHA-256 digests
+    4. approval, bounded automation, verification, rollback, and terminal
+       evidence rules fail closed
+    5. all seven schema families are inspectable as Draft 7 JSON Schema and
+       runtime-validatable through the canonical repo CLI
+16. Gate `G5-01` now has one ranked threat model:
     1. public, privileged, artifact, runtime, agent, provider, privacy, and
        supply-chain boundaries were independently reviewed and centrally
        deduplicated
@@ -333,6 +344,67 @@ highest-priority result is that creator-controlled executable game bytes must
 move to a dedicated cookieless origin with strict iframe and browser policies
 before 1.0. The audit deliberately leaves implementation open in `G5-02` and
 `G5-03`; it does not treat documenting a threat as fixing it.
+Gate `G4-01` is closed with the
+[operational events and incidents contract](./contracts/operational-events-and-incidents-contract.md)
+and its [proof](./audits/v1-operations/operational-contract-proof.md). The
+private runtime package, TypeScript declarations, JSON Schema export, and repo
+CLI now share one versioned model for events, correlation, incident state,
+runbook descriptors, immutable previews, invocations, and action audit records.
+This closes the contract boundary only; it does not claim that outbox,
+correlator, notification, GitHub delivery, or remediation workers are deployed.
+
+Gate `G3-01` is closed with the
+[production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).
+Production currently costs about `$8` per Railway cycle, uses little database
+and object-storage capacity, and showed no `5xx` in the sampled seven-day
+traffic. The audit also makes the launch gap explicit: synchronous release
+work, dynamic release delivery, process-local realtime authority, no recurring
+database backup, no app-specific spend brake, incomplete lifecycle cleanup,
+and no continuously proven alert/rollback path. No production state was changed
+by the audit.
+
+Gate `G3-02` is active. Its first production-valid slice establishes the
+[production control contract](./contracts/production-control-contract.md),
+persistent and audited lane modes, typed fail-closed admission decisions, and
+preview-first CLI operation. Release submission, artifact ingestion, release
+processing, browser validation, moderation, media ingestion, and telemetry now
+share that application-service authority. Its second slice adds the
+[production budget evidence proof](./audits/v1-reliability/production-budget-evidence-proof.md):
+Railway project usage now flows through immutable evidence, reviewed thresholds,
+derived state, freshness reporting, idempotent replay, and the canonical repo
+CLI. Its third slice adds the
+[production shadow quota proof](./audits/v1-reliability/production-shadow-quota-proof.md):
+the ratified allowances now live in one versioned source catalog, lifecycle and
+runtime records produce creator/game usage, and the canonical CLI explains
+shadow versus enforced decisions. Durable jobs, application-service wiring,
+cleanup, realtime admission, and overload proof remain part of the same
+unfinished gate. Its fourth slice adds the
+[production durable job authority proof](./audits/v1-reliability/production-durable-job-authority-proof.md):
+PostgreSQL now owns bounded queues, fair transactional claims, fenced leases,
+heartbeats, absolute deadlines, retries, cancellation, replay lineage, repair,
+global immutable command replay, and append-only job events. Claims honor the
+persisted lane mode, release checks cannot cross release scope, and the repo CLI
+uses redacted operator projections rather than lease-bearing worker records.
+The fifth slice adds the
+[production immutable release generations proof](./audits/v1-reliability/production-immutable-release-generations-proof.md):
+every upload now has immutable generation identity, first-observed object
+facts, create-only source and output keys, explicit candidate/promoted pointers,
+generation-scoped checks, and fail-closed legacy migration. Public serving,
+publishing, quotas, dashboard, machine API, SDK, CLI, and MCP now agree on that
+generation model. Its sixth slice adds the
+[production operational job worker proof](./audits/v1-reliability/production-operational-job-worker-proof.md):
+finalize now enqueues a strict generation-scoped three-stage job graph, a
+separate drainable worker owns execution, attempts isolate retry outputs, and
+dashboard, API, SDK, CLI, and MCP share enqueue, inspect, wait, and publish
+semantics. The old synchronous finalizer is gone. Its seventh slice adds the
+[production lifecycle cleanup proof](./audits/v1-reliability/production-lifecycle-cleanup-proof.md):
+the operational worker now schedules and executes exact, resource-scoped
+cleanup for terminal release generations and inactive unassigned media. The
+first object manifest survives partial deletion and retries, database
+tombstones control quota accounting, and the canonical CLI provides redacted
+preview/apply plus resource-filtered inspection. Superseded unpublished
+artifact warning and long retention, realtime admission, overload proof, and
+explicit production rollout remain part of the unfinished gate.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
@@ -371,17 +443,20 @@ Execute the roadmap in dependency order:
 3. provision the dedicated untrusted-content production domain, deploy the
    implemented origin boundary, and capture real hosted-route, cookie, CORS,
    CSP, and normal-game attestation before closing the first `G5-02` slice
-4. continue dependency-ready reliability, operations, and public-package work
-   without duplicating the Gate 3 job/quota foundation
-5. preserve Gate 1 contracts while those independent implementation lanes run
-6. complete or block work only through evidence-backed readiness transitions
+4. finish warned long-term artifact retention, realtime admission, and overload
+   proof in `G3-02`
+5. run isolated backup/restore and rollback/replay work in parallel with durable
+   operational-event production against the completed Gate 4 contract
+6. preserve Gate 1 contracts while those independent implementation lanes run
+7. complete or block work only through evidence-backed readiness transitions
 
 ## Current Caveats
 
 1. the repo has enough implemented infrastructure that the main risk is now
    committing to stale assumptions or freezing accidental complexity
-2. production launch confidence has not yet been demonstrated through a defined
-   capacity envelope, recovery drill, and incident-automation proof
+2. the production baseline and target capacity envelope are now measured and
+   explicit, but recovery, deliberate overload, and incident-automation proof
+   have not yet been demonstrated
 3. product telemetry anonymous-session and actor-class counts are approximate
    discovery measures, not durable people or identity proof
 4. full code-changing self-healing is a post-1.0 direction; 1.0 requires strong

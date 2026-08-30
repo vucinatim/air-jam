@@ -208,7 +208,8 @@ The detailed findings below reduce to these non-negotiable rules:
 - Evidence at audit time:
   - `apps/platform/src/server/releases/release-public-url.ts:8-12` falls back
     to the platform site when no release base URL is configured.
-  - `apps/platform/src/app/releases/g/[gameId]/r/[releaseId]/[[...assetPath]]/route.ts:103-170`
+  - the generation-native successor at
+    `apps/platform/src/app/releases/g/[gameId]/r/[releaseId]/generations/[generationId]/[[...assetPath]]/route.ts`
     returns creator-controlled HTML, JavaScript, CSS, and other bytes.
   - `apps/platform/src/components/arcade/game-player.tsx:667-695` loads the host
     iframe without a sandbox.

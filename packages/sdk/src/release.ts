@@ -19,6 +19,38 @@ export const gameReleaseStatusValues = [
 export type GameReleaseStatus = (typeof gameReleaseStatusValues)[number];
 export const gameReleaseStatusSchema = z.enum(gameReleaseStatusValues);
 
+export const releaseGenerationStatusValues = [
+  "awaiting_upload",
+  "processing",
+  "ready",
+  "failed",
+  "abandoned",
+] as const;
+export type ReleaseGenerationStatus =
+  (typeof releaseGenerationStatusValues)[number];
+export const releaseGenerationStatusSchema = z.enum(
+  releaseGenerationStatusValues,
+);
+
+export const releaseJobKindValues = [
+  "release_artifact_processing",
+  "release_browser_validation",
+  "release_image_moderation",
+] as const;
+export type ReleaseJobKind = (typeof releaseJobKindValues)[number];
+export const releaseJobKindSchema = z.enum(releaseJobKindValues);
+
+export const releaseJobStatusValues = [
+  "queued",
+  "running",
+  "cancel_requested",
+  "succeeded",
+  "failed",
+  "canceled",
+] as const;
+export type ReleaseJobStatus = (typeof releaseJobStatusValues)[number];
+export const releaseJobStatusSchema = z.enum(releaseJobStatusValues);
+
 export const releaseCheckKindValues = [
   "artifact_validation",
   "screenshot_capture",

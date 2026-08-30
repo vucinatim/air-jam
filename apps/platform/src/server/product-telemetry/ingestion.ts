@@ -1,6 +1,10 @@
 import { productTelemetryBrowserBatchSchema } from "@/lib/product-telemetry-contract";
 import { checkRateLimit } from "@/server/api/rate-limit";
 import {
+  assertOperationalLaneAccepting,
+  OperationalAdmissionDeniedError,
+} from "@/server/operations/production-control-service";
+import {
   normalizeProductTelemetryBrowserEvent,
   ProductTelemetryTimeSkewError,
 } from "./normalization";
@@ -62,6 +66,8 @@ export const handleProductTelemetryRequest = async ({
       );
     }
 
+    await assertOperationalLaneAccepting({ lane: "product_telemetry" });
+
     const rawBody = await readBoundedProductTelemetryBody(request);
     let parsedBody: unknown;
     try {
@@ -94,6 +100,25 @@ export const handleProductTelemetryRequest = async ({
     const result = await write(events);
     return jsonResponse(result, 202);
   } catch (error) {
+    if (error instanceof OperationalAdmissionDeniedError) {
+      return Response.json(
+        {
+          error: error.decision.reason,
+          decision: error.decision,
+        },
+        {
+          status: 503,
+          headers: {
+            "cache-control": "no-store",
+            ...(error.decision.retryAfterSeconds
+              ? {
+                  "retry-after": String(error.decision.retryAfterSeconds),
+                }
+              : {}),
+          },
+        },
+      );
+    }
     if (error instanceof ProductTelemetryRequestError) {
       return jsonResponse({ error: error.code }, error.status);
     }

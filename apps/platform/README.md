@@ -164,6 +164,7 @@ Infrastructure requirements:
 3. screenshot moderation runtime with browser access
 4. optional OpenAI image moderation when you want automated image-policy enforcement
 5. a dedicated cookieless public origin for creator-controlled release assets
+6. one separately deployed platform operational-job worker
 
 The database migrations have already been added under [drizzle](./drizzle) and can be applied with:
 
@@ -215,7 +216,35 @@ Optional env for screenshot moderation:
 3. `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai|disabled`
 4. `OPENAI_API_KEY` when `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai`
 
-If screenshot moderation is not configured, hosted releases fail closed during finalize/publish. The release remains failed until the moderation runtime is available again, which keeps the platform policy aligned with the server-side release checks.
+The long-running operational executor starts with:
+
+```bash
+pnpm --filter platform worker
+```
+
+Production uses the bundled `worker:start` entry and
+[`railway.worker.json`](./railway.worker.json). Configure a strong
+`AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN`; `/health` is liveness, `/ready` proves
+recent PostgreSQL authority, and authenticated `POST /drain` stops new claims
+before deploy termination.
+
+The same worker schedules retention-eligible release-generation and managed
+media cleanup. `AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS` controls the
+schedule interval and defaults to 15 minutes. Preview and enqueue cleanup via:
+
+```bash
+pnpm --silent run repo -- platform operations lifecycle cleanup --help
+```
+
+Agents and maintainers inspect and safely operate the same authority through:
+
+```bash
+pnpm --silent run repo -- platform operations jobs --help
+```
+
+If screenshot moderation is not configured, its durable job fails closed. The
+release remains failed until the runtime is available and an operator replays
+the terminal job, which keeps platform policy aligned with server-side checks.
 
 If screenshot moderation is configured but `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=disabled`, the platform still captures the canonical screenshot and records an `image_moderation` warning check, but the release can become `ready`. That mode is intended for local or other non-production environments where you want deterministic release QA without making OpenAI moderation a hard requirement.
 

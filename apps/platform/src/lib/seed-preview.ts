@@ -1,17 +1,11 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import {
-  gameReleaseArtifacts,
-  gameReleases,
-  games,
-  users,
-} from "../db/schema";
+import { gameReleases, games, users } from "../db/schema";
 import { auth } from "./auth";
 import { PREVIEW_TESTER_CREDENTIALS } from "./preview-tester-credentials";
 
 const PREVIEW_GAME_ID = "preview-game-001";
 const PREVIEW_RELEASE_ID = "preview-release-001";
-const PREVIEW_ARTIFACT_ID = "preview-artifact-001";
 
 /**
  * Seed a minimal data set so a Railway PR preview has something to
@@ -22,12 +16,11 @@ const PREVIEW_ARTIFACT_ID = "preview-artifact-001";
  * What lands:
  *   - One user (PREVIEW_TESTER_CREDENTIALS) created via better-auth
  *     so the password hash matches whatever auth scheme the app uses.
- *   - One game (`preview-pong`) with arcadeVisibility = "listed".
- *   - One game release with status = "live" + a placeholder artifact
- *     row. This is enough to make the game appear in the arcade
- *     listing; the placeholder asset paths mean the game won't
- *     actually launch — that's deliberate (no real artifact storage
- *     on previews).
+ *   - One hidden game (`preview-pong`) for authenticated dashboard smoke tests.
+ *   - One archived release with no fabricated playable generation.
+ *
+ * Public arcade proof must use a real uploaded release. Preview seed data must
+ * never claim that a placeholder object is a validated or playable build.
  */
 export async function seedPreviewData(): Promise<void> {
   const existingUser = await db
@@ -58,8 +51,8 @@ export async function seedPreviewData(): Promise<void> {
       name: "Preview Pong",
       slug: "preview-pong",
       description:
-        "Seeded by the platform on Railway PR preview boot. Not a real game — the artifact references a placeholder, so the listing renders but launching it will 404.",
-      arcadeVisibility: "listed",
+        "Seeded by the platform on Railway PR preview boot for authenticated dashboard smoke tests.",
+      arcadeVisibility: "hidden",
     })
     .onConflictDoNothing();
 
@@ -69,23 +62,27 @@ export async function seedPreviewData(): Promise<void> {
       id: PREVIEW_RELEASE_ID,
       gameId: PREVIEW_GAME_ID,
       sourceKind: "upload",
-      status: "live",
+      status: "archived",
       versionLabel: "preview-seed",
-      publishedAt: new Date(),
     })
     .onConflictDoNothing();
 
   await db
-    .insert(gameReleaseArtifacts)
-    .values({
-      id: PREVIEW_ARTIFACT_ID,
-      releaseId: PREVIEW_RELEASE_ID,
-      originalFilename: "preview-pong.zip",
-      contentType: "application/zip",
-      sizeBytes: 0,
-      zipObjectKey: "preview-seed-placeholder.zip",
-      siteRootKey: "preview-seed-placeholder",
-      entryPath: "index.html",
+    .update(games)
+    .set({
+      arcadeVisibility: "hidden",
+      updatedAt: new Date(),
     })
-    .onConflictDoNothing();
+    .where(eq(games.id, PREVIEW_GAME_ID));
+
+  await db
+    .update(gameReleases)
+    .set({
+      status: "archived",
+      candidateGenerationId: null,
+      promotedGenerationId: null,
+      publishedAt: null,
+      archivedAt: new Date(),
+    })
+    .where(eq(gameReleases.id, PREVIEW_RELEASE_ID));
 }

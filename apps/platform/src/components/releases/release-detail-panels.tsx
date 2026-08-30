@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, FileText, Package } from "lucide-react";
+import { Activity, CheckCircle2, FileText, Package } from "lucide-react";
 
 const formatDateTime = (value?: Date | string | null): string => {
   if (!value) return "Not yet";
@@ -30,19 +30,40 @@ const formatCheckKind = (value: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
+type ReleaseGenerationDetail = {
+  id: string;
+  sequence: number;
+  status: "awaiting_upload" | "processing" | "ready" | "failed" | "abandoned";
+  originalFilename: string;
+  declaredSizeBytes: number;
+  observedSizeBytes: number | null;
+  extractedSizeBytes: number | null;
+  fileCount: number | null;
+  contentHash: string | null;
+};
+
 type ReleaseDetailPanelsProps = {
-  artifact: {
-    originalFilename: string;
-    sizeBytes: number;
-    extractedSizeBytes: number | null;
-    fileCount: number | null;
-    contentHash: string | null;
-  } | null;
+  generations: ReleaseGenerationDetail[];
+  candidateGeneration: ReleaseGenerationDetail | null;
+  promotedGeneration: ReleaseGenerationDetail | null;
   checks: Array<{
     id: string;
+    generationId: string;
     kind: string;
     status: "pending" | "passed" | "failed" | "warning";
     summary: string | null;
+    createdAt: Date | string;
+  }>;
+  jobs: Array<{
+    id: string;
+    generationId: string;
+    kind: string;
+    status: string;
+    attemptCount: number;
+    maxAttempts: number;
+    progressStage: string | null;
+    progressMessage: string | null;
+    lastErrorCode: string | null;
     createdAt: Date | string;
   }>;
   reports: Array<{
@@ -56,50 +77,165 @@ type ReleaseDetailPanelsProps = {
 };
 
 export function ReleaseDetailPanels({
-  artifact,
+  generations,
+  candidateGeneration,
+  promotedGeneration,
   checks,
+  jobs,
   reports,
 }: ReleaseDetailPanelsProps) {
+  const generationSequenceById = new Map(
+    generations.map((generation) => [generation.id, generation.sequence]),
+  );
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
       <div className="space-y-2">
         <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase">
           <Package className="h-3 w-3" />
-          Artifact
+          Generations
         </div>
-        {artifact ? (
-          <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">File</span>
-              <span className="max-w-[65%] truncate text-right">
-                {artifact.originalFilename}
-              </span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">Uploaded</span>
-              <span>{formatBytes(artifact.sizeBytes)}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">Extracted</span>
-              <span>{formatBytes(artifact.extractedSizeBytes)}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">Files</span>
-              <span>{artifact.fileCount?.toLocaleString() ?? "Unknown"}</span>
-            </div>
-            {artifact.contentHash && (
-              <div className="flex justify-between gap-2">
-                <span className="text-muted-foreground">Hash</span>
-                <code className="max-w-[65%] truncate text-right text-[11px]">
-                  {artifact.contentHash}
-                </code>
-              </div>
-            )}
+        {generations.length > 0 ? (
+          <div className="space-y-2">
+            {generations.map((generation) => {
+              const isPromoted = generation.id === promotedGeneration?.id;
+              const isCandidate = generation.id === candidateGeneration?.id;
+
+              return (
+                <div
+                  key={generation.id}
+                  className="space-y-1.5 rounded-md border p-2.5 text-sm"
+                >
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-medium">
+                      Generation #{generation.sequence}
+                    </span>
+                    <Badge
+                      variant={
+                        generation.status === "ready"
+                          ? "default"
+                          : generation.status === "failed"
+                            ? "destructive"
+                            : "secondary"
+                      }
+                      className="text-[10px]"
+                    >
+                      {generation.status.replace("_", " ")}
+                    </Badge>
+                    {isPromoted && (
+                      <Badge variant="outline" className="text-[10px]">
+                        Promoted
+                      </Badge>
+                    )}
+                    {isCandidate && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Candidate
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground">File</span>
+                    <span className="max-w-[65%] truncate text-right">
+                      {generation.originalFilename}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground">
+                      {generation.observedSizeBytes === null
+                        ? "Declared"
+                        : "Uploaded"}
+                    </span>
+                    <span>
+                      {formatBytes(
+                        generation.observedSizeBytes ??
+                          generation.declaredSizeBytes,
+                      )}
+                    </span>
+                  </div>
+                  {generation.extractedSizeBytes !== null && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Extracted</span>
+                      <span>{formatBytes(generation.extractedSizeBytes)}</span>
+                    </div>
+                  )}
+                  {generation.fileCount !== null && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Files</span>
+                      <span>{generation.fileCount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {generation.contentHash && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">Hash</span>
+                      <code className="max-w-[65%] truncate text-right text-[11px]">
+                        {generation.contentHash}
+                      </code>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">
-            No artifact metadata yet.
+            No release generations yet.
           </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase">
+          <Activity className="h-3 w-3" />
+          Jobs
+        </div>
+        {jobs.length > 0 ? (
+          <div className="space-y-2">
+            {jobs.map((job) => (
+              <div key={job.id} className="rounded-md border p-2.5 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {formatCheckKind(job.kind.replace(/^release_/, ""))}
+                    </p>
+                    {generationSequenceById.has(job.generationId) && (
+                      <p className="text-muted-foreground text-[10px]">
+                        Gen #{generationSequenceById.get(job.generationId)} ·
+                        attempt {job.attemptCount}/{job.maxAttempts}
+                      </p>
+                    )}
+                  </div>
+                  <Badge
+                    variant={
+                      job.status === "succeeded"
+                        ? "default"
+                        : job.status === "failed"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                    className="text-[10px]"
+                  >
+                    {job.status.replace("_", " ")}
+                  </Badge>
+                </div>
+                {(job.progressMessage || job.progressStage) && (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {job.progressMessage ??
+                      job.progressStage?.replaceAll("_", " ")}
+                  </p>
+                )}
+                {job.lastErrorCode && (
+                  <p className="text-destructive mt-1 text-xs">
+                    {job.lastErrorCode.replaceAll("_", " ")}
+                  </p>
+                )}
+                <p className="text-muted-foreground mt-1 truncate font-mono text-[10px]">
+                  {job.id}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">No jobs recorded yet.</p>
         )}
       </div>
 
@@ -113,9 +249,16 @@ export function ReleaseDetailPanels({
             {checks.map((check) => (
               <div key={check.id} className="rounded-md border p-2.5 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">
-                    {formatCheckKind(check.kind)}
-                  </span>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate font-medium">
+                      {formatCheckKind(check.kind)}
+                    </span>
+                    {generationSequenceById.has(check.generationId) && (
+                      <span className="text-muted-foreground shrink-0 text-[10px]">
+                        Gen #{generationSequenceById.get(check.generationId)}
+                      </span>
+                    )}
+                  </div>
                   <Badge
                     variant={
                       check.status === "passed"

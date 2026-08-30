@@ -1,5 +1,5 @@
-import path from "node:path";
 import { createRequire } from "node:module";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { defineConfig } from "vitest/config";
 
@@ -37,5 +37,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // PostgreSQL contract suites intentionally share one isolated database.
+    // Job claiming and repair are global authority operations, so running test
+    // files concurrently would let one fixture claim another fixture's work.
+    fileParallelism: !process.env.AIR_JAM_TEST_DATABASE_URL?.trim(),
   },
 });
