@@ -18,6 +18,33 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-30 - Product Storage Gained A Durable Lifecycle
+
+- generalized operational jobs from mandatory release scope to canonical
+  release-generation or game-media resource identity
+- added exact preview and idempotent batch scheduling for failed or abandoned
+  generations, stale uploads, failed media, and archived unassigned media
+- made the platform operational worker schedule and execute cleanup through the
+  same bounded claim, lease, retry, drain, and readiness authority as release
+  work
+- persisted the first exact object manifest and reused it across retries, so a
+  partial deletion can resume without sweeping objects created after the
+  original decision
+- fenced live, candidate, promoted, assigned, and newly inactive resources out
+  of cleanup under database locks
+- added a database-enforced media inactivity clock with legacy backfill so the
+  24-hour window begins at failure or archive rather than original upload
+- added storage tombstones and excluded only committed deletions from managed
+  storage quota accounting
+- exposed redacted cleanup preview/apply and resource-filtered job inspection
+  through the canonical repo CLI
+- renamed the separately deployable process and runtime entry from release-job
+  worker to operational-job worker after it gained lifecycle responsibility
+- proved fresh migration, seeded legacy upgrade, partial-delete retry, late-
+  object preservation, media integrity, release replay, and quota behavior
+- kept `G3-02` active for warned long-term unpublished-artifact retention,
+  realtime admission, overload proof, and explicit production rollout
+
 ## 2026-08-30 - Hosted Release Processing Left The Request Lifecycle
 
 - replaced synchronous upload finalization with one generation-scoped durable
@@ -25,7 +52,7 @@ The pre-reset overloaded ledger has been preserved at:
 - added strict versioned executor payloads, immutable attempt identity,
   attempt-scoped output roots, lease-aware completion, and exact-generation
   fences around every external side effect
-- added the separately deployable platform release worker with database-gated
+- added the separately deployable platform operational worker with database-gated
   readiness, liveness, authenticated drain, signal handling, bounded
   concurrency, expired-work repair, and terminal-output cleanup
 - made superseding generations cancel or request cancellation of their active

@@ -9,6 +9,7 @@ import type {
   OperationalJob,
 } from "./operational-job-internals";
 import { OperationalJobConflictError } from "./operational-job-internals";
+import { isReleaseOperationalJobKind } from "./release-job-contract";
 
 const checkKindByJobKind = Object.freeze({
   release_artifact_processing: "artifact_validation",
@@ -25,12 +26,22 @@ export const applyReleaseJobTerminalState = async ({
   job: OperationalJob;
   now: Date;
 }) => {
+  if (
+    !isReleaseOperationalJobKind(job.kind) ||
+    !job.releaseId ||
+    !job.generationId
+  ) {
+    throw new OperationalJobConflictError(
+      "Release terminal state requires release-generation job scope.",
+    );
+  }
+  const releaseJobKind = job.kind;
   if (job.status !== "failed" && job.status !== "canceled") return false;
   const existingCheck = await tx.query.gameReleaseChecks.findFirst({
     where: (table, { and, eq }) =>
       and(
         eq(table.jobId, job.id),
-        eq(table.kind, checkKindByJobKind[job.kind]),
+        eq(table.kind, checkKindByJobKind[releaseJobKind]),
       ),
   });
   if (existingCheck) return false;
@@ -148,6 +159,15 @@ export const prepareReleaseJobReplayState = async ({
   job: OperationalJob;
   now: Date;
 }) => {
+  if (
+    !isReleaseOperationalJobKind(job.kind) ||
+    !job.releaseId ||
+    !job.generationId
+  ) {
+    throw new OperationalJobConflictError(
+      "Release replay requires release-generation job scope.",
+    );
+  }
   if (job.status !== "failed" && job.status !== "canceled") {
     throw new OperationalJobConflictError(
       "Only failed or canceled release jobs can be replayed.",
@@ -171,6 +191,11 @@ export const prepareReleaseJobReplayState = async ({
   if (!release || !generation) {
     throw new OperationalJobConflictError(
       "Release replay scope no longer exists.",
+    );
+  }
+  if (generation.storageCleanupStartedAt || generation.storageDeletedAt) {
+    throw new OperationalJobConflictError(
+      "Release generation storage cleanup has started and cannot be replayed.",
     );
   }
 

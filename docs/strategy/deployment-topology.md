@@ -1,7 +1,7 @@
 # Deployment Topology
 
 Last updated: 2026-08-30
-Status: canonical target topology; release-job worker rollout pending
+Status: canonical target topology; operational-job worker rollout pending
 
 Related docs:
 
@@ -31,7 +31,7 @@ Air Jam production should be split into five surfaces:
 1. `Railway` for the platform app
 2. `Railway` for the realtime/API server
 3. `Railway` for the release screenshot and moderation worker
-4. `Railway` for the durable platform release-job worker
+4. `Railway` for the durable platform operational-job worker
 5. `R2` for hosted release artifacts and managed media
 
 That split matches the actual workload boundaries:
@@ -142,9 +142,10 @@ Repo ownership: `apps/platform`
 
 Responsibilities:
 
-1. claim PostgreSQL-authoritative artifact, browser, and moderation jobs
-2. execute the versioned generation-scoped job graph
-3. heartbeat, retry, cancel, repair, and clean terminal attempt outputs
+1. claim PostgreSQL-authoritative release and lifecycle jobs
+2. execute versioned generation-scoped release and resource-scoped cleanup work
+3. heartbeat, retry, cancel, repair, clean terminal attempt outputs, and
+   schedule retention-eligible resources
 4. expose liveness, authority-backed readiness, and authenticated drain
 
 Should not own:
@@ -190,11 +191,11 @@ The intended live shape is now also the deployment shape:
 1. Railway hosts the platform app
 2. Railway hosts the realtime server and Postgres
 3. Railway hosts the release browser worker
-4. the repo now defines the release-job worker, but its production migration
+4. the repo now defines the operational-job worker, but its production migration
    and service rollout remain pending
 5. R2 stores release and media objects
 
-The remaining operational work is the explicit release-worker rollout and
+The remaining operational work is the explicit operational-worker rollout and
 steady-state validation, not another topology redesign.
 
 ## Clean Production Contract
@@ -258,9 +259,9 @@ Worker-specific env should be limited to whatever the browser service needs to r
 
 The worker should not need database or multiplayer env unless a later design explicitly makes that necessary.
 
-### Platform Release-Job Worker Env
+### Platform Operational-Job Worker Env
 
-The release-job worker owns:
+The operational-job worker owns:
 
 1. `DATABASE_URL`
 2. the release-storage variables required by artifact work and cleanup

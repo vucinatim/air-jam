@@ -211,6 +211,34 @@
       "when": 1788051391827,
       "tag": "0029_release_job_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1788056586357,
+      "tag": "0030_lifecycle_cleanup_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788056834382,
+      "tag": "0031_lifecycle_cleanup_schedule_commands",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788056973491,
+      "tag": "0032_resource_scoped_job_replay",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788057350669,
+      "tag": "0033_media_inactivity_clock",
+      "breakpoints": true
     }
   ]
 }

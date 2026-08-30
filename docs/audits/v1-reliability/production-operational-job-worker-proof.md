@@ -1,4 +1,4 @@
-# Production Release Job Worker Proof
+# Production Operational Job Worker Proof
 
 Last updated: 2026-08-30
 Status: Gate `G3-02` durable release-execution slice implemented and locally proven; production rollout pending
@@ -22,13 +22,13 @@ attempt-scoped side effects and promoted immutable release objects.
 
 ## Runtime Contract
 
-The platform runtime and release worker are separate entrypoints built from the
+The platform runtime and operational worker are separate entrypoints built from the
 same platform package:
 
 1. `run-platform.mjs` serves Next.js and applies preview migrations
-2. `run-release-job-worker.mjs` claims and executes durable release jobs
+2. `run-operational-job-worker.mjs` claims and executes durable operational jobs
 
-The release worker:
+The operational worker:
 
 1. claims with the existing PostgreSQL `SKIP LOCKED` authority
 2. dispatches only a versioned, strictly parsed payload for the claimed kind

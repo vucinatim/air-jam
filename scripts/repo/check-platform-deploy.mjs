@@ -158,11 +158,11 @@ const main = async () => {
 
     const workerRuntimeEntry = path.join(
       checkoutRoot,
-      "apps/platform/.next/standalone/apps/platform/run-release-job-worker.mjs",
+      "apps/platform/.next/standalone/apps/platform/run-operational-job-worker.mjs",
     );
     if (!fs.existsSync(workerRuntimeEntry)) {
       throw new Error(
-        "Hermetic platform build did not emit the bundled release-job worker entry.",
+        "Hermetic platform build did not emit the bundled operational-job worker entry.",
       );
     }
 
@@ -184,11 +184,11 @@ const main = async () => {
     );
     if (
       workerRailwayConfig.deploy?.startCommand !==
-        "node /app/apps/platform/run-release-job-worker.mjs" ||
+        "node /app/apps/platform/run-operational-job-worker.mjs" ||
       workerRailwayConfig.deploy?.healthcheckPath !== "/health"
     ) {
       throw new Error(
-        "Release-job worker Railway config does not target its bundled entry and health contract.",
+        "Operational-job worker Railway config does not target its bundled entry and health contract.",
       );
     }
 
@@ -244,13 +244,13 @@ const main = async () => {
     if (workerProbeOutput.includes("ERR_MODULE_NOT_FOUND")) {
       process.stdout.write(workerProbeOutput);
       throw new Error(
-        "Bundled release-job worker entry has a missing runtime dependency.",
+        "Bundled operational-job worker entry has a missing runtime dependency.",
       );
     }
     if (!workerProbeOutput.includes('"event":"worker.started"')) {
       process.stdout.write(workerProbeOutput);
       throw new Error(
-        "Bundled release-job worker did not reach its health-serving runtime boundary.",
+        "Bundled operational-job worker did not reach its health-serving runtime boundary.",
       );
     }
 

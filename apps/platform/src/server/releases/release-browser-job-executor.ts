@@ -103,11 +103,11 @@ const commitReleaseBrowserJobAttempt = async ({
       kind: "release_image_moderation",
       creatorId: job.creatorId,
       gameId: job.gameId,
-      releaseId: job.releaseId,
-      generationId: job.generationId,
-      idempotencyKey: `release-moderation:${job.generationId}:after:${job.id}`,
+      releaseId,
+      generationId,
+      idempotencyKey: `release-moderation:${generationId}:after:${job.id}`,
       payload: createReleaseImageModerationJobPayload({
-        generationId: job.generationId,
+        generationId,
         screenshot: {
           captureId: screenshot.captureId,
           objectKey: screenshot.screenshotObjectKey,
@@ -161,7 +161,7 @@ const commitReleaseBrowserJobAttempt = async ({
       workerId,
       result,
       reason:
-        "Release worker atomically committed screenshot evidence and its job result.",
+        "Operational worker atomically committed screenshot evidence and its job result.",
     });
     return result;
   });

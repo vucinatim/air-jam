@@ -31,6 +31,7 @@ import {
   type OperationalJobCommandKind,
   type OperationalJobEventKind,
   type OperationalJobKind,
+  type OperationalJobResourceKind,
   type OperationalJobStatus,
 } from "@air-jam/database-contract";
 import type { PlatformMachineDeviceGrantStatus } from "@air-jam/sdk/platform-machine";
@@ -224,6 +225,10 @@ export const gameReleaseGenerations = pgTable(
     readyAt: timestamp("ready_at", { withTimezone: true }),
     failedAt: timestamp("failed_at", { withTimezone: true }),
     abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+    storageCleanupStartedAt: timestamp("storage_cleanup_started_at", {
+      withTimezone: true,
+    }),
+    storageDeletedAt: timestamp("storage_deleted_at", { withTimezone: true }),
   },
   (table) => ({
     releaseSequenceIdx: uniqueIndex(
@@ -244,6 +249,11 @@ export const gameReleaseGenerations = pgTable(
     createdAtIdx: index("game_release_generations_created_at_idx").on(
       table.createdAt,
     ),
+    cleanupIdx: index("game_release_generations_cleanup_idx")
+      .on(table.status, table.createdAt)
+      .where(
+        sql`${table.storageDeletedAt} is null and ${table.status} in ('failed', 'abandoned')`,
+      ),
     requiredTextCheck: check(
       "game_release_generations_required_text_check",
       sql`btrim(${table.id}) <> '' and btrim(${table.releaseId}) <> '' and btrim(${table.originalFilename}) <> '' and btrim(${table.contentType}) <> '' and btrim(${table.zipObjectKey}) <> '' and (${table.observedContentType} is null or btrim(${table.observedContentType}) <> '') and (${table.observedEtag} is null or btrim(${table.observedEtag}) <> '') and (${table.siteRootKey} is null or btrim(${table.siteRootKey}) <> '') and (${table.entryPath} is null or btrim(${table.entryPath}) <> '')`,
@@ -267,6 +277,10 @@ export const gameReleaseGenerations = pgTable(
     outputFactsCheck: check(
       "game_release_generations_output_facts_check",
       sql`(${table.siteRootKey} is null and ${table.extractedSizeBytes} is null and ${table.fileCount} is null and ${table.entryPath} is null and ${table.contentHash} is null) or (${table.siteRootKey} is not null and ${table.extractedSizeBytes} is not null and ${table.fileCount} is not null and ${table.entryPath} is not null and ${table.contentHash} ~ '^[0-9a-f]{64}$')`,
+    ),
+    storageCleanupCheck: check(
+      "game_release_generations_storage_cleanup_check",
+      sql`(${table.storageCleanupStartedAt} is null and ${table.storageDeletedAt} is null) or (${table.storageCleanupStartedAt} is not null and ${table.status} in ('failed', 'abandoned') and (${table.storageDeletedAt} is null or ${table.storageDeletedAt} >= ${table.storageCleanupStartedAt}))`,
     ),
     lifecycleCheck: check(
       "game_release_generations_lifecycle_check",
@@ -409,7 +423,7 @@ export const operationalJobCommands = pgTable(
     ),
     kindCheck: check(
       "operational_job_commands_kind_check",
-      sql`${table.kind} in ('enqueue', 'cancel', 'replay', 'repair_expired')`,
+      sql`${table.kind} in ('enqueue', 'schedule_cleanup', 'cancel', 'replay', 'repair_expired')`,
     ),
     requiredTextCheck: check(
       "operational_job_commands_required_text_check",
@@ -440,12 +454,15 @@ export const operationalJobs = pgTable(
     status: text("status").$type<OperationalJobStatus>().notNull(),
     creatorId: text("creator_id").notNull(),
     gameId: text("game_id").notNull(),
-    releaseId: text("release_id").notNull(),
-    generationId: text("generation_id").notNull(),
+    releaseId: text("release_id"),
+    generationId: text("generation_id"),
+    resourceKind: text("resource_kind")
+      .$type<OperationalJobResourceKind>()
+      .notNull(),
+    resourceId: text("resource_id").notNull(),
     createdByCommandId: text("created_by_command_id")
       .references(() => operationalJobCommands.id, { onDelete: "restrict" })
-      .notNull()
-      .unique(),
+      .notNull(),
     requestHash: text("request_hash").notNull(),
     correlationId: text("correlation_id").notNull(),
     replayOfJobId: text("replay_of_job_id"),
@@ -506,8 +523,8 @@ export const operationalJobs = pgTable(
     }).onDelete("cascade"),
     replayOfFk: foreignKey({
       name: "operational_jobs_replay_of_fk",
-      columns: [table.replayOfJobId, table.releaseId],
-      foreignColumns: [table.id, table.releaseId],
+      columns: [table.replayOfJobId, table.resourceKind, table.resourceId],
+      foreignColumns: [table.id, table.resourceKind, table.resourceId],
     }).onDelete("restrict"),
     jobReleaseScopeIdx: uniqueIndex(
       "operational_jobs_job_release_scope_idx",
@@ -515,8 +532,11 @@ export const operationalJobs = pgTable(
     jobReleaseGenerationScopeIdx: uniqueIndex(
       "operational_jobs_job_release_generation_scope_idx",
     ).on(table.id, table.releaseId, table.generationId),
+    jobResourceScopeIdx: uniqueIndex(
+      "operational_jobs_job_resource_scope_idx",
+    ).on(table.id, table.resourceKind, table.resourceId),
     activeResourceIdx: uniqueIndex("operational_jobs_active_resource_idx")
-      .on(table.kind, table.generationId)
+      .on(table.kind, table.resourceKind, table.resourceId)
       .where(sql`${table.status} in ('queued', 'running', 'cancel_requested')`),
     queueIdx: index("operational_jobs_queue_idx")
       .on(
@@ -542,9 +562,12 @@ export const operationalJobs = pgTable(
     correlationIdx: index("operational_jobs_correlation_idx").on(
       table.correlationId,
     ),
+    createdByCommandIdx: index("operational_jobs_created_by_command_idx").on(
+      table.createdByCommandId,
+    ),
     kindCheck: check(
       "operational_jobs_kind_check",
-      sql`${table.kind} in ('release_artifact_processing', 'release_browser_validation', 'release_image_moderation')`,
+      sql`${table.kind} in ('release_artifact_processing', 'release_browser_validation', 'release_image_moderation', 'lifecycle_cleanup')`,
     ),
     contractVersionCheck: check(
       "operational_jobs_contract_version_check",
@@ -552,7 +575,7 @@ export const operationalJobs = pgTable(
     ),
     requiredTextCheck: check(
       "operational_jobs_required_text_check",
-      sql`btrim(${table.id}) <> '' and btrim(${table.creatorId}) <> '' and btrim(${table.gameId}) <> '' and btrim(${table.releaseId}) <> '' and btrim(${table.generationId}) <> '' and btrim(${table.createdByCommandId}) <> '' and btrim(${table.correlationId}) <> ''`,
+      sql`btrim(${table.id}) <> '' and btrim(${table.creatorId}) <> '' and btrim(${table.gameId}) <> '' and (${table.releaseId} is null or btrim(${table.releaseId}) <> '') and (${table.generationId} is null or btrim(${table.generationId}) <> '') and btrim(${table.resourceKind}) <> '' and btrim(${table.resourceId}) <> '' and btrim(${table.createdByCommandId}) <> '' and btrim(${table.correlationId}) <> ''`,
     ),
     requestHashCheck: check(
       "operational_jobs_request_hash_check",
@@ -572,7 +595,25 @@ export const operationalJobs = pgTable(
     ),
     kindLaneCheck: check(
       "operational_jobs_kind_lane_check",
-      sql`(${table.kind} = 'release_artifact_processing' and ${table.lane} = 'release_processing') or (${table.kind} = 'release_browser_validation' and ${table.lane} = 'browser_validation') or (${table.kind} = 'release_image_moderation' and ${table.lane} = 'moderation')`,
+      sql`(${table.kind} = 'release_artifact_processing' and ${table.lane} = 'release_processing') or (${table.kind} = 'release_browser_validation' and ${table.lane} = 'browser_validation') or (${table.kind} = 'release_image_moderation' and ${table.lane} = 'moderation') or (${table.kind} = 'lifecycle_cleanup' and ${table.lane} = 'lifecycle_cleanup')`,
+    ),
+    resourceKindCheck: check(
+      "operational_jobs_resource_kind_check",
+      sql`${table.resourceKind} in ('release_generation', 'game_media_asset')`,
+    ),
+    resourceScopeCheck: check(
+      "operational_jobs_resource_scope_check",
+      sql`(
+        ${table.resourceKind} = 'release_generation'
+        and ${table.releaseId} is not null
+        and ${table.generationId} is not null
+        and ${table.resourceId} = ${table.generationId}
+      ) or (
+        ${table.kind} = 'lifecycle_cleanup'
+        and ${table.resourceKind} = 'game_media_asset'
+        and ${table.releaseId} is null
+        and ${table.generationId} is null
+      )`,
     ),
     attemptsCheck: check(
       "operational_jobs_attempts_check",
@@ -629,9 +670,11 @@ export const operationalJobAttempts = pgTable(
   "operational_job_attempts",
   {
     id: text("id").primaryKey(),
-    jobId: text("job_id").notNull(),
-    releaseId: text("release_id").notNull(),
-    generationId: text("generation_id").notNull(),
+    jobId: text("job_id")
+      .references(() => operationalJobs.id, { onDelete: "cascade" })
+      .notNull(),
+    releaseId: text("release_id"),
+    generationId: text("generation_id"),
     attempt: integer("attempt").notNull(),
     status: text("status").$type<OperationalJobAttemptStatus>().notNull(),
     leaseOwner: text("lease_owner").notNull(),
@@ -670,7 +713,6 @@ export const operationalJobAttempts = pgTable(
     jobAttemptIdx: uniqueIndex("operational_job_attempts_job_attempt_idx").on(
       table.jobId,
       table.attempt,
-      table.generationId,
     ),
     generationStatusIdx: index(
       "operational_job_attempts_generation_status_idx",
@@ -685,7 +727,7 @@ export const operationalJobAttempts = pgTable(
       ),
     requiredTextCheck: check(
       "operational_job_attempts_required_text_check",
-      sql`btrim(${table.id}) <> '' and btrim(${table.jobId}) <> '' and btrim(${table.releaseId}) <> '' and btrim(${table.generationId}) <> '' and btrim(${table.leaseOwner}) <> '' and btrim(${table.leaseToken}) <> ''`,
+      sql`btrim(${table.id}) <> '' and btrim(${table.jobId}) <> '' and (${table.releaseId} is null or btrim(${table.releaseId}) <> '') and (${table.generationId} is null or btrim(${table.generationId}) <> '') and btrim(${table.leaseOwner}) <> '' and btrim(${table.leaseToken}) <> ''`,
     ),
     attemptCheck: check(
       "operational_job_attempts_attempt_check",
@@ -835,11 +877,10 @@ export const gameReleaseChecks = pgTable(
     }).onDelete("cascade"),
     jobAttemptGenerationFk: foreignKey({
       name: "game_release_checks_job_attempt_generation_fk",
-      columns: [table.jobId, table.jobAttempt, table.generationId],
+      columns: [table.jobId, table.jobAttempt],
       foreignColumns: [
         operationalJobAttempts.jobId,
         operationalJobAttempts.attempt,
-        operationalJobAttempts.generationId,
       ],
     }).onDelete("cascade"),
     generationReleaseScopeFk: foreignKey({
@@ -902,15 +943,33 @@ export const gameMediaAssets = pgTable(
     durationSeconds: integer("duration_seconds"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    inactiveAt: timestamp("inactive_at", { withTimezone: true }),
+    storageCleanupStartedAt: timestamp("storage_cleanup_started_at", {
+      withTimezone: true,
+    }),
+    storageDeletedAt: timestamp("storage_deleted_at", { withTimezone: true }),
   },
   (table) => ({
     gameIdx: index("game_media_assets_game_id_idx").on(table.gameId),
     kindIdx: index("game_media_assets_kind_idx").on(table.kind),
     statusIdx: index("game_media_assets_status_idx").on(table.status),
     createdAtIdx: index("game_media_assets_created_at_idx").on(table.createdAt),
+    cleanupIdx: index("game_media_assets_cleanup_idx")
+      .on(table.status, table.inactiveAt, table.createdAt)
+      .where(
+        sql`${table.storageDeletedAt} is null and ${table.status} in ('uploading', 'failed', 'archived')`,
+      ),
     assignmentTargetIdx: uniqueIndex(
       "game_media_assets_assignment_target_idx",
     ).on(table.id, table.gameId, table.kind, table.status),
+    storageCleanupCheck: check(
+      "game_media_assets_storage_cleanup_check",
+      sql`(${table.storageCleanupStartedAt} is null and ${table.storageDeletedAt} is null) or (${table.storageCleanupStartedAt} is not null and ${table.status} in ('failed', 'archived') and (${table.storageDeletedAt} is null or ${table.storageDeletedAt} >= ${table.storageCleanupStartedAt}))`,
+    ),
+    inactiveAtCheck: check(
+      "game_media_assets_inactive_at_check",
+      sql`(${table.status} in ('failed', 'archived') and ${table.inactiveAt} is not null) or (${table.status} in ('uploading', 'ready') and ${table.inactiveAt} is null)`,
+    ),
   }),
 );
 

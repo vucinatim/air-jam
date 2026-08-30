@@ -10,7 +10,7 @@ does not use an in-memory queue, a request-lifetime counter, or the isolated
 Playwright service as release-state authority.
 
 This document records the durable-authority foundation as it landed. The later
-[production release job worker proof](./production-release-job-worker-proof.md)
+[production operational job worker proof](./production-operational-job-worker-proof.md)
 records the completed executor and adapter cutover built on this authority.
 
 ## Canonical Work Kinds

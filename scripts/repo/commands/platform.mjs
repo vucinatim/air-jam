@@ -588,6 +588,50 @@ export const registerPlatformCommands = (program) => {
     });
   });
 
+  const lifecycleCommand = operationsCommand
+    .command("lifecycle")
+    .description(
+      "Inspect and operate automatic product-resource retention through durable jobs",
+    );
+
+  addPlatformDatabaseTargetOption(
+    lifecycleCommand
+      .command("cleanup")
+      .description(
+        "Preview exact retention-eligible storage or enqueue bounded cleanup jobs",
+      )
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption("--reason <reason>", "Durable operator reason")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable idempotency key for this logical cleanup schedule",
+      )
+      .option(
+        "--limit <limit>",
+        "Maximum resources to inspect or schedule, from 1 to 500",
+        "100",
+      )
+      .option(
+        "--apply",
+        "Enqueue durable cleanup jobs; omission is an exact read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "lifecycle-cleanup",
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        limit: options.limit,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
   const quotaCommand = operationsCommand
     .command("quota")
     .description(
@@ -701,6 +745,11 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--creator <creator-id>", "Authoritative creator ID")
       .option("--release <release-id>", "Authoritative release ID")
+      .option(
+        "--resource-kind <kind>",
+        "release_generation or game_media_asset",
+      )
+      .option("--resource <resource-id>", "Canonical resource ID")
       .option("--limit <limit>", "Maximum jobs to return, from 1 to 500", "100")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
@@ -712,6 +761,8 @@ export const registerPlatformCommands = (program) => {
         statuses: options.status,
         creatorId: options.creator,
         releaseId: options.release,
+        resourceKind: options.resourceKind,
+        resourceId: options.resource,
         limit: options.limit,
         json: Boolean(options.json),
       },
@@ -875,7 +926,7 @@ export const registerPlatformCommands = (program) => {
     jobsCommand
       .command("worker-once")
       .description(
-        "Preview or execute one durable release-worker claim and attempt",
+        "Preview or execute one durable operational-worker claim and attempt",
       )
       .requiredOption("--kind <kind>", "Canonical operational job kind")
       .requiredOption("--worker <worker-id>", "Stable worker identity")

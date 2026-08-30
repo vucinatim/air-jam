@@ -8,6 +8,10 @@ import {
   operationalJobs,
   users,
 } from "@/db/schema";
+import {
+  isReleaseOperationalJobKind,
+  type ReleaseOperationalJobKind,
+} from "@/server/jobs/release-job-contract";
 import { desc, eq, inArray } from "drizzle-orm";
 
 type GameRecord = typeof games.$inferSelect;
@@ -15,8 +19,20 @@ type ReleaseRecord = typeof gameReleases.$inferSelect;
 type ReleaseGenerationRecord = typeof gameReleaseGenerations.$inferSelect;
 type ReleaseCheckRecord = typeof gameReleaseChecks.$inferSelect;
 type OperationalJobRecord = typeof operationalJobs.$inferSelect;
+type ReleaseOperationalJobRecord = OperationalJobRecord & {
+  kind: ReleaseOperationalJobKind;
+  releaseId: string;
+  generationId: string;
+};
 
-export const projectReleaseJob = (job: OperationalJobRecord) => ({
+export const isReleaseOperationalJobRecord = (
+  job: OperationalJobRecord,
+): job is ReleaseOperationalJobRecord =>
+  isReleaseOperationalJobKind(job.kind) &&
+  job.releaseId !== null &&
+  job.generationId !== null;
+
+export const projectReleaseJob = (job: ReleaseOperationalJobRecord) => ({
   id: job.id,
   kind: job.kind,
   status: job.status,
@@ -150,6 +166,7 @@ const loadReleaseDetails = async ({
   }
 
   for (const job of jobs) {
+    if (!isReleaseOperationalJobRecord(job)) continue;
     const releaseJobs = jobsByReleaseId.get(job.releaseId) ?? [];
     releaseJobs.push(projectReleaseJob(job));
     jobsByReleaseId.set(job.releaseId, releaseJobs);

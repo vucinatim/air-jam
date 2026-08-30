@@ -30,6 +30,7 @@ import {
   getOperationalJobPolicy,
   type OperationalJobPolicy,
 } from "./operational-job-policy";
+import { isReleaseOperationalJobKind } from "./release-job-contract";
 import { applyReleaseJobTerminalState } from "./release-job-terminal-state";
 
 const activeLeaseStatuses: OperationalJobStatus[] = [
@@ -729,7 +730,7 @@ export const failOperationalJobAttempt = async ({
     if (!attempt) {
       throw new OperationalJobLeaseError("Job attempt failure lost its fence.");
     }
-    if (!willRetry) {
+    if (!willRetry && isReleaseOperationalJobKind(updated.kind)) {
       await applyReleaseJobTerminalState({
         tx,
         job: updated,
@@ -892,7 +893,7 @@ export const repairExpiredOperationalJobs = async ({
           );
         }
       }
-      if (!willRetry) {
+      if (!willRetry && isReleaseOperationalJobKind(updated.kind)) {
         await applyReleaseJobTerminalState({
           tx,
           job: updated,

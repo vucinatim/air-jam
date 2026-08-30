@@ -19,8 +19,11 @@ const runtimeEntries = [
     banner: null,
   },
   {
-    inputFile: path.resolve(import.meta.dirname, "run-release-job-worker.ts"),
-    outputFile: path.resolve(outputDirectory, "run-release-job-worker.mjs"),
+    inputFile: path.resolve(
+      import.meta.dirname,
+      "run-operational-job-worker.ts",
+    ),
+    outputFile: path.resolve(outputDirectory, "run-operational-job-worker.mjs"),
     // Playwright contains optional BiDi-over-CDP requires that esbuild cannot
     // resolve from the published dependency-free package. Keep the official
     // package intact beside the worker; all other worker dependencies remain

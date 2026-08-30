@@ -158,7 +158,7 @@ const commitReleaseModerationJobAttempt = async ({
       workerId,
       result,
       reason:
-        "Release worker atomically committed moderation evidence and its job result.",
+        "Operational worker atomically committed moderation evidence and its job result.",
     });
     return result;
   });

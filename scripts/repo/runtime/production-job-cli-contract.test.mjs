@@ -20,8 +20,11 @@ const readHelp = (...args) =>
 test("durable jobs expose one discoverable repo operations surface", () => {
   const operationsHelp = readHelp("platform", "operations");
   const jobsHelp = readHelp("platform", "operations", "jobs");
+  const lifecycleHelp = readHelp("platform", "operations", "lifecycle");
 
   assert.match(operationsHelp, /jobs/u);
+  assert.match(operationsHelp, /lifecycle/u);
+  assert.match(lifecycleHelp, /cleanup/u);
   for (const command of [
     "policy",
     "status",
@@ -52,6 +55,8 @@ test("durable job reads expose bounded stable JSON controls", () => {
   assert.match(listHelp, /--status/u);
   assert.match(listHelp, /--creator/u);
   assert.match(listHelp, /--release/u);
+  assert.match(listHelp, /--resource-kind/u);
+  assert.match(listHelp, /--resource/u);
   assert.match(listHelp, /--limit/u);
   assert.match(listHelp, /--json/u);
   assert.match(inspectHelp, /--job/u);
@@ -74,6 +79,12 @@ test("durable job mutations are preview-first and carry required audit fences", 
     "cleanup-orphans",
   );
   const workerHelp = readHelp("platform", "operations", "jobs", "worker-once");
+  const lifecycleCleanupHelp = readHelp(
+    "platform",
+    "operations",
+    "lifecycle",
+    "cleanup",
+  );
 
   for (const help of [cancelHelp, replayHelp, repairHelp, cleanupHelp]) {
     assert.match(help, /--apply/u);
@@ -94,6 +105,13 @@ test("durable job mutations are preview-first and carry required audit fences", 
   assert.match(workerHelp, /--kind/u);
   assert.match(workerHelp, /--worker/u);
   assert.match(workerHelp, /--json/u);
+  assert.match(lifecycleCleanupHelp, /--apply/u);
+  assert.match(lifecycleCleanupHelp, /read-only preview/u);
+  assert.match(lifecycleCleanupHelp, /--actor/u);
+  assert.match(lifecycleCleanupHelp, /--reason/u);
+  assert.match(lifecycleCleanupHelp, /--idempotency-key/u);
+  assert.match(lifecycleCleanupHelp, /--limit/u);
+  assert.match(lifecycleCleanupHelp, /--json/u);
 });
 
 test("source-owned job policy is readable as stdout-only JSON without a database", () => {
@@ -120,6 +138,7 @@ test("source-owned job policy is readable as stdout-only JSON without a database
       "release_artifact_processing",
       "release_browser_validation",
       "release_image_moderation",
+      "lifecycle_cleanup",
     ],
   );
   for (const policy of document.result.policies) {
@@ -164,8 +183,8 @@ test(
           (id, contract_version, idempotency_key, kind, request_hash, actor, reason, request, result, created_at, completed_at)
           values (${commandId}, 1, ${`cli-redaction-command-${suffix}`}, 'enqueue', ${"b".repeat(64)}, 'test:cli-redaction', 'Prove operator-safe JSON.', ${{ authorization: "Bearer command-secret" }}, ${{ job: { id: jobId } }}, now(), now())`;
         await tx`insert into operational_jobs
-          (id, contract_version, kind, lane, status, creator_id, game_id, release_id, generation_id, created_by_command_id, request_hash, correlation_id, payload, progress, priority, available_at, deadline_at, attempt_count, max_attempts, revision, lease_owner, lease_token, lease_expires_at, last_heartbeat_at, started_at, created_at, updated_at)
-          values (${jobId}, 1, 'release_artifact_processing', 'release_processing', 'running', ${userId}, ${gameId}, ${releaseId}, ${generationId}, ${commandId}, ${"a".repeat(64)}, ${`correlation-${suffix}`}, ${{ contractVersion: 1, generationId }}, ${{ token: "progress-secret" }}, 0, now(), now() + interval '1 hour', 1, 3, 2, 'worker:cli-redaction', ${leaseToken}, now() + interval '5 minutes', now(), now(), now(), now())`;
+          (id, contract_version, kind, lane, status, creator_id, game_id, release_id, generation_id, resource_kind, resource_id, created_by_command_id, request_hash, correlation_id, payload, progress, priority, available_at, deadline_at, attempt_count, max_attempts, revision, lease_owner, lease_token, lease_expires_at, last_heartbeat_at, started_at, created_at, updated_at)
+          values (${jobId}, 1, 'release_artifact_processing', 'release_processing', 'running', ${userId}, ${gameId}, ${releaseId}, ${generationId}, 'release_generation', ${generationId}, ${commandId}, ${"a".repeat(64)}, ${`correlation-${suffix}`}, ${{ contractVersion: 1, generationId }}, ${{ token: "progress-secret" }}, 0, now(), now() + interval '1 hour', 1, 3, 2, 'worker:cli-redaction', ${leaseToken}, now() + interval '5 minutes', now(), now(), now(), now())`;
         await tx`insert into operational_job_attempts
           (id, job_id, release_id, generation_id, attempt, status, lease_owner, lease_token, progress, started_at, last_heartbeat_at, created_at, updated_at)
           values (${`attempt-${suffix}`}, ${jobId}, ${releaseId}, ${generationId}, 1, 'running', 'worker:cli-redaction', ${leaseToken}, ${{ token: "attempt-progress-secret" }}, now(), now(), now(), now())`;

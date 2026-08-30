@@ -1,13 +1,14 @@
+import { scheduleLifecycleCleanup } from "@/server/operations/lifecycle-cleanup-service";
 import { validateEnv } from "@air-jam/env";
 import { createServer, type ServerResponse } from "node:http";
 import { z } from "zod";
 import { repairExpiredOperationalJobs } from "./operational-job-service";
-import { cleanupReleaseJobOrphanOutputs } from "./release-job-output-cleanup";
 import {
-  releaseJobWorkerKinds,
-  runReleaseJobWorkerCycle,
-  type ReleaseJobWorkerCycleResult,
-} from "./release-job-worker";
+  operationalJobWorkerKinds,
+  runOperationalJobWorkerCycle,
+  type OperationalJobWorkerCycleResult,
+} from "./operational-job-worker";
+import { cleanupReleaseJobOrphanOutputs } from "./release-job-output-cleanup";
 
 const optionalTrimmedString = z.preprocess(
   (value) =>
@@ -41,6 +42,7 @@ const workerEnvSchema = z
     AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: optionalTrimmedString,
     AIRJAM_PLATFORM_WORKER_POLL_MS: positiveInteger(2_000),
     AIRJAM_PLATFORM_WORKER_REPAIR_MS: positiveInteger(30_000),
+    AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: positiveInteger(900_000),
     AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT: positiveInteger(4),
     AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS: positiveInteger(300_000),
   })
@@ -76,22 +78,25 @@ const workerEnvSchema = z
       controlToken: value.AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN ?? null,
       pollMs: value.AIRJAM_PLATFORM_WORKER_POLL_MS,
       repairMs: value.AIRJAM_PLATFORM_WORKER_REPAIR_MS,
+      lifecycleCleanupMs: value.AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS,
       maxInFlight: value.AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT,
       drainTimeoutMs: value.AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS,
     };
   });
 
-export type ReleaseJobWorkerServiceConfig = z.output<typeof workerEnvSchema>;
+export type OperationalJobWorkerServiceConfig = z.output<
+  typeof workerEnvSchema
+>;
 
-export const loadReleaseJobWorkerServiceConfig = (
+export const loadOperationalJobWorkerServiceConfig = (
   env: Record<string, string | undefined> = process.env,
-): ReleaseJobWorkerServiceConfig =>
+): OperationalJobWorkerServiceConfig =>
   validateEnv({
-    boundary: "platform-release-job-worker",
+    boundary: "platform-operational-job-worker",
     schema: workerEnvSchema,
     env,
     docsHint:
-      "Set AIRJAM_PLATFORM_WORKER_* variables for the durable release executor.",
+      "Set AIRJAM_PLATFORM_WORKER_* variables for the durable operational executor.",
   });
 
 const writeJson = (
@@ -112,35 +117,38 @@ const isAuthorized = ({
   token: string | null;
 }): boolean => Boolean(token) && authorization === `Bearer ${token}`;
 
-export type ReleaseJobWorkerServiceHandle = {
-  config: ReleaseJobWorkerServiceConfig;
+export type OperationalJobWorkerServiceHandle = {
+  config: OperationalJobWorkerServiceConfig;
   drain: () => Promise<void>;
   close: () => Promise<void>;
 };
 
-export const startReleaseJobWorkerService = async ({
+export const startOperationalJobWorkerService = async ({
   env = process.env,
-  runCycle = runReleaseJobWorkerCycle,
+  runCycle = runOperationalJobWorkerCycle,
   repair = repairExpiredOperationalJobs,
   cleanup = cleanupReleaseJobOrphanOutputs,
+  scheduleCleanup = scheduleLifecycleCleanup,
 }: {
   env?: Record<string, string | undefined>;
-  runCycle?: typeof runReleaseJobWorkerCycle;
+  runCycle?: typeof runOperationalJobWorkerCycle;
   repair?: typeof repairExpiredOperationalJobs;
   cleanup?: typeof cleanupReleaseJobOrphanOutputs;
-} = {}): Promise<ReleaseJobWorkerServiceHandle> => {
-  const config = loadReleaseJobWorkerServiceConfig(env);
-  const inFlight = new Set<Promise<ReleaseJobWorkerCycleResult>>();
+  scheduleCleanup?: typeof scheduleLifecycleCleanup;
+} = {}): Promise<OperationalJobWorkerServiceHandle> => {
+  const config = loadOperationalJobWorkerServiceConfig(env);
+  const inFlight = new Set<Promise<OperationalJobWorkerCycleResult>>();
   let accepting = true;
   let closed = false;
   let scheduling = false;
   let lastCycleAt: string | null = null;
-  let lastCycleResult: ReleaseJobWorkerCycleResult | null = null;
+  let lastCycleResult: OperationalJobWorkerCycleResult | null = null;
   let lastErrorAt: string | null = null;
   let lastErrorCode: string | null = null;
   let lastAuthoritySuccessAt: string | null = null;
   let authorityReady = false;
   let maintenanceInFlight: Promise<void> | null = null;
+  let lifecycleCleanupInFlight: Promise<void> | null = null;
   let kindCursor = 0;
 
   const recordAuthoritySuccess = () => {
@@ -155,7 +163,7 @@ export const startReleaseJobWorkerService = async ({
       error instanceof Error ? error.name : "unknown_worker_error";
   };
 
-  const runOne = (kind: (typeof releaseJobWorkerKinds)[number]) => {
+  const runOne = (kind: (typeof operationalJobWorkerKinds)[number]) => {
     const task = runCycle({ kind, workerId: config.workerId })
       .then((result) => {
         lastCycleAt = new Date().toISOString();
@@ -175,7 +183,7 @@ export const startReleaseJobWorkerService = async ({
       console.error(
         JSON.stringify({
           service: "air-jam-platform-worker",
-          event: "release_job.cycle_failed",
+          event: "operational_job.cycle_failed",
           kind,
           error: error instanceof Error ? error.message : String(error),
         }),
@@ -189,7 +197,9 @@ export const startReleaseJobWorkerService = async ({
     try {
       while (inFlight.size < config.maxInFlight) {
         const kind =
-          releaseJobWorkerKinds[kindCursor % releaseJobWorkerKinds.length];
+          operationalJobWorkerKinds[
+            kindCursor % operationalJobWorkerKinds.length
+          ];
         kindCursor += 1;
         if (!kind) break;
         runOne(kind);
@@ -206,12 +216,12 @@ export const startReleaseJobWorkerService = async ({
   const repairExpired = async () => {
     let successful = true;
     const bucket = Math.floor(Date.now() / config.repairMs);
-    for (const kind of releaseJobWorkerKinds) {
+    for (const kind of operationalJobWorkerKinds) {
       try {
         await repair({
           kind,
           actor: config.workerId,
-          reason: "Platform worker repaired expired release job authority.",
+          reason: "Platform worker repaired expired operational job authority.",
           idempotencyKey: `worker-repair:${kind}:${bucket}`,
         });
       } catch (error) {
@@ -220,7 +230,7 @@ export const startReleaseJobWorkerService = async ({
         console.error(
           JSON.stringify({
             service: "air-jam-platform-worker",
-            event: "release_job.repair_failed",
+            event: "operational_job.repair_failed",
             kind,
             error: error instanceof Error ? error.message : String(error),
           }),
@@ -238,7 +248,7 @@ export const startReleaseJobWorkerService = async ({
       console.error(
         JSON.stringify({
           service: "air-jam-platform-worker",
-          event: "release_job.cleanup_failed",
+          event: "operational_job.output_cleanup_failed",
           error: error instanceof Error ? error.message : String(error),
         }),
       );
@@ -258,6 +268,43 @@ export const startReleaseJobWorkerService = async ({
   repairTimer.unref();
   runMaintenance();
 
+  const scheduleCleanupJobs = async () => {
+    const bucket = Math.floor(Date.now() / config.lifecycleCleanupMs);
+    try {
+      await scheduleCleanup({
+        actor: config.workerId,
+        reason:
+          "Platform worker scheduled retention-eligible lifecycle cleanup.",
+        idempotencyKey: `worker-lifecycle-cleanup:${bucket}`,
+      });
+      recordAuthoritySuccess();
+    } catch (error) {
+      recordAuthorityFailure(error);
+      console.error(
+        JSON.stringify({
+          service: "air-jam-platform-worker",
+          event: "lifecycle_cleanup.schedule_failed",
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  };
+
+  const runLifecycleCleanupScheduler = () => {
+    if (!accepting || closed || lifecycleCleanupInFlight) return;
+    const task = scheduleCleanupJobs().finally(() => {
+      if (lifecycleCleanupInFlight === task) lifecycleCleanupInFlight = null;
+    });
+    lifecycleCleanupInFlight = task;
+  };
+
+  const lifecycleCleanupTimer = setInterval(
+    runLifecycleCleanupScheduler,
+    config.lifecycleCleanupMs,
+  );
+  lifecycleCleanupTimer.unref();
+  runLifecycleCleanupScheduler();
+
   const status = () => ({
     ok: !closed,
     service: "air-jam-platform-worker",
@@ -266,6 +313,7 @@ export const startReleaseJobWorkerService = async ({
     draining: !accepting && !closed,
     inFlight: inFlight.size,
     maintenanceInFlight: maintenanceInFlight !== null,
+    lifecycleCleanupInFlight: lifecycleCleanupInFlight !== null,
     maxInFlight: config.maxInFlight,
     authorityReady,
     lastAuthoritySuccessAt,
@@ -336,6 +384,7 @@ export const startReleaseJobWorkerService = async ({
     accepting = false;
     clearInterval(scheduler);
     clearInterval(repairTimer);
+    clearInterval(lifecycleCleanupTimer);
     const timeout = new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, config.drainTimeoutMs);
       timer.unref();
@@ -344,6 +393,7 @@ export const startReleaseJobWorkerService = async ({
       Promise.allSettled([
         ...inFlight,
         ...(maintenanceInFlight ? [maintenanceInFlight] : []),
+        ...(lifecycleCleanupInFlight ? [lifecycleCleanupInFlight] : []),
       ]).then(() => undefined),
       timeout,
     ]);

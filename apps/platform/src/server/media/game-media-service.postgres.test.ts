@@ -103,7 +103,7 @@ describeWithPostgres("managed media PostgreSQL invariants", () => {
     await expect(
       database
         .update(schema.gameMediaAssets)
-        .set({ status: "archived" })
+        .set({ status: "archived", inactiveAt: new Date() })
         .where(eq(schema.gameMediaAssets.id, thumbnailId)),
     ).rejects.toMatchObject({
       cause: {
