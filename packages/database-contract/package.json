@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@air-jam/operations-contract": "workspace:^",
     "drizzle-orm": "^0.45.0"
   },
   "devDependencies": {

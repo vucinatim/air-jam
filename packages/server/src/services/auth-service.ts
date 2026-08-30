@@ -1,3 +1,4 @@
+import { normalizeUnknownOperationalFailure } from "@air-jam/operations-contract";
 import {
   AIRJAM_DEV_LOG_EVENTS,
   verifyHostGrant,
@@ -7,6 +8,10 @@ import { and, eq } from "drizzle-orm";
 import { appIds, type ServerDatabase } from "../db.js";
 import { resolveServerRuntimeDatabaseUrl } from "../env/database-url-policy.js";
 import { createServerLogger, type ServerLogger } from "../logging/logger.js";
+import {
+  publishServerOperationalFailureSafely,
+  type ServerOperationalEventPublisher,
+} from "../operations/operational-event-publisher.js";
 
 type AuthMode = "disabled" | "required";
 
@@ -55,6 +60,7 @@ export interface AuthServiceOptions {
   logger?: ServerLogger;
   env?: AuthServiceEnvironment;
   db?: ServerDatabase | null;
+  operationalEventPublisher?: ServerOperationalEventPublisher;
 }
 
 const normalizeOrigin = (value?: string): string | null => {
@@ -102,6 +108,7 @@ export class AuthService {
   private databaseUrl: string | undefined;
   private authMode: AuthMode;
   private db: ServerDatabase | null;
+  private operationalEventPublisher: ServerOperationalEventPublisher | null;
 
   constructor(options: AuthServiceOptions = {}) {
     this.logger = options.logger ?? createServerLogger({ component: "auth" });
@@ -113,6 +120,7 @@ export class AuthService {
       resolveServerRuntimeDatabaseUrl(process.env).databaseUrl;
     this.authMode = this.resolveAuthMode(options.env);
     this.db = options.db ?? null;
+    this.operationalEventPublisher = options.operationalEventPublisher ?? null;
 
     if (this.authMode === "disabled") {
       this.logger.info(
@@ -318,13 +326,41 @@ export class AuthService {
         error: "Unauthorized: Invalid or Missing App ID",
       };
     } catch (error) {
+      const failure = normalizeUnknownOperationalFailure({
+        error,
+        code: "auth.app_id_verification_failed",
+        summary:
+          "Realtime app identity verification could not query its authority.",
+        retryable: true,
+        details: { operation: "verify_app_id" },
+      });
       this.logger.error(
         {
           event: AIRJAM_DEV_LOG_EVENTS.auth.appIdVerificationDatabaseError,
-          err: error,
+          failure,
         },
         "Database error during app ID verification",
       );
+      if (this.operationalEventPublisher) {
+        publishServerOperationalFailureSafely({
+          publisher: this.operationalEventPublisher,
+          logger: this.logger,
+          input: {
+            code: "auth.app_id_verification_failed",
+            failureClass: "dependency",
+            summary:
+              "Realtime app identity verification could not query its authority.",
+            retryable: true,
+            component: "auth-service",
+            subject: { type: "service", id: "realtime_server" },
+            correlation: {
+              contractVersion: 1,
+              correlationId: `auth-verification:${crypto.randomUUID()}`,
+            },
+            details: { operation: "verify_app_id" },
+          },
+        });
+      }
       return {
         isVerified: false,
         error: "Internal Server Error",

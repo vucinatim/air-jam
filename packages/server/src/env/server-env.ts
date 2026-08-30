@@ -10,11 +10,13 @@ export type ProxyHeaderTrustMode = "auto" | "enabled" | "disabled";
 
 export interface ServerEnvConfig {
   nodeEnv: string;
+  operationalEnvironment: "production" | "preview" | "development" | "test";
   port: number;
   rateLimitWindowMs: number;
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
   staticAppRateLimitMax: number;
+  runtimeErrorReportRateLimitMax: number;
   allowedOrigins: string[] | "*";
   devLogCollectorEnabled: boolean;
   devLogDir?: string;
@@ -118,6 +120,10 @@ const resolveAuthMode = ({
 const rawServerEnvSchema = z
   .object({
     NODE_ENV: optionalEnvString,
+    AIRJAM_OPERATIONAL_ENVIRONMENT: createOptionalEnumSchema(
+      "AIRJAM_OPERATIONAL_ENVIRONMENT",
+      ["production", "preview", "development", "test"],
+    ),
     PORT: createPositiveIntegerSchema("PORT", 4000),
     AIR_JAM_RATE_LIMIT_WINDOW_MS: createPositiveIntegerSchema(
       "AIR_JAM_RATE_LIMIT_WINDOW_MS",
@@ -134,6 +140,10 @@ const rawServerEnvSchema = z
     AIR_JAM_STATIC_APP_RATE_LIMIT_MAX: createPositiveIntegerSchema(
       "AIR_JAM_STATIC_APP_RATE_LIMIT_MAX",
       120,
+    ),
+    AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX: createPositiveIntegerSchema(
+      "AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX",
+      30,
     ),
     AIR_JAM_ALLOWED_ORIGINS: optionalEnvString,
     AIR_JAM_DEV_LOG_COLLECTOR: createOptionalEnumSchema(
@@ -229,6 +239,17 @@ export const loadServerEnv = (
   const railwayEnvironmentName = env.RAILWAY_ENVIRONMENT_NAME?.trim();
   const isRailwayPreviewEnvironment =
     Boolean(railwayEnvironmentName) && railwayEnvironmentName !== "production";
+  const operationalEnvironment: ServerEnvConfig["operationalEnvironment"] =
+    (parsed.AIRJAM_OPERATIONAL_ENVIRONMENT as
+      | ServerEnvConfig["operationalEnvironment"]
+      | undefined) ??
+    (railwayEnvironmentName === "production"
+      ? "production"
+      : railwayEnvironmentName
+        ? "preview"
+        : nodeEnv === "test"
+          ? "test"
+          : "development");
 
   const authMode = resolveAuthMode({
     configuredAuthMode: parsed.AIR_JAM_AUTH_MODE as AuthMode | undefined,
@@ -242,12 +263,15 @@ export const loadServerEnv = (
 
   return {
     nodeEnv,
+    operationalEnvironment,
     port: parsed.PORT,
     rateLimitWindowMs: parsed.AIR_JAM_RATE_LIMIT_WINDOW_MS,
     hostRegistrationRateLimitMax:
       parsed.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX,
     controllerJoinRateLimitMax: parsed.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX,
     staticAppRateLimitMax: parsed.AIR_JAM_STATIC_APP_RATE_LIMIT_MAX,
+    runtimeErrorReportRateLimitMax:
+      parsed.AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX,
     allowedOrigins: isRailwayPreviewEnvironment
       ? "*"
       : normalizeAllowedOrigins(parsed.AIR_JAM_ALLOWED_ORIGINS),

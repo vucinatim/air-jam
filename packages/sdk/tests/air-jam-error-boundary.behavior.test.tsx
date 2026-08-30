@@ -49,6 +49,46 @@ describe("AirJamErrorBoundary behavior", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it("reports only the bounded hosted-runtime crash contract", () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const reportError = vi.fn();
+
+    const SecretFailure = (): never => {
+      throw new Error("password=must-not-escape https://secret.invalid/path");
+    };
+
+    render(
+      <AirJamErrorBoundary
+        role="controller"
+        roomId="ABCD"
+        appId="private-app-id"
+        reportError={reportError}
+      >
+        <SecretFailure />
+      </AirJamErrorBoundary>,
+    );
+
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError.mock.calls[0]?.[0]).toMatchObject({
+      contractVersion: 1,
+      roomId: "ABCD",
+      role: "controller",
+      code: "AJ_RUNTIME_RENDER_CRASH",
+      errorName: "Error",
+    });
+    expect(JSON.stringify(reportError.mock.calls)).not.toContain("password");
+    expect(JSON.stringify(reportError.mock.calls)).not.toContain(
+      "secret.invalid",
+    );
+    expect(JSON.stringify(reportError.mock.calls)).not.toContain(
+      "private-app-id",
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it("supports minimizing and expanding the fallback panel", () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")

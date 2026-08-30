@@ -28,9 +28,26 @@ describe("loadServerEnv", () => {
     expect(config.port).toBe(4000);
     expect(config.allowedOrigins).toBe("*");
     expect(config.rateLimitWindowMs).toBe(60_000);
+    expect(config.runtimeErrorReportRateLimitMax).toBe(30);
     expect(config.authMode).toBe("disabled");
     expect(config.proxyHeaderTrustMode).toBe("auto");
     expect(config.remoteDatabaseBlocked).toBe(false);
+  });
+
+  it("validates the hosted-runtime report rate limit", () => {
+    expect(() =>
+      loadServerEnv({
+        AIR_JAM_AUTH_MODE: "disabled",
+        AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX: "0",
+      }),
+    ).toThrow(EnvValidationError);
+
+    expect(
+      loadServerEnv({
+        AIR_JAM_AUTH_MODE: "disabled",
+        AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX: "12",
+      }).runtimeErrorReportRateLimitMax,
+    ).toBe(12);
   });
 
   it("accepts a partial app-local env file shape", () => {

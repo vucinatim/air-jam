@@ -71,7 +71,7 @@ describe("lifecycle cleanup job contract", () => {
     ).toEqual({
       contractVersion: lifecycleCleanupJobContractVersion,
       code: "unexpected_cleanup_error",
-      message: "storage unavailable",
+      message: "Lifecycle cleanup failed unexpectedly.",
       stage: "inventorying",
       retryable: true,
     });

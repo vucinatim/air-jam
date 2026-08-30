@@ -1,11 +1,13 @@
 import { db } from "@/db";
 import { operationalJobAttempts, operationalJobs } from "@/db/schema";
+import { enqueueOperationalJobFailureEventInTransaction } from "@/server/operations/operational-job-event-producer";
 import { acquireOperationalLaneLock } from "@/server/operations/operational-lane-lock";
 import {
   operationalJobContractVersion,
   type OperationalJobKind,
   type OperationalJobStatus,
 } from "@air-jam/database-contract";
+import { normalizeOperationalJobFailure } from "@air-jam/operations-contract";
 import { and, asc, count, desc, eq, gt, inArray, lte, or } from "drizzle-orm";
 import {
   OperationalJobConflictError,
@@ -655,7 +657,6 @@ export const failOperationalJobAttempt = async ({
 }) => {
   const workerId = normalizeRequiredJobText(rawWorkerId, "Worker ID");
   const reason = normalizeRequiredJobText(rawReason, "Reason");
-  const normalizedError = normalizeOperationalJobJsonObject(error, "Error");
   return database.transaction(async (tx) => {
     const [current] = await tx
       .select()
@@ -665,6 +666,15 @@ export const failOperationalJobAttempt = async ({
     const authorityNow = await resolveOperationalJobNow(tx, testNow);
     const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
     const policy = getOperationalJobPolicy(job.kind);
+    const structuredFailure = normalizeOperationalJobFailure({
+      error,
+      retryable,
+      jobKind: job.kind,
+    });
+    const normalizedError = normalizeOperationalJobJsonObject(
+      structuredFailure as unknown as Record<string, unknown>,
+      "Error",
+    );
     const retryAt = new Date(
       authorityNow.getTime() +
         retryDelaySeconds(policy, job.attemptCount) * 1_000,
@@ -737,7 +747,7 @@ export const failOperationalJobAttempt = async ({
         now: authorityNow,
       });
     }
-    await insertOperationalJobEvent({
+    const jobEvent = await insertOperationalJobEvent({
       tx,
       job: updated,
       kind: canceled ? "canceled" : willRetry ? "retry_scheduled" : "failed",
@@ -753,6 +763,18 @@ export const failOperationalJobAttempt = async ({
         ...(willRetry ? { retryAt: retryAt.toISOString() } : {}),
       },
     });
+    if (!canceled) {
+      await enqueueOperationalJobFailureEventInTransaction({
+        tx,
+        job: updated,
+        jobEvent,
+        failure: structuredFailure,
+        workerId,
+        willRetry,
+        retryAt: willRetry ? retryAt : null,
+        occurredAt: authorityNow,
+      });
+    }
     return updated;
   });
 };

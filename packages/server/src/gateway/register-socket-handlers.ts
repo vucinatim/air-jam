@@ -4,6 +4,7 @@ import {
 } from "@air-jam/sdk/protocol";
 import type { RuntimeUsagePublisher } from "../analytics/runtime-usage.js";
 import type { ServerLogger } from "../logging/logger.js";
+import type { ServerOperationalEventPublisher } from "../operations/operational-event-publisher.js";
 import {
   createRateLimitGuard,
   createScopedRateLimitGuard,
@@ -29,10 +30,12 @@ export interface RegisterSocketHandlersOptions {
   rateLimitService: RateLimitService;
   authService: HostBootstrapAuthService;
   runtimeUsagePublisher: RuntimeUsagePublisher;
+  operationalEventPublisher: ServerOperationalEventPublisher;
   rateLimitWindowMs: number;
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
   staticAppRateLimitMax: number;
+  runtimeErrorReportRateLimitMax: number;
   proxyHeaderTrustMode: ProxyHeaderTrustMode;
   maintenanceMode: boolean;
 }
@@ -45,10 +48,12 @@ export const registerSocketHandlers = ({
   rateLimitService,
   authService,
   runtimeUsagePublisher,
+  operationalEventPublisher,
   rateLimitWindowMs,
   hostRegistrationRateLimitMax,
   controllerJoinRateLimitMax,
   staticAppRateLimitMax,
+  runtimeErrorReportRateLimitMax,
   proxyHeaderTrustMode,
   maintenanceMode,
 }: RegisterSocketHandlersOptions): void => {
@@ -94,9 +99,11 @@ export const registerSocketHandlers = ({
     roomManager,
     authService,
     runtimeUsagePublisher,
+    operationalEventPublisher,
     hostRegistrationRateLimitMax,
     controllerJoinRateLimitMax,
     staticAppRateLimitMax,
+    runtimeErrorReportRateLimitMax,
     emitError,
     isRateLimited,
     isScopedRateLimited,

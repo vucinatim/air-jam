@@ -32,4 +32,31 @@ export async function register() {
   }
 }
 
-export const onRequestError = Sentry.captureRequestError;
+export const onRequestError: typeof Sentry.captureRequestError = (
+  error,
+  request,
+  errorContext,
+) => {
+  Sentry.captureRequestError(error, request, errorContext);
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  void import("./server/operations/platform-request-error-reporter")
+    .then(({ publishPlatformRequestFailure }) =>
+      publishPlatformRequestFailure({
+        error,
+        context: {
+          method: request.method,
+          routerKind: errorContext.routerKind,
+          routeType: errorContext.routeType,
+        },
+      }),
+    )
+    .catch((reportingError: unknown) => {
+      console.warn("[instrumentation] operational request report failed", {
+        causeCode:
+          reportingError instanceof Error
+            ? reportingError.name
+            : "unknown_error",
+      });
+    });
+};

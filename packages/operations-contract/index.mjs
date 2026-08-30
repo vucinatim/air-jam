@@ -27,6 +27,7 @@ export const operationalEventAuthorities = Object.freeze([
   "provider_attested",
   "synthetic_observation",
   "operator_attested",
+  "runtime_reported",
 ]);
 
 export const operationalEventSeverities = Object.freeze([
@@ -47,6 +48,31 @@ export const operationalEventOutcomes = Object.freeze([
   "blocked",
   "canceled",
 ]);
+
+export const operationalFailureClasses = Object.freeze([
+  "invalid_input",
+  "authorization",
+  "conflict",
+  "dependency",
+  "timeout",
+  "capacity",
+  "unavailable",
+  "internal",
+]);
+
+export const operationalSloStatuses = Object.freeze([
+  "insufficient_data",
+  "healthy",
+  "breaching",
+]);
+
+export const operationalSyntheticRunStatuses = Object.freeze([
+  "passed",
+  "failed",
+  "error",
+]);
+
+export const operationalAlertStatuses = Object.freeze(["open", "recovered"]);
 
 export const operationalSubjectTypes = Object.freeze([
   "platform",
@@ -162,6 +188,12 @@ export const runbookActionStatusTransitions = Object.freeze({
 
 export const operationsContractSchemaNames = Object.freeze([
   "operational_event",
+  "operational_failure",
+  "slo_definition",
+  "slo_evaluation",
+  "synthetic_check",
+  "synthetic_run",
+  "alert",
   "incident_fingerprint_input",
   "incident",
   "runbook",
@@ -300,6 +332,443 @@ export const operationalEventEnvelopeSchemaV1 = z
         code: z.ZodIssueCode.custom,
         path: ["observedAt"],
         message: "observedAt must not precede occurredAt",
+      });
+    }
+  });
+
+export const operationalFailureSchemaV1 = z
+  .object({
+    contractVersion: contractVersionSchema,
+    code: eventKindSchema,
+    class: z.enum(operationalFailureClasses),
+    summary: nonEmptyTextSchema.max(500),
+    retryable: z.boolean(),
+    stage: identifierSchema.optional(),
+    causeCode: eventKindSchema.optional(),
+    details: boundedJsonRecordSchema.default({}),
+  })
+  .strict();
+
+const operationalSecretKeyPattern =
+  /(?:authorization|cookie|credential|password|private|secret|session|token)/iu;
+const operationalCodePattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/u;
+const operationalIdentifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/u;
+
+const sanitizeOperationalJson = (value, depth = 0) => {
+  if (depth > 8) return undefined;
+  if (value === null || typeof value === "boolean") return value;
+  if (typeof value === "number")
+    return Number.isFinite(value) ? value : undefined;
+  if (typeof value === "string") return value.slice(0, 1_000);
+  if (Array.isArray(value)) {
+    return value
+      .slice(0, 100)
+      .map((item) => sanitizeOperationalJson(item, depth + 1))
+      .filter((item) => item !== undefined);
+  }
+  if (!value || typeof value !== "object") return undefined;
+  const sanitized = {};
+  for (const [key, nested] of Object.entries(value).slice(0, 100)) {
+    if (operationalSecretKeyPattern.test(key)) continue;
+    const safe = sanitizeOperationalJson(nested, depth + 1);
+    if (safe !== undefined) sanitized[key.slice(0, 80)] = safe;
+  }
+  return sanitized;
+};
+
+const safeOperationalCode = (value, fallback) => {
+  const normalized = value.trim().toLowerCase();
+  return operationalCodePattern.test(normalized) && normalized.length <= 160
+    ? normalized
+    : fallback;
+};
+
+const safeOperationalIdentifier = (value) => {
+  const normalized = value?.trim();
+  return normalized &&
+    normalized.length <= 200 &&
+    operationalIdentifierPattern.test(normalized)
+    ? normalized
+    : undefined;
+};
+
+export const createStructuredOperationalFailure = ({
+  code,
+  failureClass,
+  summary,
+  retryable,
+  stage,
+  causeCode,
+  details = {},
+}) => {
+  const safeStage = safeOperationalIdentifier(stage);
+  return operationalFailureSchemaV1.parse({
+    contractVersion: 1,
+    code: safeOperationalCode(code, "internal.unclassified"),
+    class: failureClass,
+    summary: summary.trim().slice(0, 500) || "An operational action failed.",
+    retryable,
+    ...(safeStage ? { stage: safeStage } : {}),
+    ...(causeCode
+      ? {
+          causeCode: safeOperationalCode(causeCode, "internal.unclassified"),
+        }
+      : {}),
+    details: sanitizeOperationalJson(details) ?? {},
+  });
+};
+
+export const normalizeUnknownOperationalFailure = ({
+  error,
+  code = "internal.unexpected",
+  summary = "An unexpected operational failure occurred.",
+  retryable = true,
+  stage,
+  details,
+}) =>
+  createStructuredOperationalFailure({
+    code,
+    failureClass: "internal",
+    summary,
+    retryable,
+    stage,
+    causeCode:
+      error instanceof Error
+        ? safeOperationalCode(error.name, "internal.error")
+        : "internal.non_error_throw",
+    details,
+  });
+
+export const normalizeOperationalJobFailure = ({
+  error,
+  retryable,
+  jobKind,
+}) => {
+  const rawCode =
+    typeof error.code === "string" ? error.code : "job.unexpected";
+  const code = safeOperationalCode(rawCode, "job.unexpected");
+  const failureClass = /timeout|expired/u.test(code)
+    ? "timeout"
+    : /capacity|quota|limit/u.test(code)
+      ? "capacity"
+      : /invalid|malformed|unsupported/u.test(code)
+        ? "invalid_input"
+        : /storage|browser|moderation|provider|network|unavailable/u.test(code)
+          ? "dependency"
+          : "internal";
+  return createStructuredOperationalFailure({
+    code,
+    failureClass,
+    summary: `Operational job ${jobKind} failed.`,
+    retryable,
+    stage: typeof error.stage === "string" ? error.stage : undefined,
+    details: { jobKind },
+  });
+};
+
+export const operationalSloDefinitionSchemaV1 = z
+  .object({
+    contractVersion: contractVersionSchema,
+    sloId: identifierSchema,
+    title: nonEmptyTextSchema.max(200),
+    description: nonEmptyTextSchema.max(2000),
+    service: z.enum(operationalServices),
+    indicator: z.literal("synthetic_success_ratio"),
+    syntheticCheckIds: z.array(identifierSchema).min(1).max(32),
+    objectiveBasisPoints: z.number().int().min(1).max(10_000),
+    windowSeconds: z.number().int().min(60).max(2_592_000),
+    minimumSamples: z.number().int().min(1).max(100_000),
+    alerting: z
+      .object({
+        severity: z.enum(["warning", "error", "critical"]),
+        consecutiveBreaches: z.number().int().min(1).max(20),
+        consecutiveRecoveries: z.number().int().min(1).max(20),
+      })
+      .strict(),
+  })
+  .strict()
+  .superRefine((definition, context) => {
+    if (!uniqueValues(definition.syntheticCheckIds)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["syntheticCheckIds"],
+        message: "syntheticCheckIds must not contain duplicates",
+      });
+    }
+  });
+
+export const operationalSloEvaluationSchemaV1 = z
+  .object({
+    contractVersion: contractVersionSchema,
+    evaluationId: identifierSchema,
+    sloId: identifierSchema,
+    environment: z.enum(deploymentEnvironments),
+    service: z.enum(operationalServices),
+    windowStartedAt: isoDateTimeSchema,
+    windowEndedAt: isoDateTimeSchema,
+    sampleCount: z.number().int().min(0),
+    successCount: z.number().int().min(0),
+    successRatioBasisPoints: z.number().int().min(0).max(10_000).nullable(),
+    objectiveBasisPoints: z.number().int().min(1).max(10_000),
+    status: z.enum(operationalSloStatuses),
+    consecutiveBreaches: z.number().int().min(0),
+    consecutiveRecoveries: z.number().int().min(0),
+    evaluatedAt: isoDateTimeSchema,
+    evidence: z.array(operationalEvidenceSchemaV1).max(64).default([]),
+  })
+  .strict()
+  .superRefine((evaluation, context) => {
+    if (
+      Date.parse(evaluation.windowEndedAt) <=
+      Date.parse(evaluation.windowStartedAt)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["windowEndedAt"],
+        message: "windowEndedAt must be later than windowStartedAt",
+      });
+    }
+    if (
+      Date.parse(evaluation.evaluatedAt) < Date.parse(evaluation.windowEndedAt)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["evaluatedAt"],
+        message: "evaluatedAt must not precede windowEndedAt",
+      });
+    }
+    if (evaluation.successCount > evaluation.sampleCount) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["successCount"],
+        message: "successCount must not exceed sampleCount",
+      });
+    }
+    const expectedRatio =
+      evaluation.sampleCount === 0
+        ? null
+        : Math.floor(
+            (evaluation.successCount * 10_000) / evaluation.sampleCount,
+          );
+    if (evaluation.successRatioBasisPoints !== expectedRatio) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["successRatioBasisPoints"],
+        message: "successRatioBasisPoints must match the sample counts",
+      });
+    }
+    if (
+      evaluation.status === "insufficient_data" &&
+      (evaluation.consecutiveBreaches !== 0 ||
+        evaluation.consecutiveRecoveries !== 0)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["status"],
+        message: "insufficient_data evaluations cannot advance alert streaks",
+      });
+    }
+    if (
+      evaluation.status === "healthy" &&
+      (evaluation.successRatioBasisPoints === null ||
+        evaluation.successRatioBasisPoints < evaluation.objectiveBasisPoints)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["status"],
+        message: "healthy evaluations must meet their objective",
+      });
+    }
+    if (
+      evaluation.status === "breaching" &&
+      (evaluation.successRatioBasisPoints === null ||
+        evaluation.successRatioBasisPoints >= evaluation.objectiveBasisPoints)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["status"],
+        message: "breaching evaluations must be below their objective",
+      });
+    }
+  });
+
+export const operationalSyntheticCheckSchemaV1 = z
+  .object({
+    contractVersion: contractVersionSchema,
+    checkId: identifierSchema,
+    title: nonEmptyTextSchema.max(200),
+    description: nonEmptyTextSchema.max(2000),
+    story: z.enum([
+      "landing_docs",
+      "arcade_hosted_release",
+      "platform_realtime_health",
+      "room_controller",
+      "semantic_gameplay",
+      "release_dependencies",
+    ]),
+    service: z.enum(operationalServices),
+    executor: z.enum(["http", "airjam_semantic", "release_dependency"]),
+    intervalSeconds: z.number().int().min(30).max(86_400),
+    timeoutMilliseconds: z.number().int().min(100).max(120_000),
+    sloId: identifierSchema,
+    steps: z
+      .array(
+        z
+          .object({
+            stepId: identifierSchema,
+            targetKey: identifierSchema,
+            assertion: z.enum([
+              "http_2xx",
+              "json_ok",
+              "html_marker",
+              "airjam_session",
+              "dependency_ready",
+            ]),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(32),
+  })
+  .strict()
+  .superRefine((check, context) => {
+    if (!uniqueValues(check.steps.map((step) => step.stepId))) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["steps"],
+        message: "synthetic step ids must be unique",
+      });
+    }
+  });
+
+const operationalSyntheticObservationSchemaV1 = z
+  .object({
+    stepId: identifierSchema,
+    status: z.enum(["passed", "failed", "error"]),
+    latencyMilliseconds: z.number().int().min(0),
+    httpStatus: z.number().int().min(100).max(599).optional(),
+    failure: operationalFailureSchemaV1.optional(),
+  })
+  .strict()
+  .superRefine((observation, context) => {
+    if (observation.status === "passed" && observation.failure) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["failure"],
+        message: "passed observations must not contain a failure",
+      });
+    }
+    if (observation.status !== "passed" && !observation.failure) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["failure"],
+        message: "failed observations require a structured failure",
+      });
+    }
+  });
+
+export const operationalSyntheticRunSchemaV1 = z
+  .object({
+    contractVersion: contractVersionSchema,
+    runId: identifierSchema,
+    checkId: identifierSchema,
+    environment: z.enum(deploymentEnvironments),
+    status: z.enum(operationalSyntheticRunStatuses),
+    startedAt: isoDateTimeSchema,
+    completedAt: isoDateTimeSchema,
+    durationMilliseconds: z.number().int().min(0),
+    eventId: identifierSchema,
+    observations: z
+      .array(operationalSyntheticObservationSchemaV1)
+      .min(1)
+      .max(32),
+    evidence: z.array(operationalEvidenceSchemaV1).max(64).default([]),
+  })
+  .strict()
+  .superRefine((run, context) => {
+    if (Date.parse(run.completedAt) < Date.parse(run.startedAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["completedAt"],
+        message: "completedAt must not precede startedAt",
+      });
+    }
+    if (
+      !uniqueValues(run.observations.map((observation) => observation.stepId))
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["observations"],
+        message: "synthetic observations must have unique step ids",
+      });
+    }
+    const expectedStatus = run.observations.some(
+      (observation) => observation.status === "error",
+    )
+      ? "error"
+      : run.observations.some((observation) => observation.status === "failed")
+        ? "failed"
+        : "passed";
+    if (run.status !== expectedStatus) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["status"],
+        message: "synthetic run status must match its observations",
+      });
+    }
+  });
+
+export const operationalAlertSchemaV1 = z
+  .object({
+    contractVersion: contractVersionSchema,
+    alertId: identifierSchema,
+    alertKey: identifierSchema,
+    policyId: identifierSchema,
+    environment: z.enum(deploymentEnvironments),
+    service: z.enum(operationalServices),
+    severity: z.enum(["warning", "error", "critical"]),
+    status: z.enum(operationalAlertStatuses),
+    summary: nonEmptyTextSchema.max(1000),
+    firstTriggeredAt: isoDateTimeSchema,
+    lastObservedAt: isoDateTimeSchema,
+    occurrenceCount: z.number().int().min(1),
+    latestEventId: identifierSchema,
+    latestEvaluationId: identifierSchema,
+    recoveredAt: isoDateTimeSchema.optional(),
+    revision: z.number().int().min(1),
+  })
+  .strict()
+  .superRefine((alert, context) => {
+    if (Date.parse(alert.lastObservedAt) < Date.parse(alert.firstTriggeredAt)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["lastObservedAt"],
+        message: "lastObservedAt must not precede firstTriggeredAt",
+      });
+    }
+    if (alert.status === "recovered" && !alert.recoveredAt) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["recoveredAt"],
+        message: "recovered alerts require recoveredAt",
+      });
+    }
+    if (alert.status === "open" && alert.recoveredAt) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["recoveredAt"],
+        message: "open alerts must not contain recoveredAt",
+      });
+    }
+    if (
+      alert.recoveredAt &&
+      (Date.parse(alert.recoveredAt) < Date.parse(alert.firstTriggeredAt) ||
+        Date.parse(alert.recoveredAt) > Date.parse(alert.lastObservedAt))
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["recoveredAt"],
+        message: "recoveredAt must fall within the alert observation window",
       });
     }
   });
@@ -840,6 +1309,12 @@ export const operationalRunbookActionSchemaV1 = z
 
 const schemaByName = Object.freeze({
   operational_event: operationalEventEnvelopeSchemaV1,
+  operational_failure: operationalFailureSchemaV1,
+  slo_definition: operationalSloDefinitionSchemaV1,
+  slo_evaluation: operationalSloEvaluationSchemaV1,
+  synthetic_check: operationalSyntheticCheckSchemaV1,
+  synthetic_run: operationalSyntheticRunSchemaV1,
+  alert: operationalAlertSchemaV1,
   incident_fingerprint_input: incidentFingerprintInputSchemaV1,
   incident: operationalIncidentSchemaV1,
   runbook: operationalRunbookSchemaV1,
@@ -1074,7 +1549,7 @@ const operationsContractCatalog = Object.freeze({
     Object.freeze({
       id: "lifecycle_runtime",
       authority:
-        "airjam_authoritative | provider_attested | synthetic_observation | operator_attested",
+        "airjam_authoritative | provider_attested | synthetic_observation | operator_attested | runtime_reported",
       envelope: "operational_event",
       allowedUses: Object.freeze([
         "incident evidence",
@@ -1129,6 +1604,24 @@ const operationsContractCatalog = Object.freeze({
     outcomes: operationalEventOutcomes,
     maxPayloadBytes: OPERATIONS_EVENT_MAX_PAYLOAD_BYTES,
     kindConvention: "lowercase dotted semantic names",
+  }),
+  reliability: Object.freeze({
+    failureSchema: "operational_failure",
+    sloDefinitionSchema: "slo_definition",
+    sloEvaluationSchema: "slo_evaluation",
+    syntheticCheckSchema: "synthetic_check",
+    syntheticRunSchema: "synthetic_run",
+    alertSchema: "alert",
+    failureClasses: operationalFailureClasses,
+    sloStatuses: operationalSloStatuses,
+    syntheticRunStatuses: operationalSyntheticRunStatuses,
+    alertStatuses: operationalAlertStatuses,
+    rules: Object.freeze([
+      "unknown exceptions become bounded internal failures without raw messages or stacks",
+      "SLO state is derived from retained authoritative synthetic runs",
+      "alert state changes only after source-owned breach and recovery streaks",
+      "external notification adapters consume durable alert state rather than producer calls",
+    ]),
   }),
   incident: Object.freeze({
     schema: "incident",

@@ -542,6 +542,287 @@ export const registerPlatformCommands = (program) => {
     );
   registerOperationsContractCommands(operationsCommand);
 
+  const reliabilityCommand = operationsCommand
+    .command("reliability")
+    .description(
+      "Inspect and operate durable events, SLOs, alerts, and launch-critical synthetics",
+    );
+
+  reliabilityCommand
+    .command("catalog")
+    .description(
+      "Inspect source-owned SLO and synthetic policies without a database",
+    )
+    .option("--json", "Print the stable machine-readable contract")
+    .action(async (options) => {
+      await runPlatformDatabaseOperator({
+        script: "scripts/operational-reliability-cli.ts",
+        operation: { command: "catalog", json: Boolean(options.json) },
+        options,
+      });
+    });
+
+  addPlatformDatabaseTargetOption(
+    reliabilityCommand
+      .command("status")
+      .description("Inspect current synthetic, SLO, and alert state")
+      .option(
+        "--environment <environment>",
+        "production, preview, development, or test",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "status",
+        environment: options.environment,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  const eventDeliveryCommand = reliabilityCommand
+    .command("events")
+    .description(
+      "Inspect and safely advance durable operational-event delivery",
+    );
+
+  addPlatformDatabaseTargetOption(
+    eventDeliveryCommand
+      .command("status")
+      .description("Inspect queue, lease, delivery, and dead-letter counts")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: { command: "events-status", json: Boolean(options.json) },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    eventDeliveryCommand
+      .command("list")
+      .description("List redacted durable delivery records")
+      .option(
+        "--status <status>",
+        "pending, delivering, delivered, or dead_letter",
+      )
+      .option("--limit <limit>", "Maximum rows from 1 to 500", "100")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "events-list",
+        status: options.status,
+        limit: options.limit,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    eventDeliveryCommand
+      .command("inspect")
+      .description("Inspect one redacted delivery record")
+      .requiredOption("--event <event-id>", "Operational event ID")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "events-inspect",
+        eventId: options.event,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    eventDeliveryCommand
+      .command("deliver-once")
+      .description("Preview or deliver one dependency-ready event")
+      .requiredOption("--worker <worker-id>", "Stable worker identity")
+      .option("--apply", "Deliver one event; omission is a read-only preview")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "events-deliver-once",
+        workerId: options.worker,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    eventDeliveryCommand
+      .command("repair-expired")
+      .description("Preview or repair expired event-delivery leases")
+      .option("--limit <limit>", "Maximum rows from 1 to 500", "100")
+      .option(
+        "--apply",
+        "Repair expired leases; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "events-repair-expired",
+        limit: options.limit,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    eventDeliveryCommand
+      .command("requeue-dead-letter")
+      .description(
+        "Preview or requeue one dead-lettered event with an audited retry budget",
+      )
+      .requiredOption(
+        "--event <event-id>",
+        "Dead-lettered operational event ID",
+      )
+      .requiredOption("--actor <actor>", "Audited agent or operator identity")
+      .requiredOption("--reason <reason>", "Durable requeue reason")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable key for this logical requeue command",
+      )
+      .option("--max-attempts <count>", "Fresh retry budget from 1 to 20", "8")
+      .option("--apply", "Requeue the event; omission is a read-only preview")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "events-requeue-dead-letter",
+        eventId: options.event,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        maxAttempts: options.maxAttempts,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  const syntheticCommand = reliabilityCommand
+    .command("synthetics")
+    .description("Inspect and execute the source-owned launch-critical checks");
+
+  addPlatformDatabaseTargetOption(
+    syntheticCommand
+      .command("run")
+      .description("Preview or execute and retain one synthetic check")
+      .requiredOption("--check <check-id>", "Canonical synthetic check ID")
+      .requiredOption("--actor <actor>", "Audited agent or operator identity")
+      .requiredOption("--reason <reason>", "Durable execution reason")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable key for this logical execution",
+      )
+      .option("--apply", "Execute the check; omission is a read-only preview")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "synthetics-run",
+        checkId: options.check,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    syntheticCommand
+      .command("run-due")
+      .description("Preview or execute every due launch-critical check")
+      .requiredOption("--actor <actor>", "Audited agent or operator identity")
+      .option("--apply", "Execute due checks; omission is a read-only preview")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "synthetics-run-due",
+        actor: options.actor,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    syntheticCommand
+      .command("list")
+      .description("List retained synthetic run documents")
+      .option("--check <check-id>", "Canonical synthetic check ID")
+      .option(
+        "--environment <environment>",
+        "production, preview, development, or test",
+      )
+      .option("--limit <limit>", "Maximum rows from 1 to 500", "100")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "synthetics-list",
+        checkId: options.check,
+        environment: options.environment,
+        limit: options.limit,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    reliabilityCommand
+      .command("alerts")
+      .description("List durable internal alert state")
+      .option(
+        "--environment <environment>",
+        "production, preview, development, or test",
+      )
+      .option("--status <status>", "open or recovered")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "alerts-list",
+        environment: options.environment,
+        status: options.status,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
   const generatedCommand = platformCommand
     .command("generated")
     .description("Prepare or verify generated platform artifacts");

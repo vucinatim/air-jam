@@ -2,6 +2,7 @@ import {
   assessHostedReleaseOrigin,
   isHostedReleaseOriginRequired,
 } from "@/lib/releases/hosted-release-origin";
+import { assessReleaseDependencyHealth } from "@/server/releases/release-dependency-health";
 import { NextResponse } from "next/server";
 
 const readDeploymentIdentity = () => ({
@@ -17,25 +18,29 @@ const readDeploymentIdentity = () => ({
 export function GET() {
   const releaseOrigin = assessHostedReleaseOrigin();
   const releaseOriginRequired = isHostedReleaseOriginRequired();
-  const ok = !releaseOriginRequired || releaseOrigin.status === "ready";
+  const releaseDependencies = assessReleaseDependencyHealth({
+    required: releaseOriginRequired,
+  });
+  const boundaries = {
+    hostedReleaseOrigin: {
+      required: releaseOriginRequired,
+      status: releaseOrigin.status,
+      publicOrigin:
+        releaseOrigin.status === "ready" ? releaseOrigin.publicOrigin : null,
+      reason: releaseOrigin.status === "ready" ? null : releaseOrigin.reason,
+    },
+    ...releaseDependencies,
+  };
+  const ok = Object.values(boundaries).every(
+    (boundary) => !boundary.required || boundary.status === "ready",
+  );
 
   return NextResponse.json(
     {
       ok,
       service: "platform",
       deployment: readDeploymentIdentity(),
-      boundaries: {
-        hostedReleaseOrigin: {
-          required: releaseOriginRequired,
-          status: releaseOrigin.status,
-          publicOrigin:
-            releaseOrigin.status === "ready"
-              ? releaseOrigin.publicOrigin
-              : null,
-          reason:
-            releaseOrigin.status === "ready" ? null : releaseOrigin.reason,
-        },
-      },
+      boundaries,
     },
     { status: ok ? 200 : 503 },
   );

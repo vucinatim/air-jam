@@ -36,6 +36,10 @@ import type {
   RoomReadyNotice,
 } from "./notices";
 import type {
+  RuntimeErrorReport,
+  RuntimeErrorReportAck,
+} from "./runtime-reporting";
+import type {
   PlaySoundEventPayload,
   PlaySoundPayload,
   SignalPayload,
@@ -52,6 +56,10 @@ import type {
 } from "./sync";
 
 export interface ClientToServerEvents {
+  "runtime:error_report": (
+    payload: RuntimeErrorReport,
+    callback: (ack: RuntimeErrorReportAck) => void,
+  ) => void;
   "host:bootstrap": (
     payload: HostBootstrapPayload,
     callback: (ack: HostBootstrapAck) => void,

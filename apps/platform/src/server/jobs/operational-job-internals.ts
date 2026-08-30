@@ -503,22 +503,35 @@ export const insertOperationalJobEvent = async ({
   details?: Record<string, unknown>;
   causationEventId?: string | null;
 }) => {
-  await tx.insert(operationalJobEvents).values({
-    id: crypto.randomUUID(),
-    jobId: job.id,
-    idempotencyKey: eventIdempotencyKey({ jobId: job.id, nextRevision, kind }),
-    kind,
-    expectedRevision,
-    nextRevision,
-    fromStatus,
-    toStatus,
-    attempt: job.attemptCount,
-    actor,
-    reason,
-    details,
-    correlationId: job.correlationId,
-    causationEventId,
-  });
+  const [inserted] = await tx
+    .insert(operationalJobEvents)
+    .values({
+      id: crypto.randomUUID(),
+      jobId: job.id,
+      idempotencyKey: eventIdempotencyKey({
+        jobId: job.id,
+        nextRevision,
+        kind,
+      }),
+      kind,
+      expectedRevision,
+      nextRevision,
+      fromStatus,
+      toStatus,
+      attempt: job.attemptCount,
+      actor,
+      reason,
+      details,
+      correlationId: job.correlationId,
+      causationEventId,
+    })
+    .returning();
+  if (!inserted) {
+    throw new OperationalJobConflictError(
+      "Operational job event could not be stored.",
+    );
+  }
+  return inserted;
 };
 
 export const acquireOperationalJobLock = async (

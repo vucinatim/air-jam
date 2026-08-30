@@ -5,6 +5,7 @@ import type {
 } from "@air-jam/sdk/protocol";
 import type { RuntimeUsagePublisher } from "../analytics/runtime-usage.js";
 import type { ServerLogger } from "../logging/logger.js";
+import type { ServerOperationalEventPublisher } from "../operations/operational-event-publisher.js";
 import type { HostBootstrapAuthService } from "../services/auth-service.js";
 import type { RoomManager } from "../services/room-manager.js";
 import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
@@ -16,9 +17,11 @@ export interface SocketHandlerContext {
   roomManager: RoomManager;
   authService: HostBootstrapAuthService;
   runtimeUsagePublisher: RuntimeUsagePublisher;
+  operationalEventPublisher: ServerOperationalEventPublisher;
   hostRegistrationRateLimitMax: number;
   controllerJoinRateLimitMax: number;
   staticAppRateLimitMax: number;
+  runtimeErrorReportRateLimitMax: number;
   maintenanceMode: boolean;
   emitError: (socketId: string, payload: ServerErrorPayload) => void;
   isRateLimited: (bucket: string, limit: number) => boolean;

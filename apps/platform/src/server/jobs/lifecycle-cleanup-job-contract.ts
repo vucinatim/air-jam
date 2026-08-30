@@ -180,10 +180,7 @@ export const serializeLifecycleCleanupExecutionError = ({
       : {
           contractVersion: lifecycleCleanupJobContractVersion,
           code: "unexpected_cleanup_error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Lifecycle cleanup failed unexpectedly.",
+          message: "Lifecycle cleanup failed unexpectedly.",
           stage,
           retryable: true,
         },

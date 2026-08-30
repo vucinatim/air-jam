@@ -22,6 +22,10 @@ import {
 } from "./logging/dev-log-collector.js";
 import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
 import { createServerLogger, type ServerLogger } from "./logging/logger.js";
+import {
+  createDatabaseServerOperationalEventPublisher,
+  type ServerOperationalEventPublisher,
+} from "./operations/operational-event-publisher.js";
 import { resolveCorsOrigin, type AllowedOrigins } from "./origin-policy.js";
 import {
   AuthService,
@@ -43,10 +47,12 @@ export interface CreateAirJamServerOptions {
   hostRegistrationRateLimitMax?: number;
   controllerJoinRateLimitMax?: number;
   staticAppRateLimitMax?: number;
+  runtimeErrorReportRateLimitMax?: number;
   allowedOrigins?: AllowedOrigins;
   logger?: ServerLogger;
   authService?: HostBootstrapAuthService;
   runtimeUsagePublisher?: RuntimeUsagePublisher;
+  operationalEventPublisher?: ServerOperationalEventPublisher;
   rateLimitService?: RateLimitService;
   roomManager?: RoomManager;
   db?: ServerDatabase | null;
@@ -104,6 +110,13 @@ export const createAirJamServer = (
   const rateLimitServiceInstance =
     options.rateLimitService ?? new RateLimitService();
   const db = options.db ?? createServerDatabase(envConfig.databaseUrl);
+  const operationalEventPublisher =
+    options.operationalEventPublisher ??
+    createDatabaseServerOperationalEventPublisher({
+      database: db,
+      environment: envConfig.operationalEnvironment,
+      instanceId: process.env.RAILWAY_REPLICA_ID?.trim() || undefined,
+    });
   const authServiceInstance =
     options.authService ??
     new AuthService({
@@ -116,12 +129,14 @@ export const createAirJamServer = (
         nodeEnv: envConfig.nodeEnv,
       },
       db,
+      operationalEventPublisher,
     });
   const runtimeUsagePublisher =
     options.runtimeUsagePublisher ??
     createDatabaseRuntimeUsageLedgerPublisher(
       logger.child({ component: "analytics" }),
       db,
+      operationalEventPublisher,
     );
   const startupConfigurationError =
     typeof authServiceInstance.getStartupConfigurationError === "function"
@@ -141,6 +156,9 @@ export const createAirJamServer = (
     options.controllerJoinRateLimitMax ?? envConfig.controllerJoinRateLimitMax;
   const staticAppRateLimitMax =
     options.staticAppRateLimitMax ?? envConfig.staticAppRateLimitMax;
+  const runtimeErrorReportRateLimitMax =
+    options.runtimeErrorReportRateLimitMax ??
+    envConfig.runtimeErrorReportRateLimitMax;
   const corsOrigin = resolveCorsOrigin(
     options.allowedOrigins,
     envConfig.allowedOrigins,
@@ -263,10 +281,12 @@ export const createAirJamServer = (
       rateLimitService: rateLimitServiceInstance,
       authService: authServiceInstance,
       runtimeUsagePublisher,
+      operationalEventPublisher,
       rateLimitWindowMs,
       hostRegistrationRateLimitMax,
       controllerJoinRateLimitMax,
       staticAppRateLimitMax,
+      runtimeErrorReportRateLimitMax,
       proxyHeaderTrustMode:
         options.proxyHeaderTrustMode ?? envConfig.proxyHeaderTrustMode,
       maintenanceMode: envConfig.maintenanceMode,

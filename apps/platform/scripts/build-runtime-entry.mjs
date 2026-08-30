@@ -26,9 +26,13 @@ const runtimeEntries = [
     outputFile: path.resolve(outputDirectory, "run-operational-job-worker.mjs"),
     // Playwright contains optional BiDi-over-CDP requires that esbuild cannot
     // resolve from the published dependency-free package. Keep the official
-    // package intact beside the worker; all other worker dependencies remain
-    // bundled and are checked below.
-    externalPackages: ["playwright-core"],
+    // package intact beside the worker. Socket.IO's `ws` transport probes two
+    // optional native accelerators inside try/catch and intentionally falls
+    // back to its bundled JavaScript implementation when they are absent.
+    // Keep those probes external without turning optional accelerators into a
+    // production installation requirement; every other worker dependency is
+    // bundled and checked below.
+    externalPackages: ["playwright-core", "bufferutil", "utf-8-validate"],
     copiedPackages: ["playwright-core"],
     // Bundled AWS SDK packages contain CommonJS dynamic requires for Node
     // built-ins. Supply a real ESM-scoped require instead of relying on

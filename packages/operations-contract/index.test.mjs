@@ -11,12 +11,18 @@ import {
   createRunbookDescriptorDigest,
   createRunbookParametersDigest,
   createRunbookPreviewDigest,
+  createStructuredOperationalFailure,
   getOperationsContractCatalog,
   getOperationsContractJsonSchema,
+  normalizeUnknownOperationalFailure,
+  operationalAlertSchemaV1,
   operationalEventEnvelopeSchemaV1,
+  operationalFailureSchemaV1,
   operationalIncidentSchemaV1,
   operationalRunbookActionSchemaV1,
   operationalRunbookSchemaV1,
+  operationalSloEvaluationSchemaV1,
+  operationalSyntheticRunSchemaV1,
   operationsContractSchemaNames,
   parseOperationsContractValue,
 } from "./index.mjs";
@@ -145,6 +151,18 @@ test("operational events accept only the authoritative lifecycle/runtime plane",
     operationalEventEnvelopeSchemaV1.parse(event).eventId,
     "event:1",
   );
+  assert.equal(
+    operationalEventEnvelopeSchemaV1.parse({
+      ...event,
+      authority: "runtime_reported",
+      source: {
+        ...event.source,
+        service: "hosted_runtime",
+        component: "host-render-boundary",
+      },
+    }).authority,
+    "runtime_reported",
+  );
   assert.throws(() =>
     operationalEventEnvelopeSchemaV1.parse({
       ...event,
@@ -185,6 +203,183 @@ test("operational events reject impossible chronology and unbounded payloads", (
       occurredAt: timestamp,
       observedAt: laterTimestamp,
       payload: { body: "x".repeat(OPERATIONS_EVENT_MAX_PAYLOAD_BYTES) },
+    }),
+  );
+});
+
+test("structured failures remain bounded, explicit, and secret-free by contract", () => {
+  const failure = {
+    contractVersion: 1,
+    code: "release.storage_timeout",
+    class: "dependency",
+    summary: "Release storage did not answer before the deadline.",
+    retryable: true,
+    stage: "artifact-upload",
+    details: { provider: "object-store", attempt: 2 },
+  };
+  assert.equal(operationalFailureSchemaV1.parse(failure).class, "dependency");
+  assert.throws(() =>
+    operationalFailureSchemaV1.parse({
+      ...failure,
+      stack: "must never enter the operational contract",
+    }),
+  );
+  assert.throws(() =>
+    operationalFailureSchemaV1.parse({
+      ...failure,
+      code: "NOT A STABLE CODE",
+    }),
+  );
+});
+
+test("structured failure helpers discard exception text and secret-shaped details", () => {
+  const failure = createStructuredOperationalFailure({
+    code: "PROVIDER TIMEOUT WITH SPACES",
+    failureClass: "dependency",
+    summary: ` Provider unavailable ${"x".repeat(1_000)} `,
+    retryable: true,
+    stage: "invalid stage with spaces",
+    details: {
+      provider: "object-store",
+      authorization: "Bearer secret",
+      nested: { accessToken: "secret", attempt: 2 },
+    },
+  });
+  assert.equal(failure.code, "internal.unclassified");
+  assert.equal(failure.summary.length, 500);
+  assert.equal(failure.stage, undefined);
+  assert.deepEqual(failure.details, {
+    provider: "object-store",
+    nested: { attempt: 2 },
+  });
+  assert.doesNotMatch(JSON.stringify(failure), /secret/u);
+
+  const error = new Error(
+    "DATABASE_URL=postgres://user:secret@example.test/db",
+  );
+  error.stack = "secret stack";
+  const unknown = normalizeUnknownOperationalFailure({
+    error,
+    code: "worker.unexpected",
+    summary: "The worker encountered an unexpected failure.",
+    details: { operation: "delivery" },
+  });
+  assert.equal(unknown.causeCode, "error");
+  assert.doesNotMatch(JSON.stringify(unknown), /postgres:|secret stack/u);
+});
+
+test("SLO evaluations bind ratios, objectives, and alert streak direction", () => {
+  const evaluation = {
+    contractVersion: 1,
+    evaluationId: "evaluation:1",
+    sloId: "multiplayer-availability",
+    environment: "production",
+    service: "realtime_server",
+    windowStartedAt: timestamp,
+    windowEndedAt: laterTimestamp,
+    sampleCount: 4,
+    successCount: 3,
+    successRatioBasisPoints: 7500,
+    objectiveBasisPoints: 9900,
+    status: "breaching",
+    consecutiveBreaches: 2,
+    consecutiveRecoveries: 0,
+    evaluatedAt: laterTimestamp,
+    evidence: [evidence],
+  };
+  assert.equal(
+    operationalSloEvaluationSchemaV1.parse(evaluation).status,
+    "breaching",
+  );
+  assert.throws(() =>
+    operationalSloEvaluationSchemaV1.parse({
+      ...evaluation,
+      successRatioBasisPoints: 8000,
+    }),
+  );
+  assert.throws(() =>
+    operationalSloEvaluationSchemaV1.parse({
+      ...evaluation,
+      status: "healthy",
+    }),
+  );
+});
+
+test("synthetic run status is derived exactly from its observations", () => {
+  const failure = {
+    contractVersion: 1,
+    code: "synthetic.http_failed",
+    class: "unavailable",
+    summary: "The declared HTTP assertion failed.",
+    retryable: true,
+    details: {},
+  };
+  const run = {
+    contractVersion: 1,
+    runId: "synthetic-run:1",
+    checkId: "landing-docs",
+    environment: "production",
+    status: "error",
+    startedAt: timestamp,
+    completedAt: laterTimestamp,
+    durationMilliseconds: 60_000,
+    eventId: "synthetic-event:1",
+    observations: [
+      {
+        stepId: "landing",
+        status: "error",
+        latencyMilliseconds: 100,
+        failure,
+      },
+    ],
+    evidence: [evidence],
+  };
+  assert.equal(operationalSyntheticRunSchemaV1.parse(run).status, "error");
+  assert.throws(() =>
+    operationalSyntheticRunSchemaV1.parse({ ...run, status: "failed" }),
+  );
+  assert.throws(() =>
+    operationalSyntheticRunSchemaV1.parse({
+      ...run,
+      completedAt: timestamp,
+      durationMilliseconds: 0,
+      status: "passed",
+      observations: [
+        {
+          stepId: "landing",
+          status: "passed",
+          latencyMilliseconds: 0,
+          failure,
+        },
+      ],
+    }),
+  );
+});
+
+test("recovered alerts require coherent recovery chronology", () => {
+  const alert = {
+    contractVersion: 1,
+    alertId: "alert:1",
+    alertKey: "slo:multiplayer:production",
+    policyId: "multiplayer-availability",
+    environment: "production",
+    service: "realtime_server",
+    severity: "critical",
+    status: "recovered",
+    summary: "Multiplayer availability recovered.",
+    firstTriggeredAt: timestamp,
+    lastObservedAt: expiryTimestamp,
+    occurrenceCount: 3,
+    latestEventId: "event:recovered:1",
+    latestEvaluationId: "evaluation:recovered:1",
+    recoveredAt: laterTimestamp,
+    revision: 3,
+  };
+  assert.equal(operationalAlertSchemaV1.parse(alert).status, "recovered");
+  assert.throws(() =>
+    operationalAlertSchemaV1.parse({
+      ...alert,
+      recoveredAt: "2026-08-30T02:59:00.000Z",
     }),
   );
 });
@@ -525,6 +720,7 @@ test("contract catalog is authority-separated and returned as a detached value",
   assert.deepEqual(first.schemas, operationsContractSchemaNames);
   assert.equal(first.planes[0].id, "product_telemetry");
   assert.ok(first.planes[0].forbiddenUses.includes("automatic remediation"));
+  assert.ok(first.event.authorities.includes("runtime_reported"));
   first.planes[0].id = "mutated";
   assert.equal(
     getOperationsContractCatalog().planes[0].id,
