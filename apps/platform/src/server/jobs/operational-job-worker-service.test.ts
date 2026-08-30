@@ -1,10 +1,10 @@
 import { createServer } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  loadReleaseJobWorkerServiceConfig,
-  startReleaseJobWorkerService,
-  type ReleaseJobWorkerServiceHandle,
-} from "./release-job-worker-service";
+  loadOperationalJobWorkerServiceConfig,
+  startOperationalJobWorkerService,
+  type OperationalJobWorkerServiceHandle,
+} from "./operational-job-worker-service";
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -37,8 +37,8 @@ const readJson = async (response: Response) => ({
   body: (await response.json()) as Record<string, unknown>,
 });
 
-describe("release job worker service", () => {
-  let handle: ReleaseJobWorkerServiceHandle | null = null;
+describe("operational job worker service", () => {
+  let handle: OperationalJobWorkerServiceHandle | null = null;
 
   afterEach(async () => {
     await handle?.close();
@@ -47,7 +47,7 @@ describe("release job worker service", () => {
 
   it("validates its independently deployable process contract", () => {
     expect(
-      loadReleaseJobWorkerServiceConfig({
+      loadOperationalJobWorkerServiceConfig({
         PORT: "4321",
         AIRJAM_PLATFORM_WORKER_ID: "worker:test",
         AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT: "7",
@@ -59,12 +59,12 @@ describe("release job worker service", () => {
       maxInFlight: 7,
     });
     expect(() =>
-      loadReleaseJobWorkerServiceConfig({
+      loadOperationalJobWorkerServiceConfig({
         AIRJAM_PLATFORM_WORKER_PORT: "0",
       }),
     ).toThrow(/invalid environment configuration/i);
     expect(() =>
-      loadReleaseJobWorkerServiceConfig({
+      loadOperationalJobWorkerServiceConfig({
         RAILWAY_ENVIRONMENT_NAME: "production",
       }),
     ).toThrow(/invalid environment configuration/i);
@@ -74,7 +74,8 @@ describe("release job worker service", () => {
     const port = await reservePort();
     const cycle = deferred<void>();
     const maintenance = deferred<void>();
-    handle = await startReleaseJobWorkerService({
+    const lifecycleCleanup = deferred<void>();
+    handle = await startOperationalJobWorkerService({
       env: {
         AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
         AIRJAM_PLATFORM_WORKER_PORT: String(port),
@@ -82,6 +83,7 @@ describe("release job worker service", () => {
         AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: "test-control-token",
         AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
         AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
         AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT: "1",
         AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS: "1000",
       },
@@ -94,6 +96,10 @@ describe("release job worker service", () => {
         return { replayed: false, jobs: [] };
       },
       cleanup: async () => ({ candidates: [], cleaned: [] }),
+      scheduleCleanup: async () => {
+        await lifecycleCleanup.promise;
+        return { candidates: [], jobs: [] };
+      },
     });
     const origin = `http://127.0.0.1:${port}`;
 
@@ -150,6 +156,7 @@ describe("release job worker service", () => {
     });
 
     maintenance.resolve();
+    lifecycleCleanup.resolve();
     await handle.close();
     handle = null;
   });

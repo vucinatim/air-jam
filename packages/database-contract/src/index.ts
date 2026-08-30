@@ -117,9 +117,18 @@ export const operationalJobKindValues = [
   "release_artifact_processing",
   "release_browser_validation",
   "release_image_moderation",
+  "lifecycle_cleanup",
 ] as const;
 
 export type OperationalJobKind = (typeof operationalJobKindValues)[number];
+
+export const operationalJobResourceKindValues = [
+  "release_generation",
+  "game_media_asset",
+] as const;
+
+export type OperationalJobResourceKind =
+  (typeof operationalJobResourceKindValues)[number];
 
 export const operationalJobStatusValues = [
   "queued",
@@ -162,6 +171,7 @@ export type OperationalJobEventKind =
 
 export const operationalJobCommandKindValues = [
   "enqueue",
+  "schedule_cleanup",
   "cancel",
   "replay",
   "repair_expired",

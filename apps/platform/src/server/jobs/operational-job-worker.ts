@@ -1,8 +1,17 @@
 import { db } from "@/db";
+import { executeLifecycleCleanupJobAttempt } from "@/server/operations/lifecycle-cleanup-job-executor";
 import { executeReleaseArtifactJobAttempt } from "@/server/releases/release-artifact-service";
 import { executeReleaseBrowserJobAttempt } from "@/server/releases/release-browser-job-executor";
 import { executeReleaseModerationJobAttempt } from "@/server/releases/release-moderation-job-executor";
-import type { OperationalJobKind } from "@air-jam/database-contract";
+import {
+  operationalJobKindValues,
+  type OperationalJobKind,
+} from "@air-jam/database-contract";
+import {
+  lifecycleCleanupJobProgressSchema,
+  serializeLifecycleCleanupExecutionError,
+  type LifecycleCleanupJobProgress,
+} from "./lifecycle-cleanup-job-contract";
 import type { JobDatabase } from "./operational-job-internals";
 import { getOperationalJobPolicy } from "./operational-job-policy";
 import {
@@ -14,19 +23,16 @@ import {
   recordOperationalJobStage,
 } from "./operational-job-service";
 import {
+  isReleaseOperationalJobKind,
   parseReleaseJobPayload,
   releaseJobProgressSchema,
   serializeReleaseJobExecutionError,
   type ReleaseJobProgress,
 } from "./release-job-contract";
 
-export const releaseJobWorkerKinds = Object.freeze([
-  "release_artifact_processing",
-  "release_browser_validation",
-  "release_image_moderation",
-] satisfies OperationalJobKind[]);
+export const operationalJobWorkerKinds = operationalJobKindValues;
 
-export type ReleaseJobWorkerCycleResult =
+export type OperationalJobWorkerCycleResult =
   | { status: "idle"; kind: OperationalJobKind }
   | {
       status: "succeeded" | "retried" | "failed" | "canceled" | "lease_lost";
@@ -35,19 +41,23 @@ export type ReleaseJobWorkerCycleResult =
       attemptId: string;
     };
 
-export type ReleaseJobExecutors = Readonly<{
+export type OperationalJobExecutors = Readonly<{
   artifact: typeof executeReleaseArtifactJobAttempt;
   browser: typeof executeReleaseBrowserJobAttempt;
   moderation: typeof executeReleaseModerationJobAttempt;
+  cleanup: typeof executeLifecycleCleanupJobAttempt;
 }>;
 
-export const releaseJobExecutors: ReleaseJobExecutors = Object.freeze({
+export const operationalJobExecutors: OperationalJobExecutors = Object.freeze({
   artifact: executeReleaseArtifactJobAttempt,
   browser: executeReleaseBrowserJobAttempt,
   moderation: executeReleaseModerationJobAttempt,
+  cleanup: executeLifecycleCleanupJobAttempt,
 });
 
-const executeClaimedReleaseJob = async ({
+type OperationalJobProgress = ReleaseJobProgress | LifecycleCleanupJobProgress;
+
+const executeClaimedOperationalJob = async ({
   claimed,
   workerId,
   reportProgress,
@@ -57,17 +67,22 @@ const executeClaimedReleaseJob = async ({
   claimed: NonNullable<Awaited<ReturnType<typeof claimOperationalJob>>>;
   workerId: string;
   reportProgress: (
-    progress: ReleaseJobProgress,
+    progress: OperationalJobProgress,
     output?: {
       outputRootKey?: string;
       outputManifest?: Record<string, unknown>;
     },
   ) => Promise<void>;
   database: JobDatabase;
-  executors: ReleaseJobExecutors;
+  executors: OperationalJobExecutors;
 }) => {
   switch (claimed.kind) {
     case "release_artifact_processing": {
+      if (!claimed.releaseId || !claimed.generationId) {
+        throw new Error(
+          "Operational worker claimed a release job without release scope.",
+        );
+      }
       const payload = parseReleaseJobPayload(claimed.kind, claimed.payload);
       return executors.artifact({
         jobId: claimed.id,
@@ -82,6 +97,11 @@ const executeClaimedReleaseJob = async ({
       });
     }
     case "release_browser_validation": {
+      if (!claimed.releaseId || !claimed.generationId) {
+        throw new Error(
+          "Operational worker claimed a release job without release scope.",
+        );
+      }
       const payload = parseReleaseJobPayload(claimed.kind, claimed.payload);
       return executors.browser({
         jobId: claimed.id,
@@ -96,6 +116,11 @@ const executeClaimedReleaseJob = async ({
       });
     }
     case "release_image_moderation": {
+      if (!claimed.releaseId || !claimed.generationId) {
+        throw new Error(
+          "Operational worker claimed a release job without release scope.",
+        );
+      }
       const payload = parseReleaseJobPayload(claimed.kind, claimed.payload);
       return executors.moderation({
         jobId: claimed.id,
@@ -109,27 +134,39 @@ const executeClaimedReleaseJob = async ({
         database,
       });
     }
+    case "lifecycle_cleanup":
+      return executors.cleanup({
+        jobId: claimed.id,
+        leaseToken: claimed.leaseToken!,
+        workerId,
+        creatorId: claimed.creatorId,
+        gameId: claimed.gameId,
+        releaseId: claimed.releaseId,
+        payload: claimed.payload,
+        reportProgress,
+        database,
+      });
   }
 };
 
-export const runReleaseJobWorkerCycle = async ({
+export const runOperationalJobWorkerCycle = async ({
   kind,
   workerId,
   database = db,
-  executors = releaseJobExecutors,
+  executors = operationalJobExecutors,
 }: {
   kind: OperationalJobKind;
   workerId: string;
   database?: JobDatabase;
-  executors?: ReleaseJobExecutors;
-}): Promise<ReleaseJobWorkerCycleResult> => {
+  executors?: OperationalJobExecutors;
+}): Promise<OperationalJobWorkerCycleResult> => {
   const claimed = await claimOperationalJob({ database, kind, workerId });
   if (!claimed) return { status: "idle", kind };
   if (!claimed.leaseToken) {
-    throw new Error("Claimed release job did not include a lease token.");
+    throw new Error("Claimed operational job did not include a lease token.");
   }
 
-  let currentStage: ReleaseJobProgress["stage"] | null = null;
+  let currentStage: OperationalJobProgress["stage"] | null = null;
   let heartbeatInFlight = false;
   let heartbeatError: unknown = null;
   const policy = getOperationalJobPolicy(kind);
@@ -155,14 +192,16 @@ export const runReleaseJobWorkerCycle = async ({
   heartbeatInterval.unref();
 
   const reportProgress = async (
-    rawProgress: ReleaseJobProgress,
+    rawProgress: OperationalJobProgress,
     output?: {
       outputRootKey?: string;
       outputManifest?: Record<string, unknown>;
     },
   ) => {
     if (heartbeatError) throw heartbeatError;
-    const progress = releaseJobProgressSchema.parse(rawProgress);
+    const progress = isReleaseOperationalJobKind(kind)
+      ? releaseJobProgressSchema.parse(rawProgress)
+      : lifecycleCleanupJobProgressSchema.parse(rawProgress);
     currentStage = progress.stage;
     await recordOperationalJobStage({
       database,
@@ -172,12 +211,12 @@ export const runReleaseJobWorkerCycle = async ({
       progress,
       outputRootKey: output?.outputRootKey,
       outputManifest: output?.outputManifest,
-      reason: `Release worker entered ${progress.stage}.`,
+      reason: `Operational worker entered ${progress.stage}.`,
     });
   };
 
   try {
-    await executeClaimedReleaseJob({
+    await executeClaimedOperationalJob({
       claimed,
       workerId,
       reportProgress,
@@ -206,10 +245,15 @@ export const runReleaseJobWorkerCycle = async ({
         attemptId: claimed.attemptId,
       };
     }
-    const failure = serializeReleaseJobExecutionError({
-      error,
-      stage: currentStage,
-    });
+    const failure = isReleaseOperationalJobKind(claimed.kind)
+      ? serializeReleaseJobExecutionError({
+          error,
+          stage: currentStage as ReleaseJobProgress["stage"] | null,
+        })
+      : serializeLifecycleCleanupExecutionError({
+          error,
+          stage: currentStage as LifecycleCleanupJobProgress["stage"] | null,
+        });
     try {
       const updated = await failOperationalJobAttempt({
         database,
@@ -218,7 +262,7 @@ export const runReleaseJobWorkerCycle = async ({
         workerId,
         error: failure,
         retryable: failure.retryable,
-        reason: `Release worker failed during ${failure.stage ?? "startup"}.`,
+        reason: `Operational worker failed during ${failure.stage ?? "startup"}.`,
       });
       return {
         status:

@@ -6,11 +6,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import yazl from "yazl";
 import * as schema from "../../db/schema";
 import { enqueueOperationalJob } from "../jobs/operational-job-service";
-import { createReleaseGenerationJobPayload } from "../jobs/release-job-contract";
 import {
-  releaseJobExecutors,
-  runReleaseJobWorkerCycle,
-} from "../jobs/release-job-worker";
+  operationalJobExecutors,
+  runOperationalJobWorkerCycle,
+} from "../jobs/operational-job-worker";
+import { createReleaseGenerationJobPayload } from "../jobs/release-job-contract";
 import {
   executeReleaseArtifactJobAttempt,
   requestReleaseUploadTarget,
@@ -179,12 +179,12 @@ describeWithPostgres("immutable release generation authority", () => {
   }: {
     storage?: ReleaseStorage;
   } = {}) =>
-    runReleaseJobWorkerCycle({
+    runOperationalJobWorkerCycle({
       kind: "release_artifact_processing",
       workerId: `generation-worker:${workerSequence++}`,
       database,
       executors: {
-        ...releaseJobExecutors,
+        ...operationalJobExecutors,
         artifact: (input) =>
           executeReleaseArtifactJobAttempt({ ...input, storage }),
       },
@@ -349,12 +349,12 @@ describeWithPostgres("immutable release generation authority", () => {
     resetReleaseModerationConfigForTests();
     try {
       await expect(
-        runReleaseJobWorkerCycle({
+        runOperationalJobWorkerCycle({
           kind: "release_browser_validation",
           workerId: `generation-worker:${workerSequence++}`,
           database,
           executors: {
-            ...releaseJobExecutors,
+            ...operationalJobExecutors,
             browser: (input) =>
               executeReleaseBrowserJobAttempt({
                 ...input,
@@ -382,7 +382,7 @@ describeWithPostgres("immutable release generation authority", () => {
           },
         }),
       ).resolves.toMatchObject({ status: "succeeded" });
-      const moderationCycle = await runReleaseJobWorkerCycle({
+      const moderationCycle = await runOperationalJobWorkerCycle({
         kind: "release_image_moderation",
         workerId: `generation-worker:${workerSequence++}`,
         database,

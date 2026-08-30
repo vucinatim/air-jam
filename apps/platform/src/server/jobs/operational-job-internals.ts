@@ -11,6 +11,7 @@ import {
   operationalJobContractVersion,
   OperationalJobEventKind,
   OperationalJobKind,
+  OperationalJobResourceKind,
   OperationalJobStatus,
 } from "@air-jam/database-contract";
 import { sql } from "drizzle-orm";
@@ -33,8 +34,10 @@ export type OperationalJobOperatorSnapshot = {
   status: OperationalJobStatus;
   creatorId: string;
   gameId: string;
-  releaseId: string;
-  generationId: string;
+  releaseId: string | null;
+  generationId: string | null;
+  resourceKind: OperationalJobResourceKind;
+  resourceId: string;
   correlationId: string;
   replayOfJobId: string | null;
   priority: number;
@@ -65,8 +68,8 @@ export type OperationalJobOperatorSnapshot = {
 export type OperationalJobAttemptOperatorSnapshot = {
   id: string;
   jobId: string;
-  releaseId: string;
-  generationId: string;
+  releaseId: string | null;
+  generationId: string | null;
   attempt: number;
   status: OperationalJobAttemptStatus;
   leaseOwner: string;
@@ -253,6 +256,8 @@ export const serializeOperationalJobForOperator = (
   gameId: job.gameId,
   releaseId: job.releaseId,
   generationId: job.generationId,
+  resourceKind: job.resourceKind,
+  resourceId: job.resourceId,
   correlationId: job.correlationId,
   replayOfJobId: job.replayOfJobId,
   priority: job.priority,

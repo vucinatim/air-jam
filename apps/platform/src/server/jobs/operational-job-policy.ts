@@ -29,6 +29,7 @@ const OPERATIONAL_JOB_LANES = Object.freeze({
   release_artifact_processing: "release_processing",
   release_browser_validation: "browser_validation",
   release_image_moderation: "moderation",
+  lifecycle_cleanup: "lifecycle_cleanup",
 } satisfies Readonly<Record<OperationalJobKind, OperationalLane>>);
 
 const operationalJobKindSet: ReadonlySet<string> = new Set(
@@ -140,6 +141,17 @@ export const OPERATIONAL_JOB_POLICIES = Object.freeze({
     maxAttempts: 3,
     leaseSeconds: 90,
     deadlineSeconds: 1_800,
+    retryBackoffSeconds: 60,
+  }),
+  lifecycle_cleanup: operationalJobPolicy({
+    kind: "lifecycle_cleanup",
+    lane: "lifecycle_cleanup",
+    globalConcurrency: 2,
+    perCreatorConcurrency: 1,
+    queueDepth: 500,
+    maxAttempts: 5,
+    leaseSeconds: 120,
+    deadlineSeconds: 86_400,
     retryBackoffSeconds: 60,
   }),
 } satisfies Readonly<Record<OperationalJobKind, OperationalJobPolicy>>);

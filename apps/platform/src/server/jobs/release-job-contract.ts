@@ -4,6 +4,25 @@ import { z } from "zod";
 export const releaseJobPayloadContractVersion = 1 as const;
 export const releaseJobExecutionContractVersion = 1 as const;
 
+export type ReleaseOperationalJobKind = Exclude<
+  OperationalJobKind,
+  "lifecycle_cleanup"
+>;
+
+export const releaseOperationalJobKinds = Object.freeze([
+  "release_artifact_processing",
+  "release_browser_validation",
+  "release_image_moderation",
+] satisfies ReleaseOperationalJobKind[]);
+
+const releaseOperationalJobKindSet: ReadonlySet<string> = new Set(
+  releaseOperationalJobKinds,
+);
+
+export const isReleaseOperationalJobKind = (
+  kind: OperationalJobKind,
+): kind is ReleaseOperationalJobKind => releaseOperationalJobKindSet.has(kind);
+
 const identifierSchema = z.string().trim().min(1).max(256);
 const storageKeySchema = z
   .string()
@@ -45,7 +64,7 @@ export const releaseJobPayloadSchemas = Object.freeze({
   release_artifact_processing: releaseArtifactProcessingPayloadSchema,
   release_browser_validation: releaseBrowserValidationPayloadSchema,
   release_image_moderation: releaseImageModerationPayloadSchema,
-} satisfies Readonly<Record<OperationalJobKind, z.ZodType>>);
+} satisfies Readonly<Record<ReleaseOperationalJobKind, z.ZodType>>);
 
 export type ReleaseArtifactProcessingPayload = z.infer<
   typeof releaseArtifactProcessingPayloadSchema
@@ -61,7 +80,7 @@ export type ReleaseJobPayload =
   | ReleaseBrowserValidationPayload
   | ReleaseImageModerationPayload;
 
-export const parseReleaseJobPayload = <Kind extends OperationalJobKind>(
+export const parseReleaseJobPayload = <Kind extends ReleaseOperationalJobKind>(
   kind: Kind,
   payload: unknown,
 ): z.output<(typeof releaseJobPayloadSchemas)[Kind]> =>
@@ -140,9 +159,9 @@ export const releaseJobResultSchemas = Object.freeze({
   release_artifact_processing: releaseArtifactProcessingResultSchema,
   release_browser_validation: releaseBrowserValidationResultSchema,
   release_image_moderation: releaseImageModerationResultSchema,
-} satisfies Readonly<Record<OperationalJobKind, z.ZodType>>);
+} satisfies Readonly<Record<ReleaseOperationalJobKind, z.ZodType>>);
 
-export const parseReleaseJobResult = <Kind extends OperationalJobKind>(
+export const parseReleaseJobResult = <Kind extends ReleaseOperationalJobKind>(
   kind: Kind,
   result: unknown,
 ): z.output<(typeof releaseJobResultSchemas)[Kind]> =>

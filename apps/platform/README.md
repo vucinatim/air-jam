@@ -163,7 +163,7 @@ Infrastructure requirements:
 2. one Cloudflare R2 bucket for release artifacts and game media assets
 3. screenshot moderation runtime with browser access
 4. optional OpenAI image moderation when you want automated image-policy enforcement
-5. one separately deployed platform release-job worker
+5. one separately deployed platform operational-job worker
 
 The database migrations have already been added under [drizzle](./drizzle) and can be applied with:
 
@@ -187,7 +187,7 @@ Optional env for screenshot moderation:
 3. `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai|disabled`
 4. `OPENAI_API_KEY` when `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai`
 
-The long-running release executor starts with:
+The long-running operational executor starts with:
 
 ```bash
 pnpm --filter platform worker
@@ -198,6 +198,14 @@ Production uses the bundled `worker:start` entry and
 `AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN`; `/health` is liveness, `/ready` proves
 recent PostgreSQL authority, and authenticated `POST /drain` stops new claims
 before deploy termination.
+
+The same worker schedules retention-eligible release-generation and managed
+media cleanup. `AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS` controls the
+schedule interval and defaults to 15 minutes. Preview and enqueue cleanup via:
+
+```bash
+pnpm --silent run repo -- platform operations lifecycle cleanup --help
+```
 
 Agents and maintainers inspect and safely operate the same authority through:
 

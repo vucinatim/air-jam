@@ -222,10 +222,12 @@ Every job has:
 7. cancellation and operator pause semantics
 
 The canonical kinds are `release_artifact_processing`,
-`release_browser_validation`, and `release_image_moderation`. Each maps to its
-own semantic lane so budget, capacity, and retry policy remain independently
-controllable. `cancel_requested` is a persisted cooperative state between
-running and terminal cancellation.
+`release_browser_validation`, `release_image_moderation`, and
+`lifecycle_cleanup`. Each maps to its own semantic lane so budget, capacity,
+and retry policy remain independently controllable. Jobs identify either a
+`release_generation` or `game_media_asset` resource; release scope remains
+required only for release-generation work. `cancel_requested` is a persisted
+cooperative state between running and terminal cancellation.
 
 Claiming is transactional and synchronized with persisted lane state. Normal
 and restricted lanes may drain admitted work; paused lanes start none. A worker
@@ -240,13 +242,14 @@ processor owns archive/check execution. The browser worker remains isolated
 and does not become the release-state authority.
 
 The durable PostgreSQL authority and operator CLI are implemented. Immutable
-release generations now give source uploads, extracted sites, screenshots, and
+release generations give source uploads, extracted sites, screenshots, and
 trusted checks stable generation identity; create-only keys and explicit
 candidate/promoted pointers fence stale finalizers from release-visible state.
-Creator release paths remain synchronous until executor payload contracts,
-attempt-scoped retry outputs, and lease-aware adapters are implemented. The job
-table must not be presented as complete concurrency authority before every
-hosted release path exclusively uses it.
+Creator release paths enqueue a versioned three-stage graph for the separately
+deployed operational worker. Terminal-generation and inactive-media cleanup
+uses the same authority. The job table must not be presented as global realtime
+concurrency authority before room and controller admission also use a shared
+durable owner.
 
 Contract version `1` governs lifecycle, fencing, and operator semantics only.
 Each real executor must add a separate versioned, runtime-validated payload,
@@ -269,8 +272,10 @@ It covers:
 
 The currently live release is never automatically deleted. Material cleanup is
 previewable, reports exact candidates and bytes, requires the ratified warning
-state when applicable, and records an append-only result. R2 deletion and
-database state changes must be retry-safe if either side fails partway through.
+state when applicable, and records an append-only result. The first deletion
+manifest is persisted and reused across retries so later objects cannot enter
+an earlier cleanup decision. R2 deletion and database state changes must be
+retry-safe if either side fails partway through.
 
 ## Mutation Safety And Audit
 
@@ -340,7 +345,7 @@ The complete lifecycle must expose stable JSON for:
 2. lane inspection and safe mode changes
 3. budget evidence and derived state
 4. quota usage and decision explanation
-5. job listing, pause/resume, cancellation, and replay
+5. job listing by kind or resource, pause/resume, cancellation, and replay
 6. cleanup preview/apply
 
 Reads never require dashboard interaction. Mutations require explicit apply,
@@ -360,10 +365,12 @@ The production-valid implementation sequence is:
 7. realtime room/controller global admission plus graceful drain
 8. load, overload, dependency-failure, and recovery proof
 
-Steps 1 through 5 are now implemented through the linked budget, quota,
-durable-authority, immutable-generation, and release-worker proofs. Step 6 is
-partially implemented for terminal job-attempt outputs; broader release/media
-lifecycle reconciliation remains open. Steps 7 and 8 remain open.
+Steps 1 through 5 are implemented through the linked budget, quota,
+durable-authority, immutable-generation, and operational-worker proofs. Step 6
+now automatically covers terminal job-attempt outputs, failed or abandoned
+release generations, and stale or inactive unassigned media through exact
+retry-stable manifests. Superseded unpublished artifact warning and long-term
+retention remain open. Steps 7 and 8 remain open.
 
 Each step remains part of the final architecture. No step introduces a
 temporary in-memory queue, transport-only quota, or dashboard-only control.

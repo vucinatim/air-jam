@@ -24,6 +24,7 @@ import { desc, inArray } from "drizzle-orm";
 import { assertOwnedRelease } from "./assert-owned-release";
 import { assertReleaseExists } from "./assert-release-exists";
 import {
+  isReleaseOperationalJobRecord,
   listReleaseDetailsByGame,
   projectReleaseCheck,
   projectReleaseGeneration,
@@ -328,6 +329,7 @@ export const listReleasesForOperations = async ({
   }
 
   for (const job of jobs) {
+    if (!isReleaseOperationalJobRecord(job)) continue;
     const releaseJobs = jobsByReleaseId.get(job.releaseId) ?? [];
     releaseJobs.push(projectReleaseJob(job));
     jobsByReleaseId.set(job.releaseId, releaseJobs);

@@ -15,7 +15,12 @@ export type PutGameMediaObjectInput = PutReleaseObjectInput;
 
 export type GameMediaStorage = Pick<
   ReleaseStorage,
-  "createArtifactUploadTarget" | "headObject" | "readObject" | "putObject"
+  | "createArtifactUploadTarget"
+  | "headObject"
+  | "readObject"
+  | "putObject"
+  | "listObjects"
+  | "deleteObjects"
 >;
 
 let gameMediaStorageSingleton: GameMediaStorage | null = null;

@@ -13,7 +13,7 @@ Related docs:
 
 This guide explains the deploy model that now matters:
 
-1. Railway hosts the platform, realtime server, browser worker, and release-job
+1. Railway hosts the platform, realtime server, browser worker, and operational-job
    worker
 2. Railway native PR environments own preview lifecycle
 3. the repo only owns config clarity, inspection, and validation
@@ -27,7 +27,7 @@ The production Railway project should contain four deployable services:
 1. `air-jam-platform`
 2. `air-jam-server`
 3. `air-jam-release-browser-worker`
-4. `air-jam-platform-release-worker`
+4. `air-jam-platform-worker`
 
 Persistent infrastructure remains external:
 
@@ -87,7 +87,7 @@ pnpm run repo -- railway doctor --json
 2. whether PR environments are enabled
 3. which environment is primary
 4. which ephemeral environments are currently open
-5. whether platform, server, browser worker, and release-job worker all have
+5. whether platform, server, browser worker, and operational-job worker all have
    healthy deploy identity
 
 ## Production Contract
@@ -97,7 +97,7 @@ Production should stay boring:
 1. the platform serves `airjam.io`
 2. the server serves `api.airjam.io`
 3. the browser worker is not public product UI and should expose only the narrow routes it needs
-4. the release-job worker exposes only liveness, readiness, and authenticated
+4. the operational-job worker exposes only liveness, readiness, and authenticated
    drain; it owns durable processing, not public API traffic
 5. the platform should consume the public server URL explicitly rather than guessing from provider-specific env
 
@@ -113,11 +113,11 @@ Before treating a Railway deployment as good, verify:
 6. platform `/api/airjam/host-grant` works same-origin
 7. server `/health` returns `200`
 8. browser worker `/health` returns `200`
-9. release-job worker `/health` returns `200`
-10. release-job worker `/ready` returns `200` only after PostgreSQL authority is
+9. operational-job worker `/health` returns `200`
+10. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
     available
 
-Before terminating or replacing the release-job worker, call its authenticated
+Before terminating or replacing the operational-job worker, call its authenticated
 `POST /drain` endpoint and wait for bounded completion. Queue state remains in
 PostgreSQL across deploys; a process restart must never be treated as job loss.
 

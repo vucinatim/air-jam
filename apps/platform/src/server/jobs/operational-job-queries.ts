@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { operationalJobs } from "@/db/schema";
 import type {
   OperationalJobKind,
+  OperationalJobResourceKind,
   OperationalJobStatus,
 } from "@air-jam/database-contract";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
@@ -65,6 +66,8 @@ export const listOperationalJobs = async ({
   statuses,
   creatorId,
   releaseId,
+  resourceKind,
+  resourceId,
   limit = 100,
 }: {
   database?: JobDatabase;
@@ -72,6 +75,8 @@ export const listOperationalJobs = async ({
   statuses?: OperationalJobStatus[];
   creatorId?: string;
   releaseId?: string;
+  resourceKind?: OperationalJobResourceKind;
+  resourceId?: string;
   limit?: number;
 }) => {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) {
@@ -86,6 +91,10 @@ export const listOperationalJobs = async ({
   }
   if (creatorId) conditions.push(eq(operationalJobs.creatorId, creatorId));
   if (releaseId) conditions.push(eq(operationalJobs.releaseId, releaseId));
+  if (resourceKind) {
+    conditions.push(eq(operationalJobs.resourceKind, resourceKind));
+  }
+  if (resourceId) conditions.push(eq(operationalJobs.resourceId, resourceId));
   const jobs = await database
     .select()
     .from(operationalJobs)

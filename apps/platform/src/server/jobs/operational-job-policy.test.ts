@@ -49,6 +49,17 @@ describe("operational job policy", () => {
         deadlineSeconds: 1_800,
         retryBackoffSeconds: 60,
       },
+      lifecycle_cleanup: {
+        kind: "lifecycle_cleanup",
+        lane: "lifecycle_cleanup",
+        globalConcurrency: 2,
+        perCreatorConcurrency: 1,
+        queueDepth: 500,
+        maxAttempts: 5,
+        leaseSeconds: 120,
+        deadlineSeconds: 86_400,
+        retryBackoffSeconds: 60,
+      },
     });
   });
 

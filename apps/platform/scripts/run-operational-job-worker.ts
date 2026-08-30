@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { startReleaseJobWorkerService } from "../src/server/jobs/release-job-worker-service";
+import { startOperationalJobWorkerService } from "../src/server/jobs/operational-job-worker-service";
 
-const worker = await startReleaseJobWorkerService();
+const worker = await startOperationalJobWorkerService();
 let shuttingDown = false;
 
 const shutdown = async (signal: string) => {

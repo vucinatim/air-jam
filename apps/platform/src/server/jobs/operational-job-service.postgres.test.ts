@@ -21,14 +21,14 @@ import {
   requestOperationalJobCancellation,
 } from "./operational-job-service";
 import {
+  operationalJobExecutors,
+  runOperationalJobWorkerCycle,
+} from "./operational-job-worker";
+import {
   ReleaseJobExecutionError,
   releaseJobExecutionContractVersion,
 } from "./release-job-contract";
 import { cleanupReleaseJobOrphanOutputs } from "./release-job-output-cleanup";
-import {
-  releaseJobExecutors,
-  runReleaseJobWorkerCycle,
-} from "./release-job-worker";
 
 const databaseUrl = process.env.AIR_JAM_TEST_DATABASE_URL?.trim();
 const describeWithPostgres = databaseUrl ? describe : describe.skip;
@@ -1710,12 +1710,12 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       now: new Date(Date.now() - 1_000),
     });
     const outputRootKey = `tests/operational-jobs/${suffix}/failed-attempt`;
-    const first = await runReleaseJobWorkerCycle({
+    const first = await runOperationalJobWorkerCycle({
       kind: "release_artifact_processing",
       workerId: "worker:lifecycle-one",
       database,
       executors: {
-        ...releaseJobExecutors,
+        ...operationalJobExecutors,
         artifact: async ({ reportProgress }) => {
           await reportProgress(
             {
@@ -1744,12 +1744,12 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       .update(schema.operationalJobs)
       .set({ availableAt: sql`clock_timestamp() - interval '1 second'` })
       .where(eq(schema.operationalJobs.id, enqueued.job.id));
-    const second = await runReleaseJobWorkerCycle({
+    const second = await runOperationalJobWorkerCycle({
       kind: "release_artifact_processing",
       workerId: "worker:lifecycle-two",
       database,
       executors: {
-        ...releaseJobExecutors,
+        ...operationalJobExecutors,
         artifact: async ({
           database: jobDatabase,
           generationId,

@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import {
+  gameMediaAssets,
   gameReleaseGenerations,
   gameReleases,
   games,
@@ -9,9 +10,11 @@ import {
   operationalJobContractVersion,
   type OperationalJobCommandKind,
   type OperationalJobKind,
+  type OperationalJobResourceKind,
   type OperationalJobStatus,
 } from "@air-jam/database-contract";
 import { and, count, eq, inArray } from "drizzle-orm";
+import { lifecycleCleanupJobPayloadSchema } from "./lifecycle-cleanup-job-contract";
 import {
   OperationalJobCapacityError,
   OperationalJobConflictError,
@@ -31,7 +34,10 @@ import {
 } from "./operational-job-internals";
 import { planOperationalJobCancellation } from "./operational-job-planning";
 import { getOperationalJobPolicy } from "./operational-job-policy";
-import { parseReleaseJobPayload } from "./release-job-contract";
+import {
+  isReleaseOperationalJobKind,
+  parseReleaseJobPayload,
+} from "./release-job-contract";
 import {
   applyReleaseJobTerminalState,
   prepareReleaseJobReplayState,
@@ -43,35 +49,56 @@ const assertJobScope = async ({
   gameId,
   releaseId,
   generationId,
+  resourceKind,
+  resourceId,
 }: {
   tx: JobTransaction;
   creatorId: string;
   gameId: string;
-  releaseId: string;
-  generationId: string;
+  releaseId: string | null;
+  generationId: string | null;
+  resourceKind: OperationalJobResourceKind;
+  resourceId: string;
 }) => {
-  const rows = await tx
-    .select({ releaseId: gameReleases.id })
-    .from(gameReleases)
-    .innerJoin(games, eq(gameReleases.gameId, games.id))
-    .innerJoin(
-      gameReleaseGenerations,
-      and(
-        eq(gameReleaseGenerations.id, generationId),
-        eq(gameReleaseGenerations.releaseId, gameReleases.id),
-      ),
-    )
-    .where(
-      and(
-        eq(gameReleases.id, releaseId),
-        eq(gameReleases.gameId, gameId),
-        eq(games.userId, creatorId),
-      ),
-    )
-    .limit(1);
+  const rows =
+    resourceKind === "release_generation"
+      ? releaseId && generationId
+        ? await tx
+            .select({ resourceId: gameReleaseGenerations.id })
+            .from(gameReleases)
+            .innerJoin(games, eq(gameReleases.gameId, games.id))
+            .innerJoin(
+              gameReleaseGenerations,
+              and(
+                eq(gameReleaseGenerations.id, generationId),
+                eq(gameReleaseGenerations.releaseId, gameReleases.id),
+              ),
+            )
+            .where(
+              and(
+                eq(gameReleases.id, releaseId),
+                eq(gameReleases.gameId, gameId),
+                eq(games.userId, creatorId),
+                eq(gameReleaseGenerations.id, resourceId),
+              ),
+            )
+            .limit(1)
+        : []
+      : await tx
+          .select({ resourceId: gameMediaAssets.id })
+          .from(gameMediaAssets)
+          .innerJoin(games, eq(gameMediaAssets.gameId, games.id))
+          .where(
+            and(
+              eq(gameMediaAssets.id, resourceId),
+              eq(gameMediaAssets.gameId, gameId),
+              eq(games.userId, creatorId),
+            ),
+          )
+          .limit(1);
   if (!rows[0]) {
     throw new OperationalJobConflictError(
-      "Release was not found in the requested creator and game scope.",
+      "Operational resource was not found in the requested creator and game scope.",
     );
   }
 };
@@ -95,8 +122,10 @@ type CreateOperationalJobInput = {
   kind: OperationalJobKind;
   creatorId: string;
   gameId: string;
-  releaseId: string;
-  generationId: string;
+  releaseId: string | null;
+  generationId: string | null;
+  resourceKind: OperationalJobResourceKind;
+  resourceId: string;
   payload: Record<string, unknown>;
   priority: number;
   correlationId: string;
@@ -107,7 +136,7 @@ type CreateOperationalJobInput = {
   testNow?: Date;
 };
 
-const createOperationalJob = async ({
+export const createOperationalJobInTransaction = async ({
   tx,
   commandId,
   commandKind,
@@ -116,6 +145,8 @@ const createOperationalJob = async ({
   gameId,
   releaseId,
   generationId,
+  resourceKind,
+  resourceId,
   payload,
   priority,
   correlationId,
@@ -136,18 +167,21 @@ const createOperationalJob = async ({
     gameId,
     releaseId,
     generationId,
+    resourceKind,
+    resourceId,
   });
   const active = await tx.query.operationalJobs.findFirst({
     where: (table, { and, eq, inArray }) =>
       and(
         eq(table.kind, kind),
-        eq(table.generationId, generationId),
+        eq(table.resourceKind, resourceKind),
+        eq(table.resourceId, resourceId),
         inArray(table.status, ["queued", "running", "cancel_requested"]),
       ),
   });
   if (active) {
     throw new OperationalJobConflictError(
-      `Release generation already has active ${kind} job ${active.id}.`,
+      `Resource already has active ${kind} job ${active.id}.`,
     );
   }
   if ((await countQueuedJobs(tx, kind)) >= policy.queueDepth) {
@@ -169,6 +203,8 @@ const createOperationalJob = async ({
       gameId,
       releaseId,
       generationId,
+      resourceKind,
+      resourceId,
       createdByCommandId: commandId,
       requestHash,
       correlationId,
@@ -203,8 +239,10 @@ export type EnqueueOperationalJobInput = {
   kind: OperationalJobKind;
   creatorId: string;
   gameId: string;
-  releaseId: string;
-  generationId: string;
+  releaseId?: string | null;
+  generationId?: string | null;
+  resourceKind?: OperationalJobResourceKind;
+  resourceId?: string;
   idempotencyKey: string;
   payload?: Record<string, unknown>;
   priority?: number;
@@ -221,6 +259,8 @@ const normalizeEnqueueOperationalJobInput = ({
   gameId: rawGameId,
   releaseId: rawReleaseId,
   generationId: rawGenerationId,
+  resourceKind: rawResourceKind,
+  resourceId: rawResourceId,
   idempotencyKey: rawIdempotencyKey,
   payload: rawPayload = {},
   priority = 0,
@@ -231,11 +271,6 @@ const normalizeEnqueueOperationalJobInput = ({
 }: EnqueueOperationalJobInput) => {
   const creatorId = normalizeRequiredJobText(rawCreatorId, "Creator ID");
   const gameId = normalizeRequiredJobText(rawGameId, "Game ID");
-  const releaseId = normalizeRequiredJobText(rawReleaseId, "Release ID");
-  const generationId = normalizeRequiredJobText(
-    rawGenerationId,
-    "Generation ID",
-  );
   const idempotencyKey = normalizeRequiredJobText(
     rawIdempotencyKey,
     "Idempotency key",
@@ -243,15 +278,75 @@ const normalizeEnqueueOperationalJobInput = ({
   const actor = normalizeRequiredJobText(rawActor, "Actor");
   const reason = normalizeRequiredJobText(rawReason, "Reason");
   let parsedPayload: Record<string, unknown>;
+  let releaseId: string | null;
+  let generationId: string | null;
+  let resourceKind: OperationalJobResourceKind;
+  let resourceId: string;
   try {
-    parsedPayload = parseReleaseJobPayload(kind, rawPayload);
+    if (isReleaseOperationalJobKind(kind)) {
+      releaseId = normalizeRequiredJobText(rawReleaseId ?? "", "Release ID");
+      generationId = normalizeRequiredJobText(
+        rawGenerationId ?? "",
+        "Generation ID",
+      );
+      resourceKind = "release_generation";
+      resourceId = generationId;
+      if (
+        (rawResourceKind && rawResourceKind !== resourceKind) ||
+        (rawResourceId && rawResourceId !== resourceId)
+      ) {
+        throw new OperationalJobConflictError(
+          "Release jobs must target their scoped release generation.",
+        );
+      }
+      parsedPayload = parseReleaseJobPayload(kind, rawPayload);
+    } else {
+      const cleanupPayload = lifecycleCleanupJobPayloadSchema.parse(rawPayload);
+      resourceKind = rawResourceKind ?? cleanupPayload.resourceKind;
+      resourceId = normalizeRequiredJobText(
+        rawResourceId ?? cleanupPayload.resourceId,
+        "Resource ID",
+      );
+      if (
+        resourceKind !== cleanupPayload.resourceKind ||
+        resourceId !== cleanupPayload.resourceId
+      ) {
+        throw new OperationalJobConflictError(
+          "Cleanup payload resource must match the job resource scope.",
+        );
+      }
+      if (resourceKind === "release_generation") {
+        releaseId = normalizeRequiredJobText(rawReleaseId ?? "", "Release ID");
+        generationId = normalizeRequiredJobText(
+          rawGenerationId ?? "",
+          "Generation ID",
+        );
+        if (generationId !== resourceId) {
+          throw new OperationalJobConflictError(
+            "Cleanup generation must match the job resource ID.",
+          );
+        }
+      } else {
+        if (rawReleaseId || rawGenerationId) {
+          throw new OperationalJobConflictError(
+            "Media cleanup jobs cannot carry release-generation scope.",
+          );
+        }
+        releaseId = null;
+        generationId = null;
+      }
+      parsedPayload = cleanupPayload;
+    }
   } catch {
     throw new OperationalJobConflictError(
       `Payload did not match the ${kind} job contract.`,
     );
   }
   const payload = normalizeOperationalJobJsonObject(parsedPayload, "Payload");
-  if (payload.generationId !== generationId) {
+  if (
+    isReleaseOperationalJobKind(kind) &&
+    payload.generationId !== generationId
+  ) {
     throw new OperationalJobConflictError(
       "Job payload generation must match the job generation scope.",
     );
@@ -268,6 +363,8 @@ const normalizeEnqueueOperationalJobInput = ({
     gameId,
     releaseId,
     generationId,
+    resourceKind,
+    resourceId,
     payload,
     priority,
     correlationId: explicitCorrelationId,
@@ -282,6 +379,8 @@ const normalizeEnqueueOperationalJobInput = ({
     gameId,
     releaseId,
     generationId,
+    resourceKind,
+    resourceId,
     idempotencyKey,
     payload,
     priority,
@@ -317,7 +416,7 @@ export const enqueueOperationalJobInTransaction = async ({
     } as const;
   }
 
-  const job = await createOperationalJob({
+  const job = await createOperationalJobInTransaction({
     tx,
     commandId: commandState.command.id,
     commandKind: "enqueue",
@@ -326,6 +425,8 @@ export const enqueueOperationalJobInTransaction = async ({
     gameId: normalized.gameId,
     releaseId: normalized.releaseId,
     generationId: normalized.generationId,
+    resourceKind: normalized.resourceKind,
+    resourceId: normalized.resourceId,
     payload: normalized.payload,
     priority: normalized.priority,
     correlationId: normalized.explicitCorrelationId ?? crypto.randomUUID(),
@@ -652,7 +753,10 @@ export const requestOperationalJobCancellation = async ({
         "Job cancellation lost its revision fence.",
       );
     }
-    if (nextStatus === "canceled") {
+    if (
+      nextStatus === "canceled" &&
+      isReleaseOperationalJobKind(updated.kind)
+    ) {
       await applyReleaseJobTerminalState({
         tx,
         job: updated,
@@ -745,12 +849,14 @@ export const replayOperationalJob = async ({
         "Only failed or canceled jobs can be replayed.",
       );
     }
-    await prepareReleaseJobReplayState({
-      tx,
-      job: original,
-      now: commandState.authorityNow,
-    });
-    const replay = await createOperationalJob({
+    if (isReleaseOperationalJobKind(original.kind)) {
+      await prepareReleaseJobReplayState({
+        tx,
+        job: original,
+        now: commandState.authorityNow,
+      });
+    }
+    const replay = await createOperationalJobInTransaction({
       tx,
       commandId: commandState.command.id,
       commandKind: "replay",
@@ -759,6 +865,8 @@ export const replayOperationalJob = async ({
       gameId: original.gameId,
       releaseId: original.releaseId,
       generationId: original.generationId,
+      resourceKind: original.resourceKind,
+      resourceId: original.resourceId,
       payload: original.payload,
       priority: original.priority,
       correlationId: original.correlationId,

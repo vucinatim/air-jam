@@ -15,7 +15,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "node /app/apps/platform/run-release-job-worker.mjs",
+    "startCommand": "node /app/apps/platform/run-operational-job-worker.mjs",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",

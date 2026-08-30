@@ -161,6 +161,7 @@ describeWithPostgres("production quota PostgreSQL authority", () => {
         mimeType: "image/png",
         sizeBytes: 400,
         storageKey: `tests/${suffix}/b.png`,
+        inactiveAt: now,
         createdAt: new Date(now.getTime() - 4_000),
         updatedAt: now,
       },

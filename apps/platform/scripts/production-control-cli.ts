@@ -1,11 +1,13 @@
 import {
   operationalJobContractVersion,
   operationalJobKindValues,
+  operationalJobResourceKindValues,
   operationalJobStatusValues,
   operationalLaneModeValues,
   operationalLaneValues,
   operationalQuotaKeyValues,
   type OperationalJobKind,
+  type OperationalJobResourceKind,
   type OperationalJobStatus,
   type OperationalLane,
   type OperationalLaneMode,
@@ -29,11 +31,15 @@ import {
   replayOperationalJob,
   requestOperationalJobCancellation,
 } from "../src/server/jobs/operational-job-service";
+import { runOperationalJobWorkerCycle } from "../src/server/jobs/operational-job-worker";
 import {
   cleanupReleaseJobOrphanOutputs,
   listReleaseJobOrphanOutputs,
 } from "../src/server/jobs/release-job-output-cleanup";
-import { runReleaseJobWorkerCycle } from "../src/server/jobs/release-job-worker";
+import {
+  inspectLifecycleCleanupCandidates,
+  scheduleLifecycleCleanup,
+} from "../src/server/operations/lifecycle-cleanup-service";
 import {
   findOperationalBudgetEvidenceReplay,
   getOperationalBudgetStatus,
@@ -74,6 +80,8 @@ type ProductionControlCliInput =
       statuses?: OperationalJobStatus[];
       creatorId?: string;
       releaseId?: string;
+      resourceKind?: OperationalJobResourceKind;
+      resourceId?: string;
       limit: number;
       json: boolean;
     }
@@ -119,6 +127,15 @@ type ProductionControlCliInput =
       command: "jobs-worker-once";
       kind: OperationalJobKind;
       workerId: string;
+      apply: boolean;
+      json: boolean;
+    }
+  | {
+      command: "lifecycle-cleanup";
+      actor: string;
+      reason: string;
+      idempotencyKey: string;
+      limit: number;
       apply: boolean;
       json: boolean;
     }
@@ -230,6 +247,23 @@ const readRequiredJobKind = (
 ): OperationalJobKind =>
   readOptionalJobKind(input) ?? fail("kind is required.");
 
+const readOptionalJobResourceKind = (
+  input: Record<string, unknown>,
+): OperationalJobResourceKind | undefined => {
+  const resourceKind = readOptionalText(input, "resourceKind");
+  if (!resourceKind) return undefined;
+  if (
+    !operationalJobResourceKindValues.includes(
+      resourceKind as OperationalJobResourceKind,
+    )
+  ) {
+    fail(
+      `resourceKind must be one of: ${operationalJobResourceKindValues.join(", ")}.`,
+    );
+  }
+  return resourceKind as OperationalJobResourceKind;
+};
+
 const readOptionalJobStatuses = (
   input: Record<string, unknown>,
 ): OperationalJobStatus[] | undefined => {
@@ -285,6 +319,8 @@ const parseInput = (raw: string | undefined): ProductionControlCliInput => {
       statuses: readOptionalJobStatuses(input),
       creatorId: readOptionalText(input, "creatorId"),
       releaseId: readOptionalText(input, "releaseId"),
+      resourceKind: readOptionalJobResourceKind(input),
+      resourceId: readOptionalText(input, "resourceId"),
       limit:
         input.limit === undefined
           ? 100
@@ -355,6 +391,20 @@ const parseInput = (raw: string | undefined): ProductionControlCliInput => {
       command: "jobs-worker-once",
       kind: readRequiredJobKind(input),
       workerId: readRequiredText(input, "workerId"),
+      apply: input.apply === true,
+      json,
+    };
+  }
+  if (input.command === "lifecycle-cleanup") {
+    return {
+      command: "lifecycle-cleanup",
+      actor: readRequiredText(input, "actor"),
+      reason: readRequiredText(input, "reason"),
+      idempotencyKey: readRequiredText(input, "idempotencyKey"),
+      limit:
+        input.limit === undefined
+          ? 100
+          : readIntegerInRange(input, "limit", 1, 500),
       apply: input.apply === true,
       json,
     };
@@ -592,6 +642,8 @@ const main = async (): Promise<void> => {
         statuses: input.statuses,
         creatorId: input.creatorId,
         releaseId: input.releaseId,
+        resourceKind: input.resourceKind,
+        resourceId: input.resourceId,
         limit: input.limit,
       });
       const result = {
@@ -842,6 +894,71 @@ const main = async (): Promise<void> => {
       return;
     }
 
+    if (input.command === "lifecycle-cleanup") {
+      const redactCandidate = <
+        Candidate extends {
+          storageRootKey: string;
+          objects?: Array<{ key: string }>;
+        },
+      >({
+        storageRootKey: _storageRootKey,
+        objects,
+        ...candidate
+      }: Candidate) => ({
+        ...candidate,
+        privateData: {
+          hasStorageRootKey: true,
+          hasObjectKeys: Boolean(objects?.length),
+        },
+      });
+      if (!input.apply) {
+        const inspection = await inspectLifecycleCleanupCandidates({
+          database,
+          limit: input.limit,
+        });
+        const result = {
+          lifecycleCleanupContractVersion: 1,
+          actor: input.actor,
+          reason: input.reason,
+          idempotencyKey: input.idempotencyKey,
+          limit: input.limit,
+          observedAt: inspection.observedAt,
+          candidates: inspection.candidates.map(redactCandidate),
+        };
+        if (input.json) printJson(input.command, false, result);
+        else {
+          const bytes = inspection.candidates.reduce(
+            (total, candidate) => total + candidate.bytes,
+            0,
+          );
+          console.log(
+            `Would schedule ${inspection.candidates.length} lifecycle cleanup jobs covering ${bytes} bytes.`,
+          );
+          console.log("Pass --apply to enqueue durable cleanup jobs.");
+        }
+        return;
+      }
+      const scheduled = await scheduleLifecycleCleanup({
+        database,
+        actor: input.actor,
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey,
+        limit: input.limit,
+      });
+      const result = {
+        lifecycleCleanupContractVersion: 1,
+        candidates: scheduled.candidates.map(redactCandidate),
+        jobs: scheduled.jobs,
+        replayed: scheduled.replayed,
+      };
+      if (input.json) printJson(input.command, true, result);
+      else
+        console.log(
+          `Scheduled ${scheduled.jobs.length} durable lifecycle cleanup jobs.`,
+        );
+      return;
+    }
+
     if (input.command === "jobs-worker-once") {
       if (!input.apply) {
         const queued = await listOperationalJobs({
@@ -868,7 +985,7 @@ const main = async (): Promise<void> => {
         }
         return;
       }
-      const cycle = await runReleaseJobWorkerCycle({
+      const cycle = await runOperationalJobWorkerCycle({
         database,
         kind: input.kind,
         workerId: input.workerId,

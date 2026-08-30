@@ -559,11 +559,11 @@ const commitReleaseArtifactJobAttempt = async ({
       kind: "release_browser_validation",
       creatorId: job.creatorId,
       gameId: job.gameId,
-      releaseId: job.releaseId,
-      generationId: job.generationId,
-      idempotencyKey: `release-browser:${job.generationId}:after:${job.id}`,
+      releaseId,
+      generationId,
+      idempotencyKey: `release-browser:${generationId}:after:${job.id}`,
       payload: createReleaseBrowserValidationJobPayload({
-        generationId: job.generationId,
+        generationId,
       }),
       correlationId: job.correlationId,
       actor: workerId,
@@ -586,7 +586,7 @@ const commitReleaseArtifactJobAttempt = async ({
       workerId,
       result,
       reason:
-        "Release worker atomically committed artifact output and its job result.",
+        "Operational worker atomically committed artifact output and its job result.",
     });
     return result;
   });

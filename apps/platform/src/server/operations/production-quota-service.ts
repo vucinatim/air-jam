@@ -171,7 +171,7 @@ const loadManagedStorageBytes = async ({
       .select({ bytes: sum(gameMediaAssets.sizeBytes) })
       .from(gameMediaAssets)
       .innerJoin(games, eq(gameMediaAssets.gameId, games.id))
-      .where(gameScope),
+      .where(and(gameScope, isNull(gameMediaAssets.storageDeletedAt))),
     database
       .select({
         bytes: sql<number>`coalesce(sum(greatest(${gameReleaseGenerations.declaredSizeBytes}, coalesce(${gameReleaseGenerations.observedSizeBytes}, 0)) + coalesce(${gameReleaseGenerations.extractedSizeBytes}, 0)), 0)`,
@@ -182,7 +182,7 @@ const loadManagedStorageBytes = async ({
         eq(gameReleaseGenerations.releaseId, gameReleases.id),
       )
       .innerJoin(games, eq(gameReleases.gameId, games.id))
-      .where(gameScope),
+      .where(and(gameScope, isNull(gameReleaseGenerations.storageDeletedAt))),
   ]);
   return toSafeNonNegativeInteger(
     toSafeNonNegativeInteger(mediaRows[0]?.bytes, "Managed media bytes") +

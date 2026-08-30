@@ -336,13 +336,19 @@ facts, create-only source and output keys, explicit candidate/promoted pointers,
 generation-scoped checks, and fail-closed legacy migration. Public serving,
 publishing, quotas, dashboard, machine API, SDK, CLI, and MCP now agree on that
 generation model. Its sixth slice adds the
-[production release job worker proof](./audits/v1-reliability/production-release-job-worker-proof.md):
+[production operational job worker proof](./audits/v1-reliability/production-operational-job-worker-proof.md):
 finalize now enqueues a strict generation-scoped three-stage job graph, a
 separate drainable worker owns execution, attempts isolate retry outputs, and
 dashboard, API, SDK, CLI, and MCP share enqueue, inspect, wait, and publish
-semantics. The old synchronous finalizer is gone. Broader lifecycle cleanup,
-realtime admission, overload proof, and explicit production rollout remain part
-of the unfinished gate.
+semantics. The old synchronous finalizer is gone. Its seventh slice adds the
+[production lifecycle cleanup proof](./audits/v1-reliability/production-lifecycle-cleanup-proof.md):
+the operational worker now schedules and executes exact, resource-scoped
+cleanup for terminal release generations and inactive unassigned media. The
+first object manifest survives partial deletion and retries, database
+tombstones control quota accounting, and the canonical CLI provides redacted
+preview/apply plus resource-filtered inspection. Superseded unpublished
+artifact warning and long retention, realtime admission, overload proof, and
+explicit production rollout remain part of the unfinished gate.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
@@ -378,8 +384,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. land the completed durable release-worker stack, then continue broader
-   lifecycle cleanup, realtime admission, and overload proof
+3. land the completed operational-worker and terminal-resource cleanup stack,
+   then finish warned long-term artifact retention, realtime admission, and
+   overload proof
 4. run the isolated backup/restore and rollback/replay work in parallel with
    the operational-event contract and threat model
 5. preserve Gate 1 contracts while those independent implementation lanes run
