@@ -6,6 +6,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -443,13 +444,14 @@ describe("inspectMcpProjectSetup", () => {
     await writeProjectLocalMcpConfig({ cwd: root });
 
     const inspection = await inspectMcpProjectSetup({ cwd: root });
+    const canonicalRoot = await realpath(root);
     expect(inspection.portableDeclaration).toEqual({
-      configPath: path.join(root, ".mcp.json"),
+      configPath: path.join(canonicalRoot, ".mcp.json"),
       present: true,
     });
     expect(inspection.clients.codex).toMatchObject({
       profile: "codex",
-      configPath: path.join(root, ".codex", "config.toml"),
+      configPath: path.join(canonicalRoot, ".codex", "config.toml"),
       configPresent: false,
       registered: false,
     });
