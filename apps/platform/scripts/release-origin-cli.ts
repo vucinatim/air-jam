@@ -3,33 +3,35 @@ import {
   HOSTED_RELEASE_PUBLIC_ORIGIN_ENV,
   type HostedReleaseOriginAssessment,
 } from "../src/lib/releases/hosted-release-origin";
+import {
+  attestRemoteReleaseOrigin,
+  inspectRemoteReleaseOrigin,
+  ReleaseOriginOperatorError,
+  type RemoteReleaseOriginInspectionResult,
+} from "./release-origin-attestation";
 
 const CLI_CONTRACT_VERSION = 1 as const;
-const REMOTE_REQUEST_TIMEOUT_MS = 5_000;
-const MAX_REMOTE_RESPONSE_BYTES = 64 * 1024;
 
-type ReleaseOriginCliInput = {
+type ReleaseOriginInspectInput = {
   command: "inspect";
   json: boolean;
   platformUrl: string | null;
 };
 
-type RemoteHostedReleaseOriginAssessment = {
-  required: boolean;
-  status: "ready" | "disabled" | "invalid";
-  publicOrigin: string | null;
-  reason: string | null;
+type ReleaseOriginAttestInput = {
+  command: "attest";
+  json: boolean;
+  platformUrl: string;
+  releaseUrl: string;
 };
+
+type ReleaseOriginCliInput =
+  | ReleaseOriginInspectInput
+  | ReleaseOriginAttestInput;
 
 type LocalReleaseOriginInspectionResult = {
   source: { type: "local" };
   assessment: HostedReleaseOriginAssessment;
-};
-
-type RemoteReleaseOriginInspectionResult = {
-  source: { type: "remote"; platformOrigin: string };
-  health: { httpStatus: 200 | 503; ok: boolean };
-  assessment: RemoteHostedReleaseOriginAssessment;
 };
 
 type ReleaseOriginInspectionResult =
@@ -40,20 +42,6 @@ const isLocalInspectionResult = (
   result: ReleaseOriginInspectionResult,
 ): result is LocalReleaseOriginInspectionResult =>
   result.source.type === "local";
-
-class ReleaseOriginInspectionError extends Error {
-  constructor(
-    readonly code:
-      | "INVALID_PLATFORM_URL"
-      | "REMOTE_REQUEST_FAILED"
-      | "REMOTE_HTTP_ERROR"
-      | "REMOTE_CONTRACT_INVALID",
-    message: string,
-  ) {
-    super(message);
-    this.name = "ReleaseOriginInspectionError";
-  }
-}
 
 const fail = (message: string): never => {
   throw new Error(message);
@@ -75,266 +63,32 @@ const parseInput = (raw: string | undefined): ReleaseOriginCliInput => {
   }
 
   const input = value as Record<string, unknown>;
-  if (input.command !== "inspect") {
+  if (input.command !== "inspect" && input.command !== "attest") {
     return fail("Unknown release-origin CLI command.");
   }
   if (input.platformUrl !== null && typeof input.platformUrl !== "string") {
     return fail("Release-origin platformUrl must be a string or null.");
   }
 
-  return {
-    command: input.command,
-    json: input.json === true,
-    platformUrl: input.platformUrl,
-  };
-};
-
-const parsePlatformOrigin = (rawUrl: string): string => {
-  try {
-    const url = new URL(rawUrl);
-    if (
-      (url.protocol !== "http:" && url.protocol !== "https:") ||
-      url.username ||
-      url.password ||
-      url.pathname !== "/" ||
-      url.search ||
-      url.hash
-    ) {
-      throw new Error("invalid origin");
+  if (input.command === "attest") {
+    if (typeof input.platformUrl !== "string") {
+      return fail("Release-origin attestation requires platformUrl.");
     }
-    return url.origin;
-  } catch {
-    throw new ReleaseOriginInspectionError(
-      "INVALID_PLATFORM_URL",
-      "--platform-url must be an absolute http(s) origin without credentials, a path, query, or fragment.",
-    );
-  }
-};
-
-const readBoundedResponseText = async (response: Response): Promise<string> => {
-  const declaredLength = Number(response.headers.get("content-length"));
-  if (
-    Number.isFinite(declaredLength) &&
-    declaredLength > MAX_REMOTE_RESPONSE_BYTES
-  ) {
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote platform health response exceeded the inspection size limit.",
-    );
-  }
-
-  if (!response.body) return "";
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let receivedBytes = 0;
-  let body = "";
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      receivedBytes += value.byteLength;
-      if (receivedBytes > MAX_REMOTE_RESPONSE_BYTES) {
-        await reader.cancel();
-        throw new ReleaseOriginInspectionError(
-          "REMOTE_CONTRACT_INVALID",
-          "Remote platform health response exceeded the inspection size limit.",
-        );
-      }
-      body += decoder.decode(value, { stream: true });
+    if (typeof input.releaseUrl !== "string") {
+      return fail("Release-origin attestation requires releaseUrl.");
     }
-    return body + decoder.decode();
-  } finally {
-    reader.releaseLock();
-  }
-};
-
-const parseRemoteHealth = (
-  value: unknown,
-  httpStatus: 200 | 503,
-): Pick<RemoteReleaseOriginInspectionResult, "health" | "assessment"> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote platform health response is not the expected object contract.",
-    );
-  }
-
-  const health = value as Record<string, unknown>;
-  const boundaries = health.boundaries;
-  const boundary =
-    boundaries && typeof boundaries === "object" && !Array.isArray(boundaries)
-      ? (boundaries as Record<string, unknown>).hostedReleaseOrigin
-      : null;
-  if (
-    typeof health.ok !== "boolean" ||
-    health.service !== "platform" ||
-    !boundary ||
-    typeof boundary !== "object" ||
-    Array.isArray(boundary)
-  ) {
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote platform health response does not contain the hosted-release origin boundary.",
-    );
-  }
-
-  if ((httpStatus === 200 && !health.ok) || (httpStatus === 503 && health.ok)) {
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote platform health status does not match its HTTP status.",
-    );
-  }
-
-  const assessment = boundary as Record<string, unknown>;
-  const status = assessment.status;
-  if (
-    typeof assessment.required !== "boolean" ||
-    (status !== "ready" && status !== "disabled" && status !== "invalid")
-  ) {
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote hosted-release origin assessment has invalid required or status fields.",
-    );
-  }
-
-  if (status === "ready") {
-    if (
-      typeof assessment.publicOrigin !== "string" ||
-      assessment.reason !== null
-    ) {
-      throw new ReleaseOriginInspectionError(
-        "REMOTE_CONTRACT_INVALID",
-        "Remote ready assessment has invalid publicOrigin or reason fields.",
-      );
-    }
-
-    let publicOrigin: string;
-    try {
-      const parsed = new URL(assessment.publicOrigin);
-      if (
-        (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
-        parsed.username ||
-        parsed.password ||
-        parsed.pathname !== "/" ||
-        parsed.search ||
-        parsed.hash
-      ) {
-        throw new Error("invalid origin");
-      }
-      publicOrigin = parsed.origin;
-    } catch {
-      throw new ReleaseOriginInspectionError(
-        "REMOTE_CONTRACT_INVALID",
-        "Remote ready assessment publicOrigin is not a valid http(s) origin.",
-      );
-    }
-
-    if (!health.ok && assessment.required) {
-      throw new ReleaseOriginInspectionError(
-        "REMOTE_CONTRACT_INVALID",
-        "Remote platform reports an unhealthy required boundary as ready.",
-      );
-    }
-
     return {
-      health: { httpStatus, ok: health.ok },
-      assessment: {
-        required: assessment.required,
-        status,
-        publicOrigin,
-        reason: null,
-      },
+      command: "attest",
+      json: input.json === true,
+      platformUrl: input.platformUrl,
+      releaseUrl: input.releaseUrl,
     };
   }
 
-  if (
-    assessment.publicOrigin !== null ||
-    typeof assessment.reason !== "string" ||
-    assessment.reason.length === 0
-  ) {
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote unavailable assessment has invalid publicOrigin or reason fields.",
-    );
-  }
-
-  if (health.ok && assessment.required) {
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote platform reports an unavailable required boundary as healthy.",
-    );
-  }
-
   return {
-    health: { httpStatus, ok: health.ok },
-    assessment: {
-      required: assessment.required,
-      status,
-      publicOrigin: null,
-      reason: assessment.reason,
-    },
-  };
-};
-
-const inspectRemotePlatform = async (
-  platformUrl: string,
-): Promise<RemoteReleaseOriginInspectionResult> => {
-  const platformOrigin = parsePlatformOrigin(platformUrl);
-  const healthUrl = new URL("/api/health", platformOrigin);
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    REMOTE_REQUEST_TIMEOUT_MS,
-  );
-
-  let body: string;
-  let httpStatus: 200 | 503;
-  try {
-    const response = await fetch(healthUrl, {
-      method: "GET",
-      headers: { accept: "application/json" },
-      redirect: "error",
-      signal: controller.signal,
-    });
-
-    if (response.status !== 200 && response.status !== 503) {
-      await response.body?.cancel();
-      throw new ReleaseOriginInspectionError(
-        "REMOTE_HTTP_ERROR",
-        `Remote platform health request returned HTTP ${response.status}.`,
-      );
-    }
-
-    httpStatus = response.status;
-    body = await readBoundedResponseText(response);
-  } catch (error: unknown) {
-    if (error instanceof ReleaseOriginInspectionError) throw error;
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_REQUEST_FAILED",
-      controller.signal.aborted
-        ? `Remote platform health request timed out after ${REMOTE_REQUEST_TIMEOUT_MS}ms.`
-        : "Remote platform health request failed.",
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(body);
-  } catch {
-    throw new ReleaseOriginInspectionError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote platform health response is not valid JSON.",
-    );
-  }
-
-  const remoteHealth = parseRemoteHealth(parsed, httpStatus);
-  return {
-    source: { type: "remote" as const, platformOrigin },
-    ...remoteHealth,
+    command: "inspect",
+    json: input.json === true,
+    platformUrl: input.platformUrl,
   };
 };
 
@@ -345,8 +99,47 @@ const inspectLocalEnvironment = (): LocalReleaseOriginInspectionResult => ({
 
 const main = async (): Promise<void> => {
   const input = parseInput(process.argv[2]);
+  if (input.command === "attest") {
+    const result = await attestRemoteReleaseOrigin({
+      platformUrl: input.platformUrl,
+      releaseUrl: input.releaseUrl,
+    });
+    if (input.json) {
+      console.log(
+        JSON.stringify(
+          {
+            contractVersion: CLI_CONTRACT_VERSION,
+            command: "release-origin.attest",
+            ...result,
+          },
+          null,
+          2,
+        ),
+      );
+    } else {
+      console.log(`Hosted release origin attestation: ${result.status}`);
+      console.log(`Evidence kind: ${result.evidenceKind}`);
+      console.log(`Attested at: ${result.attestedAt}`);
+      console.log(`Platform origin: ${result.source.platformOrigin}`);
+      console.log(`Release origin: ${result.source.releaseOrigin}`);
+      for (const item of result.checks) {
+        console.log(
+          `${item.status === "passed" ? "✓" : "✗"} ${item.id}: ${item.summary}`,
+        );
+      }
+      console.log(
+        `Checks: ${result.summary.passed} passed, ${result.summary.failed} failed`,
+      );
+      console.log(
+        `Production deployment evidence: ${result.productionEvidenceEligible ? "eligible" : "diagnostic only"}`,
+      );
+    }
+    if (result.status === "failed") process.exitCode = 1;
+    return;
+  }
+
   const result: ReleaseOriginInspectionResult = input.platformUrl
-    ? await inspectRemotePlatform(input.platformUrl)
+    ? await inspectRemoteReleaseOrigin(input.platformUrl)
     : inspectLocalEnvironment();
 
   if (input.json) {
@@ -417,18 +210,28 @@ const jsonOutputWasRequested = (): boolean => {
 
 void main().catch((error: unknown) => {
   const inspectionError =
-    error instanceof ReleaseOriginInspectionError ? error : null;
+    error instanceof ReleaseOriginOperatorError ? error : null;
   const message =
     error instanceof Error
       ? error.message
       : "Release-origin inspection failed.";
 
   if (jsonOutputWasRequested()) {
+    let command = "release-origin.inspect";
+    try {
+      const parsed = JSON.parse(process.argv[2] ?? "null") as Record<
+        string,
+        unknown
+      > | null;
+      if (parsed?.command === "attest") command = "release-origin.attest";
+    } catch {
+      // Keep the inspection command as the stable fallback envelope.
+    }
     console.log(
       JSON.stringify(
         {
           contractVersion: CLI_CONTRACT_VERSION,
-          command: "release-origin.inspect",
+          command,
           error: {
             code: inspectionError?.code ?? "INSPECTION_FAILED",
             message,

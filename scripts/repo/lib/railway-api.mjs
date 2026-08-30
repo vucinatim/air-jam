@@ -1,4 +1,5 @@
 const DEFAULT_RAILWAY_API_ENDPOINT = "https://backboard.railway.com/graphql/v2";
+const DEFAULT_RAILWAY_API_REQUEST_TIMEOUT_MS = 10_000;
 
 const TERMINAL_SUCCESS_DEPLOYMENT_STATUSES = new Set(["SUCCESS", "SLEEPING"]);
 const TERMINAL_FAILURE_DEPLOYMENT_STATUSES = new Set([
@@ -166,7 +167,13 @@ export const createRailwayApiClient = ({
   tokenKind = undefined,
   endpoint = env.RAILWAY_API_ENDPOINT ?? DEFAULT_RAILWAY_API_ENDPOINT,
   fetchImpl = fetch,
+  requestTimeoutMs = DEFAULT_RAILWAY_API_REQUEST_TIMEOUT_MS,
 } = {}) => {
+  if (!Number.isFinite(requestTimeoutMs) || requestTimeoutMs <= 0) {
+    throw new RailwayApiError(
+      "Railway API requestTimeoutMs must be a positive finite number.",
+    );
+  }
   const resolved = resolveRailwayApiToken(env);
   const resolvedToken = token ?? resolved.token ?? null;
   const resolvedKind = tokenKind ?? resolved.kind ?? "account";
@@ -186,46 +193,74 @@ export const createRailwayApiClient = ({
 
   const request = async ({ query, variables = {} }) => {
     assertToken();
-
-    const response = await fetchImpl(endpoint, {
-      method: "POST",
-      headers: {
-        ...authHeaders(),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query, variables }),
-    });
-
-    const rawBody = await response.text();
-    let payload;
-    try {
-      payload = JSON.parse(rawBody || "null");
-    } catch (error) {
-      throw new RailwayApiError(
-        `Failed to parse Railway API response JSON: ${error.message}`,
-        {
-          status: response.status,
-          payload: rawBody,
-        },
+    const controller = new AbortController();
+    let timedOut = false;
+    let timeout = null;
+    const timeoutError = () =>
+      new RailwayApiError(
+        `Railway API request timed out after ${requestTimeoutMs}ms.`,
       );
-    }
-
-    if (!response.ok || payload?.errors?.length) {
-      const errors = payload?.errors ?? [];
-      const message =
-        errors
-          .map((entry) => entry.message)
-          .filter(Boolean)
-          .join(" | ") ||
-        `Railway API request failed with HTTP ${response.status}`;
-      throw new RailwayApiError(message, {
-        errors,
-        status: response.status,
-        payload,
+    const deadline = new Promise((_, reject) => {
+      timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+        reject(timeoutError());
+      }, requestTimeoutMs);
+    });
+    const performRequest = async () => {
+      const response = await fetchImpl(endpoint, {
+        method: "POST",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
       });
-    }
 
-    return payload?.data ?? null;
+      const rawBody = await response.text();
+      let payload;
+      try {
+        payload = JSON.parse(rawBody || "null");
+      } catch (error) {
+        throw new RailwayApiError(
+          `Failed to parse Railway API response JSON: ${error.message}`,
+          {
+            status: response.status,
+            payload: rawBody,
+          },
+        );
+      }
+
+      if (!response.ok || payload?.errors?.length) {
+        const errors = payload?.errors ?? [];
+        const message =
+          errors
+            .map((entry) => entry.message)
+            .filter(Boolean)
+            .join(" | ") ||
+          `Railway API request failed with HTTP ${response.status}`;
+        throw new RailwayApiError(message, {
+          errors,
+          status: response.status,
+          payload,
+        });
+      }
+
+      return payload?.data ?? null;
+    };
+
+    try {
+      return await Promise.race([performRequest(), deadline]);
+    } catch (error) {
+      if (timedOut) throw timeoutError();
+      if (error instanceof RailwayApiError) throw error;
+      throw new RailwayApiError(
+        `Railway API request failed: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
   };
 
   const getCurrentViewer = async () => {

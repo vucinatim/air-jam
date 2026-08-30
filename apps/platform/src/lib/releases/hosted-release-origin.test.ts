@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveConservativeCookieSite } from "./hosted-release-cookie-site";
 import {
   assessHostedReleaseOrigin,
   HostedReleaseOriginConfigurationError,
@@ -6,7 +7,6 @@ import {
   isHostedReleaseRequestHost,
   normalizeIncomingRequestHost,
   requireHostedReleasePublicOrigin,
-  resolveConservativeCookieSite,
 } from "./hosted-release-origin";
 
 const makeEnv = (

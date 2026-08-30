@@ -105,6 +105,7 @@ Operators and agents inspect this boundary through the same runtime assessment:
 pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
+pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id>/ --railway-project <project-id> --json
 ```
 
 The machine response is versioned, contains no secrets, and reports `ready`,
@@ -118,6 +119,45 @@ The remote result preserves both layers of evidence: `health.httpStatus` and
 hosted-release boundary. A valid `503` health document is returned as an
 unhealthy assessment rather than discarded as a transport error. Malformed or
 unrecognized responses still fail closed.
+
+`attest` is the deployed transport-evidence surface. It accepts only the
+canonical live generation-specific host root, derives the matching controller URL, resolves each
+origin once, rejects non-public address sets outside explicit loopback
+diagnostics, and pins every request to that resolution while retaining the
+original Host and TLS server name. It verifies rather than trusting the health
+claim alone:
+
+1. platform and release hosts use distinct conservative cookie sites
+2. deployed health names the exact required release origin
+3. platform host and controller routes produce exact temporary, non-cacheable
+   redirects
+4. the release host blocks platform routes and sets no cookies
+5. host and controller HTML carry the release CSP, Permissions Policy,
+   referrer, resource, and content-class contract
+6. the Better Auth browser-session endpoint and representative machine-auth,
+   dashboard, device-poll, and device-approval endpoints return their exact
+   anonymous or unauthenticated contract without release-origin CORS authority
+7. provider deployment identity and the boundary remain stable from the first
+   health read to the last
+
+The output is timestamped and carries the deployment-reported environment,
+deployment ID, and source revision. Production promotion then queries Railway
+through a bounded provider client and independently binds the expected project,
+production environment, platform service's current successful deployment, and
+both public domains. The provider query does not independently authenticate the
+revision field. Pass `--railway-project <project-id>` (or set
+`RAILWAY_PROJECT_ID`) and configure `RAILWAY_PROJECT_TOKEN`,
+`RAILWAY_API_TOKEN`, or `RAILWAY_TOKEN`. Missing project identity or provider
+credentials keeps a passing transport result diagnostic. Loopback and preview
+runs also remain `diagnostic`; only a provider-verified public-HTTPS Railway
+production run is `productionEvidenceEligible`.
+
+This is intentionally not named closure evidence: the command does not execute
+creator code. Hostile browser containment and normal host/controller
+functionality stay in controlled browser fixtures until the browser worker
+itself has fail-closed authentication, sandboxing, private egress denial, and
+resource limits under `AJ-SEC-004`. A maintainer CLI must never load arbitrary
+live creator code directly on the maintainer machine.
 
 The v1 containment contract protects the authenticated platform from untrusted
 games; it does not claim that games are mutually confidential from each other.
@@ -195,7 +235,7 @@ The platform should never blur these into vague "published-ish" states.
 9. Storage writes use immutable generation/output identity and create-only
    semantics; database state never relies on overwriting a shared key.
 10. Managed-storage accounting includes all retained generations, not only the
-   currently promoted output.
+    currently promoted output.
 11. Public and operator projections expose semantic evidence without private
     object keys or raw internal check payloads.
 

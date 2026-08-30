@@ -195,7 +195,24 @@ Inspect the effective boundary through the canonical agent-safe command:
 pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
+pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id>/ --railway-project <project-id> --json
 ```
+
+`inspect` reports configuration and health. `attest` collects bounded deployed
+transport evidence for one exact canonical live generation-specific host root and its controller
+document. It pins DNS before requesting, rejects private/reserved destinations,
+independently rejects a shared cookie site, and checks TLS, routing, HTML policy,
+cookie absence, Better Auth session isolation, protected API CORS, and stable
+deployment identity. It never executes creator JavaScript on the maintainer
+machine. A loopback run is always diagnostic; only a passing HTTPS Railway
+production run with an exact expected project and provider authentication can
+set `productionEvidenceEligible: true`. Set `RAILWAY_PROJECT_TOKEN`,
+`RAILWAY_API_TOKEN`, or `RAILWAY_TOKEN`; `RAILWAY_PROJECT_ID` may replace the
+flag. Provider verification independently binds the expected project,
+production environment, current platform-service deployment, and both public
+domains. The health revision remains deployment-reported rather than
+provider-authenticated. Eligibility means the deployment evidence is
+admissible, not that the complete security finding is closed by this command.
 
 Without `--platform-url`, the command assesses environment variables visible to
 the local platform process. With `--platform-url`, it reads the deployed

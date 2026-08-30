@@ -15,7 +15,10 @@ const resetEnv = (): void => {
 beforeEach(() => {
   process.env.NODE_ENV = "production";
   process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST = "https://airjam.io";
-  delete process.env.RAILWAY_ENVIRONMENT_NAME;
+  process.env.RAILWAY_PROJECT_ID = "project-air-jam";
+  process.env.RAILWAY_DEPLOYMENT_ID = "deployment-platform";
+  process.env.RAILWAY_GIT_COMMIT_SHA = "0123456789abcdef";
+  process.env.RAILWAY_ENVIRONMENT_NAME = "production";
   delete process.env.AIRJAM_RELEASES_PUBLIC_ORIGIN;
 });
 
@@ -30,6 +33,12 @@ describe("platform health boundary", () => {
     expect(body).toMatchObject({
       ok: false,
       service: "platform",
+      deployment: {
+        provider: "railway",
+        environment: "production",
+        deploymentId: "deployment-platform",
+        revision: "0123456789abcdef",
+      },
       boundaries: {
         hostedReleaseOrigin: {
           required: true,

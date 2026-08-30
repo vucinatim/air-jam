@@ -259,3 +259,35 @@ test("waitForDeployment returns success once the deployment reaches a terminal s
   assert.equal(result.deployment.status, "SUCCESS");
   assert.equal(calls, 2);
 });
+
+test("Railway API requests have an absolute aborting deadline", async () => {
+  let aborted = false;
+  const client = createRailwayApiClient({
+    token: "token",
+    requestTimeoutMs: 20,
+    fetchImpl: async (_url, init) =>
+      await new Promise((_resolve) => {
+        init.signal.addEventListener("abort", () => {
+          aborted = true;
+        });
+      }),
+  });
+
+  await assert.rejects(client.getProject("project-1"), (error) => {
+    assert.equal(error.name, "RailwayApiError");
+    assert.match(error.message, /timed out after 20ms/);
+    return true;
+  });
+  assert.equal(aborted, true);
+});
+
+test("Railway API rejects invalid request deadlines before making a request", () => {
+  assert.throws(
+    () =>
+      createRailwayApiClient({
+        token: "token",
+        requestTimeoutMs: 0,
+      }),
+    /positive finite number/,
+  );
+});

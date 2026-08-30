@@ -1,4 +1,5 @@
 import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
+import { inspectHostedReleaseCookieSiteIsolation } from "./hosted-release-cookie-site";
 
 export const HOSTED_RELEASE_PUBLIC_ORIGIN_ENV =
   "AIRJAM_RELEASES_PUBLIC_ORIGIN" as const;
@@ -38,28 +39,6 @@ const normalizeHostname = (hostname: string): string =>
     .toLowerCase()
     .replace(/^\[|\]$/g, "")
     .replace(/\.$/, "");
-
-const isIpAddress = (hostname: string): boolean =>
-  /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(":");
-
-/**
- * Conservative cookie-site boundary used for deployment validation.
- *
- * The final two labels are intentionally used instead of accepting sibling
- * subdomains. This rejects some uncommon public-suffix shapes more strictly
- * than necessary, but never weakens the required boundary. Air Jam release
- * delivery should use a visibly independent site such as an
- * `airjamusercontent` domain, not another `*.airjam.io` hostname.
- */
-export const resolveConservativeCookieSite = (hostname: string): string => {
-  const normalized = normalizeHostname(hostname);
-  if (!normalized || normalized === "localhost" || isIpAddress(normalized)) {
-    return normalized;
-  }
-
-  const labels = normalized.split(".").filter(Boolean);
-  return labels.length <= 2 ? normalized : labels.slice(-2).join(".");
-};
 
 const parseConfiguredOrigin = (
   rawOrigin: string,
@@ -158,8 +137,11 @@ export const assessHostedReleaseOrigin = (
 
   const platformUrl = new URL(deployment.platformPublicOrigin);
   const platformHostname = normalizeHostname(platformUrl.hostname);
-  const releaseCookieSite = resolveConservativeCookieSite(parsed.hostname);
-  const platformCookieSite = resolveConservativeCookieSite(platformHostname);
+  const { isolated, releaseCookieSite } =
+    inspectHostedReleaseCookieSiteIsolation({
+      platformHostname,
+      releaseHostname: parsed.hostname,
+    });
 
   if (parsed.origin === deployment.platformPublicOrigin) {
     return {
@@ -170,11 +152,7 @@ export const assessHostedReleaseOrigin = (
     };
   }
 
-  if (
-    releaseCookieSite &&
-    platformCookieSite &&
-    releaseCookieSite === platformCookieSite
-  ) {
+  if (!isolated) {
     return {
       status: "invalid",
       publicOrigin: null,
