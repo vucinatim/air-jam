@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-29T18:03:33.619Z",
+  "updatedAt": "2026-08-30T03:51:29.450Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -571,7 +571,7 @@
       "priority": 10,
       "title": "Define operational-event, correlation, incident, and runbook contracts",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [
         "G1-01"
       ],
@@ -581,7 +581,16 @@
       },
       "evidenceRequirements": [
         "versioned authority-separated operational contracts"
-      ]
+      ],
+      "owner": "/root/g4-contracts",
+      "note": "Closed the versioned authority-separated operational event, correlation, incident, immutable-preview, invocation, and action-audit contract with runtime schemas, Draft 7 JSON Schema export, declaration typechecking, redacted CLI validation, and full repository validation; durable producers and execution remain later Gate 4 work.",
+      "updatedAt": "2026-08-30T03:51:29.450Z",
+      "evidence": [
+        "document:docs/contracts/operational-events-and-incidents-contract.md",
+        "document:docs/audits/v1-operations/operational-contract-proof.md",
+        "command:pnpm check:ci"
+      ],
+      "completedAt": "2026-08-30T03:51:29.450Z"
     },
     {
       "id": "G4-02",

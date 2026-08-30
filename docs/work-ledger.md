@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,28 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-08-30 - Gate 4 Operational Authority Contract Closed
+
+- defined one versioned runtime contract that keeps approximate product
+  telemetry, authoritative lifecycle/runtime evidence, and correlated incident
+  state in separate authority planes
+- added strict schemas and TypeScript declarations for operational events,
+  correlation, evidence, incidents, runbook descriptors, immutable previews,
+  invocations, and action audit records
+- made incident fingerprints deterministic and self-verifying so a record
+  cannot claim an identity inconsistent with its normalized failure scope
+- bound runbook apply to the exact descriptor, parameters, preview digest,
+  incident context, expiry window, ordered actions, and declared resource and
+  cost blast radius
+- made approval, bounded-automation actor authority, terminal evidence,
+  rollback identity, chronology, retry ceilings, and state transitions fail
+  closed
+- exposed the complete catalog, Draft 7 JSON Schemas, and redacted runtime
+  validation through the canonical repo CLI
+- retained the implementation boundary honestly: durable producers, outbox,
+  incident persistence/correlation, notifications, GitHub issue delivery, and
+  runbook execution remain later Gate 4 slices
 
 ## 2026-08-29 - Readiness Evidence Became Immutable And CI-Portable
 

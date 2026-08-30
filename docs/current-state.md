@@ -197,6 +197,17 @@ These are now baseline truths, not open architecture debates:
     13. the integration review further made staging isolation environment-wide
         and fail-closed, made evidence retention rollback-safe and extension
         independent, and bounded external-agent plus cleanup process lifetimes
+15. Gate 4 now has one agent-operable operational authority contract:
+    1. product telemetry, authoritative lifecycle/runtime facts, and durable
+       incidents remain separate evidence planes
+    2. deterministic fingerprints bind incident identity to exact normalized
+       failure scope
+    3. runbook preview/apply binds exact descriptor, parameters, context,
+       expiry, actions, and blast radius through SHA-256 digests
+    4. approval, bounded automation, verification, rollback, and terminal
+       evidence rules fail closed
+    5. all seven schema families are inspectable as Draft 7 JSON Schema and
+       runtime-validatable through the canonical repo CLI
 
 ## What Is Still Open
 
@@ -297,6 +308,15 @@ clean scaffold, exercised through CLI and raw MCP, and removed after all
 generated-project quality gates passed. No npm package or production system was
 changed.
 
+Gate `G4-01` is closed with the
+[operational events and incidents contract](./contracts/operational-events-and-incidents-contract.md)
+and its [proof](./audits/v1-operations/operational-contract-proof.md). The
+private runtime package, TypeScript declarations, JSON Schema export, and repo
+CLI now share one versioned model for events, correlation, incident state,
+runbook descriptors, immutable previews, invocations, and action audit records.
+This closes the contract boundary only; it does not claim that outbox,
+correlator, notification, GitHub delivery, or remediation workers are deployed.
+
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
 [2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md).
@@ -331,8 +351,8 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. continue the dependency-ready reliability inventory, operational-event
-   contract, and threat model
+3. continue the dependency-ready reliability inventory, durable operational
+   event production, and threat model
 4. preserve Gate 1 contracts while those independent implementation lanes run
 5. complete or block work only through evidence-backed readiness transitions
 

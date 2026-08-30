@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-28
+Last updated: 2026-08-30
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -61,6 +61,14 @@ The canonical Gate 2 external-agent proof is defined by:
 4. the machine-readable scenario and prompt exposed through
    `pnpm --silent run repo -- golden-path spec --json`
 
+The Gate 4 authority boundary for operational evidence, incident correlation,
+and safely governed runbooks is defined by:
+
+1. [contracts/operational-events-and-incidents-contract.md](./contracts/operational-events-and-incidents-contract.md)
+2. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
+3. the machine-readable catalog, JSON Schemas, and validators exposed through
+   `pnpm --silent run repo -- platform operations contract --help`
+
 The detailed discoverability checklist remains a subordinate launch reference:
 
 1. [plans/discoverability-and-launch-promotion-plan.md](./plans/discoverability-and-launch-promotion-plan.md)
@@ -79,7 +87,8 @@ the currently executable queue. The next independent work is:
 
 1. external-agent public installation and bootstrap proof
 2. production capacity, cost, lifecycle, and recovery inventory
-3. operational-event and incident contract definition
+3. durable operational-event production and persistence against the canonical
+   Gate 4 contract
 4. the public and privileged surface threat model
 5. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)

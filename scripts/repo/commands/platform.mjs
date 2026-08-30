@@ -10,6 +10,7 @@ import {
 import { preparePlatformGeneratedArtifacts } from "../../platform/lib/platform-generated-prepare.mjs";
 import { createRailwayApiClient } from "../lib/railway-api.mjs";
 import { runCommand, runCommandResult } from "../lib/shell.mjs";
+import { registerOperationsContractCommands } from "./operations-contract.mjs";
 import { runRepoPlatformDbBackupCommand } from "./platform-db-backup.mjs";
 
 const logGeneratedPrepareResult = (result) => {
@@ -257,6 +258,8 @@ export const registerPlatformCommands = (program) => {
   const platformCommand = program
     .command("platform")
     .description("Platform maintainer helpers");
+
+  registerOperationsContractCommands(platformCommand);
 
   const generatedCommand = platformCommand
     .command("generated")
