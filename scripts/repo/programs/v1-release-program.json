@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-30T04:34:04.188Z",
+  "updatedAt": "2026-08-30T16:05:25.031Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -621,7 +621,7 @@
       "priority": 20,
       "title": "Implement durable delivery, structured errors, SLOs, alerts, and synthetics",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [
         "G4-01"
       ],
@@ -631,7 +631,16 @@
       },
       "evidenceRequirements": [
         "end-to-end synthetic and alert evidence for launch-critical stories"
-      ]
+      ],
+      "owner": "/root",
+      "note": "Implemented and locally proved durable delivery, structured platform/server/runtime failures, six launch-critical synthetics, four SLOs, durable alerts, truthful worker readiness, and the canonical agent CLI.",
+      "updatedAt": "2026-08-30T16:05:25.031Z",
+      "evidence": [
+        "document:docs/contracts/operational-reliability-contract.md",
+        "document:docs/audits/v1-operations/operational-reliability-proof.md",
+        "command:pnpm check:ci"
+      ],
+      "completedAt": "2026-08-30T16:05:25.031Z"
     },
     {
       "id": "G4-03",

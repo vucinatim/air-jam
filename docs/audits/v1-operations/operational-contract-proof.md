@@ -50,9 +50,11 @@ pnpm --silent run repo -- platform operations contract validate \
   --schema operational_event --input ./event.json --json
 ```
 
-All seven schema families export Draft 7 JSON Schema for structural discovery.
-Runtime validation remains authoritative for cross-field and cross-document
-safety invariants.
+At `G4-01` closure, all seven original schema families exported Draft 7 JSON
+Schema for structural discovery. The follow-on `G4-02` reliability slice has
+extended that same catalog to thirteen schemas without creating a parallel
+model. Runtime validation remains authoritative for cross-field and cross-
+document safety invariants.
 
 ## Validation
 
@@ -82,9 +84,10 @@ The same command is retained as typed readiness evidence for `G4-01`.
 
 ## Implementation Boundary
 
-This slice defines and proves the shared contract. It does not fabricate
-production behavior that does not exist yet. Durable event producers, outbox
-persistence, SLO and synthetic emitters, incident storage and correlation,
-notification and GitHub adapters, runbook execution, and failure drills remain
-separate Gate 4 work items that must implement this boundary rather than create
-parallel models.
+This slice defined and proved the shared contract without fabricating production
+behavior that did not exist at its closure. The follow-on
+[operational reliability proof](./operational-reliability-proof.md) now proves
+durable producers, outbox persistence, structured failures, SLO and synthetic
+emitters, and durable alerts against the same boundary. Incident correlation,
+notification and GitHub adapters, governed runbook execution, and deployed
+failure drills remain separate Gate 4 work.

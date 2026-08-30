@@ -206,9 +206,20 @@ These are now baseline truths, not open architecture debates:
        expiry, actions, and blast radius through SHA-256 digests
     4. approval, bounded automation, verification, rollback, and terminal
        evidence rules fail closed
-    5. all seven schema families are inspectable as Draft 7 JSON Schema and
+    5. all thirteen schema families are inspectable as Draft 7 JSON Schema and
        runtime-validatable through the canonical repo CLI
-16. Gate `G5-01` now has one ranked threat model:
+16. Gate 4 now also has one durable reliability loop:
+    1. authoritative producers persist events through a transactional outbox
+       and immutable event store instead of relying on process memory
+    2. bounded leases, retries, dead-letter state, audited requeue, and expired-
+       lease repair make delivery safe to operate through the repo CLI
+    3. six launch-critical synthetic stories continuously feed four explicit
+       SLO evaluations and durable alert state
+    4. platform, server, and hosted-runtime failure producers emit structured,
+       redacted evidence with server-owned authority and identity
+    5. worker and platform health now report their true release dependencies
+       rather than treating process liveness as operational readiness
+17. Gate `G5-01` now has one ranked threat model:
     1. public, privileged, artifact, runtime, agent, provider, privacy, and
        supply-chain boundaries were independently reviewed and centrally
        deduplicated
@@ -222,7 +233,7 @@ These are now baseline truths, not open architecture debates:
        claim of current anonymous exposure
     5. implementation remains in `G5-02` and `G5-03`, with one final batched
        human residual-risk review in `G5-04`
-16. the first `G5-02` implementation slice now exists as a production-valid
+18. the first `G5-02` implementation slice now exists as a production-valid
     stacked change:
     1. hosted game code has no authenticated-platform-origin fallback
     2. production requires an explicit cross-site release origin outside Better
@@ -359,8 +370,13 @@ and its [proof](./audits/v1-operations/operational-contract-proof.md). The
 private runtime package, TypeScript declarations, JSON Schema export, and repo
 CLI now share one versioned model for events, correlation, incident state,
 runbook descriptors, immutable previews, invocations, and action audit records.
-This closes the contract boundary only; it does not claim that outbox,
-correlator, notification, GitHub delivery, or remediation workers are deployed.
+Gate `G4-02` implements the next production-valid layer through the
+[operational reliability contract](./contracts/operational-reliability-contract.md)
+and its [proof](./audits/v1-operations/operational-reliability-proof.md): durable
+event delivery, structured platform/server/runtime failures, six synthetics,
+four SLOs, durable alerts, truthful worker readiness, and one agent-operable CLI
+surface. It does not claim that incident correlation, external notification,
+GitHub issue delivery, or governed remediation workers are deployed.
 
 Gate `G3-01` is closed with the
 [production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).

@@ -72,9 +72,13 @@ The Gate 4 authority boundary for operational evidence, incident correlation,
 and safely governed runbooks is defined by:
 
 1. [contracts/operational-events-and-incidents-contract.md](./contracts/operational-events-and-incidents-contract.md)
-2. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
-3. the machine-readable catalog, JSON Schemas, and validators exposed through
-   `pnpm --silent run repo -- platform operations contract --help`
+2. [contracts/operational-reliability-contract.md](./contracts/operational-reliability-contract.md)
+3. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
+4. [audits/v1-operations/operational-reliability-proof.md](./audits/v1-operations/operational-reliability-proof.md)
+5. the machine-readable catalogs, JSON Schemas, validators, and reliability
+   operations exposed through
+   `pnpm --silent run repo -- platform operations contract --help` and
+   `pnpm --silent run repo -- platform operations reliability --help`
 
 The measured Gate 3 production baseline is:
 
@@ -127,8 +131,7 @@ the currently executable queue. The next independent work is:
 2. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
 3. establish dedicated untrusted-content origin isolation and close the
    remaining ranked Gate 5 security findings
-4. produce and persist durable operational events against the canonical Gate 4
-   contract
+4. correlate durable operational alerts into incidents and GitHub issues
 5. run isolated backup/restore and rollback/replay proof
 6. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
