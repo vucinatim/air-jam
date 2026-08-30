@@ -360,6 +360,11 @@ The production-valid implementation sequence is:
 7. realtime room/controller global admission plus graceful drain
 8. load, overload, dependency-failure, and recovery proof
 
+Steps 1 through 5 are now implemented through the linked budget, quota,
+durable-authority, immutable-generation, and release-worker proofs. Step 6 is
+partially implemented for terminal job-attempt outputs; broader release/media
+lifecycle reconciliation remains open. Steps 7 and 8 remain open.
+
 Each step remains part of the final architecture. No step introduces a
 temporary in-memory queue, transport-only quota, or dashboard-only control.
 

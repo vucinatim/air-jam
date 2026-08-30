@@ -13,7 +13,6 @@ import {
   getOwnedRelease,
   listOwnedGameReleases,
   listReleasesForOperations,
-  moderateReleaseForOperations,
   publishOwnedRelease,
   quarantineReleaseForOperations,
   requestOwnedReleaseUploadTarget,
@@ -151,6 +150,7 @@ export const releaseRouter = createTRPCRouter({
       return {
         release: toCreatorReleaseRecord(result.release),
         generation: result.generation,
+        job: result.job,
       };
     }),
 
@@ -178,15 +178,6 @@ export const releaseRouter = createTRPCRouter({
     .input(releaseStatusMutationInput)
     .mutation(async ({ input, ctx }) => {
       return quarantineReleaseForOperations({
-        actor: { userId: ctx.user.id, role: ctx.user.role },
-        releaseId: input.releaseId,
-      });
-    }),
-
-  runModeration: opsProcedure
-    .input(releaseStatusMutationInput)
-    .mutation(async ({ input, ctx }) => {
-      return moderateReleaseForOperations({
         actor: { userId: ctx.user.id, role: ctx.user.role },
         releaseId: input.releaseId,
       });

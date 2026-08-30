@@ -1,9 +1,10 @@
 import * as schema from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setOperationalLaneControl } from "../operations/production-control-service";
+import type { ReleaseStorage } from "../releases/release-storage";
 import {
   OperationalJobConflictError,
   OperationalJobLeaseError,
@@ -19,6 +20,15 @@ import {
   replayOperationalJob,
   requestOperationalJobCancellation,
 } from "./operational-job-service";
+import {
+  ReleaseJobExecutionError,
+  releaseJobExecutionContractVersion,
+} from "./release-job-contract";
+import { cleanupReleaseJobOrphanOutputs } from "./release-job-output-cleanup";
+import {
+  releaseJobExecutors,
+  runReleaseJobWorkerCycle,
+} from "./release-job-worker";
 
 const databaseUrl = process.env.AIR_JAM_TEST_DATABASE_URL?.trim();
 const describeWithPostgres = databaseUrl ? describe : describe.skip;
@@ -86,6 +96,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
     canonicalJson: release("canonical_json"),
     lockClaim: release("lock_claim"),
     lockCompletion: release("lock_completion"),
+    workerLifecycle: release("worker_lifecycle"),
   } as const;
 
   const releaseCreator = new Map<string, { creatorId: string; gameId: string }>(
@@ -104,7 +115,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
     releaseId,
     idempotencyKey,
     kind = "release_artifact_processing",
-    payload = {},
+    payload,
     priority = 0,
     now = baseTime,
   }: {
@@ -120,14 +131,32 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
   }) => {
     const scope = releaseCreator.get(releaseId);
     if (!scope) throw new Error(`Missing test scope for ${releaseId}.`);
+    const generationId = generation(releaseId);
+    const canonicalPayload =
+      payload ??
+      (kind === "release_image_moderation"
+        ? {
+            contractVersion: 1,
+            generationId,
+            screenshot: {
+              captureId: "test-capture",
+              objectKey: `tests/operational-jobs/${suffix}/${generationId}/capture.png`,
+              contentType: "image/png",
+              sizeBytes: 1,
+              width: 1,
+              height: 1,
+            },
+          }
+        : { contractVersion: 1, generationId });
     return enqueueOperationalJob({
       database,
       kind,
       creatorId: scope.creatorId,
       gameId: scope.gameId,
       releaseId,
+      generationId,
       idempotencyKey: `${suffix}:${idempotencyKey}`,
-      payload,
+      payload: canonicalPayload,
       priority,
       actor: "test:operational-jobs",
       reason: "Prove the durable operational job contract.",
@@ -272,17 +301,15 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
     await client.end();
   });
 
-  it("replays one concurrent canonical request and rejects conflicting payload reuse", async () => {
+  it("replays one concurrent canonical request and rejects conflicting reuse", async () => {
     const attempts = await Promise.all([
       enqueue({
         releaseId: releases.idempotency,
         idempotencyKey: "idempotency",
-        payload: { archive: { etag: "abc", sizeBytes: 42 }, stage: 1 },
       }),
       enqueue({
         releaseId: releases.idempotency,
         idempotencyKey: "idempotency",
-        payload: { stage: 1, archive: { sizeBytes: 42, etag: "abc" } },
       }),
     ]);
 
@@ -302,7 +329,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       enqueue({
         releaseId: releases.idempotency,
         idempotencyKey: "idempotency",
-        payload: { archive: { etag: "different", sizeBytes: 42 }, stage: 1 },
+        priority: 1,
       }),
     ).rejects.toBeInstanceOf(OperationalJobConflictError);
   });
@@ -316,6 +343,11 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
         kind: "release_artifact_processing",
         ...scope,
         releaseId: releases.idempotency,
+        generationId: generation(releases.idempotency),
+        payload: {
+          contractVersion: 1,
+          generationId: generation(releases.idempotency),
+        },
         idempotencyKey: globalKey,
         actor: "test:operational-jobs",
         reason: "First global idempotency contender.",
@@ -326,6 +358,11 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
         kind: "release_browser_validation",
         ...scope,
         releaseId: releases.idempotency,
+        generationId: generation(releases.idempotency),
+        payload: {
+          contractVersion: 1,
+          generationId: generation(releases.idempotency),
+        },
         idempotencyKey: globalKey,
         actor: "test:operational-jobs",
         reason: "Second global idempotency contender.",
@@ -359,6 +396,11 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
         creatorId: scope.creatorId,
         gameId: scope.gameId,
         releaseId: releases.crossKind,
+        generationId: generation(releases.crossKind),
+        payload: {
+          contractVersion: 1,
+          generationId: generation(releases.crossKind),
+        },
         idempotencyKey: `${suffix}:semantic-hash`,
         priority: 4,
         correlationId: "caller-selected-correlation",
@@ -378,8 +420,13 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
         kind: "release_artifact_processing",
         ...scope,
         releaseId: releases.canonicalJson,
+        generationId: generation(releases.canonicalJson),
         idempotencyKey,
-        payload: { observedAt: new Date("2042-01-01T00:00:00.000Z") },
+        payload: {
+          contractVersion: 1,
+          generationId: generation(releases.canonicalJson),
+          observedAt: new Date("2042-01-01T00:00:00.000Z"),
+        },
         actor: "test:operational-jobs",
         reason: "Reject values whose persisted JSON differs from their hash.",
         now: baseTime,
@@ -391,8 +438,12 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       kind: "release_artifact_processing",
       ...scope,
       releaseId: releases.canonicalJson,
+      generationId: generation(releases.canonicalJson),
       idempotencyKey,
-      payload: { observedAt: {} },
+      payload: {
+        contractVersion: 1,
+        generationId: generation(releases.canonicalJson),
+      },
       actor: "test:operational-jobs",
       reason: "Reject values whose persisted JSON differs from their hash.",
       now: baseTime,
@@ -609,6 +660,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       database,
       jobId: claimed!.id,
       leaseToken: claimed!.leaseToken!,
+      workerId: "worker:lease",
       now: at(60_000),
     });
     expect(heartbeat.leaseExpiresAt).toEqual(at(360_000));
@@ -642,6 +694,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
         database,
         jobId: claimed!.id,
         leaseToken: claimed!.leaseToken!,
+        workerId: "worker:lease",
         now: heartbeat.leaseExpiresAt!,
       }),
     ).rejects.toBeInstanceOf(OperationalJobLeaseError);
@@ -692,6 +745,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       database,
       jobId: claimed!.id,
       leaseToken: claimed!.leaseToken!,
+      workerId: "worker:deadline",
       now: at(3_550_000),
     });
     expect(heartbeat.leaseExpiresAt).toEqual(deadline);
@@ -701,6 +755,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
         database,
         jobId: claimed!.id,
         leaseToken: claimed!.leaseToken!,
+        workerId: "worker:deadline",
         now: deadline,
       }),
       recordOperationalJobStage({
@@ -764,6 +819,11 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       kind: "release_artifact_processing",
       ...scope,
       releaseId: releases.lockClaim,
+      generationId: generation(releases.lockClaim),
+      payload: {
+        contractVersion: 1,
+        generationId: generation(releases.lockClaim),
+      },
       idempotencyKey: `${suffix}:lock-claim`,
       actor: "test:operational-jobs",
       reason: "Prove claim time is sampled inside the lock fence.",
@@ -803,6 +863,11 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       kind: "release_artifact_processing",
       ...completionScope,
       releaseId: releases.lockCompletion,
+      generationId: generation(releases.lockCompletion),
+      payload: {
+        contractVersion: 1,
+        generationId: generation(releases.lockCompletion),
+      },
       idempotencyKey: `${suffix}:lock-completion`,
       actor: "test:operational-jobs",
       reason: "Prove completion time is sampled inside the row fence.",
@@ -1001,6 +1066,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
         database,
         jobId: claimed!.id,
         leaseToken: claimed!.leaseToken!,
+        workerId: "worker:expired-lease",
         now: at(301_001),
       }),
     ).rejects.toBeInstanceOf(OperationalJobLeaseError);
@@ -1296,10 +1362,39 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
   });
 
   it("replays only terminal work with explicit lineage and stable correlation", async () => {
+    await database.transaction(async (tx) => {
+      await tx
+        .update(schema.gameReleases)
+        .set({
+          status: "uploading",
+          candidateGenerationId: generation(releases.replay),
+          promotedGenerationId: null,
+        })
+        .where(eq(schema.gameReleases.id, releases.replay));
+      await tx
+        .update(schema.gameReleaseGenerations)
+        .set({
+          status: "awaiting_upload",
+          siteRootKey: null,
+          observedSizeBytes: null,
+          observedContentType: null,
+          observedEtag: null,
+          observedLastModifiedAt: null,
+          extractedSizeBytes: null,
+          fileCount: null,
+          entryPath: null,
+          contentHash: null,
+          uploadObservedAt: null,
+          processingStartedAt: null,
+          readyAt: null,
+        })
+        .where(
+          eq(schema.gameReleaseGenerations.id, generation(releases.replay)),
+        );
+    });
     const original = await enqueue({
       releaseId: releases.replay,
       idempotencyKey: "replay-original",
-      payload: { artifactEtag: "etag-1" },
       priority: 4,
     });
 
@@ -1320,13 +1415,14 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       workerId: "worker:replay",
       now: at(2_000),
     });
-    await completeOperationalJob({
+    await failOperationalJobAttempt({
       database,
       jobId: claimed!.id,
       leaseToken: claimed!.leaseToken!,
-      result: { artifactId: "artifact-original" },
+      error: { code: "storage_unavailable", retryable: false },
+      retryable: false,
       workerId: "worker:replay",
-      reason: "Finish the original before replay.",
+      reason: "Make the original terminal before replay.",
       now: at(3_000),
     });
 
@@ -1363,7 +1459,18 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
     const storedReplay = await database.query.operationalJobs.findFirst({
       where: (table, { eq }) => eq(table.id, replay.job.id),
     });
-    expect(storedReplay?.payload).toEqual({ artifactEtag: "etag-1" });
+    expect(storedReplay?.payload).toEqual({
+      contractVersion: 1,
+      generationId: generation(releases.replay),
+    });
+    await expect(
+      database.query.gameReleases.findFirst({
+        where: (table, { eq }) => eq(table.id, releases.replay),
+      }),
+    ).resolves.toMatchObject({
+      status: "uploading",
+      candidateGenerationId: generation(releases.replay),
+    });
 
     const inspection = await getOperationalJob({
       database,
@@ -1382,7 +1489,6 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
     const enqueued = await enqueue({
       releaseId: releases.operatorSafe,
       idempotencyKey: "operator-safe",
-      payload: { authorization: "Bearer enqueue-secret" },
     });
     const claimed = await claimOperationalJob({
       database,
@@ -1463,7 +1569,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
         generationId: generation(releases.provenanceOther),
         jobId: claimed!.id,
         jobAttempt: claimed!.attemptCount,
-        kind: "automated",
+        kind: "artifact_validation",
         status: "passed",
         payload: {},
       }),
@@ -1476,7 +1582,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       generationId: generation(releases.operatorSafe),
       jobId: claimed!.id,
       jobAttempt: claimed!.attemptCount,
-      kind: "automated",
+      kind: "artifact_validation",
       status: "passed",
       payload: {},
     });
@@ -1595,5 +1701,139 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
     expect(inspection.events.map(({ nextRevision }) => nextRevision)).toEqual([
       1, 2, 3, 4, 5, 6, 7,
     ]);
+  });
+
+  it("dispatches retryable worker failures into a new attempt and cleans failed output", async () => {
+    const enqueued = await enqueue({
+      releaseId: releases.workerLifecycle,
+      idempotencyKey: "worker-lifecycle",
+      now: new Date(Date.now() - 1_000),
+    });
+    const outputRootKey = `tests/operational-jobs/${suffix}/failed-attempt`;
+    const first = await runReleaseJobWorkerCycle({
+      kind: "release_artifact_processing",
+      workerId: "worker:lifecycle-one",
+      database,
+      executors: {
+        ...releaseJobExecutors,
+        artifact: async ({ reportProgress }) => {
+          await reportProgress(
+            {
+              contractVersion: releaseJobExecutionContractVersion,
+              stage: "writing_outputs",
+              completedUnits: 1,
+              totalUnits: 2,
+            },
+            { outputRootKey },
+          );
+          throw new ReleaseJobExecutionError({
+            code: "object_storage_interrupted",
+            message: "The object storage write was interrupted.",
+            retryable: true,
+            stage: "writing_outputs",
+          });
+        },
+      },
+    });
+    expect(first).toMatchObject({
+      status: "retried",
+      jobId: enqueued.job.id,
+    });
+
+    await database
+      .update(schema.operationalJobs)
+      .set({ availableAt: sql`clock_timestamp() - interval '1 second'` })
+      .where(eq(schema.operationalJobs.id, enqueued.job.id));
+    const second = await runReleaseJobWorkerCycle({
+      kind: "release_artifact_processing",
+      workerId: "worker:lifecycle-two",
+      database,
+      executors: {
+        ...releaseJobExecutors,
+        artifact: async ({
+          database: jobDatabase,
+          generationId,
+          jobId,
+          leaseToken,
+          workerId,
+        }) => {
+          const result = {
+            contractVersion: releaseJobExecutionContractVersion,
+            generationId,
+            siteRootKey: `tests/operational-jobs/${suffix}/successful-attempt`,
+            contentHash: "a".repeat(64),
+            extractedSizeBytes: 1,
+            fileCount: 1,
+            entryPath: "index.html",
+            nextJobId: "test-downstream-job",
+          } as const;
+          await completeOperationalJob({
+            database: jobDatabase,
+            jobId,
+            leaseToken,
+            workerId,
+            result,
+            reason: "Complete the worker dispatcher lifecycle proof.",
+          });
+          return result;
+        },
+      },
+    });
+    expect(second).toMatchObject({
+      status: "succeeded",
+      jobId: enqueued.job.id,
+    });
+
+    const inspection = await getOperationalJob({
+      database,
+      jobId: enqueued.job.id,
+    });
+    expect(inspection.attempts).toMatchObject([
+      {
+        attempt: 1,
+        status: "failed",
+        privateData: { hasOutputRoot: true },
+        lastErrorCode: "object_storage_interrupted",
+      },
+      { attempt: 2, status: "succeeded" },
+    ]);
+    expect(inspection.attempts[0]?.id).not.toBe(inspection.attempts[1]?.id);
+
+    const deletedPrefixes: string[] = [];
+    const cleanupStorage: ReleaseStorage = {
+      async createArtifactUploadTarget() {
+        throw new Error("Cleanup must not create upload targets.");
+      },
+      async headObject() {
+        throw new Error("Cleanup must not inspect objects.");
+      },
+      async readObject() {
+        throw new Error("Cleanup must not read objects.");
+      },
+      async putObject() {
+        throw new Error("Cleanup must not write objects.");
+      },
+      async deletePrefix(prefix) {
+        deletedPrefixes.push(prefix);
+      },
+    };
+    const cleanup = await cleanupReleaseJobOrphanOutputs({
+      database,
+      storage: cleanupStorage,
+      actor: "worker:cleanup-proof",
+      reason: "Remove the failed attempt's isolated output.",
+    });
+    expect(deletedPrefixes).toEqual([outputRootKey]);
+    expect(cleanup.cleaned).toMatchObject([
+      { attemptId: inspection.attempts[0]?.id, jobId: enqueued.job.id },
+    ]);
+    const cleanedInspection = await getOperationalJob({
+      database,
+      jobId: enqueued.job.id,
+    });
+    expect(cleanedInspection.attempts[0]?.outputCleanedAt).toEqual(
+      expect.any(String),
+    );
+    expect(cleanedInspection.events.at(-1)?.kind).toBe("output_cleaned");
   });
 });

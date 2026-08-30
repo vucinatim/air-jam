@@ -21,7 +21,7 @@ hosted release.
 3. bundle the release artifact
 4. authenticate the machine workflow
 5. submit the release draft
-6. inspect status until checks complete
+6. return after durable enqueue, or explicitly wait while checks complete
 7. publish when the release is ready
 
 ## Canonical Local Commands
@@ -45,6 +45,10 @@ The machine release flow should support:
 
 Those operations exist across CLI and MCP because the release pipeline is a
 control-plane workflow, not just a local script.
+
+Finalization means durable submission, not completion inside the HTTP request.
+For one-shot CLI operation, use `airjam release submit --wait`; use `--publish`
+to wait for the exact generation and publish only after it becomes ready.
 
 ## Failure Rule
 
@@ -80,3 +84,7 @@ pnpm exec airjam release inspect --release <release-id>
 The upload result prints the exact finalize command. MCP clients use the same
 contract through `airjam.release_upload`, `airjam.release_finalize`, and
 `airjam.release_inspect`.
+
+Finalization returns the exact processing job. If a wait times out or the caller
+disconnects, the job remains durable and inspectable; do not resubmit merely
+because the client stopped waiting.

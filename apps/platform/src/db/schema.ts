@@ -27,6 +27,7 @@ import type {
 import {
   createRuntimeDatabaseSchema,
   operationalJobContractVersion,
+  type OperationalJobAttemptStatus,
   type OperationalJobCommandKind,
   type OperationalJobEventKind,
   type OperationalJobKind,
@@ -440,6 +441,7 @@ export const operationalJobs = pgTable(
     creatorId: text("creator_id").notNull(),
     gameId: text("game_id").notNull(),
     releaseId: text("release_id").notNull(),
+    generationId: text("generation_id").notNull(),
     createdByCommandId: text("created_by_command_id")
       .references(() => operationalJobCommands.id, { onDelete: "restrict" })
       .notNull()
@@ -494,6 +496,14 @@ export const operationalJobs = pgTable(
       columns: [table.releaseId, table.gameId],
       foreignColumns: [gameReleases.id, gameReleases.gameId],
     }).onDelete("cascade"),
+    generationScopeFk: foreignKey({
+      name: "operational_jobs_generation_scope_fk",
+      columns: [table.generationId, table.releaseId],
+      foreignColumns: [
+        gameReleaseGenerations.id,
+        gameReleaseGenerations.releaseId,
+      ],
+    }).onDelete("cascade"),
     replayOfFk: foreignKey({
       name: "operational_jobs_replay_of_fk",
       columns: [table.replayOfJobId, table.releaseId],
@@ -502,8 +512,11 @@ export const operationalJobs = pgTable(
     jobReleaseScopeIdx: uniqueIndex(
       "operational_jobs_job_release_scope_idx",
     ).on(table.id, table.releaseId),
+    jobReleaseGenerationScopeIdx: uniqueIndex(
+      "operational_jobs_job_release_generation_scope_idx",
+    ).on(table.id, table.releaseId, table.generationId),
     activeResourceIdx: uniqueIndex("operational_jobs_active_resource_idx")
-      .on(table.kind, table.releaseId)
+      .on(table.kind, table.generationId)
       .where(sql`${table.status} in ('queued', 'running', 'cancel_requested')`),
     queueIdx: index("operational_jobs_queue_idx")
       .on(
@@ -539,7 +552,7 @@ export const operationalJobs = pgTable(
     ),
     requiredTextCheck: check(
       "operational_jobs_required_text_check",
-      sql`btrim(${table.id}) <> '' and btrim(${table.creatorId}) <> '' and btrim(${table.gameId}) <> '' and btrim(${table.releaseId}) <> '' and btrim(${table.createdByCommandId}) <> '' and btrim(${table.correlationId}) <> ''`,
+      sql`btrim(${table.id}) <> '' and btrim(${table.creatorId}) <> '' and btrim(${table.gameId}) <> '' and btrim(${table.releaseId}) <> '' and btrim(${table.generationId}) <> '' and btrim(${table.createdByCommandId}) <> '' and btrim(${table.correlationId}) <> ''`,
     ),
     requestHashCheck: check(
       "operational_jobs_request_hash_check",
@@ -612,6 +625,112 @@ export const operationalJobs = pgTable(
   }),
 );
 
+export const operationalJobAttempts = pgTable(
+  "operational_job_attempts",
+  {
+    id: text("id").primaryKey(),
+    jobId: text("job_id").notNull(),
+    releaseId: text("release_id").notNull(),
+    generationId: text("generation_id").notNull(),
+    attempt: integer("attempt").notNull(),
+    status: text("status").$type<OperationalJobAttemptStatus>().notNull(),
+    leaseOwner: text("lease_owner").notNull(),
+    leaseToken: text("lease_token").notNull().unique(),
+    progress: jsonb("progress")
+      .$type<Record<string, unknown>>()
+      .default(sql`'{}'::jsonb`)
+      .notNull(),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    lastError: jsonb("last_error").$type<Record<string, unknown>>(),
+    outputRootKey: text("output_root_key"),
+    outputManifest: jsonb("output_manifest").$type<Record<string, unknown>>(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    lastHeartbeatAt: timestamp("last_heartbeat_at", {
+      withTimezone: true,
+    }).notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    outputCleanedAt: timestamp("output_cleaned_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    jobScopeFk: foreignKey({
+      name: "operational_job_attempts_job_scope_fk",
+      columns: [table.jobId, table.releaseId, table.generationId],
+      foreignColumns: [
+        operationalJobs.id,
+        operationalJobs.releaseId,
+        operationalJobs.generationId,
+      ],
+    }).onDelete("cascade"),
+    jobAttemptIdx: uniqueIndex("operational_job_attempts_job_attempt_idx").on(
+      table.jobId,
+      table.attempt,
+      table.generationId,
+    ),
+    generationStatusIdx: index(
+      "operational_job_attempts_generation_status_idx",
+    ).on(table.generationId, table.status),
+    finishedAtIdx: index("operational_job_attempts_finished_at_idx").on(
+      table.finishedAt,
+    ),
+    cleanupIdx: index("operational_job_attempts_cleanup_idx")
+      .on(table.status, table.finishedAt)
+      .where(
+        sql`${table.outputRootKey} is not null and ${table.outputCleanedAt} is null and ${table.status} in ('failed', 'canceled', 'lease_expired')`,
+      ),
+    requiredTextCheck: check(
+      "operational_job_attempts_required_text_check",
+      sql`btrim(${table.id}) <> '' and btrim(${table.jobId}) <> '' and btrim(${table.releaseId}) <> '' and btrim(${table.generationId}) <> '' and btrim(${table.leaseOwner}) <> '' and btrim(${table.leaseToken}) <> ''`,
+    ),
+    attemptCheck: check(
+      "operational_job_attempts_attempt_check",
+      sql`${table.attempt} > 0`,
+    ),
+    statusCheck: check(
+      "operational_job_attempts_status_check",
+      sql`${table.status} in ('running', 'succeeded', 'failed', 'canceled', 'lease_expired')`,
+    ),
+    jsonShapeCheck: check(
+      "operational_job_attempts_json_shape_check",
+      sql`jsonb_typeof(${table.progress}) = 'object' and (${table.result} is null or jsonb_typeof(${table.result}) = 'object') and (${table.lastError} is null or jsonb_typeof(${table.lastError}) = 'object') and (${table.outputManifest} is null or jsonb_typeof(${table.outputManifest}) = 'object')`,
+    ),
+    outputRootCheck: check(
+      "operational_job_attempts_output_root_check",
+      sql`${table.outputRootKey} is null or (btrim(${table.outputRootKey}) <> '' and left(${table.outputRootKey}, 1) <> '/' and strpos(${table.outputRootKey}, '..') = 0)`,
+    ),
+    outputCleanupCheck: check(
+      "operational_job_attempts_output_cleanup_check",
+      sql`${table.outputCleanedAt} is null or (${table.outputRootKey} is not null and ${table.status} in ('failed', 'canceled', 'lease_expired') and ${table.finishedAt} is not null and ${table.outputCleanedAt} >= ${table.finishedAt})`,
+    ),
+    lifecycleCheck: check(
+      "operational_job_attempts_lifecycle_check",
+      sql`(
+        ${table.status} = 'running'
+        and ${table.finishedAt} is null
+        and ${table.result} is null
+        and ${table.lastError} is null
+      ) or (
+        ${table.status} = 'succeeded'
+        and ${table.finishedAt} is not null
+        and ${table.result} is not null
+        and ${table.lastError} is null
+      ) or (
+        ${table.status} in ('failed', 'lease_expired')
+        and ${table.finishedAt} is not null
+        and ${table.lastError} is not null
+      ) or (
+        ${table.status} = 'canceled'
+        and ${table.finishedAt} is not null
+      )`,
+    ),
+  }),
+);
+
 export const operationalJobEvents = pgTable(
   "operational_job_events",
   {
@@ -654,7 +773,7 @@ export const operationalJobEvents = pgTable(
     ),
     kindCheck: check(
       "operational_job_events_kind_check",
-      sql`${table.kind} in ('enqueued', 'claimed', 'stage_recorded', 'retry_scheduled', 'cancel_requested', 'canceled', 'succeeded', 'failed', 'lease_recovered', 'replayed')`,
+      sql`${table.kind} in ('enqueued', 'claimed', 'stage_recorded', 'retry_scheduled', 'cancel_requested', 'canceled', 'succeeded', 'failed', 'lease_recovered', 'output_cleaned', 'replayed')`,
     ),
     revisionCheck: check(
       "operational_job_events_revision_check",
@@ -713,6 +832,15 @@ export const gameReleaseChecks = pgTable(
       name: "game_release_checks_job_release_scope_fk",
       columns: [table.jobId, table.releaseId],
       foreignColumns: [operationalJobs.id, operationalJobs.releaseId],
+    }).onDelete("cascade"),
+    jobAttemptGenerationFk: foreignKey({
+      name: "game_release_checks_job_attempt_generation_fk",
+      columns: [table.jobId, table.jobAttempt, table.generationId],
+      foreignColumns: [
+        operationalJobAttempts.jobId,
+        operationalJobAttempts.attempt,
+        operationalJobAttempts.generationId,
+      ],
     }).onDelete("cascade"),
     generationReleaseScopeFk: foreignKey({
       name: "game_release_checks_generation_release_scope_fk",

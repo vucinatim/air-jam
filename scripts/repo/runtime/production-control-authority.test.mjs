@@ -9,7 +9,8 @@ test("cost-creating platform work shares one production-control authority", asyn
   const [
     releaseApplication,
     mediaApplication,
-    moderation,
+    workerAuthority,
+    jobPolicy,
     telemetry,
     releaseRouter,
     mediaRouter,
@@ -23,8 +24,9 @@ test("cost-creating platform work shares one production-control authority", asyn
       "apps/platform/src/server/media/game-media-application-service.ts",
     ),
     readRepoSource(
-      "apps/platform/src/server/releases/release-moderation-service.ts",
+      "apps/platform/src/server/jobs/operational-job-worker-authority.ts",
     ),
+    readRepoSource("apps/platform/src/server/jobs/operational-job-policy.ts"),
     readRepoSource("apps/platform/src/server/product-telemetry/ingestion.ts"),
     readRepoSource("apps/platform/src/server/api/routers/release.ts"),
     readRepoSource("apps/platform/src/server/api/routers/game-media.ts"),
@@ -32,7 +34,7 @@ test("cost-creating platform work shares one production-control authority", asyn
     readRepoSource("apps/platform/src/server/games/machine-game-media.ts"),
   ]);
 
-  for (const source of [releaseApplication, mediaApplication, moderation]) {
+  for (const source of [releaseApplication, mediaApplication]) {
     assert.match(source, /production-control-service/u);
   }
 
@@ -50,12 +52,13 @@ test("cost-creating platform work shares one production-control authority", asyn
     mediaApplication,
     /assertOperationalLaneAccepting\(\{ lane: "media_ingestion" \}\)/u,
   );
-  for (const lane of ["browser_validation", "moderation"]) {
-    assert.match(
-      moderation,
-      new RegExp(`assertOperationalLaneAccepting\\(\\{ lane: "${lane}" \\}\\)`),
-    );
-  }
+  assert.match(
+    workerAuthority,
+    /acquireOperationalLaneLock\(tx, policy\.lane\)/u,
+  );
+  assert.match(workerAuthority, /laneControl\?\.mode === "paused"/u);
+  assert.match(jobPolicy, /lane: "browser_validation"/u);
+  assert.match(jobPolicy, /lane: "moderation"/u);
   assert.match(
     telemetry,
     /assertOperationalLaneAccepting\(\{ lane: "product_telemetry" \}\)/u,

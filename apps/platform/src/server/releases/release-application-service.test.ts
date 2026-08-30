@@ -5,6 +5,10 @@ vi.mock("@/server/operations/production-control-service", () => ({
   OperationalAdmissionDeniedError: class OperationalAdmissionDeniedError extends Error {},
 }));
 
+vi.mock("@/server/jobs/operational-job-service", () => ({
+  enqueueOperationalJob: vi.fn(),
+}));
+
 vi.mock("./assert-owned-release", () => ({
   assertOwnedRelease: vi.fn(),
 }));
@@ -14,12 +18,7 @@ vi.mock("./assert-release-exists", () => ({
 }));
 
 vi.mock("./release-artifact-service", () => ({
-  finalizeReleaseUpload: vi.fn(),
   requestReleaseUploadTarget: vi.fn(),
-}));
-
-vi.mock("./release-moderation-service", () => ({
-  runReleaseModeration: vi.fn(),
 }));
 
 vi.mock("./release-status-service", () => ({
@@ -28,27 +27,24 @@ vi.mock("./release-status-service", () => ({
   quarantineRelease: vi.fn(),
 }));
 
+import { enqueueOperationalJob } from "@/server/jobs/operational-job-service";
 import { assertOwnedRelease } from "./assert-owned-release";
 import { assertReleaseExists } from "./assert-release-exists";
 import {
   finalizeOwnedReleaseUpload,
-  moderateReleaseForOperations,
   publishOwnedRelease,
   quarantineReleaseForOperations,
   requestOwnedReleaseUploadTarget,
 } from "./release-application-service";
-import {
-  finalizeReleaseUpload,
-  requestReleaseUploadTarget,
-} from "./release-artifact-service";
-import { runReleaseModeration } from "./release-moderation-service";
+import { requestReleaseUploadTarget } from "./release-artifact-service";
 import { publishRelease, quarantineRelease } from "./release-status-service";
 
+const now = new Date("2026-04-25T10:01:00.000Z");
 const generation = {
   id: "generation_1",
   releaseId: "release_1",
   sequence: 1,
-  status: "failed" as const,
+  status: "awaiting_upload" as const,
   originalFilename: "game.zip",
   contentType: "application/zip",
   declaredSizeBytes: 100,
@@ -62,12 +58,33 @@ const generation = {
   fileCount: null,
   entryPath: null,
   contentHash: null,
-  createdAt: new Date("2026-04-25T10:01:00.000Z"),
+  createdAt: now,
   uploadObservedAt: null,
   processingStartedAt: null,
   readyAt: null,
-  failedAt: new Date("2026-04-25T10:02:00.000Z"),
+  failedAt: null,
   abandonedAt: null,
+};
+
+const releaseJob = {
+  id: "job_1",
+  kind: "release_artifact_processing" as const,
+  status: "queued" as const,
+  releaseId: "release_1",
+  generationId: generation.id,
+  correlationId: "correlation_1",
+  attemptCount: 0,
+  maxAttempts: 3,
+  progressStage: null,
+  progressMessage: null,
+  lastErrorCode: null,
+  lastErrorRetryable: null,
+  availableAt: now,
+  deadlineAt: new Date("2026-04-25T11:01:00.000Z"),
+  createdAt: now,
+  startedAt: null,
+  finishedAt: null,
+  updatedAt: now,
 };
 
 const upload = {
@@ -78,14 +95,22 @@ const upload = {
   expiresAt: "2026-04-25T10:10:00.000Z",
 };
 
-const makeRelease = (status: "ready" | "live" | "uploading" | "failed") =>
+const makeRelease = ({
+  status,
+  jobs = [],
+}: {
+  status: "ready" | "live" | "uploading" | "failed";
+  jobs?: (typeof releaseJob)[];
+}) =>
   ({
     id: "release_1",
     gameId: "game_1",
     status,
+    candidateGenerationId: status === "uploading" ? generation.id : null,
     promotedGenerationId:
       status === "ready" || status === "live" ? generation.id : null,
     generations: [generation],
+    jobs,
   }) as Awaited<ReturnType<typeof assertOwnedRelease>>;
 
 describe("release application service", () => {
@@ -95,8 +120,8 @@ describe("release application service", () => {
 
   it("authorizes before publishing and returns the authoritative read-back", async () => {
     vi.mocked(assertOwnedRelease)
-      .mockResolvedValueOnce(makeRelease("ready"))
-      .mockResolvedValueOnce(makeRelease("live"));
+      .mockResolvedValueOnce(makeRelease({ status: "ready" }))
+      .mockResolvedValueOnce(makeRelease({ status: "live" }));
 
     const result = await publishOwnedRelease({
       actor: { userId: "user_1" },
@@ -113,34 +138,55 @@ describe("release application service", () => {
     expect(assertOwnedRelease).toHaveBeenCalledTimes(2);
   });
 
-  it("returns a terminal failed state when finalization records failure before throwing", async () => {
+  it("enqueues one generation-scoped artifact job and returns its durable handle", async () => {
     vi.mocked(assertOwnedRelease)
-      .mockResolvedValueOnce(makeRelease("uploading"))
-      .mockResolvedValueOnce(makeRelease("failed"));
-    vi.mocked(finalizeReleaseUpload).mockRejectedValueOnce(
-      new Error("storage read failed"),
+      .mockResolvedValueOnce(makeRelease({ status: "uploading" }))
+      .mockResolvedValueOnce(
+        makeRelease({ status: "uploading", jobs: [releaseJob] }),
+      );
+    vi.mocked(enqueueOperationalJob).mockResolvedValueOnce({
+      job: { id: releaseJob.id } as never,
+      replayed: false,
+    });
+
+    const result = await finalizeOwnedReleaseUpload({
+      actor: { userId: "user_1" },
+      releaseId: "release_1",
+      generationId: generation.id,
+    });
+
+    expect(result.job).toEqual(releaseJob);
+    expect(enqueueOperationalJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "release_artifact_processing",
+        creatorId: "user_1",
+        gameId: "game_1",
+        releaseId: "release_1",
+        generationId: generation.id,
+        idempotencyKey: `release-finalize:release_1:${generation.id}`,
+        payload: { contractVersion: 1, generationId: generation.id },
+      }),
+    );
+  });
+
+  it("reuses an existing generation job without enqueueing duplicate work", async () => {
+    vi.mocked(assertOwnedRelease).mockResolvedValueOnce(
+      makeRelease({ status: "failed", jobs: [releaseJob] }),
     );
 
     const result = await finalizeOwnedReleaseUpload({
       actor: { userId: "user_1" },
       releaseId: "release_1",
-      generationId: "generation_1",
+      generationId: generation.id,
     });
 
-    expect(result.release.status).toBe("failed");
-    expect(result.generation.id).toBe("generation_1");
-    expect(finalizeReleaseUpload).toHaveBeenCalledWith({
-      release: expect.objectContaining({ id: "release_1" }),
-      generationId: "generation_1",
-    });
+    expect(result.job.id).toBe(releaseJob.id);
+    expect(enqueueOperationalJob).not.toHaveBeenCalled();
   });
 
-  it("does not treat a different generation's terminal release as a successful retry", async () => {
-    vi.mocked(assertOwnedRelease)
-      .mockResolvedValueOnce(makeRelease("uploading"))
-      .mockResolvedValueOnce(makeRelease("failed"));
-    vi.mocked(finalizeReleaseUpload).mockRejectedValueOnce(
-      new Error("generation changed"),
+  it("rejects a generation outside the owned release", async () => {
+    vi.mocked(assertOwnedRelease).mockResolvedValueOnce(
+      makeRelease({ status: "uploading" }),
     );
 
     await expect(
@@ -149,13 +195,14 @@ describe("release application service", () => {
         releaseId: "release_1",
         generationId: "stale_generation",
       }),
-    ).rejects.toThrow("generation changed");
+    ).rejects.toMatchObject({ code: "not_found" });
+    expect(enqueueOperationalJob).not.toHaveBeenCalled();
   });
 
-  it("returns the explicit immutable generation with a new upload target", async () => {
+  it("returns an explicit immutable generation and redacted upload target", async () => {
     vi.mocked(assertOwnedRelease)
-      .mockResolvedValueOnce(makeRelease("failed"))
-      .mockResolvedValueOnce(makeRelease("uploading"));
+      .mockResolvedValueOnce(makeRelease({ status: "failed" }))
+      .mockResolvedValueOnce(makeRelease({ status: "uploading" }));
     vi.mocked(requestReleaseUploadTarget).mockResolvedValueOnce({
       generation,
       upload,
@@ -178,52 +225,6 @@ describe("release application service", () => {
     });
     expect(result.upload).not.toHaveProperty("key");
     expect(result.release.status).toBe("uploading");
-  });
-
-  it("moderates only the release's promoted generation", async () => {
-    vi.mocked(assertReleaseExists)
-      .mockResolvedValueOnce(makeRelease("ready"))
-      .mockResolvedValueOnce(makeRelease("ready"));
-    vi.mocked(runReleaseModeration).mockResolvedValueOnce({
-      generationId: "generation_1",
-      screenshot: null,
-      moderation: null,
-      skipped: false,
-      reason: null,
-      outcome: "passed",
-    });
-
-    await moderateReleaseForOperations({
-      actor: { userId: "ops_1", role: "ops_admin" },
-      releaseId: "release_1",
-    });
-
-    expect(runReleaseModeration).toHaveBeenCalledWith({
-      releaseId: "release_1",
-      generationId: "generation_1",
-    });
-    expect(quarantineRelease).not.toHaveBeenCalled();
-  });
-
-  it("quarantines a release when operations moderation flags its promoted generation", async () => {
-    vi.mocked(assertReleaseExists)
-      .mockResolvedValueOnce(makeRelease("live"))
-      .mockResolvedValueOnce(makeRelease("ready"));
-    vi.mocked(runReleaseModeration).mockResolvedValueOnce({
-      generationId: "generation_1",
-      screenshot: null,
-      moderation: null,
-      skipped: false,
-      reason: null,
-      outcome: "flagged",
-    });
-
-    await moderateReleaseForOperations({
-      actor: { userId: "ops_1", role: "ops_admin" },
-      releaseId: "release_1",
-    });
-
-    expect(quarantineRelease).toHaveBeenCalledWith({ releaseId: "release_1" });
   });
 
   it("enforces the operations actor inside the application boundary", async () => {

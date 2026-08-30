@@ -32,6 +32,25 @@ export const releaseGenerationStatusSchema = z.enum(
   releaseGenerationStatusValues,
 );
 
+export const releaseJobKindValues = [
+  "release_artifact_processing",
+  "release_browser_validation",
+  "release_image_moderation",
+] as const;
+export type ReleaseJobKind = (typeof releaseJobKindValues)[number];
+export const releaseJobKindSchema = z.enum(releaseJobKindValues);
+
+export const releaseJobStatusValues = [
+  "queued",
+  "running",
+  "cancel_requested",
+  "succeeded",
+  "failed",
+  "canceled",
+] as const;
+export type ReleaseJobStatus = (typeof releaseJobStatusValues)[number];
+export const releaseJobStatusSchema = z.enum(releaseJobStatusValues);
+
 export const releaseCheckKindValues = [
   "artifact_validation",
   "screenshot_capture",

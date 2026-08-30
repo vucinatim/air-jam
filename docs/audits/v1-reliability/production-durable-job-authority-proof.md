@@ -9,11 +9,9 @@ Air Jam now has a versioned PostgreSQL authority for bounded release work. It
 does not use an in-memory queue, a request-lifetime counter, or the isolated
 Playwright service as release-state authority.
 
-This foundation deliberately does not switch creator finalization onto the
-queue yet. Immutable release generations now close the release-wide storage
-identity gap, but real executors still need versioned payload/result contracts,
-attempt identity, and lease-aware completion. Product wiring follows only when
-those remaining external side effects are replay-safe.
+This document records the durable-authority foundation as it landed. The later
+[production release job worker proof](./production-release-job-worker-proof.md)
+records the completed executor and adapter cutover built on this authority.
 
 ## Canonical Work Kinds
 
@@ -153,12 +151,10 @@ Platform typechecking, focused lint, formatting, and migration generation
 checks passed. The isolated database contains no production data and production
 control state was not changed.
 
-## Required Next Layer
+## Subsequent Layer
 
-This foundation is final architecture, but it does not by itself make release
-processing durable. The generation layer completes the original upload-
-identity prerequisite and the generation/output portion of the storage fence.
-Before product adapters switch, the remaining worker layer must:
+This foundation did not by itself make release processing durable. The
+generation and worker slices subsequently completed the following layer:
 
 1. carry immutable generation identity and first-observed object facts into
    every executor payload
@@ -171,9 +167,9 @@ Before product adapters switch, the remaining worker layer must:
 6. a separate platform job-worker process must claim work, expose health, stop
    claiming on termination, and be deployed as a fourth Railway service
 
-Until that migration is complete, concurrent-release-job quota authority
-remains explicitly unavailable. Counting only the new table while legacy
-request work still exists would falsely report zero shared work.
+That migration is now complete: concurrent-release-job quota authority reads
+the durable active-job domain, and legacy request work no longer exists. See the
+worker proof for current behavior, validation, and remaining Gate `G3-02` work.
 
 The lifecycle contract version does not claim job-kind payload typing. Each
 executor must introduce its own versioned runtime schema before it is wired;

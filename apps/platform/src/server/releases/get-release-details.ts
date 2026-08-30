@@ -5,6 +5,7 @@ import {
   gameReleaseReports,
   gameReleases,
   games,
+  operationalJobs,
   users,
 } from "@/db/schema";
 import { desc, eq, inArray } from "drizzle-orm";
@@ -13,6 +14,36 @@ type GameRecord = typeof games.$inferSelect;
 type ReleaseRecord = typeof gameReleases.$inferSelect;
 type ReleaseGenerationRecord = typeof gameReleaseGenerations.$inferSelect;
 type ReleaseCheckRecord = typeof gameReleaseChecks.$inferSelect;
+type OperationalJobRecord = typeof operationalJobs.$inferSelect;
+
+export const projectReleaseJob = (job: OperationalJobRecord) => ({
+  id: job.id,
+  kind: job.kind,
+  status: job.status,
+  releaseId: job.releaseId,
+  generationId: job.generationId,
+  correlationId: job.correlationId,
+  attemptCount: job.attemptCount,
+  maxAttempts: job.maxAttempts,
+  progressStage:
+    typeof job.progress.stage === "string" ? job.progress.stage : null,
+  progressMessage:
+    typeof job.progress.message === "string" ? job.progress.message : null,
+  lastErrorCode:
+    job.lastError && typeof job.lastError.code === "string"
+      ? job.lastError.code
+      : null,
+  lastErrorRetryable:
+    job.lastError && typeof job.lastError.retryable === "boolean"
+      ? job.lastError.retryable
+      : null,
+  availableAt: job.availableAt,
+  deadlineAt: job.deadlineAt,
+  createdAt: job.createdAt,
+  startedAt: job.startedAt,
+  finishedAt: job.finishedAt,
+  updatedAt: job.updatedAt,
+});
 
 export const projectReleaseGeneration = (
   generation: ReleaseGenerationRecord,
@@ -64,7 +95,7 @@ const loadReleaseDetails = async ({
   }
 
   const releaseIds = releases.map((release) => release.id);
-  const [owner, generations, checks, reports] = await Promise.all([
+  const [owner, generations, checks, reports, jobs] = await Promise.all([
     db.query.users.findFirst({ where: eq(users.id, game.userId) }),
     db
       .select()
@@ -81,6 +112,11 @@ const loadReleaseDetails = async ({
       .from(gameReleaseReports)
       .where(inArray(gameReleaseReports.releaseId, releaseIds))
       .orderBy(desc(gameReleaseReports.createdAt)),
+    db
+      .select()
+      .from(operationalJobs)
+      .where(inArray(operationalJobs.releaseId, releaseIds))
+      .orderBy(desc(operationalJobs.createdAt)),
   ]);
 
   const generationsByReleaseId = new Map<
@@ -89,6 +125,10 @@ const loadReleaseDetails = async ({
   >();
   const checksByReleaseId = new Map<string, (typeof checks)[number][]>();
   const reportsByReleaseId = new Map<string, (typeof reports)[number][]>();
+  const jobsByReleaseId = new Map<
+    string,
+    ReturnType<typeof projectReleaseJob>[]
+  >();
 
   for (const generation of generations) {
     const releaseGenerations =
@@ -107,6 +147,12 @@ const loadReleaseDetails = async ({
     const releaseReports = reportsByReleaseId.get(report.releaseId) ?? [];
     releaseReports.push(report);
     reportsByReleaseId.set(report.releaseId, releaseReports);
+  }
+
+  for (const job of jobs) {
+    const releaseJobs = jobsByReleaseId.get(job.releaseId) ?? [];
+    releaseJobs.push(projectReleaseJob(job));
+    jobsByReleaseId.set(job.releaseId, releaseJobs);
   }
 
   const ownerProjection = owner
@@ -138,6 +184,7 @@ const loadReleaseDetails = async ({
       checks: (checksByReleaseId.get(release.id) ?? []).map(
         projectReleaseCheck,
       ),
+      jobs: jobsByReleaseId.get(release.id) ?? [],
       reports: reportsByReleaseId.get(release.id) ?? [],
     };
   });

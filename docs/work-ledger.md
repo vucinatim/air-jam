@@ -18,6 +18,31 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-30 - Hosted Release Processing Left The Request Lifecycle
+
+- replaced synchronous upload finalization with one generation-scoped durable
+  graph for artifact processing, browser validation, and image moderation
+- added strict versioned executor payloads, immutable attempt identity,
+  attempt-scoped output roots, lease-aware completion, and exact-generation
+  fences around every external side effect
+- added the separately deployable platform release worker with database-gated
+  readiness, liveness, authenticated drain, signal handling, bounded
+  concurrency, expired-work repair, and terminal-output cleanup
+- made superseding generations cancel or request cancellation of their active
+  jobs atomically before abandonment
+- converged dashboard, API, SDK, CLI, and MCP on enqueue-and-inspect semantics;
+  submission returns its job, explicit wait follows the exact generation, and
+  publish waits for readiness
+- exposed cleanup and one-cycle execution through the canonical preview-first
+  repo CLI so agents can inspect, recover, and operate the same worker domain
+- made the standalone deployment proof secret-free and verified that the
+  packaged worker loads with its official Playwright runtime dependency
+- proved fresh and legacy migrations, crash/retry isolation, the full three-
+  stage pipeline, worker drain/readiness, redaction, platform tests, repo
+  contracts, build, and hermetic runtime loading
+- kept `G3-02` active for broader lifecycle cleanup, realtime admission, load
+  and overload proof, and the explicit production migration/worker rollout
+
 ## 2026-08-30 - Hosted Releases Gained Immutable Generations
 
 - replaced the one-row mutable release artifact model with release-local,

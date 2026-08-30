@@ -11,6 +11,7 @@ import type {
   PlatformMachineMutateOwnedGameMediaAssetResult,
   PlatformMachinePublishReleaseResult,
   PlatformMachineReleaseGeneration,
+  PlatformMachineReleaseJob,
   PlatformMachineRequestOwnedGameMediaUploadTargetInput,
   PlatformMachineRequestOwnedGameMediaUploadTargetResult,
   PlatformMachineRequestReleaseUploadTargetResult,
@@ -299,6 +300,9 @@ export type SubmitPlatformReleaseOptions = {
   distDir?: string;
   bundlePath?: string;
   skipBuild?: boolean;
+  waitForProcessing?: boolean;
+  processingTimeoutMs?: number;
+  processingPollIntervalMs?: number;
   publish?: boolean;
 };
 
@@ -340,8 +344,10 @@ export type SubmitPlatformReleaseResult = {
   bundlePath: string;
   createdRelease: PlatformMachineGetReleaseResult["release"];
   createdGeneration: PlatformMachineReleaseGeneration;
-  finalizedRelease: PlatformMachineGetReleaseResult["release"];
-  finalizedGeneration: PlatformMachineReleaseGeneration;
+  submittedRelease: PlatformMachineGetReleaseResult["release"];
+  submittedGeneration: PlatformMachineReleaseGeneration;
+  processingJob: PlatformMachineReleaseJob;
+  processedRelease: PlatformMachineGetReleaseResult["release"] | null;
   publishedRelease: PlatformMachineGetReleaseResult["release"] | null;
 };
 

@@ -30,6 +30,8 @@ test("durable jobs expose one discoverable repo operations surface", () => {
     "cancel",
     "replay",
     "repair-expired",
+    "cleanup-orphans",
+    "worker-once",
   ]) {
     assert.match(jobsHelp, new RegExp(command, "u"));
   }
@@ -65,8 +67,15 @@ test("durable job mutations are preview-first and carry required audit fences", 
     "jobs",
     "repair-expired",
   );
+  const cleanupHelp = readHelp(
+    "platform",
+    "operations",
+    "jobs",
+    "cleanup-orphans",
+  );
+  const workerHelp = readHelp("platform", "operations", "jobs", "worker-once");
 
-  for (const help of [cancelHelp, replayHelp, repairHelp]) {
+  for (const help of [cancelHelp, replayHelp, repairHelp, cleanupHelp]) {
     assert.match(help, /--apply/u);
     assert.match(help, /read-only\s+preview/u);
     assert.match(help, /--actor/u);
@@ -79,6 +88,12 @@ test("durable job mutations are preview-first and carry required audit fences", 
   assert.match(repairHelp, /--idempotency-key/u);
   assert.match(repairHelp, /--kind/u);
   assert.match(repairHelp, /--limit/u);
+  assert.match(cleanupHelp, /--limit/u);
+  assert.match(workerHelp, /--apply/u);
+  assert.match(workerHelp, /read-only\s+preview/u);
+  assert.match(workerHelp, /--kind/u);
+  assert.match(workerHelp, /--worker/u);
+  assert.match(workerHelp, /--json/u);
 });
 
 test("source-owned job policy is readable as stdout-only JSON without a database", () => {
@@ -149,8 +164,11 @@ test(
           (id, contract_version, idempotency_key, kind, request_hash, actor, reason, request, result, created_at, completed_at)
           values (${commandId}, 1, ${`cli-redaction-command-${suffix}`}, 'enqueue', ${"b".repeat(64)}, 'test:cli-redaction', 'Prove operator-safe JSON.', ${{ authorization: "Bearer command-secret" }}, ${{ job: { id: jobId } }}, now(), now())`;
         await tx`insert into operational_jobs
-          (id, contract_version, kind, lane, status, creator_id, game_id, release_id, created_by_command_id, request_hash, correlation_id, payload, progress, priority, available_at, deadline_at, attempt_count, max_attempts, revision, lease_owner, lease_token, lease_expires_at, last_heartbeat_at, started_at, created_at, updated_at)
-          values (${jobId}, 1, 'release_artifact_processing', 'release_processing', 'running', ${userId}, ${gameId}, ${releaseId}, ${commandId}, ${"a".repeat(64)}, ${`correlation-${suffix}`}, ${{ authorization: "Bearer payload-secret" }}, ${{ token: "progress-secret" }}, 0, now(), now() + interval '1 hour', 1, 3, 2, 'worker:cli-redaction', ${leaseToken}, now() + interval '5 minutes', now(), now(), now(), now())`;
+          (id, contract_version, kind, lane, status, creator_id, game_id, release_id, generation_id, created_by_command_id, request_hash, correlation_id, payload, progress, priority, available_at, deadline_at, attempt_count, max_attempts, revision, lease_owner, lease_token, lease_expires_at, last_heartbeat_at, started_at, created_at, updated_at)
+          values (${jobId}, 1, 'release_artifact_processing', 'release_processing', 'running', ${userId}, ${gameId}, ${releaseId}, ${generationId}, ${commandId}, ${"a".repeat(64)}, ${`correlation-${suffix}`}, ${{ contractVersion: 1, generationId }}, ${{ token: "progress-secret" }}, 0, now(), now() + interval '1 hour', 1, 3, 2, 'worker:cli-redaction', ${leaseToken}, now() + interval '5 minutes', now(), now(), now(), now())`;
+        await tx`insert into operational_job_attempts
+          (id, job_id, release_id, generation_id, attempt, status, lease_owner, lease_token, progress, started_at, last_heartbeat_at, created_at, updated_at)
+          values (${`attempt-${suffix}`}, ${jobId}, ${releaseId}, ${generationId}, 1, 'running', 'worker:cli-redaction', ${leaseToken}, ${{ token: "attempt-progress-secret" }}, now(), now(), now(), now())`;
         await tx`insert into operational_job_events
           (id, job_id, idempotency_key, kind, expected_revision, next_revision, from_status, to_status, attempt, actor, reason, details, correlation_id)
           values (${eventId}, ${jobId}, ${`${jobId}:2:claimed`}, 'claimed', 1, 2, 'queued', 'running', 1, 'worker:cli-redaction', 'Claim redaction proof.', ${{ token: "event-secret" }}, ${`correlation-${suffix}`})`;
@@ -181,8 +199,8 @@ test(
       for (const secret of [
         leaseToken,
         "Bearer command-secret",
-        "Bearer payload-secret",
         "progress-secret",
+        "attempt-progress-secret",
         "event-secret",
         '"leaseToken"',
         '"requestHash"',

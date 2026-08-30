@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { cp, mkdtemp, rm } from "node:fs/promises";
+import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +22,40 @@ const EXCLUDED_DIR_NAMES = new Set([
 
 const EXCLUDED_FILE_SUFFIXES = [".tsbuildinfo"];
 const BIN_WARNING_PATTERN = /Failed to create bin at /;
+const HERMETIC_ENV_KEYS = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "USER",
+  "SHELL",
+  "LANG",
+  "LC_ALL",
+  "COREPACK_HOME",
+  "PNPM_HOME",
+];
+
+const hermeticBaseEnv = Object.fromEntries(
+  HERMETIC_ENV_KEYS.flatMap((key) =>
+    process.env[key] === undefined ? [] : [[key, process.env[key]]],
+  ),
+);
+
+const reserveAvailablePort = async () =>
+  new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close();
+        reject(new Error("Could not reserve a worker probe port."));
+        return;
+      }
+      server.close((error) => (error ? reject(error) : resolve(address.port)));
+    });
+  });
 
 const shouldCopyPath = (sourcePath) => {
   const relativePath = path.relative(repoRoot, sourcePath);
@@ -39,6 +74,9 @@ const shouldCopyPath = (sourcePath) => {
   }
 
   const basename = path.basename(sourcePath);
+  if (basename.startsWith(".env") && basename !== ".env.example") {
+    return false;
+  }
   return !EXCLUDED_FILE_SUFFIXES.some((suffix) => basename.endsWith(suffix));
 };
 
@@ -46,9 +84,10 @@ const run = ({ args, cwd, label }) => {
   const result = spawnSync(args[0], args.slice(1), {
     cwd,
     env: {
-      ...process.env,
-      CI: process.env.CI ?? "1",
+      ...hermeticBaseEnv,
+      CI: "1",
       NO_UPDATE_NOTIFIER: "1",
+      NEXT_TELEMETRY_DISABLED: "1",
     },
     encoding: "utf8",
   });
@@ -117,12 +156,49 @@ const main = async () => {
       );
     }
 
+    const workerRuntimeEntry = path.join(
+      checkoutRoot,
+      "apps/platform/.next/standalone/apps/platform/run-release-job-worker.mjs",
+    );
+    if (!fs.existsSync(workerRuntimeEntry)) {
+      throw new Error(
+        "Hermetic platform build did not emit the bundled release-job worker entry.",
+      );
+    }
+
+    const workerPlaywrightPackage = path.join(
+      checkoutRoot,
+      "apps/platform/.next/standalone/apps/platform/node_modules/playwright-core/package.json",
+    );
+    if (!fs.existsSync(workerPlaywrightPackage)) {
+      throw new Error(
+        "Hermetic platform build did not package the worker's Playwright runtime dependency.",
+      );
+    }
+
+    const workerRailwayConfig = JSON.parse(
+      fs.readFileSync(
+        path.join(checkoutRoot, "apps/platform/railway.worker.json"),
+        "utf8",
+      ),
+    );
+    if (
+      workerRailwayConfig.deploy?.startCommand !==
+        "node /app/apps/platform/run-release-job-worker.mjs" ||
+      workerRailwayConfig.deploy?.healthcheckPath !== "/health"
+    ) {
+      throw new Error(
+        "Release-job worker Railway config does not target its bundled entry and health contract.",
+      );
+    }
+
     const migrationProbe = spawnSync("node", [runtimeEntry], {
       cwd: checkoutRoot,
       env: {
-        ...process.env,
+        ...hermeticBaseEnv,
         DATABASE_URL: "postgres://airjam:airjam@127.0.0.1:1/airjam",
         RAILWAY_ENVIRONMENT_NAME: "air-jam-hermetic-preview",
+        NEXT_TELEMETRY_DISABLED: "1",
       },
       encoding: "utf8",
       timeout: 10_000,
@@ -147,6 +223,34 @@ const main = async () => {
       process.stdout.write(migrationProbeOutput);
       throw new Error(
         "Bundled runtime entry still has a missing migration dependency.",
+      );
+    }
+
+    const workerProbePort = await reserveAvailablePort();
+    const workerProbe = spawnSync("node", [workerRuntimeEntry], {
+      cwd: checkoutRoot,
+      env: {
+        ...hermeticBaseEnv,
+        DATABASE_URL: "postgres://airjam:airjam@127.0.0.1:1/airjam",
+        PORT: String(workerProbePort),
+        AIRJAM_PLATFORM_WORKER_POLL_MS: "10000",
+        AIRJAM_PLATFORM_WORKER_REPAIR_MS: "10000",
+        NEXT_TELEMETRY_DISABLED: "1",
+      },
+      encoding: "utf8",
+      timeout: 3_000,
+    });
+    const workerProbeOutput = `${workerProbe.stdout ?? ""}${workerProbe.stderr ?? ""}`;
+    if (workerProbeOutput.includes("ERR_MODULE_NOT_FOUND")) {
+      process.stdout.write(workerProbeOutput);
+      throw new Error(
+        "Bundled release-job worker entry has a missing runtime dependency.",
+      );
+    }
+    if (!workerProbeOutput.includes('"event":"worker.started"')) {
+      process.stdout.write(workerProbeOutput);
+      throw new Error(
+        "Bundled release-job worker did not reach its health-serving runtime boundary.",
       );
     }
 

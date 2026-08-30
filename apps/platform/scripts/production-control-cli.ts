@@ -30,6 +30,11 @@ import {
   requestOperationalJobCancellation,
 } from "../src/server/jobs/operational-job-service";
 import {
+  cleanupReleaseJobOrphanOutputs,
+  listReleaseJobOrphanOutputs,
+} from "../src/server/jobs/release-job-output-cleanup";
+import { runReleaseJobWorkerCycle } from "../src/server/jobs/release-job-worker";
+import {
   findOperationalBudgetEvidenceReplay,
   getOperationalBudgetStatus,
   previewOperationalBudgetEvidence,
@@ -99,6 +104,21 @@ type ProductionControlCliInput =
       reason: string;
       idempotencyKey: string;
       limit: number;
+      apply: boolean;
+      json: boolean;
+    }
+  | {
+      command: "jobs-cleanup-orphans";
+      actor: string;
+      reason: string;
+      limit: number;
+      apply: boolean;
+      json: boolean;
+    }
+  | {
+      command: "jobs-worker-once";
+      kind: OperationalJobKind;
+      workerId: string;
       apply: boolean;
       json: boolean;
     }
@@ -313,6 +333,28 @@ const parseInput = (raw: string | undefined): ProductionControlCliInput => {
         input.limit === undefined
           ? 100
           : readIntegerInRange(input, "limit", 1, 500),
+      apply: input.apply === true,
+      json,
+    };
+  }
+  if (input.command === "jobs-cleanup-orphans") {
+    return {
+      command: "jobs-cleanup-orphans",
+      actor: readRequiredText(input, "actor"),
+      reason: readRequiredText(input, "reason"),
+      limit:
+        input.limit === undefined
+          ? 100
+          : readIntegerInRange(input, "limit", 1, 500),
+      apply: input.apply === true,
+      json,
+    };
+  }
+  if (input.command === "jobs-worker-once") {
+    return {
+      command: "jobs-worker-once",
+      kind: readRequiredJobKind(input),
+      workerId: readRequiredText(input, "workerId"),
       apply: input.apply === true,
       json,
     };
@@ -655,9 +697,7 @@ const main = async (): Promise<void> => {
         const result = {
           jobContractVersion: operationalJobContractVersion,
           original,
-          eligible: ["succeeded", "failed", "canceled"].includes(
-            original.status,
-          ),
+          eligible: ["failed", "canceled"].includes(original.status),
           requested: {
             actor: input.actor,
             reason: input.reason,
@@ -754,6 +794,91 @@ const main = async (): Promise<void> => {
         console.log(
           `${repair.replayed ? "Replayed" : "Repaired"} ${repair.jobs.length} expired jobs.`,
         );
+      return;
+    }
+
+    if (input.command === "jobs-cleanup-orphans") {
+      const redactCandidates = (
+        candidates: Awaited<ReturnType<typeof listReleaseJobOrphanOutputs>>,
+      ) =>
+        candidates.map(({ outputRootKey: _outputRootKey, ...candidate }) => ({
+          ...candidate,
+          privateData: { hasOutputRoot: true },
+        }));
+      if (!input.apply) {
+        const candidates = await listReleaseJobOrphanOutputs({
+          database,
+          limit: input.limit,
+        });
+        const result = {
+          jobContractVersion: operationalJobContractVersion,
+          actor: input.actor,
+          reason: input.reason,
+          limit: input.limit,
+          candidates: redactCandidates(candidates),
+        };
+        if (input.json) printJson(input.command, false, result);
+        else {
+          console.log(
+            `Would delete attempt-scoped output for ${candidates.length} terminal jobs.`,
+          );
+          console.log("Pass --apply to remove the orphan outputs.");
+        }
+        return;
+      }
+      const cleanup = await cleanupReleaseJobOrphanOutputs({
+        database,
+        actor: input.actor,
+        reason: input.reason,
+        limit: input.limit,
+      });
+      const result = {
+        jobContractVersion: operationalJobContractVersion,
+        candidates: redactCandidates(cleanup.candidates),
+        cleaned: cleanup.cleaned,
+      };
+      if (input.json) printJson(input.command, true, result);
+      else console.log(`Cleaned ${cleanup.cleaned.length} orphan outputs.`);
+      return;
+    }
+
+    if (input.command === "jobs-worker-once") {
+      if (!input.apply) {
+        const queued = await listOperationalJobs({
+          database,
+          kind: input.kind,
+          statuses: ["queued"],
+          limit: 1,
+        });
+        const result = {
+          jobContractVersion: operationalJobContractVersion,
+          kind: input.kind,
+          workerId: input.workerId,
+          queuedCandidate: queued[0] ?? null,
+          note: "Claim authority is decided transactionally only during apply.",
+        };
+        if (input.json) printJson(input.command, false, result);
+        else {
+          console.log(
+            queued[0]
+              ? `Would let ${input.workerId} claim at most one ${input.kind} job.`
+              : `No queued ${input.kind} job is currently visible.`,
+          );
+          console.log("Pass --apply to run one worker cycle.");
+        }
+        return;
+      }
+      const cycle = await runReleaseJobWorkerCycle({
+        database,
+        kind: input.kind,
+        workerId: input.workerId,
+      });
+      const result = {
+        jobContractVersion: operationalJobContractVersion,
+        cycle,
+      };
+      if (input.json) printJson(input.command, true, result);
+      else console.log(`${input.kind} worker cycle finished: ${cycle.status}.`);
       return;
     }
 

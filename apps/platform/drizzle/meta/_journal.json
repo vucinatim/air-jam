@@ -204,6 +204,13 @@
       "when": 1788047170418,
       "tag": "0028_release_generation_invariants",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1788051391827,
+      "tag": "0029_release_job_attempts",
+      "breakpoints": true
     }
   ]
 }

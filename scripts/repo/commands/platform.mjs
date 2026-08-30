@@ -838,6 +838,66 @@ export const registerPlatformCommands = (program) => {
     });
   });
 
+  addPlatformDatabaseTargetOption(
+    jobsCommand
+      .command("cleanup-orphans")
+      .description(
+        "Preview or delete attempt-scoped output left by terminal release jobs",
+      )
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption("--reason <reason>", "Durable operator reason")
+      .option(
+        "--limit <limit>",
+        "Maximum attempts to clean, from 1 to 500",
+        "100",
+      )
+      .option(
+        "--apply",
+        "Delete orphan output; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "jobs-cleanup-orphans",
+        actor: options.actor,
+        reason: options.reason,
+        limit: options.limit,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    jobsCommand
+      .command("worker-once")
+      .description(
+        "Preview or execute one durable release-worker claim and attempt",
+      )
+      .requiredOption("--kind <kind>", "Canonical operational job kind")
+      .requiredOption("--worker <worker-id>", "Stable worker identity")
+      .option(
+        "--apply",
+        "Run one worker cycle; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "jobs-worker-once",
+        kind: options.kind,
+        workerId: options.worker,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
   platformCommand
     .command("db-backup")
     .description("Write a local backup of the platform database")

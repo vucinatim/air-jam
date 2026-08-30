@@ -5,6 +5,8 @@ import {
   releaseCheckKindSchema,
   releaseCheckStatusSchema,
   releaseGenerationStatusSchema,
+  releaseJobKindSchema,
+  releaseJobStatusSchema,
   releaseReportSourceSchema,
   releaseReportStatusSchema,
 } from "./release";
@@ -270,6 +272,31 @@ export type PlatformMachineReleaseCheck = z.infer<
   typeof platformMachineReleaseCheckSchema
 >;
 
+export const platformMachineReleaseJobSchema = z.object({
+  id: z.string().min(1),
+  kind: releaseJobKindSchema,
+  status: releaseJobStatusSchema,
+  releaseId: z.string().min(1),
+  generationId: z.string().min(1),
+  correlationId: z.string().min(1),
+  attemptCount: z.number().int().nonnegative(),
+  maxAttempts: z.number().int().positive(),
+  progressStage: z.string().min(1).nullable(),
+  progressMessage: z.string().min(1).nullable(),
+  lastErrorCode: z.string().min(1).nullable(),
+  lastErrorRetryable: z.boolean().nullable(),
+  availableAt: z.string().min(1),
+  deadlineAt: z.string().min(1),
+  createdAt: z.string().min(1),
+  startedAt: z.string().min(1).nullable(),
+  finishedAt: z.string().min(1).nullable(),
+  updatedAt: z.string().min(1),
+});
+
+export type PlatformMachineReleaseJob = z.infer<
+  typeof platformMachineReleaseJobSchema
+>;
+
 export const platformMachineReleaseReportSchema = z.object({
   id: z.string().min(1),
   releaseId: z.string().min(1),
@@ -305,6 +332,7 @@ export const platformMachineReleaseSummarySchema = z.object({
   promotedGeneration: platformMachineReleaseGenerationSchema.nullable(),
   generations: z.array(platformMachineReleaseGenerationSchema),
   checks: z.array(platformMachineReleaseCheckSchema),
+  jobs: z.array(platformMachineReleaseJobSchema),
   reports: z.array(platformMachineReleaseReportSchema),
   hostUrl: z.string().url().nullable(),
   controllerUrl: z.string().url().nullable(),
@@ -479,6 +507,7 @@ export type PlatformMachineMutateOwnedGameMediaAssetResult = z.infer<
 export const platformMachineFinalizeReleaseUploadResultSchema = z.object({
   release: platformMachineReleaseSummarySchema,
   generation: platformMachineReleaseGenerationSchema,
+  job: platformMachineReleaseJobSchema,
 });
 
 export type PlatformMachineFinalizeReleaseUploadResult = z.infer<
