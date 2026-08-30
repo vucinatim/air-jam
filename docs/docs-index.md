@@ -65,7 +65,8 @@ The Gate 6 public package graph, supported Node/OS matrix, budgets, and
 machine-executable clean-install contract are defined by:
 
 1. [contracts/public-package-support-contract.md](./contracts/public-package-support-contract.md)
-2. `pnpm --silent run repo -- release install-matrix spec --json`
+2. [audits/v1-public-release/public-install-matrix-audit.md](./audits/v1-public-release/public-install-matrix-audit.md)
+3. `pnpm --silent run repo -- release install-matrix spec --json`
 
 The ranked Gate 5 public, privileged, artifact, runtime, agent, provider,
 privacy, and supply-chain security baseline is:
@@ -129,13 +130,14 @@ competing as parallel product architectures.
 The roadmap gates define the product sequence and the readiness manifest derives
 the currently executable queue. The next independent work is:
 
-1. external-agent public installation and bootstrap proof
-2. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
-3. establish dedicated untrusted-content origin isolation and close the
+1. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
+2. establish dedicated untrusted-content origin isolation and close the
    remaining ranked Gate 5 security findings
-4. produce and persist durable operational events against the canonical Gate 4
+3. produce and persist durable operational events against the canonical Gate 4
    contract
-5. run isolated backup/restore and rollback/replay proof
+4. run isolated backup/restore and rollback/replay proof
+5. prove supply-chain provenance, privacy claims, and the emergency release
+   procedure
 6. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
 7. do not treat future topology work as a second live execution plan while the

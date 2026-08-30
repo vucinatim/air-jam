@@ -18,6 +18,33 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-30 - Public Installation Became A Six-Cell Release Contract
+
+- completed the exact candidate-package proof across Linux, macOS, and Windows
+  on both Node.js 22 and 24 without publishing to npm or mutating production
+- built and packed the coordinated five-package graph, published it to one
+  fallback-free run-scoped registry per cell, and forced `npx` through an empty
+  cache so public or workspace packages could not create a false pass
+- proved exact lockfile integrity, version discovery, all 26 MCP tools, managed
+  development start/status/stop, and generated-project typecheck, lint, tests,
+  and production build in all six cells
+- established explicit package, graph, scaffold-install, complete-cell, and
+  archive-extraction budgets; the graph measured 89,546,135 bytes, the slowest
+  scaffold install took 147,076 ms, and the slowest cell took 308,915 ms
+- made scaffold archives reproducible and read-only to build, and made
+  extraction transactional and bounded against path, entry-count, size, and
+  compression-ratio attacks
+- removed real cross-platform defects in package-manager launching, managed
+  process supervision, Node.js 24 MCP execution, Windows path identity and
+  temporary roots, portable tool-version collection, and controller identity
+- independently downloaded and re-aggregated all six evidence documents; the
+  result matched workflow run `33312857389` for exact PR merge
+  `19eb8e41f5bf9a06100d3c5af975a59d1837bd62`
+- closed `G6-01` with the
+  [public install matrix audit](./audits/v1-public-release/public-install-matrix-audit.md),
+  while retaining public npm rehearsal, provenance, promotion, docs, demo, and
+  launch-story work in later Gate 6 and Gate 7 items
+
 ## 2026-08-30 - Hosted Release Isolation Became Safely Attestable
 
 - added one repo-owned `platform release-origin attest` lifecycle that produces

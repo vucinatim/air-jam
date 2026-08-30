@@ -61,6 +61,10 @@ The canonical source is
 all six cells and retains one JSON document per cell plus one aggregate
 document. Aggregation fails unless every cell proves the same exact commit.
 
+The passing 1.0-candidate measurement, exact environments, package integrity,
+timings, and defects removed while establishing this contract are preserved in
+the [public install matrix audit](../audits/v1-public-release/public-install-matrix-audit.md).
+
 Each candidate cell must prove:
 
 1. the exact five public packages build and pack
@@ -80,6 +84,14 @@ Each candidate cell must prove:
 12. package-size, scaffold-install, and total-cell budgets pass
 13. the packaged scaffold extraction budgets are present in the cell evidence
     and match the runtime-enforced contract
+
+The installed lifecycle must remain portable rather than delegating operating-
+system differences to callers. Package-manager and version commands resolve
+through the shared portable process boundary; managed development owns start,
+status, process-tree supervision, and stop; and workspace paths use one
+canonical filesystem identity. CI temporary workspaces use the runner-owned
+temporary root so Windows legacy short-path aliases cannot make the runtime and
+toolchain disagree about project identity.
 
 ## Candidate Versus Public npm
 

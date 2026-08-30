@@ -173,16 +173,17 @@ These are now baseline truths, not open architecture debates:
     5. the exact candidate package graph now passes an isolated-registry
        bootstrap proof with no local dependency specs or private repository
        paths
-    6. the generated project discovers the canonical CLI, all `24` MCP tools,
+    6. the generated project discovers the canonical CLI, all `26` MCP tools,
        project-scoped Codex configuration, managed dev lifecycle, typecheck,
        lint, tests, and production build
     7. the MCP server reports its shipped package version rather than a
        hard-coded version
     8. the standalone MCP tool set now has one canonical machine-readable
        contract shared by server registration and clean-room verification
-    9. `create-airjam` currently packs to `87,264,876` bytes because it embeds
-       all six scaffold archives; Gate 6 must set and prove the final package
-       size and cold-install budget
+    9. `create-airjam` packs to `87,164,321` bytes because it embeds all six
+       scaffold archives; Gate 6 now enforces that value beneath a 100 MiB
+       package ceiling and proves cold scaffold installation below ten minutes
+       on every supported cell
     10. the retained Codex primary run independently built the full Signal Relay
         game, passed all four quality gates, and reached semantic-session control
         before both supported Chromium paths hit the same macOS Mach-port denial
@@ -222,7 +223,7 @@ These are now baseline truths, not open architecture debates:
        claim of current anonymous exposure
     5. implementation remains in `G5-02` and `G5-03`, with one final batched
        human residual-risk review in `G5-04`
-16. the first `G5-02` implementation slice now exists as a production-valid
+17. the first `G5-02` implementation slice now exists as a production-valid
     stacked change:
     1. hosted game code has no authenticated-platform-origin fallback
     2. production requires an explicit cross-site release origin outside Better
@@ -257,7 +258,8 @@ The roadmap now organizes the remaining work into explicit evidence gates:
 3. operational events, synthetics, alerts, incident correlation, GitHub issue
    policy, and bounded remediation
 4. security, abuse, privacy, and supply-chain trust
-5. public package, installation, documentation, demo, and article proof
+5. final public documentation, demo, article, npm prerelease, and promotion
+   proof
 6. one immutable release rehearsal and final go/no-go decision
 
 ## Active Now
@@ -271,14 +273,12 @@ work state without becoming a second product authority:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
-The current pull-request stack is in integration closeout, not public-launch
-closeout. Pull requests `#52` through `#60` remain focused review slices, while
-cumulative integration pull request `#61` targets `main` with their corrected
-combined head to avoid deploying known-incomplete intermediate states. After
-that merge, remaining 1.0 work returns to small independently production-valid
-pull requests. Production code is delivered incrementally; stable package
-promotion, public release visibility, final docs, the launch article, and
-distribution are coordinated only after one exact candidate passes rehearsal.
+Production-valid work now lands through focused incremental pull requests.
+Pull request `#74` closes the public candidate installation matrix without
+publishing to npm or mutating production. Production code continues to ship
+incrementally; stable package promotion, public release visibility, final docs,
+the launch article, and distribution remain coordinated around one exact
+candidate after rehearsal.
 
 Canonical agent reads are:
 
@@ -317,11 +317,21 @@ Gate `G2-02` is independently re-closed after review found that the first
 bootstrap run proved package versions and registry configuration without
 positively binding installed bytes to that run's packed candidates. The proof
 now compares SHA-512 integrity across the tarballs, registry metadata, and
-generated lockfile; requires all lifecycle scripts and all `24` MCP tools; uses
+generated lockfile; requires all lifecycle scripts and all `26` MCP tools; uses
 bounded command, protocol, registry, and workspace-lock waits; and passes a
 fresh managed-dev plus typecheck, lint, test, and build run. That replay also
 fixed standalone topology so a configured Vite port is advertised consistently
 to hosts, controllers, sockets, and readiness tooling.
+
+Gate `G6-01` is closed by the
+[public install matrix audit](./audits/v1-public-release/public-install-matrix-audit.md).
+The exact five-package candidate graph passed clean `npx` creation, CLI and all
+26 MCP tool discovery, managed development, and generated-project typecheck,
+lint, tests, and build on Linux, macOS, and Windows across Node.js 22 and 24.
+All six cells stayed inside explicit package, install-time, cell-time, and
+archive-extraction budgets. The proof used a fallback-free candidate registry
+and empty cache, so neither an old npm package nor the monorepo could satisfy
+it; npm and production were not changed.
 
 Gate `G2-03` is now explicitly blocked on isolated staging credentials and
 controller-readable provider identity. Its completion requires a new
