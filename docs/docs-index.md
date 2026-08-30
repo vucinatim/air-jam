@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-28
+Last updated: 2026-08-30
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -61,6 +61,14 @@ The canonical Gate 2 external-agent proof is defined by:
 4. the machine-readable scenario and prompt exposed through
    `pnpm --silent run repo -- golden-path spec --json`
 
+The ranked Gate 5 public, privileged, artifact, runtime, agent, provider,
+privacy, and supply-chain security baseline is:
+
+1. [audits/v1-security/threat-model-audit.md](./audits/v1-security/threat-model-audit.md)
+
+The audit owns evidence and decisions. `G5-02` and `G5-03` in the readiness
+manifest own implementation and proof; the document is not a parallel backlog.
+
 The detailed discoverability checklist remains a subordinate launch reference:
 
 1. [plans/discoverability-and-launch-promotion-plan.md](./plans/discoverability-and-launch-promotion-plan.md)
@@ -79,8 +87,10 @@ the currently executable queue. The next independent work is:
 
 1. external-agent public installation and bootstrap proof
 2. production capacity, cost, lifecycle, and recovery inventory
-3. operational-event and incident contract definition
-4. the public and privileged surface threat model
+3. dedicated untrusted-content origin isolation and the remaining ranked Gate 5
+   security closures
+4. durable operational-event delivery, alerts, incidents, and bounded runbook
+   execution against the canonical operations contract
 5. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
 6. do not treat future topology work as a second live execution plan while the

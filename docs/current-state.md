@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -197,6 +197,20 @@ These are now baseline truths, not open architecture debates:
     13. the integration review further made staging isolation environment-wide
         and fail-closed, made evidence retention rollback-safe and extension
         independent, and bounded external-agent plus cleanup process lifetimes
+15. Gate `G5-01` now has one ranked threat model:
+    1. public, privileged, artifact, runtime, agent, provider, privacy, and
+       supply-chain boundaries were independently reviewed and centrally
+       deduplicated
+    2. one critical launch blocker is confirmed in source and current production
+       configuration: creator executable releases fall back to the authenticated
+       platform origin
+    3. thirteen high-priority threat groups now have exact ownership, canonical
+       end states, and hostile proof requirements
+    4. production browser-worker credentials are present, so the worker finding
+       is a fail-open architecture and egress gap rather than an unsupported
+       claim of current anonymous exposure
+    5. implementation remains in `G5-02` and `G5-03`, with one final batched
+       human residual-risk review in `G5-04`
 
 ## What Is Still Open
 
@@ -297,6 +311,13 @@ clean scaffold, exercised through CLI and raw MCP, and removed after all
 generated-project quality gates passed. No npm package or production system was
 changed.
 
+Gate `G5-01` is closed by the
+[ranked security threat model](./audits/v1-security/threat-model-audit.md). Its
+highest-priority result is that creator-controlled executable game bytes must
+move to a dedicated cookieless origin with strict iframe and browser policies
+before 1.0. The audit deliberately leaves implementation open in `G5-02` and
+`G5-03`; it does not treat documenting a threat as fixing it.
+
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
 [2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md).
@@ -331,10 +352,12 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. continue the dependency-ready reliability inventory, operational-event
-   contract, and threat model
-4. preserve Gate 1 contracts while those independent implementation lanes run
-5. complete or block work only through evidence-backed readiness transitions
+3. establish the dedicated untrusted-content origin contract and hostile-game
+   isolation proof before other Gate 5 implementation
+4. continue dependency-ready reliability, operations, and public-package work
+   without duplicating the Gate 3 job/quota foundation
+5. preserve Gate 1 contracts while those independent implementation lanes run
+6. complete or block work only through evidence-backed readiness transitions
 
 ## Current Caveats
 
