@@ -5,6 +5,7 @@ import {
   pathExists,
   readPackageJson,
   resolveCandidatePath,
+  resolveCanonicalPath,
 } from "./fs-utils.js";
 import type {
   AirJamCapabilityGroup,
@@ -115,8 +116,11 @@ export const detectProjectContext = async ({
 }: {
   cwd?: string;
 } = {}): Promise<AirJamProjectContext> => {
-  const monorepoRoot = await findMonorepoRoot(cwd);
-  const rootDir = monorepoRoot ?? (await findPackageRoot(cwd));
+  const discoveredMonorepoRoot = await findMonorepoRoot(cwd);
+  const discoveredRootDir =
+    discoveredMonorepoRoot ?? (await findPackageRoot(cwd));
+  const rootDir = await resolveCanonicalPath(discoveredRootDir);
+  const monorepoRoot = discoveredMonorepoRoot ? rootDir : null;
   const packageJsonResult = await readPackageJson(rootDir);
   const packageJson = packageJsonResult?.value ?? null;
   const reasons: string[] = [];

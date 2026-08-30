@@ -477,8 +477,12 @@ export const runGoldenPathBootstrap = async ({
       `Unsupported bootstrap client ${bootstrapClient}. Use pnpm-dlx or npx.`,
     );
   }
-  const runRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), "airjam-golden-path-bootstrap-"),
+  // Windows can expose the temp directory through an 8.3 short path while
+  // file-watch events use its long path. libuv treats those spellings as
+  // different roots and can abort the Vite process, so every process in the
+  // proof must share the canonical filesystem identity from the start.
+  const runRoot = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "airjam-golden-path-bootstrap-")),
   );
   const projectName = "signal-relay-bootstrap";
   const projectDir = path.join(runRoot, "workspace", projectName);

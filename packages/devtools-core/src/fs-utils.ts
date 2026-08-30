@@ -1,4 +1,4 @@
-import { access, readdir, readFile, stat } from "node:fs/promises";
+import { access, readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import type { PackageJson } from "./types.js";
 
@@ -9,6 +9,13 @@ export const pathExists = async (targetPath: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+export const resolveCanonicalPath = async (
+  targetPath: string,
+): Promise<string> => {
+  const absolutePath = path.resolve(targetPath);
+  return realpath(absolutePath).catch(() => absolutePath);
 };
 
 export const readJsonFile = async <T = unknown>(filePath: string): Promise<T> =>

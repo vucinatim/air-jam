@@ -7,7 +7,7 @@ import type {
   ServerToClientEvents,
 } from "@air-jam/sdk/protocol";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer, get as httpGet } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -646,13 +646,14 @@ describe("detectProjectContext", () => {
 
   it("detects the Air Jam monorepo from a nested repo game directory", async () => {
     const repoRoot = path.resolve(__dirname, "../../..");
+    const canonicalRepoRoot = await realpath(repoRoot);
     const context = await detectProjectContext({
       cwd: path.join(repoRoot, "games", "pong"),
     });
 
     expect(context.mode).toBe("monorepo");
-    expect(context.rootDir).toBe(repoRoot);
-    expect(context.workspaceRoot).toBe(repoRoot);
+    expect(context.rootDir).toBe(canonicalRepoRoot);
+    expect(context.workspaceRoot).toBe(canonicalRepoRoot);
     expect(context.packageManager).toBe("pnpm");
   });
 
@@ -679,7 +680,7 @@ describe("detectProjectContext", () => {
     const context = await detectProjectContext({ cwd: root });
 
     expect(context.mode).toBe("standalone-game");
-    expect(context.rootDir).toBe(root);
+    expect(context.rootDir).toBe(await realpath(root));
     expect(context.workspaceRoot).toBeNull();
     expect(context.packageJson?.name).toBe("space-race");
   });
@@ -715,7 +716,9 @@ describe("inspectProject", () => {
     ]);
     expect(project.airJamPackages["@air-jam/sdk"]).toBe("^1.0.0");
     expect(project.airJamPackages["@air-jam/mcp-server"]).toBe("^1.0.0");
-    expect(project.files.agents).toBe(path.join(root, "AGENTS.md"));
+    expect(project.files.agents).toBe(
+      path.join(await realpath(root), "AGENTS.md"),
+    );
   });
 });
 

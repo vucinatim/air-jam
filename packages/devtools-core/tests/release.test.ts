@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -185,7 +185,9 @@ describe("local release tooling", () => {
     expect(doctor.recommendedBundlePath).toContain(
       ".airjam/releases/1.2.3/release-fixture-hosted-release.zip",
     );
-    expect(doctor.configPath).toBe(path.join(root, "src", "airjam.config.ts"));
+    expect(doctor.configPath).toBe(
+      path.join(await realpath(root), "src", "airjam.config.ts"),
+    );
   });
 
   it("reports invalid hosted controller paths", async () => {

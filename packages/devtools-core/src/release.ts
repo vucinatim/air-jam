@@ -38,6 +38,7 @@ import {
   pathExists,
   readPackageJson,
   resolveCandidatePath,
+  resolveCanonicalPath,
 } from "./fs-utils.js";
 import {
   requestPlatformMachineApi,
@@ -1152,7 +1153,7 @@ export const inspectLocalRelease = async ({
   cwd = process.cwd(),
   distDir,
 }: InspectLocalReleaseOptions = {}): Promise<AirJamLocalReleaseDoctor> => {
-  const projectDir = path.resolve(cwd);
+  const projectDir = await resolveCanonicalPath(cwd);
   const resolvedDistDir = path.resolve(projectDir, distDir || "dist");
   const context = await detectProjectContext({ cwd: projectDir });
   const packageManager = await resolvePackageManager(projectDir);
@@ -1209,11 +1210,11 @@ export const validateLocalRelease = async ({
   bundlePath,
   skipBuild = false,
 }: ValidateLocalReleaseOptions = {}): Promise<AirJamLocalReleaseValidation> => {
+  const projectDir = await resolveCanonicalPath(cwd);
   if (bundlePath) {
-    return validateBundleArchive(path.resolve(cwd, bundlePath));
+    return validateBundleArchive(path.resolve(projectDir, bundlePath));
   }
 
-  const projectDir = path.resolve(cwd);
   const resolvedDistDir = path.resolve(projectDir, distDir || "dist");
   const packageManager = await resolvePackageManager(projectDir);
   const { validation } = await validateProjectBuildOutput({
@@ -1232,7 +1233,7 @@ export const bundleLocalRelease = async ({
   out,
   skipBuild = false,
 }: BundleLocalReleaseOptions = {}): Promise<BundleLocalReleaseResult> => {
-  const projectDir = path.resolve(cwd);
+  const projectDir = await resolveCanonicalPath(cwd);
   const resolvedDistDir = path.resolve(projectDir, distDir || "dist");
   const doctor = await inspectLocalRelease({
     cwd: projectDir,
