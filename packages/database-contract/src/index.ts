@@ -15,6 +15,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const operationalLaneValues = [
+  "game_creation",
+  "game_listing",
   "release_submission",
   "artifact_ingestion",
   "release_processing",
@@ -73,6 +75,52 @@ export const operationalBudgetStateValues = [
 
 export type OperationalBudgetState =
   (typeof operationalBudgetStateValues)[number];
+
+export const operationalQuotaKeyValues = [
+  "creator_games",
+  "creator_listed_games",
+  "creator_managed_storage_bytes",
+  "game_managed_storage_bytes",
+  "creator_release_submissions_30d",
+  "creator_release_submissions_day",
+  "creator_browser_validations_30d",
+  "creator_browser_validations_day",
+  "creator_concurrent_release_jobs",
+  "creator_room_seconds_30d",
+  "creator_concurrent_rooms",
+  "game_concurrent_rooms",
+] as const;
+
+export type OperationalQuotaKey = (typeof operationalQuotaKeyValues)[number];
+
+export const operationalQuotaScopeKindValues = ["creator", "game"] as const;
+export type OperationalQuotaScopeKind =
+  (typeof operationalQuotaScopeKindValues)[number];
+
+export const operationalQuotaUnitValues = [
+  "count",
+  "bytes",
+  "seconds",
+] as const;
+export type OperationalQuotaUnit = (typeof operationalQuotaUnitValues)[number];
+
+export const operationalQuotaWindowValues = [
+  "lifetime",
+  "rolling_30_days",
+  "utc_day",
+  "concurrent",
+] as const;
+export type OperationalQuotaWindow =
+  (typeof operationalQuotaWindowValues)[number];
+
+export type OperationalQuotaPolicySnapshot = {
+  key: OperationalQuotaKey;
+  scopeKind: OperationalQuotaScopeKind;
+  lanes: readonly OperationalLane[];
+  unit: OperationalQuotaUnit;
+  window: OperationalQuotaWindow;
+  limit: number;
+};
 
 export const operationalBudgetEvidenceContractVersion = 1 as const;
 

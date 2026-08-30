@@ -76,17 +76,19 @@ active rooms or turn the platform into the realtime hot path.
 
 The canonical lanes are:
 
-1. `release_submission`
-2. `artifact_ingestion`
-3. `release_processing`
-4. `browser_validation`
-5. `moderation`
-6. `media_ingestion`
-7. `product_telemetry`
-8. `realtime_room_admission`
-9. `realtime_controller_admission`
-10. `preview_capacity`
-11. `lifecycle_cleanup`
+1. `game_creation`
+2. `game_listing`
+3. `release_submission`
+4. `artifact_ingestion`
+5. `release_processing`
+6. `browser_validation`
+7. `moderation`
+8. `media_ingestion`
+9. `product_telemetry`
+10. `realtime_room_admission`
+11. `realtime_controller_admission`
+12. `preview_capacity`
+13. `lifecycle_cleanup`
 
 Published release reads, public docs, login, usage inspection, export, and
 self-host/BYOC guidance remain available through budget degradation whenever
@@ -185,6 +187,18 @@ Rules:
 7. no partial upload is accepted after an admission denial
 8. active gameplay is the last lane degraded
 
+The quota catalog is a reviewed source contract rather than operator input.
+Callers provide the semantic scope and requested integer amount; they cannot
+provide the limit, usage, budget state, or desired outcome. Managed-storage
+usage counts compressed and extracted release artifacts plus media source
+assets while those objects remain retained. Rolling room time comes from
+authoritative runtime game segments clipped to the accounting window.
+
+An unavailable durable-job or global-realtime authority is reported as
+`control_unavailable`. Request-lifetime work and process-local room maps must
+not masquerade as exact shared concurrency. The status surface may expose that
+gap before the owning subsystem exists, but admission cannot treat it as zero.
+
 ## Durable Job Contract
 
 Release processing and browser validation use durable jobs rather than request
@@ -267,6 +281,16 @@ pnpm --silent run repo -- platform operations budget sync --help
 reason, idempotency key, and explicit `--apply` before persistence. A retry of a
 completed logical collection returns the original evidence before another
 provider request. The CLI exposes no state, threshold, or ceiling override.
+
+Quota inspection and prospective decisions are:
+
+```bash
+pnpm --silent run repo -- platform operations quota status --help
+pnpm --silent run repo -- platform operations quota check --help
+```
+
+The quota CLI reads lifecycle/runtime authority plus persisted lane and budget
+state. It exposes no usage, limit, budget-state, or outcome override.
 
 The complete lifecycle must expose stable JSON for:
 

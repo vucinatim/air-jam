@@ -588,6 +588,65 @@ export const registerPlatformCommands = (program) => {
     });
   });
 
+  const quotaCommand = operationsCommand
+    .command("quota")
+    .description(
+      "Inspect authoritative free-cloud usage and preview shadow or enforced admission decisions",
+    );
+
+  addPlatformDatabaseTargetOption(
+    quotaCommand
+      .command("status")
+      .description(
+        "Inspect every ratified creator quota and optional game-scoped quota",
+      )
+      .requiredOption("--creator <creator-id>", "Authoritative creator ID")
+      .option("--game <game-id>", "Owned game ID for game-scoped quotas")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "quota-status",
+        creatorId: options.creator,
+        gameId: options.game,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    quotaCommand
+      .command("check")
+      .description(
+        "Evaluate one requested amount against authoritative usage, lane mode, and budget state",
+      )
+      .requiredOption("--key <quota-key>", "Canonical quota key")
+      .requiredOption("--lane <lane>", "Semantic production lane")
+      .requiredOption("--creator <creator-id>", "Authoritative creator ID")
+      .requiredOption(
+        "--amount <amount>",
+        "Non-negative integer count, bytes, or seconds requested",
+      )
+      .option("--game <game-id>", "Owned game ID for game-scoped quotas")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "quota-check",
+        key: options.key,
+        lane: options.lane,
+        creatorId: options.creator,
+        gameId: options.game,
+        requestedAmount: options.amount,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
   platformCommand
     .command("db-backup")
     .description("Write a local backup of the platform database")

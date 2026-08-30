@@ -116,5 +116,7 @@ This slice deliberately does not pretend to finish `G3-02`:
 5. durable release/browser queues, cleanup, realtime admission, and overload
    proof remain required
 
-The next production-valid slice is shadow quota accounting. It will explain
-what would be denied under protection without rejecting legitimate early users.
+The next production-valid slice was shadow quota accounting. It is now recorded
+in the [production shadow quota proof](./production-shadow-quota-proof.md),
+which explains what would be denied under protection without rejecting
+legitimate early users. Durable bounded jobs are the next unfinished owner.
