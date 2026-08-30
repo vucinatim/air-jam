@@ -33,6 +33,8 @@ export type PlatformMachineErrorCode = z.infer<
 export const platformMachineApiErrorSchema = z.object({
   error: platformMachineErrorCodeSchema,
   message: z.string().min(1),
+  retryAfterSeconds: z.number().int().positive().nullable().optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type PlatformMachineApiError = z.infer<

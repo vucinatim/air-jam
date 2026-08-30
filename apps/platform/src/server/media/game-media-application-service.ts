@@ -6,6 +6,7 @@ import {
   resolveOwnedGame,
   type OwnedGameReference,
 } from "@/server/games/owned-game-access";
+import { assertOperationalLaneAccepting } from "@/server/operations/production-control-service";
 import { loadGameMediaActive } from "./game-media-assignments";
 import {
   archiveGameMediaAsset,
@@ -80,6 +81,7 @@ export const requestOwnedGameMediaUploadTarget = async ({
   sizeBytes: number;
 }) => {
   const game = await resolveOwnedGame({ actor, reference: gameReference });
+  await assertOperationalLaneAccepting({ lane: "media_ingestion" });
   const { asset, upload } = await requestGameMediaUploadTarget({
     gameId: game.id,
     kind,

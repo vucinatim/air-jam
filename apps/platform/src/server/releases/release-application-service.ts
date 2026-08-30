@@ -16,6 +16,7 @@ import {
   resolveOwnedGame,
   type OwnedGameReference,
 } from "@/server/games/owned-game-access";
+import { assertOperationalLaneAccepting } from "@/server/operations/production-control-service";
 import { desc, inArray } from "drizzle-orm";
 import { assertOwnedRelease } from "./assert-owned-release";
 import { assertReleaseExists } from "./assert-release-exists";
@@ -73,6 +74,7 @@ export const createOwnedDraftRelease = async ({
   versionLabel?: string;
 }) => {
   const game = await resolveOwnedGame({ actor, reference: gameReference });
+  await assertOperationalLaneAccepting({ lane: "release_submission" });
   const [release] = await db
     .insert(gameReleases)
     .values({
@@ -103,6 +105,7 @@ export const requestOwnedReleaseUploadTarget = async ({
   sizeBytes: number;
 }) => {
   const release = await reloadOwnedRelease({ actor, releaseId });
+  await assertOperationalLaneAccepting({ lane: "artifact_ingestion" });
   const result = await requestReleaseUploadTarget({
     release,
     originalFilename,
@@ -123,6 +126,7 @@ export const finalizeOwnedReleaseUpload = async ({
   releaseId: string;
 }) => {
   const release = await reloadOwnedRelease({ actor, releaseId });
+  await assertOperationalLaneAccepting({ lane: "release_processing" });
 
   try {
     await finalizeReleaseUpload({ release });

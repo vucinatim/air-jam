@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { gameReleaseChecks } from "@/db/schema";
+import { assertOperationalLaneAccepting } from "@/server/operations/production-control-service";
 import {
   moderateReleaseScreenshot,
   type ReleaseImageModerationResult,
@@ -98,6 +99,7 @@ export const runReleaseModeration = async ({
 }: {
   releaseId: string;
 }): Promise<ReleaseModerationSummary> => {
+  await assertOperationalLaneAccepting({ lane: "browser_validation" });
   const release = await db.query.gameReleases.findFirst({
     where: (table, { eq }) => eq(table.id, releaseId),
   });
@@ -191,6 +193,8 @@ export const runReleaseModeration = async ({
       outcome: "disabled",
     };
   }
+
+  await assertOperationalLaneAccepting({ lane: "moderation" });
 
   let moderation: ReleaseImageModerationResult;
   try {

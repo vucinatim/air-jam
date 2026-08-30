@@ -125,7 +125,7 @@ const runRailwayJson = (args, operation) => {
   return JSON.parse(result.stdout);
 };
 
-export const resolveRailwayTelemetryDatabaseUrlWithCli = (
+export const resolveRailwayPlatformDatabaseUrlWithCli = (
   { environmentId, projectId },
   readRailwayJson = runRailwayJson,
 ) => {
@@ -182,11 +182,11 @@ export const resolveRailwayTelemetryDatabaseUrlWithCli = (
   return databaseUrl;
 };
 
-export const resolveRailwayTelemetryDatabaseUrl = async (
+export const resolveRailwayPlatformDatabaseUrl = async (
   { environmentId, projectId },
   {
     createClient = createRailwayApiClient,
-    resolveWithCli = resolveRailwayTelemetryDatabaseUrlWithCli,
+    resolveWithCli = resolveRailwayPlatformDatabaseUrlWithCli,
   } = {},
 ) => {
   try {
@@ -217,9 +217,9 @@ export const resolveRailwayTelemetryDatabaseUrl = async (
   });
 };
 
-const runPlatformTelemetryOperator = async (operation, options) => {
+const runPlatformDatabaseOperator = async ({ script, operation, options }) => {
   const databaseUrl = options.railwayEnvironment
-    ? await resolveRailwayTelemetryDatabaseUrl({
+    ? await resolveRailwayPlatformDatabaseUrl({
         environmentId: options.railwayEnvironment,
         projectId: options.railwayProject ?? null,
       })
@@ -233,7 +233,7 @@ const runPlatformTelemetryOperator = async (operation, options) => {
       "exec",
       "tsx",
       "--env-file-if-exists=.env.local",
-      "scripts/product-telemetry-cli.ts",
+      script,
       JSON.stringify(operation),
     ],
     {
@@ -242,7 +242,7 @@ const runPlatformTelemetryOperator = async (operation, options) => {
   );
 };
 
-const addTelemetryTargetOption = (command) =>
+const addPlatformDatabaseTargetOption = (command) =>
   command
     .option(
       "--railway-environment <id>",
@@ -303,7 +303,7 @@ export const registerPlatformCommands = (program) => {
       "Inspect and operate first-party product telemetry through agent-safe contracts",
     );
 
-  addTelemetryTargetOption(
+  addPlatformDatabaseTargetOption(
     telemetryCommand
       .command("overview")
       .description(
@@ -317,18 +317,19 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformTelemetryOperator(
-      {
+    await runPlatformDatabaseOperator({
+      script: "scripts/product-telemetry-cli.ts",
+      operation: {
         command: "overview",
         days: options.days,
         deploymentEnvironment: options.environment,
         json: Boolean(options.json),
       },
       options,
-    );
+    });
   });
 
-  addTelemetryTargetOption(
+  addPlatformDatabaseTargetOption(
     telemetryCommand
       .command("health")
       .description(
@@ -336,16 +337,17 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformTelemetryOperator(
-      {
+    await runPlatformDatabaseOperator({
+      script: "scripts/product-telemetry-cli.ts",
+      operation: {
         command: "health",
         json: Boolean(options.json),
       },
       options,
-    );
+    });
   });
 
-  addTelemetryTargetOption(
+  addPlatformDatabaseTargetOption(
     telemetryCommand
       .command("rebuild")
       .description(
@@ -354,17 +356,18 @@ export const registerPlatformCommands = (program) => {
       .option("--apply", "Apply the rebuild; omission is a read-only preview")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformTelemetryOperator(
-      {
+    await runPlatformDatabaseOperator({
+      script: "scripts/product-telemetry-cli.ts",
+      operation: {
         command: "rebuild",
         apply: Boolean(options.apply),
         json: Boolean(options.json),
       },
       options,
-    );
+    });
   });
 
-  addTelemetryTargetOption(
+  addPlatformDatabaseTargetOption(
     telemetryCommand
       .command("retain")
       .description(
@@ -376,14 +379,82 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformTelemetryOperator(
-      {
+    await runPlatformDatabaseOperator({
+      script: "scripts/product-telemetry-cli.ts",
+      operation: {
         command: "retain",
         apply: Boolean(options.apply),
         json: Boolean(options.json),
       },
       options,
+    });
+  });
+
+  const operationsCommand = platformCommand
+    .command("operations")
+    .description(
+      "Inspect and operate production controls through agent-safe contracts",
     );
+
+  addPlatformDatabaseTargetOption(
+    operationsCommand
+      .command("status")
+      .description("Inspect every canonical expensive-lane control")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: { command: "status", json: Boolean(options.json) },
+      options,
+    });
+  });
+
+  const laneCommand = operationsCommand
+    .command("lane")
+    .description("Inspect and mutate one expensive-lane control");
+
+  addPlatformDatabaseTargetOption(
+    laneCommand
+      .command("set")
+      .description("Preview or apply an optimistic, audited lane-mode change")
+      .requiredOption("--lane <lane>", "Canonical production lane")
+      .requiredOption("--mode <mode>", "normal, restricted, or paused")
+      .requiredOption("--reason <reason>", "Durable operator reason")
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable idempotency key for this logical mutation",
+      )
+      .requiredOption(
+        "--expected-revision <revision>",
+        "Revision returned by operations status",
+      )
+      .option(
+        "--retry-after-seconds <seconds>",
+        "Positive retry guidance returned while paused",
+      )
+      .option(
+        "--apply",
+        "Persist the mutation; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "lane-set",
+        lane: options.lane,
+        mode: options.mode,
+        reason: options.reason,
+        actor: options.actor,
+        idempotencyKey: options.idempotencyKey,
+        expectedRevision: options.expectedRevision,
+        retryAfterSeconds: options.retryAfterSeconds ?? null,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
   });
 
   platformCommand

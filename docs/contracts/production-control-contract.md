@@ -1,0 +1,285 @@
+# Production Control Contract
+
+Last updated: 2026-08-29
+Status: canonical 1.0 contract
+
+Related docs:
+
+1. [../plans/v1-release-roadmap-plan.md](../plans/v1-release-roadmap-plan.md)
+2. [../audits/v1-reliability/production-capacity-cost-and-recovery-audit.md](../audits/v1-reliability/production-capacity-cost-and-recovery-audit.md)
+3. [../architecture/platform-control-plane-architecture.md](../architecture/platform-control-plane-architecture.md)
+4. [../architecture/analytics-architecture.md](../architecture/analytics-architecture.md)
+
+## Purpose
+
+This contract defines the one production-control model that bounds Air Jam's
+hosted cost and work before the 1.0 launch.
+
+It covers:
+
+1. expensive-lane admission and kill switches
+2. shadow-first free-cloud quota decisions
+3. budget-state response
+4. bounded durable jobs
+5. lifecycle cleanup
+6. machine inspection and safe operator mutation
+
+It does not introduce payments, subscriptions, or a second product tier.
+
+## Authority
+
+The hosted control plane owns production policy. The realtime server owns live
+room correctness. Workers own bounded execution, never creator-visible product
+state.
+
+All human, HTTP, CLI, MCP, realtime, and worker adapters must call the same
+domain decisions. A transport-local rate limiter may remain as an abuse or
+load-shedding layer, but it cannot be the authoritative creator, game, queue,
+or budget allowance.
+
+Authoritative usage comes from:
+
+1. platform lifecycle records for accounts, games, releases, and media
+2. the runtime usage ledger for rooms, controllers, and room-hours
+3. durable job records for queued and executing work
+4. object metadata plus platform records for managed storage
+5. provider usage snapshots for infrastructure cost
+
+Approximate product telemetry is never quota or billing authority.
+
+## Control Layers
+
+Admission evaluates these layers in order:
+
+1. hard safety invariants such as payload and archive limits
+2. explicit lane state
+3. current budget state
+4. creator, game, IP-abuse, and global quotas
+5. queue and concurrency capacity
+
+Earlier denials cannot be bypassed by later layers.
+
+### Lane Modes
+
+Every controlled lane has one persisted mode:
+
+1. `normal`: derive quota enforcement from budget state
+2. `restricted`: enforce configured allowances even when the budget would keep
+   them in shadow mode
+3. `paused`: reject new work while preserving already-safe reads and in-flight
+   work according to the lane's drain contract
+
+Missing rows mean `normal`. A missing database or unreadable control state must
+fail closed for cost-creating platform work. Realtime gameplay may use a bounded
+last-known-good control snapshot so a brief control-plane failure does not evict
+active rooms or turn the platform into the realtime hot path.
+
+The canonical lanes are:
+
+1. `release_submission`
+2. `artifact_ingestion`
+3. `release_processing`
+4. `browser_validation`
+5. `moderation`
+6. `media_ingestion`
+7. `product_telemetry`
+8. `realtime_room_admission`
+9. `realtime_controller_admission`
+10. `preview_capacity`
+11. `lifecycle_cleanup`
+
+Published release reads, public docs, login, usage inspection, export, and
+self-host/BYOC guidance remain available through budget degradation whenever
+their dependencies are healthy. A security incident may separately revoke a
+specific unsafe artifact or serving surface.
+
+### Budget States
+
+Provider usage snapshots determine one of:
+
+1. `normal`
+2. `warning`
+3. `protection`
+4. `near_ceiling`
+5. `ceiling`
+
+The roadmap owns the monetary thresholds and launch-cycle distinction. The
+control domain stores measured provider evidence and derives the state; callers
+do not submit an arbitrary state label.
+
+Budget behavior is:
+
+1. `normal`: quotas are shadow-only except hard safety and abuse bounds
+2. `warning`: keep legitimate work open, record the incident signal, and
+   forecast the ceiling
+3. `protection`: enforce expensive-lane quotas and stop nonessential preview
+   growth
+4. `near_ceiling`: pause new browser validation and optional processing intake
+5. `ceiling`: reject new cost-creating hosted work while allowing active rooms
+   to finish when safe
+
+No automated operation may increase a threshold, allowance, replica limit, or
+provider plan.
+
+## Admission Result
+
+Every decision returns a stable machine-readable result containing:
+
+1. contract version and decision ID
+2. lane
+3. whether the persisted control authority was available
+4. current lane mode and revision, or `null` when authority was unavailable
+5. `allowed`, `shadow_denied`, or `denied` outcome
+6. reason code
+7. current usage and limit when relevant
+8. unit and accounting window when relevant
+9. reset time or retry delay when known
+10. queue position when work was accepted into a queue
+11. self-host/BYOC guidance for an enforced hosted boundary
+
+Canonical denial reasons are:
+
+1. `lane_paused`
+2. `budget_protection`
+3. `quota_exceeded`
+4. `queue_full`
+5. `concurrency_exceeded`
+6. `capacity_exceeded`
+7. `rate_limited`
+8. `control_unavailable`
+
+HTTP adapters use `429` for caller allowance/rate boundaries and `503` for
+global, budget, paused-lane, or unavailable-capacity boundaries. They include
+`Retry-After` when the decision supplies a delay. CLI and MCP preserve the same
+reason and details instead of reducing the result to an unstructured message.
+
+## Quota Rules
+
+The exact initial allowances remain owned by the 1.0 roadmap. This domain must
+implement them without creating a parallel policy table in documentation.
+
+Rules:
+
+1. hard archive and payload safety limits are always enforced
+2. legitimate-user allowances are shadow-only below the budget protection
+   threshold unless a lane is explicitly `restricted`
+3. abuse controls may enforce independently of the budget state
+4. every mutation consumes allowance through the semantic application service,
+   not through one transport adapter
+5. a failed or canceled reservation is released promptly
+6. retrying the same idempotent attempt does not consume another allowance
+7. no partial upload is accepted after an admission denial
+8. active gameplay is the last lane degraded
+
+## Durable Job Contract
+
+Release processing and browser validation use durable jobs rather than request
+lifetime.
+
+Every job has:
+
+1. stable job ID, kind, creator, game, and release identity
+2. caller-supplied idempotency key with a uniqueness boundary
+3. `queued`, `running`, `succeeded`, `failed`, or `canceled` status
+4. bounded attempt count, next-attempt time, deadline, and lease expiry
+5. persisted progress and typed terminal result/error
+6. created, started, finished, and updated timestamps
+7. cancellation and operator pause semantics
+
+Claiming is transactional. A worker owns a time-bounded lease, heartbeats it,
+and cannot complete a stale lease. Retryable failure schedules a bounded retry;
+terminal failure remains inspectable. Queue depth and per-creator/global
+concurrency are checked before admission. One creator cannot occupy every
+worker slot.
+
+The platform owns job orchestration and creator-visible release state. A narrow
+processor owns archive/check execution. The browser worker remains isolated
+and does not become the release-state authority.
+
+## Lifecycle Cleanup
+
+Cleanup is an idempotent domain operation, not hidden SQL or storage cron.
+
+It covers:
+
+1. failed uploads and temporary extraction data after 24 hours
+2. expired job leases and terminal-job retention
+3. superseded unpublished artifacts after the ratified warning and retention
+   windows
+4. archived managed media that is no longer assigned
+5. product telemetry retention through its existing canonical policy
+6. disposable preview environments through their provider-owned identity
+
+The currently live release is never automatically deleted. Material cleanup is
+previewable, reports exact candidates and bytes, requires the ratified warning
+state when applicable, and records an append-only result. R2 deletion and
+database state changes must be retry-safe if either side fails partway through.
+
+## Mutation Safety And Audit
+
+Every control mutation records:
+
+1. a caller-provided idempotency key
+2. actor identity
+3. expected prior revision
+4. before and after values
+5. reason
+6. timestamp
+
+Stale revisions fail rather than overwrite another operator. Replaying the same
+idempotency key returns the original result only when the requested mutation is
+identical; conflicting reuse fails.
+
+Control mutations are explicit preview/apply operations. Destructive cleanup,
+production restore, maintenance mode for core play, budget increases, and limit
+increases retain the approval boundaries in the roadmap.
+
+## Agent-Operable Surface
+
+The canonical repo surface is:
+
+```bash
+pnpm --silent run repo -- platform operations --help
+```
+
+The complete lifecycle must expose stable JSON for:
+
+1. overall status and policy inspection
+2. lane inspection and safe mode changes
+3. budget evidence and derived state
+4. quota usage and decision explanation
+5. job listing, pause/resume, cancellation, and replay
+6. cleanup preview/apply
+
+Reads never require dashboard interaction. Mutations require explicit apply,
+idempotency, actor, reason, and optimistic revision where applicable. UI and
+HTTP surfaces use the same application services as this command.
+
+## Delivery Order
+
+The production-valid implementation sequence is:
+
+1. persistent lane controls, mutation audit, shared admission errors, and CLI
+2. platform release/media/telemetry enforcement through application services
+3. persistent budget evidence and shadow/enforced quota accounting
+4. durable release and browser-validation jobs
+5. lifecycle cleanup and storage reconciliation
+6. realtime room/controller global admission plus graceful drain
+7. load, overload, dependency-failure, and recovery proof
+
+Each step remains part of the final architecture. No step introduces a
+temporary in-memory queue, transport-only quota, or dashboard-only control.
+
+## Done Criteria
+
+Gate `G3-02` is complete only when:
+
+1. every listed lane has a real decision owner and operator control
+2. ratified allowances are inspectable and enforced under the correct budget
+   states
+3. release/browser work is durably bounded, cancellable, and replay-safe
+4. lifecycle cleanup is automatic, idempotent, and inspectable
+5. limit, concurrency, queue-full, stale-revision, idempotency, and failure-mode
+   tests pass
+6. the canonical CLI covers inspection and every safe mutation lifecycle
+7. no human or machine transport can bypass the application-service policy

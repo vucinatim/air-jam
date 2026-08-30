@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-29T19:21:05.603Z",
+  "updatedAt": "2026-08-29T19:26:37.200Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -504,7 +504,7 @@
       "priority": 20,
       "title": "Implement quotas, bounded queues, cleanup, spend guards, and kill switches",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "in_progress",
       "dependsOn": [
         "G0-03",
         "G3-01"
@@ -515,7 +515,10 @@
       },
       "evidenceRequirements": [
         "limit and overload tests plus agent-operable control commands"
-      ]
+      ],
+      "owner": "/root/g3-controls",
+      "note": "Defining and implementing one persistent quota, bounded-job, lifecycle-cleanup, spend-guard, and expensive-lane control domain with canonical CLI operation.",
+      "updatedAt": "2026-08-29T19:26:37.200Z"
     },
     {
       "id": "G3-03",

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -8,8 +9,50 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+
+export const operationalLaneValues = [
+  "release_submission",
+  "artifact_ingestion",
+  "release_processing",
+  "browser_validation",
+  "moderation",
+  "media_ingestion",
+  "product_telemetry",
+  "realtime_room_admission",
+  "realtime_controller_admission",
+  "preview_capacity",
+  "lifecycle_cleanup",
+] as const;
+
+export type OperationalLane = (typeof operationalLaneValues)[number];
+
+export const operationalLaneModeValues = [
+  "normal",
+  "restricted",
+  "paused",
+] as const;
+
+export type OperationalLaneMode = (typeof operationalLaneModeValues)[number];
+
+const operationalLaneSqlList = sql.raw(
+  operationalLaneValues.map((lane) => `'${lane}'`).join(", "),
+);
+const operationalLaneModeSqlList = sql.raw(
+  operationalLaneModeValues.map((mode) => `'${mode}'`).join(", "),
+);
+
+export type OperationalLaneControlSnapshot = {
+  lane: OperationalLane;
+  mode: OperationalLaneMode;
+  reason: string | null;
+  retryAfterSeconds: number | null;
+  revision: number;
+  updatedBy: string | null;
+  updatedAt: string | null;
+};
 
 export type RuntimeDatabaseSchemaOptions = {
   appIdGameIdReference?: () => AnyPgColumn;
@@ -247,6 +290,85 @@ export const createRuntimeDatabaseSchema = ({
     ],
   );
 
+  const operationalLaneControls = pgTable(
+    "operational_lane_controls",
+    {
+      lane: text("lane").$type<OperationalLane>().primaryKey(),
+      mode: text("mode")
+        .$type<OperationalLaneMode>()
+        .default("normal")
+        .notNull(),
+      reason: text("reason"),
+      retryAfterSeconds: integer("retry_after_seconds"),
+      revision: integer("revision").default(1).notNull(),
+      updatedBy: text("updated_by").notNull(),
+      updatedAt: timestamp("updated_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => [
+      check(
+        "operational_lane_controls_lane_check",
+        sql`${table.lane} in (${operationalLaneSqlList})`,
+      ),
+      check(
+        "operational_lane_controls_mode_check",
+        sql`${table.mode} in (${operationalLaneModeSqlList})`,
+      ),
+      check(
+        "operational_lane_controls_retry_after_check",
+        sql`${table.retryAfterSeconds} is null or ${table.retryAfterSeconds} > 0`,
+      ),
+      check(
+        "operational_lane_controls_revision_check",
+        sql`${table.revision} > 0`,
+      ),
+      index("operational_lane_controls_mode_idx").on(table.mode),
+      index("operational_lane_controls_updated_at_idx").on(table.updatedAt),
+    ],
+  );
+
+  const operationalControlEvents = pgTable(
+    "operational_control_events",
+    {
+      id: text("id").primaryKey(),
+      idempotencyKey: text("idempotency_key").notNull(),
+      action: text("action").$type<"set_lane_mode">().notNull(),
+      lane: text("lane").$type<OperationalLane>().notNull(),
+      expectedRevision: integer("expected_revision").notNull(),
+      previous: jsonb("previous")
+        .$type<OperationalLaneControlSnapshot>()
+        .notNull(),
+      next: jsonb("next").$type<OperationalLaneControlSnapshot>().notNull(),
+      actor: text("actor").notNull(),
+      reason: text("reason").notNull(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => [
+      uniqueIndex("operational_control_events_idempotency_key_uidx").on(
+        table.idempotencyKey,
+      ),
+      index("operational_control_events_lane_created_at_idx").on(
+        table.lane,
+        table.createdAt,
+      ),
+      check(
+        "operational_control_events_action_check",
+        sql`${table.action} = 'set_lane_mode'`,
+      ),
+      check(
+        "operational_control_events_lane_check",
+        sql`${table.lane} in (${operationalLaneSqlList})`,
+      ),
+      check(
+        "operational_control_events_expected_revision_check",
+        sql`${table.expectedRevision} >= 0`,
+      ),
+    ],
+  );
+
   return {
     appIds,
     runtimeUsageSessions,
@@ -256,6 +378,8 @@ export const createRuntimeDatabaseSchema = ({
     runtimeUsageEligibleSegments,
     runtimeUsageGameSessionMetrics,
     runtimeUsageDailyGameMetrics,
+    operationalLaneControls,
+    operationalControlEvents,
   };
 };
 

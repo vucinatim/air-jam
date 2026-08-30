@@ -157,6 +157,8 @@ export const games = pgTable(
 
 export const {
   appIds,
+  operationalControlEvents,
+  operationalLaneControls,
   runtimeUsageSessions,
   runtimeUsageEvents,
   runtimeUsageControllerSegments,
