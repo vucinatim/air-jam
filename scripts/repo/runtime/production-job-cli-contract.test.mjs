@@ -125,6 +125,7 @@ test(
     const userId = `cli_redaction_user_${suffix}`;
     const gameId = `cli_redaction_game_${suffix}`;
     const releaseId = `cli_redaction_release_${suffix}`;
+    const generationId = `cli_redaction_generation_${suffix}`;
     const commandId = `cli_redaction_command_${suffix}`;
     const jobId = `cli_redaction_job_${suffix}`;
     const eventId = `cli_redaction_event_${suffix}`;
@@ -137,7 +138,13 @@ test(
         await tx`insert into games (id, user_id, name, config)
           values (${gameId}, ${userId}, 'CLI redaction proof', '{}'::jsonb)`;
         await tx`insert into game_releases (id, game_id, source_kind, status)
-          values (${releaseId}, ${gameId}, 'upload', 'processing')`;
+          values (${releaseId}, ${gameId}, 'upload', 'draft')`;
+        await tx`insert into game_release_generations
+          (id, release_id, sequence, status, original_filename, content_type, declared_size_bytes, zip_object_key, observed_size_bytes, observed_content_type, observed_etag, upload_observed_at, processing_started_at)
+          values (${generationId}, ${releaseId}, 1, 'processing', 'redaction.zip', 'application/zip', 1, ${`tests/${suffix}/redaction.zip`}, 1, 'application/zip', '"redaction-etag"', now(), now())`;
+        await tx`update game_releases
+          set status = 'checking', candidate_generation_id = ${generationId}, uploaded_at = now()
+          where id = ${releaseId}`;
         await tx`insert into operational_job_commands
           (id, contract_version, idempotency_key, kind, request_hash, actor, reason, request, result, created_at, completed_at)
           values (${commandId}, 1, ${`cli-redaction-command-${suffix}`}, 'enqueue', ${"b".repeat(64)}, 'test:cli-redaction', 'Prove operator-safe JSON.', ${{ authorization: "Bearer command-secret" }}, ${{ job: { id: jobId } }}, now(), now())`;

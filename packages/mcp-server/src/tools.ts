@@ -20,12 +20,14 @@ import { getPlatformMachineAuthStatus } from "@air-jam/devtools-core/platform-au
 import { runQualityGate } from "@air-jam/devtools-core/quality";
 import {
   bundleLocalRelease,
+  finalizePlatformReleaseGeneration,
   inspectLocalRelease,
   inspectPlatformRelease,
   listPlatformReleaseTargets,
   listPlatformReleases,
   publishPlatformRelease,
   submitPlatformRelease,
+  uploadPlatformReleaseGeneration,
   validateLocalRelease,
 } from "@air-jam/devtools-core/release";
 import type { ToolExecution } from "@modelcontextprotocol/sdk/types.js";
@@ -149,6 +151,17 @@ const RELEASE_SUBMIT_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
   bundle: z.string().optional(),
   skipBuild: z.boolean().optional(),
   publish: z.boolean().optional(),
+});
+
+const RELEASE_UPLOAD_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+  releaseId: z.string().min(1),
+  cwd: z.string().optional(),
+  bundle: z.string().min(1),
+});
+
+const RELEASE_FINALIZE_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+  releaseId: z.string().min(1),
+  generationId: z.string().min(1),
 });
 
 const RELEASE_PUBLISH_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
@@ -362,6 +375,45 @@ export const buildToolDefinitions = ({
           await inspectPlatformRelease({
             platformUrl,
             releaseId,
+          }),
+        ),
+    },
+    "airjam.release_upload": {
+      description:
+        "Upload an existing hosted release zip as a new immutable generation and return the exact generation needed for resumable finalization.",
+      inputSchema: RELEASE_UPLOAD_INPUT_SCHEMA,
+      execution: {
+        taskSupport: "required",
+      },
+      run: async ({
+        platformUrl,
+        releaseId,
+        cwd,
+        bundle,
+      }: z.infer<typeof RELEASE_UPLOAD_INPUT_SCHEMA>) =>
+        withJsonText(
+          await uploadPlatformReleaseGeneration({
+            platformUrl,
+            releaseId,
+            cwd,
+            bundlePath: bundle,
+          }),
+        ),
+    },
+    "airjam.release_finalize": {
+      description:
+        "Finalize one exact immutable hosted release generation; use release inspection to recover the IDs after interruption.",
+      inputSchema: RELEASE_FINALIZE_INPUT_SCHEMA,
+      run: async ({
+        platformUrl,
+        releaseId,
+        generationId,
+      }: z.infer<typeof RELEASE_FINALIZE_INPUT_SCHEMA>) =>
+        withJsonText(
+          await finalizePlatformReleaseGeneration({
+            platformUrl,
+            releaseId,
+            generationId,
           }),
         ),
     },

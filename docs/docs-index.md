@@ -67,7 +67,8 @@ The measured Gate 3 production baseline is:
 2. [audits/v1-reliability/production-budget-evidence-proof.md](./audits/v1-reliability/production-budget-evidence-proof.md)
 3. [audits/v1-reliability/production-shadow-quota-proof.md](./audits/v1-reliability/production-shadow-quota-proof.md)
 4. [audits/v1-reliability/production-durable-job-authority-proof.md](./audits/v1-reliability/production-durable-job-authority-proof.md)
-5. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
+5. [audits/v1-reliability/production-immutable-release-generations-proof.md](./audits/v1-reliability/production-immutable-release-generations-proof.md)
+6. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
 
 It distinguishes the current low-cost, low-usage production state from the
 queues, quotas, recovery, static-delivery, and operational controls still
@@ -80,8 +81,10 @@ authoritative creator/game usage, and agent-readable prospective decisions.
 The durable-job proof records the bounded PostgreSQL queue, database-time lease
 and deadline fencing, lane-synchronized claims, immutable command replay,
 release-scoped provenance, redacted operator reads, retry, cancellation,
-repair, and CLI authority without claiming that release adapters or external
-storage are durable yet.
+repair, and CLI authority. The immutable-generation proof records generation-
+scoped source and output identity, candidate/promoted fencing, exact check
+provenance, fail-closed legacy migration, and the shared human/machine contract
+without claiming that release adapters execute through durable workers yet.
 
 The detailed discoverability checklist remains a subordinate launch reference:
 

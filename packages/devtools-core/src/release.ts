@@ -51,6 +51,7 @@ import type {
   BundleLocalReleaseOptions,
   BundleLocalReleaseResult,
   CommandResult,
+  FinalizePlatformReleaseGenerationOptions,
   InspectLocalReleaseOptions,
   InspectPlatformReleaseOptions,
   ListPlatformReleaseTargetsOptions,
@@ -58,6 +59,7 @@ import type {
   PublishPlatformReleaseOptions,
   SubmitPlatformReleaseOptions,
   SubmitPlatformReleaseResult,
+  UploadPlatformReleaseGenerationOptions,
   ValidateLocalReleaseOptions,
 } from "./types.js";
 
@@ -71,8 +73,7 @@ const REMOTE_CSS_IMPORT_PATTERN =
   /@import\s*(?:url\(\s*)?(?<quote>["']?)(?<url>https?:\/\/[^"')\s]+)\k<quote>\s*\)?\s*;/g;
 const REMOTE_CSS_URL_PATTERN =
   /url\(\s*(?<quote>["']?)(?<url>https?:\/\/[^"')\s]+)\k<quote>\s*\)/g;
-const FONT_ASSET_EXTENSION_PATTERN =
-  /\.(woff2?|ttf|otf|eot)(?:[?#].*)?$/i;
+const FONT_ASSET_EXTENSION_PATTERN = /\.(woff2?|ttf|otf|eot)(?:[?#].*)?$/i;
 const CSS_EXTENSION_PATTERN = /\.css(?:[?#].*)?$/i;
 const FONT_FETCH_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -450,10 +451,7 @@ const vendorCssFontDependencies = async ({
           state,
         });
         const relativeAssetPath = ensureExplicitRelativeUrl(
-          ensurePosixRelativePath(
-            cssDir,
-            path.join(bundleRoot, vendoredAsset),
-          ),
+          ensurePosixRelativePath(cssDir, path.join(bundleRoot, vendoredAsset)),
         );
         return `url("${relativeAssetPath}")`;
       },
@@ -718,8 +716,7 @@ const inspectProjectRelease = async ({
     ? await readFile(configPath, "utf8").catch(() => "")
     : "";
   const controllerPath =
-    (await readConfiguredControllerPath(configPath)) ??
-    null;
+    (await readConfiguredControllerPath(configPath)) ?? null;
   const distExists = await pathExists(distDir);
   const distEntryExists = distExists
     ? await pathExists(path.join(distDir, HOSTED_RELEASE_ENTRY_PATH))
@@ -1297,7 +1294,7 @@ const uploadReleaseBundle = async ({
 
   if (!response.ok) {
     throw new Error(
-      `Release artifact upload failed with status ${response.status}.`,
+      `Release generation upload failed with status ${response.status}.`,
     );
   }
 };
@@ -1362,6 +1359,57 @@ export const publishPlatformRelease = async ({
   });
 };
 
+export const uploadPlatformReleaseGeneration = async ({
+  platformUrl,
+  token,
+  releaseId,
+  cwd = process.cwd(),
+  bundlePath,
+}: UploadPlatformReleaseGenerationOptions) => {
+  const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
+  const effectiveBundlePath = path.resolve(cwd, bundlePath);
+  const archive = await stat(effectiveBundlePath);
+  if (!archive.isFile()) {
+    throw new Error(`Release bundle is not a file: ${effectiveBundlePath}`);
+  }
+
+  const uploadTarget = await requestPlatformMachineApi({
+    baseUrl: resolved.baseUrl,
+    pathname: `/api/cli/releases/${encodeURIComponent(releaseId)}/upload-target`,
+    method: "POST",
+    token: resolved.token,
+    body: {
+      originalFilename: path.basename(effectiveBundlePath),
+      sizeBytes: archive.size,
+    },
+    schema: platformMachineRequestReleaseUploadTargetResultSchema,
+  });
+
+  await uploadReleaseBundle({
+    bundlePath: effectiveBundlePath,
+    upload: uploadTarget.upload,
+  });
+
+  return { ...uploadTarget, bundlePath: effectiveBundlePath };
+};
+
+export const finalizePlatformReleaseGeneration = async ({
+  platformUrl,
+  token,
+  releaseId,
+  generationId,
+}: FinalizePlatformReleaseGenerationOptions) => {
+  const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
+
+  return requestPlatformMachineApi({
+    baseUrl: resolved.baseUrl,
+    pathname: `/api/cli/releases/${encodeURIComponent(releaseId)}/generations/${encodeURIComponent(generationId)}/finalize`,
+    method: "POST",
+    token: resolved.token,
+    schema: platformMachineFinalizeReleaseUploadResultSchema,
+  });
+};
+
 export const submitPlatformRelease = async ({
   platformUrl,
   token,
@@ -1384,8 +1432,6 @@ export const submitPlatformRelease = async ({
         })
       ).outputFile;
 
-  const archive = await stat(effectiveBundlePath);
-
   const createdDraft = await requestPlatformMachineApi({
     baseUrl: resolved.baseUrl,
     pathname: "/api/cli/releases",
@@ -1398,29 +1444,18 @@ export const submitPlatformRelease = async ({
     schema: platformMachineCreateReleaseDraftResultSchema,
   });
 
-  const uploadTarget = await requestPlatformMachineApi({
-    baseUrl: resolved.baseUrl,
-    pathname: `/api/cli/releases/${encodeURIComponent(createdDraft.release.id)}/upload-target`,
-    method: "POST",
+  const uploadTarget = await uploadPlatformReleaseGeneration({
+    platformUrl: resolved.baseUrl,
     token: resolved.token,
-    body: {
-      originalFilename: path.basename(effectiveBundlePath),
-      sizeBytes: archive.size,
-    },
-    schema: platformMachineRequestReleaseUploadTargetResultSchema,
-  });
-
-  await uploadReleaseBundle({
+    releaseId: createdDraft.release.id,
     bundlePath: effectiveBundlePath,
-    upload: uploadTarget.upload,
   });
 
-  const finalized = await requestPlatformMachineApi({
-    baseUrl: resolved.baseUrl,
-    pathname: `/api/cli/releases/${encodeURIComponent(createdDraft.release.id)}/finalize`,
-    method: "POST",
+  const finalized = await finalizePlatformReleaseGeneration({
+    platformUrl: resolved.baseUrl,
     token: resolved.token,
-    schema: platformMachineFinalizeReleaseUploadResultSchema,
+    releaseId: createdDraft.release.id,
+    generationId: uploadTarget.generation.id,
   });
 
   let publishedRelease = null;
@@ -1444,7 +1479,9 @@ export const submitPlatformRelease = async ({
   return {
     bundlePath: effectiveBundlePath,
     createdRelease: createdDraft.release,
+    createdGeneration: uploadTarget.generation,
     finalizedRelease: finalized.release,
+    finalizedGeneration: finalized.generation,
     publishedRelease,
   };
 };

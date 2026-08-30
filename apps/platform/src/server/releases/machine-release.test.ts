@@ -23,15 +23,53 @@ import {
   assertOperationalLaneAccepting,
   OperationalAdmissionDeniedError,
 } from "@/server/operations/production-control-service";
+import {
+  platformMachineFinalizeReleaseUploadResultSchema,
+  platformMachineRequestReleaseUploadTargetResultSchema,
+} from "@air-jam/sdk/platform-machine";
 import { assertOwnedRelease } from "./assert-owned-release";
-import { finalizeReleaseUploadForMachine } from "./machine-release";
-import { finalizeReleaseUpload } from "./release-artifact-service";
+import {
+  finalizeReleaseUploadForMachine,
+  requestReleaseUploadTargetForMachine,
+} from "./machine-release";
+import {
+  finalizeReleaseUpload,
+  requestReleaseUploadTarget,
+} from "./release-artifact-service";
+
+const generation = {
+  id: "generation_1",
+  releaseId: "rel_1",
+  sequence: 1,
+  status: "failed" as const,
+  originalFilename: "game.zip",
+  contentType: "application/zip",
+  declaredSizeBytes: 100,
+  zipObjectKey: "private-generation-zip-key",
+  siteRootKey: null,
+  observedSizeBytes: null,
+  observedContentType: null,
+  observedEtag: null,
+  observedLastModifiedAt: null,
+  extractedSizeBytes: null,
+  fileCount: null,
+  entryPath: null,
+  contentHash: null,
+  createdAt: new Date("2026-04-25T10:01:00.000Z"),
+  uploadObservedAt: null,
+  processingStartedAt: null,
+  readyAt: null,
+  failedAt: new Date("2026-04-25T10:02:00.000Z"),
+  abandonedAt: null,
+};
 
 const makeRelease = (status: "uploading" | "failed") => ({
   id: "rel_1",
   gameId: "game_1",
   sourceKind: "upload" as const,
   status,
+  candidateGenerationId: status === "uploading" ? generation.id : null,
+  promotedGenerationId: null,
   versionLabel: null,
   createdAt: new Date("2026-04-25T10:00:00.000Z"),
   uploadedAt: null,
@@ -39,8 +77,26 @@ const makeRelease = (status: "uploading" | "failed") => ({
   publishedAt: null,
   quarantinedAt: null,
   archivedAt: null,
-  artifact: null,
-  checks: [],
+  candidateGeneration: status === "uploading" ? generation : null,
+  promotedGeneration: null,
+  generations: [generation],
+  checks: [
+    {
+      id: "check_1",
+      releaseId: "rel_1",
+      generationId: generation.id,
+      jobId: null,
+      jobAttempt: null,
+      kind: "artifact_validation" as const,
+      status: "passed" as const,
+      summary: "validated",
+      payload: {
+        zipObjectKey: "private-generation-zip-key",
+        siteRootKey: "private-generation-site-key",
+      },
+      createdAt: new Date("2026-04-25T10:03:00.000Z"),
+    },
+  ],
   reports: [],
   game: {
     id: "game_1",
@@ -60,6 +116,7 @@ describe("finalizeReleaseUploadForMachine", () => {
   beforeEach(() => {
     vi.mocked(assertOwnedRelease).mockReset();
     vi.mocked(finalizeReleaseUpload).mockReset();
+    vi.mocked(requestReleaseUploadTarget).mockReset();
     vi.mocked(assertOperationalLaneAccepting).mockReset();
     vi.mocked(assertOperationalLaneAccepting).mockResolvedValue(undefined);
   });
@@ -74,11 +131,51 @@ describe("finalizeReleaseUploadForMachine", () => {
 
     const result = await finalizeReleaseUploadForMachine({
       releaseId: "rel_1",
+      generationId: "generation_1",
       userId: "user_1",
     });
 
-    expect(result.status).toBe("failed");
-    expect(result.id).toBe("rel_1");
+    expect(result.release.status).toBe("failed");
+    expect(result.release.id).toBe("rel_1");
+    expect(result.generation.id).toBe("generation_1");
+    expect(result.generation).not.toHaveProperty("zipObjectKey");
+    expect(() =>
+      platformMachineFinalizeReleaseUploadResultSchema.parse(result),
+    ).not.toThrow();
+  });
+
+  it("returns a public generation beside the upload target", async () => {
+    vi.mocked(assertOwnedRelease)
+      .mockResolvedValueOnce(makeRelease("failed"))
+      .mockResolvedValueOnce(makeRelease("uploading"));
+    vi.mocked(requestReleaseUploadTarget).mockResolvedValueOnce({
+      generation,
+      upload: {
+        key: "generation-upload",
+        method: "PUT",
+        url: "https://uploads.airjam.test/generation.zip",
+        headers: { "content-type": "application/zip" },
+        expiresAt: "2026-04-25T10:10:00.000Z",
+      },
+    });
+
+    const result = await requestReleaseUploadTargetForMachine({
+      releaseId: "rel_1",
+      userId: "user_1",
+      originalFilename: "game.zip",
+      sizeBytes: 100,
+    });
+
+    expect(result.generation.id).toBe("generation_1");
+    expect(result.generation).not.toHaveProperty("zipObjectKey");
+    expect(result.release).not.toHaveProperty("artifact");
+    expect(result.release.hostUrl).toBeNull();
+    expect(result.upload).not.toHaveProperty("key");
+    expect(JSON.stringify(result)).not.toContain("private-generation-zip-key");
+    expect(JSON.stringify(result)).not.toContain("private-generation-site-key");
+    expect(() =>
+      platformMachineRequestReleaseUploadTargetResultSchema.parse(result),
+    ).not.toThrow();
   });
 
   it("preserves structured lane denial for machine callers", async () => {
@@ -103,6 +200,7 @@ describe("finalizeReleaseUploadForMachine", () => {
     await expect(
       finalizeReleaseUploadForMachine({
         releaseId: "rel_1",
+        generationId: "generation_1",
         userId: "user_1",
       }),
     ).rejects.toMatchObject({

@@ -2,6 +2,7 @@ import type { AirJamActionInvocationResult } from "@air-jam/sdk";
 import type {
   PlatformMachineCreateOwnedGameInput,
   PlatformMachineCreateOwnedGameResult,
+  PlatformMachineFinalizeReleaseUploadResult,
   PlatformMachineGetOwnedGameMediaResult,
   PlatformMachineGetOwnedGameResult,
   PlatformMachineGetReleaseResult,
@@ -9,8 +10,10 @@ import type {
   PlatformMachineListReleasesResult,
   PlatformMachineMutateOwnedGameMediaAssetResult,
   PlatformMachinePublishReleaseResult,
+  PlatformMachineReleaseGeneration,
   PlatformMachineRequestOwnedGameMediaUploadTargetInput,
   PlatformMachineRequestOwnedGameMediaUploadTargetResult,
+  PlatformMachineRequestReleaseUploadTargetResult,
   PlatformMachineUpdateOwnedGameInput,
   PlatformMachineUpdateOwnedGameResult,
 } from "@air-jam/sdk/platform-machine";
@@ -272,6 +275,21 @@ export type PublishPlatformReleaseOptions = {
   releaseId: string;
 };
 
+export type UploadPlatformReleaseGenerationOptions = {
+  platformUrl?: string;
+  token?: string;
+  releaseId: string;
+  cwd?: string;
+  bundlePath: string;
+};
+
+export type FinalizePlatformReleaseGenerationOptions = {
+  platformUrl?: string;
+  token?: string;
+  releaseId: string;
+  generationId: string;
+};
+
 export type SubmitPlatformReleaseOptions = {
   platformUrl?: string;
   token?: string;
@@ -302,6 +320,14 @@ export type InspectPlatformReleaseResult = PlatformMachineGetReleaseResult;
 
 export type PublishPlatformReleaseResult = PlatformMachinePublishReleaseResult;
 
+export type UploadPlatformReleaseGenerationResult =
+  PlatformMachineRequestReleaseUploadTargetResult & {
+    bundlePath: string;
+  };
+
+export type FinalizePlatformReleaseGenerationResult =
+  PlatformMachineFinalizeReleaseUploadResult;
+
 export type ListPlatformGamesResult = PlatformMachineListOwnedGamesResult;
 
 export type InspectPlatformGameResult = PlatformMachineGetOwnedGameResult;
@@ -313,7 +339,9 @@ export type UpdatePlatformGameResult = PlatformMachineUpdateOwnedGameResult;
 export type SubmitPlatformReleaseResult = {
   bundlePath: string;
   createdRelease: PlatformMachineGetReleaseResult["release"];
+  createdGeneration: PlatformMachineReleaseGeneration;
   finalizedRelease: PlatformMachineGetReleaseResult["release"];
+  finalizedGeneration: PlatformMachineReleaseGeneration;
   publishedRelease: PlatformMachineGetReleaseResult["release"] | null;
 };
 

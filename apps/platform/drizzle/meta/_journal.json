@@ -190,6 +190,20 @@
       "when": 1788041347078,
       "tag": "0026_blushing_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1788045436817,
+      "tag": "0027_immutable_release_generations",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1788047170418,
+      "tag": "0028_release_generation_invariants",
+      "breakpoints": true
     }
   ]
 }

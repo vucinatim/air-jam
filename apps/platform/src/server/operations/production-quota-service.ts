@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import {
   gameMediaAssets,
-  gameReleaseArtifacts,
   gameReleaseChecks,
+  gameReleaseGenerations,
   gameReleases,
   games,
   runtimeUsageGameSegments,
@@ -164,7 +164,7 @@ const loadManagedStorageBytes = async ({
   const gameScope = gameId
     ? and(eq(games.userId, creatorId), eq(games.id, gameId))
     : eq(games.userId, creatorId);
-  const [mediaRows, artifactRows] = await Promise.all([
+  const [mediaRows, generationRows] = await Promise.all([
     database
       .select({ bytes: sum(gameMediaAssets.sizeBytes) })
       .from(gameMediaAssets)
@@ -172,12 +172,12 @@ const loadManagedStorageBytes = async ({
       .where(gameScope),
     database
       .select({
-        bytes: sql<number>`coalesce(sum(${gameReleaseArtifacts.sizeBytes} + coalesce(${gameReleaseArtifacts.extractedSizeBytes}, 0)), 0)`,
+        bytes: sql<number>`coalesce(sum(greatest(${gameReleaseGenerations.declaredSizeBytes}, coalesce(${gameReleaseGenerations.observedSizeBytes}, 0)) + coalesce(${gameReleaseGenerations.extractedSizeBytes}, 0)), 0)`,
       })
-      .from(gameReleaseArtifacts)
+      .from(gameReleaseGenerations)
       .innerJoin(
         gameReleases,
-        eq(gameReleaseArtifacts.releaseId, gameReleases.id),
+        eq(gameReleaseGenerations.releaseId, gameReleases.id),
       )
       .innerJoin(games, eq(gameReleases.gameId, games.id))
       .where(gameScope),
@@ -185,8 +185,8 @@ const loadManagedStorageBytes = async ({
   return toSafeNonNegativeInteger(
     toSafeNonNegativeInteger(mediaRows[0]?.bytes, "Managed media bytes") +
       toSafeNonNegativeInteger(
-        artifactRows[0]?.bytes,
-        "Managed artifact bytes",
+        generationRows[0]?.bytes,
+        "Managed release generation bytes",
       ),
     "Total managed storage bytes",
   );

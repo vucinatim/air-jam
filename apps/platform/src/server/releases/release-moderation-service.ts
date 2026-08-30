@@ -10,13 +10,13 @@ import {
   type ReleaseScreenshotCaptureResult,
 } from "@/server/releases/release-screenshot-service";
 import { getReleaseModerationAvailability } from "./release-moderation-config";
-import { quarantineRelease } from "./release-status-service";
 import { getReleaseStorage } from "./release-storage";
 
 const SCREENSHOT_CAPTURE_KIND = "screenshot_capture";
 const IMAGE_MODERATION_KIND = "image_moderation";
 
 export type ReleaseModerationSummary = {
+  generationId: string;
   screenshot: ReleaseScreenshotCaptureResult | null;
   moderation: ReleaseImageModerationResult | null;
   skipped: boolean;
@@ -26,12 +26,14 @@ export type ReleaseModerationSummary = {
 
 const insertReleaseCheck = async ({
   releaseId,
+  generationId,
   kind,
   status,
   summary,
   payload,
 }: {
   releaseId: string;
+  generationId: string;
   kind: "screenshot_capture" | "image_moderation";
   status: "passed" | "failed" | "warning";
   summary: string;
@@ -40,6 +42,7 @@ const insertReleaseCheck = async ({
   db.insert(gameReleaseChecks).values({
     id: crypto.randomUUID(),
     releaseId,
+    generationId,
     kind,
     status,
     summary,
@@ -48,15 +51,18 @@ const insertReleaseCheck = async ({
 
 const insertFailedReleaseCheck = async ({
   releaseId,
+  generationId,
   kind,
   error,
 }: {
   releaseId: string;
+  generationId: string;
   kind: "screenshot_capture" | "image_moderation";
   error: unknown;
 }) =>
   insertReleaseCheck({
     releaseId,
+    generationId,
     kind,
     status: "failed",
     summary:
@@ -64,40 +70,37 @@ const insertFailedReleaseCheck = async ({
     payload: {
       error:
         error instanceof Error
-          ? {
-              name: error.name,
-              message: error.message,
-            }
-          : {
-              message: "Unknown release moderation error.",
-            },
+          ? { name: error.name, message: error.message }
+          : { message: "Unknown release moderation error." },
     },
   });
 
 const insertSkippedReleaseCheck = async ({
   releaseId,
+  generationId,
   kind,
   reason,
 }: {
   releaseId: string;
+  generationId: string;
   kind: "screenshot_capture" | "image_moderation";
   reason: string;
 }) =>
   insertReleaseCheck({
     releaseId,
+    generationId,
     kind,
     status: "warning",
     summary: reason,
-    payload: {
-      skipped: true,
-      reason,
-    },
+    payload: { skipped: true, reason },
   });
 
 export const runReleaseModeration = async ({
   releaseId,
+  generationId,
 }: {
   releaseId: string;
+  generationId: string;
 }): Promise<ReleaseModerationSummary> => {
   await assertOperationalLaneAccepting({ lane: "browser_validation" });
   const release = await db.query.gameReleases.findFirst({
@@ -114,12 +117,17 @@ export const runReleaseModeration = async ({
     );
   }
 
-  const artifact = await db.query.gameReleaseArtifacts.findFirst({
-    where: (table, { eq }) => eq(table.releaseId, releaseId),
+  const generation = await db.query.gameReleaseGenerations.findFirst({
+    where: (table, { and, eq }) =>
+      and(eq(table.id, generationId), eq(table.releaseId, releaseId)),
   });
 
-  if (!artifact) {
-    throw new Error("Release artifact metadata is missing.");
+  if (
+    !generation ||
+    generation.status !== "ready" ||
+    release.promotedGenerationId !== generationId
+  ) {
+    throw new Error("Promoted release generation is missing or not ready.");
   }
 
   const moderationAvailability = getReleaseModerationAvailability();
@@ -127,17 +135,20 @@ export const runReleaseModeration = async ({
     await Promise.all([
       insertSkippedReleaseCheck({
         releaseId,
+        generationId,
         kind: SCREENSHOT_CAPTURE_KIND,
         reason: moderationAvailability.reason,
       }),
       insertSkippedReleaseCheck({
         releaseId,
+        generationId,
         kind: IMAGE_MODERATION_KIND,
         reason: moderationAvailability.reason,
       }),
     ]);
 
     return {
+      generationId,
       screenshot: null,
       moderation: null,
       skipped: true,
@@ -151,10 +162,12 @@ export const runReleaseModeration = async ({
     screenshot = await captureReleaseScreenshot({
       gameId: release.gameId,
       releaseId: release.id,
+      generationId,
     });
   } catch (error) {
     await insertFailedReleaseCheck({
       releaseId,
+      generationId,
       kind: SCREENSHOT_CAPTURE_KIND,
       error,
     });
@@ -163,10 +176,12 @@ export const runReleaseModeration = async ({
 
   await insertReleaseCheck({
     releaseId,
+    generationId,
     kind: SCREENSHOT_CAPTURE_KIND,
     status: "passed",
-    summary: "Captured the canonical moderation screenshot for this release.",
+    summary: "Captured an immutable moderation screenshot for this generation.",
     payload: {
+      captureId: screenshot.captureId,
       screenshotObjectKey: screenshot.screenshotObjectKey,
       contentType: screenshot.contentType,
       sizeBytes: screenshot.sizeBytes,
@@ -181,11 +196,13 @@ export const runReleaseModeration = async ({
 
     await insertSkippedReleaseCheck({
       releaseId,
+      generationId,
       kind: IMAGE_MODERATION_KIND,
       reason,
     });
 
     return {
+      generationId,
       screenshot,
       moderation: null,
       skipped: false,
@@ -201,12 +218,11 @@ export const runReleaseModeration = async ({
     const screenshotBuffer = await getReleaseStorage().readObject(
       screenshot.screenshotObjectKey,
     );
-    moderation = await moderateReleaseScreenshot({
-      screenshotBuffer,
-    });
+    moderation = await moderateReleaseScreenshot({ screenshotBuffer });
   } catch (error) {
     await insertFailedReleaseCheck({
       releaseId,
+      generationId,
       kind: IMAGE_MODERATION_KIND,
       error,
     });
@@ -214,15 +230,13 @@ export const runReleaseModeration = async ({
   }
 
   if (moderation.flagged) {
-    const checkedAt = new Date();
-
-    await db.insert(gameReleaseChecks).values({
-      id: crypto.randomUUID(),
+    await insertReleaseCheck({
       releaseId,
+      generationId,
       kind: IMAGE_MODERATION_KIND,
       status: "failed",
       summary:
-        "Automated image moderation flagged the canonical release screenshot.",
+        "Automated image moderation flagged the immutable generation screenshot.",
       payload: {
         flagged: moderation.flagged,
         categories: moderation.categories,
@@ -231,12 +245,8 @@ export const runReleaseModeration = async ({
       },
     });
 
-    await quarantineRelease({
-      releaseId,
-      checkedAt,
-    });
-
     return {
+      generationId,
       screenshot,
       moderation,
       skipped: false,
@@ -247,10 +257,11 @@ export const runReleaseModeration = async ({
 
   await insertReleaseCheck({
     releaseId,
+    generationId,
     kind: IMAGE_MODERATION_KIND,
     status: "passed",
     summary:
-      "Automated image moderation cleared the canonical release screenshot.",
+      "Automated image moderation cleared the immutable generation screenshot.",
     payload: {
       flagged: moderation.flagged,
       categories: moderation.categories,
@@ -260,6 +271,7 @@ export const runReleaseModeration = async ({
   });
 
   return {
+    generationId,
     screenshot,
     moderation,
     skipped: false,

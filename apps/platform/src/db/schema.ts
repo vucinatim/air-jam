@@ -20,6 +20,7 @@ import type {
   GameReleaseStatus,
   ReleaseCheckKind,
   ReleaseCheckStatus,
+  ReleaseGenerationStatus,
   ReleaseReportSource,
   ReleaseReportStatus,
 } from "@/lib/releases/release-contract";
@@ -47,6 +48,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 const operationalJobContractVersionSql = sql.raw(
@@ -187,6 +189,127 @@ export const {
   appIdGameIdReference: () => games.id,
 });
 
+export const gameReleaseGenerations = pgTable(
+  "game_release_generations",
+  {
+    id: text("id").primaryKey(),
+    releaseId: text("release_id")
+      .references((): AnyPgColumn => gameReleases.id, { onDelete: "cascade" })
+      .notNull(),
+    sequence: integer("sequence").notNull(),
+    status: text("status").$type<ReleaseGenerationStatus>().notNull(),
+    originalFilename: text("original_filename").notNull(),
+    contentType: text("content_type").notNull(),
+    declaredSizeBytes: integer("declared_size_bytes").notNull(),
+    zipObjectKey: text("zip_object_key").notNull().unique(),
+    siteRootKey: text("site_root_key").unique(),
+    observedSizeBytes: integer("observed_size_bytes"),
+    observedContentType: text("observed_content_type"),
+    observedEtag: text("observed_etag"),
+    observedLastModifiedAt: timestamp("observed_last_modified_at", {
+      withTimezone: true,
+    }),
+    extractedSizeBytes: integer("extracted_size_bytes"),
+    fileCount: integer("file_count"),
+    entryPath: text("entry_path"),
+    contentHash: text("content_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    uploadObservedAt: timestamp("upload_observed_at", { withTimezone: true }),
+    processingStartedAt: timestamp("processing_started_at", {
+      withTimezone: true,
+    }),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+  },
+  (table) => ({
+    releaseSequenceIdx: uniqueIndex(
+      "game_release_generations_release_sequence_idx",
+    ).on(table.releaseId, table.sequence),
+    releaseScopeIdx: uniqueIndex(
+      "game_release_generations_release_scope_idx",
+    ).on(table.id, table.releaseId),
+    releaseStatusIdx: index("game_release_generations_release_status_idx").on(
+      table.releaseId,
+      table.status,
+    ),
+    oneActiveGenerationPerReleaseIdx: uniqueIndex(
+      "game_release_generations_one_active_per_release_idx",
+    )
+      .on(table.releaseId)
+      .where(sql`${table.status} in ('awaiting_upload', 'processing')`),
+    createdAtIdx: index("game_release_generations_created_at_idx").on(
+      table.createdAt,
+    ),
+    requiredTextCheck: check(
+      "game_release_generations_required_text_check",
+      sql`btrim(${table.id}) <> '' and btrim(${table.releaseId}) <> '' and btrim(${table.originalFilename}) <> '' and btrim(${table.contentType}) <> '' and btrim(${table.zipObjectKey}) <> '' and (${table.observedContentType} is null or btrim(${table.observedContentType}) <> '') and (${table.observedEtag} is null or btrim(${table.observedEtag}) <> '') and (${table.siteRootKey} is null or btrim(${table.siteRootKey}) <> '') and (${table.entryPath} is null or btrim(${table.entryPath}) <> '')`,
+    ),
+    sequenceCheck: check(
+      "game_release_generations_sequence_check",
+      sql`${table.sequence} > 0`,
+    ),
+    sizeCheck: check(
+      "game_release_generations_size_check",
+      sql`${table.declaredSizeBytes} > 0 and (${table.observedSizeBytes} is null or ${table.observedSizeBytes} > 0) and (${table.extractedSizeBytes} is null or ${table.extractedSizeBytes} >= 0) and (${table.fileCount} is null or ${table.fileCount} > 0)`,
+    ),
+    statusCheck: check(
+      "game_release_generations_status_check",
+      sql`${table.status} in ('awaiting_upload', 'processing', 'ready', 'failed', 'abandoned')`,
+    ),
+    observedFactsCheck: check(
+      "game_release_generations_observed_facts_check",
+      sql`(${table.uploadObservedAt} is null and ${table.observedSizeBytes} is null and ${table.observedContentType} is null) or (${table.uploadObservedAt} is not null and ${table.observedSizeBytes} is not null and ${table.observedContentType} is not null)`,
+    ),
+    outputFactsCheck: check(
+      "game_release_generations_output_facts_check",
+      sql`(${table.siteRootKey} is null and ${table.extractedSizeBytes} is null and ${table.fileCount} is null and ${table.entryPath} is null and ${table.contentHash} is null) or (${table.siteRootKey} is not null and ${table.extractedSizeBytes} is not null and ${table.fileCount} is not null and ${table.entryPath} is not null and ${table.contentHash} ~ '^[0-9a-f]{64}$')`,
+    ),
+    lifecycleCheck: check(
+      "game_release_generations_lifecycle_check",
+      sql`(
+        ${table.status} = 'awaiting_upload'
+        and ${table.uploadObservedAt} is null
+        and ${table.processingStartedAt} is null
+        and ${table.readyAt} is null
+        and ${table.failedAt} is null
+        and ${table.abandonedAt} is null
+        and ${table.siteRootKey} is null
+      ) or (
+        ${table.status} = 'processing'
+        and ${table.uploadObservedAt} is not null
+        and ${table.processingStartedAt} is not null
+        and ${table.readyAt} is null
+        and ${table.failedAt} is null
+        and ${table.abandonedAt} is null
+        and ${table.siteRootKey} is null
+      ) or (
+        ${table.status} = 'ready'
+        and ${table.uploadObservedAt} is not null
+        and ${table.processingStartedAt} is not null
+        and ${table.readyAt} is not null
+        and ${table.failedAt} is null
+        and ${table.abandonedAt} is null
+        and ${table.siteRootKey} is not null
+      ) or (
+        ${table.status} = 'failed'
+        and ${table.readyAt} is null
+        and ${table.failedAt} is not null
+        and ${table.abandonedAt} is null
+        and ${table.siteRootKey} is null
+      ) or (
+        ${table.status} = 'abandoned'
+        and ${table.readyAt} is null
+        and ${table.failedAt} is null
+        and ${table.abandonedAt} is not null
+        and ${table.siteRootKey} is null
+      )`,
+    ),
+  }),
+);
+
 export const gameReleases = pgTable(
   "game_releases",
   {
@@ -196,6 +319,8 @@ export const gameReleases = pgTable(
       .notNull(),
     sourceKind: text("source_kind").$type<GameReleaseSourceKind>().notNull(),
     status: text("status").$type<GameReleaseStatus>().notNull(),
+    candidateGenerationId: text("candidate_generation_id"),
+    promotedGenerationId: text("promoted_generation_id"),
     versionLabel: text("version_label"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     uploadedAt: timestamp("uploaded_at"),
@@ -210,11 +335,45 @@ export const gameReleases = pgTable(
       table.id,
       table.gameId,
     ),
+    candidateGenerationFk: foreignKey({
+      name: "game_releases_candidate_generation_fk",
+      columns: [table.candidateGenerationId, table.id],
+      foreignColumns: [
+        gameReleaseGenerations.id,
+        gameReleaseGenerations.releaseId,
+      ],
+    }).onDelete("restrict"),
+    promotedGenerationFk: foreignKey({
+      name: "game_releases_promoted_generation_fk",
+      columns: [table.promotedGenerationId, table.id],
+      foreignColumns: [
+        gameReleaseGenerations.id,
+        gameReleaseGenerations.releaseId,
+      ],
+    }).onDelete("restrict"),
     statusIdx: index("game_releases_status_idx").on(table.status),
     createdAtIdx: index("game_releases_created_at_idx").on(table.createdAt),
     oneLivePerGameIdx: uniqueIndex("game_releases_one_live_per_game_idx")
       .on(table.gameId)
       .where(sql`${table.status} = 'live'`),
+    generationLifecycleCheck: check(
+      "game_releases_generation_lifecycle_check",
+      sql`(
+        ${table.status} = 'draft'
+        and ${table.candidateGenerationId} is null
+        and ${table.promotedGenerationId} is null
+      ) or (
+        ${table.status} in ('uploading', 'checking')
+        and ${table.candidateGenerationId} is not null
+      ) or (
+        ${table.status} in ('ready', 'live', 'quarantined')
+        and ${table.candidateGenerationId} is null
+        and ${table.promotedGenerationId} is not null
+      ) or (
+        ${table.status} = 'failed'
+        and ${table.candidateGenerationId} is null
+      ) or ${table.status} = 'archived'`,
+    ),
   }),
 );
 
@@ -520,35 +679,6 @@ export const operationalJobEvents = pgTable(
   }),
 );
 
-export const gameReleaseArtifacts = pgTable(
-  "game_release_artifacts",
-  {
-    id: text("id").primaryKey(),
-    releaseId: text("release_id")
-      .references(() => gameReleases.id, { onDelete: "cascade" })
-      .notNull()
-      .unique(),
-    originalFilename: text("original_filename").notNull(),
-    contentType: text("content_type").notNull(),
-    sizeBytes: integer("size_bytes").notNull(),
-    extractedSizeBytes: integer("extracted_size_bytes"),
-    fileCount: integer("file_count"),
-    zipObjectKey: text("zip_object_key").notNull(),
-    siteRootKey: text("site_root_key").notNull(),
-    entryPath: text("entry_path").notNull(),
-    contentHash: text("content_hash"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    releaseIdx: index("game_release_artifacts_release_id_idx").on(
-      table.releaseId,
-    ),
-    createdAtIdx: index("game_release_artifacts_created_at_idx").on(
-      table.createdAt,
-    ),
-  }),
-);
-
 export const gameReleaseChecks = pgTable(
   "game_release_checks",
   {
@@ -556,6 +686,7 @@ export const gameReleaseChecks = pgTable(
     releaseId: text("release_id")
       .references(() => gameReleases.id, { onDelete: "cascade" })
       .notNull(),
+    generationId: text("generation_id").notNull(),
     jobId: text("job_id"),
     jobAttempt: integer("job_attempt"),
     kind: text("kind").$type<ReleaseCheckKind>().notNull(),
@@ -569,6 +700,9 @@ export const gameReleaseChecks = pgTable(
   },
   (table) => ({
     releaseIdx: index("game_release_checks_release_id_idx").on(table.releaseId),
+    generationIdx: index("game_release_checks_generation_id_idx").on(
+      table.generationId,
+    ),
     kindIdx: index("game_release_checks_kind_idx").on(table.kind),
     statusIdx: index("game_release_checks_status_idx").on(table.status),
     createdAtIdx: index("game_release_checks_created_at_idx").on(
@@ -580,6 +714,14 @@ export const gameReleaseChecks = pgTable(
       columns: [table.jobId, table.releaseId],
       foreignColumns: [operationalJobs.id, operationalJobs.releaseId],
     }).onDelete("cascade"),
+    generationReleaseScopeFk: foreignKey({
+      name: "game_release_checks_generation_release_scope_fk",
+      columns: [table.generationId, table.releaseId],
+      foreignColumns: [
+        gameReleaseGenerations.id,
+        gameReleaseGenerations.releaseId,
+      ],
+    }).onDelete("no action"),
     jobAttemptCheck: check(
       "game_release_checks_job_attempt_check",
       sql`(${table.jobId} is null and ${table.jobAttempt} is null) or (${table.jobId} is not null and ${table.jobAttempt} > 0)`,

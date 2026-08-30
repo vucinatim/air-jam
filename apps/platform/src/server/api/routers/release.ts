@@ -37,6 +37,10 @@ const releaseStatusMutationInput = z.object({
   releaseId: z.string(),
 });
 
+const releaseGenerationMutationInput = releaseStatusMutationInput.extend({
+  generationId: z.string().trim().min(1),
+});
+
 const requestUploadTargetInput = z.object({
   releaseId: z.string(),
   originalFilename: z.string().trim().min(1).max(255),
@@ -54,7 +58,16 @@ const reportPublicReleaseInput = z.object({
 type OwnedReleaseDetails = Awaited<ReturnType<typeof getOwnedRelease>>;
 
 const toReleaseRecord = (details: OwnedReleaseDetails) => {
-  const { artifact, checks, game, owner, reports, ...release } = details;
+  const {
+    candidateGeneration,
+    checks,
+    game,
+    generations,
+    owner,
+    promotedGeneration,
+    reports,
+    ...release
+  } = details;
   return release;
 };
 
@@ -120,16 +133,25 @@ export const releaseRouter = createTRPCRouter({
         originalFilename: input.originalFilename,
         sizeBytes: input.sizeBytes,
       });
-      return { ...result, release: toReleaseRecord(result.release) };
+      return {
+        release: toReleaseRecord(result.release),
+        generation: result.generation,
+        upload: result.upload,
+      };
     }),
 
   finalizeUpload: protectedProcedure
-    .input(releaseStatusMutationInput)
+    .input(releaseGenerationMutationInput)
     .mutation(async ({ input, ctx }) => {
-      return finalizeOwnedReleaseUpload({
+      const result = await finalizeOwnedReleaseUpload({
         actor: { userId: ctx.user.id },
         releaseId: input.releaseId,
+        generationId: input.generationId,
       });
+      return {
+        release: toCreatorReleaseRecord(result.release),
+        generation: result.generation,
+      };
     }),
 
   publish: protectedProcedure
