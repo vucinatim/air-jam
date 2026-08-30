@@ -104,13 +104,18 @@ Platform typechecking, worker-service tests, CLI discovery, fresh migration,
 and legacy-upgrade proof also pass locally. The full `pnpm check:ci` repository
 gate passes, including canonical-contract checks, all package tests and builds,
 and multiplayer performance sanity. The hermetic platform deployment build also
-passes and contains the generalized operational-worker entrypoint. Opening the
-stacked pull request is the remaining delivery check for this slice.
+passes and contains the generalized operational-worker entrypoint. The slice is
+open for review as stacked pull request `#69`.
 
 ## Remaining Gate Work
 
 This does not close `G3-02`. Superseded unpublished artifacts still need the
 ratified long retention window and creator-visible warning state. Realtime
 global admission, overload drills, and explicit production migration and
-worker rollout also remain. Production data and infrastructure were not
-mutated by this proof.
+worker rollout also remain. A read-only Railway inspection on `2026-08-30`
+confirmed that both production and pull request `#69` still contain the three
+existing application services plus PostgreSQL, without the new
+`air-jam-platform-worker` service. Cleanup therefore cannot run prematurely,
+but the fourth-service provisioning, configuration, health, drain, retry, and
+rollback proof remain mandatory rollout work. Production data and
+infrastructure were not mutated by this proof.
