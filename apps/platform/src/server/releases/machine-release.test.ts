@@ -1,32 +1,89 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./assert-owned-release", () => ({
-  assertOwnedRelease: vi.fn(),
+vi.mock("./release-application-service", () => ({
+  finalizeOwnedReleaseUpload: vi.fn(),
+  requestOwnedReleaseUploadTarget: vi.fn(),
 }));
 
-vi.mock("./release-artifact-service", () => ({
-  finalizeReleaseUpload: vi.fn(),
-  requestReleaseUploadTarget: vi.fn(),
-}));
+import { OperationalAdmissionDeniedError } from "@/server/operations/production-control-service";
+import {
+  platformMachineFinalizeReleaseUploadResultSchema,
+  platformMachineRequestReleaseUploadTargetResultSchema,
+} from "@air-jam/sdk/platform-machine";
+import {
+  finalizeReleaseUploadForMachine,
+  requestReleaseUploadTargetForMachine,
+} from "./machine-release";
+import {
+  finalizeOwnedReleaseUpload,
+  requestOwnedReleaseUploadTarget,
+} from "./release-application-service";
 
-import { assertOwnedRelease } from "./assert-owned-release";
-import { finalizeReleaseUploadForMachine } from "./machine-release";
-import { finalizeReleaseUpload } from "./release-artifact-service";
+const now = new Date("2026-04-25T10:01:00.000Z");
+const generation = {
+  id: "generation_1",
+  releaseId: "rel_1",
+  sequence: 1,
+  status: "awaiting_upload" as const,
+  originalFilename: "game.zip",
+  contentType: "application/zip",
+  declaredSizeBytes: 100,
+  observedSizeBytes: null,
+  observedContentType: null,
+  observedEtag: null,
+  observedLastModifiedAt: null,
+  extractedSizeBytes: null,
+  fileCount: null,
+  entryPath: null,
+  contentHash: null,
+  createdAt: now,
+  uploadObservedAt: null,
+  processingStartedAt: null,
+  readyAt: null,
+  failedAt: null,
+  abandonedAt: null,
+};
 
-const makeRelease = (status: "uploading" | "failed") => ({
+const job = {
+  id: "job_1",
+  kind: "release_artifact_processing" as const,
+  status: "queued" as const,
+  releaseId: "rel_1",
+  generationId: generation.id,
+  correlationId: "correlation_1",
+  attemptCount: 0,
+  maxAttempts: 3,
+  progressStage: null,
+  progressMessage: null,
+  lastErrorCode: null,
+  lastErrorRetryable: null,
+  availableAt: now,
+  deadlineAt: new Date("2026-04-25T11:01:00.000Z"),
+  createdAt: now,
+  startedAt: null,
+  finishedAt: null,
+  updatedAt: now,
+};
+
+const makeRelease = () => ({
   id: "rel_1",
   gameId: "game_1",
   sourceKind: "upload" as const,
-  status,
+  status: "uploading" as const,
+  candidateGenerationId: generation.id,
+  promotedGenerationId: null,
   versionLabel: null,
-  createdAt: new Date("2026-04-25T10:00:00.000Z"),
+  createdAt: now,
   uploadedAt: null,
   checkedAt: null,
   publishedAt: null,
   quarantinedAt: null,
   archivedAt: null,
-  artifact: null,
+  candidateGeneration: generation,
+  promotedGeneration: null,
+  generations: [generation],
   checks: [],
+  jobs: [job],
   reports: [],
   game: {
     id: "game_1",
@@ -42,26 +99,91 @@ const makeRelease = (status: "uploading" | "failed") => ({
   },
 });
 
-describe("finalizeReleaseUploadForMachine", () => {
+describe("machine release finalization", () => {
   beforeEach(() => {
-    vi.mocked(assertOwnedRelease).mockReset();
-    vi.mocked(finalizeReleaseUpload).mockReset();
+    vi.clearAllMocks();
   });
 
-  it("returns the failed release summary when finalize leaves the release in failed state", async () => {
-    vi.mocked(assertOwnedRelease)
-      .mockResolvedValueOnce(makeRelease("uploading"))
-      .mockResolvedValueOnce(makeRelease("failed"));
-    vi.mocked(finalizeReleaseUpload).mockRejectedValueOnce(
-      new Error("fetch failed"),
-    );
+  it("returns the durable queued job instead of executing release work inline", async () => {
+    vi.mocked(finalizeOwnedReleaseUpload).mockResolvedValueOnce({
+      release: makeRelease() as never,
+      generation: generation as never,
+      job,
+    });
 
     const result = await finalizeReleaseUploadForMachine({
       releaseId: "rel_1",
+      generationId: generation.id,
       userId: "user_1",
     });
 
-    expect(result.status).toBe("failed");
-    expect(result.id).toBe("rel_1");
+    expect(result.release.status).toBe("uploading");
+    expect(result.generation.id).toBe(generation.id);
+    expect(result.job).toMatchObject({
+      id: job.id,
+      kind: "release_artifact_processing",
+      status: "queued",
+      generationId: generation.id,
+    });
+    expect(() =>
+      platformMachineFinalizeReleaseUploadResultSchema.parse(result),
+    ).not.toThrow();
+  });
+
+  it("returns a public generation beside the redacted upload target", async () => {
+    vi.mocked(requestOwnedReleaseUploadTarget).mockResolvedValueOnce({
+      release: makeRelease() as never,
+      generation: generation as never,
+      upload: {
+        method: "PUT",
+        url: "https://uploads.airjam.test/generation.zip",
+        headers: { "content-type": "application/zip" },
+        expiresAt: "2026-04-25T10:10:00.000Z",
+      },
+    });
+
+    const result = await requestReleaseUploadTargetForMachine({
+      releaseId: "rel_1",
+      userId: "user_1",
+      originalFilename: "game.zip",
+      sizeBytes: 100,
+    });
+
+    expect(result.generation.id).toBe(generation.id);
+    expect(result.upload).not.toHaveProperty("key");
+    expect(JSON.stringify(result)).not.toContain("private-generation");
+    expect(() =>
+      platformMachineRequestReleaseUploadTargetResultSchema.parse(result),
+    ).not.toThrow();
+  });
+
+  it("preserves structured lane denial for machine callers", async () => {
+    const decision = {
+      contractVersion: 1 as const,
+      decisionId: "decision-1",
+      lane: "release_processing" as const,
+      controlStatus: "available" as const,
+      mode: "paused" as const,
+      outcome: "denied" as const,
+      reason: "lane_paused" as const,
+      retryAfterSeconds: 90,
+      controlRevision: 2,
+    };
+    vi.mocked(finalizeOwnedReleaseUpload).mockRejectedValueOnce(
+      new OperationalAdmissionDeniedError(decision),
+    );
+
+    await expect(
+      finalizeReleaseUploadForMachine({
+        releaseId: "rel_1",
+        generationId: generation.id,
+        userId: "user_1",
+      }),
+    ).rejects.toMatchObject({
+      code: "rate_limited",
+      status: 503,
+      retryAfterSeconds: 90,
+      details: { decision },
+    });
   });
 });

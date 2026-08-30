@@ -13,7 +13,7 @@ describe("devtools helper execution", () => {
 
     expect(args[0]).toBe("--import");
     expect(args[1]).toMatch(/tsx/);
-    expect(args[2]).toBe("file:///candidate/src/tooling/helper.ts");
+    expect(args[2]).toBe("/candidate/src/tooling/helper.ts");
     expect(args).not.toContain("cli.mjs");
   });
 

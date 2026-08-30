@@ -1,0 +1,29 @@
+{
+  "name": "@air-jam/operations-contract",
+  "version": "0.9.0",
+  "description": "Internal versioned operational event, incident, and runbook contracts for Air Jam deployables and agents",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs",
+      "default": "./index.mjs"
+    }
+  },
+  "files": [
+    "index.mjs",
+    "index.d.mts"
+  ],
+  "scripts": {
+    "test": "node --test index.test.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

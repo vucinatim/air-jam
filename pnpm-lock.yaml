@@ -11,6 +11,9 @@ importers:
       '@air-jam/harness':
         specifier: workspace:^
         version: link:packages/harness
+      '@air-jam/operations-contract':
+        specifier: workspace:^
+        version: link:packages/operations-contract
       '@air-jam/sdk':
         specifier: workspace:^
         version: link:packages/sdk
@@ -288,6 +291,9 @@ importers:
       '@types/yauzl':
         specifier: ^2.10.3
         version: 2.10.3
+      '@types/yazl':
+        specifier: ^2.4.5
+        version: 2.4.6
       drizzle-kit:
         specifier: ^0.31.8
         version: 0.31.8
@@ -315,6 +321,9 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@20.19.25)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@20.19.25)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)(yaml@2.9.0)
+      yazl:
+        specifier: ^3.3.1
+        version: 3.3.1
 
   games/air-capture:
     dependencies:
@@ -1113,6 +1122,16 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@24.10.1)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)(yaml@2.9.0)
+
+  packages/operations-contract:
+    dependencies:
+      zod:
+        specifier: ^4.2.1
+        version: 4.2.1
+    devDependencies:
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   packages/release-browser-worker:
     dependencies:
@@ -15957,7 +15976,7 @@ snapshots:
       eslint: 9.39.1(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react: 7.37.5(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react-hooks: 7.0.1(eslint@9.39.1(jiti@2.6.1))
@@ -15994,7 +16013,7 @@ snapshots:
       tinyglobby: 0.2.15
       unrs-resolver: 1.11.1
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -16009,7 +16028,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9

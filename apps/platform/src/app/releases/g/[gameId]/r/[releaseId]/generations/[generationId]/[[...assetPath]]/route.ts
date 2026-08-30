@@ -23,11 +23,12 @@ export async function GET(
     params: Promise<{
       gameId: string;
       releaseId: string;
+      generationId: string;
       assetPath?: string[];
     }>;
   },
 ) {
-  const { gameId, releaseId, assetPath } = await context.params;
+  const { gameId, releaseId, generationId, assetPath } = await context.params;
   const configuredInternalSecret =
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN?.trim() || null;
   const internalAccessToken =
@@ -65,19 +66,30 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const artifact = await db.query.gameReleaseArtifacts.findFirst({
-    where: (table, { eq }) => eq(table.releaseId, releaseId),
-  });
-
-  if (!artifact) {
+  if (release.promotedGenerationId !== generationId) {
     return new Response("Not found", { status: 404 });
   }
+
+  const generation = await db.query.gameReleaseGenerations.findFirst({
+    where: (table, { and, eq }) =>
+      and(
+        eq(table.id, generationId),
+        eq(table.releaseId, releaseId),
+        eq(table.status, "ready"),
+      ),
+  });
+
+  if (!generation?.entryPath || !generation.siteRootKey) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const { entryPath, siteRootKey } = generation;
 
   let resolvedAssetPath: string;
   try {
     resolvedAssetPath = normalizeRequestedReleaseAssetPath(
       assetPath,
-      artifact.entryPath,
+      entryPath,
     );
   } catch {
     return new Response("Not found", { status: 404 });
@@ -86,13 +98,13 @@ export async function GET(
   const storage = getReleaseStorage();
   let servedAssetPath = resolvedAssetPath;
   let objectHead = await storage.headObject(
-    buildReleaseSiteObjectKey(artifact.siteRootKey, servedAssetPath),
+    buildReleaseSiteObjectKey(siteRootKey, servedAssetPath),
   );
 
   if (!objectHead && isHostedReleaseSpaFallbackPath(resolvedAssetPath)) {
-    servedAssetPath = artifact.entryPath;
+    servedAssetPath = entryPath;
     objectHead = await storage.headObject(
-      buildReleaseSiteObjectKey(artifact.siteRootKey, servedAssetPath),
+      buildReleaseSiteObjectKey(siteRootKey, servedAssetPath),
     );
   }
 
@@ -101,12 +113,12 @@ export async function GET(
   }
 
   const body = await storage.readObject(
-    buildReleaseSiteObjectKey(artifact.siteRootKey, servedAssetPath),
+    buildReleaseSiteObjectKey(siteRootKey, servedAssetPath),
   );
 
   const contentType = objectHead.contentType || "application/octet-stream";
   const isHtmlDocument =
-    contentType.includes("text/html") && servedAssetPath === artifact.entryPath;
+    contentType.includes("text/html") && servedAssetPath === entryPath;
   const isRewritableTextAsset =
     contentType.includes("javascript") || contentType.includes("text/css");
 
@@ -115,13 +127,15 @@ export async function GET(
       html: body.toString("utf8"),
       gameId,
       releaseId,
+      generationId,
     });
     const requestOrigin = new URL(request.url).origin;
     const runtimeTopology = buildHostedReleaseRuntimeTopology({
       gameId,
       releaseId,
+      generationId,
       requestedAssetPath: resolvedAssetPath,
-      entryPath: artifact.entryPath,
+      entryPath,
       appOrigin: requestOrigin,
       backendOrigin:
         process.env.NEXT_PUBLIC_AIR_JAM_SERVER_URL?.trim() || requestOrigin,
@@ -130,8 +144,9 @@ export async function GET(
       html: htmlWithScopedAssets,
       gameId,
       releaseId,
+      generationId,
       requestedAssetPath: resolvedAssetPath,
-      entryPath: artifact.entryPath,
+      entryPath,
       runtimeTopology,
     });
 
@@ -149,6 +164,7 @@ export async function GET(
       content: body.toString("utf8"),
       gameId,
       releaseId,
+      generationId,
       contentType,
     });
 

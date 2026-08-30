@@ -68,6 +68,44 @@ privacy, and supply-chain security baseline is:
 
 The audit owns evidence and decisions. `G5-02` and `G5-03` in the readiness
 manifest own implementation and proof; the document is not a parallel backlog.
+The Gate 4 authority boundary for operational evidence, incident correlation,
+and safely governed runbooks is defined by:
+
+1. [contracts/operational-events-and-incidents-contract.md](./contracts/operational-events-and-incidents-contract.md)
+2. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
+3. the machine-readable catalog, JSON Schemas, and validators exposed through
+   `pnpm --silent run repo -- platform operations contract --help`
+
+The measured Gate 3 production baseline is:
+
+1. [audits/v1-reliability/production-capacity-cost-and-recovery-audit.md](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md)
+2. [audits/v1-reliability/production-budget-evidence-proof.md](./audits/v1-reliability/production-budget-evidence-proof.md)
+3. [audits/v1-reliability/production-shadow-quota-proof.md](./audits/v1-reliability/production-shadow-quota-proof.md)
+4. [audits/v1-reliability/production-durable-job-authority-proof.md](./audits/v1-reliability/production-durable-job-authority-proof.md)
+5. [audits/v1-reliability/production-immutable-release-generations-proof.md](./audits/v1-reliability/production-immutable-release-generations-proof.md)
+6. [audits/v1-reliability/production-operational-job-worker-proof.md](./audits/v1-reliability/production-operational-job-worker-proof.md)
+7. [audits/v1-reliability/production-lifecycle-cleanup-proof.md](./audits/v1-reliability/production-lifecycle-cleanup-proof.md)
+8. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
+
+It distinguishes the current low-cost, low-usage production state from the
+queues, quotas, recovery, static-delivery, and operational controls still
+required before launch-scale traffic is invited. The production-control
+contract fixes the shared admission, budget, job, cleanup, audit, and CLI model
+that Gate 3 implements. The budget proof records the implemented provider-to-
+policy-to-database lifecycle without implying that the remaining gate is done.
+The shadow-quota proof records the source-owned allowance catalog,
+authoritative creator/game usage, and agent-readable prospective decisions.
+The durable-job proof records the bounded PostgreSQL queue, database-time lease
+and deadline fencing, lane-synchronized claims, immutable command replay,
+release-scoped provenance, redacted operator reads, retry, cancellation,
+repair, and CLI authority. The immutable-generation proof records generation-
+scoped source and output identity, candidate/promoted fencing, exact check
+provenance, fail-closed legacy migration, and the shared human/machine contract
+that made safe worker execution possible. The operational-job worker proof records
+the completed adapter cutover, attempt-scoped executor graph, separately
+deployable drainable process, cleanup and one-cycle CLI operations, and
+enqueue/inspect/wait semantics without claiming that production rollout or the
+rest of Gate `G3-02` is complete.
 
 The detailed discoverability checklist remains a subordinate launch reference:
 
@@ -86,14 +124,15 @@ The roadmap gates define the product sequence and the readiness manifest derives
 the currently executable queue. The next independent work is:
 
 1. external-agent public installation and bootstrap proof
-2. production capacity, cost, lifecycle, and recovery inventory
-3. dedicated untrusted-content origin isolation and the remaining ranked Gate 5
-   security closures
-4. durable operational-event delivery, alerts, incidents, and bounded runbook
-   execution against the canonical operations contract
-5. post-v1 architecture work is intentionally non-current and now lives in:
+2. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
+3. establish dedicated untrusted-content origin isolation and close the
+   remaining ranked Gate 5 security findings
+4. produce and persist durable operational events against the canonical Gate 4
+   contract
+5. run isolated backup/restore and rollback/replay proof
+6. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
-6. do not treat future topology work as a second live execution plan while the
+7. do not treat future topology work as a second live execution plan while the
    [1.0 roadmap](./plans/v1-release-roadmap-plan.md) is still current
 
 ## Core Docs

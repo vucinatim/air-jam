@@ -4,6 +4,9 @@ import {
   gameReleaseStatusSchema,
   releaseCheckKindSchema,
   releaseCheckStatusSchema,
+  releaseGenerationStatusSchema,
+  releaseJobKindSchema,
+  releaseJobStatusSchema,
   releaseReportSourceSchema,
   releaseReportStatusSchema,
 } from "./release";
@@ -33,6 +36,8 @@ export type PlatformMachineErrorCode = z.infer<
 export const platformMachineApiErrorSchema = z.object({
   error: platformMachineErrorCodeSchema,
   message: z.string().min(1),
+  retryAfterSeconds: z.number().int().positive().nullable().optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type PlatformMachineApiError = z.infer<
@@ -225,35 +230,71 @@ export type PlatformMachineRequestOwnedGameMediaUploadTargetInput = z.infer<
   typeof platformMachineRequestOwnedGameMediaUploadTargetInputSchema
 >;
 
-export const platformMachineReleaseArtifactSchema = z.object({
+export const platformMachineReleaseGenerationSchema = z.object({
   id: z.string().min(1),
   releaseId: z.string().min(1),
+  sequence: z.number().int().positive(),
+  status: releaseGenerationStatusSchema,
   originalFilename: z.string().min(1),
   contentType: z.string().min(1),
-  sizeBytes: z.number().int().nonnegative(),
+  declaredSizeBytes: z.number().int().positive(),
+  observedSizeBytes: z.number().int().positive().nullable(),
+  observedContentType: z.string().min(1).nullable(),
+  observedEtag: z.string().min(1).nullable(),
+  observedLastModifiedAt: z.string().min(1).nullable(),
   extractedSizeBytes: z.number().int().nonnegative().nullable(),
-  fileCount: z.number().int().nonnegative().nullable(),
-  entryPath: z.string().min(1),
+  fileCount: z.number().int().positive().nullable(),
+  entryPath: z.string().min(1).nullable(),
   contentHash: z.string().min(1).nullable(),
   createdAt: z.string().min(1),
+  uploadObservedAt: z.string().min(1).nullable(),
+  processingStartedAt: z.string().min(1).nullable(),
+  readyAt: z.string().min(1).nullable(),
+  failedAt: z.string().min(1).nullable(),
+  abandonedAt: z.string().min(1).nullable(),
 });
 
-export type PlatformMachineReleaseArtifact = z.infer<
-  typeof platformMachineReleaseArtifactSchema
+export type PlatformMachineReleaseGeneration = z.infer<
+  typeof platformMachineReleaseGenerationSchema
 >;
 
 export const platformMachineReleaseCheckSchema = z.object({
   id: z.string().min(1),
   releaseId: z.string().min(1),
+  generationId: z.string().min(1),
   kind: releaseCheckKindSchema,
   status: releaseCheckStatusSchema,
   summary: z.string().nullable(),
-  payload: z.record(z.string(), z.unknown()),
   createdAt: z.string().min(1),
 });
 
 export type PlatformMachineReleaseCheck = z.infer<
   typeof platformMachineReleaseCheckSchema
+>;
+
+export const platformMachineReleaseJobSchema = z.object({
+  id: z.string().min(1),
+  kind: releaseJobKindSchema,
+  status: releaseJobStatusSchema,
+  releaseId: z.string().min(1),
+  generationId: z.string().min(1),
+  correlationId: z.string().min(1),
+  attemptCount: z.number().int().nonnegative(),
+  maxAttempts: z.number().int().positive(),
+  progressStage: z.string().min(1).nullable(),
+  progressMessage: z.string().min(1).nullable(),
+  lastErrorCode: z.string().min(1).nullable(),
+  lastErrorRetryable: z.boolean().nullable(),
+  availableAt: z.string().min(1),
+  deadlineAt: z.string().min(1),
+  createdAt: z.string().min(1),
+  startedAt: z.string().min(1).nullable(),
+  finishedAt: z.string().min(1).nullable(),
+  updatedAt: z.string().min(1),
+});
+
+export type PlatformMachineReleaseJob = z.infer<
+  typeof platformMachineReleaseJobSchema
 >;
 
 export const platformMachineReleaseReportSchema = z.object({
@@ -277,6 +318,8 @@ export const platformMachineReleaseSummarySchema = z.object({
   gameId: z.string().min(1),
   sourceKind: gameReleaseSourceKindSchema,
   status: gameReleaseStatusSchema,
+  candidateGenerationId: z.string().min(1).nullable(),
+  promotedGenerationId: z.string().min(1).nullable(),
   versionLabel: z.string().nullable(),
   createdAt: z.string().min(1),
   uploadedAt: z.string().nullable(),
@@ -285,8 +328,11 @@ export const platformMachineReleaseSummarySchema = z.object({
   quarantinedAt: z.string().nullable(),
   archivedAt: z.string().nullable(),
   game: platformMachineOwnedGameSummarySchema,
-  artifact: platformMachineReleaseArtifactSchema.nullable(),
+  candidateGeneration: platformMachineReleaseGenerationSchema.nullable(),
+  promotedGeneration: platformMachineReleaseGenerationSchema.nullable(),
+  generations: z.array(platformMachineReleaseGenerationSchema),
   checks: z.array(platformMachineReleaseCheckSchema),
+  jobs: z.array(platformMachineReleaseJobSchema),
   reports: z.array(platformMachineReleaseReportSchema),
   hostUrl: z.string().url().nullable(),
   controllerUrl: z.string().url().nullable(),
@@ -417,7 +463,6 @@ export type PlatformMachineRequestReleaseUploadTargetInput = z.infer<
 >;
 
 export const platformMachineReleaseUploadTargetSchema = z.object({
-  key: z.string().min(1),
   method: z.literal("PUT"),
   url: z.string().url(),
   headers: z.record(z.string(), z.string()),
@@ -430,6 +475,7 @@ export type PlatformMachineReleaseUploadTarget = z.infer<
 
 export const platformMachineRequestReleaseUploadTargetResultSchema = z.object({
   release: platformMachineReleaseSummarySchema,
+  generation: platformMachineReleaseGenerationSchema,
   upload: platformMachineReleaseUploadTargetSchema,
 });
 
@@ -460,6 +506,8 @@ export type PlatformMachineMutateOwnedGameMediaAssetResult = z.infer<
 
 export const platformMachineFinalizeReleaseUploadResultSchema = z.object({
   release: platformMachineReleaseSummarySchema,
+  generation: platformMachineReleaseGenerationSchema,
+  job: platformMachineReleaseJobSchema,
 });
 
 export type PlatformMachineFinalizeReleaseUploadResult = z.infer<

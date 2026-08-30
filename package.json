@@ -32,7 +32,7 @@
     "smoke:browser": "playwright test --config playwright.smoke.config.ts",
     "playwright:install": "playwright install --with-deps chromium",
     "smoke:release": "pnpm smoke:server && pnpm smoke:browser && pnpm test:scaffold",
-    "test": "pnpm test:repo-contracts && pnpm --filter @air-jam/mcp-server test && pnpm --filter @air-jam/cli test && pnpm --filter sdk build && pnpm --filter server test && pnpm --filter sdk test && pnpm --filter platform test",
+    "test": "pnpm test:repo-contracts && pnpm --filter @air-jam/operations-contract test && pnpm --filter @air-jam/mcp-server test && pnpm --filter @air-jam/cli test && pnpm --filter sdk build && pnpm --filter server test && pnpm --filter sdk test && pnpm --filter platform test",
     "test:repo-contracts": "node scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node --test scripts/repo/runtime/*.test.mjs",
     "test:scaffold": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke",
     "test:scaffold:registry": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:registry",
@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@air-jam/harness": "workspace:^",
+    "@air-jam/operations-contract": "workspace:^",
     "@air-jam/sdk": "workspace:^",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",

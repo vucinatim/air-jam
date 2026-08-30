@@ -20,12 +20,14 @@ import { getPlatformMachineAuthStatus } from "@air-jam/devtools-core/platform-au
 import { runQualityGate } from "@air-jam/devtools-core/quality";
 import {
   bundleLocalRelease,
+  finalizePlatformReleaseGeneration,
   inspectLocalRelease,
   inspectPlatformRelease,
   listPlatformReleaseTargets,
   listPlatformReleases,
   publishPlatformRelease,
   submitPlatformRelease,
+  uploadPlatformReleaseGeneration,
   validateLocalRelease,
 } from "@air-jam/devtools-core/release";
 import type { ToolExecution } from "@modelcontextprotocol/sdk/types.js";
@@ -148,7 +150,20 @@ const RELEASE_SUBMIT_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
   distDir: z.string().optional(),
   bundle: z.string().optional(),
   skipBuild: z.boolean().optional(),
+  waitForProcessing: z.boolean().optional(),
+  processingTimeoutSeconds: z.number().int().min(1).max(3_600).optional(),
   publish: z.boolean().optional(),
+});
+
+const RELEASE_UPLOAD_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+  releaseId: z.string().min(1),
+  cwd: z.string().optional(),
+  bundle: z.string().min(1),
+});
+
+const RELEASE_FINALIZE_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+  releaseId: z.string().min(1),
+  generationId: z.string().min(1),
 });
 
 const RELEASE_PUBLISH_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
@@ -365,9 +380,48 @@ export const buildToolDefinitions = ({
           }),
         ),
     },
+    "airjam.release_upload": {
+      description:
+        "Upload an existing hosted release zip as a new immutable generation and return the exact generation needed for resumable finalization.",
+      inputSchema: RELEASE_UPLOAD_INPUT_SCHEMA,
+      execution: {
+        taskSupport: "required",
+      },
+      run: async ({
+        platformUrl,
+        releaseId,
+        cwd,
+        bundle,
+      }: z.infer<typeof RELEASE_UPLOAD_INPUT_SCHEMA>) =>
+        withJsonText(
+          await uploadPlatformReleaseGeneration({
+            platformUrl,
+            releaseId,
+            cwd,
+            bundlePath: bundle,
+          }),
+        ),
+    },
+    "airjam.release_finalize": {
+      description:
+        "Durably enqueue processing for one exact immutable hosted release generation and return its job; use release inspection to follow or recover it.",
+      inputSchema: RELEASE_FINALIZE_INPUT_SCHEMA,
+      run: async ({
+        platformUrl,
+        releaseId,
+        generationId,
+      }: z.infer<typeof RELEASE_FINALIZE_INPUT_SCHEMA>) =>
+        withJsonText(
+          await finalizePlatformReleaseGeneration({
+            platformUrl,
+            releaseId,
+            generationId,
+          }),
+        ),
+    },
     "airjam.release_submit": {
       description:
-        "Bundle a standalone Air Jam game if needed, upload it as a hosted release draft, finalize it, and optionally publish it.",
+        "Bundle a standalone Air Jam game if needed, upload it as a hosted release draft, enqueue durable processing, optionally wait, and optionally publish after readiness.",
       inputSchema: RELEASE_SUBMIT_INPUT_SCHEMA,
       execution: {
         taskSupport: "required",
@@ -380,6 +434,8 @@ export const buildToolDefinitions = ({
         distDir,
         bundle,
         skipBuild,
+        waitForProcessing,
+        processingTimeoutSeconds,
         publish,
       }: z.infer<typeof RELEASE_SUBMIT_INPUT_SCHEMA>) =>
         withJsonText(
@@ -391,6 +447,10 @@ export const buildToolDefinitions = ({
             distDir,
             bundlePath: bundle,
             skipBuild,
+            waitForProcessing,
+            ...(processingTimeoutSeconds === undefined
+              ? {}
+              : { processingTimeoutMs: processingTimeoutSeconds * 1_000 }),
             publish,
           }),
         ),

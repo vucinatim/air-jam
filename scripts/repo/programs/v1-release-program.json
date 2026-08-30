@@ -476,7 +476,7 @@
       "priority": 10,
       "title": "Inventory production capacity, cost, lifecycle, recovery, and provider controls",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [],
       "estimate": {
         "agentHoursMin": 6,
@@ -484,7 +484,18 @@
       },
       "evidenceRequirements": [
         "measured baseline and gap inventory for every expensive lane"
-      ]
+      ],
+      "owner": "/root/g3-capacity-inventory",
+      "note": "Measured every expensive production lane; recorded current cost, capacity, lifecycle, backup, rollback, provider-control gaps, and production-valid implementation order without mutating production.",
+      "updatedAt": "2026-08-29T19:21:05.603Z",
+      "evidence": [
+        "document:docs/audits/v1-reliability/production-capacity-cost-and-recovery-audit.md",
+        "command:pnpm --silent run repo -- railway doctor --json",
+        "command:pnpm --silent run repo -- platform telemetry health --json",
+        "url:https://docs.railway.com/pricing/cost-control",
+        "url:https://docs.railway.com/volumes/backups"
+      ],
+      "completedAt": "2026-08-29T19:21:05.603Z"
     },
     {
       "id": "G3-02",
@@ -493,7 +504,7 @@
       "priority": 20,
       "title": "Implement quotas, bounded queues, cleanup, spend guards, and kill switches",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "in_progress",
       "dependsOn": [
         "G0-03",
         "G3-01"
@@ -504,6 +515,17 @@
       },
       "evidenceRequirements": [
         "limit and overload tests plus agent-operable control commands"
+      ],
+      "owner": "/root/g3-controls",
+      "note": "Durable operational jobs now automate exact, resource-scoped cleanup for terminal release generations and inactive unassigned media with persisted manifests, tombstones, quota safety, and agent CLI controls; superseded-artifact retention and warnings, overload proof, realtime admission, and production rollout remain.",
+      "updatedAt": "2026-08-30T02:58:07.424Z",
+      "evidence": [
+        "document:docs/audits/v1-reliability/production-operational-job-worker-proof.md",
+        "command:pnpm-test",
+        "command:pnpm-build",
+        "command:pnpm-check-platform-deploy",
+        "document:docs/audits/v1-reliability/production-lifecycle-cleanup-proof.md",
+        "command:pnpm-check-ci"
       ]
     },
     {
@@ -571,7 +593,7 @@
       "priority": 10,
       "title": "Define operational-event, correlation, incident, and runbook contracts",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [
         "G1-01"
       ],
@@ -581,7 +603,16 @@
       },
       "evidenceRequirements": [
         "versioned authority-separated operational contracts"
-      ]
+      ],
+      "owner": "/root/g4-contracts",
+      "note": "Closed the versioned authority-separated operational event, correlation, incident, immutable-preview, invocation, and action-audit contract with runtime schemas, Draft 7 JSON Schema export, declaration typechecking, redacted CLI validation, and full repository validation; durable producers and execution remain later Gate 4 work.",
+      "updatedAt": "2026-08-30T03:51:29.450Z",
+      "evidence": [
+        "document:docs/contracts/operational-events-and-incidents-contract.md",
+        "document:docs/audits/v1-operations/operational-contract-proof.md",
+        "command:pnpm check:ci"
+      ],
+      "completedAt": "2026-08-30T03:51:29.450Z"
     },
     {
       "id": "G4-02",

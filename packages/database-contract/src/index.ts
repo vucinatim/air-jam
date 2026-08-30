@@ -1,6 +1,8 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -8,8 +10,232 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+
+export const operationalLaneValues = [
+  "game_creation",
+  "game_listing",
+  "release_submission",
+  "artifact_ingestion",
+  "release_processing",
+  "browser_validation",
+  "moderation",
+  "media_ingestion",
+  "product_telemetry",
+  "realtime_room_admission",
+  "realtime_controller_admission",
+  "preview_capacity",
+  "lifecycle_cleanup",
+] as const;
+
+export type OperationalLane = (typeof operationalLaneValues)[number];
+
+export const operationalLaneModeValues = [
+  "normal",
+  "restricted",
+  "paused",
+] as const;
+
+export type OperationalLaneMode = (typeof operationalLaneModeValues)[number];
+
+const operationalLaneSqlList = sql.raw(
+  operationalLaneValues.map((lane) => `'${lane}'`).join(", "),
+);
+const operationalLaneModeSqlList = sql.raw(
+  operationalLaneModeValues.map((mode) => `'${mode}'`).join(", "),
+);
+
+export type OperationalLaneControlSnapshot = {
+  lane: OperationalLane;
+  mode: OperationalLaneMode;
+  reason: string | null;
+  retryAfterSeconds: number | null;
+  revision: number;
+  updatedBy: string | null;
+  updatedAt: string | null;
+};
+
+export const operationalBudgetProfileValues = [
+  "ordinary",
+  "launch_1_0",
+] as const;
+
+export type OperationalBudgetProfile =
+  (typeof operationalBudgetProfileValues)[number];
+
+export const operationalBudgetStateValues = [
+  "normal",
+  "warning",
+  "protection",
+  "near_ceiling",
+  "ceiling",
+] as const;
+
+export type OperationalBudgetState =
+  (typeof operationalBudgetStateValues)[number];
+
+export const operationalQuotaKeyValues = [
+  "creator_games",
+  "creator_listed_games",
+  "creator_managed_storage_bytes",
+  "game_managed_storage_bytes",
+  "creator_release_submissions_30d",
+  "creator_release_submissions_day",
+  "creator_browser_validations_30d",
+  "creator_browser_validations_day",
+  "creator_concurrent_release_jobs",
+  "creator_room_seconds_30d",
+  "creator_concurrent_rooms",
+  "game_concurrent_rooms",
+] as const;
+
+export type OperationalQuotaKey = (typeof operationalQuotaKeyValues)[number];
+
+export const operationalQuotaScopeKindValues = ["creator", "game"] as const;
+export type OperationalQuotaScopeKind =
+  (typeof operationalQuotaScopeKindValues)[number];
+
+export const operationalQuotaUnitValues = [
+  "count",
+  "bytes",
+  "seconds",
+] as const;
+export type OperationalQuotaUnit = (typeof operationalQuotaUnitValues)[number];
+
+export const operationalQuotaWindowValues = [
+  "lifetime",
+  "rolling_30_days",
+  "utc_day",
+  "concurrent",
+] as const;
+export type OperationalQuotaWindow =
+  (typeof operationalQuotaWindowValues)[number];
+
+export const operationalJobKindValues = [
+  "release_artifact_processing",
+  "release_browser_validation",
+  "release_image_moderation",
+  "lifecycle_cleanup",
+] as const;
+
+export type OperationalJobKind = (typeof operationalJobKindValues)[number];
+
+export const operationalJobResourceKindValues = [
+  "release_generation",
+  "game_media_asset",
+] as const;
+
+export type OperationalJobResourceKind =
+  (typeof operationalJobResourceKindValues)[number];
+
+export const operationalJobStatusValues = [
+  "queued",
+  "running",
+  "cancel_requested",
+  "succeeded",
+  "failed",
+  "canceled",
+] as const;
+
+export type OperationalJobStatus = (typeof operationalJobStatusValues)[number];
+
+export const operationalJobAttemptStatusValues = [
+  "running",
+  "succeeded",
+  "failed",
+  "canceled",
+  "lease_expired",
+] as const;
+
+export type OperationalJobAttemptStatus =
+  (typeof operationalJobAttemptStatusValues)[number];
+
+export const operationalJobEventKindValues = [
+  "enqueued",
+  "claimed",
+  "stage_recorded",
+  "retry_scheduled",
+  "cancel_requested",
+  "canceled",
+  "succeeded",
+  "failed",
+  "lease_recovered",
+  "output_cleaned",
+  "replayed",
+] as const;
+
+export type OperationalJobEventKind =
+  (typeof operationalJobEventKindValues)[number];
+
+export const operationalJobCommandKindValues = [
+  "enqueue",
+  "schedule_cleanup",
+  "cancel",
+  "replay",
+  "repair_expired",
+] as const;
+
+export type OperationalJobCommandKind =
+  (typeof operationalJobCommandKindValues)[number];
+
+export const operationalJobContractVersion = 1 as const;
+
+export type OperationalQuotaPolicySnapshot = {
+  key: OperationalQuotaKey;
+  scopeKind: OperationalQuotaScopeKind;
+  lanes: readonly OperationalLane[];
+  unit: OperationalQuotaUnit;
+  window: OperationalQuotaWindow;
+  limit: number;
+};
+
+export const operationalBudgetEvidenceContractVersion = 1 as const;
+
+const operationalBudgetEvidenceContractVersionSql = sql.raw(
+  String(operationalBudgetEvidenceContractVersion),
+);
+
+const operationalBudgetProfileSqlList = sql.raw(
+  operationalBudgetProfileValues.map((profile) => `'${profile}'`).join(", "),
+);
+
+export type OperationalBudgetCycleSnapshot = {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  profile: OperationalBudgetProfile;
+  normalTargetMicrousd: number;
+  warningMicrousd: number;
+  protectionMicrousd: number;
+  nearCeilingMicrousd: number;
+  ceilingMicrousd: number;
+  createdAt: string;
+};
+
+export type OperationalBudgetEvidenceSnapshot = {
+  id: string;
+  idempotencyKey: string;
+  cycleId: string;
+  contractVersion: number;
+  provider: string;
+  scopeKind: string;
+  scopeId: string;
+  scopeName: string;
+  scopeMetadata: Record<string, unknown>;
+  currency: "USD";
+  observedAt: string;
+  actualAmountMicrousd: number;
+  projectedAmountMicrousd: number | null;
+  measurements: Record<string, unknown>;
+  costBreakdownMicrousd: Record<string, unknown>;
+  rateCard: Record<string, unknown>;
+  sourceVersion: string;
+  collectedBy: string;
+  reason: string;
+  createdAt: string;
+};
 
 export type RuntimeDatabaseSchemaOptions = {
   appIdGameIdReference?: () => AnyPgColumn;
@@ -247,6 +473,214 @@ export const createRuntimeDatabaseSchema = ({
     ],
   );
 
+  const operationalLaneControls = pgTable(
+    "operational_lane_controls",
+    {
+      lane: text("lane").$type<OperationalLane>().primaryKey(),
+      mode: text("mode")
+        .$type<OperationalLaneMode>()
+        .default("normal")
+        .notNull(),
+      reason: text("reason"),
+      retryAfterSeconds: integer("retry_after_seconds"),
+      revision: integer("revision").default(1).notNull(),
+      updatedBy: text("updated_by").notNull(),
+      updatedAt: timestamp("updated_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => [
+      check(
+        "operational_lane_controls_lane_check",
+        sql`${table.lane} in (${operationalLaneSqlList})`,
+      ),
+      check(
+        "operational_lane_controls_mode_check",
+        sql`${table.mode} in (${operationalLaneModeSqlList})`,
+      ),
+      check(
+        "operational_lane_controls_retry_after_check",
+        sql`${table.retryAfterSeconds} is null or ${table.retryAfterSeconds} > 0`,
+      ),
+      check(
+        "operational_lane_controls_revision_check",
+        sql`${table.revision} > 0`,
+      ),
+      index("operational_lane_controls_mode_idx").on(table.mode),
+      index("operational_lane_controls_updated_at_idx").on(table.updatedAt),
+    ],
+  );
+
+  const operationalControlEvents = pgTable(
+    "operational_control_events",
+    {
+      id: text("id").primaryKey(),
+      idempotencyKey: text("idempotency_key").notNull(),
+      action: text("action").$type<"set_lane_mode">().notNull(),
+      lane: text("lane").$type<OperationalLane>().notNull(),
+      expectedRevision: integer("expected_revision").notNull(),
+      previous: jsonb("previous")
+        .$type<OperationalLaneControlSnapshot>()
+        .notNull(),
+      next: jsonb("next").$type<OperationalLaneControlSnapshot>().notNull(),
+      actor: text("actor").notNull(),
+      reason: text("reason").notNull(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => [
+      uniqueIndex("operational_control_events_idempotency_key_uidx").on(
+        table.idempotencyKey,
+      ),
+      index("operational_control_events_lane_created_at_idx").on(
+        table.lane,
+        table.createdAt,
+      ),
+      check(
+        "operational_control_events_action_check",
+        sql`${table.action} = 'set_lane_mode'`,
+      ),
+      check(
+        "operational_control_events_lane_check",
+        sql`${table.lane} in (${operationalLaneSqlList})`,
+      ),
+      check(
+        "operational_control_events_expected_revision_check",
+        sql`${table.expectedRevision} >= 0`,
+      ),
+    ],
+  );
+
+  const operationalBudgetCycles = pgTable(
+    "operational_budget_cycles",
+    {
+      id: text("id").primaryKey(),
+      periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+      periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+      profile: text("profile").$type<OperationalBudgetProfile>().notNull(),
+      normalTargetMicrousd: bigint("normal_target_microusd", {
+        mode: "number",
+      }).notNull(),
+      warningMicrousd: bigint("warning_microusd", {
+        mode: "number",
+      }).notNull(),
+      protectionMicrousd: bigint("protection_microusd", {
+        mode: "number",
+      }).notNull(),
+      nearCeilingMicrousd: bigint("near_ceiling_microusd", {
+        mode: "number",
+      }).notNull(),
+      ceilingMicrousd: bigint("ceiling_microusd", {
+        mode: "number",
+      }).notNull(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => [
+      uniqueIndex("operational_budget_cycles_period_uidx").on(
+        table.periodStart,
+        table.periodEnd,
+      ),
+      check(
+        "operational_budget_cycles_period_check",
+        sql`${table.periodEnd} > ${table.periodStart}`,
+      ),
+      check(
+        "operational_budget_cycles_id_check",
+        sql`length(btrim(${table.id})) > 0`,
+      ),
+      check(
+        "operational_budget_cycles_profile_check",
+        sql`${table.profile} in (${operationalBudgetProfileSqlList})`,
+      ),
+      check(
+        "operational_budget_cycles_thresholds_check",
+        sql`${table.normalTargetMicrousd} > 0 and ${table.warningMicrousd} > ${table.normalTargetMicrousd} and ${table.protectionMicrousd} > ${table.warningMicrousd} and ${table.nearCeilingMicrousd} > ${table.protectionMicrousd} and ${table.ceilingMicrousd} > ${table.nearCeilingMicrousd}`,
+      ),
+    ],
+  );
+
+  const operationalBudgetEvidence = pgTable(
+    "operational_budget_evidence",
+    {
+      id: text("id").primaryKey(),
+      idempotencyKey: text("idempotency_key").notNull(),
+      cycleId: text("cycle_id")
+        .notNull()
+        .references(() => operationalBudgetCycles.id),
+      contractVersion: integer("contract_version").notNull(),
+      provider: text("provider").notNull(),
+      scopeKind: text("scope_kind").notNull(),
+      scopeId: text("scope_id").notNull(),
+      scopeName: text("scope_name").notNull(),
+      scopeMetadata: jsonb("scope_metadata")
+        .$type<Record<string, unknown>>()
+        .notNull(),
+      currency: text("currency").$type<"USD">().default("USD").notNull(),
+      observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+      actualAmountMicrousd: bigint("actual_amount_microusd", {
+        mode: "number",
+      }).notNull(),
+      projectedAmountMicrousd: bigint("projected_amount_microusd", {
+        mode: "number",
+      }),
+      measurements: jsonb("measurements")
+        .$type<Record<string, unknown>>()
+        .notNull(),
+      costBreakdownMicrousd: jsonb("cost_breakdown_microusd")
+        .$type<Record<string, unknown>>()
+        .notNull(),
+      rateCard: jsonb("rate_card").$type<Record<string, unknown>>().notNull(),
+      sourceVersion: text("source_version").notNull(),
+      collectedBy: text("collected_by").notNull(),
+      reason: text("reason").notNull(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => [
+      uniqueIndex("operational_budget_evidence_idempotency_key_uidx").on(
+        table.idempotencyKey,
+      ),
+      index("operational_budget_evidence_cycle_observed_at_idx").on(
+        table.cycleId,
+        table.observedAt,
+      ),
+      index("operational_budget_evidence_source_observed_at_idx").on(
+        table.provider,
+        table.scopeKind,
+        table.scopeId,
+        table.observedAt,
+      ),
+      check(
+        "operational_budget_evidence_currency_check",
+        sql`${table.currency} = 'USD'`,
+      ),
+      check(
+        "operational_budget_evidence_contract_version_check",
+        sql`${table.contractVersion} = ${operationalBudgetEvidenceContractVersionSql}`,
+      ),
+      check(
+        "operational_budget_evidence_required_text_check",
+        sql`length(btrim(${table.id})) > 0 and length(btrim(${table.idempotencyKey})) > 0 and length(btrim(${table.provider})) > 0 and length(btrim(${table.scopeKind})) > 0 and length(btrim(${table.scopeId})) > 0 and length(btrim(${table.scopeName})) > 0 and length(btrim(${table.sourceVersion})) > 0 and length(btrim(${table.collectedBy})) > 0 and length(btrim(${table.reason})) > 0`,
+      ),
+      check(
+        "operational_budget_evidence_json_objects_check",
+        sql`jsonb_typeof(${table.scopeMetadata}) = 'object' and jsonb_typeof(${table.measurements}) = 'object' and jsonb_typeof(${table.costBreakdownMicrousd}) = 'object' and jsonb_typeof(${table.rateCard}) = 'object'`,
+      ),
+      check(
+        "operational_budget_evidence_actual_amount_check",
+        sql`${table.actualAmountMicrousd} >= 0`,
+      ),
+      check(
+        "operational_budget_evidence_projected_amount_check",
+        sql`${table.projectedAmountMicrousd} is null or ${table.projectedAmountMicrousd} >= 0`,
+      ),
+    ],
+  );
+
   return {
     appIds,
     runtimeUsageSessions,
@@ -256,6 +690,10 @@ export const createRuntimeDatabaseSchema = ({
     runtimeUsageEligibleSegments,
     runtimeUsageGameSessionMetrics,
     runtimeUsageDailyGameMetrics,
+    operationalLaneControls,
+    operationalControlEvents,
+    operationalBudgetCycles,
+    operationalBudgetEvidence,
   };
 };
 

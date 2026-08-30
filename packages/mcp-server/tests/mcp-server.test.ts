@@ -114,6 +114,8 @@ describe("createAirJamMcpServer", () => {
       "airjam.run_quality_gate",
       "airjam.release_list",
       "airjam.release_inspect",
+      "airjam.release_upload",
+      "airjam.release_finalize",
       "airjam.release_publish",
       "airjam.start_dev",
       "airjam.stop_dev",
@@ -139,6 +141,12 @@ describe("createAirJamMcpServer", () => {
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.release_inspect",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_upload",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_finalize",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.release_publish",
@@ -237,6 +245,12 @@ describe("createAirJamMcpServer", () => {
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.release_submit",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_upload",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_finalize",
     );
     expect(
       listed.tools.find((tool) => tool.name === "airjam.release_bundle")
