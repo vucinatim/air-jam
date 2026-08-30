@@ -36,6 +36,7 @@ import {
   readRuntimeSnapshot,
   readVisualCaptureSummary,
   resetLocalDev,
+  resolvePackageManagerExecutable,
   runQualityGate,
   sendControllerInput,
   sendGameSessionInput,
@@ -605,6 +606,17 @@ afterEach(async () => {
       .splice(0)
       .map((root) => rm(root, { recursive: true, force: true })),
   );
+});
+
+describe("package manager execution", () => {
+  it("resolves Windows command shims without changing native executables", () => {
+    expect(resolvePackageManagerExecutable("pnpm", "win32")).toBe("pnpm.cmd");
+    expect(resolvePackageManagerExecutable("npm", "win32")).toBe("npm.cmd");
+    expect(resolvePackageManagerExecutable("yarn", "win32")).toBe("yarn.cmd");
+    expect(resolvePackageManagerExecutable("bun", "win32")).toBe("bun");
+    expect(resolvePackageManagerExecutable("pnpm", "linux")).toBe("pnpm");
+    expect(resolvePackageManagerExecutable("pnpm", "darwin")).toBe("pnpm");
+  });
 });
 
 describe("detectProjectContext", () => {

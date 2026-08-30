@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { openSync } from "node:fs";
+import { closeSync, openSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
@@ -9,6 +9,7 @@ import { runCommandResult } from "./commands.js";
 import { detectProjectContext } from "./context.js";
 import { pathExists } from "./fs-utils.js";
 import { inspectGame, listGames } from "./games.js";
+import { resolvePackageManagerExecutable } from "./package-manager.js";
 import type {
   AirJamDevMode,
   AirJamDevStatus,
@@ -366,7 +367,7 @@ const resolveStartCommand = async ({
   }
 
   return {
-    command: "pnpm",
+    command: resolvePackageManagerExecutable("pnpm"),
     args,
     topologyMode: "standalone-dev",
     expectedLogPath: path.join(cwd, ".airjam", "logs", "dev-latest.ndjson"),
@@ -437,7 +438,7 @@ const resolveTopologyCommand = async ({
   appendArg(args, "--secure", secure);
 
   return {
-    command: "pnpm",
+    command: resolvePackageManagerExecutable("pnpm"),
     args,
     topologyMode,
   };
@@ -771,6 +772,14 @@ export const startDev = async ({
       NO_UPDATE_NOTIFIER: "1",
     },
   });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      child.once("spawn", resolve);
+      child.once("error", reject);
+    });
+  } finally {
+    closeSync(logFd);
+  }
   child.unref();
 
   const managedProcess: AirJamManagedDevProcess = {

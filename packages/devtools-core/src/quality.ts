@@ -1,5 +1,6 @@
 import { runCommandResult } from "./commands.js";
 import { detectProjectContext } from "./context.js";
+import { resolvePackageManagerExecutable } from "./package-manager.js";
 import type { CommandResult, RunQualityGateOptions } from "./types.js";
 
 const GATE_TO_SCRIPT: Record<RunQualityGateOptions["gate"], string> = {
@@ -32,7 +33,7 @@ export const runQualityGate = async (
     : ["run", script];
 
   return runCommandResult({
-    command: "pnpm",
+    command: resolvePackageManagerExecutable("pnpm"),
     args,
     cwd: context.rootDir,
   });

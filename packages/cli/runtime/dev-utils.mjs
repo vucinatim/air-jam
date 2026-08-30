@@ -203,6 +203,10 @@ export const createProcessGroup = () => {
 
     child.stdout.on("data", (data) => logChunk(name, data));
     child.stderr.on("data", (data) => logChunk(name, data));
+    child.on("error", (error) => {
+      console.error(`[${name}] failed to start: ${error.message}`);
+      shutdown(1);
+    });
     child.on("exit", (code, signal) => {
       if (!fatal) {
         return;

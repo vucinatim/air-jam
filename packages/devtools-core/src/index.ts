@@ -5,6 +5,7 @@ export * from "./dev.js";
 export * from "./game-session.js";
 export * from "./games.js";
 export * from "./logs.js";
+export * from "./package-manager.js";
 export * from "./platform-auth.js";
 export * from "./platform-game-media.js";
 export * from "./platform-games.js";

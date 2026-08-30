@@ -560,6 +560,7 @@ describe("local release tooling", () => {
               release: release({
                 status: "checking",
                 generation: readyGeneration,
+                promoted: true,
                 jobs: [succeededJob],
               }),
             }),
@@ -571,6 +572,7 @@ describe("local release tooling", () => {
             release: release({
               status: "ready",
               generation: readyGeneration,
+              promoted: true,
               jobs: [succeededJob],
             }),
           }),

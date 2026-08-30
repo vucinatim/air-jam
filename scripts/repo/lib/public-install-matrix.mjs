@@ -287,7 +287,7 @@ const resolveCleanCommit = () => {
   ).trim();
   if (status) {
     throw new Error(
-      "Public install matrix evidence requires a clean tracked worktree.",
+      `Public install matrix evidence requires a clean tracked worktree:\n${status}`,
     );
   }
   const head = execFileSync("git", ["rev-parse", "HEAD"], {

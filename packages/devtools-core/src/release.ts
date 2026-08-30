@@ -39,6 +39,7 @@ import {
   readPackageJson,
   resolveCandidatePath,
 } from "./fs-utils.js";
+import { resolvePackageManagerExecutable } from "./package-manager.js";
 import {
   requestPlatformMachineApi,
   resolvePlatformMachineAuth,
@@ -555,16 +556,28 @@ const resolveBuildCommand = (
   packageManager: AirJamPackageManager,
 ): { command: string; args: string[] } | null => {
   if (packageManager === "npm") {
-    return { command: "npm", args: ["run", "build"] };
+    return {
+      command: resolvePackageManagerExecutable(packageManager),
+      args: ["run", "build"],
+    };
   }
   if (packageManager === "pnpm") {
-    return { command: "pnpm", args: ["build"] };
+    return {
+      command: resolvePackageManagerExecutable(packageManager),
+      args: ["build"],
+    };
   }
   if (packageManager === "yarn") {
-    return { command: "yarn", args: ["build"] };
+    return {
+      command: resolvePackageManagerExecutable(packageManager),
+      args: ["build"],
+    };
   }
   if (packageManager === "bun") {
-    return { command: "bun", args: ["run", "build"] };
+    return {
+      command: resolvePackageManagerExecutable(packageManager),
+      args: ["run", "build"],
+    };
   }
   return null;
 };
