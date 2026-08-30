@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import crossSpawn from "cross-spawn";
 import { randomUUID } from "node:crypto";
 import { closeSync, openSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -9,7 +9,6 @@ import { runCommandResult } from "./commands.js";
 import { detectProjectContext } from "./context.js";
 import { pathExists } from "./fs-utils.js";
 import { inspectGame, listGames } from "./games.js";
-import { resolvePackageManagerExecutable } from "./package-manager.js";
 import type {
   AirJamDevMode,
   AirJamDevStatus,
@@ -367,7 +366,7 @@ const resolveStartCommand = async ({
   }
 
   return {
-    command: resolvePackageManagerExecutable("pnpm"),
+    command: "pnpm",
     args,
     topologyMode: "standalone-dev",
     expectedLogPath: path.join(cwd, ".airjam", "logs", "dev-latest.ndjson"),
@@ -438,7 +437,7 @@ const resolveTopologyCommand = async ({
   appendArg(args, "--secure", secure);
 
   return {
-    command: resolvePackageManagerExecutable("pnpm"),
+    command: "pnpm",
     args,
     topologyMode,
   };
@@ -762,7 +761,7 @@ export const startDev = async ({
   const logPath = getManagedProcessLogPath(context.rootDir, processId);
   await mkdir(path.dirname(logPath), { recursive: true });
   const logFd = openSync(logPath, "a");
-  const child = spawn(startCommand.command, startCommand.args, {
+  const child = crossSpawn(startCommand.command, startCommand.args, {
     cwd: context.rootDir,
     detached: process.platform !== "win32",
     stdio: ["ignore", logFd, logFd],

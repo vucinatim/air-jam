@@ -39,7 +39,6 @@ import {
   readPackageJson,
   resolveCandidatePath,
 } from "./fs-utils.js";
-import { resolvePackageManagerExecutable } from "./package-manager.js";
 import {
   requestPlatformMachineApi,
   resolvePlatformMachineAuth,
@@ -557,25 +556,25 @@ const resolveBuildCommand = (
 ): { command: string; args: string[] } | null => {
   if (packageManager === "npm") {
     return {
-      command: resolvePackageManagerExecutable(packageManager),
+      command: packageManager,
       args: ["run", "build"],
     };
   }
   if (packageManager === "pnpm") {
     return {
-      command: resolvePackageManagerExecutable(packageManager),
+      command: packageManager,
       args: ["build"],
     };
   }
   if (packageManager === "yarn") {
     return {
-      command: resolvePackageManagerExecutable(packageManager),
+      command: packageManager,
       args: ["build"],
     };
   }
   if (packageManager === "bun") {
     return {
-      command: resolvePackageManagerExecutable(packageManager),
+      command: packageManager,
       args: ["run", "build"],
     };
   }

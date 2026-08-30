@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import crossSpawn from "cross-spawn";
 import type { CommandResult } from "./types.js";
 
 const createBaseEnv = (): NodeJS.ProcessEnv => ({
@@ -17,7 +17,7 @@ export const runCommandResult = ({
   cwd: string;
 }): CommandResult => {
   const startedAt = Date.now();
-  const result = spawnSync(command, args, {
+  const result = crossSpawn.sync(command, args, {
     cwd,
     encoding: "utf8",
     env: createBaseEnv(),

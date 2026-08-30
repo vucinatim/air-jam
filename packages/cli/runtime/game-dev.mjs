@@ -1,5 +1,5 @@
-import { resolvePackageManagerExecutable } from "@air-jam/devtools-core";
-import { execFileSync, spawn } from "node:child_process";
+import crossSpawn from "cross-spawn";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -24,7 +24,7 @@ import {
 } from "./secure-dev.mjs";
 
 const START_TIMEOUT_MS = 20_000;
-const pnpmExecutable = resolvePackageManagerExecutable("pnpm");
+const pnpmExecutable = "pnpm";
 const PREVIEW_MANAGED_SERVER_LOG_RELATIVE_PATH = path.join(
   ".airjam",
   "preview-managed-server.log",
@@ -202,7 +202,7 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
   const logFile = path.join(cwd, PREVIEW_MANAGED_SERVER_LOG_RELATIVE_PATH);
   const stateFile = path.join(cwd, PREVIEW_MANAGED_SERVER_STATE_RELATIVE_PATH);
   const logFd = fs.openSync(logFile, "a");
-  const child = spawn(pnpmExecutable, ["exec", "air-jam-server"], {
+  const child = crossSpawn(pnpmExecutable, ["exec", "air-jam-server"], {
     cwd,
     env: {
       ...process.env,
@@ -240,7 +240,7 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
 
 const runForegroundGame = ({ cwd, env }) =>
   new Promise((resolve, reject) => {
-    const child = spawn(pnpmExecutable, ["exec", "vite"], {
+    const child = crossSpawn(pnpmExecutable, ["exec", "vite"], {
       cwd,
       stdio: "inherit",
       env: {

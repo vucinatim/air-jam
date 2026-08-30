@@ -1,6 +1,5 @@
 import { runCommandResult } from "./commands.js";
 import { detectProjectContext } from "./context.js";
-import { resolvePackageManagerExecutable } from "./package-manager.js";
 import type { CommandResult, ReadDevLogsOptions } from "./types.js";
 
 const pushOption = (
@@ -33,7 +32,7 @@ export const readDevLogs = async (
   pushOption(args, "file", options.file);
 
   const result = runCommandResult({
-    command: resolvePackageManagerExecutable("pnpm"),
+    command: "pnpm",
     args,
     cwd: context.rootDir,
   });
