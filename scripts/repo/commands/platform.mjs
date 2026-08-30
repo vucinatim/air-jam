@@ -10,6 +10,7 @@ import {
 import { preparePlatformGeneratedArtifacts } from "../../platform/lib/platform-generated-prepare.mjs";
 import { createRailwayApiClient } from "../lib/railway-api.mjs";
 import { runCommand, runCommandResult } from "../lib/shell.mjs";
+import { registerOperationsContractCommands } from "./operations-contract.mjs";
 import { runRepoPlatformDbBackupCommand } from "./platform-db-backup.mjs";
 
 const logGeneratedPrepareResult = (result) => {
@@ -308,6 +309,13 @@ export const registerPlatformCommands = (program) => {
     .command("platform")
     .description("Platform maintainer helpers");
 
+  const operationsCommand = platformCommand
+    .command("operations")
+    .description(
+      "Inspect and operate authoritative production lifecycle surfaces",
+    );
+  registerOperationsContractCommands(operationsCommand);
+
   const generatedCommand = platformCommand
     .command("generated")
     .description("Prepare or verify generated platform artifacts");
@@ -439,12 +447,6 @@ export const registerPlatformCommands = (program) => {
       options,
     });
   });
-
-  const operationsCommand = platformCommand
-    .command("operations")
-    .description(
-      "Inspect and operate production controls through agent-safe contracts",
-    );
 
   addPlatformDatabaseTargetOption(
     operationsCommand

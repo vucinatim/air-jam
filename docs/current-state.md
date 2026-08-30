@@ -197,6 +197,17 @@ These are now baseline truths, not open architecture debates:
     13. the integration review further made staging isolation environment-wide
         and fail-closed, made evidence retention rollback-safe and extension
         independent, and bounded external-agent plus cleanup process lifetimes
+15. Gate 4 now has one agent-operable operational authority contract:
+    1. product telemetry, authoritative lifecycle/runtime facts, and durable
+       incidents remain separate evidence planes
+    2. deterministic fingerprints bind incident identity to exact normalized
+       failure scope
+    3. runbook preview/apply binds exact descriptor, parameters, context,
+       expiry, actions, and blast radius through SHA-256 digests
+    4. approval, bounded automation, verification, rollback, and terminal
+       evidence rules fail closed
+    5. all seven schema families are inspectable as Draft 7 JSON Schema and
+       runtime-validatable through the canonical repo CLI
 
 ## What Is Still Open
 
@@ -297,6 +308,15 @@ clean scaffold, exercised through CLI and raw MCP, and removed after all
 generated-project quality gates passed. No npm package or production system was
 changed.
 
+Gate `G4-01` is closed with the
+[operational events and incidents contract](./contracts/operational-events-and-incidents-contract.md)
+and its [proof](./audits/v1-operations/operational-contract-proof.md). The
+private runtime package, TypeScript declarations, JSON Schema export, and repo
+CLI now share one versioned model for events, correlation, incident state,
+runbook descriptors, immutable previews, invocations, and action audit records.
+This closes the contract boundary only; it does not claim that outbox,
+correlator, notification, GitHub delivery, or remediation workers are deployed.
+
 Gate `G3-01` is closed with the
 [production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).
 Production currently costs about `$8` per Railway cycle, uses little database
@@ -388,7 +408,8 @@ Execute the roadmap in dependency order:
    then finish warned long-term artifact retention, realtime admission, and
    overload proof
 4. run the isolated backup/restore and rollback/replay work in parallel with
-   the operational-event contract and threat model
+   durable operational-event production against the completed contract and the
+   threat model
 5. preserve Gate 1 contracts while those independent implementation lanes run
 6. complete or block work only through evidence-backed readiness transitions
 
