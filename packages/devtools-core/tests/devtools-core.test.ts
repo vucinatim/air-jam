@@ -106,6 +106,31 @@ const waitForHttpOk = async (
   throw new Error(`Timed out waiting for test HTTP listener on ${port}.`);
 };
 
+const waitForHttpClosed = async (
+  port: number,
+  timeoutMs = 5_000,
+): Promise<void> => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const open = await new Promise<boolean>((resolve) => {
+      const request = httpGet(`http://127.0.0.1:${port}`, (response) => {
+        response.resume();
+        resolve(true);
+      });
+      request.on("error", () => resolve(false));
+      request.setTimeout(250, () => {
+        request.destroy();
+        resolve(false);
+      });
+    });
+    if (!open) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for test HTTP listener ${port} to stop.`);
+};
+
 const createStandaloneDevFixture = async (): Promise<{
   root: string;
   port: number;
@@ -828,6 +853,25 @@ describe("dev lifecycle and topology", () => {
 
     const statusAfterStop = await getDevStatus({ cwd: root });
     expect(statusAfterStop.processes).toHaveLength(0);
+    await waitForHttpClosed(port);
+  });
+
+  it("reports an early managed runtime exit without waiting for the topology timeout", async () => {
+    const { root } = await createStandaloneDevFixture();
+    await writeFile(
+      path.join(root, "dev.mjs"),
+      'console.error("fixture managed runtime failed");\nprocess.exit(7);\n',
+      "utf8",
+    );
+
+    const startedAt = Date.now();
+    await expect(startDev({ cwd: root })).rejects.toThrow(
+      /Managed dev supervisor exited with code 7[\s\S]*fixture managed runtime failed/,
+    );
+    expect(Date.now() - startedAt).toBeLessThan(10_000);
+
+    const status = await getDevStatus({ cwd: root });
+    expect(status.processes).toHaveLength(0);
   });
 
   it("reports and resets unmanaged known-port local dev listeners", async () => {

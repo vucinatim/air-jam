@@ -32,6 +32,9 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.2
+      cross-spawn:
+        specifier: ^7.0.6
+        version: 7.0.6
       eslint:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.6.1)

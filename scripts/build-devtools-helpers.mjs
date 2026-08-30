@@ -32,6 +32,7 @@ const entries = Object.fromEntries(
     "hold-runtime-host",
     "inspect-airjam-agent",
     "list-visual-scenarios",
+    "managed-dev-supervisor",
     "run-visual-capture",
   ].map((name) => [name, path.join(toolingRoot, `${name}.ts`)]),
 );

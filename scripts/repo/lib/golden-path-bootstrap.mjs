@@ -1,4 +1,5 @@
-import { spawn, spawnSync } from "node:child_process";
+import crossSpawn from "cross-spawn";
+import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -485,6 +486,7 @@ export const runGoldenPathBootstrap = async ({
   let registry;
   let managedDevStarted = false;
   let managedDevProcessId = null;
+  let primaryError = null;
   const port = await reserveLoopbackPort();
   let gamePort = await reserveLoopbackPort();
   while (gamePort === port) {
@@ -508,14 +510,13 @@ export const runGoldenPathBootstrap = async ({
   const run = (id, command, args, cwd = repoRoot) => {
     onProgress(id);
     const startedAt = Date.now();
-    const result = spawnSync(command, args, {
+    const result = crossSpawn.sync(command, args, {
       cwd,
       encoding: "utf8",
       env: commandEnv,
       maxBuffer: commandMaxBuffer,
       timeout: commandTimeoutMs,
       killSignal: "SIGTERM",
-      shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"],
     });
     const stdout = String(result.stdout ?? "");
@@ -832,23 +833,50 @@ export const runGoldenPathBootstrap = async ({
       commands,
       retainedWorkspace: keepWorkspace ? runRoot : null,
     };
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    if (managedDevStarted && fs.existsSync(projectDir)) {
-      spawnSync("pnpm", ["exec", "airjam", "dev", "stop", "--dir", "."], {
-        cwd: projectDir,
-        env: commandEnv,
-        stdio: "ignore",
-        timeout: 60_000,
-        killSignal: "SIGKILL",
+    try {
+      if (managedDevStarted && fs.existsSync(projectDir)) {
+        crossSpawn.sync(
+          "pnpm",
+          ["exec", "airjam", "dev", "stop", "--dir", "."],
+          {
+            cwd: projectDir,
+            env: commandEnv,
+            stdio: "ignore",
+            timeout: 60_000,
+            killSignal: "SIGKILL",
+          },
+        );
+      }
+      if (registry) await stopChild(registry.child);
+      fs.rmSync(path.join(runRoot, "registry"), {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 200,
       });
-    }
-    if (registry) await stopChild(registry.child);
-    fs.rmSync(path.join(runRoot, "registry"), {
-      recursive: true,
-      force: true,
-    });
-    if (!keepWorkspace) {
-      fs.rmSync(runRoot, { recursive: true, force: true });
+      if (!keepWorkspace) {
+        fs.rmSync(runRoot, {
+          recursive: true,
+          force: true,
+          maxRetries: 10,
+          retryDelay: 200,
+        });
+      }
+    } catch (cleanupError) {
+      if (!primaryError) {
+        throw cleanupError;
+      }
+      const message =
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : String(cleanupError);
+      process.stderr.write(
+        `[golden-path cleanup] ${normalizeOutput(message, runRoot)}\n`,
+      );
     }
   }
 };

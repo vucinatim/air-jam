@@ -9,6 +9,10 @@ import { runCommandResult } from "./commands.js";
 import { detectProjectContext } from "./context.js";
 import { pathExists } from "./fs-utils.js";
 import { inspectGame, listGames } from "./games.js";
+import {
+  resolveDevtoolsHelperArgs,
+  resolveDevtoolsHelperScript,
+} from "./helper-scripts.js";
 import type {
   AirJamDevMode,
   AirJamDevStatus,
@@ -45,6 +49,7 @@ const START_TIMEOUT_MS = 120_000;
 const KNOWN_LOCAL_DEV_PORTS = [4000, 5173] as const;
 const KNOWN_PORTS_ENV = "AIRJAM_DEVTOOLS_KNOWN_PORTS";
 const DEFAULT_CONTROLLER_PATH = "/controller";
+const MANAGED_PROCESS_STOP_TIMEOUT_MS = 10_000;
 const MONOREPO_RUNTIME_CLI_PATH = path.join(
   "packages",
   "devtools-core",
@@ -182,24 +187,62 @@ const listKnownPortListeners = (): AirJamUnmanagedDevProcess[] => {
     .sort((left, right) => left.pid - right.pid);
 };
 
-const killManagedProcess = (pid: number): void => {
+const waitForProcessExit = async (
+  pid: number,
+  timeoutMs = MANAGED_PROCESS_STOP_TIMEOUT_MS,
+): Promise<boolean> => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (!isProcessAlive(pid)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return !isProcessAlive(pid);
+};
+
+const terminateManagedProcess = async (pid: number): Promise<void> => {
   if (!Number.isInteger(pid) || pid <= 0) {
     return;
   }
 
-  try {
-    if (process.platform !== "win32") {
-      process.kill(-pid, "SIGTERM");
-      return;
-    }
-  } catch {
-    // Fall through to direct kill below.
+  if (!isProcessAlive(pid)) {
+    return;
   }
 
-  try {
-    process.kill(pid, "SIGTERM");
-  } catch {
-    // Best effort only.
+  if (process.platform === "win32") {
+    runCommandResult({
+      command: "taskkill",
+      args: ["/PID", String(pid), "/T", "/F"],
+      cwd: process.cwd(),
+    });
+  } else {
+    try {
+      process.kill(-pid, "SIGTERM");
+    } catch {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {
+        // The process may have exited between inspection and signaling.
+      }
+    }
+  }
+
+  if (!(await waitForProcessExit(pid))) {
+    if (process.platform !== "win32") {
+      try {
+        process.kill(-pid, "SIGKILL");
+      } catch {
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch {
+          // Report the authoritative terminal check below.
+        }
+      }
+    }
+    if (!(await waitForProcessExit(pid, 2_000))) {
+      throw new Error(`Managed Air Jam dev process ${pid} did not terminate.`);
+    }
   }
 };
 
@@ -761,15 +804,38 @@ export const startDev = async ({
   const logPath = getManagedProcessLogPath(context.rootDir, processId);
   await mkdir(path.dirname(logPath), { recursive: true });
   const logFd = openSync(logPath, "a");
-  const child = crossSpawn(startCommand.command, startCommand.args, {
-    cwd: context.rootDir,
-    detached: process.platform !== "win32",
-    stdio: ["ignore", logFd, logFd],
-    env: {
-      ...process.env,
-      CI: process.env.CI ?? "1",
-      NO_UPDATE_NOTIFIER: "1",
+  const supervisorPath = resolveDevtoolsHelperScript(
+    "managed-dev-supervisor.ts",
+  );
+  const supervisorDescriptor = Buffer.from(
+    JSON.stringify({
+      command: startCommand.command,
+      args: startCommand.args,
+      cwd: context.rootDir,
+    }),
+    "utf8",
+  ).toString("base64url");
+  const child = crossSpawn(
+    process.execPath,
+    [...resolveDevtoolsHelperArgs(supervisorPath), supervisorDescriptor],
+    {
+      cwd: context.rootDir,
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+      env: {
+        ...process.env,
+        CI: process.env.CI ?? "1",
+        NO_UPDATE_NOTIFIER: "1",
+      },
     },
+  );
+  const childExited = new Promise<{
+    code: number | null;
+    signal: NodeJS.Signals | null;
+  }>((resolve) => {
+    child.once("exit", (code, signal) => {
+      resolve({ code, signal });
+    });
   });
   try {
     await new Promise<void>((resolve, reject) => {
@@ -809,14 +875,23 @@ export const startDev = async ({
       mode,
       secure,
     });
-    await waitForTopologyReady({ topology });
+    await Promise.race([
+      waitForTopologyReady({ topology }),
+      childExited.then(({ code, signal }) => {
+        throw new Error(
+          signal
+            ? `Managed dev supervisor exited from signal ${signal}.`
+            : `Managed dev supervisor exited with code ${code ?? "unknown"}.`,
+        );
+      }),
+    ]);
     return {
       process: managedProcess,
       reusedExistingProcess: false,
       topology,
     };
   } catch (error) {
-    killManagedProcess(managedProcess.pid);
+    await terminateManagedProcess(managedProcess.pid);
     await writeRegistry(context.rootDir, {
       schemaVersion: DEVTOOLS_SCHEMA_VERSION,
       processes: [],
@@ -848,7 +923,7 @@ export const stopDev = async ({
   });
 
   for (const processInfo of selected) {
-    killManagedProcess(processInfo.pid);
+    await terminateManagedProcess(processInfo.pid);
   }
 
   const remaining = processes.filter(
@@ -882,7 +957,7 @@ export const resetLocalDev = async ({
     if (!isLikelyAirJamLocalDevCommand(processInfo.command)) {
       continue;
     }
-    killManagedProcess(processInfo.pid);
+    await terminateManagedProcess(processInfo.pid);
     stoppedUnmanaged.push(processInfo);
   }
 
