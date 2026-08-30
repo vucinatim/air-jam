@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,31 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-08-30 - Durable Release Work Gained PostgreSQL Authority
+
+- added separate artifact-processing, browser-validation, and image-moderation
+  job kinds with source-owned queue, concurrency, lease, deadline, attempt, and
+  retry bounds
+- added creator/game/release scope integrity, one-active-resource exclusion,
+  append-only revisioned events, fenced claims and heartbeats, bounded retry,
+  cooperative cancellation, replay lineage, and expired-lease recovery
+- replaced scattered event/job idempotency with one global immutable command
+  ledger, including stable replay for empty repair batches and cross-kind races
+- made PostgreSQL time authoritative for production leases, capped leases at
+  absolute deadlines, synchronized claims with persisted lane pause, and
+  separated redacted operator projections from lease-bearing worker records
+- enforced same-release check provenance and deterministic cascade semantics
+  in PostgreSQL rather than trusting application joins
+- exposed policy, queue status, list, inspect, cancel, replay, and repair through
+  the canonical preview-first repo CLI
+- proved all migrations through `0026`, twenty-three focused policy/PostgreSQL tests,
+  and five CLI contracts on a fresh native cluster, including a real
+  database-backed secret-redaction proof
+- kept release adapters off the queue until immutable upload generations and
+  attempt-scoped outputs make R2 side effects safe under crash/replay
+- kept concurrent-job quota authority unavailable until legacy synchronous work
+  is fully removed rather than falsely counting only the new table
 
 ## 2026-08-29 - Free-Cloud Quotas Became Authoritative And Observable
 

@@ -113,6 +113,53 @@ export const operationalQuotaWindowValues = [
 export type OperationalQuotaWindow =
   (typeof operationalQuotaWindowValues)[number];
 
+export const operationalJobKindValues = [
+  "release_artifact_processing",
+  "release_browser_validation",
+  "release_image_moderation",
+] as const;
+
+export type OperationalJobKind = (typeof operationalJobKindValues)[number];
+
+export const operationalJobStatusValues = [
+  "queued",
+  "running",
+  "cancel_requested",
+  "succeeded",
+  "failed",
+  "canceled",
+] as const;
+
+export type OperationalJobStatus = (typeof operationalJobStatusValues)[number];
+
+export const operationalJobEventKindValues = [
+  "enqueued",
+  "claimed",
+  "stage_recorded",
+  "retry_scheduled",
+  "cancel_requested",
+  "canceled",
+  "succeeded",
+  "failed",
+  "lease_recovered",
+  "replayed",
+] as const;
+
+export type OperationalJobEventKind =
+  (typeof operationalJobEventKindValues)[number];
+
+export const operationalJobCommandKindValues = [
+  "enqueue",
+  "cancel",
+  "replay",
+  "repair_expired",
+] as const;
+
+export type OperationalJobCommandKind =
+  (typeof operationalJobCommandKindValues)[number];
+
+export const operationalJobContractVersion = 1 as const;
+
 export type OperationalQuotaPolicySnapshot = {
   key: OperationalQuotaKey;
   scopeKind: OperationalQuotaScopeKind;

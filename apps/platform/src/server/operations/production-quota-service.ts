@@ -415,7 +415,7 @@ const loadOperationalQuotaUsageForValidatedScope = async ({
         scopeId,
         observedAt: now,
         reason:
-          "Durable release jobs are not installed yet; request-lifetime work is not valid concurrency authority.",
+          "Durable release job authority exists, but release adapters still perform request-lifetime work; mixed execution paths are not valid concurrency authority.",
       });
     case "creator_concurrent_rooms":
     case "game_concurrent_rooms":
