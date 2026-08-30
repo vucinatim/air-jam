@@ -40,13 +40,16 @@ export const verifyMcpStdioHandshake = async ({
       new Error(`${label} failed to start: ${error.message}`, { cause: error }),
     );
   });
-  child.once("exit", (code, signal) => {
+  child.once("close", (code, signal) => {
     if (shuttingDown) return;
+    const details = stderr.trim();
     fail(
       new Error(
-        signal
-          ? `${label} exited unexpectedly from signal ${signal}.`
-          : `${label} exited unexpectedly with code ${code}.`,
+        `${
+          signal
+            ? `${label} exited unexpectedly from signal ${signal}.`
+            : `${label} exited unexpectedly with code ${code}.`
+        }${details ? `\n${details}` : ""}`,
       ),
     );
   });

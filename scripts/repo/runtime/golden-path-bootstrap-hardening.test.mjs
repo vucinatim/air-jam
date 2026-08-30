@@ -76,6 +76,27 @@ test("MCP protocol probe rejects non-JSON stdout without crashing", async () => 
   );
 });
 
+test("MCP protocol probe preserves bounded stderr when a candidate exits", async () => {
+  const fakeServer = [
+    'process.stderr.write("candidate startup diagnostic\\n");',
+    "process.exit(7);",
+  ].join("\n");
+
+  await assert.rejects(
+    verifyMcpStdioHandshake({
+      cwd: process.cwd(),
+      env: process.env,
+      command: process.execPath,
+      args: ["--input-type=module", "--eval", fakeServer],
+      clientInfo: { name: "test-client", version: "1.0.0" },
+      label: "Fake MCP server",
+      requestTimeoutMs: 1_000,
+      shutdownTimeoutMs: 100,
+    }),
+    /exited unexpectedly with code 7\.\ncandidate startup diagnostic/u,
+  );
+});
+
 test("workspace package build lock wait is bounded", async () => {
   const runRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "airjam-workspace-build-lock-test-"),

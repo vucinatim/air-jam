@@ -46,7 +46,7 @@ await build({
   sourcemap: true,
   platform: "node",
   target: "es2022",
-  external: ["playwright-core"],
+  external: ["cross-spawn", "playwright-core"],
   noExternal: [
     "@air-jam/devtools-core",
     "@air-jam/harness",
