@@ -1,8 +1,10 @@
 export {
   enqueueOperationalJob,
+  enqueueOperationalJobInTransaction,
   previewOperationalJobCancellation,
   replayOperationalJob,
   requestOperationalJobCancellation,
+  supersedeOperationalJobsForGenerationInTransaction,
   type EnqueueOperationalJobInput,
 } from "./operational-job-commands";
 export {
@@ -23,6 +25,7 @@ export {
 export {
   claimOperationalJob,
   completeOperationalJob,
+  completeOperationalJobInTransaction,
   failOperationalJobAttempt,
   heartbeatOperationalJob,
   recordOperationalJobStage,

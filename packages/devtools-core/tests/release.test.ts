@@ -387,10 +387,8 @@ describe("local release tooling", () => {
     };
     const generation = ({
       status,
-      observed = false,
     }: {
-      status: "awaiting_upload" | "ready";
-      observed?: boolean;
+      status: "awaiting_upload" | "processing" | "ready";
     }) => ({
       id: "gen_1",
       releaseId: "rel_1",
@@ -399,29 +397,55 @@ describe("local release tooling", () => {
       originalFilename: path.basename(bundled.outputFile),
       contentType: "application/zip",
       declaredSizeBytes: 123,
-      observedSizeBytes: observed ? 123 : null,
-      observedContentType: observed ? "application/zip" : null,
-      observedEtag: observed ? '"etag-1"' : null,
-      observedLastModifiedAt: observed ? "2026-04-25T10:05:00.000Z" : null,
-      extractedSizeBytes: observed ? 456 : null,
-      fileCount: observed ? 3 : null,
-      entryPath: observed ? "index.html" : null,
-      contentHash: observed ? "hash" : null,
+      observedSizeBytes: status === "awaiting_upload" ? null : 123,
+      observedContentType:
+        status === "awaiting_upload" ? null : "application/zip",
+      observedEtag: status === "awaiting_upload" ? null : '"etag-1"',
+      observedLastModifiedAt:
+        status === "awaiting_upload" ? null : "2026-04-25T10:05:00.000Z",
+      extractedSizeBytes: status === "ready" ? 456 : null,
+      fileCount: status === "ready" ? 3 : null,
+      entryPath: status === "ready" ? "index.html" : null,
+      contentHash: status === "ready" ? "hash" : null,
       createdAt: "2026-04-25T10:01:00.000Z",
-      uploadObservedAt: observed ? "2026-04-25T10:05:00.000Z" : null,
-      processingStartedAt: observed ? "2026-04-25T10:05:30.000Z" : null,
-      readyAt: observed ? "2026-04-25T10:06:00.000Z" : null,
+      uploadObservedAt:
+        status === "awaiting_upload" ? null : "2026-04-25T10:05:00.000Z",
+      processingStartedAt:
+        status === "awaiting_upload" ? null : "2026-04-25T10:05:30.000Z",
+      readyAt: status === "ready" ? "2026-04-25T10:06:00.000Z" : null,
       failedAt: null,
       abandonedAt: null,
+    });
+    const processingJob = ({ status }: { status: "queued" | "succeeded" }) => ({
+      id: "job_1",
+      kind: "release_artifact_processing" as const,
+      status,
+      releaseId: "rel_1",
+      generationId: "gen_1",
+      correlationId: "release:rel_1:generation:gen_1",
+      attemptCount: status === "succeeded" ? 1 : 0,
+      maxAttempts: 3,
+      progressStage: status === "succeeded" ? "completed" : null,
+      progressMessage: null,
+      lastErrorCode: null,
+      lastErrorRetryable: null,
+      availableAt: "2026-04-25T10:05:00.000Z",
+      deadlineAt: "2026-04-25T10:15:00.000Z",
+      createdAt: "2026-04-25T10:05:00.000Z",
+      startedAt: status === "succeeded" ? "2026-04-25T10:05:10.000Z" : null,
+      finishedAt: status === "succeeded" ? "2026-04-25T10:06:00.000Z" : null,
+      updatedAt: "2026-04-25T10:06:00.000Z",
     });
     const release = ({
       status,
       generation: releaseGeneration = null,
       promoted = false,
+      jobs = [],
     }: {
-      status: "draft" | "uploading" | "ready" | "live";
+      status: "draft" | "uploading" | "checking" | "ready" | "live";
       generation?: ReturnType<typeof generation> | null;
       promoted?: boolean;
+      jobs?: Array<ReturnType<typeof processingJob>>;
     }) => ({
       id: "rel_1",
       gameId: "game_1",
@@ -441,6 +465,7 @@ describe("local release tooling", () => {
       promotedGeneration: promoted ? releaseGeneration : null,
       generations: releaseGeneration ? [releaseGeneration] : [],
       checks: [],
+      jobs,
       reports: [],
       hostUrl:
         status === "ready" || status === "live"
@@ -452,7 +477,11 @@ describe("local release tooling", () => {
           : null,
     });
     const awaitingGeneration = generation({ status: "awaiting_upload" });
-    const readyGeneration = generation({ status: "ready", observed: true });
+    const processingGeneration = generation({ status: "processing" });
+    const readyGeneration = generation({ status: "ready" });
+    const queuedJob = processingJob({ status: "queued" });
+    const succeededJob = processingJob({ status: "succeeded" });
+    let inspectionCount = 0;
 
     const fetchMock = vi.fn(async (input, init) => {
       const url = String(input);
@@ -511,10 +540,39 @@ describe("local release tooling", () => {
         return new Response(
           JSON.stringify({
             release: release({
+              status: "checking",
+              generation: processingGeneration,
+              jobs: [queuedJob],
+            }),
+            generation: processingGeneration,
+            job: queuedJob,
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "https://platform.airjam.test/api/cli/releases/rel_1") {
+        expect(init?.method).toBe("GET");
+        inspectionCount += 1;
+        if (inspectionCount === 1) {
+          return new Response(
+            JSON.stringify({
+              release: release({
+                status: "checking",
+                generation: readyGeneration,
+                jobs: [succeededJob],
+              }),
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            release: release({
               status: "ready",
               generation: readyGeneration,
+              jobs: [succeededJob],
             }),
-            generation: readyGeneration,
           }),
           { status: 200 },
         );
@@ -546,13 +604,17 @@ describe("local release tooling", () => {
       slugOrId: "pong",
       versionLabel: "v1",
       bundlePath: bundled.outputFile,
+      processingPollIntervalMs: 1,
       publish: true,
     });
 
     expect(result.createdRelease.status).toBe("draft");
     expect(result.createdGeneration).toEqual(awaitingGeneration);
-    expect(result.finalizedRelease.status).toBe("ready");
-    expect(result.finalizedGeneration).toEqual(readyGeneration);
+    expect(result.submittedRelease.status).toBe("checking");
+    expect(result.submittedGeneration).toEqual(processingGeneration);
+    expect(result.processingJob).toEqual(queuedJob);
+    expect(result.processedRelease?.status).toBe("ready");
     expect(result.publishedRelease?.status).toBe("live");
+    expect(inspectionCount).toBe(2);
   });
 });

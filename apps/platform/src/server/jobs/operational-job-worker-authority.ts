@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { operationalJobs } from "@/db/schema";
+import { operationalJobAttempts, operationalJobs } from "@/db/schema";
 import { acquireOperationalLaneLock } from "@/server/operations/operational-lane-lock";
 import {
   operationalJobContractVersion,
@@ -30,6 +30,7 @@ import {
   getOperationalJobPolicy,
   type OperationalJobPolicy,
 } from "./operational-job-policy";
+import { applyReleaseJobTerminalState } from "./release-job-terminal-state";
 
 const activeLeaseStatuses: OperationalJobStatus[] = [
   "running",
@@ -85,7 +86,7 @@ export const claimOperationalJob = async ({
   workerId: string;
   /** Deterministic PostgreSQL contract-test seam. Production callers omit it. */
   now?: Date;
-}): Promise<OperationalJob | null> => {
+}): Promise<(OperationalJob & { attemptId: string }) | null> => {
   const workerId = normalizeRequiredJobText(rawWorkerId, "Worker ID");
   const policy = getOperationalJobPolicy(kind);
   return database.transaction(async (tx) => {
@@ -142,6 +143,7 @@ export const claimOperationalJob = async ({
     if (!selected) return null;
 
     const leaseToken = crypto.randomUUID();
+    const attemptId = crypto.randomUUID();
     const leaseExpiresAt = capLeaseAtDeadline({
       now: authorityNow,
       leaseSeconds: policy.leaseSeconds,
@@ -171,6 +173,26 @@ export const claimOperationalJob = async ({
       )
       .returning();
     if (!claimed) return null;
+    const [attempt] = await tx
+      .insert(operationalJobAttempts)
+      .values({
+        id: attemptId,
+        jobId: claimed.id,
+        releaseId: claimed.releaseId,
+        generationId: claimed.generationId,
+        attempt: claimed.attemptCount,
+        status: "running",
+        leaseOwner: workerId,
+        leaseToken,
+        startedAt: authorityNow,
+        lastHeartbeatAt: authorityNow,
+        createdAt: authorityNow,
+        updatedAt: authorityNow,
+      })
+      .returning();
+    if (!attempt) {
+      throw new Error("Operational job attempt could not be persisted.");
+    }
     await insertOperationalJobEvent({
       tx,
       job: claimed,
@@ -181,9 +203,12 @@ export const claimOperationalJob = async ({
       toStatus: "running",
       actor: workerId,
       reason: "Worker claimed the next dependency-ready job.",
-      details: { leaseExpiresAt: leaseExpiresAt.toISOString() },
+      details: {
+        attemptId,
+        leaseExpiresAt: leaseExpiresAt.toISOString(),
+      },
     });
-    return claimed;
+    return { ...claimed, attemptId };
   });
 };
 
@@ -209,26 +234,96 @@ const assertFreshLease = (
   return job;
 };
 
+export const assertOperationalJobAttemptAuthority = async ({
+  tx,
+  jobId,
+  leaseToken,
+  workerId: rawWorkerId,
+  expectedKind,
+  expectedGenerationId,
+  now: testNow,
+}: {
+  tx: JobTransaction;
+  jobId: string;
+  leaseToken: string;
+  workerId: string;
+  expectedKind?: OperationalJobKind;
+  expectedGenerationId?: string;
+  /** Deterministic PostgreSQL contract-test seam. Production callers omit it. */
+  now?: Date;
+}) => {
+  const workerId = normalizeRequiredJobText(rawWorkerId, "Worker ID");
+  const [current] = await tx
+    .select()
+    .from(operationalJobs)
+    .where(eq(operationalJobs.id, jobId))
+    .for("update");
+  const authorityNow = await resolveOperationalJobNow(tx, testNow);
+  const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
+  if (job.status !== "running") {
+    throw new OperationalJobLeaseError(
+      "Cancel-requested work cannot commit domain mutations.",
+    );
+  }
+  if (expectedKind && job.kind !== expectedKind) {
+    throw new OperationalJobLeaseError(
+      `Job kind ${job.kind} does not match executor kind ${expectedKind}.`,
+    );
+  }
+  if (expectedGenerationId && job.generationId !== expectedGenerationId) {
+    throw new OperationalJobLeaseError(
+      "Job generation does not match executor generation.",
+    );
+  }
+
+  const [attempt] = await tx
+    .select()
+    .from(operationalJobAttempts)
+    .where(
+      and(
+        eq(operationalJobAttempts.jobId, job.id),
+        eq(operationalJobAttempts.attempt, job.attemptCount),
+        eq(operationalJobAttempts.leaseToken, leaseToken),
+      ),
+    )
+    .for("update");
+  if (
+    !attempt ||
+    attempt.status !== "running" ||
+    attempt.leaseOwner !== workerId ||
+    attempt.generationId !== job.generationId
+  ) {
+    throw new OperationalJobLeaseError(
+      "Job attempt is missing, stale, or owned by another worker identity.",
+    );
+  }
+
+  return { authorityNow, job, attempt } as const;
+};
+
 export const heartbeatOperationalJob = async ({
   database = db,
   jobId,
   leaseToken,
+  workerId: rawWorkerId,
   now: testNow,
 }: {
   database?: JobDatabase;
   jobId: string;
   leaseToken: string;
+  workerId: string;
   /** Deterministic PostgreSQL contract-test seam. Production callers omit it. */
   now?: Date;
-}) =>
-  database.transaction(async (tx) => {
+}) => {
+  const workerId = normalizeRequiredJobText(rawWorkerId, "Worker ID");
+  return database.transaction(async (tx) => {
     const [current] = await tx
       .select()
       .from(operationalJobs)
       .where(eq(operationalJobs.id, jobId))
       .for("update");
     const authorityNow = await resolveOperationalJobNow(tx, testNow);
-    const job = assertFreshLease(current, leaseToken, authorityNow);
+    const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
     const policy = getOperationalJobPolicy(job.kind);
     const leaseExpiresAt = capLeaseAtDeadline({
       now: authorityNow,
@@ -255,14 +350,38 @@ export const heartbeatOperationalJob = async ({
     if (!updated) {
       throw new OperationalJobLeaseError("Job lease heartbeat lost its fence.");
     }
+    const [attempt] = await tx
+      .update(operationalJobAttempts)
+      .set({
+        lastHeartbeatAt: authorityNow,
+        updatedAt: authorityNow,
+      })
+      .where(
+        and(
+          eq(operationalJobAttempts.jobId, job.id),
+          eq(operationalJobAttempts.attempt, job.attemptCount),
+          eq(operationalJobAttempts.leaseToken, leaseToken),
+          eq(operationalJobAttempts.leaseOwner, workerId),
+          eq(operationalJobAttempts.status, "running"),
+        ),
+      )
+      .returning();
+    if (!attempt) {
+      throw new OperationalJobLeaseError(
+        "Job attempt heartbeat lost its fence.",
+      );
+    }
     return updated;
   });
+};
 
 export const recordOperationalJobStage = async ({
   database = db,
   jobId,
   leaseToken,
   progress,
+  outputRootKey: rawOutputRootKey,
+  outputManifest,
   workerId: rawWorkerId,
   reason: rawReason,
   now: testNow,
@@ -271,6 +390,8 @@ export const recordOperationalJobStage = async ({
   jobId: string;
   leaseToken: string;
   progress: Record<string, unknown>;
+  outputRootKey?: string;
+  outputManifest?: Record<string, unknown>;
   workerId: string;
   reason: string;
   /** Deterministic PostgreSQL contract-test seam. Production callers omit it. */
@@ -282,6 +403,21 @@ export const recordOperationalJobStage = async ({
     progress,
     "Progress",
   );
+  const normalizedOutputRootKey = rawOutputRootKey
+    ? normalizeRequiredJobText(rawOutputRootKey, "Output root key")
+    : null;
+  if (
+    normalizedOutputRootKey &&
+    (normalizedOutputRootKey.startsWith("/") ||
+      normalizedOutputRootKey.includes(".."))
+  ) {
+    throw new OperationalJobConflictError(
+      "Output root key must be relative and cannot traverse.",
+    );
+  }
+  const normalizedOutputManifest = outputManifest
+    ? normalizeOperationalJobJsonObject(outputManifest, "Output manifest")
+    : null;
   return database.transaction(async (tx) => {
     const [current] = await tx
       .select()
@@ -290,6 +426,11 @@ export const recordOperationalJobStage = async ({
       .for("update");
     const authorityNow = await resolveOperationalJobNow(tx, testNow);
     const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
+    if (job.status !== "running") {
+      throw new OperationalJobLeaseError(
+        "Cancel-requested work cannot record additional stages.",
+      );
+    }
     const nextRevision = job.revision + 1;
     const [updated] = await tx
       .update(operationalJobs)
@@ -311,6 +452,54 @@ export const recordOperationalJobStage = async ({
     if (!updated) {
       throw new OperationalJobLeaseError("Job stage update lost its fence.");
     }
+    const [currentAttempt] = await tx
+      .select()
+      .from(operationalJobAttempts)
+      .where(
+        and(
+          eq(operationalJobAttempts.jobId, job.id),
+          eq(operationalJobAttempts.attempt, job.attemptCount),
+          eq(operationalJobAttempts.leaseToken, leaseToken),
+          eq(operationalJobAttempts.leaseOwner, workerId),
+          eq(operationalJobAttempts.status, "running"),
+        ),
+      )
+      .for("update");
+    if (!currentAttempt) {
+      throw new OperationalJobLeaseError("Job attempt stage lost its fence.");
+    }
+    if (
+      normalizedOutputRootKey &&
+      currentAttempt.outputRootKey &&
+      currentAttempt.outputRootKey !== normalizedOutputRootKey
+    ) {
+      throw new OperationalJobConflictError(
+        "A job attempt cannot change its output root.",
+      );
+    }
+
+    const [attempt] = await tx
+      .update(operationalJobAttempts)
+      .set({
+        progress: normalizedProgress,
+        outputRootKey: normalizedOutputRootKey ?? currentAttempt.outputRootKey,
+        outputManifest:
+          normalizedOutputManifest ?? currentAttempt.outputManifest,
+        lastHeartbeatAt: authorityNow,
+        updatedAt: authorityNow,
+      })
+      .where(
+        and(
+          eq(operationalJobAttempts.jobId, job.id),
+          eq(operationalJobAttempts.attempt, job.attemptCount),
+          eq(operationalJobAttempts.leaseToken, leaseToken),
+          eq(operationalJobAttempts.leaseOwner, workerId),
+          eq(operationalJobAttempts.status, "running"),
+        ),
+      )
+      .returning();
+    if (!attempt)
+      throw new OperationalJobLeaseError("Job attempt stage lost its fence.");
     await insertOperationalJobEvent({
       tx,
       job: updated,
@@ -327,16 +516,7 @@ export const recordOperationalJobStage = async ({
   });
 };
 
-export const completeOperationalJob = async ({
-  database = db,
-  jobId,
-  leaseToken,
-  result,
-  workerId: rawWorkerId,
-  reason: rawReason,
-  now: testNow,
-}: {
-  database?: JobDatabase;
+type CompleteOperationalJobInput = {
   jobId: string;
   leaseToken: string;
   result: Record<string, unknown>;
@@ -344,67 +524,108 @@ export const completeOperationalJob = async ({
   reason: string;
   /** Deterministic PostgreSQL contract-test seam. Production callers omit it. */
   now?: Date;
-}) => {
+};
+
+export const completeOperationalJobInTransaction = async ({
+  tx,
+  jobId,
+  leaseToken,
+  result,
+  workerId: rawWorkerId,
+  reason: rawReason,
+  now: testNow,
+}: CompleteOperationalJobInput & { tx: JobTransaction }) => {
   const workerId = normalizeRequiredJobText(rawWorkerId, "Worker ID");
   const reason = normalizeRequiredJobText(rawReason, "Reason");
   const normalizedResult = normalizeOperationalJobJsonObject(result, "Result");
-  return database.transaction(async (tx) => {
-    const [current] = await tx
-      .select()
-      .from(operationalJobs)
-      .where(eq(operationalJobs.id, jobId))
-      .for("update");
-    const authorityNow = await resolveOperationalJobNow(tx, testNow);
-    const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
-    if (job.status === "cancel_requested") {
-      throw new OperationalJobLeaseError(
-        "Canceled work cannot be completed as successful.",
-      );
-    }
-    const nextRevision = job.revision + 1;
-    const [updated] = await tx
-      .update(operationalJobs)
-      .set({
-        status: "succeeded",
-        result: normalizedResult,
-        lastError: null,
-        revision: nextRevision,
-        leaseOwner: null,
-        leaseToken: null,
-        leaseExpiresAt: null,
-        lastHeartbeatAt: authorityNow,
-        finishedAt: authorityNow,
-        updatedAt: authorityNow,
-      })
-      .where(
-        and(
-          eq(operationalJobs.id, job.id),
-          eq(operationalJobs.status, "running"),
-          eq(operationalJobs.leaseToken, leaseToken),
-          eq(operationalJobs.revision, job.revision),
-          gt(operationalJobs.leaseExpiresAt, authorityNow),
-          gt(operationalJobs.deadlineAt, authorityNow),
-        ),
-      )
-      .returning();
-    if (!updated) {
-      throw new OperationalJobLeaseError("Job completion lost its fence.");
-    }
-    await insertOperationalJobEvent({
-      tx,
-      job: updated,
-      kind: "succeeded",
-      expectedRevision: job.revision,
-      nextRevision,
-      fromStatus: "running",
-      toStatus: "succeeded",
-      actor: workerId,
-      reason,
-      details: { result: normalizedResult },
-    });
-    return updated;
+  const [current] = await tx
+    .select()
+    .from(operationalJobs)
+    .where(eq(operationalJobs.id, jobId))
+    .for("update");
+  const authorityNow = await resolveOperationalJobNow(tx, testNow);
+  const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
+  if (job.status === "cancel_requested") {
+    throw new OperationalJobLeaseError(
+      "Canceled work cannot be completed as successful.",
+    );
+  }
+  const nextRevision = job.revision + 1;
+  const [updated] = await tx
+    .update(operationalJobs)
+    .set({
+      status: "succeeded",
+      result: normalizedResult,
+      lastError: null,
+      revision: nextRevision,
+      leaseOwner: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+      lastHeartbeatAt: authorityNow,
+      finishedAt: authorityNow,
+      updatedAt: authorityNow,
+    })
+    .where(
+      and(
+        eq(operationalJobs.id, job.id),
+        eq(operationalJobs.status, "running"),
+        eq(operationalJobs.leaseToken, leaseToken),
+        eq(operationalJobs.revision, job.revision),
+        gt(operationalJobs.leaseExpiresAt, authorityNow),
+        gt(operationalJobs.deadlineAt, authorityNow),
+      ),
+    )
+    .returning();
+  if (!updated) {
+    throw new OperationalJobLeaseError("Job completion lost its fence.");
+  }
+  const [attempt] = await tx
+    .update(operationalJobAttempts)
+    .set({
+      status: "succeeded",
+      result: normalizedResult,
+      lastError: null,
+      lastHeartbeatAt: authorityNow,
+      finishedAt: authorityNow,
+      updatedAt: authorityNow,
+    })
+    .where(
+      and(
+        eq(operationalJobAttempts.jobId, job.id),
+        eq(operationalJobAttempts.attempt, job.attemptCount),
+        eq(operationalJobAttempts.leaseToken, leaseToken),
+        eq(operationalJobAttempts.leaseOwner, workerId),
+        eq(operationalJobAttempts.status, "running"),
+      ),
+    )
+    .returning();
+  if (!attempt) {
+    throw new OperationalJobLeaseError(
+      "Job attempt completion lost its fence.",
+    );
+  }
+  await insertOperationalJobEvent({
+    tx,
+    job: updated,
+    kind: "succeeded",
+    expectedRevision: job.revision,
+    nextRevision,
+    fromStatus: "running",
+    toStatus: "succeeded",
+    actor: workerId,
+    reason,
+    details: { result: normalizedResult },
   });
+  return updated;
 };
+
+export const completeOperationalJob = async ({
+  database = db,
+  ...input
+}: CompleteOperationalJobInput & { database?: JobDatabase }) =>
+  database.transaction((tx) =>
+    completeOperationalJobInTransaction({ tx, ...input }),
+  );
 
 const retryDelaySeconds = (
   policy: OperationalJobPolicy,
@@ -485,6 +706,35 @@ export const failOperationalJobAttempt = async ({
       .returning();
     if (!updated) {
       throw new OperationalJobLeaseError("Job failure update lost its fence.");
+    }
+    const [attempt] = await tx
+      .update(operationalJobAttempts)
+      .set({
+        status: canceled ? "canceled" : "failed",
+        lastError: normalizedError,
+        lastHeartbeatAt: authorityNow,
+        finishedAt: authorityNow,
+        updatedAt: authorityNow,
+      })
+      .where(
+        and(
+          eq(operationalJobAttempts.jobId, job.id),
+          eq(operationalJobAttempts.attempt, job.attemptCount),
+          eq(operationalJobAttempts.leaseToken, leaseToken),
+          eq(operationalJobAttempts.leaseOwner, workerId),
+          eq(operationalJobAttempts.status, "running"),
+        ),
+      )
+      .returning();
+    if (!attempt) {
+      throw new OperationalJobLeaseError("Job attempt failure lost its fence.");
+    }
+    if (!willRetry) {
+      await applyReleaseJobTerminalState({
+        tx,
+        job: updated,
+        now: authorityNow,
+      });
     }
     await insertOperationalJobEvent({
       tx,
@@ -618,6 +868,37 @@ export const repairExpiredOperationalJobs = async ({
         )
         .returning();
       if (!updated) continue;
+      if (activeLeaseStatuses.includes(job.status)) {
+        const [attempt] = await tx
+          .update(operationalJobAttempts)
+          .set({
+            status: canceled ? "canceled" : "lease_expired",
+            lastError: canceled ? job.lastError : plan.error,
+            lastHeartbeatAt: authorityNow,
+            finishedAt: authorityNow,
+            updatedAt: authorityNow,
+          })
+          .where(
+            and(
+              eq(operationalJobAttempts.jobId, job.id),
+              eq(operationalJobAttempts.attempt, job.attemptCount),
+              eq(operationalJobAttempts.status, "running"),
+            ),
+          )
+          .returning();
+        if (!attempt) {
+          throw new OperationalJobLeaseError(
+            `Expired job ${job.id} was missing its active attempt fence.`,
+          );
+        }
+      }
+      if (!willRetry) {
+        await applyReleaseJobTerminalState({
+          tx,
+          job: updated,
+          now: authorityNow,
+        });
+      }
       await insertOperationalJobEvent({
         tx,
         job: updated,

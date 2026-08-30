@@ -150,6 +150,8 @@ const RELEASE_SUBMIT_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
   distDir: z.string().optional(),
   bundle: z.string().optional(),
   skipBuild: z.boolean().optional(),
+  waitForProcessing: z.boolean().optional(),
+  processingTimeoutSeconds: z.number().int().min(1).max(3_600).optional(),
   publish: z.boolean().optional(),
 });
 
@@ -402,7 +404,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.release_finalize": {
       description:
-        "Finalize one exact immutable hosted release generation; use release inspection to recover the IDs after interruption.",
+        "Durably enqueue processing for one exact immutable hosted release generation and return its job; use release inspection to follow or recover it.",
       inputSchema: RELEASE_FINALIZE_INPUT_SCHEMA,
       run: async ({
         platformUrl,
@@ -419,7 +421,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.release_submit": {
       description:
-        "Bundle a standalone Air Jam game if needed, upload it as a hosted release draft, finalize it, and optionally publish it.",
+        "Bundle a standalone Air Jam game if needed, upload it as a hosted release draft, enqueue durable processing, optionally wait, and optionally publish after readiness.",
       inputSchema: RELEASE_SUBMIT_INPUT_SCHEMA,
       execution: {
         taskSupport: "required",
@@ -432,6 +434,8 @@ export const buildToolDefinitions = ({
         distDir,
         bundle,
         skipBuild,
+        waitForProcessing,
+        processingTimeoutSeconds,
         publish,
       }: z.infer<typeof RELEASE_SUBMIT_INPUT_SCHEMA>) =>
         withJsonText(
@@ -443,6 +447,10 @@ export const buildToolDefinitions = ({
             distDir,
             bundlePath: bundle,
             skipBuild,
+            waitForProcessing,
+            ...(processingTimeoutSeconds === undefined
+              ? {}
+              : { processingTimeoutMs: processingTimeoutSeconds * 1_000 }),
             publish,
           }),
         ),

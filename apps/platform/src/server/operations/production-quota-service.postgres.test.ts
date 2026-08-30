@@ -7,6 +7,11 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "../../db/schema";
 import {
+  claimOperationalJob,
+  enqueueOperationalJob,
+} from "../jobs/operational-job-service";
+import { createReleaseGenerationJobPayload } from "../jobs/release-job-contract";
+import {
   decideOperationalQuotaAdmissionWithDatabase,
   listOperationalQuotaUsage,
 } from "./production-quota-service";
@@ -219,6 +224,27 @@ describeWithPostgres("production quota PostgreSQL authority", () => {
       reason: "Prove authoritative quota reads",
       createdAt: now,
     });
+    await enqueueOperationalJob({
+      database,
+      kind: "release_browser_validation",
+      creatorId,
+      gameId: firstGameId,
+      releaseId: firstReleaseId,
+      generationId: firstGenerationId,
+      idempotencyKey: `quota-active-job-${suffix}`,
+      payload: createReleaseGenerationJobPayload({
+        generationId: firstGenerationId,
+      }),
+      actor: `test:quota-active-job:${suffix}`,
+      reason: "Prove live leased jobs are authoritative quota usage.",
+      now,
+    });
+    await claimOperationalJob({
+      database,
+      kind: "release_browser_validation",
+      workerId: `worker:quota:${suffix}`,
+      now,
+    });
   });
 
   afterAll(async () => {
@@ -237,6 +263,14 @@ describeWithPostgres("production quota PostgreSQL authority", () => {
     await database
       .delete(schema.games)
       .where(eq(schema.games.userId, creatorId));
+    await database
+      .delete(schema.operationalJobCommands)
+      .where(
+        eq(
+          schema.operationalJobCommands.actor,
+          `test:quota-active-job:${suffix}`,
+        ),
+      );
     await database.delete(schema.users).where(eq(schema.users.id, creatorId));
     await client.end();
   });
@@ -258,8 +292,8 @@ describeWithPostgres("production quota PostgreSQL authority", () => {
     expect(byKey.get("creator_browser_validations_day")?.current).toBe(1);
     expect(byKey.get("creator_room_seconds_30d")?.current).toBe(3_600);
     expect(byKey.get("creator_concurrent_release_jobs")).toMatchObject({
-      authorityStatus: "unavailable",
-      current: null,
+      authorityStatus: "available",
+      current: 1,
     });
     expect(byKey.get("creator_concurrent_rooms")).toMatchObject({
       authorityStatus: "unavailable",

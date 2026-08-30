@@ -816,6 +816,8 @@ const runReleaseSubmitCommand = async ({
   distDir,
   bundle,
   skipBuild = false,
+  waitForProcessing = false,
+  processingTimeoutSeconds,
   publish = false,
 }: {
   platformUrl?: string;
@@ -825,9 +827,18 @@ const runReleaseSubmitCommand = async ({
   distDir?: string;
   bundle?: string;
   skipBuild?: boolean;
+  waitForProcessing?: boolean;
+  processingTimeoutSeconds?: number;
   publish?: boolean;
 }) => {
   const resolvedCwd = path.resolve(dir || process.cwd());
+  if (
+    processingTimeoutSeconds !== undefined &&
+    (!Number.isSafeInteger(processingTimeoutSeconds) ||
+      processingTimeoutSeconds < 1)
+  ) {
+    throw new Error("--processing-timeout must be a positive integer.");
+  }
   let result;
 
   try {
@@ -839,6 +850,10 @@ const runReleaseSubmitCommand = async ({
       distDir,
       bundlePath: bundle,
       skipBuild,
+      waitForProcessing,
+      ...(processingTimeoutSeconds === undefined
+        ? {}
+        : { processingTimeoutMs: processingTimeoutSeconds * 1_000 }),
       publish,
     });
   } catch (error) {
@@ -869,11 +884,25 @@ const runReleaseSubmitCommand = async ({
     `Created generation: ${kleur.cyan(result.createdGeneration.id)} (#${result.createdGeneration.sequence})`,
   );
   console.log(
-    `Finalized generation: ${kleur.cyan(result.finalizedGeneration.id)} (${kleur.yellow(result.finalizedGeneration.status)})`,
+    `Submitted generation: ${kleur.cyan(result.submittedGeneration.id)} (${kleur.yellow(result.submittedGeneration.status)})`,
   );
   console.log(
-    `Release status: ${kleur.yellow(result.finalizedRelease.status)}`,
+    `Processing job: ${kleur.cyan(result.processingJob.id)} (${kleur.yellow(result.processingJob.status)})`,
   );
+  console.log(
+    `Release status: ${kleur.yellow(result.submittedRelease.status)}`,
+  );
+  if (result.processedRelease) {
+    console.log(
+      `Processing complete: ${kleur.cyan(result.processedRelease.id)} (${kleur.yellow(result.processedRelease.status)})`,
+    );
+  } else {
+    console.log(
+      kleur.dim(
+        `Inspect with: airjam release inspect --release ${result.submittedRelease.id}`,
+      ),
+    );
+  }
   if (result.publishedRelease) {
     console.log(
       `Published: ${kleur.cyan(result.publishedRelease.id)} (${kleur.yellow(result.publishedRelease.status)})`,
@@ -927,11 +956,19 @@ const runReleaseFinalizeCommand = async ({
     generationId,
   });
 
-  console.log(kleur.green("\n✓ Hosted release generation finalized\n"));
+  console.log(kleur.green("\n✓ Hosted release processing queued\n"));
   console.log(`Release: ${kleur.cyan(result.release.id)}`);
   console.log(`Release status: ${kleur.yellow(result.release.status)}`);
   console.log(
     `Generation: ${kleur.cyan(result.generation.id)} (${kleur.yellow(result.generation.status)})`,
+  );
+  console.log(
+    `Processing job: ${kleur.cyan(result.job.id)} (${kleur.yellow(result.job.status)})`,
+  );
+  console.log(
+    kleur.dim(
+      `Inspect with: airjam release inspect --release ${result.release.id}`,
+    ),
   );
 };
 
@@ -1452,7 +1489,21 @@ const buildProgram = () => {
       "Reuse the existing dist directory without building",
       false,
     )
-    .option("--publish", "Publish immediately after successful finalize", false)
+    .option(
+      "--wait",
+      "Wait for durable processing to reach a terminal generation state",
+      false,
+    )
+    .option(
+      "--processing-timeout <seconds>",
+      "Maximum processing wait; the durable job continues after a timeout",
+      (value) => Number(value),
+    )
+    .option(
+      "--publish",
+      "Wait for successful processing and publish the ready release",
+      false,
+    )
     .action(async (options: unknown) => {
       const resolved = resolveActionOptions<{
         platformUrl?: string;
@@ -1462,6 +1513,8 @@ const buildProgram = () => {
         distDir?: string;
         bundle?: string;
         skipBuild?: boolean;
+        wait?: boolean;
+        processingTimeout?: number;
         publish?: boolean;
       }>(options);
 
@@ -1473,6 +1526,8 @@ const buildProgram = () => {
         distDir: resolved.distDir,
         bundle: resolved.bundle,
         skipBuild: resolved.skipBuild,
+        waitForProcessing: resolved.wait,
+        processingTimeoutSeconds: resolved.processingTimeout,
         publish: resolved.publish,
       });
     });

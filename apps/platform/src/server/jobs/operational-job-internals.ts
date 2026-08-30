@@ -1,10 +1,12 @@
 import { db } from "@/db";
 import {
+  operationalJobAttempts,
   operationalJobCommands,
   operationalJobEvents,
   operationalJobs,
 } from "@/db/schema";
 import {
+  OperationalJobAttemptStatus,
   OperationalJobCommandKind,
   operationalJobContractVersion,
   OperationalJobEventKind,
@@ -21,6 +23,7 @@ export type JobTransaction = Parameters<
 export type OperationalJob = typeof operationalJobs.$inferSelect;
 export type OperationalJobCommand = typeof operationalJobCommands.$inferSelect;
 export type OperationalJobEvent = typeof operationalJobEvents.$inferSelect;
+export type OperationalJobAttempt = typeof operationalJobAttempts.$inferSelect;
 
 export type OperationalJobOperatorSnapshot = {
   id: string;
@@ -31,6 +34,7 @@ export type OperationalJobOperatorSnapshot = {
   creatorId: string;
   gameId: string;
   releaseId: string;
+  generationId: string;
   correlationId: string;
   replayOfJobId: string | null;
   priority: number;
@@ -54,6 +58,30 @@ export type OperationalJobOperatorSnapshot = {
     hasProgress: boolean;
     hasResult: boolean;
     hasLastError: boolean;
+  };
+  lastErrorCode: string | null;
+};
+
+export type OperationalJobAttemptOperatorSnapshot = {
+  id: string;
+  jobId: string;
+  releaseId: string;
+  generationId: string;
+  attempt: number;
+  status: OperationalJobAttemptStatus;
+  leaseOwner: string;
+  startedAt: string;
+  lastHeartbeatAt: string;
+  finishedAt: string | null;
+  outputCleanedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  privateData: {
+    hasProgress: boolean;
+    hasResult: boolean;
+    hasLastError: boolean;
+    hasOutputRoot: boolean;
+    hasOutputManifest: boolean;
   };
   lastErrorCode: string | null;
 };
@@ -224,6 +252,7 @@ export const serializeOperationalJobForOperator = (
   creatorId: job.creatorId,
   gameId: job.gameId,
   releaseId: job.releaseId,
+  generationId: job.generationId,
   correlationId: job.correlationId,
   replayOfJobId: job.replayOfJobId,
   priority: job.priority,
@@ -253,6 +282,37 @@ export const serializeOperationalJobForOperator = (
     typeof job.lastError.code === "string" &&
     /^[a-z][a-z0-9_]{0,63}$/u.test(job.lastError.code)
       ? job.lastError.code
+      : null,
+});
+
+export const serializeOperationalJobAttemptForOperator = (
+  attempt: OperationalJobAttempt,
+): OperationalJobAttemptOperatorSnapshot => ({
+  id: attempt.id,
+  jobId: attempt.jobId,
+  releaseId: attempt.releaseId,
+  generationId: attempt.generationId,
+  attempt: attempt.attempt,
+  status: attempt.status,
+  leaseOwner: attempt.leaseOwner,
+  startedAt: attempt.startedAt.toISOString(),
+  lastHeartbeatAt: attempt.lastHeartbeatAt.toISOString(),
+  finishedAt: attempt.finishedAt?.toISOString() ?? null,
+  outputCleanedAt: attempt.outputCleanedAt?.toISOString() ?? null,
+  createdAt: attempt.createdAt.toISOString(),
+  updatedAt: attempt.updatedAt.toISOString(),
+  privateData: {
+    hasProgress: Object.keys(attempt.progress).length > 0,
+    hasResult: attempt.result !== null,
+    hasLastError: attempt.lastError !== null,
+    hasOutputRoot: attempt.outputRootKey !== null,
+    hasOutputManifest: attempt.outputManifest !== null,
+  },
+  lastErrorCode:
+    attempt.lastError &&
+    typeof attempt.lastError.code === "string" &&
+    /^[a-z][a-z0-9_]{0,63}$/u.test(attempt.lastError.code)
+      ? attempt.lastError.code
       : null,
 });
 

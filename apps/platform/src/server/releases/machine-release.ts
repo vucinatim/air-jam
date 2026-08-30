@@ -88,6 +88,26 @@ export const serializeReleaseForMachine = (release: ReleaseDetails) => {
       summary: check.summary ?? null,
       createdAt: check.createdAt.toISOString(),
     })),
+    jobs: release.jobs.map((job) => ({
+      id: job.id,
+      kind: job.kind,
+      status: job.status,
+      releaseId: job.releaseId,
+      generationId: job.generationId,
+      correlationId: job.correlationId,
+      attemptCount: job.attemptCount,
+      maxAttempts: job.maxAttempts,
+      progressStage: job.progressStage,
+      progressMessage: job.progressMessage,
+      lastErrorCode: job.lastErrorCode,
+      lastErrorRetryable: job.lastErrorRetryable,
+      availableAt: job.availableAt.toISOString(),
+      deadlineAt: job.deadlineAt.toISOString(),
+      createdAt: job.createdAt.toISOString(),
+      startedAt: job.startedAt?.toISOString() ?? null,
+      finishedAt: job.finishedAt?.toISOString() ?? null,
+      updatedAt: job.updatedAt.toISOString(),
+    })),
     reports: release.reports.map((report) => ({
       id: report.id,
       releaseId: report.releaseId,
@@ -262,6 +282,15 @@ export const finalizeReleaseUploadForMachine = async ({
     return {
       release: serializeReleaseForMachine(result.release),
       generation: serializeReleaseGenerationForMachine(result.generation),
+      job: {
+        ...result.job,
+        availableAt: result.job.availableAt.toISOString(),
+        deadlineAt: result.job.deadlineAt.toISOString(),
+        createdAt: result.job.createdAt.toISOString(),
+        startedAt: result.job.startedAt?.toISOString() ?? null,
+        finishedAt: result.job.finishedAt?.toISOString() ?? null,
+        updatedAt: result.job.updatedAt.toISOString(),
+      },
     };
   } catch (error) {
     rethrowOperationalAdmissionForMachine(error);

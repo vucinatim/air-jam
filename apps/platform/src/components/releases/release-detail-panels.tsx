@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, FileText, Package } from "lucide-react";
+import { Activity, CheckCircle2, FileText, Package } from "lucide-react";
 
 const formatDateTime = (value?: Date | string | null): string => {
   if (!value) return "Not yet";
@@ -54,6 +54,18 @@ type ReleaseDetailPanelsProps = {
     summary: string | null;
     createdAt: Date | string;
   }>;
+  jobs: Array<{
+    id: string;
+    generationId: string;
+    kind: string;
+    status: string;
+    attemptCount: number;
+    maxAttempts: number;
+    progressStage: string | null;
+    progressMessage: string | null;
+    lastErrorCode: string | null;
+    createdAt: Date | string;
+  }>;
   reports: Array<{
     id: string;
     reason: string;
@@ -69,6 +81,7 @@ export function ReleaseDetailPanels({
   candidateGeneration,
   promotedGeneration,
   checks,
+  jobs,
   reports,
 }: ReleaseDetailPanelsProps) {
   const generationSequenceById = new Map(
@@ -76,7 +89,7 @@ export function ReleaseDetailPanels({
   );
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
       <div className="space-y-2">
         <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase">
           <Package className="h-3 w-3" />
@@ -167,6 +180,62 @@ export function ReleaseDetailPanels({
           <p className="text-muted-foreground text-sm">
             No release generations yet.
           </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase">
+          <Activity className="h-3 w-3" />
+          Jobs
+        </div>
+        {jobs.length > 0 ? (
+          <div className="space-y-2">
+            {jobs.map((job) => (
+              <div key={job.id} className="rounded-md border p-2.5 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {formatCheckKind(job.kind.replace(/^release_/, ""))}
+                    </p>
+                    {generationSequenceById.has(job.generationId) && (
+                      <p className="text-muted-foreground text-[10px]">
+                        Gen #{generationSequenceById.get(job.generationId)} ·
+                        attempt {job.attemptCount}/{job.maxAttempts}
+                      </p>
+                    )}
+                  </div>
+                  <Badge
+                    variant={
+                      job.status === "succeeded"
+                        ? "default"
+                        : job.status === "failed"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                    className="text-[10px]"
+                  >
+                    {job.status.replace("_", " ")}
+                  </Badge>
+                </div>
+                {(job.progressMessage || job.progressStage) && (
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {job.progressMessage ??
+                      job.progressStage?.replaceAll("_", " ")}
+                  </p>
+                )}
+                {job.lastErrorCode && (
+                  <p className="text-destructive mt-1 text-xs">
+                    {job.lastErrorCode.replaceAll("_", " ")}
+                  </p>
+                )}
+                <p className="text-muted-foreground mt-1 truncate font-mono text-[10px]">
+                  {job.id}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">No jobs recorded yet.</p>
         )}
       </div>
 

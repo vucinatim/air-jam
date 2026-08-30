@@ -86,7 +86,17 @@ export default function GameReleasesPage() {
 
   const { data: releases, isLoading } = api.release.listByGame.useQuery(
     { gameId },
-    { enabled: !!gameId },
+    {
+      enabled: !!gameId,
+      refetchInterval: (query) =>
+        query.state.data?.some((release) =>
+          release.jobs.some((job) =>
+            ["queued", "running", "cancel_requested"].includes(job.status),
+          ),
+        )
+          ? 2_000
+          : false,
+    },
   );
 
   const createDraft = api.release.createDraft.useMutation();
@@ -167,14 +177,8 @@ export default function GameReleasesPage() {
 
       setFeedback({
         variant: "default",
-        title:
-          finalized.release.status === "quarantined"
-            ? "Release quarantined"
-            : "Release uploaded",
-        description:
-          finalized.release.status === "quarantined"
-            ? `Generation #${finalized.generation.sequence} uploaded successfully, but automated moderation quarantined the release.`
-            : `Generation #${finalized.generation.sequence} was validated and promoted for this release.`,
+        title: "Release processing queued",
+        description: `Generation #${finalized.generation.sequence} was uploaded and durable job ${finalized.job.id} will validate and moderate it in the background.`,
       });
       await refreshReleaseData();
     } catch (error) {
@@ -387,6 +391,7 @@ export default function GameReleasesPage() {
               const hasDetails =
                 release.generations.length > 0 ||
                 release.checks.length > 0 ||
+                release.jobs.length > 0 ||
                 release.reports.length > 0;
 
               return (
@@ -484,8 +489,8 @@ export default function GameReleasesPage() {
                                       releaseId: release.id,
                                       generationId: candidateGeneration.id,
                                     }),
-                                  successTitle: "Upload finalized",
-                                  successDescription: `Generation #${candidateGeneration.sequence} was re-checked and the release state was refreshed.`,
+                                  successTitle: "Processing queued",
+                                  successDescription: `Generation #${candidateGeneration.sequence} is attached to a durable processing job.`,
                                 })
                               }
                               disabled={isActionPending}
@@ -541,6 +546,7 @@ export default function GameReleasesPage() {
                             candidateGeneration={release.candidateGeneration}
                             promotedGeneration={release.promotedGeneration}
                             checks={release.checks}
+                            jobs={release.jobs}
                             reports={release.reports}
                           />
                         </div>

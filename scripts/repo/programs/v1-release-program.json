@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-29T19:26:37.200Z",
+  "updatedAt": "2026-08-30T02:06:26.172Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -517,8 +517,14 @@
         "limit and overload tests plus agent-operable control commands"
       ],
       "owner": "/root/g3-controls",
-      "note": "Defining and implementing one persistent quota, bounded-job, lifecycle-cleanup, spend-guard, and expensive-lane control domain with canonical CLI operation.",
-      "updatedAt": "2026-08-29T19:26:37.200Z"
+      "note": "Durable release job attempts, isolated worker authority, cleanup/retry/replay/drain controls, and hermetic deployment proof are implemented; broader lifecycle cleanup, overload proof, and realtime admission remain.",
+      "updatedAt": "2026-08-30T02:06:26.172Z",
+      "evidence": [
+        "document:docs/audits/v1-reliability/production-release-job-worker-proof.md",
+        "command:pnpm-test",
+        "command:pnpm-build",
+        "command:pnpm-check-platform-deploy"
+      ]
     },
     {
       "id": "G3-03",

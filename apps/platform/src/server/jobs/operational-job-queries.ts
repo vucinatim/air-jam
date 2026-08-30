@@ -7,6 +7,7 @@ import type {
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   OperationalJobConflictError,
+  serializeOperationalJobAttemptForOperator,
   serializeOperationalJobEventForOperator,
   serializeOperationalJobForOperator,
   type JobDatabase,
@@ -47,8 +48,13 @@ export const getOperationalJob = async ({
     where: (table, { eq }) => eq(table.jobId, jobId),
     orderBy: (table, { asc }) => [asc(table.nextRevision)],
   });
+  const attempts = await database.query.operationalJobAttempts.findMany({
+    where: (table, { eq }) => eq(table.jobId, jobId),
+    orderBy: (table, { asc }) => [asc(table.attempt)],
+  });
   return {
     job: serializeOperationalJobForOperator(job),
+    attempts: attempts.map(serializeOperationalJobAttemptForOperator),
     events: events.map(serializeOperationalJobEventForOperator),
   };
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildReleaseGenerationScreenshotObjectKey,
+  buildReleaseGenerationScreenshotRootKey,
   buildReleaseGenerationSiteRootKey,
   buildReleaseGenerationStorageKeys,
   buildReleaseSiteObjectKey,
@@ -43,7 +44,17 @@ describe("immutable release storage keys", () => {
         captureId: "capture-1",
       }),
     ).toBe(
-      "games/game-1/releases/release-1/generations/generation-1/screenshots/capture-1.png",
+      "games/game-1/releases/release-1/generations/generation-1/screenshots/capture-1/capture.png",
+    );
+    expect(
+      buildReleaseGenerationScreenshotRootKey({
+        gameId: "game-1",
+        releaseId: "release-1",
+        generationId: "generation-1",
+        captureId: "capture-1",
+      }),
+    ).toBe(
+      "games/game-1/releases/release-1/generations/generation-1/screenshots/capture-1",
     );
   });
 });

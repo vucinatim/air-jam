@@ -68,7 +68,8 @@ The measured Gate 3 production baseline is:
 3. [audits/v1-reliability/production-shadow-quota-proof.md](./audits/v1-reliability/production-shadow-quota-proof.md)
 4. [audits/v1-reliability/production-durable-job-authority-proof.md](./audits/v1-reliability/production-durable-job-authority-proof.md)
 5. [audits/v1-reliability/production-immutable-release-generations-proof.md](./audits/v1-reliability/production-immutable-release-generations-proof.md)
-6. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
+6. [audits/v1-reliability/production-release-job-worker-proof.md](./audits/v1-reliability/production-release-job-worker-proof.md)
+7. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
 
 It distinguishes the current low-cost, low-usage production state from the
 queues, quotas, recovery, static-delivery, and operational controls still
@@ -84,7 +85,11 @@ release-scoped provenance, redacted operator reads, retry, cancellation,
 repair, and CLI authority. The immutable-generation proof records generation-
 scoped source and output identity, candidate/promoted fencing, exact check
 provenance, fail-closed legacy migration, and the shared human/machine contract
-without claiming that release adapters execute through durable workers yet.
+that made safe worker execution possible. The release-job worker proof records
+the completed adapter cutover, attempt-scoped executor graph, separately
+deployable drainable process, cleanup and one-cycle CLI operations, and
+enqueue/inspect/wait semantics without claiming that production rollout or the
+rest of Gate `G3-02` is complete.
 
 The detailed discoverability checklist remains a subordinate launch reference:
 

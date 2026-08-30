@@ -23,10 +23,12 @@ export const captureReleaseScreenshot = async ({
   gameId,
   releaseId,
   generationId,
+  captureId: requestedCaptureId,
 }: {
   gameId: string;
   releaseId: string;
   generationId: string;
+  captureId?: string;
 }): Promise<ReleaseScreenshotCaptureResult> => {
   const config = getReleaseModerationConfig();
   const storage = getReleaseStorage();
@@ -85,7 +87,7 @@ export const captureReleaseScreenshot = async ({
         type: "png",
         fullPage: true,
       });
-      const captureId = crypto.randomUUID();
+      const captureId = requestedCaptureId?.trim() || crypto.randomUUID();
       const screenshotObjectKey = buildReleaseGenerationScreenshotObjectKey({
         gameId,
         releaseId,

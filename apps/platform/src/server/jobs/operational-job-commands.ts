@@ -1,12 +1,17 @@
 import { db } from "@/db";
-import { gameReleases, games, operationalJobs } from "@/db/schema";
+import {
+  gameReleaseGenerations,
+  gameReleases,
+  games,
+  operationalJobs,
+} from "@/db/schema";
 import {
   operationalJobContractVersion,
   type OperationalJobCommandKind,
   type OperationalJobKind,
   type OperationalJobStatus,
 } from "@air-jam/database-contract";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import {
   OperationalJobCapacityError,
   OperationalJobConflictError,
@@ -26,22 +31,36 @@ import {
 } from "./operational-job-internals";
 import { planOperationalJobCancellation } from "./operational-job-planning";
 import { getOperationalJobPolicy } from "./operational-job-policy";
+import { parseReleaseJobPayload } from "./release-job-contract";
+import {
+  applyReleaseJobTerminalState,
+  prepareReleaseJobReplayState,
+} from "./release-job-terminal-state";
 
 const assertJobScope = async ({
   tx,
   creatorId,
   gameId,
   releaseId,
+  generationId,
 }: {
   tx: JobTransaction;
   creatorId: string;
   gameId: string;
   releaseId: string;
+  generationId: string;
 }) => {
   const rows = await tx
     .select({ releaseId: gameReleases.id })
     .from(gameReleases)
     .innerJoin(games, eq(gameReleases.gameId, games.id))
+    .innerJoin(
+      gameReleaseGenerations,
+      and(
+        eq(gameReleaseGenerations.id, generationId),
+        eq(gameReleaseGenerations.releaseId, gameReleases.id),
+      ),
+    )
     .where(
       and(
         eq(gameReleases.id, releaseId),
@@ -77,6 +96,7 @@ type CreateOperationalJobInput = {
   creatorId: string;
   gameId: string;
   releaseId: string;
+  generationId: string;
   payload: Record<string, unknown>;
   priority: number;
   correlationId: string;
@@ -95,6 +115,7 @@ const createOperationalJob = async ({
   creatorId,
   gameId,
   releaseId,
+  generationId,
   payload,
   priority,
   correlationId,
@@ -109,18 +130,24 @@ const createOperationalJob = async ({
   const policy = getOperationalJobPolicy(kind);
   await acquireOperationalJobLock(tx, "enqueue", kind);
   const now = await resolveOperationalJobNow(tx, testNow);
-  await assertJobScope({ tx, creatorId, gameId, releaseId });
+  await assertJobScope({
+    tx,
+    creatorId,
+    gameId,
+    releaseId,
+    generationId,
+  });
   const active = await tx.query.operationalJobs.findFirst({
     where: (table, { and, eq, inArray }) =>
       and(
         eq(table.kind, kind),
-        eq(table.releaseId, releaseId),
+        eq(table.generationId, generationId),
         inArray(table.status, ["queued", "running", "cancel_requested"]),
       ),
   });
   if (active) {
     throw new OperationalJobConflictError(
-      `Release already has active ${kind} job ${active.id}.`,
+      `Release generation already has active ${kind} job ${active.id}.`,
     );
   }
   if ((await countQueuedJobs(tx, kind)) >= policy.queueDepth) {
@@ -141,6 +168,7 @@ const createOperationalJob = async ({
       creatorId,
       gameId,
       releaseId,
+      generationId,
       createdByCommandId: commandId,
       requestHash,
       correlationId,
@@ -176,6 +204,7 @@ export type EnqueueOperationalJobInput = {
   creatorId: string;
   gameId: string;
   releaseId: string;
+  generationId: string;
   idempotencyKey: string;
   payload?: Record<string, unknown>;
   priority?: number;
@@ -186,12 +215,12 @@ export type EnqueueOperationalJobInput = {
   now?: Date;
 };
 
-export const enqueueOperationalJob = async ({
-  database = db,
+const normalizeEnqueueOperationalJobInput = ({
   kind,
   creatorId: rawCreatorId,
   gameId: rawGameId,
   releaseId: rawReleaseId,
+  generationId: rawGenerationId,
   idempotencyKey: rawIdempotencyKey,
   payload: rawPayload = {},
   priority = 0,
@@ -199,17 +228,34 @@ export const enqueueOperationalJob = async ({
   actor: rawActor,
   reason: rawReason,
   now: testNow,
-}: EnqueueOperationalJobInput & { database?: JobDatabase }) => {
+}: EnqueueOperationalJobInput) => {
   const creatorId = normalizeRequiredJobText(rawCreatorId, "Creator ID");
   const gameId = normalizeRequiredJobText(rawGameId, "Game ID");
   const releaseId = normalizeRequiredJobText(rawReleaseId, "Release ID");
+  const generationId = normalizeRequiredJobText(
+    rawGenerationId,
+    "Generation ID",
+  );
   const idempotencyKey = normalizeRequiredJobText(
     rawIdempotencyKey,
     "Idempotency key",
   );
   const actor = normalizeRequiredJobText(rawActor, "Actor");
   const reason = normalizeRequiredJobText(rawReason, "Reason");
-  const payload = normalizeOperationalJobJsonObject(rawPayload, "Payload");
+  let parsedPayload: Record<string, unknown>;
+  try {
+    parsedPayload = parseReleaseJobPayload(kind, rawPayload);
+  } catch {
+    throw new OperationalJobConflictError(
+      `Payload did not match the ${kind} job contract.`,
+    );
+  }
+  const payload = normalizeOperationalJobJsonObject(parsedPayload, "Payload");
+  if (payload.generationId !== generationId) {
+    throw new OperationalJobConflictError(
+      "Job payload generation must match the job generation scope.",
+    );
+  }
   const explicitCorrelationId = rawCorrelationId?.trim() || null;
   if (!Number.isSafeInteger(priority)) {
     throw new OperationalJobConflictError("Priority must be a safe integer.");
@@ -221,6 +267,7 @@ export const enqueueOperationalJob = async ({
     creatorId,
     gameId,
     releaseId,
+    generationId,
     payload,
     priority,
     correlationId: explicitCorrelationId,
@@ -229,50 +276,164 @@ export const enqueueOperationalJob = async ({
   };
   const requestHash = hashOperationalJobRequest(request);
 
-  return database.transaction(async (tx) => {
-    const commandState = await beginOperationalJobCommand({
-      tx,
-      kind: "enqueue",
-      idempotencyKey,
-      requestHash,
-      actor,
-      reason,
-      request,
-      testNow,
-    });
-    if (commandState.replayed) {
-      return {
-        job: readCommandJobSnapshot(commandState.command),
-        replayed: true,
-      } as const;
-    }
+  return {
+    kind,
+    creatorId,
+    gameId,
+    releaseId,
+    generationId,
+    idempotencyKey,
+    payload,
+    priority,
+    explicitCorrelationId,
+    actor,
+    reason,
+    testNow,
+    request,
+    requestHash,
+  } as const;
+};
 
-    const job = await createOperationalJob({
+export const enqueueOperationalJobInTransaction = async ({
+  tx,
+  ...input
+}: EnqueueOperationalJobInput & { tx: JobTransaction }) => {
+  const normalized = normalizeEnqueueOperationalJobInput(input);
+
+  const commandState = await beginOperationalJobCommand({
+    tx,
+    kind: "enqueue",
+    idempotencyKey: normalized.idempotencyKey,
+    requestHash: normalized.requestHash,
+    actor: normalized.actor,
+    reason: normalized.reason,
+    request: normalized.request,
+    testNow: normalized.testNow,
+  });
+  if (commandState.replayed) {
+    return {
+      job: readCommandJobSnapshot(commandState.command),
+      replayed: true,
+    } as const;
+  }
+
+  const job = await createOperationalJob({
+    tx,
+    commandId: commandState.command.id,
+    commandKind: "enqueue",
+    kind: normalized.kind,
+    creatorId: normalized.creatorId,
+    gameId: normalized.gameId,
+    releaseId: normalized.releaseId,
+    generationId: normalized.generationId,
+    payload: normalized.payload,
+    priority: normalized.priority,
+    correlationId: normalized.explicitCorrelationId ?? crypto.randomUUID(),
+    replayOfJobId: null,
+    requestHash: normalized.requestHash,
+    actor: normalized.actor,
+    reason: normalized.reason,
+    testNow: normalized.testNow,
+  });
+  const snapshot = serializeOperationalJobForOperator(job);
+  await completeOperationalJobCommand({
+    tx,
+    commandId: commandState.command.id,
+    result: { job: snapshot },
+    now: job.createdAt,
+  });
+  return { job: snapshot, replayed: false } as const;
+};
+
+export const enqueueOperationalJob = async ({
+  database = db,
+  ...input
+}: EnqueueOperationalJobInput & { database?: JobDatabase }) =>
+  database.transaction((tx) =>
+    enqueueOperationalJobInTransaction({ tx, ...input }),
+  );
+
+export const supersedeOperationalJobsForGenerationInTransaction = async ({
+  tx,
+  generationId: rawGenerationId,
+  actor: rawActor,
+  reason: rawReason,
+}: {
+  tx: JobTransaction;
+  generationId: string;
+  actor: string;
+  reason: string;
+}) => {
+  const generationId = normalizeRequiredJobText(
+    rawGenerationId,
+    "Generation ID",
+  );
+  const actor = normalizeRequiredJobText(rawActor, "Actor");
+  const reason = normalizeRequiredJobText(rawReason, "Reason");
+  const jobs = await tx
+    .select()
+    .from(operationalJobs)
+    .where(
+      and(
+        eq(operationalJobs.generationId, generationId),
+        inArray(operationalJobs.status, [
+          "queued",
+          "running",
+          "cancel_requested",
+        ]),
+      ),
+    )
+    .for("update");
+  const superseded = [];
+
+  for (const job of jobs) {
+    if (job.status === "cancel_requested") {
+      superseded.push(serializeOperationalJobForOperator(job));
+      continue;
+    }
+    const now = await resolveOperationalJobNow(tx);
+    const nextStatus: OperationalJobStatus =
+      job.status === "queued" ? "canceled" : "cancel_requested";
+    const nextRevision = job.revision + 1;
+    const [updated] = await tx
+      .update(operationalJobs)
+      .set({
+        status: nextStatus,
+        revision: nextRevision,
+        cancelRequestedAt: now,
+        cancelRequestedBy: actor,
+        cancelReason: reason,
+        finishedAt: nextStatus === "canceled" ? now : null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(operationalJobs.id, job.id),
+          eq(operationalJobs.revision, job.revision),
+        ),
+      )
+      .returning();
+    if (!updated) {
+      throw new OperationalJobConflictError(
+        "Generation supersession lost its job revision fence.",
+      );
+    }
+    await insertOperationalJobEvent({
       tx,
-      commandId: commandState.command.id,
-      commandKind: "enqueue",
-      kind,
-      creatorId,
-      gameId,
-      releaseId,
-      payload,
-      priority,
-      correlationId: explicitCorrelationId ?? crypto.randomUUID(),
-      replayOfJobId: null,
-      requestHash,
+      job: updated,
+      kind: nextStatus === "canceled" ? "canceled" : "cancel_requested",
+      expectedRevision: job.revision,
+      nextRevision,
+      fromStatus: job.status,
+      toStatus: nextStatus,
       actor,
       reason,
-      testNow,
+      details: { supersededGenerationId: generationId },
     });
-    const snapshot = serializeOperationalJobForOperator(job);
-    await completeOperationalJobCommand({
-      tx,
-      commandId: commandState.command.id,
-      result: { job: snapshot },
-      now: job.createdAt,
-    });
-    return { job: snapshot, replayed: false } as const;
-  });
+    superseded.push(serializeOperationalJobForOperator(updated));
+  }
+
+  return superseded;
 };
 
 type OperationalJobCancellationCommandInput = {
@@ -491,6 +652,13 @@ export const requestOperationalJobCancellation = async ({
         "Job cancellation lost its revision fence.",
       );
     }
+    if (nextStatus === "canceled") {
+      await applyReleaseJobTerminalState({
+        tx,
+        job: updated,
+        now: mutationNow,
+      });
+    }
     await insertOperationalJobEvent({
       tx,
       job: updated,
@@ -572,11 +740,16 @@ export const replayOperationalJob = async ({
     if (!original) {
       throw new OperationalJobConflictError("Operational job was not found.");
     }
-    if (!["succeeded", "failed", "canceled"].includes(original.status)) {
+    if (!["failed", "canceled"].includes(original.status)) {
       throw new OperationalJobConflictError(
-        "Only terminal jobs can be replayed.",
+        "Only failed or canceled jobs can be replayed.",
       );
     }
+    await prepareReleaseJobReplayState({
+      tx,
+      job: original,
+      now: commandState.authorityNow,
+    });
     const replay = await createOperationalJob({
       tx,
       commandId: commandState.command.id,
@@ -585,6 +758,7 @@ export const replayOperationalJob = async ({
       creatorId: original.creatorId,
       gameId: original.gameId,
       releaseId: original.releaseId,
+      generationId: original.generationId,
       payload: original.payload,
       priority: original.priority,
       correlationId: original.correlationId,

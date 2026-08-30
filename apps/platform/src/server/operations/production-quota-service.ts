@@ -5,6 +5,7 @@ import {
   gameReleaseGenerations,
   gameReleases,
   games,
+  operationalJobs,
   runtimeUsageGameSegments,
 } from "@/db/schema";
 import {
@@ -18,6 +19,7 @@ import {
   eq,
   gt,
   gte,
+  inArray,
   isNull,
   lt,
   min,
@@ -273,6 +275,29 @@ const loadRoomSeconds = async ({
   return toSafeNonNegativeInteger(rows[0]?.seconds, "Room seconds");
 };
 
+const loadConcurrentReleaseJobs = async ({
+  database,
+  creatorId,
+  now,
+}: {
+  database: QuotaDatabase;
+  creatorId: string;
+  now: Date;
+}): Promise<number> => {
+  const [row] = await database
+    .select({ current: count() })
+    .from(operationalJobs)
+    .where(
+      and(
+        eq(operationalJobs.creatorId, creatorId),
+        inArray(operationalJobs.status, ["running", "cancel_requested"]),
+        gt(operationalJobs.leaseExpiresAt, now),
+        gt(operationalJobs.deadlineAt, now),
+      ),
+    );
+  return toSafeNonNegativeInteger(row?.current, "Concurrent release jobs");
+};
+
 const loadOperationalQuotaUsageForValidatedScope = async ({
   database,
   key,
@@ -410,12 +435,15 @@ const loadOperationalQuotaUsageForValidatedScope = async ({
         }),
       });
     case "creator_concurrent_release_jobs":
-      return unavailableUsage({
+      return availableUsage({
         key,
         scopeId,
         observedAt: now,
-        reason:
-          "Durable release job authority exists, but release adapters still perform request-lifetime work; mixed execution paths are not valid concurrency authority.",
+        current: await loadConcurrentReleaseJobs({
+          database,
+          creatorId,
+          now,
+        }),
       });
     case "creator_concurrent_rooms":
     case "game_concurrent_rooms":

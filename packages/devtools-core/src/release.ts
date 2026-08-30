@@ -77,6 +77,11 @@ const FONT_ASSET_EXTENSION_PATTERN = /\.(woff2?|ttf|otf|eot)(?:[?#].*)?$/i;
 const CSS_EXTENSION_PATTERN = /\.css(?:[?#].*)?$/i;
 const FONT_FETCH_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+const DEFAULT_RELEASE_PROCESSING_TIMEOUT_MS = 10 * 60 * 1000;
+const RELEASE_PROCESSING_POLL_INTERVAL_MS = 2_000;
+
+const wait = async (durationMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, durationMs));
 
 const sanitizePathSegment = (value: string): string =>
   value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-");
@@ -1410,6 +1415,77 @@ export const finalizePlatformReleaseGeneration = async ({
   });
 };
 
+export const waitForPlatformReleaseGeneration = async ({
+  platformUrl,
+  token,
+  releaseId,
+  generationId,
+  timeoutMs = DEFAULT_RELEASE_PROCESSING_TIMEOUT_MS,
+  pollIntervalMs = RELEASE_PROCESSING_POLL_INTERVAL_MS,
+}: FinalizePlatformReleaseGenerationOptions & {
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}) => {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) {
+    throw new Error("Release processing timeout must be a positive integer.");
+  }
+  if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 1) {
+    throw new Error(
+      "Release processing poll interval must be a positive integer.",
+    );
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const inspected = await inspectPlatformRelease({
+      platformUrl,
+      token,
+      releaseId,
+    });
+    const generation = inspected.release.generations.find(
+      (candidate) => candidate.id === generationId,
+    );
+    if (!generation) {
+      throw new Error(
+        `Release ${releaseId} no longer contains generation ${generationId}.`,
+      );
+    }
+    if (
+      generation.status === "ready" &&
+      (inspected.release.status === "ready" ||
+        inspected.release.status === "live") &&
+      inspected.release.promotedGenerationId === generationId
+    ) {
+      return inspected.release;
+    }
+    if (
+      generation.status === "failed" ||
+      generation.status === "abandoned" ||
+      inspected.release.status === "failed" ||
+      inspected.release.status === "quarantined" ||
+      inspected.release.status === "archived"
+    ) {
+      const failedJob = inspected.release.jobs.find(
+        (job) =>
+          job.generationId === generationId &&
+          (job.status === "failed" || job.status === "canceled"),
+      );
+      const errorSuffix = failedJob?.lastErrorCode
+        ? ` (${failedJob.lastErrorCode})`
+        : "";
+      throw new Error(
+        `Release generation ${generationId} ended with release ${inspected.release.status} and generation ${generation.status}${errorSuffix}. Inspect release ${releaseId} for its checks and job history.`,
+      );
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Timed out waiting for release generation ${generationId}. Processing remains durable; inspect release ${releaseId} to continue.`,
+      );
+    }
+    await wait(Math.min(pollIntervalMs, Math.max(1, deadline - Date.now())));
+  }
+};
+
 export const submitPlatformRelease = async ({
   platformUrl,
   token,
@@ -1419,6 +1495,9 @@ export const submitPlatformRelease = async ({
   distDir,
   bundlePath,
   skipBuild = false,
+  waitForProcessing = false,
+  processingTimeoutMs = DEFAULT_RELEASE_PROCESSING_TIMEOUT_MS,
+  processingPollIntervalMs = RELEASE_PROCESSING_POLL_INTERVAL_MS,
   publish = false,
 }: SubmitPlatformReleaseOptions): Promise<SubmitPlatformReleaseResult> => {
   const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
@@ -1451,18 +1530,30 @@ export const submitPlatformRelease = async ({
     bundlePath: effectiveBundlePath,
   });
 
-  const finalized = await finalizePlatformReleaseGeneration({
+  const submitted = await finalizePlatformReleaseGeneration({
     platformUrl: resolved.baseUrl,
     token: resolved.token,
     releaseId: createdDraft.release.id,
     generationId: uploadTarget.generation.id,
   });
 
+  const shouldWaitForProcessing = waitForProcessing || publish;
+  const processedRelease = shouldWaitForProcessing
+    ? await waitForPlatformReleaseGeneration({
+        platformUrl: resolved.baseUrl,
+        token: resolved.token,
+        releaseId: createdDraft.release.id,
+        generationId: uploadTarget.generation.id,
+        timeoutMs: processingTimeoutMs,
+        pollIntervalMs: processingPollIntervalMs,
+      })
+    : null;
+
   let publishedRelease = null;
   if (publish) {
-    if (finalized.release.status !== "ready") {
+    if (processedRelease?.status !== "ready") {
       throw new Error(
-        `Release ${finalized.release.id} is ${finalized.release.status} and cannot be published.`,
+        `Release ${createdDraft.release.id} is ${processedRelease?.status ?? submitted.release.status} and cannot be published.`,
       );
     }
 
@@ -1480,8 +1571,10 @@ export const submitPlatformRelease = async ({
     bundlePath: effectiveBundlePath,
     createdRelease: createdDraft.release,
     createdGeneration: uploadTarget.generation,
-    finalizedRelease: finalized.release,
-    finalizedGeneration: finalized.generation,
+    submittedRelease: submitted.release,
+    submittedGeneration: submitted.generation,
+    processingJob: submitted.job,
+    processedRelease,
     publishedRelease,
   };
 };

@@ -37,7 +37,7 @@ export const buildReleaseSiteObjectKey = (
   relativePath: string,
 ): string => `${trimSlashes(siteRootKey)}/${trimSlashes(relativePath)}`;
 
-export const buildReleaseGenerationScreenshotObjectKey = ({
+export const buildReleaseGenerationScreenshotRootKey = ({
   gameId,
   releaseId,
   generationId,
@@ -48,4 +48,8 @@ export const buildReleaseGenerationScreenshotObjectKey = ({
   generationId: string;
   captureId: string;
 }): string =>
-  `${buildReleaseGenerationStorageKeys({ gameId, releaseId, generationId }).generationRootKey}/screenshots/${trimSlashes(captureId)}.png`;
+  `${buildReleaseGenerationStorageKeys({ gameId, releaseId, generationId }).generationRootKey}/screenshots/${trimSlashes(captureId)}`;
+
+export const buildReleaseGenerationScreenshotObjectKey = (
+  input: Parameters<typeof buildReleaseGenerationScreenshotRootKey>[0],
+): string => `${buildReleaseGenerationScreenshotRootKey(input)}/capture.png`;

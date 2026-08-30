@@ -2,17 +2,26 @@ import { createHostedReleaseArtifactManifest } from "@/lib/releases/hosted-relea
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import yazl from "yazl";
 import * as schema from "../../db/schema";
+import { enqueueOperationalJob } from "../jobs/operational-job-service";
+import { createReleaseGenerationJobPayload } from "../jobs/release-job-contract";
 import {
-  finalizeReleaseUpload,
+  releaseJobExecutors,
+  runReleaseJobWorkerCycle,
+} from "../jobs/release-job-worker";
+import {
+  executeReleaseArtifactJobAttempt,
   requestReleaseUploadTarget,
 } from "./release-artifact-service";
+import { executeReleaseBrowserJobAttempt } from "./release-browser-job-executor";
+import { resetReleaseModerationConfigForTests } from "./release-moderation-config";
 import type {
   ReleaseStorage,
   ReleaseStoredObjectHead,
 } from "./release-storage";
+import { buildReleaseGenerationScreenshotObjectKey } from "./release-storage-keys";
 
 const databaseUrl = process.env.AIR_JAM_TEST_DATABASE_URL?.trim();
 const describeWithPostgres = databaseUrl ? describe : describe.skip;
@@ -147,14 +156,39 @@ describeWithPostgres("immutable release generation authority", () => {
       typeof requestReleaseUploadTarget
     >[0]["release"];
 
-  const moderate = async ({ generationId }: { generationId: string }) => ({
-    generationId,
-    screenshot: null,
-    moderation: null,
-    skipped: false,
-    reason: "Image moderation is disabled in the isolated contract test.",
-    outcome: "disabled" as const,
-  });
+  let workerSequence = 0;
+  const enqueueGeneration = async (generationId: string) =>
+    enqueueOperationalJob({
+      database,
+      kind: "release_artifact_processing",
+      creatorId: userId,
+      gameId,
+      releaseId: (await database.query.gameReleaseGenerations.findFirst({
+        where: (table, { eq }) => eq(table.id, generationId),
+      }))!.releaseId,
+      generationId,
+      idempotencyKey: `generation-test:${generationId}`,
+      payload: createReleaseGenerationJobPayload({ generationId }),
+      actor: "test:release-generation",
+      reason:
+        "Prove immutable generation execution through the durable worker.",
+    });
+
+  const runArtifactWorker = ({
+    storage = memory.storage,
+  }: {
+    storage?: ReleaseStorage;
+  } = {}) =>
+    runReleaseJobWorkerCycle({
+      kind: "release_artifact_processing",
+      workerId: `generation-worker:${workerSequence++}`,
+      database,
+      executors: {
+        ...releaseJobExecutors,
+        artifact: (input) =>
+          executeReleaseArtifactJobAttempt({ ...input, storage }),
+      },
+    });
 
   beforeAll(async () => {
     await database.insert(schema.users).values({
@@ -218,19 +252,22 @@ describeWithPostgres("immutable release generation authority", () => {
     await client.end();
   });
 
-  it("abandons replaced upload generations and promotes only the current immutable output", async () => {
+  it("abandons replaced upload generations and carries the current one through the durable pipeline", async () => {
     const archive = await createReleaseArchive();
     const first = await requestReleaseUploadTarget({
       release: releaseInput(releaseId, "draft"),
       originalFilename: "first.zip",
       sizeBytes: archive.byteLength,
+      actor: "test:release-generation",
       database,
       storage: memory.storage,
     });
+    const supersededJob = await enqueueGeneration(first.generation.id);
     const second = await requestReleaseUploadTarget({
       release: releaseInput(releaseId, "uploading"),
       originalFilename: "second.zip",
       sizeBytes: archive.byteLength,
+      actor: "test:release-generation",
       database,
       storage: memory.storage,
     });
@@ -246,26 +283,36 @@ describeWithPostgres("immutable release generation authority", () => {
       where: (table, { eq }) => eq(table.id, first.generation.id),
     });
     expect(replaced?.status).toBe("abandoned");
+    await expect(
+      database.query.operationalJobs.findFirst({
+        where: (table, { eq }) => eq(table.id, supersededJob.job.id),
+      }),
+    ).resolves.toMatchObject({
+      status: "canceled",
+      cancelRequestedBy: "test:release-generation",
+    });
 
     memory.upload({
       key: second.generation.zipObjectKey,
       body: archive,
       originalFilename: second.generation.originalFilename,
     });
-    const finalized = await finalizeReleaseUpload({
-      release: releaseInput(releaseId, "uploading"),
-      generationId: second.generation.id,
-      database,
-      storage: memory.storage,
-      moderate,
+    await enqueueGeneration(second.generation.id);
+    await expect(runArtifactWorker()).resolves.toMatchObject({
+      status: "succeeded",
     });
 
-    const authoritativeRelease = await database.query.gameReleases.findFirst({
-      where: (table, { eq }) => eq(table.id, releaseId),
-    });
+    const [authoritativeRelease, finalized] = await Promise.all([
+      database.query.gameReleases.findFirst({
+        where: (table, { eq }) => eq(table.id, releaseId),
+      }),
+      database.query.gameReleaseGenerations.findFirst({
+        where: (table, { eq }) => eq(table.id, second.generation.id),
+      }),
+    ]);
     expect(authoritativeRelease).toMatchObject({
-      status: "ready",
-      candidateGenerationId: null,
+      status: "checking",
+      candidateGenerationId: second.generation.id,
       promotedGenerationId: second.generation.id,
     });
     expect(finalized).toMatchObject({
@@ -295,6 +342,80 @@ describeWithPostgres("immutable release generation authority", () => {
       kind: "artifact_validation",
       status: "passed",
     });
+
+    vi.stubEnv("AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH", "/test/chromium");
+    vi.stubEnv("AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN", "test-secret");
+    vi.stubEnv("AIRJAM_RELEASES_IMAGE_MODERATION_MODE", "disabled");
+    resetReleaseModerationConfigForTests();
+    try {
+      await expect(
+        runReleaseJobWorkerCycle({
+          kind: "release_browser_validation",
+          workerId: `generation-worker:${workerSequence++}`,
+          database,
+          executors: {
+            ...releaseJobExecutors,
+            browser: (input) =>
+              executeReleaseBrowserJobAttempt({
+                ...input,
+                capture: async ({
+                  gameId: captureGameId,
+                  releaseId: captureReleaseId,
+                  generationId,
+                  captureId,
+                }) => ({
+                  generationId,
+                  captureId: captureId!,
+                  screenshotObjectKey:
+                    buildReleaseGenerationScreenshotObjectKey({
+                      gameId: captureGameId,
+                      releaseId: captureReleaseId,
+                      generationId,
+                      captureId: captureId!,
+                    }),
+                  contentType: "image/png",
+                  sizeBytes: 4,
+                  width: 640,
+                  height: 360,
+                }),
+              }),
+          },
+        }),
+      ).resolves.toMatchObject({ status: "succeeded" });
+      const moderationCycle = await runReleaseJobWorkerCycle({
+        kind: "release_image_moderation",
+        workerId: `generation-worker:${workerSequence++}`,
+        database,
+      });
+      expect(moderationCycle).toMatchObject({ status: "succeeded" });
+    } finally {
+      vi.unstubAllEnvs();
+      resetReleaseModerationConfigForTests();
+    }
+
+    await expect(
+      database.query.gameReleases.findFirst({
+        where: (table, { eq }) => eq(table.id, releaseId),
+      }),
+    ).resolves.toMatchObject({
+      status: "ready",
+      candidateGenerationId: null,
+      promotedGenerationId: second.generation.id,
+    });
+    const finalChecks = await database.query.gameReleaseChecks.findMany({
+      where: (table, { eq }) => eq(table.releaseId, releaseId),
+      orderBy: (table, { asc }) => [asc(table.createdAt)],
+    });
+    expect(finalChecks.map(({ kind }) => kind)).toEqual([
+      "artifact_validation",
+      "screenshot_capture",
+      "image_moderation",
+    ]);
+    expect(
+      finalChecks.every(
+        ({ generationId }) => generationId === second.generation.id,
+      ),
+    ).toBe(true);
   });
 
   it("fails a generation when first-observed upload facts differ from the declaration", async () => {
@@ -303,6 +424,7 @@ describeWithPostgres("immutable release generation authority", () => {
       release: releaseInput(failedReleaseId, "draft"),
       originalFilename: "mismatch.zip",
       sizeBytes: archive.byteLength + 1,
+      actor: "test:release-generation",
       database,
       storage: memory.storage,
     });
@@ -312,15 +434,10 @@ describeWithPostgres("immutable release generation authority", () => {
       originalFilename: requested.generation.originalFilename,
     });
 
-    await expect(
-      finalizeReleaseUpload({
-        release: releaseInput(failedReleaseId, "uploading"),
-        generationId: requested.generation.id,
-        database,
-        storage: memory.storage,
-        moderate,
-      }),
-    ).rejects.toThrow(/did not match declared size/i);
+    await enqueueGeneration(requested.generation.id);
+    await expect(runArtifactWorker()).resolves.toMatchObject({
+      status: "failed",
+    });
 
     const [release, generation] = await Promise.all([
       database.query.gameReleases.findFirst({
@@ -344,6 +461,7 @@ describeWithPostgres("immutable release generation authority", () => {
       release: releaseInput(unfencedReleaseId, "draft"),
       originalFilename: "unfenced.zip",
       sizeBytes: archive.byteLength,
+      actor: "test:release-generation",
       database,
       storage: memory.storage,
     });
@@ -354,15 +472,10 @@ describeWithPostgres("immutable release generation authority", () => {
       etag: null,
     });
 
-    await expect(
-      finalizeReleaseUpload({
-        release: releaseInput(unfencedReleaseId, "uploading"),
-        generationId: requested.generation.id,
-        database,
-        storage: memory.storage,
-        moderate,
-      }),
-    ).rejects.toThrow(/etag/i);
+    await enqueueGeneration(requested.generation.id);
+    await expect(runArtifactWorker()).resolves.toMatchObject({
+      status: "failed",
+    });
 
     const generation = await database.query.gameReleaseGenerations.findFirst({
       where: (table, { eq }) => eq(table.id, requested.generation.id),
@@ -370,12 +483,13 @@ describeWithPostgres("immutable release generation authority", () => {
     expect(generation?.status).toBe("failed");
   });
 
-  it("does not let a duplicate finalize fail the legitimate in-flight generation", async () => {
+  it("does not let another worker claim a legitimate in-flight generation", async () => {
     const archive = await createReleaseArchive();
     const requested = await requestReleaseUploadTarget({
       release: releaseInput(concurrentReleaseId, "draft"),
       originalFilename: "concurrent.zip",
       sizeBytes: archive.byteLength,
+      actor: "test:release-generation",
       database,
       storage: memory.storage,
     });
@@ -402,24 +516,13 @@ describeWithPostgres("immutable release generation authority", () => {
       },
     };
 
-    const activeFinalize = finalizeReleaseUpload({
-      release: releaseInput(concurrentReleaseId, "uploading"),
-      generationId: requested.generation.id,
-      database,
-      storage: blockingStorage,
-      moderate,
-    });
+    await enqueueGeneration(requested.generation.id);
+    const activeExecution = runArtifactWorker({ storage: blockingStorage });
     await readStarted;
 
-    await expect(
-      finalizeReleaseUpload({
-        release: releaseInput(concurrentReleaseId, "uploading"),
-        generationId: requested.generation.id,
-        database,
-        storage: memory.storage,
-        moderate,
-      }),
-    ).rejects.toThrow(/no longer eligible for processing/i);
+    await expect(runArtifactWorker()).resolves.toMatchObject({
+      status: "idle",
+    });
 
     const inFlight = await database.query.gameReleaseGenerations.findFirst({
       where: (table, { eq }) => eq(table.id, requested.generation.id),
@@ -427,7 +530,9 @@ describeWithPostgres("immutable release generation authority", () => {
     expect(inFlight?.status).toBe("processing");
 
     releaseRead();
-    await expect(activeFinalize).resolves.toMatchObject({ status: "ready" });
+    await expect(activeExecution).resolves.toMatchObject({
+      status: "succeeded",
+    });
   });
 
   it("enforces one active generation and lifecycle-compatible pointers in PostgreSQL", async () => {

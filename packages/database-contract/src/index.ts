@@ -132,6 +132,17 @@ export const operationalJobStatusValues = [
 
 export type OperationalJobStatus = (typeof operationalJobStatusValues)[number];
 
+export const operationalJobAttemptStatusValues = [
+  "running",
+  "succeeded",
+  "failed",
+  "canceled",
+  "lease_expired",
+] as const;
+
+export type OperationalJobAttemptStatus =
+  (typeof operationalJobAttemptStatusValues)[number];
+
 export const operationalJobEventKindValues = [
   "enqueued",
   "claimed",
@@ -142,6 +153,7 @@ export const operationalJobEventKindValues = [
   "succeeded",
   "failed",
   "lease_recovered",
+  "output_cleaned",
   "replayed",
 ] as const;
 

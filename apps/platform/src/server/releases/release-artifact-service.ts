@@ -9,6 +9,19 @@ import {
   RELEASE_UPLOAD_CONTENT_TYPE,
   RELEASE_UPLOAD_FILENAME_EXTENSION,
 } from "@/lib/releases/release-policy";
+import {
+  completeOperationalJobInTransaction,
+  enqueueOperationalJobInTransaction,
+  supersedeOperationalJobsForGenerationInTransaction,
+} from "@/server/jobs/operational-job-service";
+import { assertOperationalJobAttemptAuthority } from "@/server/jobs/operational-job-worker-authority";
+import {
+  createReleaseBrowserValidationJobPayload,
+  parseReleaseJobResult,
+  releaseJobExecutionContractVersion,
+  ReleaseJobExecutionError,
+  type ReleaseJobProgress,
+} from "@/server/jobs/release-job-contract";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
@@ -17,9 +30,11 @@ import {
   readReleaseArchiveManifest,
   streamValidatedReleaseArchiveFiles,
 } from "./release-artifact-validation";
-import type { ReleaseModerationSummary } from "./release-moderation-service";
-import { runReleaseModeration } from "./release-moderation-service";
-import { getReleaseStorage, type ReleaseStorage } from "./release-storage";
+import {
+  getReleaseStorage,
+  type ReleaseStorage,
+  type ReleaseStoredObjectHead,
+} from "./release-storage";
 import {
   buildReleaseGenerationSiteRootKey,
   buildReleaseGenerationStorageKeys,
@@ -33,24 +48,25 @@ type RequestReleaseUploadTargetInput = {
   release: OwnedRelease;
   originalFilename: string;
   sizeBytes: number;
+  actor: string;
   database?: typeof db;
   storage?: ReleaseStorage;
-};
-
-type FinalizeReleaseUploadInput = {
-  release: OwnedRelease;
-  generationId: string;
-  database?: typeof db;
-  storage?: ReleaseStorage;
-  moderate?: typeof runReleaseModeration;
 };
 
 const ARTIFACT_VALIDATION_CHECK_KIND = "artifact_validation";
 const RELEASE_UPLOAD_VISIBILITY_ATTEMPTS = 8;
 const RELEASE_UPLOAD_VISIBILITY_DELAY_MS = 250;
 
-class ReleaseUploadFactsValidationError extends Error {
-  override readonly name = "ReleaseUploadFactsValidationError";
+class ReleaseUploadFactsValidationError extends ReleaseJobExecutionError {
+  constructor(message: string) {
+    super({
+      code: "invalid_upload_facts",
+      message,
+      retryable: false,
+      stage: "observing_upload",
+    });
+    this.name = "ReleaseUploadFactsValidationError";
+  }
 }
 
 const trimFilename = (value: string): string => value.trim();
@@ -146,128 +162,11 @@ const lockGeneration = async (
   );
 };
 
-const markGenerationFailure = async ({
-  database,
-  releaseId,
-  generationId,
-  message,
-  payload,
-}: {
-  database: typeof db;
-  releaseId: string;
-  generationId: string;
-  message: string;
-  payload: Record<string, unknown>;
-}) =>
-  database.transaction(async (tx) => {
-    await lockRelease(tx, releaseId);
-    await lockGeneration(tx, generationId);
-
-    const release = await tx.query.gameReleases.findFirst({
-      where: (table, { eq }) => eq(table.id, releaseId),
-    });
-    const generation = await tx.query.gameReleaseGenerations.findFirst({
-      where: (table, { and, eq }) =>
-        and(eq(table.id, generationId), eq(table.releaseId, releaseId)),
-    });
-
-    if (
-      !release ||
-      !generation ||
-      release.candidateGenerationId !== generationId ||
-      !["awaiting_upload", "processing"].includes(generation.status)
-    ) {
-      return false;
-    }
-
-    await tx
-      .update(gameReleaseGenerations)
-      .set({
-        status: "failed",
-        failedAt: sql`clock_timestamp()`,
-      })
-      .where(eq(gameReleaseGenerations.id, generationId));
-
-    await tx
-      .update(gameReleases)
-      .set({
-        status: "failed",
-        candidateGenerationId: null,
-        checkedAt: sql`clock_timestamp()`,
-      })
-      .where(eq(gameReleases.id, releaseId));
-
-    await tx.insert(gameReleaseChecks).values({
-      id: crypto.randomUUID(),
-      releaseId,
-      generationId,
-      kind: ARTIFACT_VALIDATION_CHECK_KIND,
-      status: "failed",
-      summary: message,
-      payload,
-    });
-
-    return true;
-  });
-
-const markModerationFailure = async ({
-  database,
-  releaseId,
-  generationId,
-}: {
-  database: typeof db;
-  releaseId: string;
-  generationId: string;
-}) =>
-  database.transaction(async (tx) => {
-    await lockRelease(tx, releaseId);
-    const release = await tx.query.gameReleases.findFirst({
-      where: (table, { eq }) => eq(table.id, releaseId),
-    });
-
-    if (
-      !release ||
-      release.status !== "checking" ||
-      release.candidateGenerationId !== generationId ||
-      release.promotedGenerationId !== generationId
-    ) {
-      return false;
-    }
-
-    await tx
-      .update(gameReleases)
-      .set({
-        status: "failed",
-        candidateGenerationId: null,
-        checkedAt: sql`clock_timestamp()`,
-      })
-      .where(eq(gameReleases.id, releaseId));
-    return true;
-  });
-
-export const resolveReleasePostModerationAction = (
-  moderation: Pick<ReleaseModerationSummary, "outcome" | "reason">,
-) => {
-  switch (moderation.outcome) {
-    case "passed":
-    case "disabled":
-      return { kind: "ready" } as const;
-    case "flagged":
-      return { kind: "quarantined" } as const;
-    case "skipped":
-      return {
-        kind: "failed",
-        message:
-          moderation.reason ??
-          "Release moderation is required before a hosted release can become ready.",
-      } as const;
-  }
-};
-
 export const requestReleaseUploadTarget = async ({
   release,
   originalFilename,
   sizeBytes,
+  actor,
   database = db,
   storage = getReleaseStorage(),
 }: RequestReleaseUploadTargetInput) => {
@@ -310,6 +209,12 @@ export const requestReleaseUploadTarget = async ({
     }
 
     if (authoritativeRelease.candidateGenerationId) {
+      await supersedeOperationalJobsForGenerationInTransaction({
+        tx,
+        generationId: authoritativeRelease.candidateGenerationId,
+        actor,
+        reason: "A newer immutable upload generation superseded this work.",
+      });
       await tx
         .update(gameReleaseGenerations)
         .set({
@@ -373,20 +278,81 @@ export const requestReleaseUploadTarget = async ({
   return { generation, upload };
 };
 
-const claimGenerationForProcessing = async ({
+type ReleaseArtifactJobAttemptInput = {
+  jobId: string;
+  releaseId: string;
+  generationId: string;
+  gameId: string;
+  attemptId: string;
+  leaseToken: string;
+  workerId: string;
+  reportProgress: (
+    progress: ReleaseJobProgress,
+    output?: {
+      outputRootKey?: string;
+      outputManifest?: Record<string, unknown>;
+    },
+  ) => Promise<void>;
+  database?: typeof db;
+  storage?: ReleaseStorage;
+};
+
+const assertUploadedObjectMatchesGeneration = ({
+  generation,
+  uploadedObject,
+}: {
+  generation: typeof gameReleaseGenerations.$inferSelect;
+  uploadedObject: ReleaseStoredObjectHead;
+}): void => {
+  const observedFilename = uploadedObject.metadata["original-filename"];
+  if (uploadedObject.sizeBytes !== generation.declaredSizeBytes) {
+    throw new ReleaseUploadFactsValidationError(
+      `Uploaded archive size ${uploadedObject.sizeBytes} did not match declared size ${generation.declaredSizeBytes}.`,
+    );
+  }
+  if (uploadedObject.contentType !== generation.contentType) {
+    throw new ReleaseUploadFactsValidationError(
+      `Uploaded archive content type ${uploadedObject.contentType ?? "missing"} did not match ${generation.contentType}.`,
+    );
+  }
+  if (observedFilename !== generation.originalFilename) {
+    throw new ReleaseUploadFactsValidationError(
+      "Uploaded archive filename metadata did not match its generation.",
+    );
+  }
+  if (!uploadedObject.etag?.trim()) {
+    throw new ReleaseUploadFactsValidationError(
+      "Uploaded archive storage metadata did not include an ETag for a fenced read.",
+    );
+  }
+};
+
+const prepareReleaseGenerationJobAttempt = async ({
   database,
+  jobId,
   releaseId,
   generationId,
+  leaseToken,
+  workerId,
   uploadedObject,
 }: {
   database: typeof db;
+  jobId: string;
   releaseId: string;
   generationId: string;
-  uploadedObject: NonNullable<
-    Awaited<ReturnType<ReturnType<typeof getReleaseStorage>["headObject"]>>
-  >;
+  leaseToken: string;
+  workerId: string;
+  uploadedObject: ReleaseStoredObjectHead;
 }) =>
   database.transaction(async (tx) => {
+    await assertOperationalJobAttemptAuthority({
+      tx,
+      jobId,
+      leaseToken,
+      workerId,
+      expectedKind: "release_artifact_processing",
+      expectedGenerationId: generationId,
+    });
     await lockRelease(tx, releaseId);
     await lockGeneration(tx, generationId);
     const release = await tx.query.gameReleases.findFirst({
@@ -397,37 +363,39 @@ const claimGenerationForProcessing = async ({
         and(eq(table.id, generationId), eq(table.releaseId, releaseId)),
     });
 
+    if (!release || !generation) {
+      throw new Error("Release generation was not found.");
+    }
     if (
-      !release ||
-      !generation ||
+      release.candidateGenerationId !== generationId &&
+      release.promotedGenerationId !== generationId
+    ) {
+      throw new Error("Release generation lost current-generation authority.");
+    }
+
+    assertUploadedObjectMatchesGeneration({ generation, uploadedObject });
+    if (generation.status === "ready") {
+      return generation;
+    }
+    if (generation.status === "processing") {
+      if (
+        generation.observedSizeBytes !== uploadedObject.sizeBytes ||
+        generation.observedContentType !== uploadedObject.contentType ||
+        generation.observedEtag !== uploadedObject.etag
+      ) {
+        throw new ReleaseUploadFactsValidationError(
+          "Uploaded archive facts changed after the first processing attempt.",
+        );
+      }
+      return generation;
+    }
+    if (
+      generation.status !== "awaiting_upload" ||
       release.status !== "uploading" ||
-      release.candidateGenerationId !== generationId ||
-      generation.status !== "awaiting_upload"
+      release.candidateGenerationId !== generationId
     ) {
       throw new Error(
         "Release generation is no longer eligible for processing.",
-      );
-    }
-
-    const observedFilename = uploadedObject.metadata["original-filename"];
-    if (uploadedObject.sizeBytes !== generation.declaredSizeBytes) {
-      throw new ReleaseUploadFactsValidationError(
-        `Uploaded archive size ${uploadedObject.sizeBytes} did not match declared size ${generation.declaredSizeBytes}.`,
-      );
-    }
-    if (uploadedObject.contentType !== generation.contentType) {
-      throw new ReleaseUploadFactsValidationError(
-        `Uploaded archive content type ${uploadedObject.contentType ?? "missing"} did not match ${generation.contentType}.`,
-      );
-    }
-    if (observedFilename !== generation.originalFilename) {
-      throw new ReleaseUploadFactsValidationError(
-        "Uploaded archive filename metadata did not match its generation.",
-      );
-    }
-    if (!uploadedObject.etag?.trim()) {
-      throw new ReleaseUploadFactsValidationError(
-        "Uploaded archive storage metadata did not include an ETag for a fenced read.",
       );
     }
 
@@ -449,7 +417,6 @@ const claimGenerationForProcessing = async ({
         ),
       )
       .returning();
-
     const [checkingRelease] = await tx
       .update(gameReleases)
       .set({ status: "checking" })
@@ -461,30 +428,42 @@ const claimGenerationForProcessing = async ({
         ),
       )
       .returning();
-
     if (!processingGeneration || !checkingRelease) {
       throw new Error("Release generation changed while claiming processing.");
     }
-
     return processingGeneration;
   });
 
-const promoteValidatedGeneration = async ({
+const commitReleaseArtifactJobAttempt = async ({
   database,
+  jobId,
   releaseId,
   generationId,
+  leaseToken,
+  workerId,
   siteRootKey,
   contentHash,
   manifest,
 }: {
   database: typeof db;
+  jobId: string;
   releaseId: string;
   generationId: string;
+  leaseToken: string;
+  workerId: string;
   siteRootKey: string;
   contentHash: string;
   manifest: Awaited<ReturnType<typeof readReleaseArchiveManifest>>;
 }) =>
   database.transaction(async (tx) => {
+    const { job, attempt } = await assertOperationalJobAttemptAuthority({
+      tx,
+      jobId,
+      leaseToken,
+      workerId,
+      expectedKind: "release_artifact_processing",
+      expectedGenerationId: generationId,
+    });
     await lockRelease(tx, releaseId);
     await lockGeneration(tx, generationId);
     const release = await tx.query.gameReleases.findFirst({
@@ -494,299 +473,326 @@ const promoteValidatedGeneration = async ({
       where: (table, { and, eq }) =>
         and(eq(table.id, generationId), eq(table.releaseId, releaseId)),
     });
-
-    if (
-      !release ||
-      !generation ||
-      release.status !== "checking" ||
-      release.candidateGenerationId !== generationId ||
-      generation.status !== "processing"
-    ) {
-      throw new Error("Release generation lost promotion authority.");
-    }
-
-    const [readyGeneration] = await tx
-      .update(gameReleaseGenerations)
-      .set({
-        status: "ready",
-        siteRootKey,
-        extractedSizeBytes: manifest.extractedSizeBytes,
-        fileCount: manifest.fileCount,
-        entryPath: manifest.entryPath,
-        contentHash,
-        readyAt: sql`clock_timestamp()`,
-      })
-      .where(
-        and(
-          eq(gameReleaseGenerations.id, generationId),
-          eq(gameReleaseGenerations.status, "processing"),
-        ),
-      )
-      .returning();
-
-    const [promotedRelease] = await tx
-      .update(gameReleases)
-      .set({
-        promotedGenerationId: generationId,
-        uploadedAt: sql`clock_timestamp()`,
-        checkedAt: null,
-      })
-      .where(
-        and(
-          eq(gameReleases.id, releaseId),
-          eq(gameReleases.status, "checking"),
-          eq(gameReleases.candidateGenerationId, generationId),
-        ),
-      )
-      .returning();
-
-    if (!readyGeneration || !promotedRelease) {
-      throw new Error("Release generation changed during promotion.");
-    }
-
-    await tx.insert(gameReleaseChecks).values({
-      id: crypto.randomUUID(),
-      releaseId,
-      generationId,
-      kind: ARTIFACT_VALIDATION_CHECK_KIND,
-      status: "passed",
-      summary: `Validated ${manifest.fileCount} files and extracted ${manifest.extractedSizeBytes} bytes.`,
-      payload: {
-        zipObjectKey: generation.zipObjectKey,
-        siteRootKey,
-        fileCount: manifest.fileCount,
-        extractedSizeBytes: manifest.extractedSizeBytes,
-        entryPath: manifest.entryPath,
-        hostedManifest: manifest.hostedManifest,
-        contentHash,
-      },
-    });
-
-    return readyGeneration;
-  });
-
-const completeModeration = async ({
-  database,
-  releaseId,
-  generationId,
-  action,
-}: {
-  database: typeof db;
-  releaseId: string;
-  generationId: string;
-  action: "ready" | "quarantined";
-}) =>
-  database.transaction(async (tx) => {
-    await lockRelease(tx, releaseId);
-    const release = await tx.query.gameReleases.findFirst({
-      where: (table, { eq }) => eq(table.id, releaseId),
-    });
-
-    if (
-      !release ||
-      release.status !== "checking" ||
-      release.candidateGenerationId !== generationId ||
-      release.promotedGenerationId !== generationId
-    ) {
-      throw new Error("Release generation lost moderation authority.");
-    }
-
-    const [updatedRelease] = await tx
-      .update(gameReleases)
-      .set({
-        status: action,
-        candidateGenerationId: null,
-        checkedAt: sql`clock_timestamp()`,
-        quarantinedAt: action === "quarantined" ? sql`clock_timestamp()` : null,
-      })
-      .where(
-        and(
-          eq(gameReleases.id, releaseId),
-          eq(gameReleases.status, "checking"),
-          eq(gameReleases.candidateGenerationId, generationId),
-          eq(gameReleases.promotedGenerationId, generationId),
-        ),
-      )
-      .returning();
-
-    if (!updatedRelease) {
+    if (!release || !generation) {
       throw new Error(
-        "Release generation changed during moderation completion.",
+        "Release generation was not found during artifact commit.",
       );
     }
-    return updatedRelease;
+
+    if (generation.status !== "ready") {
+      if (
+        generation.status !== "processing" ||
+        release.status !== "checking" ||
+        release.candidateGenerationId !== generationId
+      ) {
+        throw new Error("Release generation lost artifact commit authority.");
+      }
+      const [readyGeneration] = await tx
+        .update(gameReleaseGenerations)
+        .set({
+          status: "ready",
+          siteRootKey,
+          extractedSizeBytes: manifest.extractedSizeBytes,
+          fileCount: manifest.fileCount,
+          entryPath: manifest.entryPath,
+          contentHash,
+          readyAt: sql`clock_timestamp()`,
+        })
+        .where(
+          and(
+            eq(gameReleaseGenerations.id, generationId),
+            eq(gameReleaseGenerations.status, "processing"),
+          ),
+        )
+        .returning();
+      if (!readyGeneration) {
+        throw new Error("Release generation changed during artifact commit.");
+      }
+
+      const [promotedRelease] = await tx
+        .update(gameReleases)
+        .set({
+          promotedGenerationId: generationId,
+          uploadedAt: sql`clock_timestamp()`,
+          checkedAt: null,
+        })
+        .where(
+          and(
+            eq(gameReleases.id, releaseId),
+            eq(gameReleases.status, "checking"),
+            eq(gameReleases.candidateGenerationId, generationId),
+          ),
+        )
+        .returning();
+      if (!promotedRelease) {
+        throw new Error("Release changed during artifact commit.");
+      }
+
+      await tx.insert(gameReleaseChecks).values({
+        id: crypto.randomUUID(),
+        releaseId,
+        generationId,
+        jobId: job.id,
+        jobAttempt: attempt.attempt,
+        kind: ARTIFACT_VALIDATION_CHECK_KIND,
+        status: "passed",
+        summary: `Validated ${manifest.fileCount} files and extracted ${manifest.extractedSizeBytes} bytes.`,
+        payload: {
+          fileCount: manifest.fileCount,
+          extractedSizeBytes: manifest.extractedSizeBytes,
+          entryPath: manifest.entryPath,
+          hostedManifest: manifest.hostedManifest,
+          contentHash,
+        },
+      });
+    } else if (
+      generation.siteRootKey !== siteRootKey ||
+      generation.contentHash !== contentHash
+    ) {
+      throw new Error(
+        "Ready generation output does not match this job attempt output.",
+      );
+    }
+
+    const downstream = await enqueueOperationalJobInTransaction({
+      tx,
+      kind: "release_browser_validation",
+      creatorId: job.creatorId,
+      gameId: job.gameId,
+      releaseId: job.releaseId,
+      generationId: job.generationId,
+      idempotencyKey: `release-browser:${job.generationId}:after:${job.id}`,
+      payload: createReleaseBrowserValidationJobPayload({
+        generationId: job.generationId,
+      }),
+      correlationId: job.correlationId,
+      actor: workerId,
+      reason: "Artifact processing committed an immutable release generation.",
+    });
+    const result = parseReleaseJobResult("release_artifact_processing", {
+      contractVersion: releaseJobExecutionContractVersion,
+      generationId,
+      siteRootKey,
+      contentHash,
+      extractedSizeBytes: manifest.extractedSizeBytes,
+      fileCount: manifest.fileCount,
+      entryPath: manifest.entryPath,
+      nextJobId: downstream.job.id,
+    });
+    await completeOperationalJobInTransaction({
+      tx,
+      jobId: job.id,
+      leaseToken,
+      workerId,
+      result,
+      reason:
+        "Release worker atomically committed artifact output and its job result.",
+    });
+    return result;
   });
 
-export const finalizeReleaseUpload = async ({
-  release,
+export const executeReleaseArtifactJobAttempt = async ({
+  jobId,
+  releaseId,
   generationId,
+  gameId,
+  attemptId,
+  leaseToken,
+  workerId,
+  reportProgress,
   database = db,
   storage = getReleaseStorage(),
-  moderate = runReleaseModeration,
-}: FinalizeReleaseUploadInput) => {
+}: ReleaseArtifactJobAttemptInput) => {
+  await reportProgress({
+    contractVersion: releaseJobExecutionContractVersion,
+    stage: "observing_upload",
+    message: "Waiting for the immutable upload object to become visible.",
+  });
   const generation = await database.query.gameReleaseGenerations.findFirst({
     where: (table, { and, eq }) =>
-      and(eq(table.id, generationId), eq(table.releaseId, release.id)),
+      and(eq(table.id, generationId), eq(table.releaseId, releaseId)),
   });
   if (!generation) {
-    throw new Error("Release generation not found.");
+    throw new ReleaseJobExecutionError({
+      code: "release_generation_missing",
+      message: "Release generation was not found.",
+      retryable: false,
+      stage: "observing_upload",
+    });
   }
-
   const uploadedObject = await waitForUploadedArtifact({
     storage,
     zipObjectKey: generation.zipObjectKey,
   });
   if (!uploadedObject) {
-    await markGenerationFailure({
-      database,
-      releaseId: release.id,
-      generationId,
+    throw new ReleaseJobExecutionError({
+      code: "upload_not_visible",
       message: "Uploaded artifact was not found in release storage.",
-      payload: {
-        reason: "missing_upload",
-        zipObjectKey: generation.zipObjectKey,
-        attempts: RELEASE_UPLOAD_VISIBILITY_ATTEMPTS,
-        retryDelayMs: RELEASE_UPLOAD_VISIBILITY_DELAY_MS,
-      },
+      retryable: true,
+      stage: "observing_upload",
     });
-    throw new Error("Uploaded artifact was not found in release storage.");
   }
-
   if (
     uploadedObject.sizeBytes <= 0 ||
     uploadedObject.sizeBytes > MAX_RELEASE_ZIP_BYTES
   ) {
-    const message = `Uploaded archive exceeds the ${MAX_RELEASE_ZIP_BYTES} byte limit.`;
-    await markGenerationFailure({
-      database,
-      releaseId: release.id,
-      generationId,
-      message,
-      payload: {
-        reason: "zip_size_limit_exceeded",
-        sizeBytes: uploadedObject.sizeBytes,
-        zipObjectKey: generation.zipObjectKey,
-      },
-    });
-    throw new Error(message);
-  }
-
-  let processingGeneration;
-  try {
-    processingGeneration = await claimGenerationForProcessing({
-      database,
-      releaseId: release.id,
-      generationId,
-      uploadedObject,
-    });
-  } catch (error) {
-    if (error instanceof ReleaseUploadFactsValidationError) {
-      await markGenerationFailure({
-        database,
-        releaseId: release.id,
-        generationId,
-        message: error.message,
-        payload: { reason: "upload_facts_invalid" },
-      });
-    }
-    throw error;
-  }
-
-  const siteRootKey = buildReleaseGenerationSiteRootKey({
-    gameId: release.gameId,
-    releaseId: release.id,
-    generationId,
-    outputId: crypto.randomUUID(),
-  });
-
-  let promoted = false;
-  try {
-    if (!processingGeneration.observedEtag) {
-      throw new Error("Processing generation is missing its observed ETag.");
-    }
-    const archiveBuffer = await storage.readObject(
-      processingGeneration.zipObjectKey,
-      { expectedEtag: processingGeneration.observedEtag },
+    throw new ReleaseUploadFactsValidationError(
+      `Uploaded archive exceeds the ${MAX_RELEASE_ZIP_BYTES} byte limit.`,
     );
-    const contentHash = createHash("sha256")
-      .update(archiveBuffer)
-      .digest("hex");
-    const manifest = await readReleaseArchiveManifest(archiveBuffer);
+  }
 
-    await streamValidatedReleaseArchiveFiles({
-      archiveBuffer,
-      files: manifest.files,
-      onFile: async (file, stream) => {
-        const body = await readStreamToBuffer(stream, file.sizeBytes);
-        await storage.putObject({
-          key: buildReleaseSiteObjectKey(siteRootKey, file.relativePath),
-          body,
-          contentType: file.contentType,
-          cacheControl: file.cacheControl,
-          writeMode: "create",
-        });
-      },
-    });
+  const processingGeneration = await prepareReleaseGenerationJobAttempt({
+    database,
+    jobId,
+    releaseId,
+    generationId,
+    leaseToken,
+    workerId,
+    uploadedObject,
+  });
+  if (!processingGeneration.observedEtag) {
+    throw new ReleaseUploadFactsValidationError(
+      "Processing generation is missing its observed ETag.",
+    );
+  }
 
-    const readyGeneration = await promoteValidatedGeneration({
-      database,
-      releaseId: release.id,
+  const siteRootKey =
+    processingGeneration.siteRootKey ??
+    buildReleaseGenerationSiteRootKey({
+      gameId,
+      releaseId,
       generationId,
-      siteRootKey,
-      contentHash,
-      manifest,
+      outputId: attemptId,
     });
-    promoted = true;
+  await reportProgress(
+    {
+      contractVersion: releaseJobExecutionContractVersion,
+      stage: "reading_source",
+      message: "Reading the upload with its first-observed ETag fence.",
+    },
+    { outputRootKey: siteRootKey },
+  );
+  const archiveBuffer = await storage.readObject(
+    processingGeneration.zipObjectKey,
+    { expectedEtag: processingGeneration.observedEtag },
+  );
+  const contentHash = createHash("sha256").update(archiveBuffer).digest("hex");
 
-    const moderation = await moderate({
-      releaseId: release.id,
-      generationId,
+  await reportProgress({
+    contractVersion: releaseJobExecutionContractVersion,
+    stage: "validating_archive",
+    message: "Validating archive paths, manifest, limits, and content types.",
+  });
+  let manifest: Awaited<ReturnType<typeof readReleaseArchiveManifest>>;
+  try {
+    manifest = await readReleaseArchiveManifest(archiveBuffer);
+  } catch (cause) {
+    throw new ReleaseJobExecutionError({
+      code: "invalid_release_archive",
+      message:
+        cause instanceof Error
+          ? cause.message
+          : "Release archive validation failed.",
+      retryable: false,
+      stage: "validating_archive",
+      cause,
     });
-    const postModerationAction = resolveReleasePostModerationAction(moderation);
+  }
 
-    if (postModerationAction.kind === "ready") {
-      await completeModeration({
-        database,
-        releaseId: release.id,
-        generationId,
-        action: "ready",
-      });
-      return readyGeneration;
-    }
-
-    if (postModerationAction.kind === "quarantined") {
-      await completeModeration({
-        database,
-        releaseId: release.id,
-        generationId,
-        action: "quarantined",
-      });
-      return readyGeneration;
-    }
-
-    throw new Error(postModerationAction.message);
-  } catch (error) {
-    if (promoted) {
-      await markModerationFailure({
-        database,
-        releaseId: release.id,
-        generationId,
-      });
-    } else {
-      await markGenerationFailure({
-        database,
-        releaseId: release.id,
-        generationId,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Release artifact validation failed.",
-        payload: {
-          reason: "artifact_validation_failed",
-          zipObjectKey: processingGeneration.zipObjectKey,
+  if (processingGeneration.status !== "ready") {
+    await reportProgress({
+      contractVersion: releaseJobExecutionContractVersion,
+      stage: "writing_outputs",
+      message: "Writing create-only files to the attempt-scoped output root.",
+      completedUnits: 0,
+      totalUnits: manifest.fileCount,
+    });
+    let completedFiles = 0;
+    try {
+      await streamValidatedReleaseArchiveFiles({
+        archiveBuffer,
+        files: manifest.files,
+        onFile: async (file, stream) => {
+          const body = await readStreamToBuffer(stream, file.sizeBytes);
+          try {
+            await storage.putObject({
+              key: buildReleaseSiteObjectKey(siteRootKey, file.relativePath),
+              body,
+              contentType: file.contentType,
+              cacheControl: file.cacheControl,
+              writeMode: "create",
+            });
+          } catch (cause) {
+            throw new ReleaseJobExecutionError({
+              code: "release_output_write_failed",
+              message: "Could not write an immutable release output object.",
+              retryable: true,
+              stage: "writing_outputs",
+              cause,
+            });
+          }
+          completedFiles += 1;
+          if (
+            completedFiles % 25 === 0 &&
+            completedFiles < manifest.fileCount
+          ) {
+            await reportProgress({
+              contractVersion: releaseJobExecutionContractVersion,
+              stage: "writing_outputs",
+              message:
+                "Writing create-only files to the attempt-scoped output root.",
+              completedUnits: completedFiles,
+              totalUnits: manifest.fileCount,
+            });
+          }
         },
       });
+    } catch (cause) {
+      if (cause instanceof ReleaseJobExecutionError) throw cause;
+      throw new ReleaseJobExecutionError({
+        code: "invalid_release_archive",
+        message:
+          cause instanceof Error
+            ? cause.message
+            : "Release archive extraction failed.",
+        retryable: false,
+        stage: "writing_outputs",
+        cause,
+      });
     }
-    throw error;
   }
+
+  const outputManifest = {
+    contractVersion: releaseJobExecutionContractVersion,
+    kind: "release_artifact_site",
+    generationId,
+    siteRootKey,
+    contentHash,
+    extractedSizeBytes: manifest.extractedSizeBytes,
+    fileCount: manifest.fileCount,
+    entryPath: manifest.entryPath,
+  };
+  await reportProgress(
+    {
+      contractVersion: releaseJobExecutionContractVersion,
+      stage: "committing",
+      message: "Committing the generation and enqueueing browser validation.",
+      completedUnits: manifest.fileCount,
+      totalUnits: manifest.fileCount,
+    },
+    { outputRootKey: siteRootKey, outputManifest },
+  );
+  const committed = await commitReleaseArtifactJobAttempt({
+    database,
+    jobId,
+    releaseId,
+    generationId,
+    leaseToken,
+    workerId,
+    siteRootKey,
+    contentHash,
+    manifest,
+  });
+
+  return committed;
 };
