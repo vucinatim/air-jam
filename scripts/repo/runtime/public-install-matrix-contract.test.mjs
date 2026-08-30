@@ -10,6 +10,7 @@ import { parse as parseYaml } from "yaml";
 import { resolvePublicPackages } from "../../release/public-packages.mjs";
 import {
   aggregatePublicInstallMatrixEvidence,
+  readCommandVersion,
   readPublicInstallMatrix,
   readScaffoldResourceBudgets,
   summarizePublicInstallMatrix,
@@ -131,6 +132,10 @@ test("release install-matrix spec is discoverable as stable JSON", () => {
     result.scaffold.resourceBudgets,
     readScaffoldResourceBudgets(),
   );
+});
+
+test("matrix evidence reads package-manager commands through the portable launcher", () => {
+  assert.match(readCommandVersion("pnpm", ["--version"]), /^9\.9\.0$/u);
 });
 
 test("create-airjam ships the canonical scaffold resource budget contract", () => {

@@ -1,3 +1,4 @@
+import crossSpawn from "cross-spawn";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -273,8 +274,20 @@ const resolveObservedCell = (manifest) => {
   };
 };
 
-const readCommandVersion = (command, args) =>
-  execFileSync(command, args, { encoding: "utf8" }).trim();
+export const readCommandVersion = (command, args) => {
+  const result = crossSpawn.sync(command, args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (result.error || result.status !== 0) {
+    const detail =
+      String(result.stderr ?? "").trim() ||
+      result.error?.message ||
+      `exit code ${String(result.status)}`;
+    throw new Error(`Unable to read ${command} version: ${detail}`);
+  }
+  return String(result.stdout ?? "").trim();
+};
 
 const resolveCleanCommit = () => {
   const status = execFileSync(
