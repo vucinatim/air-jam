@@ -61,6 +61,12 @@ The canonical Gate 2 external-agent proof is defined by:
 4. the machine-readable scenario and prompt exposed through
    `pnpm --silent run repo -- golden-path spec --json`
 
+The Gate 6 public package graph, supported Node/OS matrix, budgets, and
+machine-executable clean-install contract are defined by:
+
+1. [contracts/public-package-support-contract.md](./contracts/public-package-support-contract.md)
+2. `pnpm --silent run repo -- release install-matrix spec --json`
+
 The ranked Gate 5 public, privileged, artifact, runtime, agent, provider,
 privacy, and supply-chain security baseline is:
 

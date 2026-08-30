@@ -467,9 +467,15 @@ export const prepareGoldenPathCandidateRegistry = async ({
 
 export const runGoldenPathBootstrap = async ({
   template = "minimal",
+  bootstrapClient = "pnpm-dlx",
   keepWorkspace = false,
   onProgress = () => {},
 } = {}) => {
+  if (bootstrapClient !== "pnpm-dlx" && bootstrapClient !== "npx") {
+    throw new Error(
+      `Unsupported bootstrap client ${bootstrapClient}. Use pnpm-dlx or npx.`,
+    );
+  }
   const runRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "airjam-golden-path-bootstrap-"),
   );
@@ -551,12 +557,47 @@ export const runGoldenPathBootstrap = async ({
     const { version, packageArtifacts } = prepared;
 
     fs.mkdirSync(path.dirname(projectDir), { recursive: true });
+    const scaffoldCommand =
+      bootstrapClient === "npx"
+        ? {
+            command: "npx",
+            args: [
+              "--yes",
+              `create-airjam@${version}`,
+              projectName,
+              "--template",
+              template,
+            ],
+          }
+        : {
+            command: "pnpm",
+            args: [
+              "dlx",
+              `create-airjam@${version}`,
+              projectName,
+              "--template",
+              template,
+            ],
+          };
     run(
       "scaffold:create",
-      "pnpm",
-      ["dlx", `create-airjam@${version}`, projectName, "--template", template],
+      scaffoldCommand.command,
+      scaffoldCommand.args,
       path.dirname(projectDir),
     );
+    const createAirJamVersion = run(
+      "discover:create-airjam-version",
+      bootstrapClient === "npx" ? "npx" : "pnpm",
+      bootstrapClient === "npx"
+        ? ["--yes", `create-airjam@${version}`, "--version"]
+        : ["dlx", `create-airjam@${version}`, "--version"],
+      path.dirname(projectDir),
+    ).trim();
+    if (createAirJamVersion !== version) {
+      throw new Error(
+        `create-airjam reported ${createAirJamVersion}; expected ${version}.`,
+      );
+    }
     fs.writeFileSync(
       path.join(projectDir, ".env.local"),
       `VITE_PORT=${gamePort}\n`,
@@ -586,6 +627,35 @@ export const runGoldenPathBootstrap = async ({
     }
 
     run("discover:cli", "pnpm", ["exec", "airjam", "--help"], projectDir);
+    const cliVersion = run(
+      "discover:cli-version",
+      "pnpm",
+      ["exec", "airjam", "--version"],
+      projectDir,
+    ).trim();
+    const serverVersion = run(
+      "discover:server-version",
+      "pnpm",
+      ["exec", "air-jam-server", "--version"],
+      projectDir,
+    ).trim();
+    const mcpCliVersion = run(
+      "discover:mcp-version",
+      "pnpm",
+      ["exec", "airjam-mcp", "--version"],
+      projectDir,
+    ).trim();
+    for (const [surface, observedVersion] of [
+      ["@air-jam/cli", cliVersion],
+      ["@air-jam/server", serverVersion],
+      ["@air-jam/mcp-server", mcpCliVersion],
+    ]) {
+      if (observedVersion !== version) {
+        throw new Error(
+          `${surface} reported ${observedVersion}; expected ${version}.`,
+        );
+      }
+    }
     run("discover:dev", "pnpm", ["run", "dev", "--", "--help"], projectDir);
     run(
       "discover:session",
@@ -716,6 +786,7 @@ export const runGoldenPathBootstrap = async ({
       ok: true,
       contract: "air-jam-golden-path-bootstrap/v1",
       template,
+      bootstrapClient,
       packageVersion: version,
       registry: {
         kind: "run-scoped-loopback-verdaccio",
@@ -735,6 +806,12 @@ export const runGoldenPathBootstrap = async ({
         installedVersions,
       },
       discovery: {
+        versions: {
+          "create-airjam": createAirJamVersion,
+          "@air-jam/cli": cliVersion,
+          "@air-jam/server": serverVersion,
+          "@air-jam/mcp-server": mcpCliVersion,
+        },
         portableMcp: doctor.portableDeclaration.present,
         codexProjectProfile: true,
         mcpServer: mcp.serverInfo,

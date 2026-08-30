@@ -1,5 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { execFileSync } from "node:child_process";
 import {
   access,
   mkdir,
@@ -65,6 +66,15 @@ afterEach(async () => {
       .splice(0)
       .map((root) => rm(root, { recursive: true, force: true })),
   );
+});
+
+it("reports the installed MCP package version", () => {
+  const output = execFileSync(
+    process.execPath,
+    [path.resolve(__dirname, "../dist/cli.js"), "--version"],
+    { cwd: path.resolve(__dirname, ".."), encoding: "utf8" },
+  );
+  expect(output.trim()).toBe(packageVersion);
 });
 
 it("ships every devtools helper used by the bundled MCP server", async () => {

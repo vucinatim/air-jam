@@ -16,6 +16,7 @@ export const verifyMcpStdioHandshake = async ({
   const child = spawn(command, args, {
     cwd,
     env,
+    shell: process.platform === "win32",
     stdio: ["pipe", "pipe", "pipe"],
   });
   let stdoutBuffer = "";

@@ -17,6 +17,7 @@ import {
   executeDevLogsCliOptions,
 } from "./logging/dev-logs-cli.js";
 import { createServerLogger } from "./logging/logger.js";
+import { AIR_JAM_SERVER_VERSION } from "./version.js";
 
 const runServer = async (): Promise<number> => {
   try {
@@ -58,6 +59,7 @@ export const createServerCli = (): Command => {
   program
     .name("air-jam-server")
     .description("Air Jam development and production server")
+    .version(AIR_JAM_SERVER_VERSION)
     .action(async () => {
       process.exitCode = await runServer();
     });

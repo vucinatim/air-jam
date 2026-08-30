@@ -1,11 +1,26 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { writeTemplateArchive } from "../scripts/lib/template-archive.mjs";
 
 const readFile = (filePath) => fs.readFileSync(filePath);
+
+test("create-airjam reports the installed package version", () => {
+  const packageRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+  );
+  const output = execFileSync(
+    process.execPath,
+    [path.join(packageRoot, "dist/index.js"), "--version"],
+    { cwd: packageRoot, encoding: "utf8" },
+  );
+  assert.equal(output.trim(), "0.9.2");
+});
 
 test("template archives are deterministic across source timestamp changes", async () => {
   const tempRoot = fs.mkdtempSync(

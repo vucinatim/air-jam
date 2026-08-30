@@ -52,7 +52,7 @@ const loadTemplateVersionManifest = (): TemplateVersionManifest => {
   return manifest as TemplateVersionManifest;
 };
 
-const loadCreateAirJamPackageVersion = (): string => {
+export const loadCreateAirJamPackageVersion = (): string => {
   const pkg = fs.readJsonSync(packageJsonPath) as { version?: string };
   if (!pkg.version || typeof pkg.version !== "string") {
     throw new Error("Invalid create-airjam package version");

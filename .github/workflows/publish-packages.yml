@@ -11,6 +11,7 @@ on:
         options:
           - all-public
           - sdk
+          - cli
           - mcp-server
           - server
           - create-airjam

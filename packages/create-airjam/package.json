@@ -1,6 +1,9 @@
 {
   "name": "create-airjam",
   "version": "0.9.2",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "description": "Scaffold a new Air Jam game — phone-controller multiplayer party game with a working dev server, SDK, and AI-assistant-ready docs in one command.",
   "type": "module",
   "license": "MIT",
