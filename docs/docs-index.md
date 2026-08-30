@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -61,6 +61,14 @@ The canonical Gate 2 external-agent proof is defined by:
 4. the machine-readable scenario and prompt exposed through
    `pnpm --silent run repo -- golden-path spec --json`
 
+The measured Gate 3 production baseline is:
+
+1. [audits/v1-reliability/production-capacity-cost-and-recovery-audit.md](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md)
+
+It distinguishes the current low-cost, low-usage production state from the
+queues, quotas, recovery, static-delivery, and operational controls still
+required before launch-scale traffic is invited.
+
 The detailed discoverability checklist remains a subordinate launch reference:
 
 1. [plans/discoverability-and-launch-promotion-plan.md](./plans/discoverability-and-launch-promotion-plan.md)
@@ -78,7 +86,8 @@ The roadmap gates define the product sequence and the readiness manifest derives
 the currently executable queue. The next independent work is:
 
 1. external-agent public installation and bootstrap proof
-2. production capacity, cost, lifecycle, and recovery inventory
+2. implement the measured production quotas, queues, cleanup, spend guards,
+   backup, restore, and replay contracts
 3. operational-event and incident contract definition
 4. the public and privileged surface threat model
 5. post-v1 architecture work is intentionally non-current and now lives in:

@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-29T18:03:33.619Z",
+  "updatedAt": "2026-08-29T19:21:05.603Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -476,7 +476,7 @@
       "priority": 10,
       "title": "Inventory production capacity, cost, lifecycle, recovery, and provider controls",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [],
       "estimate": {
         "agentHoursMin": 6,
@@ -484,7 +484,18 @@
       },
       "evidenceRequirements": [
         "measured baseline and gap inventory for every expensive lane"
-      ]
+      ],
+      "owner": "/root/g3-capacity-inventory",
+      "note": "Measured every expensive production lane; recorded current cost, capacity, lifecycle, backup, rollback, provider-control gaps, and production-valid implementation order without mutating production.",
+      "updatedAt": "2026-08-29T19:21:05.603Z",
+      "evidence": [
+        "document:docs/audits/v1-reliability/production-capacity-cost-and-recovery-audit.md",
+        "command:pnpm --silent run repo -- railway doctor --json",
+        "command:pnpm --silent run repo -- platform telemetry health --json",
+        "url:https://docs.railway.com/pricing/cost-control",
+        "url:https://docs.railway.com/volumes/backups"
+      ],
+      "completedAt": "2026-08-29T19:21:05.603Z"
     },
     {
       "id": "G3-02",

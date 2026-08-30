@@ -297,6 +297,16 @@ clean scaffold, exercised through CLI and raw MCP, and removed after all
 generated-project quality gates passed. No npm package or production system was
 changed.
 
+Gate `G3-01` is closed with the
+[production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).
+Production currently costs about `$8` per Railway cycle, uses little database
+and object-storage capacity, and showed no `5xx` in the sampled seven-day
+traffic. The audit also makes the launch gap explicit: synchronous release
+work, dynamic release delivery, process-local realtime authority, no recurring
+database backup, no app-specific spend brake, incomplete lifecycle cleanup,
+and no continuously proven alert/rollback path. No production state was changed
+by the audit.
+
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
 [2026-08-26 pre-roadmap snapshot](./archive/2026-08-26-v1-release-plan-pre-roadmap.md).
@@ -331,8 +341,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. continue the dependency-ready reliability inventory, operational-event
-   contract, and threat model
+3. implement the measured quota, queue, cleanup, spend-control, and expensive
+   lane-switch contract, then run the isolated backup/restore and rollback/replay
+   work in parallel with the operational-event contract and threat model
 4. preserve Gate 1 contracts while those independent implementation lanes run
 5. complete or block work only through evidence-backed readiness transitions
 
@@ -340,8 +351,9 @@ Execute the roadmap in dependency order:
 
 1. the repo has enough implemented infrastructure that the main risk is now
    committing to stale assumptions or freezing accidental complexity
-2. production launch confidence has not yet been demonstrated through a defined
-   capacity envelope, recovery drill, and incident-automation proof
+2. the production baseline and target capacity envelope are now measured and
+   explicit, but recovery, deliberate overload, and incident-automation proof
+   have not yet been demonstrated
 3. product telemetry anonymous-session and actor-class counts are approximate
    discovery measures, not durable people or identity proof
 4. full code-changing self-healing is a post-1.0 direction; 1.0 requires strong
