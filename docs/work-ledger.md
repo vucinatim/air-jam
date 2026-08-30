@@ -18,6 +18,28 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-30 - Gate 5 Received A Ranked Security Threat Model
+
+- completed three independent read-only audits across public/artifact,
+  privileged/agent/provider, and supply-chain/privacy surfaces, then
+  deduplicated them into one canonical register
+- confirmed one critical launch blocker in source and production configuration:
+  creator-controlled hosted game code falls back to the authenticated platform
+  origin and is not effectively sandboxed from platform authority
+- ranked thirteen high-priority and three defense-in-depth threat groups with
+  exact evidence, current controls, canonical end states, readiness ownership,
+  and adversarial proof requirements
+- used the repo-owned Railway surface to attest current production service and
+  non-secret variable-name state without printing credential values; worker
+  tokens are present, while a dedicated hosted-release origin is not
+- preserved verified strengths including strict ZIP validation, scoped release
+  inspection tokens, database-backed ops roles, local machine-token file
+  protection, telemetry minimization, and package provenance foundations
+- mapped every accepted finding onto existing `G5-02`, `G5-03`, and cross-gate
+  work instead of creating a duplicate Markdown task tracker
+- selected dedicated cookieless untrusted-content origin isolation and a
+  hostile-release browser proof as the first Gate 5 implementation slice
+
 ## 2026-08-30 - Gate 4 Operational Authority Contract Closed
 
 - defined one versioned runtime contract that keeps approximate product

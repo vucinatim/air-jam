@@ -208,6 +208,20 @@ These are now baseline truths, not open architecture debates:
        evidence rules fail closed
     5. all seven schema families are inspectable as Draft 7 JSON Schema and
        runtime-validatable through the canonical repo CLI
+16. Gate `G5-01` now has one ranked threat model:
+    1. public, privileged, artifact, runtime, agent, provider, privacy, and
+       supply-chain boundaries were independently reviewed and centrally
+       deduplicated
+    2. one critical launch blocker is confirmed in source and current production
+       configuration: creator executable releases fall back to the authenticated
+       platform origin
+    3. thirteen high-priority threat groups now have exact ownership, canonical
+       end states, and hostile proof requirements
+    4. production browser-worker credentials are present, so the worker finding
+       is a fail-open architecture and egress gap rather than an unsupported
+       claim of current anonymous exposure
+    5. implementation remains in `G5-02` and `G5-03`, with one final batched
+       human residual-risk review in `G5-04`
 
 ## What Is Still Open
 
@@ -308,6 +322,12 @@ clean scaffold, exercised through CLI and raw MCP, and removed after all
 generated-project quality gates passed. No npm package or production system was
 changed.
 
+Gate `G5-01` is closed by the
+[ranked security threat model](./audits/v1-security/threat-model-audit.md). Its
+highest-priority result is that creator-controlled executable game bytes must
+move to a dedicated cookieless origin with strict iframe and browser policies
+before 1.0. The audit deliberately leaves implementation open in `G5-02` and
+`G5-03`; it does not treat documenting a threat as fixing it.
 Gate `G4-01` is closed with the
 [operational events and incidents contract](./contracts/operational-events-and-incidents-contract.md)
 and its [proof](./audits/v1-operations/operational-contract-proof.md). The
@@ -404,14 +424,14 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. land the completed operational-worker and terminal-resource cleanup stack,
-   then finish warned long-term artifact retention, realtime admission, and
-   overload proof
-4. run the isolated backup/restore and rollback/replay work in parallel with
-   durable operational-event production against the completed contract and the
-   threat model
-5. preserve Gate 1 contracts while those independent implementation lanes run
-6. complete or block work only through evidence-backed readiness transitions
+3. establish the dedicated untrusted-content origin contract and hostile-game
+   isolation proof, then close the remaining ranked Gate 5 implementation
+4. finish warned long-term artifact retention, realtime admission, and overload
+   proof in `G3-02`
+5. run isolated backup/restore and rollback/replay work in parallel with durable
+   operational-event production against the completed Gate 4 contract
+6. preserve Gate 1 contracts while those independent implementation lanes run
+7. complete or block work only through evidence-backed readiness transitions
 
 ## Current Caveats
 

@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-30T03:51:29.450Z",
+  "updatedAt": "2026-08-30T04:22:12.770Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -716,7 +716,7 @@
       "priority": 10,
       "title": "Threat-model public, privileged, artifact, runtime, agent, and provider surfaces",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [],
       "estimate": {
         "agentHoursMin": 7,
@@ -724,7 +724,15 @@
       },
       "evidenceRequirements": [
         "ranked threat model with ownership and proof requirements"
-      ]
+      ],
+      "owner": "/root/g5-threat-model",
+      "note": "Ranked public, privileged, artifact, runtime, agent, provider, privacy, and supply-chain threats with exact ownership and adversarial proof requirements; implementation remains in G5-02 and G5-03.",
+      "updatedAt": "2026-08-30T04:22:12.770Z",
+      "evidence": [
+        "document:docs/audits/v1-security/threat-model-audit.md",
+        "command:pnpm-test-repo-contracts"
+      ],
+      "completedAt": "2026-08-30T04:22:12.770Z"
     },
     {
       "id": "G5-02",

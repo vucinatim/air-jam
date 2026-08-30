@@ -61,6 +61,13 @@ The canonical Gate 2 external-agent proof is defined by:
 4. the machine-readable scenario and prompt exposed through
    `pnpm --silent run repo -- golden-path spec --json`
 
+The ranked Gate 5 public, privileged, artifact, runtime, agent, provider,
+privacy, and supply-chain security baseline is:
+
+1. [audits/v1-security/threat-model-audit.md](./audits/v1-security/threat-model-audit.md)
+
+The audit owns evidence and decisions. `G5-02` and `G5-03` in the readiness
+manifest own implementation and proof; the document is not a parallel backlog.
 The Gate 4 authority boundary for operational evidence, incident correlation,
 and safely governed runbooks is defined by:
 
@@ -118,10 +125,11 @@ the currently executable queue. The next independent work is:
 
 1. external-agent public installation and bootstrap proof
 2. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
-3. produce and persist durable operational events against the canonical Gate 4
+3. establish dedicated untrusted-content origin isolation and close the
+   remaining ranked Gate 5 security findings
+4. produce and persist durable operational events against the canonical Gate 4
    contract
-4. run isolated backup/restore and rollback/replay proof
-5. complete the public and privileged surface threat model
+5. run isolated backup/restore and rollback/replay proof
 6. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
 7. do not treat future topology work as a second live execution plan while the
