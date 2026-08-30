@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import yauzl from "yauzl";
 import {
@@ -9,12 +10,57 @@ import {
   scaffoldTemplateManifestPath,
   scaffoldTemplatesRoot,
 } from "./lib/scaffold-source-manifests.mjs";
+import { generateScaffoldTemplates } from "./lib/scaffold-template-generation.mjs";
 
 const AGENT_CONTRACT_PATH = "src/game/contracts/agent.ts";
 const CONFIG_PATH = "src/airjam.config.ts";
 
 const readFileIfPresent = (filePath) =>
   fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : null;
+
+const listFiles = (rootDir, currentDir = rootDir) =>
+  fs
+    .readdirSync(currentDir, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap((entry) => {
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        return listFiles(rootDir, absolutePath);
+      }
+      return [path.relative(rootDir, absolutePath).replace(/\\/g, "/")];
+    });
+
+const verifyGeneratedArtifacts = async () => {
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "airjam-template-check-"),
+  );
+  const generatedRoot = path.join(tempRoot, "scaffold-templates");
+
+  try {
+    await generateScaffoldTemplates({ outputRoot: generatedRoot });
+    const expectedFiles = listFiles(generatedRoot);
+    const actualFiles = listFiles(scaffoldTemplatesRoot);
+    if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
+      throw new Error(
+        `scaffold template artifact set is stale\nexpected: ${expectedFiles.join(", ")}\nactual: ${actualFiles.join(", ")}`,
+      );
+    }
+
+    for (const relativePath of expectedFiles) {
+      const expected = fs.readFileSync(path.join(generatedRoot, relativePath));
+      const actual = fs.readFileSync(
+        path.join(scaffoldTemplatesRoot, relativePath),
+      );
+      if (!actual.equals(expected)) {
+        throw new Error(
+          `scaffold template artifact ${relativePath} is stale; run pnpm templates:generate`,
+        );
+      }
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+};
 
 const listArchiveEntries = async (archivePath) =>
   await new Promise((resolve, reject) => {
@@ -136,6 +182,8 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
 if (missing.length > 0) {
   throw new Error(missing.join("\n"));
 }
+
+await verifyGeneratedArtifacts();
 
 console.log(
   `✓ Scaffold template archives verified in ${scaffoldTemplatesRoot}`,

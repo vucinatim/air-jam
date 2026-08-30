@@ -58,7 +58,7 @@
     "scaffold-sources:check": "node scripts/check-scaffold-sources.mjs",
     "templates:generate": "node scripts/generate-scaffold-sources.mjs",
     "templates:check": "node scripts/check-scaffold-sources.mjs",
-    "build": "pnpm --filter @air-jam/cli build && pnpm templates:generate && node scripts/generate-template-version-manifest.mjs && pnpm templates:check && tsup",
+    "build": "pnpm --filter @air-jam/cli build && pnpm templates:check && node scripts/generate-template-version-manifest.mjs --check && tsup",
     "dev": "tsup --watch",
     "typecheck": "pnpm --filter @air-jam/cli build && tsc --noEmit",
     "smoke": "node scripts/smoke-test.mjs --source=tarball --template=all",

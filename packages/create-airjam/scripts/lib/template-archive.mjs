@@ -2,9 +2,8 @@ import fse from "fs-extra";
 import path from "node:path";
 import yazl from "yazl";
 
-export const normalizedTemplateArchiveMtime = new Date(
-  "2000-01-01T00:00:00.000Z",
-);
+const createNormalizedTemplateArchiveMtime = () =>
+  new Date(2000, 0, 1, 0, 0, 0, 0);
 
 const normalizeArchivePath = (value) => value.replace(/\\/g, "/");
 
@@ -44,7 +43,9 @@ export const writeTemplateArchive = async ({ sourceDir, outputFile }) => {
   zipFile.outputStream.pipe(output);
 
   for (const filePath of files) {
-    const relativePath = normalizeArchivePath(path.relative(sourceDir, filePath));
+    const relativePath = normalizeArchivePath(
+      path.relative(sourceDir, filePath),
+    );
     if (!relativePath) {
       continue;
     }
@@ -52,8 +53,9 @@ export const writeTemplateArchive = async ({ sourceDir, outputFile }) => {
     const stats = await fse.stat(filePath);
     zipFile.addFile(filePath, relativePath, {
       compress: false,
+      forceDosTimestamp: true,
       mode: normalizeArchiveMode(stats),
-      mtime: normalizedTemplateArchiveMtime,
+      mtime: createNormalizedTemplateArchiveMtime(),
     });
   }
 
