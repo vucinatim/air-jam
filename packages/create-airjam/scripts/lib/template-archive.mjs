@@ -51,6 +51,7 @@ export const writeTemplateArchive = async ({ sourceDir, outputFile }) => {
 
     const stats = await fse.stat(filePath);
     zipFile.addFile(filePath, relativePath, {
+      compress: false,
       mode: normalizeArchiveMode(stats),
       mtime: normalizedTemplateArchiveMtime,
     });
