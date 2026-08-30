@@ -1,10 +1,10 @@
 import { rewriteRootRelativeAssetUrlsInText } from "@/lib/asset-url-rewrite";
+import { HOSTED_RELEASE_CONTROLLER_PATH } from "@air-jam/sdk/release";
 import {
   AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY,
   resolveRuntimeTopology,
   serializeRuntimeTopology,
 } from "@air-jam/sdk/runtime-topology";
-import { HOSTED_RELEASE_CONTROLLER_PATH } from "@air-jam/sdk/release";
 
 export const RELEASES_PATH_PREFIX = "/releases";
 
@@ -13,37 +13,44 @@ const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 export const buildHostedReleaseAssetPath = ({
   gameId,
   releaseId,
+  generationId,
   assetPath,
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
   assetPath: string;
 }): string =>
   `${RELEASES_PATH_PREFIX}/g/${trimSlashes(gameId)}/r/${trimSlashes(
     releaseId,
-  )}/${trimSlashes(assetPath)}`;
+  )}/generations/${trimSlashes(generationId)}/${trimSlashes(assetPath)}`;
 
 export const buildHostedReleaseBasePath = ({
   gameId,
   releaseId,
+  generationId,
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
 }): string =>
-  `${RELEASES_PATH_PREFIX}/g/${trimSlashes(gameId)}/r/${trimSlashes(releaseId)}`;
+  `${RELEASES_PATH_PREFIX}/g/${trimSlashes(gameId)}/r/${trimSlashes(releaseId)}/generations/${trimSlashes(generationId)}`;
 
 export const rewriteHostedReleaseHtmlAssetUrls = ({
   html,
   gameId,
   releaseId,
+  generationId,
 }: {
   html: string;
   gameId: string;
   releaseId: string;
+  generationId: string;
 }): string => {
   const hostedBasePath = buildHostedReleaseBasePath({
     gameId,
     releaseId,
+    generationId,
   });
 
   return html
@@ -55,16 +62,19 @@ export const rewriteHostedReleaseTextAssetUrls = ({
   content,
   gameId,
   releaseId,
+  generationId,
   contentType,
 }: {
   content: string;
   gameId: string;
   releaseId: string;
+  generationId: string;
   contentType?: string;
 }): string => {
   const hostedBasePath = buildHostedReleaseBasePath({
     gameId,
     releaseId,
+    generationId,
   });
   const normalizedContentType = contentType?.toLowerCase() ?? "";
   const rewriteBareRelativeAssetUrls =
@@ -94,6 +104,7 @@ export const logicalHostedReleaseRoutePath = ({
 export const buildHostedReleaseRuntimeTopology = ({
   gameId,
   releaseId,
+  generationId,
   requestedAssetPath,
   entryPath,
   appOrigin,
@@ -101,6 +112,7 @@ export const buildHostedReleaseRuntimeTopology = ({
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
   requestedAssetPath: string;
   entryPath: string;
   appOrigin: string;
@@ -113,6 +125,7 @@ export const buildHostedReleaseRuntimeTopology = ({
   const hostedBasePath = buildHostedReleaseBasePath({
     gameId,
     releaseId,
+    generationId,
   });
 
   return serializeRuntimeTopology(
@@ -137,6 +150,7 @@ export const injectHostedReleaseHtmlRuntimeBase = ({
   html,
   gameId,
   releaseId,
+  generationId,
   requestedAssetPath,
   entryPath,
   runtimeTopology,
@@ -144,6 +158,7 @@ export const injectHostedReleaseHtmlRuntimeBase = ({
   html: string;
   gameId: string;
   releaseId: string;
+  generationId: string;
   requestedAssetPath: string;
   entryPath: string;
   runtimeTopology?: string;
@@ -151,6 +166,7 @@ export const injectHostedReleaseHtmlRuntimeBase = ({
   const hostedBasePath = buildHostedReleaseBasePath({
     gameId,
     releaseId,
+    generationId,
   });
   const logicalPath = logicalHostedReleaseRoutePath({
     requestedAssetPath,

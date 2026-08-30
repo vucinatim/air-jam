@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { gameReleaseArtifacts, gameReleases } from "@/db/schema";
+import { gameReleaseGenerations, gameReleases } from "@/db/schema";
 import {
   HOSTED_RELEASE_CONTROLLER_PATH,
   HOSTED_RELEASE_HOST_PATH,
@@ -10,11 +10,13 @@ import { and, desc, eq } from "drizzle-orm";
 export const buildHostedReleaseSnapshot = ({
   gameId,
   releaseId,
+  generationId,
   versionLabel,
   publishedAt,
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
   versionLabel: string | null;
   publishedAt: Date | null;
 }) => ({
@@ -26,11 +28,13 @@ export const buildHostedReleaseSnapshot = ({
   url: buildHostedReleaseAssetUrl({
     gameId,
     releaseId,
+    generationId,
     assetPath: HOSTED_RELEASE_HOST_PATH,
   }),
   controllerUrl: buildHostedReleaseAssetUrl({
     gameId,
     releaseId,
+    generationId,
     assetPath: HOSTED_RELEASE_CONTROLLER_PATH,
   }),
 });
@@ -39,13 +43,18 @@ export const getLiveReleaseForGame = async (gameId: string) => {
   const liveReleaseRows = await db
     .select({
       releaseId: gameReleases.id,
+      generationId: gameReleaseGenerations.id,
       versionLabel: gameReleases.versionLabel,
       publishedAt: gameReleases.publishedAt,
     })
     .from(gameReleases)
     .innerJoin(
-      gameReleaseArtifacts,
-      eq(gameReleaseArtifacts.releaseId, gameReleases.id),
+      gameReleaseGenerations,
+      and(
+        eq(gameReleaseGenerations.id, gameReleases.promotedGenerationId),
+        eq(gameReleaseGenerations.releaseId, gameReleases.id),
+        eq(gameReleaseGenerations.status, "ready"),
+      ),
     )
     .where(
       and(eq(gameReleases.gameId, gameId), eq(gameReleases.status, "live")),
@@ -65,6 +74,7 @@ export const getLiveReleaseForGame = async (gameId: string) => {
   return buildHostedReleaseSnapshot({
     gameId,
     releaseId: match.releaseId,
+    generationId: match.generationId,
     versionLabel: match.versionLabel,
     publishedAt: match.publishedAt,
   });

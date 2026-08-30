@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import {
-  gameReleaseArtifacts,
   gameReleaseChecks,
+  gameReleaseGenerations,
   gameReleaseReports,
   gameReleases,
   games,
@@ -11,6 +11,46 @@ import { desc, eq, inArray } from "drizzle-orm";
 
 type GameRecord = typeof games.$inferSelect;
 type ReleaseRecord = typeof gameReleases.$inferSelect;
+type ReleaseGenerationRecord = typeof gameReleaseGenerations.$inferSelect;
+type ReleaseCheckRecord = typeof gameReleaseChecks.$inferSelect;
+
+export const projectReleaseGeneration = (
+  generation: ReleaseGenerationRecord,
+) => ({
+  id: generation.id,
+  releaseId: generation.releaseId,
+  sequence: generation.sequence,
+  status: generation.status,
+  originalFilename: generation.originalFilename,
+  contentType: generation.contentType,
+  declaredSizeBytes: generation.declaredSizeBytes,
+  observedSizeBytes: generation.observedSizeBytes,
+  observedContentType: generation.observedContentType,
+  observedEtag: generation.observedEtag,
+  observedLastModifiedAt: generation.observedLastModifiedAt,
+  extractedSizeBytes: generation.extractedSizeBytes,
+  fileCount: generation.fileCount,
+  entryPath: generation.entryPath,
+  contentHash: generation.contentHash,
+  createdAt: generation.createdAt,
+  uploadObservedAt: generation.uploadObservedAt,
+  processingStartedAt: generation.processingStartedAt,
+  readyAt: generation.readyAt,
+  failedAt: generation.failedAt,
+  abandonedAt: generation.abandonedAt,
+});
+
+export const projectReleaseCheck = (check: ReleaseCheckRecord) => ({
+  id: check.id,
+  releaseId: check.releaseId,
+  generationId: check.generationId,
+  jobId: check.jobId,
+  jobAttempt: check.jobAttempt,
+  kind: check.kind,
+  status: check.status,
+  summary: check.summary,
+  createdAt: check.createdAt,
+});
 
 const loadReleaseDetails = async ({
   game,
@@ -24,12 +64,13 @@ const loadReleaseDetails = async ({
   }
 
   const releaseIds = releases.map((release) => release.id);
-  const [owner, artifacts, checks, reports] = await Promise.all([
+  const [owner, generations, checks, reports] = await Promise.all([
     db.query.users.findFirst({ where: eq(users.id, game.userId) }),
     db
       .select()
-      .from(gameReleaseArtifacts)
-      .where(inArray(gameReleaseArtifacts.releaseId, releaseIds)),
+      .from(gameReleaseGenerations)
+      .where(inArray(gameReleaseGenerations.releaseId, releaseIds))
+      .orderBy(desc(gameReleaseGenerations.sequence)),
     db
       .select()
       .from(gameReleaseChecks)
@@ -42,11 +83,19 @@ const loadReleaseDetails = async ({
       .orderBy(desc(gameReleaseReports.createdAt)),
   ]);
 
-  const artifactByReleaseId = new Map(
-    artifacts.map((artifact) => [artifact.releaseId, artifact]),
-  );
+  const generationsByReleaseId = new Map<
+    string,
+    ReturnType<typeof projectReleaseGeneration>[]
+  >();
   const checksByReleaseId = new Map<string, (typeof checks)[number][]>();
   const reportsByReleaseId = new Map<string, (typeof reports)[number][]>();
+
+  for (const generation of generations) {
+    const releaseGenerations =
+      generationsByReleaseId.get(generation.releaseId) ?? [];
+    releaseGenerations.push(projectReleaseGeneration(generation));
+    generationsByReleaseId.set(generation.releaseId, releaseGenerations);
+  }
 
   for (const check of checks) {
     const releaseChecks = checksByReleaseId.get(check.releaseId) ?? [];
@@ -69,14 +118,29 @@ const loadReleaseDetails = async ({
       }
     : null;
 
-  return releases.map((release) => ({
-    ...release,
-    game,
-    owner: ownerProjection,
-    artifact: artifactByReleaseId.get(release.id) ?? null,
-    checks: checksByReleaseId.get(release.id) ?? [],
-    reports: reportsByReleaseId.get(release.id) ?? [],
-  }));
+  return releases.map((release) => {
+    const releaseGenerations = generationsByReleaseId.get(release.id) ?? [];
+    const generationById = new Map(
+      releaseGenerations.map((generation) => [generation.id, generation]),
+    );
+
+    return {
+      ...release,
+      game,
+      owner: ownerProjection,
+      generations: releaseGenerations,
+      candidateGeneration: release.candidateGenerationId
+        ? (generationById.get(release.candidateGenerationId) ?? null)
+        : null,
+      promotedGeneration: release.promotedGenerationId
+        ? (generationById.get(release.promotedGenerationId) ?? null)
+        : null,
+      checks: (checksByReleaseId.get(release.id) ?? []).map(
+        projectReleaseCheck,
+      ),
+      reports: reportsByReleaseId.get(release.id) ?? [],
+    };
+  });
 };
 
 export const listReleaseDetailsByGame = async (game: GameRecord) => {

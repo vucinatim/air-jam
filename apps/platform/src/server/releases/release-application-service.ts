@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import {
-  gameReleaseArtifacts,
   gameReleaseChecks,
+  gameReleaseGenerations,
   gameReleaseReports,
   gameReleases,
   games,
@@ -20,7 +20,11 @@ import { assertOperationalLaneAccepting } from "@/server/operations/production-c
 import { desc, inArray } from "drizzle-orm";
 import { assertOwnedRelease } from "./assert-owned-release";
 import { assertReleaseExists } from "./assert-release-exists";
-import { listReleaseDetailsByGame } from "./get-release-details";
+import {
+  listReleaseDetailsByGame,
+  projectReleaseCheck,
+  projectReleaseGeneration,
+} from "./get-release-details";
 import {
   finalizeReleaseUpload,
   requestReleaseUploadTarget,
@@ -113,37 +117,57 @@ export const requestOwnedReleaseUploadTarget = async ({
   });
 
   return {
-    release: await reloadOwnedRelease({ actor, releaseId: result.release.id }),
-    upload: result.upload,
+    release: await reloadOwnedRelease({ actor, releaseId }),
+    generation: projectReleaseGeneration(result.generation),
+    upload: {
+      method: result.upload.method,
+      url: result.upload.url,
+      headers: result.upload.headers,
+      expiresAt: result.upload.expiresAt,
+    },
   };
 };
 
 export const finalizeOwnedReleaseUpload = async ({
   actor,
   releaseId,
+  generationId,
 }: {
   actor: AuthenticatedPlatformActor;
   releaseId: string;
+  generationId: string;
 }) => {
   const release = await reloadOwnedRelease({ actor, releaseId });
   await assertOperationalLaneAccepting({ lane: "release_processing" });
 
   try {
-    await finalizeReleaseUpload({ release });
+    const generation = await finalizeReleaseUpload({ release, generationId });
+    return {
+      release: await reloadOwnedRelease({ actor, releaseId }),
+      generation: projectReleaseGeneration(generation),
+    };
   } catch (error) {
     const updatedRelease = await reloadOwnedRelease({ actor, releaseId });
+    const generation = updatedRelease.generations.find(
+      (candidate) => candidate.id === generationId,
+    );
+    const matchesPromotedGeneration =
+      updatedRelease.promotedGenerationId === generationId;
+    const matchesLatestFailedGeneration =
+      updatedRelease.status === "failed" &&
+      generation?.status === "failed" &&
+      updatedRelease.generations[0]?.id === generationId;
     if (
-      updatedRelease.status === "ready" ||
-      updatedRelease.status === "quarantined" ||
-      updatedRelease.status === "failed"
+      generation &&
+      ((["ready", "quarantined", "failed"].includes(updatedRelease.status) &&
+        matchesPromotedGeneration) ||
+        matchesLatestFailedGeneration)
     ) {
-      return updatedRelease;
+      return { release: updatedRelease, generation };
     }
 
     throw error;
   }
-
-  return reloadOwnedRelease({ actor, releaseId });
 };
 
 export const publishOwnedRelease = async ({
@@ -187,11 +211,12 @@ export const listReleasesForOperations = async ({
   }
 
   const releaseIds = releases.map((release) => release.id);
-  const [artifacts, checks, reports, releaseGames] = await Promise.all([
+  const [generations, checks, reports, releaseGames] = await Promise.all([
     db
       .select()
-      .from(gameReleaseArtifacts)
-      .where(inArray(gameReleaseArtifacts.releaseId, releaseIds)),
+      .from(gameReleaseGenerations)
+      .where(inArray(gameReleaseGenerations.releaseId, releaseIds))
+      .orderBy(desc(gameReleaseGenerations.sequence)),
     db
       .select()
       .from(gameReleaseChecks)
@@ -226,9 +251,10 @@ export const listReleasesForOperations = async ({
           where: (table, { inArray }) => inArray(table.id, ownerIds),
         });
 
-  const artifactByReleaseId = new Map(
-    artifacts.map((artifact) => [artifact.releaseId, artifact]),
-  );
+  const generationsByReleaseId = new Map<
+    string,
+    ReturnType<typeof projectReleaseGeneration>[]
+  >();
   const checksByReleaseId = new Map<string, (typeof checks)[number][]>();
   const reportsByReleaseId = new Map<string, (typeof reports)[number][]>();
   const gameById = new Map(releaseGames.map((game) => [game.id, game]));
@@ -244,6 +270,13 @@ export const listReleasesForOperations = async ({
     ]),
   );
 
+  for (const generation of generations) {
+    const releaseGenerations =
+      generationsByReleaseId.get(generation.releaseId) ?? [];
+    releaseGenerations.push(projectReleaseGeneration(generation));
+    generationsByReleaseId.set(generation.releaseId, releaseGenerations);
+  }
+
   for (const check of checks) {
     const releaseChecks = checksByReleaseId.get(check.releaseId) ?? [];
     releaseChecks.push(check);
@@ -258,13 +291,25 @@ export const listReleasesForOperations = async ({
 
   return releases.map((release) => {
     const game = gameById.get(release.gameId);
+    const releaseGenerations = generationsByReleaseId.get(release.id) ?? [];
+    const generationById = new Map(
+      releaseGenerations.map((generation) => [generation.id, generation]),
+    );
     return {
       ...release,
       game: game
         ? { ...game, owner: ownerById.get(game.userId) ?? null }
         : null,
-      artifact: artifactByReleaseId.get(release.id) ?? null,
-      checks: checksByReleaseId.get(release.id) ?? [],
+      generations: releaseGenerations,
+      candidateGeneration: release.candidateGenerationId
+        ? (generationById.get(release.candidateGenerationId) ?? null)
+        : null,
+      promotedGeneration: release.promotedGenerationId
+        ? (generationById.get(release.promotedGenerationId) ?? null)
+        : null,
+      checks: (checksByReleaseId.get(release.id) ?? []).map(
+        projectReleaseCheck,
+      ),
       reports: reportsByReleaseId.get(release.id) ?? [],
     };
   });
@@ -291,7 +336,19 @@ export const moderateReleaseForOperations = async ({
   releaseId: string;
 }) => {
   assertOperationsActor(actor);
-  await assertReleaseExists(releaseId);
-  await runReleaseModeration({ releaseId });
+  const release = await assertReleaseExists(releaseId);
+  if (!release.promotedGenerationId) {
+    throw new PlatformApplicationError({
+      code: "conflict",
+      message: "Release has no promoted generation to moderate.",
+    });
+  }
+  const moderation = await runReleaseModeration({
+    releaseId,
+    generationId: release.promotedGenerationId,
+  });
+  if (moderation.outcome === "flagged") {
+    await quarantineRelease({ releaseId });
+  }
   return assertReleaseExists(releaseId);
 };

@@ -19,6 +19,19 @@ export const gameReleaseStatusValues = [
 export type GameReleaseStatus = (typeof gameReleaseStatusValues)[number];
 export const gameReleaseStatusSchema = z.enum(gameReleaseStatusValues);
 
+export const releaseGenerationStatusValues = [
+  "awaiting_upload",
+  "processing",
+  "ready",
+  "failed",
+  "abandoned",
+] as const;
+export type ReleaseGenerationStatus =
+  (typeof releaseGenerationStatusValues)[number];
+export const releaseGenerationStatusSchema = z.enum(
+  releaseGenerationStatusValues,
+);
+
 export const releaseCheckKindValues = [
   "artifact_validation",
   "screenshot_capture",

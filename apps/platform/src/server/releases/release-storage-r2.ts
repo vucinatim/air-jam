@@ -129,6 +129,7 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
         Bucket: config.bucket,
         Key: key,
         ContentType: contentType,
+        IfNoneMatch: "*",
         Metadata: {
           [METADATA_ORIGINAL_FILENAME_KEY]: originalFilename,
         },
@@ -144,6 +145,7 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
         url,
         headers: {
           "content-type": contentType,
+          "if-none-match": "*",
         },
         expiresAt: new Date(
           Date.now() + config.uploadUrlTtlSeconds * 1_000,
@@ -153,11 +155,12 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
 
     headObject,
 
-    async readObject(key) {
+    async readObject(key, options) {
       const response = await client.send(
         new GetObjectCommand({
           Bucket: config.bucket,
           Key: key,
+          IfMatch: options?.expectedEtag,
         }),
       );
 
@@ -168,7 +171,7 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
       return bodyToBuffer(response.Body);
     },
 
-    async putObject({ key, body, cacheControl, contentType }) {
+    async putObject({ key, body, cacheControl, contentType, writeMode }) {
       await client.send(
         new PutObjectCommand({
           Bucket: config.bucket,
@@ -176,6 +179,7 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
           Body: body,
           CacheControl: cacheControl,
           ContentType: contentType,
+          IfNoneMatch: writeMode === "create" ? "*" : undefined,
         }),
       );
     },

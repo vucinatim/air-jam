@@ -27,6 +27,8 @@ describeWithPostgres("production quota PostgreSQL authority", () => {
   const secondGameId = `quota_game_b_${suffix}`;
   const firstReleaseId = `quota_release_a_${suffix}`;
   const secondReleaseId = `quota_release_b_${suffix}`;
+  const firstGenerationId = `quota_generation_a_${suffix}`;
+  const secondGenerationId = `quota_generation_b_${suffix}`;
   const cycleId = `quota_cycle_${suffix}`;
   const now = new Date();
   const cycleStart = new Date(
@@ -69,30 +71,69 @@ describeWithPostgres("production quota PostgreSQL authority", () => {
         id: firstReleaseId,
         gameId: firstGameId,
         sourceKind: "upload",
-        status: "ready",
+        status: "archived",
         createdAt: new Date(now.getTime() - 8_000),
       },
       {
         id: secondReleaseId,
         gameId: firstGameId,
         sourceKind: "upload",
-        status: "ready",
+        status: "archived",
         createdAt: new Date(now.getTime() - 7_000),
       },
     ]);
-    await database.insert(schema.gameReleaseArtifacts).values({
-      id: `quota_artifact_${suffix}`,
-      releaseId: firstReleaseId,
-      originalFilename: "game.zip",
-      contentType: "application/zip",
-      sizeBytes: 200,
-      extractedSizeBytes: 300,
-      fileCount: 1,
-      zipObjectKey: `tests/${suffix}/game.zip`,
-      siteRootKey: `tests/${suffix}/site`,
-      entryPath: "index.html",
-      createdAt: new Date(now.getTime() - 6_000),
-    });
+    const generationReadyAt = new Date(now.getTime() - 6_000);
+    await database.insert(schema.gameReleaseGenerations).values([
+      {
+        id: firstGenerationId,
+        releaseId: firstReleaseId,
+        sequence: 1,
+        status: "ready",
+        originalFilename: "game.zip",
+        contentType: "application/zip",
+        declaredSizeBytes: 200,
+        observedSizeBytes: 200,
+        observedContentType: "application/zip",
+        extractedSizeBytes: 300,
+        fileCount: 1,
+        zipObjectKey: `tests/${suffix}/game.zip`,
+        siteRootKey: `tests/${suffix}/site`,
+        entryPath: "index.html",
+        contentHash: "0".repeat(64),
+        createdAt: generationReadyAt,
+        uploadObservedAt: generationReadyAt,
+        processingStartedAt: generationReadyAt,
+        readyAt: generationReadyAt,
+      },
+      {
+        id: secondGenerationId,
+        releaseId: secondReleaseId,
+        sequence: 1,
+        status: "ready",
+        originalFilename: "unpromoted.zip",
+        contentType: "application/zip",
+        declaredSizeBytes: 700,
+        observedSizeBytes: 700,
+        observedContentType: "application/zip",
+        extractedSizeBytes: 800,
+        fileCount: 1,
+        zipObjectKey: `tests/${suffix}/unpromoted.zip`,
+        siteRootKey: `tests/${suffix}/unpromoted-site`,
+        entryPath: "index.html",
+        contentHash: "1".repeat(64),
+        createdAt: generationReadyAt,
+        uploadObservedAt: generationReadyAt,
+        processingStartedAt: generationReadyAt,
+        readyAt: generationReadyAt,
+      },
+    ]);
+    await database
+      .update(schema.gameReleases)
+      .set({
+        status: "ready",
+        promotedGenerationId: firstGenerationId,
+      })
+      .where(eq(schema.gameReleases.id, firstReleaseId));
     await database.insert(schema.gameMediaAssets).values([
       {
         id: `quota_media_a_${suffix}`,
@@ -122,6 +163,7 @@ describeWithPostgres("production quota PostgreSQL authority", () => {
     await database.insert(schema.gameReleaseChecks).values({
       id: `quota_check_${suffix}`,
       releaseId: firstReleaseId,
+      generationId: firstGenerationId,
       kind: "screenshot_capture",
       status: "passed",
       createdAt: new Date(now.getTime() - 3_000),
@@ -210,8 +252,8 @@ describeWithPostgres("production quota PostgreSQL authority", () => {
 
     expect(byKey.get("creator_games")?.current).toBe(2);
     expect(byKey.get("creator_listed_games")?.current).toBe(1);
-    expect(byKey.get("creator_managed_storage_bytes")?.current).toBe(1_000);
-    expect(byKey.get("game_managed_storage_bytes")?.current).toBe(600);
+    expect(byKey.get("creator_managed_storage_bytes")?.current).toBe(2_500);
+    expect(byKey.get("game_managed_storage_bytes")?.current).toBe(2_100);
     expect(byKey.get("creator_release_submissions_30d")?.current).toBe(2);
     expect(byKey.get("creator_browser_validations_day")?.current).toBe(1);
     expect(byKey.get("creator_room_seconds_30d")?.current).toBe(3_600);

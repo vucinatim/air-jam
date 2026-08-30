@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import {
   appIds,
-  gameReleaseArtifacts,
+  gameReleaseGenerations,
   gameReleases,
   games,
   users,
@@ -143,6 +143,7 @@ export const gameRouter = createTRPCRouter({
         config: games.config,
         ownerName: users.name,
         releaseId: gameReleases.id,
+        releaseGenerationId: gameReleaseGenerations.id,
         releaseVersionLabel: gameReleases.versionLabel,
         releasePublishedAt: gameReleases.publishedAt,
       })
@@ -153,8 +154,12 @@ export const gameRouter = createTRPCRouter({
         and(eq(gameReleases.gameId, games.id), eq(gameReleases.status, "live")),
       )
       .innerJoin(
-        gameReleaseArtifacts,
-        eq(gameReleaseArtifacts.releaseId, gameReleases.id),
+        gameReleaseGenerations,
+        and(
+          eq(gameReleaseGenerations.id, gameReleases.promotedGenerationId),
+          eq(gameReleaseGenerations.releaseId, gameReleases.id),
+          eq(gameReleaseGenerations.status, "ready"),
+        ),
       )
       .where(eq(games.arcadeVisibility, "listed"));
     const activeByGame = await loadGameMediaActiveByGame({
@@ -172,6 +177,7 @@ export const gameRouter = createTRPCRouter({
         url: buildHostedReleaseAssetUrl({
           gameId: row.id,
           releaseId: row.releaseId,
+          generationId: row.releaseGenerationId,
           assetPath: HOSTED_RELEASE_HOST_PATH,
         }),
         thumbnailUrl: buildManagedGameMediaUrl({
@@ -195,12 +201,14 @@ export const gameRouter = createTRPCRouter({
         liveRelease: buildHostedReleaseSnapshot({
           gameId: row.id,
           releaseId: row.releaseId,
+          generationId: row.releaseGenerationId,
           versionLabel: row.releaseVersionLabel,
           publishedAt: row.releasePublishedAt,
         }),
         controllerUrl: buildHostedReleaseAssetUrl({
           gameId: row.id,
           releaseId: row.releaseId,
+          generationId: row.releaseGenerationId,
           assetPath: HOSTED_RELEASE_CONTROLLER_PATH,
         }),
       };

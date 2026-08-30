@@ -1,6 +1,6 @@
 # Production Control Contract
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 Status: canonical 1.0 contract
 
 Related docs:
@@ -239,10 +239,13 @@ The platform owns job orchestration and creator-visible release state. A narrow
 processor owns archive/check execution. The browser worker remains isolated
 and does not become the release-state authority.
 
-The durable PostgreSQL authority and operator CLI are implemented. Creator
-release paths remain synchronous until immutable upload generations and
-attempt-scoped object outputs close the external-side-effect fencing gap. The
-job table must not be presented as complete concurrency authority before every
+The durable PostgreSQL authority and operator CLI are implemented. Immutable
+release generations now give source uploads, extracted sites, screenshots, and
+trusted checks stable generation identity; create-only keys and explicit
+candidate/promoted pointers fence stale finalizers from release-visible state.
+Creator release paths remain synchronous until executor payload contracts,
+attempt-scoped retry outputs, and lease-aware adapters are implemented. The job
+table must not be presented as complete concurrency authority before every
 hosted release path exclusively uses it.
 
 Contract version `1` governs lifecycle, fencing, and operator semantics only.

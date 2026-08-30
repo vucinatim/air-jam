@@ -330,8 +330,15 @@ global immutable command replay, and append-only job events. Claims honor the
 persisted lane mode, release checks cannot cross release scope, and the repo CLI
 uses redacted operator projections rather than lease-bearing worker records.
 Release adapters remain
-synchronous until immutable upload generations and attempt-scoped outputs make
-object-storage replay safe.
+synchronous, but the fifth slice adds the
+[production immutable release generations proof](./audits/v1-reliability/production-immutable-release-generations-proof.md):
+every upload now has immutable generation identity, first-observed object
+facts, create-only source and output keys, explicit candidate/promoted pointers,
+generation-scoped checks, and fail-closed legacy migration. Public serving,
+publishing, quotas, dashboard, machine API, SDK, CLI, and MCP now agree on that
+generation model. Versioned executor payloads, job-attempt identity, lease-aware
+worker completion, adapter migration, cleanup, realtime admission, and overload
+proof remain part of the unfinished gate.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
@@ -367,9 +374,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. land the persistent lane-control, measured-budget, shadow-quota, and durable
-   job-authority stack, then add immutable release storage generations before
-   adapter wiring, cleanup, realtime admission, and overload proof
+3. land the persistent lane-control, measured-budget, shadow-quota, durable-job,
+   and immutable-generation stack, then add executor contracts and lease-aware
+   adapter wiring before cleanup, realtime admission, and overload proof
 4. run the isolated backup/restore and rollback/replay work in parallel with
    the operational-event contract and threat model
 5. preserve Gate 1 contracts while those independent implementation lanes run

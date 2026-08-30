@@ -18,6 +18,38 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-30 - Hosted Releases Gained Immutable Generations
+
+- replaced the one-row mutable release artifact model with release-local,
+  monotonic generations and explicit candidate/promoted pointers
+- gave source ZIPs, extracted sites, and screenshots unique create-only object
+  identities; finalization records first-observed facts and conditionally reads
+  the exact observed ETag
+- fenced stale and superseded generations from processing, promotion, failure,
+  moderation completion, publishing, and public serving
+- attached every trusted release check to its exact generation and enforced
+  same-release provenance through composite PostgreSQL foreign keys
+- converged dashboard, operations, public serving, quotas, application services,
+  machine API, SDK, CLI, and MCP on the generation-native contract while
+  removing the old artifact table and release-wide finalize endpoint
+- made migration preflight abort on incomplete ordinary legacy evidence before
+  mutation, while explicitly archiving and hiding only the canonical fake
+  preview placeholder
+- proved fresh migrations through `0028`, a valid legacy upgrade, preview and
+  interrupted-state conversion, and transactionally unchanged abort behavior
+  for an incompatible live legacy artifact
+- ran the same compatibility predicate read-only against production: all 33
+  real artifacts are admissible, the sole incomplete artifact is the canonical
+  preview placeholder, and no publicly eligible release lacks metadata
+- made public paths generation-specific, counted every retained generation
+  toward storage quota, and removed private object keys and raw check payloads
+  from machine projections
+- exposed granular upload/finalize recovery across CLI and MCP and repaired the
+  source-mode helper launcher used by agent-contract and visual tooling
+- kept request-driven execution explicit until versioned executor contracts,
+  job-attempt identity, lease-aware completion, and the separate worker process
+  replace it end to end
+
 ## 2026-08-30 - Durable Release Work Gained PostgreSQL Authority
 
 - added separate artifact-processing, browser-validation, and image-moderation

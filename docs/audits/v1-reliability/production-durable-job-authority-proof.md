@@ -10,11 +10,10 @@ does not use an in-memory queue, a request-lifetime counter, or the isolated
 Playwright service as release-state authority.
 
 This foundation deliberately does not switch creator finalization onto the
-queue yet. The current release storage keys are mutable, so a stale worker could
-still race a retry in object storage even when PostgreSQL correctly fences its
-database completion. Product wiring follows only after immutable upload
-generations and attempt-scoped outputs make the external side effects replay
-safe.
+queue yet. Immutable release generations now close the release-wide storage
+identity gap, but real executors still need versioned payload/result contracts,
+attempt identity, and lease-aware completion. Product wiring follows only when
+those remaining external side effects are replay-safe.
 
 ## Canonical Work Kinds
 
@@ -157,13 +156,17 @@ control state was not changed.
 ## Required Next Layer
 
 This foundation is final architecture, but it does not by itself make release
-processing durable. Before product adapters switch:
+processing durable. The generation layer completes the original upload-
+identity prerequisite and the generation/output portion of the storage fence.
+Before product adapters switch, the remaining worker layer must:
 
-1. uploads need immutable generation identity and first-observed object facts
-2. extracted sites and screenshots need job-attempt-scoped object keys
-3. only the current fenced worker may transactionally promote an output
-4. artifact, browser, and moderation executors must be idempotent per attempt
-5. finalize, ops moderation, UI, machine API, SDK, CLI, and MCP must converge on
+1. carry immutable generation identity and first-observed object facts into
+   every executor payload
+2. add job-attempt identity where retryable output is produced
+3. require the current lease owner as well as the current generation before an
+   executor may transactionally commit an outcome
+4. make artifact, browser, and moderation executors idempotent per attempt
+5. make finalize, ops moderation, UI, machine API, SDK, CLI, and MCP converge on
    enqueue-and-inspect semantics
 6. a separate platform job-worker process must claim work, expose health, stop
    claiming on termination, and be deployed as a fourth Railway service

@@ -61,6 +61,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
   const gameA = `job_game_a_${suffix}`;
   const gameB = `job_game_b_${suffix}`;
   const release = (label: string) => `job_release_${label}_${suffix}`;
+  const generation = (releaseId: string) => `${releaseId}:generation:1`;
 
   const releases = {
     idempotency: release("idempotency"),
@@ -179,11 +180,43 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
           id: releaseId,
           gameId: scope.gameId,
           sourceKind: "upload" as const,
-          status: "uploading" as const,
+          status: "archived" as const,
           createdAt: baseTime,
         };
       }),
     );
+    await database.insert(schema.gameReleaseGenerations).values(
+      Object.values(releases).map((releaseId, index) => ({
+        id: generation(releaseId),
+        releaseId,
+        sequence: 1,
+        status: "ready" as const,
+        originalFilename: `${releaseId}.zip`,
+        contentType: "application/zip",
+        declaredSizeBytes: 1,
+        zipObjectKey: `tests/operational-jobs/${suffix}/${index}/game.zip`,
+        siteRootKey: `tests/operational-jobs/${suffix}/${index}/site`,
+        observedSizeBytes: 1,
+        observedContentType: "application/zip",
+        extractedSizeBytes: 0,
+        fileCount: 1,
+        entryPath: "index.html",
+        contentHash: index.toString(16).padStart(64, "0"),
+        createdAt: baseTime,
+        uploadObservedAt: baseTime,
+        processingStartedAt: baseTime,
+        readyAt: baseTime,
+      })),
+    );
+    for (const releaseId of Object.values(releases)) {
+      await database
+        .update(schema.gameReleases)
+        .set({
+          status: "ready",
+          promotedGenerationId: generation(releaseId),
+        })
+        .where(eq(schema.gameReleases.id, releaseId));
+    }
   });
 
   beforeEach(async () => {
@@ -1427,6 +1460,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       database.insert(schema.gameReleaseChecks).values({
         id: `${suffix}:mismatched-check`,
         releaseId: releases.provenanceOther,
+        generationId: generation(releases.provenanceOther),
         jobId: claimed!.id,
         jobAttempt: claimed!.attemptCount,
         kind: "automated",
@@ -1439,6 +1473,7 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
     await database.insert(schema.gameReleaseChecks).values({
       id: checkId,
       releaseId: releases.operatorSafe,
+      generationId: generation(releases.operatorSafe),
       jobId: claimed!.id,
       jobAttempt: claimed!.attemptCount,
       kind: "automated",
