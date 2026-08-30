@@ -40,7 +40,6 @@ export function OpsReleasesPageClient() {
 
   const { data: releases, isLoading } = api.release.listOps.useQuery();
   const quarantineRelease = api.release.quarantine.useMutation();
-  const runModeration = api.release.runModeration.useMutation();
 
   const attentionReleases = useMemo(
     () =>
@@ -48,7 +47,16 @@ export function OpsReleasesPageClient() {
         const openReportCount = release.reports.filter(
           (report) => report.status === "open",
         ).length;
-        const hasFailedChecks = release.checks.some(
+        const reviewGeneration =
+          release.candidateGeneration ??
+          release.promotedGeneration ??
+          release.generations[0];
+        const relevantChecks = reviewGeneration
+          ? release.checks.filter(
+              (check) => check.generationId === reviewGeneration.id,
+            )
+          : [];
+        const hasFailedChecks = relevantChecks.some(
           (check) => check.status === "failed" || check.status === "warning",
         );
         return (
@@ -139,17 +147,29 @@ export function OpsReleasesPageClient() {
             const openReportCount = release.reports.filter(
               (report) => report.status === "open",
             ).length;
+            const candidateGeneration = release.candidateGeneration;
+            const promotedGeneration = release.promotedGeneration;
+            const reviewGeneration =
+              candidateGeneration ??
+              promotedGeneration ??
+              release.generations[0];
+            const relevantChecks = reviewGeneration
+              ? release.checks.filter(
+                  (check) => check.generationId === reviewGeneration.id,
+                )
+              : [];
             const needsAttention =
               release.status === "quarantined" ||
               openReportCount > 0 ||
-              release.checks.some(
+              relevantChecks.some(
                 (check) =>
                   check.status === "failed" || check.status === "warning",
               );
             const isActionPending = actionReleaseId === release.id;
             const hasDetails =
-              !!release.artifact ||
+              release.generations.length > 0 ||
               release.checks.length > 0 ||
+              release.jobs.length > 0 ||
               release.reports.length > 0;
 
             return (
@@ -164,6 +184,16 @@ export function OpsReleasesPageClient() {
                           {release.versionLabel?.trim() || "Untitled release"}
                         </span>
                         <ReleaseStatusBadge status={release.status} />
+                        {promotedGeneration && (
+                          <Badge variant="outline" className="text-[10px]">
+                            Gen #{promotedGeneration.sequence} promoted
+                          </Badge>
+                        )}
+                        {candidateGeneration && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Gen #{candidateGeneration.sequence} candidate
+                          </Badge>
+                        )}
                         {needsAttention && (
                           <Badge variant="destructive" className="text-[10px]">
                             Needs attention
@@ -219,35 +249,6 @@ export function OpsReleasesPageClient() {
                         </Button>
                       )}
 
-                      {["ready", "quarantined", "live"].includes(
-                        release.status,
-                      ) && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            void runReleaseAction({
-                              releaseId: release.id,
-                              action: () =>
-                                runModeration.mutateAsync({
-                                  releaseId: release.id,
-                                }),
-                              successTitle: "Moderation completed",
-                              successDescription:
-                                "Screenshot and image moderation checks were refreshed.",
-                            })
-                          }
-                          disabled={isActionPending}
-                        >
-                          {isActionPending ? (
-                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
-                          )}
-                          Moderate
-                        </Button>
-                      )}
-
                       {hasDetails && (
                         <CollapsibleTrigger asChild>
                           <Button size="sm" variant="ghost">
@@ -262,8 +263,11 @@ export function OpsReleasesPageClient() {
                     <CollapsibleContent>
                       <div className="border-t px-4 pt-4 pb-4">
                         <ReleaseDetailPanels
-                          artifact={release.artifact}
+                          generations={release.generations}
+                          candidateGeneration={candidateGeneration}
+                          promotedGeneration={promotedGeneration}
                           checks={release.checks}
+                          jobs={release.jobs}
                           reports={release.reports}
                         />
                       </div>

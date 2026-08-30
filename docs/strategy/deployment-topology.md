@@ -1,7 +1,7 @@
 # Deployment Topology
 
-Last updated: 2026-05-08  
-Status: canonical topology
+Last updated: 2026-08-30
+Status: canonical target topology; operational-job worker rollout pending
 
 Related docs:
 
@@ -26,25 +26,28 @@ That means:
 
 ## Canonical Topology
 
-Air Jam production should be split into four surfaces:
+Air Jam production should be split into five surfaces:
 
 1. `Railway` for the platform app
 2. `Railway` for the realtime/API server
 3. `Railway` for the release screenshot and moderation worker
-4. `R2` for hosted release artifacts and managed media
+4. `Railway` for the durable platform operational-job worker
+5. `R2` for hosted release artifacts and managed media
 
 That split matches the actual workload boundaries:
 
 1. the platform app is a public Next.js web surface
 2. the realtime server is a long-lived websocket and room-lifecycle process
 3. screenshot capture and moderation require a stateful browser runtime and should not be coupled to the realtime server
-4. release artifacts and media should stay externalized
+4. durable release orchestration requires a drainable database-backed process,
+   not a creator request or the browser service
+5. release artifacts and media should stay externalized
 
 ## Service Ownership
 
 ### 1. Platform App
 
-Provider: `Railway`  
+Provider: `Railway`
 Repo ownership: `apps/platform`
 
 Responsibilities:
@@ -53,7 +56,7 @@ Responsibilities:
 2. Arcade
 3. dashboard
 4. auth flows
-5. hosted release submission, finalize, and publish orchestration
+5. hosted release submission, durable enqueue, inspection, and publish control
 6. managed media routes
 
 Should not own:
@@ -132,7 +135,33 @@ Config-as-code path:
 
 1. `/packages/release-browser-worker/railway.json`
 
-### 4. Storage
+### 4. Platform Release-Job Worker
+
+Provider: `Railway`
+Repo ownership: `apps/platform`
+
+Responsibilities:
+
+1. claim PostgreSQL-authoritative release and lifecycle jobs
+2. execute versioned generation-scoped release and resource-scoped cleanup work
+3. heartbeat, retry, cancel, repair, clean terminal attempt outputs, and
+   schedule retention-eligible resources
+4. expose liveness, authority-backed readiness, and authenticated drain
+
+Should not own:
+
+1. public page or API serving
+2. realtime room/session authority
+3. a separate queue or release state machine
+
+Config-as-code path:
+
+1. `/apps/platform/railway.worker.json`
+
+The worker uses the same release application services and PostgreSQL authority
+as the platform, while remaining a separately scalable and drainable process.
+
+### 5. Storage
 
 Provider: `R2`
 
@@ -162,9 +191,12 @@ The intended live shape is now also the deployment shape:
 1. Railway hosts the platform app
 2. Railway hosts the realtime server and Postgres
 3. Railway hosts the release browser worker
-4. R2 stores release and media objects
+4. the repo now defines the operational-job worker, but its production migration
+   and service rollout remain pending
+5. R2 stores release and media objects
 
-The remaining operational work is domain cutover and steady-state validation, not another topology redesign.
+The remaining operational work is the explicit operational-worker rollout and
+steady-state validation, not another topology redesign.
 
 ## Clean Production Contract
 
@@ -194,10 +226,10 @@ Platform-only env should include at least:
 11. `AIRJAM_RELEASES_R2_ACCESS_KEY_ID`
 12. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
 13. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
-14. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
-15. `OPENAI_API_KEY` when image moderation is enabled
-16. `AIR_JAM_SYSTEM_APP_ID`
-17. `AIR_JAM_HOST_GRANT_SECRET`
+14. `AIR_JAM_SYSTEM_APP_ID`
+15. `AIR_JAM_HOST_GRANT_SECRET`
+
+The web process should not claim or execute release jobs.
 
 ### Realtime Server Env
 
@@ -220,11 +252,29 @@ The realtime server should not need the platform's release-storage or moderation
 ### Browser Worker Env
 
 Worker-specific env should be limited to whatever the browser service needs to run safely, such as:
+
 1. browser process settings
 2. optional access token or shared secret for callers
 3. any worker-level observability config
 
 The worker should not need database or multiplayer env unless a later design explicitly makes that necessary.
+
+### Platform Operational-Job Worker Env
+
+The operational-job worker owns:
+
+1. `DATABASE_URL`
+2. the release-storage variables required by artifact work and cleanup
+3. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`, shared with the platform's private
+   generation-serving route
+4. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
+5. `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN` when the browser worker requires it
+6. `OPENAI_API_KEY` only when moderation mode enables it
+7. `AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN`
+8. optional `AIRJAM_PLATFORM_WORKER_*` scheduling and drain bounds
+
+It should not receive GitHub auth, Better Auth, multiplayer master-key, or
+public-origin configuration.
 
 ## Recommended Hardening Path
 

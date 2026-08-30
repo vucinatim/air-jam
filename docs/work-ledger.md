@@ -40,6 +40,192 @@ The pre-reset overloaded ledger has been preserved at:
   incident persistence/correlation, notifications, GitHub issue delivery, and
   runbook execution remain later Gate 4 slices
 
+## 2026-08-30 - Product Storage Gained A Durable Lifecycle
+
+- generalized operational jobs from mandatory release scope to canonical
+  release-generation or game-media resource identity
+- added exact preview and idempotent batch scheduling for failed or abandoned
+  generations, stale uploads, failed media, and archived unassigned media
+- made the platform operational worker schedule and execute cleanup through the
+  same bounded claim, lease, retry, drain, and readiness authority as release
+  work
+- persisted the first exact object manifest and reused it across retries, so a
+  partial deletion can resume without sweeping objects created after the
+  original decision
+- fenced live, candidate, promoted, assigned, and newly inactive resources out
+  of cleanup under database locks
+- added a database-enforced media inactivity clock with legacy backfill so the
+  24-hour window begins at failure or archive rather than original upload
+- added storage tombstones and excluded only committed deletions from managed
+  storage quota accounting
+- exposed redacted cleanup preview/apply and resource-filtered job inspection
+  through the canonical repo CLI
+- renamed the separately deployable process and runtime entry from release-job
+  worker to operational-job worker after it gained lifecycle responsibility
+- proved fresh migration, seeded legacy upgrade, partial-delete retry, late-
+  object preservation, media integrity, release replay, and quota behavior
+- kept `G3-02` active for warned long-term unpublished-artifact retention,
+  realtime admission, overload proof, and explicit production rollout
+
+## 2026-08-30 - Hosted Release Processing Left The Request Lifecycle
+
+- replaced synchronous upload finalization with one generation-scoped durable
+  graph for artifact processing, browser validation, and image moderation
+- added strict versioned executor payloads, immutable attempt identity,
+  attempt-scoped output roots, lease-aware completion, and exact-generation
+  fences around every external side effect
+- added the separately deployable platform operational worker with database-gated
+  readiness, liveness, authenticated drain, signal handling, bounded
+  concurrency, expired-work repair, and terminal-output cleanup
+- made superseding generations cancel or request cancellation of their active
+  jobs atomically before abandonment
+- converged dashboard, API, SDK, CLI, and MCP on enqueue-and-inspect semantics;
+  submission returns its job, explicit wait follows the exact generation, and
+  publish waits for readiness
+- exposed cleanup and one-cycle execution through the canonical preview-first
+  repo CLI so agents can inspect, recover, and operate the same worker domain
+- made the standalone deployment proof secret-free and verified that the
+  packaged worker loads with its official Playwright runtime dependency
+- proved fresh and legacy migrations, crash/retry isolation, the full three-
+  stage pipeline, worker drain/readiness, redaction, platform tests, repo
+  contracts, build, and hermetic runtime loading
+- kept `G3-02` active for broader lifecycle cleanup, realtime admission, load
+  and overload proof, and the explicit production migration/worker rollout
+
+## 2026-08-30 - Hosted Releases Gained Immutable Generations
+
+- replaced the one-row mutable release artifact model with release-local,
+  monotonic generations and explicit candidate/promoted pointers
+- gave source ZIPs, extracted sites, and screenshots unique create-only object
+  identities; finalization records first-observed facts and conditionally reads
+  the exact observed ETag
+- fenced stale and superseded generations from processing, promotion, failure,
+  moderation completion, publishing, and public serving
+- attached every trusted release check to its exact generation and enforced
+  same-release provenance through composite PostgreSQL foreign keys
+- converged dashboard, operations, public serving, quotas, application services,
+  machine API, SDK, CLI, and MCP on the generation-native contract while
+  removing the old artifact table and release-wide finalize endpoint
+- made migration preflight abort on incomplete ordinary legacy evidence before
+  mutation, while explicitly archiving and hiding only the canonical fake
+  preview placeholder
+- proved fresh migrations through `0028`, a valid legacy upgrade, preview and
+  interrupted-state conversion, and transactionally unchanged abort behavior
+  for an incompatible live legacy artifact
+- ran the same compatibility predicate read-only against production: all 33
+  real artifacts are admissible, the sole incomplete artifact is the canonical
+  preview placeholder, and no publicly eligible release lacks metadata
+- made public paths generation-specific, counted every retained generation
+  toward storage quota, and removed private object keys and raw check payloads
+  from machine projections
+- exposed granular upload/finalize recovery across CLI and MCP and repaired the
+  source-mode helper launcher used by agent-contract and visual tooling
+- kept request-driven execution explicit until versioned executor contracts,
+  job-attempt identity, lease-aware completion, and the separate worker process
+  replace it end to end
+
+## 2026-08-30 - Durable Release Work Gained PostgreSQL Authority
+
+- added separate artifact-processing, browser-validation, and image-moderation
+  job kinds with source-owned queue, concurrency, lease, deadline, attempt, and
+  retry bounds
+- added creator/game/release scope integrity, one-active-resource exclusion,
+  append-only revisioned events, fenced claims and heartbeats, bounded retry,
+  cooperative cancellation, replay lineage, and expired-lease recovery
+- replaced scattered event/job idempotency with one global immutable command
+  ledger, including stable replay for empty repair batches and cross-kind races
+- made PostgreSQL time authoritative for production leases, capped leases at
+  absolute deadlines, synchronized claims with persisted lane pause, and
+  separated redacted operator projections from lease-bearing worker records
+- enforced same-release check provenance and deterministic cascade semantics
+  in PostgreSQL rather than trusting application joins
+- exposed policy, queue status, list, inspect, cancel, replay, and repair through
+  the canonical preview-first repo CLI
+- proved all migrations through `0026`, twenty-three focused policy/PostgreSQL tests,
+  and five CLI contracts on a fresh native cluster, including a real
+  database-backed secret-redaction proof
+- kept release adapters off the queue until immutable upload generations and
+  attempt-scoped outputs make R2 side effects safe under crash/replay
+- kept concurrent-job quota authority unavailable until legacy synchronous work
+  is fully removed rather than falsely counting only the new table
+
+## 2026-08-29 - Free-Cloud Quotas Became Authoritative And Observable
+
+- encoded every ratified creator/game allowance in one versioned source
+  catalog, including semantic `game_creation` and `game_listing` lanes
+- derived games, listing, retained storage, release submissions, browser
+  validations, and room time from lifecycle/runtime authority rather than
+  approximate product telemetry or caller-submitted counters
+- made missing durable-job and global-realtime concurrency owners explicitly
+  unavailable instead of reporting process-local state as exact
+- added one evaluator that combines lane mode, fresh budget evidence, scope
+  usage, and requested amount into `allowed`, `shadow_denied`, or `denied`
+- exposed creator/game status and prospective admission checks through the
+  canonical repo CLI without limit, usage, state, or outcome overrides
+- used a fresh PostgreSQL cluster to catch and fix timestamp-typing and scope-
+  aggregation defects, then passed the full migration and authority proof
+- kept enforcement unwired while observations accumulate; durable queues,
+  adapter wiring, cleanup, realtime admission, and overload proof remain
+
+## 2026-08-29 - Provider Spend Became Immutable, Derived, And Agent-Operable
+
+- added project-scoped Railway usage evidence with raw measurements, exact
+  rate-card identity, actual and projected micro-USD totals, provider scope,
+  collector, reason, freshness, and immutable idempotent replay
+- encoded the ratified ordinary and launch threshold ladders in reviewed source;
+  callers cannot submit budget state, raise a threshold, or activate launch
+  headroom through runtime configuration
+- exposed budget status and preview/apply sync through the canonical repo CLI,
+  including safe remote-database targeting and stable JSON
+- proved the complete migration, concurrent ingestion, conflicting replay,
+  provider read, preview, apply, status, and command-level retry lifecycle on a
+  fresh isolated PostgreSQL cluster without mutating production
+- measured `$7.203280` actual and `$8.610859` projected current-cycle Railway
+  usage, both in the ordinary `normal` state
+- kept `G3-02` active for shadow/enforced quotas, durable queues, lifecycle
+  cleanup, realtime admission, and overload proof
+
+## 2026-08-29 - Production Lane Controls Became Persistent And Agent-Operable
+
+- defined one canonical production-control contract for lane state, budget
+  response, quotas, durable jobs, lifecycle cleanup, and machine operation
+- added persistent lane controls plus append-only mutation events with actor,
+  reason, before/after state, optimistic revision, and idempotent replay
+- exposed the control lifecycle through the canonical repo CLI with stable JSON,
+  Railway-environment targeting, read-only preview by default, and explicit apply
+- routed release submission, artifact and media ingestion, release processing,
+  browser validation, moderation, and telemetry through one application-service
+  admission authority shared by human and machine transports
+- made paused and unavailable control decisions fail closed with typed `503`
+  details and retry guidance instead of transport-specific arbitrary errors
+- proved the migration, concurrent revision safety, idempotent event replay, and
+  real CLI mutation against an isolated temporary PostgreSQL instance
+- kept `G3-02` explicitly active: budget evidence, shadow/enforced quotas,
+  durable jobs, cleanup, realtime admission, and overload drills remain required
+
+## 2026-08-29 - Production Cost And Recovery Became Measured
+
+- inventoried the live Railway topology, deployments, usage, memory, traffic,
+  database, volume, backups, rollback eligibility, and provider controls
+  without changing production
+- measured the last complete Railway cycle at `$7.99` and the current cycle at
+  an approximately `$8.43` linear projection, separating today's affordable
+  steady state from launch-spike risk
+- measured `0.631 GB` across 654 R2 objects and showed that archived and failed
+  releases retain most of their artifacts while one media upload has remained
+  incomplete since March
+- confirmed that Postgres has ample current headroom but no recurring backup
+  schedule or isolated restore proof, and that Railway's compute cap protects
+  the shared workspace rather than Air Jam alone
+- mapped every expensive lane to its existing bounds, missing launch control,
+  and owning Gate 3 or Gate 4 work item
+- kept realtime single-replica scaling honest, selected durable bounded release
+  jobs plus isolated cached artifact delivery as the production-valid path, and
+  rejected permanent always-on staging until repeated rehearsals justify it
+- closed `G3-01` as a measured baseline only; quotas, queues, cleanup, lane
+  switches, backups, restore, rollback, replay, and load proof remain explicit
+  implementation work
+
 ## 2026-08-29 - Readiness Evidence Became Immutable And CI-Portable
 
 - traced the post-review CI failure to repository-history evidence that passed

@@ -259,7 +259,7 @@ canonicalization work.
   `packages/env/index.mjs` are also byte-identical. No generator/parity check
   connects the copies. Server CLI, create-airjam, games, and workspace commands
   consume different sides, while `@air-jam/env` is already a genuine shared
-  authority used by platform, release worker, and server.
+  authority used by platform, operational worker, and server.
 - Current behavior: process, secure-dev, topology, Vite, and environment fixes
   need manual duplicate edits; adapter branding is embedded in copied cores.
 - Architectural harm: the main human/agent dev front door can differ depending

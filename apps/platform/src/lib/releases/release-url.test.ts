@@ -17,9 +17,12 @@ describe("buildHostedReleaseAssetPath", () => {
       buildHostedReleaseAssetPath({
         gameId: "game-1",
         releaseId: "release-1",
+        generationId: "generation-1",
         assetPath: "index.html",
       }),
-    ).toBe(`${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/index.html`);
+    ).toBe(
+      `${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/generations/generation-1/index.html`,
+    );
   });
 });
 
@@ -29,8 +32,11 @@ describe("buildHostedReleaseBasePath", () => {
       buildHostedReleaseBasePath({
         gameId: "game-1",
         releaseId: "release-1",
+        generationId: "generation-1",
       }),
-    ).toBe(`${RELEASES_PATH_PREFIX}/g/game-1/r/release-1`);
+    ).toBe(
+      `${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/generations/generation-1`,
+    );
   });
 });
 
@@ -59,8 +65,11 @@ describe("rewriteHostedReleaseHtmlAssetUrls", () => {
         `,
         gameId: "game-1",
         releaseId: "release-1",
+        generationId: "generation-1",
       }),
-    ).toContain(`${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/assets/app.css`);
+    ).toContain(
+      `${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/generations/generation-1/assets/app.css`,
+    );
   });
 
   it("preserves protocol-relative urls", () => {
@@ -69,6 +78,7 @@ describe("rewriteHostedReleaseHtmlAssetUrls", () => {
         html: `<script src="//cdn.example.com/app.js"></script>`,
         gameId: "game-1",
         releaseId: "release-1",
+        generationId: "generation-1",
       }),
     ).toContain(`src="//cdn.example.com/app.js"`);
   });
@@ -81,19 +91,20 @@ describe("rewriteHostedReleaseTextAssetUrls", () => {
         'const audio="/sounds/bell.mp3";const chunk="/assets/index-abc123.js";const sprite="/sprites/cover.png";const model="/models/arena.glb";body{background:url("/sprites/end.png")}',
       gameId: "game-1",
       releaseId: "release-1",
+      generationId: "generation-1",
     });
 
     expect(rewritten).toContain(
-      '"/releases/g/game-1/r/release-1/sounds/bell.mp3"',
+      '"/releases/g/game-1/r/release-1/generations/generation-1/sounds/bell.mp3"',
     );
     expect(rewritten).toContain(
-      '"/releases/g/game-1/r/release-1/assets/index-abc123.js"',
+      '"/releases/g/game-1/r/release-1/generations/generation-1/assets/index-abc123.js"',
     );
     expect(rewritten).toContain(
-      '"/releases/g/game-1/r/release-1/models/arena.glb"',
+      '"/releases/g/game-1/r/release-1/generations/generation-1/models/arena.glb"',
     );
     expect(rewritten).toContain(
-      'url("/releases/g/game-1/r/release-1/sprites/end.png")',
+      'url("/releases/g/game-1/r/release-1/generations/generation-1/sprites/end.png")',
     );
   });
 
@@ -103,14 +114,15 @@ describe("rewriteHostedReleaseTextAssetUrls", () => {
         'const deps=["assets/index-DPOFnepx.js","assets/code-review-store-Jwj-6tv7.js"]',
       gameId: "game-1",
       releaseId: "release-1",
+      generationId: "generation-1",
       contentType: "application/javascript",
     });
 
     expect(rewritten).toContain(
-      '"releases/g/game-1/r/release-1/assets/index-DPOFnepx.js"',
+      '"releases/g/game-1/r/release-1/generations/generation-1/assets/index-DPOFnepx.js"',
     );
     expect(rewritten).toContain(
-      '"releases/g/game-1/r/release-1/assets/code-review-store-Jwj-6tv7.js"',
+      '"releases/g/game-1/r/release-1/generations/generation-1/assets/code-review-store-Jwj-6tv7.js"',
     );
   });
 
@@ -120,6 +132,7 @@ describe("rewriteHostedReleaseTextAssetUrls", () => {
         '@import"url("airjam-vendored/fonts/2ec07463ff721840.css")";body{background:url("/sprites/end.png")}',
       gameId: "game-1",
       releaseId: "release-1",
+      generationId: "generation-1",
       contentType: "text/css",
     });
 
@@ -127,7 +140,7 @@ describe("rewriteHostedReleaseTextAssetUrls", () => {
       '@import"url("airjam-vendored/fonts/2ec07463ff721840.css")"',
     );
     expect(rewritten).toContain(
-      'url("/releases/g/game-1/r/release-1/sprites/end.png")',
+      'url("/releases/g/game-1/r/release-1/generations/generation-1/sprites/end.png")',
     );
   });
 });
@@ -158,14 +171,15 @@ describe("injectHostedReleaseHtmlRuntimeBase", () => {
       html: "<html><head></head><body><div id='root'></div></body></html>",
       gameId: "game-1",
       releaseId: "release-1",
+      generationId: "generation-1",
       requestedAssetPath: "index.html",
       entryPath: "index.html",
       runtimeTopology:
-        '{"runtimeMode":"hosted-release","surfaceRole":"host","appOrigin":"https://play.example.com","backendOrigin":"https://api.example.com","socketOrigin":"https://api.example.com","publicHost":"https://play.example.com","assetBasePath":"/releases/g/game-1/r/release-1","secureTransport":true,"embedded":false,"proxyStrategy":"none"}',
+        '{"runtimeMode":"hosted-release","surfaceRole":"host","appOrigin":"https://play.example.com","backendOrigin":"https://api.example.com","socketOrigin":"https://api.example.com","publicHost":"https://play.example.com","assetBasePath":"/releases/g/game-1/r/release-1/generations/generation-1","secureTransport":true,"embedded":false,"proxyStrategy":"none"}',
     });
 
     expect(rewritten).toContain(
-      `<base href="${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/">`,
+      `<base href="${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/generations/generation-1/">`,
     );
     expect(rewritten).toContain(`window.__AIRJAM_HOSTED_RELEASE_ROUTE__="/"`);
     expect(rewritten).toContain(`window["__AIR_JAM_RUNTIME_TOPOLOGY__"]`);
@@ -177,6 +191,7 @@ describe("buildHostedReleaseRuntimeTopology", () => {
     const serialized = buildHostedReleaseRuntimeTopology({
       gameId: "game-1",
       releaseId: "release-1",
+      generationId: "generation-1",
       requestedAssetPath: "controller",
       entryPath: "index.html",
       appOrigin: "https://play.example.com",
@@ -186,7 +201,7 @@ describe("buildHostedReleaseRuntimeTopology", () => {
     expect(serialized).toContain(`"runtimeMode":"hosted-release"`);
     expect(serialized).toContain(`"surfaceRole":"controller"`);
     expect(serialized).toContain(
-      `"assetBasePath":"${RELEASES_PATH_PREFIX}/g/game-1/r/release-1"`,
+      `"assetBasePath":"${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/generations/generation-1"`,
     );
   });
 });

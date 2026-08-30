@@ -30,12 +30,14 @@ import {
 } from "@air-jam/devtools-core/platform-games";
 import {
   bundleLocalRelease,
+  finalizePlatformReleaseGeneration,
   inspectLocalRelease,
   inspectPlatformRelease,
   listPlatformReleaseTargets,
   listPlatformReleases,
   publishPlatformRelease,
   submitPlatformRelease,
+  uploadPlatformReleaseGeneration,
   validateLocalRelease,
   type AirJamLocalReleaseIssue,
 } from "@air-jam/devtools-core/release";
@@ -775,17 +777,32 @@ const runReleaseInspectCommand = async ({
   if (release.controllerUrl) {
     console.log(`Controller URL: ${kleur.cyan(release.controllerUrl)}`);
   }
-  if (release.artifact) {
-    console.log(
-      `Artifact: ${kleur.cyan(release.artifact.originalFilename)} (${release.artifact.sizeBytes} bytes)`,
-    );
+  const formatGeneration = (generation: (typeof release.generations)[number]) =>
+    `${kleur.cyan(generation.id)} (#${generation.sequence}, ${kleur.yellow(generation.status)})`;
+  console.log(
+    `Candidate generation: ${release.candidateGeneration ? formatGeneration(release.candidateGeneration) : kleur.dim("none")}`,
+  );
+  console.log(
+    `Promoted generation: ${release.promotedGeneration ? formatGeneration(release.promotedGeneration) : kleur.dim("none")}`,
+  );
+  if (release.generations.length > 0) {
+    console.log("");
+    console.log(kleur.dim("Generation history:"));
+    for (const generation of release.generations) {
+      const observedSize = generation.observedSizeBytes
+        ? `, ${generation.observedSizeBytes} bytes observed`
+        : "";
+      console.log(
+        `- ${formatGeneration(generation)}: ${generation.originalFilename} (${generation.declaredSizeBytes} bytes declared${observedSize})`,
+      );
+    }
   }
   if (release.checks.length > 0) {
     console.log("");
     console.log(kleur.dim("Checks:"));
     for (const check of release.checks) {
       console.log(
-        `- ${check.kind}: ${check.status}${check.summary ? ` (${check.summary})` : ""}`,
+        `- ${check.kind}: ${check.status} [generation ${check.generationId}]${check.summary ? ` (${check.summary})` : ""}`,
       );
     }
   }
@@ -799,6 +816,8 @@ const runReleaseSubmitCommand = async ({
   distDir,
   bundle,
   skipBuild = false,
+  waitForProcessing = false,
+  processingTimeoutSeconds,
   publish = false,
 }: {
   platformUrl?: string;
@@ -808,9 +827,18 @@ const runReleaseSubmitCommand = async ({
   distDir?: string;
   bundle?: string;
   skipBuild?: boolean;
+  waitForProcessing?: boolean;
+  processingTimeoutSeconds?: number;
   publish?: boolean;
 }) => {
   const resolvedCwd = path.resolve(dir || process.cwd());
+  if (
+    processingTimeoutSeconds !== undefined &&
+    (!Number.isSafeInteger(processingTimeoutSeconds) ||
+      processingTimeoutSeconds < 1)
+  ) {
+    throw new Error("--processing-timeout must be a positive integer.");
+  }
   let result;
 
   try {
@@ -822,6 +850,10 @@ const runReleaseSubmitCommand = async ({
       distDir,
       bundlePath: bundle,
       skipBuild,
+      waitForProcessing,
+      ...(processingTimeoutSeconds === undefined
+        ? {}
+        : { processingTimeoutMs: processingTimeoutSeconds * 1_000 }),
       publish,
     });
   } catch (error) {
@@ -849,13 +881,95 @@ const runReleaseSubmitCommand = async ({
   console.log(`Bundle: ${kleur.cyan(result.bundlePath)}`);
   console.log(`Draft: ${kleur.cyan(result.createdRelease.id)}`);
   console.log(
-    `Finalized: ${kleur.cyan(result.finalizedRelease.id)} (${kleur.yellow(result.finalizedRelease.status)})`,
+    `Created generation: ${kleur.cyan(result.createdGeneration.id)} (#${result.createdGeneration.sequence})`,
   );
+  console.log(
+    `Submitted generation: ${kleur.cyan(result.submittedGeneration.id)} (${kleur.yellow(result.submittedGeneration.status)})`,
+  );
+  console.log(
+    `Processing job: ${kleur.cyan(result.processingJob.id)} (${kleur.yellow(result.processingJob.status)})`,
+  );
+  console.log(
+    `Release status: ${kleur.yellow(result.submittedRelease.status)}`,
+  );
+  if (result.processedRelease) {
+    console.log(
+      `Processing complete: ${kleur.cyan(result.processedRelease.id)} (${kleur.yellow(result.processedRelease.status)})`,
+    );
+  } else {
+    console.log(
+      kleur.dim(
+        `Inspect with: airjam release inspect --release ${result.submittedRelease.id}`,
+      ),
+    );
+  }
   if (result.publishedRelease) {
     console.log(
       `Published: ${kleur.cyan(result.publishedRelease.id)} (${kleur.yellow(result.publishedRelease.status)})`,
     );
   }
+};
+
+const runReleaseUploadCommand = async ({
+  platformUrl,
+  releaseId,
+  dir,
+  bundle,
+}: {
+  platformUrl?: string;
+  releaseId: string;
+  dir?: string;
+  bundle: string;
+}) => {
+  const result = await uploadPlatformReleaseGeneration({
+    platformUrl,
+    releaseId,
+    cwd: path.resolve(dir || process.cwd()),
+    bundlePath: bundle,
+  });
+
+  console.log(kleur.green("\n✓ Hosted release generation uploaded\n"));
+  console.log(`Bundle: ${kleur.cyan(result.bundlePath)}`);
+  console.log(`Release: ${kleur.cyan(result.release.id)}`);
+  console.log(
+    `Generation: ${kleur.cyan(result.generation.id)} (#${result.generation.sequence}, ${kleur.yellow(result.generation.status)})`,
+  );
+  console.log(
+    kleur.dim(
+      `Resume with: airjam release finalize --release ${result.release.id} --generation ${result.generation.id}`,
+    ),
+  );
+};
+
+const runReleaseFinalizeCommand = async ({
+  platformUrl,
+  releaseId,
+  generationId,
+}: {
+  platformUrl?: string;
+  releaseId: string;
+  generationId: string;
+}) => {
+  const result = await finalizePlatformReleaseGeneration({
+    platformUrl,
+    releaseId,
+    generationId,
+  });
+
+  console.log(kleur.green("\n✓ Hosted release processing queued\n"));
+  console.log(`Release: ${kleur.cyan(result.release.id)}`);
+  console.log(`Release status: ${kleur.yellow(result.release.status)}`);
+  console.log(
+    `Generation: ${kleur.cyan(result.generation.id)} (${kleur.yellow(result.generation.status)})`,
+  );
+  console.log(
+    `Processing job: ${kleur.cyan(result.job.id)} (${kleur.yellow(result.job.status)})`,
+  );
+  console.log(
+    kleur.dim(
+      `Inspect with: airjam release inspect --release ${result.release.id}`,
+    ),
+  );
 };
 
 const runReleasePublishCommand = async ({
@@ -1375,7 +1489,21 @@ const buildProgram = () => {
       "Reuse the existing dist directory without building",
       false,
     )
-    .option("--publish", "Publish immediately after successful finalize", false)
+    .option(
+      "--wait",
+      "Wait for durable processing to reach a terminal generation state",
+      false,
+    )
+    .option(
+      "--processing-timeout <seconds>",
+      "Maximum processing wait; the durable job continues after a timeout",
+      (value) => Number(value),
+    )
+    .option(
+      "--publish",
+      "Wait for successful processing and publish the ready release",
+      false,
+    )
     .action(async (options: unknown) => {
       const resolved = resolveActionOptions<{
         platformUrl?: string;
@@ -1385,6 +1513,8 @@ const buildProgram = () => {
         distDir?: string;
         bundle?: string;
         skipBuild?: boolean;
+        wait?: boolean;
+        processingTimeout?: number;
         publish?: boolean;
       }>(options);
 
@@ -1396,7 +1526,50 @@ const buildProgram = () => {
         distDir: resolved.distDir,
         bundle: resolved.bundle,
         skipBuild: resolved.skipBuild,
+        waitForProcessing: resolved.wait,
+        processingTimeoutSeconds: resolved.processingTimeout,
         publish: resolved.publish,
+      });
+    });
+
+  releaseCommand
+    .command("upload")
+    .description("Upload a bundle as a new immutable generation")
+    .requiredOption("--release <id>", "Hosted release ID")
+    .requiredOption("--bundle <path>", "Existing hosted release zip")
+    .option("--dir <path>", "Directory used to resolve the bundle path")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        release: string;
+        dir?: string;
+        bundle: string;
+      }>(options);
+      await runReleaseUploadCommand({
+        platformUrl: resolved.platformUrl,
+        releaseId: resolved.release,
+        dir: resolved.dir,
+        bundle: resolved.bundle,
+      });
+    });
+
+  releaseCommand
+    .command("finalize")
+    .description("Finalize one exact immutable release generation")
+    .requiredOption("--release <id>", "Hosted release ID")
+    .requiredOption("--generation <id>", "Immutable generation ID")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        release: string;
+        generation: string;
+      }>(options);
+      await runReleaseFinalizeCommand({
+        platformUrl: resolved.platformUrl,
+        releaseId: resolved.release,
+        generationId: resolved.generation,
       });
     });
 

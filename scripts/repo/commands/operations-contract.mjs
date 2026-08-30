@@ -149,9 +149,6 @@ const validationMessages = Object.freeze({
   invalid_element: "Collection contains an invalid element",
 });
 
-const findChildCommand = (command, name) =>
-  command.commands.find((candidate) => candidate.name() === name) ?? null;
-
 const readJsonInput = (inputPath) => {
   const source =
     inputPath === "-"
@@ -242,15 +239,7 @@ export const validateOperationsContractInput = ({ schema, value }) => {
   }
 };
 
-export const registerOperationsContractCommands = (platformCommand) => {
-  const operationsCommand =
-    findChildCommand(platformCommand, "operations") ??
-    platformCommand
-      .command("operations")
-      .description(
-        "Inspect and operate authoritative production lifecycle surfaces",
-      );
-
+export const registerOperationsContractCommands = (operationsCommand) => {
   const contractCommand = operationsCommand
     .command("contract")
     .description(

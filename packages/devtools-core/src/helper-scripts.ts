@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -36,5 +36,5 @@ const typescriptExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
 
 export const resolveDevtoolsHelperArgs = (helperPath: string): string[] =>
   typescriptExtensions.has(path.extname(helperPath))
-    ? ["--import", require.resolve("tsx"), pathToFileURL(helperPath).href]
+    ? ["--import", require.resolve("tsx"), helperPath]
     : [helperPath];

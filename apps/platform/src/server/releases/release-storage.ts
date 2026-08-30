@@ -17,6 +17,13 @@ export type ReleaseStoredObjectHead = {
   metadata: Record<string, string>;
 };
 
+export type ReleaseStoredObjectSummary = {
+  key: string;
+  sizeBytes: number;
+  etag: string | null;
+  lastModifiedAt: Date | null;
+};
+
 export type CreateReleaseArtifactUploadTargetInput = {
   key: string;
   contentType: string;
@@ -28,6 +35,7 @@ export type PutReleaseObjectInput = {
   body: Buffer;
   contentType: string;
   cacheControl?: string;
+  writeMode: "create";
 };
 
 export interface ReleaseStorage {
@@ -35,8 +43,10 @@ export interface ReleaseStorage {
     input: CreateReleaseArtifactUploadTargetInput,
   ): Promise<ReleaseArtifactUploadTarget>;
   headObject(key: string): Promise<ReleaseStoredObjectHead | null>;
-  readObject(key: string): Promise<Buffer>;
+  readObject(key: string, options?: { expectedEtag?: string }): Promise<Buffer>;
   putObject(input: PutReleaseObjectInput): Promise<void>;
+  listObjects(prefix: string): Promise<ReleaseStoredObjectSummary[]>;
+  deleteObjects(keys: readonly string[]): Promise<void>;
   deletePrefix(prefix: string): Promise<void>;
 }
 

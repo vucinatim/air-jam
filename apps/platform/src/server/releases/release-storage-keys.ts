@@ -1,31 +1,55 @@
 const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 
-export const buildReleaseStorageKeys = ({
+export const buildReleaseGenerationStorageKeys = ({
   gameId,
   releaseId,
+  generationId,
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
 }) => {
-  const releaseRoot = trimSlashes(`games/${gameId}/releases/${releaseId}`);
+  const generationRoot = trimSlashes(
+    `games/${gameId}/releases/${releaseId}/generations/${generationId}`,
+  );
 
   return {
-    releaseRootKey: releaseRoot,
-    zipObjectKey: `${releaseRoot}/artifact.zip`,
-    siteRootKey: `${releaseRoot}/site`,
+    generationRootKey: generationRoot,
+    zipObjectKey: `${generationRoot}/source/artifact.zip`,
   };
 };
+
+export const buildReleaseGenerationSiteRootKey = ({
+  gameId,
+  releaseId,
+  generationId,
+  outputId,
+}: {
+  gameId: string;
+  releaseId: string;
+  generationId: string;
+  outputId: string;
+}): string =>
+  `${buildReleaseGenerationStorageKeys({ gameId, releaseId, generationId }).generationRootKey}/outputs/${trimSlashes(outputId)}/site`;
 
 export const buildReleaseSiteObjectKey = (
   siteRootKey: string,
   relativePath: string,
 ): string => `${trimSlashes(siteRootKey)}/${trimSlashes(relativePath)}`;
 
-export const buildReleaseScreenshotObjectKey = ({
+export const buildReleaseGenerationScreenshotRootKey = ({
   gameId,
   releaseId,
+  generationId,
+  captureId,
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
+  captureId: string;
 }): string =>
-  `${trimSlashes(`games/${gameId}/releases/${releaseId}`)}/screenshots/moderation-primary.png`;
+  `${buildReleaseGenerationStorageKeys({ gameId, releaseId, generationId }).generationRootKey}/screenshots/${trimSlashes(captureId)}`;
+
+export const buildReleaseGenerationScreenshotObjectKey = (
+  input: Parameters<typeof buildReleaseGenerationScreenshotRootKey>[0],
+): string => `${buildReleaseGenerationScreenshotRootKey(input)}/capture.png`;

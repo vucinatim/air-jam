@@ -11,6 +11,7 @@ import { Readable } from "node:stream";
 import {
   type ReleaseStorage,
   type ReleaseStoredObjectHead,
+  type ReleaseStoredObjectSummary,
 } from "./release-storage";
 import { getReleaseStorageConfig } from "./release-storage-config";
 
@@ -83,6 +84,16 @@ const bodyToBuffer = async (body: unknown): Promise<Buffer> => {
   throw new Error("Unsupported R2 object body type.");
 };
 
+export const assertR2DeleteObjectsSucceeded = (
+  errors: readonly { Code?: string }[] | undefined,
+): void => {
+  if (!errors?.length) return;
+  const codes = [...new Set(errors.map((error) => error.Code ?? "unknown"))];
+  throw new Error(
+    `R2 rejected ${errors.length} object deletions (${codes.join(", ")}).`,
+  );
+};
+
 export const createR2ReleaseStorage = (): ReleaseStorage => {
   const config = getReleaseStorageConfig();
   const client = createR2Client();
@@ -123,12 +134,59 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
     }
   };
 
+  const listObjects = async (
+    prefix: string,
+  ): Promise<ReleaseStoredObjectSummary[]> => {
+    const objects: ReleaseStoredObjectSummary[] = [];
+    let continuationToken: string | undefined;
+    do {
+      const response = await client.send(
+        new ListObjectsV2Command({
+          Bucket: config.bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        }),
+      );
+      for (const item of response.Contents ?? []) {
+        if (!item.Key) continue;
+        objects.push({
+          key: item.Key,
+          sizeBytes: item.Size ?? 0,
+          etag: item.ETag ?? null,
+          lastModifiedAt: item.LastModified ?? null,
+        });
+      }
+      continuationToken = response.IsTruncated
+        ? response.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+    return objects.sort((left, right) => left.key.localeCompare(right.key));
+  };
+
+  const deleteObjects = async (keys: readonly string[]): Promise<void> => {
+    for (let offset = 0; offset < keys.length; offset += 1_000) {
+      const batch = keys.slice(offset, offset + 1_000);
+      if (batch.length === 0) continue;
+      const response = await client.send(
+        new DeleteObjectsCommand({
+          Bucket: config.bucket,
+          Delete: {
+            Objects: batch.map((key) => ({ Key: key })),
+            Quiet: true,
+          },
+        }),
+      );
+      assertR2DeleteObjectsSucceeded(response.Errors);
+    }
+  };
+
   return {
     async createArtifactUploadTarget({ key, contentType, originalFilename }) {
       const command = new PutObjectCommand({
         Bucket: config.bucket,
         Key: key,
         ContentType: contentType,
+        IfNoneMatch: "*",
         Metadata: {
           [METADATA_ORIGINAL_FILENAME_KEY]: originalFilename,
         },
@@ -144,6 +202,7 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
         url,
         headers: {
           "content-type": contentType,
+          "if-none-match": "*",
         },
         expiresAt: new Date(
           Date.now() + config.uploadUrlTtlSeconds * 1_000,
@@ -152,12 +211,15 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
     },
 
     headObject,
+    listObjects,
+    deleteObjects,
 
-    async readObject(key) {
+    async readObject(key, options) {
       const response = await client.send(
         new GetObjectCommand({
           Bucket: config.bucket,
           Key: key,
+          IfMatch: options?.expectedEtag,
         }),
       );
 
@@ -168,7 +230,7 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
       return bodyToBuffer(response.Body);
     },
 
-    async putObject({ key, body, cacheControl, contentType }) {
+    async putObject({ key, body, cacheControl, contentType, writeMode }) {
       await client.send(
         new PutObjectCommand({
           Bucket: config.bucket,
@@ -176,42 +238,14 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
           Body: body,
           CacheControl: cacheControl,
           ContentType: contentType,
+          IfNoneMatch: writeMode === "create" ? "*" : undefined,
         }),
       );
     },
 
     async deletePrefix(prefix) {
-      let continuationToken: string | undefined;
-
-      do {
-        const response = await client.send(
-          new ListObjectsV2Command({
-            Bucket: config.bucket,
-            Prefix: prefix,
-            ContinuationToken: continuationToken,
-          }),
-        );
-
-        const keys = (response.Contents ?? [])
-          .map((item) => item.Key)
-          .filter((value): value is string => Boolean(value));
-
-        if (keys.length > 0) {
-          await client.send(
-            new DeleteObjectsCommand({
-              Bucket: config.bucket,
-              Delete: {
-                Objects: keys.map((key) => ({ Key: key })),
-                Quiet: true,
-              },
-            }),
-          );
-        }
-
-        continuationToken = response.IsTruncated
-          ? response.NextContinuationToken
-          : undefined;
-      } while (continuationToken);
+      const objects = await listObjects(prefix);
+      await deleteObjects(objects.map((object) => object.key));
     },
   };
 };

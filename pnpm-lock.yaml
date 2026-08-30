@@ -291,6 +291,9 @@ importers:
       '@types/yauzl':
         specifier: ^2.10.3
         version: 2.10.3
+      '@types/yazl':
+        specifier: ^2.4.5
+        version: 2.4.6
       drizzle-kit:
         specifier: ^0.31.8
         version: 0.31.8
@@ -318,6 +321,9 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@20.19.25)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@20.19.25)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)(yaml@2.9.0)
+      yazl:
+        specifier: ^3.3.1
+        version: 3.3.1
 
   games/air-capture:
     dependencies:

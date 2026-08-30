@@ -15,6 +15,8 @@ describeWithPostgres("release status PostgreSQL invariants", () => {
   const gameId = `test_game_${suffix}`;
   const firstReleaseId = `test_release_a_${suffix}`;
   const secondReleaseId = `test_release_b_${suffix}`;
+  const firstGenerationId = `test_generation_a_${suffix}`;
+  const secondGenerationId = `test_generation_b_${suffix}`;
 
   beforeAll(async () => {
     await database.insert(schema.users).values({
@@ -36,15 +38,65 @@ describeWithPostgres("release status PostgreSQL invariants", () => {
         id: firstReleaseId,
         gameId,
         sourceKind: "upload",
-        status: "ready",
+        status: "archived",
       },
       {
         id: secondReleaseId,
         gameId,
         sourceKind: "upload",
-        status: "ready",
+        status: "archived",
       },
     ]);
+    await database.insert(schema.gameReleaseGenerations).values([
+      {
+        id: firstGenerationId,
+        releaseId: firstReleaseId,
+        sequence: 1,
+        status: "ready",
+        originalFilename: "first.zip",
+        contentType: "application/zip",
+        declaredSizeBytes: 10,
+        zipObjectKey: `tests/${suffix}/first.zip`,
+        siteRootKey: `tests/${suffix}/first/site`,
+        observedSizeBytes: 10,
+        observedContentType: "application/zip",
+        extractedSizeBytes: 20,
+        fileCount: 1,
+        entryPath: "index.html",
+        contentHash: "a".repeat(64),
+        uploadObservedAt: new Date(),
+        processingStartedAt: new Date(),
+        readyAt: new Date(),
+      },
+      {
+        id: secondGenerationId,
+        releaseId: secondReleaseId,
+        sequence: 1,
+        status: "ready",
+        originalFilename: "second.zip",
+        contentType: "application/zip",
+        declaredSizeBytes: 10,
+        zipObjectKey: `tests/${suffix}/second.zip`,
+        siteRootKey: `tests/${suffix}/second/site`,
+        observedSizeBytes: 10,
+        observedContentType: "application/zip",
+        extractedSizeBytes: 20,
+        fileCount: 1,
+        entryPath: "index.html",
+        contentHash: "b".repeat(64),
+        uploadObservedAt: new Date(),
+        processingStartedAt: new Date(),
+        readyAt: new Date(),
+      },
+    ]);
+    await database
+      .update(schema.gameReleases)
+      .set({ status: "ready", promotedGenerationId: firstGenerationId })
+      .where(eq(schema.gameReleases.id, firstReleaseId));
+    await database
+      .update(schema.gameReleases)
+      .set({ status: "ready", promotedGenerationId: secondGenerationId })
+      .where(eq(schema.gameReleases.id, secondReleaseId));
   });
 
   afterAll(async () => {

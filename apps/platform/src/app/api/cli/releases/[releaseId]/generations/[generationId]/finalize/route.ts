@@ -9,21 +9,21 @@ export const POST = async (
   context: {
     params: Promise<{
       releaseId: string;
+      generationId: string;
     }>;
   },
 ) => {
   try {
     const auth = await requireMachineSessionFromRequest({ request });
     const params = await context.params;
-    const release = await finalizeReleaseUploadForMachine({
+    const result = await finalizeReleaseUploadForMachine({
       releaseId: params.releaseId,
+      generationId: params.generationId,
       userId: auth.user.id,
     });
 
     return NextResponse.json(
-      platformMachineFinalizeReleaseUploadResultSchema.parse({
-        release,
-      }),
+      platformMachineFinalizeReleaseUploadResultSchema.parse(result),
     );
   } catch (error) {
     return toMachineApiErrorResponse(error);

@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { gameReleases, games } from "@/db/schema";
+import { gameReleaseGenerations, gameReleases, games } from "@/db/schema";
 import { canTransitionReleaseStatus } from "@/lib/releases/release-policy";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
@@ -11,6 +11,9 @@ export const quarantineRelease = async ({
   checkedAt?: Date;
 }) => {
   return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select ${gameReleases.id} from ${gameReleases} where ${gameReleases.id} = ${releaseId} for update`,
+    );
     const release = await tx.query.gameReleases.findFirst({
       where: (gameReleases, { eq }) => eq(gameReleases.id, releaseId),
     });
@@ -30,10 +33,25 @@ export const quarantineRelease = async ({
     }
 
     const now = checkedAt ?? new Date();
+    if (release.candidateGenerationId) {
+      await tx
+        .update(gameReleaseGenerations)
+        .set({ status: "abandoned", abandonedAt: now })
+        .where(
+          and(
+            eq(gameReleaseGenerations.id, release.candidateGenerationId),
+            inArray(gameReleaseGenerations.status, [
+              "awaiting_upload",
+              "processing",
+            ]),
+          ),
+        );
+    }
     const [quarantinedRelease] = await tx
       .update(gameReleases)
       .set({
         status: "quarantined",
+        candidateGenerationId: null,
         checkedAt: checkedAt ?? release.checkedAt,
         quarantinedAt: now,
       })
@@ -90,6 +108,22 @@ export const publishReleaseWithDatabase = async ({
       throw new Error("Only ready releases can be published.");
     }
 
+    if (!release.promotedGenerationId) {
+      throw new Error("Ready release has no promoted generation.");
+    }
+
+    const promotedGeneration = await tx.query.gameReleaseGenerations.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.id, release.promotedGenerationId!),
+          eq(table.releaseId, release.id),
+          eq(table.status, "ready"),
+        ),
+    });
+    if (!promotedGeneration) {
+      throw new Error("Promoted release generation is not ready.");
+    }
+
     const now = new Date();
     const existingLiveReleases = await tx
       .select({ id: gameReleases.id })
@@ -138,6 +172,9 @@ export const publishRelease = ({ releaseId }: { releaseId: string }) =>
 
 export const archiveRelease = async ({ releaseId }: { releaseId: string }) => {
   return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select ${gameReleases.id} from ${gameReleases} where ${gameReleases.id} = ${releaseId} for update`,
+    );
     const release = await tx.query.gameReleases.findFirst({
       where: (table, { eq }) => eq(table.id, releaseId),
     });
@@ -151,10 +188,25 @@ export const archiveRelease = async ({ releaseId }: { releaseId: string }) => {
     }
 
     const now = new Date();
+    if (release.candidateGenerationId) {
+      await tx
+        .update(gameReleaseGenerations)
+        .set({ status: "abandoned", abandonedAt: now })
+        .where(
+          and(
+            eq(gameReleaseGenerations.id, release.candidateGenerationId),
+            inArray(gameReleaseGenerations.status, [
+              "awaiting_upload",
+              "processing",
+            ]),
+          ),
+        );
+    }
     const [archivedRelease] = await tx
       .update(gameReleases)
       .set({
         status: "archived",
+        candidateGenerationId: null,
         archivedAt: now,
       })
       .where(eq(gameReleases.id, releaseId))

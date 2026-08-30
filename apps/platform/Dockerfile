@@ -119,8 +119,8 @@ ENV NODE_ENV=production \
 
 # Next.js standalone output bundles every traced application dependency
 # into its own node_modules tree. The platform build also emits one bundled
-# run-platform.mjs into this tree so preview-only migration dependencies do
-# not depend on Next.js tracing a separately copied script. The trace includes
+# platform and operational-job worker entries into this tree so operational runtime
+# dependencies do not depend on Next.js tracing separately copied scripts. The trace includes
 # apps/platform/drizzle/ via `outputFileTracingIncludes` in next.config.ts.
 COPY --from=builder /app/apps/platform/.next/standalone ./
 
