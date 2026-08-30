@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Air Jam hostile release fixture</title>
+  </head>
+  <body>
+    <main data-testid="hostile-fixture-ready">
+      <p data-testid="fixture-origin"></p>
+      <p data-testid="platform-cookie-access"></p>
+      <p data-testid="platform-storage-access"></p>
+      <p data-testid="platform-api-access">waiting</p>
+      <p data-testid="parent-dom-access"></p>
+      <p data-testid="top-navigation"></p>
+      <p data-testid="settings-bridge">waiting</p>
+      <p data-testid="popup-top-navigation">waiting</p>
+      <button data-testid="attempt-popup-escape" type="button">
+        Attempt popup escape
+      </button>
+    </main>
+
+    <script>
+      (() => {
+        const setResult = (testId, result) => {
+          document.querySelector(`[data-testid="${testId}"]`).textContent =
+            result;
+        };
+        const query = new URLSearchParams(window.location.search);
+        const mode = query.get("mode") ?? "host";
+        const platformOrigin = document.referrer
+          ? new URL(document.referrer).origin
+          : null;
+
+        if (mode === "popup") {
+          let result = "blocked";
+          try {
+            window.opener.top.location.href = query.get("target");
+            result = "not-blocked";
+          } catch {
+            result = "blocked";
+          }
+          window.opener.postMessage(
+            { type: "AIRJAM_HOSTILE_POPUP_RESULT", result },
+            window.location.origin,
+          );
+          window.close();
+          return;
+        }
+
+        setResult("fixture-origin", window.location.origin);
+        setResult(
+          "platform-cookie-access",
+          document.cookie.includes("airjam_platform_boundary_proof=")
+            ? "exposed"
+            : "denied",
+        );
+
+        try {
+          const hostileOriginValue = window.localStorage.getItem(
+            "airjam_platform_storage_boundary_proof",
+          );
+          const parentOriginValue = window.parent.localStorage.getItem(
+            "airjam_platform_storage_boundary_proof",
+          );
+          setResult(
+            "platform-storage-access",
+            hostileOriginValue === "platform-secret" ||
+              parentOriginValue === "platform-secret"
+              ? "exposed"
+              : "denied",
+          );
+        } catch {
+          setResult("platform-storage-access", "denied");
+        }
+
+        try {
+          void window.parent.document.documentElement;
+          setResult("parent-dom-access", "exposed");
+        } catch {
+          setResult("parent-dom-access", "denied");
+        }
+
+        try {
+          window.top.location.href = `${platformOrigin}/hostile-top-navigation-escaped`;
+          setResult("top-navigation", "not-blocked");
+        } catch {
+          setResult("top-navigation", "blocked");
+        }
+
+        const acceptSettingsSnapshot = (message) => {
+          if (message?.type !== "AIRJAM_SETTINGS_SYNC") {
+            return;
+          }
+          setResult("settings-bridge", "connected");
+        };
+
+        window.addEventListener("message", (event) => {
+          if (event.origin === platformOrigin) {
+            if (event.data?.type === "AIRJAM_BRIDGE_INIT" && event.ports[0]) {
+              const bridgePort = event.ports[0];
+              bridgePort.addEventListener("message", (portEvent) => {
+                acceptSettingsSnapshot(portEvent.data);
+              });
+              bridgePort.start();
+            }
+            acceptSettingsSnapshot(event.data);
+            return;
+          }
+
+          if (
+            event.origin === window.location.origin &&
+            event.data?.type === "AIRJAM_HOSTILE_POPUP_RESULT"
+          ) {
+            setResult("popup-top-navigation", event.data.result);
+          }
+        });
+
+        window.parent.postMessage(
+          {
+            type: "AIRJAM_SETTINGS_READY",
+            payload: { ready: true },
+          },
+          platformOrigin,
+        );
+
+        fetch(`${platformOrigin}/api/health?hostile_boundary_proof=1`, {
+          credentials: "include",
+          mode: "cors",
+        })
+          .then(async (response) => {
+            await response.text();
+            setResult("platform-api-access", "readable");
+          })
+          .catch(() => {
+            setResult("platform-api-access", "blocked");
+          });
+
+        document
+          .querySelector('[data-testid="attempt-popup-escape"]')
+          .addEventListener("click", () => {
+            const popupUrl = new URL(
+              "/hostile-release.html",
+              window.location.origin,
+            );
+            popupUrl.searchParams.set("mode", "popup");
+            popupUrl.searchParams.set(
+              "target",
+              `${platformOrigin}/hostile-popup-escaped`,
+            );
+            const popup = window.open(popupUrl, "_blank");
+            if (!popup) {
+              setResult("popup-top-navigation", "popup-blocked");
+            }
+          });
+      })();
+    </script>
+  </body>
+</html>

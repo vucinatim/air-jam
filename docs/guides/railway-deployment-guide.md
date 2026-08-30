@@ -1,6 +1,6 @@
 # Railway Deployment Guide
 
-Last updated: 2026-05-10  
+Last updated: 2026-08-30
 Status: active guide
 
 Related docs:
@@ -31,6 +31,7 @@ Persistent infrastructure remains external:
 
 1. PostgreSQL on Railway
 2. release/media object storage in R2
+3. a dedicated cookieless domain for untrusted hosted release content
 
 ## Canonical Preview Model
 
@@ -77,6 +78,9 @@ Use:
 pnpm run repo -- railway whoami
 pnpm run repo -- railway doctor
 pnpm run repo -- railway doctor --json
+pnpm run repo -- platform release-origin inspect
+pnpm --silent run repo -- platform release-origin inspect --json
+pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
 ```
 
 `railway doctor` should answer:
@@ -87,14 +91,28 @@ pnpm run repo -- railway doctor --json
 4. which ephemeral environments are currently open
 5. whether platform, server, and worker all have healthy deploy identity
 
+`platform release-origin inspect` assesses local configuration by default.
+Pass the deployed platform origin through `--platform-url` to inspect its public
+`/api/health` contract authoritatively without loading or printing provider
+credentials. Production must report `ready` before hosted release delivery is
+considered healthy.
+
+The inspector returns a valid Railway platform health document even when its
+HTTP status is `503`, preserving `health.ok: false` and the exact disabled or
+invalid boundary reason for agents. That is diagnostic evidence, not a healthy
+deployment: the validation checklist still requires production to reach `200`
+and a `ready` boundary.
+
 ## Production Contract
 
 Production should stay boring:
 
 1. the platform serves `airjam.io`
 2. the server serves `api.airjam.io`
-3. the browser worker is not public product UI and should expose only the narrow routes it needs
-4. the platform should consume the public server URL explicitly rather than guessing from provider-specific env
+3. `AIRJAM_RELEASES_PUBLIC_ORIGIN` points at a dedicated cookieless site that is
+   not `airjam.io` or any `*.airjam.io` sibling
+4. the browser worker is not public product UI and should expose only the narrow routes it needs
+5. the platform should consume the public server URL explicitly rather than guessing from provider-specific env
 
 ## Validation Checklist
 

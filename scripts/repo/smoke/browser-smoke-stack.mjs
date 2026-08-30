@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
@@ -30,19 +30,29 @@ const readyPort = readPort("AIRJAM_SMOKE_READY_PORT", 3499);
 const serverPort = readPort("AIRJAM_SMOKE_SERVER_PORT", 4400);
 const pongPort = readPort("AIRJAM_SMOKE_PONG_PORT", 5400);
 const airCapturePort = readPort("AIRJAM_SMOKE_AIR_CAPTURE_PORT", 5401);
+const hostileReleasePort = readPort("AIRJAM_SMOKE_HOSTILE_RELEASE_PORT", 5402);
 const stackPorts = [
   readyPort,
   platformPort,
   serverPort,
   pongPort,
   airCapturePort,
+  hostileReleasePort,
 ];
 
 const platformBaseUrl = `http://127.0.0.1:${platformPort}`;
+const hostedReleaseBaseUrl = `http://releases.airjam.test:${platformPort}`;
 const readyBaseUrl = `http://127.0.0.1:${readyPort}`;
 const serverBaseUrl = `http://127.0.0.1:${serverPort}`;
 const pongBaseUrl = `http://127.0.0.1:${pongPort}`;
 const airCaptureBaseUrl = `http://127.0.0.1:${airCapturePort}`;
+// Use a distinct hostname from the platform so the browser proof exercises a
+// separate cookie site as well as a separate origin.
+const hostileReleaseBaseUrl = `http://localhost:${hostileReleasePort}`;
+const hostileReleaseFixtureHtml = readFileSync(
+  path.join(repoRoot, "tests/browser/fixtures/hostile-release.html"),
+  "utf8",
+);
 
 const baseEnv = {
   ...process.env,
@@ -59,6 +69,7 @@ const readyState = {
     "server health",
     "air-capture route",
     "pong route",
+    "hostile release route",
     "platform root",
     "platform local pong",
     "platform local air-capture",
@@ -81,6 +92,34 @@ const readinessServer = http.createServer((_request, response) => {
       error: readyState.error,
     }),
   );
+});
+const hostileReleaseServer = http.createServer((request, response) => {
+  const requestUrl = new URL(request.url ?? "/", hostileReleaseBaseUrl);
+
+  if (requestUrl.pathname === "/ready") {
+    response.writeHead(200, {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+    });
+    response.end(JSON.stringify({ ready: true }));
+    return;
+  }
+
+  if (requestUrl.pathname === "/hostile-release.html") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    });
+    response.end(hostileReleaseFixtureHtml);
+    return;
+  }
+
+  response.writeHead(404, {
+    "content-type": "text/plain; charset=utf-8",
+    "cache-control": "no-store",
+  });
+  response.end("Not found");
 });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -214,6 +253,7 @@ const startProcess = (name, args, env = {}) => {
 const main = async () => {
   await assertPortsFree();
   readinessServer.listen(readyPort, "127.0.0.1");
+  hostileReleaseServer.listen(hostileReleasePort, "127.0.0.1");
   rmSync(path.join(repoRoot, "apps/platform", platformDistDir), {
     force: true,
     recursive: true,
@@ -266,15 +306,20 @@ const main = async () => {
   );
   await waitForUrl(pongBaseUrl, "Pong template");
   markCheckCompleted("pong route");
+  await waitForUrl(`${hostileReleaseBaseUrl}/ready`, "hostile release fixture");
+  markCheckCompleted("hostile release route");
 
   startProcess("platform", ["pnpm", "--filter", "platform", "dev:no-db"], {
     PORT: String(platformPort),
     NEXT_DIST_DIR: platformDistDir,
     NEXT_PUBLIC_AIR_JAM_SERVER_URL: serverBaseUrl,
     NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: platformBaseUrl,
+    AIRJAM_RELEASES_PUBLIC_ORIGIN: hostedReleaseBaseUrl,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: "pong",
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_AIR_CAPTURE_URL: airCaptureBaseUrl,
     NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL: pongBaseUrl,
+    NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL: `${hostileReleaseBaseUrl}/hostile-release.html`,
+    NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_CONTROLLER_URL: `${hostileReleaseBaseUrl}/hostile-release.html?mode=controller`,
   });
   await waitForUrl(platformBaseUrl, "platform root", 120_000);
   markCheckCompleted("platform root");

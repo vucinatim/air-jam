@@ -245,26 +245,3 @@ export const loadReleaseModerationAvailabilityProbeEnv = (
     schema: releaseModerationAvailabilityProbeSchema,
     env,
   });
-
-export const resolveConfiguredReleasesBaseUrl = (
-  env: Record<string, string | undefined> = process.env,
-): string | null => {
-  const schema = z.object({
-    NEXT_PUBLIC_RELEASES_BASE_URL: optionalEnvValue,
-    AIRJAM_RELEASES_BASE_URL: optionalEnvValue,
-  });
-
-  const parsed = validateEnv({
-    boundary: "platform.release-public-base-url",
-    schema,
-    env,
-    docsHint:
-      "If configured, NEXT_PUBLIC_RELEASES_BASE_URL / AIRJAM_RELEASES_BASE_URL must be non-empty strings.",
-  });
-
-  return (
-    parsed.NEXT_PUBLIC_RELEASES_BASE_URL ??
-    parsed.AIRJAM_RELEASES_BASE_URL ??
-    null
-  );
-};

@@ -1,5 +1,11 @@
 import { createLoginHref } from "@/lib/auth-redirect";
+import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
 import type { ProductTelemetryAgentResource } from "@/lib/product-telemetry-contract";
+import {
+  assessHostedReleaseOrigin,
+  isHostedReleaseOriginRequired,
+  normalizeIncomingRequestHost,
+} from "@/lib/releases/hosted-release-origin";
 import { recordAgentResourceRequestBestEffort } from "@/server/product-telemetry/agent-resource";
 import {
   type NextFetchEvent,
@@ -14,6 +20,78 @@ const AGENT_RESOURCE_BY_PATHNAME = {
   "/ai-pack/manifest.json": "ai_pack_manifest",
 } as const satisfies Record<string, ProductTelemetryAgentResource>;
 
+const isHostedReleasePath = (pathname: string): boolean =>
+  pathname === "/releases" || pathname.startsWith("/releases/");
+
+export type HostedReleaseRequestDisposition =
+  | { kind: "platform" }
+  | { kind: "serve_release" }
+  | { kind: "block_release_origin" }
+  | { kind: "block_unknown_host" }
+  | { kind: "release_unavailable"; reason: string }
+  | { kind: "redirect_release"; destination: string };
+
+export const resolveHostedReleaseRequestDisposition = (
+  requestUrl: string | URL,
+  requestHost: string | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): HostedReleaseRequestDisposition => {
+  const url = new URL(requestUrl);
+  const assessment = assessHostedReleaseOrigin(env);
+  const deployment = resolvePlatformDeploymentConfig(env);
+  const incomingHost = normalizeIncomingRequestHost(requestHost);
+  const isReleasePath = isHostedReleasePath(url.pathname);
+  const platformHosts = deployment.authTrustedOrigins
+    .filter((origin) => !origin.includes("*"))
+    .map((origin) => new URL(origin).host);
+  const isPlatformHost =
+    incomingHost !== null &&
+    (incomingHost === new URL(deployment.platformPublicOrigin).host ||
+      platformHosts.includes(incomingHost));
+
+  if (assessment.status !== "ready") {
+    if (
+      assessment.status === "disabled" &&
+      !isHostedReleaseOriginRequired(env)
+    ) {
+      return isReleasePath
+        ? { kind: "release_unavailable", reason: assessment.reason }
+        : { kind: "platform" };
+    }
+    if (!isPlatformHost) {
+      return { kind: "block_unknown_host" };
+    }
+    return isReleasePath
+      ? {
+          kind: "release_unavailable",
+          reason: assessment.reason,
+        }
+      : { kind: "platform" };
+  }
+
+  if (incomingHost === new URL(assessment.publicOrigin).host) {
+    return isReleasePath
+      ? { kind: "serve_release" }
+      : { kind: "block_release_origin" };
+  }
+
+  if (!isPlatformHost) {
+    return { kind: "block_unknown_host" };
+  }
+
+  if (isReleasePath) {
+    return {
+      kind: "redirect_release",
+      destination: new URL(
+        `${url.pathname}${url.search}`,
+        assessment.publicOrigin,
+      ).toString(),
+    };
+  }
+
+  return { kind: "platform" };
+};
+
 export const resolveAgentResource = (
   pathname: string,
 ): ProductTelemetryAgentResource | null =>
@@ -22,6 +100,42 @@ export const resolveAgentResource = (
   ] ?? null;
 
 export function proxy(request: NextRequest, event: NextFetchEvent) {
+  const releaseDisposition = resolveHostedReleaseRequestDisposition(
+    request.url,
+    request.headers.get("host"),
+  );
+  if (
+    releaseDisposition.kind === "block_release_origin" ||
+    releaseDisposition.kind === "block_unknown_host"
+  ) {
+    return new NextResponse("Not found", {
+      status: 404,
+      headers: {
+        "cache-control": "no-store",
+        "x-airjam-content-class": "untrusted-release",
+      },
+    });
+  }
+  if (releaseDisposition.kind === "release_unavailable") {
+    return new NextResponse("Hosted release delivery is unavailable", {
+      status: 503,
+      headers: {
+        "cache-control": "no-store",
+        "x-airjam-release-status": "unavailable",
+      },
+    });
+  }
+  if (releaseDisposition.kind === "redirect_release") {
+    const response = NextResponse.redirect(releaseDisposition.destination, 307);
+    response.headers.set("cache-control", "no-store");
+    return response;
+  }
+  if (releaseDisposition.kind === "serve_release") {
+    const response = NextResponse.next();
+    response.headers.set("x-airjam-content-class", "untrusted-release");
+    return response;
+  }
+
   const resource = resolveAgentResource(request.nextUrl.pathname);
 
   if (resource) {
@@ -48,11 +162,5 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
 }
 
 export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/llms.txt",
-    "/docs-manifest",
-    "/docs-search-index",
-    "/ai-pack/manifest.json",
-  ],
+  matcher: ["/:path*"],
 };

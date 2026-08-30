@@ -21,6 +21,16 @@ const resetEnv = (): void => {
   Object.assign(process.env, ORIGINAL_ENV);
 };
 
+const configureIsolatedReleaseOrigin = (): void => {
+  delete process.env.RAILWAY_ENVIRONMENT_NAME;
+  delete process.env.RAILWAY_PUBLIC_DOMAIN;
+  delete process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST;
+  delete process.env.BETTER_AUTH_URL;
+  delete process.env.BETTER_AUTH_TRUSTED_ORIGINS;
+  process.env.NEXT_PUBLIC_APP_URL = "https://airjam.io";
+  process.env.AIRJAM_RELEASES_PUBLIC_ORIGIN = "https://airjamusercontent.net";
+};
+
 afterEach(() => {
   resetReleaseStorageConfigForTests();
   resetReleaseModerationConfigForTests();
@@ -67,6 +77,7 @@ describe("release env contracts", () => {
   });
 
   it("fails fast for invalid moderation integer env values", () => {
+    configureIsolatedReleaseOrigin();
     process.env.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH = "/tmp/chrome";
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";
     process.env.OPENAI_API_KEY = "openai-key";
@@ -94,6 +105,7 @@ describe("release env contracts", () => {
   });
 
   it("parses moderation configuration when required values are present", () => {
+    configureIsolatedReleaseOrigin();
     process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT = "ws://localhost:9222";
     process.env.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN = "browser-token";
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";
@@ -116,6 +128,7 @@ describe("release env contracts", () => {
   });
 
   it("parses capture-only moderation configuration without OpenAI", () => {
+    configureIsolatedReleaseOrigin();
     process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT = "ws://localhost:9222";
     process.env.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN = "browser-token";
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";

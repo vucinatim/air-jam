@@ -211,6 +211,22 @@ These are now baseline truths, not open architecture debates:
        claim of current anonymous exposure
     5. implementation remains in `G5-02` and `G5-03`, with one final batched
        human residual-risk review in `G5-04`
+16. the first `G5-02` implementation slice now exists as a production-valid
+    stacked change:
+    1. hosted game code has no authenticated-platform-origin fallback
+    2. production requires an explicit cross-site release origin outside Better
+       Auth trust, and build/runtime platform identity drift fails health
+    3. incoming `Host` authority, not Next's server-derived request URL, owns
+       platform-versus-release routing; release, platform, and unknown hosts
+       fail into explicit lanes
+    4. host and controller frames share one sandbox and Permissions Policy
+       contract
+    5. the repo CLI can inspect local or deployed `ready`, `disabled`, and
+       `invalid` state as stable JSON
+    6. unit, real-Next-server Host routing, and hostile-browser proofs cover the
+       local contract
+    7. `G5-02` deliberately remains open until a dedicated production domain is
+       provisioned, deployed, and attested end to end
 
 ## What Is Still Open
 
@@ -352,8 +368,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. establish the dedicated untrusted-content origin contract and hostile-game
-   isolation proof before other Gate 5 implementation
+3. provision the dedicated untrusted-content production domain, deploy the
+   implemented origin boundary, and capture real hosted-route, cookie, CORS,
+   CSP, and normal-game attestation before closing the first `G5-02` slice
 4. continue dependency-ready reliability, operations, and public-package work
    without duplicating the Gate 3 job/quota foundation
 5. preserve Gate 1 contracts while those independent implementation lanes run

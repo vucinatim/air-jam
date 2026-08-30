@@ -197,7 +197,15 @@ The detailed findings below reduce to these non-negotiable rules:
 - Severity: critical
 - Release classification: blocks-1.0
 - Confidence: high
-- Evidence:
+- Closure status (2026-08-30): implementation in progress under `G5-02`. The
+  current stacked change removes the same-origin fallback, requires a separate
+  cookie site, gates incoming Host authority and route execution, separates
+  response policy, applies one sandbox contract to host/controller frames, and
+  exposes a machine-readable operator assessment. Local unit, real-Next-server
+  Host-routing, and hostile-browser proofs pass. The finding remains open until
+  the dedicated production origin is provisioned and the actual hosted route,
+  cookies, CORS, and response headers are attested on the deployed domain.
+- Evidence at audit time:
   - `apps/platform/src/server/releases/release-public-url.ts:8-12` falls back
     to the platform site when no release base URL is configured.
   - `apps/platform/src/app/releases/g/[gameId]/r/[releaseId]/[[...assetPath]]/route.ts:103-170`

@@ -1,8 +1,7 @@
-import { getSiteUrl } from "@/lib/site-url";
+import { assessHostedReleaseOrigin } from "@/lib/releases/hosted-release-origin";
 import {
   loadReleaseModerationAvailabilityProbeEnv,
   loadReleaseModerationEnv,
-  resolveConfiguredReleasesBaseUrl,
 } from "./release-env";
 
 export type ReleaseModerationConfig = {
@@ -100,13 +99,19 @@ export const getReleaseModerationAvailability = () => {
     return cachedReleaseModerationAvailability;
   }
 
+  const releaseOrigin = assessHostedReleaseOrigin();
+  if (releaseOrigin.status !== "ready") {
+    cachedReleaseModerationAvailability = {
+      available: false,
+      reason: releaseOrigin.reason,
+    };
+    return cachedReleaseModerationAvailability;
+  }
+
   const parsed = loadReleaseModerationEnv();
   cachedReleaseModerationConfig = {
     internalAccessSecret: parsed.internalAccessSecret,
-    publicBaseUrl: (resolveConfiguredReleasesBaseUrl() || getSiteUrl()).replace(
-      /\/$/,
-      "",
-    ),
+    publicBaseUrl: releaseOrigin.publicOrigin,
     browserLaunch: parsed.browserLaunch,
     imageModeration: parsed.imageModeration,
   };

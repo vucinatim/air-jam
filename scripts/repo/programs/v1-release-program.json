@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-30T04:22:12.770Z",
+  "updatedAt": "2026-08-30T04:34:04.188Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -710,7 +710,7 @@
       "priority": 20,
       "title": "Close auth, ownership, secret, limit, abuse, and privileged-endpoint findings",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "in_progress",
       "dependsOn": [
         "G1-01",
         "G5-01"
@@ -721,7 +721,10 @@
       },
       "evidenceRequirements": [
         "negative-path security tests and operator controls"
-      ]
+      ],
+      "owner": "/root/g5-security-closure",
+      "note": "Closing the ranked G5-01 findings in production-valid slices, starting with the P0 untrusted hosted-release origin boundary and hostile browser proof.",
+      "updatedAt": "2026-08-30T04:34:04.188Z"
     },
     {
       "id": "G5-03",
