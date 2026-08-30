@@ -72,6 +72,7 @@ export const createServerCli = (): Command => {
     });
 
   configureDevLogsCommand(program.command("logs")).action(async (options) => {
+    loadWorkspaceEnv();
     process.exitCode = await executeDevLogsCliOptions(
       coerceDevLogsCliOptions(options as Record<string, unknown>),
     );
@@ -83,7 +84,6 @@ export const createServerCli = (): Command => {
 export const formatCliHelp = (): string => createServerCli().helpInformation();
 
 export const runServerCli = async (): Promise<number> => {
-  loadWorkspaceEnv();
   await createServerCli().parseAsync(normalizeCliArgv(process.argv));
   const exitCode = process.exitCode;
   if (typeof exitCode === "number") {
