@@ -242,6 +242,42 @@ const runPlatformDatabaseOperator = async ({ script, operation, options }) => {
   );
 };
 
+const capturePlatformDatabaseOperator = async ({
+  script,
+  operation,
+  options,
+}) => {
+  const databaseUrl = options.railwayEnvironment
+    ? await resolveRailwayPlatformDatabaseUrl({
+        environmentId: options.railwayEnvironment,
+        projectId: options.railwayProject ?? null,
+      })
+    : null;
+  const result = runCommandResult(
+    "pnpm",
+    [
+      "--filter",
+      "platform",
+      "exec",
+      "tsx",
+      "--env-file-if-exists=.env.local",
+      script,
+      JSON.stringify(operation),
+    ],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: databaseUrl ? { DATABASE_URL: databaseUrl } : undefined,
+    },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      result.stderr?.trim() || "Platform database operation failed.",
+    );
+  }
+  return result.stdout;
+};
+
 const addPlatformDatabaseTargetOption = (command) =>
   command
     .option(
@@ -252,6 +288,20 @@ const addPlatformDatabaseTargetOption = (command) =>
       "--railway-project <id>",
       "Railway project id; defaults to RAILWAY_PROJECT_ID",
     );
+
+export const collectRailwayProjectBudgetEvidence = async (
+  { projectId },
+  { createClient = createRailwayApiClient } = {},
+) => {
+  if (!projectId?.trim()) {
+    throw new Error(
+      "Budget sync requires --railway-project or RAILWAY_PROJECT_ID.",
+    );
+  }
+  return createClient().getProjectUsageEvidence({
+    projectId: projectId.trim(),
+  });
+};
 
 export const registerPlatformCommands = (program) => {
   const platformCommand = program
@@ -450,6 +500,87 @@ export const registerPlatformCommands = (program) => {
         idempotencyKey: options.idempotencyKey,
         expectedRevision: options.expectedRevision,
         retryAfterSeconds: options.retryAfterSeconds ?? null,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  const budgetCommand = operationsCommand
+    .command("budget")
+    .description(
+      "Inspect and ingest immutable provider spend evidence; state is always derived",
+    );
+
+  addPlatformDatabaseTargetOption(
+    budgetCommand
+      .command("status")
+      .description(
+        "Inspect the current cycle, evidence freshness, spend, forecast, and derived state",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: { command: "budget-status", json: Boolean(options.json) },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    budgetCommand
+      .command("sync")
+      .description(
+        "Fetch Railway project usage, preview the derived budget result, or persist the evidence",
+      )
+      .requiredOption("--reason <reason>", "Durable evidence-collection reason")
+      .requiredOption("--actor <actor>", "Audited collector identity")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable idempotency key for this logical provider snapshot",
+      )
+      .option(
+        "--apply",
+        "Persist the immutable evidence; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    const projectId =
+      options.railwayProject ?? process.env.RAILWAY_PROJECT_ID ?? null;
+    if (!projectId?.trim()) {
+      throw new Error(
+        "Budget sync requires --railway-project or RAILWAY_PROJECT_ID.",
+      );
+    }
+    const replayOutput = await capturePlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "budget-replay",
+        provider: "railway",
+        scopeKind: "project",
+        scopeId: projectId.trim(),
+        reason: options.reason,
+        actor: options.actor,
+        idempotencyKey: options.idempotencyKey,
+        json: true,
+      },
+      options,
+    });
+    const replay = JSON.parse(replayOutput);
+    if (replay?.result?.replayed === true) {
+      process.stdout.write(replayOutput);
+      return;
+    }
+    const evidence = await collectRailwayProjectBudgetEvidence({ projectId });
+    await runPlatformDatabaseOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "budget-sync",
+        evidence,
+        reason: options.reason,
+        actor: options.actor,
+        idempotencyKey: options.idempotencyKey,
         apply: Boolean(options.apply),
         json: Boolean(options.json),
       },

@@ -18,6 +18,24 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-29 - Provider Spend Became Immutable, Derived, And Agent-Operable
+
+- added project-scoped Railway usage evidence with raw measurements, exact
+  rate-card identity, actual and projected micro-USD totals, provider scope,
+  collector, reason, freshness, and immutable idempotent replay
+- encoded the ratified ordinary and launch threshold ladders in reviewed source;
+  callers cannot submit budget state, raise a threshold, or activate launch
+  headroom through runtime configuration
+- exposed budget status and preview/apply sync through the canonical repo CLI,
+  including safe remote-database targeting and stable JSON
+- proved the complete migration, concurrent ingestion, conflicting replay,
+  provider read, preview, apply, status, and command-level retry lifecycle on a
+  fresh isolated PostgreSQL cluster without mutating production
+- measured `$7.203280` actual and `$8.610859` projected current-cycle Railway
+  usage, both in the ordinary `normal` state
+- kept `G3-02` active for shadow/enforced quotas, durable queues, lifecycle
+  cleanup, realtime admission, and overload proof
+
 ## 2026-08-29 - Production Lane Controls Became Persistent And Agent-Operable
 
 - defined one canonical production-control contract for lane state, budget

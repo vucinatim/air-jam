@@ -64,13 +64,15 @@ The canonical Gate 2 external-agent proof is defined by:
 The measured Gate 3 production baseline is:
 
 1. [audits/v1-reliability/production-capacity-cost-and-recovery-audit.md](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md)
-2. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
+2. [audits/v1-reliability/production-budget-evidence-proof.md](./audits/v1-reliability/production-budget-evidence-proof.md)
+3. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
 
 It distinguishes the current low-cost, low-usage production state from the
 queues, quotas, recovery, static-delivery, and operational controls still
 required before launch-scale traffic is invited. The production-control
 contract fixes the shared admission, budget, job, cleanup, audit, and CLI model
-that Gate 3 implements.
+that Gate 3 implements. The budget proof records the implemented provider-to-
+policy-to-database lifecycle without implying that the remaining gate is done.
 
 The detailed discoverability checklist remains a subordinate launch reference:
 
