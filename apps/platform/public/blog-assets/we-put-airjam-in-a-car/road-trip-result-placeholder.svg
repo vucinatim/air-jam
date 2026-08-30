@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">Road-trip result photo placeholder</title>
+  <desc id="description">Replace this placeholder with the final in-car photo from the road trip.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111820"/>
+      <stop offset="1" stop-color="#081013"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#background)"/>
+  <path d="M0 535h1200v140H0z" fill="#050708"/>
+  <path d="M80 535l130-250h780l130 250z" fill="#121b20" stroke="#32444c" stroke-width="3"/>
+  <rect x="285" y="210" width="630" height="255" rx="24" fill="#05090d" stroke="#24ccdc" stroke-width="4"/>
+  <rect x="320" y="245" width="560" height="185" rx="14" fill="#10222a"/>
+  <text x="600" y="322" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" text-anchor="middle">ROAD-TRIP PHOTO</text>
+  <text x="600" y="370" fill="#a6c3ca" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle">Show the finished game on the real BMW screen</text>
+  <text x="600" y="620" fill="#66828a" font-family="Arial, Helvetica, sans-serif" font-size="18" text-anchor="middle">Draft placeholder. Replace before publishing.</text>
+</svg>

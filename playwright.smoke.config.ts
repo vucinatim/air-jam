@@ -4,6 +4,7 @@ const platformPort = process.env.AIRJAM_SMOKE_PLATFORM_PORT ?? "3400";
 const readyPort = process.env.AIRJAM_SMOKE_READY_PORT ?? "3499";
 const platformBaseUrl = `http://127.0.0.1:${platformPort}`;
 const smokeReadyUrl = `http://127.0.0.1:${readyPort}/ready`;
+const browserExecutablePath = process.env.AIRJAM_BROWSER_EXECUTABLE_PATH;
 
 export default defineConfig({
   testDir: "./tests/browser",
@@ -30,6 +31,9 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        launchOptions: browserExecutablePath
+          ? { executablePath: browserExecutablePath }
+          : undefined,
       },
     },
   ],

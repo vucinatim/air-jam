@@ -27,7 +27,7 @@ This is not the active release plan.
 
 The active release plan remains:
 
-1. [plans/v1-release-plan.md](../plans/v1-release-plan.md)
+1. [plans/v1-release-roadmap-plan.md](../plans/v1-release-roadmap-plan.md)
 
 This roadmap becomes current only after the v1 release path is closed or when a
 release-blocking deployment reset forces it forward.

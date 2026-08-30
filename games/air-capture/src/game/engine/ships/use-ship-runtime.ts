@@ -240,7 +240,9 @@ export function useShipRuntime({
       controllerId,
       abilityPressed: input.ability,
       wasAbilityPressed: runtime.lastAbilityPressed,
-      currentAbility: abilitiesStore.getAbility(controllerId),
+      currentAbility:
+        abilitiesStore.getActiveAbility(controllerId) ??
+        abilitiesStore.getQueuedAbility(controllerId),
       delta,
       activateAbility: (targetId, abilityId) =>
         abilitiesStore.activateAbility(targetId, abilityId),

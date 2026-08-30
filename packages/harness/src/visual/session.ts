@@ -1,7 +1,7 @@
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
-} from "@air-jam/sdk";
+} from "@air-jam/sdk/runtime-inspection";
 import {
   chromium,
   type Browser,
@@ -9,15 +9,7 @@ import {
   type Frame,
   type FrameLocator,
   type Page,
-} from "@playwright/test";
-import {
-  VISUAL_HARNESS_ACTIONS_KEY,
-  VISUAL_HARNESS_BRIDGE_KEY,
-  VISUAL_HARNESS_ENABLE_PARAM,
-  VISUAL_HARNESS_ENABLE_VALUE,
-  readVisualHarnessBridgeSnapshot,
-  type VisualHarnessBridgeSnapshot,
-} from "../core/runtime-bridge.js";
+} from "playwright-core";
 import type {
   VisualHarnessMode,
   VisualHarnessPageSurface,
@@ -30,12 +22,13 @@ export const DEFAULT_HOST_VIEWPORT: VisualViewport = {
   width: 1440,
   height: 1024,
 };
+
 export const DEFAULT_CONTROLLER_VIEWPORT: VisualViewport = {
   width: 390,
   height: 844,
 };
 
-const isEmbeddedHarnessMode = (mode: VisualHarnessMode): boolean =>
+const isEmbeddedMode = (mode: VisualHarnessMode): boolean =>
   mode !== "standalone-dev";
 
 export const dismissHarnessControllerFullscreenPrompt = async (
@@ -47,8 +40,8 @@ export const dismissHarnessControllerFullscreenPrompt = async (
   await openPrompt
     .waitFor({ state: "visible", timeout: 5_000 })
     .catch(() => null);
-  const isVisible = await openPrompt.isVisible().catch(() => false);
-  if (!isVisible) {
+
+  if (!(await openPrompt.isVisible().catch(() => false))) {
     return false;
   }
 
@@ -85,7 +78,6 @@ const waitForFrameToLoad = async ({
       resolvedFrame = nextFrame;
       break;
     }
-
     await page.waitForTimeout(100);
   }
 
@@ -93,21 +85,10 @@ const waitForFrameToLoad = async ({
     throw new Error(`Timed out waiting for iframe "${testId}" to resolve.`);
   }
 
-  const remainingTimeoutMs = Math.max(1, timeoutMs - (Date.now() - startedAt));
   await resolvedFrame.waitForLoadState("domcontentloaded", {
-    timeout: remainingTimeoutMs,
+    timeout: Math.max(1, timeoutMs - (Date.now() - startedAt)),
   });
-
   return page.frameLocator(`iframe[data-testid="${testId}"]`);
-};
-
-export const withVisualHarnessEnabled = (url: string): string => {
-  const nextUrl = new URL(url);
-  nextUrl.searchParams.set(
-    VISUAL_HARNESS_ENABLE_PARAM,
-    VISUAL_HARNESS_ENABLE_VALUE,
-  );
-  return nextUrl.toString();
 };
 
 const readRuntimeHref = async ({
@@ -118,13 +99,10 @@ const readRuntimeHref = async ({
   page: Page;
   game: VisualQuerySurface;
   embedded: boolean;
-}): Promise<string> => {
-  if (!embedded) {
-    return page.evaluate(() => window.location.href);
-  }
-
-  return game.locator("body").evaluate(() => window.location.href);
-};
+}): Promise<string> =>
+  embedded
+    ? game.locator("body").evaluate(() => window.location.href)
+    : page.evaluate(() => window.location.href);
 
 const readHostRuntimeInspection = async ({
   page,
@@ -154,95 +132,6 @@ const readHostRuntimeInspection = async ({
   return inspection?.role === "host" ? inspection : null;
 };
 
-export const readVisualHarnessSessionBridgeSnapshot = async <
-  TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
->({
-  page,
-  game,
-  embedded,
-}: {
-  page: Page;
-  game: VisualQuerySurface;
-  embedded: boolean;
-}): Promise<TSnapshot | null> => {
-  const readRawSnapshot = async (): Promise<unknown> => {
-    if (!embedded) {
-      return page.evaluate(
-        (bridgeKey) =>
-          (window as unknown as Record<string, unknown>)[bridgeKey] ?? null,
-        VISUAL_HARNESS_BRIDGE_KEY,
-      );
-    }
-
-    return game
-      .locator("body")
-      .evaluate(
-        (_, bridgeKey) =>
-          (window as unknown as Record<string, unknown>)[bridgeKey] ?? null,
-        VISUAL_HARNESS_BRIDGE_KEY,
-      );
-  };
-
-  const rawSnapshot = await readRawSnapshot();
-  return readVisualHarnessBridgeSnapshot<TSnapshot>({
-    [VISUAL_HARNESS_BRIDGE_KEY]: rawSnapshot,
-  });
-};
-
-export const invokeVisualHarnessSessionBridgeAction = async <T>({
-  page,
-  game,
-  embedded,
-  actionName,
-  payload,
-}: {
-  page: Page;
-  game: VisualQuerySurface;
-  embedded: boolean;
-  actionName: string;
-  payload?: unknown;
-}): Promise<T> => {
-  if (!embedded) {
-    return page.evaluate(
-      async ({ actionKey, name, nextPayload }) => {
-        const actionMap = (window as unknown as Record<string, unknown>)[
-          actionKey
-        ] as Record<string, unknown> | undefined;
-        const action = actionMap?.[name];
-        if (typeof action !== "function") {
-          throw new Error(`Missing harness action "${name}".`);
-        }
-
-        return (await action(nextPayload)) as T;
-      },
-      {
-        actionKey: VISUAL_HARNESS_ACTIONS_KEY,
-        name: actionName,
-        nextPayload: payload,
-      },
-    );
-  }
-
-  return game.locator("body").evaluate(
-    async (_, { actionKey, name, nextPayload }) => {
-      const actionMap = (window as unknown as Record<string, unknown>)[
-        actionKey
-      ] as Record<string, unknown> | undefined;
-      const action = actionMap?.[name];
-      if (typeof action !== "function") {
-        throw new Error(`Missing harness action "${name}".`);
-      }
-
-      return (await action(nextPayload)) as T;
-    },
-    {
-      actionKey: VISUAL_HARNESS_ACTIONS_KEY,
-      name: actionName,
-      nextPayload: payload,
-    },
-  );
-};
-
 const resolveControllerJoinUrl = async ({
   hostPage,
   hostGame,
@@ -257,44 +146,35 @@ const resolveControllerJoinUrl = async ({
   let resolvedJoinUrl: string | null = null;
 
   for (let attempt = 0; attempt < 80; attempt += 1) {
-    const bridgeSnapshot = await readVisualHarnessSessionBridgeSnapshot({
+    const inspection = await readHostRuntimeInspection({
       page: hostPage,
       game: hostGame,
       embedded: hostEmbedded,
     });
-    resolvedJoinUrl = bridgeSnapshot?.controllerJoinUrl ?? null;
-
-    if (!resolvedJoinUrl) {
-      const inspection = await readHostRuntimeInspection({
-        page: hostPage,
-        game: hostGame,
-        embedded: hostEmbedded,
-      });
-      if (inspection?.joinUrlStatus === "ready" && inspection.joinUrl) {
-        resolvedJoinUrl = inspection.joinUrl;
-      }
+    if (inspection?.joinUrlStatus === "ready" && inspection.joinUrl) {
+      resolvedJoinUrl = inspection.joinUrl;
     }
 
     if (!resolvedJoinUrl) {
-      const hostRuntimeHref = await readRuntimeHref({
-        page: hostPage,
-        game: hostGame,
-        embedded: hostEmbedded,
-      });
-      const runtimeUrl = new URL(hostRuntimeHref);
+      const runtimeUrl = new URL(
+        await readRuntimeHref({
+          page: hostPage,
+          game: hostGame,
+          embedded: hostEmbedded,
+        }),
+      );
       resolvedJoinUrl = runtimeUrl.searchParams.get("aj_join_url");
     }
 
     if (resolvedJoinUrl) {
       break;
     }
-
     await hostPage.waitForTimeout(250);
   }
 
   if (!resolvedJoinUrl) {
     throw new Error(
-      "Could not resolve a controller join URL from the harness bridge snapshot, host runtime inspection contract, or host runtime URL.",
+      "Could not resolve a controller join URL from the host runtime inspection contract or runtime URL.",
     );
   }
 
@@ -302,7 +182,7 @@ const resolveControllerJoinUrl = async ({
   const controllerUrl = new URL(controllerBaseUrl);
   joinUrl.protocol = controllerUrl.protocol;
   joinUrl.host = controllerUrl.host;
-  return withVisualHarnessEnabled(joinUrl.toString());
+  return joinUrl.toString();
 };
 
 export type OpenVisualHarnessSessionOptions = {
@@ -311,65 +191,30 @@ export type OpenVisualHarnessSessionOptions = {
   mode: VisualHarnessMode;
 };
 
-type OpenVisualHarnessHostSurface = {
-  hostContext: BrowserContext;
-  host: VisualHarnessPageSurface;
-};
-
 export type OpenVisualHarnessHostSessionResult = {
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl"> & {
-    controllerJoinUrl: string | null;
+    controllerJoinUrl: null;
   };
-  harnessSessionId: string | null;
   host: VisualHarnessPageSurface;
-  readBridgeSnapshot: <
-    TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
-  >() => Promise<TSnapshot | null>;
-  waitForBridgeSnapshot: <
-    TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
-  >(
-    predicate: (snapshot: TSnapshot | null) => boolean | Promise<boolean>,
-    description?: string,
-    timeoutMs?: number,
-  ) => Promise<TSnapshot>;
-  invokeBridgeAction: <T = unknown>(
-    actionName: string,
-    payload?: unknown,
-  ) => Promise<T>;
   close: () => Promise<void>;
 };
 
 export type OpenVisualHarnessSessionResult = {
   urls: VisualHarnessUrls;
-  harnessSessionId: string | null;
   host: VisualHarnessPageSurface;
   controller: VisualHarnessPageSurface & {
     fullscreenPromptDismissed: boolean;
   };
-  readBridgeSnapshot: <
-    TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
-  >() => Promise<TSnapshot | null>;
-  waitForBridgeSnapshot: <
-    TSnapshot extends VisualHarnessBridgeSnapshot = VisualHarnessBridgeSnapshot,
-  >(
-    predicate: (snapshot: TSnapshot | null) => boolean | Promise<boolean>,
-    description?: string,
-    timeoutMs?: number,
-  ) => Promise<TSnapshot>;
-  invokeBridgeAction: <T = unknown>(
-    actionName: string,
-    payload?: unknown,
-  ) => Promise<T>;
   close: () => Promise<void>;
 };
 
-const openVisualHarnessHostSurface = async ({
+export const openVisualHarnessHostSession = async ({
   browser,
   urls,
   mode,
-}: OpenVisualHarnessSessionOptions): Promise<OpenVisualHarnessHostSurface> => {
-  const embedded = isEmbeddedHarnessMode(mode);
-  const hostContext = await browser.newContext({
+}: OpenVisualHarnessSessionOptions): Promise<OpenVisualHarnessHostSessionResult> => {
+  const embedded = isEmbeddedMode(mode);
+  const hostContext: BrowserContext = await browser.newContext({
     viewport: DEFAULT_HOST_VIEWPORT,
   });
 
@@ -384,118 +229,18 @@ const openVisualHarnessHostSurface = async ({
       : hostPage;
 
     return {
-      hostContext,
+      urls: { ...urls, controllerJoinUrl: null },
       host: {
         page: hostPage,
         game: hostGame,
         embedded,
       },
+      close: () => hostContext.close(),
     };
   } catch (error) {
     await hostContext.close().catch(() => null);
     throw error;
   }
-};
-
-const readVisualHarnessSessionId = async ({
-  page,
-  game,
-  embedded,
-}: {
-  page: Page;
-  game: VisualQuerySurface;
-  embedded: boolean;
-}): Promise<string | null> => {
-  const key = "__airJamVisualHarnessSessionId__";
-
-  for (let attempt = 0; attempt < 80; attempt += 1) {
-    const candidate = embedded
-      ? await game
-          .locator("body")
-          .evaluate(
-            (_, nextKey) =>
-              (window as unknown as Record<string, unknown>)[nextKey] ?? null,
-            key,
-          )
-      : await page.evaluate(
-          (nextKey) =>
-            (window as unknown as Record<string, unknown>)[nextKey] ?? null,
-          key,
-        );
-
-    if (typeof candidate === "string" && candidate.trim().length > 0) {
-      return candidate;
-    }
-
-    await page.waitForTimeout(250);
-  }
-
-  return null;
-};
-
-export const openVisualHarnessHostSession = async ({
-  browser,
-  urls,
-  mode,
-}: OpenVisualHarnessSessionOptions): Promise<OpenVisualHarnessHostSessionResult> => {
-  const { hostContext, host } = await openVisualHarnessHostSurface({
-    browser,
-    urls,
-    mode,
-  });
-
-  return {
-    urls: {
-      ...urls,
-      controllerJoinUrl: null,
-    },
-    harnessSessionId: await readVisualHarnessSessionId({
-      page: host.page,
-      game: host.game,
-      embedded: host.embedded,
-    }),
-    host,
-    readBridgeSnapshot: () =>
-      readVisualHarnessSessionBridgeSnapshot({
-        page: host.page,
-        game: host.game,
-        embedded: host.embedded,
-      }),
-    waitForBridgeSnapshot: async (
-      predicate,
-      description = "harness bridge snapshot",
-      timeoutMs = 30_000,
-    ) => {
-      const startedAt = Date.now();
-
-      while (Date.now() - startedAt < timeoutMs) {
-        const snapshot =
-          await readVisualHarnessSessionBridgeSnapshot<VisualHarnessBridgeSnapshot>(
-            {
-              page: host.page,
-              game: host.game,
-              embedded: host.embedded,
-            },
-          );
-        if (await predicate(snapshot as never)) {
-          return snapshot as never;
-        }
-
-        await host.page.waitForTimeout(200);
-      }
-
-      throw new Error(`Timed out waiting for ${description}.`);
-    },
-    invokeBridgeAction: (actionName, payload) =>
-      invokeVisualHarnessSessionBridgeAction({
-        page: host.page,
-        game: host.game,
-        embedded: host.embedded,
-        actionName,
-        payload,
-      }),
-    close: () => hostContext.close(),
-  };
 };
 
 export const openVisualHarnessSession = async ({
@@ -533,24 +278,15 @@ export const openVisualHarnessSession = async ({
         })
       : controllerPage;
 
-    const controller: OpenVisualHarnessSessionResult["controller"] = {
-      page: controllerPage,
-      game: controllerGame,
-      embedded: hostSession.host.embedded,
-      fullscreenPromptDismissed,
-    };
-
     return {
-      urls: {
-        ...hostSession.urls,
-        controllerJoinUrl,
-      },
-      harnessSessionId: hostSession.harnessSessionId,
+      urls: { ...hostSession.urls, controllerJoinUrl },
       host: hostSession.host,
-      controller,
-      readBridgeSnapshot: hostSession.readBridgeSnapshot,
-      waitForBridgeSnapshot: hostSession.waitForBridgeSnapshot,
-      invokeBridgeAction: hostSession.invokeBridgeAction,
+      controller: {
+        page: controllerPage,
+        game: controllerGame,
+        embedded: hostSession.host.embedded,
+        fullscreenPromptDismissed,
+      },
       close: async () => {
         await Promise.allSettled([
           hostSession.close(),
@@ -564,12 +300,37 @@ export const openVisualHarnessSession = async ({
   }
 };
 
-export const launchHarnessBrowser = async (): Promise<Browser> =>
-  chromium.launch({
+export const launchHarnessBrowser = async (): Promise<Browser> => {
+  const options = {
     headless: true,
     args: [
       "--enable-webgl",
       "--ignore-gpu-blocklist",
       "--use-angle=swiftshader",
     ],
-  });
+  };
+
+  if (process.env.AIRJAM_BROWSER_EXECUTABLE_PATH) {
+    return chromium.launch({
+      ...options,
+      executablePath: process.env.AIRJAM_BROWSER_EXECUTABLE_PATH,
+    });
+  }
+
+  try {
+    return await chromium.launch(options);
+  } catch (bundledBrowserError) {
+    try {
+      return await chromium.launch({ ...options, channel: "chrome" });
+    } catch (systemBrowserError) {
+      throw new Error(
+        [
+          "Air Jam could not launch a browser runtime for semantic sessions.",
+          "Install Playwright Chromium or set AIRJAM_BROWSER_EXECUTABLE_PATH to a Chromium-compatible browser.",
+          `Bundled browser: ${bundledBrowserError instanceof Error ? bundledBrowserError.message : String(bundledBrowserError)}`,
+          `System Chrome: ${systemBrowserError instanceof Error ? systemBrowserError.message : String(systemBrowserError)}`,
+        ].join("\n\n"),
+      );
+    }
+  }
+};

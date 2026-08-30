@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Final BMW cover photo placeholder</title>
+  <desc id="description">Replace this placeholder with a photo of Last Band Standing running on the BMW display.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07141b"/>
+      <stop offset="0.55" stop-color="#101820"/>
+      <stop offset="1" stop-color="#132c33"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="60%">
+      <stop offset="0" stop-color="#27d7e7" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#27d7e7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#background)"/>
+  <ellipse cx="600" cy="320" rx="450" ry="250" fill="url(#glow)"/>
+  <rect x="145" y="120" width="910" height="390" rx="32" fill="#05090d" stroke="#24ccdc" stroke-width="4"/>
+  <rect x="180" y="155" width="840" height="320" rx="20" fill="#0d1a22" stroke="#25404b" stroke-width="2"/>
+  <circle cx="600" cy="255" r="54" fill="#18313a" stroke="#24ccdc" stroke-width="3"/>
+  <path d="M572 272l28-55 28 55-28-16z" fill="#ffffff"/>
+  <text x="600" y="360" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" text-anchor="middle">FINAL CAR PHOTO</text>
+  <text x="600" y="410" fill="#a6c3ca" font-family="Arial, Helvetica, sans-serif" font-size="24" text-anchor="middle">Last Band Standing running on the BMW display</text>
+  <text x="600" y="555" fill="#66828a" font-family="Arial, Helvetica, sans-serif" font-size="18" text-anchor="middle">Draft placeholder. Replace before publishing.</text>
+</svg>

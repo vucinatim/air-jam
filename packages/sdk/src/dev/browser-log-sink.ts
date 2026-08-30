@@ -1,9 +1,4 @@
 import {
-  isLocalDevControlSurfaceTopology,
-  type ProxyStrategy,
-  type ResolvedAirJamRuntimeTopology,
-} from "../runtime-topology";
-import {
   onAirJamDiagnostic,
   type AirJamDiagnostic,
   type AirJamDiagnosticSeverity,
@@ -17,6 +12,11 @@ import {
   AIRJAM_DEV_LOG_EVENTS,
   resolveAirJamBrowserConsoleCategory,
 } from "../protocol";
+import {
+  isLocalDevControlSurfaceTopology,
+  type ProxyStrategy,
+  type ResolvedAirJamRuntimeTopology,
+} from "../runtime-topology";
 import {
   AIRJAM_DEV_LOG_SINK_FAILURE,
   AIRJAM_DEV_RUNTIME_EVENT,
@@ -74,7 +74,6 @@ type ConsoleMethodName = "debug" | "info" | "log" | "warn" | "error";
 
 interface BrowserLogSinkOptions {
   backendOrigin?: string;
-  serverUrl?: string;
   appOrigin?: string;
   proxyStrategy?: ProxyStrategy;
   appId?: string;
@@ -134,30 +133,28 @@ const isDevelopmentRuntime = (): boolean => {
 
 const resolveEndpointBase = ({
   backendOrigin,
-  serverUrl,
   appOrigin,
   proxyStrategy,
 }: Pick<
   BrowserLogSinkOptions,
-  "backendOrigin" | "serverUrl" | "appOrigin" | "proxyStrategy"
+  "backendOrigin" | "appOrigin" | "proxyStrategy"
 >): string | null => {
   if (proxyStrategy && proxyStrategy !== "none") {
     return (appOrigin ?? resolveDevProxyBaseUrl())?.replace(/\/$/, "") ?? null;
   }
 
-  const explicitOrigin = backendOrigin ?? serverUrl;
-  if (!explicitOrigin) {
+  if (!backendOrigin) {
     return resolveDevProxyBaseUrl();
   }
 
-  if (explicitOrigin.startsWith("ws://")) {
-    return `http://${explicitOrigin.slice(5)}`.replace(/\/$/, "");
+  if (backendOrigin.startsWith("ws://")) {
+    return `http://${backendOrigin.slice(5)}`.replace(/\/$/, "");
   }
-  if (explicitOrigin.startsWith("wss://")) {
-    return `https://${explicitOrigin.slice(6)}`.replace(/\/$/, "");
+  if (backendOrigin.startsWith("wss://")) {
+    return `https://${backendOrigin.slice(6)}`.replace(/\/$/, "");
   }
 
-  return explicitOrigin.replace(/\/$/, "");
+  return backendOrigin.replace(/\/$/, "");
 };
 
 const resolveDevProxyBaseUrl = (): string | null => {

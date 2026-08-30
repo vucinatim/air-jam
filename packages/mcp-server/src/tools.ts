@@ -1,6 +1,4 @@
-import {
-  inspectGameAgentContract,
-} from "@air-jam/devtools-core/agent";
+import { inspectGameAgentContract } from "@air-jam/devtools-core/agent";
 import { inspectProject } from "@air-jam/devtools-core/context";
 import {
   getDevStatus,
@@ -16,12 +14,7 @@ import {
   readGameSession,
   sendGameSessionInput,
 } from "@air-jam/devtools-core/game-session";
-import {
-  inspectGame,
-  listGames,
-  listVisualCaptureSummaries,
-  readVisualCaptureSummary,
-} from "@air-jam/devtools-core/games";
+import { inspectGame, listGames } from "@air-jam/devtools-core/games";
 import { readDevLogs } from "@air-jam/devtools-core/logs";
 import { getPlatformMachineAuthStatus } from "@air-jam/devtools-core/platform-auth";
 import { runQualityGate } from "@air-jam/devtools-core/quality";
@@ -35,12 +28,9 @@ import {
   submitPlatformRelease,
   validateLocalRelease,
 } from "@air-jam/devtools-core/release";
-import {
-  captureVisuals,
-  listVisualScenarios,
-} from "@air-jam/devtools-core/visual";
 import type { ToolExecution } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
+import toolContract from "../tool-contract.json" with { type: "json" };
 
 type AirJamProjectMode = "monorepo" | "standalone-game" | "unknown";
 type AirJamQualityGate =
@@ -119,19 +109,7 @@ const buildTopologySchema = (projectMode: AirJamProjectMode) =>
     secure: z.boolean().optional(),
   });
 
-const buildCaptureVisualsSchema = (projectMode: AirJamProjectMode) =>
-  z.object({
-    cwd: z.string().optional(),
-    gameId: z.string().optional(),
-    scenarioId: z.string().optional(),
-    mode:
-      projectMode === "monorepo"
-        ? z.enum(["standalone-dev", "arcade-test"]).optional()
-        : z.literal("standalone-dev").optional(),
-    secure: z.boolean().optional(),
-  });
-
-const buildHarnessModeSchema = (projectMode: AirJamProjectMode) =>
+const buildGameSessionModeSchema = (projectMode: AirJamProjectMode) =>
   projectMode === "monorepo"
     ? z.enum(["standalone-dev", "arcade-dev", "arcade-test"]).optional()
     : z.literal("standalone-dev").optional();
@@ -209,10 +187,9 @@ const buildConnectControllerSchema = (projectMode: AirJamProjectMode) =>
   z.object({
     cwd: z.string().optional(),
     gameId: z.string().optional(),
-    mode: buildHarnessModeSchema(projectMode),
+    mode: buildGameSessionModeSchema(projectMode),
     secure: z.boolean().optional(),
     roomId: z.string().min(1).optional(),
-    harnessSessionId: z.string().min(1).optional(),
     controllerJoinUrl: z.string().url().optional(),
     controllerId: z.string().min(3).optional(),
     deviceId: z.string().min(8).optional(),
@@ -230,7 +207,6 @@ export const buildToolDefinitions = ({
   const runQualityGateInputSchema = buildQualityGateSchema(projectMode);
   const startDevInputSchema = buildStartDevSchema(projectMode);
   const topologyInputSchema = buildTopologySchema(projectMode);
-  const captureVisualsInputSchema = buildCaptureVisualsSchema(projectMode);
   const inspectGameAgentContractInputSchema = z.object({
     cwd: z.string().optional(),
     gameId: z.string().optional(),
@@ -472,23 +448,6 @@ export const buildToolDefinitions = ({
       run: async (input: z.infer<typeof topologyInputSchema>) =>
         withJsonText(await getTopology(input)),
     },
-    "airjam.list_visual_scenarios": {
-      description:
-        "Internal experimental visual harness tool: load one game's visual scenario pack and list scenario ids plus harness action metadata.",
-      inputSchema: INSPECT_GAME_INPUT_SCHEMA,
-      run: async ({ cwd, gameId }: { cwd?: string; gameId?: string }) =>
-        withJsonText(await listVisualScenarios({ cwd, gameId })),
-    },
-    "airjam.capture_visuals": {
-      description:
-        "Internal experimental visual harness tool: run Air Jam visual capture for one game and return artifact metadata and screenshot paths. Prefer embedded browser screenshots for normal visual proof.",
-      inputSchema: captureVisualsInputSchema,
-      execution: {
-        taskSupport: "required",
-      },
-      run: async (input: z.infer<typeof captureVisualsInputSchema>) =>
-        withJsonText(await captureVisuals(input)),
-    },
     "airjam.open_game_session": {
       description:
         "Open one high-level Air Jam game session by connecting a virtual controller and discovering published semantic game actions for the same room.",
@@ -524,22 +483,6 @@ export const buildToolDefinitions = ({
       run: async ({ gameSessionId }: { gameSessionId: string }) =>
         withJsonText(await closeGameSession({ gameSessionId })),
     },
-    "airjam.list_visual_capture_summaries": {
-      description:
-        "Internal experimental visual harness tool: list existing visual capture summaries already written under .airjam/artifacts/visual.",
-      inputSchema: z.object({
-        cwd: z.string().optional(),
-      }),
-      run: async ({ cwd }: { cwd?: string }) =>
-        withJsonText(await listVisualCaptureSummaries({ cwd })),
-    },
-    "airjam.read_visual_capture_summary": {
-      description:
-        "Internal experimental visual harness tool: read one visual capture summary for a game from .airjam/artifacts/visual/<game>/capture-summary.json.",
-      inputSchema: INSPECT_GAME_INPUT_SCHEMA,
-      run: async ({ cwd, gameId }: { cwd?: string; gameId?: string }) =>
-        withJsonText(await readVisualCaptureSummary({ cwd, gameId })),
-    },
   } as const;
 };
 
@@ -548,59 +491,9 @@ export type AirJamMcpToolDefinitions = ReturnType<typeof buildToolDefinitions>;
 export const getRegisteredToolNamesForProjectMode = (
   projectMode: AirJamProjectMode,
 ): ReadonlyArray<keyof AirJamMcpToolDefinitions> => {
-  if (projectMode === "monorepo") {
-    return [
-      "airjam.inspect_project",
-      "airjam.auth_status",
-      "airjam.list_games",
-      "airjam.inspect_game",
-      "airjam.inspect_game_agent_contract",
-      "airjam.read_logs",
-      "airjam.run_quality_gate",
-      "airjam.release_list",
-      "airjam.release_inspect",
-      "airjam.release_publish",
-      "airjam.start_dev",
-      "airjam.stop_dev",
-      "airjam.status",
-      "airjam.reset_local",
-      "airjam.topology",
-      "airjam.open_game_session",
-      "airjam.send_game_session_input",
-      "airjam.read_game_session",
-      "airjam.invoke_game_session_action",
-      "airjam.close_game_session",
-    ] as const;
-  }
-
-  if (projectMode === "standalone-game") {
-    return [
-      "airjam.inspect_project",
-      "airjam.auth_status",
-      "airjam.list_games",
-      "airjam.inspect_game",
-      "airjam.inspect_game_agent_contract",
-      "airjam.read_logs",
-      "airjam.run_quality_gate",
-      "airjam.release_doctor",
-      "airjam.release_validate",
-      "airjam.release_bundle",
-      "airjam.release_list",
-      "airjam.release_inspect",
-      "airjam.release_submit",
-      "airjam.release_publish",
-      "airjam.start_dev",
-      "airjam.stop_dev",
-      "airjam.status",
-      "airjam.reset_local",
-      "airjam.topology",
-      "airjam.open_game_session",
-      "airjam.send_game_session_input",
-      "airjam.read_game_session",
-      "airjam.invoke_game_session_action",
-      "airjam.close_game_session",
-    ] as const;
-  }
-
-  return ["airjam.inspect_project"] as const;
+  const mode =
+    projectMode === "monorepo" || projectMode === "standalone-game"
+      ? projectMode
+      : "unknown";
+  return toolContract[mode] as ReadonlyArray<keyof AirJamMcpToolDefinitions>;
 };

@@ -16,7 +16,9 @@ async function runTest() {
 
   // 2. Give ability
   useAbilitiesStore.getState().collectAbility(controllerId, "speed_boost");
-  const ability = useAbilitiesStore.getState().getAbility(controllerId);
+  const ability =
+    useAbilitiesStore.getState().getQueuedAbility(controllerId) ??
+    useAbilitiesStore.getState().getActiveAbility(controllerId);
   console.log("Ability given:", ability?.id);
 
   if (!ability) {

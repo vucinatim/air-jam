@@ -29,13 +29,11 @@ const activeTimers = new Map<string, NodeJS.Timeout>();
 
 interface AbilitiesState {
   abilities: PlayerAbilities;
-  setAbility: (controllerId: string, ability: AbilityData | null) => void;
   collectAbility: (controllerId: string, abilityId: AbilityId) => void; // Adds ability to queue (cancels active if present)
   activateAbility: (controllerId: string, abilityId: AbilityId) => void; // Activates queued ability (starts timer)
   clearAbility: (controllerId: string) => void; // Clears active ability only
   resetAbility: (controllerId: string) => void; // Clears both active and queued ability
   clearAllAbilities: () => void;
-  getAbility: (controllerId: string) => AbilityData | null; // Returns active if present, otherwise queued (for UI)
   getQueuedAbility: (controllerId: string) => AbilityData | null; // Returns queued ability specifically
   getActiveAbility: (controllerId: string) => AbilityData | null; // Returns active ability specifically
   isAbilityActive: (controllerId: string) => boolean;
@@ -45,22 +43,6 @@ interface AbilitiesState {
 
 export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
   abilities: {},
-  setAbility: (controllerId, ability) => {
-    // Legacy method - for backwards compatibility, sets as queued
-    const currentState = get().abilities[controllerId] ?? {
-      activeAbility: null,
-      queuedAbility: null,
-    };
-    set((state) => ({
-      abilities: {
-        ...state.abilities,
-        [controllerId]: {
-          ...currentState,
-          queuedAbility: ability,
-        },
-      },
-    }));
-  },
   collectAbility: (controllerId, abilityId) => {
     const ability = getAbilityDefinition(abilityId);
     if (!ability) return;
@@ -281,12 +263,6 @@ export const useAbilitiesStore = create<AbilitiesState>((set, get) => ({
     activeTimers.forEach((timer) => clearTimeout(timer));
     activeTimers.clear();
     set({ abilities: {} });
-  },
-  getAbility: (controllerId) => {
-    // Returns active ability if present, otherwise queued ability (for UI compatibility)
-    const state = get().abilities[controllerId];
-    if (!state) return null;
-    return state.activeAbility ?? state.queuedAbility ?? null;
   },
   getQueuedAbility: (controllerId) => {
     const state = get().abilities[controllerId];

@@ -1,41 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { createPrefabCatalog, definePrefab } from "../src/prefabs";
-import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
-import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../src/settings/platform-settings";
 import {
-  createHostRuntimeControlContract,
-  useControllerRuntimeControlContract,
-} from "../src/runtime-control";
+  AirJamControllerRuntime,
+  AirJamHostRuntime,
+} from "../src/arcade/runtime";
+import { createPrefabCatalog, definePrefab } from "../src/prefabs";
 import {
   createControllerRuntimeInspectionContract,
   useHostRuntimeInspectionContract,
 } from "../src/runtime-inspection";
-import {
-  createRuntimeObservabilityEvent,
-  useRuntimeObservabilitySubscription,
-} from "../src/runtime-observability";
+import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../src/settings/platform-settings";
 
 describe("runtime experimental subpaths", () => {
-  it("re-export the control contract seam from the dedicated leaf", () => {
-    const setRuntimeState = vi.fn();
-    const contract = createHostRuntimeControlContract({
-      runtimeState: "paused",
-      pauseRuntime: vi.fn(),
-      resumeRuntime: vi.fn(),
-      setRuntimeState,
-      reconnect: vi.fn(),
-      sendState: vi.fn(() => true),
-      sendSignal: vi.fn(),
-    });
-
-    contract.setRuntimeState("playing");
-
-    expect(contract.role).toBe("host");
-    expect(setRuntimeState).toHaveBeenCalledWith("playing");
-    expect(typeof useControllerRuntimeControlContract).toBe("function");
-  });
-
   it("re-export the inspection contract seam from the dedicated leaf", () => {
     const contract = createControllerRuntimeInspectionContract({
       roomId: "ROOM",
@@ -55,18 +31,6 @@ describe("runtime experimental subpaths", () => {
     expect(typeof useHostRuntimeInspectionContract).toBe("function");
   });
 
-  it("re-export the observability seam from the dedicated leaf", () => {
-    const event = createRuntimeObservabilityEvent({
-      event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnected,
-      message: "Connected",
-      role: "host",
-      roomId: "ROOM",
-    });
-
-    expect(event.source).toBe("runtime");
-    expect(typeof useRuntimeObservabilitySubscription).toBe("function");
-  });
-
   it("re-exports the prefab contract seam from the dedicated leaf", () => {
     const catalog = createPrefabCatalog([
       definePrefab({
@@ -82,5 +46,10 @@ describe("runtime experimental subpaths", () => {
     ] as const);
 
     expect(catalog[0]?.id).toBe("test.prefab.default");
+  });
+
+  it("keeps raw runtimes on the platform composition leaf", () => {
+    expect(typeof AirJamHostRuntime).toBe("function");
+    expect(typeof AirJamControllerRuntime).toBe("function");
   });
 });

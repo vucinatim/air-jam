@@ -15,7 +15,7 @@ The long-term goal is for it to become an AI-native game creation and evaluation
 The intended end state is:
 
 1. a user can ask for a game at a very high level, such as "make a mario kart clone"
-2. Air Jam Studio can orchestrate multiple specialized agents in parallel
+2. Air Jam's development harness can orchestrate multiple specialized agents in parallel
 3. different agents can own gameplay logic, assets, audio, music, UI, polish, balancing, testing, and release preparation
 4. agents can run the game directly, inspect logs, inspect visuals, read authoritative runtime state, and control players without relying only on browser automation
 5. the framework exposes clean machine-usable contracts for controller actions, state inspection, runtime events, visual feedback, and evaluation loops
@@ -59,6 +59,23 @@ pnpm run repo -- --help
 ```
 
 Use that surface to discover and prefer repo-owned operations when they exist.
+
+For active 1.0 release work, the canonical machine execution surface is:
+
+```bash
+pnpm run repo -- readiness --help
+```
+
+Agents working on the 1.0 program must:
+
+1. inspect `readiness status` and `readiness next` before selecting work
+2. claim one dependency-ready item before editing
+3. continue another independent ready item when one item is blocked
+4. complete work only with typed evidence references
+5. treat human checkpoints and production approvals as explicit work items, not
+   recurring informal validation requests
+6. keep product scope in the 1.0 roadmap and execution state in the canonical
+   manifest rather than inventing parallel trackers
 
 ## Agent-First Operability Rule
 

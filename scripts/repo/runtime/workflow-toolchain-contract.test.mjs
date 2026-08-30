@@ -1,8 +1,10 @@
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+
+import { resolvePublicPackages } from "../../release/public-packages.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -22,6 +24,39 @@ const lockfileSource = fs.readFileSync(
 
 test("repo declares pnpm through packageManager", () => {
   assert.match(rootPackageJson.packageManager, /^pnpm@\d+\.\d+\.\d+$/);
+});
+
+test("the public scaffold pins the canonical pnpm version", () => {
+  const templateVersionManifest = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        repoRoot,
+        "packages/create-airjam/template-version-manifest.json",
+      ),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    templateVersionManifest.packageManager,
+    rootPackageJson.packageManager,
+  );
+});
+
+test("the public scaffold version manifest matches every public package", () => {
+  const templateVersionManifest = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        repoRoot,
+        "packages/create-airjam/template-version-manifest.json",
+      ),
+      "utf8",
+    ),
+  );
+  const expectedVersions = Object.fromEntries(
+    resolvePublicPackages().map((entry) => [entry.packageName, entry.version]),
+  );
+
+  assert.deepEqual(templateVersionManifest.packages, expectedVersions);
 });
 
 test("packageManager major matches the lockfile format major", () => {
@@ -63,4 +98,16 @@ test("workflows use corepack-driven pnpm instead of hardcoded setup versions", (
       `${relativePath} should not pin pnpm separately from packageManager`,
     );
   }
+});
+
+test("CI checks out complete history for readiness evidence validation", () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, ".github/workflows/ci.yml"),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /uses: actions\/checkout@v5\s+with:\s+(?:#[^\n]*\s+)*fetch-depth: 0/u,
+  );
 });

@@ -14,10 +14,11 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
+  shims: true,
   splitting: false,
   target: "es2022",
   platform: "node",
-  external: ["socket.io-client"],
+  external: ["socket.io-client", "yauzl", "yazl"],
   noExternal: ["@air-jam/devtools-core"],
   onSuccess: async () => {
     const cliPath = "dist/cli.js";

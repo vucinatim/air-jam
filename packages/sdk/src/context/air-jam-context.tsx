@@ -42,12 +42,6 @@
  * );
  * ```
  */
-import type {
-  ResolvedAirJamRuntimeTopology,
-  RuntimeTopologyInput,
-  SurfaceRole,
-} from "../runtime-topology";
-import { isLocalDevControlSurfaceTopology } from "../runtime-topology";
 import {
   createContext,
   useCallback,
@@ -65,6 +59,12 @@ import { InputManager, type InputConfig } from "../internal/input-manager";
 import type { ConnectionRole } from "../protocol";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import type { HostSessionKind } from "../protocol/host";
+import type {
+  ResolvedAirJamRuntimeTopology,
+  RuntimeTopologyInput,
+  SurfaceRole,
+} from "../runtime-topology";
+import { isLocalDevControlSurfaceTopology } from "../runtime-topology";
 import type { AirJamConfig } from "../runtime/air-jam-config";
 import { resolveAirJamConfig } from "../runtime/air-jam-config";
 import {
@@ -113,7 +113,7 @@ export interface AirJamProviderProps<
   children: ReactNode;
   /** Explicit runtime topology for this surface. Prefer this over loose endpoint props. */
   topology?: RuntimeTopologyInput | ResolvedAirJamRuntimeTopology;
-  /** Internal surface-role hint when normalizing legacy endpoint props into topology. */
+  /** Internal surface-role hint used while resolving topology. */
   surfaceRole?: SurfaceRole;
   /**
    * App ID for production bootstrap identity.
@@ -478,7 +478,7 @@ export const useAirJamContext = (): AirJamContextValue => {
  * @example
  * ```tsx
  * const config = useAirJamConfig();
- * console.log(config.serverUrl, config.maxPlayers);
+ * console.log(config.topology.backendOrigin, config.maxPlayers);
  * ```
  */
 export const useAirJamConfig = (): AirJamConfig => {

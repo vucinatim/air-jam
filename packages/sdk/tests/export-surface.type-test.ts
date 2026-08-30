@@ -17,11 +17,14 @@ export type __assert_host_provider_not_exported = AssertFalse<
 export type __assert_controller_provider_not_exported = AssertFalse<
   Has<"ControllerSessionProvider">
 >;
-export type __assert_host_runtime_exported = AssertTrue<
+export type __assert_host_runtime_not_exported = AssertFalse<
   Has<"AirJamHostRuntime">
 >;
-export type __assert_controller_runtime_exported = AssertTrue<
+export type __assert_controller_runtime_not_exported = AssertFalse<
   Has<"AirJamControllerRuntime">
+>;
+export type __assert_runtime_inspection_not_exported = AssertFalse<
+  Has<"readRuntimeInspectionContract">
 >;
 export type __assert_audio_runtime_exported = AssertTrue<Has<"AudioRuntime">>;
 export type __assert_controller_remote_audio_runtime_not_exported = AssertFalse<
@@ -57,9 +60,6 @@ export type __assert_controller_state_hook_not_exported = AssertFalse<
 >;
 export type __assert_create_airjam_app_exported = AssertTrue<
   Has<"createAirJamApp">
->;
-export type __assert_define_airjam_game_capabilities_not_exported = AssertFalse<
-  Has<"defineAirJamGameCapabilities">
 >;
 export type __assert_env_exported = AssertTrue<Has<"env">>;
 export type __assert_host_session_hook_not_exported = AssertFalse<

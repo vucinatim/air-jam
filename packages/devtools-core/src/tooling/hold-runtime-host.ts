@@ -6,7 +6,7 @@ import {
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
-} from "@air-jam/sdk";
+} from "@air-jam/sdk/runtime-inspection";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));

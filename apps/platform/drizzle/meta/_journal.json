@@ -148,6 +148,20 @@
       "when": 1787769462791,
       "tag": "0020_product_telemetry",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787939094779,
+      "tag": "0021_one-live-release-invariant",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787939384992,
+      "tag": "0022_media-assignment-integrity",
+      "breakpoints": true
     }
   ]
 }

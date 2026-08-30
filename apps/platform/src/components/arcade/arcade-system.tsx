@@ -22,7 +22,6 @@ import {
 } from "@air-jam/sdk";
 import { useHostArcadeRestore } from "@air-jam/sdk/arcade/host";
 import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
-import { normalizeRuntimeUrl } from "@air-jam/sdk/arcade/url";
 import { PreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import type {
   AirJamActionRpcPayload,
@@ -58,9 +57,16 @@ import {
   shouldAutoLaunchGame,
   useArcadeRuntimeManager,
 } from "./arcade-runtime-manager";
+import {
+  orchestrateArcadeSession,
+  type ArcadeHostRouteIntent,
+  type ArcadeMode,
+  type ArcadeSessionEffect,
+} from "./arcade-session-orchestrator";
 import { useArcadeSurfaceStore } from "./arcade-surface-store";
+import type { ArcadeGame } from "./arcade-surface-types";
 import { GameBrowser } from "./game-browser";
-import { GamePlayer, type GamePlayerGame } from "./game-player";
+import { GamePlayer } from "./game-player";
 
 // Calculate grid columns based on window width
 const getGridColumns = (): number => {
@@ -70,12 +76,7 @@ const getGridColumns = (): number => {
   return 1; // sm
 };
 
-export type ArcadeGame = GamePlayerGame & { slug?: string | null };
-
-type ArcadeMode = "arcade" | "preview";
-type ArcadeHostRouteIntent =
-  | { kind: "browser" }
-  | { kind: "game"; gameId: string | null };
+export type { ArcadeGame } from "./arcade-surface-types";
 
 /** Pixel size for the join QR in the full-screen overlay (below arcade chrome). */
 const ARCADE_QR_OVERLAY_SIZE = 260;
@@ -244,10 +245,6 @@ export const ArcadeSystem = ({
     releaseBrowserActionLaunchBlock,
   } = runtime;
 
-  // Ref for launch callback (used in input loop)
-  const launchGameRef = useRef<(game: ArcadeGame) => void>(() => {});
-  const closeGameRef = useRef<() => void>(() => {});
-
   // Navigation logic refs
   const EXIT_COOLDOWN = EXIT_COOLDOWN_MS;
   const lastVectorStates = useRef<Map<string, { x: number; y: number }>>(
@@ -352,6 +349,88 @@ export const ArcadeSystem = ({
     [mode, autoLaunch, initialGameId],
   );
 
+  const applyArcadeSessionEffects = useCallback(
+    (effects: ArcadeSessionEffect[]): boolean => {
+      for (const effect of effects) {
+        switch (effect.type) {
+          case "runtime.reset":
+            resetSession();
+            break;
+          case "runtime.launch-start":
+            if (!beginLaunch()) {
+              return false;
+            }
+            break;
+          case "runtime.launch-failure":
+            failLaunch();
+            break;
+          case "runtime.launch-success":
+            completeLaunch({
+              normalizedGameUrl: effect.normalizedGameUrl,
+              launchCapability: effect.launchCapability,
+            });
+            break;
+          case "runtime.exit":
+            resetRuntimeAfterExit();
+            break;
+          case "surface.reset":
+            surfaceActions.resetHostSurfaceForMode({ mode: effect.mode });
+            break;
+          case "surface.browser":
+            surfaceActions.setBrowserSurface();
+            break;
+          case "surface.game":
+            surfaceActions.setGameSurface({
+              gameId: effect.gameId,
+              controllerUrl: effect.controllerUrl,
+              orientation: "landscape",
+            });
+            break;
+          case "surface.overlay":
+            surfaceActions.setOverlay({ overlay: effect.overlay });
+            break;
+          case "selection.set":
+            setSelectedIndex(effect.index);
+            break;
+          case "history.browser":
+            replaceArcadeBrowserHistoryEntry();
+            break;
+          case "history.game":
+            pushArcadeGameHistoryEntry(effect.game, {
+              ensureBrowserBackTarget: effect.ensureBrowserBackTarget,
+            });
+            break;
+          case "server.close":
+            if (host.socket?.connected && host.roomId) {
+              host.socket.emit("system:closeGame", { roomId: host.roomId });
+            }
+            break;
+          case "restore.clear":
+            hostArcadeRestore.clear();
+            break;
+          case "server.launch":
+            // Launch IO needs its acknowledgement before applying the next
+            // semantic event and is executed by launchGame below.
+            break;
+        }
+      }
+
+      return true;
+    },
+    [
+      beginLaunch,
+      completeLaunch,
+      failLaunch,
+      host.roomId,
+      host.socket,
+      hostArcadeRestore,
+      resetRuntimeAfterExit,
+      resetSession,
+      setSelectedIndex,
+      surfaceActions,
+    ],
+  );
+
   // First-visit nudge: when the arcade is ready and no controllers are
   // connected yet, auto-open the QR overlay so a fresh visitor lands directly
   // on the join-by-phone moment instead of staring at a Show-QR button. Fires
@@ -376,37 +455,28 @@ export const ArcadeSystem = ({
   ]);
 
   useEffect(() => {
-    if (!host.roomId || !host.socket?.connected) {
-      return;
-    }
-    if (lastRoomIdForSurfaceRef.current === host.roomId) {
+    const effects = orchestrateArcadeSession({
+      type: "room.connected",
+      roomId: host.roomId,
+      connected: !!host.socket?.connected,
+      previousRoomId: lastRoomIdForSurfaceRef.current,
+      restorePhase: hostArcadeRestore.phase,
+      mode,
+      initialOverlay: getInitialBrowserOverlay(),
+    });
+    if (effects.length === 0 || !host.roomId) {
       return;
     }
 
-    const previousRoomId = lastRoomIdForSurfaceRef.current;
     lastRoomIdForSurfaceRef.current = host.roomId;
-    resetSession();
-
-    if (previousRoomId !== null && previousRoomId !== host.roomId) {
-      surfaceActions.resetHostSurfaceForMode({ mode });
-      surfaceActions.setOverlay({ overlay: getInitialBrowserOverlay() });
-      return;
-    }
-
-    if (hostArcadeRestore.phase === "pending_restore") {
-      return;
-    }
-
-    surfaceActions.resetHostSurfaceForMode({ mode });
-    surfaceActions.setOverlay({ overlay: getInitialBrowserOverlay() });
+    applyArcadeSessionEffects(effects);
   }, [
+    applyArcadeSessionEffects,
     getInitialBrowserOverlay,
     host.roomId,
     host.socket?.connected,
-    mode,
-    resetSession,
-    surfaceActions,
     hostArcadeRestore.phase,
+    mode,
   ]);
 
   useEffect(() => {
@@ -417,87 +487,18 @@ export const ArcadeSystem = ({
       return;
     }
 
-    let cancelled = false;
-
-    const restoreArcadeSession = async (): Promise<void> => {
-      const snap = pendingHostArcadeRestoreSession;
-      if (!snap) {
-        return;
-      }
-
-      if (hostRouteIntent.kind === "browser") {
-        host.socket.emit("system:closeGame", { roomId: host.roomId });
-        hostArcadeRestore.clear();
-        return;
-      }
-
-      if (hostRouteIntent.kind === "game" && hostRouteIntent.gameId) {
-        if (snap.gameId !== hostRouteIntent.gameId) {
-          host.socket.emit("system:closeGame", { roomId: host.roomId });
-          hostArcadeRestore.clear();
-          return;
-        }
-      }
-
-      const game = games.find((g) => g.id === snap.gameId) ?? null;
-
-      if (!game) {
-        if (!gamesCatalogReady) {
-          return;
-        }
-        hostArcadeRestore.clear();
-        return;
-      }
-
-      const normalizedHostUrl = normalizeRuntimeUrl(game.url);
-      if (!normalizedHostUrl) {
-        hostArcadeRestore.clear();
-        return;
-      }
-
-      const controllerUrl = normalizeRuntimeUrl(game.controllerUrl);
-
-      if (!controllerUrl) {
-        hostArcadeRestore.clear();
-        return;
-      }
-
-      if (cancelled) {
-        return;
-      }
-
-      surfaceActions.setGameSurface({
-        gameId: game.id,
-        controllerUrl,
-        orientation: "landscape",
-      });
-      surfaceActions.setOverlay({ overlay: "hidden" });
-
-      completeLaunch({
-        normalizedGameUrl: normalizedHostUrl,
-        launchCapability: snap.launchCapability,
-      });
-
-      const idx = games.findIndex((g) => g.id === game.id);
-      if (idx >= 0) {
-        setSelectedIndex(idx);
-      }
-
-      if (mode === "arcade" && typeof window !== "undefined") {
-        pushArcadeGameHistoryEntry(game, {
-          ensureBrowserBackTarget: hostRouteIntent.kind === "game",
-        });
-      }
-
-      hostArcadeRestore.clear();
-    };
-
-    void restoreArcadeSession();
-
-    return () => {
-      cancelled = true;
-    };
+    applyArcadeSessionEffects(
+      orchestrateArcadeSession({
+        type: "restore.requested",
+        session: pendingHostArcadeRestoreSession,
+        hostRouteIntent,
+        games,
+        gamesCatalogReady,
+        mode,
+      }),
+    );
   }, [
+    applyArcadeSessionEffects,
     host.roomId,
     host.socket?.connected,
     pendingHostArcadeRestoreSession,
@@ -505,11 +506,6 @@ export const ArcadeSystem = ({
     games,
     gamesCatalogReady,
     mode,
-    completeLaunch,
-    surfaceActions,
-    hostArcadeRestore,
-    setSelectedIndex,
-    host.socket,
   ]);
 
   const broadcastCurrentState = useCallback(() => {
@@ -535,6 +531,64 @@ export const ArcadeSystem = ({
     activeGame,
     platformSettings,
   ]);
+
+  const launchGame = useCallback(
+    (game: ArcadeGame) => {
+      const effects = orchestrateArcadeSession({
+        type: "launch.requested",
+        game,
+        connected: !!host.socket?.connected,
+        roomId: host.roomId,
+        runtimeLaunchAvailable:
+          !stateRef.current.isLaunching && !stateRef.current.launchCapability,
+        mode,
+        hostRouteIntent,
+      });
+      const launchEffect = effects.find(
+        (effect) => effect.type === "server.launch",
+      );
+      const localEffects = effects.filter(
+        (effect) => effect.type !== "server.launch",
+      );
+
+      if (!applyArcadeSessionEffects(localEffects)) {
+        return;
+      }
+      if (!launchEffect || launchEffect.type !== "server.launch") {
+        return;
+      }
+      if (!host.socket?.connected || !host.roomId) {
+        applyArcadeSessionEffects([{ type: "runtime.launch-failure" }]);
+        return;
+      }
+
+      host.socket.emit(
+        "system:launchGame",
+        {
+          roomId: host.roomId,
+          gameId: launchEffect.context.game.id,
+        },
+        (ack: SystemLaunchGameAck) => {
+          applyArcadeSessionEffects(
+            orchestrateArcadeSession({
+              type: "launch.acknowledged",
+              context: launchEffect.context,
+              ack,
+              mode,
+            }),
+          );
+        },
+      );
+    },
+    [
+      applyArcadeSessionEffects,
+      host.roomId,
+      host.socket,
+      hostRouteIntent,
+      mode,
+      stateRef,
+    ],
+  );
 
   // Canonical host polling loop for browser navigation.
   useHostTick({
@@ -590,7 +644,7 @@ export const ArcadeSystem = ({
           }
           const game = games[stateRef.current.selectedIndex] ?? selectedGame;
           if (game) {
-            launchGameRef.current(game);
+            launchGame(game);
           }
         }
       });
@@ -607,99 +661,16 @@ export const ArcadeSystem = ({
     },
   });
 
-  const launchGame = useCallback(
-    async (game: ArcadeGame) => {
-      if (!host.socket || !host.socket.connected) {
-        return;
-      }
-
-      if (!beginLaunch()) {
-        return;
-      }
-
-      const normalizedHostUrl = normalizeRuntimeUrl(game.url);
-      if (!normalizedHostUrl) {
-        failLaunch();
-        return;
-      }
-
-      const controllerUrl = normalizeRuntimeUrl(game.controllerUrl);
-      if (!controllerUrl) {
-        failLaunch();
-        return;
-      }
-
-      host.socket.emit(
-        "system:launchGame",
-        {
-          roomId: host.roomId,
-          gameId: game.id,
-        },
-        (ack: SystemLaunchGameAck) => {
-          if (ack.ok && ack.launchCapability) {
-            surfaceActions.setGameSurface({
-              gameId: game.id,
-              controllerUrl: controllerUrl,
-              orientation: "landscape",
-            });
-            surfaceActions.setOverlay({ overlay: "hidden" });
-            completeLaunch({
-              launchCapability: ack.launchCapability,
-              normalizedGameUrl: normalizedHostUrl,
-            });
-
-            // Update URL shallowly in arcade mode for deep linking
-            if (mode === "arcade" && typeof window !== "undefined") {
-              pushArcadeGameHistoryEntry(game, {
-                ensureBrowserBackTarget: hostRouteIntent.kind === "game",
-              });
-            }
-          } else {
-            failLaunch();
-          }
-        },
-      );
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      arcadeJoinUrl,
-      host.socket,
-      host.roomId,
-      hostRouteIntent,
-      mode,
-      beginLaunch,
-      stateRef,
-      completeLaunch,
-      failLaunch,
-      surfaceActions,
-    ],
-  );
-
-  const returnToBrowserSurface = useCallback(() => {
-    // Reset URL shallowly in arcade mode
-    if (mode === "arcade" && typeof window !== "undefined") {
-      replaceArcadeBrowserHistoryEntry();
-    }
-
-    const preferredBrowserOverlay = getPreferredBrowserOverlay();
-    surfaceActions.setBrowserSurface();
-    surfaceActions.setOverlay({
-      overlay: preferredBrowserOverlay,
-    });
-    resetRuntimeAfterExit();
-  }, [getPreferredBrowserOverlay, mode, resetRuntimeAfterExit, surfaceActions]);
-
   const closeGame = useCallback(() => {
-    returnToBrowserSurface();
-
-    if (host.socket?.connected) {
-      host.socket.emit("system:closeGame", { roomId: host.roomId });
-    }
-  }, [host.roomId, host.socket, returnToBrowserSurface]);
-
-  useEffect(() => {
-    closeGameRef.current = closeGame;
-  }, [closeGame]);
+    applyArcadeSessionEffects(
+      orchestrateArcadeSession({
+        type: "close.requested",
+        mode,
+        browserOverlay: getPreferredBrowserOverlay(),
+        notifyServer: true,
+      }),
+    );
+  }, [applyArcadeSessionEffects, getPreferredBrowserOverlay, mode]);
 
   useEffect(() => {
     if (mode !== "arcade" || typeof window === "undefined") {
@@ -707,22 +678,22 @@ export const ArcadeSystem = ({
     }
 
     const handlePopState = () => {
-      if (getArcadeHistorySurface(window.location.pathname) !== "browser") {
-        return;
-      }
-
-      if (surfaceKindRef.current !== "game") {
-        return;
-      }
-
-      closeGameRef.current();
+      applyArcadeSessionEffects(
+        orchestrateArcadeSession({
+          type: "history.back",
+          mode,
+          historySurface: getArcadeHistorySurface(window.location.pathname),
+          surfaceKind: surfaceKindRef.current,
+          browserOverlay: getPreferredBrowserOverlay(),
+        }),
+      );
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [mode]);
+  }, [applyArcadeSessionEffects, getPreferredBrowserOverlay, mode]);
 
   const handleArcadeAction = useCallback(
     (event: AirJamActionRpcPayload) => {
@@ -892,10 +863,6 @@ export const ArcadeSystem = ({
   }, []);
 
   useEffect(() => {
-    launchGameRef.current = launchGame;
-  }, [launchGame]);
-
-  useEffect(() => {
     setArcadePlatformSettings(platformSettings);
   }, [platformSettings]);
 
@@ -908,14 +875,26 @@ export const ArcadeSystem = ({
   // Platform-owned child-host lifecycle event.
   useEffect(() => {
     const handleChildClose = () => {
-      returnToBrowserSurface();
+      applyArcadeSessionEffects(
+        orchestrateArcadeSession({
+          type: "close.requested",
+          mode,
+          browserOverlay: getPreferredBrowserOverlay(),
+          notifyServer: false,
+        }),
+      );
     };
 
     host.socket.on("server:closeChild", handleChildClose);
     return () => {
       host.socket.off("server:closeChild", handleChildClose);
     };
-  }, [host.socket, returnToBrowserSurface]);
+  }, [
+    applyArcadeSessionEffects,
+    getPreferredBrowserOverlay,
+    host.socket,
+    mode,
+  ]);
 
   // Auto-launch effect (for both arcade and preview modes)
   useEffect(() => {
@@ -948,7 +927,7 @@ export const ArcadeSystem = ({
     consumeAutoLaunch(autoLaunchRequestKey);
     // Use queueMicrotask to avoid synchronous setState in effect warning
     queueMicrotask(() => {
-      launchGameRef.current(gameToLaunch);
+      launchGame(gameToLaunch);
     });
   }, [
     autoLaunchRequestKey,
@@ -961,6 +940,7 @@ export const ArcadeSystem = ({
     games,
     surfaceKind,
     consumeAutoLaunch,
+    launchGame,
   ]);
 
   // Broadcast state whenever relevant things change

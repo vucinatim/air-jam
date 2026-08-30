@@ -1,13 +1,24 @@
-import { execSync, spawn } from "node:child_process";
+import { execFileSync, execSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { requiredScaffoldPaths } from "./ai-pack-contract.mjs";
+import { standaloneGameMcpToolNames } from "../../../scripts/lib/airjam-mcp-tool-contract.mjs";
+import { verifyMcpStdioHandshake } from "../../../scripts/lib/mcp-stdio-handshake.mjs";
+import { requiredScaffoldPaths } from "../../cli/scripts/ai-pack-contract.mjs";
 import { loadScaffoldableRepoGameManifests } from "./lib/scaffold-source-manifests.mjs";
 
 const SMOKE_SOURCES = ["registry", "tarball", "workspace"];
 const AGENT_CONTRACT_PATH = path.join("src", "game", "contracts", "agent.ts");
+const templateVersionManifest = JSON.parse(
+  fs.readFileSync(
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../template-version-manifest.json",
+    ),
+    "utf8",
+  ),
+);
 
 const run = (command, cwd) => {
   execSync(command, {
@@ -19,6 +30,21 @@ const run = (command, cwd) => {
       NO_UPDATE_NOTIFIER: "1",
     },
   });
+};
+
+const runJson = (command, args, cwd) => {
+  const output = execFileSync(command, args, {
+    cwd,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      CI: process.env.CI ?? "1",
+      NO_UPDATE_NOTIFIER: "1",
+      NO_COLOR: "1",
+      FORCE_COLOR: "0",
+    },
+  });
+  return JSON.parse(output);
 };
 
 const quoteArg = (value) => JSON.stringify(value);
@@ -163,6 +189,125 @@ const verifyGeneratedDevLogLifecycle = async (projectDir) => {
   }
 };
 
+const verifyAiPackOwnershipBoundary = ({ projectDir, repoRoot }) => {
+  const agentsPath = path.join(projectDir, "AGENTS.md");
+  const skillPath = path.join(projectDir, "skills", "airjam-mcp", "SKILL.md");
+  const managedDocPath = path.join(
+    projectDir,
+    "docs",
+    "airjam",
+    "agent-gold-path.md",
+  );
+  const rootManifestPath = path.join(
+    repoRoot,
+    "apps",
+    "platform",
+    "public",
+    "ai-pack",
+    "manifest.json",
+  );
+  const userMarker = "\n<!-- user-owned-smoke-marker -->\n";
+  const managedMarker = "\n<!-- managed-drift-smoke-marker -->\n";
+
+  fs.appendFileSync(agentsPath, userMarker, "utf8");
+  fs.appendFileSync(skillPath, userMarker, "utf8");
+  fs.appendFileSync(managedDocPath, managedMarker, "utf8");
+
+  run(
+    [
+      "pnpm exec airjam ai-pack update --dir . --force --manifest-file",
+      quoteArg(rootManifestPath),
+    ].join(" "),
+    projectDir,
+  );
+
+  if (!fs.readFileSync(agentsPath, "utf8").includes(userMarker.trim())) {
+    throw new Error("AI pack update overwrote project-owned AGENTS.md.");
+  }
+  if (!fs.readFileSync(skillPath, "utf8").includes(userMarker.trim())) {
+    throw new Error("AI pack update overwrote a project-owned skill.");
+  }
+  if (fs.readFileSync(managedDocPath, "utf8").includes(managedMarker.trim())) {
+    throw new Error(
+      "AI pack update did not repair managed framework guidance.",
+    );
+  }
+};
+
+const verifyPackedSemanticSessionLifecycle = async (projectDir) => {
+  let gameSessionId;
+  try {
+    const opened = runJson(
+      "pnpm",
+      [
+        "exec",
+        "airjam",
+        "session",
+        "open",
+        "--dir",
+        ".",
+        "--timeout-ms",
+        "30000",
+      ],
+      projectDir,
+    );
+    gameSessionId = opened.gameSessionId;
+    if (typeof gameSessionId !== "string" || gameSessionId.length === 0) {
+      throw new Error("Packed airjam session open returned no gameSessionId.");
+    }
+
+    const inspection = runJson(
+      "pnpm",
+      ["exec", "airjam", "session", "read", gameSessionId, "--dir", "."],
+      projectDir,
+    );
+    if (inspection.gameSessionId !== gameSessionId) {
+      throw new Error(
+        "Packed airjam session read did not return the opened semantic session.",
+      );
+    }
+    if (!inspection.gameSnapshot || !Array.isArray(inspection.actions)) {
+      throw new Error(
+        "Packed airjam session read did not expose semantic state and actions.",
+      );
+    }
+  } finally {
+    if (gameSessionId) {
+      runJson(
+        "pnpm",
+        ["exec", "airjam", "session", "close", gameSessionId, "--dir", "."],
+        projectDir,
+      );
+    }
+    runJson(
+      "pnpm",
+      ["exec", "airjam", "session", "broker", "stop", "--dir", "."],
+      projectDir,
+    );
+  }
+};
+
+const verifyPackedMcpProtocol = async (projectDir) => {
+  await verifyMcpStdioHandshake({
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      CI: process.env.CI ?? "1",
+      NO_UPDATE_NOTIFIER: "1",
+    },
+    clientInfo: { name: "airjam-packed-smoke", version: "1.0.0" },
+    label: "Packed MCP server",
+    requiredToolNames: [
+      "airjam.inspect_project",
+      "airjam.open_game_session",
+      "airjam.read_game_session",
+      "airjam.invoke_game_session_action",
+      "airjam.close_game_session",
+    ],
+    expectedToolNames: standaloneGameMcpToolNames,
+  });
+};
+
 const removeIfExists = (targetPath) => {
   if (fs.existsSync(targetPath)) {
     fs.rmSync(targetPath, { recursive: true, force: true });
@@ -294,11 +439,7 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
 
   try {
     console.log(`\n[scaffold smoke] template=${template} source=${source}`);
-    const cliArgs = [
-      projectArg,
-      "--template",
-      template,
-    ];
+    const cliArgs = [projectArg, "--template", template];
     let cliCommand = `node ${quoteArg(cliEntry)}`;
 
     if (source !== "registry") {
@@ -314,6 +455,7 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       run("pnpm --filter sdk build", repoRoot);
       run("pnpm --filter server build", repoRoot);
       run("pnpm --filter @air-jam/mcp-server build", repoRoot);
+      run("pnpm --filter @air-jam/cli build", repoRoot);
 
       const sdkTarball = packWorkspacePackage({
         packageDir: path.join(repoRoot, "packages", "sdk"),
@@ -327,6 +469,10 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         packageDir: path.join(repoRoot, "packages", "mcp-server"),
         outDir: tarballDir,
       });
+      const airJamCliTarball = packWorkspacePackage({
+        packageDir: path.join(repoRoot, "packages", "cli"),
+        outDir: tarballDir,
+      });
       const cliInstallDir = path.join(tempRoot, "create-airjam-cli");
       installPackedCli({
         createAirJamTarball,
@@ -334,6 +480,7 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
           "@air-jam/sdk": sdkTarball,
           "@air-jam/server": serverTarball,
           "@air-jam/mcp-server": mcpServerTarball,
+          "@air-jam/cli": airJamCliTarball,
         },
         installDir: cliInstallDir,
       });
@@ -343,17 +490,19 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       cliArgs.push(`--dep-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/server=file:${serverTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/mcp-server=file:${mcpServerTarball}`);
+      cliArgs.push(`--dep-spec=@air-jam/cli=file:${airJamCliTarball}`);
       cliArgs.push(`--override-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--override-spec=@air-jam/server=file:${serverTarball}`);
-      cliArgs.push(`--override-spec=@air-jam/mcp-server=file:${mcpServerTarball}`);
-      run(
-        [cliCommand, ...cliArgs.map(quoteArg)].join(" "),
-        cliInstallDir,
+      cliArgs.push(
+        `--override-spec=@air-jam/mcp-server=file:${mcpServerTarball}`,
       );
+      cliArgs.push(`--override-spec=@air-jam/cli=file:${airJamCliTarball}`);
+      run([cliCommand, ...cliArgs.map(quoteArg)].join(" "), cliInstallDir);
     } else if (source === "workspace") {
       run("pnpm --filter sdk build", repoRoot);
       run("pnpm --filter server build", repoRoot);
       run("pnpm --filter @air-jam/mcp-server build", repoRoot);
+      run("pnpm --filter @air-jam/cli build", repoRoot);
 
       const sdkPkg = JSON.parse(
         fs.readFileSync(
@@ -371,20 +520,17 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `--dep-spec=@air-jam/mcp-server=link:${path.join(repoRoot, "packages", "mcp-server")}`,
       );
       cliArgs.push(
+        `--dep-spec=@air-jam/cli=link:${path.join(repoRoot, "packages", "cli")}`,
+      );
+      cliArgs.push(
         `--dep-spec=zod=${toExactVersion(sdkPkg.dependencies?.zod)}`,
       );
       cliArgs.push(
         `--override-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
       );
-      run(
-        [cliCommand, ...cliArgs.map(quoteArg)].join(" "),
-        tempRoot,
-      );
+      run([cliCommand, ...cliArgs.map(quoteArg)].join(" "), tempRoot);
     } else {
-      run(
-        [cliCommand, ...cliArgs.map(quoteArg)].join(" "),
-        scaffoldRoot,
-      );
+      run([cliCommand, ...cliArgs.map(quoteArg)].join(" "), scaffoldRoot);
     }
 
     const expectedAgentContract =
@@ -410,12 +556,28 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `Expected scaffold package name "${projectName}", received "${scaffoldPkg.name}"`,
       );
     }
+    if (scaffoldPkg.packageManager !== templateVersionManifest.packageManager) {
+      throw new Error(
+        `Expected scaffold packageManager "${templateVersionManifest.packageManager}", received "${scaffoldPkg.packageManager}"`,
+      );
+    }
+    if (
+      typeof scaffoldPkg.scripts?.lint !== "string" ||
+      scaffoldPkg.scripts.lint.trim().length === 0
+    ) {
+      throw new Error('Expected scaffold project to define a "lint" script.');
+    }
     if (typeof scaffoldPkg.scripts?.mcp !== "string") {
       throw new Error('Expected scaffold project to define an "mcp" script.');
     }
     if (!scaffoldPkg.devDependencies?.["@air-jam/mcp-server"]) {
       throw new Error(
         'Expected scaffold project to depend on "@air-jam/mcp-server".',
+      );
+    }
+    if (!scaffoldPkg.devDependencies?.["@air-jam/cli"]) {
+      throw new Error(
+        'Expected scaffold project to depend on the canonical "@air-jam/cli".',
       );
     }
     if (!fs.existsSync(path.join(projectDir, ".mcp.json"))) {
@@ -436,9 +598,16 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
     }
 
     run("pnpm exec air-jam-server logs --help", projectDir);
+    run("pnpm exec airjam --help", projectDir);
     run("pnpm exec airjam-mcp --help", projectDir);
+    if (source === "tarball" && template === "pong") {
+      verifyAiPackOwnershipBoundary({ projectDir, repoRoot });
+      await verifyPackedMcpProtocol(projectDir);
+      await verifyPackedSemanticSessionLifecycle(projectDir);
+    }
     await verifyGeneratedDevLogLifecycle(projectDir);
     run("pnpm typecheck", projectDir);
+    run("pnpm lint", projectDir);
     run("pnpm test", projectDir);
     run("pnpm build", projectDir);
   } finally {

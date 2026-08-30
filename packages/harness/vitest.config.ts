@@ -4,6 +4,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      "@air-jam/sdk/runtime-topology": path.resolve(
+        __dirname,
+        "../sdk/src/runtime-topology.ts",
+      ),
       "@air-jam/sdk/agent-tooling": path.resolve(
         __dirname,
         "../sdk/src/agent-tooling.ts",

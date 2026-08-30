@@ -220,6 +220,11 @@ The paid hosted value should come from:
 
 not from hiding the basic runtime model.
 
+The official free-cloud path may expose a useful subset of these capabilities,
+but its cost-producing behavior must remain bounded by explicit quotas and the
+maintainer's fixed learning budget. Runtime accounting, not approximate product
+telemetry, is the authority for those limits and for any future charges.
+
 ## Minimal Core Model
 
 The cleanest analytics system is built from four primitives.

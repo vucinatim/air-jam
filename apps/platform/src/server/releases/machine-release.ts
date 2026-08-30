@@ -1,19 +1,17 @@
-import { db } from "@/db";
-import { gameReleases } from "@/db/schema";
+import { PlatformApplicationError } from "@/server/application-error";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import type { PlatformMachineReleaseSummary } from "@air-jam/sdk/platform-machine";
 import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
-import {
-  assertOwnedGameBySlugOrIdForMachine,
-  serializeOwnedGameForMachine,
-} from "../games/machine-game";
-import { assertOwnedRelease } from "./assert-owned-release";
+import { serializeOwnedGameForMachine } from "../games/machine-game";
 import { getReleaseDetails } from "./get-release-details";
 import {
-  finalizeReleaseUpload,
-  requestReleaseUploadTarget,
-} from "./release-artifact-service";
-import { publishRelease } from "./release-status-service";
+  createOwnedDraftRelease,
+  finalizeOwnedReleaseUpload,
+  getOwnedRelease,
+  listOwnedGameReleases,
+  publishOwnedRelease,
+  requestOwnedReleaseUploadTarget,
+} from "./release-application-service";
 
 export const serializeReleaseForMachine = (
   release: NonNullable<Awaited<ReturnType<typeof getReleaseDetails>>>,
@@ -105,6 +103,12 @@ const toMachineValidationError = (message: string) =>
     status: 400,
   });
 
+const rethrowMachineNotFound = (error: unknown, message: string): void => {
+  if (error instanceof PlatformApplicationError && error.code === "not_found") {
+    throw toMachineNotFoundError(message);
+  }
+};
+
 export const assertOwnedReleaseForMachine = async ({
   releaseId,
   userId,
@@ -113,7 +117,7 @@ export const assertOwnedReleaseForMachine = async ({
   userId: string;
 }) => {
   try {
-    return await assertOwnedRelease(releaseId, userId);
+    return await getOwnedRelease({ actor: { userId }, releaseId });
   } catch {
     throw toMachineNotFoundError(`No owned release matched "${releaseId}".`);
   }
@@ -126,28 +130,20 @@ export const listOwnedReleasesForMachine = async ({
   slugOrId: string;
   userId: string;
 }) => {
-  const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-  const releases = await db.query.gameReleases.findMany({
-    where: (table, { eq }) => eq(table.gameId, game.id),
-    orderBy: (table, { desc }) => [desc(table.createdAt)],
-  });
+  try {
+    const { game, releases } = await listOwnedGameReleases({
+      actor: { userId },
+      gameReference: { kind: "slug-or-id", slugOrId },
+    });
 
-  const releaseDetails = await Promise.all(
-    releases.map((release) => getReleaseDetails(release.id)),
-  );
-
-  return {
-    game: serializeOwnedGameForMachine(game),
-    releases: releaseDetails
-      .filter(
-        (
-          detail,
-        ): detail is NonNullable<
-          Awaited<ReturnType<typeof getReleaseDetails>>
-        > => detail !== null,
-      )
-      .map(serializeReleaseForMachine),
-  };
+    return {
+      game: serializeOwnedGameForMachine(game),
+      releases: releases.map(serializeReleaseForMachine),
+    };
+  } catch (error) {
+    rethrowMachineNotFound(error, `No owned game matched "${slugOrId}".`);
+    throw error;
+  }
 };
 
 export const createDraftReleaseForMachine = async ({
@@ -159,25 +155,21 @@ export const createDraftReleaseForMachine = async ({
   userId: string;
   versionLabel?: string;
 }) => {
-  const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-
-  const [release] = await db
-    .insert(gameReleases)
-    .values({
-      id: crypto.randomUUID(),
-      gameId: game.id,
-      sourceKind: "upload",
-      status: "draft",
-      versionLabel: versionLabel?.trim() || null,
-    })
-    .returning();
-
-  const releaseDetail = await getReleaseDetails(release.id);
-  if (!releaseDetail) {
-    throw toMachineConflictError("Draft release could not be reloaded.");
+  try {
+    const release = await createOwnedDraftRelease({
+      actor: { userId },
+      gameReference: { kind: "slug-or-id", slugOrId },
+      versionLabel,
+    });
+    return serializeReleaseForMachine(release);
+  } catch (error) {
+    rethrowMachineNotFound(error, `No owned game matched "${slugOrId}".`);
+    throw toMachineConflictError(
+      error instanceof Error
+        ? error.message
+        : "Draft release could not be created.",
+    );
   }
-
-  return serializeReleaseForMachine(releaseDetail);
 };
 
 export const requestReleaseUploadTargetForMachine = async ({
@@ -191,25 +183,20 @@ export const requestReleaseUploadTargetForMachine = async ({
   originalFilename: string;
   sizeBytes: number;
 }) => {
-  const release = await assertOwnedReleaseForMachine({ releaseId, userId });
-
   try {
-    const result = await requestReleaseUploadTarget({
-      release,
+    const result = await requestOwnedReleaseUploadTarget({
+      actor: { userId },
+      releaseId,
       originalFilename,
       sizeBytes,
     });
 
-    const updatedRelease = await assertOwnedReleaseForMachine({
-      releaseId: result.release.id,
-      userId,
-    });
-
     return {
-      release: serializeReleaseForMachine(updatedRelease),
+      release: serializeReleaseForMachine(result.release),
       upload: result.upload,
     };
   } catch (error) {
+    rethrowMachineNotFound(error, `No owned release matched "${releaseId}".`);
     throw toMachineValidationError(
       error instanceof Error
         ? error.message
@@ -225,36 +212,20 @@ export const finalizeReleaseUploadForMachine = async ({
   releaseId: string;
   userId: string;
 }) => {
-  const release = await assertOwnedReleaseForMachine({ releaseId, userId });
-
   try {
-    await finalizeReleaseUpload({ release });
-  } catch (error) {
-    const updatedRelease = await assertOwnedReleaseForMachine({
+    const release = await finalizeOwnedReleaseUpload({
+      actor: { userId },
       releaseId,
-      userId,
     });
-
-    if (
-      updatedRelease.status === "ready" ||
-      updatedRelease.status === "quarantined" ||
-      updatedRelease.status === "failed"
-    ) {
-      return serializeReleaseForMachine(updatedRelease);
-    }
-
+    return serializeReleaseForMachine(release);
+  } catch (error) {
+    rethrowMachineNotFound(error, `No owned release matched "${releaseId}".`);
     throw toMachineConflictError(
       error instanceof Error
         ? error.message
         : "Release upload could not be finalized.",
     );
   }
-
-  const updatedRelease = await assertOwnedReleaseForMachine({
-    releaseId,
-    userId,
-  });
-  return serializeReleaseForMachine(updatedRelease);
 };
 
 export const publishReleaseForMachine = async ({
@@ -264,25 +235,18 @@ export const publishReleaseForMachine = async ({
   releaseId: string;
   userId: string;
 }) => {
-  const release = await assertOwnedReleaseForMachine({ releaseId, userId });
-
-  if (release.status !== "ready") {
-    throw toMachineConflictError("Only ready releases can be published.");
-  }
-
   try {
-    await publishRelease({ releaseId });
+    const release = await publishOwnedRelease({
+      actor: { userId },
+      releaseId,
+    });
+    return serializeReleaseForMachine(release);
   } catch (error) {
+    rethrowMachineNotFound(error, `No owned release matched "${releaseId}".`);
     throw toMachineConflictError(
       error instanceof Error
         ? error.message
         : "Release could not be published.",
     );
   }
-
-  const updatedRelease = await assertOwnedReleaseForMachine({
-    releaseId,
-    userId,
-  });
-  return serializeReleaseForMachine(updatedRelease);
 };

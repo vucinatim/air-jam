@@ -1,4 +1,4 @@
-import { SECURE_MODE_LOCAL } from "../../../packages/create-airjam/runtime/secure-dev.mjs";
+import { SECURE_MODE_LOCAL } from "../../../packages/cli/runtime/secure-dev.mjs";
 import { startWorkspaceArcadeBuiltStack } from "../lib/arcade-built-stack.mjs";
 import { defaultWorkspaceGameId } from "../lib/repo-games.mjs";
 

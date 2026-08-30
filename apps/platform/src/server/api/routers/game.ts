@@ -18,6 +18,12 @@ import {
   HOSTED_RELEASE_HOST_PATH,
 } from "@/lib/releases/hosted-release-artifact";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
+import {
+  EMPTY_GAME_MEDIA_ACTIVE,
+  loadGameMediaActive,
+  loadGameMediaActiveByGame,
+  type GameMediaActiveProjection,
+} from "@/server/media/game-media-assignments";
 import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
 import {
   buildHostedReleaseSnapshot,
@@ -45,30 +51,24 @@ const normalizeAllowedOrigins = (values: string[]): string[] => {
   return Array.from(new Set(normalized));
 };
 
-const addManagedGameMediaUrls = <
-  T extends {
-    id: string;
-    thumbnailMediaAssetId: string | null;
-    coverMediaAssetId: string | null;
-    previewVideoMediaAssetId: string | null;
-  },
->(
+const addManagedGameMediaUrls = <T extends { id: string }>(
   game: T,
+  active: GameMediaActiveProjection,
 ) => ({
   ...game,
   thumbnailUrl: buildManagedGameMediaUrl({
     gameId: game.id,
-    assetId: game.thumbnailMediaAssetId,
+    assetId: active.thumbnailMediaAssetId,
     kind: "thumbnail",
   }),
   coverUrl: buildManagedGameMediaUrl({
     gameId: game.id,
-    assetId: game.coverMediaAssetId,
+    assetId: active.coverMediaAssetId,
     kind: "cover",
   }),
   videoUrl: buildManagedGameMediaUrl({
     gameId: game.id,
-    assetId: game.previewVideoMediaAssetId,
+    assetId: active.previewVideoMediaAssetId,
     kind: "preview_video",
   }),
 });
@@ -122,8 +122,16 @@ export const gameRouter = createTRPCRouter({
       .select()
       .from(games)
       .where(eq(games.userId, ctx.user.id));
+    const activeByGame = await loadGameMediaActiveByGame({
+      gameIds: ownedGames.map((game) => game.id),
+    });
 
-    return ownedGames.map(addManagedGameMediaUrls);
+    return ownedGames.map((game) =>
+      addManagedGameMediaUrls(
+        game,
+        activeByGame.get(game.id) ?? EMPTY_GAME_MEDIA_ACTIVE,
+      ),
+    );
   }),
 
   getAllPublic: publicProcedure.query(async () => {
@@ -133,9 +141,6 @@ export const gameRouter = createTRPCRouter({
         name: games.name,
         slug: games.slug,
         config: games.config,
-        thumbnailMediaAssetId: games.thumbnailMediaAssetId,
-        previewVideoMediaAssetId: games.previewVideoMediaAssetId,
-        coverMediaAssetId: games.coverMediaAssetId,
         ownerName: users.name,
         releaseId: gameReleases.id,
         releaseVersionLabel: gameReleases.versionLabel,
@@ -152,9 +157,13 @@ export const gameRouter = createTRPCRouter({
         eq(gameReleaseArtifacts.releaseId, gameReleases.id),
       )
       .where(eq(games.arcadeVisibility, "listed"));
+    const activeByGame = await loadGameMediaActiveByGame({
+      gameIds: rows.map((row) => row.id),
+    });
 
     return rows.map((row) => {
       const config = parseGameConfigLenient(row.config);
+      const active = activeByGame.get(row.id) ?? EMPTY_GAME_MEDIA_ACTIVE;
 
       return {
         id: row.id,
@@ -167,17 +176,17 @@ export const gameRouter = createTRPCRouter({
         }),
         thumbnailUrl: buildManagedGameMediaUrl({
           gameId: row.id,
-          assetId: row.thumbnailMediaAssetId,
+          assetId: active.thumbnailMediaAssetId,
           kind: "thumbnail",
         }),
         videoUrl: buildManagedGameMediaUrl({
           gameId: row.id,
-          assetId: row.previewVideoMediaAssetId,
+          assetId: active.previewVideoMediaAssetId,
           kind: "preview_video",
         }),
         coverUrl: buildManagedGameMediaUrl({
           gameId: row.id,
-          assetId: row.coverMediaAssetId,
+          assetId: active.coverMediaAssetId,
           kind: "cover",
         }),
         ownerName: row.ownerName,
@@ -217,6 +226,7 @@ export const gameRouter = createTRPCRouter({
 
       const isOwner = ctx.user?.id === game.userId;
       const liveRelease = await getLiveReleaseForGame(game.id);
+      const active = await loadGameMediaActive({ gameId: game.id });
 
       if (isOwner) {
         if (game.url) {
@@ -228,7 +238,7 @@ export const gameRouter = createTRPCRouter({
           }
 
           return {
-            ...addDeveloperCatalogFields(addManagedGameMediaUrls(game)),
+            ...addDeveloperCatalogFields(addManagedGameMediaUrls(game, active)),
             url: game.url,
             controllerUrl,
             selfHostedUrl: game.url,
@@ -239,7 +249,7 @@ export const gameRouter = createTRPCRouter({
 
         if (liveRelease) {
           return {
-            ...addDeveloperCatalogFields(addManagedGameMediaUrls(game)),
+            ...addDeveloperCatalogFields(addManagedGameMediaUrls(game, active)),
             url: liveRelease.url,
             controllerUrl: liveRelease.controllerUrl,
             selfHostedUrl: game.url,
@@ -257,7 +267,7 @@ export const gameRouter = createTRPCRouter({
 
       return {
         ...addDeveloperCatalogFields(
-          addManagedGameMediaUrls(publicRelease.game),
+          addManagedGameMediaUrls(publicRelease.game, active),
         ),
         url: publicRelease.liveRelease.url,
         controllerUrl: publicRelease.liveRelease.controllerUrl,
@@ -271,7 +281,8 @@ export const gameRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
       const game = await assertOwnedGame(input.id, ctx.user.id);
-      return addManagedGameMediaUrls(game);
+      const active = await loadGameMediaActive({ gameId: game.id });
+      return addManagedGameMediaUrls(game, active);
     }),
 
   update: protectedProcedure

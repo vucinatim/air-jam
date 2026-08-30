@@ -10,6 +10,7 @@ import {
   buildToolDefinitions,
   getRegisteredToolNamesForProjectMode,
 } from "./tools.js";
+import { AIR_JAM_MCP_SERVER_VERSION } from "./version.js";
 
 const DEFAULT_TASK_TTL_MS = 5 * 60 * 1000;
 const TASK_CAPABLE_CLIENT_NOTE =
@@ -55,7 +56,7 @@ export const createAirJamMcpServer = async ({
   const server = new McpServer(
     {
       name: "air-jam",
-      version: "1.0.0",
+      version: AIR_JAM_MCP_SERVER_VERSION,
     },
     {
       capabilities: {

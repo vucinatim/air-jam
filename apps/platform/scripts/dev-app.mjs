@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { appendNextHttpsArgs } from "../../../packages/create-airjam/runtime/secure-dev.mjs";
+import { appendNextHttpsArgs } from "../../../packages/cli/runtime/secure-dev.mjs";
 
 const args = appendNextHttpsArgs({
   env: process.env,

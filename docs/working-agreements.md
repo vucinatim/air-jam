@@ -1,6 +1,6 @@
 # Working Agreements
 
-Last updated: 2026-05-08  
+Last updated: 2026-08-29
 Status: stable operating rules
 
 This file defines how humans and agents should use the Air Jam repo operating system.
@@ -23,7 +23,8 @@ When starting work, prefer this order:
 3. [current-state.md](./current-state.md)
 4. [documentation-taxonomy.md](./documentation-taxonomy.md)
 5. the relevant active plan
-6. [work-ledger.md](./work-ledger.md) only if historical context is needed
+6. the canonical machine execution state when the active plan defines one
+7. [work-ledger.md](./work-ledger.md) only if historical context is needed
 
 Agents should not need to scan the ledger before they can tell what matters now.
 
@@ -36,12 +37,64 @@ Use this loop unless a task clearly requires something more specific:
    2. `docs/docs-index.md`
    3. `docs/current-state.md`
 2. open only the relevant active plan
-3. work inside the current ownership boundaries
-4. validate the intended slice
-5. update docs only where the rules below require it
-6. explicitly close the phase if the slice is actually complete
+3. inspect the plan's canonical machine execution state when one exists
+4. claim one dependency-ready work item
+5. work inside the current ownership boundaries
+6. validate the intended slice and retain evidence
+7. complete or block the claimed item explicitly
+8. continue another independent ready item rather than waiting unnecessarily
+9. update docs only where the rules below require it
+10. explicitly close the phase if the slice is actually complete
 
 If an agent jumps from chat context straight into edits without checking the current repo surfaces, it is operating incorrectly.
+
+## Review Stacks And Integration
+
+Stacked pull requests are review slices, not permission to merge a knowingly
+incomplete intermediate state to `main`.
+
+Use these rules:
+
+1. merge a stack bottom-up only when every slice is independently production
+   valid, green, and has its own review findings resolved
+2. when review corrections cross stack boundaries, prepare one cumulative
+   integration pull request from the corrected top of the stack into `main`
+3. preserve the component pull requests as focused review history and close
+   them as superseded only after the integration pull request merges
+4. run the complete integration gate against the exact cumulative head; green
+   checks on a descendant do not retroactively make a failing ancestor safe to
+   merge by itself
+5. treat provider preview status, issue comments, and automated review prose as
+   evidence, not as a formal GitHub approval unless GitHub records an approving
+   review
+6. do not silently bypass an unsatisfied branch-protection policy; either obtain
+   the required approval or change an impossible solo-repository policy through
+   an explicit maintainer decision
+7. after a cumulative integration, return to small independently mergeable pull
+   requests rather than allowing another long-lived stack to become the normal
+   delivery model
+
+## Production Delivery And Public Launch
+
+Merging production-ready code and announcing Air Jam 1.0 are separate events.
+
+1. every merge to `main` must be safe to deploy and operate without depending
+   on an unpublished future merge
+2. deploy coherent changes incrementally and verify their terminal production
+   state instead of holding all implementation for launch day
+3. exercise public packages through exact tarballs and the prerelease channel
+   before promoting those versions to `latest`
+4. exercise hosted games as hidden releases before making them visible in the
+   public Arcade
+5. cut one immutable candidate only after the preceding release gates close,
+   deploy that exact candidate before announcing it, and retain live smoke,
+   rollback, degradation, observability, and cost evidence
+6. coordinate stable package promotion, public release visibility, final docs,
+   the launch article, and distribution as one explicit launch sequence
+7. prefer disposable release-candidate or preview infrastructure until measured
+   evidence justifies paying for an always-on staging environment
+8. never describe a queued deployment as deployed; terminal provider success
+   and post-deploy health are required evidence
 
 ## Agent-First Operability
 
@@ -64,6 +117,16 @@ A new operator capability is complete only when:
 The canonical repo entrypoint is `pnpm run repo -- --help`. Agents should prefer
 repo-owned commands over ad hoc SQL, browser-only operation, or provider-specific
 shell sequences whenever the repo CLI owns the job.
+
+For the active 1.0 program, use:
+
+```bash
+pnpm --silent run repo -- readiness status --json
+pnpm --silent run repo -- readiness next --json
+```
+
+Claim, block, and complete work through `readiness update`. Mutations are
+read-only previews unless `--apply` is explicit.
 
 ## Doc Roles
 
@@ -136,6 +199,22 @@ Use plan docs for:
 3. boundaries
 4. close gates
 5. stop rules
+
+### Machine Execution Programs
+
+Use a machine execution program only when a large active plan benefits from
+dependency-aware autonomous scheduling.
+
+It owns:
+
+1. work-item state and ownership
+2. dependencies and ready-work derivation
+3. estimates and blockers
+4. typed evidence references
+5. explicit human and production checkpoints
+
+It does not own product scope or duplicate the plan narrative. The plan remains
+the product authority, and the repo CLI remains the supported mutation surface.
 
 ### Vision And Strategy Docs
 
@@ -302,5 +381,7 @@ To reduce conflicts:
 2. keep history in `docs/work-ledger.md`
 3. keep active plans bounded and explicit
 4. do not invent parallel status surfaces in ad hoc docs
+5. when a canonical machine execution program exists, claim work before editing
+   and keep one owner per work item
 
 If a new file starts acting like a hidden second ledger, it should be folded back into the proper surfaces.

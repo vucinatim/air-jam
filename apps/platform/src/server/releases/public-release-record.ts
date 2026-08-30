@@ -5,7 +5,7 @@ import {
   HOSTED_RELEASE_HOST_PATH,
 } from "@/lib/releases/hosted-release-artifact";
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 export const buildHostedReleaseSnapshot = ({
   gameId,
@@ -49,6 +49,11 @@ export const getLiveReleaseForGame = async (gameId: string) => {
     )
     .where(
       and(eq(gameReleases.gameId, gameId), eq(gameReleases.status, "live")),
+    )
+    .orderBy(
+      desc(gameReleases.publishedAt),
+      desc(gameReleases.createdAt),
+      desc(gameReleases.id),
     )
     .limit(1);
 

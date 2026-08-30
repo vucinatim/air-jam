@@ -11,7 +11,7 @@ import {
   reduceArcadeRuntimeState,
   shouldAutoLaunchGame,
 } from "./arcade-runtime-manager";
-import type { ArcadeGame } from "./arcade-system";
+import type { ArcadeGame } from "./arcade-surface-types";
 
 const games: ArcadeGame[] = [
   {

@@ -191,14 +191,14 @@ const generatedContentDocsDocuments = [
         slug: "4-customize--build",
         depth: 2,
         excerpt:
-          'This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster. Check AGENTS.md: Project-wide coding contract and workflow for AI coding assistants. Check docs/docs-index.md:…',
+          'This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster. Check AGENTS.md: Project-wide coding contract and workflow for AI coding assistants. Check…',
       },
       {
-        title: "Refresh Managed Docs And Skills",
-        slug: "refresh-managed-docs-and-skills",
+        title: "Refresh Managed Framework Guidance",
+        slug: "refresh-managed-framework-guidance",
         depth: 3,
         excerpt:
-          "Scaffolded projects include an AI pack that owns the canonical local docs, skills, and related guidance files. Use these commands from your project root: ai-pack:update replaces AI-pack-managed files such as local docs,…",
+          "Scaffolded projects include an AI pack that owns canonical framework references under docs/airjam/. Top-level agent instructions and project-local skills are bootstrap files: after creation, they belong to the project…",
       },
       {
         title: "Troubleshooting",
@@ -1018,7 +1018,7 @@ const generatedContentDocsDocuments = [
         slug: "player-lifecycle",
         depth: 3,
         excerpt:
-          "const HostShell = () => ( <AirJamHostRuntime input={{ schema: gameInputSchema }} onPlayerJoin={(player) => { spawnPlayerEntity(player); announceJoin(player.label); onPlayerLeave={(controllerId) => {…",
+          "const HostShell = () => ( <airjam.Host onPlayerJoin={(player) => { spawnPlayerEntity(player); announceJoin(player.label); onPlayerLeave={(controllerId) => { removePlayerEntity(controllerId); > <HostView /> </airjam.Host>",
       },
       {
         title: "Accessing Players",
@@ -1076,14 +1076,14 @@ const generatedContentDocsDocuments = [
         slug: "host-hooks",
         depth: 2,
         excerpt:
-          "useAirJamHost Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Call useAirJamHost(selector) when a component…",
+          "useAirJamHost Consumer hook for host runtime state and actions. Mount airjam.Host once at the boundary, then call useAirJamHost() anywhere below it. Call useAirJamHost(selector) when a component only needs a narrow…",
       },
       {
         title: "useAirJamHost",
         slug: "useairjamhost",
         depth: 3,
         excerpt:
-          "Consumer hook for host runtime state and actions. Mount airjam.Host or AirJamHostRuntime once at the boundary, then call useAirJamHost() anywhere below it. Call useAirJamHost(selector) when a component only needs a…",
+          "Consumer hook for host runtime state and actions. Mount airjam.Host once at the boundary, then call useAirJamHost() anywhere below it. Call useAirJamHost(selector) when a component only needs a narrow slice of host…",
       },
       {
         title: "useGetInput",
@@ -1104,14 +1104,14 @@ const generatedContentDocsDocuments = [
         slug: "controller-hooks",
         depth: 2,
         excerpt:
-          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Call…",
+          "useAirJamController Consumer hook for controller runtime state and actions. Mount airjam.Controller once at the boundary, then call useAirJamController() below it. Call useAirJamController(selector) when a component…",
       },
       {
         title: "useAirJamController",
         slug: "useairjamcontroller",
         depth: 3,
         excerpt:
-          "Consumer hook for controller runtime state and actions. Mount airjam.Controller or AirJamControllerRuntime once at the boundary, then call useAirJamController() below it. Call useAirJamController(selector) when a…",
+          "Consumer hook for controller runtime state and actions. Mount airjam.Controller once at the boundary, then call useAirJamController() below it. Call useAirJamController(selector) when a component only needs a narrow…",
       },
       {
         title: "useControllerTick",
@@ -1361,14 +1361,14 @@ const generatedContentDocsDocuments = [
         slug: "reading-input",
         depth: 2,
         excerpt:
-          "Main Host Loop This example uses the starter host surface path. Treat it as a recommended default, not a required filename. It assumes your app has already mounted airjam.Host or AirJamHostRuntime above this view.…",
+          "Main Host Loop This example uses the starter host surface path. Treat it as a recommended default, not a required filename. It assumes your app has already mounted airjam.Host above this view. Performance-Critical…",
       },
       {
         title: "Main Host Loop",
         slug: "main-host-loop",
         depth: 3,
         excerpt:
-          "This example uses the starter host surface path. Treat it as a recommended default, not a required filename. It assumes your app has already mounted airjam.Host or AirJamHostRuntime above this view.",
+          "This example uses the starter host surface path. Treat it as a recommended default, not a required filename. It assumes your app has already mounted airjam.Host above this view.",
       },
       {
         title: "Performance-Critical Components",
@@ -1381,7 +1381,7 @@ const generatedContentDocsDocuments = [
         slug: "controller-cadence",
         depth: 2,
         excerpt:
-          "Use useInputWriter() with useControllerTick() for fixed-cadence publishing: This example uses the starter controller surface path. It assumes your app has already mounted airjam.Controller or AirJamControllerRuntime…",
+          "Use useInputWriter() with useControllerTick() for fixed-cadence publishing: This example uses the starter controller surface path. It assumes your app has already mounted airjam.Controller above this view.",
       },
       {
         title: "Best Practices",
@@ -1480,14 +1480,14 @@ const generatedContentDocsDocuments = [
         slug: "use-on-controller",
         depth: 2,
         excerpt:
-          "This controller example matches the starter template surface layout. It assumes your app has already mounted airjam.Controller or AirJamControllerRuntime.",
+          "This controller example matches the starter template surface layout. It assumes your app has already mounted airjam.Controller.",
       },
       {
         title: "Use on Host",
         slug: "use-on-host",
         depth: 2,
         excerpt:
-          "This host example also matches the starter template surface layout. It assumes your app has already mounted airjam.Host or AirJamHostRuntime.",
+          "This host example also matches the starter template surface layout. It assumes your app has already mounted airjam.Host.",
       },
       {
         title: "Action Flow",

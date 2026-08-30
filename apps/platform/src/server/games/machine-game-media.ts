@@ -1,24 +1,20 @@
-import { db } from "@/db";
 import { gameMediaAssets } from "@/db/schema";
 import type {
   GameMediaKind,
   GameMediaStatus,
 } from "@/lib/games/game-media-contract";
+import { PlatformApplicationError } from "@/server/application-error";
+import { serializeOwnedGameForMachine } from "@/server/games/machine-game";
 import {
-  assertOwnedGameBySlugOrIdForMachine,
-  serializeOwnedGameForMachine,
-} from "@/server/games/machine-game";
-import { buildManagedGameMediaUrl } from "@/server/media/game-media-public-url";
-import {
-  archiveGameMediaAsset,
-  assignGameMediaAsset,
-  finalizeGameMediaUpload,
-  requestGameMediaUploadTarget,
-} from "@/server/media/game-media-service";
-import type {
-  PlatformMachineOwnedGameMediaActive,
-  PlatformMachineOwnedGameMediaAsset,
-} from "@air-jam/sdk/platform-machine";
+  archiveOwnedGameMediaAsset,
+  assignOwnedGameMediaAsset,
+  finalizeOwnedGameMediaUpload,
+  inspectOwnedGameMedia,
+  requestOwnedGameMediaUploadTarget,
+} from "@/server/media/game-media-application-service";
+import { type GameMediaActiveProjection } from "@/server/media/game-media-assignments";
+import { projectGameMediaAsset } from "@/server/media/game-media-projection";
+import type { PlatformMachineOwnedGameMediaAsset } from "@air-jam/sdk/platform-machine";
 import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
 
 const toMachineNotFoundError = (message: string) =>
@@ -28,80 +24,39 @@ const toMachineNotFoundError = (message: string) =>
     status: 404,
   });
 
-const getActiveAssetIdByKind = ({
-  game,
-  kind,
-}: {
-  game: {
-    thumbnailMediaAssetId: string | null;
-    coverMediaAssetId: string | null;
-    previewVideoMediaAssetId: string | null;
-  };
-  kind: GameMediaKind;
-}): string | null => {
-  switch (kind) {
-    case "thumbnail":
-      return game.thumbnailMediaAssetId;
-    case "cover":
-      return game.coverMediaAssetId;
-    case "preview_video":
-      return game.previewVideoMediaAssetId;
-  }
-};
-
-const serializeGameMediaActive = ({
-  thumbnailMediaAssetId,
-  coverMediaAssetId,
-  previewVideoMediaAssetId,
-}: {
-  thumbnailMediaAssetId: string | null;
-  coverMediaAssetId: string | null;
-  previewVideoMediaAssetId: string | null;
-}): PlatformMachineOwnedGameMediaActive => ({
-  thumbnailMediaAssetId,
-  coverMediaAssetId,
-  previewVideoMediaAssetId,
-});
-
 const serializeGameMediaAsset = ({
   asset,
-  game,
+  active,
 }: {
   asset: typeof gameMediaAssets.$inferSelect;
-  game: {
-    id: string;
-    thumbnailMediaAssetId: string | null;
-    coverMediaAssetId: string | null;
-    previewVideoMediaAssetId: string | null;
-  };
+  active: GameMediaActiveProjection;
 }): PlatformMachineOwnedGameMediaAsset => {
-  const activeAssetId = getActiveAssetIdByKind({
-    game,
-    kind: asset.kind,
-  });
+  const projectedAsset = projectGameMediaAsset({ asset, active });
 
   return {
-    id: asset.id,
-    gameId: asset.gameId,
-    kind: asset.kind,
-    status: asset.status as GameMediaStatus,
-    originalFilename: asset.originalFilename,
-    mimeType: asset.mimeType,
-    sizeBytes: asset.sizeBytes,
-    checksum: asset.checksum ?? null,
-    width: asset.width ?? null,
-    height: asset.height ?? null,
-    durationSeconds: asset.durationSeconds ?? null,
-    createdAt: asset.createdAt.toISOString(),
-    updatedAt: asset.updatedAt.toISOString(),
-    activeAssetId,
-    isActive: activeAssetId === asset.id,
-    publicUrl: buildManagedGameMediaUrl({
-      gameId: asset.gameId,
-      assetId: asset.status === "ready" ? asset.id : null,
-      kind: asset.kind,
-    }),
+    id: projectedAsset.id,
+    gameId: projectedAsset.gameId,
+    kind: projectedAsset.kind,
+    status: projectedAsset.status as GameMediaStatus,
+    originalFilename: projectedAsset.originalFilename,
+    mimeType: projectedAsset.mimeType,
+    sizeBytes: projectedAsset.sizeBytes,
+    checksum: projectedAsset.checksum ?? null,
+    width: projectedAsset.width ?? null,
+    height: projectedAsset.height ?? null,
+    durationSeconds: projectedAsset.durationSeconds ?? null,
+    createdAt: projectedAsset.createdAt.toISOString(),
+    updatedAt: projectedAsset.updatedAt.toISOString(),
+    activeAssetId: projectedAsset.activeAssetId,
+    isActive: projectedAsset.isActive,
+    publicUrl: projectedAsset.publicUrl,
   };
+};
+
+const rethrowMachineNotFound = (error: unknown, message: string): void => {
+  if (error instanceof PlatformApplicationError && error.code === "not_found") {
+    throw toMachineNotFoundError(message);
+  }
 };
 
 export const inspectOwnedGameMediaForMachine = async ({
@@ -111,17 +66,20 @@ export const inspectOwnedGameMediaForMachine = async ({
   slugOrId: string;
   userId: string;
 }) => {
-  const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-  const assets = await db.query.gameMediaAssets.findMany({
-    where: (table, { eq }) => eq(table.gameId, game.id),
-    orderBy: (table, { desc }) => [desc(table.createdAt)],
-  });
-
-  return {
-    game: serializeOwnedGameForMachine(game),
-    active: serializeGameMediaActive(game),
-    assets: assets.map((asset) => serializeGameMediaAsset({ asset, game })),
-  };
+  try {
+    const { game, active, assets } = await inspectOwnedGameMedia({
+      actor: { userId },
+      gameReference: { kind: "slug-or-id", slugOrId },
+    });
+    return {
+      game: serializeOwnedGameForMachine(game),
+      active,
+      assets: assets.map((asset) => serializeGameMediaAsset({ asset, active })),
+    };
+  } catch (error) {
+    rethrowMachineNotFound(error, `No owned game matched "${slugOrId}".`);
+    throw error;
+  }
 };
 
 export const requestOwnedGameMediaUploadTargetForMachine = async ({
@@ -139,68 +97,36 @@ export const requestOwnedGameMediaUploadTargetForMachine = async ({
   contentType: string;
   sizeBytes: number;
 }) => {
-  const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-  const { asset, upload } = await requestGameMediaUploadTarget({
-    gameId: game.id,
-    kind,
-    originalFilename,
-    contentType,
-    sizeBytes,
-  });
-
-  return {
-    game: serializeOwnedGameForMachine(game),
-    asset: serializeGameMediaAsset({ asset, game }),
-    upload,
-  };
-};
-
-const getOwnedGameMediaAssetForMachine = async ({
-  slugOrId,
-  userId,
-  assetId,
-}: {
-  slugOrId: string;
-  userId: string;
-  assetId: string;
-}) => {
-  const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-  const asset = await db.query.gameMediaAssets.findFirst({
-    where: (table, { and, eq }) =>
-      and(eq(table.id, assetId), eq(table.gameId, game.id)),
-  });
-
-  if (!asset) {
-    throw toMachineNotFoundError(`No owned media asset matched "${assetId}".`);
+  try {
+    const { game, active, asset, upload } =
+      await requestOwnedGameMediaUploadTarget({
+        actor: { userId },
+        gameReference: { kind: "slug-or-id", slugOrId },
+        kind,
+        originalFilename,
+        contentType,
+        sizeBytes,
+      });
+    return {
+      game: serializeOwnedGameForMachine(game),
+      asset: serializeGameMediaAsset({ asset, active }),
+      upload,
+    };
+  } catch (error) {
+    rethrowMachineNotFound(error, `No owned game matched "${slugOrId}".`);
+    throw error;
   }
-
-  return {
-    game,
-    asset,
-  };
 };
 
-const serializeMutatedOwnedGameMediaResult = async ({
-  slugOrId,
-  userId,
-  assetId,
-}: {
-  slugOrId: string;
-  userId: string;
-  assetId: string;
-}) => {
-  const { game, asset } = await getOwnedGameMediaAssetForMachine({
-    slugOrId,
-    userId,
-    assetId,
-  });
-
-  return {
-    game: serializeOwnedGameForMachine(game),
-    active: serializeGameMediaActive(game),
-    asset: serializeGameMediaAsset({ asset, game }),
-  };
-};
+const serializeMutationResult = ({
+  game,
+  active,
+  asset,
+}: Awaited<ReturnType<typeof finalizeOwnedGameMediaUpload>>) => ({
+  game: serializeOwnedGameForMachine(game),
+  active,
+  asset: serializeGameMediaAsset({ asset, active }),
+});
 
 export const finalizeOwnedGameMediaUploadForMachine = async ({
   slugOrId,
@@ -211,17 +137,18 @@ export const finalizeOwnedGameMediaUploadForMachine = async ({
   userId: string;
   assetId: string;
 }) => {
-  const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-  await finalizeGameMediaUpload({
-    gameId: game.id,
-    assetId,
-  });
-
-  return serializeMutatedOwnedGameMediaResult({
-    slugOrId,
-    userId,
-    assetId,
-  });
+  try {
+    return serializeMutationResult(
+      await finalizeOwnedGameMediaUpload({
+        actor: { userId },
+        gameReference: { kind: "slug-or-id", slugOrId },
+        assetId,
+      }),
+    );
+  } catch (error) {
+    rethrowMachineNotFound(error, `No owned media asset matched "${assetId}".`);
+    throw error;
+  }
 };
 
 export const assignOwnedGameMediaAssetForMachine = async ({
@@ -233,17 +160,18 @@ export const assignOwnedGameMediaAssetForMachine = async ({
   userId: string;
   assetId: string;
 }) => {
-  const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-  await assignGameMediaAsset({
-    gameId: game.id,
-    assetId,
-  });
-
-  return serializeMutatedOwnedGameMediaResult({
-    slugOrId,
-    userId,
-    assetId,
-  });
+  try {
+    return serializeMutationResult(
+      await assignOwnedGameMediaAsset({
+        actor: { userId },
+        gameReference: { kind: "slug-or-id", slugOrId },
+        assetId,
+      }),
+    );
+  } catch (error) {
+    rethrowMachineNotFound(error, `No owned media asset matched "${assetId}".`);
+    throw error;
+  }
 };
 
 export const archiveOwnedGameMediaAssetForMachine = async ({
@@ -255,15 +183,16 @@ export const archiveOwnedGameMediaAssetForMachine = async ({
   userId: string;
   assetId: string;
 }) => {
-  const game = await assertOwnedGameBySlugOrIdForMachine({ slugOrId, userId });
-  await archiveGameMediaAsset({
-    gameId: game.id,
-    assetId,
-  });
-
-  return serializeMutatedOwnedGameMediaResult({
-    slugOrId,
-    userId,
-    assetId,
-  });
+  try {
+    return serializeMutationResult(
+      await archiveOwnedGameMediaAsset({
+        actor: { userId },
+        gameReference: { kind: "slug-or-id", slugOrId },
+        assetId,
+      }),
+    );
+  } catch (error) {
+    rethrowMachineNotFound(error, `No owned media asset matched "${assetId}".`);
+    throw error;
+  }
 };

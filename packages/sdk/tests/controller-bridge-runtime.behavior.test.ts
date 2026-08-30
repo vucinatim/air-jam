@@ -3,6 +3,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
 import {
+  resolveRuntimeTopology,
+  runtimeTopologyToQueryParams,
+} from "../src/runtime-topology";
+import {
   getControllerRealtimeClient,
   resetControllerRealtimeClientForTests,
 } from "../src/runtime/controller-realtime-client";
@@ -20,11 +24,28 @@ describe("embedded controller bridge runtime", () => {
 
   beforeEach(() => {
     vi.useRealTimers();
-    window.history.replaceState(
-      {},
-      "",
-      "/controller?aj_room=ROOM1&aj_controller_id=ctrl_1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
-    );
+    const topology = resolveRuntimeTopology({
+      runtimeMode: "arcade-live",
+      surfaceRole: "controller",
+      appOrigin: window.location.origin,
+      backendOrigin: window.location.origin,
+      socketOrigin: window.location.origin,
+      publicHost: window.location.origin,
+      assetBasePath: "/",
+      secureTransport: false,
+      embedded: true,
+      embedParentOrigin: window.location.origin,
+      proxyStrategy: "none",
+    });
+    const params = new URLSearchParams({
+      aj_room: "ROOM1",
+      aj_controller_id: "ctrl_1",
+      aj_arcade_epoch: "2",
+      aj_arcade_kind: "game",
+      aj_arcade_game_id: "pong",
+      ...runtimeTopologyToQueryParams(topology),
+    });
+    window.history.replaceState({}, "", `/controller?${params.toString()}`);
   });
 
   afterEach(() => {
@@ -189,101 +210,6 @@ describe("embedded controller bridge runtime", () => {
       roomId: "ROOM1",
       player: { id: "ctrl_1", label: "Player 1" },
       players: [{ id: "ctrl_1", label: "Player 1" }],
-    });
-  });
-
-  it("normalizes legacy null action payloads before posting bridge emits", async () => {
-    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
-    const client = getControllerRealtimeClient(() => {
-      throw new Error("direct socket should not be requested in embedded mode");
-    });
-
-    client.connect();
-
-    const requestCall = getMockCall(postMessageSpy);
-    const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
-    expect(parentPort).toBeDefined();
-
-    const parentMessages: unknown[] = [];
-    parentPort!.onmessage = (event) => {
-      parentMessages.push(event.data);
-    };
-    parentPort!.start?.();
-
-    parentPort!.postMessage({
-      type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
-      payload: {
-        handshake: {
-          protocolVersion: "2",
-          sdkVersion: "1.0.0",
-          runtimeKind: "arcade-controller-runtime",
-          capabilityFlags: {
-            controllerBridge: true,
-          },
-        },
-        snapshot: {
-          roomId: "ROOM1",
-          controllerId: "ctrl_1",
-          connected: true,
-          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
-        },
-      },
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    client.emit("controller:action_rpc", {
-      roomId: "ROOM1",
-      actionName: "airjam.arcade.toggle_qr",
-      payload: null,
-      storeDomain: "arcade.surface",
-    } as never);
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(parentMessages).toContainEqual({
-      type: "AIRJAM_CONTROLLER_BRIDGE_EMIT",
-      payload: {
-        event: "controller:action_rpc",
-        args: [
-          {
-            roomId: "ROOM1",
-            actionName: "airjam.arcade.toggle_qr",
-            payload: undefined,
-            storeDomain: "arcade.surface",
-          },
-        ],
-      },
-    });
-  });
-
-  it("normalizes legacy null action payloads for direct controller sockets", () => {
-    window.history.replaceState({}, "", "/");
-
-    const socket = {
-      connected: true,
-      id: "socket_1",
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      on: vi.fn(),
-      off: vi.fn(),
-      emit: vi.fn(),
-    };
-
-    const client = getControllerRealtimeClient(() => socket as never);
-
-    client.emit("controller:action_rpc", {
-      roomId: "ROOM1",
-      actionName: "airjam.arcade.toggle_qr",
-      payload: null,
-      storeDomain: "arcade.surface",
-    } as never);
-
-    expect(socket.emit).toHaveBeenCalledWith("controller:action_rpc", {
-      roomId: "ROOM1",
-      actionName: "airjam.arcade.toggle_qr",
-      payload: undefined,
-      storeDomain: "arcade.surface",
     });
   });
 

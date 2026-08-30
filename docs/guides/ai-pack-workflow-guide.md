@@ -18,13 +18,13 @@ Jam AI pack.
 
 The AI pack gives scaffolded projects a managed bundle of:
 
-1. local docs
-2. generated docs
-3. skills
-4. top-level AI guidance files
+1. local framework references under `docs/airjam/`
+2. generated snapshots of canonical public docs under
+   `docs/airjam/generated/`
 
-It exists so new projects can inherit a coherent local docs-and-agents layer
-without copying random repo files by hand.
+Scaffolding also creates bootstrap-only top-level instructions and local skills.
+Those files belong to the project after creation and are not part of the
+managed update set.
 
 ## Canonical Commands
 
@@ -58,9 +58,11 @@ The AI pack owns only AI-pack-managed files.
 
 It does not own:
 
-1. user-created project notes
-2. arbitrary application code
-3. local custom docs outside the managed set
+1. `AGENTS.md` or `CLAUDE.md`
+2. project-local skills
+3. user-created project notes
+4. arbitrary application code
+5. local custom docs outside `docs/airjam/`
 
 ## Important Behavior
 

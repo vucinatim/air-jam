@@ -1,6 +1,6 @@
 # Platform Identity And Auth Architecture
 
-Last updated: 2026-05-08  
+Last updated: 2026-08-28
 Status: implemented architecture
 
 Related docs:
@@ -49,6 +49,14 @@ Responsibilities:
 2. machine session issuance
 3. machine access to games, releases, and media APIs
 
+Machine credentials default to `~/.airjam/auth/platform-session.json`. Agents,
+CI, clean-room evaluators, and incident tooling set `AIRJAM_STATE_DIR` to a
+run-owned absolute directory when credentials must be isolated. This variable
+owns Air Jam's machine state boundary, including its private `auth/` directory;
+it is not a general-purpose cache or workspace location. CLI, MCP, and shared
+domain services resolve that same state boundary; callers must not fake `HOME`,
+copy a maintainer session, or invent a second auth store.
+
 ### Runtime Authority Identity
 
 Owned by the realtime runtime and platform/server verification seams.
@@ -85,3 +93,5 @@ without collapsing all three into one brittle auth model.
    host authority.
 3. Keep runtime host verification explicit and provider-independent.
 4. Prefer narrow auth surfaces over one giant shared session abstraction.
+5. Keep machine state location explicit and overridable through
+   an absolute `AIRJAM_STATE_DIR` for isolated automation.

@@ -13,7 +13,6 @@ export const startRepoVisualStack = (options: {
   gameId: string;
   mode: "standalone-dev" | "arcade-built";
   secure: boolean;
-  visualHarness?: boolean;
 }) =>
   startRepoVisualStackAtRoot({
     rootDir: repoRoot,

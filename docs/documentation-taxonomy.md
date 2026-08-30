@@ -1,6 +1,6 @@
 # Documentation Taxonomy
 
-Last updated: 2026-05-08  
+Last updated: 2026-08-28
 Status: stable reference
 
 This document defines the live documentation categories for Air Jam.
@@ -35,6 +35,9 @@ Rules:
 1. live plan files end in `-plan.md`
 2. keep the active set tiny
 3. archive plans when they stop governing current work
+4. when a large plan has a canonical machine execution manifest, keep that
+   manifest outside `docs/` and link it from the plan
+5. do not duplicate machine work-item state as Markdown checkboxes
 
 ## Architecture
 
@@ -116,6 +119,26 @@ Rules:
 1. live drafts end in `-draft.md`
 2. plans and outlines do not live here
 3. old drafts move to archive when superseded
+
+## Audits
+
+Path: `docs/audits/`
+
+Use audits for:
+
+1. evidence-backed examinations of implemented systems
+2. cross-subsystem findings that inform canonicalization or release work
+3. decision records showing which findings became executable work
+
+Rules:
+
+1. keep each bounded audit in one semantic subdirectory
+2. use `*-audit.md` for lane reports and the final synthesis
+3. keep evidence and decisions durable, but keep execution status in the
+   canonical readiness manifest
+4. do not use audit documents as a parallel backlog
+5. archive an audit only when its evidence is no longer relevant to the live
+   architecture or release history
 
 ## Archive
 

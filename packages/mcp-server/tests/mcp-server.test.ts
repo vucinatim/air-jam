@@ -1,13 +1,30 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach } from "vitest";
-import { createAirJamMcpServer, inspectMcpProjectSetup } from "../dist/index.js";
+import {
+  renderMcpClientProfile,
+  writeProjectLocalMcpConfig,
+} from "../dist/config.js";
+import {
+  createAirJamMcpServer,
+  inspectMcpProjectSetup,
+} from "../dist/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const packageVersion = JSON.parse(
+  await readFile(path.resolve(__dirname, "../package.json"), "utf8"),
+).version;
 const tempRoots: string[] = [];
 
 const createTempRoot = async (): Promise<string> => {
@@ -50,6 +67,20 @@ afterEach(async () => {
   );
 });
 
+it("ships every devtools helper used by the bundled MCP server", async () => {
+  for (const name of [
+    "agent-contract",
+    "hold-runtime-host",
+    "inspect-airjam-agent",
+    "list-visual-scenarios",
+    "run-visual-capture",
+  ]) {
+    await expect(
+      access(path.resolve(__dirname, `../dist/tooling/${name}.js`)),
+    ).resolves.toBeUndefined();
+  }
+});
+
 describe("createAirJamMcpServer", () => {
   it("registers the core Air Jam tools", async () => {
     const server = await createAirJamMcpServer({
@@ -67,7 +98,34 @@ describe("createAirJamMcpServer", () => {
       client.connect(clientTransport),
     ]);
 
+    expect(client.getServerVersion()).toEqual({
+      name: "air-jam",
+      version: packageVersion,
+    });
+
     const listed = await client.listTools();
+    expect(listed.tools.map((tool) => tool.name)).toEqual([
+      "airjam.inspect_project",
+      "airjam.auth_status",
+      "airjam.list_games",
+      "airjam.inspect_game",
+      "airjam.inspect_game_agent_contract",
+      "airjam.read_logs",
+      "airjam.run_quality_gate",
+      "airjam.release_list",
+      "airjam.release_inspect",
+      "airjam.release_publish",
+      "airjam.start_dev",
+      "airjam.stop_dev",
+      "airjam.status",
+      "airjam.reset_local",
+      "airjam.topology",
+      "airjam.open_game_session",
+      "airjam.send_game_session_input",
+      "airjam.read_game_session",
+      "airjam.invoke_game_session_action",
+      "airjam.close_game_session",
+    ]);
 
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.inspect_project",
@@ -315,6 +373,61 @@ describe("inspectMcpProjectSetup", () => {
           args: ["exec", "airjam-mcp"],
         },
       },
+    });
+  });
+
+  it("renders one server declaration for portable, Codex, and Claude Desktop clients", async () => {
+    const root = await createStandaloneGameRoot();
+    const portable = renderMcpClientProfile({
+      profile: "portable",
+      projectDir: root,
+    });
+    const codex = renderMcpClientProfile({
+      profile: "codex",
+      projectDir: root,
+    });
+    const claudeDesktop = renderMcpClientProfile({
+      profile: "claude-desktop",
+      projectDir: root,
+    });
+
+    expect(JSON.parse(portable.content)).toEqual({
+      mcpServers: {
+        airjam: {
+          command: "pnpm",
+          args: ["exec", "airjam-mcp"],
+        },
+      },
+    });
+    expect(codex).toMatchObject({
+      profile: "codex",
+      format: "toml",
+      scope: "project",
+      configPath: path.join(root, ".codex", "config.toml"),
+    });
+    expect(codex.content).toContain("[mcp_servers.airjam]");
+    expect(codex.content).toContain('command = "pnpm"');
+    expect(codex.content).toContain('args = ["exec", "airjam-mcp"]');
+    expect(codex.content).toContain(`cwd = "${root}"`);
+    expect(JSON.parse(claudeDesktop.content)).toEqual(
+      JSON.parse(portable.content),
+    );
+  });
+
+  it("keeps the portable declaration separate from client registration state", async () => {
+    const root = await createStandaloneGameRoot();
+    await writeProjectLocalMcpConfig({ cwd: root });
+
+    const inspection = await inspectMcpProjectSetup({ cwd: root });
+    expect(inspection.portableDeclaration).toEqual({
+      configPath: path.join(root, ".mcp.json"),
+      present: true,
+    });
+    expect(inspection.clients.codex).toMatchObject({
+      profile: "codex",
+      configPath: path.join(root, ".codex", "config.toml"),
+      configPresent: false,
+      registered: false,
     });
   });
 });

@@ -1,9 +1,5 @@
 import type { AirJamSocket } from "../context/socket-manager";
-import {
-  AIRJAM_DEV_LOG_EVENTS,
-  type ControllerActionRpcPayload,
-  type RoomCode,
-} from "../protocol";
+import { AIRJAM_DEV_LOG_EVENTS, type RoomCode } from "../protocol";
 import {
   createControllerBridgeCloseMessage,
   createControllerBridgeEmitMessage,
@@ -31,34 +27,6 @@ const BRIDGE_ACK_TIMEOUT_MS = 5_000;
 const CONTROLLER_BRIDGE_RUNTIME_KIND = "arcade-controller-runtime";
 const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set(["game_unloaded", "replaced"]);
 const BRIDGE_TRANSIENT_FAILURE_REASONS = new Set(["handshake_timeout"]);
-
-type LegacyControllerActionRpcPayload = Omit<
-  ControllerActionRpcPayload,
-  "payload"
-> & {
-  payload: ControllerActionRpcPayload["payload"] | null;
-};
-
-const normalizeControllerEmitArgs = (
-  event: string,
-  args: unknown[],
-): unknown[] => {
-  if (event !== "controller:action_rpc") {
-    return args;
-  }
-
-  const [payload, ...rest] = args;
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return args;
-  }
-
-  const actionPayload = payload as LegacyControllerActionRpcPayload;
-  if (actionPayload.payload !== null) {
-    return args;
-  }
-
-  return [{ ...actionPayload, payload: undefined }, ...rest];
-};
 
 class DirectControllerRealtimeClient implements AirJamRealtimeClient {
   constructor(private readonly socket: AirJamSocket) {}
@@ -103,7 +71,7 @@ class DirectControllerRealtimeClient implements AirJamRealtimeClient {
         event: string,
         ...args: unknown[]
       ) => void
-    ).call(this.socket, event, ...normalizeControllerEmitArgs(event, args));
+    ).call(this.socket, event, ...args);
     return this;
   }
 
@@ -123,15 +91,10 @@ class DirectControllerRealtimeClient implements AirJamRealtimeClient {
           event: string,
           ...args: unknown[]
         ) => void
-      ).call(
-        this.socket,
-        event,
-        ...normalizeControllerEmitArgs(event, args),
-        (ack: TAck) => {
-          clearTimeout(timeoutId);
-          resolve(ack);
-        },
-      );
+      ).call(this.socket, event, ...args, (ack: TAck) => {
+        clearTimeout(timeoutId);
+        resolve(ack);
+      });
     });
   }
 }
@@ -255,11 +218,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
     }
 
     const bridgeEvent = event as ControllerBridgeClientEventName;
-    const normalizedArgs = normalizeControllerEmitArgs(event, args);
     this.port.postMessage(
       createControllerBridgeEmitMessage(
         bridgeEvent,
-        ...(normalizedArgs as ControllerBridgeClientEventArgs[typeof bridgeEvent]),
+        ...(args as ControllerBridgeClientEventArgs[typeof bridgeEvent]),
       ),
     );
     return this;
@@ -295,11 +257,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       });
 
       const bridgeEvent = event as ControllerBridgeClientEventName;
-      const normalizedArgs = normalizeControllerEmitArgs(event, args);
       this.port?.postMessage(
         createControllerBridgeEmitMessage(
           bridgeEvent,
-          ...(normalizedArgs as ControllerBridgeClientEventArgs[typeof bridgeEvent]),
+          ...(args as ControllerBridgeClientEventArgs[typeof bridgeEvent]),
           { requestId },
         ),
       );

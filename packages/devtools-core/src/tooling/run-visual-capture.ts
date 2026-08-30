@@ -1,6 +1,5 @@
 import type {
   AnyAirJamAgentContract,
-  AnyVisualHarnessBridgeDefinition,
   VisualScenarioAgent,
   VisualScenarioAgentInvocation,
   VisualScenarioPack,
@@ -55,10 +54,7 @@ if (
 const scenarioPack = (await loadVisualScenarioPackFromModuleOrConfig({
   modulePath,
   configPath,
-})) as VisualScenarioPack<
-  AnyAirJamAgentContract,
-  AnyVisualHarnessBridgeDefinition | null
->;
+})) as VisualScenarioPack<AnyAirJamAgentContract>;
 const mode =
   requestedMode === "arcade-test" ? "arcade-built" : "standalone-dev";
 
@@ -69,11 +65,9 @@ const asSnapshotRecord = (snapshot: unknown): Record<string, unknown> | null =>
 
 const createScenarioAgentSession = async ({
   gameId,
-  harnessSessionId,
   urls,
 }: {
   gameId: string;
-  harnessSessionId: string | null;
   urls: {
     controllerJoinUrl: string;
   };
@@ -82,7 +76,6 @@ const createScenarioAgentSession = async ({
     cwd: process.cwd(),
     gameId,
     controllerJoinUrl: urls.controllerJoinUrl,
-    ...(harnessSessionId ? { harnessSessionId } : {}),
   });
 
   const read = async (): Promise<Record<string, unknown>> => {
@@ -187,14 +180,9 @@ try {
     secure,
     artifactRoot,
     loadScenarioPack: async () => scenarioPack,
-    createAgentSession: async ({
-      gameId: activeGameId,
-      harnessSessionId,
-      urls,
-    }) =>
+    createAgentSession: async ({ gameId: activeGameId, urls }) =>
       createScenarioAgentSession({
         gameId: activeGameId,
-        harnessSessionId,
         urls,
       }),
     startStack: async () => ({

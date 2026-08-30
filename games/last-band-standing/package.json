@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm exec air-jam-server dev",
-    "topology": "pnpm exec air-jam-server topology",
-    "secure:init": "pnpm exec air-jam-server secure:init",
-    "status": "pnpm exec air-jam-server status",
-    "reset:local": "pnpm exec air-jam-server reset local",
+    "dev": "pnpm exec airjam dev",
+    "topology": "pnpm exec airjam topology",
+    "secure:init": "pnpm exec airjam secure:init",
+    "status": "pnpm exec airjam status",
+    "reset:local": "pnpm exec airjam reset local",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -37,6 +37,7 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@air-jam/cli": "workspace:*",
     "@air-jam/server": "workspace:*",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.0.0",

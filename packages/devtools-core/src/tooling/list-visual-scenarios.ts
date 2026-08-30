@@ -1,4 +1,3 @@
-import { describeVisualHarnessActions } from "@air-jam/harness/visual";
 import {
   loadAirJamAppConfig,
   resolveAirJamConfigGameId,
@@ -27,7 +26,7 @@ if (configPath) {
     process.stdout.write(
       `${JSON.stringify(
         {
-          hasVisualHarness: false,
+          hasVisualScenarios: false,
         },
         null,
         2,
@@ -49,14 +48,8 @@ const effectiveGameId =
 process.stdout.write(
   `${JSON.stringify(
     {
-      hasVisualHarness: true,
+      hasVisualScenarios: true,
       gameId: effectiveGameId,
-      bridgeActions: Object.keys(scenarioPack.bridge?.actions ?? {}),
-      actionMetadata: describeVisualHarnessActions(
-        scenarioPack.bridge?.actions ?? {},
-      ),
-      hasBridgeActions:
-        Object.keys(scenarioPack.bridge?.actions ?? {}).length > 0,
       scenarios: scenarioPack.scenarios.map(
         (scenario: { id: string; description?: string }) => ({
           scenarioId: scenario.id,

@@ -101,9 +101,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   const joinUrlBuildKey = useMemo(
     () =>
       parsedRoomId
-        ? `${parsedRoomId}\0${config.publicHost ?? ""}\0${controllerCapability?.token ?? ""}`
+        ? `${parsedRoomId}\0${config.topology.publicHost}\0${controllerCapability?.token ?? ""}`
         : null,
-    [config.publicHost, controllerCapability?.token, parsedRoomId],
+    [config.topology.publicHost, controllerCapability?.token, parsedRoomId],
   );
   const [computedJoinUrl, setComputedJoinUrl] = useState<{
     key: string | null;
@@ -381,7 +381,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     void (async () => {
       try {
         const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
-          host: config.publicHost,
+          host: config.topology.publicHost,
           capabilityToken: controllerCapability?.token,
         });
         if (!cancelled) {
@@ -408,7 +408,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   }, [
     parsedRoomId,
     embeddedHost?.joinUrl,
-    config.publicHost,
+    config.topology.publicHost,
     controllerCapability?.token,
     joinUrlBuildKey,
   ]);

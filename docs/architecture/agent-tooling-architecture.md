@@ -1,6 +1,6 @@
 # Agent And Tooling Architecture
 
-Last updated: 2026-05-08  
+Last updated: 2026-08-28
 Status: implemented architecture
 
 Related docs:
@@ -84,7 +84,7 @@ ecosystem because it links:
 1. local authoring
 2. deterministic runtime control
 3. hosted release operations
-4. future AI-native Studio direction
+4. the free external-agent development-harness direction
 
 That combination is much bigger than "a game framework with some MCP tools."
 

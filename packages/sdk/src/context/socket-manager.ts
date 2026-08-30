@@ -63,13 +63,6 @@ export class SocketManager {
     }
   }
 
-  /**
-   * Deprecated compatibility alias. Returns the resolved socket origin.
-   */
-  getServerUrl(): string {
-    return this.socketOrigin;
-  }
-
   private normalizeOrigin(origin: string): string {
     if (!origin.includes("://")) {
       return `http://${origin}`;

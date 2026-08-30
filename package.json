@@ -6,12 +6,13 @@
   "type": "module",
   "scripts": {
     "repo": "node --env-file-if-exists=.env.local scripts/repo/cli.mjs",
+    "dev": "node scripts/repo/cli.mjs workspace arcade:dev",
     "standalone:dev": "node scripts/repo/cli.mjs workspace standalone:dev",
     "arcade:dev": "node scripts/repo/cli.mjs workspace arcade:dev",
     "arcade:test": "node scripts/repo/cli.mjs workspace arcade:test",
     "topology": "node scripts/repo/cli.mjs workspace topology",
-    "status": "pnpm --filter @air-jam/devtools-core build && pnpm --filter create-airjam exec tsx src/index.ts status --dir .",
-    "reset:local": "pnpm --filter @air-jam/devtools-core build && pnpm --filter create-airjam exec tsx src/index.ts reset local --dir .",
+    "status": "pnpm --filter @air-jam/cli build && node packages/cli/dist/index.js status --dir .",
+    "reset:local": "pnpm --filter @air-jam/cli build && node packages/cli/dist/index.js reset local --dir .",
     "mcp": "node scripts/run-repo-mcp.mjs",
     "secure:init": "node scripts/repo/cli.mjs workspace secure:init",
     "logs": "node scripts/repo/cli.mjs workspace logs",
@@ -20,7 +21,7 @@
     "release:public:tag": "node scripts/repo/cli.mjs release tag --channel latest",
     "release:public:tag:next": "node scripts/repo/cli.mjs release tag --channel next",
     "build": "pnpm -r build",
-    "check:ci": "pnpm --filter platform content:check-generated && pnpm typecheck && pnpm lint && pnpm guard:canonical && pnpm test && pnpm build && pnpm run repo -- perf sanity",
+    "check:ci": "pnpm run repo -- platform generated check && pnpm typecheck && pnpm lint && pnpm guard:canonical && pnpm test && pnpm build && pnpm run repo -- perf sanity",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:release",
     "check:release:doctor": "pnpm install --frozen-lockfile && pnpm test:repo-contracts && pnpm check:platform:deploy && pnpm check:release",
     "check:release:publish": "pnpm test:repo-contracts && pnpm --filter platform build && pnpm typecheck && pnpm smoke:server",
@@ -31,8 +32,8 @@
     "smoke:browser": "playwright test --config playwright.smoke.config.ts",
     "playwright:install": "playwright install --with-deps chromium",
     "smoke:release": "pnpm smoke:server && pnpm smoke:browser && pnpm test:scaffold",
-    "test": "pnpm test:repo-contracts && pnpm --filter sdk build && pnpm --filter server test && pnpm --filter sdk test && pnpm --filter platform test",
-    "test:repo-contracts": "node --test scripts/repo/runtime/*.test.mjs",
+    "test": "pnpm test:repo-contracts && pnpm --filter @air-jam/mcp-server test && pnpm --filter @air-jam/cli test && pnpm --filter sdk build && pnpm --filter server test && pnpm --filter sdk test && pnpm --filter platform test",
+    "test:repo-contracts": "node scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node --test scripts/repo/runtime/*.test.mjs",
     "test:scaffold": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke",
     "test:scaffold:registry": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:registry",
     "test:scaffold:tarball": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:tarball",
@@ -42,7 +43,7 @@
   },
   "devDependencies": {
     "@air-jam/harness": "workspace:^",
-    "@air-jam/runtime-topology": "workspace:^",
+    "@air-jam/sdk": "workspace:^",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.56.1",
     "@resvg/resvg-js": "^2.6.2",
@@ -59,8 +60,11 @@
     "prettier-plugin-organize-imports": "^4.3.0",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "remark-gfm": "^4.0.1",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "wrangler": "^4.80.0"
+    "verdaccio": "6.2.4",
+    "wrangler": "^4.80.0",
+    "yaml": "^2.4.2"
   }
 }

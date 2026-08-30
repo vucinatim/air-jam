@@ -1,6 +1,6 @@
 # Air Jam Vision
 
-Last updated: 2026-05-07  
+Last updated: 2026-08-28
 Status: guiding vision
 
 ## Purpose
@@ -17,7 +17,7 @@ It is intended to grow into an AI-native game creation, testing, and release sys
 The end-state experience should feel like this:
 
 1. a user writes one high-level prompt such as "make a mario kart clone"
-2. Air Jam Studio starts a coordinated project workflow
+2. Air Jam's development harness starts a coordinated project workflow
 3. multiple specialized agents are spawned in parallel
 4. different agents can own gameplay systems, input design, physics, UI, scene composition, audio, music, effects, art assets, balancing, testing, and release preparation
 5. agents can continuously run the game, inspect outputs, control players, observe state, evaluate quality, and keep iterating
@@ -56,7 +56,7 @@ Air Jam should increasingly act as:
 
 1. a multiplayer game framework
 2. a hosted release and distribution platform
-3. an AI-native Studio for creating and shipping games
+3. an AI-native development harness for creating and shipping games
 4. an evaluation harness for agents that need fast, reliable feedback loops
 
 The framework is therefore partially evolving into the substrate that future agents will build on top of and operate through.
@@ -173,7 +173,7 @@ When making architecture decisions now, prefer the option that makes Air Jam eas
 
 1. a clean multiplayer framework
 2. a reliable hosted platform
-3. a strong local-first Studio
+3. a strong local-first development harness
 4. an agent-operable game creation and testing harness
 
 If a solution makes the human UI work today but hides the real contract from future agents, it is probably the wrong long-term direction.

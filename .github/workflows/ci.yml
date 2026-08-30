@@ -15,6 +15,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # Readiness evidence resolves immutable historical commit references.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -32,7 +35,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ripgrep
 
       - name: Content Source Integrity
-        run: pnpm --filter platform content:check-generated
+        run: pnpm --silent run repo -- platform generated check
 
       - name: Typecheck
         run: pnpm typecheck

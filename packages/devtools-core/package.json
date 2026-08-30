@@ -35,6 +35,10 @@
       "types": "./dist/game-session.d.ts",
       "import": "./dist/game-session.js"
     },
+    "./game-session-broker": {
+      "types": "./dist/game-session-broker.d.ts",
+      "import": "./dist/game-session-broker.js"
+    },
     "./games": {
       "types": "./dist/games.d.ts",
       "import": "./dist/games.js"

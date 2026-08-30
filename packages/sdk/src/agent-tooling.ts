@@ -18,3 +18,8 @@ export {
   type AirJamAgentActionContract,
   type AirJamAgentContract,
 } from "./agent/agent-contract";
+export {
+  inspectAirJamAgentContractConformance,
+  type AirJamAgentContractConformanceIssue,
+  type AirJamAgentContractConformanceReport,
+} from "./agent/agent-contract-conformance";

@@ -181,10 +181,14 @@ export const findScaffoldTemplate = (
 
 export const normalizeScaffoldPackageJson = ({
   pkg,
+  packageManager,
+  cliVersion,
   serverVersion,
   mcpServerVersion,
 }: {
   pkg: ScaffoldPackageJson;
+  packageManager: string;
+  cliVersion?: string;
   serverVersion?: string;
   mcpServerVersion?: string;
 }): ScaffoldPackageJson => {
@@ -204,25 +208,26 @@ export const normalizeScaffoldPackageJson = ({
     "release:bundle",
     "test:watch",
     "test:run",
-    "lint",
   ]) {
     delete existingScripts[redundantScript];
   }
 
   const nextScripts = {
     ...existingScripts,
-    dev: "pnpm exec air-jam-server dev",
-    topology: "pnpm exec air-jam-server topology",
-    "secure:init": "pnpm exec air-jam-server secure:init",
-    status: "pnpm exec air-jam-server status",
-    "reset:local": "pnpm exec air-jam-server reset local",
+    dev: "pnpm exec airjam dev",
+    topology: "pnpm exec airjam topology",
+    "secure:init": "pnpm exec airjam secure:init",
+    status: "pnpm exec airjam status",
+    "reset:local": "pnpm exec airjam reset local",
     mcp: "pnpm exec airjam-mcp",
+    lint: existingScripts.lint ?? "eslint .",
   };
 
   const nextDevDependencies = {
     ...(typeof pkg.devDependencies === "object" && pkg.devDependencies
       ? (pkg.devDependencies as Record<string, string>)
       : {}),
+    ...(cliVersion ? { "@air-jam/cli": `^${cliVersion}` } : {}),
     ...(serverVersion ? { "@air-jam/server": `^${serverVersion}` } : {}),
     ...(mcpServerVersion
       ? { "@air-jam/mcp-server": `^${mcpServerVersion}` }
@@ -231,6 +236,7 @@ export const normalizeScaffoldPackageJson = ({
 
   return {
     ...pkg,
+    packageManager,
     scripts: nextScripts,
     devDependencies: nextDevDependencies,
   };

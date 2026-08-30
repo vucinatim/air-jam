@@ -31,6 +31,7 @@ export default defineConfig([
     "**/build/**",
     "apps/platform/**",
     "packages/create-airjam/scaffold-sources/**",
+    "packages/bot-lab/**",
     "**/*.json",
     "**/*.css",
   ]),

@@ -1,10 +1,7 @@
-import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
-import {
-  parseRuntimeTopologyFromSearchParams,
-  resolveRuntimeTopology,
-} from "../runtime-topology";
 import type { PlayerProfile } from "../protocol";
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
+import { parseRuntimeTopologyFromSearchParams } from "../runtime-topology";
 import { parseOptionalArcadeSurfaceFromSearchParams } from "./arcade-runtime-url";
 import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
 
@@ -28,54 +25,6 @@ export interface EmbeddedControllerRuntimeParams {
   };
 }
 
-const parseOrigin = (value: string | null | undefined): string | null => {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return new URL(value).origin;
-  } catch {
-    return null;
-  }
-};
-
-const resolveLegacyEmbeddedTopology = ({
-  surfaceRole,
-  joinUrl,
-}: {
-  surfaceRole: "host" | "controller";
-  joinUrl?: string;
-}): ResolvedAirJamRuntimeTopology | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const appOrigin = window.location.origin;
-  const joinUrlOrigin = parseOrigin(joinUrl);
-  const referrerOrigin = parseOrigin(document.referrer);
-  const embedParentOrigin = joinUrlOrigin ?? referrerOrigin ?? appOrigin;
-  const publicHost = joinUrlOrigin ?? appOrigin;
-  const secureTransport =
-    appOrigin.startsWith("https://") &&
-    publicHost.startsWith("https://") &&
-    embedParentOrigin.startsWith("https://");
-
-  return resolveRuntimeTopology({
-    runtimeMode: "arcade-live",
-    surfaceRole,
-    appOrigin,
-    backendOrigin: appOrigin,
-    socketOrigin: appOrigin,
-    publicHost,
-    assetBasePath: "/",
-    secureTransport,
-    embedded: true,
-    embedParentOrigin,
-    proxyStrategy: "none",
-  });
-};
-
 export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
   if (typeof window === "undefined") {
     return null;
@@ -95,12 +44,7 @@ export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
 
   const joinUrl = params.get("aj_join_url");
   const normalizedJoinUrl = joinUrl ? normalizeRuntimeUrl(joinUrl) : null;
-  const topology =
-    parseRuntimeTopologyFromSearchParams(params) ??
-    resolveLegacyEmbeddedTopology({
-      surfaceRole: "host",
-      joinUrl: normalizedJoinUrl ?? undefined,
-    });
+  const topology = parseRuntimeTopologyFromSearchParams(params);
   if (!topology) {
     return null;
   }
@@ -135,11 +79,7 @@ export const readEmbeddedControllerRuntimeParams =
       return null;
     }
 
-    const topology =
-      parseRuntimeTopologyFromSearchParams(params) ??
-      resolveLegacyEmbeddedTopology({
-        surfaceRole: "controller",
-      });
+    const topology = parseRuntimeTopologyFromSearchParams(params);
     if (!topology) {
       return null;
     }

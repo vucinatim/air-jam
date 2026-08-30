@@ -17,7 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { getPlatformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { toArcadeGame } from "@/lib/arcade-game-mapper";
 import { api } from "@/trpc/react";
-import { AirJamHostRuntime, PlatformSettingsRuntime } from "@air-jam/sdk";
+import { PlatformSettingsRuntime } from "@air-jam/sdk";
+import { AirJamHostRuntime } from "@air-jam/sdk/arcade/runtime";
 import {
   AlertCircle,
   ArrowLeft,

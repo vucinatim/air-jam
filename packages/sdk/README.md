@@ -15,22 +15,20 @@ against v1:
    no incompatible type changes, and no silent behavior changes on the stable
    lanes above. New functionality lands as additive APIs.
 3. **Experimental leaves.** `@air-jam/sdk/preview`, `@air-jam/sdk/arcade*`,
-   `@air-jam/sdk/protocol`, `@air-jam/sdk/capabilities`,
-   `@air-jam/sdk/metadata`, and `@air-jam/sdk/prefabs` are intentionally
+   `@air-jam/sdk/protocol`, `@air-jam/sdk/metadata`, and
+   `@air-jam/sdk/prefabs` are intentionally
    unstable future-facing seams. They may change within `1.x` — each carries
    a documented purpose in its leaf, and changes are noted in release notes.
-   The agent-facing `runtime-control`, `runtime-inspection`,
-   `runtime-observability`, and `contracts/v2` seams exist in-source but are
-   **not exported publicly** until a first-party consumer lands; they will be
-   re-exported as explicit experimental leaves when that happens.
+   Runtime inspection is moving to an explicit experimental leaf because it
+   has real machine-tooling consumers. Speculative control, observability, and
+   `contracts/v2` seams are not retained without a concrete consumer.
 4. **v2 migration.** When v2 ships, we commit to publishing a codemod (or
    migration notes if the surface is too narrow to automate) alongside the
    release. v1 games will not be silently broken — the v1 SDK will remain
    installable.
-5. **Metadata and capability contracts.** The `defineAirJamGameMetadata` and
-   `defineAirJamGameCapabilities` helpers produce versioned, frozen objects.
-   Contract versions are bumped explicitly so the platform can accept mixed
-   versions during a transition window.
+5. **Metadata and agent contracts.** Catalog metadata is versioned explicitly;
+   machine-operable game behavior is declared once through the semantic agent
+   contract used by CLI and MCP sessions.
 
 Games built against v1 should declare `supportedSdkRange: "^1.0.0"` in their
 metadata unless they intentionally pin tighter.
@@ -130,18 +128,16 @@ Selectors receive state fields only; call `useAirJamHost()` when a component
 also needs runtime controls such as `joinUrl`, `sendSignal`, or `getInput`.
 
 ```tsx
-import { AirJamHostRuntime, env, useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost } from "@air-jam/sdk";
+import { airjam } from "./airjam.config";
 
 const HostShell = () => (
-  <AirJamHostRuntime
-    topology={env.vite(import.meta.env).topology}
-    appId={import.meta.env.VITE_AIR_JAM_APP_ID}
-    input={{ schema: inputSchema }}
+  <airjam.Host
     onPlayerJoin={(player) => console.log("joined", player.id)}
     onPlayerLeave={(controllerId) => console.log("left", controllerId)}
   >
     <HostView />
-  </AirJamHostRuntime>
+  </airjam.Host>
 );
 
 export const HostView = () => {
@@ -214,22 +210,17 @@ component also needs controls such as `sendSystemCommand`.
 
 ```tsx
 import {
-  AirJamControllerRuntime,
-  env,
   useAirJamController,
   useControllerTick,
   useInputWriter,
 } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
+import { airjam } from "./airjam.config";
 
 const ControllerShell = () => (
-  <AirJamControllerRuntime
-    topology={env.vite(import.meta.env).topology}
-    appId={import.meta.env.VITE_AIR_JAM_APP_ID}
-    nickname="Player 1"
-  >
+  <airjam.Controller nickname="Player 1">
     <ControllerView />
-  </AirJamControllerRuntime>
+  </airjam.Controller>
 );
 
 export const ControllerView = () => {
@@ -279,7 +270,7 @@ instead of creating a duplicate player.
 
 The important rule is:
 
-1. mount `AirJamHostRuntime` / `AirJamControllerRuntime` once per runtime surface
+1. mount `airjam.Host` / `airjam.Controller` once per runtime surface
 2. use `useAirJamHost()` / `useAirJamController()` only as read hooks below that boundary
 3. wrap controller UI in `SurfaceViewport` and set its `orientation` there
 
@@ -343,22 +334,12 @@ runtime so hosts can persist their preferred transparency level.
 Keep preview usage inside explicit host-side UI and do not treat it as a stable
 root-SDK contract yet.
 
-## Runtime Contract Seams (In-Source, Not Public Exports)
+## Runtime Inspection Contract
 
-Air Jam also carries agent-facing runtime seams for control, inspection, and
-observability. Those modules still exist in-source, but they are **not public
-package exports in v1**, so consumers should not import:
-
-1. `@air-jam/sdk/runtime-control`
-2. `@air-jam/sdk/runtime-inspection`
-3. `@air-jam/sdk/runtime-observability`
-4. `@air-jam/sdk/contracts/v2`
-
-Current policy:
-
-1. keep these seams private until a real first-party consumer lands
-2. treat them as future agent-facing homes for bots, tests, previews, and agent tooling
-3. re-export them later as explicit experimental leaves instead of implying they are stable root-SDK contracts
+Runtime inspection is a real machine-tooling requirement and is published from
+an explicit experimental leaf. Agent control remains game-semantic, and runtime
+logs remain in the unified log stream; Air Jam does not keep parallel dormant
+control or observability contracts for hypothetical consumers.
 
 ## Prefab Contract Leaf (Experimental)
 
@@ -424,7 +405,7 @@ Mount `AudioRuntime` once per runtime surface, then call `useAudio()` only below
 Shared user settings are platform-owned and inherited by embedded games.
 
 Mount `PlatformSettingsRuntime` once in the platform shell when you want a persisted owner runtime.
-`AirJamHostRuntime` / `AirJamControllerRuntime` already provide a settings boundary for games, so repo games should not wrap each host/controller surface in another redundant `PlatformSettingsRuntime`.
+`airjam.Host` / `airjam.Controller` already provide a settings boundary for games, so repo games should not wrap each host/controller surface in another redundant `PlatformSettingsRuntime`.
 
 ```tsx
 import {
@@ -458,7 +439,7 @@ const EmbeddedGame = () => {
 Rules:
 
 1. mount `PlatformSettingsRuntime persistence="local"` once in the platform shell
-2. let `airjam.Host`, `airjam.Controller`, `AirJamHostRuntime`, and `AirJamControllerRuntime` supply the in-game settings boundary automatically
+2. let `airjam.Host` and `airjam.Controller` supply the in-game settings boundary automatically
 3. embedded games inherit platform settings read-only
 4. keep platform settings limited to shared cross-game concerns like audio, accessibility, and feedback
 5. do not recreate feature-specific global settings stores alongside this runtime
@@ -642,9 +623,8 @@ export const App = () => (
 );
 ```
 
-This keeps runtime config, host input schema, route path ownership, and optional agent-facing contracts in one place.
-
-Optional future-facing game capability metadata should also live here, but the schema is intentionally experimental and lives in `@air-jam/sdk/capabilities`.
+This keeps runtime config, host input schema, route path ownership, and the
+optional semantic agent contract in one place.
 
 ## Environment Variables
 

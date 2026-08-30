@@ -1,12 +1,12 @@
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { loadEnvFile } from "../../create-airjam/runtime/dev-utils.mjs";
+import { loadEnvFile } from "../../cli/runtime/dev-utils.mjs";
 import {
   DEFAULT_GAME_PORT,
   DEFAULT_PLATFORM_PORT,
   loadSecureDevState,
   SECURE_MODE_LOCAL,
-} from "../../create-airjam/runtime/secure-dev.mjs";
+} from "../../cli/runtime/secure-dev.mjs";
 import { startWorkspaceArcadeBuiltStack } from "./arcade-built-stack.mjs";
 import { resolveRepoWorkspaceTopologySurfaces } from "./repo-workspace.mjs";
 import {

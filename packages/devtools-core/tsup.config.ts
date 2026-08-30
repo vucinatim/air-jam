@@ -7,6 +7,7 @@ export default defineConfig({
     "src/context.ts",
     "src/dev.ts",
     "src/game-session.ts",
+    "src/game-session-broker.ts",
     "src/games.ts",
     "src/logs.ts",
     "src/platform-auth.ts",

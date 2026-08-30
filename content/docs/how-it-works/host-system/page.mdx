@@ -19,16 +19,16 @@ import { StandaloneHostDiagram } from "@/components/docs/figures/standalone-host
 **Usage:**
 
 ```tsx filename="src/components/HostView.tsx"
-import { AirJamHostRuntime, useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost } from "@air-jam/sdk";
+import { airjam } from "../airjam.config";
 
 const HostShell = () => (
-  <AirJamHostRuntime
-    input={{ schema: gameInputSchema }}
+  <airjam.Host
     onPlayerJoin={(player) => spawnPlayer(player)}
     onPlayerLeave={(id) => removePlayer(id)}
   >
     <HostView />
-  </AirJamHostRuntime>
+  </airjam.Host>
 );
 
 const HostView = () => {
@@ -165,9 +165,9 @@ useFrame(() => {
 ### Standalone Mode
 
 ```tsx
-<AirJamHostRuntime roomId="GAME" input={{ schema: gameInputSchema }}>
+<airjam.Host roomId="GAME">
   <HostView />
-</AirJamHostRuntime>;
+</airjam.Host>;
 
 // Inside HostView:
 const host = useAirJamHost();
@@ -200,8 +200,7 @@ const host = useAirJamHost();
 
 ```tsx
 const HostShell = () => (
-  <AirJamHostRuntime
-    input={{ schema: gameInputSchema }}
+  <airjam.Host
     onPlayerJoin={(player) => {
       // player.id - Unique identifier
       // player.label - Display name ("Player 1", etc.)
@@ -215,7 +214,7 @@ const HostShell = () => (
     }}
   >
     <HostView />
-  </AirJamHostRuntime>
+  </airjam.Host>
 );
 ```
 

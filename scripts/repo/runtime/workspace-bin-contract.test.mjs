@@ -1,8 +1,8 @@
-import fs from "node:fs";
+import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(
@@ -10,15 +10,37 @@ const repoRoot = path.resolve(
   "../../..",
 );
 const packagesToCheck = [
+  "packages/cli/package.json",
   "packages/server/package.json",
   "packages/mcp-server/package.json",
 ];
-const wrapperPrepCommands = new Map([
-  [
-    "packages/server/package.json",
-    ["node", ["scripts/ensure-workspace-package-build.mjs", "@air-jam/sdk"]],
-  ],
-]);
+
+test("the repo has one discoverable default development front door", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+  );
+  assert.equal(
+    packageJson.scripts.dev,
+    "node scripts/repo/cli.mjs workspace arcade:dev",
+  );
+
+  const result = spawnSync("pnpm", ["run", "dev", "--", "--help"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      NO_COLOR: "1",
+      FORCE_COLOR: "0",
+    },
+  });
+
+  assert.equal(
+    result.status,
+    0,
+    `pnpm run dev -- --help failed: ${result.stderr || result.stdout}`,
+  );
+  assert.match(result.stdout, /Start live Arcade workspace dev/u);
+});
 
 test("workspace package bin entrypoints exist before build", () => {
   for (const relativePackageJsonPath of packagesToCheck) {
@@ -27,7 +49,10 @@ test("workspace package bin entrypoints exist before build", () => {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
     const binEntries = Object.values(packageJson.bin ?? {});
 
-    assert.ok(binEntries.length > 0, `${relativePackageJsonPath} should declare bins`);
+    assert.ok(
+      binEntries.length > 0,
+      `${relativePackageJsonPath} should declare bins`,
+    );
 
     for (const binPath of binEntries) {
       const absoluteBinPath = path.join(packageDir, binPath);
@@ -41,31 +66,12 @@ test("workspace package bin entrypoints exist before build", () => {
 
 test("workspace bin wrappers execute CLI help in a clean workspace checkout", () => {
   const expectations = new Map([
+    ["packages/cli/package.json", "airjam"],
     ["packages/server/package.json", "air-jam-server"],
     ["packages/mcp-server/package.json", "airjam-mcp"],
   ]);
 
   for (const relativePackageJsonPath of packagesToCheck) {
-    const prep = wrapperPrepCommands.get(relativePackageJsonPath);
-    if (prep) {
-      const [command, args] = prep;
-      const prepResult = spawnSync(command, args, {
-        cwd: repoRoot,
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          NO_COLOR: "1",
-          FORCE_COLOR: "0",
-        },
-      });
-
-      assert.equal(
-        prepResult.status,
-        0,
-        `${relativePackageJsonPath} prep failed: ${prepResult.stderr || prepResult.stdout}`,
-      );
-    }
-
     const packageJsonPath = path.join(repoRoot, relativePackageJsonPath);
     const packageDir = path.dirname(packageJsonPath);
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));

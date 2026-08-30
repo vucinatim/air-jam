@@ -89,6 +89,11 @@
       "import": "./dist/arcade/host.js",
       "require": "./dist/arcade/host.cjs"
     },
+    "./arcade/runtime": {
+      "types": "./dist/arcade/runtime.d.ts",
+      "import": "./dist/arcade/runtime.js",
+      "require": "./dist/arcade/runtime.cjs"
+    },
     "./arcade/surface": {
       "types": "./dist/arcade/surface.d.ts",
       "import": "./dist/arcade/surface.js",
@@ -103,11 +108,6 @@
       "types": "./dist/protocol.d.ts",
       "import": "./dist/protocol.js",
       "require": "./dist/protocol.cjs"
-    },
-    "./capabilities": {
-      "types": "./dist/capabilities.d.ts",
-      "import": "./dist/capabilities.js",
-      "require": "./dist/capabilities.cjs"
     },
     "./metadata": {
       "types": "./dist/metadata.d.ts",
@@ -144,6 +144,11 @@
       "import": "./dist/runtime-topology.js",
       "require": "./dist/runtime-topology.cjs"
     },
+    "./runtime-inspection": {
+      "types": "./dist/runtime-inspection.d.ts",
+      "import": "./dist/runtime-inspection.js",
+      "require": "./dist/runtime-inspection.cjs"
+    },
     "./styles.css": "./src/styles.css"
   },
   "files": [
@@ -173,6 +178,9 @@
       "arcade/host": [
         "dist/arcade/host.d.ts"
       ],
+      "arcade/runtime": [
+        "dist/arcade/runtime.d.ts"
+      ],
       "arcade/surface": [
         "dist/arcade/surface.d.ts"
       ],
@@ -181,9 +189,6 @@
       ],
       "protocol": [
         "dist/protocol.d.ts"
-      ],
-      "capabilities": [
-        "dist/capabilities.d.ts"
       ],
       "metadata": [
         "dist/metadata.d.ts"
@@ -202,6 +207,9 @@
       ],
       "runtime-topology": [
         "dist/runtime-topology.d.ts"
+      ],
+      "runtime-inspection": [
+        "dist/runtime-inspection.d.ts"
       ],
       "preview": [
         "dist/preview.d.ts"

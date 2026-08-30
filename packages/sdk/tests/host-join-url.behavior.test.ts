@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JoinQrOverlay } from "../src/components/join-qr-overlay";
 import { RoomQrCode } from "../src/components/room-qr-code";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
+import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
 import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
 import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
 import { createAirJamStore } from "../src/state/connection-store";
@@ -92,6 +93,10 @@ const PROVIDER_CONFIG = {
   }),
   appId: "test_app_id",
 };
+const TEST_CONFIG = resolveAirJamConfig({
+  topology: PROVIDER_CONFIG.topology,
+  resolveEnv: false,
+});
 
 const HostRuntimeWrapper = ({ children }: { children: ReactNode }) =>
   createElement(AirJamHostRuntime, {
@@ -107,12 +112,8 @@ describe("host join url behavior", () => {
 
     mocked.useAirJamContext.mockReturnValue({
       config: {
+        ...TEST_CONFIG,
         appId: undefined,
-        hostSessionKind: "game",
-        maxPlayers: 8,
-        publicHost: "http://localhost:3000",
-        resolveEnv: true,
-        serverUrl: "http://localhost:3001",
       },
       store: mocked.store,
       getSocket: () => mocked.hostSocket,

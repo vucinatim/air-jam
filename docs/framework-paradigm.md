@@ -1,6 +1,6 @@
 # Air Jam Framework Paradigm
 
-Last updated: 2026-03-30  
+Last updated: 2026-08-28
 Status: stable reference
 
 ## Purpose
@@ -10,7 +10,7 @@ This document defines the current Air Jam paradigm across the whole ecosystem:
 1. the framework runtime model
 2. the first-party platform model
 3. the hosted control-plane direction
-4. the AI-native creation direction
+4. the agent-operable creation direction
 
 It should answer four questions clearly:
 
@@ -21,7 +21,8 @@ It should answer four questions clearly:
 
 ## Air Jam In One Sentence
 
-Air Jam is a phone-as-controller multiplayer framework with a hosted platform around it and a future AI-native creation layer on top of it.
+Air Jam is a phone-as-controller multiplayer framework with a hosted platform
+around it and a free agent-operable creation and evaluation harness.
 
 The framework stays open and self-hostable.
 The hosted product adds trusted operational value around it.
@@ -59,17 +60,23 @@ The trusted product authority:
 1. authentication
 2. publish and deployment authority
 3. analytics aggregation
-4. quotas, billing, and moderation
+4. quotas, future billing, and moderation
 5. future artifact and version lifecycle
 
-### 4. Future Studio
+### 4. Agent Development Harness
 
-The AI-native creation layer:
+The free agent-operable creation and evaluation capability:
 
 1. local-first editing and preview
-2. Air Jam-aware agents
-3. snapshot-driven project lifecycle
-4. trusted hosted publish path
+2. CLI, MCP, runtime, state, logs, visual, and evaluation contracts
+3. compatibility with external agents and model clients
+4. snapshot-driven project lifecycle
+5. trusted hosted publish path
+
+Creators normally bring their own Codex, Claude, T3 Code, terminal agent, or
+future client and pay for their own model or compute relationship. A hosted
+control-room UI may exist later, but it remains a client of the same public
+harness rather than a required editor.
 
 These layers should share one coherent model, not drift into separate products with separate architecture rules.
 
@@ -201,14 +208,15 @@ Platform rule:
 3. shared platform settings are parent-authoritative and inherited read-only by embedded games
 4. embedded games do not mutate shared settings directly; controller surfaces act as remote controls for host-owned settings through the room/host command path
 
-### Studio Will Own
+### Development Harness Owns
 
 1. project snapshots
 2. local-first creation loop
 3. agent orchestration
 4. authoritative publish handoff
 
-Studio should not invent a separate runtime model from the framework.
+The development harness must not invent a separate runtime model from the
+framework.
 
 ## Arcade Is Not A Separate Paradigm
 
@@ -298,6 +306,10 @@ The framework should remain:
 2. self-hostable
 3. honest about its boundaries
 
+The development harness should remain free and complete. Self-hosting and
+bring-your-own-cloud should remain first-class so creation never automatically
+becomes an Air Jam infrastructure liability.
+
 The hosted value should come from:
 
 1. app identity management
@@ -305,9 +317,13 @@ The hosted value should come from:
 3. analytics and dashboard surfaces
 4. deploy/version workflow
 5. arcade publishing and discovery
-6. future AI-native Studio and automation flows
+6. professional automation, event, team, and operational workflows
+7. optional managed agent compute when Air Jam is actually carrying that cost
 
-This is important because it keeps the product aligned with real user value instead of artificial lock-in.
+Official free-cloud capacity should be genuinely useful for hobby use but
+economically bounded by explicit quotas, queues, spend limits, and safe
+degradation. This keeps the product aligned with real user value instead of
+artificial lock-in or an unbounded maintainer subsidy.
 
 ## Analytics And Accounting Direction
 
@@ -335,11 +351,12 @@ Inputs may differ:
 1. external URL
 2. Git-connected deploy
 3. artifact upload
-4. future Studio-published artifact
+4. agent-produced artifact through the public release API
 
 But the hosted system should think in one canonical release model.
 
-That is how deployment, analytics, monetization, and Studio stay aligned instead of fragmenting into separate products.
+That is how deployment, analytics, monetization, and the development harness stay
+aligned instead of fragmenting into separate products.
 
 ## AI-Native Direction
 
@@ -420,15 +437,17 @@ The intended direction is:
 2. cleaner managed deployment around `Game Version`
 3. richer hosted analytics and creator-facing metrics
 4. optional managed platform value without harming self-hosting
-5. a local-first Air Jam Studio with trusted hosted publish
-6. more AI-native workflows, but always through structure and bounded contracts
+5. a free local-first Air Jam development harness with trusted hosted publish
+6. external-agent workflows through public CLI, MCP, and bounded contracts
+7. a bounded official free cloud with self-host and bring-your-own-cloud escape
+   hatches
 
 Air Jam should grow into a full ecosystem without losing its core shape:
 
 1. open framework
 2. strong runtime model
 3. hosted product value
-4. local-first creative tooling
+4. free local-first agent-operable creative tooling
 
 ## Acceptance Criteria
 
@@ -440,5 +459,6 @@ This paradigm is working when all of these are true:
 4. platform features layer on top of framework primitives instead of forking them
 5. self-hosting remains real even as managed deployment grows
 6. analytics, deployment, and monetization share one trusted hosted control-plane model
-7. AI-native templates and monorepo workflows stay structured and testable
-8. Air Jam can ship new product layers without needing another paradigm reset
+7. agent-native templates and monorepo workflows stay structured and testable
+8. free hosted actions cannot create unbounded marginal cost
+9. Air Jam can ship new product layers without needing another paradigm reset

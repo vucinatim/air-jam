@@ -1,6 +1,5 @@
 import type {
   AnyAirJamAgentContract,
-  AnyVisualHarnessBridgeDefinition,
   VisualScenarioPack,
 } from "@air-jam/harness/visual";
 import { pathToFileURL } from "node:url";
@@ -8,29 +7,12 @@ import { loadVisualScenarioPackFromConfig } from "./airjam-agent.js";
 
 export const loadVisualScenarioPack = async (
   modulePath: string,
-): Promise<
-  VisualScenarioPack<
-    AnyAirJamAgentContract,
-    AnyVisualHarnessBridgeDefinition | null
-  >
-> => {
+): Promise<VisualScenarioPack<AnyAirJamAgentContract>> => {
   const loaded = (await import(pathToFileURL(modulePath).href)) as {
-    visualHarness?: VisualScenarioPack<
-      AnyAirJamAgentContract,
-      AnyVisualHarnessBridgeDefinition | null
-    >;
-    visualScenarios?: VisualScenarioPack<
-      AnyAirJamAgentContract,
-      AnyVisualHarnessBridgeDefinition | null
-    >;
-    harness?: VisualScenarioPack<
-      AnyAirJamAgentContract,
-      AnyVisualHarnessBridgeDefinition | null
-    >;
+    visualScenarios?: VisualScenarioPack<AnyAirJamAgentContract>;
   };
 
-  const scenarioPack =
-    loaded.visualHarness ?? loaded.visualScenarios ?? loaded.harness ?? null;
+  const scenarioPack = loaded.visualScenarios ?? null;
 
   if (
     !scenarioPack ||
@@ -49,12 +31,7 @@ export const loadVisualScenarioPackFromModuleOrConfig = async ({
 }: {
   modulePath?: string | null;
   configPath?: string | null;
-}): Promise<
-  VisualScenarioPack<
-    AnyAirJamAgentContract,
-    AnyVisualHarnessBridgeDefinition | null
-  >
-> => {
+}): Promise<VisualScenarioPack<AnyAirJamAgentContract>> => {
   if (configPath) {
     return loadVisualScenarioPackFromConfig(configPath);
   }

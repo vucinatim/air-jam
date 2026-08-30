@@ -1,14 +1,13 @@
-import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
-import { resolveProjectRuntimeTopology } from "../runtime-topology";
 import type { JSX, ReactNode } from "react";
 import type { z } from "zod";
 import type { AirJamAgentContract } from "../agent/agent-contract";
-import type { AirJamGameCapabilityManifest } from "../capabilities/manifest";
 import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import type { AirJamGameMetadata } from "../metadata/manifest";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
+import { resolveProjectRuntimeTopology } from "../runtime-topology";
 import { type ResolveAirJamConfigInput } from "./air-jam-config";
 import {
   AirJamErrorBoundary,
@@ -45,11 +44,6 @@ export interface CreateAirJamAppOptions<
    */
   controllerPath?: string;
   /**
-   * Experimental capability metadata for future agent-facing control,
-   * inspection, and evaluation workflows.
-   */
-  capabilities?: AirJamGameCapabilityManifest;
-  /**
    * Optional semantic agent contract published by the app.
    */
   agent?: AirJamAgentContract;
@@ -72,7 +66,6 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   runtime: ResolveAirJamConfigInput;
   metadata?: AirJamGameMetadata;
   controllerPath: string;
-  capabilities?: AirJamGameCapabilityManifest;
   agent?: AirJamAgentContract;
 }
 
@@ -179,7 +172,6 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   runtime = {},
   metadata,
   controllerPath: requestedControllerPath,
-  capabilities,
   agent,
   input,
   errorBoundary,
@@ -254,7 +246,6 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     runtime,
     metadata,
     controllerPath,
-    capabilities,
     agent,
   };
 };

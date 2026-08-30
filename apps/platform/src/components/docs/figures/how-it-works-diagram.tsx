@@ -128,7 +128,7 @@ export const HowItWorksDiagram = () => {
           fontSize="9"
           fontFamily="monospace"
         >
-          AirJamHostRuntime
+          airjam.Host
         </text>
 
         {/* Air Jam Server */}

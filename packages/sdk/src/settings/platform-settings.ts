@@ -38,7 +38,6 @@ export interface PartialRoomPlatformSettingsPatch {
 }
 
 export const PLATFORM_SETTINGS_STORAGE_KEY = "air-jam-platform-settings";
-export const LEGACY_AUDIO_SETTINGS_STORAGE_KEY = "air-jam-volume-settings";
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsSnapshot = {
   audio: {
@@ -221,25 +220,6 @@ const tryParseJson = (raw: string | null): unknown => {
   }
 };
 
-const readLegacyAudioSettings = (): PlatformSettingsSnapshot | null => {
-  const parsed = tryParseJson(
-    window.localStorage.getItem(LEGACY_AUDIO_SETTINGS_STORAGE_KEY),
-  );
-
-  if (!isRecord(parsed)) {
-    return null;
-  }
-
-  return normalizePlatformSettings({
-    ...DEFAULT_PLATFORM_SETTINGS,
-    audio: {
-      masterVolume: parsed.masterVolume,
-      musicVolume: parsed.musicVolume,
-      sfxVolume: parsed.sfxVolume,
-    },
-  });
-};
-
 export const readPersistedPlatformSettings = (): PlatformSettingsSnapshot => {
   if (typeof window === "undefined") {
     return DEFAULT_PLATFORM_SETTINGS;
@@ -252,22 +232,7 @@ export const readPersistedPlatformSettings = (): PlatformSettingsSnapshot => {
     return normalizePlatformSettings(current);
   }
 
-  const migrated = readLegacyAudioSettings();
-  if (!migrated) {
-    return DEFAULT_PLATFORM_SETTINGS;
-  }
-
-  try {
-    window.localStorage.setItem(
-      PLATFORM_SETTINGS_STORAGE_KEY,
-      JSON.stringify(migrated),
-    );
-    window.localStorage.removeItem(LEGACY_AUDIO_SETTINGS_STORAGE_KEY);
-  } catch {
-    // Best-effort only.
-  }
-
-  return migrated;
+  return DEFAULT_PLATFORM_SETTINGS;
 };
 
 export const persistPlatformSettings = (

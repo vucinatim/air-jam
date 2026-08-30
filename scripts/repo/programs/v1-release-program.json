@@ -1,0 +1,991 @@
+{
+  "schemaVersion": 1,
+  "id": "air-jam-1.0",
+  "title": "Air Jam 1.0 Release Program",
+  "status": "active",
+  "updatedAt": "2026-08-29T18:03:33.619Z",
+  "roadmap": "docs/plans/v1-release-roadmap-plan.md",
+  "executionPlan": "docs/plans/v1-release-execution-plan.md",
+  "estimate": {
+    "agentHoursMin": 285,
+    "agentHoursMax": 520,
+    "targetCalendarWeeksMin": 5,
+    "targetCalendarWeeksMax": 7,
+    "maintainerHoursMin": 28,
+    "maintainerHoursMax": 56
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "title": "Product and architecture re-baseline",
+      "wave": 0
+    },
+    {
+      "id": "G1",
+      "title": "Codebase and contract canonicalization",
+      "wave": 1
+    },
+    {
+      "id": "G2",
+      "title": "External-agent golden path",
+      "wave": 2
+    },
+    {
+      "id": "G3",
+      "title": "Launch-scale reliability and recovery",
+      "wave": 2
+    },
+    {
+      "id": "G4",
+      "title": "Operational events and autonomous operations",
+      "wave": 2
+    },
+    {
+      "id": "G5",
+      "title": "Security, abuse, privacy, and supply-chain trust",
+      "wave": 2
+    },
+    {
+      "id": "G6",
+      "title": "Public packages, documentation, demo, and story",
+      "wave": 3
+    },
+    {
+      "id": "G7",
+      "title": "Release rehearsal, go/no-go, and launch",
+      "wave": 4
+    }
+  ],
+  "workItems": [
+    {
+      "id": "G0-01",
+      "gate": "G0",
+      "lane": "program",
+      "priority": 10,
+      "title": "Draft the 1.0 product, naming, client, and compatibility decision packet",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [],
+      "estimate": {
+        "agentHoursMin": 2,
+        "agentHoursMax": 3
+      },
+      "evidenceRequirements": [
+        "decision packet linked to shipped and cut behavior"
+      ],
+      "owner": "/root",
+      "updatedAt": "2026-08-28T11:51:50.663Z",
+      "evidence": [
+        "document:docs/plans/v1-release-roadmap-plan.md",
+        "command:pnpm-run-test-repo-contracts",
+        "command:pnpm-run-repo-standards-canonical"
+      ],
+      "completedAt": "2026-08-28T11:51:50.663Z"
+    },
+    {
+      "id": "G0-02",
+      "gate": "G0",
+      "lane": "program",
+      "priority": 10,
+      "title": "Draft the capacity, free-cloud budget, quota, and autonomy decision packet",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [],
+      "estimate": {
+        "agentHoursMin": 2,
+        "agentHoursMax": 4
+      },
+      "evidenceRequirements": [
+        "costed proposal with defaults and consequences"
+      ],
+      "owner": "/root",
+      "updatedAt": "2026-08-28T12:14:21.969Z",
+      "evidence": [
+        "document:docs/plans/v1-release-roadmap-plan.md",
+        "command:railway-usage-air-jam-current-and-previous",
+        "url:https://docs.railway.com/pricing",
+        "command:pnpm-run-test-repo-contracts"
+      ],
+      "completedAt": "2026-08-28T12:14:21.969Z"
+    },
+    {
+      "id": "G0-03",
+      "gate": "G0",
+      "lane": "program",
+      "priority": 20,
+      "title": "Ratify the batched Gate 0 product and operating decisions",
+      "authority": "human_checkpoint",
+      "status": "complete",
+      "dependsOn": [
+        "G0-01",
+        "G0-02"
+      ],
+      "estimate": {
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
+      },
+      "evidenceRequirements": [
+        "maintainer decision record covering the full packet"
+      ],
+      "evidence": [
+        "decision:tim-vucina-approved-complete-gate-0-packet-2026-08-28",
+        "document:docs/plans/v1-release-roadmap-plan.md"
+      ],
+      "updatedAt": "2026-08-28T12:16:43.915Z",
+      "completedAt": "2026-08-28T12:16:43.915Z"
+    },
+    {
+      "id": "G0-04",
+      "gate": "G0",
+      "lane": "program",
+      "priority": 30,
+      "title": "Publish the final Gate 0 contract, cuts, and supported-client matrix",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [
+        "G0-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 2,
+        "agentHoursMax": 3
+      },
+      "evidenceRequirements": [
+        "roadmap and stable references aligned with the ratified decisions"
+      ],
+      "owner": "/root",
+      "updatedAt": "2026-08-28T12:19:09.915Z",
+      "evidence": [
+        "document:docs/plans/v1-release-roadmap-plan.md",
+        "document:docs/vision.md",
+        "document:docs/framework-paradigm.md",
+        "document:docs/strategy/deployment-and-monetization-strategy.md",
+        "command:pnpm-run-test-repo-contracts",
+        "command:pnpm-run-repo-standards-canonical"
+      ],
+      "completedAt": "2026-08-28T12:19:09.915Z"
+    },
+    {
+      "id": "G1-01",
+      "gate": "G1",
+      "lane": "canonicalization",
+      "priority": 10,
+      "title": "Audit architecture, composition roots, authority boundaries, and duplicate paths",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [],
+      "estimate": {
+        "agentHoursMin": 6,
+        "agentHoursMax": 10
+      },
+      "evidenceRequirements": [
+        "written canonical-path and duplication audit"
+      ],
+      "owner": "/root",
+      "note": "Completed three-lane architecture, simplicity, authority, and duplicate-path audit with rotated cross-review and canonical readiness mapping",
+      "updatedAt": "2026-08-28T13:15:50.883Z",
+      "evidence": [
+        "document:docs/audits/v1-canonicalization/v1-canonicalization-audit.md",
+        "document:docs/audits/v1-canonicalization/system-map.md",
+        "document:docs/audits/v1-canonicalization/decision-register.md",
+        "command:pnpm-run-test-repo-contracts-16-pass",
+        "command:pnpm-run-repo-standards-canonical-pass",
+        "command:audit-schema-38-findings-38-decisions-zero-failures"
+      ],
+      "completedAt": "2026-08-28T13:15:50.883Z"
+    },
+    {
+      "id": "G1-02",
+      "gate": "G1",
+      "lane": "canonicalization",
+      "priority": 20,
+      "title": "Audit package graph, public exports, configuration, generated artifacts, and docs",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [
+        "G1-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 5,
+        "agentHoursMax": 9
+      },
+      "evidenceRequirements": [
+        "public-surface and source-of-truth audit"
+      ],
+      "owner": "/root",
+      "note": "Published the public package/export/configuration/generated-artifact authority audit and prepared the Gate 1 removal decision packet",
+      "updatedAt": "2026-08-28T14:06:47.931Z",
+      "evidence": [
+        "document:docs/audits/v1-canonicalization/public-surface-source-audit.md",
+        "document:docs/audits/v1-canonicalization/gate-1-removal-approval-packet.md",
+        "command:pnpm-sdk-export-surface-5-tests-passed",
+        "command:pnpm-repo-contracts-16-tests-passed",
+        "command:pnpm-repo-content-docs-check"
+      ],
+      "completedAt": "2026-08-28T14:06:47.931Z"
+    },
+    {
+      "id": "G1-03",
+      "gate": "G1",
+      "lane": "canonicalization",
+      "priority": 20,
+      "title": "Convert audit findings into one end-state removal and refactor set",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [
+        "G1-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 4,
+        "agentHoursMax": 7
+      },
+      "evidenceRequirements": [
+        "bounded refactor set with ownership and acceptance criteria"
+      ],
+      "owner": "/root",
+      "note": "Published the deletion-first Git-measured canonicalization bundles and durable codebase assessment",
+      "updatedAt": "2026-08-28T13:56:06.115Z",
+      "evidence": [
+        "document:docs/audits/v1-canonicalization/canonicalization-execution-set.md",
+        "document:docs/audits/v1-canonicalization/codebase-assessment.md",
+        "command:pnpm-silent-repo-content-docs-check",
+        "command:pnpm-silent-repo-readiness-validate"
+      ],
+      "completedAt": "2026-08-28T13:56:06.115Z"
+    },
+    {
+      "id": "G1-04",
+      "gate": "G1",
+      "lane": "canonicalization",
+      "priority": 30,
+      "title": "Approve public compatibility changes and high-impact removals as one batch",
+      "authority": "human_checkpoint",
+      "status": "complete",
+      "dependsOn": [
+        "G0-04",
+        "G1-02",
+        "G1-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
+      },
+      "evidenceRequirements": [
+        "maintainer decision record for proposed removals"
+      ],
+      "owner": "maintainer",
+      "evidence": [
+        "decision:maintainer-approved-gate-1-removal-and-compatibility-batch",
+        "document:docs/audits/v1-canonicalization/gate-1-removal-approval-packet.md"
+      ],
+      "note": "Approved the complete Gate 1 removal and compatibility batch and authorized autonomous execution",
+      "updatedAt": "2026-08-28T14:14:34.808Z",
+      "completedAt": "2026-08-28T14:14:34.808Z"
+    },
+    {
+      "id": "G1-05",
+      "gate": "G1",
+      "lane": "canonicalization",
+      "priority": 40,
+      "title": "Implement the canonicalization and purge obsolete paths",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [
+        "G1-04"
+      ],
+      "estimate": {
+        "agentHoursMin": 20,
+        "agentHoursMax": 38
+      },
+      "evidenceRequirements": [
+        "focused tests and removal proof for every accepted audit item"
+      ],
+      "owner": "/root",
+      "note": "R1-R4 canonicalization implementation complete; R5 clean-checkout proof moves to G1-06",
+      "updatedAt": "2026-08-28T18:14:32.308Z",
+      "evidence": [
+        "artifact:git-range:f7eff9dd5c9b1d812d0a330fa117561d3eb9bfb5..fb5975415961f0024ee6de6d2cf3db3a5642ca36",
+        "document:docs/audits/v1-canonicalization/canonicalization-execution-set.md#bundle-r4-platform-application-authority-convergence",
+        "command:pnpm --filter platform typecheck",
+        "command:pnpm --filter platform lint",
+        "command:pnpm --filter platform test",
+        "command:pnpm test:repo-contracts"
+      ],
+      "completedAt": "2026-08-28T18:14:32.308Z"
+    },
+    {
+      "id": "G1-06",
+      "gate": "G1",
+      "lane": "canonicalization",
+      "priority": 50,
+      "title": "Close canonicalization with clean-checkout quality and generated-artifact gates",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [
+        "G1-05"
+      ],
+      "estimate": {
+        "agentHoursMin": 6,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "canonical, typecheck, lint, test, build, scaffold, and release-doctor results"
+      ],
+      "owner": "/root",
+      "note": "Closed Gate 1 from exact clean implementation head with full release, browser, scaffold, generated, and Git-delta evidence",
+      "updatedAt": "2026-08-28T18:54:40.610Z",
+      "evidence": [
+        "document:docs/audits/v1-canonicalization/canonicalization-execution-set.md",
+        "command:clean-checkout-release-matrix@da835f6",
+        "artifact:git:da835f650d929c5873bf55e8e5db2e8df5c74f81"
+      ],
+      "completedAt": "2026-08-28T18:54:40.610Z"
+    },
+    {
+      "id": "G2-01",
+      "gate": "G2",
+      "lane": "golden-path",
+      "priority": 10,
+      "title": "Specify the clean-room external-agent scenario and evidence bundle",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [
+        "G0-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 3,
+        "agentHoursMax": 5
+      },
+      "evidenceRequirements": [
+        "replayable scenario with exact success and failure evidence"
+      ],
+      "owner": "/root",
+      "note": "Canonical replayable scenario, two-client proof split, hidden-staging safety boundary, and evidence format are implemented and validated",
+      "updatedAt": "2026-08-28T19:06:56.141Z",
+      "evidence": [
+        "document:docs/contracts/external-agent-golden-path-contract.md",
+        "command:pnpm-repo-golden-path-validate",
+        "artifact:git:79a4458f5b0a8a0f81b5cd0b3f87473ccfae592d"
+      ],
+      "completedAt": "2026-08-28T19:06:56.141Z"
+    },
+    {
+      "id": "G2-02",
+      "gate": "G2",
+      "lane": "golden-path",
+      "priority": 20,
+      "title": "Close public discovery, root dev-loop, contract resolution, and install blockers",
+      "authority": "autonomous",
+      "status": "complete",
+      "dependsOn": [
+        "G1-01",
+        "G2-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 8,
+        "agentHoursMax": 15
+      },
+      "evidenceRequirements": [
+        "public-only install and bootstrap proof"
+      ],
+      "owner": "/root",
+      "note": "Exact candidate bytes, registry metadata, installed lockfile integrity, complete MCP surface, bounded lifecycle, and dynamic topology independently re-proved.",
+      "updatedAt": "2026-08-29T15:33:17.602Z",
+      "evidence": [
+        "document:docs/audits/v1-golden-path/public-bootstrap-audit.md",
+        "command:pnpm-repo-golden-path-bootstrap",
+        "artifact:git:511ee8544d6072512f58f10875a09dd0bc686df5",
+        "command:pnpm --silent run repo -- golden-path bootstrap --json",
+        "command:pnpm check:ci",
+        "artifact:git:3dec399309eab896e56afbb04697705363464c72"
+      ],
+      "completedAt": "2026-08-29T15:33:17.602Z"
+    },
+    {
+      "id": "G2-03",
+      "gate": "G2",
+      "lane": "golden-path",
+      "priority": 30,
+      "title": "Run the primary create, control, inspect, fix, evaluate, publish, and verify scenario",
+      "authority": "autonomous",
+      "status": "blocked",
+      "dependsOn": [
+        "G1-06",
+        "G2-02"
+      ],
+      "estimate": {
+        "agentHoursMin": 7,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "retained clean-room transcript and machine-readable artifacts"
+      ],
+      "note": "Independent PR #61 review hardened environment-wide fail-closed staging attestation; current provider facts remain unsafe.",
+      "updatedAt": "2026-08-29T18:03:33.619Z",
+      "evidence": [
+        "document:docs/audits/v1-golden-path/primary-agent-run-audit.md"
+      ],
+      "owner": "/root",
+      "blocker": {
+        "type": "external",
+        "summary": "Railway PR staging is provider-attested but reuses production release storage and sensitive credentials; the primary agent must not start until isolated staging values are provisioned."
+      }
+    },
+    {
+      "id": "G2-04",
+      "gate": "G2",
+      "lane": "golden-path",
+      "priority": 40,
+      "title": "Repeat discovery and session bootstrap with a second supported agent client",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G2-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 3,
+        "agentHoursMax": 6
+      },
+      "evidenceRequirements": [
+        "second-client transcript without private maintainer knowledge"
+      ]
+    },
+    {
+      "id": "G2-05",
+      "gate": "G2",
+      "lane": "golden-path",
+      "priority": 50,
+      "title": "Resolve discovered blockers and replay the golden path to closure",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G2-03",
+        "G2-04"
+      ],
+      "estimate": {
+        "agentHoursMin": 9,
+        "agentHoursMax": 17
+      },
+      "evidenceRequirements": [
+        "final reproducible run and classified residual friction"
+      ]
+    },
+    {
+      "id": "G3-01",
+      "gate": "G3",
+      "lane": "reliability",
+      "priority": 10,
+      "title": "Inventory production capacity, cost, lifecycle, recovery, and provider controls",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [],
+      "estimate": {
+        "agentHoursMin": 6,
+        "agentHoursMax": 10
+      },
+      "evidenceRequirements": [
+        "measured baseline and gap inventory for every expensive lane"
+      ]
+    },
+    {
+      "id": "G3-02",
+      "gate": "G3",
+      "lane": "reliability",
+      "priority": 20,
+      "title": "Implement quotas, bounded queues, cleanup, spend guards, and kill switches",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G0-03",
+        "G3-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 18,
+        "agentHoursMax": 36
+      },
+      "evidenceRequirements": [
+        "limit and overload tests plus agent-operable control commands"
+      ]
+    },
+    {
+      "id": "G3-03",
+      "gate": "G3",
+      "lane": "reliability",
+      "priority": 20,
+      "title": "Automate backup and prove isolated restore, deployment rollback, and job replay",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G3-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 12,
+        "agentHoursMax": 22
+      },
+      "evidenceRequirements": [
+        "measured restore and rollback artifacts without production data mutation"
+      ]
+    },
+    {
+      "id": "G3-04",
+      "gate": "G3",
+      "lane": "reliability",
+      "priority": 30,
+      "title": "Run capacity, burst, soak, overload, and dependency-degradation drills",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G3-02",
+        "G3-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 15,
+        "agentHoursMax": 30
+      },
+      "evidenceRequirements": [
+        "three-times-launch-envelope evidence and safe-failure results"
+      ]
+    },
+    {
+      "id": "G3-05",
+      "gate": "G3",
+      "lane": "reliability",
+      "priority": 40,
+      "title": "Close reliability findings and publish the tested operating envelope",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G3-04"
+      ],
+      "estimate": {
+        "agentHoursMin": 7,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "capacity envelope, recovery times, and residual risk record"
+      ]
+    },
+    {
+      "id": "G4-01",
+      "gate": "G4",
+      "lane": "operations",
+      "priority": 10,
+      "title": "Define operational-event, correlation, incident, and runbook contracts",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G1-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 7,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "versioned authority-separated operational contracts"
+      ]
+    },
+    {
+      "id": "G4-02",
+      "gate": "G4",
+      "lane": "operations",
+      "priority": 20,
+      "title": "Implement durable delivery, structured errors, SLOs, alerts, and synthetics",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G4-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 16,
+        "agentHoursMax": 30
+      },
+      "evidenceRequirements": [
+        "end-to-end synthetic and alert evidence for launch-critical stories"
+      ]
+    },
+    {
+      "id": "G4-03",
+      "gate": "G4",
+      "lane": "operations",
+      "priority": 30,
+      "title": "Implement incident correlation, fingerprinting, deduplication, and GitHub issue delivery",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G4-02"
+      ],
+      "estimate": {
+        "agentHoursMin": 14,
+        "agentHoursMax": 24
+      },
+      "evidenceRequirements": [
+        "one synthetic symptom produces one maintained incident and issue"
+      ]
+    },
+    {
+      "id": "G4-04",
+      "gate": "G4",
+      "lane": "operations",
+      "priority": 40,
+      "title": "Implement agent-operable runbooks, preview/apply safety, and action audit trail",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G4-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 12,
+        "agentHoursMax": 22
+      },
+      "evidenceRequirements": [
+        "bounded idempotent runbook commands with before and after evidence"
+      ]
+    },
+    {
+      "id": "G4-05",
+      "gate": "G4",
+      "lane": "operations",
+      "priority": 50,
+      "title": "Approve the production automatic-remediation allowlist as one batch",
+      "authority": "human_checkpoint",
+      "status": "pending",
+      "dependsOn": [
+        "G4-04"
+      ],
+      "estimate": {
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
+      },
+      "evidenceRequirements": [
+        "maintainer decision record for production automation authority"
+      ]
+    },
+    {
+      "id": "G4-06",
+      "gate": "G4",
+      "lane": "operations",
+      "priority": 60,
+      "title": "Drill reversible remediation, verification, rollback, and escalation",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G4-05"
+      ],
+      "estimate": {
+        "agentHoursMin": 8,
+        "agentHoursMax": 15
+      },
+      "evidenceRequirements": [
+        "successful and failed-remediation drill artifacts"
+      ]
+    },
+    {
+      "id": "G5-01",
+      "gate": "G5",
+      "lane": "security",
+      "priority": 10,
+      "title": "Threat-model public, privileged, artifact, runtime, agent, and provider surfaces",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [],
+      "estimate": {
+        "agentHoursMin": 7,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "ranked threat model with ownership and proof requirements"
+      ]
+    },
+    {
+      "id": "G5-02",
+      "gate": "G5",
+      "lane": "security",
+      "priority": 20,
+      "title": "Close auth, ownership, secret, limit, abuse, and privileged-endpoint findings",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G1-01",
+        "G5-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 16,
+        "agentHoursMax": 30
+      },
+      "evidenceRequirements": [
+        "negative-path security tests and operator controls"
+      ]
+    },
+    {
+      "id": "G5-03",
+      "gate": "G5",
+      "lane": "security",
+      "priority": 30,
+      "title": "Prove supply-chain provenance, privacy claims, and emergency release procedure",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G5-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 10,
+        "agentHoursMax": 18
+      },
+      "evidenceRequirements": [
+        "provenance, dependency, privacy, and emergency-release evidence"
+      ]
+    },
+    {
+      "id": "G5-04",
+      "gate": "G5",
+      "lane": "security",
+      "priority": 40,
+      "title": "Review residual security risk and accept or return the complete batch",
+      "authority": "human_checkpoint",
+      "status": "pending",
+      "dependsOn": [
+        "G5-02",
+        "G5-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 2,
+        "agentHoursMax": 5
+      },
+      "evidenceRequirements": [
+        "maintainer risk-acceptance or returned-finding record"
+      ]
+    },
+    {
+      "id": "G6-01",
+      "gate": "G6",
+      "lane": "public-release",
+      "priority": 10,
+      "title": "Prove public package graph and clean installation across the support matrix",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G1-06"
+      ],
+      "estimate": {
+        "agentHoursMin": 7,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "clean package, scaffold, CLI, and MCP installation matrix"
+      ]
+    },
+    {
+      "id": "G6-02",
+      "gate": "G6",
+      "lane": "public-release",
+      "priority": 20,
+      "title": "Close docs, agent discovery, quickstart, integration matrix, and troubleshooting",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G2-05"
+      ],
+      "estimate": {
+        "agentHoursMin": 7,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "public docs crawl and agent-discovery proof"
+      ]
+    },
+    {
+      "id": "G6-03",
+      "gate": "G6",
+      "lane": "public-release",
+      "priority": 20,
+      "title": "Produce the reproducible external-agent demonstration pipeline",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G2-05",
+        "G4-04"
+      ],
+      "estimate": {
+        "agentHoursMin": 6,
+        "agentHoursMax": 10
+      },
+      "evidenceRequirements": [
+        "repeatable unedited demo inputs, outputs, and verification"
+      ]
+    },
+    {
+      "id": "G6-04",
+      "gate": "G6",
+      "lane": "public-release",
+      "priority": 30,
+      "title": "Finish article, launch assets, release notes, and distribution sequence",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G6-02",
+        "G6-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 8,
+        "agentHoursMax": 14
+      },
+      "evidenceRequirements": [
+        "claim-to-shipped-behavior audit for every launch asset"
+      ]
+    },
+    {
+      "id": "G6-05",
+      "gate": "G6",
+      "lane": "public-release",
+      "priority": 40,
+      "title": "Review the final social experience, demonstration, and public story as one batch",
+      "authority": "human_checkpoint",
+      "status": "pending",
+      "dependsOn": [
+        "G6-04"
+      ],
+      "estimate": {
+        "agentHoursMin": 2,
+        "agentHoursMax": 4
+      },
+      "evidenceRequirements": [
+        "maintainer product and narrative review record"
+      ]
+    },
+    {
+      "id": "G6-06",
+      "gate": "G6",
+      "lane": "public-release",
+      "priority": 50,
+      "title": "Apply review feedback and freeze candidate-matched public assets",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G6-05"
+      ],
+      "estimate": {
+        "agentHoursMin": 5,
+        "agentHoursMax": 8
+      },
+      "evidenceRequirements": [
+        "frozen article, assets, commands, versions, and links"
+      ]
+    },
+    {
+      "id": "G7-01",
+      "gate": "G7",
+      "lane": "launch",
+      "priority": 10,
+      "title": "Cut the immutable candidate and run all local and clean-checkout gates",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G3-05",
+        "G4-06",
+        "G5-04",
+        "G6-06"
+      ],
+      "estimate": {
+        "agentHoursMin": 4,
+        "agentHoursMax": 7
+      },
+      "evidenceRequirements": [
+        "candidate commit and complete quality-gate bundle"
+      ]
+    },
+    {
+      "id": "G7-02",
+      "gate": "G7",
+      "lane": "launch",
+      "priority": 20,
+      "title": "Publish the prerelease and deploy the exact candidate to production",
+      "authority": "production_approval",
+      "status": "pending",
+      "dependsOn": [
+        "G7-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 3,
+        "agentHoursMax": 5
+      },
+      "evidenceRequirements": [
+        "terminal package publish and deployment success"
+      ]
+    },
+    {
+      "id": "G7-03",
+      "gate": "G7",
+      "lane": "launch",
+      "priority": 30,
+      "title": "Run the complete production rehearsal, live smoke, rollback, and degradation proof",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G7-02"
+      ],
+      "estimate": {
+        "agentHoursMin": 5,
+        "agentHoursMax": 9
+      },
+      "evidenceRequirements": [
+        "production rehearsal bundle for the exact candidate"
+      ]
+    },
+    {
+      "id": "G7-04",
+      "gate": "G7",
+      "lane": "launch",
+      "priority": 40,
+      "title": "Make the final release go/no-go decision",
+      "authority": "human_checkpoint",
+      "status": "pending",
+      "dependsOn": [
+        "G7-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
+      },
+      "evidenceRequirements": [
+        "signed go/no-go record against every release gate"
+      ]
+    },
+    {
+      "id": "G7-05",
+      "gate": "G7",
+      "lane": "launch",
+      "priority": 50,
+      "title": "Publish 1.0 packages, production release, article, and launch distribution",
+      "authority": "production_approval",
+      "status": "pending",
+      "dependsOn": [
+        "G7-04"
+      ],
+      "estimate": {
+        "agentHoursMin": 3,
+        "agentHoursMax": 6
+      },
+      "evidenceRequirements": [
+        "terminal public release, production, article, and distribution evidence"
+      ]
+    },
+    {
+      "id": "G7-06",
+      "gate": "G7",
+      "lane": "launch",
+      "priority": 60,
+      "title": "Monitor stabilization and record the final 1.0 outcome",
+      "authority": "autonomous",
+      "status": "pending",
+      "dependsOn": [
+        "G7-05"
+      ],
+      "estimate": {
+        "agentHoursMin": 4,
+        "agentHoursMax": 6
+      },
+      "evidenceRequirements": [
+        "stabilization report, ledger closeout, and archived execution plan"
+      ]
+    }
+  ]
+}

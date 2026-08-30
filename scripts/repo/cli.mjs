@@ -3,11 +3,13 @@
 import { Command } from "commander";
 import { registerContentCommands } from "./commands/content.mjs";
 import { registerDbCommands } from "./commands/db.mjs";
+import { registerGoldenPathCommands } from "./commands/golden-path.mjs";
 import { registerLegacyCommands } from "./commands/legacy.mjs";
 import { registerPackCommands } from "./commands/pack.mjs";
 import { registerPerfCommands } from "./commands/perf.mjs";
 import { registerPlatformCommands } from "./commands/platform.mjs";
 import { registerRailwayCommands } from "./commands/railway.mjs";
+import { registerReadinessCommands } from "./commands/readiness.mjs";
 import { registerReleaseCommands } from "./commands/release.mjs";
 import { registerScaffoldCommands } from "./commands/scaffold.mjs";
 import { registerSmokeCommands } from "./commands/smoke.mjs";
@@ -21,9 +23,11 @@ program.name("air-jam-repo").description("Repo-local Air Jam maintainer CLI");
 
 registerWorkspaceCommands(program);
 registerDbCommands(program);
+registerGoldenPathCommands(program);
 registerContentCommands(program);
 registerPlatformCommands(program);
 registerRailwayCommands(program);
+registerReadinessCommands(program);
 registerReleaseCommands(program);
 registerLegacyCommands(program);
 registerPerfCommands(program);

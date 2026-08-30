@@ -23,10 +23,12 @@ import type {
   ReleaseReportSource,
   ReleaseReportStatus,
 } from "@/lib/releases/release-contract";
+import { createRuntimeDatabaseSchema } from "@air-jam/database-contract";
 import type { PlatformMachineDeviceGrantStatus } from "@air-jam/sdk/platform-machine";
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   foreignKey,
   index,
@@ -34,6 +36,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -133,9 +136,6 @@ export const games = pgTable(
     slug: text("slug").unique(), // For pretty URLs
     description: text("description"),
     url: text("url"), // Optional creator-only preview URL used for local/external iframe testing
-    thumbnailMediaAssetId: text("thumbnail_media_asset_id"),
-    coverMediaAssetId: text("cover_media_asset_id"),
-    previewVideoMediaAssetId: text("preview_video_media_asset_id"),
     arcadeVisibility: text("arcade_visibility")
       .$type<ArcadeVisibility>()
       .default("hidden")
@@ -155,17 +155,17 @@ export const games = pgTable(
   }),
 );
 
-export const appIds = pgTable("app_ids", {
-  id: text("id").primaryKey(),
-  gameId: text("game_id")
-    .references(() => games.id)
-    .notNull()
-    .unique(), // One app identity record per game
-  key: text("key").notNull().unique(), // The public app ID string (e.g. aj_app_...)
-  allowedOrigins: jsonb("allowed_origins").$type<string[]>(),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  lastUsedAt: timestamp("last_used_at"),
+export const {
+  appIds,
+  runtimeUsageSessions,
+  runtimeUsageEvents,
+  runtimeUsageControllerSegments,
+  runtimeUsageGameSegments,
+  runtimeUsageEligibleSegments,
+  runtimeUsageGameSessionMetrics,
+  runtimeUsageDailyGameMetrics,
+} = createRuntimeDatabaseSchema({
+  appIdGameIdReference: () => games.id,
 });
 
 export const gameReleases = pgTable(
@@ -189,6 +189,9 @@ export const gameReleases = pgTable(
     gameIdx: index("game_releases_game_id_idx").on(table.gameId),
     statusIdx: index("game_releases_status_idx").on(table.status),
     createdAtIdx: index("game_releases_created_at_idx").on(table.createdAt),
+    oneLivePerGameIdx: uniqueIndex("game_releases_one_live_per_game_idx")
+      .on(table.gameId)
+      .where(sql`${table.status} = 'live'`),
   }),
 );
 
@@ -298,231 +301,45 @@ export const gameMediaAssets = pgTable(
     kindIdx: index("game_media_assets_kind_idx").on(table.kind),
     statusIdx: index("game_media_assets_status_idx").on(table.status),
     createdAtIdx: index("game_media_assets_created_at_idx").on(table.createdAt),
+    assignmentTargetIdx: uniqueIndex(
+      "game_media_assets_assignment_target_idx",
+    ).on(table.id, table.gameId, table.kind, table.status),
   }),
 );
 
-export const runtimeUsageSessions = pgTable(
-  "runtime_usage_sessions",
+export const gameMediaAssignments = pgTable(
+  "game_media_assignments",
   {
-    id: text("id").primaryKey(),
-    roomId: text("room_id").notNull(),
-    appId: text("app_id"),
-    hostVerifiedVia: text("host_verified_via"),
-    hostVerifiedOrigin: text("host_verified_origin"),
-    startedAt: timestamp("started_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    gameId: text("game_id")
+      .references(() => games.id, { onDelete: "cascade" })
+      .notNull(),
+    kind: text("kind").$type<GameMediaKind>().notNull(),
+    assetId: text("asset_id").notNull(),
+    assetStatus: text("asset_status")
+      .$type<GameMediaStatus>()
+      .default("ready")
+      .notNull(),
+    assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   },
   (table) => ({
-    appIdIdx: index("runtime_usage_sessions_app_id_idx").on(table.appId),
-    startedAtIdx: index("runtime_usage_sessions_started_at_idx").on(
-      table.startedAt,
+    primaryKey: primaryKey({ columns: [table.gameId, table.kind] }),
+    assetIdx: uniqueIndex("game_media_assignments_asset_id_idx").on(
+      table.assetId,
     ),
-  }),
-);
-
-export const runtimeUsageEvents = pgTable(
-  "runtime_usage_events",
-  {
-    id: text("id").primaryKey(),
-    kind: text("kind").notNull(),
-    occurredAt: timestamp("occurred_at").notNull(),
-    runtimeSessionId: text("runtime_session_id").references(
-      () => runtimeUsageSessions.id,
-      { onDelete: "set null" },
+    readyAssetCheck: check(
+      "game_media_assignments_ready_asset_check",
+      sql`${table.assetStatus} = 'ready'`,
     ),
-    roomId: text("room_id"),
-    appId: text("app_id"),
-    gameId: text("game_id"),
-    hostVerifiedVia: text("host_verified_via"),
-    hostVerifiedOrigin: text("host_verified_origin"),
-    payload: jsonb("payload")
-      .$type<Record<string, unknown>>()
-      .default(sql`'{}'::jsonb`)
-      .notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    kindIdx: index("runtime_usage_events_kind_idx").on(table.kind),
-    occurredAtIdx: index("runtime_usage_events_occurred_at_idx").on(
-      table.occurredAt,
-    ),
-    runtimeSessionIdIdx: index(
-      "runtime_usage_events_runtime_session_id_idx",
-    ).on(table.runtimeSessionId),
-    roomIdIdx: index("runtime_usage_events_room_id_idx").on(table.roomId),
-    appIdIdx: index("runtime_usage_events_app_id_idx").on(table.appId),
-  }),
-);
-
-export const runtimeUsageControllerSegments = pgTable(
-  "runtime_usage_controller_segments",
-  {
-    id: text("id").primaryKey(),
-    runtimeSessionId: text("runtime_session_id")
-      .references(() => runtimeUsageSessions.id, { onDelete: "cascade" })
-      .notNull(),
-    roomId: text("room_id").notNull(),
-    appId: text("app_id"),
-    controllerId: text("controller_id").notNull(),
-    startedAt: timestamp("started_at").notNull(),
-    endedAt: timestamp("ended_at"),
-    startEventId: text("start_event_id").notNull(),
-    endEventId: text("end_event_id"),
-    endReason: text("end_reason"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    runtimeSessionIdx: index(
-      "runtime_usage_controller_segments_runtime_session_id_idx",
-    ).on(table.runtimeSessionId),
-    controllerIdx: index(
-      "runtime_usage_controller_segments_controller_id_idx",
-    ).on(table.controllerId),
-    startedAtIdx: index("runtime_usage_controller_segments_started_at_idx").on(
-      table.startedAt,
-    ),
-  }),
-);
-
-export const runtimeUsageGameSegments = pgTable(
-  "runtime_usage_game_segments",
-  {
-    id: text("id").primaryKey(),
-    runtimeSessionId: text("runtime_session_id")
-      .references(() => runtimeUsageSessions.id, { onDelete: "cascade" })
-      .notNull(),
-    roomId: text("room_id").notNull(),
-    appId: text("app_id"),
-    gameId: text("game_id").notNull(),
-    startedAt: timestamp("started_at").notNull(),
-    endedAt: timestamp("ended_at"),
-    startEventId: text("start_event_id").notNull(),
-    endEventId: text("end_event_id"),
-    startReason: text("start_reason"),
-    endReason: text("end_reason"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    runtimeSessionIdx: index(
-      "runtime_usage_game_segments_runtime_session_id_idx",
-    ).on(table.runtimeSessionId),
-    gameIdx: index("runtime_usage_game_segments_game_id_idx").on(table.gameId),
-    startedAtIdx: index("runtime_usage_game_segments_started_at_idx").on(
-      table.startedAt,
-    ),
-  }),
-);
-
-export const runtimeUsageEligibleSegments = pgTable(
-  "runtime_usage_eligible_segments",
-  {
-    id: text("id").primaryKey(),
-    runtimeSessionId: text("runtime_session_id")
-      .references(() => runtimeUsageSessions.id, { onDelete: "cascade" })
-      .notNull(),
-    roomId: text("room_id").notNull(),
-    appId: text("app_id"),
-    gameId: text("game_id"),
-    startedAt: timestamp("started_at").notNull(),
-    endedAt: timestamp("ended_at"),
-    startEventId: text("start_event_id").notNull(),
-    endEventId: text("end_event_id"),
-    startReason: text("start_reason"),
-    endReason: text("end_reason"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    runtimeSessionIdx: index(
-      "runtime_usage_eligible_segments_runtime_session_id_idx",
-    ).on(table.runtimeSessionId),
-    gameIdx: index("runtime_usage_eligible_segments_game_id_idx").on(
-      table.gameId,
-    ),
-    startedAtIdx: index("runtime_usage_eligible_segments_started_at_idx").on(
-      table.startedAt,
-    ),
-  }),
-);
-
-export const runtimeUsageGameSessionMetrics = pgTable(
-  "runtime_usage_game_session_metrics",
-  {
-    id: text("id").primaryKey(),
-    runtimeSessionId: text("runtime_session_id")
-      .references(() => runtimeUsageSessions.id, { onDelete: "cascade" })
-      .notNull(),
-    roomId: text("room_id").notNull(),
-    appId: text("app_id"),
-    gameId: text("game_id").notNull(),
-    startedAt: timestamp("started_at").notNull(),
-    endedAt: timestamp("ended_at"),
-    controllerSeconds: integer("controller_seconds").default(0).notNull(),
-    rawEligiblePlaytimeSeconds: integer("raw_eligible_playtime_seconds")
-      .default(0)
-      .notNull(),
-    eligiblePlaytimeSeconds: integer("eligible_playtime_seconds")
-      .default(0)
-      .notNull(),
-    trustFlags: jsonb("trust_flags")
-      .$type<string[]>()
-      .default(sql`'[]'::jsonb`)
-      .notNull(),
-    peakConcurrentControllers: integer("peak_concurrent_controllers")
-      .default(0)
-      .notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    runtimeSessionIdx: index(
-      "runtime_usage_game_session_metrics_runtime_session_id_idx",
-    ).on(table.runtimeSessionId),
-    gameIdx: index("runtime_usage_game_session_metrics_game_id_idx").on(
-      table.gameId,
-    ),
-    startedAtIdx: index("runtime_usage_game_session_metrics_started_at_idx").on(
-      table.startedAt,
-    ),
-  }),
-);
-
-export const runtimeUsageDailyGameMetrics = pgTable(
-  "runtime_usage_daily_game_metrics",
-  {
-    id: text("id").primaryKey(),
-    bucketDate: date("bucket_date").notNull(),
-    appId: text("app_id"),
-    gameId: text("game_id").notNull(),
-    sessionCount: integer("session_count").default(0).notNull(),
-    totalGameActiveSeconds: integer("total_game_active_seconds")
-      .default(0)
-      .notNull(),
-    totalControllerSeconds: integer("total_controller_seconds")
-      .default(0)
-      .notNull(),
-    totalRawEligiblePlaytimeSeconds: integer(
-      "total_raw_eligible_playtime_seconds",
-    )
-      .default(0)
-      .notNull(),
-    totalEligiblePlaytimeSeconds: integer("total_eligible_playtime_seconds")
-      .default(0)
-      .notNull(),
-    guardedSessionCount: integer("guarded_session_count").default(0).notNull(),
-    peakConcurrentControllers: integer("peak_concurrent_controllers")
-      .default(0)
-      .notNull(),
-    lastActivityAt: timestamp("last_activity_at"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    bucketIdx: index("runtime_usage_daily_game_metrics_bucket_date_idx").on(
-      table.bucketDate,
-    ),
-    gameIdx: index("runtime_usage_daily_game_metrics_game_id_idx").on(
-      table.gameId,
-    ),
+    assetIntegrity: foreignKey({
+      name: "game_media_assignments_asset_integrity_fk",
+      columns: [table.assetId, table.gameId, table.kind, table.assetStatus],
+      foreignColumns: [
+        gameMediaAssets.id,
+        gameMediaAssets.gameId,
+        gameMediaAssets.kind,
+        gameMediaAssets.status,
+      ],
+    }).onDelete("cascade"),
   }),
 );
 

@@ -1,18 +1,18 @@
 import path from "node:path";
-import { loadEnvFile } from "../../create-airjam/runtime/dev-utils.mjs";
+import { loadEnvFile } from "../../cli/runtime/dev-utils.mjs";
 import {
   buildStandaloneGameTopology,
   serializeResolvedTopology,
-} from "../../create-airjam/runtime/runtime-topology.mjs";
+} from "../../cli/runtime/runtime-topology.mjs";
 import {
   buildSecureGameEnv,
   loadSecureDevState,
   SECURE_MODE_LOCAL,
-} from "../../create-airjam/runtime/secure-dev.mjs";
+} from "../../cli/runtime/secure-dev.mjs";
 import {
   defaultWorkspaceGameId,
   findRepoWorkspaceGame,
-} from "./repo-workspace.mjs";
+} from "./repo-workspace-games.mjs";
 import { waitForUrl } from "./url-readiness.mjs";
 import {
   createWorkspaceProcessGroup,

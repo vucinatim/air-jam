@@ -59,6 +59,10 @@ describe("sdk export surface", () => {
     expect("initializeParentSettingsSync" in sdk).toBe(false);
     expect("disposeParentSettingsSync" in sdk).toBe(false);
     expect("isInternalActionName" in sdk).toBe(false);
+    expect("AirJamHostRuntime" in sdk).toBe(false);
+    expect("AirJamControllerRuntime" in sdk).toBe(false);
+    expect("readRuntimeInspectionContract" in sdk).toBe(false);
+    expect("publishRuntimeInspectionContract" in sdk).toBe(false);
   });
 
   it("exposes the canonical audio runtime and consumer hooks on root export", () => {
@@ -113,14 +117,15 @@ describe("sdk export surface", () => {
         "./arcade/bridge/host",
         "./arcade/bridge/iframe",
         "./arcade/host",
+        "./arcade/runtime",
         "./arcade/surface",
         "./arcade/url",
         "./ui",
         "./protocol",
-        "./capabilities",
         "./metadata",
         "./prefabs",
         "./preview",
+        "./runtime-inspection",
         "./styles.css",
       ]),
     );
@@ -131,7 +136,6 @@ describe("sdk export surface", () => {
     // as explicit experimental leaves when a real consumer lands.
     expect(packageJson.exports?.["./contracts/v2"]).toBeUndefined();
     expect(packageJson.exports?.["./runtime-control"]).toBeUndefined();
-    expect(packageJson.exports?.["./runtime-inspection"]).toBeUndefined();
     expect(packageJson.exports?.["./runtime-observability"]).toBeUndefined();
     expect(prefabExport).toEqual({
       types: "./dist/prefabs.d.ts",

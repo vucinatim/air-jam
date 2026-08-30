@@ -1,18 +1,20 @@
 import path from "node:path";
-import { loadEnvFile } from "../../create-airjam/runtime/dev-utils.mjs";
+import { loadEnvFile } from "../../cli/runtime/dev-utils.mjs";
 import {
   DEFAULT_GAME_PORT,
   DEFAULT_PLATFORM_PORT,
   loadSecureDevState,
   SECURE_MODE_LOCAL,
-} from "../../create-airjam/runtime/secure-dev.mjs";
+} from "../../cli/runtime/secure-dev.mjs";
 import {
-  createRepoWorkspaceArcadeTopologies,
   defaultWorkspaceGameId,
   findRepoWorkspaceGame,
+  toLocalReferenceUrlEnvKey,
+} from "./repo-workspace-games.mjs";
+import {
+  createRepoWorkspaceArcadeTopologies,
   resolveWorkspaceArcadeOrigins,
   serializeResolvedTopology,
-  toLocalReferenceUrlEnvKey,
 } from "./repo-workspace.mjs";
 import { waitForUrl } from "./url-readiness.mjs";
 import {
@@ -23,12 +25,6 @@ import {
 } from "./workspace-stack.mjs";
 
 const BACKEND_PROXY_URL = "http://127.0.0.1:4000";
-
-const appendVisualHarnessParam = (url) => {
-  const nextUrl = new URL(url);
-  nextUrl.searchParams.set("aj_visual_harness", "enabled");
-  return nextUrl.toString();
-};
 
 const buildWorkspaceGame = ({ rootDir, activeGame }) => {
   ensureWorkspacePackageBuild({
@@ -69,7 +65,6 @@ export const startWorkspaceArcadeBuiltStack = async ({
   secureMode = SECURE_MODE_LOCAL,
   build = true,
   browserOrigin = "public",
-  visualHarness = false,
 } = {}) => {
   const activeGame = findRepoWorkspaceGame({ rootDir, gameId });
   if (!activeGame) {
@@ -110,12 +105,8 @@ export const startWorkspaceArcadeBuiltStack = async ({
       : arcadeOrigins.publicPlatformOrigin;
   const browserBuildUrlBase = `${browserPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
   const publicBuildUrlBase = `${arcadeOrigins.publicPlatformOrigin}/airjam-local-builds/${activeGame.id}`;
-  const browserBuildUrl = visualHarness
-    ? appendVisualHarnessParam(browserBuildUrlBase)
-    : browserBuildUrlBase;
-  const publicBuildUrl = visualHarness
-    ? appendVisualHarnessParam(publicBuildUrlBase)
-    : publicBuildUrlBase;
+  const browserBuildUrl = browserBuildUrlBase;
+  const publicBuildUrl = publicBuildUrlBase;
   const arcadeTopologies = createRepoWorkspaceArcadeTopologies({
     runtimeMode: "arcade-built",
     hostPlatformOrigin: arcadeOrigins.hostPlatformOrigin,

@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { gameReleases, games } from "@/db/schema";
 import { canTransitionReleaseStatus } from "@/lib/releases/release-policy";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 export const quarantineRelease = async ({
   releaseId,
@@ -54,14 +54,36 @@ export const quarantineRelease = async ({
   });
 };
 
-export const publishRelease = async ({ releaseId }: { releaseId: string }) => {
-  return db.transaction(async (tx) => {
+export const publishReleaseWithDatabase = async ({
+  database,
+  releaseId,
+}: {
+  database: typeof db;
+  releaseId: string;
+}) => {
+  return database.transaction(async (tx) => {
+    const initialRelease = await tx.query.gameReleases.findFirst({
+      where: (table, { eq }) => eq(table.id, releaseId),
+    });
+
+    if (!initialRelease) {
+      throw new Error("Release not found.");
+    }
+
+    await tx.execute(
+      sql`select ${games.id} from ${games} where ${games.id} = ${initialRelease.gameId} for update`,
+    );
+
     const release = await tx.query.gameReleases.findFirst({
       where: (table, { eq }) => eq(table.id, releaseId),
     });
 
     if (!release) {
       throw new Error("Release not found.");
+    }
+
+    if (release.status === "live") {
+      return release;
     }
 
     if (release.status !== "ready") {
@@ -98,12 +120,21 @@ export const publishRelease = async ({ releaseId }: { releaseId: string }) => {
         archivedAt: null,
         quarantinedAt: null,
       })
-      .where(eq(gameReleases.id, releaseId))
+      .where(
+        and(eq(gameReleases.id, releaseId), eq(gameReleases.status, "ready")),
+      )
       .returning();
+
+    if (!publishedRelease) {
+      throw new Error("Release publish state changed concurrently.");
+    }
 
     return publishedRelease;
   });
 };
+
+export const publishRelease = ({ releaseId }: { releaseId: string }) =>
+  publishReleaseWithDatabase({ database: db, releaseId });
 
 export const archiveRelease = async ({ releaseId }: { releaseId: string }) => {
   return db.transaction(async (tx) => {

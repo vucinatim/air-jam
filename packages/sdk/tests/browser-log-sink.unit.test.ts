@@ -90,7 +90,7 @@ describe("browser log sink", () => {
     });
 
     ensureDevBrowserLogSink({
-      serverUrl: "http://localhost:3001",
+      backendOrigin: "http://localhost:3001",
       appId: "aj_app_test",
     });
 
@@ -132,7 +132,7 @@ describe("browser log sink", () => {
     );
 
     ensureDevBrowserLogSink({
-      serverUrl: "http://localhost:3001",
+      backendOrigin: "http://localhost:3001",
       appId: "aj_app_test",
     });
 
@@ -226,7 +226,7 @@ describe("browser log sink", () => {
     const fetchMock = vi.mocked(fetch);
 
     ensureDevBrowserLogSink({
-      serverUrl: "http://localhost:3001",
+      backendOrigin: "http://localhost:3001",
       topology: {
         runtimeMode: "hosted-release",
       },

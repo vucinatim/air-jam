@@ -13,7 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Server as SocketIoServer } from "socket.io";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   closeGameSession,
   connectController,
@@ -27,15 +27,12 @@ import {
   invokeControllerAction,
   invokeGameAction,
   invokeGameSessionAction,
-  invokeHarnessAction,
   listGames,
-  listHarnessSessions,
   listVisualCaptureSummaries,
   listVisualScenarios,
   openGameSession,
   readGameSession,
   readGameSnapshot,
-  readHarnessSnapshot,
   readRuntimeSnapshot,
   readVisualCaptureSummary,
   resetLocalDev,
@@ -139,8 +136,6 @@ const createStandaloneDevFixture = async (): Promise<{
 const port = ${port};
 const server = http.createServer((request, response) => {
   const url = new URL(request.url ?? "/", \`http://127.0.0.1:\${port}\`);
-  const controllerJoinUrl = \`http://127.0.0.1:\${port}/controller?room=fixture-room\`;
-
   response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   if (url.pathname === "/controller") {
     response.end(\`<!doctype html><html><body><main>controller</main></body></html>\`);
@@ -151,43 +146,6 @@ const server = http.createServer((request, response) => {
   <html>
     <body>
       <main>host</main>
-      <script>
-        let revision = 0;
-        const snapshot = {
-          roomId: "fixture-room",
-          controllerJoinUrl: "\${controllerJoinUrl}",
-          matchPhase: "lobby",
-          runtimeState: "idle",
-          updatedAt: String(revision),
-        };
-
-        window.__airJamVisualHarness = snapshot;
-        window.__airJamVisualHarnessActions = {
-          setMatchPhase(payload) {
-            const phase =
-              typeof payload === "string"
-                ? payload
-                : payload && typeof payload.phase === "string"
-                  ? payload.phase
-                  : null;
-            window.__airJamVisualHarness = {
-              ...window.__airJamVisualHarness,
-              matchPhase: phase,
-              updatedAt: String(++revision),
-            };
-            return window.__airJamVisualHarness;
-          },
-          endMatch() {
-            window.__airJamVisualHarness = {
-              ...window.__airJamVisualHarness,
-              matchPhase: "ended",
-              runtimeState: "stopped",
-              updatedAt: String(++revision),
-            };
-            return { ok: true };
-          },
-        };
-      </script>
     </body>
   </html>\`);
 });
@@ -232,16 +190,8 @@ console.log(JSON.stringify({
   });
   await writeFile(
     path.join(root, "src", "game", "contracts", "visual-scenarios.mjs"),
-    `export const visualHarness = {
-  gameId: "solo-fixture",
+    `export const visualScenarios = {
   agent: {},
-  bridge: {
-    gameId: "solo-fixture",
-    actions: {
-      setMatchPhase: {},
-      endMatch: {},
-    },
-  },
   scenarios: [
     {
       id: "lobby",
@@ -368,14 +318,8 @@ const createControllerSocketFixture = async ({
   await mkdir(path.join(root, "visual"), { recursive: true });
   await writeFile(
     path.join(root, "visual", "scenarios.mjs"),
-    `export const harness = {
-  gameId: "socket-fixture",
-  bridge: {
-    gameId: "socket-fixture",
-    actions: {
-      setMatchPhase: {},
-    },
-  },
+    `export const visualScenarios = {
+  agent: {},
   scenarios: [
     {
       id: "lobby",
@@ -958,7 +902,7 @@ describe("visual scenarios", () => {
         cwd: path.resolve(__dirname, "../../.."),
         gameId: "pong",
       }),
-    ).rejects.toThrow(/No visual harness published/);
+    ).rejects.toThrow(/No visual scenarios published/);
   });
 
   it("lists explicitly published visual scenarios for an internal fixture", async () => {
@@ -980,7 +924,7 @@ describe("visual scenarios", () => {
     );
     await writeFile(
       path.join(root, "src", "game", "contracts", "visual-scenarios.ts"),
-      "export const visualHarness = { agent: {}, scenarios: [{ id: 'lobby', description: 'Lobby state', run: async () => {} }] };\n",
+      "export const visualScenarios = { agent: {}, scenarios: [{ id: 'lobby', description: 'Lobby state', run: async () => {} }] };\n",
       "utf8",
     );
 
@@ -989,12 +933,9 @@ describe("visual scenarios", () => {
     });
 
     expect(scenarios.gameId).toBe("published-visual-fixture");
-    expect(scenarios.hasBridgeActions).toBe(false);
     expect(scenarios.scenarioModulePath).toMatch(
       /game\/contracts\/visual-scenarios(?:\.ts)?$/,
     );
-    expect(scenarios.bridgeActions).toEqual([]);
-    expect(scenarios.actionMetadata).toEqual([]);
     expect(scenarios.scenarios.map((scenario) => scenario.scenarioId)).toEqual([
       "lobby",
     ]);
@@ -1018,204 +959,13 @@ describe("visual scenarios", () => {
     );
     await writeFile(
       path.join(root, "visual", "scenarios.ts"),
-      "export const visualHarness = { gameId: 'unpublished-visual-fixture', bridge: { gameId: 'unpublished-visual-fixture', actions: {} }, scenarios: [] };\n",
+      "export const visualScenarios = { agent: {}, scenarios: [] };\n",
       "utf8",
     );
 
     await expect(listVisualScenarios({ cwd: root })).rejects.toThrow(
-      /No visual harness published/,
+      /No visual scenarios published/,
     );
-  });
-});
-
-describe("harness runtime control", () => {
-  it("reads the live harness snapshot and invokes a harness action", async () => {
-    const { root } = await createStandaloneDevFixture();
-
-    const started = await startDev({ cwd: root });
-
-    try {
-      const snapshot = await readHarnessSnapshot({
-        cwd: root,
-        timeoutMs: 15_000,
-      });
-      expect(snapshot.gameId).toBe("solo-fixture");
-      expect(snapshot.availableActions).toEqual(
-        expect.arrayContaining(["setMatchPhase", "endMatch"]),
-      );
-      expect(snapshot.snapshot?.matchPhase).toBe("lobby");
-      expect(snapshot.urls.controllerJoinUrl).toContain("/controller?room=");
-      expect(snapshot.roomId).toBeTruthy();
-
-      const invocation = await invokeHarnessAction({
-        cwd: root,
-        roomId: snapshot.roomId ?? undefined,
-        actionName: "setMatchPhase",
-        payload: {
-          phase: "playing",
-        },
-        timeoutMs: 15_000,
-      });
-
-      expect(invocation.actionName).toBe("setMatchPhase");
-      expect(invocation.roomId).toBe(snapshot.roomId);
-      expect(invocation.snapshotBefore?.matchPhase).toBe("lobby");
-      expect(invocation.snapshotAfter?.matchPhase).toBe("playing");
-    } finally {
-      await stopDev({ cwd: root, processId: started.process.id });
-    }
-  }, 75_000);
-
-  it("prefers registered live harness sessions over isolated browser sessions", async () => {
-    const { root } = await createStandaloneDevFixture();
-    const started = await startDev({ cwd: root });
-
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const href = String(input);
-        if (href.includes("/__airjam/dev/harness/sessions")) {
-          return new Response(
-            JSON.stringify({
-              sessions: [
-                {
-                  sessionId: "live-session",
-                  gameId: "solo-fixture",
-                  role: "host",
-                  roomId: "ROOM1",
-                  origin: "http://127.0.0.1:43251",
-                  href: "http://127.0.0.1:43251/?room=ROOM1",
-                  title: "Fixture",
-                  actions: [
-                    {
-                      name: "setMatchPhase",
-                      description: "Set the fixture match phase.",
-                      payload: {
-                        kind: "json",
-                        description:
-                          "Object payload with a phase string field.",
-                      },
-                      resultDescription: "The fixture snapshot updates.",
-                    },
-                  ],
-                  actionNames: ["setMatchPhase"],
-                  snapshot: {
-                    roomId: "ROOM1",
-                    controllerJoinUrl:
-                      "http://127.0.0.1:43251/controller?room=ROOM1",
-                    matchPhase: "lobby",
-                    runtimeState: "playing",
-                    updatedAt: new Date().toISOString(),
-                  },
-                  registeredAt: new Date().toISOString(),
-                  lastSeenAt: new Date().toISOString(),
-                },
-              ],
-            }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          );
-        }
-
-        if (href.endsWith("/__airjam/dev/harness/invoke")) {
-          return new Response(
-            JSON.stringify({
-              session: {
-                sessionId: "live-session",
-                gameId: "solo-fixture",
-                role: "host",
-                roomId: "ROOM1",
-                origin: "http://127.0.0.1:43251",
-                href: "http://127.0.0.1:43251/?room=ROOM1",
-                title: "Fixture",
-                actions: [
-                  {
-                    name: "setMatchPhase",
-                    description: "Set the fixture match phase.",
-                    payload: {
-                      kind: "json",
-                      description: "Object payload with a phase string field.",
-                    },
-                    resultDescription: "The fixture snapshot updates.",
-                  },
-                ],
-                actionNames: ["setMatchPhase"],
-                snapshot: {
-                  roomId: "ROOM1",
-                  controllerJoinUrl:
-                    "http://127.0.0.1:43251/controller?room=ROOM1",
-                  matchPhase: "playing",
-                  runtimeState: "playing",
-                  updatedAt: new Date().toISOString(),
-                },
-                registeredAt: new Date().toISOString(),
-                lastSeenAt: new Date().toISOString(),
-              },
-              invocation: {
-                commandId: "command-1",
-                completedAt: new Date().toISOString(),
-                sessionId: "live-session",
-                roomId: "ROOM1",
-                gameId: "solo-fixture",
-                actionName: "setMatchPhase",
-                result: { ok: true },
-                snapshotBefore: {
-                  roomId: "ROOM1",
-                  controllerJoinUrl:
-                    "http://127.0.0.1:43251/controller?room=ROOM1",
-                  matchPhase: "lobby",
-                  runtimeState: "playing",
-                  updatedAt: new Date().toISOString(),
-                },
-                snapshotAfter: {
-                  roomId: "ROOM1",
-                  controllerJoinUrl:
-                    "http://127.0.0.1:43251/controller?room=ROOM1",
-                  matchPhase: "playing",
-                  runtimeState: "playing",
-                  updatedAt: new Date().toISOString(),
-                },
-                snapshotAfterStatus: "committed-update-observed",
-              },
-            }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          );
-        }
-
-        throw new Error(`Unexpected fetch ${href} ${init?.method ?? "GET"}`);
-      },
-    );
-    globalThis.fetch = fetchMock as typeof fetch;
-
-    try {
-      const sessions = await listHarnessSessions({ cwd: root });
-      expect(sessions.sessions).toHaveLength(1);
-      expect(sessions.sessions[0]?.sessionId).toBe("live-session");
-      expect(sessions.sessions[0]?.actions[0]?.name).toBe("setMatchPhase");
-
-      const snapshot = await readHarnessSnapshot({ cwd: root });
-      expect(snapshot.controlSurface).toBe("registered-session");
-      expect(snapshot.sessionId).toBe("live-session");
-      expect(snapshot.snapshot?.matchPhase).toBe("lobby");
-      expect(snapshot.actions[0]?.payload.kind).toBe("json");
-
-      const invocation = await invokeHarnessAction({
-        cwd: root,
-        actionName: "setMatchPhase",
-        payload: { phase: "playing" },
-      });
-      expect(invocation.controlSurface).toBe("registered-session");
-      expect(invocation.sessionId).toBe("live-session");
-      expect(invocation.snapshotAfter?.matchPhase).toBe("playing");
-      expect(invocation.snapshotAfterStatus).toBe("committed-update-observed");
-      expect(invocation.actions[0]?.name).toBe("setMatchPhase");
-    } finally {
-      await stopDev({ cwd: root, processId: started.process.id });
-    }
   });
 });
 
@@ -1565,7 +1315,6 @@ describe("game sessions", () => {
 
     expect(session.gameId).toBe("socket-fixture");
     expect(session.hasAgentContract).toBe(true);
-    expect(session.hasHarnessBridge).toBe(false);
     expect(session.actions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -1584,7 +1333,6 @@ describe("game sessions", () => {
       phase: "lobby",
       score: 3,
     });
-    expect(inspection.harnessSnapshot).toBeNull();
 
     const inputResult = await sendGameSessionInput({
       gameSessionId: session.gameSessionId,
@@ -1730,7 +1478,7 @@ describe("game sessions", () => {
     expect(fixture.receivedLeaves).toHaveLength(1);
   });
 
-  it("exposes and invokes semantic host actions without requiring a harness session", async () => {
+  it("exposes and invokes semantic host actions through the game contract", async () => {
     const fixture = await createControllerSocketFixture();
 
     const session = await openGameSession({
@@ -1740,7 +1488,6 @@ describe("game sessions", () => {
       nickname: "AgentHostCtrl",
     });
 
-    expect(session.hasHarnessBridge).toBe(false);
     expect(session.actions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -1840,201 +1587,4 @@ describe("game sessions", () => {
       gameSessionId: session.gameSessionId,
     });
   });
-
-  it("opens a harness-backed game session and can invoke host-side actions through the same handle", async () => {
-    const fixture = await createControllerSocketFixture();
-
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const href = String(input);
-        if (href.includes("/__airjam/dev/harness/sessions")) {
-          return new Response(
-            JSON.stringify({
-              sessions: [
-                {
-                  sessionId: "live-session",
-                  gameId: "socket-fixture",
-                  role: "host",
-                  roomId: "ROOM1",
-                  origin: "http://127.0.0.1:44501",
-                  href: "http://127.0.0.1:44501/?room=ROOM1",
-                  title: "Socket Fixture",
-                  actions: [
-                    {
-                      name: "setMatchPhase",
-                      description: "Set the fixture match phase.",
-                      payload: {
-                        kind: "json",
-                        description:
-                          "Object payload with a phase string field.",
-                      },
-                      resultDescription: "The fixture snapshot updates.",
-                    },
-                  ],
-                  actionNames: ["setMatchPhase"],
-                  snapshot: {
-                    roomId: "ROOM1",
-                    controllerJoinUrl: fixture.joinUrl,
-                    matchPhase: "lobby",
-                    runtimeState: "playing",
-                    updatedAt: new Date().toISOString(),
-                  },
-                  registeredAt: new Date().toISOString(),
-                  lastSeenAt: new Date().toISOString(),
-                },
-              ],
-            }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          );
-        }
-
-        if (href.endsWith("/__airjam/dev/harness/invoke")) {
-          const requestBody =
-            typeof init?.body === "string"
-              ? (JSON.parse(init.body) as {
-                  actionName?: string;
-                })
-              : null;
-          if (
-            requestBody?.actionName === "__airJamAgentHostAction__:finish_match"
-          ) {
-            fixture.setStorePayload("default", {
-              phase: "ended",
-              score: 3,
-            });
-          }
-
-          return new Response(
-            JSON.stringify({
-              session: {
-                sessionId: "live-session",
-                gameId: "socket-fixture",
-                role: "host",
-                roomId: "ROOM1",
-                origin: "http://127.0.0.1:44501",
-                href: "http://127.0.0.1:44501/?room=ROOM1",
-                title: "Socket Fixture",
-                actions: [
-                  {
-                    name: "setMatchPhase",
-                    description: "Set the fixture match phase.",
-                    payload: {
-                      kind: "json",
-                      description: "Object payload with a phase string field.",
-                    },
-                    resultDescription: "The fixture snapshot updates.",
-                  },
-                ],
-                actionNames: ["setMatchPhase"],
-                snapshot: {
-                  roomId: "ROOM1",
-                  controllerJoinUrl: fixture.joinUrl,
-                  matchPhase: "playing",
-                  runtimeState: "playing",
-                  updatedAt: new Date().toISOString(),
-                },
-                registeredAt: new Date().toISOString(),
-                lastSeenAt: new Date().toISOString(),
-              },
-              invocation: {
-                commandId: "command-1",
-                completedAt: new Date().toISOString(),
-                sessionId: "live-session",
-                roomId: "ROOM1",
-                gameId: "socket-fixture",
-                actionName: "setMatchPhase",
-                result: { ok: true },
-                snapshotBefore: {
-                  roomId: "ROOM1",
-                  controllerJoinUrl: fixture.joinUrl,
-                  matchPhase: "lobby",
-                  runtimeState: "playing",
-                  updatedAt: new Date().toISOString(),
-                },
-                snapshotAfter: {
-                  roomId: "ROOM1",
-                  controllerJoinUrl: fixture.joinUrl,
-                  matchPhase: "playing",
-                  runtimeState: "playing",
-                  updatedAt: new Date().toISOString(),
-                },
-                snapshotAfterStatus: "committed-update-observed",
-              },
-            }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          );
-        }
-
-        return new Response("not found", { status: 404 });
-      },
-    );
-
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-    const session = await openGameSession({
-      cwd: fixture.root,
-      gameId: "socket-fixture",
-      controllerJoinUrl: fixture.joinUrl,
-      harnessSessionId: "live-session",
-      timeoutMs: 5_000,
-    });
-
-    expect(session.hasHarnessBridge).toBe(true);
-    expect(session.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionId: "host:finish_match",
-          lane: "host",
-          source: "semantic-game",
-        }),
-        expect.objectContaining({
-          actionId: "host:setMatchPhase",
-          lane: "host",
-        }),
-      ]),
-    );
-
-    const inspection = await readGameSession({
-      gameSessionId: session.gameSessionId,
-      timeoutMs: 5_000,
-    });
-    expect(inspection.harnessSnapshot?.snapshot?.matchPhase).toBe("lobby");
-
-    const invocation = await invokeGameSessionAction({
-      gameSessionId: session.gameSessionId,
-      actionId: "host:finish_match",
-      timeoutMs: 5_000,
-    });
-
-    expect(invocation.actionId).toBe("host:finish_match");
-    expect(invocation.lane).toBe("host");
-    expect(invocation.invocation).toEqual(
-      expect.objectContaining({
-        lane: "host",
-        actionName: "finishMatch",
-        acknowledgement: expect.objectContaining({
-          ok: true,
-          status: "accepted",
-          source: "host",
-        }),
-        snapshotAfterStatus: "committed-update-observed",
-        snapshotAfter: expect.objectContaining({
-          snapshot: expect.objectContaining({
-            phase: "ended",
-          }),
-        }),
-      }),
-    );
-
-    const closed = await closeGameSession({
-      gameSessionId: session.gameSessionId,
-    });
-    expect(closed.closed).toBe(true);
-  }, 20_000);
 });

@@ -1,6 +1,6 @@
 import type { ChildHostCapability } from "@air-jam/sdk/protocol";
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import type { ArcadeGame } from "./arcade-system";
+import type { ArcadeGame } from "./arcade-surface-types";
 
 /** Browser vs game “mode” for the arcade shell lives in `ArcadeSurfaceState.kind` (replicated). This reducer only tracks host-local launch mechanics (selection, tokens, URLs). */
 export interface ArcadeRuntimeState {

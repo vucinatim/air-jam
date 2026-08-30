@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { basePackRoot } from "../../../packages/create-airjam/scripts/ai-pack-contract.mjs";
+import { basePackRoot } from "../../../packages/cli/scripts/ai-pack-contract.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..", "..", "..");
@@ -73,10 +73,7 @@ const classifyFileKind = (relativePath) => {
   if (relativePath === ".airjam/ai-pack.json") {
     return "manifest";
   }
-  if (relativePath.startsWith("skills/")) {
-    return "skill";
-  }
-  if (relativePath.startsWith("docs/generated/")) {
+  if (relativePath.startsWith("docs/airjam/generated/")) {
     return "docs-generated";
   }
   if (relativePath.startsWith("docs/")) {
@@ -142,7 +139,7 @@ export async function generatePlatformAiPackArtifacts({
     fileBaseUrl: `${siteUrl}/ai-pack/${channel}/${packVersion}/files/`,
     canonicalSources: {
       docs: "content/docs",
-      basePack: "packages/create-airjam/template-assets/base",
+      basePack: "packages/cli/template-assets/managed",
     },
     files: fileEntries,
   };

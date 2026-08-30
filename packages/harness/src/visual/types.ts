@@ -1,11 +1,5 @@
 import type { AirJamAgentContract, AnyAirJamAgentContract } from "@air-jam/sdk";
-import type { Page } from "@playwright/test";
-import type {
-  AnyVisualHarnessBridgeDefinition,
-  InferVisualHarnessBridgeActions,
-  InferVisualHarnessBridgeSnapshot,
-  VisualHarnessActionInvokerMap,
-} from "../core/bridge-contract.js";
+import type { Page } from "playwright-core";
 
 export type { AnyAirJamAgentContract } from "@air-jam/sdk";
 
@@ -57,7 +51,7 @@ export type InferVisualScenarioSnapshot<TAgent> =
 export type VisualScenarioAgentActionDescriptor = {
   actionId: string;
   lane: "player" | "host";
-  source: "semantic-game" | "visual-harness";
+  source: "semantic-game";
   description: string | null;
   availability: string | null;
   payload: {
@@ -100,29 +94,11 @@ export type VisualScenarioAgent<TSnapshot = Record<string, unknown>> = {
   close: () => Promise<void>;
 };
 
-export type VisualScenarioBridge<
-  TBridge extends AnyVisualHarnessBridgeDefinition,
-> = {
-  read: () => Promise<InferVisualHarnessBridgeSnapshot<TBridge> | null>;
-  waitFor: (
-    predicate: (
-      snapshot: InferVisualHarnessBridgeSnapshot<TBridge> | null,
-    ) => boolean | Promise<boolean>,
-    description?: string,
-    timeout?: number,
-  ) => Promise<InferVisualHarnessBridgeSnapshot<TBridge>>;
-  actions: VisualHarnessActionInvokerMap<
-    InferVisualHarnessBridgeActions<TBridge>
-  >;
-};
-
 export type VisualScenarioContext<
   TAgent extends AnyAirJamAgentContract = AnyAirJamAgentContract,
-  TBridge extends AnyVisualHarnessBridgeDefinition | null =
-    AnyVisualHarnessBridgeDefinition | null,
 > = {
   gameId: string;
-  scenario: VisualScenario<TAgent, TBridge>;
+  scenario: VisualScenario<TAgent>;
   scenarioDir: string;
   urls: VisualHarnessUrls;
   host: VisualHarnessPageSurface;
@@ -133,9 +109,6 @@ export type VisualScenarioContext<
   sleep: (ms: number) => Promise<void>;
   ensureControllerInteractive: () => Promise<void>;
   agent: VisualScenarioAgent<InferVisualScenarioSnapshot<TAgent>>;
-  bridge: TBridge extends AnyVisualHarnessBridgeDefinition
-    ? VisualScenarioBridge<TBridge>
-    : null;
   captureHost: (
     viewportName: string,
     viewport: VisualViewport,
@@ -151,22 +124,17 @@ export type VisualScenarioContext<
 
 export type VisualScenario<
   TAgent extends AnyAirJamAgentContract = AnyAirJamAgentContract,
-  TBridge extends AnyVisualHarnessBridgeDefinition | null =
-    AnyVisualHarnessBridgeDefinition | null,
 > = {
   id: string;
   description?: string;
-  run: (context: VisualScenarioContext<TAgent, TBridge>) => Promise<void>;
+  run: (context: VisualScenarioContext<TAgent>) => Promise<void>;
 };
 
 export type VisualScenarioPack<
   TAgent extends AnyAirJamAgentContract = AnyAirJamAgentContract,
-  TBridge extends AnyVisualHarnessBridgeDefinition | null =
-    AnyVisualHarnessBridgeDefinition | null,
 > = {
   agent: TAgent;
-  bridge?: TBridge;
-  scenarios: ReadonlyArray<VisualScenario<TAgent, TBridge>>;
+  scenarios: ReadonlyArray<VisualScenario<TAgent>>;
 };
 
 export type VisualCaptureScenarioMetadata = {

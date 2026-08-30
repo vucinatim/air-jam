@@ -6,7 +6,7 @@ import {
   getControllerLocalProfileServerSnapshot,
   subscribeControllerLocalProfile,
 } from "@/lib/controller-local-profile";
-import { AirJamControllerRuntime } from "@air-jam/sdk";
+import { AirJamControllerRuntime } from "@air-jam/sdk/arcade/runtime";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useSyncExternalStore } from "react";
 import { ControllerPageContent } from "./controller-page-content";
@@ -26,10 +26,7 @@ function ControllerPageInner({
     getControllerLocalProfileClientSnapshot,
     getControllerLocalProfileServerSnapshot,
   );
-  const sessionConfig = useMemo(
-    () => getPlatformControllerSessionConfig(),
-    [],
-  );
+  const sessionConfig = useMemo(() => getPlatformControllerSessionConfig(), []);
 
   return (
     <AirJamControllerRuntime

@@ -13,6 +13,10 @@ import {
   storyOfBuildingAirJamBlogPost,
   metadata as storyOfBuildingAirJamMetadata,
 } from "@content/blog/story-of-building-airjam/post.meta";
+import {
+  wePutAirJamInACarBlogPost,
+  metadata as wePutAirJamInACarMetadata,
+} from "@content/blog/we-put-airjam-in-a-car/post.meta";
 
 import { createBlogPostMetadata, hydrateBlogPost } from "../metadata";
 import type { BlogSource } from "../source";
@@ -55,6 +59,15 @@ const generatedContentBlogDocuments = [
     sourcePath: "content/blog/story-of-building-airjam/post.mdx",
     loadComponent: () =>
       import("@content/blog/story-of-building-airjam/post.mdx"),
+  },
+  {
+    post: hydrateBlogPost(wePutAirJamInACarBlogPost, "we-put-airjam-in-a-car"),
+    metadata: createBlogPostMetadata(
+      hydrateBlogPost(wePutAirJamInACarMetadata, "we-put-airjam-in-a-car"),
+    ),
+    sourcePath: "content/blog/we-put-airjam-in-a-car/post.mdx",
+    loadComponent: () =>
+      import("@content/blog/we-put-airjam-in-a-car/post.mdx"),
   },
 ];
 
