@@ -68,7 +68,8 @@ Responsibilities:
 
 ### Serving Plane
 
-Owned by the hosted platform and object storage contracts.
+Owned by the hosted platform, its dedicated untrusted-content origin, and
+object storage contracts.
 
 Responsibilities:
 
@@ -76,6 +77,62 @@ Responsibilities:
 2. keep product release identity stable while every cacheable artifact URL
    includes immutable generation identity
 3. separate playable artifacts from presentation media
+4. keep creator executable code outside the authenticated platform cookie site
+
+### Release-Origin Security Boundary
+
+Creator-controlled HTML, JavaScript, and CSS are untrusted executable content.
+They must be served only through the origin configured by
+`AIRJAM_RELEASES_PUBLIC_ORIGIN`.
+
+That origin must:
+
+1. be an absolute `https` origin in production
+2. use a separate cookie site from the authenticated platform—not the platform
+   origin, a sibling subdomain, or a parent domain
+3. stay outside Better Auth trusted origins
+4. carry no Air Jam authentication cookies or platform authority
+5. remain explicit whenever hosted delivery is enabled; production requires it,
+   while previews may deliberately report delivery as disabled
+6. use the incoming HTTP `Host` authority for request classification; framework
+   request URLs derived from the server bind address are not an origin boundary
+7. match the platform identity baked into release `frame-ancestors` policy;
+   runtime drift fails health until the application is rebuilt
+
+Operators and agents inspect this boundary through the same runtime assessment:
+
+```bash
+pnpm run repo -- platform release-origin inspect
+pnpm --silent run repo -- platform release-origin inspect --json
+pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
+```
+
+The machine response is versioned, contains no secrets, and reports `ready`,
+`disabled`, or `invalid` with the effective public and platform origins needed
+to diagnose the boundary. Local inspection evaluates the process environment;
+`--platform-url` authoritatively reads the deployed platform's public health
+contract with a bounded request.
+
+The remote result preserves both layers of evidence: `health.httpStatus` and
+`health.ok` describe the deployed platform, while `assessment` describes the
+hosted-release boundary. A valid `503` health document is returned as an
+unhealthy assessment rather than discarded as a transport error. Malformed or
+unrecognized responses still fail closed.
+
+The v1 containment contract protects the authenticated platform from untrusted
+games; it does not claim that games are mutually confidential from each other.
+All releases currently share the untrusted origin, and `allow-same-origin` is
+required for normal module, asset, and browser-storage behavior. Games must not
+place secrets on that origin. Per-game origins or opaque-origin execution remain
+a possible later hardening step if game-to-game storage isolation becomes a
+product requirement.
+
+The release CSP still permits externally hosted resources needed by the current
+game contract. As a result, artifact review proves the uploaded bundle but does
+not make every remote dependency immutable. This is an explicit moderation and
+takedown limitation for v1, not platform-authority exposure; executable-resource
+pinning and archive validation should be tightened under the remaining Gate 5
+artifact-abuse work.
 
 ## Canonical Nouns
 
@@ -131,13 +188,15 @@ The platform should never blur these into vague "published-ish" states.
 4. Public serving should only happen through explicit live eligibility.
 5. Media and release artifacts should remain separate assets with different
    lifecycle rules.
-6. Every release check identifies the exact generation it evaluated.
-7. A stale or superseded generation cannot change release-visible state.
-8. Storage writes use immutable generation/output identity and create-only
+6. Creator executable content must never share the authenticated platform's
+   origin or cookie site.
+7. Every release check identifies the exact generation it evaluated.
+8. A stale or superseded generation cannot change release-visible state.
+9. Storage writes use immutable generation/output identity and create-only
    semantics; database state never relies on overwriting a shared key.
-9. Managed-storage accounting includes all retained generations, not only the
+10. Managed-storage accounting includes all retained generations, not only the
    currently promoted output.
-10. Public and operator projections expose semantic evidence without private
+11. Public and operator projections expose semantic evidence without private
     object keys or raw internal check payloads.
 
 ## Design Rules

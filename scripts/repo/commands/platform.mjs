@@ -279,6 +279,32 @@ const capturePlatformDatabaseOperator = async ({
   return result.stdout;
 };
 
+const runPlatformReleaseOriginOperator = (operation) => {
+  const result = runCommandResult(
+    process.execPath,
+    [
+      "--env-file-if-exists=apps/platform/.env.local",
+      "--import",
+      "tsx",
+      "apps/platform/scripts/release-origin-cli.ts",
+      JSON.stringify(operation),
+    ],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { TSX_TSCONFIG_PATH: "apps/platform/tsconfig.json" },
+    },
+  );
+
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.error) {
+    throw new Error(
+      `Could not start release-origin inspection: ${result.error.message}`,
+    );
+  }
+  if (result.status !== 0) process.exitCode = result.status ?? 1;
+};
+
 const addPlatformDatabaseTargetOption = (command) =>
   command
     .option(
@@ -353,6 +379,30 @@ export const registerPlatformCommands = (program) => {
     .description("Verify hosted platform AI pack generation is deterministic")
     .action(async () => {
       await runPlatformAiPackCheck();
+    });
+
+  const releaseOriginCommand = platformCommand
+    .command("release-origin")
+    .description(
+      "Inspect the untrusted hosted-release origin through an agent-safe contract",
+    );
+
+  releaseOriginCommand
+    .command("inspect")
+    .description(
+      "Assess AIRJAM_RELEASES_PUBLIC_ORIGIN without exposing credentials",
+    )
+    .option(
+      "--platform-url <origin>",
+      "Inspect the deployed platform /api/health contract instead of local environment variables",
+    )
+    .option("--json", "Print the stable machine-readable contract")
+    .action((options) => {
+      runPlatformReleaseOriginOperator({
+        command: "inspect",
+        json: Boolean(options.json),
+        platformUrl: options.platformUrl ?? null,
+      });
     });
 
   const telemetryCommand = platformCommand

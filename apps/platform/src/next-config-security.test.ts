@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
-import nextConfig, { createPlatformSecurityHeaders } from "../next.config";
+import nextConfig, {
+  createHostedReleaseSecurityHeaders,
+  createPlatformSecurityHeaders,
+} from "../next.config";
 
 const toHeaderMap = (headers: { key: string; value: string }[]) =>
   new Map(headers.map((header) => [header.key, header.value]));
 
 describe("platform security headers", () => {
-  it("applies baseline security headers to all routes", async () => {
+  it("applies baseline security headers to all platform routes", async () => {
     const headers = await nextConfig.headers?.();
     expect(headers).toBeDefined();
 
-    const globalEntry = headers?.find((entry) => entry.source === "/:path*");
+    const globalEntry = headers?.find(
+      (entry) => entry.source === "/((?!releases(?:/|$)).*)",
+    );
     expect(globalEntry).toBeDefined();
 
     const byKey = toHeaderMap(globalEntry?.headers ?? []);
@@ -47,6 +52,15 @@ describe("platform security headers", () => {
     expect(csp).toMatch(/frame-src[^;]*https:/);
   });
 
+  it("separates platform and hosted-release header matchers", async () => {
+    const headers = await nextConfig.headers?.();
+
+    expect(headers?.map((entry) => entry.source)).toEqual([
+      "/((?!releases(?:/|$)).*)",
+      "/releases/:path*",
+    ]);
+  });
+
   it("keeps production platform routes frameable only by same-origin ancestors", () => {
     const byKey = toHeaderMap(
       createPlatformSecurityHeaders({ allowInsecureDevFrames: false }),
@@ -70,5 +84,52 @@ describe("platform security headers", () => {
     expect(byKey.get("X-Frame-Options")).toBeUndefined();
     expect(csp).toMatch(/frame-src[^;]*http:/);
     expect(csp).toMatch(/frame-ancestors[^;]*http:/);
+  });
+});
+
+describe("hosted release security headers", () => {
+  it("allows framing by exactly the authenticated platform origin", () => {
+    const byKey = toHeaderMap(
+      createHostedReleaseSecurityHeaders({
+        platformPublicOrigin: "https://airjam.io",
+        allowInsecureDevFrames: false,
+      }),
+    );
+    const csp = byKey.get("Content-Security-Policy") ?? "";
+    const frameAncestors = csp
+      .split("; ")
+      .find((directive) => directive.startsWith("frame-ancestors"));
+
+    expect(frameAncestors).toBe("frame-ancestors https://airjam.io");
+    expect(byKey.get("X-Frame-Options")).toBeUndefined();
+  });
+
+  it("marks release responses as untrusted and discloses no referrer", () => {
+    const byKey = toHeaderMap(
+      createHostedReleaseSecurityHeaders({
+        platformPublicOrigin: "https://airjam.io",
+        allowInsecureDevFrames: false,
+      }),
+    );
+
+    expect(byKey.get("X-AirJam-Content-Class")).toBe("untrusted-release");
+    expect(byKey.get("Referrer-Policy")).toBe("no-referrer");
+    expect(byKey.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(byKey.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+  });
+
+  it("keeps release forms inside the isolated release boundary and blocks objects", () => {
+    const byKey = toHeaderMap(
+      createHostedReleaseSecurityHeaders({
+        platformPublicOrigin: "https://airjam.io",
+        allowInsecureDevFrames: false,
+      }),
+    );
+    const csp = byKey.get("Content-Security-Policy") ?? "";
+
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("form-action 'self' https:");
+    expect(csp).toMatch(/connect-src[^;]*wss:/);
+    expect(csp).not.toMatch(/connect-src[^;]*http:/);
   });
 });

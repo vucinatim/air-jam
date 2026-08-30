@@ -112,10 +112,10 @@ describe("arcade embed helpers", () => {
 
     expect(
       buildArcadeControllerRuntimeUrl(
-        "https://platform.example/releases/g/game-id/r/release-id/",
+        "https://games.example/releases/g/game-id/r/release-id/generations/generation-id/",
       ),
     ).toBe(
-      "https://platform.example/releases/g/game-id/r/release-id/controller",
+      "https://games.example/releases/g/game-id/r/release-id/generations/generation-id/controller",
     );
   });
 

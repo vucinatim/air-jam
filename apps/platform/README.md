@@ -163,7 +163,8 @@ Infrastructure requirements:
 2. one Cloudflare R2 bucket for release artifacts and game media assets
 3. screenshot moderation runtime with browser access
 4. optional OpenAI image moderation when you want automated image-policy enforcement
-5. one separately deployed platform operational-job worker
+5. a dedicated cookieless public origin for creator-controlled release assets
+6. one separately deployed platform operational-job worker
 
 The database migrations have already been added under [drizzle](./drizzle) and can be applied with:
 
@@ -173,12 +174,40 @@ pnpm --filter platform exec drizzle-kit migrate --config drizzle.config.ts
 
 Environment variables for the hosted release lane are documented in [`.env.example`](./.env.example).
 
-Minimum additional env needed for storage:
+Minimum additional env needed for the hosted release lane:
 
-1. `AIRJAM_RELEASES_R2_BUCKET`
-2. `AIRJAM_RELEASES_R2_ACCOUNT_ID` or `AIRJAM_RELEASES_R2_ENDPOINT`
-3. `AIRJAM_RELEASES_R2_ACCESS_KEY_ID`
-4. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
+1. `AIRJAM_RELEASES_PUBLIC_ORIGIN`
+2. `AIRJAM_RELEASES_R2_BUCKET`
+3. `AIRJAM_RELEASES_R2_ACCOUNT_ID` or `AIRJAM_RELEASES_R2_ENDPOINT`
+4. `AIRJAM_RELEASES_R2_ACCESS_KEY_ID`
+5. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
+
+`AIRJAM_RELEASES_PUBLIC_ORIGIN` must be an absolute origin on a separate
+cookie site from the authenticated platform—for example,
+`https://airjamusercontent.example` for a platform at
+`https://airjam.example`. It must not be the platform origin or a sibling such
+as `games.airjam.example`. Hosted release delivery stays disabled when this
+boundary is missing or invalid; there is no same-origin fallback.
+
+Inspect the effective boundary through the canonical agent-safe command:
+
+```bash
+pnpm run repo -- platform release-origin inspect
+pnpm --silent run repo -- platform release-origin inspect --json
+pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
+```
+
+Without `--platform-url`, the command assesses environment variables visible to
+the local platform process. With `--platform-url`, it reads the deployed
+platform's public `/api/health` boundary through a bounded request. Both JSON
+forms are stable and versioned and contain no credentials.
+
+Remote inspection returns valid platform health contracts from both `200`
+(healthy) and `503` (unhealthy), including `health.httpStatus`, `health.ok`, and
+the deployed boundary assessment. A valid unhealthy contract is inspection
+evidence, so the command returns it successfully; malformed contracts,
+unsupported HTTP statuses, and transport failures still exit nonzero with a
+machine-readable error.
 
 Optional env for screenshot moderation:
 
@@ -212,13 +241,6 @@ Agents and maintainers inspect and safely operate the same authority through:
 ```bash
 pnpm --silent run repo -- platform operations jobs --help
 ```
-
-Optional:
-
-1. `NEXT_PUBLIC_RELEASES_BASE_URL`
-2. `AIRJAM_RELEASES_BASE_URL`
-
-For v1, the simplest setup is to keep hosted releases on the same platform origin and leave the release base URL vars unset.
 
 If screenshot moderation is not configured, its durable job fails closed. The
 release remains failed until the runtime is available and an operator replays

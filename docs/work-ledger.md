@@ -18,6 +18,35 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-30 - Hosted Releases Gained A Fail-Closed Origin Boundary
+
+- implemented the first `G5-02` security slice as a stacked, production-valid
+  change while keeping the readiness item open for deployment proof
+- removed the authenticated platform origin fallback and the two superseded
+  release-origin variables; `AIRJAM_RELEASES_PUBLIC_ORIGIN` is now the one
+  canonical contract
+- made production require an explicit cross-site HTTPS origin outside the
+  platform cookie site and every exact or wildcard Better Auth trusted origin
+- separated platform and untrusted-release response policy, centralized the
+  host/controller iframe sandbox, and blocked top-navigation and popup escape
+- added one repo-owned, secret-free operator surface for local and deployed
+  inspection: `pnpm run repo -- platform release-origin inspect`
+- corrected adversarial-review findings before integration:
+  - request routing now derives authority from the incoming `Host`, not Next's
+    server-derived request URL
+  - unknown production hosts fail closed
+  - platform-to-release redirects are temporary and non-cacheable
+  - build/runtime platform-origin drift makes health fail
+  - the exact `/releases` boundary is covered
+  - valid deployed `503` health documents remain machine-inspectable
+- proved the local boundary with unit suites, a real Next server receiving
+  explicit Host headers, and a hostile browser fixture that cannot reach
+  platform storage, cookies, parent DOM, authenticated API responses, or top
+  navigation while the normal Pong bridge still works
+- retained the external closure honestly: the dedicated provider domain,
+  actual hosted-route proof, and deployed cookie/CORS/header attestation remain
+  required before `G5-02` can be completed
+
 ## 2026-08-30 - Gate 5 Received A Ranked Security Threat Model
 
 - completed three independent read-only audits across public/artifact,

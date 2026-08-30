@@ -1,6 +1,10 @@
 import { db } from "@/db";
 import { isHostedReleaseSpaFallbackPath } from "@/lib/releases/hosted-release-artifact";
 import {
+  isHostedReleaseRequestHost,
+  requireHostedReleasePublicOrigin,
+} from "@/lib/releases/hosted-release-origin";
+import {
   buildHostedReleaseRuntimeTopology,
   injectHostedReleaseHtmlRuntimeBase,
   normalizeRequestedReleaseAssetPath,
@@ -28,6 +32,15 @@ export async function GET(
     }>;
   },
 ) {
+  if (!isHostedReleaseRequestHost(request.headers.get("host"))) {
+    return new Response("Not found", {
+      status: 404,
+      headers: {
+        "cache-control": "no-store",
+      },
+    });
+  }
+
   const { gameId, releaseId, generationId, assetPath } = await context.params;
   const configuredInternalSecret =
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN?.trim() || null;
@@ -129,7 +142,7 @@ export async function GET(
       releaseId,
       generationId,
     });
-    const requestOrigin = new URL(request.url).origin;
+    const requestOrigin = requireHostedReleasePublicOrigin();
     const runtimeTopology = buildHostedReleaseRuntimeTopology({
       gameId,
       releaseId,

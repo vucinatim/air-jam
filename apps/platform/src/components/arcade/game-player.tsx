@@ -5,6 +5,10 @@ import {
   shouldRejectHostBridgeHandshake,
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
+import {
+  HOSTED_RELEASE_IFRAME_PERMISSIONS,
+  HOSTED_RELEASE_IFRAME_SANDBOX,
+} from "@/lib/releases/hosted-release-frame-policy";
 import { cn } from "@/lib/utils";
 import { useInheritedPlatformSettings, type PlayerProfile } from "@air-jam/sdk";
 import {
@@ -672,7 +676,8 @@ export const GamePlayer = ({
           data-testid="arcade-host-game-frame"
           className="h-full w-full border-none bg-black"
           style={{ backgroundColor: "#000000" }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share; gamepad"
+          allow={HOSTED_RELEASE_IFRAME_PERMISSIONS}
+          sandbox={HOSTED_RELEASE_IFRAME_SANDBOX}
           onLoad={() => {
             establishBridgeChannel();
           }}

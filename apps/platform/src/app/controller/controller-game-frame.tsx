@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  HOSTED_RELEASE_IFRAME_PERMISSIONS,
+  HOSTED_RELEASE_IFRAME_SANDBOX,
+} from "@/lib/releases/hosted-release-frame-policy";
 import type { RefObject } from "react";
 
 interface ControllerGameFrameProps {
@@ -31,8 +35,8 @@ export function ControllerGameFrame({
           data-testid="arcade-controller-game-frame"
           className="h-full w-full border-none bg-black"
           style={{ backgroundColor: "#000000" }}
-          allow="vibrate; gyroscope; accelerometer; autoplay; fullscreen"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+          allow={HOSTED_RELEASE_IFRAME_PERMISSIONS}
+          sandbox={HOSTED_RELEASE_IFRAME_SANDBOX}
         />
       ) : (
         <div className="flex h-full items-center justify-center px-6 text-center">

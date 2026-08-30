@@ -1,6 +1,6 @@
 # Environment Contracts
 
-Last updated: 2026-05-08  
+Last updated: 2026-08-30
 Status: current contract
 
 ## Purpose
@@ -29,9 +29,35 @@ Goals:
 Each boundary owns its own env schema and defaults:
 
 1. `@air-jam/server` startup env contract
-2. `apps/platform` releases env contract (storage/moderation/public base URL)
+2. `apps/platform` releases env contract (storage, moderation, and the
+   untrusted-content public origin)
 3. `create-airjam` runtime env contract (`dev`, `secure:init`, `topology`)
 4. `@air-jam/release-browser-worker` runtime env contract for the dedicated Playwright moderation worker
+
+The platform's canonical creator-content boundary is
+`AIRJAM_RELEASES_PUBLIC_ORIGIN`. It is intentionally server-owned rather than
+public build-time configuration. Hosted release delivery remains disabled when
+the value is missing or invalid, and production requires an `https` origin on a
+separate cookie site from the authenticated platform. The origin must also stay
+outside Better Auth trusted origins.
+
+Operators and agents inspect the same runtime assessment without exposing
+credentials:
+
+```bash
+pnpm run repo -- platform release-origin inspect
+pnpm --silent run repo -- platform release-origin inspect --json
+pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
+```
+
+The optional `--platform-url` mode verifies the boundary exposed by a deployed
+platform's public `/api/health` contract. It does not load or print provider
+credentials.
+
+Both healthy `200` and valid unhealthy `503` platform health documents are
+inspection results. The remote JSON includes the HTTP status, platform health
+boolean, and boundary assessment; non-health responses fail instead of being
+mistaken for deployed configuration.
 
 No monorepo-wide mega schema is used.
 

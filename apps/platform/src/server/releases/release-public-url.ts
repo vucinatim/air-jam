@@ -1,15 +1,8 @@
 import { buildHostedReleaseAssetPath } from "@/lib/releases/release-url";
-import { getSiteUrl } from "@/lib/site-url";
-import { resolveConfiguredReleasesBaseUrl } from "./release-env";
+import { requireHostedReleasePublicOrigin } from "@/lib/releases/hosted-release-origin";
 
-const normalizePublicBaseUrl = (rawUrl: string): string =>
-  rawUrl.trim().replace(/\/$/, "");
-
-export const getHostedReleasesBaseUrl = (): string => {
-  const configuredBaseUrl = resolveConfiguredReleasesBaseUrl();
-
-  return normalizePublicBaseUrl(configuredBaseUrl || getSiteUrl());
-};
+export const getHostedReleasesBaseUrl = (): string =>
+  requireHostedReleasePublicOrigin();
 
 export const buildHostedReleaseAssetUrl = ({
   gameId,
