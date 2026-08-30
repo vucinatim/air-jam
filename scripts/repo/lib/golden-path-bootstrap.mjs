@@ -500,6 +500,7 @@ export const runGoldenPathBootstrap = async ({
     VITE_PORT: String(gamePort),
     AIRJAM_DEVTOOLS_KNOWN_PORTS: `4000,${gamePort}`,
     npm_config_audit: "false",
+    npm_config_cache: path.join(runRoot, "npm-cache"),
     npm_config_registry: registryUrl,
   };
   delete commandEnv.npm_config_reporter;

@@ -66,16 +66,18 @@ Each candidate cell must prove:
 1. the exact five public packages build and pack
 2. candidate bytes publish to a run-scoped registry
 3. the registry never proxies `@air-jam/*` or `create-airjam`
-4. `npx --yes create-airjam@<candidate-version>` creates and installs a clean
+4. `npx` uses a run-scoped empty cache so an older same-version public package
+   cannot produce a false pass
+5. `npx --yes create-airjam@<candidate-version>` creates and installs a clean
    project
-5. installed lockfile integrity matches the exact packed tarballs
-6. no local dependency spec or private repository path survives
-7. `create-airjam`, `airjam`, `air-jam-server`, and `airjam-mcp` report their
+6. installed lockfile integrity matches the exact packed tarballs
+7. no local dependency spec or private repository path survives
+8. `create-airjam`, `airjam`, `air-jam-server`, and `airjam-mcp` report their
    installed version
-8. CLI help, JSON doctor/config, and MCP initialization/tool discovery work
-9. managed development start, status, and stop work
-10. generated-project typecheck, lint, tests, and production build pass
-11. package-size, scaffold-install, and total-cell budgets pass
+9. CLI help, JSON doctor/config, and MCP initialization/tool discovery work
+10. managed development start, status, and stop work
+11. generated-project typecheck, lint, tests, and production build pass
+12. package-size, scaffold-install, and total-cell budgets pass
 
 ## Candidate Versus Public npm
 
