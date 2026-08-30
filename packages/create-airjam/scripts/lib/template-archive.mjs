@@ -24,8 +24,7 @@ const collectFiles = async (sourceDir) => {
   return files;
 };
 
-const normalizeArchiveMode = (stats) =>
-  stats.mode & 0o111 ? 0o100755 : 0o100644;
+const NORMALIZED_TEMPLATE_FILE_MODE = 0o100644;
 
 export const writeTemplateArchive = async ({ sourceDir, outputFile }) => {
   const files = await collectFiles(sourceDir);
@@ -50,11 +49,10 @@ export const writeTemplateArchive = async ({ sourceDir, outputFile }) => {
       continue;
     }
 
-    const stats = await fse.stat(filePath);
     zipFile.addFile(filePath, relativePath, {
       compress: false,
       forceDosTimestamp: true,
-      mode: normalizeArchiveMode(stats),
+      mode: NORMALIZED_TEMPLATE_FILE_MODE,
       mtime: createNormalizedTemplateArchiveMtime(),
     });
   }

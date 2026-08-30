@@ -42,7 +42,7 @@ test("create-airjam reports the installed package version", () => {
   assert.equal(output.trim(), "0.9.2");
 });
 
-test("template archives are deterministic across source timestamps and timezones", async () => {
+test("template archives are deterministic across source metadata and timezones", async () => {
   const tempRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "airjam-template-archive-test-"),
   );
@@ -72,6 +72,7 @@ test("template archives are deterministic across source timestamps and timezones
     const newTime = new Date("2025-05-05T05:05:05.000Z");
     fs.utimesSync(shellScriptPath, oldTime, oldTime);
     fs.utimesSync(textFilePath, newTime, newTime);
+    fs.chmodSync(shellScriptPath, 0o644);
 
     process.env.TZ = "Europe/Ljubljana";
     const secondArchivePath = path.join(tempRoot, "second.zip");
