@@ -65,6 +65,18 @@ export const reserveLoopbackPort = () =>
     });
   });
 
+export const resolveGoldenPathTemporaryRoot = ({
+  environment = process.env,
+  systemTemporaryRoot = os.tmpdir(),
+} = {}) => {
+  const configuredRoot =
+    environment.AIRJAM_GOLDEN_PATH_TEMP_ROOT?.trim() ||
+    environment.RUNNER_TEMP?.trim() ||
+    systemTemporaryRoot;
+  fs.mkdirSync(configuredRoot, { recursive: true });
+  return fs.realpathSync.native(configuredRoot);
+};
+
 const waitForRegistry = async ({ registryUrl, child, readOutput }) => {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 20_000) {
@@ -477,12 +489,16 @@ export const runGoldenPathBootstrap = async ({
       `Unsupported bootstrap client ${bootstrapClient}. Use pnpm-dlx or npx.`,
     );
   }
-  // Windows can expose the temp directory through an 8.3 short path while
-  // file-watch events use its long path. libuv treats those spellings as
-  // different roots and can abort the Vite process, so every process in the
-  // proof must share the canonical filesystem identity from the start.
-  const runRoot = fs.realpathSync(
-    fs.mkdtempSync(path.join(os.tmpdir(), "airjam-golden-path-bootstrap-")),
+  // GitHub's Windows os.tmpdir() can resolve through the RUNNER~1 8.3 alias
+  // while file-watch events use its long path. Prefer the runner-owned temp
+  // root (D:\a\_temp on hosted Windows) and retain an explicit override for
+  // other automation hosts. Native realpath then gives every child process one
+  // filesystem identity from the start.
+  const temporaryRoot = resolveGoldenPathTemporaryRoot();
+  const runRoot = fs.realpathSync.native(
+    fs.mkdtempSync(
+      path.join(temporaryRoot, "airjam-golden-path-bootstrap-"),
+    ),
   );
   const projectName = "signal-relay-bootstrap";
   const projectDir = path.join(runRoot, "workspace", projectName);

@@ -6,7 +6,10 @@ import test from "node:test";
 
 import { acquireWorkspaceBuildLock } from "../../ensure-workspace-package-build.mjs";
 import { verifyMcpStdioHandshake } from "../../lib/mcp-stdio-handshake.mjs";
-import { assertInstalledCandidateIntegrity } from "../lib/golden-path-bootstrap.mjs";
+import {
+  assertInstalledCandidateIntegrity,
+  resolveGoldenPathTemporaryRoot,
+} from "../lib/golden-path-bootstrap.mjs";
 
 const candidateIntegrity = `sha512-${Buffer.from("candidate").toString("base64")}`;
 const lockSource = `
@@ -51,6 +54,34 @@ test("candidate provenance requires the exact packed integrity", () => {
       }),
     /does not match the packed candidate/u,
   );
+});
+
+test("golden-path temporary roots prefer explicit and runner-owned paths", () => {
+  const fixtureRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "airjam-golden-path-temp-root-test-"),
+  );
+  const explicitRoot = path.join(fixtureRoot, "explicit");
+  const runnerRoot = path.join(fixtureRoot, "runner");
+
+  try {
+    assert.equal(
+      resolveGoldenPathTemporaryRoot({
+        environment: {
+          AIRJAM_GOLDEN_PATH_TEMP_ROOT: explicitRoot,
+          RUNNER_TEMP: runnerRoot,
+        },
+      }),
+      fs.realpathSync.native(explicitRoot),
+    );
+    assert.equal(
+      resolveGoldenPathTemporaryRoot({
+        environment: { RUNNER_TEMP: runnerRoot },
+      }),
+      fs.realpathSync.native(runnerRoot),
+    );
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
 });
 
 test("MCP protocol probe rejects non-JSON stdout without crashing", async () => {
