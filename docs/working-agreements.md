@@ -60,24 +60,20 @@ Use these rules:
 2. resolve the pull request's full `baseRefOid` and `headRefOid` from GitHub
    immediately before each review; do not reconstruct or transcribe full SHAs
    from abbreviated commit names
-3. run Canonicalizer on every meaningful commit batch; the batch is the exact
-   contiguous range from the pull request base, or the last Canonicalizer-ready
-   head on that branch, through the current head and must include every
-   unreviewed commit
+3. run Canonicalizer on every meaningful commit batch as defined below
 4. resolve every actionable Canonicalizer finding and resume the same session
    until `ready`
-5. run Claude Opus 5 through the explicit `claude-opus-5` model identifier on
-   every individual pull request's exact base-to-head diff, with no moving
-   model alias or fallback; a successor model replaces it only through an
-   explicit change to this canonical policy; keep the review read-only and ask
-   it to inspect correctness, architecture, canonicality, security, operations,
-   tests, and documentation
+5. request Claude Opus 5 through the explicit provider selector
+   `claude-opus-5`, not the moving `opus` alias, and configure no fallback;
+   record the resolved `modelUsage` identifier because the provider selector
+   may resolve within the Opus 5 family; a successor model replaces Opus 5 only
+   through an explicit change to this canonical policy; keep the review
+   read-only and ask it to inspect correctness, architecture, canonicality,
+   security, operations, tests, and documentation
 6. review every individual pull request independently; a cumulative or
    descendant review does not review its ancestors
 7. after any push, treat both reviews as stale and rerun them against the new
-   exact head before merge; formatting-only and typo-only commits do not need
-   their own intermediate Canonicalizer pass, but the final reviewed batch must
-   still include them
+   exact head before merge
 8. attach both reviews to the pull request with the exact reviewed base and head
    SHAs, Canonicalizer session identifier, resolved Claude `modelUsage` model
    identifier, verdicts, and resolved findings so later agents can audit what
@@ -112,12 +108,15 @@ Use these rules:
     requests rather than allowing another long-lived stack to become the normal
     delivery model
 
-A meaningful batch changes runtime behavior, public or machine contracts,
-architecture or ownership, security or privacy, data or schemas,
-infrastructure, dependencies, deployment behavior, release operations, or the
-structural documentation that governs those systems. Formatting-only and
-typo-only edits do not require a separate intermediate Canonicalizer pass, but
-no commit may be omitted from the exact range covered by the final ready review.
+A Canonicalizer batch is the exact contiguous range from the pull request base,
+or the last Canonicalizer-ready head on that branch, through the current head;
+it must include every unreviewed commit. A meaningful batch changes runtime
+behavior, public or machine contracts, architecture or ownership, security or
+privacy, data or schemas, infrastructure, dependencies, deployment behavior,
+release operations, or the structural documentation that governs those
+systems. Formatting-only and typo-only edits do not require their own
+intermediate pass, but any push makes existing evidence stale and the final
+ready range must include those commits.
 
 ## Production Delivery And Public Launch
 

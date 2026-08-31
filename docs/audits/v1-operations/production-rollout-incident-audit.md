@@ -130,7 +130,7 @@ owner.
 Gate `G5-02` owns mechanical enforcement for review evidence and post-merge
 Railway verification through the repo CLI and required automation.
 
-## Incident Closure Evidence
+## Incident Closure Steps
 
 1. close and merge the recovery pull request under the canonical working
    agreements with its exact-head evidence attached
