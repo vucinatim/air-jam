@@ -210,21 +210,23 @@ set `productionEvidenceEligible: true`. Set `RAILWAY_PROJECT_TOKEN`,
 `RAILWAY_API_TOKEN`, or `RAILWAY_TOKEN`; `RAILWAY_PROJECT_ID` may replace the
 flag. Provider verification independently binds the expected project,
 production environment, current platform-service deployment, and both public
-domains. The health revision remains deployment-reported rather than
+domains. The readiness revision remains deployment-reported rather than
 provider-authenticated. Eligibility means the deployment evidence is
 admissible, not that the complete security finding is closed by this command.
 
 Without `--platform-url`, the command assesses environment variables visible to
 the local platform process. With `--platform-url`, it reads the deployed
-platform's public `/api/health` boundary through a bounded request. Both JSON
+platform's public `/api/readiness` boundary through a bounded request. Both JSON
 forms are stable and versioned and contain no credentials.
 
-Remote inspection returns valid platform health contracts from both `200`
-(healthy) and `503` (unhealthy), including `health.httpStatus`, `health.ok`, and
-the deployed boundary assessment. A valid unhealthy contract is inspection
+Remote inspection contract v2 returns valid platform readiness documents from both `200`
+(ready) and `503` (unready), including `readiness.httpStatus`,
+`readiness.ok`, and
+the deployed boundary assessment. A valid unready contract is inspection
 evidence, so the command returns it successfully; malformed contracts,
 unsupported HTTP statuses, and transport failures still exit nonzero with a
-machine-readable error.
+machine-readable error. `/api/health` is the intentionally narrower process
+liveness contract used by deployment infrastructure.
 
 Optional env for screenshot moderation:
 

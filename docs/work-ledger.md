@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,30 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-08-31 - Failed Platform Rollout Entered Controlled Recovery
+
+- confirmed that the platform deployment following PR `#73` reached terminal
+  `FAILED` while Railway kept the previous successful revision serving users
+- identified two independent deployment blockers: Railway's exact healthcheck
+  host was rejected by production host policy, and release-domain readiness was
+  incorrectly coupled to process liveness
+- found that the build/runtime release-origin guard had only source-level proof;
+  its dynamic environment lookup did not provide trustworthy standalone bundle
+  attestation
+- separated `/api/health` liveness from `/api/readiness`, constrained the
+  provider-independent liveness exception to one exact path, and moved
+  release-origin inspection and attestation to the readiness contract
+- extended the hermetic deploy check to boot the actual standalone production
+  artifact and prove both matching-origin readiness and deliberate
+  build/runtime drift rejection
+- recorded the timeline, evidence, root causes, and remaining production
+  closure in the
+  [production rollout incident audit](./audits/v1-operations/production-rollout-incident-audit.md)
+- completed hostile Claude Opus review and resolved both Canonicalizer findings
+  before its resumed review returned `ready`
+- kept recovery open until formal GitHub review, merge, terminal Railway
+  `SUCCESS`, and live deployment-identity verification are complete
 
 ## 2026-08-30 - Hosted Release Isolation Became Safely Attestable
 

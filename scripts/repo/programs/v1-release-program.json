@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-30T04:34:04.188Z",
+  "updatedAt": "2026-08-31T10:21:36.107Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -754,8 +754,8 @@
         "negative-path security tests and operator controls"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Closing the ranked G5-01 findings in production-valid slices, starting with the P0 untrusted hosted-release origin boundary and hostile browser proof.",
-      "updatedAt": "2026-08-30T04:34:04.188Z"
+      "note": "Production rollout incident recovery: separate liveness from release readiness, make exact-path liveness provider-independent, repair built-origin attestation, add production artifact proof to CI, and require reviewed terminal deployment evidence before continuing Gate 5.",
+      "updatedAt": "2026-08-31T10:21:36.107Z"
     },
     {
       "id": "G5-03",

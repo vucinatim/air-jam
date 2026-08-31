@@ -3,12 +3,13 @@ import http, { type IncomingHttpHeaders } from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
 import tls from "node:tls";
+import { PLATFORM_READINESS_PATH } from "../src/lib/platform-service-contract";
 import { inspectHostedReleaseCookieSiteIsolation } from "../src/lib/releases/hosted-release-cookie-site";
 import { createHostedReleaseSecurityHeaders } from "../src/lib/releases/hosted-release-response-policy";
 import { assessReleaseOriginAddresses } from "../src/lib/releases/release-origin-network-policy";
 
 const REQUEST_TIMEOUT_MS = 5_000;
-const MAX_HEALTH_RESPONSE_BYTES = 64 * 1024;
+const MAX_READINESS_RESPONSE_BYTES = 64 * 1024;
 
 export type PlatformDeploymentIdentity = {
   provider: string | null;
@@ -24,8 +25,8 @@ export type RemoteHostedReleaseOriginAssessment = {
   reason: string | null;
 };
 
-export type RemoteReleaseOriginHealth = {
-  health: { httpStatus: 200 | 503; ok: boolean };
+export type RemoteReleaseOriginReadiness = {
+  readiness: { httpStatus: 200 | 503; ok: boolean };
   deployment: PlatformDeploymentIdentity;
   assessment: RemoteHostedReleaseOriginAssessment;
 };
@@ -53,33 +54,33 @@ const requireNullableString = (
   if (value !== null && typeof value !== "string") {
     throw new ReleaseOriginOperatorError(
       "REMOTE_CONTRACT_INVALID",
-      `Remote platform health ${key} is invalid.`,
+      `Remote platform readiness ${key} is invalid.`,
     );
   }
   return value ?? null;
 };
 
-export const parseRemoteReleaseOriginHealth = (
+export const parseRemoteReleaseOriginReadiness = (
   value: unknown,
   httpStatus: 200 | 503,
-): RemoteReleaseOriginHealth => {
+): RemoteReleaseOriginReadiness => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new ReleaseOriginOperatorError(
       "REMOTE_CONTRACT_INVALID",
-      "Remote platform health response is not the expected object contract.",
+      "Remote platform readiness response is not the expected object contract.",
     );
   }
 
-  const health = value as Record<string, unknown>;
-  const deployment = health.deployment;
-  const boundaries = health.boundaries;
+  const readiness = value as Record<string, unknown>;
+  const deployment = readiness.deployment;
+  const boundaries = readiness.boundaries;
   const boundary =
     boundaries && typeof boundaries === "object" && !Array.isArray(boundaries)
       ? (boundaries as Record<string, unknown>).hostedReleaseOrigin
       : null;
   if (
-    typeof health.ok !== "boolean" ||
-    health.service !== "platform" ||
+    typeof readiness.ok !== "boolean" ||
+    readiness.service !== "platform" ||
     !deployment ||
     typeof deployment !== "object" ||
     Array.isArray(deployment) ||
@@ -89,13 +90,16 @@ export const parseRemoteReleaseOriginHealth = (
   ) {
     throw new ReleaseOriginOperatorError(
       "REMOTE_CONTRACT_INVALID",
-      "Remote platform health response does not contain deployment and hosted-release boundary contracts.",
+      "Remote platform readiness response does not contain deployment and hosted-release boundary contracts.",
     );
   }
-  if ((httpStatus === 200 && !health.ok) || (httpStatus === 503 && health.ok)) {
+  if (
+    (httpStatus === 200 && !readiness.ok) ||
+    (httpStatus === 503 && readiness.ok)
+  ) {
     throw new ReleaseOriginOperatorError(
       "REMOTE_CONTRACT_INVALID",
-      "Remote platform health status does not match its HTTP status.",
+      "Remote platform readiness status does not match its HTTP status.",
     );
   }
 
@@ -118,6 +122,13 @@ export const parseRemoteReleaseOriginHealth = (
       "Remote hosted-release origin assessment has invalid required or status fields.",
     );
   }
+  const expectedReadiness = !assessment.required || status === "ready";
+  if (readiness.ok !== expectedReadiness) {
+    throw new ReleaseOriginOperatorError(
+      "REMOTE_CONTRACT_INVALID",
+      "Remote platform readiness does not match the hosted-release boundary state.",
+    );
+  }
 
   if (status === "ready") {
     if (
@@ -134,14 +145,8 @@ export const parseRemoteReleaseOriginHealth = (
       "REMOTE_CONTRACT_INVALID",
       "Remote ready assessment publicOrigin is not a valid http(s) origin.",
     );
-    if (!health.ok && assessment.required) {
-      throw new ReleaseOriginOperatorError(
-        "REMOTE_CONTRACT_INVALID",
-        "Remote platform reports an unhealthy required boundary as ready.",
-      );
-    }
     return {
-      health: { httpStatus, ok: health.ok },
+      readiness: { httpStatus, ok: readiness.ok },
       deployment: parsedDeployment,
       assessment: {
         required: assessment.required,
@@ -162,14 +167,8 @@ export const parseRemoteReleaseOriginHealth = (
       "Remote unavailable assessment has invalid publicOrigin or reason fields.",
     );
   }
-  if (health.ok && assessment.required) {
-    throw new ReleaseOriginOperatorError(
-      "REMOTE_CONTRACT_INVALID",
-      "Remote platform reports an unavailable required boundary as healthy.",
-    );
-  }
   return {
-    health: { httpStatus, ok: health.ok },
+    readiness: { httpStatus, ok: readiness.ok },
     deployment: parsedDeployment,
     assessment: {
       required: assessment.required,
@@ -425,7 +424,7 @@ const requestPinned = async (
         response.on("data", (chunk: Buffer | string) => {
           const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
           size += bytes.byteLength;
-          if (size > MAX_HEALTH_RESPONSE_BYTES) {
+          if (size > MAX_READINESS_RESPONSE_BYTES) {
             request.destroy();
             finish({
               ok: false,
@@ -568,19 +567,19 @@ const attestTls = async (
   });
 };
 
-const readHealth = async (
+const readReadiness = async (
   platformOrigin: string,
   resolution: OriginResolution,
-): Promise<RemoteReleaseOriginHealth> => {
+): Promise<RemoteReleaseOriginReadiness> => {
   const response = await requestPinned(
-    new URL("/api/health", platformOrigin),
+    new URL(PLATFORM_READINESS_PATH, platformOrigin),
     resolution,
     { headers: { accept: "application/json" }, captureBody: true },
   );
   if (response.status !== 200 && response.status !== 503) {
     throw new ReleaseOriginOperatorError(
       "REMOTE_HTTP_ERROR",
-      `Remote platform health request returned HTTP ${response.status}.`,
+      `Remote platform readiness request returned HTTP ${response.status}.`,
     );
   }
   let parsed: unknown;
@@ -589,15 +588,19 @@ const readHealth = async (
   } catch {
     throw new ReleaseOriginOperatorError(
       "REMOTE_CONTRACT_INVALID",
-      "Remote platform health response is not valid JSON.",
+      "Remote platform readiness response is not valid JSON.",
     );
   }
-  return parseRemoteReleaseOriginHealth(parsed, response.status as 200 | 503);
+  return parseRemoteReleaseOriginReadiness(
+    parsed,
+    response.status as 200 | 503,
+  );
 };
 
-export type RemoteReleaseOriginInspectionResult = RemoteReleaseOriginHealth & {
-  source: { type: "remote"; platformOrigin: string };
-};
+export type RemoteReleaseOriginInspectionResult =
+  RemoteReleaseOriginReadiness & {
+    source: { type: "remote"; platformOrigin: string };
+  };
 
 export const inspectRemoteReleaseOrigin = async (
   rawPlatformUrl: string,
@@ -614,7 +617,7 @@ export const inspectRemoteReleaseOrigin = async (
 
   return {
     source: { type: "remote", platformOrigin },
-    ...(await readHealth(platformOrigin, resolved.resolution)),
+    ...(await readReadiness(platformOrigin, resolved.resolution)),
   };
 };
 
@@ -1060,39 +1063,42 @@ export const attestRemoteReleaseOrigin = async ({
     ])),
   );
 
-  let initialHealth: RemoteReleaseOriginHealth;
+  let initialReadiness: RemoteReleaseOriginReadiness;
   try {
-    initialHealth = await readHealth(platformOrigin, platformDns.resolution);
+    initialReadiness = await readReadiness(
+      platformOrigin,
+      platformDns.resolution,
+    );
   } catch {
     checks.push(
       check(
-        "platform.health-boundary",
+        "platform.readiness-boundary",
         false,
-        "The deployed platform health boundary could not be attested.",
+        "The deployed platform readiness boundary could not be attested.",
       ),
     );
     return finish();
   }
   const boundaryReady =
-    initialHealth.health.httpStatus === 200 &&
-    initialHealth.health.ok &&
-    initialHealth.assessment.status === "ready" &&
-    initialHealth.assessment.required &&
-    initialHealth.assessment.publicOrigin === releaseUrl.origin;
+    initialReadiness.readiness.httpStatus === 200 &&
+    initialReadiness.readiness.ok &&
+    initialReadiness.assessment.status === "ready" &&
+    initialReadiness.assessment.required &&
+    initialReadiness.assessment.publicOrigin === releaseUrl.origin;
   checks.push(
     check(
-      "platform.health-boundary",
+      "platform.readiness-boundary",
       boundaryReady,
-      "The platform reports this exact release origin as its healthy required boundary.",
+      "The platform reports this exact release origin as its ready required boundary.",
       {
-        httpStatus: initialHealth.health.httpStatus,
-        required: initialHealth.assessment.required,
+        httpStatus: initialReadiness.readiness.httpStatus,
+        required: initialReadiness.assessment.required,
         exactReleaseOrigin:
-          initialHealth.assessment.publicOrigin === releaseUrl.origin,
+          initialReadiness.assessment.publicOrigin === releaseUrl.origin,
       },
     ),
   );
-  if (!boundaryReady) return finish(initialHealth.deployment);
+  if (!boundaryReady) return finish(initialReadiness.deployment);
 
   checks.push(
     ...(await Promise.all([
@@ -1217,24 +1223,25 @@ export const attestRemoteReleaseOrigin = async ({
   );
 
   try {
-    const finalHealth = await readHealth(
+    const finalReadiness = await readReadiness(
       platformOrigin,
       platformDns.resolution,
     );
     const stableDeployment =
-      JSON.stringify(finalHealth.deployment) ===
-      JSON.stringify(initialHealth.deployment);
-    const stableHealth =
-      finalHealth.health.httpStatus === initialHealth.health.httpStatus &&
-      finalHealth.health.ok === initialHealth.health.ok;
+      JSON.stringify(finalReadiness.deployment) ===
+      JSON.stringify(initialReadiness.deployment);
+    const stableReadiness =
+      finalReadiness.readiness.httpStatus ===
+        initialReadiness.readiness.httpStatus &&
+      finalReadiness.readiness.ok === initialReadiness.readiness.ok;
     const stableBoundary =
-      JSON.stringify(finalHealth.assessment) ===
-        JSON.stringify(initialHealth.assessment) &&
-      finalHealth.assessment.required === true &&
-      finalHealth.assessment.status === "ready" &&
-      finalHealth.assessment.publicOrigin === releaseUrl.origin &&
-      finalHealth.assessment.reason === null;
-    const stable = stableDeployment && stableHealth && stableBoundary;
+      JSON.stringify(finalReadiness.assessment) ===
+        JSON.stringify(initialReadiness.assessment) &&
+      finalReadiness.assessment.required === true &&
+      finalReadiness.assessment.status === "ready" &&
+      finalReadiness.assessment.publicOrigin === releaseUrl.origin &&
+      finalReadiness.assessment.reason === null;
+    const stable = stableDeployment && stableReadiness && stableBoundary;
     checks.push(
       check(
         "platform.deployment-stability",
@@ -1242,12 +1249,14 @@ export const attestRemoteReleaseOrigin = async ({
         "Deployment identity and release boundary remained stable throughout attestation.",
         {
           stableDeployment,
-          stableHealth,
+          stableReadiness,
           stableBoundary,
-          deploymentIdPresent: Boolean(initialHealth.deployment.deploymentId),
-          revisionPresent: Boolean(initialHealth.deployment.revision),
+          deploymentIdPresent: Boolean(
+            initialReadiness.deployment.deploymentId,
+          ),
+          revisionPresent: Boolean(initialReadiness.deployment.revision),
           productionEnvironment:
-            initialHealth.deployment.environment === "production",
+            initialReadiness.deployment.environment === "production",
         },
       ),
     );
@@ -1260,5 +1269,5 @@ export const attestRemoteReleaseOrigin = async ({
       ),
     );
   }
-  return finish(initialHealth.deployment);
+  return finish(initialReadiness.deployment);
 };

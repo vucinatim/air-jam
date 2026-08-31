@@ -50,7 +50,7 @@ const inspectLocalReleaseOrigin = (overrides = {}) => {
   return JSON.parse(output);
 };
 
-const withHealthServer = async (handler, run, hostname = "127.0.0.1") => {
+const withReadinessServer = async (handler, run, hostname = "127.0.0.1") => {
   const server = http.createServer(handler);
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -208,7 +208,7 @@ const withAttestationFixture = async (
   const releaseUrl = `${releaseServer.origin}/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/`;
   const platformServer = await startHttpServer((request, response) => {
     const pathname = new URL(request.url, "http://fixture.invalid").pathname;
-    if (pathname === "/api/health") {
+    if (pathname === "/api/readiness") {
       assert.equal(request.headers.accept, "application/json");
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
@@ -342,7 +342,7 @@ test("local inspection returns a stable secret-free ready assessment", () => {
   });
 
   assert.deepEqual(result, {
-    contractVersion: 1,
+    contractVersion: 2,
     command: "release-origin.inspect",
     environmentKey: "AIRJAM_RELEASES_PUBLIC_ORIGIN",
     source: { type: "local" },
@@ -370,10 +370,10 @@ test("local inspection reports disabled and invalid configuration without failin
   assert.match(invalid.assessment.reason, /separate cookie site/);
 });
 
-test("remote inspection reads the deployed health boundary through the same stable contract", async () => {
-  await withHealthServer(
+test("remote inspection reads the deployed readiness boundary through the same stable contract", async () => {
+  await withReadinessServer(
     (request, response) => {
-      assert.equal(request.url, "/api/health");
+      assert.equal(request.url, "/api/readiness");
       assert.equal(request.headers.accept, "application/json");
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
@@ -395,11 +395,11 @@ test("remote inspection reads the deployed health boundary through the same stab
     async (platformUrl) => {
       const result = await inspectRemoteReleaseOrigin(platformUrl);
       assert.deepEqual(result, {
-        contractVersion: 1,
+        contractVersion: 2,
         command: "release-origin.inspect",
         environmentKey: "AIRJAM_RELEASES_PUBLIC_ORIGIN",
         source: { type: "remote", platformOrigin: platformUrl },
-        health: { httpStatus: 200, ok: true },
+        readiness: { httpStatus: 200, ok: true },
         deployment: deploymentIdentity,
         assessment: {
           required: true,
@@ -412,9 +412,9 @@ test("remote inspection reads the deployed health boundary through the same stab
   );
 });
 
-test("remote inspection returns valid unhealthy 503 disabled and invalid boundaries", async () => {
+test("remote inspection returns valid unready 503 disabled and invalid boundaries", async () => {
   for (const status of ["disabled", "invalid"]) {
-    await withHealthServer(
+    await withReadinessServer(
       (_request, response) => {
         response.writeHead(503, { "content-type": "application/json" });
         response.end(
@@ -436,11 +436,11 @@ test("remote inspection returns valid unhealthy 503 disabled and invalid boundar
       async (platformUrl) => {
         const result = await inspectRemoteReleaseOrigin(platformUrl);
         assert.deepEqual(result, {
-          contractVersion: 1,
+          contractVersion: 2,
           command: "release-origin.inspect",
           environmentKey: "AIRJAM_RELEASES_PUBLIC_ORIGIN",
           source: { type: "remote", platformOrigin: platformUrl },
-          health: { httpStatus: 503, ok: false },
+          readiness: { httpStatus: 503, ok: false },
           deployment: deploymentIdentity,
           assessment: {
             required: true,
@@ -454,8 +454,37 @@ test("remote inspection returns valid unhealthy 503 disabled and invalid boundar
   }
 });
 
-test("remote inspection fails on malformed health responses and unsupported non-2xx statuses", async () => {
-  await withHealthServer(
+test("remote inspection fails on malformed readiness responses and unsupported non-2xx statuses", async () => {
+  await withReadinessServer(
+    (_request, response) => {
+      response.writeHead(503, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          ok: false,
+          service: "platform",
+          deployment: deploymentIdentity,
+          boundaries: {
+            hostedReleaseOrigin: {
+              required: false,
+              status: "disabled",
+              publicOrigin: null,
+              reason: "Hosted release origin is disabled.",
+            },
+          },
+        }),
+      );
+    },
+    async (platformUrl) => {
+      await assert.rejects(inspectRemoteReleaseOrigin(platformUrl), (error) => {
+        const payload = JSON.parse(error.stdout);
+        assert.equal(payload.error.code, "REMOTE_CONTRACT_INVALID");
+        assert.match(payload.error.message, /does not match/);
+        return true;
+      });
+    },
+  );
+
+  await withReadinessServer(
     (_request, response) => {
       response.writeHead(503, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: false }));
@@ -473,7 +502,7 @@ test("remote inspection fails on malformed health responses and unsupported non-
     },
   );
 
-  await withHealthServer(
+  await withReadinessServer(
     (_request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: true, service: "platform" }));
@@ -491,7 +520,7 @@ test("remote inspection fails on malformed health responses and unsupported non-
     },
   );
 
-  await withHealthServer(
+  await withReadinessServer(
     (_request, response) => {
       response.writeHead(502, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: false }));
@@ -532,7 +561,7 @@ test("remote inspection rejects non-public destinations before connecting", asyn
 });
 
 test("remote inspection supports explicit IPv6 loopback diagnostics", async () => {
-  await withHealthServer(
+  await withReadinessServer(
     (_request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
@@ -554,7 +583,7 @@ test("remote inspection supports explicit IPv6 loopback diagnostics", async () =
     async (platformUrl) => {
       const result = await inspectRemoteReleaseOrigin(platformUrl);
       assert.equal(result.source.platformOrigin, platformUrl);
-      assert.equal(result.health.ok, true);
+      assert.equal(result.readiness.ok, true);
     },
     "::1",
   );
@@ -614,7 +643,7 @@ test("loopback HTTP attestation proves the multi-origin contract as diagnostic e
           summary: result.summary,
         },
         {
-          contractVersion: 1,
+          contractVersion: 2,
           command: "release-origin.attest",
           status: "passed",
           evidenceKind: "diagnostic",
@@ -648,7 +677,7 @@ test("loopback HTTP attestation proves the multi-origin contract as diagnostic e
           { id: "network.localhost.dns", status: "passed" },
           { id: "network.127.0.0.1.tls", status: "passed" },
           { id: "network.localhost.tls", status: "passed" },
-          { id: "platform.health-boundary", status: "passed" },
+          { id: "platform.readiness-boundary", status: "passed" },
           { id: "routing.platform-host-to-release", status: "passed" },
           { id: "routing.platform-controller-to-release", status: "passed" },
           { id: "routing.release-host-platform-block", status: "passed" },
@@ -766,7 +795,7 @@ test("HTTP attestation emits stable failed JSON and exits nonzero when the live 
               summary: result.summary,
             },
             {
-              contractVersion: 1,
+              contractVersion: 2,
               command: "release-origin.attest",
               status: "failed",
               evidenceKind: "diagnostic",
@@ -843,7 +872,7 @@ test("attestation rejects non-canonical release URLs without echoing query crede
             error: result.error,
           },
           {
-            contractVersion: 1,
+            contractVersion: 2,
             command: "release-origin.attest",
             error: {
               code: "INVALID_RELEASE_URL",
@@ -870,7 +899,7 @@ test("HTTPS loopback can only produce failed diagnostic evidence", async () => {
     (error) => {
       assert.equal(error.code, 1);
       const result = JSON.parse(error.stdout);
-      assert.equal(result.contractVersion, 1);
+      assert.equal(result.contractVersion, 2);
       assert.equal(result.command, "release-origin.attest");
       assert.equal(result.status, "failed");
       assert.equal(result.evidenceKind, "diagnostic");
@@ -892,7 +921,7 @@ test("HTTPS loopback can only produce failed diagnostic evidence", async () => {
 });
 
 const productionAttestationCandidate = () => ({
-  contractVersion: 1,
+  contractVersion: 2,
   command: "release-origin.attest",
   status: "passed",
   evidenceKind: "diagnostic",

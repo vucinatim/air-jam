@@ -1,6 +1,7 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { cp, mkdtemp, rm } from "node:fs/promises";
+import { request } from "node:http";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -22,6 +23,10 @@ const EXCLUDED_DIR_NAMES = new Set([
 
 const EXCLUDED_FILE_SUFFIXES = [".tsbuildinfo"];
 const BIN_WARNING_PATTERN = /Failed to create bin at /;
+const PLATFORM_BUILD_ORIGIN = "https://platform-build.airjam.invalid";
+const PLATFORM_RELEASE_ORIGIN = "https://releases.airjamusercontent.invalid";
+const PLATFORM_RUNTIME_SECRET =
+  "airjam-hermetic-platform-auth-secret-1234567890";
 const HERMETIC_ENV_KEYS = [
   "PATH",
   "HOME",
@@ -80,7 +85,7 @@ const shouldCopyPath = (sourcePath) => {
   return !EXCLUDED_FILE_SUFFIXES.some((suffix) => basename.endsWith(suffix));
 };
 
-const run = ({ args, cwd, label }) => {
+const run = ({ args, cwd, env = {}, label }) => {
   const result = spawnSync(args[0], args.slice(1), {
     cwd,
     env: {
@@ -88,6 +93,7 @@ const run = ({ args, cwd, label }) => {
       CI: "1",
       NO_UPDATE_NOTIFIER: "1",
       NEXT_TELEMETRY_DISABLED: "1",
+      ...env,
     },
     encoding: "utf8",
   });
@@ -102,6 +108,125 @@ const run = ({ args, cwd, label }) => {
   }
 
   return output;
+};
+
+const requestJson = ({ host, path: requestPath, port }) =>
+  new Promise((resolve, reject) => {
+    const req = request(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: requestPath,
+        method: "GET",
+        headers: { accept: "application/json", host },
+      },
+      (response) => {
+        const chunks = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.on("end", () => {
+          const body = Buffer.concat(chunks).toString("utf8");
+          try {
+            resolve({
+              body: JSON.parse(body),
+              status: response.statusCode,
+            });
+          } catch {
+            reject(
+              new Error(
+                `Standalone platform returned non-JSON HTTP ${response.statusCode}: ${body}`,
+              ),
+            );
+          }
+        });
+      },
+    );
+    req.setTimeout(1_000, () =>
+      req.destroy(new Error("Standalone platform request timed out.")),
+    );
+    req.once("error", reject);
+    req.end();
+  });
+
+const waitForStandaloneResponse = async ({
+  child,
+  getOutput,
+  host,
+  path: requestPath,
+  port,
+}) => {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) {
+      throw new Error(
+        `Standalone platform exited before serving ${requestPath}.\n${getOutput()}`,
+      );
+    }
+    try {
+      return await requestJson({ host, path: requestPath, port });
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw new Error(
+    `Standalone platform did not serve ${requestPath} within 15 seconds.\n${getOutput()}`,
+  );
+};
+
+const stopChild = async (child) => {
+  if (child.exitCode !== null) return;
+  child.kill("SIGTERM");
+  await Promise.race([
+    new Promise((resolve) => child.once("exit", resolve)),
+    new Promise((resolve) =>
+      setTimeout(() => {
+        if (child.exitCode === null) child.kill("SIGKILL");
+        resolve();
+      }, 3_000),
+    ),
+  ]);
+};
+
+const withStandalonePlatform = async ({
+  callback,
+  releaseOrigin,
+  runtimeEntry,
+  runtimeOrigin,
+  standaloneRoot,
+}) => {
+  const port = await reserveAvailablePort();
+  let output = "";
+  const child = spawn(process.execPath, [runtimeEntry], {
+    cwd: standaloneRoot,
+    env: {
+      ...hermeticBaseEnv,
+      ...(releaseOrigin
+        ? { AIRJAM_RELEASES_PUBLIC_ORIGIN: releaseOrigin }
+        : {}),
+      BETTER_AUTH_SECRET: PLATFORM_RUNTIME_SECRET,
+      BETTER_AUTH_URL: runtimeOrigin,
+      DATABASE_URL: "postgres://airjam:airjam@127.0.0.1:1/airjam",
+      HOSTNAME: "127.0.0.1",
+      NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: runtimeOrigin,
+      NEXT_PUBLIC_APP_URL: runtimeOrigin,
+      NEXT_TELEMETRY_DISABLED: "1",
+      NODE_ENV: "production",
+      PORT: String(port),
+      RAILWAY_ENVIRONMENT_NAME: "production",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  child.stdout.on("data", (chunk) => {
+    output += chunk.toString("utf8");
+  });
+  child.stderr.on("data", (chunk) => {
+    output += chunk.toString("utf8");
+  });
+
+  try {
+    await callback({ child, getOutput: () => output, port });
+  } finally {
+    await stopChild(child);
+  }
 };
 
 const main = async () => {
@@ -132,6 +257,12 @@ const main = async () => {
     run({
       args: ["corepack", "pnpm", "--filter", "platform", "build"],
       cwd: checkoutRoot,
+      env: {
+        BETTER_AUTH_SECRET: PLATFORM_RUNTIME_SECRET,
+        BETTER_AUTH_URL: PLATFORM_BUILD_ORIGIN,
+        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: PLATFORM_BUILD_ORIGIN,
+        NEXT_PUBLIC_APP_URL: PLATFORM_BUILD_ORIGIN,
+      },
       label: "Hermetic platform build",
     });
 
@@ -155,6 +286,110 @@ const main = async () => {
         "Hermetic platform build did not emit the bundled runtime entry.",
       );
     }
+
+    const standaloneRoot = path.join(
+      checkoutRoot,
+      "apps/platform/.next/standalone",
+    );
+
+    await withStandalonePlatform({
+      runtimeEntry: standaloneServerEntry,
+      runtimeOrigin: PLATFORM_BUILD_ORIGIN,
+      standaloneRoot,
+      callback: async ({ child, getOutput, port }) => {
+        const liveness = await waitForStandaloneResponse({
+          child,
+          getOutput,
+          host: "healthcheck.railway.app",
+          path: "/api/health",
+          port,
+        });
+        if (
+          liveness.status !== 200 ||
+          liveness.body?.ok !== true ||
+          liveness.body?.service !== "platform" ||
+          (typeof liveness.body === "object" &&
+            liveness.body !== null &&
+            "boundaries" in liveness.body)
+        ) {
+          throw new Error(
+            `Standalone Railway liveness probe returned an invalid contract: ${JSON.stringify(liveness)}`,
+          );
+        }
+
+        const readiness = await waitForStandaloneResponse({
+          child,
+          getOutput,
+          host: new URL(PLATFORM_BUILD_ORIGIN).host,
+          path: "/api/readiness",
+          port,
+        });
+        if (
+          readiness.status !== 503 ||
+          readiness.body?.ok !== false ||
+          readiness.body?.boundaries?.hostedReleaseOrigin?.status !== "disabled"
+        ) {
+          throw new Error(
+            `Standalone platform coupled liveness to missing release readiness: ${JSON.stringify(readiness)}`,
+          );
+        }
+      },
+    });
+
+    await withStandalonePlatform({
+      releaseOrigin: PLATFORM_RELEASE_ORIGIN,
+      runtimeEntry: standaloneServerEntry,
+      runtimeOrigin: PLATFORM_BUILD_ORIGIN,
+      standaloneRoot,
+      callback: async ({ child, getOutput, port }) => {
+        const readiness = await waitForStandaloneResponse({
+          child,
+          getOutput,
+          host: new URL(PLATFORM_BUILD_ORIGIN).host,
+          path: "/api/readiness",
+          port,
+        });
+        if (
+          readiness.status !== 200 ||
+          readiness.body?.ok !== true ||
+          readiness.body?.boundaries?.hostedReleaseOrigin?.status !== "ready"
+        ) {
+          throw new Error(
+            `Standalone platform readiness did not preserve the built origin: ${JSON.stringify(readiness)}`,
+          );
+        }
+      },
+    });
+
+    const driftedRuntimeOrigin = "https://runtime-drift.airjam.invalid";
+    await withStandalonePlatform({
+      releaseOrigin: PLATFORM_RELEASE_ORIGIN,
+      runtimeEntry: standaloneServerEntry,
+      runtimeOrigin: driftedRuntimeOrigin,
+      standaloneRoot,
+      callback: async ({ child, getOutput, port }) => {
+        const readiness = await waitForStandaloneResponse({
+          child,
+          getOutput,
+          host: new URL(driftedRuntimeOrigin).host,
+          path: "/api/readiness",
+          port,
+        });
+        if (
+          readiness.status !== 503 ||
+          readiness.body?.ok !== false ||
+          readiness.body?.boundaries?.hostedReleaseOrigin?.status !==
+            "invalid" ||
+          !readiness.body?.boundaries?.hostedReleaseOrigin?.reason?.includes(
+            "baked into the release response policy",
+          )
+        ) {
+          throw new Error(
+            `Standalone platform did not reject build/runtime origin drift: ${JSON.stringify(readiness)}`,
+          );
+        }
+      },
+    });
 
     const workerRuntimeEntry = path.join(
       checkoutRoot,

@@ -1,11 +1,12 @@
 import { createLoginHref } from "@/lib/auth-redirect";
 import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
+import { isPlatformLivenessPath } from "@/lib/platform-service-contract";
 import type { ProductTelemetryAgentResource } from "@/lib/product-telemetry-contract";
 import {
   assessHostedReleaseOrigin,
   isHostedReleaseOriginRequired,
-  normalizeIncomingRequestHost,
 } from "@/lib/releases/hosted-release-origin";
+import { normalizePlatformRequestHost } from "@/lib/request-host-policy";
 import { recordAgentResourceRequestBestEffort } from "@/server/product-telemetry/agent-resource";
 import {
   type NextFetchEvent,
@@ -37,9 +38,12 @@ export const resolveHostedReleaseRequestDisposition = (
   env: NodeJS.ProcessEnv = process.env,
 ): HostedReleaseRequestDisposition => {
   const url = new URL(requestUrl);
+  if (isPlatformLivenessPath(url.pathname)) {
+    return { kind: "platform" };
+  }
   const assessment = assessHostedReleaseOrigin(env);
   const deployment = resolvePlatformDeploymentConfig(env);
-  const incomingHost = normalizeIncomingRequestHost(requestHost);
+  const incomingHost = normalizePlatformRequestHost(requestHost);
   const isReleasePath = isHostedReleasePath(url.pathname);
   const platformHosts = deployment.authTrustedOrigins
     .filter((origin) => !origin.includes("*"))

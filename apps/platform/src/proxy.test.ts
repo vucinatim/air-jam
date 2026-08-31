@@ -162,6 +162,46 @@ describe("hosted release request routing", () => {
     ).toEqual({ kind: "block_unknown_host" });
   });
 
+  it("keeps only the exact liveness path host-independent under production policy", () => {
+    const productionWithoutReleaseOrigin = {
+      NODE_ENV: "production",
+      RAILWAY_ENVIRONMENT_NAME: "production",
+      NEXT_PUBLIC_APP_URL: "https://airjam.io",
+    } as NodeJS.ProcessEnv;
+
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/health",
+        "unknown-provider-probe.example",
+        productionWithoutReleaseOrigin,
+      ),
+    ).toEqual({ kind: "platform" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/readiness",
+        "healthcheck.railway.app",
+        productionWithoutReleaseOrigin,
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/health",
+        "airjamusercontent.example",
+        {
+          ...productionWithoutReleaseOrigin,
+          AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://airjamusercontent.example",
+        },
+      ),
+    ).toEqual({ kind: "platform" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/login",
+        "healthcheck.railway.app",
+        productionWithoutReleaseOrigin,
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+  });
+
   it("returns the security disposition as concrete proxy responses", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("RAILWAY_ENVIRONMENT_NAME", "production");

@@ -10,7 +10,7 @@ import {
   type RemoteReleaseOriginInspectionResult,
 } from "./release-origin-attestation";
 
-const CLI_CONTRACT_VERSION = 1 as const;
+const CLI_CONTRACT_VERSION = 2 as const;
 
 type ReleaseOriginInspectInput = {
   command: "inspect";
@@ -183,7 +183,7 @@ const main = async (): Promise<void> => {
   }
 
   console.log(
-    `Platform health: ${result.health.ok ? "healthy" : "unhealthy"} (HTTP ${result.health.httpStatus})`,
+    `Platform readiness: ${result.readiness.ok ? "ready" : "unready"} (HTTP ${result.readiness.httpStatus})`,
   );
   console.log(`Boundary required: ${result.assessment.required}`);
   console.log(
