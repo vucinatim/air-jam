@@ -89,27 +89,30 @@ Use these rules:
 12. treat provider preview status, issue comments, and automated review prose as
     evidence, not as a formal GitHub approval unless GitHub records an approving
     review
-13. merge only when all exact-base-and-head evidence is attached: Canonicalizer is
-    `ready`; the required Claude review has no actionable blockers; every
-    configured GitHub Actions workflow expected by its event and path rules has
-    a check run whose required jobs are `SUCCESS`; every provider-created
-    preview deployment for that exact base and head is literal terminal
-    `SUCCESS`; every review conversation is resolved; and GitHub records a
-    formal approving review whose commit matches the head; branch protection's
-    required-context list is a floor, not the full definition of this gate
-14. list the affected deployable services and exact preview deployment IDs in
+13. merge only when all exact-base-and-head evidence is attached: Canonicalizer
+    is `ready`; the required Claude review has no actionable blockers; the
+    canonical CI workflow at `.github/workflows/ci.yml` has a `SUCCESS` `checks`
+    job; every other workflow dispatched for the pull request is no longer
+    pending and has no failed or cancelled job; every required provider preview
+    deployment is literal terminal `SUCCESS`; every review conversation is
+    resolved; and GitHub records a formal approving review whose commit matches
+    the head
+14. treat a missing expected `checks` run as a blocker; branch protection must
+    require it, but its required-context list is a floor rather than the full
+    definition of this gate
+15. list the affected deployable services and exact preview deployment IDs in
     the pull request evidence; provider deployment state is the positive preview
     proof, while a green or warning-only preview-comment workflow is not; when
     no preview is created, record why the diff cannot affect a deployable
     artifact or treat the missing provider deployment as a blocker
-15. never use an admin bypass to evade an unsatisfied required check, review,
+16. never use an admin bypass to evade an unsatisfied required check, review,
     preview, or conversation-resolution rule; if a solo repository cannot
     satisfy formal approval, stop and obtain a trusted reviewer identity rather
     than reinterpreting agent evidence as approval
-16. require branch protection to dismiss stale approvals and apply required
+17. require branch protection to dismiss stale approvals and apply required
     checks and reviews to administrators; a visible approval or green status
     from a different base or head does not satisfy the gate
-17. after a cumulative integration, return to small independently mergeable pull
+18. after a cumulative integration, return to small independently mergeable pull
     requests rather than allowing another long-lived stack to become the normal
     delivery model
 
@@ -120,8 +123,9 @@ behavior, public or machine contracts, architecture or ownership, security or
 privacy, data or schemas, infrastructure, dependencies, deployment behavior,
 release operations, or the structural documentation that governs those
 systems. Formatting-only and typo-only edits do not require their own
-intermediate pass before review begins, but rule 7 is unconditional once review
-evidence exists and the final ready range must include those commits.
+intermediate pass before review begins, but the base/head staleness rule is
+unconditional once review evidence exists and the final ready range must include
+those commits.
 
 ## Production Delivery And Public Launch
 
@@ -145,18 +149,16 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
 8. never describe a queued deployment as deployed; terminal provider success
    and post-deploy health are required evidence
 9. after merge, identify the exact merged commit in provider deployment state,
-   wait for literal terminal `SUCCESS`, and verify live health, readiness, and
-   revision evidence before calling the production rollout complete
+   wait for literal terminal `SUCCESS`, and complete the canonical
+   [Railway validation checklist](./guides/railway-deployment-guide.md#validation-checklist)
+   before calling the production rollout complete
 10. if that exact deployment fails, preserve the failed attempt as incident
     evidence and recover it before merging unrelated work; an older successful
     deployment still serving traffic does not make the new rollout successful
-11. start Railway verification with
-    `pnpm --silent run repo -- railway doctor --project <id> --json`; until the
-    `G5-02` exact-commit verifier is required in automation, run
-    `railway deployment list --project <project-id> --environment <environment-id> --service <service-id> --json`
-    for every affected service, select the deployment whose `meta.commitHash`
-    equals the merged commit, and retain its deployment ID and literal terminal
-    status rather than inferring identity from service health
+11. remove the validation checklist's explicitly marked interim provider read
+    when `G5-02` lands the repo-owned exact-commit verifier; the canonical
+    working agreement owns the required outcome and the deployment guide owns
+    the executable procedure
 
 ## Agent-First Operability
 

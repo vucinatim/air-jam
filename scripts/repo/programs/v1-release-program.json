@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-31T12:02:27.606Z",
+  "updatedAt": "2026-08-31T12:18:44.951Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -11,8 +11,8 @@
     "agentHoursMax": 537,
     "targetCalendarWeeksMin": 5,
     "targetCalendarWeeksMax": 7,
-    "maintainerHoursMin": 29,
-    "maintainerHoursMax": 58
+    "maintainerHoursMin": 28,
+    "maintainerHoursMax": 56
   },
   "gates": [
     {
@@ -815,7 +815,9 @@
       },
       "evidenceRequirements": [
         "trusted GitHub reviewer identity and enforced stale-approval and administrator branch-protection evidence"
-      ]
+      ],
+      "note": "Must close before PR #76 and PR #77 merge; retain the trusted-reviewer and enforced branch-protection evidence required by this checkpoint.",
+      "updatedAt": "2026-08-31T12:18:44.951Z"
     },
     {
       "id": "G6-01",

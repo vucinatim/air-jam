@@ -142,18 +142,30 @@ Production should stay boring:
 
 Before treating a Railway deployment as good, verify:
 
-1. platform `/` returns `200`
-2. platform `/arcade` returns `200`
-3. platform `/docs` returns `200`
-4. platform `/api/health` returns `200`
-5. platform `/api/auth/get-session` returns `200`
-6. platform `/api/airjam/host-grant` works same-origin
-7. server `/health` returns `200`
-8. browser worker `/health` returns `200`
-9. operational-job worker `/health` returns `200`
-10. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
+1. `pnpm --silent run repo -- railway doctor --project <project-id> --json`
+   reports the expected project, production environment, affected services, and
+   deployment IDs
+2. until Gate `G5-02` lands the repo-owned exact-commit verifier, run
+   `railway deployment list --project <project-id> --environment <environment-id> --service <service-id> --json`
+   for each affected service, select the deployment whose `meta.commitHash`
+   equals the merged commit, and retain its deployment ID and literal terminal
+   `SUCCESS`; this is an explicitly interim provider read, not a second
+   long-term deployment authority
+3. platform `/` returns `200`
+4. platform `/arcade` returns `200`
+5. platform `/docs` returns `200`
+6. platform `/api/health` returns `200` and reports the exact deployment ID and
+   merged revision
+7. platform `/api/readiness` returns the expected machine-readable capability
+   state for that environment
+8. platform `/api/auth/get-session` returns `200`
+9. platform `/api/airjam/host-grant` works same-origin
+10. server `/health` returns `200`
+11. browser worker `/health` returns `200`
+12. operational-job worker `/health` returns `200`
+13. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
     available
-11. release-origin attestation returns `status: passed`,
+14. release-origin attestation returns `status: passed`,
     `evidenceKind: production-deployment`, and
     `productionEvidenceEligible: true`
 
