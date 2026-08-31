@@ -2,10 +2,7 @@ import { createLoginHref } from "@/lib/auth-redirect";
 import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
 import { isPlatformLivenessPath } from "@/lib/platform-service-contract";
 import type { ProductTelemetryAgentResource } from "@/lib/product-telemetry-contract";
-import {
-  assessHostedReleaseOrigin,
-  isHostedReleaseOriginRequired,
-} from "@/lib/releases/hosted-release-origin";
+import { assessHostedReleaseOrigin } from "@/lib/releases/hosted-release-origin";
 import { normalizePlatformRequestHost } from "@/lib/request-host-policy";
 import { recordAgentResourceRequestBestEffort } from "@/server/product-telemetry/agent-resource";
 import {
@@ -50,22 +47,13 @@ export const resolveHostedReleaseRequestDisposition = (
   const isReleasePath = isHostedReleasePath(url.pathname);
   const isPlatformHost =
     incomingHost !== null &&
-    (incomingHost === new URL(deployment.platformPublicOrigin).host ||
-      deployment.platformRequestHosts.includes(incomingHost));
+    deployment.platformRequestHosts.includes(incomingHost);
   const isLocalDevelopment =
     env.NODE_ENV !== "production" && !env.RAILWAY_ENVIRONMENT_NAME;
 
   if (assessment.status !== "ready") {
     if (!isPlatformHost && !isLocalDevelopment) {
       return { kind: "block_unknown_host" };
-    }
-    if (
-      assessment.status === "disabled" &&
-      !isHostedReleaseOriginRequired(env)
-    ) {
-      return isReleasePath
-        ? { kind: "release_unavailable", reason: assessment.reason }
-        : { kind: "platform" };
     }
     return isReleasePath
       ? {
