@@ -53,8 +53,9 @@ The pre-reset overloaded ledger has been preserved at:
   conversation resolution, and force-push and branch-deletion protections
 - required exact affected-service production deployment success plus live
   health, readiness, and revision evidence before calling a rollout complete
-- deferred protected automated review attestation to `docs/suggestions.md` until
-  unattended merge volume or an observed process failure justifies it
+- initially considered protected automated review attestation, then dropped it
+  from the 1.0 path when the same-day layered-review decision removed the
+  duplicate local review model
 
 ## 2026-08-31 - Production Platform Recovery Was Verified
 

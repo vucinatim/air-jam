@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { buildChangedCheckPlan } from "../lib/check-plan.mjs";
 import { repoRoot } from "../lib/paths.mjs";
@@ -151,8 +151,25 @@ const normalizeSelectedFiles = (files) =>
     ) {
       throw new Error(`--files must stay inside the repository: ${file}`);
     }
-    return file.replace(/^\.[/\\]/, "");
+    const repositoryPath = file.replace(/^\.[/\\]/, "");
+    if (!existsSync(path.join(repoRoot, repositoryPath))) {
+      try {
+        gitOutput(["ls-files", "--error-unmatch", "--", repositoryPath]);
+      } catch {
+        throw new Error(`--files path does not exist or belong to Git: ${file}`);
+      }
+    }
+    return repositoryPath;
   });
+
+const handleAsyncAction = (action) => async (options) => {
+  try {
+    await action(options);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
+};
 
 const preparePlan = (base, selectedFiles) => {
   const changed = collectChangedFiles(base);
@@ -250,7 +267,7 @@ export const registerCheckCommands = (program) => {
     .option("--base <ref>", "Git ref used to find committed branch changes", "origin/main")
     .option("--files <paths...>", "Limit an in-between check to explicit repository files")
     .option("--json", "Print stdout-only JSON")
-    .action(runInstantCommand);
+    .action(handleAsyncAction(runInstantCommand));
 
   checkCommand
     .command("changed")
@@ -258,7 +275,7 @@ export const registerCheckCommands = (program) => {
     .option("--base <ref>", "Git ref used to find committed branch changes", "origin/main")
     .option("--files <paths...>", "Limit an in-between check to explicit repository files")
     .option("--json", "Print stdout-only JSON")
-    .action(runChangedCommand);
+    .action(handleAsyncAction(runChangedCommand));
 
   checkCommand
     .command("batch")

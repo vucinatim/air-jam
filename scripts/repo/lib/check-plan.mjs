@@ -49,6 +49,7 @@ export const discoverTypecheckProjects = () =>
     "content",
     "scripts/repo/visual",
   ]
+    .flatMap((directory) => [directory, `${directory}/tests`])
     .filter((directory) => existsSync(path.join(repoRoot, directory, "tsconfig.json")))
     .sort((left, right) => right.length - left.length || left.localeCompare(right));
 
@@ -76,12 +77,10 @@ export const buildChangedCheckPlan = (
     nodeSyntaxExtensions.has(path.extname(file)),
   );
   const jsonFiles = existingFiles.filter((file) => path.extname(file) === ".json");
+  const typedFiles = files.filter(affectsProjectTypes);
   const typecheckProjects = [
     ...new Set(
-      existingFiles
-        .filter(affectsProjectTypes)
-        .map((file) => findProject(file, projects))
-        .filter(Boolean),
+      typedFiles.map((file) => findProject(file, projects)).filter(Boolean),
     ),
   ].sort();
   const batchReasons = [];
@@ -96,6 +95,24 @@ export const buildChangedCheckPlan = (
     batchReasons.push(
       `${typecheckProjects.length} TypeScript projects are affected; the fast gate supports at most ${fastCheckTargets.maxChangedTypecheckProjects}`,
     );
+  }
+
+  if (files.some((file) => file.startsWith("packages/sdk/src/") && affectsProjectTypes(file))) {
+    batchReasons.push(
+      "public SDK source changed; consumer compatibility belongs to the batch gate",
+    );
+  }
+
+  for (const file of existingFiles) {
+    if (
+      file.startsWith("apps/platform/") &&
+      /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file) &&
+      findProject(file, projects) === "apps/platform"
+    ) {
+      batchReasons.push(
+        `no fast TypeScript project includes the platform test file: ${file}`,
+      );
+    }
   }
 
   return {

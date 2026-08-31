@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import test from "node:test";
 import { buildChangedCheckPlan, fastCheckTargets } from "../lib/check-plan.mjs";
 
@@ -21,13 +21,13 @@ test("the fast check contract keeps explicit warm latency budgets", () => {
 });
 
 test("a focused source edit selects lint and only its TypeScript project", () => {
-  const plan = buildChangedCheckPlan(["packages/sdk/src/index.ts"], {
-    projects: ["apps/platform", "packages/sdk"],
+  const plan = buildChangedCheckPlan(["packages/database-contract/src/index.ts"], {
+    projects: ["apps/platform", "packages/database-contract"],
     fileExists: () => true,
   });
 
-  assert.deepEqual(plan.changed.lintFiles, ["packages/sdk/src/index.ts"]);
-  assert.deepEqual(plan.changed.typecheckProjects, ["packages/sdk"]);
+  assert.deepEqual(plan.changed.lintFiles, ["packages/database-contract/src/index.ts"]);
+  assert.deepEqual(plan.changed.typecheckProjects, ["packages/database-contract"]);
   assert.equal(plan.batchRequired, false);
 });
 
@@ -50,6 +50,47 @@ test("a project tsconfig change selects that project typecheck", () => {
   });
 
   assert.deepEqual(plan.changed.typecheckProjects, ["packages/sdk"]);
+});
+
+test("a test edit selects the nearest test-owned TypeScript project", () => {
+  const plan = buildChangedCheckPlan(["packages/sdk/tests/agent-contract.test.ts"], {
+    projects: ["packages/sdk/tests", "packages/sdk"],
+    fileExists: () => true,
+  });
+
+  assert.deepEqual(plan.changed.typecheckProjects, ["packages/sdk/tests"]);
+  assert.equal(plan.batchRequired, false);
+});
+
+test("deleted typed files still select their owning project", () => {
+  const plan = buildChangedCheckPlan(["packages/sdk/src/deleted.ts"], {
+    projects: ["packages/sdk"],
+    fileExists: () => false,
+  });
+
+  assert.deepEqual(plan.changed.typecheckProjects, ["packages/sdk"]);
+});
+
+test("public SDK source changes escalate to consumer-compatible batch proof", () => {
+  const plan = buildChangedCheckPlan(["packages/sdk/src/index.ts"], {
+    projects: ["packages/sdk"],
+    fileExists: () => true,
+  });
+
+  assert.equal(plan.batchRequired, true);
+  assert.match(plan.batchReasons[0], /consumer compatibility/);
+});
+
+test("explicit unknown files fail without a raw stack trace", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/repo/cli.mjs", "check", "changed", "--files", "not-a-real-file.ts"],
+    { encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /does not exist or belong to Git/);
+  assert.doesNotMatch(result.stderr, /at runChangedCommand|node:internal/);
 });
 
 test("too many affected projects require the deliberately slower batch gate", () => {
