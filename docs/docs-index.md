@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -73,7 +73,8 @@ and safely governed runbooks is defined by:
 
 1. [contracts/operational-events-and-incidents-contract.md](./contracts/operational-events-and-incidents-contract.md)
 2. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
-3. the machine-readable catalog, JSON Schemas, and validators exposed through
+3. [audits/v1-operations/production-rollout-incident-audit.md](./audits/v1-operations/production-rollout-incident-audit.md)
+4. the machine-readable catalog, JSON Schemas, and validators exposed through
    `pnpm --silent run repo -- platform operations contract --help`
 
 The measured Gate 3 production baseline is:

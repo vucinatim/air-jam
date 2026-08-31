@@ -52,20 +52,24 @@ pnpm --silent run repo -- platform release-origin attest --platform-url https://
 ```
 
 The optional `--platform-url` mode verifies the boundary exposed by a deployed
-platform's public `/api/health` contract. It does not load or print provider
+platform's public `/api/readiness` contract. It does not load or print provider
 credentials.
 
-Both healthy `200` and valid unhealthy `503` platform health documents are
-inspection results. The remote JSON includes the HTTP status, platform health
-boolean, and boundary assessment; non-health responses fail instead of being
-mistaken for deployed configuration.
+Contract v2 treats both ready `200` and valid unready `503` platform readiness
+documents as inspection results. The remote JSON includes the HTTP status,
+platform readiness boolean, effective canonical origin and request-host policy,
+and release boundary assessment. The inspector rejects a reported canonical
+origin that differs from `--platform-url`; non-readiness responses fail instead
+of being mistaken for deployed configuration.
 
-The health contract also exposes non-secret, deployment-reported identity:
+The readiness contract also exposes non-secret, deployment-reported identity:
 `provider`, `environment`, `deploymentId`, and `revision`. The attestation
-command reads health before and after its bounded checks and requires that
+command reads readiness before and after its bounded checks and requires that
 identity to remain stable. Missing identity does not turn a local diagnostic
 into a failure, but it makes `productionEvidenceEligible` impossible. The
-revision is not independently authenticated by the provider query.
+revision is not independently authenticated by the provider query. Railway's
+deployment probe uses the separate `/api/health` liveness contract, which only
+answers whether the platform process can serve requests.
 
 Production eligibility additionally requires an expected Railway project from
 `--railway-project <project-id>` or `RAILWAY_PROJECT_ID`, plus one supported

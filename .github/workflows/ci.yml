@@ -52,5 +52,8 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Standalone Platform Deploy Contract
+        run: pnpm check:platform:deploy
+
       - name: Perf Sanity
         run: pnpm run repo -- perf sanity

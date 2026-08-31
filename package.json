@@ -21,7 +21,7 @@
     "release:public:tag": "node scripts/repo/cli.mjs release tag --channel latest",
     "release:public:tag:next": "node scripts/repo/cli.mjs release tag --channel next",
     "build": "pnpm -r build",
-    "check:ci": "pnpm run repo -- platform generated check && pnpm typecheck && pnpm lint && pnpm guard:canonical && pnpm test && pnpm build && pnpm run repo -- perf sanity",
+    "check:ci": "pnpm run repo -- platform generated check && pnpm typecheck && pnpm lint && pnpm guard:canonical && pnpm test && pnpm build && pnpm check:platform:deploy && pnpm run repo -- perf sanity",
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:release",
     "check:release:doctor": "pnpm install --frozen-lockfile && pnpm test:repo-contracts && pnpm check:platform:deploy && pnpm check:release",
     "check:release:publish": "pnpm test:repo-contracts && pnpm --filter platform build && pnpm typecheck && pnpm smoke:server",

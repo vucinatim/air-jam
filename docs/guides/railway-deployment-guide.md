@@ -97,15 +97,20 @@ pnpm --silent run repo -- platform release-origin attest --platform-url https://
 
 `platform release-origin inspect` assesses local configuration by default.
 Pass the deployed platform origin through `--platform-url` to inspect its public
-`/api/health` contract authoritatively without loading or printing provider
+`/api/readiness` contract authoritatively without loading or printing provider
 credentials. Production must report `ready` before hosted release delivery is
 considered healthy.
 
-The inspector returns a valid Railway platform health document even when its
-HTTP status is `503`, preserving `health.ok: false` and the exact disabled or
-invalid boundary reason for agents. That is diagnostic evidence, not a healthy
-deployment: the validation checklist still requires production to reach `200`
-and a `ready` boundary.
+The inspector returns a valid Railway platform readiness document even when its
+HTTP status is `503`, preserving `readiness.ok: false`, the effective platform
+request-host policy, and the exact disabled or invalid boundary reason for
+agents. It rejects an inspected URL that is not the deployment's reported
+canonical platform origin. A valid unready response is diagnostic evidence, not
+a healthy deployment: the validation checklist still requires production to
+reach `200` with the expected origin, non-preview host policy, exact deployment
+identity, and a `ready` release boundary. Railway's deployment healthcheck
+remains `/api/health`, which reports process liveness independently of product
+and release-domain readiness.
 
 After the dedicated domain is routed, use `platform release-origin attest`
 against one exact live release-generation root. The command is safe for unattended agents:
@@ -121,7 +126,7 @@ deployment, and both public domains. Supply `--railway-project <project-id>` or
 `RAILWAY_PROJECT_ID` and one of `RAILWAY_PROJECT_TOKEN`, `RAILWAY_API_TOKEN`, or
 `RAILWAY_TOKEN`. Without either identity or provider authority, passing
 transport evidence remains diagnostic. The provider does not independently
-authenticate the health revision. This is one input to Gate 5 closure, not a
+authenticate the readiness revision. This is one input to Gate 5 closure, not a
 substitute for the controlled hostile-browser and normal-game proofs.
 
 ## Production Contract
@@ -144,15 +149,18 @@ Before treating a Railway deployment as good, verify:
 1. platform `/` returns `200`
 2. platform `/arcade` returns `200`
 3. platform `/docs` returns `200`
-4. platform `/api/health` returns `200`
-5. platform `/api/auth/get-session` returns `200`
-6. platform `/api/airjam/host-grant` works same-origin
-7. server `/health` returns `200`
-8. browser worker `/health` returns `200`
-9. operational-job worker `/health` returns `200`
-10. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
+4. platform `/api/health` returns `200` as process-liveness proof only
+5. platform `/api/readiness` returns `200` with `ok: true`, the expected
+   canonical platform origin, `isRailwayPreviewEnvironment: false`, and
+   deployment identity matching the exact revision under approval
+6. platform `/api/auth/get-session` returns `200`
+7. platform `/api/airjam/host-grant` works same-origin
+8. server `/health` returns `200`
+9. browser worker `/health` returns `200`
+10. operational-job worker `/health` returns `200`
+11. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
     available
-11. release-origin attestation returns `status: passed`,
+12. release-origin attestation returns `status: passed`,
     `evidenceKind: production-deployment`, and
     `productionEvidenceEligible: true`
 

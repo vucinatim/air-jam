@@ -97,7 +97,7 @@ That origin must:
 6. use the incoming HTTP `Host` authority for request classification; framework
    request URLs derived from the server bind address are not an origin boundary
 7. match the platform identity baked into release `frame-ancestors` policy;
-   runtime drift fails health until the application is rebuilt
+   runtime drift fails readiness until the application is rebuilt
 
 Operators and agents inspect this boundary through the same runtime assessment:
 
@@ -111,12 +111,13 @@ pnpm --silent run repo -- platform release-origin attest --platform-url https://
 The machine response is versioned, contains no secrets, and reports `ready`,
 `disabled`, or `invalid` with the effective public and platform origins needed
 to diagnose the boundary. Local inspection evaluates the process environment;
-`--platform-url` authoritatively reads the deployed platform's public health
-contract with a bounded request.
+`--platform-url` authoritatively reads the deployed platform's public readiness
+contract with a bounded request. Railway uses the separate `/api/health`
+liveness contract only to determine whether the process can serve requests.
 
-The remote result preserves both layers of evidence: `health.httpStatus` and
-`health.ok` describe the deployed platform, while `assessment` describes the
-hosted-release boundary. A valid `503` health document is returned as an
+The remote result preserves both layers of evidence: `readiness.httpStatus` and
+`readiness.ok` describe the deployed platform, while `assessment` describes the
+hosted-release boundary. A valid `503` readiness document is returned as an
 unhealthy assessment rather than discarded as a transport error. Malformed or
 unrecognized responses still fail closed.
 
@@ -124,11 +125,11 @@ unrecognized responses still fail closed.
 canonical live generation-specific host root, derives the matching controller URL, resolves each
 origin once, rejects non-public address sets outside explicit loopback
 diagnostics, and pins every request to that resolution while retaining the
-original Host and TLS server name. It verifies rather than trusting the health
-claim alone:
+original Host and TLS server name. It verifies rather than trusting the
+readiness claim alone:
 
 1. platform and release hosts use distinct conservative cookie sites
-2. deployed health names the exact required release origin
+2. deployed readiness names the exact required release origin
 3. platform host and controller routes produce exact temporary, non-cacheable
    redirects
 4. the release host blocks platform routes and sets no cookies
@@ -138,7 +139,7 @@ claim alone:
    dashboard, device-poll, and device-approval endpoints return their exact
    anonymous or unauthenticated contract without release-origin CORS authority
 7. provider deployment identity and the boundary remain stable from the first
-   health read to the last
+   readiness read to the last
 
 The output is timestamped and carries the deployment-reported environment,
 deployment ID, and source revision. Production promotion then queries Railway

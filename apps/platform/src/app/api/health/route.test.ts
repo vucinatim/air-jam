@@ -24,91 +24,20 @@ beforeEach(() => {
 
 afterEach(resetEnv);
 
-describe("platform health boundary", () => {
-  it("fails production health when the hosted release origin is unavailable", async () => {
+describe("platform liveness boundary", () => {
+  it("reports process liveness independently from release readiness", async () => {
     const response = GET();
     const body = await response.json();
 
-    expect(response.status).toBe(503);
-    expect(body).toMatchObject({
-      ok: false,
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      ok: true,
       service: "platform",
       deployment: {
         provider: "railway",
         environment: "production",
         deploymentId: "deployment-platform",
         revision: "0123456789abcdef",
-      },
-      boundaries: {
-        hostedReleaseOrigin: {
-          required: true,
-          status: "disabled",
-          publicOrigin: null,
-        },
-      },
-    });
-  });
-
-  it("passes production health only with a cross-site release origin", async () => {
-    process.env.AIRJAM_RELEASES_PUBLIC_ORIGIN =
-      "https://airjamusercontent.example";
-
-    const response = GET();
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({
-      ok: true,
-      boundaries: {
-        hostedReleaseOrigin: {
-          required: true,
-          status: "ready",
-          publicOrigin: "https://airjamusercontent.example",
-          reason: null,
-        },
-      },
-    });
-  });
-
-  it("fails health when runtime platform identity drifts from the built response policy", async () => {
-    process.env.AIRJAM_RELEASES_PUBLIC_ORIGIN =
-      "https://airjamusercontent.example";
-    process.env.AIRJAM_BUILT_PLATFORM_PUBLIC_ORIGIN =
-      "https://previous.airjam.io";
-
-    const response = GET();
-    const body = await response.json();
-
-    expect(response.status).toBe(503);
-    expect(body).toMatchObject({
-      ok: false,
-      boundaries: {
-        hostedReleaseOrigin: {
-          required: true,
-          status: "invalid",
-          publicOrigin: null,
-        },
-      },
-    });
-    expect(body.boundaries.hostedReleaseOrigin.reason).toContain(
-      "baked into the release response policy",
-    );
-  });
-
-  it("keeps preview health available while release delivery stays disabled", async () => {
-    process.env.RAILWAY_ENVIRONMENT_NAME = "air-jam-pr-71";
-
-    const response = GET();
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({
-      ok: true,
-      boundaries: {
-        hostedReleaseOrigin: {
-          required: false,
-          status: "disabled",
-        },
       },
     });
   });

@@ -5,7 +5,6 @@ import {
   HostedReleaseOriginConfigurationError,
   isHostedReleaseOriginRequired,
   isHostedReleaseRequestHost,
-  normalizeIncomingRequestHost,
   requireHostedReleasePublicOrigin,
 } from "./hosted-release-origin";
 
@@ -156,17 +155,6 @@ describe("hosted release origin boundary", () => {
       true,
     );
     expect(isHostedReleaseRequestHost("airjam.io", env)).toBe(false);
-  });
-
-  it("normalizes only a single valid incoming Host authority", () => {
-    expect(normalizeIncomingRequestHost("Games.Example.NET:8443")).toBe(
-      "games.example.net:8443",
-    );
-    expect(
-      normalizeIncomingRequestHost("bad.example, attacker.example"),
-    ).toBeNull();
-    expect(normalizeIncomingRequestHost("bad host")).toBeNull();
-    expect(normalizeIncomingRequestHost(null)).toBeNull();
   });
 
   it("permits HTTP only outside production while preserving cross-site isolation", () => {

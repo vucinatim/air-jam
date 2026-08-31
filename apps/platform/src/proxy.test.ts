@@ -120,6 +120,67 @@ describe("hosted release request routing", () => {
         releaseEnv,
       ),
     ).toEqual({ kind: "platform" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "https://www.airjam.io/docs",
+        "www.airjam.io",
+        releaseEnv,
+      ),
+    ).toEqual({ kind: "platform" });
+  });
+
+  it("applies fail-closed host policy in Railway previews without breaking local development", () => {
+    const previewEnv = {
+      NODE_ENV: "production",
+      RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-76",
+      RAILWAY_PUBLIC_DOMAIN: "air-jam-platform-air-jam-pr-76.up.railway.app",
+    } as NodeJS.ProcessEnv;
+
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/readiness",
+        "attacker.example",
+        previewEnv,
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/readiness",
+        "air-jam-platform-air-jam-pr-76.up.railway.app",
+        previewEnv,
+      ),
+    ).toEqual({ kind: "platform" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://192.168.1.20:3000/controller",
+        "192.168.1.20:3000",
+        { NODE_ENV: "development" } as NodeJS.ProcessEnv,
+      ),
+    ).toEqual({ kind: "platform" });
+  });
+
+  it("makes a renamed Railway production environment fail closed on the canonical host", () => {
+    const renamedProductionEnv = {
+      NODE_ENV: "production",
+      RAILWAY_ENVIRONMENT_NAME: "Production",
+      RAILWAY_PUBLIC_DOMAIN: "air-jam-platform-production.up.railway.app",
+      NEXT_PUBLIC_APP_URL: "https://airjam.io",
+    } as NodeJS.ProcessEnv;
+
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/docs",
+        "airjam.io",
+        renamedProductionEnv,
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/docs",
+        "air-jam-platform-production.up.railway.app",
+        renamedProductionEnv,
+      ),
+    ).toEqual({ kind: "platform" });
   });
 
   it("fails closed when a release path is requested without a ready origin", () => {
@@ -158,6 +219,57 @@ describe("hosted release request routing", () => {
         "http://0.0.0.0:3000/dashboard",
         "attacker.example",
         releaseEnv,
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+  });
+
+  it("keeps only the exact liveness path host-independent under production policy", () => {
+    const productionWithoutReleaseOrigin = {
+      NODE_ENV: "production",
+      RAILWAY_ENVIRONMENT_NAME: "production",
+      NEXT_PUBLIC_APP_URL: "https://airjam.io",
+    } as NodeJS.ProcessEnv;
+
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/health",
+        "unknown-provider-probe.example",
+        productionWithoutReleaseOrigin,
+      ),
+    ).toEqual({ kind: "platform" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/readiness",
+        "healthcheck.railway.app",
+        productionWithoutReleaseOrigin,
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/health",
+        "airjamusercontent.example",
+        {
+          ...productionWithoutReleaseOrigin,
+          AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://airjamusercontent.example",
+        },
+      ),
+    ).toEqual({ kind: "block_release_origin" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/health",
+        "airjamusercontent.example",
+        {
+          ...productionWithoutReleaseOrigin,
+          AIRJAM_RELEASES_PUBLIC_ORIGIN:
+            "https://airjamusercontent.example/invalid-path",
+        },
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/login",
+        "healthcheck.railway.app",
+        productionWithoutReleaseOrigin,
       ),
     ).toEqual({ kind: "block_unknown_host" });
   });
