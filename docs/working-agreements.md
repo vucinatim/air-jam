@@ -155,10 +155,6 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
 10. if that exact deployment fails, preserve the failed attempt as incident
     evidence and recover it before merging unrelated work; an older successful
     deployment still serving traffic does not make the new rollout successful
-11. remove the validation checklist's explicitly marked interim provider read
-    when `G5-02` lands the repo-owned exact-commit verifier; the canonical
-    working agreement owns the required outcome and the deployment guide owns
-    the executable procedure
 
 ## Agent-First Operability
 

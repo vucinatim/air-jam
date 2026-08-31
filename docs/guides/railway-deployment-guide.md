@@ -145,7 +145,8 @@ Before treating a Railway deployment as good, verify:
 1. `pnpm --silent run repo -- railway doctor --project <project-id> --json`
    reports the expected project, production environment, affected services, and
    deployment IDs
-2. until Gate `G5-02` lands the repo-owned exact-commit verifier, run
+2. until Gate `G5-02` lands the repo-owned exact-commit verifier, use the vendor
+   Railway CLI to run
    `railway deployment list --project <project-id> --environment <environment-id> --service <service-id> --json`
    for each affected service, select the deployment whose `meta.commitHash`
    equals the merged commit, and retain its deployment ID and literal terminal

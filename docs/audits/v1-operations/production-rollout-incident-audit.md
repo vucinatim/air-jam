@@ -139,11 +139,11 @@ Railway verification through the repo CLI and required automation.
 2. formally approve and merge recovery PR `#76` with its incident evidence
    attached; PR `#77` defines the future canonical policy and is not treated as
    if it were already present on `main`
-3. re-resolve PR `#77` after its base changes, rerun both exact-base-and-head
-   agent reviews, obtain formal approval, and merge it independently
-4. observe PR `#76`'s exact production platform deployment through terminal
+3. observe PR `#76`'s exact production platform deployment through terminal
    `SUCCESS`
-5. inspect live `/api/health` and `/api/readiness` with deployment identity
+4. inspect live `/api/health` and `/api/readiness` with deployment identity
+5. re-resolve PR `#77` after its base changes, rerun both exact-base-and-head
+   agent reviews, obtain formal approval, and merge it independently
 6. repair, rebase, review, and roll out PRs `#74` and `#75` independently
 
 The Claude Opus and Canonicalizer evidence listed above predates the exact-head
