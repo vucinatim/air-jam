@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-31T11:30:55.770Z",
+  "updatedAt": "2026-08-31T11:36:51.731Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -754,8 +754,8 @@
         "negative-path security tests and operator controls"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Production rollout incident recovery remains open. The reviewed-delivery policy requires exact-head Canonicalizer and explicit Claude Opus 5 evidence, CI, preview SUCCESS, formal approval, and exact merged-commit production verification; G5-02 still owns the repo CLI and required automation that mechanically enforce those gates.",
-      "updatedAt": "2026-08-31T11:30:55.770Z"
+      "note": "Production rollout incident recovery remains open. G5-02 owns the repo CLI and required automation that mechanically enforce the canonical reviewed-delivery gates in docs/working-agreements.md.",
+      "updatedAt": "2026-08-31T11:36:51.731Z"
     },
     {
       "id": "G5-03",

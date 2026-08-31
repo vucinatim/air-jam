@@ -127,9 +127,8 @@ The incident produced these lessons that shaped that policy:
 This audit records why those rules exist; it is not a parallel operating-policy
 owner.
 
-Mechanical enforcement for review evidence and post-merge Railway verification
-is a separate operating-system correction. It must be implemented through the
-repo CLI and required automation rather than relying on memory or prose alone.
+Gate `G5-02` owns mechanical enforcement for review evidence and post-merge
+Railway verification through the repo CLI and required automation.
 
 ## Incident Closure Evidence
 
