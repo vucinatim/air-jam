@@ -76,6 +76,10 @@ Agents working on the 1.0 program must:
    recurring informal validation requests
 6. keep product scope in the 1.0 roadmap and execution state in the canonical
    manifest rather than inventing parallel trackers
+7. keep routine implementation review agent-owned: the maintainer reviews
+   direction, paradigm, scope, product polish, and material risk decisions, not
+   individual code changes; follow the canonical review-authority split in
+   `docs/working-agreements.md`
 
 ## Agent-First Operability Rule
 
@@ -112,9 +116,10 @@ pnpm run repo -- railway --help
 Current Railway helpers include:
 
 1. `whoami`
-2. `project`
-3. `env`
-4. `vars`
+2. `doctor`
+3. `project`
+4. `env`
+5. `vars`
 
 ## Parallel Work Rule
 
@@ -131,12 +136,20 @@ Do not parallelize prematurely when the shared API or architecture is still movi
 
 ## Quality Gates
 
-Run relevant checks before considering work complete:
+Follow the canonical
+[Development Check Layers](docs/working-agreements.md#development-check-layers).
+Keep ordinary edits on the fast tiers and escalate only when that agreement
+requires it.
 
-1. Type checking
-2. Linting
-3. Tests
-4. Build validation
+## Review, Merge, And Production Gate
+
+All agents must follow
+[Review Authority](docs/working-agreements.md#review-authority),
+[Review Stacks And Integration](docs/working-agreements.md#review-stacks-and-integration),
+and
+[Production Delivery And Public Launch](docs/working-agreements.md#production-delivery-and-public-launch)
+as the sole normative authority for reviewed delivery. Do not duplicate,
+weaken, or bypass those rules in task-local plans or delivery decisions.
 
 ## Debugging Rule
 

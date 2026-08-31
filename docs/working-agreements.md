@@ -1,6 +1,6 @@
 # Working Agreements
 
-Last updated: 2026-08-29
+Last updated: 2026-08-31
 Status: stable operating rules
 
 This file defines how humans and agents should use the Air Jam repo operating system.
@@ -48,6 +48,56 @@ Use this loop unless a task clearly requires something more specific:
 
 If an agent jumps from chat context straight into edits without checking the current repo surfaces, it is operating incorrectly.
 
+## Development Check Layers
+
+Quality gates surround development; they are not the development loop.
+
+1. `pnpm check:instant` is the continuous local loop. It checks diff hygiene,
+   changed JSON, and JavaScript syntax with a warm target of `<=1s`.
+2. `pnpm check:changed` is the coherent-change gate. It runs cached ESLint and
+   cached affected-project TypeScript checks in parallel with a warm target of
+   `<=5s`.
+   During a larger uncommitted batch, use `-- --files <paths...>` to check only
+   the files currently being edited without losing the full pre-push gate.
+3. the changed gate must stay bounded. Central toolchain changes or more than
+   four affected TypeScript projects immediately request `pnpm check:batch`
+   instead of turning the fast command into a hidden whole-repo run.
+4. `pnpm check:batch` is intentionally slower. It owns generated-source checks,
+   full typechecking, linting, canonical guards, and tests for a substantial
+   change batch before push.
+5. pull-request CI owns exhaustive builds, standalone deployment proof, and
+   performance validation. Release-only smoke and package matrices stay in the
+   release gate.
+6. use batch validation for a new system or architectural boundary, a coherent
+   multi-file behavioral refactor, or roughly `1,000+` meaningful changed
+   lines. Do not invoke it between ordinary edits.
+7. treat latency targets as product requirements. Record cold versus warm
+   timing honestly, preserve caches between local runs, and narrow or remove a
+   slow test when it does not protect a meaningful contract.
+
+Inspect the selected work without running it through:
+
+```bash
+pnpm --silent run repo -- check plan --json
+```
+
+## Review Authority
+
+Air Jam separates subjective product authority from implementation assurance:
+
+1. the maintainer owns direction, paradigm, scope, product taste and polish,
+   business tradeoffs, material risk acceptance, and public-launch judgment
+2. the maintainer is not the routine line-by-line code reviewer and is not
+   expected to translate agent findings into a manual GitHub approval
+3. Canonicalizer and the final Claude Opus review are two uses of Opus-class
+   review, not independent model votes: Canonicalizer focuses on local code
+   canonicality before a substantial push, while the final reviewer inspects
+   the complete green pull request on GitHub
+4. the current GitHub policy does not require a routine human approval; this is
+   an explicit maintainer decision recorded in the
+   [production rollout incident audit](./audits/v1-operations/production-rollout-incident-audit.md#review-authority-decision),
+   while CI, review conversations, and branch protection remain mandatory
+
 ## Review Stacks And Integration
 
 Stacked pull requests are review slices, not permission to merge a knowingly
@@ -55,24 +105,38 @@ incomplete intermediate state to `main`.
 
 Use these rules:
 
-1. merge a stack bottom-up only when every slice is independently production
-   valid, green, and has its own review findings resolved
-2. when review corrections cross stack boundaries, prepare one cumulative
-   integration pull request from the corrected top of the stack into `main`
-3. preserve the component pull requests as focused review history and close
-   them as superseded only after the integration pull request merges
-4. run the complete integration gate against the exact cumulative head; green
-   checks on a descendant do not retroactively make a failing ancestor safe to
-   merge by itself
-5. treat provider preview status, issue comments, and automated review prose as
-   evidence, not as a formal GitHub approval unless GitHub records an approving
-   review
-6. do not silently bypass an unsatisfied branch-protection policy; either obtain
-   the required approval or change an impossible solo-repository policy through
-   an explicit maintainer decision
-7. after a cumulative integration, return to small independently mergeable pull
-   requests rather than allowing another long-lived stack to become the normal
-   delivery model
+1. keep pull requests small and independently production-valid; merge stacks
+   bottom-up only when each slice can safely stand on `main`
+2. use the instant and changed gates during implementation; do not run full CI,
+   Canonicalizer, or Claude Opus between ordinary edits
+3. before pushing a substantial batch, run `pnpm check:batch` and one
+   Canonicalizer session focused on code organization, canonicality, unnecessary
+   complexity, and architectural fit. Use that session for the coherent batch,
+   resolve its actionable findings, and do not open duplicate Canonicalizer
+   sessions for later wording, evidence, or typo changes
+4. skip Canonicalizer for a small, focused change that does not introduce a new
+   system, cross several implementation files, or carry meaningful structural
+   risk
+5. after push, wait for the open pull request's CI and required provider
+   previews to become green. Do not invoke Claude Opus while the PR is still
+   changing or while mechanical checks are pending
+6. only when the integrating agent believes the green PR is ready to merge,
+   give the GitHub pull-request URL to `claude-opus-5` once. The reviewer reads
+   the GitHub diff and records its summary and any line-specific findings as a
+   GitHub review beside the code; do not substitute a local review fixture,
+   terminal-only verdict, or manually transcribed evidence comment
+7. request at most one GitHub Opus review per pull request. If it identifies a
+   blocker, resolve the visible review conversation and rerun only the affected
+   mechanical checks; do not start an automatic review loop
+8. merge when the canonical `checks` job and required provider statuses are
+   successful, the single GitHub Opus review is clear or its actionable
+   conversations are resolved, and no planned edits remain
+9. never use an admin bypass to evade CI, an unresolved review conversation, or
+   branch protection. Change a branch-protection rule only through an explicit
+   maintainer decision recorded before merge
+10. after a cumulative integration, return to small independently mergeable
+    pull requests rather than allowing another long-lived stack to become the
+    normal delivery model
 
 ## Production Delivery And Public Launch
 
@@ -95,6 +159,16 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
    evidence justifies paying for an always-on staging environment
 8. never describe a queued deployment as deployed; terminal provider success
    and post-deploy health are required evidence
+9. after merge, identify the exact merged commit for every affected deployable
+   service in provider state, wait for literal terminal `SUCCESS`, and complete
+   the canonical
+   [production rollout validation](./guides/railway-deployment-guide.md#production-rollout-validation)
+   before calling the production rollout complete; explicitly classify
+   unaffected services and confirm their preceding successful deployment stays
+   live rather than requiring a new deployment for an unchanged artifact
+10. if that exact deployment fails, preserve the failed attempt as incident
+    evidence and recover it before merging unrelated work; an older successful
+    deployment still serving traffic does not make the new rollout successful
 
 ## Agent-First Operability
 

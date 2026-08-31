@@ -1,7 +1,7 @@
 # Production Rollout Incident Audit
 
 Last updated: 2026-08-31
-Status: corrective implementation locally proven; exact-head review and production verification pending
+Status: deployment recovery verified; remaining release-capability and automation work tracked in Gate 5
 
 ## Outcome
 
@@ -18,6 +18,12 @@ zero submitted reviews.
 
 This audit is durable incident evidence. The readiness manifest remains the
 execution-state authority.
+
+PR `#76` merged the corrective implementation as
+`e122a52c1da49ef409364c93fb675df56a4e639d` after exact-head Canonicalizer and
+Claude Opus review, GitHub CI, standalone-artifact proof, and Railway preview
+checks all passed. Railway production platform deployment
+`8dbde4b3-3059-4bfd-8ba6-93deccbde995` then reached terminal `SUCCESS`.
 
 ## Timeline And Evidence
 
@@ -40,6 +46,28 @@ execution-state authority.
    the previous platform revision. Its older payload did not contain the
    deployment identity introduced by PR `#73`, confirming that the failed
    candidate had not replaced the serving revision.
+7. PR `#76` merged at `2026-08-31` as
+   `e122a52c1da49ef409364c93fb675df56a4e639d` after both exact-head agent
+   reviews and every required candidate check passed.
+8. Production platform deployment
+   `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reached terminal `SUCCESS`, and live
+   `/api/health` returned `200` with that deployment ID and the exact merged
+   revision.
+9. Live `/api/readiness` returned the valid machine-readable `503` capability
+   state because `AIRJAM_RELEASES_PUBLIC_ORIGIN` is not configured. That
+   remaining hosted-release boundary is a product-readiness task, not a failed
+   process deployment.
+
+## Review-Authority Decision
+
+On 2026-08-31 the maintainer explicitly chose agent-owned implementation
+review for 1.0 rather than routine human code approval. The GitHub requirement
+for one approving human review was therefore removed before PR `#76` merged.
+Strict required CI for administrators, conversation resolution, and the
+force-push and branch-deletion protections remained enabled. The current
+working agreement keeps review agent-owned without duplicating Opus locally:
+substantial batches receive one pre-push Canonicalizer session, and a green
+merge candidate receives one GitHub-native Opus review.
 
 ## Root Causes
 
@@ -87,7 +115,7 @@ than an inference from unit tests.
 
 ## Corrective Proof
 
-The recovery branch currently proves:
+The reviewed and merged corrective change proves:
 
 1. `58` focused platform deployment-config, liveness, readiness, host-policy,
    and origin tests
@@ -102,41 +130,39 @@ The recovery branch currently proves:
 8. the same built bundle preserving the declared `www.airjam.io` canonical-host
    redirect instead of blocking it in proxy host policy
 
-Exact-head review results belong on PR `#76`; they are not self-certified inside
-this audit. Before merge, both results must be attached, and any head change
-makes them stale and requires both reviews to run again.
+The exact-head review evidence is attached to PR `#76`; it is not
+self-certified by this audit. The production platform deployment reached
+terminal `SUCCESS`, live liveness identified the exact deployment and merged
+revision, `www.airjam.io` redirected to the canonical apex, and the public
+readiness inspector preserved the explicit disabled hosted-release reason.
 
-Production is not considered recovered until the merged corrective commit has
-a Railway platform deployment with explicit terminal `SUCCESS` and the live
-liveness/readiness responses are inspected against that deployment identity.
+## Process Lessons
 
-## Process Corrections
-
-The incident establishes these non-negotiable release rules:
+The canonical current review, merge, and production-delivery rules live in
+[Working Agreements](../../working-agreements.md#review-stacks-and-integration).
+The incident produced these lessons that shaped that policy:
 
 1. preview success is evidence for the candidate, not evidence that production
    accepted the merged revision
 2. a rollout is incomplete until provider state reaches terminal `SUCCESS`
 3. a newer terminal `FAILED` deployment must remain visible as an incident even
    when the previous revision keeps serving traffic
-4. Claude Opus and Canonicalizer output must be attached as explicit exact-head
-   review evidence; missing or stale evidence cannot be treated as approval
+4. final review belongs on the green GitHub pull request beside the code;
+   pre-push canonicality review and merge review must not become duplicate local
+   Opus loops
 5. production-mode artifact proof must cover any contract that depends on
    framework build-time transformation
 6. deployment liveness, dependency readiness, and product capability
    readiness are different contracts and must not be collapsed
 
+This audit records why those rules exist; it is not a parallel operating-policy
+owner. Final review remains visible in the GitHub pull-request record through
+the canonical agent instructions.
+
 Mechanical post-merge Railway verification is a separate operating-system
-correction owned by `G5-02`. Its canonical evidence requirement blocks that work
-item from closing without repo-CLI proof for the exact merged production
-deployment and its public liveness/readiness identity.
+correction owned by `G5-02`. Its evidence requirement blocks that work item from
+closing until the repo CLI itself can prove the exact merged production
+deployment, terminal provider state, and public liveness/readiness identity.
 
-## Remaining Closure
-
-1. rerun and attach both exact-head agent reviews, then merge only after GitHub
-   CI, required standalone artifact proof, and Railway preview checks are green
-2. observe the exact production platform deployment through terminal
-   `SUCCESS`
-3. inspect live `/api/health` and `/api/readiness` with deployment identity
-4. repair, rebase, review, and roll out PRs `#74` and `#75` independently
-5. implement the `G5-02` post-merge production-verification automation
+All remaining execution work is tracked by the canonical readiness manifest;
+this incident audit intentionally owns no parallel follow-up backlog.

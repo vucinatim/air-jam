@@ -18,6 +18,59 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-31 - Development And Review Gates Were Re-Layered
+
+- superseded the same-day exact-head two-local-review policy after it proved too
+  slow and duplicated Opus-class judgment without improving the product
+- established `check:instant` with a warm `<=1s` target and `check:changed` with
+  a warm `<=5s` target as the normal development loop
+- moved full typecheck, lint, canonical guards, and tests into the substantial
+  pre-push batch gate; exhaustive builds, deployment proof, and perf remain CI
+  responsibilities
+- limited Canonicalizer to one local session before pushing a substantial
+  multi-file, new-system, architectural, or roughly `1,000+` line batch
+- moved the only final Opus review to one open, green, merge-ready GitHub pull
+  request so findings and line comments remain beside the code
+- removed automatic review reruns and local review fixtures from the ordinary
+  merge path
+
+## 2026-08-31 - Review, Merge, And Production Delivery Became Canonical
+
+- made the working agreements the sole normative owner for reviewed delivery
+- clarified that the maintainer owns product direction, paradigm, scope, taste,
+  polish, material risk acceptance, and launch judgment rather than routine code
+  review
+- assigned implementation assurance to one exact-range Canonicalizer pass and
+  one explicit `claude-opus-5` pass for every individual pull request, including
+  each stack slice
+- made any base or head change invalidate both reviews and required their exact
+  SHAs, sessions, resolved models, verdicts, and findings to be attached to the
+  pull request
+- retained CI and affected provider previews as the mechanically enforced
+  GitHub gates; review evidence remains instruction-governed for 1.0
+- recorded the maintainer's explicit decision to remove the routine human
+  approval requirement while retaining required CI for administrators,
+  conversation resolution, and force-push and branch-deletion protections
+- required exact affected-service production deployment success plus live
+  health, readiness, and revision evidence before calling a rollout complete
+- initially considered protected automated review attestation, then dropped it
+  from the 1.0 path when the same-day layered-review decision removed the
+  duplicate local review model
+
+## 2026-08-31 - Production Platform Recovery Was Verified
+
+- merged corrective PR `#76` only after exact-head Canonicalizer and explicit
+  Claude Opus review, GitHub CI, standalone-artifact proof, and every affected
+  Railway preview reached a passing terminal state
+- observed production platform deployment
+  `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reach terminal `SUCCESS`
+- proved live `/api/health` reports the exact deployment and merged revision
+  `e122a52c1da49ef409364c93fb675df56a4e639d`
+- confirmed `/api/readiness` now preserves the explicit disabled
+  hosted-release boundary without making Railway process liveness fail
+- retained hosted-release domain provisioning and repo-native exact-deployment
+  automation as open `G5-02` work rather than conflating them with recovery
+
 ## 2026-08-31 - Failed Platform Rollout Entered Controlled Recovery
 
 - confirmed that the platform deployment following PR `#73` reached terminal
