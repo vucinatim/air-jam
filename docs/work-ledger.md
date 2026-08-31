@@ -32,47 +32,24 @@ The pre-reset overloaded ledger has been preserved at:
 - retained hosted-release domain provisioning and repo-native exact-deployment
   automation as open `G5-02` work rather than conflating them with recovery
 
-## 2026-08-31 - Review Enforcement Was Right-Sized For 1.0
+## 2026-08-31 - Review, Merge, And Production Delivery Became Canonical
 
-- superseded the two intermediate enforcement proposals recorded immediately
-  below with the simpler instruction-governed model
-- kept exact-head Canonicalizer and explicit Claude Opus review mandatory for
-  every pull request while leaving implementation review agent-owned
-- removed the proposed protected GitHub review-attestation service and its
-  `G5-05` checkpoint from the 1.0 critical path
-- retained CI and provider previews as mechanical GitHub gates and retained the
-  exact review record as an instruction-governed pull-request artifact
-- moved automated review attestation to the durable follow-up list for future
-  unattended merge scale or demonstrated process failures
-
-## 2026-08-31 - Review Authority Became Agent-First
-
+- made the working agreements the sole normative owner for reviewed delivery
 - clarified that the maintainer owns product direction, paradigm, scope, taste,
   polish, material risk acceptance, and launch judgment rather than routine code
   review
-- assigned implementation assurance to independent Canonicalizer and explicit
-  Claude Opus review passes
-- replaced the proposed human GitHub approval gate with a trusted automated,
-  exact-head review attestation protected against administrator bypass
-- retained one maintainer checkpoint only for authorizing/configuring the
-  independent automation identity, not for reviewing pull-request code
-
-## 2026-08-31 - Exact-Head Reviewed Delivery Became Canonical
-
-- made the working agreements the sole normative owner for reviewed delivery
-- required one complete Canonicalizer-reviewed commit range and one explicit
-  Claude Opus 5 review for every individual pull request, including each stack
-  slice
-- made later pushes invalidate both reviews and required exact base/head,
-  session, resolved model, verdict, finding, CI, preview deployment, and formal
-  approval evidence before merge
-- prohibited admin bypass as a substitute for the repository's formal approval
-  gate and required a trusted reviewer identity when solo ownership makes that
-  gate unsatisfiable
-- required literal exact-commit production deployment success plus live
+- assigned implementation assurance to one exact-range Canonicalizer pass and
+  one explicit `claude-opus-5` pass for every individual pull request, including
+  each stack slice
+- made any base or head change invalidate both reviews and required their exact
+  SHAs, sessions, resolved models, verdicts, and findings to be attached to the
+  pull request
+- retained CI and affected provider previews as the mechanically enforced
+  GitHub gates; review evidence remains instruction-governed for 1.0
+- required exact affected-service production deployment success plus live
   health, readiness, and revision evidence before calling a rollout complete
-- kept mechanical review and deployment enforcement open under `G5-02` instead
-  of pretending that prose alone closes the incident's process failure
+- deferred protected automated review attestation to `docs/suggestions.md` until
+  unattended merge volume or an observed process failure justifies it
 
 ## 2026-08-31 - Failed Platform Rollout Entered Controlled Recovery
 
