@@ -6,9 +6,10 @@ import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import platformServiceContract from "../../apps/platform/src/lib/platform-service-contract.ts";
-
-const { PLATFORM_LIVENESS_PATH } = platformServiceContract;
+import {
+  PLATFORM_LIVENESS_PATH,
+  PLATFORM_READINESS_PATH,
+} from "../../apps/platform/src/lib/platform-service-paths.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -359,7 +360,7 @@ const main = async () => {
           child,
           getOutput,
           host: new URL(PLATFORM_BUILD_ORIGIN).host,
-          path: "/api/readiness",
+          path: PLATFORM_READINESS_PATH,
           port,
         });
         if (
@@ -391,7 +392,7 @@ const main = async () => {
           child,
           getOutput,
           host: new URL(PLATFORM_BUILD_ORIGIN).host,
-          path: "/api/readiness",
+          path: PLATFORM_READINESS_PATH,
           port,
         });
         if (
@@ -419,7 +420,7 @@ const main = async () => {
           child,
           getOutput,
           host: new URL(driftedRuntimeOrigin).host,
-          path: "/api/readiness",
+          path: PLATFORM_READINESS_PATH,
           port,
         });
         if (

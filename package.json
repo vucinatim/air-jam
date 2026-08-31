@@ -25,7 +25,7 @@
     "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:release",
     "check:release:doctor": "pnpm install --frozen-lockfile && pnpm test:repo-contracts && pnpm check:platform:deploy && pnpm check:release",
     "check:release:publish": "pnpm test:repo-contracts && pnpm --filter platform build && pnpm typecheck && pnpm smoke:server",
-    "check:platform:deploy": "tsx scripts/repo/check-platform-deploy.mjs",
+    "check:platform:deploy": "node scripts/repo/check-platform-deploy.mjs",
     "lint": "eslint . && pnpm --filter platform lint",
     "guard:canonical": "node scripts/repo/cli.mjs standards canonical",
     "smoke:server": "pnpm --filter @air-jam/server test -- --run tests/game-lifecycle.integration.test.ts tests/routing-security.integration.test.ts",

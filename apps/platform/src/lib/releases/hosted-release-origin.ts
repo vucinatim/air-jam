@@ -67,6 +67,8 @@ const parseConfiguredOrigin = (
 export const readConfiguredHostedReleaseRequestHost = (
   env: NodeJS.ProcessEnv = process.env,
 ): string | null => {
+  // Parse only enough to reserve the configured host even when the stricter
+  // origin assessment rejects paths, credentials, or other policy details.
   const rawOrigin = trimToNull(env[HOSTED_RELEASE_PUBLIC_ORIGIN_ENV]);
   if (!rawOrigin) {
     return null;

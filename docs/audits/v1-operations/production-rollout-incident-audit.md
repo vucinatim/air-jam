@@ -89,9 +89,9 @@ than an inference from unit tests.
 
 The recovery branch currently proves:
 
-1. `55` focused platform deployment-config, liveness, readiness, host-policy,
+1. `58` focused platform deployment-config, liveness, readiness, host-policy,
    and origin tests
-2. `20` repo CLI inspection and attestation contract tests
+2. `21` repo CLI inspection and attestation contract tests
 3. platform TypeScript and focused ESLint checks
 4. a clean hermetic install and production Next build
 5. the real standalone bundle answering Railway's exact liveness probe with

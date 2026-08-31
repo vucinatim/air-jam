@@ -1,5 +1,9 @@
-export const PLATFORM_LIVENESS_PATH = "/api/health" as const;
-export const PLATFORM_READINESS_PATH = "/api/readiness" as const;
+import {
+  PLATFORM_LIVENESS_PATH,
+  PLATFORM_READINESS_PATH,
+} from "./platform-service-paths.mjs";
+
+export { PLATFORM_LIVENESS_PATH, PLATFORM_READINESS_PATH };
 
 export type PlatformDeploymentIdentity = {
   provider: "railway" | null;
