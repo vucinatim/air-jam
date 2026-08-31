@@ -78,6 +78,7 @@ export type PlatformDeploymentConfig = {
   backendPublicUrl: string;
   authBaseUrl: string;
   authTrustedOrigins: string[];
+  platformRequestHosts: string[];
   githubAuthEnabled: boolean;
   isRailwayPreviewEnvironment: boolean;
   appId: string | undefined;
@@ -85,6 +86,12 @@ export type PlatformDeploymentConfig = {
 };
 
 export const PLATFORM_PUBLIC_URL_FALLBACK = LOCAL_FALLBACK;
+export const PLATFORM_CANONICAL_HOST_REDIRECTS = [
+  {
+    sourceHost: "www.airjam.io",
+    destinationOrigin: "https://airjam.io",
+  },
+] as const;
 
 export const resolvePlatformDeploymentConfig = (
   env: NodeJS.ProcessEnv = process.env,
@@ -103,8 +110,9 @@ export const resolvePlatformDeploymentConfig = (
   const platformPublicOrigin =
     normalizeOrigin(platformPublicUrl) ?? PLATFORM_PUBLIC_URL_FALLBACK;
   const authBaseUrl =
-    (isRailwayPreviewEnvironment ? null : normalizeOrigin(env.BETTER_AUTH_URL)) ??
-    platformPublicOrigin;
+    (isRailwayPreviewEnvironment
+      ? null
+      : normalizeOrigin(env.BETTER_AUTH_URL)) ?? platformPublicOrigin;
 
   const authTrustedOrigins = new Set<string>();
   for (const value of [
@@ -121,6 +129,17 @@ export const resolvePlatformDeploymentConfig = (
 
   const backendPublicUrl =
     normalizePublicUrl(env.NEXT_PUBLIC_AIR_JAM_SERVER_URL) ?? platformPublicUrl;
+  const platformRequestHosts = new Set([new URL(platformPublicOrigin).host]);
+  if (!isRailwayPreviewEnvironment) {
+    for (const origin of authTrustedOrigins) {
+      if (!origin.includes("*")) {
+        platformRequestHosts.add(new URL(origin).host);
+      }
+    }
+    for (const redirect of PLATFORM_CANONICAL_HOST_REDIRECTS) {
+      platformRequestHosts.add(redirect.sourceHost);
+    }
+  }
 
   return {
     platformPublicUrl,
@@ -129,13 +148,14 @@ export const resolvePlatformDeploymentConfig = (
     backendPublicUrl,
     authBaseUrl,
     authTrustedOrigins: [...authTrustedOrigins],
+    platformRequestHosts: [...platformRequestHosts],
     githubAuthEnabled: isRailwayPreviewEnvironment
       ? false
       : resolveBooleanEnv(
           env.NEXT_PUBLIC_AUTH_GITHUB_ENABLED,
           Boolean(
             trimToUndefined(env.GITHUB_CLIENT_ID) &&
-              trimToUndefined(env.GITHUB_CLIENT_SECRET),
+            trimToUndefined(env.GITHUB_CLIENT_SECRET),
           ),
         ),
     isRailwayPreviewEnvironment,

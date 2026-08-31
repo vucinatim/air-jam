@@ -37,9 +37,9 @@ The pre-reset overloaded ledger has been preserved at:
 - recorded the timeline, evidence, root causes, and remaining production
   closure in the
   [production rollout incident audit](./audits/v1-operations/production-rollout-incident-audit.md)
-- completed hostile Claude Opus review and resolved both Canonicalizer findings
-  before its resumed review returned `ready`
-- kept recovery open until formal GitHub review, merge, terminal Railway
+- opened exact-head Canonicalizer and Claude Opus review; their results remain
+  pull-request evidence rather than self-certified historical proof
+- kept recovery open until exact-head agent review, merge, terminal Railway
   `SUCCESS`, and live deployment-identity verification are complete
 
 ## 2026-08-30 - Hosted Release Isolation Became Safely Attestable

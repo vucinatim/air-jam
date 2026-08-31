@@ -1,7 +1,7 @@
 # Production Rollout Incident Audit
 
 Last updated: 2026-08-31
-Status: corrective implementation and independent reviews locally proven; production verification pending
+Status: corrective implementation locally proven; exact-head review and production verification pending
 
 ## Outcome
 
@@ -89,7 +89,8 @@ than an inference from unit tests.
 
 The recovery branch currently proves:
 
-1. `44` focused platform liveness, readiness, host-policy, and origin tests
+1. `55` focused platform deployment-config, liveness, readiness, host-policy,
+   and origin tests
 2. `20` repo CLI inspection and attestation contract tests
 3. platform TypeScript and focused ESLint checks
 4. a clean hermetic install and production Next build
@@ -98,9 +99,12 @@ The recovery branch currently proves:
 6. the same bundle exposing ready release-origin state at `/api/readiness`
 7. the same built bundle rejecting deliberate build/runtime origin drift with
    `503`
-8. a final Claude Opus hostile review with no actionable blockers
-9. a resumed Canonicalizer review with verdict `ready` after its two structural
-   findings were fixed
+8. the same built bundle preserving the declared `www.airjam.io` canonical-host
+   redirect instead of blocking it in proxy host policy
+
+Exact-head review results belong on PR `#76`; they are not self-certified inside
+this audit. Before merge, both results must be attached, and any head change
+makes them stale and requires both reviews to run again.
 
 Production is not considered recovered until the merged corrective commit has
 a Railway platform deployment with explicit terminal `SUCCESS` and the live
@@ -115,23 +119,24 @@ The incident establishes these non-negotiable release rules:
 2. a rollout is incomplete until provider state reaches terminal `SUCCESS`
 3. a newer terminal `FAILED` deployment must remain visible as an incident even
    when the previous revision keeps serving traffic
-4. Claude Opus and Canonicalizer output must be attached as explicit review
-   evidence; an absent GitHub review cannot be silently treated as approval
+4. Claude Opus and Canonicalizer output must be attached as explicit exact-head
+   review evidence; missing or stale evidence cannot be treated as approval
 5. production-mode artifact proof must cover any contract that depends on
    framework build-time transformation
 6. deployment liveness, dependency readiness, and product capability
    readiness are different contracts and must not be collapsed
 
-Mechanical enforcement for review evidence and post-merge Railway verification
-is a separate operating-system correction. It must be implemented through the
-repo CLI and required automation rather than relying on memory or prose alone.
+Mechanical post-merge Railway verification is a separate operating-system
+correction owned by `G5-02`. Its canonical evidence requirement blocks that work
+item from closing without repo-CLI proof for the exact merged production
+deployment and its public liveness/readiness identity.
 
 ## Remaining Closure
 
-1. merge only after GitHub CI, required standalone artifact proof, Railway
-   preview checks, and formal review requirements are green
+1. rerun and attach both exact-head agent reviews, then merge only after GitHub
+   CI, required standalone artifact proof, and Railway preview checks are green
 2. observe the exact production platform deployment through terminal
    `SUCCESS`
 3. inspect live `/api/health` and `/api/readiness` with deployment identity
 4. repair, rebase, review, and roll out PRs `#74` and `#75` independently
-5. add the mechanical review and post-merge deployment gates described above
+5. implement the `G5-02` post-merge production-verification automation

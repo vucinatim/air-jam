@@ -110,7 +110,7 @@ const run = ({ args, cwd, env = {}, label }) => {
   return output;
 };
 
-const requestJson = ({ host, path: requestPath, port }) =>
+const requestRaw = ({ host, path: requestPath, port }) =>
   new Promise((resolve, reject) => {
     const req = request(
       {
@@ -125,18 +125,11 @@ const requestJson = ({ host, path: requestPath, port }) =>
         response.on("data", (chunk) => chunks.push(chunk));
         response.on("end", () => {
           const body = Buffer.concat(chunks).toString("utf8");
-          try {
-            resolve({
-              body: JSON.parse(body),
-              status: response.statusCode,
-            });
-          } catch {
-            reject(
-              new Error(
-                `Standalone platform returned non-JSON HTTP ${response.statusCode}: ${body}`,
-              ),
-            );
-          }
+          resolve({
+            body,
+            headers: response.headers,
+            status: response.statusCode,
+          });
         });
       },
     );
@@ -146,6 +139,17 @@ const requestJson = ({ host, path: requestPath, port }) =>
     req.once("error", reject);
     req.end();
   });
+
+const requestJson = async (options) => {
+  const response = await requestRaw(options);
+  try {
+    return { ...response, body: JSON.parse(response.body) };
+  } catch {
+    throw new Error(
+      `Standalone platform returned non-JSON HTTP ${response.status}: ${response.body}`,
+    );
+  }
+};
 
 const waitForStandaloneResponse = async ({
   child,
@@ -331,6 +335,21 @@ const main = async () => {
         ) {
           throw new Error(
             `Standalone Railway liveness probe returned an invalid contract: ${JSON.stringify(liveness)}`,
+          );
+        }
+
+        const canonicalRedirect = await requestRaw({
+          host: "www.airjam.io",
+          path: "/docs?source=deploy-check",
+          port,
+        });
+        if (
+          canonicalRedirect.status !== 308 ||
+          canonicalRedirect.headers.location !==
+            "https://airjam.io/docs?source=deploy-check"
+        ) {
+          throw new Error(
+            `Standalone platform did not preserve its canonical host redirect: ${JSON.stringify(canonicalRedirect)}`,
           );
         }
 

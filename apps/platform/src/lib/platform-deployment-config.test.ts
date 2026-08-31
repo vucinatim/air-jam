@@ -57,8 +57,10 @@ describe("resolvePlatformDeploymentConfig", () => {
         BETTER_AUTH_URL: "https://air-jam-platform-production.up.railway.app",
       }),
     ).toMatchObject({
-      platformPublicUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
+      platformPublicUrl:
+        "https://air-jam-platform-air-jam-pr-17.up.railway.app",
       authBaseUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
+      platformRequestHosts: ["air-jam-platform-air-jam-pr-17.up.railway.app"],
       hasExplicitPlatformPublicOrigin: true,
       isRailwayPreviewEnvironment: true,
     });
@@ -79,17 +81,23 @@ describe("resolvePlatformDeploymentConfig", () => {
   });
 
   it("collects trusted origins from every relevant deployment identity source", () => {
-    expect(
-      resolvePlatformDeploymentConfig({
-        NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://preview.airjam.io",
-        RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
-        BETTER_AUTH_TRUSTED_ORIGINS:
-          "https://foo.airjam.io, https://preview.airjam.io",
-      }).authTrustedOrigins,
-    ).toEqual([
+    const config = resolvePlatformDeploymentConfig({
+      NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://preview.airjam.io",
+      RAILWAY_PUBLIC_DOMAIN: "platform-preview.up.railway.app",
+      BETTER_AUTH_TRUSTED_ORIGINS:
+        "https://foo.airjam.io, https://preview.airjam.io",
+    });
+
+    expect(config.authTrustedOrigins).toEqual([
       "https://preview.airjam.io",
       "https://platform-preview.up.railway.app",
       "https://foo.airjam.io",
+    ]);
+    expect(config.platformRequestHosts).toEqual([
+      "preview.airjam.io",
+      "platform-preview.up.railway.app",
+      "foo.airjam.io",
+      "www.airjam.io",
     ]);
   });
 

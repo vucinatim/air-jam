@@ -48,15 +48,17 @@ export const resolveHostedReleaseRequestDisposition = (
     return { kind: "platform" };
   }
   const isReleasePath = isHostedReleasePath(url.pathname);
-  const platformHosts = deployment.authTrustedOrigins
-    .filter((origin) => !origin.includes("*"))
-    .map((origin) => new URL(origin).host);
   const isPlatformHost =
     incomingHost !== null &&
     (incomingHost === new URL(deployment.platformPublicOrigin).host ||
-      platformHosts.includes(incomingHost));
+      deployment.platformRequestHosts.includes(incomingHost));
+  const isLocalDevelopment =
+    env.NODE_ENV !== "production" && !env.RAILWAY_ENVIRONMENT_NAME;
 
   if (assessment.status !== "ready") {
+    if (!isPlatformHost && !isLocalDevelopment) {
+      return { kind: "block_unknown_host" };
+    }
     if (
       assessment.status === "disabled" &&
       !isHostedReleaseOriginRequired(env)
@@ -64,9 +66,6 @@ export const resolveHostedReleaseRequestDisposition = (
       return isReleasePath
         ? { kind: "release_unavailable", reason: assessment.reason }
         : { kind: "platform" };
-    }
-    if (!isPlatformHost) {
-      return { kind: "block_unknown_host" };
     }
     return isReleasePath
       ? {

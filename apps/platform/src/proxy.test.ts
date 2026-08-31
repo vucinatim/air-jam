@@ -120,6 +120,43 @@ describe("hosted release request routing", () => {
         releaseEnv,
       ),
     ).toEqual({ kind: "platform" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "https://www.airjam.io/docs",
+        "www.airjam.io",
+        releaseEnv,
+      ),
+    ).toEqual({ kind: "platform" });
+  });
+
+  it("applies fail-closed host policy in Railway previews without breaking local development", () => {
+    const previewEnv = {
+      NODE_ENV: "production",
+      RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-76",
+      RAILWAY_PUBLIC_DOMAIN: "air-jam-platform-air-jam-pr-76.up.railway.app",
+    } as NodeJS.ProcessEnv;
+
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/readiness",
+        "attacker.example",
+        previewEnv,
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/readiness",
+        "air-jam-platform-air-jam-pr-76.up.railway.app",
+        previewEnv,
+      ),
+    ).toEqual({ kind: "platform" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://192.168.1.20:3000/controller",
+        "192.168.1.20:3000",
+        { NODE_ENV: "development" } as NodeJS.ProcessEnv,
+      ),
+    ).toEqual({ kind: "platform" });
   });
 
   it("fails closed when a release path is requested without a ready origin", () => {
