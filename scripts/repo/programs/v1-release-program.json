@@ -3,16 +3,16 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-31T11:36:51.731Z",
+  "updatedAt": "2026-08-31T12:02:27.606Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
-    "agentHoursMin": 285,
-    "agentHoursMax": 520,
+    "agentHoursMin": 294,
+    "agentHoursMax": 537,
     "targetCalendarWeeksMin": 5,
     "targetCalendarWeeksMax": 7,
-    "maintainerHoursMin": 28,
-    "maintainerHoursMax": 56
+    "maintainerHoursMin": 29,
+    "maintainerHoursMax": 58
   },
   "gates": [
     {
@@ -747,15 +747,16 @@
         "G5-01"
       ],
       "estimate": {
-        "agentHoursMin": 16,
-        "agentHoursMax": 30
+        "agentHoursMin": 24,
+        "agentHoursMax": 45
       },
       "evidenceRequirements": [
-        "negative-path security tests and operator controls"
+        "negative-path security tests and operator controls",
+        "repo CLI and required automation proofs for exact reviewed-delivery and production-deployment gates"
       ],
       "owner": "/root/g5-security-closure",
       "note": "Production rollout incident recovery remains open. G5-02 owns the repo CLI and required automation that mechanically enforce the canonical reviewed-delivery gates in docs/working-agreements.md.",
-      "updatedAt": "2026-08-31T11:36:51.731Z"
+      "updatedAt": "2026-08-31T12:02:27.606Z"
     },
     {
       "id": "G5-03",
@@ -786,7 +787,8 @@
       "status": "pending",
       "dependsOn": [
         "G5-02",
-        "G5-03"
+        "G5-03",
+        "G5-05"
       ],
       "estimate": {
         "agentHoursMin": 2,
@@ -794,6 +796,25 @@
       },
       "evidenceRequirements": [
         "maintainer risk-acceptance or returned-finding record"
+      ]
+    },
+    {
+      "id": "G5-05",
+      "gate": "G5",
+      "lane": "security",
+      "priority": 15,
+      "title": "Establish a trusted formal reviewer identity and non-bypassable branch protection",
+      "authority": "human_checkpoint",
+      "status": "pending",
+      "dependsOn": [
+        "G5-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
+      },
+      "evidenceRequirements": [
+        "trusted GitHub reviewer identity and enforced stale-approval and administrator branch-protection evidence"
       ]
     },
     {

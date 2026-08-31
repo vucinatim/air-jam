@@ -112,17 +112,19 @@ The canonical current review, merge, and production-delivery rules live in
 [Working Agreements](../../working-agreements.md#review-stacks-and-integration).
 The incident produced these lessons that shaped that policy:
 
-1. preview success is evidence for the candidate, not evidence that production
-   accepted the merged revision
-2. a rollout is incomplete until provider state reaches terminal `SUCCESS`
-3. a newer terminal `FAILED` deployment must remain visible as an incident even
-   when the previous revision keeps serving traffic
+1. preview success proved the candidate, not that production accepted the
+   merged revision
+2. the rollout remained incomplete until provider state reached terminal
+   `SUCCESS`
+3. the newer terminal `FAILED` deployment remained incident evidence even while
+   the previous revision kept serving traffic
 4. locally completed agent reviews did not replace attached exact-head evidence
    or a formal GitHub approving review
-5. production-mode artifact proof must cover any contract that depends on
-   framework build-time transformation
-6. deployment liveness, dependency readiness, and product capability
-   readiness are different contracts and must not be collapsed
+5. source-only tests missed a contract that depended on framework build-time
+   transformation; the corrective proof therefore exercised the production
+   artifact
+6. collapsing deployment liveness, dependency readiness, and product capability
+   readiness made an optional capability block a healthy process rollout
 
 This audit records why those rules exist; it is not a parallel operating-policy
 owner.
@@ -138,4 +140,7 @@ Railway verification through the repo CLI and required automation.
    `SUCCESS`
 3. inspect live `/api/health` and `/api/readiness` with deployment identity
 4. repair, rebase, review, and roll out PRs `#74` and `#75` independently
-5. add the mechanical review and post-merge deployment gates described above
+
+The Claude Opus and Canonicalizer evidence listed above predates the exact-head
+attachment standard introduced by PR `#77`; it remains incident evidence but is
+not a formal GitHub approval.

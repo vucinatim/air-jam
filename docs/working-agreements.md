@@ -58,22 +58,23 @@ Use these rules:
 1. merge a stack bottom-up only when every slice is independently production
    valid, green, and has its own review findings resolved
 2. resolve the pull request's full `baseRefOid` and `headRefOid` from GitHub
-   immediately before each review; do not reconstruct or transcribe full SHAs
-   from abbreviated commit names
+   immediately before each review and again immediately before merge; do not
+   reconstruct or transcribe full SHAs from abbreviated commit names
 3. run Canonicalizer on every meaningful commit batch as defined below
 4. resolve every actionable Canonicalizer finding and resume the same session
    until `ready`
 5. request Claude Opus 5 through the explicit provider selector
    `claude-opus-5`, not the moving `opus` alias, and configure no fallback;
-   record the resolved `modelUsage` identifier because the provider selector
-   may resolve within the Opus 5 family; a successor model replaces Opus 5 only
-   through an explicit change to this canonical policy; keep the review
-   read-only and ask it to inspect correctness, architecture, canonicality,
-   security, operations, tests, and documentation
+   the result is valid only when its `modelUsage` records `claude-opus-5` as the
+   requested reviewer model; a successor model replaces Opus 5 only through an
+   explicit change to this canonical policy; keep the review read-only and ask
+   it to inspect correctness, architecture, canonicality, security, operations,
+   tests, and documentation
 6. review every individual pull request independently; a cumulative or
    descendant review does not review its ancestors
-7. after any push, treat both reviews as stale and rerun them against the new
-   exact head before merge
+7. after any base or head change, treat both agent reviews and any formal
+   approval as stale and rerun or re-obtain them against the new exact
+   base-to-head state before merge
 8. attach both reviews to the pull request with the exact reviewed base and head
    SHAs, Canonicalizer session identifier, resolved Claude `modelUsage` model
    identifier, verdicts, and resolved findings so later agents can audit what
@@ -88,23 +89,27 @@ Use these rules:
 12. treat provider preview status, issue comments, and automated review prose as
     evidence, not as a formal GitHub approval unless GitHub records an approving
     review
-13. merge only when all exact-head evidence is attached: Canonicalizer is
+13. merge only when all exact-base-and-head evidence is attached: Canonicalizer is
     `ready`; the required Claude review has no actionable blockers; every
-    configured GitHub Actions check triggered for that head is `SUCCESS` or
-    explicitly condition-skipped; every provider-created preview deployment for
-    that head is literal terminal `SUCCESS`; every review conversation is
-    resolved; and GitHub records the required formal approving review for that
-    head; branch protection's required-context list is a floor, not the full
-    definition of this gate
+    configured GitHub Actions workflow expected by its event and path rules has
+    a check run whose required jobs are `SUCCESS`; every provider-created
+    preview deployment for that exact base and head is literal terminal
+    `SUCCESS`; every review conversation is resolved; and GitHub records a
+    formal approving review whose commit matches the head; branch protection's
+    required-context list is a floor, not the full definition of this gate
 14. list the affected deployable services and exact preview deployment IDs in
-    the pull request evidence; when no preview is created, record why the diff
-    is non-deployable or why the provider did not schedule one instead of
-    silently treating an absent status as success
+    the pull request evidence; provider deployment state is the positive preview
+    proof, while a green or warning-only preview-comment workflow is not; when
+    no preview is created, record why the diff cannot affect a deployable
+    artifact or treat the missing provider deployment as a blocker
 15. never use an admin bypass to evade an unsatisfied required check, review,
     preview, or conversation-resolution rule; if a solo repository cannot
     satisfy formal approval, stop and obtain a trusted reviewer identity rather
     than reinterpreting agent evidence as approval
-16. after a cumulative integration, return to small independently mergeable pull
+16. require branch protection to dismiss stale approvals and apply required
+    checks and reviews to administrators; a visible approval or green status
+    from a different base or head does not satisfy the gate
+17. after a cumulative integration, return to small independently mergeable pull
     requests rather than allowing another long-lived stack to become the normal
     delivery model
 
@@ -115,8 +120,8 @@ behavior, public or machine contracts, architecture or ownership, security or
 privacy, data or schemas, infrastructure, dependencies, deployment behavior,
 release operations, or the structural documentation that governs those
 systems. Formatting-only and typo-only edits do not require their own
-intermediate pass, but any push makes existing evidence stale and the final
-ready range must include those commits.
+intermediate pass before review begins, but rule 7 is unconditional once review
+evidence exists and the final ready range must include those commits.
 
 ## Production Delivery And Public Launch
 
@@ -147,9 +152,11 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
     deployment still serving traffic does not make the new rollout successful
 11. start Railway verification with
     `pnpm --silent run repo -- railway doctor --project <id> --json`; until the
-    `G5-02` exact-commit verifier is required in automation, also retain a
-    structured provider deployment read containing the deployment ID, literal
-    status, and commit hash rather than inferring identity from service health
+    `G5-02` exact-commit verifier is required in automation, run
+    `railway deployment list --project <project-id> --environment <environment-id> --service <service-id> --json`
+    for every affected service, select the deployment whose `meta.commitHash`
+    equals the merged commit, and retain its deployment ID and literal terminal
+    status rather than inferring identity from service health
 
 ## Agent-First Operability
 

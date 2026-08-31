@@ -1,6 +1,6 @@
 # Air Jam 1.0 Release Execution Plan
 
-Last updated: 2026-08-29
+Last updated: 2026-08-31
 Status: active subordinate execution plan
 
 Related docs and machine surfaces:
@@ -41,8 +41,8 @@ manually maintaining a second checklist.
 
 Planning envelope:
 
-1. `285-520` active agent execution hours
-2. `28-56` maintainer hours, concentrated into explicit checkpoints
+1. `294-537` active agent execution hours
+2. `29-58` maintainer hours, concentrated into explicit checkpoints
 3. `5-7` likely calendar weeks with stable boundaries and parallel execution
 4. `3-4` aggressive weeks if audits and production proofs reveal little fallout
 5. `8-10` conservative weeks if canonicalization, security, or scale work finds
@@ -339,6 +339,11 @@ base/head review evidence, exact provider preview deployment identity and
 terminal status, and the exact merged commit's production deployment plus live
 health/readiness/revision evidence. Prose and manually attached evidence govern
 the current recovery, but they do not close this enforcement work.
+
+The trusted GitHub reviewer identity and non-bypassable branch-protection setup
+are a separate maintainer-owned checkpoint in the machine execution program.
+No agent may synthesize that approval or relax it while delivering the same
+stack.
 
 ### Wave 3: Public Proof And Evidence Closure
 
