@@ -58,6 +58,16 @@ checks all passed. Railway production platform deployment
    remaining hosted-release boundary is a product-readiness task, not a failed
    process deployment.
 
+## Review-Authority Decision
+
+On 2026-08-31 the maintainer explicitly chose agent-owned implementation
+review for 1.0 rather than routine human code approval. The GitHub requirement
+for one approving human review was therefore removed before PR `#76` merged.
+Strict required CI for administrators, conversation resolution, and the
+force-push and branch-deletion protections remained enabled. Exact-head
+Canonicalizer and Claude Opus review evidence remains mandatory under the
+canonical working agreements.
+
 ## Root Causes
 
 ### Deployment liveness was coupled to product readiness
@@ -152,9 +162,5 @@ correction owned by `G5-02`. Its evidence requirement blocks that work item from
 closing until the repo CLI itself can prove the exact merged production
 deployment, terminal provider state, and public liveness/readiness identity.
 
-## Remaining Follow-Up
-
-1. implement the `G5-02` post-merge production-verification automation
-2. configure and attest the dedicated hosted-release public origin before
-   treating that product capability as ready
-3. repair, review, and roll out PRs `#74` and `#75` independently
+All remaining execution work is tracked by the canonical readiness manifest;
+this incident audit intentionally owns no parallel follow-up backlog.

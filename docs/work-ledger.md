@@ -18,20 +18,6 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
-## 2026-08-31 - Production Platform Recovery Was Verified
-
-- merged corrective PR `#76` only after exact-head Canonicalizer and explicit
-  Claude Opus review, GitHub CI, standalone-artifact proof, and every affected
-  Railway preview reached a passing terminal state
-- observed production platform deployment
-  `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reach terminal `SUCCESS`
-- proved live `/api/health` reports the exact deployment and merged revision
-  `e122a52c1da49ef409364c93fb675df56a4e639d`
-- confirmed `/api/readiness` now preserves the explicit disabled
-  hosted-release boundary without making Railway process liveness fail
-- retained hosted-release domain provisioning and repo-native exact-deployment
-  automation as open `G5-02` work rather than conflating them with recovery
-
 ## 2026-08-31 - Review, Merge, And Production Delivery Became Canonical
 
 - made the working agreements the sole normative owner for reviewed delivery
@@ -46,10 +32,27 @@ The pre-reset overloaded ledger has been preserved at:
   pull request
 - retained CI and affected provider previews as the mechanically enforced
   GitHub gates; review evidence remains instruction-governed for 1.0
+- recorded the maintainer's explicit decision to remove the routine human
+  approval requirement while retaining required CI for administrators,
+  conversation resolution, and force-push and branch-deletion protections
 - required exact affected-service production deployment success plus live
   health, readiness, and revision evidence before calling a rollout complete
 - deferred protected automated review attestation to `docs/suggestions.md` until
   unattended merge volume or an observed process failure justifies it
+
+## 2026-08-31 - Production Platform Recovery Was Verified
+
+- merged corrective PR `#76` only after exact-head Canonicalizer and explicit
+  Claude Opus review, GitHub CI, standalone-artifact proof, and every affected
+  Railway preview reached a passing terminal state
+- observed production platform deployment
+  `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reach terminal `SUCCESS`
+- proved live `/api/health` reports the exact deployment and merged revision
+  `e122a52c1da49ef409364c93fb675df56a4e639d`
+- confirmed `/api/readiness` now preserves the explicit disabled
+  hosted-release boundary without making Railway process liveness fail
+- retained hosted-release domain provisioning and repo-native exact-deployment
+  automation as open `G5-02` work rather than conflating them with recovery
 
 ## 2026-08-31 - Failed Platform Rollout Entered Controlled Recovery
 

@@ -367,32 +367,13 @@ Primary work:
 
 Expected elapsed time: `3-5` days plus the required stabilization window.
 
-## Current Stack Closeout And Merge Policy
+## Prior Stack Closeout
 
-The 2026-08-28 through 2026-08-29 roadmap, canonicalization, and external-agent
-work was intentionally reviewed as pull request stack `#52` through `#60`.
-Independent review then produced corrections that cross the original slice
-boundaries and now live on the cumulative top of the stack.
-
-The production-valid closeout is therefore:
-
-1. close the remaining correctness, trust, and release-safety findings on the
-   cumulative branch
-2. create one integration pull request from the corrected cumulative head into
-   `main`, linking the component pull requests as its review record
-3. run the complete CI and release-relevant gate on that exact integration head
-4. satisfy the canonical merge gate in
-   [Review Stacks And Integration](../working-agreements.md#review-stacks-and-integration),
-   including exact-head agent evidence and mechanically enforced checks
-5. merge once and verify the resulting production deployment and health rather
-   than intentionally deploying known-incomplete intermediate stack states
-6. close the component pull requests as superseded only after the cumulative
-   merge is retained on `main`
-7. resume small, independently production-valid pull requests for the remaining
-   release program
-
-This integration is not the Air Jam 1.0 public launch. It lands the corrected
-foundation from which Gates 2 through 7 continue.
+The roadmap, canonicalization, and external-agent stack from PRs `#52` through
+`#60` was corrected and integrated through PR `#61` on 2026-08-30. That merge
+landed the production-valid foundation; it was not the Air Jam 1.0 public
+launch. Remaining release-program work proceeds as small, independently
+production-valid pull requests under the canonical review and delivery gate.
 
 ## Incremental Delivery, Coordinated Launch
 

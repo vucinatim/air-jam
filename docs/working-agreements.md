@@ -67,6 +67,10 @@ Air Jam separates subjective product authority from implementation assurance:
 6. a protected automated GitHub review attestation is a future scaling option,
    not a 1.0 prerequisite; add it only when unattended merge volume or observed
    process failures justify the extra system
+7. the current GitHub policy does not require a routine human approval; this is
+   an explicit maintainer decision recorded in the
+   [production rollout incident audit](./audits/v1-operations/production-rollout-incident-audit.md#review-authority-decision),
+   while exact-head agent review and all mechanical safeguards remain mandatory
 
 ## Review Stacks And Integration
 
@@ -123,8 +127,10 @@ Use these rules:
     no preview is created, record why the diff cannot affect a deployable
     artifact or treat the missing provider deployment as a blocker
 16. never use an admin bypass to evade an unsatisfied CI, agent-review, preview,
-    or conversation-resolution rule; GitHub not enforcing every rule does not
-    authorize the integrating agent to ignore it
+    conversation-resolution, or branch-protection rule; GitHub not enforcing
+    every rule does not authorize the integrating agent to ignore it. Change a
+    branch-protection rule only through an explicit maintainer decision recorded
+    before merge
 17. require branch protection to apply CI checks to administrators; agent review
     evidence remains exact-head and instruction-governed for 1.0
 18. after a cumulative integration, return to small independently mergeable pull
@@ -166,7 +172,7 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
 9. after merge, identify the exact merged commit for every affected deployable
    service in provider state, wait for literal terminal `SUCCESS`, and complete
    the canonical
-   [Railway validation checklist](./guides/railway-deployment-guide.md#validation-checklist)
+   [production rollout validation](./guides/railway-deployment-guide.md#production-rollout-validation)
    before calling the production rollout complete; explicitly classify
    unaffected services and confirm their preceding successful deployment stays
    live rather than requiring a new deployment for an unchanged artifact

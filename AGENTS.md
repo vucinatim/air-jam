@@ -116,9 +116,10 @@ pnpm run repo -- railway --help
 Current Railway helpers include:
 
 1. `whoami`
-2. `project`
-3. `env`
-4. `vars`
+2. `doctor`
+3. `project`
+4. `env`
+5. `vars`
 
 ## Parallel Work Rule
 
@@ -145,7 +146,8 @@ Run relevant checks before considering work complete:
 ## Review, Merge, And Production Gate
 
 All agents must follow
-[Review Stacks And Integration](docs/working-agreements.md#review-stacks-and-integration)
+[Review Authority](docs/working-agreements.md#review-authority),
+[Review Stacks And Integration](docs/working-agreements.md#review-stacks-and-integration),
 and
 [Production Delivery And Public Launch](docs/working-agreements.md#production-delivery-and-public-launch)
 as the sole normative authority for reviewed delivery. Do not duplicate,

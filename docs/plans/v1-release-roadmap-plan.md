@@ -946,9 +946,9 @@ Make wider public creation and hosting safe enough to operate unattended.
 3. preview/production isolation and secret non-disclosure are proven
 4. public packages and release artifacts have traceable provenance
 5. privacy claims match actual stored data and retention behavior
-6. required review and deployment evidence is machine-verifiable; protected CI
-   applies to administrators, while exact-head agent review evidence remains
-   instruction-governed until measured need justifies automated attestation
+6. baseline branch-protection proof confirms protected CI applies to
+   administrators, and exact-head agent review plus deployment evidence is
+   machine-auditable
 
 ## Gate 6: Public Packages, Documentation, Demo, And Story
 
