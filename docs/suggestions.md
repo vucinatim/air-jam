@@ -58,7 +58,6 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 52. Remove the repeated Better Auth default-secret error noise from intentional local clean-checkout production builds through one explicit build-time auth configuration contract, while preserving fail-closed runtime validation and never normalizing a production default secret.
 53. Split `scripts/repo/lib/golden-path-primary-run.mjs` into narrow isolation, evidence-retention, verification, and lifecycle orchestration modules before expanding the scenario again; the current controller is trustworthy and tested, but its 1,200+ line composition root is now the clearest structural weakness in the agent-proof harness.
 54. Reduce the realtime server production image to the server's transitive production dependency closure before 1.0 capacity rehearsal, so adding an unrelated workspace does not permanently expand runtime image size even though the manifest-stage correctness guard remains repo-wide.
-55. Add a protected exact-head GitHub review-attestation check only when unattended merge volume or observed review-process failures justify it; until then keep Canonicalizer and explicit Claude Opus evidence instruction-governed and attached to each pull request rather than building a second review-control system before 1.0.
 
 ## Framework Boundary Follow-Ups
 

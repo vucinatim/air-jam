@@ -136,12 +136,10 @@ Do not parallelize prematurely when the shared API or architecture is still movi
 
 ## Quality Gates
 
-Run relevant checks before considering work complete:
-
-1. Type checking
-2. Linting
-3. Tests
-4. Build validation
+Follow the canonical
+[Development Check Layers](docs/working-agreements.md#development-check-layers).
+Keep ordinary edits on the fast tiers and escalate only when that agreement
+requires it.
 
 ## Review, Merge, And Production Gate
 

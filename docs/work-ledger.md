@@ -18,6 +18,22 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-31 - Development And Review Gates Were Re-Layered
+
+- superseded the same-day exact-head two-local-review policy after it proved too
+  slow and duplicated Opus-class judgment without improving the product
+- established `check:instant` with a warm `<=1s` target and `check:changed` with
+  a warm `<=5s` target as the normal development loop
+- moved full typecheck, lint, canonical guards, and tests into the substantial
+  pre-push batch gate; exhaustive builds, deployment proof, and perf remain CI
+  responsibilities
+- limited Canonicalizer to one local session before pushing a substantial
+  multi-file, new-system, architectural, or roughly `1,000+` line batch
+- moved the only final Opus review to one open, green, merge-ready GitHub pull
+  request so findings and line comments remain beside the code
+- removed automatic review reruns and local review fixtures from the ordinary
+  merge path
+
 ## 2026-08-31 - Review, Merge, And Production Delivery Became Canonical
 
 - made the working agreements the sole normative owner for reviewed delivery

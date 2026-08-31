@@ -934,9 +934,9 @@ Make wider public creation and hosting safe enough to operate unattended.
 8. run dependency, container, package-provenance, and public-export checks
 9. document telemetry privacy behavior and retention in user-facing terms
 10. define vulnerability reporting and emergency release procedures
-11. enforce exact-base-and-head review, preview, merge, and production
-    deployment evidence through agent instructions, pull-request evidence, the
-    repo CLI, and required CI/provider checks
+11. enforce fast staged local checks, one pre-push canonicality pass for
+    substantial batches, one GitHub-native review for a green merge candidate,
+    and exact production deployment evidence
 
 ### Done When
 
@@ -947,8 +947,8 @@ Make wider public creation and hosting safe enough to operate unattended.
 4. public packages and release artifacts have traceable provenance
 5. privacy claims match actual stored data and retention behavior
 6. baseline branch-protection proof confirms protected CI applies to
-   administrators, and exact-head agent review plus deployment evidence is
-   machine-auditable
+   administrators, the final review lives on the pull request, and deployment
+   evidence is machine-auditable
 
 ## Gate 6: Public Packages, Documentation, Demo, And Story
 

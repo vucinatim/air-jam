@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-31T20:54:33.000Z",
+  "updatedAt": "2026-08-31T21:30:00.000Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -753,11 +753,11 @@
       "evidenceRequirements": [
         "negative-path security tests and operator controls",
         "repo CLI proof that the exact merged production deployment reached terminal SUCCESS and its canonical platform origin plus public liveness/readiness identity match the deployed revision",
-        "branch-protection proof that required CI applies to administrators plus machine-auditable exact-head Canonicalizer and Claude Opus pull-request evidence"
+        "branch-protection proof that required CI applies to administrators plus one GitHub-native Opus review on the green merge candidate and measured fast local check tiers"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "PR #76 restored and verified production platform liveness. G5-02 remains open for security closure, dedicated hosted-release origin proof, repo-CLI verification of exact merged production deployments, and baseline branch-protection plus exact-head review evidence; exact-head agent review remains instruction-governed for 1.0.",
-      "updatedAt": "2026-08-31T20:54:33.000Z"
+      "note": "PR #76 restored and verified production platform liveness. G5-02 remains open for security closure, dedicated hosted-release origin proof, repo-CLI verification of exact merged production deployments, baseline branch protection, and measured fast-check plus GitHub-native review evidence.",
+      "updatedAt": "2026-08-31T21:30:00.000Z"
     },
     {
       "id": "G5-03",

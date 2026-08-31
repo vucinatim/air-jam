@@ -64,9 +64,10 @@ On 2026-08-31 the maintainer explicitly chose agent-owned implementation
 review for 1.0 rather than routine human code approval. The GitHub requirement
 for one approving human review was therefore removed before PR `#76` merged.
 Strict required CI for administrators, conversation resolution, and the
-force-push and branch-deletion protections remained enabled. Exact-head
-Canonicalizer and Claude Opus review evidence remains mandatory under the
-canonical working agreements.
+force-push and branch-deletion protections remained enabled. The current
+working agreement keeps review agent-owned without duplicating Opus locally:
+substantial batches receive one pre-push Canonicalizer session, and a green
+merge candidate receives one GitHub-native Opus review.
 
 ## Root Causes
 
@@ -146,16 +147,17 @@ The incident produced these lessons that shaped that policy:
 2. a rollout is incomplete until provider state reaches terminal `SUCCESS`
 3. a newer terminal `FAILED` deployment must remain visible as an incident even
    when the previous revision keeps serving traffic
-4. Claude Opus and Canonicalizer output must be attached as explicit exact-head
-   review evidence; missing or stale evidence cannot be treated as approval
+4. final review belongs on the green GitHub pull request beside the code;
+   pre-push canonicality review and merge review must not become duplicate local
+   Opus loops
 5. production-mode artifact proof must cover any contract that depends on
    framework build-time transformation
 6. deployment liveness, dependency readiness, and product capability
    readiness are different contracts and must not be collapsed
 
 This audit records why those rules exist; it is not a parallel operating-policy
-owner. Exact review evidence remains mandatory through the canonical agent
-instructions and pull-request record.
+owner. Final review remains visible in the GitHub pull-request record through
+the canonical agent instructions.
 
 Mechanical post-merge Railway verification is a separate operating-system
 correction owned by `G5-02`. Its evidence requirement blocks that work item from

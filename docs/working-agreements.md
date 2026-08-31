@@ -48,6 +48,39 @@ Use this loop unless a task clearly requires something more specific:
 
 If an agent jumps from chat context straight into edits without checking the current repo surfaces, it is operating incorrectly.
 
+## Development Check Layers
+
+Quality gates surround development; they are not the development loop.
+
+1. `pnpm check:instant` is the continuous local loop. It checks diff hygiene,
+   changed JSON, and JavaScript syntax with a warm target of `<=1s`.
+2. `pnpm check:changed` is the coherent-change gate. It runs cached ESLint and
+   cached affected-project TypeScript checks in parallel with a warm target of
+   `<=5s`.
+   During a larger uncommitted batch, use `-- --files <paths...>` to check only
+   the files currently being edited without losing the full pre-push gate.
+3. the changed gate must stay bounded. Central toolchain changes or more than
+   four affected TypeScript projects immediately request `pnpm check:batch`
+   instead of turning the fast command into a hidden whole-repo run.
+4. `pnpm check:batch` is intentionally slower. It owns generated-source checks,
+   full typechecking, linting, canonical guards, and tests for a substantial
+   change batch before push.
+5. pull-request CI owns exhaustive builds, standalone deployment proof, and
+   performance validation. Release-only smoke and package matrices stay in the
+   release gate.
+6. use batch validation for a new system or architectural boundary, a coherent
+   multi-file behavioral refactor, or roughly `1,000+` meaningful changed
+   lines. Do not invoke it between ordinary edits.
+7. treat latency targets as product requirements. Record cold versus warm
+   timing honestly, preserve caches between local runs, and narrow or remove a
+   slow test when it does not protect a meaningful contract.
+
+Inspect the selected work without running it through:
+
+```bash
+pnpm --silent run repo -- check plan --json
+```
+
 ## Review Authority
 
 Air Jam separates subjective product authority from implementation assurance:
@@ -56,21 +89,14 @@ Air Jam separates subjective product authority from implementation assurance:
    business tradeoffs, material risk acceptance, and public-launch judgment
 2. the maintainer is not the routine line-by-line code reviewer and is not
    expected to translate agent findings into a manual GitHub approval
-3. Canonicalizer and the explicitly selected Claude Opus reviewer own the two
-   independent implementation-review passes defined below
-4. for 1.0, the integrating agent must attach the exact review evidence to the
-   pull request and must not merge when either review is missing, stale,
-   incomplete, or non-passing
-5. `AGENTS.md` and this canonical agreement are the authority for that agent
-   behavior; ordinary CI and provider previews remain the mechanically enforced
-   GitHub gates
-6. a protected automated GitHub review attestation is a future scaling option,
-   not a 1.0 prerequisite; add it only when unattended merge volume or observed
-   process failures justify the extra system
-7. the current GitHub policy does not require a routine human approval; this is
+3. Canonicalizer and the final Claude Opus review are two uses of Opus-class
+   review, not independent model votes: Canonicalizer focuses on local code
+   canonicality before a substantial push, while the final reviewer inspects
+   the complete green pull request on GitHub
+4. the current GitHub policy does not require a routine human approval; this is
    an explicit maintainer decision recorded in the
    [production rollout incident audit](./audits/v1-operations/production-rollout-incident-audit.md#review-authority-decision),
-   while exact-head agent review and all mechanical safeguards remain mandatory
+   while CI, review conversations, and branch protection remain mandatory
 
 ## Review Stacks And Integration
 
@@ -79,74 +105,38 @@ incomplete intermediate state to `main`.
 
 Use these rules:
 
-1. merge a stack bottom-up only when every slice is independently production
-   valid, green, and has its own review findings resolved
-2. resolve the pull request's full `baseRefOid` and `headRefOid` from GitHub
-   immediately before each review and again immediately before merge; do not
-   reconstruct or transcribe full SHAs from abbreviated commit names
-3. run Canonicalizer on every meaningful commit batch as defined below
-4. resolve every actionable Canonicalizer finding and resume the same session
-   until `ready`
-5. request Claude Opus 5 through the explicit provider selector
-   `claude-opus-5`, not the moving `opus` alias, and configure no fallback;
-   the result is valid only when its `modelUsage` records `claude-opus-5` as the
-   requested reviewer model; a successor model replaces Opus 5 only through an
-   explicit change to this canonical policy; keep the review read-only and ask
-   it to inspect correctness, architecture, canonicality, security, operations,
-   tests, and documentation
-6. review every individual pull request independently; a cumulative or
-   descendant review does not review its ancestors
-7. after any base or head change, treat both agent reviews as stale and rerun
-   them against the new exact base-to-head state before merge
-8. attach both reviews to the pull request with the exact reviewed base and head
-   SHAs, Canonicalizer session identifier, resolved Claude `modelUsage` model
-   identifier, verdicts, and resolved findings so later agents can audit what
-   was actually reviewed
-9. when review corrections cross stack boundaries, prepare one cumulative
-   integration pull request from the corrected top of the stack into `main`
-10. preserve the component pull requests as focused review history and close
-    them as superseded only after the integration pull request merges
-11. run the complete integration gate against the exact cumulative head; green
-    checks on a descendant do not retroactively make a failing ancestor safe to
-    merge by itself
-12. attach agent review results as auditable pull-request evidence; they do not
-    claim that the maintainer manually reviewed or approved the implementation
-13. merge only when all exact-base-and-head evidence is attached: Canonicalizer
-    is `ready`; the required Claude review has no actionable blockers; the
-    canonical CI workflow at `.github/workflows/ci.yml` has a `SUCCESS` `checks`
-    job; every other workflow dispatched for the pull request is no longer
-    pending and has no failed or cancelled job; every required provider preview
-    deployment is literal terminal `SUCCESS`; and every review conversation is
-    resolved
-14. treat a missing expected `checks` run as a blocker; branch protection must
-    require it, but its required-context list is a floor rather than the full
-    definition of this gate
-15. list the affected deployable services and exact preview deployment IDs in
-    the pull request evidence; provider deployment state is the positive preview
-    proof, while a green or warning-only preview-comment workflow is not; when
-    no preview is created, record why the diff cannot affect a deployable
-    artifact or treat the missing provider deployment as a blocker
-16. never use an admin bypass to evade an unsatisfied CI, agent-review, preview,
-    conversation-resolution, or branch-protection rule; GitHub not enforcing
-    every rule does not authorize the integrating agent to ignore it. Change a
-    branch-protection rule only through an explicit maintainer decision recorded
-    before merge
-17. require branch protection to apply CI checks to administrators; agent review
-    evidence remains exact-head and instruction-governed for 1.0
-18. after a cumulative integration, return to small independently mergeable pull
-    requests rather than allowing another long-lived stack to become the normal
-    delivery model
-
-A Canonicalizer batch is the exact contiguous range from the pull request base,
-or the last Canonicalizer-ready head on that branch, through the current head;
-it must include every unreviewed commit. A meaningful batch changes runtime
-behavior, public or machine contracts, architecture or ownership, security or
-privacy, data or schemas, infrastructure, dependencies, deployment behavior,
-release operations, or the structural documentation that governs those
-systems. Formatting-only and typo-only edits do not require their own
-intermediate pass before review begins, but the base/head staleness rule is
-unconditional once review evidence exists and the final ready range must include
-those commits.
+1. keep pull requests small and independently production-valid; merge stacks
+   bottom-up only when each slice can safely stand on `main`
+2. use the instant and changed gates during implementation; do not run full CI,
+   Canonicalizer, or Claude Opus between ordinary edits
+3. before pushing a substantial batch, run `pnpm check:batch` and one
+   Canonicalizer session focused on code organization, canonicality, unnecessary
+   complexity, and architectural fit. Use that session for the coherent batch,
+   resolve its actionable findings, and do not open duplicate Canonicalizer
+   sessions for later wording, evidence, or typo changes
+4. skip Canonicalizer for a small, focused change that does not introduce a new
+   system, cross several implementation files, or carry meaningful structural
+   risk
+5. after push, wait for the open pull request's CI and required provider
+   previews to become green. Do not invoke Claude Opus while the PR is still
+   changing or while mechanical checks are pending
+6. only when the integrating agent believes the green PR is ready to merge,
+   give the GitHub pull-request URL to `claude-opus-5` once. The reviewer reads
+   the GitHub diff and records its summary and any line-specific findings as a
+   GitHub review beside the code; do not substitute a local review fixture,
+   terminal-only verdict, or manually transcribed evidence comment
+7. request at most one GitHub Opus review per pull request. If it identifies a
+   blocker, resolve the visible review conversation and rerun only the affected
+   mechanical checks; do not start an automatic review loop
+8. merge when the canonical `checks` job and required provider statuses are
+   successful, the single GitHub Opus review is clear or its actionable
+   conversations are resolved, and no planned edits remain
+9. never use an admin bypass to evade CI, an unresolved review conversation, or
+   branch protection. Change a branch-protection rule only through an explicit
+   maintainer decision recorded before merge
+10. after a cumulative integration, return to small independently mergeable
+    pull requests rather than allowing another long-lived stack to become the
+    normal delivery model
 
 ## Production Delivery And Public Launch
 

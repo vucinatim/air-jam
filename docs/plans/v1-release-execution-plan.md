@@ -334,12 +334,11 @@ stable.
 Expected elapsed time: `10-18` days.
 
 Gate `G5-02` owns repo-CLI proof for the exact merged commit's production
-deployment plus live health/readiness/revision evidence. Exact-head
-Canonicalizer and Claude review remains mandatory under `AGENTS.md` and the
-canonical working agreements, with evidence attached to each pull request. A
-separate GitHub review-attestation service is deliberately outside the 1.0
-critical path unless real unattended merge volume or an observed process
-failure justifies it.
+deployment plus live health/readiness/revision evidence. Development uses the
+fast layered checks in `AGENTS.md`; substantial local batches receive one
+pre-push Canonicalizer session, and an open green merge candidate receives one
+GitHub-native Claude Opus review. Review loops and a separate attestation
+service are deliberately outside the 1.0 critical path.
 
 ### Wave 3: Public Proof And Evidence Closure
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { registerCheckCommands } from "./commands/check.mjs";
 import { registerContentCommands } from "./commands/content.mjs";
 import { registerDbCommands } from "./commands/db.mjs";
 import { registerGoldenPathCommands } from "./commands/golden-path.mjs";
@@ -22,6 +23,7 @@ const program = new Command();
 program.name("air-jam-repo").description("Repo-local Air Jam maintainer CLI");
 
 registerWorkspaceCommands(program);
+registerCheckCommands(program);
 registerDbCommands(program);
 registerGoldenPathCommands(program);
 registerContentCommands(program);

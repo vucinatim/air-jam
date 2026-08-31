@@ -45,7 +45,8 @@ The current priorities are:
    one exact release candidate
 6. launch with a free creation harness and useful hobby cloud inside an explicit
    cost envelope, rather than tying sustainability to signup count
-7. operate every change under the canonical
+7. keep development fast through the canonical
+   [check layers](./working-agreements.md#development-check-layers), then use the
    [review and merge rules](./working-agreements.md#review-stacks-and-integration)
    and
    [production-delivery rules](./working-agreements.md#production-delivery-and-public-launch)
