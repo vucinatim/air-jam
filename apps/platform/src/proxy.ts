@@ -38,12 +38,15 @@ export const resolveHostedReleaseRequestDisposition = (
   env: NodeJS.ProcessEnv = process.env,
 ): HostedReleaseRequestDisposition => {
   const url = new URL(requestUrl);
-  if (isPlatformLivenessPath(url.pathname)) {
-    return { kind: "platform" };
-  }
   const assessment = assessHostedReleaseOrigin(env);
   const deployment = resolvePlatformDeploymentConfig(env);
   const incomingHost = normalizePlatformRequestHost(requestHost);
+  const isReleaseOriginHost =
+    assessment.status === "ready" &&
+    incomingHost === new URL(assessment.publicOrigin).host;
+  if (isPlatformLivenessPath(url.pathname) && !isReleaseOriginHost) {
+    return { kind: "platform" };
+  }
   const isReleasePath = isHostedReleasePath(url.pathname);
   const platformHosts = deployment.authTrustedOrigins
     .filter((origin) => !origin.includes("*"))
@@ -73,7 +76,7 @@ export const resolveHostedReleaseRequestDisposition = (
       : { kind: "platform" };
   }
 
-  if (incomingHost === new URL(assessment.publicOrigin).host) {
+  if (isReleaseOriginHost) {
     return isReleasePath
       ? { kind: "serve_release" }
       : { kind: "block_release_origin" };

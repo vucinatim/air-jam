@@ -192,7 +192,7 @@ describe("hosted release request routing", () => {
           AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://airjamusercontent.example",
         },
       ),
-    ).toEqual({ kind: "platform" });
+    ).toEqual({ kind: "block_release_origin" });
     expect(
       resolveHostedReleaseRequestDisposition(
         "http://0.0.0.0:3000/login",

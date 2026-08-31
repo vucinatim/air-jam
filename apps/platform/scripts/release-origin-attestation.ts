@@ -11,7 +11,7 @@ import { assessReleaseOriginAddresses } from "../src/lib/releases/release-origin
 const REQUEST_TIMEOUT_MS = 5_000;
 const MAX_READINESS_RESPONSE_BYTES = 64 * 1024;
 
-export type PlatformDeploymentIdentity = {
+export type RemotePlatformDeploymentIdentity = {
   provider: string | null;
   environment: string | null;
   deploymentId: string | null;
@@ -27,7 +27,7 @@ export type RemoteHostedReleaseOriginAssessment = {
 
 export type RemoteReleaseOriginReadiness = {
   readiness: { httpStatus: 200 | 503; ok: boolean };
-  deployment: PlatformDeploymentIdentity;
+  deployment: RemotePlatformDeploymentIdentity;
   assessment: RemoteHostedReleaseOriginAssessment;
 };
 
@@ -104,7 +104,7 @@ export const parseRemoteReleaseOriginReadiness = (
   }
 
   const deploymentRecord = deployment as Record<string, unknown>;
-  const parsedDeployment: PlatformDeploymentIdentity = {
+  const parsedDeployment: RemotePlatformDeploymentIdentity = {
     provider: requireNullableString(deploymentRecord, "provider"),
     environment: requireNullableString(deploymentRecord, "environment"),
     deploymentId: requireNullableString(deploymentRecord, "deploymentId"),
@@ -938,7 +938,7 @@ export type ReleaseOriginAttestationResult = {
     releaseOrigin: string;
     releaseUrl: string;
     controllerUrl: string;
-    deployment: PlatformDeploymentIdentity;
+    deployment: RemotePlatformDeploymentIdentity;
   };
   checks: Check[];
   summary: { passed: number; failed: number };
@@ -957,7 +957,7 @@ const summarize = ({
   attestedAt: string;
   checks: Check[];
   controllerUrl: URL;
-  deployment: PlatformDeploymentIdentity;
+  deployment: RemotePlatformDeploymentIdentity;
   platformOrigin: string;
   platformResolution: OriginResolution | null;
   releaseUrl: URL;
@@ -1036,7 +1036,7 @@ export const attestRemoteReleaseOrigin = async ({
     platformDns.check,
     releaseDns.check,
   ];
-  const noDeployment: PlatformDeploymentIdentity = {
+  const noDeployment: RemotePlatformDeploymentIdentity = {
     provider: null,
     environment: null,
     deploymentId: null,

@@ -291,6 +291,23 @@ const main = async () => {
       checkoutRoot,
       "apps/platform/.next/standalone",
     );
+    const platformRailwayConfig = JSON.parse(
+      fs.readFileSync(
+        path.join(checkoutRoot, "apps/platform/railway.json"),
+        "utf8",
+      ),
+    );
+    const platformLivenessPath = platformRailwayConfig.deploy?.healthcheckPath;
+    if (
+      platformRailwayConfig.deploy?.startCommand !==
+        "node /app/apps/platform/run-platform.mjs" ||
+      typeof platformLivenessPath !== "string" ||
+      !platformLivenessPath.startsWith("/")
+    ) {
+      throw new Error(
+        "Platform Railway config does not target its bundled entry and absolute liveness path.",
+      );
+    }
 
     await withStandalonePlatform({
       runtimeEntry: standaloneServerEntry,
@@ -301,7 +318,7 @@ const main = async () => {
           child,
           getOutput,
           host: "healthcheck.railway.app",
-          path: "/api/health",
+          path: platformLivenessPath,
           port,
         });
         if (
