@@ -76,6 +76,10 @@ Agents working on the 1.0 program must:
    recurring informal validation requests
 6. keep product scope in the 1.0 roadmap and execution state in the canonical
    manifest rather than inventing parallel trackers
+7. keep routine implementation review agent-owned: the maintainer reviews
+   direction, paradigm, scope, product polish, and material risk decisions, not
+   individual code changes; follow the canonical review-authority split in
+   `docs/working-agreements.md`
 
 ## Agent-First Operability Rule
 

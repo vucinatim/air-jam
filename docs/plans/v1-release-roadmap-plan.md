@@ -936,7 +936,7 @@ Make wider public creation and hosting safe enough to operate unattended.
 10. define vulnerability reporting and emergency release procedures
 11. enforce exact-base-and-head review, preview, merge, and production
     deployment evidence through the repo CLI, required automation, and a trusted
-    formal reviewer identity
+    independent automated review attestation
 
 ### Done When
 

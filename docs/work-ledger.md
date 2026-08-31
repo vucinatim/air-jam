@@ -18,6 +18,18 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-31 - Review Authority Became Agent-First
+
+- clarified that the maintainer owns product direction, paradigm, scope, taste,
+  polish, material risk acceptance, and launch judgment rather than routine code
+  review
+- assigned implementation assurance to independent Canonicalizer and explicit
+  Claude Opus review passes
+- replaced the proposed human GitHub approval gate with a trusted automated,
+  exact-head review attestation protected against administrator bypass
+- retained one maintainer checkpoint only for authorizing/configuring the
+  independent automation identity, not for reviewing pull-request code
+
 ## 2026-08-31 - Exact-Head Reviewed Delivery Became Canonical
 
 - made the working agreements the sole normative owner for reviewed delivery

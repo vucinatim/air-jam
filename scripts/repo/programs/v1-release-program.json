@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-31T12:18:44.951Z",
+  "updatedAt": "2026-08-31T12:38:14.412Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -752,7 +752,7 @@
       },
       "evidenceRequirements": [
         "negative-path security tests and operator controls",
-        "repo CLI and required automation proofs for exact reviewed-delivery and production-deployment gates"
+        "repo CLI and required automation proofs for exact reviewed-delivery, trusted automated review-attestation, and production-deployment gates"
       ],
       "owner": "/root/g5-security-closure",
       "note": "Production rollout incident recovery remains open. G5-02 owns the repo CLI and required automation that mechanically enforce the canonical reviewed-delivery gates in docs/working-agreements.md.",
@@ -803,7 +803,7 @@
       "gate": "G5",
       "lane": "security",
       "priority": 15,
-      "title": "Establish a trusted formal reviewer identity and non-bypassable branch protection",
+      "title": "Establish independent automated review attestation and non-bypassable branch protection",
       "authority": "human_checkpoint",
       "status": "pending",
       "dependsOn": [
@@ -814,10 +814,10 @@
         "agentHoursMax": 2
       },
       "evidenceRequirements": [
-        "trusted GitHub reviewer identity and enforced stale-approval and administrator branch-protection evidence"
+        "maintainer authorization for an independent automation identity plus exact-head review-attestation and administrator branch-protection evidence"
       ],
-      "note": "Must close before PR #76 and PR #77 merge; retain the trusted-reviewer and enforced branch-protection evidence required by this checkpoint.",
-      "updatedAt": "2026-08-31T12:18:44.951Z"
+      "note": "Must close before PR #76 and PR #77 merge. This is one-time authorization/configuration of independent automated review infrastructure, not maintainer code review.",
+      "updatedAt": "2026-08-31T12:38:14.412Z"
     },
     {
       "id": "G6-01",

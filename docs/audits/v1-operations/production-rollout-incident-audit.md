@@ -134,18 +134,20 @@ Railway verification through the repo CLI and required automation.
 
 ## Incident Closure Steps
 
-1. close Gate `G5-05` by establishing a trusted formal reviewer identity and
-   non-bypassable branch protection
-2. formally approve and merge recovery PR `#76` with its incident evidence
-   attached; PR `#77` defines the future canonical policy and is not treated as
-   if it were already present on `main`
+1. close Gate `G5-05` by establishing an independent automated reviewer identity
+   and non-bypassable branch protection for its exact-head attestation
+2. merge recovery PR `#76` only after its exact agent reviews and protected
+   automated attestation pass with the incident evidence attached; PR `#77`
+   defines the future canonical policy and is not treated as if it were already
+   present on `main`
 3. observe PR `#76`'s exact production platform deployment through terminal
    `SUCCESS`
 4. inspect live `/api/health` and `/api/readiness` with deployment identity
 5. re-resolve PR `#77` after its base changes, rerun both exact-base-and-head
-   agent reviews, obtain formal approval, and merge it independently
+   agent reviews, obtain the protected automated attestation, and merge it
+   independently
 6. repair, rebase, review, and roll out PRs `#74` and `#75` independently
 
 The Claude Opus and Canonicalizer evidence listed above predates the exact-head
 attachment standard introduced by PR `#77`; it remains incident evidence but is
-not a formal GitHub approval.
+not a protected automated review attestation.

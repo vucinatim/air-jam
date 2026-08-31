@@ -340,10 +340,13 @@ terminal status, and the exact merged commit's production deployment plus live
 health/readiness/revision evidence. Prose and manually attached evidence govern
 the current recovery, but they do not close this enforcement work.
 
-Gate `G5-05` is the maintainer-owned checkpoint for the trusted GitHub reviewer
-identity and non-bypassable branch-protection setup. It must close before the
-current recovery stack merges. No agent may synthesize that approval or relax
-it while delivering the same stack.
+Gate `G5-05` is the maintainer-owned one-time authorization checkpoint for an
+independent automated reviewer identity and non-bypassable branch-protection
+setup. It must close before the current recovery stack merges. This checkpoint
+authorizes/configures the machine reviewer; it does not assign code review to
+the maintainer. Once configured, agents own implementation review and no agent
+may synthesize, self-assert, or relax the protected attestation while delivering
+the same stack.
 
 ### Wave 3: Public Proof And Evidence Closure
 
