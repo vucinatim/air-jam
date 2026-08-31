@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -45,6 +45,10 @@ The current priorities are:
    one exact release candidate
 6. launch with a free creation harness and useful hobby cloud inside an explicit
    cost envelope, rather than tying sustainability to signup count
+7. operate every meaningful change through an exact-head review and delivery
+   gate: Canonicalizer per meaningful batch, Claude Opus 5 per individual pull
+   request, required CI and preview success, formal approval, and exact-commit
+   production verification without admin bypass
 
 ## What Is Structurally Done
 
@@ -222,7 +226,7 @@ These are now baseline truths, not open architecture debates:
        claim of current anonymous exposure
     5. implementation remains in `G5-02` and `G5-03`, with one final batched
        human residual-risk review in `G5-04`
-16. the first `G5-02` implementation slice now exists as a production-valid
+17. the first `G5-02` implementation slice now exists as a production-valid
     stacked change:
     1. hosted game code has no authenticated-platform-origin fallback
     2. production requires an explicit cross-site release origin outside Better

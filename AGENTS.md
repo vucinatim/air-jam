@@ -138,6 +138,63 @@ Run relevant checks before considering work complete:
 3. Tests
 4. Build validation
 
+## Review, Merge, And Production Gate
+
+Air Jam changes must be reviewed as exact, immutable code states. Local
+confidence, green CI, preview success, and review prose are complementary
+evidence; none substitutes for the others.
+
+A meaningful batch is any commit or coherent group of commits that changes
+runtime behavior, a public or machine contract, architecture or ownership,
+security or privacy posture, data or schema behavior, infrastructure,
+deployment behavior, dependencies, or release operations. Large structural
+documentation changes that govern implementation or operations are meaningful
+batches too. Formatting-only and typo-only edits are not.
+
+For every meaningful batch:
+
+1. run Canonicalizer against the exact batch before treating it as review-ready
+2. fix every actionable Canonicalizer finding and resume the same review until
+   its verdict is `ready`
+3. retain the Canonicalizer session identifier, exact reviewed head SHA,
+   verdict, and resolved findings as pull-request evidence
+
+For every pull request, including every pull request in a stack:
+
+1. run Claude Opus 5 against that pull request's exact base-to-head diff
+2. give the reviewer read-only access and ask for correctness, architecture,
+   canonicality, security, operational, test, and documentation findings
+3. resolve every actionable finding and rerun the review against the corrected
+   head until it reports no actionable blockers
+4. retain the model, exact reviewed base and head SHAs, verdict, and resolved
+   findings as pull-request evidence
+5. never use a review of a cumulative or descendant pull request as the review
+   for an individual ancestor pull request
+
+Any push after either review makes that review stale. Rerun Canonicalizer when
+the new commits form a meaningful batch, and always rerun the pull request's
+Claude Opus 5 review against the new exact head before merge.
+
+Merge is allowed only when all of the following are true for the exact head:
+
+1. Canonicalizer is `ready`
+2. Claude Opus 5 reports no actionable blockers
+3. required local and CI quality gates are green
+4. every required preview deployment has terminal provider `SUCCESS`
+5. every review conversation is resolved
+6. GitHub records the required formal approving review
+
+Automated comments and locally attached review evidence are not formal GitHub
+approval. Agents must not use an admin bypass to evade an unsatisfied required
+check, review, or conversation-resolution rule during normal delivery.
+
+After merge, production delivery is complete only when the deployment for the
+exact merged commit reaches literal terminal `SUCCESS` and live health,
+readiness, and revision evidence identify that deployment. A queued, building,
+deploying, sleeping, superseded, or failed deployment is not success. If the
+exact production deployment fails, stop the rollout, preserve evidence, and
+recover before merging unrelated work.
+
 ## Debugging Rule
 
 When debugging uncertain behavior, inspect the unified dev log stream first.

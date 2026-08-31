@@ -1,6 +1,6 @@
 # Working Agreements
 
-Last updated: 2026-08-29
+Last updated: 2026-08-31
 Status: stable operating rules
 
 This file defines how humans and agents should use the Air Jam repo operating system.
@@ -57,22 +57,43 @@ Use these rules:
 
 1. merge a stack bottom-up only when every slice is independently production
    valid, green, and has its own review findings resolved
-2. when review corrections cross stack boundaries, prepare one cumulative
+2. run Canonicalizer on every meaningful commit batch, retain the session and
+   exact reviewed head SHA, resolve its findings, and resume it until `ready`
+3. run Claude Opus 5 on every individual pull request's exact base-to-head diff;
+   a cumulative or descendant review does not review its ancestors
+4. after any new push, treat earlier review evidence as stale: rerun
+   Canonicalizer for a new meaningful batch and always rerun the pull request's
+   Claude Opus 5 review against the new head
+5. attach the exact base SHA, head SHA, model or session identity, verdict, and
+   resolved findings to the pull request so later agents can audit what was
+   actually reviewed
+6. when review corrections cross stack boundaries, prepare one cumulative
    integration pull request from the corrected top of the stack into `main`
-3. preserve the component pull requests as focused review history and close
+7. preserve the component pull requests as focused review history and close
    them as superseded only after the integration pull request merges
-4. run the complete integration gate against the exact cumulative head; green
+8. run the complete integration gate against the exact cumulative head; green
    checks on a descendant do not retroactively make a failing ancestor safe to
    merge by itself
-5. treat provider preview status, issue comments, and automated review prose as
+9. treat provider preview status, issue comments, and automated review prose as
    evidence, not as a formal GitHub approval unless GitHub records an approving
    review
-6. do not silently bypass an unsatisfied branch-protection policy; either obtain
-   the required approval or change an impossible solo-repository policy through
-   an explicit maintainer decision
-7. after a cumulative integration, return to small independently mergeable pull
-   requests rather than allowing another long-lived stack to become the normal
-   delivery model
+10. merge only when Canonicalizer is `ready`, Claude Opus 5 has no actionable
+    blockers, required CI is green, required preview deployments have literal
+    terminal `SUCCESS`, conversations are resolved, and GitHub records the
+    required formal approval for the exact head
+11. do not use an admin bypass to evade an unsatisfied required check, review,
+    or conversation-resolution rule during normal delivery; an impossible
+    solo-repository policy requires an explicit maintainer change to the policy
+    or a trusted reviewer identity
+12. after a cumulative integration, return to small independently mergeable pull
+    requests rather than allowing another long-lived stack to become the normal
+    delivery model
+
+A meaningful batch changes runtime behavior, public or machine contracts,
+architecture or ownership, security or privacy, data or schemas,
+infrastructure, dependencies, deployment behavior, release operations, or the
+structural documentation that governs those systems. Formatting-only and
+typo-only edits do not require a separate Canonicalizer pass.
 
 ## Production Delivery And Public Launch
 
@@ -95,6 +116,12 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
    evidence justifies paying for an always-on staging environment
 8. never describe a queued deployment as deployed; terminal provider success
    and post-deploy health are required evidence
+9. after merge, identify the exact merged commit in provider deployment state,
+   wait for literal terminal `SUCCESS`, and verify live health, readiness, and
+   revision evidence before calling the production rollout complete
+10. if that exact deployment fails, preserve the failed attempt as incident
+    evidence and recover it before merging unrelated work; an older successful
+    deployment still serving traffic does not make the new rollout successful
 
 ## Agent-First Operability
 
