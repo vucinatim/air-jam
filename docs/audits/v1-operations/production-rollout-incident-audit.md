@@ -122,6 +122,11 @@ The incident establishes these non-negotiable release rules:
 6. deployment liveness, dependency readiness, and product capability
    readiness are different contracts and must not be collapsed
 
+The canonical current review, merge, and production-delivery rules live in
+[Working Agreements](../../working-agreements.md#review-stacks-and-integration).
+This audit records why those rules exist; it is not a parallel operating-policy
+owner.
+
 Mechanical enforcement for review evidence and post-merge Railway verification
 is a separate operating-system correction. It must be implemented through the
 repo CLI and required automation rather than relying on memory or prose alone.
