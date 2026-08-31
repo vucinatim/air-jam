@@ -6,6 +6,10 @@ import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  PLATFORM_LIVENESS_PATH,
+  PLATFORM_READINESS_PATH,
+} from "../../apps/platform/src/lib/platform-service-paths.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -23,7 +27,7 @@ const EXCLUDED_DIR_NAMES = new Set([
 
 const EXCLUDED_FILE_SUFFIXES = [".tsbuildinfo"];
 const BIN_WARNING_PATTERN = /Failed to create bin at /;
-const PLATFORM_BUILD_ORIGIN = "https://platform-build.airjam.invalid";
+const PLATFORM_BUILD_ORIGIN = "https://airjam.io";
 const PLATFORM_RELEASE_ORIGIN = "https://releases.airjamusercontent.invalid";
 const PLATFORM_RUNTIME_SECRET =
   "airjam-hermetic-platform-auth-secret-1234567890";
@@ -110,7 +114,7 @@ const run = ({ args, cwd, env = {}, label }) => {
   return output;
 };
 
-const requestJson = ({ host, path: requestPath, port }) =>
+const requestRaw = ({ host, path: requestPath, port }) =>
   new Promise((resolve, reject) => {
     const req = request(
       {
@@ -125,18 +129,11 @@ const requestJson = ({ host, path: requestPath, port }) =>
         response.on("data", (chunk) => chunks.push(chunk));
         response.on("end", () => {
           const body = Buffer.concat(chunks).toString("utf8");
-          try {
-            resolve({
-              body: JSON.parse(body),
-              status: response.statusCode,
-            });
-          } catch {
-            reject(
-              new Error(
-                `Standalone platform returned non-JSON HTTP ${response.statusCode}: ${body}`,
-              ),
-            );
-          }
+          resolve({
+            body,
+            headers: response.headers,
+            status: response.statusCode,
+          });
         });
       },
     );
@@ -146,6 +143,17 @@ const requestJson = ({ host, path: requestPath, port }) =>
     req.once("error", reject);
     req.end();
   });
+
+const requestJson = async (options) => {
+  const response = await requestRaw(options);
+  try {
+    return { ...response, body: JSON.parse(response.body) };
+  } catch {
+    throw new Error(
+      `Standalone platform returned non-JSON HTTP ${response.status}: ${response.body}`,
+    );
+  }
+};
 
 const waitForStandaloneResponse = async ({
   child,
@@ -291,6 +299,22 @@ const main = async () => {
       checkoutRoot,
       "apps/platform/.next/standalone",
     );
+    const platformRailwayConfig = JSON.parse(
+      fs.readFileSync(
+        path.join(checkoutRoot, "apps/platform/railway.json"),
+        "utf8",
+      ),
+    );
+    const platformLivenessPath = platformRailwayConfig.deploy?.healthcheckPath;
+    if (
+      platformRailwayConfig.deploy?.startCommand !==
+        "node /app/apps/platform/run-platform.mjs" ||
+      platformLivenessPath !== PLATFORM_LIVENESS_PATH
+    ) {
+      throw new Error(
+        `Platform Railway config must target its bundled entry and canonical liveness path ${PLATFORM_LIVENESS_PATH}.`,
+      );
+    }
 
     await withStandalonePlatform({
       runtimeEntry: standaloneServerEntry,
@@ -301,7 +325,7 @@ const main = async () => {
           child,
           getOutput,
           host: "healthcheck.railway.app",
-          path: "/api/health",
+          path: platformLivenessPath,
           port,
         });
         if (
@@ -317,16 +341,38 @@ const main = async () => {
           );
         }
 
+        const canonicalRedirect = await requestRaw({
+          host: "www.airjam.io",
+          path: "/docs?source=deploy-check",
+          port,
+        });
+        if (
+          canonicalRedirect.status !== 308 ||
+          canonicalRedirect.headers.location !==
+            "https://airjam.io/docs?source=deploy-check"
+        ) {
+          throw new Error(
+            `Standalone platform did not preserve its canonical host redirect: ${JSON.stringify(canonicalRedirect)}`,
+          );
+        }
+
         const readiness = await waitForStandaloneResponse({
           child,
           getOutput,
           host: new URL(PLATFORM_BUILD_ORIGIN).host,
-          path: "/api/readiness",
+          path: PLATFORM_READINESS_PATH,
           port,
         });
         if (
           readiness.status !== 503 ||
           readiness.body?.ok !== false ||
+          readiness.body?.boundaries?.platformRequestPolicy
+            ?.platformPublicOrigin !== PLATFORM_BUILD_ORIGIN ||
+          readiness.body?.boundaries?.platformRequestPolicy
+            ?.isRailwayPreviewEnvironment !== false ||
+          !readiness.body?.boundaries?.platformRequestPolicy?.platformRequestHosts?.includes(
+            new URL(PLATFORM_BUILD_ORIGIN).host,
+          ) ||
           readiness.body?.boundaries?.hostedReleaseOrigin?.status !== "disabled"
         ) {
           throw new Error(
@@ -346,12 +392,14 @@ const main = async () => {
           child,
           getOutput,
           host: new URL(PLATFORM_BUILD_ORIGIN).host,
-          path: "/api/readiness",
+          path: PLATFORM_READINESS_PATH,
           port,
         });
         if (
           readiness.status !== 200 ||
           readiness.body?.ok !== true ||
+          readiness.body?.boundaries?.platformRequestPolicy
+            ?.platformPublicOrigin !== PLATFORM_BUILD_ORIGIN ||
           readiness.body?.boundaries?.hostedReleaseOrigin?.status !== "ready"
         ) {
           throw new Error(
@@ -372,7 +420,7 @@ const main = async () => {
           child,
           getOutput,
           host: new URL(driftedRuntimeOrigin).host,
-          path: "/api/readiness",
+          path: PLATFORM_READINESS_PATH,
           port,
         });
         if (

@@ -131,6 +131,16 @@ const startHttpServer = async (handler, hostname) => {
   };
 };
 
+const platformRequestPolicyFor = (request) => {
+  assert.equal(typeof request.headers.host, "string");
+  const platformPublicOrigin = `http://${request.headers.host}`;
+  return {
+    platformPublicOrigin,
+    isRailwayPreviewEnvironment: false,
+    platformRequestHosts: [new URL(platformPublicOrigin).host],
+  };
+};
+
 const withAttestationFixture = async (
   { validReleasePolicy = true } = {},
   run,
@@ -217,6 +227,7 @@ const withAttestationFixture = async (
           service: "platform",
           deployment: deploymentIdentity,
           boundaries: {
+            platformRequestPolicy: platformRequestPolicyFor(request),
             hostedReleaseOrigin: {
               required: true,
               status: "ready",
@@ -382,6 +393,7 @@ test("remote inspection reads the deployed readiness boundary through the same s
           service: "platform",
           deployment: deploymentIdentity,
           boundaries: {
+            platformRequestPolicy: platformRequestPolicyFor(request),
             hostedReleaseOrigin: {
               required: true,
               status: "ready",
@@ -401,6 +413,9 @@ test("remote inspection reads the deployed readiness boundary through the same s
         source: { type: "remote", platformOrigin: platformUrl },
         readiness: { httpStatus: 200, ok: true },
         deployment: deploymentIdentity,
+        requestPolicy: platformRequestPolicyFor({
+          headers: { host: new URL(platformUrl).host },
+        }),
         assessment: {
           required: true,
           status: "ready",
@@ -415,7 +430,7 @@ test("remote inspection reads the deployed readiness boundary through the same s
 test("remote inspection returns valid unready 503 disabled and invalid boundaries", async () => {
   for (const status of ["disabled", "invalid"]) {
     await withReadinessServer(
-      (_request, response) => {
+      (request, response) => {
         response.writeHead(503, { "content-type": "application/json" });
         response.end(
           JSON.stringify({
@@ -423,6 +438,7 @@ test("remote inspection returns valid unready 503 disabled and invalid boundarie
             service: "platform",
             deployment: deploymentIdentity,
             boundaries: {
+              platformRequestPolicy: platformRequestPolicyFor(request),
               hostedReleaseOrigin: {
                 required: true,
                 status,
@@ -442,6 +458,9 @@ test("remote inspection returns valid unready 503 disabled and invalid boundarie
           source: { type: "remote", platformOrigin: platformUrl },
           readiness: { httpStatus: 503, ok: false },
           deployment: deploymentIdentity,
+          requestPolicy: platformRequestPolicyFor({
+            headers: { host: new URL(platformUrl).host },
+          }),
           assessment: {
             required: true,
             status,
@@ -454,9 +473,45 @@ test("remote inspection returns valid unready 503 disabled and invalid boundarie
   }
 });
 
+test("remote inspection rejects request-policy identity drift", async () => {
+  await withReadinessServer(
+    (request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          ok: true,
+          service: "platform",
+          deployment: deploymentIdentity,
+          boundaries: {
+            platformRequestPolicy: {
+              platformPublicOrigin: "https://other.airjam.example",
+              isRailwayPreviewEnvironment: false,
+              platformRequestHosts: ["other.airjam.example"],
+            },
+            hostedReleaseOrigin: {
+              required: true,
+              status: "ready",
+              publicOrigin: "https://airjamusercontent.example",
+              reason: null,
+            },
+          },
+        }),
+      );
+    },
+    async (platformUrl) => {
+      await assert.rejects(inspectRemoteReleaseOrigin(platformUrl), (error) => {
+        const payload = JSON.parse(error.stdout);
+        assert.equal(payload.error.code, "REMOTE_CONTRACT_INVALID");
+        assert.match(payload.error.message, /not the inspected origin/);
+        return true;
+      });
+    },
+  );
+});
+
 test("remote inspection fails on malformed readiness responses and unsupported non-2xx statuses", async () => {
   await withReadinessServer(
-    (_request, response) => {
+    (request, response) => {
       response.writeHead(503, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
@@ -464,6 +519,7 @@ test("remote inspection fails on malformed readiness responses and unsupported n
           service: "platform",
           deployment: deploymentIdentity,
           boundaries: {
+            platformRequestPolicy: platformRequestPolicyFor(request),
             hostedReleaseOrigin: {
               required: false,
               status: "disabled",
@@ -485,7 +541,7 @@ test("remote inspection fails on malformed readiness responses and unsupported n
   );
 
   await withReadinessServer(
-    (_request, response) => {
+    (request, response) => {
       response.writeHead(503, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: false }));
     },
@@ -495,7 +551,7 @@ test("remote inspection fails on malformed readiness responses and unsupported n
         assert.equal(payload.error.code, "REMOTE_CONTRACT_INVALID");
         assert.match(
           payload.error.message,
-          /deployment and hosted-release boundary contracts/,
+          /deployment, request-policy, and hosted-release boundary contracts/,
         );
         return true;
       });
@@ -513,7 +569,7 @@ test("remote inspection fails on malformed readiness responses and unsupported n
         assert.equal(payload.error.code, "REMOTE_CONTRACT_INVALID");
         assert.match(
           payload.error.message,
-          /deployment and hosted-release boundary contracts/,
+          /deployment, request-policy, and hosted-release boundary contracts/,
         );
         return true;
       });
@@ -562,7 +618,7 @@ test("remote inspection rejects non-public destinations before connecting", asyn
 
 test("remote inspection supports explicit IPv6 loopback diagnostics", async () => {
   await withReadinessServer(
-    (_request, response) => {
+    (request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
@@ -570,6 +626,7 @@ test("remote inspection supports explicit IPv6 loopback diagnostics", async () =
           service: "platform",
           deployment: deploymentIdentity,
           boundaries: {
+            platformRequestPolicy: platformRequestPolicyFor(request),
             hostedReleaseOrigin: {
               required: false,
               status: "ready",

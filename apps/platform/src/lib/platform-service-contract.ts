@@ -1,5 +1,9 @@
-export const PLATFORM_LIVENESS_PATH = "/api/health" as const;
-export const PLATFORM_READINESS_PATH = "/api/readiness" as const;
+import {
+  PLATFORM_LIVENESS_PATH,
+  PLATFORM_READINESS_PATH,
+} from "./platform-service-paths.mjs";
+
+export { PLATFORM_LIVENESS_PATH, PLATFORM_READINESS_PATH };
 
 export type PlatformDeploymentIdentity = {
   provider: "railway" | null;
@@ -14,10 +18,7 @@ export const readPlatformDeploymentIdentity = (
   provider: env.RAILWAY_PROJECT_ID ? "railway" : null,
   environment: env.RAILWAY_ENVIRONMENT_NAME?.trim() || null,
   deploymentId: env.RAILWAY_DEPLOYMENT_ID?.trim() || null,
-  revision:
-    env.RAILWAY_GIT_COMMIT_SHA?.trim() ||
-    env.VERCEL_GIT_COMMIT_SHA?.trim() ||
-    null,
+  revision: env.RAILWAY_GIT_COMMIT_SHA?.trim() || null,
 });
 
 export const isPlatformLivenessPath = (pathname: string): boolean =>

@@ -11,7 +11,7 @@ import { assessReleaseOriginAddresses } from "../src/lib/releases/release-origin
 const REQUEST_TIMEOUT_MS = 5_000;
 const MAX_READINESS_RESPONSE_BYTES = 64 * 1024;
 
-export type PlatformDeploymentIdentity = {
+export type RemotePlatformDeploymentIdentity = {
   provider: string | null;
   environment: string | null;
   deploymentId: string | null;
@@ -25,9 +25,16 @@ export type RemoteHostedReleaseOriginAssessment = {
   reason: string | null;
 };
 
+export type RemotePlatformRequestPolicy = {
+  platformPublicOrigin: string;
+  isRailwayPreviewEnvironment: boolean;
+  platformRequestHosts: string[];
+};
+
 export type RemoteReleaseOriginReadiness = {
   readiness: { httpStatus: 200 | 503; ok: boolean };
-  deployment: PlatformDeploymentIdentity;
+  deployment: RemotePlatformDeploymentIdentity;
+  requestPolicy: RemotePlatformRequestPolicy;
   assessment: RemoteHostedReleaseOriginAssessment;
 };
 
@@ -78,19 +85,26 @@ export const parseRemoteReleaseOriginReadiness = (
     boundaries && typeof boundaries === "object" && !Array.isArray(boundaries)
       ? (boundaries as Record<string, unknown>).hostedReleaseOrigin
       : null;
+  const requestPolicy =
+    boundaries && typeof boundaries === "object" && !Array.isArray(boundaries)
+      ? (boundaries as Record<string, unknown>).platformRequestPolicy
+      : null;
   if (
     typeof readiness.ok !== "boolean" ||
     readiness.service !== "platform" ||
     !deployment ||
     typeof deployment !== "object" ||
     Array.isArray(deployment) ||
+    !requestPolicy ||
+    typeof requestPolicy !== "object" ||
+    Array.isArray(requestPolicy) ||
     !boundary ||
     typeof boundary !== "object" ||
     Array.isArray(boundary)
   ) {
     throw new ReleaseOriginOperatorError(
       "REMOTE_CONTRACT_INVALID",
-      "Remote platform readiness response does not contain deployment and hosted-release boundary contracts.",
+      "Remote platform readiness response does not contain deployment, request-policy, and hosted-release boundary contracts.",
     );
   }
   if (
@@ -104,11 +118,44 @@ export const parseRemoteReleaseOriginReadiness = (
   }
 
   const deploymentRecord = deployment as Record<string, unknown>;
-  const parsedDeployment: PlatformDeploymentIdentity = {
+  const parsedDeployment: RemotePlatformDeploymentIdentity = {
     provider: requireNullableString(deploymentRecord, "provider"),
     environment: requireNullableString(deploymentRecord, "environment"),
     deploymentId: requireNullableString(deploymentRecord, "deploymentId"),
     revision: requireNullableString(deploymentRecord, "revision"),
+  };
+
+  const requestPolicyRecord = requestPolicy as Record<string, unknown>;
+  if (
+    typeof requestPolicyRecord.platformPublicOrigin !== "string" ||
+    typeof requestPolicyRecord.isRailwayPreviewEnvironment !== "boolean" ||
+    !Array.isArray(requestPolicyRecord.platformRequestHosts) ||
+    !requestPolicyRecord.platformRequestHosts.every(
+      (host) => typeof host === "string" && host.length > 0,
+    )
+  ) {
+    throw new ReleaseOriginOperatorError(
+      "REMOTE_CONTRACT_INVALID",
+      "Remote platform request policy has invalid origin, environment, or host fields.",
+    );
+  }
+  const platformPublicOrigin = parseOrigin(
+    requestPolicyRecord.platformPublicOrigin,
+    "REMOTE_CONTRACT_INVALID",
+    "Remote platform request policy public origin is not a valid http(s) origin.",
+  );
+  const platformRequestHosts = requestPolicyRecord.platformRequestHosts;
+  if (!platformRequestHosts.includes(new URL(platformPublicOrigin).host)) {
+    throw new ReleaseOriginOperatorError(
+      "REMOTE_CONTRACT_INVALID",
+      "Remote platform request policy does not admit its own public origin host.",
+    );
+  }
+  const parsedRequestPolicy: RemotePlatformRequestPolicy = {
+    platformPublicOrigin,
+    isRailwayPreviewEnvironment:
+      requestPolicyRecord.isRailwayPreviewEnvironment,
+    platformRequestHosts,
   };
 
   const assessment = boundary as Record<string, unknown>;
@@ -148,6 +195,7 @@ export const parseRemoteReleaseOriginReadiness = (
     return {
       readiness: { httpStatus, ok: readiness.ok },
       deployment: parsedDeployment,
+      requestPolicy: parsedRequestPolicy,
       assessment: {
         required: assessment.required,
         status,
@@ -170,6 +218,7 @@ export const parseRemoteReleaseOriginReadiness = (
   return {
     readiness: { httpStatus, ok: readiness.ok },
     deployment: parsedDeployment,
+    requestPolicy: parsedRequestPolicy,
     assessment: {
       required: assessment.required,
       status,
@@ -591,10 +640,17 @@ const readReadiness = async (
       "Remote platform readiness response is not valid JSON.",
     );
   }
-  return parseRemoteReleaseOriginReadiness(
+  const readiness = parseRemoteReleaseOriginReadiness(
     parsed,
     response.status as 200 | 503,
   );
+  if (readiness.requestPolicy.platformPublicOrigin !== platformOrigin) {
+    throw new ReleaseOriginOperatorError(
+      "REMOTE_CONTRACT_INVALID",
+      `Remote platform request policy identifies ${readiness.requestPolicy.platformPublicOrigin}, not the inspected origin ${platformOrigin}.`,
+    );
+  }
+  return readiness;
 };
 
 export type RemoteReleaseOriginInspectionResult =
@@ -938,7 +994,7 @@ export type ReleaseOriginAttestationResult = {
     releaseOrigin: string;
     releaseUrl: string;
     controllerUrl: string;
-    deployment: PlatformDeploymentIdentity;
+    deployment: RemotePlatformDeploymentIdentity;
   };
   checks: Check[];
   summary: { passed: number; failed: number };
@@ -957,7 +1013,7 @@ const summarize = ({
   attestedAt: string;
   checks: Check[];
   controllerUrl: URL;
-  deployment: PlatformDeploymentIdentity;
+  deployment: RemotePlatformDeploymentIdentity;
   platformOrigin: string;
   platformResolution: OriginResolution | null;
   releaseUrl: URL;
@@ -1036,7 +1092,7 @@ export const attestRemoteReleaseOrigin = async ({
     platformDns.check,
     releaseDns.check,
   ];
-  const noDeployment: PlatformDeploymentIdentity = {
+  const noDeployment: RemotePlatformDeploymentIdentity = {
     provider: null,
     environment: null,
     deploymentId: null,

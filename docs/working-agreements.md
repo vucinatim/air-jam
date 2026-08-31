@@ -163,10 +163,13 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
    evidence justifies paying for an always-on staging environment
 8. never describe a queued deployment as deployed; terminal provider success
    and post-deploy health are required evidence
-9. after merge, identify the exact merged commit in provider deployment state,
-   wait for literal terminal `SUCCESS`, and complete the canonical
+9. after merge, identify the exact merged commit for every affected deployable
+   service in provider state, wait for literal terminal `SUCCESS`, and complete
+   the canonical
    [Railway validation checklist](./guides/railway-deployment-guide.md#validation-checklist)
-   before calling the production rollout complete
+   before calling the production rollout complete; explicitly classify
+   unaffected services and confirm their preceding successful deployment stays
+   live rather than requiring a new deployment for an unchanged artifact
 10. if that exact deployment fails, preserve the failed attempt as incident
     evidence and recover it before merging unrelated work; an older successful
     deployment still serving traffic does not make the new rollout successful

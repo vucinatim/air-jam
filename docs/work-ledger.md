@@ -18,8 +18,24 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-31 - Production Platform Recovery Was Verified
+
+- merged corrective PR `#76` only after exact-head Canonicalizer and explicit
+  Claude Opus review, GitHub CI, standalone-artifact proof, and every affected
+  Railway preview reached a passing terminal state
+- observed production platform deployment
+  `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reach terminal `SUCCESS`
+- proved live `/api/health` reports the exact deployment and merged revision
+  `e122a52c1da49ef409364c93fb675df56a4e639d`
+- confirmed `/api/readiness` now preserves the explicit disabled
+  hosted-release boundary without making Railway process liveness fail
+- retained hosted-release domain provisioning and repo-native exact-deployment
+  automation as open `G5-02` work rather than conflating them with recovery
+
 ## 2026-08-31 - Review Enforcement Was Right-Sized For 1.0
 
+- superseded the two intermediate enforcement proposals recorded immediately
+  below with the simpler instruction-governed model
 - kept exact-head Canonicalizer and explicit Claude Opus review mandatory for
   every pull request while leaving implementation review agent-owned
 - removed the proposed protected GitHub review-attestation service and its
@@ -77,9 +93,9 @@ The pre-reset overloaded ledger has been preserved at:
 - recorded the timeline, evidence, root causes, and remaining production
   closure in the
   [production rollout incident audit](./audits/v1-operations/production-rollout-incident-audit.md)
-- completed hostile Claude Opus review and resolved both Canonicalizer findings
-  before its resumed review returned `ready`
-- kept recovery open until formal GitHub review, merge, terminal Railway
+- opened exact-head Canonicalizer and Claude Opus review; their results remain
+  pull-request evidence rather than self-certified historical proof
+- kept recovery open until exact-head agent review, merge, terminal Railway
   `SUCCESS`, and live deployment-identity verification are complete
 
 ## 2026-08-30 - Hosted Release Isolation Became Safely Attestable

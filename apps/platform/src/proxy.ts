@@ -4,7 +4,7 @@ import { isPlatformLivenessPath } from "@/lib/platform-service-contract";
 import type { ProductTelemetryAgentResource } from "@/lib/product-telemetry-contract";
 import {
   assessHostedReleaseOrigin,
-  isHostedReleaseOriginRequired,
+  readConfiguredHostedReleaseRequestHost,
 } from "@/lib/releases/hosted-release-origin";
 import { normalizePlatformRequestHost } from "@/lib/request-host-policy";
 import { recordAgentResourceRequestBestEffort } from "@/server/product-telemetry/agent-resource";
@@ -38,31 +38,28 @@ export const resolveHostedReleaseRequestDisposition = (
   env: NodeJS.ProcessEnv = process.env,
 ): HostedReleaseRequestDisposition => {
   const url = new URL(requestUrl);
-  if (isPlatformLivenessPath(url.pathname)) {
-    return { kind: "platform" };
-  }
   const assessment = assessHostedReleaseOrigin(env);
   const deployment = resolvePlatformDeploymentConfig(env);
   const incomingHost = normalizePlatformRequestHost(requestHost);
+  const configuredReleaseRequestHost =
+    readConfiguredHostedReleaseRequestHost(env);
+  const isConfiguredReleaseOriginHost =
+    configuredReleaseRequestHost !== null &&
+    incomingHost === configuredReleaseRequestHost;
+  const isReleaseOriginHost =
+    assessment.status === "ready" && isConfiguredReleaseOriginHost;
+  if (isPlatformLivenessPath(url.pathname) && !isConfiguredReleaseOriginHost) {
+    return { kind: "platform" };
+  }
   const isReleasePath = isHostedReleasePath(url.pathname);
-  const platformHosts = deployment.authTrustedOrigins
-    .filter((origin) => !origin.includes("*"))
-    .map((origin) => new URL(origin).host);
   const isPlatformHost =
     incomingHost !== null &&
-    (incomingHost === new URL(deployment.platformPublicOrigin).host ||
-      platformHosts.includes(incomingHost));
+    deployment.platformRequestHosts.includes(incomingHost);
+  const isLocalDevelopment =
+    env.NODE_ENV !== "production" && !env.RAILWAY_ENVIRONMENT_NAME;
 
   if (assessment.status !== "ready") {
-    if (
-      assessment.status === "disabled" &&
-      !isHostedReleaseOriginRequired(env)
-    ) {
-      return isReleasePath
-        ? { kind: "release_unavailable", reason: assessment.reason }
-        : { kind: "platform" };
-    }
-    if (!isPlatformHost) {
+    if (!isPlatformHost && !isLocalDevelopment) {
       return { kind: "block_unknown_host" };
     }
     return isReleasePath
@@ -73,7 +70,7 @@ export const resolveHostedReleaseRequestDisposition = (
       : { kind: "platform" };
   }
 
-  if (incomingHost === new URL(assessment.publicOrigin).host) {
+  if (isReleaseOriginHost) {
     return isReleasePath
       ? { kind: "serve_release" }
       : { kind: "block_release_origin" };

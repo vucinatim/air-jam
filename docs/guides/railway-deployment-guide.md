@@ -102,11 +102,15 @@ credentials. Production must report `ready` before hosted release delivery is
 considered healthy.
 
 The inspector returns a valid Railway platform readiness document even when its
-HTTP status is `503`, preserving `readiness.ok: false` and the exact disabled or
-invalid boundary reason for agents. That is diagnostic evidence, not a healthy
-deployment: the validation checklist still requires production to reach `200`
-and a `ready` boundary. Railway's deployment healthcheck remains `/api/health`,
-which reports process liveness independently of release-domain readiness.
+HTTP status is `503`, preserving `readiness.ok: false`, the effective platform
+request-host policy, and the exact disabled or invalid boundary reason for
+agents. It rejects an inspected URL that is not the deployment's reported
+canonical platform origin. A valid unready response is diagnostic evidence, not
+a healthy deployment: the validation checklist still requires production to
+reach `200` with the expected origin, non-preview host policy, exact deployment
+identity, and a `ready` release boundary. Railway's deployment healthcheck
+remains `/api/health`, which reports process liveness independently of product
+and release-domain readiness.
 
 After the dedicated domain is routed, use `platform release-origin attest`
 against one exact live release-generation root. The command is safe for unattended agents:
@@ -140,33 +144,37 @@ Production should stay boring:
 
 ## Validation Checklist
 
-Before treating a Railway deployment as good, verify:
+Before treating a production rollout as the exact merged revision and a live
+process, verify:
 
 1. `pnpm --silent run repo -- railway doctor --project <project-id> --json`
    reports the expected project, production environment, affected services, and
    deployment IDs
-2. until Gate `G5-02` lands the repo-owned exact-commit verifier, use the vendor
-   Railway CLI to run
-   `railway deployment list --project <project-id> --environment <environment-id> --service <service-id> --json`
-   for each affected service, select the deployment whose `meta.commitHash`
-   equals the merged commit, and retain its deployment ID and literal terminal
-   `SUCCESS`; this is an explicitly interim provider read, not a second
-   long-term deployment authority
+2. until Gate `G5-02` lands the repo-owned exact-commit verifier, use the
+   published `@vucinatim/agentic-devtools` Railway surface to inspect each
+   affected deployment, match its source revision to the merged commit, and
+   retain its deployment ID plus literal terminal `SUCCESS`; this is an
+   explicitly interim provider read, not a second long-term deployment
+   authority
 3. platform `/` returns `200`
 4. platform `/arcade` returns `200`
 5. platform `/docs` returns `200`
-6. platform `/api/health` returns `200` and reports the exact deployment ID and
-   merged revision
-7. platform `/api/readiness` returns the expected machine-readable capability
-   state for that environment
-8. platform `/api/auth/get-session` returns `200`
-9. platform `/api/airjam/host-grant` works same-origin
-10. server `/health` returns `200`
-11. browser worker `/health` returns `200`
-12. operational-job worker `/health` returns `200`
-13. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
+6. platform `/api/health` returns `200` as process-liveness proof only and
+   reports the exact deployment ID and merged revision
+7. platform `/api/auth/get-session` returns `200`
+8. platform `/api/airjam/host-grant` works same-origin
+9. server `/health` returns `200`
+10. browser worker `/health` returns `200`
+11. operational-job worker `/health` returns `200`
+12. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
     available
-14. release-origin attestation returns `status: passed`,
+
+Before treating hosted release delivery as product-ready, additionally verify:
+
+1. platform `/api/readiness` returns `200` with `ok: true`, the expected
+   canonical platform origin, `isRailwayPreviewEnvironment: false`, and
+   deployment identity matching the exact revision under approval
+2. release-origin attestation returns `status: passed`,
     `evidenceKind: production-deployment`, and
     `productionEvidenceEligible: true`
 

@@ -1,7 +1,7 @@
 # Production Rollout Incident Audit
 
 Last updated: 2026-08-31
-Status: corrective implementation and independent reviews locally proven; production verification pending
+Status: deployment recovery verified; remaining release-capability and automation work tracked in Gate 5
 
 ## Outcome
 
@@ -18,6 +18,12 @@ zero submitted reviews.
 
 This audit is durable incident evidence. The readiness manifest remains the
 execution-state authority.
+
+PR `#76` merged the corrective implementation as
+`e122a52c1da49ef409364c93fb675df56a4e639d` after exact-head Canonicalizer and
+Claude Opus review, GitHub CI, standalone-artifact proof, and Railway preview
+checks all passed. Railway production platform deployment
+`8dbde4b3-3059-4bfd-8ba6-93deccbde995` then reached terminal `SUCCESS`.
 
 ## Timeline And Evidence
 
@@ -40,6 +46,17 @@ execution-state authority.
    the previous platform revision. Its older payload did not contain the
    deployment identity introduced by PR `#73`, confirming that the failed
    candidate had not replaced the serving revision.
+7. PR `#76` merged at `2026-08-31` as
+   `e122a52c1da49ef409364c93fb675df56a4e639d` after both exact-head agent
+   reviews and every required candidate check passed.
+8. Production platform deployment
+   `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reached terminal `SUCCESS`, and live
+   `/api/health` returned `200` with that deployment ID and the exact merged
+   revision.
+9. Live `/api/readiness` returned the valid machine-readable `503` capability
+   state because `AIRJAM_RELEASES_PUBLIC_ORIGIN` is not configured. That
+   remaining hosted-release boundary is a product-readiness task, not a failed
+   process deployment.
 
 ## Root Causes
 
@@ -87,10 +104,11 @@ than an inference from unit tests.
 
 ## Corrective Proof
 
-The recovery branch currently proves:
+The reviewed and merged corrective change proves:
 
-1. `44` focused platform liveness, readiness, host-policy, and origin tests
-2. `20` repo CLI inspection and attestation contract tests
+1. `58` focused platform deployment-config, liveness, readiness, host-policy,
+   and origin tests
+2. `21` repo CLI inspection and attestation contract tests
 3. platform TypeScript and focused ESLint checks
 4. a clean hermetic install and production Next build
 5. the real standalone bundle answering Railway's exact liveness probe with
@@ -98,13 +116,14 @@ The recovery branch currently proves:
 6. the same bundle exposing ready release-origin state at `/api/readiness`
 7. the same built bundle rejecting deliberate build/runtime origin drift with
    `503`
-8. a final Claude Opus hostile review with no actionable blockers
-9. a resumed Canonicalizer review with verdict `ready` after its two structural
-   findings were fixed
+8. the same built bundle preserving the declared `www.airjam.io` canonical-host
+   redirect instead of blocking it in proxy host policy
 
-Production is not considered recovered until the merged corrective commit has
-a Railway platform deployment with explicit terminal `SUCCESS` and the live
-liveness/readiness responses are inspected against that deployment identity.
+The exact-head review evidence is attached to PR `#76`; it is not
+self-certified by this audit. The production platform deployment reached
+terminal `SUCCESS`, live liveness identified the exact deployment and merged
+revision, `www.airjam.io` redirected to the canonical apex, and the public
+readiness inspector preserved the explicit disabled hosted-release reason.
 
 ## Process Lessons
 
@@ -112,41 +131,30 @@ The canonical current review, merge, and production-delivery rules live in
 [Working Agreements](../../working-agreements.md#review-stacks-and-integration).
 The incident produced these lessons that shaped that policy:
 
-1. preview success proved the candidate, not that production accepted the
-   merged revision
-2. the rollout remained incomplete until provider state reached terminal
-   `SUCCESS`
-3. the newer terminal `FAILED` deployment remained incident evidence even while
-   the previous revision kept serving traffic
-4. locally completed agent reviews did not replace attached exact-head evidence
-   or a formal GitHub approving review
-5. source-only tests missed a contract that depended on framework build-time
-   transformation; the corrective proof therefore exercised the production
-   artifact
-6. collapsing deployment liveness, dependency readiness, and product capability
-   readiness made an optional capability block a healthy process rollout
+1. preview success is evidence for the candidate, not evidence that production
+   accepted the merged revision
+2. a rollout is incomplete until provider state reaches terminal `SUCCESS`
+3. a newer terminal `FAILED` deployment must remain visible as an incident even
+   when the previous revision keeps serving traffic
+4. Claude Opus and Canonicalizer output must be attached as explicit exact-head
+   review evidence; missing or stale evidence cannot be treated as approval
+5. production-mode artifact proof must cover any contract that depends on
+   framework build-time transformation
+6. deployment liveness, dependency readiness, and product capability
+   readiness are different contracts and must not be collapsed
 
 This audit records why those rules exist; it is not a parallel operating-policy
-owner.
+owner. Exact review evidence remains mandatory through the canonical agent
+instructions and pull-request record.
 
-Gate `G5-02` owns post-merge Railway verification through the repo CLI. Exact
-review evidence remains mandatory through the canonical agent instructions and
-pull-request record.
+Mechanical post-merge Railway verification is a separate operating-system
+correction owned by `G5-02`. Its evidence requirement blocks that work item from
+closing until the repo CLI itself can prove the exact merged production
+deployment, terminal provider state, and public liveness/readiness identity.
 
-## Incident Closure Steps
+## Remaining Follow-Up
 
-1. rerun both exact-base-and-head agent reviews for recovery PR `#76`, resolve
-   every finding, and attach the final evidence
-2. merge PR `#76` only after its agent reviews, CI, and provider previews pass;
-   PR `#77` defines the future canonical policy and is not treated as if it were
-   already present on `main`
-3. observe PR `#76`'s exact production platform deployment through terminal
-   `SUCCESS`
-4. inspect live `/api/health` and `/api/readiness` with deployment identity
-5. re-resolve PR `#77` after its base changes, rerun both exact-base-and-head
-   agent reviews, attach their evidence, and merge it independently
-6. repair, rebase, review, and roll out PRs `#74` and `#75` independently
-
-The Claude Opus and Canonicalizer evidence listed above predates the exact-head
-attachment standard introduced by PR `#77`; it remains incident evidence but is
-not current exact-head review evidence.
+1. implement the `G5-02` post-merge production-verification automation
+2. configure and attest the dedicated hosted-release public origin before
+   treating that product capability as ready
+3. repair, review, and roll out PRs `#74` and `#75` independently

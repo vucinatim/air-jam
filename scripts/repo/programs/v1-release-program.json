@@ -752,10 +752,10 @@
       },
       "evidenceRequirements": [
         "negative-path security tests and operator controls",
-        "repo CLI proof for exact merged production deployment and live health/readiness/revision evidence"
+        "repo CLI proof that the exact merged production deployment reached terminal SUCCESS and its canonical platform origin plus public liveness/readiness identity match the deployed revision"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Production rollout incident recovery remains open. G5-02 owns security closure and repo-CLI proof for exact merged production deployment; exact-head agent review remains instruction-governed for 1.0.",
+      "note": "PR #76 restored and verified production platform liveness. G5-02 remains open for security closure, dedicated hosted-release origin proof, and repo-CLI verification of exact merged production deployments; exact-head agent review remains instruction-governed for 1.0.",
       "updatedAt": "2026-08-31T18:20:39.571Z"
     },
     {

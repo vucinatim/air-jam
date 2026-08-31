@@ -41,7 +41,7 @@ manually maintaining a second checklist.
 
 Planning envelope:
 
-1. `294-537` active agent execution hours
+1. `285-520` active agent execution hours
 2. `28-56` maintainer hours, concentrated into explicit checkpoints
 3. `5-7` likely calendar weeks with stable boundaries and parallel execution
 4. `3-4` aggressive weeks if audits and production proofs reveal little fallout
@@ -383,7 +383,7 @@ The production-valid closeout is therefore:
 3. run the complete CI and release-relevant gate on that exact integration head
 4. satisfy the canonical merge gate in
    [Review Stacks And Integration](../working-agreements.md#review-stacks-and-integration),
-   including its formal-approval rule
+   including exact-head agent evidence and mechanically enforced checks
 5. merge once and verify the resulting production deployment and health rather
    than intentionally deploying known-incomplete intermediate stack states
 6. close the component pull requests as superseded only after the cumulative
