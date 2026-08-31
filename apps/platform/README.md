@@ -219,10 +219,11 @@ the local platform process. With `--platform-url`, it reads the deployed
 platform's public `/api/readiness` boundary through a bounded request. Both JSON
 forms are stable and versioned and contain no credentials.
 
-Remote inspection contract v2 returns valid platform readiness documents from both `200`
-(ready) and `503` (unready), including `readiness.httpStatus`,
-`readiness.ok`, and
-the deployed boundary assessment. A valid unready contract is inspection
+Remote inspection contract v2 returns valid platform readiness documents from
+both `200` (ready) and `503` (unready), including `readiness.httpStatus`,
+`readiness.ok`, the effective platform request-host policy, and the deployed
+release boundary assessment. The inspector requires the reported canonical
+platform origin to equal `--platform-url`. A valid unready contract is inspection
 evidence, so the command returns it successfully; malformed contracts,
 unsupported HTTP statuses, and transport failures still exit nonzero with a
 machine-readable error. `/api/health` is the intentionally narrower process

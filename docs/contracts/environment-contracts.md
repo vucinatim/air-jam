@@ -56,9 +56,11 @@ platform's public `/api/readiness` contract. It does not load or print provider
 credentials.
 
 Contract v2 treats both ready `200` and valid unready `503` platform readiness
-documents as inspection results. The remote JSON includes the HTTP status, platform readiness
-boolean, and boundary assessment; non-readiness responses fail instead of being
-mistaken for deployed configuration.
+documents as inspection results. The remote JSON includes the HTTP status,
+platform readiness boolean, effective canonical origin and request-host policy,
+and release boundary assessment. The inspector rejects a reported canonical
+origin that differs from `--platform-url`; non-readiness responses fail instead
+of being mistaken for deployed configuration.
 
 The readiness contract also exposes non-secret, deployment-reported identity:
 `provider`, `environment`, `deploymentId`, and `revision`. The attestation

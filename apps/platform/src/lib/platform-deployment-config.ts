@@ -137,7 +137,9 @@ export const resolvePlatformDeploymentConfig = (
       }
     }
     for (const redirect of PLATFORM_CANONICAL_HOST_REDIRECTS) {
-      platformRequestHosts.add(redirect.sourceHost);
+      if (redirect.destinationOrigin === platformPublicOrigin) {
+        platformRequestHosts.add(redirect.sourceHost);
+      }
     }
   }
 

@@ -6,6 +6,9 @@ import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import platformServiceContract from "../../apps/platform/src/lib/platform-service-contract.ts";
+
+const { PLATFORM_LIVENESS_PATH } = platformServiceContract;
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -23,7 +26,7 @@ const EXCLUDED_DIR_NAMES = new Set([
 
 const EXCLUDED_FILE_SUFFIXES = [".tsbuildinfo"];
 const BIN_WARNING_PATTERN = /Failed to create bin at /;
-const PLATFORM_BUILD_ORIGIN = "https://platform-build.airjam.invalid";
+const PLATFORM_BUILD_ORIGIN = "https://airjam.io";
 const PLATFORM_RELEASE_ORIGIN = "https://releases.airjamusercontent.invalid";
 const PLATFORM_RUNTIME_SECRET =
   "airjam-hermetic-platform-auth-secret-1234567890";
@@ -305,11 +308,10 @@ const main = async () => {
     if (
       platformRailwayConfig.deploy?.startCommand !==
         "node /app/apps/platform/run-platform.mjs" ||
-      typeof platformLivenessPath !== "string" ||
-      !platformLivenessPath.startsWith("/")
+      platformLivenessPath !== PLATFORM_LIVENESS_PATH
     ) {
       throw new Error(
-        "Platform Railway config does not target its bundled entry and absolute liveness path.",
+        `Platform Railway config must target its bundled entry and canonical liveness path ${PLATFORM_LIVENESS_PATH}.`,
       );
     }
 
@@ -363,6 +365,13 @@ const main = async () => {
         if (
           readiness.status !== 503 ||
           readiness.body?.ok !== false ||
+          readiness.body?.boundaries?.platformRequestPolicy
+            ?.platformPublicOrigin !== PLATFORM_BUILD_ORIGIN ||
+          readiness.body?.boundaries?.platformRequestPolicy
+            ?.isRailwayPreviewEnvironment !== false ||
+          !readiness.body?.boundaries?.platformRequestPolicy?.platformRequestHosts?.includes(
+            new URL(PLATFORM_BUILD_ORIGIN).host,
+          ) ||
           readiness.body?.boundaries?.hostedReleaseOrigin?.status !== "disabled"
         ) {
           throw new Error(
@@ -388,6 +397,8 @@ const main = async () => {
         if (
           readiness.status !== 200 ||
           readiness.body?.ok !== true ||
+          readiness.body?.boundaries?.platformRequestPolicy
+            ?.platformPublicOrigin !== PLATFORM_BUILD_ORIGIN ||
           readiness.body?.boundaries?.hostedReleaseOrigin?.status !== "ready"
         ) {
           throw new Error(

@@ -2,7 +2,10 @@ import { createLoginHref } from "@/lib/auth-redirect";
 import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
 import { isPlatformLivenessPath } from "@/lib/platform-service-contract";
 import type { ProductTelemetryAgentResource } from "@/lib/product-telemetry-contract";
-import { assessHostedReleaseOrigin } from "@/lib/releases/hosted-release-origin";
+import {
+  assessHostedReleaseOrigin,
+  readConfiguredHostedReleaseRequestHost,
+} from "@/lib/releases/hosted-release-origin";
 import { normalizePlatformRequestHost } from "@/lib/request-host-policy";
 import { recordAgentResourceRequestBestEffort } from "@/server/product-telemetry/agent-resource";
 import {
@@ -38,10 +41,14 @@ export const resolveHostedReleaseRequestDisposition = (
   const assessment = assessHostedReleaseOrigin(env);
   const deployment = resolvePlatformDeploymentConfig(env);
   const incomingHost = normalizePlatformRequestHost(requestHost);
+  const configuredReleaseRequestHost =
+    readConfiguredHostedReleaseRequestHost(env);
+  const isConfiguredReleaseOriginHost =
+    configuredReleaseRequestHost !== null &&
+    incomingHost === configuredReleaseRequestHost;
   const isReleaseOriginHost =
-    assessment.status === "ready" &&
-    incomingHost === new URL(assessment.publicOrigin).host;
-  if (isPlatformLivenessPath(url.pathname) && !isReleaseOriginHost) {
+    assessment.status === "ready" && isConfiguredReleaseOriginHost;
+  if (isPlatformLivenessPath(url.pathname) && !isConfiguredReleaseOriginHost) {
     return { kind: "platform" };
   }
   const isReleasePath = isHostedReleasePath(url.pathname);

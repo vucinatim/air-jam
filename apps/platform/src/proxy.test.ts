@@ -159,6 +159,30 @@ describe("hosted release request routing", () => {
     ).toEqual({ kind: "platform" });
   });
 
+  it("makes a renamed Railway production environment fail closed on the canonical host", () => {
+    const renamedProductionEnv = {
+      NODE_ENV: "production",
+      RAILWAY_ENVIRONMENT_NAME: "Production",
+      RAILWAY_PUBLIC_DOMAIN: "air-jam-platform-production.up.railway.app",
+      NEXT_PUBLIC_APP_URL: "https://airjam.io",
+    } as NodeJS.ProcessEnv;
+
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/docs",
+        "airjam.io",
+        renamedProductionEnv,
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/docs",
+        "air-jam-platform-production.up.railway.app",
+        renamedProductionEnv,
+      ),
+    ).toEqual({ kind: "platform" });
+  });
+
   it("fails closed when a release path is requested without a ready origin", () => {
     const disposition = resolveHostedReleaseRequestDisposition(
       "https://airjam.io/releases/g/game-1/r/release-1/generations/generation-1/",
@@ -230,6 +254,17 @@ describe("hosted release request routing", () => {
         },
       ),
     ).toEqual({ kind: "block_release_origin" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "http://0.0.0.0:3000/api/health",
+        "airjamusercontent.example",
+        {
+          ...productionWithoutReleaseOrigin,
+          AIRJAM_RELEASES_PUBLIC_ORIGIN:
+            "https://airjamusercontent.example/invalid-path",
+        },
+      ),
+    ).toEqual({ kind: "block_unknown_host" });
     expect(
       resolveHostedReleaseRequestDisposition(
         "http://0.0.0.0:3000/login",

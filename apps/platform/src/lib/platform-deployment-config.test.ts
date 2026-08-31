@@ -97,8 +97,21 @@ describe("resolvePlatformDeploymentConfig", () => {
       "preview.airjam.io",
       "platform-preview.up.railway.app",
       "foo.airjam.io",
-      "www.airjam.io",
     ]);
+  });
+
+  it("admits the canonical redirect source only for its destination deployment", () => {
+    expect(
+      resolvePlatformDeploymentConfig({
+        NEXT_PUBLIC_APP_URL: "https://airjam.io",
+      }).platformRequestHosts,
+    ).toEqual(["airjam.io", "www.airjam.io"]);
+
+    expect(
+      resolvePlatformDeploymentConfig({
+        NEXT_PUBLIC_APP_URL: "https://preview.airjam.io",
+      }).platformRequestHosts,
+    ).toEqual(["preview.airjam.io"]);
   });
 
   it("derives github auth availability from credentials unless explicitly overridden", () => {

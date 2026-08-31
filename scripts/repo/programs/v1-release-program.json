@@ -752,7 +752,7 @@
       },
       "evidenceRequirements": [
         "negative-path security tests and operator controls",
-        "repo CLI proof that the exact merged production deployment reached terminal SUCCESS and its public liveness/readiness identity matches the deployed revision"
+        "repo CLI proof that the exact merged production deployment reached terminal SUCCESS and its canonical platform origin plus public liveness/readiness identity match the deployed revision"
       ],
       "owner": "/root/g5-security-closure",
       "note": "Production rollout incident recovery: separate liveness from release readiness, make exact-path liveness provider-independent, repair built-origin attestation, add production artifact proof to CI, and require reviewed terminal deployment evidence before continuing Gate 5.",

@@ -40,6 +40,11 @@ describe("platform readiness boundary", () => {
         revision: "0123456789abcdef",
       },
       boundaries: {
+        platformRequestPolicy: {
+          platformPublicOrigin: "https://airjam.io",
+          isRailwayPreviewEnvironment: false,
+          platformRequestHosts: ["airjam.io", "www.airjam.io"],
+        },
         hostedReleaseOrigin: {
           required: true,
           status: "disabled",
@@ -105,6 +110,32 @@ describe("platform readiness boundary", () => {
     expect(body).toMatchObject({
       ok: true,
       boundaries: {
+        hostedReleaseOrigin: {
+          required: false,
+          status: "disabled",
+        },
+      },
+    });
+  });
+
+  it("exposes Railway environment-name drift in the machine-readable host policy", async () => {
+    process.env.RAILWAY_ENVIRONMENT_NAME = "Production";
+    process.env.RAILWAY_PUBLIC_DOMAIN =
+      "air-jam-platform-production.up.railway.app";
+
+    const response = GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      boundaries: {
+        platformRequestPolicy: {
+          platformPublicOrigin:
+            "https://air-jam-platform-production.up.railway.app",
+          isRailwayPreviewEnvironment: true,
+          platformRequestHosts: ["air-jam-platform-production.up.railway.app"],
+        },
         hostedReleaseOrigin: {
           required: false,
           status: "disabled",
