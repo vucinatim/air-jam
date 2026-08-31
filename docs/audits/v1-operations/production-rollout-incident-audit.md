@@ -129,25 +129,24 @@ The incident produced these lessons that shaped that policy:
 This audit records why those rules exist; it is not a parallel operating-policy
 owner.
 
-Gate `G5-02` owns mechanical enforcement for review evidence and post-merge
-Railway verification through the repo CLI and required automation.
+Gate `G5-02` owns post-merge Railway verification through the repo CLI. Exact
+review evidence remains mandatory through the canonical agent instructions and
+pull-request record.
 
 ## Incident Closure Steps
 
-1. close Gate `G5-05` by establishing an independent automated reviewer identity
-   and non-bypassable branch protection for its exact-head attestation
-2. merge recovery PR `#76` only after its exact agent reviews and protected
-   automated attestation pass with the incident evidence attached; PR `#77`
-   defines the future canonical policy and is not treated as if it were already
-   present on `main`
+1. rerun both exact-base-and-head agent reviews for recovery PR `#76`, resolve
+   every finding, and attach the final evidence
+2. merge PR `#76` only after its agent reviews, CI, and provider previews pass;
+   PR `#77` defines the future canonical policy and is not treated as if it were
+   already present on `main`
 3. observe PR `#76`'s exact production platform deployment through terminal
    `SUCCESS`
 4. inspect live `/api/health` and `/api/readiness` with deployment identity
 5. re-resolve PR `#77` after its base changes, rerun both exact-base-and-head
-   agent reviews, obtain the protected automated attestation, and merge it
-   independently
+   agent reviews, attach their evidence, and merge it independently
 6. repair, rebase, review, and roll out PRs `#74` and `#75` independently
 
 The Claude Opus and Canonicalizer evidence listed above predates the exact-head
 attachment standard introduced by PR `#77`; it remains incident evidence but is
-not a protected automated review attestation.
+not current exact-head review evidence.

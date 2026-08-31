@@ -18,6 +18,17 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-31 - Review Enforcement Was Right-Sized For 1.0
+
+- kept exact-head Canonicalizer and explicit Claude Opus review mandatory for
+  every pull request while leaving implementation review agent-owned
+- removed the proposed protected GitHub review-attestation service and its
+  `G5-05` checkpoint from the 1.0 critical path
+- retained CI and provider previews as mechanical GitHub gates and retained the
+  exact review record as an instruction-governed pull-request artifact
+- moved automated review attestation to the durable follow-up list for future
+  unattended merge scale or demonstrated process failures
+
 ## 2026-08-31 - Review Authority Became Agent-First
 
 - clarified that the maintainer owns product direction, paradigm, scope, taste,

@@ -935,8 +935,8 @@ Make wider public creation and hosting safe enough to operate unattended.
 9. document telemetry privacy behavior and retention in user-facing terms
 10. define vulnerability reporting and emergency release procedures
 11. enforce exact-base-and-head review, preview, merge, and production
-    deployment evidence through the repo CLI, required automation, and a trusted
-    independent automated review attestation
+    deployment evidence through agent instructions, pull-request evidence, the
+    repo CLI, and required CI/provider checks
 
 ### Done When
 

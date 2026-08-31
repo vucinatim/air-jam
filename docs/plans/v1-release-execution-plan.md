@@ -333,20 +333,13 @@ stable.
 
 Expected elapsed time: `10-18` days.
 
-Gate `G5-02` also owns mechanical enforcement of the reviewed-delivery policy.
-It remains open until the repo CLI and required automation can verify exact PR
-base/head review evidence, exact provider preview deployment identity and
-terminal status, and the exact merged commit's production deployment plus live
-health/readiness/revision evidence. Prose and manually attached evidence govern
-the current recovery, but they do not close this enforcement work.
-
-Gate `G5-05` is the maintainer-owned one-time authorization checkpoint for an
-independent automated reviewer identity and non-bypassable branch-protection
-setup. It must close before the current recovery stack merges. This checkpoint
-authorizes/configures the machine reviewer; it does not assign code review to
-the maintainer. Once configured, agents own implementation review and no agent
-may synthesize, self-assert, or relax the protected attestation while delivering
-the same stack.
+Gate `G5-02` owns repo-CLI proof for the exact merged commit's production
+deployment plus live health/readiness/revision evidence. Exact-head
+Canonicalizer and Claude review remains mandatory under `AGENTS.md` and the
+canonical working agreements, with evidence attached to each pull request. A
+separate GitHub review-attestation service is deliberately outside the 1.0
+critical path unless real unattended merge volume or an observed process
+failure justifies it.
 
 ### Wave 3: Public Proof And Evidence Closure
 

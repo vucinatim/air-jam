@@ -58,15 +58,15 @@ Air Jam separates subjective product authority from implementation assurance:
    expected to translate agent findings into a manual GitHub approval
 3. Canonicalizer and the explicitly selected Claude Opus reviewer own the two
    independent implementation-review passes defined below
-4. a trusted automation identity must convert their valid exact-head outcomes
-   into a commit-scoped required GitHub review attestation; comments and prose
-   alone are not the merge gate
-5. the attestation publisher must fail closed for missing, stale, incomplete, or
-   non-passing evidence and must not let the authoring agent assert success by
-   discretion
-6. GitHub may represent the attestation as required check runs or a formal bot
-   review, but it is automated implementation assurance, never a claim that the
-   maintainer manually reviewed the code
+4. for 1.0, the integrating agent must attach the exact review evidence to the
+   pull request and must not merge when either review is missing, stale,
+   incomplete, or non-passing
+5. `AGENTS.md` and this canonical agreement are the authority for that agent
+   behavior; ordinary CI and provider previews remain the mechanically enforced
+   GitHub gates
+6. a protected automated GitHub review attestation is a future scaling option,
+   not a 1.0 prerequisite; add it only when unattended merge volume or observed
+   process failures justify the extra system
 
 ## Review Stacks And Integration
 
@@ -92,9 +92,8 @@ Use these rules:
    tests, and documentation
 6. review every individual pull request independently; a cumulative or
    descendant review does not review its ancestors
-7. after any base or head change, treat both agent reviews and their automated
-   review attestation as stale and rerun or republish them against the new exact
-   base-to-head state before merge
+7. after any base or head change, treat both agent reviews as stale and rerun
+   them against the new exact base-to-head state before merge
 8. attach both reviews to the pull request with the exact reviewed base and head
    SHAs, Canonicalizer session identifier, resolved Claude `modelUsage` model
    identifier, verdicts, and resolved findings so later agents can audit what
@@ -106,17 +105,15 @@ Use these rules:
 11. run the complete integration gate against the exact cumulative head; green
     checks on a descendant do not retroactively make a failing ancestor safe to
     merge by itself
-12. treat provider preview status, issue comments, and automated review prose as
-    evidence, not as the protected review attestation unless the trusted
-    automation identity records it for the exact head
+12. attach agent review results as auditable pull-request evidence; they do not
+    claim that the maintainer manually reviewed or approved the implementation
 13. merge only when all exact-base-and-head evidence is attached: Canonicalizer
     is `ready`; the required Claude review has no actionable blockers; the
-    trusted automated review attestation is `SUCCESS` for that exact evidence
-    and head; the canonical CI workflow at `.github/workflows/ci.yml` has a
-    `SUCCESS` `checks` job; every other workflow dispatched for the pull request
-    is no longer pending and has no failed or cancelled job; every required
-    provider preview deployment is literal terminal `SUCCESS`; and every review
-    conversation is resolved
+    canonical CI workflow at `.github/workflows/ci.yml` has a `SUCCESS` `checks`
+    job; every other workflow dispatched for the pull request is no longer
+    pending and has no failed or cancelled job; every required provider preview
+    deployment is literal terminal `SUCCESS`; and every review conversation is
+    resolved
 14. treat a missing expected `checks` run as a blocker; branch protection must
     require it, but its required-context list is a floor rather than the full
     definition of this gate
@@ -125,12 +122,11 @@ Use these rules:
     proof, while a green or warning-only preview-comment workflow is not; when
     no preview is created, record why the diff cannot affect a deployable
     artifact or treat the missing provider deployment as a blocker
-16. never use an admin bypass to evade an unsatisfied required check, automated
-    review attestation, preview, or conversation-resolution rule; solo ownership
-    does not weaken the machine gate
-17. require branch protection to apply the review-attestation and CI checks to
-    administrators; a visible approval, comment, or green status from a
-    different base or head does not satisfy the gate
+16. never use an admin bypass to evade an unsatisfied CI, agent-review, preview,
+    or conversation-resolution rule; GitHub not enforcing every rule does not
+    authorize the integrating agent to ignore it
+17. require branch protection to apply CI checks to administrators; agent review
+    evidence remains exact-head and instruction-governed for 1.0
 18. after a cumulative integration, return to small independently mergeable pull
     requests rather than allowing another long-lived stack to become the normal
     delivery model
