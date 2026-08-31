@@ -45,10 +45,8 @@ The current priorities are:
    one exact release candidate
 6. launch with a free creation harness and useful hobby cloud inside an explicit
    cost envelope, rather than tying sustainability to signup count
-7. operate every meaningful change through an exact-head review and delivery
-   gate: Canonicalizer per meaningful batch, Claude Opus 5 per individual pull
-   request, required CI and preview success, formal approval, and exact-commit
-   production verification without admin bypass
+7. operate every change under the canonical
+   [review, merge, and production-delivery rules](./working-agreements.md#review-stacks-and-integration)
 
 ## What Is Structurally Done
 

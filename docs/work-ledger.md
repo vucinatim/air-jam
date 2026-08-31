@@ -18,6 +18,23 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-08-31 - Exact-Head Reviewed Delivery Became Canonical
+
+- made the working agreements the sole normative owner for reviewed delivery
+- required one complete Canonicalizer-reviewed commit range and one explicit
+  Claude Opus 5 review for every individual pull request, including each stack
+  slice
+- made later pushes invalidate both reviews and required exact base/head,
+  session, resolved model, verdict, finding, CI, preview deployment, and formal
+  approval evidence before merge
+- prohibited admin bypass as a substitute for the repository's formal approval
+  gate and required a trusted reviewer identity when solo ownership makes that
+  gate unsatisfiable
+- required literal exact-commit production deployment success plus live
+  health, readiness, and revision evidence before calling a rollout complete
+- kept mechanical review and deployment enforcement open under `G5-02` instead
+  of pretending that prose alone closes the incident's process failure
+
 ## 2026-08-31 - Failed Platform Rollout Entered Controlled Recovery
 
 - confirmed that the platform deployment following PR `#73` reached terminal

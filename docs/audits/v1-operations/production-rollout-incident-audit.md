@@ -106,24 +106,24 @@ Production is not considered recovered until the merged corrective commit has
 a Railway platform deployment with explicit terminal `SUCCESS` and the live
 liveness/readiness responses are inspected against that deployment identity.
 
-## Process Corrections
+## Process Lessons
 
-The incident establishes these non-negotiable release rules:
+The canonical current review, merge, and production-delivery rules live in
+[Working Agreements](../../working-agreements.md#review-stacks-and-integration).
+The incident produced these lessons that shaped that policy:
 
 1. preview success is evidence for the candidate, not evidence that production
    accepted the merged revision
 2. a rollout is incomplete until provider state reaches terminal `SUCCESS`
 3. a newer terminal `FAILED` deployment must remain visible as an incident even
    when the previous revision keeps serving traffic
-4. Claude Opus and Canonicalizer output must be attached as explicit review
-   evidence; an absent GitHub review cannot be silently treated as approval
+4. locally completed agent reviews did not replace attached exact-head evidence
+   or a formal GitHub approving review
 5. production-mode artifact proof must cover any contract that depends on
    framework build-time transformation
 6. deployment liveness, dependency readiness, and product capability
    readiness are different contracts and must not be collapsed
 
-The canonical current review, merge, and production-delivery rules live in
-[Working Agreements](../../working-agreements.md#review-stacks-and-integration).
 This audit records why those rules exist; it is not a parallel operating-policy
 owner.
 
@@ -131,10 +131,10 @@ Mechanical enforcement for review evidence and post-merge Railway verification
 is a separate operating-system correction. It must be implemented through the
 repo CLI and required automation rather than relying on memory or prose alone.
 
-## Remaining Closure
+## Incident Closure Evidence
 
-1. merge only after GitHub CI, required standalone artifact proof, Railway
-   preview checks, and formal review requirements are green
+1. close and merge the recovery pull request under the canonical working
+   agreements with its exact-head evidence attached
 2. observe the exact production platform deployment through terminal
    `SUCCESS`
 3. inspect live `/api/health` and `/api/readiness` with deployment identity

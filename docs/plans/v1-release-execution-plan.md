@@ -333,6 +333,13 @@ stable.
 
 Expected elapsed time: `10-18` days.
 
+Gate `G5-02` also owns mechanical enforcement of the reviewed-delivery policy.
+It remains open until the repo CLI and required automation can verify exact PR
+base/head review evidence, exact provider preview deployment identity and
+terminal status, and the exact merged commit's production deployment plus live
+health/readiness/revision evidence. Prose and manually attached evidence govern
+the current recovery, but they do not close this enforcement work.
+
 ### Wave 3: Public Proof And Evidence Closure
 
 Primary work:
@@ -373,9 +380,9 @@ The production-valid closeout is therefore:
 2. create one integration pull request from the corrected cumulative head into
    `main`, linking the component pull requests as its review record
 3. run the complete CI and release-relevant gate on that exact integration head
-4. satisfy the repository's formal approval policy or record an explicit
-   maintainer decision changing an approval policy that a solo repository
-   cannot satisfy; automated issue comments are not formal approvals
+4. satisfy the repository's formal approval policy; if the solo repository
+   cannot satisfy it, stop and obtain a trusted reviewer identity because
+   automated issue comments and agent review evidence are not formal approvals
 5. merge once and verify the resulting production deployment and health rather
    than intentionally deploying known-incomplete intermediate stack states
 6. close the component pull requests as superseded only after the cumulative

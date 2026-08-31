@@ -144,9 +144,7 @@ All agents must follow
 [Review Stacks And Integration](docs/working-agreements.md#review-stacks-and-integration)
 and
 [Production Delivery And Public Launch](docs/working-agreements.md#production-delivery-and-public-launch)
-as the sole normative authority for meaningful-batch Canonicalizer review,
-per-pull-request Claude Opus 5 review, exact-head review freshness, merge gates,
-formal approval, and exact-commit production verification. Do not duplicate,
+as the sole normative authority for reviewed delivery. Do not duplicate,
 weaken, or bypass those rules in task-local plans or delivery decisions.
 
 ## Debugging Rule

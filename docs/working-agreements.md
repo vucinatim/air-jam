@@ -57,35 +57,58 @@ Use these rules:
 
 1. merge a stack bottom-up only when every slice is independently production
    valid, green, and has its own review findings resolved
-2. run Canonicalizer on every meaningful commit batch, retain the session and
-   exact reviewed head SHA, resolve its findings, and resume it until `ready`
-3. run Claude Opus 5 on every individual pull request's exact base-to-head diff;
-   a cumulative or descendant review does not review its ancestors
-4. after any new push, treat earlier review evidence as stale: rerun
-   Canonicalizer for a new meaningful batch and always rerun the pull request's
-   Claude Opus 5 review against the new head
-5. attach the exact base SHA, head SHA, model or session identity, verdict, and
-   resolved findings to the pull request so later agents can audit what was
-   actually reviewed
-6. when review corrections cross stack boundaries, prepare one cumulative
+2. resolve the pull request's full `baseRefOid` and `headRefOid` from GitHub
+   immediately before each review; do not reconstruct or transcribe full SHAs
+   from abbreviated commit names
+3. run Canonicalizer on every meaningful commit batch; the batch is the exact
+   contiguous range from the pull request base, or the last Canonicalizer-ready
+   head on that branch, through the current head and must include every
+   unreviewed commit
+4. resolve every actionable Canonicalizer finding and resume the same session
+   until `ready`
+5. run Claude Opus 5 through the explicit `claude-opus-5` model identifier on
+   every individual pull request's exact base-to-head diff, with no moving
+   model alias or fallback; a successor model replaces it only through an
+   explicit change to this canonical policy; keep the review read-only and ask
+   it to inspect correctness, architecture, canonicality, security, operations,
+   tests, and documentation
+6. review every individual pull request independently; a cumulative or
+   descendant review does not review its ancestors
+7. after any push, treat both reviews as stale and rerun them against the new
+   exact head before merge; formatting-only and typo-only commits do not need
+   their own intermediate Canonicalizer pass, but the final reviewed batch must
+   still include them
+8. attach both reviews to the pull request with the exact reviewed base and head
+   SHAs, Canonicalizer session identifier, resolved Claude `modelUsage` model
+   identifier, verdicts, and resolved findings so later agents can audit what
+   was actually reviewed
+9. when review corrections cross stack boundaries, prepare one cumulative
    integration pull request from the corrected top of the stack into `main`
-7. preserve the component pull requests as focused review history and close
-   them as superseded only after the integration pull request merges
-8. run the complete integration gate against the exact cumulative head; green
-   checks on a descendant do not retroactively make a failing ancestor safe to
-   merge by itself
-9. treat provider preview status, issue comments, and automated review prose as
-   evidence, not as a formal GitHub approval unless GitHub records an approving
-   review
-10. merge only when Canonicalizer is `ready`, Claude Opus 5 has no actionable
-    blockers, required CI is green, required preview deployments have literal
-    terminal `SUCCESS`, conversations are resolved, and GitHub records the
-    required formal approval for the exact head
-11. do not use an admin bypass to evade an unsatisfied required check, review,
-    or conversation-resolution rule during normal delivery; an impossible
-    solo-repository policy requires an explicit maintainer change to the policy
-    or a trusted reviewer identity
-12. after a cumulative integration, return to small independently mergeable pull
+10. preserve the component pull requests as focused review history and close
+    them as superseded only after the integration pull request merges
+11. run the complete integration gate against the exact cumulative head; green
+    checks on a descendant do not retroactively make a failing ancestor safe to
+    merge by itself
+12. treat provider preview status, issue comments, and automated review prose as
+    evidence, not as a formal GitHub approval unless GitHub records an approving
+    review
+13. merge only when all exact-head evidence is attached: Canonicalizer is
+    `ready`; the required Claude review has no actionable blockers; every
+    configured GitHub Actions check triggered for that head is `SUCCESS` or
+    explicitly condition-skipped; every provider-created preview deployment for
+    that head is literal terminal `SUCCESS`; every review conversation is
+    resolved; and GitHub records the required formal approving review for that
+    head; branch protection's required-context list is a floor, not the full
+    definition of this gate
+14. list the affected deployable services and exact preview deployment IDs in
+    the pull request evidence; when no preview is created, record why the diff
+    is non-deployable or why the provider did not schedule one instead of
+    silently treating an absent status as success
+15. never use an admin bypass to evade an unsatisfied required check, review,
+    preview, or conversation-resolution rule; if a solo repository cannot
+    satisfy formal approval, stop and obtain a trusted reviewer identity rather
+    than reinterpreting agent evidence as approval
+16. after a cumulative integration, return to small independently mergeable pull
     requests rather than allowing another long-lived stack to become the normal
     delivery model
 
@@ -93,7 +116,8 @@ A meaningful batch changes runtime behavior, public or machine contracts,
 architecture or ownership, security or privacy, data or schemas,
 infrastructure, dependencies, deployment behavior, release operations, or the
 structural documentation that governs those systems. Formatting-only and
-typo-only edits do not require a separate Canonicalizer pass.
+typo-only edits do not require a separate intermediate Canonicalizer pass, but
+no commit may be omitted from the exact range covered by the final ready review.
 
 ## Production Delivery And Public Launch
 
@@ -122,6 +146,11 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
 10. if that exact deployment fails, preserve the failed attempt as incident
     evidence and recover it before merging unrelated work; an older successful
     deployment still serving traffic does not make the new rollout successful
+11. start Railway verification with
+    `pnpm --silent run repo -- railway doctor --project <id> --json`; until the
+    `G5-02` exact-commit verifier is required in automation, also retain a
+    structured provider deployment read containing the deployment ID, literal
+    status, and commit hash rather than inferring identity from service health
 
 ## Agent-First Operability
 
