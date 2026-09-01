@@ -1,0 +1,274 @@
+{
+  "contractVersion": 2,
+  "command": "release-origin.attest",
+  "status": "passed",
+  "evidenceKind": "production-deployment",
+  "productionEvidenceCandidate": true,
+  "productionEvidenceEligible": true,
+  "providerVerification": {
+    "status": "verified",
+    "provider": "railway",
+    "projectId": "0b0761f9-9bb1-4d4f-8191-50d43cccdee7",
+    "environmentId": "53607220-1116-4d93-89b2-d508835901ac",
+    "serviceId": "5966dcb6-88cb-49d6-a1fa-60ca78c533ac",
+    "deploymentId": "e65c8e41-3f72-4078-9ce0-443695d296a2",
+    "productionEnvironment": true,
+    "successfulDeployment": true,
+    "currentServiceDeployment": true,
+    "platformDomainMatched": true,
+    "releaseDomainMatched": true,
+    "expectedProjectMatched": true
+  },
+  "attestedAt": "2026-09-01T14:15:10.721Z",
+  "source": {
+    "platformOrigin": "https://airjam.io",
+    "releaseOrigin": "https://games.air-jam.app",
+    "releaseUrl": "https://games.air-jam.app/releases/g/fdfdd9d4-6040-43e2-8d43-75bce125fb4b/r/9ef38c27-2d9d-4d2a-8670-56488d5de87a/generations/6a2f82fe-1c1f-4634-8587-ed84747b1b3a",
+    "controllerUrl": "https://games.air-jam.app/releases/g/fdfdd9d4-6040-43e2-8d43-75bce125fb4b/r/9ef38c27-2d9d-4d2a-8670-56488d5de87a/generations/6a2f82fe-1c1f-4634-8587-ed84747b1b3a/controller",
+    "deployment": {
+      "provider": "railway",
+      "environment": "production",
+      "deploymentId": "e65c8e41-3f72-4078-9ce0-443695d296a2",
+      "revision": "ebf63d8a0d5587f27ba59adf48213fb71f20340b"
+    }
+  },
+  "checks": [
+    {
+      "id": "boundary.cookie-site-isolation",
+      "status": "passed",
+      "summary": "The release origin uses a cookie site distinct from the authenticated platform.",
+      "evidence": {
+        "platformCookieSite": "airjam.io",
+        "releaseCookieSite": "air-jam.app"
+      }
+    },
+    {
+      "id": "network.airjam.io.dns",
+      "status": "passed",
+      "summary": "DNS resolved only publicly routable addresses.",
+      "evidence": {
+        "addressCount": 1,
+        "allAddressesPublic": true,
+        "allAddressesLoopback": false,
+        "loopbackDiagnostic": false
+      }
+    },
+    {
+      "id": "network.games.air-jam.app.dns",
+      "status": "passed",
+      "summary": "DNS resolved only publicly routable addresses.",
+      "evidence": {
+        "addressCount": 1,
+        "allAddressesPublic": true,
+        "allAddressesLoopback": false,
+        "loopbackDiagnostic": false
+      }
+    },
+    {
+      "id": "network.airjam.io.tls",
+      "status": "passed",
+      "summary": "TLS certificate validation succeeded against the pinned address.",
+      "evidence": {
+        "protocol": "TLSv1.3",
+        "certificateValidTo": "Oct  7 08:48:12 2026 GMT"
+      }
+    },
+    {
+      "id": "network.games.air-jam.app.tls",
+      "status": "passed",
+      "summary": "TLS certificate validation succeeded against the pinned address.",
+      "evidence": {
+        "protocol": "TLSv1.3",
+        "certificateValidTo": "Nov 30 12:13:04 2026 GMT"
+      }
+    },
+    {
+      "id": "platform.readiness-boundary",
+      "status": "passed",
+      "summary": "The platform reports this exact release origin as its ready required boundary.",
+      "evidence": {
+        "httpStatus": 200,
+        "required": true,
+        "exactReleaseOrigin": true
+      }
+    },
+    {
+      "id": "routing.platform-host-to-release",
+      "status": "passed",
+      "summary": "The platform release path redirects temporarily and without caching to the exact release URL.",
+      "evidence": {
+        "httpStatus": 307,
+        "cacheControl": "no-store",
+        "contentClass": "untrusted-release",
+        "location": "https://games.air-jam.app/releases/g/fdfdd9d4-6040-43e2-8d43-75bce125fb4b/r/9ef38c27-2d9d-4d2a-8670-56488d5de87a/generations/6a2f82fe-1c1f-4634-8587-ed84747b1b3a"
+      }
+    },
+    {
+      "id": "routing.platform-controller-to-release",
+      "status": "passed",
+      "summary": "The platform release path redirects temporarily and without caching to the exact release URL.",
+      "evidence": {
+        "httpStatus": 307,
+        "cacheControl": "no-store",
+        "contentClass": "untrusted-release",
+        "location": "https://games.air-jam.app/releases/g/fdfdd9d4-6040-43e2-8d43-75bce125fb4b/r/9ef38c27-2d9d-4d2a-8670-56488d5de87a/generations/6a2f82fe-1c1f-4634-8587-ed84747b1b3a/controller"
+      }
+    },
+    {
+      "id": "routing.release-host-platform-block",
+      "status": "passed",
+      "summary": "The release host blocks platform routes without setting cookies.",
+      "evidence": {
+        "httpStatus": 404,
+        "cacheControl": "no-store",
+        "contentClass": "untrusted-release",
+        "setCookiePresent": false
+      }
+    },
+    {
+      "id": "response.host-release-policy",
+      "status": "passed",
+      "summary": "The exact live release document carries the isolated HTML policy and sets no cookie.",
+      "evidence": {
+        "httpStatus": 200,
+        "cacheControl": "no-cache",
+        "contentClass": "untrusted-release",
+        "contentType": "text/html; charset=utf-8",
+        "exactPolicy": true,
+        "contentTypeOptionsExact": true,
+        "setCookiePresent": false
+      }
+    },
+    {
+      "id": "response.controller-release-policy",
+      "status": "passed",
+      "summary": "The exact live release document carries the isolated HTML policy and sets no cookie.",
+      "evidence": {
+        "httpStatus": 200,
+        "cacheControl": "no-cache",
+        "contentClass": "untrusted-release",
+        "contentType": "text/html; charset=utf-8",
+        "exactPolicy": true,
+        "contentTypeOptionsExact": true,
+        "setCookiePresent": false
+      }
+    },
+    {
+      "id": "cors.machine-auth",
+      "status": "passed",
+      "summary": "The protected endpoint returns its expected unauthenticated contract without granting release-origin CORS.",
+      "evidence": {
+        "httpStatus": 401,
+        "expectedStatus": 401,
+        "jsonContentType": true,
+        "errorCodeMatched": true,
+        "releaseOriginAllowed": false,
+        "credentialsAllowed": false
+      }
+    },
+    {
+      "id": "cors.browser-session",
+      "status": "passed",
+      "summary": "The browser-session endpoint returns the anonymous contract without granting release-origin CORS or setting a cookie.",
+      "evidence": {
+        "httpStatus": 200,
+        "jsonContentType": true,
+        "anonymousSession": true,
+        "releaseOriginAllowed": false,
+        "credentialsAllowed": false,
+        "setCookiePresent": false
+      }
+    },
+    {
+      "id": "cors.dashboard-api",
+      "status": "passed",
+      "summary": "The protected endpoint returns its expected unauthenticated contract without granting release-origin CORS.",
+      "evidence": {
+        "httpStatus": 401,
+        "expectedStatus": 401,
+        "jsonContentType": true,
+        "errorCodeMatched": true,
+        "releaseOriginAllowed": false,
+        "credentialsAllowed": false
+      }
+    },
+    {
+      "id": "cors.device-poll",
+      "status": "passed",
+      "summary": "The protected endpoint returns its expected unauthenticated contract without granting release-origin CORS.",
+      "evidence": {
+        "httpStatus": 400,
+        "expectedStatus": 400,
+        "jsonContentType": true,
+        "errorCodeMatched": true,
+        "releaseOriginAllowed": false,
+        "credentialsAllowed": false
+      }
+    },
+    {
+      "id": "cors.device-approval",
+      "status": "passed",
+      "summary": "The protected endpoint returns its expected unauthenticated contract without granting release-origin CORS.",
+      "evidence": {
+        "httpStatus": 401,
+        "expectedStatus": 401,
+        "jsonContentType": true,
+        "errorCodeMatched": true,
+        "releaseOriginAllowed": false,
+        "credentialsAllowed": false
+      }
+    },
+    {
+      "id": "cors.device-poll-preflight",
+      "status": "passed",
+      "summary": "The protected JSON endpoint denies release-origin browser preflight authority.",
+      "evidence": {
+        "httpStatus": 204,
+        "releaseOriginAllowed": false,
+        "credentialsAllowed": false,
+        "postAllowed": false
+      }
+    },
+    {
+      "id": "cors.device-approval-preflight",
+      "status": "passed",
+      "summary": "The protected JSON endpoint denies release-origin browser preflight authority.",
+      "evidence": {
+        "httpStatus": 204,
+        "releaseOriginAllowed": false,
+        "credentialsAllowed": false,
+        "postAllowed": false
+      }
+    },
+    {
+      "id": "platform.deployment-stability",
+      "status": "passed",
+      "summary": "Deployment identity and release boundary remained stable throughout attestation.",
+      "evidence": {
+        "stableDeployment": true,
+        "stableReadiness": true,
+        "stableBoundary": true,
+        "deploymentIdPresent": true,
+        "revisionPresent": true,
+        "productionEnvironment": true
+      }
+    },
+    {
+      "id": "provider.railway-deployment",
+      "status": "passed",
+      "summary": "Railway independently confirms the production project, service, current deployment, and both public domains.",
+      "evidence": {
+        "productionEnvironment": true,
+        "successfulDeployment": true,
+        "currentServiceDeployment": true,
+        "platformDomainMatched": true,
+        "releaseDomainMatched": true,
+        "expectedProjectMatched": true
+      }
+    }
+  ],
+  "summary": {
+    "passed": 20,
+    "failed": 0
+  }
+}
