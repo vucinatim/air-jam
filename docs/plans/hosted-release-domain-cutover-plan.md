@@ -1,7 +1,7 @@
 # Hosted Release Domain Cutover Plan
 
 Last updated: 2026-09-01
-Status: active bounded Gate 5 cutover
+Status: production cutover complete; observation and separate legacy slice active
 Governed by: [Air Jam 1.0 Release Roadmap](./v1-release-roadmap-plan.md)
 Execution authority: readiness item `G5-02`
 
@@ -97,6 +97,26 @@ The production target is intentionally explicit:
 Moving the zone to Cloudflare is deliberately out of scope. A nameserver
 migration would combine two independent production changes without improving
 the release-origin boundary.
+
+## Production Execution Result
+
+The additive cutover completed on 2026-09-01. Railway issued custom-domain
+identity `2adee84d-ca46-4c8a-9f6d-6075ba5927e7`; Namecheap now routes `games`
+to `fwkerixp.up.railway.app` and retains the exact Railway verification TXT.
+Railway reports the certificate `VALID` / `COMPLETE` through 2026-11-30.
+
+Merged revision `ebf63d8a0d5587f27ba59adf48213fb71f20340b` reached terminal
+`SUCCESS` as production deployment `e65c8e41-3f72-4078-9ce0-443695d296a2`.
+All six public catalog entries use the dedicated origin, the controlled browser
+matrix passes `7/7`, and the canonical production attestation passes `20/20`
+with verified provider identity and `productionEvidenceEligible: true`.
+
+The complete provider, migration-recovery, review, deployment, and attestation
+record is preserved in the
+[cutover evidence](../audits/v1-security/hosted-release-domain-cutover-evidence.md).
+The plan stays active only for its observation period, rollback proof, and the
+separately reviewed legacy-host disposition; the production domain itself is no
+longer pending.
 
 ## Execution Sequence
 

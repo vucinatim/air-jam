@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,32 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-09-01 - Creator Releases Moved To A Dedicated Production Origin
+
+- provisioned `games.air-jam.app` additively on the exact production Railway
+  platform service while preserving Namecheap email forwarding and every
+  unrelated DNS record
+- kept the public product experience on `airjam.io`; the new origin is an
+  implementation boundary for creator-controlled host and controller documents,
+  not a new player-facing navigation or room-code model
+- recovered a pre-existing production migration drift from journal `0020` to
+  `0033` only after an isolated PostgreSQL 17 restore rehearsal, an exact write
+  drain, and a fresh custom-format backup
+- retained the production backup under `.airjam/backups/production/` with mode
+  `0600` and recorded its exact SHA-256 in the
+  [cutover evidence](./audits/v1-security/hosted-release-domain-cutover-evidence.md)
+- merged provider/runtime PR `#79` and canonical URL/attestation correction PR
+  `#80` through green GitHub checks, green Railway previews, and one final
+  GitHub-native Claude Opus 5 review per merge candidate
+- observed exact production deployment
+  `e65c8e41-3f72-4078-9ce0-443695d296a2` at terminal `SUCCESS`, serving merged
+  revision `ebf63d8a0d5587f27ba59adf48213fb71f20340b`
+- proved all six public catalog games use the dedicated origin, the browser
+  smoke matrix passes `7/7`, and the canonical provider-authenticated
+  attestation passes `20/20` with `productionEvidenceEligible: true`
+- kept `G5-02` and `G3-02` open for their broader security, rollback,
+  migration-automation, admission, and overload responsibilities
 
 ## 2026-09-01 - Trusted CI Entered Critical-Path Optimization
 

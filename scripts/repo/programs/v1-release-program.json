@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-01T12:25:08.548Z",
+  "updatedAt": "2026-09-01T14:21:48.429Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -756,11 +756,19 @@
         "branch-protection proof that required CI applies to administrators plus one GitHub-native Opus review on the green merge candidate and measured fast local check tiers"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Selected games.air-jam.app as the production cross-site release origin; additive Namecheap/Railway cutover and legacy-host disposition are now governed by the canonical plan. Provider state remains unchanged pending reviewed merge.",
-      "updatedAt": "2026-09-01T12:25:08.548Z",
+      "note": "Dedicated games.air-jam.app production cutover is live and provider-attested on merged revision ebf63d8; G5-02 remains open for rollback proof, observation, legacy-host disposition, and remaining security findings.",
+      "updatedAt": "2026-09-01T14:21:48.429Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
-        "document:docs/plans/hosted-release-domain-cutover-plan.md"
+        "document:docs/plans/hosted-release-domain-cutover-plan.md",
+        "document:docs/audits/v1-security/hosted-release-domain-cutover-evidence.md",
+        "artifact:file:docs/audits/v1-security/2026-09-01-production-release-origin-attestation.json",
+        "url:https://github.com/vucinatim/air-jam/pull/79",
+        "url:https://github.com/vucinatim/air-jam/pull/80",
+        "url:https://github.com/vucinatim/air-jam/pull/80#pullrequestreview-5079085370",
+        "command:production-deployment-e65c8e41-terminal-success",
+        "command:release-origin-attest-20-of-20-production-eligible",
+        "command:pnpm-smoke-browser-7-of-7"
       ]
     },
     {

@@ -250,16 +250,31 @@ These are now baseline truths, not open architecture debates:
     8. only provider-authenticated public-HTTPS runs can become production
        evidence; loopback, missing project identity, and missing provider
        authority stay explicitly diagnostic
-    9. `G5-02` deliberately remains open until the selected dedicated production
-       domain, `games.air-jam.app`, is provisioned, deployed, and attested end
-       to end; the bounded migration and legacy-host disposition are governed
-       by `docs/plans/hosted-release-domain-cutover-plan.md`
+    9. the selected dedicated production domain, `games.air-jam.app`, is now
+       provisioned, deployed, and attested end to end; the separate observation,
+       rollback-proof, and legacy-host work remains governed by
+       `docs/plans/hosted-release-domain-cutover-plan.md`
     10. corrective PR `#76` passed exact-head Canonicalizer and Claude Opus
         review, CI, standalone-artifact proof, Railway previews, and an exact
         production rollout: platform deployment
         `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reached terminal `SUCCESS`, and
         live liveness reported merged revision
         `e122a52c1da49ef409364c93fb675df56a4e639d`
+18. the production hosted-release cutover is complete and evidence-backed:
+    1. all six public catalog games use `https://games.air-jam.app` while public
+       links, rooms, controllers, QR codes, and reconnect remain on `airjam.io`
+    2. production schema drift from migration `0020` to `0033` was recovered
+       after an isolated PostgreSQL 17 restore rehearsal, exact write drain,
+       and fresh checksummed backup
+    3. merged revision `ebf63d8a0d5587f27ba59adf48213fb71f20340b`
+       is live on terminal-success Railway deployment
+       `e65c8e41-3f72-4078-9ce0-443695d296a2`
+    4. the browser smoke matrix passes `7/7` and the canonical production
+       attestation passes `20/20` with verified Railway identity and
+       `productionEvidenceEligible: true`
+    5. the exact outcome, provider identifiers, recovery facts, and remaining
+       scope are retained in the
+       [hosted-release cutover evidence](./audits/v1-security/hosted-release-domain-cutover-evidence.md)
 
 ## What Is Still Open
 
@@ -461,9 +476,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. provision the dedicated untrusted-content production domain, deploy the
-   implemented origin boundary, and capture real hosted-route, cookie, CORS,
-   CSP, and normal-game attestation before closing the first `G5-02` slice
+3. observe the live dedicated release origin, prove its bounded rollback path,
+   and continue the remaining auth, abuse, and privileged-endpoint work in
+   `G5-02` without reopening the player-facing navigation model
 4. finish warned long-term artifact retention, realtime admission, and overload
    proof in `G3-02`
 5. run isolated backup/restore and rollback/replay work in parallel with durable
