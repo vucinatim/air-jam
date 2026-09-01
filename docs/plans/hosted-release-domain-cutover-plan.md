@@ -41,7 +41,8 @@ room codes, controller URLs, and reconnect behavior remain on `airjam.io`.
 
 ## Verified Pre-Cutover Baseline
 
-The 2026-09-01 read-only inventory established:
+The 2026-09-01 read-only inventory established these stored application and
+routing records:
 
 | Host                     | Provider record                              | Observed result                         | Current live attachment                                 |
 | ------------------------ | -------------------------------------------- | --------------------------------------- | ------------------------------------------------------- |
@@ -61,10 +62,25 @@ and that adding the unused `games` label cannot interrupt their present
 behavior.
 
 Namecheap is authoritative through `dns1.registrar-servers.com` and
-`dns2.registrar-servers.com`. The zone has no wildcard or CAA restriction.
-Negative DNS caching for the current NXDOMAIN may persist for roughly one hour.
-Because `.app` is HTTPS-only in modern browsers, the cutover cannot proceed
-past DNS until Railway's certificate is valid.
+`dns2.registrar-servers.com`. Namecheap's provider configuration reports
+`emailType: FWD`. That setting is part of the production baseline even though
+the provider's stored host-record collection contains only the four existing
+application records above. It currently synthesizes these effective public DNS
+records and they must remain present throughout the cutover:
+
+| Type | Priority | Value                                                |
+| ---- | -------- | ---------------------------------------------------- |
+| MX   | 10       | `eforward1.registrar-servers.com.`                   |
+| MX   | 10       | `eforward2.registrar-servers.com.`                   |
+| MX   | 10       | `eforward3.registrar-servers.com.`                   |
+| MX   | 15       | `eforward4.registrar-servers.com.`                   |
+| MX   | 20       | `eforward5.registrar-servers.com.`                   |
+| TXT  | n/a      | `v=spf1 include:spf.efwd.registrar-servers.com ~all` |
+
+The zone has no wildcard or CAA restriction. Negative DNS caching for the
+current NXDOMAIN may persist for roughly one hour. Because `.app` is HTTPS-only
+in modern browsers, the cutover cannot proceed past DNS until Railway's
+certificate is valid.
 
 ## Target Provider Identity
 
@@ -105,24 +121,42 @@ reuse a routing or verification value from an earlier attempt.
 
 ### 3. Add Only The New Namecheap Records
 
-Read the complete `air-jam.app` zone, add the exact `games` routing record and
-Railway verification record, then read the complete zone again. The
-agentic-devtools Namecheap mutation must preserve every unrelated record.
+Immediately before the first write, read and retain Namecheap's complete
+provider configuration, including `emailType`, and the normalized tuples for
+every stored host record. Independently resolve the effective public MX and SPF
+records. Add the exact `games` routing record and Railway verification record,
+then repeat both readbacks. The agentic-devtools Namecheap mutation must
+preserve every unrelated record and `emailType: FWD`.
 
 Namecheap replaces the full host collection behind its DNS API, including when
 agentic-devtools exposes a targeted add operation. Serialize the routing and
 verification writes, read the full zone after each one, and permit no parallel
-DNS or UI edit during the sequence. The final semantic diff must equal the four
-baseline records plus exactly the two Railway-required records.
+DNS or UI edit during the sequence. Compare normalized semantic values rather
+than provider-assigned IDs, record ordering, or representational TTL changes.
+After each write:
 
-Do not replace the whole zone and do not edit `@`, `www`, `api`, or
-`air-strike` during this phase.
+1. `emailType` must still equal `FWD`
+2. every baseline stored host record must remain semantically unchanged
+3. only the exact Railway-required record may have been added by that write
+4. the five forwarding MX records and forwarding SPF TXT record above must
+   still resolve publicly
+
+Do not edit or remove `@`, `www`, `api`, `air-strike`, the email-forwarding
+setting, or its effective public MX and SPF records during this phase. Stop and
+roll back the exact new record if any baseline state changes.
 
 ### 4. Prove TLS Before Enabling Delivery
 
 Wait for Railway to report a valid certificate for `games.air-jam.app`. Verify
 public DNS and HTTPS independently. Before configuration is enabled, the host
-must fail closed rather than expose the normal platform shell.
+must fail closed rather than expose the normal platform shell. Before
+`AIRJAM_RELEASES_PUBLIC_ORIGIN` is set, normal paths on the new host must return
+`404` with `Cache-Control: no-store` and the untrusted-release response marker.
+`/api/health` intentionally remains a `200` liveness response at this stage
+because the configured release origin is not known yet; it is not readiness or
+boundary proof. After the variable is set and the deployment succeeds, the
+release host must also return `404` for `/api/health` through the
+`block_release_origin` policy.
 
 ### 5. Enable The Canonical Origin
 
@@ -228,7 +262,8 @@ creator code to execute with `airjam.io` authority.
 This bounded cutover is complete only when the readiness manifest references:
 
 1. the merged decision/runbook pull request
-2. Namecheap before/after zone evidence
+2. Namecheap before/after provider configuration, stored host-record, and
+   effective public mail-DNS evidence
 3. Railway custom-domain and valid-certificate evidence
 4. the exact successful production deployment and merged revision
 5. the production release-origin inspection and attestation JSON
