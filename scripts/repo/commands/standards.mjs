@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { repoRoot } from "../lib/paths.mjs";
 
@@ -156,53 +157,42 @@ const canonicalRules = [
   },
 ];
 
-const ignoredDirectories = new Set([
-  ".git",
-  ".next",
-  ".turbo",
-  "coverage",
-  "dist",
-  "node_modules",
-]);
-
-const collectFiles = (root, relativePath, files) => {
-  const absolutePath = path.join(root, relativePath);
-  if (!existsSync(absolutePath)) {
-    throw new Error(`Canonical guard path does not exist: ${relativePath}`);
-  }
-
-  const entries = readdirSync(absolutePath, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) {
-      continue;
-    }
-    const childPath = path.join(relativePath, entry.name);
-    if (entry.isDirectory()) {
-      collectFiles(root, childPath, files);
-    } else if (entry.isFile()) {
-      files.add(childPath);
-    }
-  }
-};
-
 const resolveRuleFiles = (root, paths) => {
-  const files = new Set();
   for (const relativePath of paths) {
-    const absolutePath = path.join(root, relativePath);
-    if (!existsSync(absolutePath)) {
+    if (!existsSync(path.join(root, relativePath))) {
       throw new Error(`Canonical guard path does not exist: ${relativePath}`);
     }
-    if (statSync(absolutePath).isDirectory()) {
-      collectFiles(root, relativePath, files);
-    } else {
-      files.add(relativePath);
-    }
   }
-  return [...files].sort();
+
+  const output = execFileSync(
+    "git",
+    [
+      "-C",
+      root,
+      "ls-files",
+      "-z",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
+      ...paths,
+    ],
+    { encoding: "utf8" },
+  );
+
+  return output.split("\0").filter(Boolean).sort();
 };
 
 const lineNumberAt = (source, index) =>
   source.slice(0, index).split("\n").length;
+
+const readTextFile = (root, relativePath) => {
+  const contents = readFileSync(path.join(root, relativePath));
+  if (contents.subarray(0, 8_000).includes(0)) {
+    return null;
+  }
+  return contents.toString("utf8");
+};
 
 export const findCanonicalViolations = ({
   root = repoRoot,
@@ -211,7 +201,10 @@ export const findCanonicalViolations = ({
   rules.flatMap((rule) => {
     const pattern = new RegExp(rule.pattern, "gm");
     return resolveRuleFiles(root, rule.paths).flatMap((relativePath) => {
-      const source = readFileSync(path.join(root, relativePath), "utf8");
+      const source = readTextFile(root, relativePath);
+      if (source === null) {
+        return [];
+      }
       return [...source.matchAll(pattern)].map((match) => ({
         file: relativePath,
         label: rule.label,

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -108,14 +109,28 @@ test("the canonical guard has no external ripgrep runtime dependency", () => {
   assert.doesNotMatch(workflow, /Install ripgrep|apt-get install -y ripgrep/u);
 });
 
-test("the self-contained canonical scanner preserves multiline rule matching", () => {
+test("the canonical scanner preserves multiline matching and Git ignore boundaries", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-canonical-"));
   try {
+    fs.writeFileSync(path.join(root, ".gitignore"), "ignored/\n");
     fs.mkdirSync(path.join(root, "src"));
     fs.writeFileSync(
       path.join(root, "src/example.ts"),
       'import {\n  AirJamProvider,\n} from "@air-jam/sdk";\n',
     );
+    fs.mkdirSync(path.join(root, "ignored"));
+    fs.writeFileSync(
+      path.join(root, "ignored/example.ts"),
+      'import { AirJamProvider } from "@air-jam/sdk";\n',
+    );
+    fs.writeFileSync(
+      path.join(root, "src/binary.dat"),
+      Buffer.from(
+        'import { AirJamProvider } from "@air-jam/sdk";\0binary',
+      ),
+    );
+    execFileSync("git", ["init", "--quiet"], { cwd: root });
+    execFileSync("git", ["add", ".gitignore", "src"], { cwd: root });
 
     assert.deepEqual(
       findCanonicalViolations({

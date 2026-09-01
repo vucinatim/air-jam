@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-01T10:52:17.531Z",
+  "updatedAt": "2026-09-01T11:04:54.522Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -1049,16 +1049,18 @@
         "before-and-after CI timings with equivalent confidence coverage and a green protected PR"
       ],
       "status": "complete",
-      "updatedAt": "2026-09-01T10:52:17.531Z",
+      "updatedAt": "2026-09-01T11:04:54.522Z",
       "owner": "/root",
-      "note": "Validated green in 3m44s versus 9m30s PR and 11m34s duplicate post-merge baselines.",
+      "note": "Validated green in 3m56s versus 9m30s PR and 11m34s duplicate post-merge baselines.",
       "evidence": [
         "url:https://github.com/vucinatim/air-jam/actions/runs/33499213231",
         "command:pnpm_check_batch",
         "document:docs/work-ledger.md",
-        "decision:equivalent_six_lane_confidence_graph"
+        "decision:equivalent_six_lane_confidence_graph",
+        "url:https://github.com/vucinatim/air-jam/pull/78",
+        "url:https://github.com/vucinatim/air-jam/actions/runs/33499610948"
       ],
-      "completedAt": "2026-09-01T10:52:17.531Z"
+      "completedAt": "2026-09-01T11:04:54.522Z"
     }
   ]
 }
