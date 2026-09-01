@@ -27,14 +27,20 @@ The pre-reset overloaded ledger has been preserved at:
   implementation boundary for creator-controlled host and controller documents,
   not a new player-facing navigation or room-code model
 - recovered a pre-existing production migration drift from journal `0020` to
-  `0033` only after an isolated PostgreSQL 17 restore rehearsal, an exact write
-  drain, and a fresh custom-format backup
-- retained the production backup under `.airjam/backups/production/` with mode
-  `0600` and recorded its exact SHA-256 in the
+  `0033` by creating a rehearsal dump, proving the journal against its isolated
+  PostgreSQL 17 restore, then taking a distinct fresh pre-mutation dump after an
+  exact write drain
+- recorded the real maintenance consequence: an `airjam.io` health probe timed
+  out with HTTP `000` after the deployment stop, and the replacement process
+  reported ready at `13:41:50Z`; exact outage duration and affected requests
+  were not continuously measured
+- retained both production dumps under `.airjam/backups/production/` with mode
+  `0600` and recorded their exact SHA-256 values in the
   [cutover evidence](./audits/v1-security/hosted-release-domain-cutover-evidence.md)
-- merged provider/runtime PR `#79` and canonical URL/attestation correction PR
-  `#80` through green GitHub checks, green Railway previews, and one final
-  GitHub-native Claude Opus 5 review per merge candidate
+- merged decision/runbook PR `#79` after its blocking review was corrected and
+  confirmed inline on the final green head; merged runtime correction PR `#80`
+  after green GitHub checks, green Railway previews, and a final
+  `CLEAR TO MERGE` GitHub-native Claude Opus 5 review
 - observed exact production deployment
   `e65c8e41-3f72-4078-9ce0-443695d296a2` at terminal `SUCCESS`, serving merged
   revision `ebf63d8a0d5587f27ba59adf48213fb71f20340b`

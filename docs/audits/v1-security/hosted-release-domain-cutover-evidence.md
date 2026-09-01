@@ -17,18 +17,21 @@ in
 
 ## Reviewed Delivery
 
-1. PR `#79` merged the provider contract and cutover implementation at
+1. The fail-closed origin boundary landed in PR `#72`, and the production
+   attestation plus Railway provider-verification surface landed in PR `#73`.
+2. PR `#79` merged the domain decision, provider runbook, contract and guide
+   documentation, environment example, and test alignment at
    `9db5426fe17dd94edaeae7e3f16876031d211738`.
-2. PR `#80` corrected the canonical no-trailing-slash release root and aligned
+3. PR `#80` corrected the canonical no-trailing-slash release root and aligned
    browser preflight attestation with actual CORS authority. It merged at
    `ebf63d8a0d5587f27ba59adf48213fb71f20340b` after green GitHub checks, green
    Railway previews, and a `CLEAR TO MERGE` Claude Opus 5 review.
-3. Production platform deployment
+4. Production platform deployment
    `e65c8e41-3f72-4078-9ce0-443695d296a2` reached literal terminal `SUCCESS`
    and reported the exact merge revision above.
-4. The public catalog returned six games, all six URLs used
+5. The public catalog returned six games, all six URLs used
    `games.air-jam.app`, and zero retained the obsolete trailing slash.
-5. The local browser smoke matrix passed `7/7`, including hostile distinct-
+6. The local browser smoke matrix passed `7/7`, including hostile distinct-
    origin containment, common host/controller iframe policy, reconnect, and
    real Next host-derived routing.
 
@@ -59,13 +62,14 @@ the database journal ended at migration `0020` while the deployed application
 expected `0033`. Health stayed green because process liveness did not exercise
 the catalog query; `game.getAllPublic` returned `500`.
 
-Recovery followed the production-valid path:
+Recovery followed this sequence:
 
-1. restored the fresh dump into isolated PostgreSQL 17 and rehearsed the exact
-   `0021` through `0033` journal
+1. captured `platform-2026-09-01T13-21-13Z.dump`, restored that snapshot into
+   isolated PostgreSQL 17, and rehearsed the exact `0021` through `0033` journal
 2. stopped the exact active platform deployment and confirmed zero other
    database client sessions
-3. captured a fresh PostgreSQL 17 custom-format dump before mutation
+3. captured a distinct fresh pre-mutation PostgreSQL 17 custom-format dump at
+   `13:40:10Z`
 4. applied the exact merged migration journal with bounded lock and statement
    timeouts
 5. verified `34` journal rows, `35` release generations, `6` live releases,
@@ -73,17 +77,33 @@ Recovery followed the production-valid path:
 6. redeployed the previous exact application image and proved health,
    readiness, and the six-game catalog before continuing the URL correction
 
-The operator-local recovery artifact is retained at
-`.airjam/backups/production/platform-2026-09-01T13-40-10Z.dump` with mode `0600`,
-size `527512` bytes, and SHA-256
-`3a81ad196fb618ff4b6c696d550ef890223564d9a998e55f2aa11de18befae04`.
+Both operator-local recovery artifacts are retained with mode `0600` and size
+`527512` bytes:
+
+1. the rehearsed snapshot at
+   `.airjam/backups/production/platform-2026-09-01T13-21-13Z.dump`, SHA-256
+   `91029f5074e4b1b2e1f1d5ca54310ae2476541fecc77e99005360564d8d54e76`
+2. the final pre-mutation snapshot at
+   `.airjam/backups/production/platform-2026-09-01T13-40-10Z.dump`, SHA-256
+   `3a81ad196fb618ff4b6c696d550ef890223564d9a998e55f2aa11de18befae04`
+
+The exact deployment stop created a real production-unavailable maintenance
+window. A direct `airjam.io` health probe timed out and returned HTTP `000`
+after the stop; the replacement process reported ready at `13:41:50Z`. The
+start of unavailability was not continuously sampled, so the exact duration and
+number of affected requests are unknown rather than inferred from deployment
+timestamps.
 
 An attempted provider-native zero-replica drain did not reach zero: Railway
 accepted the scale request but moved the replica from EU West to US West. No
 database mutation occurred during that attempt. The exact original topology
 was immediately restored to one EU West replica and deployment
 `1612106e-501b-488a-bead-ae8987a4a5ef` reached `SUCCESS` before the exact
-deployment-stop path was used for the migration window.
+deployment-stop path was used for the migration window. Provider logs show the
+US West process ready from `13:35:56Z` until its stop at `13:37:11Z`, with the
+restored EU West process ready at `13:37:03Z`; production traffic could
+therefore reach the unintended region for roughly 75 seconds while the database
+remained in its existing region.
 
 ## Remaining Scope
 
@@ -97,4 +117,3 @@ This evidence closes the dedicated-domain production cutover, not all of
    lifecycle so process health cannot hide schema incompatibility
 4. finish the remaining auth, abuse, privileged-endpoint, reliability, and
    overload work owned by the release roadmap
-
