@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -33,6 +33,10 @@ The machine-backed subordinate execution plan owns dependency-aware work
 packages, evidence, and the batched checkpoint model:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
+
+The active Gate 5 production boundary cutover is governed by:
+
+1. [plans/hosted-release-domain-cutover-plan.md](./plans/hosted-release-domain-cutover-plan.md)
 
 Agents inspect the live execution state through:
 
@@ -126,8 +130,8 @@ the currently executable queue. The next independent work is:
 
 1. external-agent public installation and bootstrap proof
 2. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
-3. establish dedicated untrusted-content origin isolation and close the
-   remaining ranked Gate 5 security findings
+3. provision and attest `games.air-jam.app` as the dedicated untrusted-content
+   origin, then close the remaining ranked Gate 5 security findings
 4. produce and persist durable operational events against the canonical Gate 4
    contract
 5. run isolated backup/restore and rollback/replay proof

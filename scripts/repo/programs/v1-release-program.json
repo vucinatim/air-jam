@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-01T11:04:54.522Z",
+  "updatedAt": "2026-09-01T12:25:08.548Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -756,8 +756,12 @@
         "branch-protection proof that required CI applies to administrators plus one GitHub-native Opus review on the green merge candidate and measured fast local check tiers"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "PR #76 restored and verified production platform liveness. G5-02 remains open for security closure, dedicated hosted-release origin proof, repo-CLI verification of exact merged production deployments, baseline branch protection, and measured fast-check plus GitHub-native review evidence.",
-      "updatedAt": "2026-08-31T21:30:00.000Z"
+      "note": "Selected games.air-jam.app as the production cross-site release origin; additive Namecheap/Railway cutover and legacy-host disposition are now governed by the canonical plan. Provider state remains unchanged pending reviewed merge.",
+      "updatedAt": "2026-09-01T12:25:08.548Z",
+      "evidence": [
+        "decision:games-air-jam-app-selected-as-production-release-origin",
+        "document:docs/plans/hosted-release-domain-cutover-plan.md"
+      ]
     },
     {
       "id": "G5-03",

@@ -1,6 +1,6 @@
 # Hosted Release Pipeline Architecture
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: implemented architecture
 
 Related docs:
@@ -84,6 +84,12 @@ Responsibilities:
 Creator-controlled HTML, JavaScript, and CSS are untrusted executable content.
 They must be served only through the origin configured by
 `AIRJAM_RELEASES_PUBLIC_ORIGIN`.
+
+The canonical production value is `https://games.air-jam.app` for the trusted
+platform at `https://airjam.io`. The similarly branded hostname is still a
+separate browser cookie site because `air-jam.app` and `airjam.io` are distinct
+registrable domains. Public Arcade and join URLs remain on `airjam.io`; the
+release origin is an iframe execution and asset-delivery boundary.
 
 That origin must:
 

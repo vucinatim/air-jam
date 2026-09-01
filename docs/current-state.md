@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -250,8 +250,10 @@ These are now baseline truths, not open architecture debates:
     8. only provider-authenticated public-HTTPS runs can become production
        evidence; loopback, missing project identity, and missing provider
        authority stay explicitly diagnostic
-    9. `G5-02` deliberately remains open until a dedicated production domain is
-       provisioned, deployed, and attested end to end
+    9. `G5-02` deliberately remains open until the selected dedicated production
+       domain, `games.air-jam.app`, is provisioned, deployed, and attested end
+       to end; the bounded migration and legacy-host disposition are governed
+       by `docs/plans/hosted-release-domain-cutover-plan.md`
     10. corrective PR `#76` passed exact-head Canonicalizer and Claude Opus
         review, CI, standalone-artifact proof, Railway previews, and an exact
         production rollout: platform deployment

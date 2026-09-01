@@ -1,6 +1,6 @@
 # Railway Deployment Guide
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 Status: active guide
 
 Related docs:
@@ -133,8 +133,9 @@ Production should stay boring:
 
 1. the platform serves `airjam.io`
 2. the server serves `api.airjam.io`
-3. `AIRJAM_RELEASES_PUBLIC_ORIGIN` points at a dedicated cookieless site that is
-   not `airjam.io` or any `*.airjam.io` sibling
+3. `AIRJAM_RELEASES_PUBLIC_ORIGIN` is
+   `https://games.air-jam.app`, a dedicated cookieless site that is not
+   `airjam.io` or any `*.airjam.io` sibling
 4. the browser worker is not public product UI and should expose only the narrow routes it needs
 5. the operational-job worker exposes only liveness, readiness, and authenticated
    drain; it owns durable processing, not public API traffic
@@ -161,6 +162,7 @@ process, verify:
    the provider response to report the same `id` and literal `status: SUCCESS`.
    This is an explicitly interim provider read, not a second long-term
    deployment authority.
+
 3. when the platform is affected, `/`, `/arcade`, and `/docs` return `200`
 4. when the platform is affected, `/api/health` returns `200` as
    process-liveness proof and reports the exact deployment ID and merged
@@ -175,6 +177,9 @@ process, verify:
    preceding successful deployment remains live
 
 ## Hosted Release Product-Readiness Validation
+
+The production domain provisioning and rollback order is governed by the
+[hosted release domain cutover plan](../plans/hosted-release-domain-cutover-plan.md).
 
 Before treating hosted release delivery as product-ready, verify:
 
