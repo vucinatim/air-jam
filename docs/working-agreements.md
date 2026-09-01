@@ -65,8 +65,11 @@ Quality gates surround development; they are not the development loop.
 4. `pnpm check:batch` is intentionally slower. It owns generated-source checks,
    full typechecking, linting, canonical guards, and tests for a substantial
    change batch before push.
-5. pull-request CI owns exhaustive builds, standalone deployment proof, and
-   performance validation. Release-only smoke and package matrices stay in the
+5. pull-request CI owns six isolated confidence lanes: static contracts, full
+   type safety, tests, the complete workspace build, hermetic standalone
+   deployment proof, and a short strict performance smoke. They run in parallel
+   and converge on the stable required `checks` result. Release-only smoke,
+   package matrices, and the full strict performance profile stay in the
    release gate.
 6. use batch validation for a new system or architectural boundary, a coherent
    multi-file behavioral refactor, or roughly `1,000+` meaningful changed
@@ -74,6 +77,11 @@ Quality gates surround development; they are not the development loop.
 7. treat latency targets as product requirements. Record cold versus warm
    timing honestly, preserve caches between local runs, and narrow or remove a
    slow test when it does not protect a meaningful contract.
+8. exhaustive CI runs once on the protected, up-to-date pull-request merge
+   candidate. Do not repeat the same suite after merge; Railway deployment
+   status and live health checks own post-merge production verification.
+9. cancel superseded CI revisions so obsolete commits do not consume feedback
+   time or runner capacity.
 
 Inspect the selected work without running it through:
 

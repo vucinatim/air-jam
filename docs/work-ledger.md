@@ -18,6 +18,30 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-01 - Trusted CI Entered Critical-Path Optimization
+
+- measured the protected CI baseline at `9m30s` on the final PR revision and
+  `11m34s` on the identical merge tree
+- found that the confidence stages were serialized even though type safety,
+  tests, builds, hermetic deployment proof, and performance validation do not
+  share one required artifact
+- moved those contracts into isolated parallel lanes behind the unchanged
+  required `checks` result and made superseded PR revisions cancellable
+- removed the duplicate post-merge exhaustive run because strict branch
+  protection already requires an up-to-date green PR merge candidate
+- replaced the 90-second warning-only PR benchmark with a 15-second strict
+  performance smoke while retaining the full 90-second strict release profile
+- removed the canonical guard's external ripgrep installation dependency so CI
+  setup is self-contained and faster
+- the first parallel run exposed that one CLI test only passed when an earlier
+  typecheck happened to leave a generated platform manifest behind; the test
+  now creates and removes its own isolated generated fixture
+- validated the six-lane graph on successive green PR heads in `3m44s` and
+  `3m56s`, with all lanes starting within one second; the exact evidence head's
+  `3m48s` test lane was the critical path, making the run `58.6%` faster than
+  the protected PR baseline and `66.0%` faster than the duplicate post-merge
+  baseline while preserving the same confidence areas
+
 ## 2026-08-31 - Development And Review Gates Were Re-Layered
 
 - superseded the same-day exact-head two-local-review policy after it proved too
