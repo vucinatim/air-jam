@@ -183,7 +183,7 @@ pnpm --silent run repo -- platform release-origin inspect \
 
 pnpm --silent run repo -- platform release-origin attest \
   --platform-url https://airjam.io \
-  --release-url https://games.air-jam.app/releases/g/<game-id>/r/<release-id>/generations/<generation-id>/ \
+  --release-url https://games.air-jam.app/releases/g/<game-id>/r/<release-id>/generations/<generation-id> \
   --railway-project 0b0761f9-9bb1-4d4f-8191-50d43cccdee7 \
   --json
 ```

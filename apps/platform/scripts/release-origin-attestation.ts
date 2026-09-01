@@ -4,6 +4,7 @@ import https from "node:https";
 import { isIP } from "node:net";
 import tls from "node:tls";
 import { PLATFORM_READINESS_PATH } from "../src/lib/platform-service-contract";
+import { HOSTED_RELEASE_CONTROLLER_PATH } from "../src/lib/releases/hosted-release-artifact";
 import { inspectHostedReleaseCookieSiteIsolation } from "../src/lib/releases/hosted-release-cookie-site";
 import { createHostedReleaseSecurityHeaders } from "../src/lib/releases/hosted-release-response-policy";
 import { assessReleaseOriginAddresses } from "../src/lib/releases/release-origin-network-policy";
@@ -299,11 +300,11 @@ const parseReleaseUrl = (rawUrl: string): URL => {
     url.search ||
     url.hash ||
     (url.protocol === "http:" && !isLoopbackHostname(url.hostname)) ||
-    !/^\/releases\/g\/[^/]+\/r\/[^/]+\/generations\/[^/]+\/$/.test(url.pathname)
+    !/^\/releases\/g\/[^/]+\/r\/[^/]+\/generations\/[^/]+$/.test(url.pathname)
   ) {
     throw new ReleaseOriginOperatorError(
       "INVALID_RELEASE_URL",
-      "--release-url must use HTTPS except for loopback diagnostics and identify the exact /releases/g/{gameId}/r/{releaseId}/generations/{generationId}/ host root without credentials, a query, or a fragment.",
+      "--release-url must use HTTPS except for loopback diagnostics and identify the exact /releases/g/{gameId}/r/{releaseId}/generations/{generationId} host root without credentials, a query, a fragment, or a trailing slash.",
     );
   }
   return url;
@@ -945,7 +946,6 @@ const attestCorsPreflight = async ({
     );
     const allowMethods = header(response, "access-control-allow-methods");
     const denied =
-      (response.status === 404 || response.status === 405) &&
       allowOrigin !== releaseOrigin &&
       allowOrigin !== "*" &&
       allowCredentials !== "true" &&
@@ -1068,7 +1068,10 @@ export const attestRemoteReleaseOrigin = async ({
   const attestedAt = new Date().toISOString();
   const platformOrigin = parsePlatformOrigin(rawPlatformUrl);
   const releaseUrl = parseReleaseUrl(rawReleaseUrl);
-  const controllerUrl = new URL("controller", releaseUrl);
+  const controllerUrl = new URL(
+    `${releaseUrl.pathname}${HOSTED_RELEASE_CONTROLLER_PATH}`,
+    releaseUrl.origin,
+  );
   const platformUrl = new URL(platformOrigin);
   const releaseOriginUrl = new URL(releaseUrl.origin);
   const cookieSite = inspectHostedReleaseCookieSiteIsolation({

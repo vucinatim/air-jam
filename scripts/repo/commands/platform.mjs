@@ -616,7 +616,7 @@ export const registerPlatformCommands = (program) => {
     )
     .requiredOption(
       "--release-url <url>",
-      "Exact canonical live /releases/g/{gameId}/r/{releaseId}/generations/{generationId}/ host-root URL",
+      "Exact canonical live /releases/g/{gameId}/r/{releaseId}/generations/{generationId} host-root URL",
     )
     .option(
       "--railway-project <id>",
