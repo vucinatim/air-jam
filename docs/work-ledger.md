@@ -36,6 +36,10 @@ The pre-reset overloaded ledger has been preserved at:
 - the first parallel run exposed that one CLI test only passed when an earlier
   typecheck happened to leave a generated platform manifest behind; the test
   now creates and removes its own isolated generated fixture
+- validated the final six-lane graph green in `3m44s`, with all lanes starting
+  within one second and the `3m35s` workspace build becoming the critical path;
+  this is `60.7%` faster than the protected PR baseline and `67.7%` faster than
+  the duplicate post-merge baseline while preserving the same confidence areas
 
 ## 2026-08-31 - Development And Review Gates Were Re-Layered
 
