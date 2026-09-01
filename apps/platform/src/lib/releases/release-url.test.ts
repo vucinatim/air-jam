@@ -24,6 +24,19 @@ describe("buildHostedReleaseAssetPath", () => {
       `${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/generations/generation-1/index.html`,
     );
   });
+
+  it("keeps the host root on the canonical no-trailing-slash route", () => {
+    expect(
+      buildHostedReleaseAssetPath({
+        gameId: "game-1",
+        releaseId: "release-1",
+        generationId: "generation-1",
+        assetPath: "/",
+      }),
+    ).toBe(
+      `${RELEASES_PATH_PREFIX}/g/game-1/r/release-1/generations/generation-1`,
+    );
+  });
 });
 
 describe("buildHostedReleaseBasePath", () => {
