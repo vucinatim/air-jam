@@ -1,6 +1,6 @@
 # Deployment Topology
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: canonical target topology; operational-job worker rollout pending
 
 Related docs:
@@ -8,6 +8,7 @@ Related docs:
 1. [Railway Deployment Guide](../guides/railway-deployment-guide.md)
 2. [Production Observability Baseline](./production-observability-baseline.md)
 3. [Post-v1 Topology Roadmap](./post-v1-topology-roadmap.md)
+4. [Hosted Release Domain Cutover Plan](../plans/hosted-release-domain-cutover-plan.md)
 
 This document defines the production topology that now matters.
 
@@ -69,6 +70,8 @@ Public origins:
 
 1. `https://airjam.io`
 2. `https://www.airjam.io`
+3. `https://games.air-jam.app` for untrusted creator-content execution, not
+   product navigation
 
 Important env ownership:
 

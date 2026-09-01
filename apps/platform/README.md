@@ -183,11 +183,11 @@ Minimum additional env needed for the hosted release lane:
 5. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
 
 `AIRJAM_RELEASES_PUBLIC_ORIGIN` must be an absolute origin on a separate
-cookie site from the authenticated platform—for example,
-`https://airjamusercontent.example` for a platform at
-`https://airjam.example`. It must not be the platform origin or a sibling such
-as `games.airjam.example`. Hosted release delivery stays disabled when this
-boundary is missing or invalid; there is no same-origin fallback.
+cookie site from the authenticated platform. Air Jam production uses
+`https://games.air-jam.app` for the platform at `https://airjam.io`. It must not
+be the platform origin or a sibling such as `games.airjam.io`. Hosted release
+delivery stays disabled when this boundary is missing or invalid; there is no
+same-origin fallback.
 
 Inspect the effective boundary through the canonical agent-safe command:
 

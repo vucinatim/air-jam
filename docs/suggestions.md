@@ -58,6 +58,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 52. Remove the repeated Better Auth default-secret error noise from intentional local clean-checkout production builds through one explicit build-time auth configuration contract, while preserving fail-closed runtime validation and never normalizing a production default secret.
 53. Split `scripts/repo/lib/golden-path-primary-run.mjs` into narrow isolation, evidence-retention, verification, and lifecycle orchestration modules before expanding the scenario again; the current controller is trustworthy and tested, but its 1,200+ line composition root is now the clearest structural weakness in the agent-proof harness.
 54. Reduce the realtime server production image to the server's transitive production dependency closure before 1.0 capacity rehearsal, so adding an unrelated workspace does not permanently expand runtime image size even though the manifest-stage correctness guard remains repo-wide.
+55. Verify the registrar transfer-lock state for `air-jam.app` after the hosted-release domain cutover and enable it if Namecheap confirms the API's current `isLocked: false` report; keep that account-level hardening separate from the additive DNS migration so it cannot complicate release-origin rollback.
 
 ## Framework Boundary Follow-Ups
 

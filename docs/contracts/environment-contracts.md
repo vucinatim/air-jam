@@ -1,6 +1,6 @@
 # Environment Contracts
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: current contract
 
 ## Purpose
@@ -39,7 +39,9 @@ The platform's canonical creator-content boundary is
 public build-time configuration. Hosted release delivery remains disabled when
 the value is missing or invalid, and production requires an `https` origin on a
 separate cookie site from the authenticated platform. The origin must also stay
-outside Better Auth trusted origins.
+outside Better Auth trusted origins. Air Jam production uses
+`https://games.air-jam.app`; normal product and join navigation remains on
+`https://airjam.io`.
 
 Operators and agents inspect the same runtime assessment without exposing
 credentials:
