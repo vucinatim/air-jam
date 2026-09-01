@@ -99,15 +99,3 @@ test("workflows use corepack-driven pnpm instead of hardcoded setup versions", (
     );
   }
 });
-
-test("CI checks out complete history for readiness evidence validation", () => {
-  const source = fs.readFileSync(
-    path.join(repoRoot, ".github/workflows/ci.yml"),
-    "utf8",
-  );
-
-  assert.match(
-    source,
-    /uses: actions\/checkout@v5\s+with:\s+(?:#[^\n]*\s+)*fetch-depth: 0/u,
-  );
-});

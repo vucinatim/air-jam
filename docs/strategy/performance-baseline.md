@@ -14,7 +14,7 @@ pnpm run repo -- perf sanity
 Strict release gate:
 
 ```bash
-pnpm run repo -- perf sanity --strict
+pnpm run repo -- perf sanity --profile release
 ```
 
 The canonical perf pass now has two scenarios:

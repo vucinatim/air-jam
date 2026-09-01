@@ -1,4 +1,6 @@
-import { runCommandResult } from "../lib/shell.mjs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import { repoRoot } from "../lib/paths.mjs";
 
 const canonicalRules = [
   {
@@ -154,36 +156,81 @@ const canonicalRules = [
   },
 ];
 
-const runCanonicalGuard = () => {
-  const rgCheck = runCommandResult("rg", ["--version"], {
-    stdio: "pipe",
-  });
-  if (rgCheck.status !== 0) {
-    throw new Error("guard:canonical requires ripgrep (rg) to be installed.");
+const ignoredDirectories = new Set([
+  ".git",
+  ".next",
+  ".turbo",
+  "coverage",
+  "dist",
+  "node_modules",
+]);
+
+const collectFiles = (root, relativePath, files) => {
+  const absolutePath = path.join(root, relativePath);
+  if (!existsSync(absolutePath)) {
+    throw new Error(`Canonical guard path does not exist: ${relativePath}`);
   }
 
-  let failures = 0;
-
-  for (const rule of canonicalRules) {
-    const result = runCommandResult(
-      "rg",
-      ["-n", "-U", "--pcre2", rule.pattern, ...rule.paths],
-      {
-        stdio: "pipe",
-      },
-    );
-
-    if (result.status !== 0 || !result.stdout?.trim()) {
+  const entries = readdirSync(absolutePath, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) {
       continue;
     }
+    const childPath = path.join(relativePath, entry.name);
+    if (entry.isDirectory()) {
+      collectFiles(root, childPath, files);
+    } else if (entry.isFile()) {
+      files.add(childPath);
+    }
+  }
+};
 
-    console.log(`Forbidden pattern detected: ${rule.label}`);
-    process.stdout.write(result.stdout);
+const resolveRuleFiles = (root, paths) => {
+  const files = new Set();
+  for (const relativePath of paths) {
+    const absolutePath = path.join(root, relativePath);
+    if (!existsSync(absolutePath)) {
+      throw new Error(`Canonical guard path does not exist: ${relativePath}`);
+    }
+    if (statSync(absolutePath).isDirectory()) {
+      collectFiles(root, relativePath, files);
+    } else {
+      files.add(relativePath);
+    }
+  }
+  return [...files].sort();
+};
+
+const lineNumberAt = (source, index) =>
+  source.slice(0, index).split("\n").length;
+
+export const findCanonicalViolations = ({
+  root = repoRoot,
+  rules = canonicalRules,
+} = {}) =>
+  rules.flatMap((rule) => {
+    const pattern = new RegExp(rule.pattern, "gm");
+    return resolveRuleFiles(root, rule.paths).flatMap((relativePath) => {
+      const source = readFileSync(path.join(root, relativePath), "utf8");
+      return [...source.matchAll(pattern)].map((match) => ({
+        file: relativePath,
+        label: rule.label,
+        line: lineNumberAt(source, match.index ?? 0),
+        excerpt: match[0].replace(/\s+/gu, " ").trim().slice(0, 160),
+      }));
+    });
+  });
+
+const runCanonicalGuard = () => {
+  const violations = findCanonicalViolations();
+
+  for (const violation of violations) {
+    console.log(`Forbidden pattern detected: ${violation.label}`);
+    console.log(`${violation.file}:${violation.line}: ${violation.excerpt}`);
     console.log("");
-    failures += 1;
   }
 
-  if (failures > 0) {
+  if (violations.length > 0) {
     throw new Error("Canonical guard failed.");
   }
 

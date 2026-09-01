@@ -3,12 +3,12 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-31T21:30:00.000Z",
+  "updatedAt": "2026-09-01T10:25:21.720Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
-    "agentHoursMin": 285,
-    "agentHoursMax": 520,
+    "agentHoursMin": 290,
+    "agentHoursMax": 530,
     "targetCalendarWeeksMin": 5,
     "targetCalendarWeeksMax": 7,
     "maintainerHoursMin": 28,
@@ -1030,6 +1030,28 @@
       "evidenceRequirements": [
         "stabilization report, ledger closeout, and archived execution plan"
       ]
+    },
+    {
+      "id": "G5-05",
+      "gate": "G5",
+      "lane": "security",
+      "priority": 25,
+      "title": "Optimize the trusted CI critical path without reducing coverage",
+      "authority": "autonomous",
+      "dependsOn": [
+        "G5-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 5,
+        "agentHoursMax": 10
+      },
+      "evidenceRequirements": [
+        "before-and-after CI timings with equivalent confidence coverage and a green protected PR"
+      ],
+      "status": "in_progress",
+      "updatedAt": "2026-09-01T10:25:21.720Z",
+      "owner": "/root",
+      "note": "Profiling and optimizing the CI critical path while preserving the trusted gate contract."
     }
   ]
 }
