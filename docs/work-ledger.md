@@ -33,6 +33,9 @@ The pre-reset overloaded ledger has been preserved at:
   performance smoke while retaining the full 90-second strict release profile
 - removed the canonical guard's external ripgrep installation dependency so CI
   setup is self-contained and faster
+- the first parallel run exposed that one CLI test only passed when an earlier
+  typecheck happened to leave a generated platform manifest behind; the test
+  now creates and removes its own isolated generated fixture
 
 ## 2026-08-31 - Development And Review Gates Were Re-Layered
 
