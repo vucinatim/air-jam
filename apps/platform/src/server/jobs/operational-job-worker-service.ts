@@ -1,5 +1,14 @@
 import { scheduleLifecycleCleanup } from "@/server/operations/lifecycle-cleanup-service";
+import {
+  repairExpiredOperationalEventDeliveries,
+  runOperationalEventDeliveryCycle,
+} from "@/server/operations/operational-event-delivery-service";
+import {
+  resolveOperationalSyntheticRuntimeConfig,
+  runDueOperationalSynthetics,
+} from "@/server/operations/operational-synthetic-service";
 import { validateEnv } from "@air-jam/env";
+import { normalizeUnknownOperationalFailure } from "@air-jam/operations-contract";
 import { createServer, type ServerResponse } from "node:http";
 import { z } from "zod";
 import { repairExpiredOperationalJobs } from "./operational-job-service";
@@ -43,6 +52,8 @@ const workerEnvSchema = z
     AIRJAM_PLATFORM_WORKER_POLL_MS: positiveInteger(2_000),
     AIRJAM_PLATFORM_WORKER_REPAIR_MS: positiveInteger(30_000),
     AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: positiveInteger(900_000),
+    AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: positiveInteger(1_000),
+    AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: positiveInteger(30_000),
     AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT: positiveInteger(4),
     AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS: positiveInteger(300_000),
   })
@@ -79,6 +90,8 @@ const workerEnvSchema = z
       pollMs: value.AIRJAM_PLATFORM_WORKER_POLL_MS,
       repairMs: value.AIRJAM_PLATFORM_WORKER_REPAIR_MS,
       lifecycleCleanupMs: value.AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS,
+      eventDeliveryMs: value.AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS,
+      syntheticMs: value.AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS,
       maxInFlight: value.AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT,
       drainTimeoutMs: value.AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS,
     };
@@ -123,18 +136,45 @@ export type OperationalJobWorkerServiceHandle = {
   close: () => Promise<void>;
 };
 
+const workerAuthorityNames = [
+  "jobs",
+  "maintenance",
+  "lifecycleCleanup",
+  "eventDelivery",
+  "synthetics",
+] as const;
+
+type WorkerAuthorityName = (typeof workerAuthorityNames)[number];
+type WorkerAuthorityState = {
+  status: "pending" | "ready" | "failed";
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastFailureCode: string | null;
+};
+
+const coreWorkerAuthorityNames = [
+  "jobs",
+  "eventDelivery",
+] as const satisfies readonly WorkerAuthorityName[];
+
 export const startOperationalJobWorkerService = async ({
   env = process.env,
   runCycle = runOperationalJobWorkerCycle,
   repair = repairExpiredOperationalJobs,
   cleanup = cleanupReleaseJobOrphanOutputs,
   scheduleCleanup = scheduleLifecycleCleanup,
+  deliverEvent = runOperationalEventDeliveryCycle,
+  repairEventDelivery = repairExpiredOperationalEventDeliveries,
+  runSynthetics = runDueOperationalSynthetics,
 }: {
   env?: Record<string, string | undefined>;
   runCycle?: typeof runOperationalJobWorkerCycle;
   repair?: typeof repairExpiredOperationalJobs;
   cleanup?: typeof cleanupReleaseJobOrphanOutputs;
   scheduleCleanup?: typeof scheduleLifecycleCleanup;
+  deliverEvent?: typeof runOperationalEventDeliveryCycle;
+  repairEventDelivery?: typeof repairExpiredOperationalEventDeliveries;
+  runSynthetics?: typeof runDueOperationalSynthetics;
 } = {}): Promise<OperationalJobWorkerServiceHandle> => {
   const config = loadOperationalJobWorkerServiceConfig(env);
   const inFlight = new Set<Promise<OperationalJobWorkerCycleResult>>();
@@ -145,22 +185,78 @@ export const startOperationalJobWorkerService = async ({
   let lastCycleResult: OperationalJobWorkerCycleResult | null = null;
   let lastErrorAt: string | null = null;
   let lastErrorCode: string | null = null;
-  let lastAuthoritySuccessAt: string | null = null;
-  let authorityReady = false;
+  const authorities = Object.fromEntries(
+    workerAuthorityNames.map((name) => [
+      name,
+      {
+        status: "pending",
+        lastSuccessAt: null,
+        lastFailureAt: null,
+        lastFailureCode: null,
+      } satisfies WorkerAuthorityState,
+    ]),
+  ) as Record<WorkerAuthorityName, WorkerAuthorityState>;
   let maintenanceInFlight: Promise<void> | null = null;
   let lifecycleCleanupInFlight: Promise<void> | null = null;
+  let eventDeliveryInFlight: Promise<void> | null = null;
+  let syntheticInFlight: Promise<void> | null = null;
+  let lastEventDeliveryAt: string | null = null;
+  let lastEventDeliveryStatus: string | null = null;
+  let lastSyntheticAt: string | null = null;
+  let lastSyntheticRunCount = 0;
   let kindCursor = 0;
 
-  const recordAuthoritySuccess = () => {
-    authorityReady = true;
-    lastAuthoritySuccessAt = new Date().toISOString();
+  const recordAuthoritySuccess = (authority: WorkerAuthorityName) => {
+    const at = new Date().toISOString();
+    authorities[authority] = {
+      status: "ready",
+      lastSuccessAt: at,
+      lastFailureAt: authorities[authority].lastFailureAt,
+      lastFailureCode: null,
+    };
   };
 
-  const recordAuthorityFailure = (error: unknown) => {
-    authorityReady = false;
-    lastErrorAt = new Date().toISOString();
-    lastErrorCode =
+  const recordAuthorityFailure = (
+    authority: WorkerAuthorityName,
+    error: unknown,
+  ) => {
+    const at = new Date().toISOString();
+    const failureCode =
       error instanceof Error ? error.name : "unknown_worker_error";
+    authorities[authority] = {
+      status: "failed",
+      lastSuccessAt: authorities[authority].lastSuccessAt,
+      lastFailureAt: at,
+      lastFailureCode: failureCode,
+    };
+    lastErrorAt = at;
+    lastErrorCode = failureCode;
+  };
+
+  const logFailure = ({
+    event,
+    error,
+    details,
+  }: {
+    event: string;
+    error: unknown;
+    details?: Record<string, unknown>;
+  }) => {
+    const failure = normalizeUnknownOperationalFailure({
+      error,
+      code: event,
+      summary:
+        "The platform operational worker encountered a structured failure.",
+      retryable: true,
+      details,
+    });
+    console.error(
+      JSON.stringify({
+        service: "air-jam-platform-worker",
+        event,
+        failure,
+      }),
+    );
   };
 
   const runOne = (kind: (typeof operationalJobWorkerKinds)[number]) => {
@@ -168,11 +264,11 @@ export const startOperationalJobWorkerService = async ({
       .then((result) => {
         lastCycleAt = new Date().toISOString();
         lastCycleResult = result;
-        recordAuthoritySuccess();
+        recordAuthoritySuccess("jobs");
         return result;
       })
       .catch((error: unknown) => {
-        recordAuthorityFailure(error);
+        recordAuthorityFailure("jobs", error);
         throw error;
       })
       .finally(() => {
@@ -180,14 +276,11 @@ export const startOperationalJobWorkerService = async ({
       });
     inFlight.add(task);
     void task.catch((error: unknown) => {
-      console.error(
-        JSON.stringify({
-          service: "air-jam-platform-worker",
-          event: "operational_job.cycle_failed",
-          kind,
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
+      logFailure({
+        event: "operational_job.cycle_failed",
+        error,
+        details: { kind },
+      });
     });
   };
 
@@ -226,15 +319,12 @@ export const startOperationalJobWorkerService = async ({
         });
       } catch (error) {
         successful = false;
-        recordAuthorityFailure(error);
-        console.error(
-          JSON.stringify({
-            service: "air-jam-platform-worker",
-            event: "operational_job.repair_failed",
-            kind,
-            error: error instanceof Error ? error.message : String(error),
-          }),
-        );
+        recordAuthorityFailure("maintenance", error);
+        logFailure({
+          event: "operational_job.repair_failed",
+          error,
+          details: { kind },
+        });
       }
     }
     try {
@@ -244,16 +334,17 @@ export const startOperationalJobWorkerService = async ({
       });
     } catch (error) {
       successful = false;
-      recordAuthorityFailure(error);
-      console.error(
-        JSON.stringify({
-          service: "air-jam-platform-worker",
-          event: "operational_job.output_cleanup_failed",
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
+      recordAuthorityFailure("maintenance", error);
+      logFailure({ event: "operational_job.output_cleanup_failed", error });
     }
-    if (successful) recordAuthoritySuccess();
+    try {
+      await repairEventDelivery();
+    } catch (error) {
+      successful = false;
+      recordAuthorityFailure("maintenance", error);
+      logFailure({ event: "operational_event.delivery_repair_failed", error });
+    }
+    if (successful) recordAuthoritySuccess("maintenance");
   };
 
   const runMaintenance = () => {
@@ -277,16 +368,10 @@ export const startOperationalJobWorkerService = async ({
           "Platform worker scheduled retention-eligible lifecycle cleanup.",
         idempotencyKey: `worker-lifecycle-cleanup:${bucket}`,
       });
-      recordAuthoritySuccess();
+      recordAuthoritySuccess("lifecycleCleanup");
     } catch (error) {
-      recordAuthorityFailure(error);
-      console.error(
-        JSON.stringify({
-          service: "air-jam-platform-worker",
-          event: "lifecycle_cleanup.schedule_failed",
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
+      recordAuthorityFailure("lifecycleCleanup", error);
+      logFailure({ event: "lifecycle_cleanup.schedule_failed", error });
     }
   };
 
@@ -305,23 +390,95 @@ export const startOperationalJobWorkerService = async ({
   lifecycleCleanupTimer.unref();
   runLifecycleCleanupScheduler();
 
-  const status = () => ({
-    ok: !closed,
-    service: "air-jam-platform-worker",
-    workerId: config.workerId,
-    accepting,
-    draining: !accepting && !closed,
-    inFlight: inFlight.size,
-    maintenanceInFlight: maintenanceInFlight !== null,
-    lifecycleCleanupInFlight: lifecycleCleanupInFlight !== null,
-    maxInFlight: config.maxInFlight,
-    authorityReady,
-    lastAuthoritySuccessAt,
-    lastCycleAt,
-    lastCycleResult,
-    lastErrorAt,
-    lastErrorCode,
-  });
+  const deliverNextEvent = () => {
+    if (!accepting || closed || eventDeliveryInFlight) return;
+    const task = deliverEvent({ workerId: config.workerId })
+      .then((result) => {
+        lastEventDeliveryAt = new Date().toISOString();
+        lastEventDeliveryStatus = result.status;
+        recordAuthoritySuccess("eventDelivery");
+      })
+      .catch((error: unknown) => {
+        recordAuthorityFailure("eventDelivery", error);
+        logFailure({ event: "operational_event.delivery_cycle_failed", error });
+      })
+      .finally(() => {
+        if (eventDeliveryInFlight === task) eventDeliveryInFlight = null;
+      });
+    eventDeliveryInFlight = task;
+  };
+
+  const eventDeliveryTimer = setInterval(
+    deliverNextEvent,
+    config.eventDeliveryMs,
+  );
+  eventDeliveryTimer.unref();
+  deliverNextEvent();
+
+  const runSyntheticSchedule = () => {
+    if (!accepting || closed || syntheticInFlight) return;
+    const task = runSynthetics({
+      actor: config.workerId,
+      config: resolveOperationalSyntheticRuntimeConfig(env),
+    })
+      .then((results) => {
+        lastSyntheticAt = new Date().toISOString();
+        lastSyntheticRunCount = results.length;
+        recordAuthoritySuccess("synthetics");
+      })
+      .catch((error: unknown) => {
+        recordAuthorityFailure("synthetics", error);
+        logFailure({ event: "operational_synthetic.schedule_failed", error });
+      })
+      .finally(() => {
+        if (syntheticInFlight === task) syntheticInFlight = null;
+      });
+    syntheticInFlight = task;
+  };
+
+  const syntheticTimer = setInterval(runSyntheticSchedule, config.syntheticMs);
+  syntheticTimer.unref();
+  runSyntheticSchedule();
+
+  const status = () => {
+    const authorityReady = coreWorkerAuthorityNames.every(
+      (authority) => authorities[authority].status === "ready",
+    );
+    const lastAuthoritySuccessAt =
+      coreWorkerAuthorityNames
+        .map((authority) => authorities[authority].lastSuccessAt)
+        .filter((value): value is string => value !== null)
+        .sort()
+        .at(-1) ?? null;
+    const degradedAuthorities = workerAuthorityNames.filter(
+      (authority) => authorities[authority].status === "failed",
+    );
+    return {
+      ok: !closed,
+      service: "air-jam-platform-worker",
+      workerId: config.workerId,
+      accepting,
+      draining: !accepting && !closed,
+      inFlight: inFlight.size,
+      maintenanceInFlight: maintenanceInFlight !== null,
+      lifecycleCleanupInFlight: lifecycleCleanupInFlight !== null,
+      eventDeliveryInFlight: eventDeliveryInFlight !== null,
+      syntheticInFlight: syntheticInFlight !== null,
+      maxInFlight: config.maxInFlight,
+      authorityReady,
+      authorities,
+      degradedAuthorities,
+      lastAuthoritySuccessAt,
+      lastCycleAt,
+      lastCycleResult,
+      lastEventDeliveryAt,
+      lastEventDeliveryStatus,
+      lastSyntheticAt,
+      lastSyntheticRunCount,
+      lastErrorAt,
+      lastErrorCode,
+    };
+  };
 
   const server = createServer((request, response) => {
     const path = request.url ?? "/";
@@ -330,10 +487,11 @@ export const startOperationalJobWorkerService = async ({
       return;
     }
     if (request.method === "GET" && path === "/ready") {
+      const currentStatus = status();
       writeJson(
         response,
-        accepting && !closed && authorityReady ? 200 : 503,
-        status(),
+        accepting && !closed && currentStatus.authorityReady ? 200 : 503,
+        currentStatus,
       );
       return;
     }
@@ -385,6 +543,8 @@ export const startOperationalJobWorkerService = async ({
     clearInterval(scheduler);
     clearInterval(repairTimer);
     clearInterval(lifecycleCleanupTimer);
+    clearInterval(eventDeliveryTimer);
+    clearInterval(syntheticTimer);
     const timeout = new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, config.drainTimeoutMs);
       timer.unref();
@@ -394,6 +554,8 @@ export const startOperationalJobWorkerService = async ({
         ...inFlight,
         ...(maintenanceInFlight ? [maintenanceInFlight] : []),
         ...(lifecycleCleanupInFlight ? [lifecycleCleanupInFlight] : []),
+        ...(eventDeliveryInFlight ? [eventDeliveryInFlight] : []),
+        ...(syntheticInFlight ? [syntheticInFlight] : []),
       ]).then(() => undefined),
       timeout,
     ]);

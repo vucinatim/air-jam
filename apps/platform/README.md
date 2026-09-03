@@ -262,6 +262,30 @@ Agents and maintainers inspect and safely operate the same authority through:
 pnpm --silent run repo -- platform operations jobs --help
 ```
 
+The worker also owns durable operational-event delivery and launch-critical
+synthetics. Its event-delivery and synthetic schedules default to one second
+and thirty seconds respectively. Production should explicitly configure one
+immutable hosted release plus the operational and browser worker origins:
+
+```bash
+AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL=https://<release-origin>/releases/g/<game>/r/<release>/generations/<generation>/
+AIRJAM_SYNTHETIC_WORKER_ORIGIN=https://<operational-worker-origin>
+AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN=https://<browser-worker-origin>
+AIRJAM_SYNTHETIC_APP_ID=<synthetic-app-id>
+```
+
+Inspect the exact six-check, four-SLO policy and the retained state through:
+
+```bash
+pnpm run repo -- platform operations reliability --help
+pnpm --silent run repo -- platform operations reliability catalog --json
+pnpm --silent run repo -- platform operations reliability status --json
+```
+
+All repair and synthetic execution commands are previews unless `--apply` is
+explicit. The canonical state, trust, redaction, and dead-letter contract is in
+[operational-reliability-contract.md](../../docs/contracts/operational-reliability-contract.md).
+
 If screenshot moderation is not configured, its durable job fails closed. The
 release remains failed until the runtime is available and an operator replays
 the terminal job, which keeps platform policy aligned with server-side checks.

@@ -14,6 +14,7 @@ import {
   type AirJamErrorBoundaryProps,
   type AirJamErrorFallbackRenderer,
 } from "./air-jam-error-boundary";
+import { ConnectedRuntimeErrorBoundary } from "./connected-runtime-error-boundary";
 import { AirJamControllerRuntime, AirJamHostRuntime } from "./session-runtimes";
 
 type HostSessionProps<TSchema extends z.ZodSchema> = Omit<
@@ -207,7 +208,15 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
         onError={hostErrorBoundary?.onError}
       >
         <AirJamHostRuntime<TSchema> {...hostSession} {...runtimeOptions}>
-          {children}
+          <ConnectedRuntimeErrorBoundary
+            role="host"
+            roomId={runtimeOptions.roomId}
+            appId={hostSession.appId}
+            renderFallback={hostErrorBoundary?.renderFallback}
+            onError={hostErrorBoundary?.onError}
+          >
+            {children}
+          </ConnectedRuntimeErrorBoundary>
         </AirJamHostRuntime>
       </AirJamErrorBoundary>
     );
@@ -227,7 +236,15 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
         onError={controllerErrorBoundary?.onError}
       >
         <AirJamControllerRuntime {...controllerSession} {...runtimeOptions}>
-          {children}
+          <ConnectedRuntimeErrorBoundary
+            role="controller"
+            roomId={runtimeOptions.roomId}
+            appId={controllerSession.appId}
+            renderFallback={controllerErrorBoundary?.renderFallback}
+            onError={controllerErrorBoundary?.onError}
+          >
+            {children}
+          </ConnectedRuntimeErrorBoundary>
         </AirJamControllerRuntime>
       </AirJamErrorBoundary>
     );

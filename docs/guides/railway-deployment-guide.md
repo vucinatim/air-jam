@@ -173,7 +173,10 @@ process, verify:
 7. when the browser worker is affected, `/health` returns `200`
 8. when the operational-job worker is affected, `/health` returns `200` and
    `/ready` returns `200` only after PostgreSQL authority is available
-9. classify every unchanged service as unaffected and confirm that its
+9. when operational reliability changes, the repo-CLI reliability status shows
+   no dead-letter events and every configured launch-critical synthetic has a
+   retained recent run
+10. classify every unchanged service as unaffected and confirm that its
    preceding successful deployment remains live
 
 ## Hosted Release Product-Readiness Validation
@@ -193,6 +196,31 @@ Before treating hosted release delivery as product-ready, verify:
 Before terminating or replacing the operational-job worker, call its authenticated
 `POST /drain` endpoint and wait for bounded completion. Queue state remains in
 PostgreSQL across deploys; a process restart must never be treated as job loss.
+
+Configure these reliability values on the operational worker:
+
+1. `AIRJAM_OPERATIONAL_ENVIRONMENT=production`
+2. `AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL` pointing to one exact immutable live
+   generation
+3. `AIRJAM_SYNTHETIC_WORKER_ORIGIN` pointing to the operational worker's public
+   health origin
+4. `AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN` pointing to the browser worker
+5. `AIRJAM_SYNTHETIC_APP_ID` when the platform app identity is not appropriate
+
+Configure `AIRJAM_OPERATIONAL_ENVIRONMENT=production` and
+`AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX` on the realtime server. Hosted
+runtime crash reports are bounded, room-authorized evidence; they are never
+authoritative repair instructions.
+
+Use the repo-owned machine surface for inspection and safe maintenance:
+
+```bash
+pnpm --silent run repo -- platform operations reliability catalog --json
+pnpm --silent run repo -- platform operations reliability status \
+  --railway-environment <environment-id> \
+  --railway-project <project-id> \
+  --json
+```
 
 For PR environments, verify the same shape against the ephemeral Railway domains.
 

@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-09-01
+Last updated: 2026-09-03
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -177,6 +177,30 @@ The pre-reset overloaded ledger has been preserved at:
   [public install matrix audit](./audits/v1-public-release/public-install-matrix-audit.md),
   while retaining public npm rehearsal, provenance, promotion, docs, demo, and
   launch-story work in later Gate 6 and Gate 7 items
+
+## 2026-08-30 - Gate 4 Gained A Durable Reliability Loop
+
+- implemented one transactional operational outbox and immutable event store
+  with bounded leases, retry scheduling, dead-letter state, expired-lease
+  repair, stable idempotency, and audited operator requeue
+- extended the shared operations contract from seven to thirteen discoverable
+  schemas for structured failures, synthetics, SLO evaluations, and alerts
+- added redacted structured-failure producers across the platform request
+  boundary, server auth/runtime paths, and hosted SDK runtime boundary; hosted
+  clients contribute non-authoritative evidence while room, role, game, and
+  session identity remain server-owned
+- implemented six launch-critical synthetic journeys feeding four explicit SLO
+  policies and durable opening, continuation, and recovery alert state
+- integrated reliability draining, synthetics, SLO evaluation, and alert work
+  into the operational worker with per-subsystem readiness and health checks
+  for release storage, moderation, and hosted-runtime availability
+- exposed status, inspection, delivery, synthetic, SLO, alert, and safe requeue
+  operations through the canonical repo CLI with stable JSON output
+- proved the storage lifecycle and all six synthetic stories against real local
+  PostgreSQL in addition to focused SDK, server, platform, and CLI suites
+- retained the next boundary honestly: incident correlation, notification and
+  GitHub issue adapters, governed remediation, and deployed failure drills
+  remain later Gate 4 work
 
 ## 2026-08-30 - Hosted Release Isolation Became Safely Attestable
 

@@ -1,6 +1,6 @@
 # Public Install Matrix Audit
 
-Last updated: 2026-08-30
+Last updated: 2026-09-03
 
 Status: passed; closes readiness item `G6-01`
 
@@ -33,6 +33,7 @@ forced the implementation to remove.
 | Branch head                 | `1a05fd0f75ecad720d1c357acbd3f9246e22a6c9`                                                             |
 | Tested pull-request merge   | `19eb8e41f5bf9a06100d3c5af975a59d1837bd62`                                                             |
 | Merge parents               | `006924de5fbcf22507913501afd30a8e860a5167`, `1a05fd0f75ecad720d1c357acbd3f9246e22a6c9`                 |
+| Permanent production commit | `0aaa8d2c2e83f3855104836f61b52b597fc39096`                                                             |
 | Matrix contract             | `air-jam-public-install-matrix/v1`                                                                     |
 | Cell evidence contract      | `air-jam-public-install-matrix-cell/v1`                                                                |
 | Aggregate evidence contract | `air-jam-public-install-matrix-aggregate/v1`                                                           |
@@ -43,6 +44,10 @@ cell documents were identical after removing the independently generated
 timestamp. The repository aggregator rejected missing, duplicate, unexpected,
 non-passing, wrong-contract, wrong-budget, and mixed-commit evidence in its
 contract tests.
+
+The historical branch identity records the exact candidate proof. Readiness
+uses the permanent production squash commit because GitHub removes merged head
+branches and fresh CI checkouts must be able to resolve every durable artifact.
 
 ## Certified Environments And Timings
 

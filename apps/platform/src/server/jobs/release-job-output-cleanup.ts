@@ -5,10 +5,10 @@ import {
   type ReleaseStorage,
 } from "@/server/releases/release-storage";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { resolveDatabaseAuthorityNow } from "../operations/database-authority";
 import {
   insertOperationalJobEvent,
   normalizeRequiredJobText,
-  resolveOperationalJobNow,
   type JobDatabase,
 } from "./operational-job-internals";
 
@@ -101,7 +101,7 @@ export const cleanupReleaseJobOrphanOutputs = async ({
         .where(eq(operationalJobs.id, attempt.jobId))
         .for("update");
       if (!job) return null;
-      const now = await resolveOperationalJobNow(tx);
+      const now = await resolveDatabaseAuthorityNow(tx);
       const [updatedAttempt] = await tx
         .update(operationalJobAttempts)
         .set({ outputCleanedAt: now, updatedAt: now })

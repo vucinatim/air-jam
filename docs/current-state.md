@@ -212,9 +212,20 @@ These are now baseline truths, not open architecture debates:
        expiry, actions, and blast radius through SHA-256 digests
     4. approval, bounded automation, verification, rollback, and terminal
        evidence rules fail closed
-    5. all seven schema families are inspectable as Draft 7 JSON Schema and
+    5. all thirteen schema families are inspectable as Draft 7 JSON Schema and
        runtime-validatable through the canonical repo CLI
-16. Gate `G5-01` now has one ranked threat model:
+16. Gate 4 now also has one durable reliability loop:
+    1. authoritative producers persist events through a transactional outbox
+       and immutable event store instead of relying on process memory
+    2. bounded leases, retries, dead-letter state, audited requeue, and expired-
+       lease repair make delivery safe to operate through the repo CLI
+    3. six launch-critical synthetic stories continuously feed four explicit
+       SLO evaluations and durable alert state
+    4. platform, server, and hosted-runtime failure producers emit structured,
+       redacted evidence with server-owned authority and identity
+    5. worker and platform readiness report their true release dependencies
+       while process liveness remains an independent deployment signal
+17. Gate `G5-01` now has one ranked threat model:
     1. public, privileged, artifact, runtime, agent, provider, privacy, and
        supply-chain boundaries were independently reviewed and centrally
        deduplicated
@@ -228,7 +239,7 @@ These are now baseline truths, not open architecture debates:
        claim of current anonymous exposure
     5. implementation remains in `G5-02` and `G5-03`, with one final batched
        human residual-risk review in `G5-04`
-17. the first `G5-02` implementation slice is now merged and production-valid:
+18. the first `G5-02` implementation slice is now merged and production-valid:
     1. hosted game code has no authenticated-platform-origin fallback
     2. production requires an explicit cross-site release origin outside Better
        Auth trust, and build/runtime platform identity drift fails readiness
@@ -261,7 +272,7 @@ These are now baseline truths, not open architecture debates:
         `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reached terminal `SUCCESS`, and
         live liveness reported merged revision
         `e122a52c1da49ef409364c93fb675df56a4e639d`
-18. the production hosted-release cutover is complete and evidence-backed:
+19. the production hosted-release cutover is complete and evidence-backed:
     1. all six public catalog games use `https://games.air-jam.app` while public
        links, rooms, controllers, QR codes, and reconnect remain on `airjam.io`
     2. production schema drift from migration `0020` to `0033` was recovered
@@ -283,8 +294,8 @@ The roadmap now organizes the remaining work into explicit evidence gates:
 
 1. external-agent golden-path proof
 2. launch-scale reliability, backpressure, cost, backup, restore, and rollback
-3. operational events, synthetics, alerts, incident correlation, GitHub issue
-   policy, and bounded remediation
+3. incident correlation, GitHub issue delivery, governed runbooks, and bounded
+   remediation
 4. security, abuse, privacy, and supply-chain trust
 5. final public documentation, demo, article, npm prerelease, and promotion
    proof
@@ -301,11 +312,11 @@ work state without becoming a second product authority:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
-The foundation integration through PR `#61` and the production-health recovery
-in PR `#76` are merged. PRs `#74` and `#75` remain independent Gate 6 and Gate 4
-slices; each must be refreshed against current `main`, reviewed at its exact
-head, proven independently deployable, and merged separately. Production code
-is delivered incrementally; stable package promotion, public release
+The foundation integration through PR `#61`, the production-health recovery in
+PR `#76`, and the public install matrix in PR `#74` are merged. PR `#75` remains
+the independent Gate 4 durable-reliability slice; it must be reviewed at its
+exact head, proven independently deployable, and merged separately. Production
+code is delivered incrementally; stable package promotion, public release
 visibility, final docs, the launch article, and distribution are coordinated
 only after one exact candidate passes rehearsal.
 
@@ -398,8 +409,13 @@ and its [proof](./audits/v1-operations/operational-contract-proof.md). The
 private runtime package, TypeScript declarations, JSON Schema export, and repo
 CLI now share one versioned model for events, correlation, incident state,
 runbook descriptors, immutable previews, invocations, and action audit records.
-This closes the contract boundary only; it does not claim that outbox,
-correlator, notification, GitHub delivery, or remediation workers are deployed.
+Gate `G4-02` implements the next production-valid layer through the
+[operational reliability contract](./contracts/operational-reliability-contract.md)
+and its [proof](./audits/v1-operations/operational-reliability-proof.md): durable
+event delivery, structured platform/server/runtime failures, six synthetics,
+four SLOs, durable alerts, truthful worker readiness, and one agent-operable CLI
+surface. It does not claim that incident correlation, external notification,
+GitHub issue delivery, or governed remediation workers are deployed.
 
 Gate `G3-01` is closed with the
 [production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).

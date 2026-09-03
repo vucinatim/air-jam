@@ -14,8 +14,9 @@ import {
   OperationalJobResourceKind,
   OperationalJobStatus,
 } from "@air-jam/database-contract";
+import { createOperationsDocumentDigest } from "@air-jam/operations-contract";
 import { sql } from "drizzle-orm";
-import { createHash } from "node:crypto";
+import { resolveDatabaseAuthorityNow } from "../operations/database-authority";
 
 export type JobDatabase = typeof db;
 export type JobTransaction = Parameters<
@@ -229,20 +230,9 @@ export const normalizeOperationalJobJsonObject = (
   return normalized as OperationalJobJsonObject;
 };
 
-const canonicalJson = (value: OperationalJobJsonValue): string => {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  const entries = Object.entries(value).sort(([left], [right]) =>
-    left.localeCompare(right),
-  );
-  return `{${entries
-    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
-    .join(",")}}`;
-};
-
 export const hashOperationalJobRequest = (
   value: OperationalJobJsonObject,
-): string => createHash("sha256").update(canonicalJson(value)).digest("hex");
+): string => createOperationsDocumentDigest(value);
 
 export const serializeOperationalJobForOperator = (
   job: OperationalJob,
@@ -340,22 +330,6 @@ export const serializeOperationalJobEventForOperator = (
   createdAt: event.createdAt.toISOString(),
 });
 
-export const resolveOperationalJobNow = async (
-  tx: JobTransaction,
-  testNow?: Date,
-): Promise<Date> => {
-  if (testNow) return testNow;
-  const rows = await tx.execute(sql`select clock_timestamp() as authority_now`);
-  const value = (rows[0] as { authority_now?: Date | string } | undefined)
-    ?.authority_now;
-  if (!value) throw new Error("Database authority time was unavailable.");
-  const authorityNow = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(authorityNow.getTime())) {
-    throw new Error("Database authority time was invalid.");
-  }
-  return authorityNow;
-};
-
 export const acquireOperationalJobCommandLock = async (
   tx: JobTransaction,
   idempotencyKey: string,
@@ -387,7 +361,7 @@ export const beginOperationalJobCommand = async ({
   | { replayed: false; command: OperationalJobCommand; authorityNow: Date }
 > => {
   await acquireOperationalJobCommandLock(tx, idempotencyKey);
-  const authorityNow = await resolveOperationalJobNow(tx, testNow);
+  const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
   const existing = await tx.query.operationalJobCommands.findFirst({
     where: (table, { eq }) => eq(table.idempotencyKey, idempotencyKey),
   });
@@ -503,22 +477,35 @@ export const insertOperationalJobEvent = async ({
   details?: Record<string, unknown>;
   causationEventId?: string | null;
 }) => {
-  await tx.insert(operationalJobEvents).values({
-    id: crypto.randomUUID(),
-    jobId: job.id,
-    idempotencyKey: eventIdempotencyKey({ jobId: job.id, nextRevision, kind }),
-    kind,
-    expectedRevision,
-    nextRevision,
-    fromStatus,
-    toStatus,
-    attempt: job.attemptCount,
-    actor,
-    reason,
-    details,
-    correlationId: job.correlationId,
-    causationEventId,
-  });
+  const [inserted] = await tx
+    .insert(operationalJobEvents)
+    .values({
+      id: crypto.randomUUID(),
+      jobId: job.id,
+      idempotencyKey: eventIdempotencyKey({
+        jobId: job.id,
+        nextRevision,
+        kind,
+      }),
+      kind,
+      expectedRevision,
+      nextRevision,
+      fromStatus,
+      toStatus,
+      attempt: job.attemptCount,
+      actor,
+      reason,
+      details,
+      correlationId: job.correlationId,
+      causationEventId,
+    })
+    .returning();
+  if (!inserted) {
+    throw new OperationalJobConflictError(
+      "Operational job event could not be stored.",
+    );
+  }
+  return inserted;
 };
 
 export const acquireOperationalJobLock = async (

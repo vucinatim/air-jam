@@ -20,11 +20,9 @@ import {
   lifecycleCleanupOutputManifestSchema,
   type LifecycleCleanupJobProgress,
 } from "../jobs/lifecycle-cleanup-job-contract";
-import {
-  resolveOperationalJobNow,
-  type JobDatabase,
-} from "../jobs/operational-job-internals";
+import { type JobDatabase } from "../jobs/operational-job-internals";
 import { completeOperationalJobInTransaction } from "../jobs/operational-job-service";
+import { resolveDatabaseAuthorityNow } from "./database-authority";
 import { LIFECYCLE_CLEANUP_TERMINAL_RETENTION_MS } from "./lifecycle-cleanup-service";
 
 type CleanupAuthority = Readonly<{
@@ -66,7 +64,7 @@ const beginCleanup = async ({
   releaseId: string | null;
 }): Promise<CleanupAuthority> =>
   database.transaction(async (tx) => {
-    const authorityNow = await resolveOperationalJobNow(tx);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx);
     if (resourceKind === "release_generation") {
       if (!releaseId) {
         throw new LifecycleCleanupExecutionError({
@@ -378,7 +376,7 @@ export const executeLifecycleCleanupJobAttempt = async ({
     }),
   );
   return database.transaction(async (tx) => {
-    const authorityNow = await resolveOperationalJobNow(tx);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx);
     if (payload.resourceKind === "release_generation") {
       const [updated] = await tx
         .update(gameReleaseGenerations)

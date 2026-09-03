@@ -222,10 +222,7 @@ export const serializeReleaseJobExecutionError = ({
       ? error
       : new ReleaseJobExecutionError({
           code: "unexpected_executor_error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Release executor failed unexpectedly.",
+          message: "Release executor failed unexpectedly.",
           retryable: true,
           stage,
           cause: error,

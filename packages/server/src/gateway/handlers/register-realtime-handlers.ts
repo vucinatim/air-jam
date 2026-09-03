@@ -7,6 +7,7 @@ import {
   hostActionRpcSchema,
   hostStateSyncSchema,
   isAirJamArcadePlatformPrefixAction,
+  runtimeErrorReportSchema,
   type AirJamActionInvocationResult,
   type AirJamActionRpcPayload,
   type AirJamDevLogEventName,
@@ -15,6 +16,7 @@ import {
   type ControllerStateMessage,
   type HostActionRpcPayload,
   type PlaySoundEventPayload,
+  type RuntimeErrorReportAck,
   type SignalPayload,
 } from "@air-jam/sdk/protocol";
 import { emitRoomState } from "../../domain/room-session-domain.js";
@@ -105,6 +107,100 @@ export const registerRealtimeHandlers = (
     hostStateSyncSummary.flushAll();
     controllerActionRpcSummary.flushAll();
     hostStateBroadcastSummary.flushAll();
+  });
+
+  socket.on("runtime:error_report", (payload, callback) => {
+    const acknowledge = (ack: RuntimeErrorReportAck): void => {
+      if (typeof callback === "function") callback(ack);
+    };
+    const parsed = runtimeErrorReportSchema.safeParse(payload);
+    if (!parsed.success) {
+      logRealtimeEvent(
+        "warn",
+        AIRJAM_DEV_LOG_EVENTS.browser.runtime,
+        "Rejected an invalid hosted-runtime error report",
+        { reason: "invalid_payload" },
+      );
+      acknowledge({ ok: false, code: "invalid_payload" });
+      return;
+    }
+
+    const report = parsed.data;
+    if (
+      context.isRateLimited(
+        "runtime-error-report",
+        context.runtimeErrorReportRateLimitMax,
+      )
+    ) {
+      acknowledge({
+        ok: false,
+        reportId: report.reportId,
+        code: "rate_limited",
+      });
+      return;
+    }
+
+    const authorized =
+      report.role === "host"
+        ? context.isHostAuthorizedForRoom(report.roomId)
+        : context.isControllerAuthorizedForRoom(report.roomId);
+    const session = authorized ? roomManager.getRoom(report.roomId) : undefined;
+    if (!authorized || !session) {
+      acknowledge({
+        ok: false,
+        reportId: report.reportId,
+        code: "unauthorized",
+      });
+      return;
+    }
+    if (
+      context.isScopedRateLimited(
+        "runtime-error-report-room",
+        report.roomId,
+        context.runtimeErrorReportRateLimitMax,
+      )
+    ) {
+      acknowledge({
+        ok: false,
+        reportId: report.reportId,
+        code: "rate_limited",
+      });
+      return;
+    }
+
+    const controllerId =
+      report.role === "controller"
+        ? socket.data.controllerAuthority?.controllerId
+        : undefined;
+    void context.operationalEventPublisher
+      .publishRuntimeErrorReport({
+        reportId: report.reportId,
+        roomId: report.roomId,
+        runtimeSessionId: session.analytics.runtimeSessionId,
+        ...(controllerId ? { controllerId } : {}),
+        ...(session.activeGameId || session.analytics.gameId
+          ? { gameId: session.activeGameId ?? session.analytics.gameId }
+          : {}),
+        role: report.role,
+        code: report.code,
+        errorName: report.errorName,
+        digest: report.digest,
+        clientOccurredAt: report.occurredAt,
+      })
+      .then(() => acknowledge({ ok: true, reportId: report.reportId }))
+      .catch((error: unknown) => {
+        getRealtimeLogger({
+          event: "runtime.error_report_persistence_failed",
+          reportId: report.reportId,
+          roomId: report.roomId,
+          causeCode: error instanceof Error ? error.name : "unknown_error",
+        }).warn("Failed to persist a hosted-runtime error report");
+        acknowledge({
+          ok: false,
+          reportId: report.reportId,
+          code: "unavailable",
+        });
+      });
   });
 
   const routeControllerActionRpc = ({

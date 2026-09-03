@@ -1,3 +1,11 @@
+import {
+  DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
+  type OperationalAlertV1,
+  type OperationalEventEnvelopeV1,
+  type OperationalFailureV1,
+  type OperationalSloEvaluationV1,
+  type OperationalSyntheticRunV1,
+} from "@air-jam/operations-contract";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -179,6 +187,13 @@ export const operationalJobCommandKindValues = [
 
 export type OperationalJobCommandKind =
   (typeof operationalJobCommandKindValues)[number];
+
+export const operationalEventDeliveryCommandActionValues = [
+  "requeue_dead_letter",
+] as const;
+
+export type OperationalEventDeliveryCommandAction =
+  (typeof operationalEventDeliveryCommandActionValues)[number];
 
 export const operationalJobContractVersion = 1 as const;
 
@@ -681,6 +696,330 @@ export const createRuntimeDatabaseSchema = ({
     ],
   );
 
+  const operationalEventOutbox = pgTable(
+    "operational_event_outbox",
+    {
+      id: text("id").primaryKey(),
+      contractVersion: integer("contract_version").notNull(),
+      envelope: jsonb("envelope").$type<OperationalEventEnvelopeV1>().notNull(),
+      status: text("status")
+        .$type<"pending" | "delivering" | "delivered" | "dead_letter">()
+        .default("pending")
+        .notNull(),
+      attemptCount: integer("attempt_count").default(0).notNull(),
+      maxAttempts: integer("max_attempts")
+        .default(DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS)
+        .notNull(),
+      availableAt: timestamp("available_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+      leaseOwner: text("lease_owner"),
+      leaseToken: text("lease_token"),
+      leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+      deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+      lastError: jsonb("last_error").$type<OperationalFailureV1>(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+      updatedAt: timestamp("updated_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => ({
+      deliveryQueueIdx: index("operational_event_outbox_delivery_queue_idx")
+        .on(table.status, table.availableAt, table.createdAt)
+        .where(sql`${table.status} = 'pending'`),
+      leaseExpiryIdx: index("operational_event_outbox_lease_expiry_idx")
+        .on(table.leaseExpiresAt)
+        .where(sql`${table.status} = 'delivering'`),
+      statusCheck: check(
+        "operational_event_outbox_status_check",
+        sql`${table.status} in ('pending', 'delivering', 'delivered', 'dead_letter')`,
+      ),
+      contractVersionCheck: check(
+        "operational_event_outbox_contract_version_check",
+        sql`${table.contractVersion} = 1`,
+      ),
+      attemptsCheck: check(
+        "operational_event_outbox_attempts_check",
+        sql`${table.attemptCount} >= 0 and ${table.maxAttempts} > 0 and ${table.attemptCount} <= ${table.maxAttempts}`,
+      ),
+      envelopeCheck: check(
+        "operational_event_outbox_envelope_check",
+        sql`jsonb_typeof(${table.envelope}) = 'object'`,
+      ),
+      lifecycleCheck: check(
+        "operational_event_outbox_lifecycle_check",
+        sql`(
+        ${table.status} = 'pending'
+        and ${table.leaseOwner} is null
+        and ${table.leaseToken} is null
+        and ${table.leaseExpiresAt} is null
+        and ${table.deliveredAt} is null
+      ) or (
+        ${table.status} = 'delivering'
+        and ${table.leaseOwner} is not null
+        and ${table.leaseToken} is not null
+        and ${table.leaseExpiresAt} is not null
+        and ${table.deliveredAt} is null
+      ) or (
+        ${table.status} = 'delivered'
+        and ${table.leaseOwner} is null
+        and ${table.leaseToken} is null
+        and ${table.leaseExpiresAt} is null
+        and ${table.deliveredAt} is not null
+      ) or (
+        ${table.status} = 'dead_letter'
+        and ${table.leaseOwner} is null
+        and ${table.leaseToken} is null
+        and ${table.leaseExpiresAt} is null
+        and ${table.deliveredAt} is null
+        and ${table.lastError} is not null
+      )`,
+      ),
+    }),
+  );
+
+  const operationalEventDeliveryCommands = pgTable(
+    "operational_event_delivery_commands",
+    {
+      id: text("id").primaryKey(),
+      contractVersion: integer("contract_version").default(1).notNull(),
+      idempotencyKey: text("idempotency_key").notNull().unique(),
+      eventId: text("event_id")
+        .notNull()
+        .references(() => operationalEventOutbox.id, { onDelete: "restrict" }),
+      action: text("action")
+        .$type<OperationalEventDeliveryCommandAction>()
+        .notNull(),
+      requestHash: text("request_hash").notNull(),
+      actor: text("actor").notNull(),
+      reason: text("reason").notNull(),
+      request: jsonb("request").$type<Record<string, unknown>>().notNull(),
+      result: jsonb("result").$type<Record<string, unknown>>(),
+      completedAt: timestamp("completed_at", { withTimezone: true }),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => ({
+      eventTimeIdx: index(
+        "operational_event_delivery_commands_event_time_idx",
+      ).on(table.eventId, table.createdAt),
+      actionCheck: check(
+        "operational_event_delivery_commands_action_check",
+        sql`${table.action} = 'requeue_dead_letter'`,
+      ),
+      contractVersionCheck: check(
+        "operational_event_delivery_commands_contract_version_check",
+        sql`${table.contractVersion} = 1`,
+      ),
+      requestHashCheck: check(
+        "operational_event_delivery_commands_request_hash_check",
+        sql`${table.requestHash} ~ '^[a-f0-9]{64}$'`,
+      ),
+      requiredTextCheck: check(
+        "operational_event_delivery_commands_required_text_check",
+        sql`length(btrim(${table.idempotencyKey})) > 0 and length(btrim(${table.eventId})) > 0 and length(btrim(${table.actor})) > 0 and length(btrim(${table.reason})) > 0`,
+      ),
+      requestCheck: check(
+        "operational_event_delivery_commands_request_check",
+        sql`jsonb_typeof(${table.request}) = 'object'`,
+      ),
+      completionCheck: check(
+        "operational_event_delivery_commands_completion_check",
+        sql`(${table.result} is null and ${table.completedAt} is null) or (jsonb_typeof(${table.result}) = 'object' and ${table.completedAt} is not null)`,
+      ),
+    }),
+  );
+
+  const operationalEvents = pgTable(
+    "operational_events",
+    {
+      id: text("id").primaryKey(),
+      contractVersion: integer("contract_version").notNull(),
+      kind: text("kind").notNull(),
+      severity: text("severity").notNull(),
+      outcome: text("outcome").notNull(),
+      authority: text("authority").notNull(),
+      service: text("service").notNull(),
+      environment: text("environment").notNull(),
+      subjectType: text("subject_type").notNull(),
+      subjectId: text("subject_id").notNull(),
+      correlationId: text("correlation_id").notNull(),
+      occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+      observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+      envelope: jsonb("envelope").$type<OperationalEventEnvelopeV1>().notNull(),
+      storedAt: timestamp("stored_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => ({
+      kindTimeIdx: index("operational_events_kind_time_idx").on(
+        table.kind,
+        table.occurredAt,
+      ),
+      serviceTimeIdx: index("operational_events_service_time_idx").on(
+        table.environment,
+        table.service,
+        table.occurredAt,
+      ),
+      subjectTimeIdx: index("operational_events_subject_time_idx").on(
+        table.subjectType,
+        table.subjectId,
+        table.occurredAt,
+      ),
+      correlationIdx: index("operational_events_correlation_idx").on(
+        table.correlationId,
+        table.occurredAt,
+      ),
+      contractVersionCheck: check(
+        "operational_events_contract_version_check",
+        sql`${table.contractVersion} = 1`,
+      ),
+      envelopeCheck: check(
+        "operational_events_envelope_check",
+        sql`jsonb_typeof(${table.envelope}) = 'object'`,
+      ),
+      chronologyCheck: check(
+        "operational_events_chronology_check",
+        sql`${table.observedAt} >= ${table.occurredAt}`,
+      ),
+    }),
+  );
+
+  const operationalSyntheticRuns = pgTable(
+    "operational_synthetic_runs",
+    {
+      id: text("id").primaryKey(),
+      idempotencyKey: text("idempotency_key").notNull().unique(),
+      checkId: text("check_id").notNull(),
+      environment: text("environment").notNull(),
+      status: text("status").$type<"passed" | "failed" | "error">().notNull(),
+      eventId: text("event_id")
+        .notNull()
+        .references(() => operationalEventOutbox.id, { onDelete: "restrict" }),
+      document: jsonb("document").$type<OperationalSyntheticRunV1>().notNull(),
+      startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+      completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => ({
+      checkTimeIdx: index("operational_synthetic_runs_check_time_idx").on(
+        table.checkId,
+        table.environment,
+        table.completedAt,
+      ),
+      statusCheck: check(
+        "operational_synthetic_runs_status_check",
+        sql`${table.status} in ('passed', 'failed', 'error')`,
+      ),
+      documentCheck: check(
+        "operational_synthetic_runs_document_check",
+        sql`jsonb_typeof(${table.document}) = 'object'`,
+      ),
+      chronologyCheck: check(
+        "operational_synthetic_runs_chronology_check",
+        sql`${table.completedAt} >= ${table.startedAt}`,
+      ),
+    }),
+  );
+
+  const operationalSloEvaluations = pgTable(
+    "operational_slo_evaluations",
+    {
+      id: text("id").primaryKey(),
+      sloId: text("slo_id").notNull(),
+      environment: text("environment").notNull(),
+      status: text("status")
+        .$type<"insufficient_data" | "healthy" | "breaching">()
+        .notNull(),
+      triggerEventId: text("trigger_event_id")
+        .notNull()
+        .references(() => operationalEventOutbox.id, { onDelete: "restrict" }),
+      document: jsonb("document").$type<OperationalSloEvaluationV1>().notNull(),
+      evaluatedAt: timestamp("evaluated_at", { withTimezone: true }).notNull(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => ({
+      sloTimeIdx: index("operational_slo_evaluations_slo_time_idx").on(
+        table.sloId,
+        table.environment,
+        table.evaluatedAt,
+      ),
+      statusCheck: check(
+        "operational_slo_evaluations_status_check",
+        sql`${table.status} in ('insufficient_data', 'healthy', 'breaching')`,
+      ),
+      documentCheck: check(
+        "operational_slo_evaluations_document_check",
+        sql`jsonb_typeof(${table.document}) = 'object'`,
+      ),
+    }),
+  );
+
+  const operationalAlerts = pgTable(
+    "operational_alerts",
+    {
+      id: text("id").primaryKey(),
+      alertKey: text("alert_key").notNull().unique(),
+      policyId: text("policy_id").notNull(),
+      environment: text("environment").notNull(),
+      service: text("service").notNull(),
+      severity: text("severity")
+        .$type<"warning" | "error" | "critical">()
+        .notNull(),
+      status: text("status").$type<"open" | "recovered">().notNull(),
+      latestEventId: text("latest_event_id")
+        .notNull()
+        .references(() => operationalEventOutbox.id, { onDelete: "restrict" }),
+      latestEvaluationId: text("latest_evaluation_id")
+        .notNull()
+        .references(() => operationalSloEvaluations.id, {
+          onDelete: "restrict",
+        }),
+      revision: integer("revision").notNull(),
+      document: jsonb("document").$type<OperationalAlertV1>().notNull(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+      updatedAt: timestamp("updated_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => ({
+      statusSeverityIdx: index("operational_alerts_status_severity_idx").on(
+        table.status,
+        table.severity,
+        table.updatedAt,
+      ),
+      policyIdx: index("operational_alerts_policy_idx").on(
+        table.policyId,
+        table.environment,
+      ),
+      statusCheck: check(
+        "operational_alerts_status_check",
+        sql`${table.status} in ('open', 'recovered')`,
+      ),
+      severityCheck: check(
+        "operational_alerts_severity_check",
+        sql`${table.severity} in ('warning', 'error', 'critical')`,
+      ),
+      revisionCheck: check(
+        "operational_alerts_revision_check",
+        sql`${table.revision} > 0`,
+      ),
+      documentCheck: check(
+        "operational_alerts_document_check",
+        sql`jsonb_typeof(${table.document}) = 'object'`,
+      ),
+    }),
+  );
+
   return {
     appIds,
     runtimeUsageSessions,
@@ -694,6 +1033,12 @@ export const createRuntimeDatabaseSchema = ({
     operationalControlEvents,
     operationalBudgetCycles,
     operationalBudgetEvidence,
+    operationalEventOutbox,
+    operationalEventDeliveryCommands,
+    operationalEvents,
+    operationalSyntheticRuns,
+    operationalSloEvaluations,
+    operationalAlerts,
   };
 };
 

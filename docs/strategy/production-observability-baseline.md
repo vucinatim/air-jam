@@ -1,7 +1,7 @@
 # Air Jam Production Observability Baseline
 
-Last updated: 2026-08-28
-Status: stable baseline
+Last updated: 2026-08-30
+Status: active implemented baseline
 
 Related docs:
 
@@ -12,6 +12,7 @@ Related docs:
 5. [Operational Events And Incidents Contract](../contracts/operational-events-and-incidents-contract.md)
 6. [Deployment Topology](./deployment-topology.md)
 7. [Railway Deployment Guide](../guides/railway-deployment-guide.md)
+8. [Operational Reliability Contract](../contracts/operational-reliability-contract.md)
 
 ## Purpose
 
@@ -35,12 +36,13 @@ The current product stage needs:
 3. lightweight public-site performance visibility
 4. authoritative runtime usage truth
 5. straightforward provider log access for debugging
+6. durable first-party operational events, synthetics, SLOs, and alerts
 
 It does not yet need:
 
 1. a full product analytics suite
 2. a heavy error-monitoring rollout across every app and package
-3. a custom observability platform
+3. a generic custom observability platform
 4. multiple overlapping analytics systems that disagree with each other
 
 ## Current Baseline
@@ -141,6 +143,26 @@ It is active only when the required Sentry environment is configured. This is
 a narrow platform capability, not evidence that the realtime server, embedded
 games, or controller/browser-runtime surfaces have equivalent coverage.
 
+### 6. First-Party Operational Reliability
+
+Air Jam owns the small domain-specific reliability layer needed for agent-first
+operation. It is not a replacement for provider logs or external uptime.
+
+The implemented layer provides:
+
+1. structured, secret-safe failures from platform, worker, realtime-server, and
+   hosted-runtime stories
+2. a durable PostgreSQL outbox and event store with retry, leases,
+   dead-lettering, repair, and audited requeue
+3. six source-owned launch-critical synthetics
+4. four retained SLOs with consecutive breach and recovery policy
+5. durable internal alert state
+6. one preview-first, JSON-capable repo CLI for agents and maintainers
+
+Hosted-runtime reports are explicitly marked `runtime_reported`; untrusted game
+code cannot manufacture authoritative infrastructure facts. See the
+[Operational Reliability Contract](../contracts/operational-reliability-contract.md).
+
 ## Defined Operational Authority Boundary
 
 Air Jam owns a versioned contract for lifecycle/runtime events, correlation,
@@ -153,23 +175,24 @@ remediation authority, deduplicates confirmed symptoms through deterministic
 fingerprints, and defines preview, approval, blast-radius, verification, and
 rollback rules before automatic actions are implemented.
 
-The durable outbox, correlator, notification adapters, issue delivery, and
+The durable outbox, synthetic/SLO evaluator, and internal alert lifecycle are
+implemented. The correlator, notification adapters, GitHub issue delivery, and
 runbook executor remain Gate 4 implementation work. Until those slices are
-proven, provider logs, external uptime, and explicit operator action remain the
-live operational mechanisms.
+proven, alerts are internal durable state and explicit operator action remains
+the mutation authority.
 
 ## What Is Intentionally Deferred
 
 The following are intentionally not part of the prerelease baseline:
 
-### 1. Broader Sentry Coverage
+### 1. Broader Vendor Error Monitoring
 
-Broader server and browser-runtime coverage remains deferred because:
+Broader Sentry coverage remains deferred because:
 
 1. the minimal platform integration already covers the first-party web control
    surface
-2. provider logs and runtime analytics remain the stronger current tools for
-   realtime-server and gameplay failure stories
+2. Air Jam now retains bounded realtime-server and hosted-runtime operational
+   failures without forwarding raw errors to another vendor
 3. expansion should follow real production debugging pain instead of assuming
    every surface needs the same vendor integration
 
@@ -193,12 +216,14 @@ Deferred because:
    verification, and the first-party product telemetry boundary
 3. we should add a dedicated performance tool only when real pain appears
 
-### 4. Custom Observability Infrastructure
+### 4. Generic Observability Infrastructure
 
 Deferred because:
 
-1. Air Jam should not build its own monitoring product at this stage
-2. infrastructure effort should go into the framework, platform, and agent-development direction first
+1. Air Jam should not build its own generic monitoring product at this stage
+2. the narrow first-party reliability loop exists because durable domain state
+   and agent-operable repair are product requirements, not because Air Jam is
+   replacing uptime, log, trace, or error-monitoring vendors
 
 ## Decision Rules
 
@@ -223,7 +248,8 @@ Add more observability only when one of these becomes true:
 2. platform frontend and discovery questions cannot be answered from first-party
    product telemetry and provider logs
 3. creator and product questions require richer hosted rollups than the current analytics surface provides
-4. support load grows enough that structured error correlation becomes clearly worth it
+4. support load grows enough that broader vendor performance or trace coverage
+   becomes clearly worth it
 
 ## Current Recommendation
 
@@ -234,5 +260,6 @@ For prerelease and the first meaningful wave of public users, the right Air Jam 
 3. Air Jam runtime analytics
 4. provider logs
 5. optional platform Sentry when configured
+6. first-party durable operational events, launch synthetics, SLOs, and internal alerts
 
 Anything more should wait for real evidence.

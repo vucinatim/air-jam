@@ -10,6 +10,7 @@ Related sources:
 3. [Production Control Contract](./production-control-contract.md)
 4. [Production Observability Baseline](../strategy/production-observability-baseline.md)
 5. [Air Jam 1.0 Release Roadmap](../plans/v1-release-roadmap-plan.md)
+6. [Operational Reliability Contract](./operational-reliability-contract.md)
 
 ## Purpose
 
@@ -26,10 +27,11 @@ It covers:
 5. runbook descriptors, preview/apply requests, and action audit records
 6. privacy, redaction, versioning, and fail-closed behavior
 
-This contract does not claim that the durable outbox, incident store,
-notification delivery, GitHub issue bridge, or automatic remediation engine
-already exists. Later Gate 4 work implements those systems against this shared
-boundary rather than inventing their own event models.
+The durable outbox, event store, structured failure producers, SLO evaluations,
+synthetic runs, and internal alerts now implement this boundary. Incident
+storage, notification delivery, GitHub issue maintenance, and governed runbook
+execution remain later Gate 4 work and must consume these records rather than
+inventing parallel event models.
 
 ## Canonical Machine Surface
 
@@ -65,22 +67,28 @@ documents.
 The supported schema names are:
 
 1. `operational_event`
-2. `incident_fingerprint_input`
-3. `incident`
-4. `runbook`
-5. `runbook_preview`
-6. `runbook_invocation`
-7. `runbook_action`
+2. `operational_failure`
+3. `slo_definition`
+4. `slo_evaluation`
+5. `synthetic_check`
+6. `synthetic_run`
+7. `alert`
+8. `incident_fingerprint_input`
+9. `incident`
+10. `runbook`
+11. `runbook_preview`
+12. `runbook_invocation`
+13. `runbook_action`
 
 ## Three Authority Planes
 
 Air Jam keeps three planes distinct.
 
-| Plane                 | Authority                                                                   | Valid uses                                                                   | Forbidden uses                                                                 |
-| --------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Product telemetry     | Approximate discovery and intent evidence                                   | Aggregate discovery, intent, agent reach, and trend analysis                 | Correctness decisions, billing authority, automatic remediation, confirmation  |
-| Lifecycle/runtime     | Air Jam authoritative, provider-attested, synthetic, or operator-attested   | Incident evidence, SLO evaluation, diagnosis, and remediation verification   | Treating untrusted caller claims as authority or retaining secrets in payloads |
-| Operational incidents | Durable correlated state derived from acceptable lifecycle/runtime evidence | Deduplication, ownership, notification, runbook selection, issue maintenance | Replacing source evidence or silently granting remediation authority           |
+| Plane                 | Authority                                                                                   | Valid uses                                                                   | Forbidden uses                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Product telemetry     | Approximate discovery and intent evidence                                                   | Aggregate discovery, intent, agent reach, and trend analysis                 | Correctness decisions, billing authority, automatic remediation, confirmation      |
+| Lifecycle/runtime     | Air Jam authoritative, provider-attested, synthetic, operator-attested, or runtime-reported | Incident evidence, SLO evaluation, diagnosis, and remediation verification   | Treating untrusted caller claims as authoritative or retaining secrets in payloads |
+| Operational incidents | Durable correlated state derived from acceptable lifecycle/runtime evidence                 | Deduplication, ownership, notification, runbook selection, issue maintenance | Replacing source evidence or silently granting remediation authority               |
 
 Product telemetry does not become an operational event merely because it looks
 anomalous. It may prompt investigation, but correctness-critical action requires
@@ -103,6 +111,7 @@ Required identity and classification:
    2. `provider_attested`
    3. `synthetic_observation`
    4. `operator_attested`
+   5. `runtime_reported`
 
 Required source context:
 
@@ -143,6 +152,13 @@ not inspect.
 `operator_attested` records an explicit human observation or decision with an
 opaque operator identity. It must not be synthesized from approximate product
 telemetry.
+
+`runtime_reported` records a strict, sanitized symptom submitted by an
+authenticated host or controller runtime. Creator-controlled JavaScript remains
+untrusted: this evidence may support diagnosis and correlation but cannot, by
+itself, authorize remediation or assert an internal cause. The exact payload,
+authorization, and redaction boundary is defined in the
+[Operational Reliability Contract](./operational-reliability-contract.md).
 
 ## Correlation And Causation
 
@@ -392,9 +408,10 @@ domain commit -> durable outbox -> delivery lease -> event store/correlator
               -> incident -> notification/issue policy -> runbook authority
 ```
 
-The future outbox must preserve transaction ownership, idempotency, lease,
-retry, and dead-letter semantics without changing this envelope. External
-delivery is a replaceable adapter after durable Air Jam state.
+The implemented outbox preserves transaction ownership, event-ID idempotency,
+database-time leases, retries, dead-letter state, expired-lease repair, and
+audited requeue without changing this envelope. External delivery remains a
+replaceable adapter after durable Air Jam state.
 
 ## Versioning
 
@@ -414,12 +431,13 @@ Every action binds to the exact descriptor version it evaluated.
 This contract slice is complete when:
 
 1. the shared runtime schemas and deterministic helpers pass their tests
-2. the repo CLI discovers, exports, and validates all seven schema families
+2. the repo CLI discovers, exports, and validates all thirteen schema families
 3. product telemetry cannot validate as an operational event
 4. unknown versions, fields, states, and unsafe runbook authority fail closed
 5. payload validation output does not echo submitted values
 6. the docs and machine catalog describe the same authority and safety model
 
-The next Gate 4 slices implement the durable outbox, SLO/synthetic/error
-producers, incident correlation and GitHub delivery, runbook execution/audit,
-and failure drills against this boundary.
+Gate `G4-02` implements the durable outbox, SLO/synthetic/error producers, and
+internal alert lifecycle against this boundary. The next Gate 4 slices add
+incident correlation and GitHub delivery, runbook execution/audit, and failure
+drills without weakening its authority model.

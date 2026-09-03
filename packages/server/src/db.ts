@@ -3,8 +3,12 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
+export const runtimeDatabaseSchema = createRuntimeDatabaseSchema();
+
 export const {
   appIds,
+  operationalEventOutbox,
+  operationalEvents,
   runtimeUsageSessions,
   runtimeUsageEvents,
   runtimeUsageControllerSegments,
@@ -12,9 +16,11 @@ export const {
   runtimeUsageEligibleSegments,
   runtimeUsageGameSessionMetrics,
   runtimeUsageDailyGameMetrics,
-} = createRuntimeDatabaseSchema();
+} = runtimeDatabaseSchema;
 
-export type ServerDatabase = PostgresJsDatabase<Record<string, never>>;
+export type ServerDatabase =
+  | PostgresJsDatabase<Record<string, never>>
+  | PostgresJsDatabase<typeof runtimeDatabaseSchema>;
 
 export const createServerDatabase = (
   databaseUrl: string | undefined,
@@ -23,5 +29,5 @@ export const createServerDatabase = (
     return null;
   }
 
-  return drizzle(postgres(databaseUrl));
+  return drizzle(postgres(databaseUrl), { schema: runtimeDatabaseSchema });
 };

@@ -100,6 +100,9 @@ describe("operational job worker service", () => {
         await lifecycleCleanup.promise;
         return { candidates: [], jobs: [] };
       },
+      deliverEvent: async () => ({ status: "idle" }),
+      repairEventDelivery: async () => [],
+      runSynthetics: async () => [],
     });
     const origin = `http://127.0.0.1:${port}`;
 
@@ -128,6 +131,13 @@ describe("operational job worker service", () => {
       body: {
         authorityReady: true,
         lastAuthoritySuccessAt: expect.any(String),
+        authorities: {
+          jobs: { status: "ready" },
+          eventDelivery: { status: "ready" },
+          maintenance: { status: "pending" },
+          lifecycleCleanup: { status: "pending" },
+          synthetics: { status: "ready" },
+        },
       },
     });
 
