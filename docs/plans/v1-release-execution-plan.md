@@ -1,6 +1,6 @@
 # Air Jam 1.0 Release Execution Plan
 
-Last updated: 2026-08-31
+Last updated: 2026-09-04
 Status: active subordinate execution plan
 
 Related docs and machine surfaces:
@@ -277,6 +277,10 @@ No work item authorizes:
 
 ## Execution Waves
 
+These broad waves preserve the original program grouping. For current remaining
+work, the more detailed [Remaining Delivery Sequence](#remaining-delivery-sequence)
+supersedes their ordering wherever the two differ.
+
 ### Wave 0: Freeze The Shared Contract
 
 Primary work:
@@ -413,6 +417,448 @@ domain, environment-variable identity, Postgres instance, release-storage
 isolation, and health attestation from provider state before starting an
 external agent. A URL that merely looks like staging cannot authorize
 publication.
+
+## Remaining 1.0 Architecture
+
+This section defines the implementation shape for the remaining program. It is
+not a second work tracker: the readiness manifest remains the only authority for
+item status, ownership, dependencies, and completion evidence. The sections
+below explain how the remaining items fit together so independently developed
+slices converge on one system rather than growing adjacent control planes.
+
+Current counts, estimates, ownership, ready work, and blockers must always be
+read from `pnpm --silent run repo -- readiness status --json` and `readiness
+next --json`. They are intentionally not copied into this architecture section.
+
+### One Operating Model
+
+The remaining architecture is one evidence and control loop:
+
+```text
+domain/runtime/provider signal
+  -> durable operational event
+  -> source-owned synthetic and SLO evaluation
+  -> deterministic incident correlation
+  -> notification and GitHub issue projection
+  -> runbook preview
+  -> approved or allowlisted invocation
+  -> bounded action
+  -> independent verification
+  -> resolve, roll back, or escalate
+```
+
+Recovery, capacity, security, and release evidence feed this loop; they do not
+create separate automation systems. Product telemetry stays outside the loop
+because visits and anonymous behavior are approximate product signals, not
+authority for operational mutation.
+
+The deployable topology remains deliberately small:
+
+1. the platform web process owns product/API requests and application services
+2. the realtime server owns room and controller runtime authority
+3. the browser worker owns narrow untrusted-page browser execution
+4. one operational worker owns durable background jobs, event delivery,
+   synthetics, incident projection, and governed runbook execution
+5. PostgreSQL owns durable coordination, leases, revisions, audit, and evidence
+6. R2 owns immutable release/media bytes, while lifecycle and access policy stay
+   in platform domain services
+
+No new queue service, hosted scheduler, alerting database, admin-only dashboard
+workflow, or second operations daemon should be added for 1.0. A measured limit
+may later justify splitting the operational worker by workload, but every split
+must keep the same PostgreSQL-backed authorities and contracts.
+
+### Authority And Code Boundaries
+
+The implementation should converge on these boundaries as each area is
+touched:
+
+1. `@air-jam/operations-contract` owns pure schemas, deterministic identity,
+   redaction rules, state transitions, and machine-readable catalogs. It never
+   reads a database, calls a provider, or decides deployment configuration.
+2. `@air-jam/database-contract` and the platform schema remain the only physical
+   database authority. Schema checks and migrations live here rather than in
+   CLI-specific SQL.
+3. platform operations services own transactional behavior: event delivery,
+   SLO evaluation, incident correlation, retention, runbook state, and audit.
+4. provider adapters translate GitHub, Railway, R2, and browser-worker responses
+   into bounded domain results. They never own policy or persist raw provider
+   payloads as incident documents.
+5. worker composition owns cadence, concurrency, drain, and independent
+   subsystem health. A failure in one cycle cannot starve unrelated checks or
+   erase another subsystem's failure state.
+6. the repo CLI, MCP, API, and future control-room UI remain thin clients of the
+   same application services. Reads return stable redacted JSON. Mutations are
+   preview-first and require explicit apply, actor, reason, idempotency, and the
+   relevant revision or preview digest.
+7. evidence artifacts record exact commands, versions, provider identities,
+   timestamps, digests, and terminal outcomes; prose may interpret that
+   evidence but never substitutes for it.
+
+The operations area is already large enough that new work should not continue
+growing the current flat files. Refactor along the boundary being changed—not
+as an unrelated rewrite—toward this internal shape:
+
+```text
+apps/platform/src/server/operations/
+  shared/       database time, redaction, lease and audit primitives
+  events/       outbox, delivery, retention and producer boundaries
+  reliability/ synthetic execution, SLO evaluation and alert state
+  incidents/    correlation, evidence links, lifecycle and issue policy
+  runbooks/     catalog, preview, invocation, action and verification
+  integrations/ narrow GitHub, Railway, R2 and notification adapters
+```
+
+The public import remains one `@air-jam/operations-contract` package and the
+machine surface remains under `pnpm run repo -- platform operations`. Internal
+files may be split by contract family, but a file move alone is not a release
+deliverable. The reason to split is to prevent the existing large contract,
+synthetic-service, event-service, and platform-command modules from becoming
+the next monoliths while Gate 4 is added.
+
+### Reliability Foundation Corrections (`G4-07`, `G3-07`)
+
+Before continuous production activation, close the small trust gaps found by
+the final reliability review in the same owning boundaries:
+
+1. make the documented secret-key redaction vocabulary and the executable
+   recursive filter exactly agree, including compound names such as API and
+   signing keys without matching unrelated words accidentally
+2. normalize an untrusted realtime failure code once and use the normalized
+   value for both the retained failure and event kind
+3. use database-authority timestamps for persisted synthetic chronology
+4. isolate each due synthetic so one conflict or dependency error cannot starve
+   the remaining catalog
+5. serialize or fence SLO evaluation so a late result cannot regress breach or
+   recovery streak state
+6. add explicit retention for delivered outbox rows, operational events,
+   synthetic runs, evaluations, alerts, incident evidence, and action audit
+   without deleting evidence required by an open incident or unresolved action
+
+The first five corrections belong to the separately claimable `G4-07` item.
+Retention durations belong to the privacy and operating policy specified by
+`G5-03` and included in the residual-risk review at `G5-04`; the cleanup
+implementation is the separately claimable `G3-07` item, depends on `G5-03`,
+and reuses the existing Gate 4 services. There must not be an undocumented
+delete loop or foreign-key workaround.
+
+### Production Migration Lifecycle (`G3-06`)
+
+The schema drift discovered during the hosted-release cutover proved that a
+healthy deployment is not enough evidence that production can use the merged
+code. Database changes need one repo-owned lifecycle:
+
+1. `inspect` reports the exact environment, database identity, applied journal
+   head, source journal head, ordered pending migrations, and compatibility
+   state without printing credentials
+2. `plan` binds the intended migration set to the exact commit, environment,
+   backup evidence, write-drain plan, and post-migration checks
+3. `apply` requires the immutable plan digest, explicit production authority,
+   actor, reason, and idempotency key; it drains the affected writers instead of
+   stopping arbitrary provider services
+4. `verify` proves the journal, required tables/invariants, service readiness,
+   exact deployed revision, and worker compatibility before writes resume
+5. a failed verification keeps the affected lane drained and produces a
+   machine-readable recovery decision; migrations do not pretend to have a
+   generic down path
+
+Applications must report schema incompatibility through readiness while
+liveness remains truthful. The operational worker must refuse to claim work
+against an incompatible schema. Production migrations never run implicitly at
+process startup.
+
+The readiness manifest carries this lifecycle as `G3-06` and the separate
+operational-worker activation proof as `G3-08`, each with its own estimate,
+dependencies, and evidence requirements. The former non-critical suggestion has
+been removed now that this work is part of the active release program.
+
+### Capacity And Lifecycle Completion
+
+`G3-02` finishes the existing production-control architecture rather than
+introducing another limiter:
+
+1. superseded unpublished release artifacts move through one durable lifecycle:
+   active, warned, reclaimable, deleting, and tombstoned
+2. published generations are never automatically reclaimed
+3. warnings are persisted once and exposed through dashboard, API, CLI, and MCP
+   from the same record; deletion cannot occur before the ratified warning and
+   inactivity windows
+4. the first deletion manifest remains immutable across partial failure and
+   replay, preserving the quota and recovery behavior already implemented
+5. PostgreSQL owns lightweight room and controller admission leases while the
+   realtime process continues to own hot gameplay state
+6. room create/join atomically checks lane state and the global, creator, game,
+   room, and controller limits before reserving capacity
+7. disconnect and graceful drain release or expire reservations predictably;
+   a dead instance cannot hold capacity forever
+8. overload rejects only new work with a stable reason and retry guidance;
+   active rooms continue whenever technically safe
+
+This must not change the player interaction model. Room codes, controller
+joining, and gameplay remain visually identical below a limit. Admission and
+permission enforcement are invisible in the healthy path and become explicit
+only when the system genuinely cannot accept more work.
+
+The `G3-08` operational-worker production rollout happens only after migration
+compatibility, required synthetic targets, authenticated drain, secret scope,
+lane controls, and rollback steps all pass preflight. Rollout order is:
+
+1. inspect and migrate schema through the canonical lifecycle
+2. create the worker service from `apps/platform/railway.worker.json`
+3. provision only its declared least-privilege environment
+4. start with mutation-heavy lanes paused and observe readiness
+5. run one synthetic cycle and one safe job cycle manually
+6. enable normal scheduling, observe at least one complete evaluation window,
+   and measure the actual steady cost
+7. retain a one-command drain/disable path and remove the service if it cannot
+   stay within the existing budget and health contract
+
+### Isolated Golden-Path Environment
+
+`G2-03` should be unblocked by fixing environment isolation, not by weakening
+the proof harness or allowing production credentials into an agent workspace.
+
+Use an ephemeral Railway environment with a declared rehearsal profile:
+
+1. distinct PostgreSQL instance and database identity
+2. distinct R2 bucket with credentials incapable of reading or writing
+   production objects
+3. staging-only application identity, release tokens, callback origins, and
+   provider variables
+4. hidden publication only
+5. provider-attested service, environment, domain, and variable-name identity
+6. explicit expiry and cleanup for every run-owned external resource
+
+The profile records resource identities and required variable names, never
+secret values. The controller validates isolation before starting the external
+agent and again before publication. After the Codex proof, Claude Desktop
+repeats the discovery/session bootstrap, and `G2-05` repairs only friction found
+by those real runs before the final replay.
+
+Permanent always-on staging remains unjustified until rehearsal frequency or
+measured setup cost proves it cheaper than ephemeral isolation.
+
+### Recovery Model
+
+`G3-03` should treat each data class according to whether it is authoritative or
+derived:
+
+| Data class                                      | Recovery authority                                                                                       |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| PostgreSQL product and operations state         | Recurring provider backup plus timed isolated restore and invariant verification                         |
+| Immutable uploaded release archives             | Object identity and digest verification; never rewritten in place                                        |
+| Extracted hosted-release output and screenshots | Derived data rebuilt by replaying the exact generation-scoped job                                        |
+| Managed creator media                           | Authoritative object plus database identity; restore/versioning behavior proved explicitly               |
+| Product telemetry                               | Database restore and deterministic projection rebuild                                                    |
+| Deployment binaries                             | Exact Git commit and provider deployment identity; roll back to the previous terminal-success deployment |
+
+The canonical recovery surface should expose status, backup evidence, isolated
+restore planning and verification, deployment rollback preview/apply, queue
+pause/resume, and one-job replay. It should orchestrate provider capabilities
+rather than build a second backup engine.
+
+Recovery proofs must record recovery point, recovery time, data/invariant
+checks, exact target isolation, and cleanup. A production database restore or
+destructive data action remains human-approved; safe isolated drills are
+autonomous.
+
+### Incident And GitHub Issue Projection
+
+`G4-03` adds durable incident state after the event store. It does not turn
+GitHub into the source of truth.
+
+The database model needs four explicit concepts:
+
+1. an incident identified by the contract's deterministic fingerprint and
+   protected by an optimistic revision
+2. append-only evidence links from source events, alerts, synthetic runs, and
+   provider attestations
+3. recurrence and resolution history on the same fingerprinted incident
+4. a specialized external-delivery outbox for issue/notification projections
+   with lease, retry, dead-letter, and idempotency state
+
+The correlator consumes each eligible source record exactly once through a
+unique evidence identity. Volatile values such as timestamps, request IDs, and
+messages never enter the fingerprint. A recurrence reopens the same incident;
+it does not create a second issue.
+
+GitHub delivery is a replaceable adapter. The initial adapter should use a
+repository-installed GitHub App with issue-only permission, never a maintainer
+personal token. A hidden incident marker and revision in the issue body make
+create/update/reopen idempotent. Labels, title, severity, affected environment,
+first/last occurrence, evidence references, and current runbook state are
+projections from the incident. Human edits outside the owned block are
+preserved.
+
+The operational worker may receive only this narrow GitHub App identity for the
+adapter. Platform web, realtime, browser worker, and creator-controlled code do
+not receive it. External delivery failure leaves the incident intact and
+retryable; it never rolls back source evidence.
+
+For 1.0, do not add PagerDuty, Slack, or another paid incident platform merely
+to complete a diagram. GitHub issues plus provider-native infrastructure alerts
+are enough if the failure drills prove the roadmap's urgent-versus-digest
+policy. The adapter boundary remains ready for another sink when actual use
+justifies it.
+
+### Governed Runbooks
+
+`G4-04` implements the already-versioned runbook contract as a closed catalog,
+not arbitrary shell execution.
+
+Every runbook follows one state path:
+
+```text
+descriptor -> preview -> invocation -> actions -> verification
+                                      -> rollback or escalation
+```
+
+Rules:
+
+1. descriptors are source-owned and versioned
+2. previews bind exact resources, current revisions, expected preconditions,
+   proposed actions, expiry, cost/blast-radius bounds, and a digest
+3. apply accepts only an unexpired matching preview and records actor,
+   authority, reason, incident, and idempotency identity
+4. actions use narrow typed adapters, never free-form commands or URLs
+5. verification is independent from the mutation response
+6. failed verification executes the declared bounded rollback when safe, then
+   escalates once; it never loops indefinitely
+7. every transition and before/after observation is append-only and available
+   through the CLI/MCP surface
+
+The initial catalog should stay intentionally small: pause/resume one expensive
+lane, repair an expired lease, replay one idempotent failed job, restart one
+unhealthy stateless service, and roll back one just-deployed stateless service
+to its exact previous known-good deployment. Only actions proven by drills are
+presented at `G4-05` for automatic allowlisting. Everything else remains
+observe, diagnose, or recommend.
+
+### Supply Chain, Privacy, And Emergency Release
+
+`G5-03` closes trust around the bytes and guidance Air Jam publishes:
+
+1. build public package tarballs once from an exact commit
+2. validate those exact tarballs through the release matrix and public-export
+   checks
+3. record package digest, package graph, lockfile/toolchain identity, dependency
+   inventory, and release manifest
+4. pass the same tarballs to the trusted-publishing job and verify the registry
+   integrity after publication
+5. pin third-party workflow actions immutably and keep workflow permissions
+   least-privileged
+6. bind AI-pack and agent-guidance updates to immutable version/digest metadata
+   with rollback protection before local files are changed
+7. prove that privacy documentation matches actual ingestion, redaction,
+   retention, deletion, and operator projection behavior
+8. make the emergency path use the same reviewed, build-once, token-free
+   publishing authority; urgency may shorten waiting, not change the identity of
+   the bytes or bypass provenance
+
+Railway's exact commit/deployment identity is sufficient for the 1.0 deployed
+container proof unless a real requirement appears for a separately distributed
+container image. Do not add a registry and signing service solely for ceremony.
+
+### Remaining Security Closure
+
+`G5-02` and `G5-03` close the ranked threat model through existing authorities,
+not finding-specific middleware scattered around transports. The implementation
+order should be:
+
+1. finish observation, rollback, and legacy-host disposition for
+   `games.air-jam.app`
+2. close machine-token destination binding and host/controller grant authority
+3. harden browser-worker authentication, resource bounds, and outbound-network
+   policy
+4. land realtime size/rate/admission work through the shared Gate 3 decision
+   service
+5. bound public reporting, protect reporter identity, and make takedown and
+   quarantine complete across catalog and direct URLs
+6. close provider-command targeting, redaction, replay, and audit gaps through
+   the same preview/apply model
+7. close package, AI-pack, privacy, retention, and emergency-release findings
+   through the supply-chain work above
+
+The threat-model register remains the finding authority. When proof closes a
+finding, update its closure evidence and the owning readiness item in the same
+change; do not copy the register into another checklist.
+
+## Remaining Delivery Sequence
+
+The sequence below expresses architectural dependency, not live status.
+Readiness still determines what an agent may claim.
+
+Blocks A through J are the current detailed sequence for the remaining work and
+supersede the earlier broad wave ordering wherever the two differ. The wave
+model remains useful only as historical program grouping.
+
+| Delivery block                | Governing items                    | Production-valid outcome                                                                                                   |
+| ----------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| A. Reliability hardening      | `G3-06`, `G4-07`, `G5-02`          | Review gaps, schema compatibility, and module boundaries are safe before continuous execution                              |
+| B. Production controls        | `G3-02`, `G3-07`, `G3-08`, `G5-03` | Artifact and evidence retention plus invisible realtime admission are complete; the operational worker is activated safely |
+| C. Isolated external proof    | `G2-03` through `G2-05`            | Codex and Claude Desktop prove the public lifecycle without production authority or maintainer intervention                |
+| D. Recovery proof             | `G3-03`                            | Recurring backup, isolated restore, deployment rollback, lane pause/resume, and job replay have measured evidence          |
+| E. Incident projection        | `G4-03`                            | One confirmed symptom becomes one maintained incident and GitHub issue                                                     |
+| F. Supply-chain trust         | `G5-03`                            | Exact validated package bytes, provenance, privacy, and emergency release are proven                                       |
+| G. Governed remediation       | `G4-04` through `G4-06`            | Typed runbooks preview, execute, verify, roll back, and escalate under the approved allowlist                              |
+| H. Scale and security closure | `G3-04`, `G3-05`, `G5-02`, `G5-04` | Capacity, degradation, residual security risk, recovery time, and the honest support envelope close                        |
+| I. Public proof               | `G6-02` through `G6-06`            | Docs, discovery, demo, article, release notes, and assets match shipped behavior                                           |
+| J. Candidate and launch       | `G7-01` through `G7-06`            | One immutable candidate is rehearsed, approved, launched, observed, and recorded                                           |
+
+After block A stabilizes shared contracts, C, D, E, F, and the independent
+control work inside B may proceed in parallel. B finishes only after F ratifies
+the retention policy, because production activation must exercise the final
+cleanup behavior. G waits on E because runbooks act on incident authority. H
+waits on the controls and recovery work because load and failure drills must
+exercise the real final mechanisms. I can begin from proven golden-path
+evidence but freezes only after operational and security behavior is settled.
+
+### Pull Request Shape
+
+Prefer reviewable, independently deployable pull requests in this order:
+
+1. `G4-07` reliability trust corrections and touched-module extraction
+2. `G3-06` migration inspect/plan/apply/verify lifecycle
+3. `G3-02` artifact retention and realtime admission, then `G3-07` operational
+   evidence retention after its policy is ratified
+4. `G3-08` operational-worker provisioning and observed activation
+5. isolated rehearsal profile and primary external-agent proof
+6. backup/restore/rollback/replay surface and drill
+7. incident persistence/correlation, then GitHub delivery
+8. package build-once/provenance and privacy/emergency proof
+9. runbook persistence/execution, then allowlist drill
+10. remaining security closure and capacity/degradation proof
+11. public demo/docs/story and exact release candidate
+
+Split a listed pull request further when it crosses unrelated authority or
+becomes difficult to review. Do not split one invariant across PRs in a way that
+leaves production with a bypass, two active paths, or a schema its running code
+cannot understand.
+
+Normal development keeps the established fast loop. A substantial multi-file
+batch gets one Canonicalizer pass before push. One open, green, merge-ready PR
+gets one GitHub-native Opus review. Merge only after required CI, review
+comments, preview/provider checks, and migration compatibility are clear.
+Production delivery is complete only when every affected service reaches
+terminal success and live health/readiness/revision evidence matches the merged
+commit.
+
+### Deliberate Non-Goals
+
+The remaining work must not expand into:
+
+1. a hosted general-purpose AI editor
+2. a Kubernetes, Kafka, or microservice migration
+3. multi-region or multi-replica realtime before one-replica evidence demands it
+4. a custom backup engine
+5. generic arbitrary-code remediation
+6. automatic production code merge or promotion
+7. a paid alerting platform without measured need
+8. a second task tracker, incident truth store, provider control plane, or
+   dashboard-only operating path
+
+These boundaries keep the architecture complete without confusing maturity
+with infrastructure count.
 
 ## Parallel Execution Rules
 

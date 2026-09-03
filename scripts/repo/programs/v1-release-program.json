@@ -3,12 +3,12 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-03T21:45:34.000Z",
+  "updatedAt": "2026-09-03T23:06:36.410Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
-    "agentHoursMin": 290,
-    "agentHoursMax": 530,
+    "agentHoursMin": 319,
+    "agentHoursMax": 586,
     "targetCalendarWeeksMin": 5,
     "targetCalendarWeeksMax": 7,
     "maintainerHoursMin": 28,
@@ -517,8 +517,8 @@
         "limit and overload tests plus agent-operable control commands"
       ],
       "owner": "/root/g3-controls",
-      "note": "Durable operational jobs now automate exact, resource-scoped cleanup for terminal release generations and inactive unassigned media with persisted manifests, tombstones, quota safety, and agent CLI controls; superseded-artifact retention and warnings, overload proof, realtime admission, and production rollout remain.",
-      "updatedAt": "2026-08-30T02:58:07.424Z",
+      "note": "Durable operational jobs and exact resource-scoped cleanup are implemented. Remaining original control scope is warned superseded-artifact retention, realtime admission, overload proof, and spend/kill-switch closure. Production migration lifecycle, operational reliability corrections, evidence retention, and worker activation are separately claimable as G3-06, G4-07, G3-07, and G3-08.",
+      "updatedAt": "2026-09-03T23:06:36.410Z",
       "evidence": [
         "document:docs/audits/v1-reliability/production-operational-job-worker-proof.md",
         "command:pnpm-test",
@@ -557,7 +557,8 @@
       "status": "pending",
       "dependsOn": [
         "G3-02",
-        "G3-03"
+        "G3-03",
+        "G3-08"
       ],
       "estimate": {
         "agentHoursMin": 15,
@@ -651,7 +652,8 @@
       "authority": "autonomous",
       "status": "pending",
       "dependsOn": [
-        "G4-02"
+        "G4-02",
+        "G4-07"
       ],
       "estimate": {
         "agentHoursMin": 14,
@@ -1092,6 +1094,91 @@
         "url:https://github.com/vucinatim/air-jam/actions/runs/33499610948"
       ],
       "completedAt": "2026-09-01T11:04:54.522Z"
+    },
+    {
+      "id": "G3-06",
+      "gate": "G3",
+      "lane": "reliability",
+      "priority": 21,
+      "title": "Implement the canonical production migration lifecycle and schema compatibility gates",
+      "authority": "autonomous",
+      "dependsOn": [
+        "G3-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 10,
+        "agentHoursMax": 20
+      },
+      "evidenceRequirements": [
+        "repo CLI inspect, immutable plan, guarded apply, and independent verify evidence",
+        "failure-path proof that incompatible schema drains affected writers and blocks worker claims"
+      ],
+      "status": "pending",
+      "updatedAt": "2026-09-03T23:06:15.092Z"
+    },
+    {
+      "id": "G4-07",
+      "gate": "G4",
+      "lane": "operations",
+      "priority": 21,
+      "title": "Harden the operational reliability foundation before continuous execution",
+      "authority": "autonomous",
+      "dependsOn": [
+        "G4-02"
+      ],
+      "estimate": {
+        "agentHoursMin": 8,
+        "agentHoursMax": 14
+      },
+      "evidenceRequirements": [
+        "redaction, normalized failure code, database-time chronology, per-check isolation, and fenced SLO regression tests"
+      ],
+      "status": "pending",
+      "updatedAt": "2026-09-03T23:06:15.778Z"
+    },
+    {
+      "id": "G3-07",
+      "gate": "G3",
+      "lane": "reliability",
+      "priority": 22,
+      "title": "Implement incident-safe operational evidence retention and cleanup",
+      "authority": "autonomous",
+      "dependsOn": [
+        "G4-07",
+        "G5-03"
+      ],
+      "estimate": {
+        "agentHoursMin": 6,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "ratified retention policy plus cleanup tests that preserve open incident and unresolved action evidence"
+      ],
+      "status": "pending",
+      "updatedAt": "2026-09-03T23:06:16.461Z"
+    },
+    {
+      "id": "G3-08",
+      "gate": "G3",
+      "lane": "reliability",
+      "priority": 23,
+      "title": "Activate and observe the production operational worker safely",
+      "authority": "autonomous",
+      "dependsOn": [
+        "G3-02",
+        "G3-06",
+        "G3-07",
+        "G4-07"
+      ],
+      "estimate": {
+        "agentHoursMin": 5,
+        "agentHoursMax": 10
+      },
+      "evidenceRequirements": [
+        "least-privilege provider attestation, migration compatibility, paused-lane startup, manual cycle, evaluation-window, cost, and rollback evidence"
+      ],
+      "status": "pending",
+      "updatedAt": "2026-09-03T23:06:17.154Z"
     }
   ]
 }

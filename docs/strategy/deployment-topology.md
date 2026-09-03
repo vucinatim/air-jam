@@ -1,7 +1,7 @@
 # Deployment Topology
 
-Last updated: 2026-09-01
-Status: canonical target topology; operational-job worker rollout pending
+Last updated: 2026-09-04
+Status: canonical target topology; operational worker rollout pending
 
 Related docs:
 
@@ -32,7 +32,7 @@ Air Jam production should be split into five surfaces:
 1. `Railway` for the platform app
 2. `Railway` for the realtime/API server
 3. `Railway` for the release screenshot and moderation worker
-4. `Railway` for the durable platform operational-job worker
+4. `Railway` for the durable platform operational worker
 5. `R2` for hosted release artifacts and managed media
 
 That split matches the actual workload boundaries:
@@ -194,9 +194,10 @@ The intended live shape is now also the deployment shape:
 1. Railway hosts the platform app
 2. Railway hosts the realtime server and Postgres
 3. Railway hosts the release browser worker
-4. the repo now defines the operational-job worker, but its production migration
-   and service rollout remain pending
-5. R2 stores release and media objects
+4. production migration `0034` for durable operational reliability is applied
+5. the repo defines the operational worker, but its production service rollout
+   remains pending the documented activation, drain, rollback, and cost proof
+6. R2 stores release and media objects
 
 The remaining operational work is the explicit operational-worker rollout and
 steady-state validation, not another topology redesign.
@@ -262,9 +263,9 @@ Worker-specific env should be limited to whatever the browser service needs to r
 
 The worker should not need database or multiplayer env unless a later design explicitly makes that necessary.
 
-### Platform Operational-Job Worker Env
+### Platform Operational Worker Env
 
-The operational-job worker owns:
+The operational worker owns:
 
 1. `DATABASE_URL`
 2. the release-storage variables required by artifact work and cleanup
@@ -275,9 +276,15 @@ The operational-job worker owns:
 6. `OPENAI_API_KEY` only when moderation mode enables it
 7. `AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN`
 8. optional `AIRJAM_PLATFORM_WORKER_*` scheduling and drain bounds
+9. the explicit `AIRJAM_SYNTHETIC_*` targets required by the enabled synthetic
+   catalog
+10. a repository-installed, issue-only GitHub App identity only after Gate
+    `G4-03` enables incident issue projection
 
-It should not receive GitHub auth, Better Auth, multiplayer master-key, or
-public-origin configuration.
+It should not receive Better Auth, the multiplayer master key, maintainer
+personal GitHub tokens, broad repository credentials, or creator-facing OAuth
+credentials. Synthetic public origins are inert check targets rather than
+application authority and remain explicitly configured.
 
 ## Recommended Hardening Path
 

@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-01
+Last updated: 2026-09-04
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -313,12 +313,17 @@ work state without becoming a second product authority:
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
 The foundation integration through PR `#61`, the production-health recovery in
-PR `#76`, and the public install matrix in PR `#74` are merged. PR `#75` remains
-the independent Gate 4 durable-reliability slice; it must be reviewed at its
-exact head, proven independently deployable, and merged separately. Production
-code is delivered incrementally; stable package promotion, public release
-visibility, final docs, the launch article, and distribution are coordinated
-only after one exact candidate passes rehearsal.
+PR `#76`, the public install matrix in PR `#74`, and the durable reliability
+loop in PR `#75` are merged. Production is healthy on exact main revision
+`c6a8a14a228adef6c367f99d94d26d514f1ae4b5`: the platform, realtime server,
+and browser worker all reached terminal `SUCCESS`, migration `0034` is applied,
+and live browser smoke covers the landing page, direct Arcade navigation,
+branding, and game-card hover behavior. The separately defined operational
+worker is not provisioned in production yet, so continuous synthetics, SLO
+evaluation, and alert generation are implemented but intentionally inactive.
+Production code is delivered incrementally; stable package promotion, public
+release visibility, final docs, the launch article, and distribution are
+coordinated only after one exact candidate passes rehearsal.
 
 Canonical agent reads are:
 
@@ -409,13 +414,19 @@ and its [proof](./audits/v1-operations/operational-contract-proof.md). The
 private runtime package, TypeScript declarations, JSON Schema export, and repo
 CLI now share one versioned model for events, correlation, incident state,
 runbook descriptors, immutable previews, invocations, and action audit records.
-Gate `G4-02` implements the next production-valid layer through the
+Gate `G4-02` is closed by the next production-valid layer through the
 [operational reliability contract](./contracts/operational-reliability-contract.md)
 and its [proof](./audits/v1-operations/operational-reliability-proof.md): durable
 event delivery, structured platform/server/runtime failures, six synthetics,
 four SLOs, durable alerts, truthful worker readiness, and one agent-operable CLI
-surface. It does not claim that incident correlation, external notification,
-GitHub issue delivery, or governed remediation workers are deployed.
+surface. Production schema migration `0034` is applied, but the operational
+worker service is deliberately not deployed until its activation preflight,
+drain, synthetic configuration, rollback, and cost-observation path is ready.
+The bounded reliability corrections discovered after `G4-02` are now owned by
+`G4-07`; operational evidence retention is owned by `G3-07`, and both gate the
+separately claimable `G3-08` activation.
+This does not claim that continuous evaluations, incident correlation, external
+notification, GitHub issue delivery, or governed remediation are deployed.
 
 Gate `G3-01` is closed with the
 [production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).
@@ -500,19 +511,24 @@ Execute the roadmap in dependency order:
 
 ## Immediate Next Steps
 
-1. agents select and claim from the canonical readiness queue
-2. provision or select a cost-approved isolated Railway staging environment,
-   then run the complete Codex Signal Relay authoring, semantic-control, repair,
-   evaluation, and hidden-staging lifecycle against the fixed scenario
-3. observe the live dedicated release origin, prove its bounded rollback path,
-   and continue the remaining auth, abuse, and privileged-endpoint work in
-   `G5-02` without reopening the player-facing navigation model
-4. finish warned long-term artifact retention, realtime admission, and overload
-   proof in `G3-02`
-5. run isolated backup/restore and rollback/replay work in parallel with durable
-   operational-event production against the completed Gate 4 contract
-6. preserve Gate 1 contracts while those independent implementation lanes run
-7. complete or block work only through evidence-backed readiness transitions
+The canonical architecture and delivery order now lives in
+[the remaining-1.0 section of the execution plan](./plans/v1-release-execution-plan.md#remaining-10-architecture).
+In short:
+
+1. close the bounded reliability-review gaps and add the canonical production
+   migration lifecycle before continuous worker activation
+2. finish warned artifact retention and invisible realtime admission in
+   `G3-02`, then provision and observe the operational worker safely
+3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
+   Codex plus Claude Desktop golden-path proofs
+4. run recovery proof, incident/GitHub delivery, and supply-chain trust as
+   independent lanes after the shared foundation is stable
+5. add governed runbooks, approve only the proven automatic allowlist, and run
+   overload, recovery, remediation, and security closure drills
+6. finish docs/demo/story against shipped evidence, then cut and rehearse one
+   immutable 1.0 candidate
+7. agents continue to claim, complete, or block work only through the canonical
+   readiness manifest
 
 ## Current Caveats
 
