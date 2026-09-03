@@ -109,6 +109,36 @@ test("the local candidate package set matches the public release graph", () => {
   );
 });
 
+test("the public server bundles private workspace runtime dependencies", () => {
+  const server = readJson("packages/server/package.json");
+  const privateWorkspaceDependencies = Object.entries(server.dependencies ?? {})
+    .filter(([, specifier]) => specifier.startsWith("workspace:"))
+    .map(([dependencyName]) => dependencyName)
+    .filter((dependencyName) => {
+      const packageDirectory = dependencyName.replace("@air-jam/", "");
+      const dependencyManifest = readJson(
+        `packages/${packageDirectory}/package.json`,
+      );
+      return dependencyManifest.private === true;
+    });
+  const buildConfig = fs.readFileSync(
+    path.join(repoRoot, "packages/server/tsup.config.ts"),
+    "utf8",
+  );
+
+  assert.deepEqual(privateWorkspaceDependencies.sort(), [
+    "@air-jam/database-contract",
+    "@air-jam/operations-contract",
+  ]);
+  for (const dependencyName of privateWorkspaceDependencies) {
+    assert.match(
+      buildConfig,
+      new RegExp(`noExternal:[\\s\\S]*["']${dependencyName}["']`, "u"),
+      `${dependencyName} must be bundled because publish preparation removes private workspace dependencies`,
+    );
+  }
+});
+
 test("the canonical AI pack manifest is committed with the CLI assets", () => {
   const manifestPath =
     "packages/cli/template-assets/managed/.airjam/ai-pack.json";

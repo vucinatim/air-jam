@@ -15,6 +15,7 @@ export default defineConfig({
     "@air-jam/devtools-core",
     "@air-jam/env",
     "@air-jam/harness",
+    "@air-jam/operations-contract",
   ],
   // Add shebang only to CLI file after build
   onSuccess: async () => {
