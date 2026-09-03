@@ -2,11 +2,15 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
-import type { HostArcadeSessionSnapshot } from "../protocol";
+import type {
+  HostArcadeSessionSnapshot,
+  HostArcadeSurfaceCheckpoint,
+} from "../protocol";
 
 export interface HostArcadeRestoreStateView {
   phase: "idle" | "awaiting_ack" | "pending_restore";
   session: HostArcadeSessionSnapshot | null;
+  surfaceCheckpoint: HostArcadeSurfaceCheckpoint | null;
   clear: () => void;
 }
 
@@ -24,6 +28,7 @@ export const useHostArcadeRestore = (): HostArcadeRestoreStateView => {
     useShallow((s) => ({
       phase: s.hostArcadeRestore.phase,
       session: s.hostArcadeRestore.session,
+      surfaceCheckpoint: s.hostArcadeRestore.surfaceCheckpoint,
       clear: s.clearHostArcadeRestore,
     })),
   );

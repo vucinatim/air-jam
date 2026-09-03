@@ -1,9 +1,11 @@
+import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import type {
   ChildHostCapability,
   ControllerPresenceNotice,
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
   ControllerStateMessage,
+  HostArcadeSurfaceCheckpoint,
   HostArcadeSessionSnapshot,
   PlayerProfile,
   RoomCode,
@@ -258,6 +260,32 @@ export const buildArcadeSessionForHostAck = (
   return {
     gameId: session.activeGameId,
     launchCapability: refreshedCapability,
+  };
+};
+
+/**
+ * Counter continuity for a fresh Arcade shell. This deliberately excludes the
+ * semantic surface payload; route + active session remain the restore authority.
+ */
+export const buildArcadeSurfaceCheckpointForHostAck = (
+  session: RoomSession,
+): HostArcadeSurfaceCheckpoint | undefined => {
+  const snapshot = session.replicatedStoreSnapshots.get(
+    AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+  );
+  if (!snapshot && !session.activeGameId) {
+    return undefined;
+  }
+
+  const snapshotEpoch = snapshot?.data.epoch;
+  return {
+    epoch:
+      typeof snapshotEpoch === "number" &&
+      Number.isSafeInteger(snapshotEpoch) &&
+      snapshotEpoch >= 0
+        ? snapshotEpoch
+        : 1,
+    revision: snapshot?.revision ?? 0,
   };
 };
 

@@ -157,6 +157,8 @@ interface StoreRuntimeSnapshot {
   resolvedStoreDomain: string;
   connectionStatus: string | null;
   canBroadcastHostState: boolean;
+  hostStateSyncBlocked: boolean;
+  hostStateRevisionFloor: number;
   connectedPlayerIds: string[];
 }
 
@@ -363,6 +365,8 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       resolvedStoreDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
       connectionStatus: null,
       canBroadcastHostState: false,
+      hostStateSyncBlocked: false,
+      hostStateRevisionFloor: 0,
       connectedPlayerIds: [],
     },
   };
@@ -673,7 +677,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     if (role === "host") {
       let syncedStateData = stripActionsFromState(store.getState());
       let syncedStateSignature = JSON.stringify(syncedStateData);
-      let syncRevision = 0;
+      let syncRevision = runtimeSnapshotRef.current.hostStateRevisionFloor;
 
       const emitHostStateSync = (requestId?: string): void => {
         const runtime = runtimeSnapshotRef.current;
@@ -686,6 +690,8 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         ) {
           return;
         }
+
+        syncRevision = Math.max(syncRevision, runtime.hostStateRevisionFloor);
 
         runtime.socket.emit("host:state_sync", {
           roomId,
@@ -709,9 +715,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         if (
           runtime.role !== "host" ||
           runtime.roomId !== roomId ||
-          runtime.resolvedStoreDomain !== resolvedStoreDomain ||
-          !runtime.canBroadcastHostState ||
-          !runtime.socket
+          runtime.resolvedStoreDomain !== resolvedStoreDomain
         ) {
           return;
         }
@@ -724,8 +728,14 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
 
         syncedStateData = stateData;
         syncedStateSignature = nextSignature;
+        syncRevision = Math.max(
+          syncRevision,
+          runtime.hostStateRevisionFloor,
+        );
         syncRevision += 1;
-        emitHostStateSync();
+        if (runtime.canBroadcastHostState && runtime.socket) {
+          emitHostStateSync();
+        }
       });
 
       const handleAction = (
@@ -819,6 +829,9 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           return;
         }
         if (payload.storeDomain !== resolvedStoreDomain) {
+          return;
+        }
+        if (runtimeSnapshotRef.current.hostStateSyncBlocked) {
           return;
         }
         if (payload.revision < syncRevision) {
@@ -917,14 +930,18 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     const hostArcadeRestore = useAirJamState(
       (state) => state.hostArcadeRestore,
     );
-    const blockArcadeShellHostBroadcast =
+    const blockArcadeShellHostStateSync =
       resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN &&
       hostArcadeRestore.phase !== "idle";
+    const hostStateRevisionFloor =
+      resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN
+        ? (hostArcadeRestore.surfaceCheckpoint?.revision ?? 0)
+        : 0;
     const canBroadcastHostState =
       role === "host" &&
       !!roomId &&
       registeredRoomId === roomId &&
-      !blockArcadeShellHostBroadcast;
+      !blockArcadeShellHostStateSync;
     const connectedPlayerIds = useMemo(
       () => Array.from(new Set(players.map((player) => player.id))).sort(),
       [players],
@@ -949,6 +966,8 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       resolvedStoreDomain,
       connectionStatus,
       canBroadcastHostState,
+      hostStateSyncBlocked: blockArcadeShellHostStateSync,
+      hostStateRevisionFloor,
       connectedPlayerIds,
     };
 
