@@ -495,6 +495,7 @@ export const ArcadeSystem = ({
         games,
         gamesCatalogReady,
         mode,
+        browserOverlay: getPreferredBrowserOverlay(),
       }),
     );
   }, [
@@ -505,6 +506,7 @@ export const ArcadeSystem = ({
     hostRouteIntent,
     games,
     gamesCatalogReady,
+    getPreferredBrowserOverlay,
     mode,
   ]);
 

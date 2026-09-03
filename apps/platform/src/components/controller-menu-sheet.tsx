@@ -1,5 +1,6 @@
 "use client";
 
+import { AirJamLogo } from "@/components/air-jam-logo";
 import { ControllerLocalSettingsPanel } from "@/components/controller-local-settings-panel";
 import { ControllerMenuNotch } from "@/components/controller-menu-notch";
 import { PlatformSettingsPanel } from "@/components/platform-settings-panel";
@@ -40,7 +41,6 @@ import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
 import { getDiceBearAdventurerNeutralUrl, PlayerAvatar } from "@air-jam/sdk/ui";
 import { Info, LogOut, Maximize, QrCode, ScanLine, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   startTransition,
@@ -615,13 +615,7 @@ export function ControllerMenuSheet({
                       ease: "easeInOut",
                     }}
                   >
-                    <Image
-                      src="/images/airjam-logo.png"
-                      alt=""
-                      width={64}
-                      height={20}
-                      className="h-4 w-auto object-contain"
-                    />
+                    <AirJamLogo alt="" className="h-4 w-auto object-contain" />
                   </motion.div>
                 </motion.div>
               )}

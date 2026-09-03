@@ -13,11 +13,11 @@ import {
   UserRound,
   Variable,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import * as React from "react";
 
+import { AirJamLogo } from "@/components/air-jam-logo";
 import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
@@ -70,11 +70,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             ) : (
               <SidebarMenuButton size="lg" asChild>
                 <Link href="/dashboard/games">
-                  <Image
-                    src="/images/airjam-logo.png"
+                  <AirJamLogo
                     alt="Air Jam"
-                    width={32}
-                    height={32}
                     className="size-8 shrink-0 object-contain transition-all group-data-[collapsible=icon]:size-4"
                   />
                   <div className="grid flex-1 text-left text-sm leading-tight">

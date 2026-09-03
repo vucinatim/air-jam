@@ -84,6 +84,7 @@ export type ArcadeSessionEvent =
       games: ArcadeGame[];
       gamesCatalogReady: boolean;
       mode: ArcadeMode;
+      browserOverlay: ArcadeOverlayKind;
     }
   | {
       type: "close.requested";
@@ -113,6 +114,21 @@ const planClose = ({
   { type: "surface.overlay", overlay: browserOverlay },
   { type: "runtime.exit" },
   ...(notifyServer ? ([{ type: "server.close" }] as const) : []),
+];
+
+const planRejectedRestore = ({
+  mode,
+  browserOverlay,
+}: {
+  mode: ArcadeMode;
+  browserOverlay: ArcadeOverlayKind;
+}): ArcadeSessionEffect[] => [
+  ...(mode === "arcade" ? ([{ type: "history.browser" }] as const) : []),
+  { type: "surface.browser" },
+  { type: "surface.overlay", overlay: browserOverlay },
+  { type: "runtime.reset" },
+  { type: "server.close" },
+  { type: "restore.clear" },
 ];
 
 export const orchestrateArcadeSession = (
@@ -198,13 +214,13 @@ export const orchestrateArcadeSession = (
 
     case "restore.requested": {
       if (event.hostRouteIntent.kind === "browser") {
-        return [{ type: "server.close" }, { type: "restore.clear" }];
+        return planRejectedRestore(event);
       }
       if (
         event.hostRouteIntent.gameId &&
         event.session.gameId !== event.hostRouteIntent.gameId
       ) {
-        return [{ type: "server.close" }, { type: "restore.clear" }];
+        return planRejectedRestore(event);
       }
 
       const game =
@@ -212,13 +228,13 @@ export const orchestrateArcadeSession = (
           (candidate) => candidate.id === event.session.gameId,
         ) ?? null;
       if (!game) {
-        return event.gamesCatalogReady ? [{ type: "restore.clear" }] : [];
+        return event.gamesCatalogReady ? planRejectedRestore(event) : [];
       }
 
       const normalizedGameUrl = normalizeRuntimeUrl(game.url);
       const controllerUrl = normalizeRuntimeUrl(game.controllerUrl);
       if (!normalizedGameUrl || !controllerUrl) {
-        return [{ type: "restore.clear" }];
+        return planRejectedRestore(event);
       }
 
       const index = event.games.findIndex(
