@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-09-01
+Last updated: 2026-09-04
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -30,7 +30,9 @@ The 1.0 release roadmap is the governing product track:
 1. [plans/v1-release-roadmap-plan.md](./plans/v1-release-roadmap-plan.md)
 
 The machine-backed subordinate execution plan owns dependency-aware work
-packages, evidence, and the batched checkpoint model:
+packages, evidence, the batched checkpoint model, and the canonical architecture
+for the remaining 1.0 reliability, recovery, incident, security, and release
+work:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 

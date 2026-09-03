@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-09-03
+Last updated: 2026-09-04
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,30 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-09-04 - Public Install And Durable Reliability Landed In Production
+
+- merged the six-cell public install proof in PR `#74` and the durable
+  operational reliability loop in PR `#75` after protected CI, Railway previews,
+  Canonicalizer, and one final GitHub-native Claude Opus review were clear
+- deployed exact main revision
+  `c6a8a14a228adef6c367f99d94d26d514f1ae4b5` successfully across the platform,
+  realtime server, and release browser worker
+- applied production migration `0034` after verifying the prior migration head,
+  then confirmed all six new operational reliability tables and the new journal
+  head without exposing database credentials
+- verified platform health/readiness, realtime and browser-worker health, clean
+  provider logs, and live browser behavior for branding, direct `/arcade`
+  navigation, and card-hover presentation
+- proved the repo-owned reliability CLI can inspect its six synthetics and four
+  SLOs against production while reporting no fabricated run or alert state
+- deliberately left the separately deployable operational worker unprovisioned:
+  continuous synthetics and alert evaluation wait for the Gate `G3-02`
+  activation preflight, drain/rollback proof, required configuration, and actual
+  cost observation
+- recorded the remaining implementation architecture directly in the canonical
+  [1.0 release execution plan](./plans/v1-release-execution-plan.md#remaining-10-architecture)
+  rather than creating another progress tracker
 
 ## 2026-09-01 - Creator Releases Moved To A Dedicated Production Origin
 
