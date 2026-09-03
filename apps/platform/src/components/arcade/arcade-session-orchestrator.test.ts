@@ -141,6 +141,7 @@ describe("arcade session orchestrator", () => {
       },
       hostRouteIntent: { kind: "game" as const, gameId: game.id },
       mode: "arcade" as const,
+      browserOverlay: "hidden" as const,
     };
 
     expect(
@@ -169,7 +170,7 @@ describe("arcade session orchestrator", () => {
     ]);
   });
 
-  it("closes a stale server child when route intent rejects restore", () => {
+  it("fully returns to the browser when a bare arcade route rejects a restored game", () => {
     expect(
       effectTypes(
         orchestrateArcadeSession({
@@ -185,9 +186,46 @@ describe("arcade session orchestrator", () => {
           games: [game],
           gamesCatalogReady: true,
           mode: "arcade",
+          browserOverlay: "qr",
         }),
       ),
-    ).toEqual(["server.close", "restore.clear"]);
+    ).toEqual([
+      "history.browser",
+      "surface.browser",
+      "surface.overlay",
+      "runtime.reset",
+      "server.close",
+      "restore.clear",
+    ]);
+  });
+
+  it("fully returns to the browser when a restored game is stale after catalog hydration", () => {
+    expect(
+      effectTypes(
+        orchestrateArcadeSession({
+          type: "restore.requested",
+          session: {
+            gameId: "removed_game",
+            launchCapability: {
+              token: "restored",
+              expiresAt: 1_800_000_000_000,
+            },
+          },
+          hostRouteIntent: { kind: "game", gameId: "removed_game" },
+          games: [game],
+          gamesCatalogReady: true,
+          mode: "arcade",
+          browserOverlay: "hidden",
+        }),
+      ),
+    ).toEqual([
+      "history.browser",
+      "surface.browser",
+      "surface.overlay",
+      "runtime.reset",
+      "server.close",
+      "restore.clear",
+    ]);
   });
 
   it("maps browser history back and server child close onto the same exit convergence", () => {
