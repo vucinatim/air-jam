@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { operationalJobAttempts, operationalJobs } from "@/db/schema";
+import { resolveDatabaseAuthorityNow } from "@/server/operations/database-authority";
 import { enqueueOperationalJobFailureEventInTransaction } from "@/server/operations/operational-job-event-producer";
 import { acquireOperationalLaneLock } from "@/server/operations/operational-lane-lock";
 import {
@@ -20,7 +21,6 @@ import {
   normalizeOperationalJobJsonObject,
   normalizeRequiredJobText,
   readCommandJobSnapshots,
-  resolveOperationalJobNow,
   serializeOperationalJobForOperator,
   type JobDatabase,
   type JobTransaction,
@@ -95,7 +95,7 @@ export const claimOperationalJob = async ({
   return database.transaction(async (tx) => {
     await acquireOperationalJobLock(tx, "claim", kind);
     await acquireOperationalLaneLock(tx, policy.lane);
-    const authorityNow = await resolveOperationalJobNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const laneControl = await tx.query.operationalLaneControls.findFirst({
       where: (table, { eq }) => eq(table.lane, policy.lane),
     });
@@ -261,7 +261,7 @@ export const assertOperationalJobAttemptAuthority = async ({
     .from(operationalJobs)
     .where(eq(operationalJobs.id, jobId))
     .for("update");
-  const authorityNow = await resolveOperationalJobNow(tx, testNow);
+  const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
   const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
   if (job.status !== "running") {
     throw new OperationalJobLeaseError(
@@ -325,7 +325,7 @@ export const heartbeatOperationalJob = async ({
       .from(operationalJobs)
       .where(eq(operationalJobs.id, jobId))
       .for("update");
-    const authorityNow = await resolveOperationalJobNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
     const policy = getOperationalJobPolicy(job.kind);
     const leaseExpiresAt = capLeaseAtDeadline({
@@ -427,7 +427,7 @@ export const recordOperationalJobStage = async ({
       .from(operationalJobs)
       .where(eq(operationalJobs.id, jobId))
       .for("update");
-    const authorityNow = await resolveOperationalJobNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
     if (job.status !== "running") {
       throw new OperationalJobLeaseError(
@@ -546,7 +546,7 @@ export const completeOperationalJobInTransaction = async ({
     .from(operationalJobs)
     .where(eq(operationalJobs.id, jobId))
     .for("update");
-  const authorityNow = await resolveOperationalJobNow(tx, testNow);
+  const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
   const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
   if (job.status === "cancel_requested") {
     throw new OperationalJobLeaseError(
@@ -663,7 +663,7 @@ export const failOperationalJobAttempt = async ({
       .from(operationalJobs)
       .where(eq(operationalJobs.id, jobId))
       .for("update");
-    const authorityNow = await resolveOperationalJobNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const job = assertFreshLease(current, leaseToken, authorityNow, workerId);
     const policy = getOperationalJobPolicy(job.kind);
     const structuredFailure = normalizeOperationalJobFailure({

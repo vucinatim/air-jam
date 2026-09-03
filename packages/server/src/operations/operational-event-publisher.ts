@@ -1,4 +1,6 @@
 import {
+  DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
+  areOperationalEventEnvelopesIdempotentlyEquivalent,
   createStructuredOperationalFailure,
   operationalEventEnvelopeSchemaV1,
   type DeploymentEnvironment,
@@ -7,7 +9,6 @@ import {
   type OperationalSubjectType,
 } from "@air-jam/operations-contract";
 import { eq } from "drizzle-orm";
-import { isDeepStrictEqual } from "node:util";
 import type { ServerDatabase } from "../db.js";
 import { operationalEventOutbox } from "../db.js";
 import type { ServerLogger } from "../logging/logger.js";
@@ -43,6 +44,55 @@ export interface ServerOperationalEventPublisher {
     input: ServerRuntimeErrorReportInput,
   ): Promise<void>;
 }
+
+const enqueueOperationalEvent = async ({
+  database,
+  event,
+  persistedAt,
+}: {
+  database: ServerDatabase;
+  event: OperationalEventEnvelopeV1;
+  persistedAt: Date;
+}): Promise<void> => {
+  const maxAttempts = DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS;
+  const [inserted] = await database
+    .insert(operationalEventOutbox)
+    .values({
+      id: event.eventId,
+      contractVersion: event.contractVersion,
+      envelope: event,
+      maxAttempts,
+      availableAt: persistedAt,
+      createdAt: persistedAt,
+      updatedAt: persistedAt,
+    })
+    .onConflictDoNothing({ target: operationalEventOutbox.id })
+    .returning({ id: operationalEventOutbox.id });
+  if (inserted) return;
+
+  const [existing] = await database
+    .select({
+      envelope: operationalEventOutbox.envelope,
+      maxAttempts: operationalEventOutbox.maxAttempts,
+    })
+    .from(operationalEventOutbox)
+    .where(eq(operationalEventOutbox.id, event.eventId))
+    .limit(1);
+  if (
+    !existing ||
+    existing.maxAttempts !== maxAttempts ||
+    !areOperationalEventEnvelopesIdempotentlyEquivalent(
+      existing.envelope,
+      event,
+    )
+  ) {
+    const conflict = new Error(
+      "The operational event ID was already used for a different event.",
+    );
+    conflict.name = "OperationalEventConflictError";
+    throw conflict;
+  }
+};
 
 export const createDatabaseServerOperationalEventPublisher = ({
   database,
@@ -85,15 +135,7 @@ export const createDatabaseServerOperationalEventPublisher = ({
       payload: { failure },
       evidence: [],
     });
-    await database.insert(operationalEventOutbox).values({
-      id: event.eventId,
-      contractVersion: event.contractVersion,
-      envelope: event,
-      maxAttempts: 8,
-      availableAt: occurredAt,
-      createdAt: occurredAt,
-      updatedAt: occurredAt,
-    });
+    await enqueueOperationalEvent({ database, event, persistedAt: occurredAt });
   },
   async publishRuntimeErrorReport(input) {
     if (!database) return;
@@ -136,46 +178,7 @@ export const createDatabaseServerOperationalEventPublisher = ({
       },
       evidence: [],
     });
-    const [inserted] = await database
-      .insert(operationalEventOutbox)
-      .values({
-        id: event.eventId,
-        contractVersion: event.contractVersion,
-        envelope: event,
-        maxAttempts: 8,
-        availableAt: observedAt,
-        createdAt: observedAt,
-        updatedAt: observedAt,
-      })
-      .onConflictDoNothing({ target: operationalEventOutbox.id })
-      .returning({ id: operationalEventOutbox.id });
-    if (inserted) return;
-
-    const [existing] = await database
-      .select({ envelope: operationalEventOutbox.envelope })
-      .from(operationalEventOutbox)
-      .where(eq(operationalEventOutbox.id, event.eventId))
-      .limit(1);
-    const stableProjection = (envelope: OperationalEventEnvelopeV1) => ({
-      authority: envelope.authority,
-      source: envelope.source,
-      subject: envelope.subject,
-      correlation: envelope.correlation,
-      payload: envelope.payload,
-    });
-    if (
-      !existing ||
-      !isDeepStrictEqual(
-        stableProjection(existing.envelope),
-        stableProjection(event),
-      )
-    ) {
-      const conflict = new Error(
-        "The runtime report ID was already used for a different report.",
-      );
-      conflict.name = "OperationalEventConflictError";
-      throw conflict;
-    }
+    await enqueueOperationalEvent({ database, event, persistedAt: observedAt });
   },
 });
 

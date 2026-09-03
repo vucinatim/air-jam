@@ -3,6 +3,7 @@ import type { ZodType } from "zod";
 export declare const OPERATIONS_CONTRACT_VERSION: 1;
 export declare const OPERATIONS_CONTRACT_NAME: "air-jam-operations";
 export declare const OPERATIONS_EVENT_MAX_PAYLOAD_BYTES: number;
+export declare const DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS: 8;
 
 export declare const deploymentEnvironments: readonly [
   "production",
@@ -504,6 +505,17 @@ export declare const runbookActionStatusTransitions: Readonly<
 >;
 
 export declare const jsonValueSchema: ZodType<JsonValue>;
+export declare const serializeCanonicalOperationsJson: (
+  value: unknown,
+) => string;
+export declare const createOperationsDocumentDigest: (value: unknown) => string;
+export declare const areOperationalEventEnvelopesIdempotentlyEquivalent: (
+  left: unknown,
+  right: unknown,
+) => boolean;
+export declare const resolveDeploymentEnvironment: (
+  env?: Record<string, string | undefined>,
+) => DeploymentEnvironment;
 export declare const operationalCorrelationSchemaV1: ZodType<OperationalCorrelationV1>;
 export declare const operationalActorSchemaV1: ZodType<OperationalActorV1>;
 export declare const operationalEvidenceSchemaV1: ZodType<OperationalEvidenceV1>;

@@ -4,6 +4,7 @@ import { toJSONSchema, z } from "zod";
 export const OPERATIONS_CONTRACT_VERSION = 1;
 export const OPERATIONS_CONTRACT_NAME = "air-jam-operations";
 export const OPERATIONS_EVENT_MAX_PAYLOAD_BYTES = 64 * 1024;
+export const DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS = 8;
 
 export const deploymentEnvironments = Object.freeze([
   "production",
@@ -227,10 +228,41 @@ const canonicalizeJson = (value) => {
   return value;
 };
 
-const sha256Json = (value) =>
+export const serializeCanonicalOperationsJson = (value) =>
+  JSON.stringify(canonicalizeJson(value));
+
+export const createOperationsDocumentDigest = (value) =>
   createHash("sha256")
-    .update(JSON.stringify(canonicalizeJson(value)), "utf8")
+    .update(serializeCanonicalOperationsJson(value), "utf8")
     .digest("hex");
+
+export const areOperationalEventEnvelopesIdempotentlyEquivalent = (
+  left,
+  right,
+) => {
+  const normalize = (value) => {
+    const envelope = operationalEventEnvelopeSchemaV1.parse(value);
+    const {
+      occurredAt: _occurredAt,
+      observedAt: _observedAt,
+      ...identity
+    } = envelope;
+    return identity;
+  };
+  return (
+    serializeCanonicalOperationsJson(normalize(left)) ===
+    serializeCanonicalOperationsJson(normalize(right))
+  );
+};
+
+export const resolveDeploymentEnvironment = (env = process.env) => {
+  const explicit = env.AIRJAM_OPERATIONAL_ENVIRONMENT?.trim();
+  if (deploymentEnvironments.includes(explicit)) return explicit;
+  const railway = env.RAILWAY_ENVIRONMENT_NAME?.trim();
+  if (railway === "production") return "production";
+  if (railway) return "preview";
+  return env.NODE_ENV === "test" ? "test" : "development";
+};
 
 const jsonPrimitiveSchema = z.union([
   z.string(),
@@ -1329,13 +1361,15 @@ export const createIncidentFingerprint = (rawInput) => {
 };
 
 export const createRunbookDescriptorDigest = (rawRunbook) =>
-  sha256Json(operationalRunbookSchemaV1.parse(rawRunbook));
+  createOperationsDocumentDigest(operationalRunbookSchemaV1.parse(rawRunbook));
 
 export const createRunbookParametersDigest = (rawParameters) =>
-  sha256Json(boundedJsonRecordSchema.parse(rawParameters));
+  createOperationsDocumentDigest(boundedJsonRecordSchema.parse(rawParameters));
 
 export const createRunbookPreviewDigest = (rawPreview) =>
-  sha256Json(operationalRunbookPreviewSchemaV1.parse(rawPreview));
+  createOperationsDocumentDigest(
+    operationalRunbookPreviewSchemaV1.parse(rawPreview),
+  );
 
 export const assertIncidentStatusTransition = (fromStatus, toStatus) => {
   const from = z.enum(incidentStatuses).parse(fromStatus);

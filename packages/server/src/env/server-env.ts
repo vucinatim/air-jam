@@ -1,4 +1,8 @@
 import { validateEnv } from "@air-jam/env";
+import {
+  deploymentEnvironments,
+  resolveDeploymentEnvironment,
+} from "@air-jam/operations-contract";
 import { z } from "zod";
 import {
   REMOTE_DATABASE_BLOCKED_MESSAGE,
@@ -122,7 +126,7 @@ const rawServerEnvSchema = z
     NODE_ENV: optionalEnvString,
     AIRJAM_OPERATIONAL_ENVIRONMENT: createOptionalEnumSchema(
       "AIRJAM_OPERATIONAL_ENVIRONMENT",
-      ["production", "preview", "development", "test"],
+      deploymentEnvironments,
     ),
     PORT: createPositiveIntegerSchema("PORT", 4000),
     AIR_JAM_RATE_LIMIT_WINDOW_MS: createPositiveIntegerSchema(
@@ -239,17 +243,7 @@ export const loadServerEnv = (
   const railwayEnvironmentName = env.RAILWAY_ENVIRONMENT_NAME?.trim();
   const isRailwayPreviewEnvironment =
     Boolean(railwayEnvironmentName) && railwayEnvironmentName !== "production";
-  const operationalEnvironment: ServerEnvConfig["operationalEnvironment"] =
-    (parsed.AIRJAM_OPERATIONAL_ENVIRONMENT as
-      | ServerEnvConfig["operationalEnvironment"]
-      | undefined) ??
-    (railwayEnvironmentName === "production"
-      ? "production"
-      : railwayEnvironmentName
-        ? "preview"
-        : nodeEnv === "test"
-          ? "test"
-          : "development");
+  const operationalEnvironment = resolveDeploymentEnvironment(env);
 
   const authMode = resolveAuthMode({
     configuredAuthMode: parsed.AIR_JAM_AUTH_MODE as AuthMode | undefined,

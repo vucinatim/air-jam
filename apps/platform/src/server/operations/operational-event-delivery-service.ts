@@ -5,6 +5,9 @@ import {
   operationalEvents,
 } from "@/db/schema";
 import {
+  DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
+  areOperationalEventEnvelopesIdempotentlyEquivalent,
+  createOperationsDocumentDigest,
   createStructuredOperationalFailure,
   normalizeUnknownOperationalFailure,
   operationalEventEnvelopeSchemaV1,
@@ -13,7 +16,7 @@ import {
   type OperationalFailureV1,
 } from "@air-jam/operations-contract";
 import { and, asc, count, eq, lt, lte, sql } from "drizzle-orm";
-import { createHash } from "node:crypto";
+import { resolveDatabaseAuthorityNow } from "./database-authority";
 
 export type OperationalEventDatabase = typeof db;
 export type OperationalEventTransaction = Parameters<
@@ -43,40 +46,6 @@ const normalizeRequiredText = (value: string, label: string): string => {
   if (!normalized)
     throw new OperationalEventConflictError(`${label} is required.`);
   return normalized;
-};
-
-const canonicalize = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, canonicalize(nested)]),
-    );
-  }
-  return value;
-};
-
-const sameDocument = (left: unknown, right: unknown): boolean =>
-  JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
-
-const sha256Document = (value: unknown): string =>
-  createHash("sha256")
-    .update(JSON.stringify(canonicalize(value)), "utf8")
-    .digest("hex");
-
-const resolveAuthorityNow = async (
-  tx: OperationalEventTransaction,
-  testNow?: Date,
-): Promise<Date> => {
-  if (testNow) return new Date(testNow);
-  const result = await tx.execute(
-    sql<{ now: Date }>`select statement_timestamp() as now`,
-  );
-  const now = (result as unknown as Array<{ now: Date | string }>)[0]?.now;
-  if (!now)
-    throw new Error("PostgreSQL did not return operational authority time.");
-  return new Date(now);
 };
 
 const serializeOutbox = (row: OutboxRow) => ({
@@ -110,7 +79,7 @@ const serializeOutbox = (row: OutboxRow) => ({
 export const enqueueOperationalEventInTransaction = async ({
   tx,
   event: rawEvent,
-  maxAttempts = 8,
+  maxAttempts = DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
   now,
 }: {
   tx: OperationalEventTransaction;
@@ -146,7 +115,10 @@ export const enqueueOperationalEventInTransaction = async ({
   if (
     !existing ||
     existing.maxAttempts !== maxAttempts ||
-    !sameDocument(existing.envelope, event)
+    !areOperationalEventEnvelopesIdempotentlyEquivalent(
+      existing.envelope,
+      event,
+    )
   ) {
     throw new OperationalEventConflictError(
       "The operational event ID was already used for a different envelope.",
@@ -188,7 +160,7 @@ export const claimOperationalEventDelivery = async ({
 }): Promise<OutboxRow | null> => {
   const workerId = normalizeRequiredText(rawWorkerId, "Worker ID");
   return database.transaction(async (tx) => {
-    const authorityNow = await resolveAuthorityNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const [candidate] = await tx
       .select()
       .from(operationalEventOutbox)
@@ -279,7 +251,7 @@ export const completeOperationalEventDelivery = async ({
       .from(operationalEventOutbox)
       .where(eq(operationalEventOutbox.id, eventId))
       .for("update");
-    const authorityNow = await resolveAuthorityNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const row = assertFreshDeliveryLease({
       row: current,
       leaseToken,
@@ -310,7 +282,13 @@ export const completeOperationalEventDelivery = async ({
     const stored = await tx.query.operationalEvents.findFirst({
       where: (table, { eq }) => eq(table.id, event.eventId),
     });
-    if (!stored || !sameDocument(stored.envelope, event)) {
+    if (
+      !stored ||
+      !areOperationalEventEnvelopesIdempotentlyEquivalent(
+        stored.envelope,
+        event,
+      )
+    ) {
       throw new OperationalEventConflictError(
         "The event store already contains a different document for this event ID.",
       );
@@ -365,7 +343,7 @@ export const failOperationalEventDelivery = async ({
       .from(operationalEventOutbox)
       .where(eq(operationalEventOutbox.id, eventId))
       .for("update");
-    const authorityNow = await resolveAuthorityNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const row = assertFreshDeliveryLease({
       row: current,
       leaseToken,
@@ -422,7 +400,7 @@ export const repairExpiredOperationalEventDeliveries = async ({
     );
   }
   return database.transaction(async (tx) => {
-    const authorityNow = await resolveAuthorityNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const rows = await tx
       .select()
       .from(operationalEventOutbox)
@@ -508,13 +486,17 @@ const normalizeDeadLetterRequeueInput = ({
     eventId: normalized.eventId,
     maxAttempts: normalized.maxAttempts,
   };
-  return { ...normalized, request, requestHash: sha256Document(request) };
+  return {
+    ...normalized,
+    request,
+    requestHash: createOperationsDocumentDigest(request),
+  };
 };
 
 export const previewOperationalEventDeadLetterRequeue = async ({
   database = db,
   eventId,
-  maxAttempts = 8,
+  maxAttempts = DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
 }: {
   database?: OperationalEventDatabase;
   eventId: string;
@@ -547,7 +529,7 @@ export const requeueOperationalEventDeadLetter = async ({
   actor,
   reason,
   idempotencyKey,
-  maxAttempts = 8,
+  maxAttempts = DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
   now: testNow,
 }: {
   database?: OperationalEventDatabase;
@@ -594,7 +576,7 @@ export const requeueOperationalEventDeadLetter = async ({
       };
     }
 
-    const authorityNow = await resolveAuthorityNow(tx, testNow);
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const [current] = await tx
       .select()
       .from(operationalEventOutbox)

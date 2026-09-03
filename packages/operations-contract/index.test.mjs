@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
   OPERATIONS_CONTRACT_VERSION,
   OPERATIONS_EVENT_MAX_PAYLOAD_BYTES,
+  areOperationalEventEnvelopesIdempotentlyEquivalent,
   assertIncidentStatusTransition,
   assertRunbookActionStatusTransition,
   assertRunbookInvocationAuthorized,
@@ -25,6 +27,7 @@ import {
   operationalSyntheticRunSchemaV1,
   operationsContractSchemaNames,
   parseOperationsContractValue,
+  resolveDeploymentEnvironment,
 } from "./index.mjs";
 
 const timestamp = "2026-08-30T03:00:00.000Z";
@@ -204,6 +207,55 @@ test("operational events reject impossible chronology and unbounded payloads", (
       observedAt: laterTimestamp,
       payload: { body: "x".repeat(OPERATIONS_EVENT_MAX_PAYLOAD_BYTES) },
     }),
+  );
+});
+
+test("event delivery identity and environment derivation have one contract owner", () => {
+  const event = operationalEventEnvelopeSchemaV1.parse({
+    contractVersion: 1,
+    plane: "lifecycle_runtime",
+    eventId: "event:idempotent",
+    kind: "runtime.room.observed",
+    severity: "info",
+    outcome: "observed",
+    authority: "airjam_authoritative",
+    source: {
+      service: "realtime_server",
+      component: "room-runtime",
+      environment: "production",
+    },
+    subject: { type: "room", id: "room:1" },
+    actor: { type: "system", id: "server:1" },
+    correlation: { contractVersion: 1, correlationId: "correlation:1" },
+    occurredAt: timestamp,
+    observedAt: laterTimestamp,
+    payload: { phase: "playing" },
+    evidence: [],
+  });
+
+  assert.equal(DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS, 8);
+  assert.equal(
+    areOperationalEventEnvelopesIdempotentlyEquivalent(event, {
+      ...event,
+      occurredAt: laterTimestamp,
+      observedAt: expiryTimestamp,
+    }),
+    true,
+  );
+  assert.equal(
+    areOperationalEventEnvelopesIdempotentlyEquivalent(event, {
+      ...event,
+      payload: { phase: "finished" },
+    }),
+    false,
+  );
+  assert.equal(
+    resolveDeploymentEnvironment({ RAILWAY_ENVIRONMENT_NAME: "production" }),
+    "production",
+  );
+  assert.equal(
+    resolveDeploymentEnvironment({ RAILWAY_ENVIRONMENT_NAME: "pr-75" }),
+    "preview",
   );
 });
 

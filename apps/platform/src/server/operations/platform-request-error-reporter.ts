@@ -1,10 +1,10 @@
 import {
   normalizeUnknownOperationalFailure,
   operationalEventEnvelopeSchemaV1,
+  resolveDeploymentEnvironment,
   type DeploymentEnvironment,
   type OperationalEventEnvelopeV1,
 } from "@air-jam/operations-contract";
-import { resolveOperationalEnvironment } from "./operational-environment";
 import { enqueueOperationalEvent } from "./operational-event-delivery-service";
 
 export type PlatformRequestErrorContext = {
@@ -76,7 +76,7 @@ export const publishPlatformRequestFailure = async ({
     event: createPlatformRequestFailureEvent({
       error,
       context,
-      environment: resolveOperationalEnvironment(),
+      environment: resolveDeploymentEnvironment(),
       eventId: `platform-request-failure:${crypto.randomUUID()}`,
       observedAt,
     }),

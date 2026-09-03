@@ -2,11 +2,11 @@ import type {
   OperationalJob,
   OperationalJobEvent,
 } from "@/server/jobs/operational-job-internals";
-import type {
-  JsonValue,
-  OperationalFailureV1,
+import {
+  resolveDeploymentEnvironment,
+  type JsonValue,
+  type OperationalFailureV1,
 } from "@air-jam/operations-contract";
-import { resolveOperationalEnvironment } from "./operational-environment";
 import {
   enqueueOperationalEventInTransaction,
   type OperationalEventTransaction,
@@ -45,7 +45,7 @@ export const enqueueOperationalJobFailureEventInTransaction = async ({
       source: {
         service: "operational_worker",
         component: "operational-job-worker",
-        environment: resolveOperationalEnvironment(),
+        environment: resolveDeploymentEnvironment(),
         version: process.env.RAILWAY_GIT_COMMIT_SHA?.trim() || undefined,
       },
       subject: { type: "operational_job", id: job.id },

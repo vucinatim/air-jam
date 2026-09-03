@@ -1,4 +1,7 @@
-import type { DeploymentEnvironment } from "@air-jam/operations-contract";
+import {
+  deploymentEnvironments,
+  type DeploymentEnvironment,
+} from "@air-jam/operations-contract";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
@@ -11,8 +14,8 @@ import {
   requeueOperationalEventDeadLetter,
   runOperationalEventDeliveryCycle,
 } from "../src/server/operations/operational-event-delivery-service";
+import { getOperationalReliabilityCatalog } from "../src/server/operations/operational-reliability-policy";
 import {
-  getOperationalReliabilityCatalog,
   getOperationalReliabilityStatus,
   listOperationalAlerts,
   listOperationalSyntheticRuns,
@@ -114,7 +117,7 @@ const parseEnvironment = (
   value?: string,
 ): DeploymentEnvironment | undefined => {
   if (!value) return undefined;
-  if (["production", "preview", "development", "test"].includes(value)) {
+  if (deploymentEnvironments.includes(value as DeploymentEnvironment)) {
     return value as DeploymentEnvironment;
   }
   return fail("environment must be production, preview, development, or test.");
@@ -220,18 +223,14 @@ const parseInput = (): Input => {
   }
 };
 
-const print = (document: unknown, json: boolean) => {
-  if (json) {
-    console.log(JSON.stringify(document, null, 2));
-    return;
-  }
+const print = (document: unknown) => {
   console.log(JSON.stringify(document, null, 2));
 };
 
 const main = async () => {
   const input = parseInput();
   if (input.command === "catalog") {
-    print(getOperationalReliabilityCatalog(), input.json);
+    print(getOperationalReliabilityCatalog());
     return;
   }
   const databaseUrl =
@@ -364,15 +363,12 @@ const main = async () => {
         });
         break;
     }
-    print(
-      {
-        contractVersion: 1,
-        command: input.command,
-        applied: "apply" in input ? input.apply : false,
-        result,
-      },
-      input.json,
-    );
+    print({
+      contractVersion: 1,
+      command: input.command,
+      applied: "apply" in input ? input.apply : false,
+      result,
+    });
   } finally {
     await client.end();
   }

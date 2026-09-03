@@ -11,29 +11,42 @@ import {
   operationalAlertSchemaV1,
   operationalSloEvaluationSchemaV1,
   operationalSyntheticRunSchemaV1,
+  resolveDeploymentEnvironment,
   type DeploymentEnvironment,
   type OperationalAlertV1,
   type OperationalSyntheticCheckV1,
   type OperationalSyntheticRunV1,
 } from "@air-jam/operations-contract";
+import type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+} from "@air-jam/sdk/protocol";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { io, type Socket } from "socket.io-client";
-import { resolveOperationalEnvironment } from "./operational-environment";
 import {
   enqueueOperationalEventInTransaction,
   type OperationalEventDatabase,
   type OperationalEventTransaction,
 } from "./operational-event-delivery-service";
 import {
-  getOperationalReliabilityCatalog,
   getOperationalSloDefinition,
   getOperationalSyntheticCheck,
   OPERATIONAL_SLO_DEFINITIONS,
   OPERATIONAL_SYNTHETIC_CHECKS,
 } from "./operational-reliability-policy";
 
-type GenericEvents = Record<string, (...args: unknown[]) => void>;
-type GenericSocket = Socket<GenericEvents, GenericEvents>;
+type AirJamSyntheticSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+type SyntheticAcknowledgedEvent =
+  | "host:bootstrap"
+  | "host:createRoom"
+  | "controller:join"
+  | "controller:action_rpc";
+type EventPayload<E extends SyntheticAcknowledgedEvent> = Parameters<
+  ClientToServerEvents[E]
+>[0];
+type EventAcknowledgement<E extends SyntheticAcknowledgedEvent> = Parameters<
+  Exclude<Parameters<ClientToServerEvents[E]>[1], undefined>
+>[0];
 
 export type OperationalSyntheticRuntimeConfig = {
   environment: DeploymentEnvironment;
@@ -71,7 +84,7 @@ export const resolveOperationalSyntheticRuntimeConfig = (
     env.AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN,
   );
   return {
-    environment: resolveOperationalEnvironment(env),
+    environment: resolveDeploymentEnvironment(env),
     targets: Object.freeze({
       "platform.home": new URL("/", platformOrigin).toString(),
       "platform.docs": new URL("/docs", platformOrigin).toString(),
@@ -218,7 +231,10 @@ const executeHttpStep = async ({
   };
 };
 
-const waitForConnect = (socket: GenericSocket, timeoutMilliseconds: number) =>
+const waitForConnect = (
+  socket: AirJamSyntheticSocket,
+  timeoutMilliseconds: number,
+) =>
   new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
       socket.disconnect();
@@ -234,36 +250,40 @@ const waitForConnect = (socket: GenericSocket, timeoutMilliseconds: number) =>
     });
   });
 
-const emitWithAck = <T>(
-  socket: GenericSocket,
-  event: string,
-  payload: Record<string, unknown>,
+const emitWithAck = <E extends SyntheticAcknowledgedEvent>(
+  socket: AirJamSyntheticSocket,
+  event: E,
+  payload: EventPayload<E>,
   timeoutMilliseconds: number,
-): Promise<T> =>
+): Promise<EventAcknowledgement<E>> =>
   new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`Synthetic ${event} acknowledgement timed out.`)),
       timeoutMilliseconds,
     );
-    socket.emit(event, payload, (ack: T) => {
+    const emit = socket.emit.bind(socket) as (
+      event: E,
+      payload: EventPayload<E>,
+      callback: (ack: EventAcknowledgement<E>) => void,
+    ) => void;
+    emit(event, payload, (ack) => {
       clearTimeout(timer);
       resolve(ack);
     });
   });
 
-const waitForEvent = <T>(
-  socket: GenericSocket,
-  event: string,
+const waitForStateSync = (
+  socket: AirJamSyntheticSocket,
   timeoutMilliseconds: number,
-): Promise<T> =>
+): Promise<Parameters<ServerToClientEvents["airjam:state_sync"]>[0]> =>
   new Promise((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`Synthetic ${event} event timed out.`)),
+      () => reject(new Error("Synthetic state-sync event timed out.")),
       timeoutMilliseconds,
     );
-    socket.once(event, (...args: unknown[]) => {
+    socket.once("airjam:state_sync", (payload) => {
       clearTimeout(timer);
-      resolve(args[0] as T);
+      resolve(payload);
     });
   });
 
@@ -291,6 +311,7 @@ const executeAirJamSessionStep = async ({
       }),
     };
   }
+  const appId = config.appId;
   const result = await timed(async () => {
     const socketOptions = {
       transports: ["websocket"],
@@ -301,39 +322,39 @@ const executeAirJamSessionStep = async ({
     const host = socketFactory(
       config.realtimeOrigin,
       socketOptions,
-    ) as GenericSocket;
+    ) as AirJamSyntheticSocket;
     const controller = socketFactory(
       config.realtimeOrigin,
       socketOptions,
-    ) as GenericSocket;
+    ) as AirJamSyntheticSocket;
     try {
       await Promise.all([
         waitForConnect(host, check.timeoutMilliseconds),
         waitForConnect(controller, check.timeoutMilliseconds),
       ]);
-      const bootstrap = await emitWithAck<{ ok: boolean; code?: string }>(
+      const bootstrap = await emitWithAck(
         host,
         "host:bootstrap",
-        { appId: config.appId, hostSessionKind: "system" },
+        { appId, hostSessionKind: "system" },
         check.timeoutMilliseconds,
       );
       if (!bootstrap.ok)
         throw new Error(
           `Host bootstrap rejected: ${bootstrap.code ?? "unknown"}.`,
         );
-      const created = await emitWithAck<{
-        ok: boolean;
-        roomId?: string;
-        code?: string;
-        controllerCapability?: { token: string };
-      }>(host, "host:createRoom", { maxPlayers: 1 }, check.timeoutMilliseconds);
+      const created = await emitWithAck(
+        host,
+        "host:createRoom",
+        { maxPlayers: 1 },
+        check.timeoutMilliseconds,
+      );
       if (!created.ok || !created.roomId) {
         throw new Error(
           `Room creation rejected: ${created.code ?? "unknown"}.`,
         );
       }
       const controllerId = `aj-mcp-synthetic-${crypto.randomUUID()}`;
-      const joined = await emitWithAck<{ ok: boolean; code?: string }>(
+      const joined = await emitWithAck(
         controller,
         "controller:join",
         {
@@ -353,10 +374,10 @@ const executeAirJamSessionStep = async ({
         );
 
       if (step.targetKey === "realtime.semantic_action") {
-        const statePromise = waitForEvent<{
-          data: Record<string, unknown>;
-          revision: number;
-        }>(controller, "airjam:state_sync", check.timeoutMilliseconds);
+        const statePromise = waitForStateSync(
+          controller,
+          check.timeoutMilliseconds,
+        );
         host.emit("host:state_sync", {
           roomId: created.roomId,
           data: { phase: "playing", synthetic: true },
@@ -367,24 +388,25 @@ const executeAirJamSessionStep = async ({
         if (state.revision !== 1 || state.data.synthetic !== true) {
           throw new Error("Replicated synthetic state was not preserved.");
         }
-        host.once("airjam:action_rpc", (...args: unknown[]) => {
-          const payload = args[0] as { actionName?: string };
-          const acknowledge = args[1] as
-            | ((value: Record<string, unknown>) => void)
-            | undefined;
+        host.once("airjam:action_rpc", (payload, acknowledge) => {
+          if (payload.actionName !== "synthetic.ping") {
+            acknowledge?.({
+              ok: false,
+              status: "rejected",
+              source: "host",
+              reason: "unexpected_action",
+              message: "The synthetic host received an unexpected action.",
+            });
+            return;
+          }
           acknowledge?.({
-            ok: payload.actionName === "synthetic.ping",
-            status:
-              payload.actionName === "synthetic.ping" ? "accepted" : "rejected",
+            ok: true,
+            status: "accepted",
             source: "host",
             result: { pong: true },
           });
         });
-        const action = await emitWithAck<{
-          ok: boolean;
-          status: string;
-          result?: { pong?: boolean };
-        }>(
+        const action = await emitWithAck(
           controller,
           "controller:action_rpc",
           {
@@ -395,11 +417,11 @@ const executeAirJamSessionStep = async ({
           },
           check.timeoutMilliseconds,
         );
-        if (
-          !action.ok ||
-          action.status !== "accepted" ||
-          action.result?.pong !== true
-        ) {
+        const actionResult =
+          action.ok && action.result && typeof action.result === "object"
+            ? (action.result as { pong?: unknown })
+            : null;
+        if (!action.ok || actionResult?.pong !== true) {
           throw new Error(
             "Semantic synthetic action was not accepted end to end.",
           );
@@ -1094,5 +1116,3 @@ export const listOperationalAlerts = async ({
     .orderBy(desc(operationalAlerts.updatedAt));
   return rows.map((row) => operationalAlertSchemaV1.parse(row.document));
 };
-
-export { getOperationalReliabilityCatalog };

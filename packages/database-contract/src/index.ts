@@ -1,9 +1,10 @@
-import type {
-  OperationalAlertV1,
-  OperationalEventEnvelopeV1,
-  OperationalFailureV1,
-  OperationalSloEvaluationV1,
-  OperationalSyntheticRunV1,
+import {
+  DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
+  type OperationalAlertV1,
+  type OperationalEventEnvelopeV1,
+  type OperationalFailureV1,
+  type OperationalSloEvaluationV1,
+  type OperationalSyntheticRunV1,
 } from "@air-jam/operations-contract";
 import { sql } from "drizzle-orm";
 import {
@@ -706,7 +707,9 @@ export const createRuntimeDatabaseSchema = ({
         .default("pending")
         .notNull(),
       attemptCount: integer("attempt_count").default(0).notNull(),
-      maxAttempts: integer("max_attempts").default(8).notNull(),
+      maxAttempts: integer("max_attempts")
+        .default(DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS)
+        .notNull(),
       availableAt: timestamp("available_at", { withTimezone: true })
         .defaultNow()
         .notNull(),

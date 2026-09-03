@@ -14,6 +14,7 @@ import {
   type OperationalJobStatus,
 } from "@air-jam/database-contract";
 import { and, count, eq, inArray } from "drizzle-orm";
+import { resolveDatabaseAuthorityNow } from "../operations/database-authority";
 import { lifecycleCleanupJobPayloadSchema } from "./lifecycle-cleanup-job-contract";
 import {
   OperationalJobCapacityError,
@@ -26,7 +27,6 @@ import {
   normalizeOperationalJobJsonObject,
   normalizeRequiredJobText,
   readCommandJobSnapshot,
-  resolveOperationalJobNow,
   serializeOperationalJobForOperator,
   type JobDatabase,
   type JobTransaction,
@@ -160,7 +160,7 @@ export const createOperationalJobInTransaction = async ({
 }): Promise<OperationalJob> => {
   const policy = getOperationalJobPolicy(kind);
   await acquireOperationalJobLock(tx, "enqueue", kind);
-  const now = await resolveOperationalJobNow(tx, testNow);
+  const now = await resolveDatabaseAuthorityNow(tx, testNow);
   await assertJobScope({
     tx,
     creatorId,
@@ -492,7 +492,7 @@ export const supersedeOperationalJobsForGenerationInTransaction = async ({
       superseded.push(serializeOperationalJobForOperator(job));
       continue;
     }
-    const now = await resolveOperationalJobNow(tx);
+    const now = await resolveDatabaseAuthorityNow(tx);
     const nextStatus: OperationalJobStatus =
       job.status === "queued" ? "canceled" : "cancel_requested";
     const nextRevision = job.revision + 1;
@@ -716,7 +716,7 @@ export const requestOperationalJobCancellation = async ({
     if (!job) {
       throw new OperationalJobConflictError("Operational job was not found.");
     }
-    const mutationNow = await resolveOperationalJobNow(tx, testNow);
+    const mutationNow = await resolveDatabaseAuthorityNow(tx, testNow);
     if (job.revision !== expectedRevision) {
       throw new OperationalJobConflictError(
         `Expected job revision ${expectedRevision}, found ${job.revision}.`,
