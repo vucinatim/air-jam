@@ -1298,7 +1298,7 @@ describe("createAirJamStore networked behavior", () => {
     actionsHook.unmount();
   });
 
-  it("suppresses arcade.shell host:state_sync while reconnect ack is pending, then emits when cleared", () => {
+  it("keeps local arcade restore convergence authoritative over the cached reconnect snapshot", () => {
     mockedContext.state.role = "host";
     mockedContext.state.hostArcadeRestore = {
       phase: "awaiting_ack",
@@ -1339,6 +1339,36 @@ describe("createAirJamStore networked behavior", () => {
     );
     expect(syncWhilePending.length).toBe(0);
 
+    act(() => {
+      hostSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { phase: "game" },
+        storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+        revision: 7,
+      });
+    });
+    expect(useArcadeShellStore.getState().phase).toBe("lobby");
+
+    mockedContext.state.hostArcadeRestore = {
+      phase: "pending_restore",
+      session: null,
+    } as HostArcadeRestoreState;
+    rerender();
+
+    act(() => {
+      useArcadeShellStore.getState().actions.setPhase(
+        {
+          actorId: "host",
+          role: "host",
+          connectedPlayerIds: [],
+        },
+        { phase: "browser" },
+      );
+    });
+    expect(
+      hostSocket.emitted.filter((c) => c.event === "host:state_sync"),
+    ).toHaveLength(0);
+
     mockedContext.state.hostArcadeRestore = {
       phase: "idle",
       session: null,
@@ -1348,9 +1378,11 @@ describe("createAirJamStore networked behavior", () => {
     const syncAfterClear = hostSocket.emitted.filter(
       (c) => c.event === "host:state_sync",
     );
-    expect(syncAfterClear.length).toBeGreaterThan(0);
-    expect(
-      (syncAfterClear[0]?.args[0] as { storeDomain?: string })?.storeDomain,
-    ).toBe(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN);
+    expect(syncAfterClear).toHaveLength(1);
+    expect(syncAfterClear[0]?.args[0]).toMatchObject({
+      data: { phase: "browser" },
+      storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+      revision: 1,
+    });
   });
 });

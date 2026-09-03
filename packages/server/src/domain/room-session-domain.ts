@@ -1,3 +1,4 @@
+import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import type {
   ChildHostCapability,
   ControllerPresenceNotice,
@@ -530,6 +531,7 @@ export const transitionToSystemFocus = (
 
   beginRoomClosing(session);
   resetRoomToSystemState(session, options.resetGameState);
+  session.replicatedStoreSnapshots.delete(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN);
 
   if (options.notifyMasterCloseChild && session.masterHostSocketId) {
     io.to(session.masterHostSocketId).emit("server:closeChild");
