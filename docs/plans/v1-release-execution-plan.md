@@ -277,6 +277,10 @@ No work item authorizes:
 
 ## Execution Waves
 
+These broad waves preserve the original program grouping. For current remaining
+work, the more detailed [Remaining Delivery Sequence](#remaining-delivery-sequence)
+supersedes their ordering wherever the two differ.
+
 ### Wave 0: Freeze The Shared Contract
 
 Primary work:
@@ -512,7 +516,7 @@ deliverable. The reason to split is to prevent the existing large contract,
 synthetic-service, event-service, and platform-command modules from becoming
 the next monoliths while Gate 4 is added.
 
-### Reliability Foundation Corrections
+### Reliability Foundation Corrections (`G4-07`, `G3-07`)
 
 Before continuous production activation, close the small trust gaps found by
 the final reliability review in the same owning boundaries:
@@ -531,12 +535,14 @@ the final reliability review in the same owning boundaries:
    synthetic runs, evaluations, alerts, incident evidence, and action audit
    without deleting evidence required by an open incident or unresolved action
 
-Retention durations belong to the privacy and operating policy closed by
-`G5-03`/`G5-04`; the cleanup implementation belongs to existing `G3-02` and
-Gate 4 services. There must not be an undocumented delete loop or foreign-key
-workaround.
+The first five corrections belong to the separately claimable `G4-07` item.
+Retention durations belong to the privacy and operating policy specified by
+`G5-03` and included in the residual-risk review at `G5-04`; the cleanup
+implementation is the separately claimable `G3-07` item, depends on `G5-03`,
+and reuses the existing Gate 4 services. There must not be an undocumented
+delete loop or foreign-key workaround.
 
-### Production Migration Lifecycle (`G3-02`)
+### Production Migration Lifecycle (`G3-06`)
 
 The schema drift discovered during the hosted-release cutover proved that a
 healthy deployment is not enough evidence that production can use the merged
@@ -561,9 +567,10 @@ liveness remains truthful. The operational worker must refuse to claim work
 against an incompatible schema. Production migrations never run implicitly at
 process startup.
 
-The readiness manifest assigns this lifecycle and the operational-worker
-activation proof to `G3-02`. The former non-critical suggestion has been removed
-now that this work is part of the active release program.
+The readiness manifest carries this lifecycle as `G3-06` and the separate
+operational-worker activation proof as `G3-08`, each with its own estimate,
+dependencies, and evidence requirements. The former non-critical suggestion has
+been removed now that this work is part of the active release program.
 
 ### Capacity And Lifecycle Completion
 
@@ -592,7 +599,7 @@ joining, and gameplay remain visually identical below a limit. Admission and
 permission enforcement are invisible in the healthy path and become explicit
 only when the system genuinely cannot accept more work.
 
-The operational-worker production rollout happens only after migration
+The `G3-08` operational-worker production rollout happens only after migration
 compatibility, required synthetic targets, authenticated drain, secret scope,
 lane controls, and rollback steps all pass preflight. Rollout order is:
 
@@ -785,33 +792,36 @@ Blocks A through J are the current detailed sequence for the remaining work and
 supersede the earlier broad wave ordering wherever the two differ. The wave
 model remains useful only as historical program grouping.
 
-| Delivery block                | Governing items                    | Production-valid outcome                                                                                           |
-| ----------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| A. Reliability hardening      | `G3-02`, `G4-03`, `G5-02`          | Review gaps, retention semantics, schema compatibility, and module boundaries are safe before continuous execution |
-| B. Production controls        | `G3-02`, `G5-02`                   | Artifact retention and invisible realtime admission complete; operational worker has a safe activation contract    |
-| C. Isolated external proof    | `G2-03` through `G2-05`            | Codex and Claude Desktop prove the public lifecycle without production authority or maintainer intervention        |
-| D. Recovery proof             | `G3-03`                            | Recurring backup, isolated restore, deployment rollback, lane pause/resume, and job replay have measured evidence  |
-| E. Incident projection        | `G4-03`                            | One confirmed symptom becomes one maintained incident and GitHub issue                                             |
-| F. Supply-chain trust         | `G5-03`                            | Exact validated package bytes, provenance, privacy, and emergency release are proven                               |
-| G. Governed remediation       | `G4-04` through `G4-06`            | Typed runbooks preview, execute, verify, roll back, and escalate under the approved allowlist                      |
-| H. Scale and security closure | `G3-04`, `G3-05`, `G5-02`, `G5-04` | Capacity, degradation, residual security risk, recovery time, and the honest support envelope close                |
-| I. Public proof               | `G6-02` through `G6-06`            | Docs, discovery, demo, article, release notes, and assets match shipped behavior                                   |
-| J. Candidate and launch       | `G7-01` through `G7-06`            | One immutable candidate is rehearsed, approved, launched, observed, and recorded                                   |
+| Delivery block                | Governing items                    | Production-valid outcome                                                                                                   |
+| ----------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| A. Reliability hardening      | `G3-06`, `G4-07`, `G5-02`          | Review gaps, schema compatibility, and module boundaries are safe before continuous execution                              |
+| B. Production controls        | `G3-02`, `G3-07`, `G3-08`, `G5-03` | Artifact and evidence retention plus invisible realtime admission are complete; the operational worker is activated safely |
+| C. Isolated external proof    | `G2-03` through `G2-05`            | Codex and Claude Desktop prove the public lifecycle without production authority or maintainer intervention                |
+| D. Recovery proof             | `G3-03`                            | Recurring backup, isolated restore, deployment rollback, lane pause/resume, and job replay have measured evidence          |
+| E. Incident projection        | `G4-03`                            | One confirmed symptom becomes one maintained incident and GitHub issue                                                     |
+| F. Supply-chain trust         | `G5-03`                            | Exact validated package bytes, provenance, privacy, and emergency release are proven                                       |
+| G. Governed remediation       | `G4-04` through `G4-06`            | Typed runbooks preview, execute, verify, roll back, and escalate under the approved allowlist                              |
+| H. Scale and security closure | `G3-04`, `G3-05`, `G5-02`, `G5-04` | Capacity, degradation, residual security risk, recovery time, and the honest support envelope close                        |
+| I. Public proof               | `G6-02` through `G6-06`            | Docs, discovery, demo, article, release notes, and assets match shipped behavior                                           |
+| J. Candidate and launch       | `G7-01` through `G7-06`            | One immutable candidate is rehearsed, approved, launched, observed, and recorded                                           |
 
-After block A stabilizes shared contracts, C, D, E, and F may proceed in
-parallel. G waits on E because runbooks act on incident authority. H waits on
-the controls and recovery work because load and failure drills must exercise the
-real final mechanisms. I can begin from proven golden-path evidence but freezes
-only after operational and security behavior is settled.
+After block A stabilizes shared contracts, C, D, E, F, and the independent
+control work inside B may proceed in parallel. B finishes only after F ratifies
+the retention policy, because production activation must exercise the final
+cleanup behavior. G waits on E because runbooks act on incident authority. H
+waits on the controls and recovery work because load and failure drills must
+exercise the real final mechanisms. I can begin from proven golden-path
+evidence but freezes only after operational and security behavior is settled.
 
 ### Pull Request Shape
 
 Prefer reviewable, independently deployable pull requests in this order:
 
-1. reliability trust corrections and touched-module extraction
-2. `G3-02` migration inspect/plan/apply/verify lifecycle
-3. artifact retention and realtime admission
-4. operational-worker provisioning and observed activation
+1. `G4-07` reliability trust corrections and touched-module extraction
+2. `G3-06` migration inspect/plan/apply/verify lifecycle
+3. `G3-02` artifact retention and realtime admission, then `G3-07` operational
+   evidence retention after its policy is ratified
+4. `G3-08` operational-worker provisioning and observed activation
 5. isolated rehearsal profile and primary external-agent proof
 6. backup/restore/rollback/replay surface and drill
 7. incident persistence/correlation, then GitHub delivery

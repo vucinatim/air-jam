@@ -422,6 +422,9 @@ four SLOs, durable alerts, truthful worker readiness, and one agent-operable CLI
 surface. Production schema migration `0034` is applied, but the operational
 worker service is deliberately not deployed until its activation preflight,
 drain, synthetic configuration, rollback, and cost-observation path is ready.
+The bounded reliability corrections discovered after `G4-02` are now owned by
+`G4-07`; operational evidence retention is owned by `G3-07`, and both gate the
+separately claimable `G3-08` activation.
 This does not claim that continuous evaluations, incident correlation, external
 notification, GitHub issue delivery, or governed remediation are deployed.
 

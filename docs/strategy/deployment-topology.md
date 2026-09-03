@@ -1,7 +1,7 @@
 # Deployment Topology
 
 Last updated: 2026-09-04
-Status: canonical target topology; operational-job worker rollout pending
+Status: canonical target topology; operational worker rollout pending
 
 Related docs:
 
@@ -32,7 +32,7 @@ Air Jam production should be split into five surfaces:
 1. `Railway` for the platform app
 2. `Railway` for the realtime/API server
 3. `Railway` for the release screenshot and moderation worker
-4. `Railway` for the durable platform operational-job worker
+4. `Railway` for the durable platform operational worker
 5. `R2` for hosted release artifacts and managed media
 
 That split matches the actual workload boundaries:
@@ -265,7 +265,7 @@ The worker should not need database or multiplayer env unless a later design exp
 
 ### Platform Operational Worker Env
 
-The operational-job worker owns:
+The operational worker owns:
 
 1. `DATABASE_URL`
 2. the release-storage variables required by artifact work and cleanup
