@@ -552,34 +552,25 @@ const isZipSymlink = (entry: yauzl.Entry): boolean => {
   return (unixMode & 0o170000) === 0o120000;
 };
 
+const buildArgsByPackageManager = {
+  npm: ["run", "build"],
+  pnpm: ["build"],
+  yarn: ["build"],
+  bun: ["run", "build"],
+} satisfies Record<
+  Exclude<AirJamPackageManager, "unknown">,
+  readonly string[]
+>;
+
 const resolveBuildCommand = (
   packageManager: AirJamPackageManager,
 ): { command: string; args: string[] } | null => {
-  if (packageManager === "npm") {
-    return {
-      command: packageManager,
-      args: ["run", "build"],
-    };
-  }
-  if (packageManager === "pnpm") {
-    return {
-      command: packageManager,
-      args: ["build"],
-    };
-  }
-  if (packageManager === "yarn") {
-    return {
-      command: packageManager,
-      args: ["build"],
-    };
-  }
-  if (packageManager === "bun") {
-    return {
-      command: packageManager,
-      args: ["run", "build"],
-    };
-  }
-  return null;
+  return packageManager === "unknown"
+    ? null
+    : {
+        command: packageManager,
+        args: [...buildArgsByPackageManager[packageManager]],
+      };
 };
 
 const runBuild = async ({

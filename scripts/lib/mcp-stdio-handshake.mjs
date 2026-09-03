@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import crossSpawn from "cross-spawn";
 import { stopChild } from "./process-child.mjs";
 
 export const verifyMcpStdioHandshake = async ({
@@ -13,10 +13,9 @@ export const verifyMcpStdioHandshake = async ({
   requestTimeoutMs = 10_000,
   shutdownTimeoutMs = 5_000,
 }) => {
-  const child = spawn(command, args, {
+  const child = crossSpawn(command, args, {
     cwd,
     env,
-    shell: process.platform === "win32",
     stdio: ["pipe", "pipe", "pipe"],
   });
   let stdoutBuffer = "";

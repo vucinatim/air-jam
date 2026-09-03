@@ -24,7 +24,6 @@ import {
 } from "./secure-dev.mjs";
 
 const START_TIMEOUT_MS = 20_000;
-const pnpmExecutable = "pnpm";
 const PREVIEW_MANAGED_SERVER_LOG_RELATIVE_PATH = path.join(
   ".airjam",
   "preview-managed-server.log",
@@ -176,7 +175,7 @@ const startGameIfNeeded = async (
     );
   }
 
-  processGroup.run("game", pnpmExecutable, ["exec", "vite"], {
+  processGroup.run("game", "pnpm", ["exec", "vite"], {
     env: {
       ...process.env,
       ...env,
@@ -202,7 +201,7 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
   const logFile = path.join(cwd, PREVIEW_MANAGED_SERVER_LOG_RELATIVE_PATH);
   const stateFile = path.join(cwd, PREVIEW_MANAGED_SERVER_STATE_RELATIVE_PATH);
   const logFd = fs.openSync(logFile, "a");
-  const child = crossSpawn(pnpmExecutable, ["exec", "air-jam-server"], {
+  const child = crossSpawn("pnpm", ["exec", "air-jam-server"], {
     cwd,
     env: {
       ...process.env,
@@ -240,7 +239,7 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
 
 const runForegroundGame = ({ cwd, env }) =>
   new Promise((resolve, reject) => {
-    const child = crossSpawn(pnpmExecutable, ["exec", "vite"], {
+    const child = crossSpawn("pnpm", ["exec", "vite"], {
       cwd,
       stdio: "inherit",
       env: {

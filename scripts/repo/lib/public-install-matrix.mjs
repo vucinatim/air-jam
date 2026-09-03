@@ -48,34 +48,12 @@ const sortStrings = (values) =>
   [...values].sort((left, right) => left.localeCompare(right));
 
 export const readScaffoldResourceBudgets = () => {
-  const document = JSON.parse(
+  return JSON.parse(
     fs.readFileSync(
       path.join(repoRoot, scaffoldResourceBudgetsRelativePath),
       "utf8",
     ),
   );
-  if (document.schemaVersion !== 1) {
-    throw new Error("Scaffold resource budget schemaVersion must be 1.");
-  }
-  const archive = assertObject(document.archive, "Scaffold archive budgets");
-  for (const key of [
-    "maxCompressedBytes",
-    "maxEntries",
-    "maxTotalUncompressedBytes",
-    "maxSingleFileUncompressedBytes",
-  ]) {
-    assertPositiveInteger(archive[key], `Scaffold archive budgets.${key}`);
-  }
-  if (
-    typeof archive.maxCompressionRatio !== "number" ||
-    !Number.isFinite(archive.maxCompressionRatio) ||
-    archive.maxCompressionRatio <= 0
-  ) {
-    throw new Error(
-      "Scaffold archive budgets.maxCompressionRatio must be positive.",
-    );
-  }
-  return document;
 };
 
 export const readPublicInstallMatrix = (
