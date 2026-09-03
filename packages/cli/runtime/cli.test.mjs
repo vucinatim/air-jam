@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { generatePlatformAiPackArtifacts } from "../../../scripts/platform/lib/platform-ai-pack-artifacts.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +31,10 @@ const runCli = (...args) =>
       FORCE_COLOR: "0",
     },
   });
+
+test("airjam reports the installed package version", () => {
+  assert.equal(runCli("--version").trim(), "0.9.2");
+});
 
 test("airjam exposes dev help", () => {
   const output = runCliHelp("dev");
@@ -246,32 +253,32 @@ test("airjam MCP inspection and profiles expose stable JSON", () => {
   assert.match(profile.content, /\[mcp_servers\.airjam\]/);
 });
 
-test("airjam AI pack inspection exposes stable JSON", () => {
-  const repoRoot = path.resolve(packageRoot, "../..");
+test("airjam AI pack inspection exposes stable JSON", async () => {
   const managedRoot = path.join(packageRoot, "template-assets", "managed");
-  const manifestFile = path.join(
-    repoRoot,
-    "apps",
-    "platform",
-    "public",
-    "ai-pack",
-    "manifest.json",
-  );
-  const status = JSON.parse(
-    runCli(
-      "ai-pack",
-      "status",
-      "--dir",
-      managedRoot,
-      "--manifest-file",
-      manifestFile,
-      "--json",
-    ),
+  const artifactRoot = await mkdtemp(
+    path.join(os.tmpdir(), "airjam-cli-ai-pack-test-"),
   );
 
-  assert.equal(status.upToDate, true);
-  assert.equal(status.comparison.differingFiles.length, 0);
-  assert.equal(status.comparison.manifestSource, "manifest-file");
+  try {
+    await generatePlatformAiPackArtifacts({ targetRoot: artifactRoot });
+    const status = JSON.parse(
+      runCli(
+        "ai-pack",
+        "status",
+        "--dir",
+        managedRoot,
+        "--manifest-file",
+        path.join(artifactRoot, "manifest.json"),
+        "--json",
+      ),
+    );
+
+    assert.equal(status.upToDate, true);
+    assert.equal(status.comparison.differingFiles.length, 0);
+    assert.equal(status.comparison.manifestSource, "manifest-file");
+  } finally {
+    await rm(artifactRoot, { recursive: true, force: true });
+  }
 });
 
 test("airjam exposes persistent semantic session lifecycle help", () => {

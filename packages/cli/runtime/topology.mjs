@@ -21,7 +21,7 @@ const SUPPORTED_MODES = new Set([
 ]);
 
 const getDefaultStandalonePublicHost = (env, gamePort) => {
-  const explicitPublicHost = env.VITE_AIR_JAM_PUBLIC_HOST?.trim();
+  const explicitPublicHost = env.VITE_AIR_JAM_PUBLIC_HOST;
   if (explicitPublicHost) {
     return explicitPublicHost;
   }
@@ -35,8 +35,7 @@ const getDefaultStandalonePublicHost = (env, gamePort) => {
 };
 
 const requireConfiguredAppOrigin = (env, mode) => {
-  const appOrigin =
-    env.VITE_AIR_JAM_PUBLIC_HOST?.trim() || env.NEXT_PUBLIC_APP_URL?.trim();
+  const appOrigin = env.VITE_AIR_JAM_PUBLIC_HOST || env.NEXT_PUBLIC_APP_URL;
   if (appOrigin) {
     return appOrigin;
   }
@@ -54,7 +53,7 @@ export const resolveProjectSurfaceTopology = ({
   cwd,
 }) => {
   if (runtimeMode === "standalone-dev") {
-    const gamePort = env.VITE_PORT?.trim() || DEFAULT_GAME_PORT;
+    const gamePort = env.VITE_PORT ?? DEFAULT_GAME_PORT;
     const secureState = secure
       ? loadSecureDevState({
           cwd,
@@ -72,7 +71,7 @@ export const resolveProjectSurfaceTopology = ({
       surfaceRole,
       appOrigin: publicHost,
       backendOrigin:
-        env.VITE_AIR_JAM_SERVER_URL?.trim() || DEFAULT_AIR_JAM_DEV_BACKEND_URL,
+        env.VITE_AIR_JAM_SERVER_URL || DEFAULT_AIR_JAM_DEV_BACKEND_URL,
       publicHost,
       secureTransport: secure,
     });
@@ -84,8 +83,8 @@ export const resolveProjectSurfaceTopology = ({
     runtimeMode,
     surfaceRole,
     appOrigin,
-    backendOrigin: env.VITE_AIR_JAM_SERVER_URL?.trim() || appOrigin,
-    publicHost: env.VITE_AIR_JAM_PUBLIC_HOST?.trim() || appOrigin,
+    backendOrigin: env.VITE_AIR_JAM_SERVER_URL || appOrigin,
+    publicHost: env.VITE_AIR_JAM_PUBLIC_HOST || appOrigin,
   });
 };
 

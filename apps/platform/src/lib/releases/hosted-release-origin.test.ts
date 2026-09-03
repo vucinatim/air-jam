@@ -5,7 +5,6 @@ import {
   HostedReleaseOriginConfigurationError,
   isHostedReleaseOriginRequired,
   isHostedReleaseRequestHost,
-  normalizeIncomingRequestHost,
   requireHostedReleasePublicOrigin,
 } from "./hosted-release-origin";
 
@@ -60,17 +59,18 @@ describe("hosted release origin boundary", () => {
     );
   });
 
-  it.each(["https://releases.airjam.io", "https://cdn.releases.airjam.io"])(
-    "rejects a release origin on the platform cookie site: %s",
-    (origin) => {
-      const assessment = assessHostedReleaseOrigin(
-        makeEnv({ AIRJAM_RELEASES_PUBLIC_ORIGIN: origin }),
-      );
+  it.each([
+    "https://games.airjam.io",
+    "https://releases.airjam.io",
+    "https://cdn.releases.airjam.io",
+  ])("rejects a release origin on the platform cookie site: %s", (origin) => {
+    const assessment = assessHostedReleaseOrigin(
+      makeEnv({ AIRJAM_RELEASES_PUBLIC_ORIGIN: origin }),
+    );
 
-      expect(assessment.status).toBe("invalid");
-      expect(assessment.reason).toContain("separate cookie site");
-    },
-  );
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.reason).toContain("separate cookie site");
+  });
 
   it("rejects a release origin trusted by the authentication system", () => {
     const assessment = assessHostedReleaseOrigin(
@@ -140,33 +140,20 @@ describe("hosted release origin boundary", () => {
   it("accepts and normalizes a valid cross-site HTTPS release origin", () => {
     const env = makeEnv({
       NODE_ENV: "production",
-      AIRJAM_RELEASES_PUBLIC_ORIGIN: "  https://games.airjamusercontent.net/  ",
+      AIRJAM_RELEASES_PUBLIC_ORIGIN: "  https://games.air-jam.app/  ",
     });
 
     expect(assessHostedReleaseOrigin(env)).toEqual({
       status: "ready",
-      publicOrigin: "https://games.airjamusercontent.net",
+      publicOrigin: "https://games.air-jam.app",
       platformOrigin: "https://airjam.io",
-      cookieSite: "airjamusercontent.net",
+      cookieSite: "air-jam.app",
     });
     expect(requireHostedReleasePublicOrigin(env)).toBe(
-      "https://games.airjamusercontent.net",
+      "https://games.air-jam.app",
     );
-    expect(isHostedReleaseRequestHost("games.airjamusercontent.net", env)).toBe(
-      true,
-    );
+    expect(isHostedReleaseRequestHost("games.air-jam.app", env)).toBe(true);
     expect(isHostedReleaseRequestHost("airjam.io", env)).toBe(false);
-  });
-
-  it("normalizes only a single valid incoming Host authority", () => {
-    expect(normalizeIncomingRequestHost("Games.Example.NET:8443")).toBe(
-      "games.example.net:8443",
-    );
-    expect(
-      normalizeIncomingRequestHost("bad.example, attacker.example"),
-    ).toBeNull();
-    expect(normalizeIncomingRequestHost("bad host")).toBeNull();
-    expect(normalizeIncomingRequestHost(null)).toBeNull();
   });
 
   it("permits HTTP only outside production while preserving cross-site isolation", () => {

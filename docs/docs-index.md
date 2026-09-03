@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -34,6 +34,10 @@ packages, evidence, and the batched checkpoint model:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
+The active Gate 5 production boundary cutover is governed by:
+
+1. [plans/hosted-release-domain-cutover-plan.md](./plans/hosted-release-domain-cutover-plan.md)
+
 Agents inspect the live execution state through:
 
 ```bash
@@ -61,6 +65,13 @@ The canonical Gate 2 external-agent proof is defined by:
 4. the machine-readable scenario and prompt exposed through
    `pnpm --silent run repo -- golden-path spec --json`
 
+The Gate 6 public package graph, supported Node/OS matrix, budgets, and
+machine-executable clean-install contract are defined by:
+
+1. [contracts/public-package-support-contract.md](./contracts/public-package-support-contract.md)
+2. [audits/v1-public-release/public-install-matrix-audit.md](./audits/v1-public-release/public-install-matrix-audit.md)
+3. `pnpm --silent run repo -- release install-matrix spec --json`
+
 The ranked Gate 5 public, privileged, artifact, runtime, agent, provider,
 privacy, and supply-chain security baseline is:
 
@@ -75,7 +86,8 @@ and safely governed runbooks is defined by:
 2. [contracts/operational-reliability-contract.md](./contracts/operational-reliability-contract.md)
 3. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
 4. [audits/v1-operations/operational-reliability-proof.md](./audits/v1-operations/operational-reliability-proof.md)
-5. the machine-readable catalogs, JSON Schemas, validators, and reliability
+5. [audits/v1-operations/production-rollout-incident-audit.md](./audits/v1-operations/production-rollout-incident-audit.md)
+6. the machine-readable catalogs, JSON Schemas, validators, and reliability
    operations exposed through
    `pnpm --silent run repo -- platform operations contract --help` and
    `pnpm --silent run repo -- platform operations reliability --help`
@@ -127,12 +139,13 @@ competing as parallel product architectures.
 The roadmap gates define the product sequence and the readiness manifest derives
 the currently executable queue. The next independent work is:
 
-1. external-agent public installation and bootstrap proof
-2. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
-3. establish dedicated untrusted-content origin isolation and close the
-   remaining ranked Gate 5 security findings
-4. correlate durable operational alerts into incidents and GitHub issues
-5. run isolated backup/restore and rollback/replay proof
+1. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
+2. close the remaining ranked Gate 5 security findings after the completed
+   `games.air-jam.app` production cutover
+3. correlate durable operational alerts into incidents and GitHub issues
+4. run isolated backup/restore and rollback/replay proof
+5. prove supply-chain provenance, privacy claims, and the emergency release
+   procedure
 6. post-v1 architecture work is intentionally non-current and now lives in:
    1. [strategy/post-v1-topology-roadmap.md](./strategy/post-v1-topology-roadmap.md)
 7. do not treat future topology work as a second live execution plan while the

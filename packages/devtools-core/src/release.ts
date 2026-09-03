@@ -38,6 +38,7 @@ import {
   pathExists,
   readPackageJson,
   resolveCandidatePath,
+  resolveCanonicalPath,
 } from "./fs-utils.js";
 import {
   requestPlatformMachineApi,
@@ -551,22 +552,25 @@ const isZipSymlink = (entry: yauzl.Entry): boolean => {
   return (unixMode & 0o170000) === 0o120000;
 };
 
+const buildArgsByPackageManager = {
+  npm: ["run", "build"],
+  pnpm: ["build"],
+  yarn: ["build"],
+  bun: ["run", "build"],
+} satisfies Record<
+  Exclude<AirJamPackageManager, "unknown">,
+  readonly string[]
+>;
+
 const resolveBuildCommand = (
   packageManager: AirJamPackageManager,
 ): { command: string; args: string[] } | null => {
-  if (packageManager === "npm") {
-    return { command: "npm", args: ["run", "build"] };
-  }
-  if (packageManager === "pnpm") {
-    return { command: "pnpm", args: ["build"] };
-  }
-  if (packageManager === "yarn") {
-    return { command: "yarn", args: ["build"] };
-  }
-  if (packageManager === "bun") {
-    return { command: "bun", args: ["run", "build"] };
-  }
-  return null;
+  return packageManager === "unknown"
+    ? null
+    : {
+        command: packageManager,
+        args: [...buildArgsByPackageManager[packageManager]],
+      };
 };
 
 const runBuild = async ({
@@ -1140,7 +1144,7 @@ export const inspectLocalRelease = async ({
   cwd = process.cwd(),
   distDir,
 }: InspectLocalReleaseOptions = {}): Promise<AirJamLocalReleaseDoctor> => {
-  const projectDir = path.resolve(cwd);
+  const projectDir = await resolveCanonicalPath(cwd);
   const resolvedDistDir = path.resolve(projectDir, distDir || "dist");
   const context = await detectProjectContext({ cwd: projectDir });
   const packageManager = await resolvePackageManager(projectDir);
@@ -1197,11 +1201,11 @@ export const validateLocalRelease = async ({
   bundlePath,
   skipBuild = false,
 }: ValidateLocalReleaseOptions = {}): Promise<AirJamLocalReleaseValidation> => {
+  const projectDir = await resolveCanonicalPath(cwd);
   if (bundlePath) {
-    return validateBundleArchive(path.resolve(cwd, bundlePath));
+    return validateBundleArchive(path.resolve(projectDir, bundlePath));
   }
 
-  const projectDir = path.resolve(cwd);
   const resolvedDistDir = path.resolve(projectDir, distDir || "dist");
   const packageManager = await resolvePackageManager(projectDir);
   const { validation } = await validateProjectBuildOutput({
@@ -1220,7 +1224,7 @@ export const bundleLocalRelease = async ({
   out,
   skipBuild = false,
 }: BundleLocalReleaseOptions = {}): Promise<BundleLocalReleaseResult> => {
-  const projectDir = path.resolve(cwd);
+  const projectDir = await resolveCanonicalPath(cwd);
   const resolvedDistDir = path.resolve(projectDir, distDir || "dist");
   const doctor = await inspectLocalRelease({
     cwd: projectDir,

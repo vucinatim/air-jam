@@ -63,6 +63,7 @@ import {
   runSessionBrokerStop,
   sendSessionInput,
 } from "./session";
+import { AIR_JAM_CLI_VERSION } from "./version";
 
 const normalizeRuntimeCliArgv = (argv: string[]) =>
   argv.filter((value) => value !== "--");
@@ -1081,6 +1082,7 @@ const buildProgram = () => {
   program
     .name("airjam")
     .description("Operate Air Jam game projects")
+    .version(AIR_JAM_CLI_VERSION)
     .action(() => {
       program.outputHelp();
     });

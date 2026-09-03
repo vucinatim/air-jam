@@ -6,7 +6,10 @@ import test from "node:test";
 
 import { acquireWorkspaceBuildLock } from "../../ensure-workspace-package-build.mjs";
 import { verifyMcpStdioHandshake } from "../../lib/mcp-stdio-handshake.mjs";
-import { assertInstalledCandidateIntegrity } from "../lib/golden-path-bootstrap.mjs";
+import {
+  assertInstalledCandidateIntegrity,
+  resolveGoldenPathTemporaryRoot,
+} from "../lib/golden-path-bootstrap.mjs";
 
 const candidateIntegrity = `sha512-${Buffer.from("candidate").toString("base64")}`;
 const lockSource = `
@@ -53,6 +56,34 @@ test("candidate provenance requires the exact packed integrity", () => {
   );
 });
 
+test("golden-path temporary roots prefer explicit and runner-owned paths", () => {
+  const fixtureRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "airjam-golden-path-temp-root-test-"),
+  );
+  const explicitRoot = path.join(fixtureRoot, "explicit");
+  const runnerRoot = path.join(fixtureRoot, "runner");
+
+  try {
+    assert.equal(
+      resolveGoldenPathTemporaryRoot({
+        environment: {
+          AIRJAM_GOLDEN_PATH_TEMP_ROOT: explicitRoot,
+          RUNNER_TEMP: runnerRoot,
+        },
+      }),
+      fs.realpathSync.native(explicitRoot),
+    );
+    assert.equal(
+      resolveGoldenPathTemporaryRoot({
+        environment: { RUNNER_TEMP: runnerRoot },
+      }),
+      fs.realpathSync.native(runnerRoot),
+    );
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test("MCP protocol probe rejects non-JSON stdout without crashing", async () => {
   const fakeServer = [
     'process.stdin.once("data", () => {',
@@ -73,6 +104,27 @@ test("MCP protocol probe rejects non-JSON stdout without crashing", async () => 
       shutdownTimeoutMs: 100,
     }),
     /emitted non-JSON stdout/u,
+  );
+});
+
+test("MCP protocol probe preserves bounded stderr when a candidate exits", async () => {
+  const fakeServer = [
+    'process.stderr.write("candidate startup diagnostic\\n");',
+    "process.exit(7);",
+  ].join("\n");
+
+  await assert.rejects(
+    verifyMcpStdioHandshake({
+      cwd: process.cwd(),
+      env: process.env,
+      command: process.execPath,
+      args: ["--input-type=module", "--eval", fakeServer],
+      clientInfo: { name: "test-client", version: "1.0.0" },
+      label: "Fake MCP server",
+      requestTimeoutMs: 1_000,
+      shutdownTimeoutMs: 100,
+    }),
+    /exited unexpectedly with code 7\.\ncandidate startup diagnostic/u,
   );
 });
 

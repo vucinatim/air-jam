@@ -6,16 +6,21 @@ import type {
   ControllerOrientation,
   ControllerPresenceNotice,
   ControllerRoomSettingsState,
+  HostArcadeSurfaceCheckpoint,
   HostArcadeSessionSnapshot,
   PlayerProfile,
   RunMode,
   RuntimeState,
 } from "../protocol";
 
-export interface HostArcadeRestoreState {
-  phase: "idle" | "awaiting_ack" | "pending_restore";
-  session: HostArcadeSessionSnapshot | null;
-}
+export type HostArcadeRestoreState =
+  | { phase: "idle"; session: null; surfaceCheckpoint: null }
+  | { phase: "awaiting_ack"; session: null; surfaceCheckpoint: null }
+  | {
+      phase: "pending_restore";
+      session: HostArcadeSessionSnapshot | null;
+      surfaceCheckpoint: HostArcadeSurfaceCheckpoint;
+    };
 
 export interface AirJamStore {
   role: ConnectionRole | null;
@@ -34,8 +39,8 @@ export interface AirJamStore {
   /**
    * Host-only reconnect restore seam used during `host:reconnect`.
    * - `awaiting_ack`: reconnect ack is in flight, so arcade shell broadcast must stay suppressed
-   * - `pending_restore`: reconnect ack returned an active arcade session and the platform has not
-   *   consumed it yet
+   * - `pending_restore`: reconnect ack returned Arcade counter continuity and the platform has not
+   *   reconciled it with the route/session yet
    * - `idle`: no reconnect restoration is in progress
    */
   hostArcadeRestore: HostArcadeRestoreState;
@@ -83,6 +88,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     hostArcadeRestore: {
       phase: "idle",
       session: null,
+      surfaceCheckpoint: null,
     },
     setHostArcadeRestore: (next) => set({ hostArcadeRestore: next }),
     clearHostArcadeRestore: () =>
@@ -90,6 +96,7 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
         hostArcadeRestore: {
           phase: "idle",
           session: null,
+          surfaceCheckpoint: null,
         },
       }),
     setRole: (role) => set({ role }),

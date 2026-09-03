@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "id": "air-jam-public-install-matrix",
+  "contract": "air-jam-public-install-matrix/v1",
+  "description": "Clean-room proof of the exact Air Jam public package graph and generated project on every supported operating-system and Node.js pair.",
+  "source": {
+    "kind": "candidate-isolated-registry",
+    "airJamFallback": false,
+    "upstream": "https://registry.npmjs.org/"
+  },
+  "support": {
+    "nodeMajors": [22, 24],
+    "operatingSystems": [
+      {
+        "id": "linux",
+        "nodePlatform": "linux",
+        "githubRunner": "ubuntu-latest"
+      },
+      {
+        "id": "macos",
+        "nodePlatform": "darwin",
+        "githubRunner": "macos-latest"
+      },
+      {
+        "id": "windows",
+        "nodePlatform": "win32",
+        "githubRunner": "windows-latest"
+      }
+    ]
+  },
+  "toolchain": {
+    "packageManager": "pnpm@9.9.0",
+    "bootstrap": "npx --yes create-airjam@<candidate-version>"
+  },
+  "packages": [
+    "@air-jam/sdk",
+    "@air-jam/cli",
+    "@air-jam/mcp-server",
+    "@air-jam/server",
+    "create-airjam"
+  ],
+  "scaffold": {
+    "template": "minimal",
+    "resourceBudgetsFile": "packages/create-airjam/scaffold-resource-budgets.json",
+    "requiredScripts": ["dev", "status", "reset:local", "mcp", "lint"],
+    "requiredMcpTools": [
+      "airjam.inspect_project",
+      "airjam.open_game_session",
+      "airjam.read_game_session",
+      "airjam.invoke_game_session_action",
+      "airjam.close_game_session"
+    ]
+  },
+  "budgets": {
+    "tarballBytes": {
+      "@air-jam/sdk": 2097152,
+      "@air-jam/cli": 1048576,
+      "@air-jam/mcp-server": 1048576,
+      "@air-jam/server": 524288,
+      "create-airjam": 104857600
+    },
+    "totalTarballBytes": 110100480,
+    "scaffoldInstallMs": 600000,
+    "cellTotalMs": 1800000
+  }
+}

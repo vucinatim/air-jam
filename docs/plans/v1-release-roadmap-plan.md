@@ -1,6 +1,6 @@
 # Air Jam 1.0 Release Roadmap
 
-Last updated: 2026-08-28
+Last updated: 2026-08-31
 Status: active governing release plan
 
 Related docs:
@@ -934,6 +934,9 @@ Make wider public creation and hosting safe enough to operate unattended.
 8. run dependency, container, package-provenance, and public-export checks
 9. document telemetry privacy behavior and retention in user-facing terms
 10. define vulnerability reporting and emergency release procedures
+11. enforce fast staged local checks, one pre-push canonicality pass for
+    substantial batches, one GitHub-native review for a green merge candidate,
+    and exact production deployment evidence
 
 ### Done When
 
@@ -943,6 +946,9 @@ Make wider public creation and hosting safe enough to operate unattended.
 3. preview/production isolation and secret non-disclosure are proven
 4. public packages and release artifacts have traceable provenance
 5. privacy claims match actual stored data and retention behavior
+6. baseline branch-protection proof confirms protected CI applies to
+   administrators, the final review lives on the pull request, and deployment
+   evidence is machine-auditable
 
 ## Gate 6: Public Packages, Documentation, Demo, And Story
 

@@ -18,7 +18,7 @@ export default defineConfig({
   splitting: false,
   target: "es2022",
   platform: "node",
-  external: ["socket.io-client", "yauzl", "yazl"],
+  external: ["cross-spawn", "socket.io-client", "yauzl", "yazl"],
   noExternal: ["@air-jam/devtools-core"],
   onSuccess: async () => {
     const cliPath = "dist/cli.js";

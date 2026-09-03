@@ -1,6 +1,27 @@
 import { roomCodeSchema } from "../protocol";
 
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const CONTROLLER_ID_RANDOM_LENGTH = 20;
+let fallbackControllerSequence = 0;
+
+const generateRandomAlphabetValue = (length: number): string => {
+  const values = new Uint32Array(length);
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.getRandomValues === "function"
+  ) {
+    crypto.getRandomValues(values);
+    return Array.from(
+      values,
+      (value) => alphabet[value % alphabet.length],
+    ).join("");
+  }
+
+  return Array.from(
+    { length },
+    () => alphabet[Math.floor(Math.random() * alphabet.length)],
+  ).join("");
+};
 
 export const generateRoomCode = (): string => {
   const array = new Uint32Array(4);
@@ -23,9 +44,15 @@ export const generateRoomCode = (): string => {
 };
 
 export const generateControllerId = (): string => {
-  const stamp = Math.floor(Date.now() % 100000)
-    .toString()
-    .padStart(5, "0");
-  const random = alphabet[Math.floor(Math.random() * alphabet.length)];
-  return `C${random}${stamp}`;
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return `C${crypto.randomUUID().replaceAll("-", "")}`;
+  }
+
+  const sequence = fallbackControllerSequence++;
+  return `C${Date.now().toString(36)}${sequence.toString(36)}${generateRandomAlphabetValue(
+    CONTROLLER_ID_RANDOM_LENGTH,
+  )}`;
 };

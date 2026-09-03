@@ -88,6 +88,7 @@
   "dependencies": {
     "@air-jam/harness": "workspace:^",
     "@air-jam/sdk": "workspace:^",
+    "cross-spawn": "^7.0.6",
     "socket.io-client": "^4.8.1",
     "tsx": "^4.20.6",
     "yauzl": "^3.2.1",
@@ -96,6 +97,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "@types/cross-spawn": "^6.0.6",
     "@types/yauzl": "^2.10.3",
     "@types/yazl": "^2.4.5",
     "socket.io": "^4.8.1",

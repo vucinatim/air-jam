@@ -743,7 +743,7 @@ The detailed findings below reduce to these non-negotiable rules:
   approval identity and exact artifact/commit binding survive independent
   verification and replay.
 
-### AJ-SEC-017 — Scaffold extraction and installation lack final generic resource budgets
+### AJ-SEC-017 — Scaffold resource controls require final matrix and registry proof
 
 - Category: supply-chain
 - Priority: P2
@@ -751,24 +751,33 @@ The detailed findings below reduce to these non-negotiable rules:
 - Release classification: before-scale
 - Confidence: high
 - Evidence:
-  - `packages/create-airjam/src/scaffold.ts:310-398` rejects traversal and
-    absolute paths but has no generic total extracted bytes, file count, or
-    compression-ratio budget
+  - `packages/create-airjam/scaffold-resource-budgets.json` now owns compressed,
+    entry-count, total extracted-byte, single-file, and compression-ratio
+    ceilings
+  - `packages/create-airjam/src/scaffold-archive.ts` preflights those limits,
+    rejects non-regular and portable-path-conflicting entries, extracts into a
+    sibling staging directory, and publishes the target only after complete
+    extraction
+  - `packages/create-airjam/runtime/scaffold-resource-budgets.test.ts` covers
+    every packaged archive plus malicious count, size, ratio, corrupt-stream,
+    cleanup, and successful atomic-publication cases
   - `packages/create-airjam/src/scaffold-command.ts:267-304` performs an ordinary
     package-manager install
   - the current candidate `create-airjam` tarball is approximately 87 MB because
     it embeds six scaffold archives
-- Current controls: archives are bundled in the trusted package, entry paths
-  are validated, the exact local package graph has SHA-512 clean-room proof,
-  and generated projects pass quality gates.
+- Current controls: archives are bundled in the trusted package; entry type,
+  path, collision, size, count, and compression limits fail closed; partial
+  extraction is never exposed as the requested target; the exact local package
+  graph has SHA-512 clean-room proof; and generated projects pass quality gates.
 - Threat and harm: after a supply-chain compromise or future scaffold growth,
   extraction/install can consume surprising disk, time, or dependency surface.
 - Canonical end state: generic extraction budgets and deterministic package/
   cold-install budgets are part of the public candidate contract.
 - Owner and dependencies: scaffold/public package release; `G5-03`, `G6-01`.
-- Required proof: malicious archive count/size/ratio fixtures, interruption
-  cleanup, final package-size/cold-install thresholds, real-registry integrity,
-  and supported OS/Node matrix.
+- Remaining proof: all six supported OS/Node cells must attest the shipped
+  extraction contract and final package-size/cold-install thresholds; the final
+  approved npm prerelease rehearsal must bind the same tested tarballs to
+  real-registry integrity and provenance.
 
 ## Positive Controls To Preserve
 

@@ -61,6 +61,7 @@ export const loadWorkspaceEnv = ({
     dotenv.config({
       path: candidate,
       override: false,
+      quiet: true,
       processEnv: processEnv as Record<string, string>,
     });
     loadedEnvCandidates.add(candidate);

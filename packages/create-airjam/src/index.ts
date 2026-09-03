@@ -3,6 +3,7 @@
 import { Command, type OptionValues } from "commander";
 import kleur from "kleur";
 import {
+  loadCreateAirJamPackageVersion,
   runScaffoldCommand,
   type ScaffoldCommandOptions,
 } from "./scaffold-command";
@@ -25,6 +26,7 @@ export const createScaffoldProgram = (): Command => {
   program
     .name("create-airjam")
     .description("Create a new Air Jam game project")
+    .version(loadCreateAirJamPackageVersion())
     .argument("[project-name]", "Name of the project directory")
     .option("-t, --template <template>", "Template to use")
     .option("--skip-install", "Skip dependency installation", false)

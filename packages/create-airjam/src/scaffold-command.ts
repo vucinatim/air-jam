@@ -11,7 +11,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import prompts from "prompts";
 import {
-  extractScaffoldTemplateArchive,
   findScaffoldTemplate,
   loadAvailableScaffoldTemplates,
   normalizeScaffoldPackageJson,
@@ -20,6 +19,7 @@ import {
   type ScaffoldPackageJson,
   type ScaffoldTemplateSource,
 } from "./scaffold";
+import { extractScaffoldTemplateArchive } from "./scaffold-archive";
 
 const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -52,7 +52,7 @@ const loadTemplateVersionManifest = (): TemplateVersionManifest => {
   return manifest as TemplateVersionManifest;
 };
 
-const loadCreateAirJamPackageVersion = (): string => {
+export const loadCreateAirJamPackageVersion = (): string => {
   const pkg = fs.readJsonSync(packageJsonPath) as { version?: string };
   if (!pkg.version || typeof pkg.version !== "string") {
     throw new Error("Invalid create-airjam package version");

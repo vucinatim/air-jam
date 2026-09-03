@@ -49,9 +49,18 @@ const manifest = {
   },
 };
 
-fs.writeFileSync(
-  manifestPath,
-  `${JSON.stringify(manifest, null, 2)}\n`,
-  "utf-8",
-);
-console.log(`✓ Wrote template version manifest to ${manifestPath}`);
+const serializedManifest = `${JSON.stringify(manifest, null, 2)}\n`;
+if (process.argv.includes("--check")) {
+  if (
+    !fs.existsSync(manifestPath) ||
+    fs.readFileSync(manifestPath, "utf8") !== serializedManifest
+  ) {
+    throw new Error(
+      `Template version manifest is stale; run node scripts/generate-template-version-manifest.mjs`,
+    );
+  }
+  console.log(`✓ Template version manifest is current at ${manifestPath}`);
+} else {
+  fs.writeFileSync(manifestPath, serializedManifest, "utf-8");
+  console.log(`✓ Wrote template version manifest to ${manifestPath}`);
+}

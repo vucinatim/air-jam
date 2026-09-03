@@ -24,6 +24,21 @@ interface ArcadeSurfaceStoreState extends ArcadeSurfaceState {
         orientation: "portrait" | "landscape";
       },
     ) => void;
+    /** Host reconnect: publish a new surface identity above the room checkpoint. */
+    restoreHostBrowserSurface: (
+      ctx: AirJamActionContext,
+      payload: { previousEpoch: number },
+    ) => void;
+    /** Host reconnect: publish a new game identity above the room checkpoint. */
+    restoreHostGameSurface: (
+      ctx: AirJamActionContext,
+      payload: {
+        previousEpoch: number;
+        gameId: string;
+        controllerUrl: string;
+        orientation: "portrait" | "landscape";
+      },
+    ) => void;
     /** Host: overlay only; does not bump epoch. */
     setOverlay: (
       ctx: AirJamActionContext,
@@ -78,6 +93,34 @@ export const useArcadeSurfaceStore = createAirJamStore<ArcadeSurfaceStoreState>(
         set((s) => ({
           ...s,
           epoch: s.epoch + 1,
+          kind: "game",
+          gameId: payload.gameId,
+          controllerUrl: payload.controllerUrl,
+          orientation: payload.orientation,
+        }));
+      },
+
+      restoreHostBrowserSurface: (ctx, payload) => {
+        if (!assertHost(ctx)) {
+          return;
+        }
+        set((s) => ({
+          ...s,
+          epoch: Math.max(s.epoch, payload.previousEpoch) + 1,
+          kind: "browser",
+          gameId: null,
+          controllerUrl: null,
+          orientation: "portrait",
+        }));
+      },
+
+      restoreHostGameSurface: (ctx, payload) => {
+        if (!assertHost(ctx)) {
+          return;
+        }
+        set((s) => ({
+          ...s,
+          epoch: Math.max(s.epoch, payload.previousEpoch) + 1,
           kind: "game",
           gameId: payload.gameId,
           controllerUrl: payload.controllerUrl,

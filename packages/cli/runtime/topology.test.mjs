@@ -1,15 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { loadCreateAirJamRuntimeEnv } from "./runtime-env.mjs";
 import { resolveProjectSurfaceTopology } from "./topology.mjs";
 
-test("standalone topology advertises the configured Vite port", () => {
+test("standalone topology consumes the validated numeric Vite port", () => {
+  const env = loadCreateAirJamRuntimeEnv({
+    env: { VITE_PORT: "53417" },
+    boundary: "create-airjam.topology-test",
+  });
   const topology = resolveProjectSurfaceTopology({
     runtimeMode: "standalone-dev",
     secure: false,
-    env: {
-      VITE_PORT: "53417",
-    },
+    env,
     surfaceRole: "host",
     cwd: process.cwd(),
   });
@@ -19,11 +22,15 @@ test("standalone topology advertises the configured Vite port", () => {
   assert.equal(new URL(topology.socketOrigin).port, "53417");
 });
 
-test("standalone topology treats an empty Vite port as unconfigured", () => {
+test("standalone topology consumes the validated default Vite port", () => {
+  const env = loadCreateAirJamRuntimeEnv({
+    env: { VITE_PORT: "" },
+    boundary: "create-airjam.topology-test",
+  });
   const topology = resolveProjectSurfaceTopology({
     runtimeMode: "standalone-dev",
     secure: false,
-    env: { VITE_PORT: "" },
+    env,
     surfaceRole: "host",
     cwd: process.cwd(),
   });

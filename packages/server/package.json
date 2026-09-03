@@ -1,6 +1,9 @@
 {
   "name": "@air-jam/server",
   "version": "0.9.2",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "description": "WebSocket signal server for Air Jam — rooms, presence, and input pipelines for phone-controller multiplayer party games.",
   "keywords": [
     "air-jam",

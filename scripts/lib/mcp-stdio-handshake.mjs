@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import crossSpawn from "cross-spawn";
 import { stopChild } from "./process-child.mjs";
 
 export const verifyMcpStdioHandshake = async ({
@@ -13,7 +13,7 @@ export const verifyMcpStdioHandshake = async ({
   requestTimeoutMs = 10_000,
   shutdownTimeoutMs = 5_000,
 }) => {
-  const child = spawn(command, args, {
+  const child = crossSpawn(command, args, {
     cwd,
     env,
     stdio: ["pipe", "pipe", "pipe"],
@@ -39,13 +39,16 @@ export const verifyMcpStdioHandshake = async ({
       new Error(`${label} failed to start: ${error.message}`, { cause: error }),
     );
   });
-  child.once("exit", (code, signal) => {
+  child.once("close", (code, signal) => {
     if (shuttingDown) return;
+    const details = stderr.trim();
     fail(
       new Error(
-        signal
-          ? `${label} exited unexpectedly from signal ${signal}.`
-          : `${label} exited unexpectedly with code ${code}.`,
+        `${
+          signal
+            ? `${label} exited unexpectedly from signal ${signal}.`
+            : `${label} exited unexpectedly with code ${code}.`
+        }${details ? `\n${details}` : ""}`,
       ),
     );
   });

@@ -3,12 +3,12 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-08-30T16:05:25.031Z",
+  "updatedAt": "2026-09-03T21:19:35.000Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
-    "agentHoursMin": 285,
-    "agentHoursMax": 520,
+    "agentHoursMin": 290,
+    "agentHoursMax": 530,
     "targetCalendarWeeksMin": 5,
     "targetCalendarWeeksMax": 7,
     "maintainerHoursMin": 28,
@@ -760,11 +760,25 @@
         "agentHoursMax": 30
       },
       "evidenceRequirements": [
-        "negative-path security tests and operator controls"
+        "negative-path security tests and operator controls",
+        "repo CLI proof that the exact merged production deployment reached terminal SUCCESS and its canonical platform origin plus public liveness/readiness identity match the deployed revision",
+        "branch-protection proof that required CI applies to administrators plus one GitHub-native Opus review on the green merge candidate and measured fast local check tiers"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Closing the ranked G5-01 findings in production-valid slices, starting with the P0 untrusted hosted-release origin boundary and hostile browser proof.",
-      "updatedAt": "2026-08-30T04:34:04.188Z"
+      "note": "Dedicated games.air-jam.app production cutover is live and provider-attested on merged revision ebf63d8; G5-02 remains open for rollback proof, observation, legacy-host disposition, and remaining security findings.",
+      "updatedAt": "2026-09-01T14:21:48.429Z",
+      "evidence": [
+        "decision:games-air-jam-app-selected-as-production-release-origin",
+        "document:docs/plans/hosted-release-domain-cutover-plan.md",
+        "document:docs/audits/v1-security/hosted-release-domain-cutover-evidence.md",
+        "artifact:file:docs/audits/v1-security/2026-09-01-production-release-origin-attestation.json",
+        "url:https://github.com/vucinatim/air-jam/pull/79",
+        "url:https://github.com/vucinatim/air-jam/pull/80",
+        "url:https://github.com/vucinatim/air-jam/pull/80#pullrequestreview-5079085370",
+        "command:production-deployment-e65c8e41-terminal-success",
+        "command:release-origin-attest-20-of-20-production-eligible",
+        "command:pnpm-smoke-browser-7-of-7"
+      ]
     },
     {
       "id": "G5-03",
@@ -812,7 +826,7 @@
       "priority": 10,
       "title": "Prove public package graph and clean installation across the support matrix",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [
         "G1-06"
       ],
@@ -822,7 +836,17 @@
       },
       "evidenceRequirements": [
         "clean package, scaffold, CLI, and MCP installation matrix"
-      ]
+      ],
+      "owner": "/root",
+      "note": "Six exact Linux, macOS, and Windows cells passed on Node 22 and 24; independent aggregation matched the workflow aggregate without npm or production mutation.",
+      "updatedAt": "2026-08-30T13:09:48.667Z",
+      "evidence": [
+        "document:docs/audits/v1-public-release/public-install-matrix-audit.md",
+        "command:pnpm check:ci",
+        "url:https://github.com/vucinatim/air-jam/actions/runs/33312857389",
+        "artifact:git:1a05fd0f75ecad720d1c357acbd3f9246e22a6c9"
+      ],
+      "completedAt": "2026-08-30T13:09:48.667Z"
     },
     {
       "id": "G6-02",
@@ -1037,6 +1061,37 @@
       "evidenceRequirements": [
         "stabilization report, ledger closeout, and archived execution plan"
       ]
+    },
+    {
+      "id": "G5-05",
+      "gate": "G5",
+      "lane": "security",
+      "priority": 25,
+      "title": "Optimize the trusted CI critical path without reducing coverage",
+      "authority": "autonomous",
+      "dependsOn": [
+        "G5-01"
+      ],
+      "estimate": {
+        "agentHoursMin": 5,
+        "agentHoursMax": 10
+      },
+      "evidenceRequirements": [
+        "before-and-after CI timings with equivalent confidence coverage and a green protected PR"
+      ],
+      "status": "complete",
+      "updatedAt": "2026-09-01T11:04:54.522Z",
+      "owner": "/root",
+      "note": "Validated green in 3m56s versus 9m30s PR and 11m34s duplicate post-merge baselines.",
+      "evidence": [
+        "url:https://github.com/vucinatim/air-jam/actions/runs/33499213231",
+        "command:pnpm_check_batch",
+        "document:docs/work-ledger.md",
+        "decision:equivalent_six_lane_confidence_graph",
+        "url:https://github.com/vucinatim/air-jam/pull/78",
+        "url:https://github.com/vucinatim/air-jam/actions/runs/33499610948"
+      ],
+      "completedAt": "2026-09-01T11:04:54.522Z"
     }
   ]
 }

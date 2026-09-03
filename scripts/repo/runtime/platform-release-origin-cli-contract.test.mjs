@@ -50,7 +50,7 @@ const inspectLocalReleaseOrigin = (overrides = {}) => {
   return JSON.parse(output);
 };
 
-const withHealthServer = async (handler, run, hostname = "127.0.0.1") => {
+const withReadinessServer = async (handler, run, hostname = "127.0.0.1") => {
   const server = http.createServer(handler);
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -131,6 +131,16 @@ const startHttpServer = async (handler, hostname) => {
   };
 };
 
+const platformRequestPolicyFor = (request) => {
+  assert.equal(typeof request.headers.host, "string");
+  const platformPublicOrigin = `http://${request.headers.host}`;
+  return {
+    platformPublicOrigin,
+    isRailwayPreviewEnvironment: false,
+    platformRequestHosts: [new URL(platformPublicOrigin).host],
+  };
+};
+
 const withAttestationFixture = async (
   { validReleasePolicy = true } = {},
   run,
@@ -150,7 +160,7 @@ const withAttestationFixture = async (
 
     if (
       pathname ===
-        "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/" ||
+        "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation" ||
       pathname ===
         "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/controller"
     ) {
@@ -205,10 +215,10 @@ const withAttestationFixture = async (
     response.end();
   }, "localhost");
 
-  const releaseUrl = `${releaseServer.origin}/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/`;
+  const releaseUrl = `${releaseServer.origin}/releases/g/fixture-game/r/fixture-release/generations/fixture-generation`;
   const platformServer = await startHttpServer((request, response) => {
     const pathname = new URL(request.url, "http://fixture.invalid").pathname;
-    if (pathname === "/api/health") {
+    if (pathname === "/api/readiness") {
       assert.equal(request.headers.accept, "application/json");
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
@@ -217,6 +227,7 @@ const withAttestationFixture = async (
           service: "platform",
           deployment: deploymentIdentity,
           boundaries: {
+            platformRequestPolicy: platformRequestPolicyFor(request),
             hostedReleaseOrigin: {
               required: true,
               status: "ready",
@@ -231,7 +242,7 @@ const withAttestationFixture = async (
 
     if (
       pathname ===
-        "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/" ||
+        "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation" ||
       pathname ===
         "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/controller"
     ) {
@@ -239,9 +250,9 @@ const withAttestationFixture = async (
         "cache-control": "no-store",
         location:
           pathname ===
-          "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/"
+          "/releases/g/fixture-game/r/fixture-release/generations/fixture-generation"
             ? releaseUrl
-            : `${releaseUrl}controller`,
+            : `${releaseUrl}/controller`,
       });
       response.end();
       return;
@@ -260,11 +271,8 @@ const withAttestationFixture = async (
     if (expectedCorsStatus !== null) {
       assert.equal(request.headers.origin, releaseServer.origin);
       if (request.method === "OPTIONS") {
-        response.writeHead(405, {
-          "cache-control": "no-store",
-          "content-type": "application/json",
-        });
-        response.end(JSON.stringify({ error: "method_not_allowed" }));
+        response.writeHead(204, { "cache-control": "no-store" });
+        response.end();
         return;
       }
       const errorCode =
@@ -342,7 +350,7 @@ test("local inspection returns a stable secret-free ready assessment", () => {
   });
 
   assert.deepEqual(result, {
-    contractVersion: 1,
+    contractVersion: 2,
     command: "release-origin.inspect",
     environmentKey: "AIRJAM_RELEASES_PUBLIC_ORIGIN",
     source: { type: "local" },
@@ -370,10 +378,10 @@ test("local inspection reports disabled and invalid configuration without failin
   assert.match(invalid.assessment.reason, /separate cookie site/);
 });
 
-test("remote inspection reads the deployed health boundary through the same stable contract", async () => {
-  await withHealthServer(
+test("remote inspection reads the deployed readiness boundary through the same stable contract", async () => {
+  await withReadinessServer(
     (request, response) => {
-      assert.equal(request.url, "/api/health");
+      assert.equal(request.url, "/api/readiness");
       assert.equal(request.headers.accept, "application/json");
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
@@ -382,6 +390,7 @@ test("remote inspection reads the deployed health boundary through the same stab
           service: "platform",
           deployment: deploymentIdentity,
           boundaries: {
+            platformRequestPolicy: platformRequestPolicyFor(request),
             hostedReleaseOrigin: {
               required: true,
               status: "ready",
@@ -395,12 +404,15 @@ test("remote inspection reads the deployed health boundary through the same stab
     async (platformUrl) => {
       const result = await inspectRemoteReleaseOrigin(platformUrl);
       assert.deepEqual(result, {
-        contractVersion: 1,
+        contractVersion: 2,
         command: "release-origin.inspect",
         environmentKey: "AIRJAM_RELEASES_PUBLIC_ORIGIN",
         source: { type: "remote", platformOrigin: platformUrl },
-        health: { httpStatus: 200, ok: true },
+        readiness: { httpStatus: 200, ok: true },
         deployment: deploymentIdentity,
+        requestPolicy: platformRequestPolicyFor({
+          headers: { host: new URL(platformUrl).host },
+        }),
         assessment: {
           required: true,
           status: "ready",
@@ -412,10 +424,10 @@ test("remote inspection reads the deployed health boundary through the same stab
   );
 });
 
-test("remote inspection returns valid unhealthy 503 disabled and invalid boundaries", async () => {
+test("remote inspection returns valid unready 503 disabled and invalid boundaries", async () => {
   for (const status of ["disabled", "invalid"]) {
-    await withHealthServer(
-      (_request, response) => {
+    await withReadinessServer(
+      (request, response) => {
         response.writeHead(503, { "content-type": "application/json" });
         response.end(
           JSON.stringify({
@@ -423,6 +435,7 @@ test("remote inspection returns valid unhealthy 503 disabled and invalid boundar
             service: "platform",
             deployment: deploymentIdentity,
             boundaries: {
+              platformRequestPolicy: platformRequestPolicyFor(request),
               hostedReleaseOrigin: {
                 required: true,
                 status,
@@ -436,12 +449,15 @@ test("remote inspection returns valid unhealthy 503 disabled and invalid boundar
       async (platformUrl) => {
         const result = await inspectRemoteReleaseOrigin(platformUrl);
         assert.deepEqual(result, {
-          contractVersion: 1,
+          contractVersion: 2,
           command: "release-origin.inspect",
           environmentKey: "AIRJAM_RELEASES_PUBLIC_ORIGIN",
           source: { type: "remote", platformOrigin: platformUrl },
-          health: { httpStatus: 503, ok: false },
+          readiness: { httpStatus: 503, ok: false },
           deployment: deploymentIdentity,
+          requestPolicy: platformRequestPolicyFor({
+            headers: { host: new URL(platformUrl).host },
+          }),
           assessment: {
             required: true,
             status,
@@ -454,9 +470,75 @@ test("remote inspection returns valid unhealthy 503 disabled and invalid boundar
   }
 });
 
-test("remote inspection fails on malformed health responses and unsupported non-2xx statuses", async () => {
-  await withHealthServer(
-    (_request, response) => {
+test("remote inspection rejects request-policy identity drift", async () => {
+  await withReadinessServer(
+    (request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          ok: true,
+          service: "platform",
+          deployment: deploymentIdentity,
+          boundaries: {
+            platformRequestPolicy: {
+              platformPublicOrigin: "https://other.airjam.example",
+              isRailwayPreviewEnvironment: false,
+              platformRequestHosts: ["other.airjam.example"],
+            },
+            hostedReleaseOrigin: {
+              required: true,
+              status: "ready",
+              publicOrigin: "https://airjamusercontent.example",
+              reason: null,
+            },
+          },
+        }),
+      );
+    },
+    async (platformUrl) => {
+      await assert.rejects(inspectRemoteReleaseOrigin(platformUrl), (error) => {
+        const payload = JSON.parse(error.stdout);
+        assert.equal(payload.error.code, "REMOTE_CONTRACT_INVALID");
+        assert.match(payload.error.message, /not the inspected origin/);
+        return true;
+      });
+    },
+  );
+});
+
+test("remote inspection fails on malformed readiness responses and unsupported non-2xx statuses", async () => {
+  await withReadinessServer(
+    (request, response) => {
+      response.writeHead(503, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          ok: false,
+          service: "platform",
+          deployment: deploymentIdentity,
+          boundaries: {
+            platformRequestPolicy: platformRequestPolicyFor(request),
+            hostedReleaseOrigin: {
+              required: false,
+              status: "disabled",
+              publicOrigin: null,
+              reason: "Hosted release origin is disabled.",
+            },
+          },
+        }),
+      );
+    },
+    async (platformUrl) => {
+      await assert.rejects(inspectRemoteReleaseOrigin(platformUrl), (error) => {
+        const payload = JSON.parse(error.stdout);
+        assert.equal(payload.error.code, "REMOTE_CONTRACT_INVALID");
+        assert.match(payload.error.message, /does not match/);
+        return true;
+      });
+    },
+  );
+
+  await withReadinessServer(
+    (request, response) => {
       response.writeHead(503, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: false }));
     },
@@ -466,14 +548,14 @@ test("remote inspection fails on malformed health responses and unsupported non-
         assert.equal(payload.error.code, "REMOTE_CONTRACT_INVALID");
         assert.match(
           payload.error.message,
-          /deployment and hosted-release boundary contracts/,
+          /deployment, request-policy, and hosted-release boundary contracts/,
         );
         return true;
       });
     },
   );
 
-  await withHealthServer(
+  await withReadinessServer(
     (_request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: true, service: "platform" }));
@@ -484,14 +566,14 @@ test("remote inspection fails on malformed health responses and unsupported non-
         assert.equal(payload.error.code, "REMOTE_CONTRACT_INVALID");
         assert.match(
           payload.error.message,
-          /deployment and hosted-release boundary contracts/,
+          /deployment, request-policy, and hosted-release boundary contracts/,
         );
         return true;
       });
     },
   );
 
-  await withHealthServer(
+  await withReadinessServer(
     (_request, response) => {
       response.writeHead(502, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: false }));
@@ -532,8 +614,8 @@ test("remote inspection rejects non-public destinations before connecting", asyn
 });
 
 test("remote inspection supports explicit IPv6 loopback diagnostics", async () => {
-  await withHealthServer(
-    (_request, response) => {
+  await withReadinessServer(
+    (request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
@@ -541,6 +623,7 @@ test("remote inspection supports explicit IPv6 loopback diagnostics", async () =
           service: "platform",
           deployment: deploymentIdentity,
           boundaries: {
+            platformRequestPolicy: platformRequestPolicyFor(request),
             hostedReleaseOrigin: {
               required: false,
               status: "ready",
@@ -554,7 +637,7 @@ test("remote inspection supports explicit IPv6 loopback diagnostics", async () =
     async (platformUrl) => {
       const result = await inspectRemoteReleaseOrigin(platformUrl);
       assert.equal(result.source.platformOrigin, platformUrl);
-      assert.equal(result.health.ok, true);
+      assert.equal(result.readiness.ok, true);
     },
     "::1",
   );
@@ -565,7 +648,7 @@ test("attestation independently rejects a sibling cookie-site release origin", a
     attestReleaseOrigin({
       platformUrl: "http://platform.airjam.localhost",
       releaseUrl:
-        "http://games.airjam.localhost/releases/g/game/r/release/generations/generation/",
+        "http://games.airjam.localhost/releases/g/game/r/release/generations/generation",
     }),
     (error) => {
       const result = JSON.parse(error.stdout);
@@ -614,7 +697,7 @@ test("loopback HTTP attestation proves the multi-origin contract as diagnostic e
           summary: result.summary,
         },
         {
-          contractVersion: 1,
+          contractVersion: 2,
           command: "release-origin.attest",
           status: "passed",
           evidenceKind: "diagnostic",
@@ -629,7 +712,7 @@ test("loopback HTTP attestation proves the multi-origin contract as diagnostic e
             platformOrigin,
             releaseOrigin,
             releaseUrl,
-            controllerUrl: `${releaseUrl}controller`,
+            controllerUrl: `${releaseUrl}/controller`,
             deployment: deploymentIdentity,
           },
           summary: { passed: 19, failed: 0 },
@@ -648,7 +731,7 @@ test("loopback HTTP attestation proves the multi-origin contract as diagnostic e
           { id: "network.localhost.dns", status: "passed" },
           { id: "network.127.0.0.1.tls", status: "passed" },
           { id: "network.localhost.tls", status: "passed" },
-          { id: "platform.health-boundary", status: "passed" },
+          { id: "platform.readiness-boundary", status: "passed" },
           { id: "routing.platform-host-to-release", status: "passed" },
           { id: "routing.platform-controller-to-release", status: "passed" },
           { id: "routing.release-host-platform-block", status: "passed" },
@@ -766,7 +849,7 @@ test("HTTP attestation emits stable failed JSON and exits nonzero when the live 
               summary: result.summary,
             },
             {
-              contractVersion: 1,
+              contractVersion: 2,
               command: "release-origin.attest",
               status: "failed",
               evidenceKind: "diagnostic",
@@ -781,7 +864,7 @@ test("HTTP attestation emits stable failed JSON and exits nonzero when the live 
                 platformOrigin,
                 releaseOrigin,
                 releaseUrl,
-                controllerUrl: `${releaseUrl}controller`,
+                controllerUrl: `${releaseUrl}/controller`,
                 deployment: deploymentIdentity,
               },
               summary: { passed: 18, failed: 1 },
@@ -823,6 +906,7 @@ test("attestation rejects non-canonical release URLs without echoing query crede
   const token = "must-not-appear-in-machine-output";
   const invalidReleaseUrls = [
     `http://localhost:1/releases/g/game/r/release/generations/generation/?token=${token}`,
+    "http://localhost:1/releases/g/game/r/release/generations/generation/",
     "http://localhost:1/releases/g/game/r/release/generations/generation/index.html",
   ];
 
@@ -843,12 +927,12 @@ test("attestation rejects non-canonical release URLs without echoing query crede
             error: result.error,
           },
           {
-            contractVersion: 1,
+            contractVersion: 2,
             command: "release-origin.attest",
             error: {
               code: "INVALID_RELEASE_URL",
               message:
-                "--release-url must use HTTPS except for loopback diagnostics and identify the exact /releases/g/{gameId}/r/{releaseId}/generations/{generationId}/ host root without credentials, a query, or a fragment.",
+                "--release-url must use HTTPS except for loopback diagnostics and identify the exact /releases/g/{gameId}/r/{releaseId}/generations/{generationId} host root without credentials, a query, a fragment, or a trailing slash.",
             },
           },
         );
@@ -865,12 +949,12 @@ test("HTTPS loopback can only produce failed diagnostic evidence", async () => {
     attestReleaseOrigin({
       platformUrl: "https://127.0.0.1:1",
       releaseUrl:
-        "https://127.0.0.1:1/releases/g/fixture-game/r/fixture-release/generations/fixture-generation/",
+        "https://127.0.0.1:1/releases/g/fixture-game/r/fixture-release/generations/fixture-generation",
     }),
     (error) => {
       assert.equal(error.code, 1);
       const result = JSON.parse(error.stdout);
-      assert.equal(result.contractVersion, 1);
+      assert.equal(result.contractVersion, 2);
       assert.equal(result.command, "release-origin.attest");
       assert.equal(result.status, "failed");
       assert.equal(result.evidenceKind, "diagnostic");
@@ -892,7 +976,7 @@ test("HTTPS loopback can only produce failed diagnostic evidence", async () => {
 });
 
 const productionAttestationCandidate = () => ({
-  contractVersion: 1,
+  contractVersion: 2,
   command: "release-origin.attest",
   status: "passed",
   evidenceKind: "diagnostic",
@@ -907,7 +991,7 @@ const productionAttestationCandidate = () => ({
     platformOrigin: "https://airjam.io",
     releaseOrigin: "https://airjamusercontent.example",
     releaseUrl:
-      "https://airjamusercontent.example/releases/g/game/r/release/generations/generation/",
+      "https://airjamusercontent.example/releases/g/game/r/release/generations/generation",
     controllerUrl:
       "https://airjamusercontent.example/releases/g/game/r/release/generations/generation/controller",
     deployment: {

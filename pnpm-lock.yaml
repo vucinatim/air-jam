@@ -32,6 +32,9 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.2
+      cross-spawn:
+        specifier: ^7.0.6
+        version: 7.0.6
       eslint:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.6.1)
@@ -909,6 +912,9 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.2
+      cross-spawn:
+        specifier: ^7.0.6
+        version: 7.0.6
       fs-extra:
         specifier: ^11.3.0
         version: 11.3.3
@@ -989,6 +995,9 @@ importers:
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.14)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.9.0)
+      tsx:
+        specifier: ^4.20.6
+        version: 4.20.6
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -1017,6 +1026,9 @@ importers:
       '@air-jam/sdk':
         specifier: workspace:^
         version: link:../sdk
+      cross-spawn:
+        specifier: ^7.0.6
+        version: 7.0.6
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1
@@ -1033,6 +1045,9 @@ importers:
         specifier: ^4.2.1
         version: 4.2.1
     devDependencies:
+      '@types/cross-spawn':
+        specifier: ^6.0.6
+        version: 6.0.6
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
@@ -1103,6 +1118,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(zod@4.2.1)
+      cross-spawn:
+        specifier: ^7.0.6
+        version: 7.0.6
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1
@@ -4693,6 +4711,9 @@ packages:
 
   '@types/cors@2.8.19':
     resolution: {integrity: sha512-mFNylyeyqN93lfe/9CSxOGREz8cpzAhH+E93xJ4xWQf62V8sQ/24reV2nyzUWM6H6Xji+GGHpkbLe7pVoUEskg==}
+
+  '@types/cross-spawn@6.0.6':
+    resolution: {integrity: sha512-fXRhhUkG4H3TQk5dBhQ7m/JDdSNHKwR2BBia62lhwEIq9xGiQKLxd6LymNhn47SjXhsUEPmxi+PKw2OkW4LLjA==}
 
   '@types/debug@4.1.12':
     resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
@@ -14007,6 +14028,10 @@ snapshots:
       '@types/node': 24.10.1
 
   '@types/cors@2.8.19':
+    dependencies:
+      '@types/node': 24.10.1
+
+  '@types/cross-spawn@6.0.6':
     dependencies:
       '@types/node': 24.10.1
 

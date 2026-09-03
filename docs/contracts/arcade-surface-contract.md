@@ -1,6 +1,6 @@
 # Arcade Surface Contract
 
-Last updated: 2026-03-25  
+Last updated: 2026-09-03
 Status: implemented contract
 
 ## Purpose
@@ -53,11 +53,12 @@ Increment on:
 1. browser -> game
 2. game -> browser
 3. game A -> game B
+4. full host-shell restoration, because the embedded runtime process is new
 
 Do not increment on:
 
 1. overlay changes
-2. reconnect to the same surface
+2. transport reconnect while the same host-shell process and surface survive
 3. re-attach to the same surface instance
 
 ### `kind`
@@ -189,6 +190,16 @@ Responsibilities:
 1. room/runtime invariants
 2. routing and authorization
 3. child launch capability continuity
+4. retain the last observed Arcade surface epoch and replicated revision as a
+   monotonic reconnect checkpoint
+
+The checkpoint is counter continuity, not a second semantic surface snapshot.
+On full host-shell reconnect,
+`HostRegistrationAck.arcadeSurfaceCheckpoint` carries the checkpoint. The
+fresh shell derives browser/game meaning from the typed session and route,
+creates a new epoch above the checkpoint, and publishes at a revision above
+the checkpoint. The cached `arcade.surface` payload is not replayed into the
+host.
 
 ## Parallel Store Rule
 

@@ -1,6 +1,7 @@
 import { normalizeRuntimeUrl } from "@air-jam/sdk/arcade/url";
 import type {
   ChildHostCapability,
+  HostArcadeSurfaceCheckpoint,
   HostArcadeSessionSnapshot,
   SystemLaunchGameAck,
 } from "@air-jam/sdk/protocol";
@@ -36,7 +37,17 @@ export type ArcadeSessionEffect =
   | { type: "surface.reset"; mode: ArcadeMode }
   | { type: "surface.browser" }
   | {
+      type: "surface.restore-browser";
+      previousEpoch: number;
+    }
+  | {
       type: "surface.game";
+      gameId: string;
+      controllerUrl: string;
+    }
+  | {
+      type: "surface.restore-game";
+      previousEpoch: number;
       gameId: string;
       controllerUrl: string;
     }
@@ -79,11 +90,13 @@ export type ArcadeSessionEvent =
     }
   | {
       type: "restore.requested";
-      session: HostArcadeSessionSnapshot;
+      session: HostArcadeSessionSnapshot | null;
+      surfaceCheckpoint: HostArcadeSurfaceCheckpoint;
       hostRouteIntent: ArcadeHostRouteIntent;
       games: ArcadeGame[];
       gamesCatalogReady: boolean;
       mode: ArcadeMode;
+      browserOverlay: ArcadeOverlayKind;
     }
   | {
       type: "close.requested";
@@ -113,6 +126,28 @@ const planClose = ({
   { type: "surface.overlay", overlay: browserOverlay },
   { type: "runtime.exit" },
   ...(notifyServer ? ([{ type: "server.close" }] as const) : []),
+];
+
+const planBrowserRestore = ({
+  mode,
+  browserOverlay,
+  surfaceCheckpoint,
+  notifyServer,
+}: {
+  mode: ArcadeMode;
+  browserOverlay: ArcadeOverlayKind;
+  surfaceCheckpoint: HostArcadeSurfaceCheckpoint;
+  notifyServer: boolean;
+}): ArcadeSessionEffect[] => [
+  ...(mode === "arcade" ? ([{ type: "history.browser" }] as const) : []),
+  {
+    type: "surface.restore-browser",
+    previousEpoch: surfaceCheckpoint.epoch,
+  },
+  { type: "surface.overlay", overlay: browserOverlay },
+  { type: "runtime.reset" },
+  ...(notifyServer ? ([{ type: "server.close" }] as const) : []),
+  { type: "restore.clear" },
 ];
 
 export const orchestrateArcadeSession = (
@@ -197,40 +232,50 @@ export const orchestrateArcadeSession = (
     }
 
     case "restore.requested": {
+      if (!event.session) {
+        return planBrowserRestore({ ...event, notifyServer: false });
+      }
+      const session = event.session;
       if (event.hostRouteIntent.kind === "browser") {
-        return [{ type: "server.close" }, { type: "restore.clear" }];
+        return planBrowserRestore({ ...event, notifyServer: true });
       }
       if (
         event.hostRouteIntent.gameId &&
-        event.session.gameId !== event.hostRouteIntent.gameId
+        session.gameId !== event.hostRouteIntent.gameId
       ) {
-        return [{ type: "server.close" }, { type: "restore.clear" }];
+        return planBrowserRestore({ ...event, notifyServer: true });
       }
 
       const game =
-        event.games.find(
-          (candidate) => candidate.id === event.session.gameId,
-        ) ?? null;
+        event.games.find((candidate) => candidate.id === session.gameId) ??
+        null;
       if (!game) {
-        return event.gamesCatalogReady ? [{ type: "restore.clear" }] : [];
+        return event.gamesCatalogReady
+          ? planBrowserRestore({ ...event, notifyServer: true })
+          : [];
       }
 
       const normalizedGameUrl = normalizeRuntimeUrl(game.url);
       const controllerUrl = normalizeRuntimeUrl(game.controllerUrl);
       if (!normalizedGameUrl || !controllerUrl) {
-        return [{ type: "restore.clear" }];
+        return planBrowserRestore({ ...event, notifyServer: true });
       }
 
       const index = event.games.findIndex(
         (candidate) => candidate.id === game.id,
       );
       return [
-        { type: "surface.game", gameId: game.id, controllerUrl },
+        {
+          type: "surface.restore-game",
+          previousEpoch: event.surfaceCheckpoint.epoch,
+          gameId: game.id,
+          controllerUrl,
+        },
         { type: "surface.overlay", overlay: "hidden" },
         {
           type: "runtime.launch-success",
           normalizedGameUrl,
-          launchCapability: event.session.launchCapability,
+          launchCapability: session.launchCapability,
         },
         ...(index >= 0 ? ([{ type: "selection.set", index }] as const) : []),
         ...(event.mode === "arcade"

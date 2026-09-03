@@ -1,6 +1,9 @@
 {
   "name": "@air-jam/sdk",
   "version": "0.9.2",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "description": "SDK for building Air Jam games — phone-controller multiplayer party games with React, host-authoritative state sync, and QR-code joining.",
   "private": false,
   "type": "module",

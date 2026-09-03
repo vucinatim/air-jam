@@ -12,11 +12,11 @@ import {
   Rocket,
   Zap,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
+import { AirJamLogo } from "@/components/air-jam-logo";
 import { DocsSearch } from "@/components/docs/docs-search";
 import {
   Sidebar,
@@ -56,11 +56,8 @@ export function DocsSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/">
-                <Image
-                  src="/images/airjam-logo.png"
+                <AirJamLogo
                   alt="Air Jam"
-                  width={32}
-                  height={32}
                   className="size-8 shrink-0 object-contain transition-all group-data-[collapsible=icon]:size-4"
                 />
                 <div className="grid flex-1 text-left text-sm leading-tight">

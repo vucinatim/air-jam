@@ -1,5 +1,6 @@
 "use client";
 
+import { AirJamLogo } from "@/components/air-jam-logo";
 import {
   Tooltip,
   TooltipContent,
@@ -14,7 +15,6 @@ import {
 import { IconBrandGithub } from "@tabler/icons-react";
 import { Menu, MessagesSquare, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import Image from "next/image";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useState } from "react";
 
@@ -232,11 +232,9 @@ export const Navbar = memo(function Navbar() {
             href="/"
             className="flex items-center gap-3 transition-opacity hover:opacity-80"
           >
-            <Image
-              src="/images/airjam-logo.png"
+            <AirJamLogo
               alt="Air Jam"
-              width={28}
-              height={28}
+              className="size-7 object-contain"
               priority
             />
             <span className="text-lg font-bold">Air Jam</span>

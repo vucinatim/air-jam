@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -45,6 +45,11 @@ The current priorities are:
    one exact release candidate
 6. launch with a free creation harness and useful hobby cloud inside an explicit
    cost envelope, rather than tying sustainability to signup count
+7. keep development fast through the canonical
+   [check layers](./working-agreements.md#development-check-layers), then use the
+   [review and merge rules](./working-agreements.md#review-stacks-and-integration)
+   and
+   [production-delivery rules](./working-agreements.md#production-delivery-and-public-launch)
 
 ## What Is Structurally Done
 
@@ -173,16 +178,17 @@ These are now baseline truths, not open architecture debates:
     5. the exact candidate package graph now passes an isolated-registry
        bootstrap proof with no local dependency specs or private repository
        paths
-    6. the generated project discovers the canonical CLI, all `24` MCP tools,
+    6. the generated project discovers the canonical CLI, all `26` MCP tools,
        project-scoped Codex configuration, managed dev lifecycle, typecheck,
        lint, tests, and production build
     7. the MCP server reports its shipped package version rather than a
        hard-coded version
     8. the standalone MCP tool set now has one canonical machine-readable
        contract shared by server registration and clean-room verification
-    9. `create-airjam` currently packs to `87,264,876` bytes because it embeds
-       all six scaffold archives; Gate 6 must set and prove the final package
-       size and cold-install budget
+    9. `create-airjam` packs to `87,164,321` bytes because it embeds all six
+       scaffold archives; Gate 6 now enforces that value beneath a 100 MiB
+       package ceiling and proves cold scaffold installation below ten minutes
+       on every supported cell
     10. the retained Codex primary run independently built the full Signal Relay
         game, passed all four quality gates, and reached semantic-session control
         before both supported Chromium paths hit the same macOS Mach-port denial
@@ -217,15 +223,15 @@ These are now baseline truths, not open architecture debates:
        SLO evaluations and durable alert state
     4. platform, server, and hosted-runtime failure producers emit structured,
        redacted evidence with server-owned authority and identity
-    5. worker and platform health now report their true release dependencies
-       rather than treating process liveness as operational readiness
+    5. worker and platform readiness report their true release dependencies
+       while process liveness remains an independent deployment signal
 17. Gate `G5-01` now has one ranked threat model:
     1. public, privileged, artifact, runtime, agent, provider, privacy, and
        supply-chain boundaries were independently reviewed and centrally
        deduplicated
-    2. one critical launch blocker is confirmed in source and current production
-       configuration: creator executable releases fall back to the authenticated
-       platform origin
+    2. the audit identified one critical launch blocker—creator executable
+       releases falling back to the authenticated platform origin—which the
+       first `G5-02` slice has since removed
     3. thirteen high-priority threat groups now have exact ownership, canonical
        end states, and hostile proof requirements
     4. production browser-worker credentials are present, so the worker finding
@@ -233,11 +239,11 @@ These are now baseline truths, not open architecture debates:
        claim of current anonymous exposure
     5. implementation remains in `G5-02` and `G5-03`, with one final batched
        human residual-risk review in `G5-04`
-18. the first `G5-02` implementation slice now exists as a production-valid
-    stacked change:
+18. the first `G5-02` implementation slice is now merged and production-valid:
     1. hosted game code has no authenticated-platform-origin fallback
     2. production requires an explicit cross-site release origin outside Better
-       Auth trust, and build/runtime platform identity drift fails health
+       Auth trust, and build/runtime platform identity drift fails readiness
+       while liveness remains process-only
     3. incoming `Host` authority, not Next's server-derived request URL, owns
        platform-versus-release routing; release, platform, and unknown hosts
        fail into explicit lanes
@@ -256,8 +262,31 @@ These are now baseline truths, not open architecture debates:
     8. only provider-authenticated public-HTTPS runs can become production
        evidence; loopback, missing project identity, and missing provider
        authority stay explicitly diagnostic
-    9. `G5-02` deliberately remains open until a dedicated production domain is
-       provisioned, deployed, and attested end to end
+    9. the selected dedicated production domain, `games.air-jam.app`, is now
+       provisioned, deployed, and attested end to end; the separate observation,
+       rollback-proof, and legacy-host work remains governed by
+       `docs/plans/hosted-release-domain-cutover-plan.md`
+    10. corrective PR `#76` passed exact-head Canonicalizer and Claude Opus
+        review, CI, standalone-artifact proof, Railway previews, and an exact
+        production rollout: platform deployment
+        `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reached terminal `SUCCESS`, and
+        live liveness reported merged revision
+        `e122a52c1da49ef409364c93fb675df56a4e639d`
+19. the production hosted-release cutover is complete and evidence-backed:
+    1. all six public catalog games use `https://games.air-jam.app` while public
+       links, rooms, controllers, QR codes, and reconnect remain on `airjam.io`
+    2. production schema drift from migration `0020` to `0033` was recovered
+       after an isolated PostgreSQL 17 restore rehearsal, exact write drain,
+       and fresh checksummed backup
+    3. merged revision `ebf63d8a0d5587f27ba59adf48213fb71f20340b`
+       is live on terminal-success Railway deployment
+       `e65c8e41-3f72-4078-9ce0-443695d296a2`
+    4. the browser smoke matrix passes `7/7` and the canonical production
+       attestation passes `20/20` with verified Railway identity and
+       `productionEvidenceEligible: true`
+    5. the exact outcome, provider identifiers, recovery facts, and remaining
+       scope are retained in the
+       [hosted-release cutover evidence](./audits/v1-security/hosted-release-domain-cutover-evidence.md)
 
 ## What Is Still Open
 
@@ -265,10 +294,11 @@ The roadmap now organizes the remaining work into explicit evidence gates:
 
 1. external-agent golden-path proof
 2. launch-scale reliability, backpressure, cost, backup, restore, and rollback
-3. operational events, synthetics, alerts, incident correlation, GitHub issue
-   policy, and bounded remediation
+3. incident correlation, GitHub issue delivery, governed runbooks, and bounded
+   remediation
 4. security, abuse, privacy, and supply-chain trust
-5. public package, installation, documentation, demo, and article proof
+5. final public documentation, demo, article, npm prerelease, and promotion
+   proof
 6. one immutable release rehearsal and final go/no-go decision
 
 ## Active Now
@@ -282,14 +312,13 @@ work state without becoming a second product authority:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
-The current pull-request stack is in integration closeout, not public-launch
-closeout. Pull requests `#52` through `#60` remain focused review slices, while
-cumulative integration pull request `#61` targets `main` with their corrected
-combined head to avoid deploying known-incomplete intermediate states. After
-that merge, remaining 1.0 work returns to small independently production-valid
-pull requests. Production code is delivered incrementally; stable package
-promotion, public release visibility, final docs, the launch article, and
-distribution are coordinated only after one exact candidate passes rehearsal.
+The foundation integration through PR `#61`, the production-health recovery in
+PR `#76`, and the public install matrix in PR `#74` are merged. PR `#75` remains
+the independent Gate 4 durable-reliability slice; it must be reviewed at its
+exact head, proven independently deployable, and merged separately. Production
+code is delivered incrementally; stable package promotion, public release
+visibility, final docs, the launch article, and distribution are coordinated
+only after one exact candidate passes rehearsal.
 
 Canonical agent reads are:
 
@@ -328,11 +357,21 @@ Gate `G2-02` is independently re-closed after review found that the first
 bootstrap run proved package versions and registry configuration without
 positively binding installed bytes to that run's packed candidates. The proof
 now compares SHA-512 integrity across the tarballs, registry metadata, and
-generated lockfile; requires all lifecycle scripts and all `24` MCP tools; uses
+generated lockfile; requires all lifecycle scripts and all `26` MCP tools; uses
 bounded command, protocol, registry, and workspace-lock waits; and passes a
 fresh managed-dev plus typecheck, lint, test, and build run. That replay also
 fixed standalone topology so a configured Vite port is advertised consistently
 to hosts, controllers, sockets, and readiness tooling.
+
+Gate `G6-01` is closed by the
+[public install matrix audit](./audits/v1-public-release/public-install-matrix-audit.md).
+The exact five-package candidate graph passed clean `npx` creation, CLI and all
+26 MCP tool discovery, managed development, and generated-project typecheck,
+lint, tests, and build on Linux, macOS, and Windows across Node.js 22 and 24.
+All six cells stayed inside explicit package, install-time, cell-time, and
+archive-extraction budgets. The proof used a fallback-free candidate registry
+and empty cache, so neither an old npm package nor the monorepo could satisfy
+it; npm and production were not changed.
 
 Gate `G2-03` is now explicitly blocked on isolated staging credentials and
 controller-readable provider identity. Its completion requires a new
@@ -465,9 +504,9 @@ Execute the roadmap in dependency order:
 2. provision or select a cost-approved isolated Railway staging environment,
    then run the complete Codex Signal Relay authoring, semantic-control, repair,
    evaluation, and hidden-staging lifecycle against the fixed scenario
-3. provision the dedicated untrusted-content production domain, deploy the
-   implemented origin boundary, and capture real hosted-route, cookie, CORS,
-   CSP, and normal-game attestation before closing the first `G5-02` slice
+3. observe the live dedicated release origin, prove its bounded rollback path,
+   and continue the remaining auth, abuse, and privileged-endpoint work in
+   `G5-02` without reopening the player-facing navigation model
 4. finish warned long-term artifact retention, realtime admission, and overload
    proof in `G3-02`
 5. run isolated backup/restore and rollback/replay work in parallel with durable

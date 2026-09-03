@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@9.9.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "type": "module",
   "scripts": {
     "repo": "node --env-file-if-exists=.env.local scripts/repo/cli.mjs",
@@ -21,8 +24,11 @@
     "release:public:tag": "node scripts/repo/cli.mjs release tag --channel latest",
     "release:public:tag:next": "node scripts/repo/cli.mjs release tag --channel next",
     "build": "pnpm -r build",
-    "check:ci": "pnpm run repo -- platform generated check && pnpm typecheck && pnpm lint && pnpm guard:canonical && pnpm test && pnpm build && pnpm run repo -- perf sanity",
-    "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --strict && pnpm smoke:release",
+    "check:instant": "node scripts/repo/cli.mjs check instant",
+    "check:changed": "node scripts/repo/cli.mjs check changed",
+    "check:batch": "node scripts/repo/cli.mjs check batch",
+    "check:ci": "pnpm check:batch && pnpm build && pnpm check:platform:deploy && pnpm run repo -- perf sanity --profile ci",
+    "check:release": "pnpm typecheck && pnpm test && pnpm build && pnpm run repo -- perf sanity --profile release && pnpm smoke:release",
     "check:release:doctor": "pnpm install --frozen-lockfile && pnpm test:repo-contracts && pnpm check:platform:deploy && pnpm check:release",
     "check:release:publish": "pnpm test:repo-contracts && pnpm --filter platform build && pnpm typecheck && pnpm smoke:server",
     "check:platform:deploy": "node scripts/repo/check-platform-deploy.mjs",
@@ -50,6 +56,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.10.1",
     "commander": "^14.0.0",
+    "cross-spawn": "^7.0.6",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.0.1",

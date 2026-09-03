@@ -139,8 +139,10 @@ describe("arcade session orchestrator", () => {
           expiresAt: 1_800_000_000_000,
         },
       },
+      surfaceCheckpoint: { epoch: 4, revision: 7 },
       hostRouteIntent: { kind: "game" as const, gameId: game.id },
       mode: "arcade" as const,
+      browserOverlay: "hidden" as const,
     };
 
     expect(
@@ -160,7 +162,7 @@ describe("arcade session orchestrator", () => {
         }),
       ),
     ).toEqual([
-      "surface.game",
+      "surface.restore-game",
       "surface.overlay",
       "runtime.launch-success",
       "selection.set",
@@ -169,7 +171,7 @@ describe("arcade session orchestrator", () => {
     ]);
   });
 
-  it("closes a stale server child when route intent rejects restore", () => {
+  it("fully returns to the browser when a bare arcade route rejects a restored game", () => {
     expect(
       effectTypes(
         orchestrateArcadeSession({
@@ -181,13 +183,73 @@ describe("arcade session orchestrator", () => {
               expiresAt: 1_800_000_000_000,
             },
           },
+          surfaceCheckpoint: { epoch: 4, revision: 7 },
           hostRouteIntent: { kind: "browser" },
           games: [game],
           gamesCatalogReady: true,
           mode: "arcade",
+          browserOverlay: "qr",
         }),
       ),
-    ).toEqual(["server.close", "restore.clear"]);
+    ).toEqual([
+      "history.browser",
+      "surface.restore-browser",
+      "surface.overlay",
+      "runtime.reset",
+      "server.close",
+      "restore.clear",
+    ]);
+  });
+
+  it("fully returns to the browser when a restored game is stale after catalog hydration", () => {
+    expect(
+      effectTypes(
+        orchestrateArcadeSession({
+          type: "restore.requested",
+          session: {
+            gameId: "removed_game",
+            launchCapability: {
+              token: "restored",
+              expiresAt: 1_800_000_000_000,
+            },
+          },
+          surfaceCheckpoint: { epoch: 4, revision: 7 },
+          hostRouteIntent: { kind: "game", gameId: "removed_game" },
+          games: [game],
+          gamesCatalogReady: true,
+          mode: "arcade",
+          browserOverlay: "hidden",
+        }),
+      ),
+    ).toEqual([
+      "history.browser",
+      "surface.restore-browser",
+      "surface.overlay",
+      "runtime.reset",
+      "server.close",
+      "restore.clear",
+    ]);
+  });
+
+  it("restores a system-focused reconnect to a new browser identity", () => {
+    expect(
+      orchestrateArcadeSession({
+        type: "restore.requested",
+        session: null,
+        surfaceCheckpoint: { epoch: 9, revision: 12 },
+        hostRouteIntent: { kind: "game", gameId: game.id },
+        games: [game],
+        gamesCatalogReady: true,
+        mode: "arcade",
+        browserOverlay: "hidden",
+      }),
+    ).toEqual([
+      { type: "history.browser" },
+      { type: "surface.restore-browser", previousEpoch: 9 },
+      { type: "surface.overlay", overlay: "hidden" },
+      { type: "runtime.reset" },
+      { type: "restore.clear" },
+    ]);
   });
 
   it("maps browser history back and server child close onto the same exit convergence", () => {

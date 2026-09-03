@@ -5,7 +5,10 @@ import {
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import path from "node:path";
-import { resolvePlatformDeploymentConfig } from "./src/lib/platform-deployment-config";
+import {
+  PLATFORM_CANONICAL_HOST_REDIRECTS,
+  resolvePlatformDeploymentConfig,
+} from "./src/lib/platform-deployment-config";
 import { createHostedReleaseSecurityHeaders } from "./src/lib/releases/hosted-release-response-policy";
 
 export { createHostedReleaseSecurityHeaders } from "./src/lib/releases/hosted-release-response-policy";
@@ -160,14 +163,12 @@ const nextConfig: NextConfig = {
     ];
   },
   async redirects() {
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "www.airjam.io" }],
-        destination: "https://airjam.io/:path*",
-        permanent: true,
-      },
-    ];
+    return PLATFORM_CANONICAL_HOST_REDIRECTS.map((redirect) => ({
+      source: "/:path*",
+      has: [{ type: "host" as const, value: redirect.sourceHost }],
+      destination: `${redirect.destinationOrigin}/:path*`,
+      permanent: true,
+    }));
   },
   async rewrites() {
     const backendUrl = process.env.AIR_JAM_DEV_PROXY_BACKEND_URL?.trim();
@@ -212,9 +213,7 @@ export default withSentryConfig(nextConfig, {
   project: "airjam-platform",
   // Local and agent-driven builds must be side-effect free even when a shell
   // happens to contain provider credentials. Deploys opt in explicitly.
-  authToken: uploadSentrySourceMaps
-    ? process.env.SENTRY_AUTH_TOKEN
-    : undefined,
+  authToken: uploadSentrySourceMaps ? process.env.SENTRY_AUTH_TOKEN : undefined,
   sourcemaps: { disable: !uploadSentrySourceMaps },
   telemetry: false,
   silent: !process.env.CI,

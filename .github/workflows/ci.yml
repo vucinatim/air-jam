@@ -2,27 +2,61 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  checks:
+  validate:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Static contracts
+            history: 1
+            command: >-
+              pnpm --silent run repo -- platform generated check &&
+              pnpm lint &&
+              pnpm guard:canonical
+          - name: Type safety
+            history: 1
+            command: pnpm typecheck
+          - name: Tests
+            history: 0
+            command: pnpm test
+          - name: Workspace build
+            history: 1
+            command: pnpm build
+          - name: Standalone deployment
+            history: 1
+            command: pnpm check:platform:deploy
+          - name: Performance smoke
+            history: 1
+            command: >-
+              pnpm --filter server... build &&
+              pnpm run repo -- perf sanity --profile ci
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          # Readiness evidence resolves immutable historical commit references.
-          fetch-depth: 0
+          # Only the test lane resolves immutable readiness evidence.
+          fetch-depth: ${{ matrix.history }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
           package-manager-cache: false
 
       - name: Enable corepack
@@ -31,26 +65,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install ripgrep
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}
 
-      - name: Content Source Integrity
-        run: pnpm --silent run repo -- platform generated check
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Canonical Guard
-        run: pnpm guard:canonical
-
-      - name: Test
-        run: pnpm test
-
-      - name: Build
-        run: pnpm build
-
-      - name: Perf Sanity
-        run: pnpm run repo -- perf sanity
+  checks:
+    name: checks
+    if: always()
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify every confidence lane
+        env:
+          VALIDATION_RESULT: ${{ needs.validate.result }}
+        run: |
+          if [ "$VALIDATION_RESULT" != "success" ]; then
+            echo "One or more CI confidence lanes did not pass: $VALIDATION_RESULT"
+            exit 1
+          fi

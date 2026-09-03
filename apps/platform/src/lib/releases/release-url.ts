@@ -10,21 +10,6 @@ export const RELEASES_PATH_PREFIX = "/releases";
 
 const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 
-export const buildHostedReleaseAssetPath = ({
-  gameId,
-  releaseId,
-  generationId,
-  assetPath,
-}: {
-  gameId: string;
-  releaseId: string;
-  generationId: string;
-  assetPath: string;
-}): string =>
-  `${RELEASES_PATH_PREFIX}/g/${trimSlashes(gameId)}/r/${trimSlashes(
-    releaseId,
-  )}/generations/${trimSlashes(generationId)}/${trimSlashes(assetPath)}`;
-
 export const buildHostedReleaseBasePath = ({
   gameId,
   releaseId,
@@ -35,6 +20,27 @@ export const buildHostedReleaseBasePath = ({
   generationId: string;
 }): string =>
   `${RELEASES_PATH_PREFIX}/g/${trimSlashes(gameId)}/r/${trimSlashes(releaseId)}/generations/${trimSlashes(generationId)}`;
+
+export const buildHostedReleaseAssetPath = ({
+  gameId,
+  releaseId,
+  generationId,
+  assetPath,
+}: {
+  gameId: string;
+  releaseId: string;
+  generationId: string;
+  assetPath: string;
+}): string => {
+  const basePath = buildHostedReleaseBasePath({
+    gameId,
+    releaseId,
+    generationId,
+  });
+  const normalizedAssetPath = trimSlashes(assetPath);
+
+  return normalizedAssetPath ? `${basePath}/${normalizedAssetPath}` : basePath;
+};
 
 export const rewriteHostedReleaseHtmlAssetUrls = ({
   html,
