@@ -286,13 +286,6 @@ const GameBrowserContent = ({
                     ? "border-airjam-cyan/90 scale-[1.02] gap-0 bg-slate-900/80"
                     : "gap-0 border-white/8 opacity-90 hover:border-white/15 hover:opacity-100",
                 )}
-                style={
-                  isSelected
-                    ? {
-                        boxShadow: `0 0 30px color-mix(in srgb, var(--color-airjam-cyan) 50%, transparent)`,
-                      }
-                    : undefined
-                }
                 onClick={() => onSelectGame(game, idx)}
               >
                 <CardContent

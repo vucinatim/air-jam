@@ -183,11 +183,11 @@ Minimum additional env needed for the hosted release lane:
 5. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
 
 `AIRJAM_RELEASES_PUBLIC_ORIGIN` must be an absolute origin on a separate
-cookie site from the authenticated platform—for example,
-`https://airjamusercontent.example` for a platform at
-`https://airjam.example`. It must not be the platform origin or a sibling such
-as `games.airjam.example`. Hosted release delivery stays disabled when this
-boundary is missing or invalid; there is no same-origin fallback.
+cookie site from the authenticated platform. Air Jam production uses
+`https://games.air-jam.app` for the platform at `https://airjam.io`. It must not
+be the platform origin or a sibling such as `games.airjam.io`. Hosted release
+delivery stays disabled when this boundary is missing or invalid; there is no
+same-origin fallback.
 
 Inspect the effective boundary through the canonical agent-safe command:
 
@@ -195,7 +195,7 @@ Inspect the effective boundary through the canonical agent-safe command:
 pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
-pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id>/ --railway-project <project-id> --json
+pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id> --railway-project <project-id> --json
 ```
 
 `inspect` reports configuration and health. `attest` collects bounded deployed
@@ -210,21 +210,24 @@ set `productionEvidenceEligible: true`. Set `RAILWAY_PROJECT_TOKEN`,
 `RAILWAY_API_TOKEN`, or `RAILWAY_TOKEN`; `RAILWAY_PROJECT_ID` may replace the
 flag. Provider verification independently binds the expected project,
 production environment, current platform-service deployment, and both public
-domains. The health revision remains deployment-reported rather than
+domains. The readiness revision remains deployment-reported rather than
 provider-authenticated. Eligibility means the deployment evidence is
 admissible, not that the complete security finding is closed by this command.
 
 Without `--platform-url`, the command assesses environment variables visible to
 the local platform process. With `--platform-url`, it reads the deployed
-platform's public `/api/health` boundary through a bounded request. Both JSON
+platform's public `/api/readiness` boundary through a bounded request. Both JSON
 forms are stable and versioned and contain no credentials.
 
-Remote inspection returns valid platform health contracts from both `200`
-(healthy) and `503` (unhealthy), including `health.httpStatus`, `health.ok`, and
-the deployed boundary assessment. A valid unhealthy contract is inspection
+Remote inspection contract v2 returns valid platform readiness documents from
+both `200` (ready) and `503` (unready), including `readiness.httpStatus`,
+`readiness.ok`, the effective platform request-host policy, and the deployed
+release boundary assessment. The inspector requires the reported canonical
+platform origin to equal `--platform-url`. A valid unready contract is inspection
 evidence, so the command returns it successfully; malformed contracts,
 unsupported HTTP statuses, and transport failures still exit nonzero with a
-machine-readable error.
+machine-readable error. `/api/health` is the intentionally narrower process
+liveness contract used by deployment infrastructure.
 
 Optional env for screenshot moderation:
 

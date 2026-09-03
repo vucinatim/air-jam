@@ -1,6 +1,6 @@
 # Railway Deployment Guide
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: active guide
 
 Related docs:
@@ -83,7 +83,7 @@ pnpm run repo -- railway doctor --json
 pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
-pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id>/ --railway-project <project-id> --json
+pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id> --railway-project <project-id> --json
 ```
 
 `railway doctor` should answer:
@@ -97,15 +97,18 @@ pnpm --silent run repo -- platform release-origin attest --platform-url https://
 
 `platform release-origin inspect` assesses local configuration by default.
 Pass the deployed platform origin through `--platform-url` to inspect its public
-`/api/health` contract authoritatively without loading or printing provider
+`/api/readiness` contract authoritatively without loading or printing provider
 credentials. Production must report `ready` before hosted release delivery is
 considered healthy.
 
-The inspector returns a valid Railway platform health document even when its
-HTTP status is `503`, preserving `health.ok: false` and the exact disabled or
-invalid boundary reason for agents. That is diagnostic evidence, not a healthy
-deployment: the validation checklist still requires production to reach `200`
-and a `ready` boundary.
+The inspector returns a valid Railway platform readiness document even when its
+HTTP status is `503`, preserving `readiness.ok: false`, the effective platform
+request-host policy, and the exact disabled or invalid boundary reason for
+agents. It rejects an inspected URL that is not the deployment's reported
+canonical platform origin. A valid `503` proves that hosted release delivery is
+not product-ready; it does not make a terminal-successful live platform process
+unhealthy. Railway's deployment healthcheck remains `/api/health`, which reports
+process liveness independently of product and release-domain readiness.
 
 After the dedicated domain is routed, use `platform release-origin attest`
 against one exact live release-generation root. The command is safe for unattended agents:
@@ -121,7 +124,7 @@ deployment, and both public domains. Supply `--railway-project <project-id>` or
 `RAILWAY_PROJECT_ID` and one of `RAILWAY_PROJECT_TOKEN`, `RAILWAY_API_TOKEN`, or
 `RAILWAY_TOKEN`. Without either identity or provider authority, passing
 transport evidence remains diagnostic. The provider does not independently
-authenticate the health revision. This is one input to Gate 5 closure, not a
+authenticate the readiness revision. This is one input to Gate 5 closure, not a
 substitute for the controlled hostile-browser and normal-game proofs.
 
 ## Production Contract
@@ -130,31 +133,62 @@ Production should stay boring:
 
 1. the platform serves `airjam.io`
 2. the server serves `api.airjam.io`
-3. `AIRJAM_RELEASES_PUBLIC_ORIGIN` points at a dedicated cookieless site that is
-   not `airjam.io` or any `*.airjam.io` sibling
+3. `AIRJAM_RELEASES_PUBLIC_ORIGIN` is
+   `https://games.air-jam.app`, a dedicated cookieless site that is not
+   `airjam.io` or any `*.airjam.io` sibling
 4. the browser worker is not public product UI and should expose only the narrow routes it needs
 5. the operational-job worker exposes only liveness, readiness, and authenticated
    drain; it owns durable processing, not public API traffic
 6. the platform should consume the public server URL explicitly rather than guessing from provider-specific env
 
-## Validation Checklist
+## Production Rollout Validation
 
-Before treating a Railway deployment as good, verify:
+Before treating a production rollout as the exact merged revision and a live
+process, verify:
 
-1. platform `/` returns `200`
-2. platform `/arcade` returns `200`
-3. platform `/docs` returns `200`
-4. platform `/api/health` returns `200`
-5. platform `/api/auth/get-session` returns `200`
-6. platform `/api/airjam/host-grant` works same-origin
-7. server `/health` returns `200`
-8. browser worker `/health` returns `200`
-9. operational-job worker `/health` returns `200`
-10. operational-job worker `/ready` returns `200` only after PostgreSQL authority is
-    available
-11. release-origin attestation returns `status: passed`,
-    `evidenceKind: production-deployment`, and
-    `productionEvidenceEligible: true`
+1. `pnpm --silent run repo -- railway doctor --project <project-id> --json`
+   reports the expected project, production environment, affected services, and
+   deployment IDs
+2. until Gate `G5-02` lands the repo-owned exact-commit verifier, bind each
+   affected service to the exact merged commit and provider deployment with:
+
+   ```bash
+   gh api repos/vucinatim/air-jam/commits/<merged-commit>/status
+   npx -y @vucinatim/agentic-devtools railway get-deployment --deployment-id <deployment-id>
+   ```
+
+   Select the affected service's GitHub deployment status, require
+   `state: success`, and retain the deployment ID from its `target_url`. Require
+   the provider response to report the same `id` and literal `status: SUCCESS`.
+   This is an explicitly interim provider read, not a second long-term
+   deployment authority.
+
+3. when the platform is affected, `/`, `/arcade`, and `/docs` return `200`
+4. when the platform is affected, `/api/health` returns `200` as
+   process-liveness proof and reports the exact deployment ID and merged
+   revision
+5. when the platform is affected, `/api/auth/get-session` returns `200` and
+   `/api/airjam/host-grant` works same-origin
+6. when the server is affected, `/health` returns `200`
+7. when the browser worker is affected, `/health` returns `200`
+8. when the operational-job worker is affected, `/health` returns `200` and
+   `/ready` returns `200` only after PostgreSQL authority is available
+9. classify every unchanged service as unaffected and confirm that its
+   preceding successful deployment remains live
+
+## Hosted Release Product-Readiness Validation
+
+The production domain provisioning and rollback order is governed by the
+[hosted release domain cutover plan](../plans/hosted-release-domain-cutover-plan.md).
+
+Before treating hosted release delivery as product-ready, verify:
+
+1. platform `/api/readiness` returns `200` with `ok: true`, the expected
+   canonical platform origin, `isRailwayPreviewEnvironment: false`, and
+   deployment identity matching the exact revision under approval
+2. release-origin attestation returns `status: passed`,
+   `evidenceKind: production-deployment`, and
+   `productionEvidenceEligible: true`
 
 Before terminating or replacing the operational-job worker, call its authenticated
 `POST /drain` endpoint and wait for bounded completion. Queue state remains in

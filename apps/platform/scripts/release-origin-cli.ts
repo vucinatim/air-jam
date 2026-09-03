@@ -10,7 +10,7 @@ import {
   type RemoteReleaseOriginInspectionResult,
 } from "./release-origin-attestation";
 
-const CLI_CONTRACT_VERSION = 1 as const;
+const CLI_CONTRACT_VERSION = 2 as const;
 
 type ReleaseOriginInspectInput = {
   command: "inspect";
@@ -183,7 +183,16 @@ const main = async (): Promise<void> => {
   }
 
   console.log(
-    `Platform health: ${result.health.ok ? "healthy" : "unhealthy"} (HTTP ${result.health.httpStatus})`,
+    `Platform readiness: ${result.readiness.ok ? "ready" : "unready"} (HTTP ${result.readiness.httpStatus})`,
+  );
+  console.log(
+    `Canonical platform origin: ${result.requestPolicy.platformPublicOrigin}`,
+  );
+  console.log(
+    `Railway preview policy: ${result.requestPolicy.isRailwayPreviewEnvironment ? "yes" : "no"}`,
+  );
+  console.log(
+    `Admitted platform hosts: ${result.requestPolicy.platformRequestHosts.join(", ")}`,
   );
   console.log(`Boundary required: ${result.assessment.required}`);
   console.log(

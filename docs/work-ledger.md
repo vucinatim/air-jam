@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,139 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-09-01 - Creator Releases Moved To A Dedicated Production Origin
+
+- provisioned `games.air-jam.app` additively on the exact production Railway
+  platform service while preserving Namecheap email forwarding and every
+  unrelated DNS record
+- kept the public product experience on `airjam.io`; the new origin is an
+  implementation boundary for creator-controlled host and controller documents,
+  not a new player-facing navigation or room-code model
+- recovered a pre-existing production migration drift from journal `0020` to
+  `0033` by creating a rehearsal dump, proving the journal against its isolated
+  PostgreSQL 17 restore, then taking a distinct fresh pre-mutation dump after an
+  exact write drain
+- recorded the real maintenance consequence: an `airjam.io` health probe timed
+  out with HTTP `000` after the deployment stop, and the replacement process
+  reported ready at `13:41:50Z`; exact outage duration and affected requests
+  were not continuously measured
+- retained both production dumps under `.airjam/backups/production/` with mode
+  `0600` and recorded their exact SHA-256 values in the
+  [cutover evidence](./audits/v1-security/hosted-release-domain-cutover-evidence.md)
+- merged decision/runbook PR `#79` after its blocking review was corrected and
+  confirmed inline on the final green head; merged runtime correction PR `#80`
+  after green GitHub checks, green Railway previews, and a final
+  `CLEAR TO MERGE` GitHub-native Claude Opus 5 review
+- observed exact production deployment
+  `e65c8e41-3f72-4078-9ce0-443695d296a2` at terminal `SUCCESS`, serving merged
+  revision `ebf63d8a0d5587f27ba59adf48213fb71f20340b`
+- proved all six public catalog games use the dedicated origin, the browser
+  smoke matrix passes `7/7`, and the canonical provider-authenticated
+  attestation passes `20/20` with `productionEvidenceEligible: true`
+- kept `G5-02` and `G3-02` open for their broader security, rollback,
+  migration-automation, admission, and overload responsibilities
+
+## 2026-09-01 - Trusted CI Entered Critical-Path Optimization
+
+- measured the protected CI baseline at `9m30s` on the final PR revision and
+  `11m34s` on the identical merge tree
+- found that the confidence stages were serialized even though type safety,
+  tests, builds, hermetic deployment proof, and performance validation do not
+  share one required artifact
+- moved those contracts into isolated parallel lanes behind the unchanged
+  required `checks` result and made superseded PR revisions cancellable
+- removed the duplicate post-merge exhaustive run because strict branch
+  protection already requires an up-to-date green PR merge candidate
+- replaced the 90-second warning-only PR benchmark with a 15-second strict
+  performance smoke while retaining the full 90-second strict release profile
+- removed the canonical guard's external ripgrep installation dependency so CI
+  setup is self-contained and faster
+- the first parallel run exposed that one CLI test only passed when an earlier
+  typecheck happened to leave a generated platform manifest behind; the test
+  now creates and removes its own isolated generated fixture
+- validated the six-lane graph on successive green PR heads in `3m44s` and
+  `3m56s`, with all lanes starting within one second; the exact evidence head's
+  `3m48s` test lane was the critical path, making the run `58.6%` faster than
+  the protected PR baseline and `66.0%` faster than the duplicate post-merge
+  baseline while preserving the same confidence areas
+
+## 2026-08-31 - Development And Review Gates Were Re-Layered
+
+- superseded the same-day exact-head two-local-review policy after it proved too
+  slow and duplicated Opus-class judgment without improving the product
+- established `check:instant` with a warm `<=1s` target and `check:changed` with
+  a warm `<=5s` target as the normal development loop
+- moved full typecheck, lint, canonical guards, and tests into the substantial
+  pre-push batch gate; exhaustive builds, deployment proof, and perf remain CI
+  responsibilities
+- limited Canonicalizer to one local session before pushing a substantial
+  multi-file, new-system, architectural, or roughly `1,000+` line batch
+- moved the only final Opus review to one open, green, merge-ready GitHub pull
+  request so findings and line comments remain beside the code
+- removed automatic review reruns and local review fixtures from the ordinary
+  merge path
+
+## 2026-08-31 - Review, Merge, And Production Delivery Became Canonical
+
+- made the working agreements the sole normative owner for reviewed delivery
+- clarified that the maintainer owns product direction, paradigm, scope, taste,
+  polish, material risk acceptance, and launch judgment rather than routine code
+  review
+- assigned implementation assurance to one exact-range Canonicalizer pass and
+  one explicit `claude-opus-5` pass for every individual pull request, including
+  each stack slice
+- made any base or head change invalidate both reviews and required their exact
+  SHAs, sessions, resolved models, verdicts, and findings to be attached to the
+  pull request
+- retained CI and affected provider previews as the mechanically enforced
+  GitHub gates; review evidence remains instruction-governed for 1.0
+- recorded the maintainer's explicit decision to remove the routine human
+  approval requirement while retaining required CI for administrators,
+  conversation resolution, and force-push and branch-deletion protections
+- required exact affected-service production deployment success plus live
+  health, readiness, and revision evidence before calling a rollout complete
+- initially considered protected automated review attestation, then dropped it
+  from the 1.0 path when the same-day layered-review decision removed the
+  duplicate local review model
+
+## 2026-08-31 - Production Platform Recovery Was Verified
+
+- merged corrective PR `#76` only after exact-head Canonicalizer and explicit
+  Claude Opus review, GitHub CI, standalone-artifact proof, and every affected
+  Railway preview reached a passing terminal state
+- observed production platform deployment
+  `8dbde4b3-3059-4bfd-8ba6-93deccbde995` reach terminal `SUCCESS`
+- proved live `/api/health` reports the exact deployment and merged revision
+  `e122a52c1da49ef409364c93fb675df56a4e639d`
+- confirmed `/api/readiness` now preserves the explicit disabled
+  hosted-release boundary without making Railway process liveness fail
+- retained hosted-release domain provisioning and repo-native exact-deployment
+  automation as open `G5-02` work rather than conflating them with recovery
+
+## 2026-08-31 - Failed Platform Rollout Entered Controlled Recovery
+
+- confirmed that the platform deployment following PR `#73` reached terminal
+  `FAILED` while Railway kept the previous successful revision serving users
+- identified two independent deployment blockers: Railway's exact healthcheck
+  host was rejected by production host policy, and release-domain readiness was
+  incorrectly coupled to process liveness
+- found that the build/runtime release-origin guard had only source-level proof;
+  its dynamic environment lookup did not provide trustworthy standalone bundle
+  attestation
+- separated `/api/health` liveness from `/api/readiness`, constrained the
+  provider-independent liveness exception to one exact path, and moved
+  release-origin inspection and attestation to the readiness contract
+- extended the hermetic deploy check to boot the actual standalone production
+  artifact and prove both matching-origin readiness and deliberate
+  build/runtime drift rejection
+- recorded the timeline, evidence, root causes, and remaining production
+  closure in the
+  [production rollout incident audit](./audits/v1-operations/production-rollout-incident-audit.md)
+- opened exact-head Canonicalizer and Claude Opus review; their results remain
+  pull-request evidence rather than self-certified historical proof
+- kept recovery open until exact-head agent review, merge, terminal Railway
+  `SUCCESS`, and live deployment-identity verification are complete
 
 ## 2026-08-30 - Public Installation Became A Six-Cell Release Contract
 

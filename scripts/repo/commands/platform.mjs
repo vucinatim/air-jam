@@ -594,7 +594,7 @@ export const registerPlatformCommands = (program) => {
     )
     .option(
       "--platform-url <origin>",
-      "Inspect the deployed platform /api/health contract instead of local environment variables",
+      "Inspect the deployed platform /api/readiness contract instead of local environment variables",
     )
     .option("--json", "Print the stable machine-readable contract")
     .action(async (options) => {
@@ -616,7 +616,7 @@ export const registerPlatformCommands = (program) => {
     )
     .requiredOption(
       "--release-url <url>",
-      "Exact canonical live /releases/g/{gameId}/r/{releaseId}/generations/{generationId}/ host-root URL",
+      "Exact canonical live /releases/g/{gameId}/r/{releaseId}/generations/{generationId} host-root URL",
     )
     .option(
       "--railway-project <id>",

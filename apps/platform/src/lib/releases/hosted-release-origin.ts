@@ -1,11 +1,9 @@
 import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
+import { normalizePlatformRequestHost } from "@/lib/request-host-policy";
 import { inspectHostedReleaseCookieSiteIsolation } from "./hosted-release-cookie-site";
 
 export const HOSTED_RELEASE_PUBLIC_ORIGIN_ENV =
   "AIRJAM_RELEASES_PUBLIC_ORIGIN" as const;
-export const BUILT_PLATFORM_PUBLIC_ORIGIN_ENV =
-  "AIRJAM_BUILT_PLATFORM_PUBLIC_ORIGIN" as const;
-
 export type HostedReleaseOriginAssessment =
   | {
       status: "ready";
@@ -66,6 +64,26 @@ const parseConfiguredOrigin = (
   }
 };
 
+export const readConfiguredHostedReleaseRequestHost = (
+  env: NodeJS.ProcessEnv = process.env,
+): string | null => {
+  // Parse only enough to reserve the configured host even when the stricter
+  // origin assessment rejects paths, credentials, or other policy details.
+  const rawOrigin = trimToNull(env[HOSTED_RELEASE_PUBLIC_ORIGIN_ENV]);
+  if (!rawOrigin) {
+    return null;
+  }
+
+  try {
+    const url = new URL(rawOrigin);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.host
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const escapeRegularExpression = (value: string): string =>
   value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
 
@@ -101,7 +119,13 @@ export const assessHostedReleaseOrigin = (
     };
   }
 
-  const builtPlatformOrigin = trimToNull(env[BUILT_PLATFORM_PUBLIC_ORIGIN_ENV]);
+  // Keep the literal process.env access so Next bakes the build-time origin
+  // into the standalone artifact; custom env objects remain testable.
+  const builtPlatformOrigin = trimToNull(
+    env === process.env
+      ? process.env.AIRJAM_BUILT_PLATFORM_PUBLIC_ORIGIN
+      : env.AIRJAM_BUILT_PLATFORM_PUBLIC_ORIGIN,
+  );
   if (
     builtPlatformOrigin &&
     parseConfiguredOrigin(builtPlatformOrigin)?.origin !==
@@ -205,22 +229,6 @@ export const requireHostedReleasePublicOrigin = (
   return assessment.publicOrigin;
 };
 
-export const normalizeIncomingRequestHost = (
-  rawHost: string | null | undefined,
-): string | null => {
-  const candidate = rawHost?.trim().toLowerCase();
-  if (!candidate || candidate.includes(",") || /\s/.test(candidate)) {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(`http://${candidate}`);
-    return parsed.host === candidate ? parsed.host : null;
-  } catch {
-    return null;
-  }
-};
-
 export const isHostedReleaseRequestHost = (
   requestHost: string | null | undefined,
   env: NodeJS.ProcessEnv = process.env,
@@ -231,7 +239,7 @@ export const isHostedReleaseRequestHost = (
   }
 
   return (
-    normalizeIncomingRequestHost(requestHost) ===
+    normalizePlatformRequestHost(requestHost) ===
     new URL(assessment.publicOrigin).host
   );
 };

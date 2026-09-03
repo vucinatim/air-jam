@@ -1,3 +1,4 @@
+import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import { ErrorCode } from "@air-jam/sdk/protocol";
 import { describe, expect, it } from "vitest";
 import type { AuthService } from "../src/services/auth-service";
@@ -222,6 +223,20 @@ describe("server game lifecycle", () => {
 
     expect(childJoinAck.ok).toBe(true);
 
+    masterHost.emit("host:state_sync", {
+      roomId,
+      data: { kind: "game", gameId: "pong" },
+      storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+      revision: 1,
+    });
+    await harness.delay(25);
+    expect(
+      harness
+        .getRoomManager()
+        .getRoom(roomId)
+        ?.replicatedStoreSnapshots.has(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN),
+    ).toBe(true);
+
     const childDisconnectPromise = harness.waitForEvent(
       childHost,
       "disconnect",
@@ -231,6 +246,12 @@ describe("server game lifecycle", () => {
 
     await harness.expectNoEvent(controller, "disconnect", 120);
     await childDisconnectPromise;
+    expect(
+      harness
+        .getRoomManager()
+        .getRoom(roomId)
+        ?.replicatedStoreSnapshots.has(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN),
+    ).toBe(true);
   });
 
   it("keeps controllers connected across game switches and propagates pause/resume", async () => {

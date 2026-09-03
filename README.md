@@ -109,11 +109,15 @@ pnpm arcade:test --game=code-review
 pnpm logs --view=signal
 ```
 
-For the normal quality gate:
+For the normal fast development loop:
 
 ```bash
-pnpm check:ci
+pnpm check:instant
+pnpm check:changed
 ```
+
+Use `pnpm check:batch` once before pushing a substantial change. The exhaustive
+`pnpm check:ci` gate belongs on the pull request rather than between local edits.
 
 For the full local release gate:
 
@@ -157,7 +161,7 @@ Issues, discussions, documentation improvements, SDK improvements, reference gam
 
 Before opening a PR:
 
-1. run `pnpm check:ci`
+1. run `pnpm check:changed`; use `pnpm check:batch` for a substantial batch
 2. keep changes focused
 3. update docs when behavior or contracts change
 

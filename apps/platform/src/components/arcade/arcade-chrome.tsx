@@ -1,5 +1,6 @@
 "use client";
 
+import { AirJamLogo } from "@/components/air-jam-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PlayerProfile } from "@air-jam/sdk";
@@ -11,7 +12,6 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { memo } from "react";
 import styles from "./arcade-layout.module.css";
@@ -84,11 +84,8 @@ export const ArcadeChrome = memo(function ArcadeChrome({
             aria-label="Go to Air Jam home"
             className="shrink-0 rounded-sm focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
           >
-            <Image
-              src="/images/airjam-logo.png"
+            <AirJamLogo
               alt="Air Jam"
-              width={160}
-              height={40}
               className={cn("h-7 w-auto object-contain", styles.chromeLogo)}
               priority={false}
             />

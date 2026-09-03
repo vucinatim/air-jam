@@ -1,6 +1,6 @@
 # Air Jam Performance Baseline
 
-Last updated: 2026-04-04
+Last updated: 2026-09-01
 Status: release-gate baseline
 
 This document tracks the committed local server perf sanity contract.
@@ -14,8 +14,20 @@ pnpm run repo -- perf sanity
 Strict release gate:
 
 ```bash
-pnpm run repo -- perf sanity --strict
+pnpm run repo -- perf sanity --profile release
 ```
+
+Strict pull-request smoke gate:
+
+```bash
+pnpm run repo -- perf sanity --profile ci
+```
+
+The pull-request profile uses a `15s` measurement, `1s` warmup, and `5`
+reconnect cycles against the same committed thresholds. It makes every
+regression blocking while keeping PR feedback short. Its shared-runner flake
+rate is still based on an initial observation window; if cold-start variance
+appears, increase the warmup before relaxing a threshold.
 
 The canonical perf pass now has two scenarios:
 

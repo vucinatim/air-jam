@@ -306,6 +306,8 @@ export const ArcadeSystem = ({
   >(new Map());
   const hostArcadeRestore = useHostArcadeRestore();
   const pendingHostArcadeRestoreSession = hostArcadeRestore.session;
+  const pendingHostArcadeSurfaceCheckpoint =
+    hostArcadeRestore.surfaceCheckpoint;
   const { accessibility } = useInheritedPlatformSettings();
   const {
     settings: platformSettings,
@@ -379,8 +381,21 @@ export const ArcadeSystem = ({
           case "surface.browser":
             surfaceActions.setBrowserSurface();
             break;
+          case "surface.restore-browser":
+            surfaceActions.restoreHostBrowserSurface({
+              previousEpoch: effect.previousEpoch,
+            });
+            break;
           case "surface.game":
             surfaceActions.setGameSurface({
+              gameId: effect.gameId,
+              controllerUrl: effect.controllerUrl,
+              orientation: "landscape",
+            });
+            break;
+          case "surface.restore-game":
+            surfaceActions.restoreHostGameSurface({
+              previousEpoch: effect.previousEpoch,
               gameId: effect.gameId,
               controllerUrl: effect.controllerUrl,
               orientation: "landscape",
@@ -483,7 +498,10 @@ export const ArcadeSystem = ({
     if (!host.roomId || !host.socket?.connected) {
       return;
     }
-    if (!pendingHostArcadeRestoreSession) {
+    if (
+      hostArcadeRestore.phase !== "pending_restore" ||
+      !pendingHostArcadeSurfaceCheckpoint
+    ) {
       return;
     }
 
@@ -491,10 +509,12 @@ export const ArcadeSystem = ({
       orchestrateArcadeSession({
         type: "restore.requested",
         session: pendingHostArcadeRestoreSession,
+        surfaceCheckpoint: pendingHostArcadeSurfaceCheckpoint,
         hostRouteIntent,
         games,
         gamesCatalogReady,
         mode,
+        browserOverlay: getPreferredBrowserOverlay(),
       }),
     );
   }, [
@@ -502,9 +522,12 @@ export const ArcadeSystem = ({
     host.roomId,
     host.socket?.connected,
     pendingHostArcadeRestoreSession,
+    pendingHostArcadeSurfaceCheckpoint,
+    hostArcadeRestore.phase,
     hostRouteIntent,
     games,
     gamesCatalogReady,
+    getPreferredBrowserOverlay,
     mode,
   ]);
 

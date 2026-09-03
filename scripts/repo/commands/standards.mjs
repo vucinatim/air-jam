@@ -1,4 +1,7 @@
-import { runCommandResult } from "../lib/shell.mjs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { repoRoot } from "../lib/paths.mjs";
 
 const canonicalRules = [
   {
@@ -154,36 +157,73 @@ const canonicalRules = [
   },
 ];
 
-const runCanonicalGuard = () => {
-  const rgCheck = runCommandResult("rg", ["--version"], {
-    stdio: "pipe",
-  });
-  if (rgCheck.status !== 0) {
-    throw new Error("guard:canonical requires ripgrep (rg) to be installed.");
-  }
-
-  let failures = 0;
-
-  for (const rule of canonicalRules) {
-    const result = runCommandResult(
-      "rg",
-      ["-n", "-U", "--pcre2", rule.pattern, ...rule.paths],
-      {
-        stdio: "pipe",
-      },
-    );
-
-    if (result.status !== 0 || !result.stdout?.trim()) {
-      continue;
+const resolveRuleFiles = (root, paths) => {
+  for (const relativePath of paths) {
+    if (!existsSync(path.join(root, relativePath))) {
+      throw new Error(`Canonical guard path does not exist: ${relativePath}`);
     }
-
-    console.log(`Forbidden pattern detected: ${rule.label}`);
-    process.stdout.write(result.stdout);
-    console.log("");
-    failures += 1;
   }
 
-  if (failures > 0) {
+  const output = execFileSync(
+    "git",
+    [
+      "-C",
+      root,
+      "ls-files",
+      "-z",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
+      ...paths,
+    ],
+    { encoding: "utf8" },
+  );
+
+  return output.split("\0").filter(Boolean).sort();
+};
+
+const lineNumberAt = (source, index) =>
+  source.slice(0, index).split("\n").length;
+
+const readTextFile = (root, relativePath) => {
+  const contents = readFileSync(path.join(root, relativePath));
+  if (contents.subarray(0, 8_000).includes(0)) {
+    return null;
+  }
+  return contents.toString("utf8");
+};
+
+export const findCanonicalViolations = ({
+  root = repoRoot,
+  rules = canonicalRules,
+} = {}) =>
+  rules.flatMap((rule) => {
+    const pattern = new RegExp(rule.pattern, "gm");
+    return resolveRuleFiles(root, rule.paths).flatMap((relativePath) => {
+      const source = readTextFile(root, relativePath);
+      if (source === null) {
+        return [];
+      }
+      return [...source.matchAll(pattern)].map((match) => ({
+        file: relativePath,
+        label: rule.label,
+        line: lineNumberAt(source, match.index ?? 0),
+        excerpt: match[0].replace(/\s+/gu, " ").trim().slice(0, 160),
+      }));
+    });
+  });
+
+const runCanonicalGuard = () => {
+  const violations = findCanonicalViolations();
+
+  for (const violation of violations) {
+    console.log(`Forbidden pattern detected: ${violation.label}`);
+    console.log(`${violation.file}:${violation.line}: ${violation.excerpt}`);
+    console.log("");
+  }
+
+  if (violations.length > 0) {
     throw new Error("Canonical guard failed.");
   }
 

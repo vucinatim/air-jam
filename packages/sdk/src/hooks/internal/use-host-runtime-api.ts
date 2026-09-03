@@ -686,6 +686,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             store.getState().setHostArcadeRestore({
               phase: "awaiting_ack",
               session: null,
+              surfaceCheckpoint: null,
             });
             emitHostRuntimeEvent({
               event: AIRJAM_DEV_LOG_EVENTS.runtime.hostReconnectRequested,
@@ -706,15 +707,20 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
                   latestState.setRoomId(ack.roomId);
                   hydrateHostRoster(ack.players, ack.controllers);
                   setControllerCapability(ack.controllerCapability ?? null);
+                  const surfaceCheckpoint =
+                    ack.arcadeSurfaceCheckpoint ??
+                    (ack.arcadeSession ? { epoch: 1, revision: 0 } : null);
                   latestState.setHostArcadeRestore(
-                    ack.arcadeSession
+                    surfaceCheckpoint
                       ? {
                           phase: "pending_restore",
-                          session: ack.arcadeSession,
+                          session: ack.arcadeSession ?? null,
+                          surfaceCheckpoint,
                         }
                       : {
                           phase: "idle",
                           session: null,
+                          surfaceCheckpoint: null,
                         },
                   );
                   setRegisteredRoomId(ack.roomId);

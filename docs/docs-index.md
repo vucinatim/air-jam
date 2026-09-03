@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -33,6 +33,10 @@ The machine-backed subordinate execution plan owns dependency-aware work
 packages, evidence, and the batched checkpoint model:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
+
+The active Gate 5 production boundary cutover is governed by:
+
+1. [plans/hosted-release-domain-cutover-plan.md](./plans/hosted-release-domain-cutover-plan.md)
 
 Agents inspect the live execution state through:
 
@@ -80,7 +84,8 @@ and safely governed runbooks is defined by:
 
 1. [contracts/operational-events-and-incidents-contract.md](./contracts/operational-events-and-incidents-contract.md)
 2. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
-3. the machine-readable catalog, JSON Schemas, and validators exposed through
+3. [audits/v1-operations/production-rollout-incident-audit.md](./audits/v1-operations/production-rollout-incident-audit.md)
+4. the machine-readable catalog, JSON Schemas, and validators exposed through
    `pnpm --silent run repo -- platform operations contract --help`
 
 The measured Gate 3 production baseline is:
@@ -131,8 +136,8 @@ The roadmap gates define the product sequence and the readiness manifest derives
 the currently executable queue. The next independent work is:
 
 1. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
-2. establish dedicated untrusted-content origin isolation and close the
-   remaining ranked Gate 5 security findings
+2. close the remaining ranked Gate 5 security findings after the completed
+   `games.air-jam.app` production cutover
 3. produce and persist durable operational events against the canonical Gate 4
    contract
 4. run isolated backup/restore and rollback/replay proof

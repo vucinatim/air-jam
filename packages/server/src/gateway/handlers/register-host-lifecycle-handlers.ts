@@ -1,4 +1,5 @@
 import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "@air-jam/sdk";
+import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import {
   AIRJAM_DEV_LOG_EVENTS,
   ErrorCode,
@@ -40,6 +41,7 @@ import {
   beginGameLaunch,
   beginRoomClosing,
   buildArcadeSessionForHostAck,
+  buildArcadeSurfaceCheckpointForHostAck,
   buildControllerCapabilityForHostAck,
   buildRoomStateMessage,
   canBeginGameLaunch,
@@ -132,7 +134,12 @@ export const registerHostLifecycleHandlers = (
     targetSocket: typeof socket,
     session: RoomSession,
   ): void => {
-    for (const snapshot of session.replicatedStoreSnapshots.values()) {
+    for (const [storeDomain, snapshot] of session.replicatedStoreSnapshots) {
+      // The typed reconnect acknowledgement is the sole restore authority for
+      // the Arcade shell; replaying its derived surface creates two owners.
+      if (storeDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN) {
+        continue;
+      }
       targetSocket.emit("airjam:state_sync", snapshot);
     }
   };
@@ -793,6 +800,8 @@ export const registerHostLifecycleHandlers = (
           ok: true,
           roomId,
           arcadeSession: buildArcadeSessionForHostAck(session, uuidv4),
+          arcadeSurfaceCheckpoint:
+            buildArcadeSurfaceCheckpointForHostAck(session),
           players: buildHostRosterSnapshot(session),
           controllers: buildHostControllerSnapshot(session),
           controllerCapability: getControllerCapabilityForAck(session),

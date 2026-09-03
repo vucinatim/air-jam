@@ -15,17 +15,30 @@ Thanks for contributing.
    ```bash
    pnpm install
    ```
-3. Run the checks you need while developing:
+3. Use the fast checks while developing:
    ```bash
-   pnpm check:ci
+   pnpm check:instant
+   pnpm check:changed
    ```
-4. `pnpm check:ci` mirrors the lightweight GitHub CI contract: content integrity, typecheck, lint, canonical guard, tests, build, and non-strict perf sanity.
-5. Typical local `pnpm test` runtime is around 10 seconds on a modern laptop (server integration tests + sdk unit tests).
-6. `pnpm run repo -- perf sanity` is the canonical local server perf check.
-7. `pnpm check:release` remains the deeper local prerelease gate with strict perf, browser smoke, and full scaffold tarball smoke.
-8. `pnpm check:platform:deploy` is the hermetic local deploy contract for the hosted platform. It copies the repo into a clean temp workspace, runs a frozen-lockfile install, fails on workspace bin warnings, and builds `apps/platform`.
-9. `pnpm check:release:doctor` is the final local release command because it first enforces a clean `pnpm install --frozen-lockfile`, runs repo contract tests, runs the hermetic platform deploy check, and only then runs the heavy prerelease gate.
-10. `pnpm check:release:publish` is the lightweight GitHub publish-path sanity gate: repo contract tests, clean platform build, typecheck, and server lifecycle/routing smoke.
+4. `pnpm check:instant` targets a warm runtime of at most one second.
+5. `pnpm check:changed` runs cached lint and affected-project TypeScript checks
+   in parallel with a warm target of at most five seconds. Use
+   `-- --files <paths...>` for the files in the current edit.
+6. `pnpm check:batch` runs the slower generated-source, typecheck, lint,
+   canonical-guard, and test stages. Use it once before pushing a new system,
+   multi-file behavioral refactor, architectural boundary, or roughly `1,000+`
+   meaningful changed lines.
+7. `pnpm check:ci` is exhaustive pull-request validation; it is not the normal
+   local editing loop.
+8. `pnpm run repo -- perf sanity` is the canonical local server perf check.
+9. `pnpm check:release` remains the deeper local prerelease gate with strict
+   perf, browser smoke, and full scaffold tarball smoke.
+10. `pnpm check:platform:deploy` is the hermetic deploy contract for the hosted
+    platform and belongs to CI or deployment-sensitive batch validation.
+11. `pnpm check:release:doctor` is the final local release command because it
+    enforces a clean install, repo contracts, hermetic platform deployment, and
+    the heavy prerelease gate.
+12. `pnpm check:release:publish` is the GitHub publish-path sanity gate.
 
 ## Development Workflow
 
@@ -36,20 +49,16 @@ Thanks for contributing.
 
 ## Pull Request Checklist
 
-1. `pnpm typecheck` passes.
-2. `pnpm lint` passes.
-3. `pnpm build` passes.
-4. `pnpm test` passes.
-5. `pnpm check:ci` passes for normal PR validation.
-6. `pnpm test:scaffold` passes for template/CLI-sensitive changes.
-7. `pnpm test:repo-contracts` passes when you touch workspace entrypoints, workflow toolchains, or other repo-level contracts.
-8. `pnpm check:platform:deploy` passes for deployment-sensitive changes so Vercel is not the first clean environment to reveal coupling.
-9. `pnpm check:release:publish` passes for the lightweight GitHub package-publish path when you touch release or publish behavior.
-10. `pnpm check:release:doctor` passes before final release sign-off so lockfile drift and clean-room deploy issues are caught locally instead of by GitHub Actions.
-11. `pnpm check:release` still passes when you need to rerun the heavy local gate without the extra clean-install preflight.
-12. Tests relevant to your change pass.
-13. Documentation is updated if behavior/API changed.
-14. PR description explains:
+1. `pnpm check:changed` passes for the complete focused change.
+2. `pnpm check:batch` passes when the substantial-batch rule applies.
+3. the pull request's exhaustive CI and required provider previews are green.
+4. tests relevant to the change exist at the appropriate batch, CI, or release
+   layer.
+5. `pnpm test:scaffold` passes for template/CLI-sensitive changes.
+6. `pnpm check:release:publish` passes for release or publish behavior.
+7. `pnpm check:release:doctor` passes only before final release sign-off.
+8. documentation is updated if behavior or APIs changed.
+9. the PR description explains:
 
 - what changed
 - why it changed
