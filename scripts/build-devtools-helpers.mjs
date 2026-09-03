@@ -32,6 +32,7 @@ const entries = Object.fromEntries(
     "hold-runtime-host",
     "inspect-airjam-agent",
     "list-visual-scenarios",
+    "managed-dev-supervisor",
     "run-visual-capture",
   ].map((name) => [name, path.join(toolingRoot, `${name}.ts`)]),
 );
@@ -46,7 +47,7 @@ await build({
   sourcemap: true,
   platform: "node",
   target: "es2022",
-  external: ["playwright-core"],
+  external: ["cross-spawn", "playwright-core"],
   noExternal: [
     "@air-jam/devtools-core",
     "@air-jam/harness",

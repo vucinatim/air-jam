@@ -26,12 +26,14 @@ Local manual publishing is fallback-only.
 
 ## Packages
 
-Trusted publishing must be configured separately on npm for:
+Trusted publishing must be configured separately on npm for all five public
+packages:
 
 1. `@air-jam/sdk`
-2. `@air-jam/mcp-server`
-3. `@air-jam/server`
-4. `create-airjam`
+2. `@air-jam/cli`
+3. `@air-jam/mcp-server`
+4. `@air-jam/server`
+5. `create-airjam`
 
 ## One-Time Manual Setup On npm
 
@@ -74,8 +76,10 @@ Update package versions intentionally in the repo before publishing.
 This workflow publishes the versions that already exist in:
 
 1. `packages/sdk/package.json`
-2. `packages/server/package.json`
-3. `packages/create-airjam/package.json`
+2. `packages/cli/package.json`
+3. `packages/mcp-server/package.json`
+4. `packages/server/package.json`
+5. `packages/create-airjam/package.json`
 
 ### 2. Run local validation before release
 
@@ -184,6 +188,21 @@ The heavy prerelease checks stay local:
 3. browser Playwright smoke
 4. hermetic platform deploy check
 
+The clean public-install support matrix is a separate cross-platform contract:
+
+```bash
+pnpm --silent run repo -- release install-matrix spec --json
+pnpm --silent run repo -- release install-matrix verify --json
+```
+
+GitHub runs the exact six supported operating-system and Node.js cells through
+`.github/workflows/public-install-matrix.yml`. Each cell packs the five-package
+candidate graph once, publishes those bytes to a run-scoped registry that
+cannot fall back to old Air Jam packages, invokes the documented
+`npx create-airjam`, verifies installed CLI and MCP contracts, and records
+package-size and cold-install budgets. The aggregate job refuses missing,
+duplicate, unexpected, or mixed-commit evidence.
+
 That is deliberate. GitHub publish should confirm the repo still builds and the server release path is sane, not rerun every expensive local sign-off gate.
 
 ## Tag Format
@@ -191,9 +210,10 @@ That is deliberate. GitHub publish should confirm the repo still builds and the 
 Package tags are:
 
 1. `sdk-v<version>`
-2. `mcp-server-v<version>`
-3. `server-v<version>`
-4. `create-airjam-v<version>`
+2. `cli-v<version>`
+3. `mcp-server-v<version>`
+4. `server-v<version>`
+5. `create-airjam-v<version>`
 
 Examples:
 

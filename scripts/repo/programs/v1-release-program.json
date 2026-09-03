@@ -817,7 +817,7 @@
       "priority": 10,
       "title": "Prove public package graph and clean installation across the support matrix",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [
         "G1-06"
       ],
@@ -827,7 +827,17 @@
       },
       "evidenceRequirements": [
         "clean package, scaffold, CLI, and MCP installation matrix"
-      ]
+      ],
+      "owner": "/root",
+      "note": "Six exact Linux, macOS, and Windows cells passed on Node 22 and 24; independent aggregation matched the workflow aggregate without npm or production mutation.",
+      "updatedAt": "2026-08-30T13:09:48.667Z",
+      "evidence": [
+        "document:docs/audits/v1-public-release/public-install-matrix-audit.md",
+        "command:pnpm check:ci",
+        "url:https://github.com/vucinatim/air-jam/actions/runs/33312857389",
+        "artifact:git:1a05fd0f75ecad720d1c357acbd3f9246e22a6c9"
+      ],
+      "completedAt": "2026-08-30T13:09:48.667Z"
     },
     {
       "id": "G6-02",

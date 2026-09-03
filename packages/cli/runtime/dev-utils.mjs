@@ -1,4 +1,5 @@
-import { execFileSync, spawn } from "node:child_process";
+import crossSpawn from "cross-spawn";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -196,13 +197,17 @@ export const createProcessGroup = () => {
 
   const run = (name, command, args, options = {}) => {
     const { fatal = true, ...spawnOptions } = options;
-    const child = spawn(command, args, {
+    const child = crossSpawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
       ...spawnOptions,
     });
 
     child.stdout.on("data", (data) => logChunk(name, data));
     child.stderr.on("data", (data) => logChunk(name, data));
+    child.on("error", (error) => {
+      console.error(`[${name}] failed to start: ${error.message}`);
+      shutdown(1);
+    });
     child.on("exit", (code, signal) => {
       if (!fatal) {
         return;

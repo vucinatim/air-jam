@@ -7,7 +7,7 @@ import type {
   ServerToClientEvents,
 } from "@air-jam/sdk/protocol";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer, get as httpGet } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -104,6 +104,31 @@ const waitForHttpOk = async (
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error(`Timed out waiting for test HTTP listener on ${port}.`);
+};
+
+const waitForHttpClosed = async (
+  port: number,
+  timeoutMs = 5_000,
+): Promise<void> => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const open = await new Promise<boolean>((resolve) => {
+      const request = httpGet(`http://127.0.0.1:${port}`, (response) => {
+        response.resume();
+        resolve(true);
+      });
+      request.on("error", () => resolve(false));
+      request.setTimeout(250, () => {
+        request.destroy();
+        resolve(false);
+      });
+    });
+    if (!open) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for test HTTP listener ${port} to stop.`);
 };
 
 const createStandaloneDevFixture = async (): Promise<{
@@ -621,13 +646,14 @@ describe("detectProjectContext", () => {
 
   it("detects the Air Jam monorepo from a nested repo game directory", async () => {
     const repoRoot = path.resolve(__dirname, "../../..");
+    const canonicalRepoRoot = await realpath(repoRoot);
     const context = await detectProjectContext({
       cwd: path.join(repoRoot, "games", "pong"),
     });
 
     expect(context.mode).toBe("monorepo");
-    expect(context.rootDir).toBe(repoRoot);
-    expect(context.workspaceRoot).toBe(repoRoot);
+    expect(context.rootDir).toBe(canonicalRepoRoot);
+    expect(context.workspaceRoot).toBe(canonicalRepoRoot);
     expect(context.packageManager).toBe("pnpm");
   });
 
@@ -654,7 +680,7 @@ describe("detectProjectContext", () => {
     const context = await detectProjectContext({ cwd: root });
 
     expect(context.mode).toBe("standalone-game");
-    expect(context.rootDir).toBe(root);
+    expect(context.rootDir).toBe(await realpath(root));
     expect(context.workspaceRoot).toBeNull();
     expect(context.packageJson?.name).toBe("space-race");
   });
@@ -690,7 +716,9 @@ describe("inspectProject", () => {
     ]);
     expect(project.airJamPackages["@air-jam/sdk"]).toBe("^1.0.0");
     expect(project.airJamPackages["@air-jam/mcp-server"]).toBe("^1.0.0");
-    expect(project.files.agents).toBe(path.join(root, "AGENTS.md"));
+    expect(project.files.agents).toBe(
+      path.join(await realpath(root), "AGENTS.md"),
+    );
   });
 });
 
@@ -828,6 +856,25 @@ describe("dev lifecycle and topology", () => {
 
     const statusAfterStop = await getDevStatus({ cwd: root });
     expect(statusAfterStop.processes).toHaveLength(0);
+    await waitForHttpClosed(port);
+  });
+
+  it("reports an early managed runtime exit without waiting for the topology timeout", async () => {
+    const { root } = await createStandaloneDevFixture();
+    await writeFile(
+      path.join(root, "dev.mjs"),
+      'console.error("fixture managed runtime failed");\nprocess.exit(7);\n',
+      "utf8",
+    );
+
+    const startedAt = Date.now();
+    await expect(startDev({ cwd: root })).rejects.toThrow(
+      /Managed dev supervisor exited with code 7[\s\S]*fixture managed runtime failed/,
+    );
+    expect(Date.now() - startedAt).toBeLessThan(10_000);
+
+    const status = await getDevStatus({ cwd: root });
+    expect(status.processes).toHaveLength(0);
   });
 
   it("reports and resets unmanaged known-port local dev listeners", async () => {

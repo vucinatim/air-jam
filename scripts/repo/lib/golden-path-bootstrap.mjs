@@ -1,4 +1,5 @@
-import { spawn, spawnSync } from "node:child_process";
+import crossSpawn from "cross-spawn";
+import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -63,6 +64,18 @@ export const reserveLoopbackPort = () =>
       });
     });
   });
+
+export const resolveGoldenPathTemporaryRoot = ({
+  environment = process.env,
+  systemTemporaryRoot = os.tmpdir(),
+} = {}) => {
+  const configuredRoot =
+    environment.AIRJAM_GOLDEN_PATH_TEMP_ROOT?.trim() ||
+    environment.RUNNER_TEMP?.trim() ||
+    systemTemporaryRoot;
+  fs.mkdirSync(configuredRoot, { recursive: true });
+  return fs.realpathSync.native(configuredRoot);
+};
 
 const waitForRegistry = async ({ registryUrl, child, readOutput }) => {
   const startedAt = Date.now();
@@ -467,11 +480,25 @@ export const prepareGoldenPathCandidateRegistry = async ({
 
 export const runGoldenPathBootstrap = async ({
   template = "minimal",
+  bootstrapClient = "pnpm-dlx",
   keepWorkspace = false,
   onProgress = () => {},
 } = {}) => {
-  const runRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), "airjam-golden-path-bootstrap-"),
+  if (bootstrapClient !== "pnpm-dlx" && bootstrapClient !== "npx") {
+    throw new Error(
+      `Unsupported bootstrap client ${bootstrapClient}. Use pnpm-dlx or npx.`,
+    );
+  }
+  // GitHub's Windows os.tmpdir() can resolve through the RUNNER~1 8.3 alias
+  // while file-watch events use its long path. Prefer the runner-owned temp
+  // root (D:\a\_temp on hosted Windows) and retain an explicit override for
+  // other automation hosts. Native realpath then gives every child process one
+  // filesystem identity from the start.
+  const temporaryRoot = resolveGoldenPathTemporaryRoot();
+  const runRoot = fs.realpathSync.native(
+    fs.mkdtempSync(
+      path.join(temporaryRoot, "airjam-golden-path-bootstrap-"),
+    ),
   );
   const projectName = "signal-relay-bootstrap";
   const projectDir = path.join(runRoot, "workspace", projectName);
@@ -479,6 +506,7 @@ export const runGoldenPathBootstrap = async ({
   let registry;
   let managedDevStarted = false;
   let managedDevProcessId = null;
+  let primaryError = null;
   const port = await reserveLoopbackPort();
   let gamePort = await reserveLoopbackPort();
   while (gamePort === port) {
@@ -494,6 +522,7 @@ export const runGoldenPathBootstrap = async ({
     VITE_PORT: String(gamePort),
     AIRJAM_DEVTOOLS_KNOWN_PORTS: `4000,${gamePort}`,
     npm_config_audit: "false",
+    npm_config_cache: path.join(runRoot, "npm-cache"),
     npm_config_registry: registryUrl,
   };
   delete commandEnv.npm_config_reporter;
@@ -501,14 +530,13 @@ export const runGoldenPathBootstrap = async ({
   const run = (id, command, args, cwd = repoRoot) => {
     onProgress(id);
     const startedAt = Date.now();
-    const result = spawnSync(command, args, {
+    const result = crossSpawn.sync(command, args, {
       cwd,
       encoding: "utf8",
       env: commandEnv,
       maxBuffer: commandMaxBuffer,
       timeout: commandTimeoutMs,
       killSignal: "SIGTERM",
-      shell: process.platform === "win32",
       stdio: ["ignore", "pipe", "pipe"],
     });
     const stdout = String(result.stdout ?? "");
@@ -551,12 +579,47 @@ export const runGoldenPathBootstrap = async ({
     const { version, packageArtifacts } = prepared;
 
     fs.mkdirSync(path.dirname(projectDir), { recursive: true });
+    const scaffoldCommand =
+      bootstrapClient === "npx"
+        ? {
+            command: "npx",
+            args: [
+              "--yes",
+              `create-airjam@${version}`,
+              projectName,
+              "--template",
+              template,
+            ],
+          }
+        : {
+            command: "pnpm",
+            args: [
+              "dlx",
+              `create-airjam@${version}`,
+              projectName,
+              "--template",
+              template,
+            ],
+          };
     run(
       "scaffold:create",
-      "pnpm",
-      ["dlx", `create-airjam@${version}`, projectName, "--template", template],
+      scaffoldCommand.command,
+      scaffoldCommand.args,
       path.dirname(projectDir),
     );
+    const createAirJamVersion = run(
+      "discover:create-airjam-version",
+      bootstrapClient === "npx" ? "npx" : "pnpm",
+      bootstrapClient === "npx"
+        ? ["--yes", `create-airjam@${version}`, "--version"]
+        : ["dlx", `create-airjam@${version}`, "--version"],
+      path.dirname(projectDir),
+    ).trim();
+    if (createAirJamVersion !== version) {
+      throw new Error(
+        `create-airjam reported ${createAirJamVersion}; expected ${version}.`,
+      );
+    }
     fs.writeFileSync(
       path.join(projectDir, ".env.local"),
       `VITE_PORT=${gamePort}\n`,
@@ -586,6 +649,35 @@ export const runGoldenPathBootstrap = async ({
     }
 
     run("discover:cli", "pnpm", ["exec", "airjam", "--help"], projectDir);
+    const cliVersion = run(
+      "discover:cli-version",
+      "pnpm",
+      ["exec", "airjam", "--version"],
+      projectDir,
+    ).trim();
+    const serverVersion = run(
+      "discover:server-version",
+      "pnpm",
+      ["exec", "air-jam-server", "--version"],
+      projectDir,
+    ).trim();
+    const mcpCliVersion = run(
+      "discover:mcp-version",
+      "pnpm",
+      ["exec", "airjam-mcp", "--version"],
+      projectDir,
+    ).trim();
+    for (const [surface, observedVersion] of [
+      ["@air-jam/cli", cliVersion],
+      ["@air-jam/server", serverVersion],
+      ["@air-jam/mcp-server", mcpCliVersion],
+    ]) {
+      if (observedVersion !== version) {
+        throw new Error(
+          `${surface} reported ${observedVersion}; expected ${version}.`,
+        );
+      }
+    }
     run("discover:dev", "pnpm", ["run", "dev", "--", "--help"], projectDir);
     run(
       "discover:session",
@@ -716,6 +808,7 @@ export const runGoldenPathBootstrap = async ({
       ok: true,
       contract: "air-jam-golden-path-bootstrap/v1",
       template,
+      bootstrapClient,
       packageVersion: version,
       registry: {
         kind: "run-scoped-loopback-verdaccio",
@@ -735,6 +828,12 @@ export const runGoldenPathBootstrap = async ({
         installedVersions,
       },
       discovery: {
+        versions: {
+          "create-airjam": createAirJamVersion,
+          "@air-jam/cli": cliVersion,
+          "@air-jam/server": serverVersion,
+          "@air-jam/mcp-server": mcpCliVersion,
+        },
         portableMcp: doctor.portableDeclaration.present,
         codexProjectProfile: true,
         mcpServer: mcp.serverInfo,
@@ -754,23 +853,50 @@ export const runGoldenPathBootstrap = async ({
       commands,
       retainedWorkspace: keepWorkspace ? runRoot : null,
     };
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    if (managedDevStarted && fs.existsSync(projectDir)) {
-      spawnSync("pnpm", ["exec", "airjam", "dev", "stop", "--dir", "."], {
-        cwd: projectDir,
-        env: commandEnv,
-        stdio: "ignore",
-        timeout: 60_000,
-        killSignal: "SIGKILL",
+    try {
+      if (managedDevStarted && fs.existsSync(projectDir)) {
+        crossSpawn.sync(
+          "pnpm",
+          ["exec", "airjam", "dev", "stop", "--dir", "."],
+          {
+            cwd: projectDir,
+            env: commandEnv,
+            stdio: "ignore",
+            timeout: 60_000,
+            killSignal: "SIGKILL",
+          },
+        );
+      }
+      if (registry) await stopChild(registry.child);
+      fs.rmSync(path.join(runRoot, "registry"), {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 200,
       });
-    }
-    if (registry) await stopChild(registry.child);
-    fs.rmSync(path.join(runRoot, "registry"), {
-      recursive: true,
-      force: true,
-    });
-    if (!keepWorkspace) {
-      fs.rmSync(runRoot, { recursive: true, force: true });
+      if (!keepWorkspace) {
+        fs.rmSync(runRoot, {
+          recursive: true,
+          force: true,
+          maxRetries: 10,
+          retryDelay: 200,
+        });
+      }
+    } catch (cleanupError) {
+      if (!primaryError) {
+        throw cleanupError;
+      }
+      const message =
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : String(cleanupError);
+      process.stderr.write(
+        `[golden-path cleanup] ${normalizeOutput(message, runRoot)}\n`,
+      );
     }
   }
 };

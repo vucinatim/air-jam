@@ -5,6 +5,7 @@ import { coerceDevLogsCliOptions } from "../src/logging/dev-logs-cli";
 describe("server cli", () => {
   it("registers start and logs commands", () => {
     const cli = createServerCli();
+    expect(cli.version()).toBe("0.9.2");
     expect(
       cli.commands.map((command: { name: () => string }) => command.name()),
     ).toEqual(["start", "logs"]);

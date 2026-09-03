@@ -1,4 +1,5 @@
-import { execFileSync, spawn } from "node:child_process";
+import crossSpawn from "cross-spawn";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -200,7 +201,7 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
   const logFile = path.join(cwd, PREVIEW_MANAGED_SERVER_LOG_RELATIVE_PATH);
   const stateFile = path.join(cwd, PREVIEW_MANAGED_SERVER_STATE_RELATIVE_PATH);
   const logFd = fs.openSync(logFile, "a");
-  const child = spawn("pnpm", ["exec", "air-jam-server"], {
+  const child = crossSpawn("pnpm", ["exec", "air-jam-server"], {
     cwd,
     env: {
       ...process.env,
@@ -238,7 +239,7 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
 
 const runForegroundGame = ({ cwd, env }) =>
   new Promise((resolve, reject) => {
-    const child = spawn("pnpm", ["exec", "vite"], {
+    const child = crossSpawn("pnpm", ["exec", "vite"], {
       cwd,
       stdio: "inherit",
       env: {
