@@ -90,4 +90,8 @@ behavior that did not exist at its closure. The follow-on
 durable producers, outbox persistence, structured failures, SLO and synthetic
 emitters, and durable alerts against the same boundary. Incident correlation,
 notification and GitHub adapters, governed runbook execution, and deployed
-failure drills remain separate Gate 4 work.
+failure drills were originally left as separate Gate 4 work. Under the
+maintainer's `2026-09-04` scope refinement, only narrow alert-to-GitHub issue
+projection remains mandatory for 1.0. Broader incident correlation and
+governed remediation remain compatible post-1.0 options that must be justified
+by observed agent workflows.

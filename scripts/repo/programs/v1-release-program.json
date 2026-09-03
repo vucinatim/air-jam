@@ -3,12 +3,12 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-03T23:06:36.410Z",
+  "updatedAt": "2026-09-03T23:40:25.853Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
-    "agentHoursMin": 319,
-    "agentHoursMax": 586,
+    "agentHoursMin": 290,
+    "agentHoursMax": 535,
     "targetCalendarWeeksMin": 5,
     "targetCalendarWeeksMax": 7,
     "maintainerHoursMin": 28,
@@ -37,7 +37,7 @@
     },
     {
       "id": "G4",
-      "title": "Operational events and autonomous operations",
+      "title": "Operational events and agent-operated reliability",
       "wave": 2
     },
     {
@@ -606,7 +606,7 @@
         "versioned authority-separated operational contracts"
       ],
       "owner": "/root/g4-contracts",
-      "note": "Closed the versioned authority-separated operational event, correlation, incident, immutable-preview, invocation, and action-audit contract with runtime schemas, Draft 7 JSON Schema export, declaration typechecking, redacted CLI validation, and full repository validation; durable producers and execution remain later Gate 4 work.",
+      "note": "Closed the versioned authority-separated operational event, correlation, incident, immutable-preview, invocation, and action-audit vocabulary with runtime schemas, Draft 7 JSON Schema export, declaration typechecking, redacted CLI validation, and full repository validation. Gate 4 now requires durable alert producers plus narrow GitHub issue projection; generalized incident and runbook machinery is optional post-1.0 scope.",
       "updatedAt": "2026-08-30T03:51:29.450Z",
       "evidence": [
         "document:docs/contracts/operational-events-and-incidents-contract.md",
@@ -648,7 +648,7 @@
       "gate": "G4",
       "lane": "operations",
       "priority": 30,
-      "title": "Implement incident correlation, fingerprinting, deduplication, and GitHub issue delivery",
+      "title": "Project actionable alerts into deduplicated GitHub issues",
       "authority": "autonomous",
       "status": "pending",
       "dependsOn": [
@@ -656,68 +656,11 @@
         "G4-07"
       ],
       "estimate": {
-        "agentHoursMin": 14,
-        "agentHoursMax": 24
+        "agentHoursMin": 6,
+        "agentHoursMax": 12
       },
       "evidenceRequirements": [
-        "one synthetic symptom produces one maintained incident and issue"
-      ]
-    },
-    {
-      "id": "G4-04",
-      "gate": "G4",
-      "lane": "operations",
-      "priority": 40,
-      "title": "Implement agent-operable runbooks, preview/apply safety, and action audit trail",
-      "authority": "autonomous",
-      "status": "pending",
-      "dependsOn": [
-        "G4-03"
-      ],
-      "estimate": {
-        "agentHoursMin": 12,
-        "agentHoursMax": 22
-      },
-      "evidenceRequirements": [
-        "bounded idempotent runbook commands with before and after evidence"
-      ]
-    },
-    {
-      "id": "G4-05",
-      "gate": "G4",
-      "lane": "operations",
-      "priority": 50,
-      "title": "Approve the production automatic-remediation allowlist as one batch",
-      "authority": "human_checkpoint",
-      "status": "pending",
-      "dependsOn": [
-        "G4-04"
-      ],
-      "estimate": {
-        "agentHoursMin": 1,
-        "agentHoursMax": 2
-      },
-      "evidenceRequirements": [
-        "maintainer decision record for production automation authority"
-      ]
-    },
-    {
-      "id": "G4-06",
-      "gate": "G4",
-      "lane": "operations",
-      "priority": 60,
-      "title": "Drill reversible remediation, verification, rollback, and escalation",
-      "authority": "autonomous",
-      "status": "pending",
-      "dependsOn": [
-        "G4-05"
-      ],
-      "estimate": {
-        "agentHoursMin": 8,
-        "agentHoursMax": 15
-      },
-      "evidenceRequirements": [
-        "successful and failed-remediation drill artifacts"
+        "one confirmed actionable alert fingerprint creates, updates, reopens, and resolves one maintained issue with linked evidence"
       ]
     },
     {
@@ -878,8 +821,7 @@
       "authority": "autonomous",
       "status": "pending",
       "dependsOn": [
-        "G2-05",
-        "G4-04"
+        "G2-05"
       ],
       "estimate": {
         "agentHoursMin": 6,
@@ -957,7 +899,7 @@
       "status": "pending",
       "dependsOn": [
         "G3-05",
-        "G4-06",
+        "G4-03",
         "G5-04",
         "G6-06"
       ],
@@ -1134,14 +1076,15 @@
         "redaction, normalized failure code, database-time chronology, per-check isolation, and fenced SLO regression tests"
       ],
       "status": "pending",
-      "updatedAt": "2026-09-03T23:06:15.778Z"
+      "updatedAt": "2026-09-03T23:40:25.853Z",
+      "note": "Agent-autonomy and minimum Gate 4 scope are now defined; reliability implementation remains unstarted and ready to claim independently."
     },
     {
       "id": "G3-07",
       "gate": "G3",
       "lane": "reliability",
       "priority": 22,
-      "title": "Implement incident-safe operational evidence retention and cleanup",
+      "title": "Implement alert-safe operational evidence retention and cleanup",
       "authority": "autonomous",
       "dependsOn": [
         "G4-07",
@@ -1152,7 +1095,7 @@
         "agentHoursMax": 12
       },
       "evidenceRequirements": [
-        "ratified retention policy plus cleanup tests that preserve open incident and unresolved action evidence"
+        "ratified retention policy plus cleanup tests that preserve evidence linked by an open alert, issue, or unresolved action"
       ],
       "status": "pending",
       "updatedAt": "2026-09-03T23:06:16.461Z"

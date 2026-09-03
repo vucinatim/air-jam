@@ -266,11 +266,11 @@ Implemented here:
 
 Not owned by this contract:
 
-1. incident fingerprint persistence and recurrence state
-2. external notification routing
-3. GitHub issue creation and maintenance
-4. governed runbook execution
-5. autonomous code-changing repair
+1. external notification routing beyond the narrow 1.0 issue projection
+2. a generic incident lifecycle
+3. governed runbook execution
+4. autonomous code-changing repair
 
-Those later systems consume the records defined here and preserve every
-authority distinction above.
+If real operations later justify those systems, they consume the records
+defined here and preserve every authority distinction above. Their schemas do
+not make their implementation mandatory.

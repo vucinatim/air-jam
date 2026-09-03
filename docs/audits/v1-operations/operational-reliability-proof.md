@@ -134,11 +134,14 @@ integration safety.
 
 `G4-02` intentionally ends at durable internal alerts. It does not implement:
 
-1. incident fingerprint persistence and recurrence correlation
-2. notification routing
-3. GitHub issue creation or maintenance
+1. external notification routing
+2. GitHub issue creation or maintenance
+3. a generic incident lifecycle
 4. governed runbook execution
 5. bounded automatic remediation
 
-Those are the explicit responsibilities of `G4-03` through `G4-06` and must
-consume the durable evidence implemented here.
+The original proof assigned these broadly to `G4-03` through `G4-06`. The
+maintainer's `2026-09-04` scope refinement keeps only narrow alert-fingerprint
+GitHub issue projection in 1.0 as `G4-03`; the generic incident and runbook
+machinery moved to post-1.0. Any later implementation must still consume the
+durable evidence proved here rather than creating a parallel source of truth.

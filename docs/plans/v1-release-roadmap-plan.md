@@ -39,7 +39,7 @@ The 1.0 track now owns:
 3. repo canonicalization and deliberate removal of obsolete paths
 4. the external-agent golden-path proof
 5. launch-scale reliability, recovery, security, and cost controls
-6. operational events, alerting, incident automation, and bounded remediation
+6. operational events, alerting, agent diagnosis, and narrow issue projection
 7. public package, documentation, article, and distribution readiness
 8. the final production rehearsal and go/no-go decision
 
@@ -102,8 +102,9 @@ finished.
    and outcomes instead of inferring correctness only from pixels or prose.
 4. **No compatibility sediment**: obsolete models are removed rather than kept
    beside the new architecture without a real public compatibility obligation.
-5. **Safe autonomy**: automated actions are bounded by permissions, budgets,
-   idempotency, cooldowns, audit records, and verification.
+5. **Safe autonomy**: constrain production effects according to blast radius
+   while preserving broad agent visibility, diagnosis, and implementation
+   freedom.
 6. **Honest evidence**: approximate product telemetry never masquerades as
    authoritative lifecycle, billing, runtime, or incident state.
 7. **Boring failure**: overload and dependency failure degrade predictably,
@@ -137,16 +138,16 @@ the public loop from outside the repo, and making launch failure safe.
 
 ## Release Gates
 
-| Gate                     | Question                                                                                       | Required evidence                                                                                              |
-| ------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 0. Re-baseline           | Are we committing to the right 1.0 product and architecture?                                   | Accepted contract, explicit cuts, supported-client matrix, capacity and autonomy policy                        |
-| 1. Canonicalize          | Is there one clean implementation model without obsolete competing paths?                      | Architecture audit, removals/refactors, package/config/docs alignment, green canonical checks                  |
-| 2. Golden path           | Can an external agent complete the full lifecycle from a clean environment?                    | Recorded clean-room run with machine-readable artifacts and no private intervention                            |
-| 3. Launch safety         | Can production absorb and safely reject launch traffic without uncontrolled cost or data loss? | Capacity envelope, burst/soak results, rollback/restore proof, overload and dependency-failure drills          |
-| 4. Autonomous operations | Can the system detect, correlate, explain, and safely act on failures?                         | SLOs, synthetics, incident pipeline, deduplicated issue flow, CLI runbooks, bounded remediation drills         |
-| 5. Security and trust    | Are public creation, runtime, release, and agent surfaces safe enough for wider use?           | Threat review, abuse controls, auth/secret proof, quota policy, dependency and artifact checks                 |
-| 6. Public release        | Are packages, docs, examples, claims, and launch content aligned with shipped reality?         | Clean install proof, package/release candidate, public docs crawl, article/demo assets, distribution checklist |
-| 7. Rehearsal and launch  | Can we release, observe, recover, and communicate from one exact candidate?                    | Production rehearsal, go/no-go record, terminal deploy health, live smoke, rollback readiness, launch sequence |
+| Gate                          | Question                                                                                                        | Required evidence                                                                                                |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 0. Re-baseline                | Are we committing to the right 1.0 product and architecture?                                                    | Accepted contract, explicit cuts, supported-client matrix, capacity and autonomy policy                          |
+| 1. Canonicalize               | Is there one clean implementation model without obsolete competing paths?                                       | Architecture audit, removals/refactors, package/config/docs alignment, green canonical checks                    |
+| 2. Golden path                | Can an external agent complete the full lifecycle from a clean environment?                                     | Recorded clean-room run with machine-readable artifacts and no private intervention                              |
+| 3. Launch safety              | Can production absorb and safely reject launch traffic without uncontrolled cost or data loss?                  | Capacity envelope, burst/soak results, rollback/restore proof, overload and dependency-failure drills            |
+| 4. Agent-operated reliability | Can the system detect and explain launch-critical failures without waking the maintainer for routine diagnosis? | SLOs, synthetics, structured evidence, agent inspection, deduplicated issue flow, and existing recovery controls |
+| 5. Security and trust         | Are public creation, runtime, release, and agent surfaces safe enough for wider use?                            | Threat review, abuse controls, auth/secret proof, quota policy, dependency and artifact checks                   |
+| 6. Public release             | Are packages, docs, examples, claims, and launch content aligned with shipped reality?                          | Clean install proof, package/release candidate, public docs crawl, article/demo assets, distribution checklist   |
+| 7. Rehearsal and launch       | Can we release, observe, recover, and communicate from one exact candidate?                                     | Production rehearsal, go/no-go record, terminal deploy health, live smoke, rollback readiness, launch sequence   |
 
 ## Gate 0: Product And Architecture Re-Baseline
 
@@ -177,6 +178,13 @@ The approval covers the complete G0-01 and G0-02 packets:
    burst, with gameplay degraded last
 8. bounded verified stateless/provider recovery may be automatic, but
    production code promotion and budget increases require approval
+
+On `2026-09-04`, the maintainer refined item 8 without reopening the economic,
+product, or safety policy: smart running agents may use bounded recovery tools,
+but 1.0 does not need a custom automatic-runbook engine. The release must ship
+the sensory feedback, shared evidence, focused actions, and effect-level
+authority those agents need. Generalized orchestration is earned from real
+incidents after launch.
 
 This decision is the product authority for later gates. Reopening it requires a
 new explicit maintainer decision rather than terminology or implementation
@@ -548,14 +556,15 @@ hatch. For 1.0:
 5. provider credentials stay in the creator's account and Air Jam does not
    become the hidden payer
 
-#### 1.0 Autonomy Ceiling
+#### 1.0 Agent Authority Ceiling
 
-The system may automatically perform the following after Gate 4 proves the
-runbook and verification path:
+Air Jam does not need to implement a central autonomy engine for these actions.
+A smart agent running locally or on an approved loop may use existing focused
+tools to:
 
 1. collect health, cost, queue, lifecycle, and provider evidence
-2. correlate and deduplicate incidents and create/update one GitHub issue per
-   confirmed fingerprint
+2. correlate evidence and create/update one GitHub issue per confirmed alert
+   fingerprint
 3. retry an idempotent failed job within its fixed attempt and cost budget
 4. restart one unhealthy stateless service at most twice in 30 minutes
 5. roll back a just-deployed stateless service to the exact previous known-good
@@ -578,20 +587,26 @@ The following always require maintainer approval:
 
 Agents may reproduce defects, write regression tests, prepare code, and open a
 PR automatically. They may not merge or promote a code-changing repair to
-production in 1.0. Security, data-integrity, authorization, and billing
-incidents diagnose and contain through allowlisted controls, then escalate.
+production in 1.0. Security, data-integrity, authorization, and billing failures
+diagnose and contain through existing bounded controls, then escalate.
 
-Every autonomous mutation requires an audit record, idempotency key, maximum
-attempts, cooldown, cost bound, blast-radius bound, before/after evidence, and
-an operator CLI/MCP inspection and stop action.
+Controls are proportional to effect. Reads and diagnosis remain fluid.
+Reversible production actions require an exact target, bounded attempts,
+independent verification, and a stop or rollback path; use native Railway or
+GitHub audit evidence when it is already authoritative. Destructive, costly,
+privileged, and public actions retain explicit approval. Do not require every
+low-risk action to pass through a custom preview, invocation, and audit state
+machine merely for uniformity.
 
 #### Notification Policy
 
 1. wake the maintainer only for active user-visible core failure, suspected
    security/data loss, or imminent hard-ceiling exhaustion
 2. queued publishing, optional moderation, analytics delay, and warning-level
-   cost drift create/update an incident and wait for normal waking hours
-3. repeated symptoms update one incident rather than sending repeated pages
+   cost drift create/update one issue or digest entry and wait for normal
+   waking hours
+3. repeated symptoms update one alert fingerprint rather than sending repeated
+   pages
 4. a recovery action that verifies successfully produces a digest entry; a
    failed verification escalates once with the complete evidence bundle
 
@@ -626,7 +641,7 @@ escape hatch.
    provider ceiling cannot isolate Air Jam
 5. the current realtime rate limits and artifact-size guards are useful safety
    primitives, but global capacity, per-creator accounting, expensive-job
-   queueing, and tested autonomous runbooks remain Gate 3 and Gate 4 work
+   queueing, and continuously observed alerts remain Gate 3 and Gate 4 work
 
 #### Decisions Ratified In G0-03
 
@@ -638,8 +653,9 @@ The maintainer approved these decisions as one batch:
 3. the `100`-room sustained launch target and three-times burst proof
 4. Railway as the one launch-certified BYOC provider while other providers
    remain portable by contract
-5. bounded Level 4 recovery for proven stateless/provider runbooks, with no
-   autonomous production code promotion
+5. bounded agent-initiated recovery through proven stateless/provider tools,
+   with no requirement for a custom runbook engine and no autonomous production
+   code promotion
 
 ### Work
 
@@ -823,12 +839,14 @@ Make an HN-scale traffic spike a capacity event, not a personal emergency.
 4. no tested dependency failure creates silent data loss or uncontrolled spend
 5. one operator command can disable or pause each expensive/risky lane
 
-## Gate 4: Operational Events And Autonomous Operations
+## Gate 4: Operational Events And Agent-Operated Reliability
 
 ### Objective
 
-Build the event-driven operational foundation that can grow into autonomous
-product lifecycle management and self-healing.
+Make launch-critical failures visible, explainable, and diagnosable by an agent
+through the same explicit machine surfaces used by maintainers. Preserve a
+clean path toward later self-healing without making a generalized operations
+platform part of the 1.0 release.
 
 ### Authority Separation
 
@@ -837,14 +855,20 @@ Keep three planes explicit:
 1. **product telemetry**: approximate visits, discovery, intent, and agent reach
 2. **lifecycle/runtime events**: authoritative rooms, sessions, releases, jobs,
    deploys, and failures
-3. **operational incidents**: deduplicated symptoms, severity, ownership,
-   investigation, remediation, and outcome
+3. **operational alerts**: actionable symptoms, severity, fingerprint,
+   correlated evidence, and notification state
 
 Product telemetry must never trigger correctness-critical remediation by itself.
 
-### Canonical Incident Flow
+### Long-Term Incident Flow
 
 `signal -> fingerprint -> correlate -> incident -> diagnose -> remediate -> verify -> close or escalate`
+
+This remains the architectural direction. For 1.0, the durable alert and its
+fingerprint are sufficient authority for agent diagnosis and one maintained
+GitHub issue. A separate generic incident lifecycle, remediation state machine,
+and automatic runbook engine are not required before real incidents demonstrate
+that need.
 
 ### Foundation Work
 
@@ -863,16 +887,34 @@ Product telemetry must never trigger correctness-critical remediation by itself.
    6. release submission/publish dependencies
 6. establish structured error reporting across platform, server, worker, and
    hosted game/runtime stories
-7. fingerprint and deduplicate incidents before creating external work items
-8. build a GitHub issue bridge that creates or updates one issue per confirmed
-   incident fingerprint with:
+7. fingerprint and deduplicate actionable alerts before creating external work
+   items
+8. build a narrow GitHub issue bridge that creates or updates one issue per
+   confirmed alert fingerprint with:
    1. affected version and environment
    2. severity and first/last occurrence
    3. correlated evidence
    4. reproduction status
-   5. current runbook and remediation state
-9. encode runbooks as canonical CLI/MCP actions with JSON results
-10. record every automated or agent-proposed action in an audit trail
+9. let agents inspect the alert, related events, synthetic runs, health,
+   deployment state, and existing recovery controls through canonical machine
+   surfaces
+
+### Complexity Boundary
+
+Gate 4 follows the canonical
+[agent-freedom rubric](../working-agreements.md#agent-freedom-and-operational-authority)
+and
+[agent operating ecosystem](../working-agreements.md#agent-operating-ecosystem).
+It does not define a second reasoning or swarm policy.
+
+For 1.0:
+
+1. one operational worker may run scheduled cleanup, synthetics, SLO
+   evaluation, and narrow issue projection
+2. existing purpose-specific pause, replay, restart, rollback, and migration
+   commands remain the production mutation surface
+3. do not add a second incident database, generic workflow engine, arbitrary
+   command executor, or automatic code-changing loop
 
 ### Autonomy Ladder
 
@@ -888,27 +930,25 @@ Product telemetry must never trigger correctness-critical remediation by itself.
 
 ### 1.0 Autonomy Bar
 
-1. Level 1 and Level 2 work end to end for launch-critical services
-2. deterministic provider/platform recovery actions may reach Level 4 only when
-   they are reversible, bounded, idempotent, and proven by failure drills
-3. code-changing self-healing remains post-1.0 unless the earlier gates make a
-   narrow case undeniably safe
-4. every autonomous action has:
-   1. explicit authority
-   2. maximum attempts and cooldown
-   3. cost and blast-radius limits
-   4. before/after evidence
-   5. escalation on failed verification
+1. Level 1 works end to end for launch-critical services
+2. Level 2 is deliberately narrow: an agent receives sufficient evidence to
+   diagnose the failure, and one fingerprint maintains one GitHub issue
+3. existing reversible recovery commands are proven in Gate 3, but a generic
+   Level 3 or Level 4 runbook system is not a 1.0 requirement
+4. Levels 3 through 5 advance after 1.0 only from real incident evidence and a
+   narrow case for the added machinery
+5. any production mutation still carries the authority, target, cost,
+   idempotency, verification, and rollback appropriate to its blast radius
 
 ### Done When
 
-1. a synthetic failure becomes one deduplicated incident with correlated
+1. a synthetic failure becomes one durable deduplicated alert with correlated
    evidence
-2. the incident reaches the correct notification and GitHub issue policy
+2. the alert reaches the correct notification and GitHub issue policy
 3. an agent can diagnose it using only machine surfaces
-4. at least one reversible recovery runbook is drilled end to end
-5. failed remediation escalates instead of looping
-6. alert noise and false-positive behavior have been reviewed during a soak
+4. existing Gate 3 recovery controls expose bounded verification and failure
+   instead of silently looping
+5. alert noise and false-positive behavior have been reviewed during a soak
 
 ## Gate 5: Security, Abuse, Privacy, And Supply-Chain Trust
 
@@ -1027,7 +1067,7 @@ traffic arrives.
 7. run live platform, realtime, Arcade, hosted-release, semantic-session,
    telemetry, and agent-resource smoke tests
 8. exercise rollback, queue pause, and at least one dependency-degradation path
-9. verify dashboards, synthetics, alerts, incident correlation, and operator CLI
+9. verify dashboards, synthetics, alerts, GitHub issue projection, and agent CLI
 10. freeze article/demo screenshots, commands, versions, and links against that
     candidate
 

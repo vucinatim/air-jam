@@ -210,6 +210,74 @@ pnpm --silent run repo -- readiness next --json
 Claim, block, and complete work through `readiness update`. Mutations are
 read-only previews unless `--apply` is explicit.
 
+### Agent Freedom And Operational Authority
+
+Agent-first does not mean wrapping an intelligent agent in a rigid workflow.
+Air Jam should make the system legible and operable, then constrain only the
+effects whose blast radius justifies it.
+
+Use four authority bands:
+
+1. **Observe and reason**: inspection, logs, state reads, diagnosis,
+   correlation, simulation, and recommendations should be broad, fast, and
+   approval-free. Redaction and access control still apply.
+2. **Build and prove**: agents may choose implementation structure, edit a
+   branch, run tests, and operate isolated staging through the normal review
+   boundary. Do not replace judgment with a mandatory step script.
+3. **Reversible production action**: require an exact target, bounded scope,
+   idempotency where replay is possible, independent verification, and a known
+   stop or rollback path. Add preview only when it materially reduces risk.
+4. **Material authority**: destructive data changes, secret or auth-policy
+   changes, budget increases, irreversible provider mutations, and public
+   publication require explicit approval plus durable evidence.
+
+Before adding a service, table, queue, state machine, lease, adapter, or policy
+layer, identify the invariant it enforces. It belongs now only when at least one
+of these is true:
+
+1. a current correctness, security, cost, concurrency, replay, or audit
+   requirement cannot be enforced more simply
+2. two real consumers already need the shared boundary
+3. an observed failure or measured load result demonstrates the need
+
+Otherwise retain the intended boundary in the roadmap or suggestions backlog
+without implementing the mechanism. Prefer one complete CLI or MCP path over
+simultaneously shipping CLI, MCP, API, and UI adapters with no users. New
+adapters remain thin clients of the same service when demand appears.
+
+Contracts should describe authority, inputs, outputs, invariants, and evidence.
+They should not prescribe an agent's reasoning sequence. A smarter future
+agent should become more capable on Air Jam without first needing the control
+plane rewritten.
+
+### Agent Operating Ecosystem
+
+The intended autonomous system is an ecosystem for long-running local agents,
+not one central autonomous daemon:
+
+1. **Sensors**: application health, structured errors, runtime events,
+   synthetics, SLO state, deployments, queues, cost, logs, screenshots, and
+   authoritative gameplay state remain easy to query and correlate.
+2. **Shared memory**: GitHub issues and pull requests hold durable cross-agent
+   discussion and delivery history; readiness state holds release-program
+   claims and dependencies; evidence artifacts retain exact proof.
+3. **Hands**: the Air Jam repo CLI and MCP, GitHub, Railway, and local tools
+   expose focused actions with stable results. Purpose-specific tools are
+   preferable to a new generic orchestration language.
+4. **Agents**: one or more agents may run on periodic or event-triggered loops,
+   investigate signals, claim disjoint work, collaborate, implement fixes, and
+   open reviewed pull requests using their own judgment.
+5. **Effect boundaries**: production, security, cost, deletion, and publication
+   controls remain authoritative regardless of which model or agent proposes
+   the action.
+
+Do not force every signal through GitHub or every action through Air Jam. The
+ecosystem should preserve native provider strengths while normalizing the few
+identities and evidence links agents need to move coherently between local
+work, Railway, and GitHub. Swarm coordination should begin with claims,
+idempotency, and visible ownership on existing surfaces; add a dedicated
+orchestrator only when observed contention or scheduling needs justify one.
+
 ## Doc Roles
 
 ### `README.md`
