@@ -34,6 +34,7 @@ const mockedContext = vi.hoisted(() => {
     hostArcadeRestore: {
       phase: "idle" as const,
       session: null as null,
+      surfaceCheckpoint: null,
     } as HostArcadeRestoreState,
   };
 
@@ -165,6 +166,29 @@ const createCounterStore = () =>
     },
   }));
 
+interface ArcadeShellTestState {
+  epoch: number;
+  phase: "browser" | "game";
+  actions: {
+    setSurface: (
+      ctx: AirJamActionContext,
+      payload: { epoch: number; phase: "browser" | "game" },
+    ) => void;
+  };
+}
+
+const createArcadeShellTestStore = () =>
+  createAirJamStore<ArcadeShellTestState>(
+    (set) => ({
+      epoch: 1,
+      phase: "browser",
+      actions: {
+        setSurface: (_ctx, payload) => set(payload),
+      },
+    }),
+    { storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN },
+  );
+
 describe("createAirJamStore networked behavior", () => {
   let hostSocket: MockSocket;
   let controllerSocket: MockSocket;
@@ -189,6 +213,7 @@ describe("createAirJamStore networked behavior", () => {
     mockedContext.state.hostArcadeRestore = {
       phase: "idle",
       session: null,
+      surfaceCheckpoint: null,
     } as HostArcadeRestoreState;
 
     mockedContext.useAirJamContext.mockReturnValue({
@@ -1299,40 +1324,40 @@ describe("createAirJamStore networked behavior", () => {
   });
 
   it("keeps local arcade restore convergence authoritative over the cached reconnect snapshot", () => {
+    mockedContext.state.role = "controller";
+    mockedContext.state.hostArcadeRestore = {
+      phase: "idle",
+      session: null,
+      surfaceCheckpoint: null,
+    } as HostArcadeRestoreState;
+
+    const controllerStore = createArcadeShellTestStore();
+    const controllerBinding = renderHook(() => controllerStore());
+    act(() => {
+      controllerSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        data: { epoch: 4, phase: "game" },
+        storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+        revision: 7,
+      });
+    });
+    expect(controllerStore.getState()).toMatchObject({
+      epoch: 4,
+      phase: "game",
+    });
+
     mockedContext.state.role = "host";
     mockedContext.state.hostArcadeRestore = {
       phase: "awaiting_ack",
       session: null,
+      surfaceCheckpoint: null,
     } as HostArcadeRestoreState;
 
-    const useArcadeShellStore = createAirJamStore<TestStoreState>(
-      (set) => ({
-        phase: "lobby",
-        lastActor: undefined,
-        lastRole: undefined,
-        actions: {
-          joinTeam: (ctx, { team }) =>
-            set({
-              phase: team,
-              lastActor: ctx.actorId,
-              lastRole: ctx.role,
-              lastConnectedPlayerIds: ctx.connectedPlayerIds,
-            }),
-          setPhase: (ctx, { phase }) =>
-            set({
-              phase,
-              lastActor: ctx.actorId,
-              lastRole: ctx.role,
-              lastConnectedPlayerIds: ctx.connectedPlayerIds,
-            }),
-        },
-      }),
-      { storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN },
-    );
+    const hostStore = createArcadeShellTestStore();
 
     hostSocket.emitted.length = 0;
 
-    const { rerender } = renderHook(() => useArcadeShellStore());
+    const hostBinding = renderHook(() => hostStore());
 
     const syncWhilePending = hostSocket.emitted.filter(
       (c) => c.event === "host:state_sync",
@@ -1347,22 +1372,32 @@ describe("createAirJamStore networked behavior", () => {
         revision: 7,
       });
     });
-    expect(useArcadeShellStore.getState().phase).toBe("lobby");
+    expect(hostStore.getState()).toMatchObject({
+      epoch: 1,
+      phase: "browser",
+    });
 
     mockedContext.state.hostArcadeRestore = {
       phase: "pending_restore",
-      session: null,
+      session: {
+        gameId: "pong",
+        launchCapability: {
+          token: "restore_capability",
+          expiresAt: 1_800_000_000_000,
+        },
+      },
+      surfaceCheckpoint: { epoch: 4, revision: 7 },
     } as HostArcadeRestoreState;
-    rerender();
+    hostBinding.rerender();
 
     act(() => {
-      useArcadeShellStore.getState().actions.setPhase(
+      hostStore.getState().actions.setSurface(
         {
           actorId: "host",
           role: "host",
           connectedPlayerIds: [],
         },
-        { phase: "browser" },
+        { epoch: 5, phase: "browser" },
       );
     });
     expect(
@@ -1372,17 +1407,32 @@ describe("createAirJamStore networked behavior", () => {
     mockedContext.state.hostArcadeRestore = {
       phase: "idle",
       session: null,
+      surfaceCheckpoint: null,
     } as HostArcadeRestoreState;
-    rerender();
+    hostBinding.rerender();
 
     const syncAfterClear = hostSocket.emitted.filter(
       (c) => c.event === "host:state_sync",
     );
     expect(syncAfterClear).toHaveLength(1);
     expect(syncAfterClear[0]?.args[0]).toMatchObject({
-      data: { phase: "browser" },
+      data: { epoch: 5, phase: "browser" },
       storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-      revision: 1,
+      revision: 8,
     });
+
+    act(() => {
+      controllerSocket.trigger(
+        "airjam:state_sync",
+        syncAfterClear[0]?.args[0],
+      );
+    });
+    expect(controllerStore.getState()).toMatchObject({
+      epoch: 5,
+      phase: "browser",
+    });
+
+    hostBinding.unmount();
+    controllerBinding.unmount();
   });
 });

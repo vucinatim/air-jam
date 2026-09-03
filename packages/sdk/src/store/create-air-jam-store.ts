@@ -158,6 +158,7 @@ interface StoreRuntimeSnapshot {
   connectionStatus: string | null;
   canBroadcastHostState: boolean;
   hostStateSyncBlocked: boolean;
+  hostStateRevisionFloor: number;
   connectedPlayerIds: string[];
 }
 
@@ -365,6 +366,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       connectionStatus: null,
       canBroadcastHostState: false,
       hostStateSyncBlocked: false,
+      hostStateRevisionFloor: 0,
       connectedPlayerIds: [],
     },
   };
@@ -675,7 +677,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     if (role === "host") {
       let syncedStateData = stripActionsFromState(store.getState());
       let syncedStateSignature = JSON.stringify(syncedStateData);
-      let syncRevision = 0;
+      let syncRevision = runtimeSnapshotRef.current.hostStateRevisionFloor;
 
       const emitHostStateSync = (requestId?: string): void => {
         const runtime = runtimeSnapshotRef.current;
@@ -688,6 +690,8 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         ) {
           return;
         }
+
+        syncRevision = Math.max(syncRevision, runtime.hostStateRevisionFloor);
 
         runtime.socket.emit("host:state_sync", {
           roomId,
@@ -724,6 +728,10 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
 
         syncedStateData = stateData;
         syncedStateSignature = nextSignature;
+        syncRevision = Math.max(
+          syncRevision,
+          runtime.hostStateRevisionFloor,
+        );
         syncRevision += 1;
         if (runtime.canBroadcastHostState && runtime.socket) {
           emitHostStateSync();
@@ -925,6 +933,10 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     const blockArcadeShellHostStateSync =
       resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN &&
       hostArcadeRestore.phase !== "idle";
+    const hostStateRevisionFloor =
+      resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN
+        ? (hostArcadeRestore.surfaceCheckpoint?.revision ?? 0)
+        : 0;
     const canBroadcastHostState =
       role === "host" &&
       !!roomId &&
@@ -955,6 +967,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       connectionStatus,
       canBroadcastHostState,
       hostStateSyncBlocked: blockArcadeShellHostStateSync,
+      hostStateRevisionFloor,
       connectedPlayerIds,
     };
 

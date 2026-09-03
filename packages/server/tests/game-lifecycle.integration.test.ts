@@ -251,7 +251,7 @@ describe("server game lifecycle", () => {
         .getRoomManager()
         .getRoom(roomId)
         ?.replicatedStoreSnapshots.has(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("keeps controllers connected across game switches and propagates pause/resume", async () => {

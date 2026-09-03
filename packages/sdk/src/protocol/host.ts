@@ -17,6 +17,13 @@ export const childHostCapabilitySchema = z.object({
 
 export type ChildHostCapability = z.infer<typeof childHostCapabilitySchema>;
 
+export interface HostArcadeSurfaceCheckpoint {
+  /** Last Arcade surface epoch accepted by the room before this reconnect. */
+  epoch: number;
+  /** Last replicated Arcade surface revision accepted by the room. */
+  revision: number;
+}
+
 /**
  * Active arcade game session as seen by the server (launch capability + catalog id).
  * Returned on host reconnect so the platform can restore iframe + replicated surface after refresh.
@@ -33,6 +40,8 @@ export interface HostRegistrationAck {
   code?: ErrorCode | string;
   /** When reconnecting, present if the room still has a launched game (launch pending or active). */
   arcadeSession?: HostArcadeSessionSnapshot;
+  /** Last observed Arcade counters, used to keep a reconnect monotonic. */
+  arcadeSurfaceCheckpoint?: HostArcadeSurfaceCheckpoint;
   /** Authoritative controller roster snapshot for the connected room. */
   players?: PlayerProfile[];
   /** Authoritative controller-session roster for the connected room. */

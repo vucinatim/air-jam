@@ -41,6 +41,7 @@ import {
   beginGameLaunch,
   beginRoomClosing,
   buildArcadeSessionForHostAck,
+  buildArcadeSurfaceCheckpointForHostAck,
   buildControllerCapabilityForHostAck,
   buildRoomStateMessage,
   canBeginGameLaunch,
@@ -799,6 +800,8 @@ export const registerHostLifecycleHandlers = (
           ok: true,
           roomId,
           arcadeSession: buildArcadeSessionForHostAck(session, uuidv4),
+          arcadeSurfaceCheckpoint:
+            buildArcadeSurfaceCheckpointForHostAck(session),
           players: buildHostRosterSnapshot(session),
           controllers: buildHostControllerSnapshot(session),
           controllerCapability: getControllerCapabilityForAck(session),

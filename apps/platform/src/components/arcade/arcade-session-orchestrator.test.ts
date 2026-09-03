@@ -139,6 +139,7 @@ describe("arcade session orchestrator", () => {
           expiresAt: 1_800_000_000_000,
         },
       },
+      surfaceCheckpoint: { epoch: 4, revision: 7 },
       hostRouteIntent: { kind: "game" as const, gameId: game.id },
       mode: "arcade" as const,
       browserOverlay: "hidden" as const,
@@ -161,7 +162,7 @@ describe("arcade session orchestrator", () => {
         }),
       ),
     ).toEqual([
-      "surface.game",
+      "surface.restore-game",
       "surface.overlay",
       "runtime.launch-success",
       "selection.set",
@@ -182,6 +183,7 @@ describe("arcade session orchestrator", () => {
               expiresAt: 1_800_000_000_000,
             },
           },
+          surfaceCheckpoint: { epoch: 4, revision: 7 },
           hostRouteIntent: { kind: "browser" },
           games: [game],
           gamesCatalogReady: true,
@@ -191,7 +193,7 @@ describe("arcade session orchestrator", () => {
       ),
     ).toEqual([
       "history.browser",
-      "surface.browser",
+      "surface.restore-browser",
       "surface.overlay",
       "runtime.reset",
       "server.close",
@@ -211,6 +213,7 @@ describe("arcade session orchestrator", () => {
               expiresAt: 1_800_000_000_000,
             },
           },
+          surfaceCheckpoint: { epoch: 4, revision: 7 },
           hostRouteIntent: { kind: "game", gameId: "removed_game" },
           games: [game],
           gamesCatalogReady: true,
@@ -220,11 +223,32 @@ describe("arcade session orchestrator", () => {
       ),
     ).toEqual([
       "history.browser",
-      "surface.browser",
+      "surface.restore-browser",
       "surface.overlay",
       "runtime.reset",
       "server.close",
       "restore.clear",
+    ]);
+  });
+
+  it("restores a system-focused reconnect to a new browser identity", () => {
+    expect(
+      orchestrateArcadeSession({
+        type: "restore.requested",
+        session: null,
+        surfaceCheckpoint: { epoch: 9, revision: 12 },
+        hostRouteIntent: { kind: "game", gameId: game.id },
+        games: [game],
+        gamesCatalogReady: true,
+        mode: "arcade",
+        browserOverlay: "hidden",
+      }),
+    ).toEqual([
+      { type: "history.browser" },
+      { type: "surface.restore-browser", previousEpoch: 9 },
+      { type: "surface.overlay", overlay: "hidden" },
+      { type: "runtime.reset" },
+      { type: "restore.clear" },
     ]);
   });
 

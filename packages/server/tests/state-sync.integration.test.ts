@@ -175,7 +175,7 @@ describe("server state sync", () => {
 
     host.emit("host:state_sync", {
       roomId,
-      data: { kind: "game", gameId: "pong" },
+      data: { epoch: 4, kind: "game", gameId: "pong" },
       storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
       revision: 3,
     });
@@ -191,14 +191,60 @@ describe("server state sync", () => {
 
     const reconnectAck = await harness.emitWithAck<{
       ok: boolean;
-      arcadeSession?: { gameId: string };
+      arcadeSession?: {
+        gameId: string;
+      };
+      arcadeSurfaceCheckpoint?: { epoch: number; revision: number };
     }>(reconnectingHost, "host:reconnect", { roomId });
     await harness.delay(25);
 
     expect(reconnectAck).toMatchObject({
       ok: true,
       arcadeSession: { gameId: "pong" },
+      arcadeSurfaceCheckpoint: { epoch: 4, revision: 3 },
     });
+    expect(replayedDomains).not.toContain(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN);
+  });
+
+  it("preserves the arcade counter checkpoint when reconnecting in system focus", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    const roomId = createAck.roomId!;
+
+    host.emit("host:state_sync", {
+      roomId,
+      data: { epoch: 9, kind: "browser", gameId: null },
+      storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
+      revision: 12,
+    });
+    await harness.delay(25);
+    host.disconnect();
+
+    const reconnectingHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(reconnectingHost)).ok).toBe(true);
+    const replayedDomains: string[] = [];
+    reconnectingHost.on("airjam:state_sync", (payload: unknown) => {
+      replayedDomains.push((payload as { storeDomain: string }).storeDomain);
+    });
+
+    const reconnectAck = await harness.emitWithAck<{
+      ok: boolean;
+      arcadeSession?: { gameId: string };
+      arcadeSurfaceCheckpoint?: { epoch: number; revision: number };
+    }>(reconnectingHost, "host:reconnect", { roomId });
+    await harness.delay(25);
+
+    expect(reconnectAck).toMatchObject({
+      ok: true,
+      arcadeSurfaceCheckpoint: { epoch: 9, revision: 12 },
+    });
+    expect(reconnectAck.arcadeSession).toBeUndefined();
     expect(replayedDomains).not.toContain(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN);
   });
 

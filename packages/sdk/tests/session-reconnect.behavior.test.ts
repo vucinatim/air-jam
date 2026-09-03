@@ -379,6 +379,38 @@ describe("session reconnect behavior", () => {
     );
   });
 
+  it("retains the arcade checkpoint even when reconnecting without an active game", async () => {
+    mocked.store?.getState().setRoomId("ROOM1");
+    mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    sessionStorage.setItem("airjam_room_id", "ROOM1");
+    mocked.hostSocket.emit.mockImplementation(
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+        }
+        if (event === "host:reconnect") {
+          callback?.({
+            ok: true,
+            roomId: "ROOM1",
+            arcadeSurfaceCheckpoint: { epoch: 9, revision: 12 },
+          });
+        }
+      },
+    );
+
+    renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(mocked.store?.getState().hostArcadeRestore).toEqual({
+        phase: "pending_restore",
+        session: null,
+        surfaceCheckpoint: { epoch: 9, revision: 12 },
+      });
+    });
+  });
+
   it("hydrates existing players from the host reconnect ack", async () => {
     mocked.store?.getState().setRoomId("ROOM1");
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
