@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@air-jam/operations-contract": "workspace:^",
-    "drizzle-orm": "^0.45.0"
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

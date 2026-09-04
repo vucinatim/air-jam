@@ -109,91 +109,117 @@ const resolveCleanCommit = () => {
 
 const readCommandVersion = (command, args) => run(command, args).stdout.trim();
 
-const visitDependencyTree = (entry, packages) => {
-  if (
-    entry &&
-    typeof entry.name === "string" &&
-    typeof entry.version === "string"
-  ) {
-    packages.set(`${entry.name}@${entry.version}`, {
-      name: entry.name,
-      version: entry.version,
-    });
-  }
-  for (const section of ["dependencies", "optionalDependencies"]) {
-    for (const [name, dependency] of Object.entries(entry?.[section] ?? {})) {
-      visitDependencyTree(
-        {
-          name: dependency.name ?? name,
-          version: dependency.version,
-          dependencies: dependency.dependencies,
-          optionalDependencies: dependency.optionalDependencies,
-        },
-        packages,
-      );
+const visitInstalledPackages = (nodeModulesDirectory, packages) => {
+  if (!fs.existsSync(nodeModulesDirectory)) return;
+  for (const entry of fs.readdirSync(nodeModulesDirectory, {
+    withFileTypes: true,
+  })) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const entryPath = path.join(nodeModulesDirectory, entry.name);
+    if (entry.name.startsWith("@")) {
+      visitInstalledPackages(entryPath, packages);
+      continue;
     }
+    const manifestPath = path.join(entryPath, "package.json");
+    if (!fs.existsSync(manifestPath)) continue;
+    const manifest = readJson(manifestPath);
+    if (typeof manifest.name !== "string" || typeof manifest.version !== "string") {
+      throw new Error(`Installed package manifest is invalid: ${manifestPath}`);
+    }
+    packages.set(`${manifest.name}@${manifest.version}`, {
+      name: manifest.name,
+      version: manifest.version,
+      manifest,
+    });
+    visitInstalledPackages(path.join(entryPath, "node_modules"), packages);
   }
 };
 
-const collectDependencyInventory = (publicPackages) => {
+const materializeCandidateConsumer = ({ staging, artifacts }) => {
+  const consumerDirectory = path.join(staging, ".consumer-inventory");
+  fs.mkdirSync(consumerDirectory);
+  writeJson(path.join(consumerDirectory, "package.json"), {
+    name: "air-jam-public-release-candidate-inventory",
+    private: true,
+    version: "0.0.0",
+    dependencies: Object.fromEntries(
+      artifacts.map((artifact) => [
+        artifact.name,
+        `file:${path.join(staging, artifact.file)}`,
+      ]),
+    ),
+  });
+  run(
+    "npm",
+    [
+      "install",
+      "--ignore-scripts",
+      "--omit=dev",
+      "--no-audit",
+      "--no-fund",
+      "--registry",
+      npmRegistry,
+    ],
+    { cwd: consumerDirectory },
+  );
   const packages = new Map();
-  for (const pkg of publicPackages) {
-    const result = run("pnpm", [
-      "--filter",
-      pkg.packageName,
-      "list",
-      "--prod",
-      "--depth",
-      "Infinity",
-      "--json",
-    ]);
-    for (const root of JSON.parse(result.stdout))
-      visitDependencyTree(root, packages);
-  }
+  visitInstalledPackages(path.join(consumerDirectory, "node_modules"), packages);
+  return { consumerDirectory, packages };
+};
+
+const collectDependencyInventory = ({ publicPackages, installedPackages }) => {
   return {
     contract: "air-jam-production-dependency-inventory/v1",
     roots: publicPackages.map((entry) => entry.packageName),
-    packages: [...packages.values()].sort((left, right) =>
+    packages: [...installedPackages.values()]
+      .map(({ name, version }) => ({ name, version }))
+      .sort((left, right) =>
       compareStrings(
         `${left.name}@${left.version}`,
         `${right.name}@${right.version}`,
       ),
-    ),
+      ),
   };
 };
 
-const collectLicenseInventory = (dependencyInventory, workspacePackages) => {
+const normalizeLicense = (manifest) => {
+  if (typeof manifest.license === "string" && manifest.license.trim()) {
+    return manifest.license.trim();
+  }
+  if (
+    manifest.license &&
+    typeof manifest.license.type === "string" &&
+    manifest.license.type.trim()
+  ) {
+    return manifest.license.type.trim();
+  }
+  if (Array.isArray(manifest.licenses)) {
+    const licenses = manifest.licenses
+      .map((entry) => (typeof entry === "string" ? entry : entry?.type))
+      .filter((entry) => typeof entry === "string" && entry.trim())
+      .map((entry) => entry.trim());
+    if (licenses.length > 0) return licenses.join(" OR ");
+  }
+  return null;
+};
+
+const collectLicenseInventory = (dependencyInventory, installedPackages) => {
   const selected = new Set(
     dependencyInventory.packages.map(
       (entry) => `${entry.name}@${entry.version}`,
     ),
   );
-  const raw = JSON.parse(
-    run("pnpm", ["licenses", "list", "--prod", "--json"]).stdout,
-  );
   const packages = new Map();
-  for (const [groupLicense, entries] of Object.entries(raw)) {
-    for (const entry of entries) {
-      for (const version of entry.versions ?? []) {
-        const key = `${entry.name}@${version}`;
-        if (!selected.has(key)) continue;
-        packages.set(key, {
-          name: entry.name,
-          version,
-          license: entry.license ?? groupLicense,
-          source: "installed-package",
-        });
-      }
-    }
-  }
   for (const entry of dependencyInventory.packages) {
-    const workspacePackage = workspacePackages.get(entry.name);
-    if (workspacePackage?.license) {
-      packages.set(`${entry.name}@${entry.version}`, {
+    const key = `${entry.name}@${entry.version}`;
+    const installed = installedPackages.get(key);
+    const license = installed ? normalizeLicense(installed.manifest) : null;
+    if (license) {
+      packages.set(key, {
         name: entry.name,
         version: entry.version,
-        license: workspacePackage.license,
-        source: "workspace-manifest",
+        license,
+        source: "installed-package",
       });
     }
   }
@@ -241,8 +267,14 @@ const collectDependencyAudit = (dependencyInventoryPath) => {
   );
   const audit = JSON.parse(result.stdout);
   if (audit.vulnerabilityCount > 0) {
+    const findings = audit.findings
+      .map(
+        (entry) =>
+          `${entry.id} (${entry.package}@${entry.version})`,
+      )
+      .join(", ");
     throw new Error(
-      `Production dependency audit found ${audit.vulnerabilityCount} known vulnerabilities.`,
+      `Production dependency audit found ${audit.vulnerabilityCount} known vulnerabilities: ${findings}.`,
     );
   }
   return audit;
@@ -377,7 +409,6 @@ const validateCandidateEvidence = ({ root, manifest, expectedPackages }) => {
       ![
         "installed-package",
         "npm-registry-metadata",
-        "workspace-manifest",
       ].includes(entry.source)
     ) {
       throw new Error(`Candidate license inventory entry ${index} is invalid.`);
@@ -625,40 +656,7 @@ export const createPublicReleaseCandidate = ({
       run("pnpm", ["--filter", pkg.packageFilter, "build"]);
     }
 
-    onProgress("inventory:dependencies");
     const workspacePackages = loadWorkspacePackageIndex(repoRoot);
-    const dependencies = collectDependencyInventory(publicPackages);
-    onProgress("inventory:licenses");
-    const licenses = collectLicenseInventory(dependencies, workspacePackages);
-    if (licenses.missing.length > 0) {
-      throw new Error(
-        `License inventory is incomplete for: ${licenses.missing.join(", ")}.`,
-      );
-    }
-    const dependencyInventoryPath = path.join(
-      staging,
-      evidenceFiles.dependencies,
-    );
-    writeJson(dependencyInventoryPath, dependencies);
-    onProgress("audit:production-dependencies");
-    const audit = collectDependencyAudit(dependencyInventoryPath);
-
-    const evidence = { licenses, audit };
-    const evidenceMetadata = {};
-    evidenceMetadata.dependencies = {
-      file: evidenceFiles.dependencies,
-      sha256: sha256(fs.readFileSync(dependencyInventoryPath)),
-    };
-    for (const [name, value] of Object.entries(evidence)) {
-      const relativeFile = evidenceFiles[name];
-      const filePath = path.join(staging, relativeFile);
-      writeJson(filePath, value);
-      evidenceMetadata[name] = {
-        file: relativeFile,
-        sha256: sha256(fs.readFileSync(filePath)),
-      };
-    }
-
     const packageMetadata = buildPackageMetadata({
       publicPackages,
       workspacePackages,
@@ -690,6 +688,51 @@ export const createPublicReleaseCandidate = ({
         sha256: sha256(content),
         integrity: sha512Integrity(content),
       });
+    }
+
+    onProgress("inventory:install-candidate");
+    const { consumerDirectory, packages: installedPackages } =
+      materializeCandidateConsumer({ staging, artifacts });
+    let dependencies;
+    let licenses;
+    try {
+      onProgress("inventory:dependencies");
+      dependencies = collectDependencyInventory({
+        publicPackages,
+        installedPackages,
+      });
+      onProgress("inventory:licenses");
+      licenses = collectLicenseInventory(dependencies, installedPackages);
+    } finally {
+      fs.rmSync(consumerDirectory, { recursive: true, force: true });
+    }
+    if (licenses.missing.length > 0) {
+      throw new Error(
+        `License inventory is incomplete for: ${licenses.missing.join(", ")}.`,
+      );
+    }
+    const dependencyInventoryPath = path.join(
+      staging,
+      evidenceFiles.dependencies,
+    );
+    writeJson(dependencyInventoryPath, dependencies);
+    onProgress("audit:production-dependencies");
+    const audit = collectDependencyAudit(dependencyInventoryPath);
+
+    const evidence = { licenses, audit };
+    const evidenceMetadata = {};
+    evidenceMetadata.dependencies = {
+      file: evidenceFiles.dependencies,
+      sha256: sha256(fs.readFileSync(dependencyInventoryPath)),
+    };
+    for (const [name, value] of Object.entries(evidence)) {
+      const relativeFile = evidenceFiles[name];
+      const filePath = path.join(staging, relativeFile);
+      writeJson(filePath, value);
+      evidenceMetadata[name] = {
+        file: relativeFile,
+        sha256: sha256(fs.readFileSync(filePath)),
+      };
     }
 
     const rootManifest = fs.readFileSync(path.join(repoRoot, "package.json"));

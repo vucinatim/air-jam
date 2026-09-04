@@ -51,9 +51,9 @@
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "cross-spawn": "^7.0.6",
-    "socket.io-client": "^4.8.1",
+    "socket.io-client": "^4.8.3",
     "tsx": "^4.20.6",
     "yauzl": "^3.2.1",
     "yazl": "^3.3.1",
