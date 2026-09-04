@@ -18,6 +18,32 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-04 - Production Recovery Was Automated And Live-Proven
+
+- closed `G3-03` with one agent-first repo CLI for provider backup inspection
+  and scheduling, immutable isolated restore, exact deployment rollback, and
+  durable job replay; no operational capability depends on a human-only UI
+- configured and read back exact daily, weekly, and monthly Railway volume
+  backup policy, then captured a fresh checksummed PostgreSQL 17 snapshot
+- restored the snapshot into a disposable Railway PostgreSQL 18 environment,
+  verified migration head and all 40 relation counts, exercised exact job
+  cancellation and replay lineage, and removed every run-owned provider and
+  local resource
+- used protected PRs `#92`, `#93`, and `#94`, one GitHub-native Opus review per
+  PR, required CI/Railway previews, and final `ready` Canonicalizer verdicts for
+  the substantial batches
+- let the first production calls fail closed and improve the contract: one
+  GraphQL schema mismatch was rejected before mutation; later successful
+  provider rollbacks exposed that Railway rollback instances omit runtime Git
+  SHA while retaining the new deployment ID and provider revision
+- made accepted or ambiguous production mutations preserve structured evidence,
+  prevented unrelated concurrent deployments from being misattributed, and
+  bound public readiness to the exact newly created rollback deployment ID
+- completed a final verified backward rollback in 10,526 ms and exact forward
+  recovery in 8,248 ms, leaving production on reviewed revision
+  `8bf765f45e217281daa30bb1a471066d097969e7`; retained the full chain in the
+  [production recovery proof](./audits/v1-reliability/production-recovery-proof.md)
+
 ## 2026-09-04 - Production Schema Changes Gained One Guarded Lifecycle
 
 - replaced the standalone backup command and manual production Drizzle recipe
