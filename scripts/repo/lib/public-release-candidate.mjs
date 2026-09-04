@@ -181,6 +181,7 @@ const collectLicenseInventory = (dependencyInventory, workspacePackages) => {
           name: entry.name,
           version,
           license: entry.license ?? groupLicense,
+          source: "installed-package",
         });
       }
     }
@@ -192,8 +193,26 @@ const collectLicenseInventory = (dependencyInventory, workspacePackages) => {
         name: entry.name,
         version: entry.version,
         license: workspacePackage.license,
+        source: "workspace-manifest",
       });
     }
+  }
+  for (const entry of dependencyInventory.packages) {
+    const key = `${entry.name}@${entry.version}`;
+    if (packages.has(key)) continue;
+    const output = run(
+      "npm",
+      ["view", key, "license", "--json", "--registry", npmRegistry],
+      { timeout: 30_000 },
+    ).stdout;
+    const license = JSON.parse(output);
+    if (typeof license !== "string" || !license.trim()) continue;
+    packages.set(key, {
+      name: entry.name,
+      version: entry.version,
+      license: license.trim(),
+      source: "npm-registry-metadata",
+    });
   }
   const missing = [...selected]
     .filter((key) => !packages.has(key))
@@ -354,7 +373,12 @@ const validateCandidateEvidence = ({ root, manifest, expectedPackages }) => {
       typeof entry.version !== "string" ||
       !entry.version ||
       typeof entry.license !== "string" ||
-      !entry.license
+      !entry.license ||
+      ![
+        "installed-package",
+        "npm-registry-metadata",
+        "workspace-manifest",
+      ].includes(entry.source)
     ) {
       throw new Error(`Candidate license inventory entry ${index} is invalid.`);
     }

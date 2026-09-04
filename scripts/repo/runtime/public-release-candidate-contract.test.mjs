@@ -58,6 +58,7 @@ const createCandidateFixture = () => {
       packages: dependencyPackages.map((entry) => ({
         ...entry,
         license: "MIT",
+        source: "workspace-manifest",
       })),
       missing: [],
     },

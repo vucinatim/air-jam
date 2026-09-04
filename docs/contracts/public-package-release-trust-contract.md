@@ -40,7 +40,10 @@ The canonical candidate creator must:
 4. pack every public package once
 5. record the exact source commit, toolchain, lockfile digest, public dependency
    graph, filenames, byte sizes, SHA-256 digests, and npm SHA-512 integrity
-6. record a normalized production dependency and license inventory
+6. record a normalized production dependency and license inventory; licenses
+   come from the installed package graph, workspace manifests, or exact-version
+   npm registry metadata for platform-specific optional packages that are not
+   materialized on the candidate runner
 7. query OSV's batch API for the exact resolved production inventory with a
    bounded timeout, retain the normalized result, and reject any known finding
 8. write the candidate through a staging directory and expose it only after

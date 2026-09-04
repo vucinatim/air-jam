@@ -85,7 +85,9 @@ Candidate creation then records:
 3. root manifest and lockfile digests
 4. prepared public dependency declarations
 5. a normalized production dependency inventory
-6. a production license inventory with no missing entries
+6. a production license inventory with no missing entries, including
+   exact-version npm metadata for platform-specific packages absent from the
+   candidate runner
 7. a bounded OSV batch query over the exact resolved production inventory that
    blocks any known finding
 8. every tarball's name, size, SHA-256 digest, and npm SHA-512 integrity

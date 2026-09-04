@@ -49,7 +49,9 @@ pnpm --silent run repo -- release candidate verify \
 3. one dependency-ordered build and pack of the complete public graph
 4. prepared public dependency declarations with no local workspace specifier
 5. exact root-manifest and lockfile digests
-6. normalized production dependency and complete license inventories
+6. normalized production dependency and complete license inventories, with
+   exact-version npm metadata filling only platform-specific packages that the
+   candidate runner did not materialize
 7. a bounded OSV query over the exact resolved inventory with no known finding
 8. SHA-256 and npm SHA-512 identity for every tarball and retained evidence
 9. strict candidate directory contents and regular-file boundaries
