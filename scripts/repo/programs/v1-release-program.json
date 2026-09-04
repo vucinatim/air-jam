@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-04T00:31:08.711Z",
+  "updatedAt": "2026-09-04T01:14:29.816Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -1077,9 +1077,17 @@
       "evidenceRequirements": [
         "redaction, normalized failure code, database-time chronology, per-check isolation, and fenced SLO regression tests"
       ],
-      "status": "pending",
-      "updatedAt": "2026-09-04T00:31:08.711Z",
-      "note": "Detailed implementation and cold-start agent proof are now canonical; reliability implementation remains unstarted and dependency-ready."
+      "status": "complete",
+      "updatedAt": "2026-09-04T01:14:29.816Z",
+      "note": "Reliability trust boundaries, database chronology, per-check isolation, stale SLO fencing, truthful batch status, and scheduler extraction are implemented and proven.",
+      "owner": "/root",
+      "evidence": [
+        "document:docs/audits/v1-operations/operational-reliability-proof.md",
+        "command:pnpm-check-batch",
+        "command:operational-reliability-postgres-4-of-4",
+        "command:server-operational-publisher-postgres-3-of-3"
+      ],
+      "completedAt": "2026-09-04T01:14:29.816Z"
     },
     {
       "id": "G3-07",

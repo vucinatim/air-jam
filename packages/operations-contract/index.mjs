@@ -381,10 +381,56 @@ export const operationalFailureSchemaV1 = z
   })
   .strict();
 
-const operationalSecretKeyPattern =
-  /(?:authorization|cookie|credential|password|private|secret|session|token)/iu;
+const operationalSecretKeyTokens = [
+  "authorization",
+  "cookie",
+  "credential",
+  "password",
+  "private",
+  "secret",
+  "session",
+  "token",
+];
+const operationalSecretKeyQualifiers = [
+  "access",
+  "api",
+  "auth",
+  "encryption",
+  "private",
+  "secret",
+  "session",
+  "signing",
+];
+const operationalCompactSecretKeys = new Set(
+  [...operationalSecretKeyQualifiers, "hmac", "jwt", "webhook"].flatMap(
+    (qualifier) => [`${qualifier}key`, `${qualifier}keys`],
+  ),
+);
+const operationalPublicDetailKeys = new Set(["targetkey"]);
 const operationalCodePattern = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/u;
 const operationalIdentifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/u;
+
+const isOperationalSecretKey = (key) => {
+  const compactKey = key.toLowerCase().replace(/[^a-z0-9]+/gu, "");
+  if (operationalPublicDetailKeys.has(compactKey)) return false;
+  const tokens = key
+    .replace(/([a-z0-9])([A-Z])/gu, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/u)
+    .filter(Boolean);
+  if (tokens.some((token) => token === "key" || token === "keys")) return true;
+  if (
+    tokens.some(
+      (token) =>
+        operationalSecretKeyTokens.some((secretToken) =>
+          token.includes(secretToken),
+        ) || operationalCompactSecretKeys.has(token),
+    )
+  ) {
+    return true;
+  }
+  return false;
+};
 
 const sanitizeOperationalJson = (value, depth = 0) => {
   if (depth > 8) return undefined;
@@ -401,7 +447,7 @@ const sanitizeOperationalJson = (value, depth = 0) => {
   if (!value || typeof value !== "object") return undefined;
   const sanitized = {};
   for (const [key, nested] of Object.entries(value).slice(0, 100)) {
-    if (operationalSecretKeyPattern.test(key)) continue;
+    if (isOperationalSecretKey(key)) continue;
     const safe = sanitizeOperationalJson(nested, depth + 1);
     if (safe !== undefined) sanitized[key.slice(0, 80)] = safe;
   }

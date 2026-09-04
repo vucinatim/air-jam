@@ -16,11 +16,13 @@ describeWithPostgres(
     }) as ServerDatabase;
     const suffix = crypto.randomUUID();
     const component = `server-publisher-test:${suffix}`;
+    const normalizedComponent = `${component}:normalized-code`;
 
     afterAll(async () => {
       await client`
       delete from operational_event_outbox
       where envelope -> 'source' ->> 'component' = ${component}
+         or envelope -> 'source' ->> 'component' = ${normalizedComponent}
          or id = ${`runtime-report:${suffix}`}
     `;
       await client.end();
@@ -77,6 +79,36 @@ describeWithPostgres(
       expect(JSON.stringify(rows[0]!.envelope)).not.toContain(
         "must-not-persist",
       );
+    });
+
+    it("uses one normalized code for the event kind and retained failure", async () => {
+      const publisher = createDatabaseServerOperationalEventPublisher({
+        database,
+        environment: "test",
+      });
+      await publisher.publishFailure({
+        code: "RUNTIME FAILURE WITH SPACES",
+        failureClass: "internal",
+        summary: "A malformed upstream code was normalized.",
+        retryable: false,
+        component: normalizedComponent,
+        subject: { type: "service", id: "realtime_server" },
+        correlation: {
+          contractVersion: 1,
+          correlationId: `normalized-code:${suffix}`,
+        },
+      });
+
+      const rows = await client`
+      select envelope
+      from operational_event_outbox
+      where envelope -> 'source' ->> 'component' = ${normalizedComponent}
+    `;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.envelope).toMatchObject({
+        kind: "internal.unclassified",
+        payload: { failure: { code: "internal.unclassified" } },
+      });
     });
 
     it("persists an idempotent runtime-reported crash without raw browser error data", async () => {

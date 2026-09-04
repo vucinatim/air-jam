@@ -18,6 +18,35 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-04 - Reliability Foundation Was Hardened Before Continuous Execution
+
+- closed `G4-07` without adding a generic incident engine, remediation DSL, or
+  parallel correlation model
+- replaced substring-only secret filtering with lexical, recursive handling of
+  compound API, signing, private, encryption, access, auth, and session key
+  names while retaining unrelated diagnostic fields
+- made normalized structured failure identity authoritative for both realtime
+  event kind and retained failure code
+- changed retained synthetic chronology to use PostgreSQL authority time while
+  preserving monotonic execution duration
+- serialized each SLO stream before assigning chronology and added an explicit
+  stale-evaluation fence; historical runs remain durable but cannot regress
+  breach/recovery streaks or alert revisions
+- isolated every due synthetic catalog item and added a stable batch result
+  with per-check outcomes and exact due/completed/failed/stale/not-due counts
+- moved the idempotency fence ahead of external synthetic effects, so multiple
+  worker replicas cannot duplicate a real room or protocol story
+- kept worker health truthful when an isolated batch partially fails and made
+  failed and stale-fenced outcomes inspectable through worker status
+- extracted scheduler orchestration from the execution/persistence service so
+  cadence, isolation, and batch reporting have one focused module
+- moved the PostgreSQL regression suites into the ordinary GitHub test lane so
+  concurrency and database-time invariants remain continuously enforced
+- proved the boundary with `18/18` operations-contract tests, `5/5`
+  PostgreSQL reliability invariants, `3/3` PostgreSQL realtime-publisher tests,
+  the `4/4` CLI contract suite, `10/10` focused platform tests, and the full
+  batch gate
+
 ## 2026-09-04 - Agent Autonomy Was Reframed Around Capability, Not Ceremony
 
 - recorded the maintainer decision to constrain production effects rather than

@@ -102,7 +102,40 @@ describe("operational job worker service", () => {
       },
       deliverEvent: async () => ({ status: "idle" }),
       repairEventDelivery: async () => [],
-      runSynthetics: async () => [],
+      runSynthetics: async () => ({
+        environment: "test",
+        scheduledAt: new Date().toISOString(),
+        dueCount: 2,
+        completedCount: 1,
+        failureCount: 1,
+        staleIgnoredCount: 1,
+        skippedCount: 4,
+        checks: [
+          {
+            checkId: "platform-realtime-health",
+            status: "failed",
+            failure: {
+              contractVersion: 1,
+              code: "synthetic.schedule_item_failed",
+              class: "internal",
+              summary: "A due operational synthetic could not be retained.",
+              retryable: true,
+              details: { checkId: "platform-realtime-health" },
+            },
+          },
+          {
+            checkId: "landing-docs",
+            status: "completed",
+            result: {
+              run: {} as never,
+              evaluation: null,
+              alert: null,
+              transition: null,
+              evaluationDisposition: "stale_ignored",
+            },
+          },
+        ],
+      }),
     });
     const origin = `http://127.0.0.1:${port}`;
 
@@ -136,7 +169,19 @@ describe("operational job worker service", () => {
           eventDelivery: { status: "ready" },
           maintenance: { status: "pending" },
           lifecycleCleanup: { status: "pending" },
-          synthetics: { status: "ready" },
+          synthetics: {
+            status: "failed",
+            lastFailureCode: "OperationalSyntheticBatchFailure",
+          },
+        },
+        lastSyntheticBatch: {
+          dueCount: 2,
+          completedCount: 1,
+          failureCount: 1,
+          staleIgnoredCount: 1,
+          skippedCount: 4,
+          failedCheckIds: ["platform-realtime-health"],
+          staleIgnoredCheckIds: ["landing-docs"],
         },
       },
     });

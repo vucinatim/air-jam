@@ -3,10 +3,8 @@ import {
   repairExpiredOperationalEventDeliveries,
   runOperationalEventDeliveryCycle,
 } from "@/server/operations/operational-event-delivery-service";
-import {
-  resolveOperationalSyntheticRuntimeConfig,
-  runDueOperationalSynthetics,
-} from "@/server/operations/operational-synthetic-service";
+import { runDueOperationalSynthetics } from "@/server/operations/operational-synthetic-scheduler";
+import { resolveOperationalSyntheticRuntimeConfig } from "@/server/operations/operational-synthetic-service";
 import { validateEnv } from "@air-jam/env";
 import { normalizeUnknownOperationalFailure } from "@air-jam/operations-contract";
 import { createServer, type ServerResponse } from "node:http";
@@ -203,7 +201,16 @@ export const startOperationalJobWorkerService = async ({
   let lastEventDeliveryAt: string | null = null;
   let lastEventDeliveryStatus: string | null = null;
   let lastSyntheticAt: string | null = null;
-  let lastSyntheticRunCount = 0;
+  let lastSyntheticBatch: {
+    scheduledAt: string;
+    dueCount: number;
+    completedCount: number;
+    failureCount: number;
+    staleIgnoredCount: number;
+    skippedCount: number;
+    failedCheckIds: string[];
+    staleIgnoredCheckIds: string[];
+  } | null = null;
   let kindCursor = 0;
 
   const recordAuthoritySuccess = (authority: WorkerAuthorityName) => {
@@ -421,10 +428,57 @@ export const startOperationalJobWorkerService = async ({
       actor: config.workerId,
       config: resolveOperationalSyntheticRuntimeConfig(env),
     })
-      .then((results) => {
+      .then((result) => {
         lastSyntheticAt = new Date().toISOString();
-        lastSyntheticRunCount = results.length;
-        recordAuthoritySuccess("synthetics");
+        const failedCheckIds = result.checks
+          .filter((check) => check.status === "failed")
+          .map((check) => check.checkId);
+        const staleIgnoredCheckIds = result.checks
+          .filter(
+            (check) =>
+              check.status === "completed" &&
+              check.result.evaluationDisposition === "stale_ignored",
+          )
+          .map((check) => check.checkId);
+        lastSyntheticBatch = {
+          scheduledAt: result.scheduledAt,
+          dueCount: result.dueCount,
+          completedCount: result.completedCount,
+          failureCount: result.failureCount,
+          staleIgnoredCount: result.staleIgnoredCount,
+          skippedCount: result.skippedCount,
+          failedCheckIds,
+          staleIgnoredCheckIds,
+        };
+        if (staleIgnoredCheckIds.length > 0) {
+          console.warn(
+            JSON.stringify({
+              service: "air-jam-platform-worker",
+              event: "operational_synthetic.evaluation_fenced",
+              details: {
+                staleIgnoredCount: result.staleIgnoredCount,
+                staleIgnoredCheckIds,
+              },
+            }),
+          );
+        }
+        if (result.failureCount === 0) {
+          recordAuthoritySuccess("synthetics");
+          return;
+        }
+        const error = new Error(
+          `${result.failureCount} operational synthetic checks failed.`,
+        );
+        error.name = "OperationalSyntheticBatchFailure";
+        recordAuthorityFailure("synthetics", error);
+        logFailure({
+          event: "operational_synthetic.schedule_degraded",
+          error,
+          details: {
+            failureCount: result.failureCount,
+            failedCheckIds,
+          },
+        });
       })
       .catch((error: unknown) => {
         recordAuthorityFailure("synthetics", error);
@@ -474,7 +528,7 @@ export const startOperationalJobWorkerService = async ({
       lastEventDeliveryAt,
       lastEventDeliveryStatus,
       lastSyntheticAt,
-      lastSyntheticRunCount,
+      lastSyntheticBatch,
       lastErrorAt,
       lastErrorCode,
     };

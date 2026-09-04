@@ -7,11 +7,8 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
-import {
-  buildPerfSanityArgs,
-  perfProfiles,
-} from "../lib/perf-plan.mjs";
 import { findCanonicalViolations } from "../commands/standards.mjs";
+import { buildPerfSanityArgs, perfProfiles } from "../lib/perf-plan.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -41,7 +38,22 @@ test("CI preserves every confidence lane behind one stable required check", () =
   assert.match(lanes[0].command, /pnpm lint/u);
   assert.match(lanes[0].command, /pnpm guard:canonical/u);
   assert.equal(lanes[1].command, "pnpm typecheck");
-  assert.equal(lanes[2].command, "pnpm test");
+  assert.match(lanes[2].command, /^pnpm test &&/u);
+  assert.match(lanes[2].command, /drizzle-kit migrate/u);
+  assert.match(
+    lanes[2].command,
+    /operational-reliability-service\.postgres\.test\.ts/u,
+  );
+  assert.match(
+    lanes[2].command,
+    /operational-event-publisher\.postgres\.test\.ts/u,
+  );
+  assert.equal(lanes[2].postgresImage, "postgres:17-alpine");
+  assert.match(lanes[2].databaseUrl, /^postgresql:\/\//u);
+  assert.deepEqual(
+    lanes.filter((lane) => lane.postgresImage).map((lane) => lane.name),
+    ["Tests"],
+  );
   assert.equal(lanes[3].command, "pnpm build");
   assert.equal(lanes[4].command, "pnpm check:platform:deploy");
   assert.match(lanes[5].command, /perf sanity --profile ci/u);
@@ -50,6 +62,16 @@ test("CI preserves every confidence lane behind one stable required check", () =
     [1, 1, 0, 1, 1, 1],
   );
   assert.equal(workflow.jobs.validate.strategy["fail-fast"], false);
+  assert.match(
+    workflow.jobs.validate.services.postgres.image,
+    /matrix\.postgresImage/u,
+  );
+  assert.match(
+    workflow.jobs.validate.env.AIR_JAM_CI_DATABASE_URL,
+    /matrix\.databaseUrl/u,
+  );
+  assert.equal(workflow.jobs.validate.env.AIR_JAM_TEST_DATABASE_URL, undefined);
+  assert.equal(workflow.jobs.validate.env.DATABASE_URL, undefined);
   assert.equal(workflow.jobs.checks.name, "checks");
   assert.equal(workflow.jobs.checks.needs, "validate");
 });
@@ -125,9 +147,7 @@ test("the canonical scanner preserves multiline matching and Git ignore boundari
     );
     fs.writeFileSync(
       path.join(root, "src/binary.dat"),
-      Buffer.from(
-        'import { AirJamProvider } from "@air-jam/sdk";\0binary',
-      ),
+      Buffer.from('import { AirJamProvider } from "@air-jam/sdk";\0binary'),
     );
     execFileSync("git", ["init", "--quiet"], { cwd: root });
     execFileSync("git", ["add", ".gitignore", "src"], { cwd: root });

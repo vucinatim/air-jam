@@ -414,17 +414,23 @@ and its [proof](./audits/v1-operations/operational-contract-proof.md). The
 private runtime package, TypeScript declarations, JSON Schema export, and repo
 CLI now share one versioned model for events, correlation, incident state,
 runbook descriptors, immutable previews, invocations, and action audit records.
-Gate `G4-02` is closed by the next production-valid layer through the
+Gates `G4-02` and `G4-07` are closed by the production-valid reliability layer
+and its foundation hardening through the
 [operational reliability contract](./contracts/operational-reliability-contract.md)
 and its [proof](./audits/v1-operations/operational-reliability-proof.md): durable
 event delivery, structured platform/server/runtime failures, six synthetics,
 four SLOs, durable alerts, truthful worker readiness, and one agent-operable CLI
-surface. Production schema migration `0034` is applied, but the operational
-worker service is deliberately not deployed until its activation preflight,
-drain, synthetic configuration, rollback, and cost-observation path is ready.
-The bounded reliability corrections discovered after `G4-02` are now owned by
-`G4-07`; operational evidence retention is owned by `G3-07`, and both gate the
-separately claimable `G3-08` activation.
+surface. Retained failure details now use an adversarial recursive redaction
+vocabulary, event and failure identities share one normalized code, synthetic
+chronology is database-owned, each scheduled check is isolated and reported,
+and older SLO evaluations cannot regress newer alert state. Scheduling is a
+separate orchestration module rather than another responsibility in the
+persistence service. Production schema migration `0034` is applied, but the
+operational worker service is deliberately not deployed until its activation
+preflight, drain, synthetic configuration, rollback, and cost-observation path
+is ready.
+Operational evidence retention is owned by `G3-07`; it and the remaining
+activation dependencies gate separately claimable `G3-08` activation.
 This does not claim that continuous evaluations, external notification, or
 GitHub issue delivery are deployed. A generic incident lifecycle and governed
 automatic-remediation engine are intentionally not 1.0 requirements: smart

@@ -15,12 +15,12 @@ import {
   runOperationalEventDeliveryCycle,
 } from "../src/server/operations/operational-event-delivery-service";
 import { getOperationalReliabilityCatalog } from "../src/server/operations/operational-reliability-policy";
+import { runDueOperationalSynthetics } from "../src/server/operations/operational-synthetic-scheduler";
 import {
   getOperationalReliabilityStatus,
   listOperationalAlerts,
   listOperationalSyntheticRuns,
   resolveOperationalSyntheticRuntimeConfig,
-  runDueOperationalSynthetics,
   runOperationalSynthetic,
 } from "../src/server/operations/operational-synthetic-service";
 
@@ -335,7 +335,7 @@ const main = async () => {
         result = input.apply
           ? {
               applied: true,
-              runs: await runDueOperationalSynthetics({
+              batch: await runDueOperationalSynthetics({
                 database,
                 actor: input.actor,
                 config,
