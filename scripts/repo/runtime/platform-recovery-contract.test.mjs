@@ -281,13 +281,22 @@ test("deployment rollback is exact-target fenced and independently verified", as
   });
   let currentEnvironment = environment(current);
   let mutations = 0;
+  let attributionInput = null;
   const client = {
     getEnvironment: async () => currentEnvironment,
     getDeployment: async () => target,
     rollbackDeployment: async () => {
       mutations += 1;
       currentEnvironment = environment(rolledBack);
-      return rolledBack;
+      return true;
+    },
+    waitForServiceDeployment: async (input) => {
+      attributionInput = input;
+      return {
+        deployment: rolledBack,
+        attempt: 1,
+        matched: true,
+      };
     },
     waitForDeployment: async () => ({ deployment: rolledBack, ok: true }),
   };
@@ -323,6 +332,16 @@ test("deployment rollback is exact-target fenced and independently verified", as
   );
   assert.equal(result.status, "verified");
   assert.equal(mutations, 1);
+  assert.equal(attributionInput.environmentId, "environment-production");
+  assert.equal(attributionInput.serviceId, "service-platform");
+  assert.equal(attributionInput.matches(rolledBack), true);
+  assert.equal(attributionInput.matches(current), false);
+  assert.equal(
+    attributionInput.matches(
+      deployment({ id: "deployment-unrelated", revision: "revision-new" }),
+    ),
+    false,
+  );
   assert.ok(result.checks.every((check) => check.passed));
 });
 
@@ -349,7 +368,39 @@ test("deployment rollback refuses a stale current-deployment fence", async () =>
   );
 });
 
-test("deployment rollback stops when Railway omits the new deployment identity", async () => {
+test("deployment rollback stops when Railway rejects the provider mutation", async () => {
+  const current = deployment({
+    id: "deployment-current",
+    status: "SUCCESS",
+  });
+  const target = deployment({ id: "deployment-old" });
+  for (const rejection of [false, null]) {
+    const client = {
+      getEnvironment: async () => environment(current),
+      getDeployment: async () => target,
+      rollbackDeployment: async () => rejection,
+    };
+    await assert.rejects(
+      rollbackPlatformDeployment(
+        {
+          projectId: "project-airjam",
+          environmentId: "environment-production",
+          serviceId: "service-platform",
+          currentDeploymentId: "deployment-current",
+          targetDeploymentId: "deployment-old",
+          healthUrl: "https://www.airjam.io/api/readiness",
+          actor: "agent:test",
+          reason: "Reject unattributable rollback result.",
+          apply: true,
+        },
+        { createClient: () => client },
+      ),
+      /did not accept/u,
+    );
+  }
+});
+
+test("deployment rollback preserves evidence when no exact replacement becomes current", async () => {
   const current = deployment({
     id: "deployment-current",
     status: "SUCCESS",
@@ -358,25 +409,133 @@ test("deployment rollback stops when Railway omits the new deployment identity",
   const client = {
     getEnvironment: async () => environment(current),
     getDeployment: async () => target,
-    rollbackDeployment: async () => null,
+    rollbackDeployment: async () => true,
+    waitForServiceDeployment: async () => ({
+      deployment: current,
+      attempt: 2,
+      matched: false,
+      timeout: true,
+    }),
   };
-  await assert.rejects(
-    rollbackPlatformDeployment(
-      {
-        projectId: "project-airjam",
-        environmentId: "environment-production",
-        serviceId: "service-platform",
-        currentDeploymentId: "deployment-current",
-        targetDeploymentId: "deployment-old",
-        healthUrl: "https://www.airjam.io/api/readiness",
-        actor: "agent:test",
-        reason: "Reject unattributable rollback result.",
-        apply: true,
-      },
-      { createClient: () => client },
-    ),
-    /attributable deployment ID/u,
+  const result = await rollbackPlatformDeployment(
+    {
+      projectId: "project-airjam",
+      environmentId: "environment-production",
+      serviceId: "service-platform",
+      currentDeploymentId: "deployment-current",
+      targetDeploymentId: "deployment-old",
+      healthUrl: "https://www.airjam.io/api/readiness",
+      actor: "agent:test",
+      reason: "Reject an unattributable provider mutation.",
+      apply: true,
+    },
+    { createClient: () => client },
   );
+  assert.equal(result.status, "verification_failed");
+  assert.equal(result.applied, true);
+  assert.equal(
+    result.escalationBundle.kind,
+    "deployment_rollback_attribution_failed",
+  );
+  assert.equal(result.escalationBundle.attribution.timeout, true);
+  assert.equal(result.escalationBundle.rollbackDeploymentId, null);
+  assert.equal(
+    result.escalationBundle.attribution.deployment.id,
+    "deployment-current",
+  );
+});
+
+test("deployment rollback preserves an ambiguous mutation response", async () => {
+  const current = deployment({ id: "deployment-current", status: "SUCCESS" });
+  const target = deployment({ id: "deployment-old" });
+  const client = {
+    getEnvironment: async () => environment(current),
+    getDeployment: async () => target,
+    rollbackDeployment: async () => "deployment-unknown",
+  };
+  const result = await rollbackPlatformDeployment(
+    {
+      projectId: "project-airjam",
+      environmentId: "environment-production",
+      serviceId: "service-platform",
+      currentDeploymentId: "deployment-current",
+      targetDeploymentId: "deployment-old",
+      healthUrl: "https://www.airjam.io/api/readiness",
+      actor: "agent:test",
+      reason: "Preserve an ambiguous provider response.",
+      apply: true,
+    },
+    { createClient: () => client },
+  );
+  assert.equal(result.status, "verification_failed");
+  assert.equal(result.applied, null);
+  assert.equal(
+    result.escalationBundle.kind,
+    "deployment_rollback_mutation_response_unknown",
+  );
+});
+
+test("deployment rollback preserves an unknown mutation outcome", async () => {
+  const current = deployment({ id: "deployment-current", status: "SUCCESS" });
+  const target = deployment({ id: "deployment-old" });
+  const client = {
+    getEnvironment: async () => environment(current),
+    getDeployment: async () => target,
+    rollbackDeployment: async () => {
+      throw new Error("provider response lost");
+    },
+  };
+  const result = await rollbackPlatformDeployment(
+    {
+      projectId: "project-airjam",
+      environmentId: "environment-production",
+      serviceId: "service-platform",
+      currentDeploymentId: "deployment-current",
+      targetDeploymentId: "deployment-old",
+      healthUrl: "https://www.airjam.io/api/readiness",
+      actor: "agent:test",
+      reason: "Preserve an unknown mutation outcome.",
+      apply: true,
+    },
+    { createClient: () => client },
+  );
+  assert.equal(result.status, "verification_failed");
+  assert.equal(result.applied, null);
+  assert.equal(
+    result.escalationBundle.kind,
+    "deployment_rollback_mutation_outcome_unknown",
+  );
+  assert.match(result.escalationBundle.error, /provider response lost/u);
+});
+
+test("deployment rollback preserves a post-acceptance provider read failure", async () => {
+  const current = deployment({ id: "deployment-current", status: "SUCCESS" });
+  const target = deployment({ id: "deployment-old" });
+  const client = {
+    getEnvironment: async () => environment(current),
+    getDeployment: async () => target,
+    rollbackDeployment: async () => true,
+    waitForServiceDeployment: async () => {
+      throw new Error("provider read unavailable");
+    },
+  };
+  const result = await rollbackPlatformDeployment(
+    {
+      projectId: "project-airjam",
+      environmentId: "environment-production",
+      serviceId: "service-platform",
+      currentDeploymentId: "deployment-current",
+      targetDeploymentId: "deployment-old",
+      healthUrl: "https://www.airjam.io/api/readiness",
+      actor: "agent:test",
+      reason: "Preserve a post-acceptance provider read failure.",
+      apply: true,
+    },
+    { createClient: () => client },
+  );
+  assert.equal(result.status, "verification_failed");
+  assert.equal(result.applied, true);
+  assert.match(result.escalationBundle.error, /provider read unavailable/u);
 });
 
 test("deployment rollback returns an escalation bundle when health verification fails", async () => {
@@ -397,8 +556,13 @@ test("deployment rollback returns an escalation bundle when health verification 
     getDeployment: async () => target,
     rollbackDeployment: async () => {
       currentEnvironment = environment(rolledBack);
-      return rolledBack;
+      return true;
     },
+    waitForServiceDeployment: async () => ({
+      deployment: rolledBack,
+      attempt: 1,
+      matched: true,
+    }),
     waitForDeployment: async () => ({ deployment: rolledBack, ok: true }),
   };
   const result = await rollbackPlatformDeployment(
@@ -431,7 +595,7 @@ test("deployment rollback returns an escalation bundle when health verification 
   assert.equal(result.checks.at(-1).passed, false);
   assert.equal(
     result.escalationBundle.kind,
-    "deployment_rollback_verification_failed",
+    "deployment_rollback_checks_failed",
   );
   assert.equal(
     result.escalationBundle.rollbackDeploymentId,

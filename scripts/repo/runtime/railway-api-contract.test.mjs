@@ -323,19 +323,7 @@ test("Railway recovery helpers expose backup policy and exact deployment actions
         };
       }
       if (body.query.includes("RailwayDeploymentRollback")) {
-        return {
-          data: {
-            deploymentRollback: {
-              id: "deployment-new",
-              status: "INITIALIZING",
-              serviceId: "service-1",
-              environmentId: "environment-1",
-              meta: { commitHash: "abc123" },
-              canRedeploy: false,
-              canRollback: false,
-            },
-          },
-        };
+        return { data: { deploymentRollback: true } };
       }
       throw new Error(`Unexpected query: ${body.query}`);
     }),
@@ -370,12 +358,163 @@ test("Railway recovery helpers expose backup policy and exact deployment actions
   const rollback = await client.rollbackDeployment({
     deploymentId: "deployment-old",
   });
-  assert.equal(rollback.id, "deployment-new");
+  assert.equal(rollback, true);
+  assert.doesNotMatch(
+    observed[4].query,
+    /deploymentRollback\(id: \$id\)\s*\{/u,
+  );
+  assert.match(
+    observed[4].query,
+    /mutation RailwayDeploymentRollback[\s\S]*deploymentRollback\(id: \$id\)\s*\}/u,
+  );
   assert.deepEqual(observed[2].variables, {
     volumeInstanceId: "volume-1",
     kinds: ["DAILY", "WEEKLY"],
   });
   assert.deepEqual(observed[4].variables, { id: "deployment-old" });
+});
+
+test("Railway waits for a new service deployment matching the exact target", async () => {
+  let reads = 0;
+  const client = createRailwayApiClient({
+    token: "token",
+    fetchImpl: createMockFetch((body) => {
+      assert.match(body.query, /query RailwayEnvironment/u);
+      reads += 1;
+      if (reads === 1) throw new Error("transient provider read failure");
+      const deploymentId =
+        reads === 2 ? "deployment-unrelated" : "deployment-rollback";
+      const revision =
+        deploymentId === "deployment-rollback"
+          ? "revision-target"
+          : "revision-unrelated";
+      return {
+        data: {
+          environment: {
+            id: "environment-1",
+            name: "production",
+            projectId: "project-1",
+            serviceInstances: {
+              edges: [
+                {
+                  node: {
+                    serviceId: "service-1",
+                    serviceName: "platform",
+                    railwayConfigFile: "/railway.json",
+                    latestDeployment: {
+                      id: deploymentId,
+                      status: "INITIALIZING",
+                      serviceId: "service-1",
+                      environmentId: "environment-1",
+                      meta: {
+                        commitHash: revision,
+                        imageDigest: `sha256:${revision}`,
+                      },
+                      canRedeploy: false,
+                      canRollback: false,
+                    },
+                    domains: { customDomains: [], serviceDomains: [] },
+                  },
+                },
+              ],
+            },
+            volumeInstances: { edges: [] },
+          },
+        },
+      };
+    }),
+  });
+
+  const result = await client.waitForServiceDeployment({
+    environmentId: "environment-1",
+    serviceId: "service-1",
+    matches: (candidate) =>
+      candidate.id !== "deployment-current" &&
+      candidate.meta.commitHash === "revision-target",
+    retries: 3,
+    retryDelayMs: 0,
+  });
+
+  assert.equal(result.matched, true);
+  assert.equal(result.deployment.id, "deployment-rollback");
+  assert.equal(result.attempt, 3);
+});
+
+test("Railway deployment matching reports timeout and the last observation", async () => {
+  const client = createRailwayApiClient({
+    token: "token",
+    fetchImpl: createMockFetch(() => ({
+      data: {
+        environment: {
+          id: "environment-1",
+          name: "production",
+          projectId: "project-1",
+          serviceInstances: {
+            edges: [
+              {
+                node: {
+                  serviceId: "service-1",
+                  serviceName: "platform",
+                  latestDeployment: {
+                    id: "deployment-unrelated",
+                    status: "SUCCESS",
+                    serviceId: "service-1",
+                    environmentId: "environment-1",
+                    meta: { commitHash: "revision-unrelated" },
+                  },
+                  domains: { customDomains: [], serviceDomains: [] },
+                },
+              },
+            ],
+          },
+          volumeInstances: { edges: [] },
+        },
+      },
+    })),
+  });
+
+  const result = await client.waitForServiceDeployment({
+    environmentId: "environment-1",
+    serviceId: "service-1",
+    matches: (candidate) =>
+      candidate.id !== "deployment-current" &&
+      candidate.meta.commitHash === "revision-target",
+    retries: 1,
+    retryDelayMs: 0,
+  });
+
+  assert.equal(result.matched, false);
+  assert.equal(result.timeout, true);
+  assert.equal(result.deployment.id, "deployment-unrelated");
+  assert.equal(result.attempt, 1);
+});
+
+test("Railway deployment matching reports a missing service", async () => {
+  const client = createRailwayApiClient({
+    token: "token",
+    fetchImpl: createMockFetch(() => ({
+      data: {
+        environment: {
+          id: "environment-1",
+          name: "production",
+          projectId: "project-1",
+          serviceInstances: { edges: [] },
+          volumeInstances: { edges: [] },
+        },
+      },
+    })),
+  });
+
+  const result = await client.waitForServiceDeployment({
+    environmentId: "environment-1",
+    serviceId: "service-missing",
+    matches: () => false,
+    retries: 1,
+    retryDelayMs: 0,
+  });
+
+  assert.equal(result.matched, false);
+  assert.match(result.error, /service-missing/u);
 });
 
 test("Railway API requests have an absolute aborting deadline", async () => {

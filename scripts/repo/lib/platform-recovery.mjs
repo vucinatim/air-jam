@@ -348,6 +348,61 @@ const fetchHealthEvidence = async ({
   }
 };
 
+const rollbackNextActions = (kind) =>
+  kind === "deployment_rollback_checks_failed"
+    ? [
+        "Inspect the exact rollback deployment build and runtime logs.",
+        "Keep the failed deployment evidence; do not repeat rollback without re-inspecting the current deployment fence.",
+        "Choose a known-good rollback or redeploy target only after identifying the failed check.",
+      ]
+    : [
+        "Inspect the exact service deployment history and provider logs before any retry.",
+        "Keep this evidence; do not repeat rollback without re-inspecting the current deployment fence.",
+        "Choose another exact action only after identifying the failed or ambiguous stage.",
+      ];
+
+const buildRollbackResult = ({
+  operationDigest,
+  request,
+  startedAt,
+  status,
+  applied,
+  kind = null,
+  error = null,
+  attribution = null,
+  rollbackDeployment = null,
+  checks = [],
+}) => {
+  const verifiedAt = new Date();
+  const result = {
+    contractVersion: PLATFORM_RECOVERY_CONTRACT_VERSION,
+    status,
+    applied,
+    operationDigest,
+    request,
+    startedAt: startedAt.toISOString(),
+    verifiedAt: verifiedAt.toISOString(),
+    recoveryTimeMs: verifiedAt.getTime() - startedAt.getTime(),
+    rollbackDeployment: rollbackDeployment
+      ? summarizeDeployment(rollbackDeployment)
+      : null,
+    checks,
+  };
+  if (status !== "verified") {
+    result.escalationBundle = {
+      kind,
+      operationDigest,
+      target: request,
+      rollbackDeploymentId: rollbackDeployment?.id ?? null,
+      error,
+      attribution,
+      checks,
+      nextActions: rollbackNextActions(kind),
+    };
+  }
+  return result;
+};
+
 export const rollbackPlatformDeployment = async (
   {
     projectId,
@@ -409,6 +464,11 @@ export const rollbackPlatformDeployment = async (
     actor: requestedBy,
     reason: requestedReason,
   };
+  if (!request.targetRevision && !request.targetImageDigest) {
+    throw new Error(
+      `Rollback target ${targetDeploymentId} has no revision or image digest for exact post-mutation attribution.`,
+    );
+  }
   const operationDigest = sha256(canonicalJson(request));
   if (!apply) {
     return {
@@ -423,21 +483,111 @@ export const rollbackPlatformDeployment = async (
   }
 
   const startedAt = new Date();
-  const rollback = await client.rollbackDeployment({
-    deploymentId: targetDeploymentId,
-  });
-  if (!rollback?.id) {
+  let acceptance;
+  try {
+    acceptance = await client.rollbackDeployment({
+      deploymentId: targetDeploymentId,
+    });
+  } catch (error) {
+    return buildRollbackResult({
+      operationDigest,
+      request,
+      startedAt,
+      status: "verification_failed",
+      applied: null,
+      kind: "deployment_rollback_mutation_outcome_unknown",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  if (acceptance === false || acceptance == null) {
     throw new Error(
-      "Railway accepted the rollback request without returning an attributable deployment ID; stop and inspect provider state before any retry.",
+      "Railway did not accept the exact deployment rollback request; inspect provider state before any retry.",
     );
   }
-  const terminal = await client.waitForDeployment({
-    deploymentId: rollback.id,
-  });
-  const verifiedAt = new Date();
-  const afterEnvironment = await client.getEnvironment(environmentId);
-  assertEnvironmentScope(afterEnvironment, { projectId, environmentId });
-  const afterService = findServiceInstance(afterEnvironment, serviceId);
+  if (acceptance !== true) {
+    return buildRollbackResult({
+      operationDigest,
+      request,
+      startedAt,
+      status: "verification_failed",
+      applied: null,
+      kind: "deployment_rollback_mutation_response_unknown",
+      error: `Railway returned an unrecognized rollback response type (${typeof acceptance}); a rollback may be in flight.`,
+    });
+  }
+  let attribution;
+  try {
+    attribution = await client.waitForServiceDeployment({
+      environmentId,
+      serviceId,
+      matches: (deployment) =>
+        deployment.id !== currentDeploymentId &&
+        (request.targetRevision
+          ? deploymentRevision(deployment) === request.targetRevision
+          : deployment.meta?.imageDigest === request.targetImageDigest),
+    });
+  } catch (error) {
+    return buildRollbackResult({
+      operationDigest,
+      request,
+      startedAt,
+      status: "verification_failed",
+      applied: true,
+      kind: "deployment_rollback_attribution_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  const rollback = attribution.deployment;
+  if (!attribution.matched || !rollback?.id) {
+    return buildRollbackResult({
+      operationDigest,
+      request,
+      startedAt,
+      status: "verification_failed",
+      applied: true,
+      kind: "deployment_rollback_attribution_failed",
+      error:
+        attribution.error ??
+        "Railway accepted the rollback request but no replacement matching the exact target became current.",
+      attribution,
+    });
+  }
+  let terminal;
+  try {
+    terminal = await client.waitForDeployment({
+      deploymentId: rollback.id,
+    });
+  } catch (error) {
+    return buildRollbackResult({
+      operationDigest,
+      request,
+      startedAt,
+      status: "verification_failed",
+      applied: true,
+      kind: "deployment_rollback_verification_failed",
+      error: error instanceof Error ? error.message : String(error),
+      attribution,
+      rollbackDeployment: rollback,
+    });
+  }
+  let afterService;
+  try {
+    const afterEnvironment = await client.getEnvironment(environmentId);
+    assertEnvironmentScope(afterEnvironment, { projectId, environmentId });
+    afterService = findServiceInstance(afterEnvironment, serviceId);
+  } catch (error) {
+    return buildRollbackResult({
+      operationDigest,
+      request,
+      startedAt,
+      status: "verification_failed",
+      applied: true,
+      kind: "deployment_rollback_verification_failed",
+      error: error instanceof Error ? error.message : String(error),
+      attribution,
+      rollbackDeployment: terminal.deployment ?? rollback,
+    });
+  }
   const expectedRevision = deploymentRevision(target);
   const health = terminal.ok
     ? await fetchHealthEvidence({
@@ -469,33 +619,14 @@ export const rollbackPlatformDeployment = async (
     { id: "application.health", ...health },
   ];
   const verified = checks.every((check) => check.passed);
-  const result = {
-    contractVersion: PLATFORM_RECOVERY_CONTRACT_VERSION,
+  return buildRollbackResult({
     status: verified ? "verified" : "verification_failed",
     applied: true,
     operationDigest,
     request,
-    startedAt: startedAt.toISOString(),
-    verifiedAt: verifiedAt.toISOString(),
-    recoveryTimeMs: verifiedAt.getTime() - startedAt.getTime(),
-    rollbackDeployment: terminal.deployment
-      ? summarizeDeployment(terminal.deployment)
-      : summarizeDeployment(rollback),
+    startedAt,
+    rollbackDeployment: terminal.deployment ?? rollback,
     checks,
-  };
-  if (!verified) {
-    result.escalationBundle = {
-      kind: "deployment_rollback_verification_failed",
-      operationDigest,
-      target: request,
-      rollbackDeploymentId: rollback.id,
-      checks,
-      nextActions: [
-        "Inspect the exact rollback deployment build and runtime logs.",
-        "Keep the failed deployment evidence; do not repeat rollback without re-inspecting the current deployment fence.",
-        "Choose a known-good rollback or redeploy target only after identifying the failed check.",
-      ],
-    };
-  }
-  return result;
+    ...(verified ? {} : { kind: "deployment_rollback_checks_failed" }),
+  });
 };

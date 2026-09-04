@@ -882,24 +882,56 @@ export const createRailwayApiClient = ({
     const data = await request({
       query: `
         mutation RailwayDeploymentRollback($id: String!) {
-          deploymentRollback(id: $id) {
-            id
-            status
-            createdAt
-            updatedAt
-            url
-            staticUrl
-            serviceId
-            environmentId
-            meta
-            canRedeploy
-            canRollback
-          }
+          deploymentRollback(id: $id)
         }
       `,
       variables: { id: deploymentId },
     });
-    return normalizeDeployment(data.deploymentRollback);
+    return data.deploymentRollback;
+  };
+
+  const waitForServiceDeployment = async ({
+    environmentId,
+    serviceId,
+    matches,
+    retries = 180,
+    retryDelayMs = 2000,
+  }) => {
+    let lastDeployment = null;
+    let lastError = null;
+    for (let attempt = 1; attempt <= retries; attempt += 1) {
+      try {
+        const environment = await getEnvironment(environmentId);
+        const service = environment.serviceInstances.find(
+          (candidate) => candidate.serviceId === serviceId,
+        );
+        if (!service) {
+          return {
+            deployment: lastDeployment,
+            attempt,
+            matched: false,
+            error: `Service ${serviceId} is not present in Railway environment ${environmentId}.`,
+          };
+        }
+        lastDeployment = service.latestDeployment;
+        if (lastDeployment && matches(lastDeployment)) {
+          return { deployment: lastDeployment, attempt, matched: true };
+        }
+        lastError = null;
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+      }
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      }
+    }
+    return {
+      deployment: lastDeployment,
+      attempt: retries,
+      matched: false,
+      timeout: true,
+      ...(lastError ? { error: lastError } : {}),
+    };
   };
 
   const waitForDeployment = async ({
@@ -1003,6 +1035,7 @@ export const createRailwayApiClient = ({
     getDeployment,
     listDeployments,
     rollbackDeployment,
+    waitForServiceDeployment,
     waitForDeployment,
     resolveServicePublicDomain,
     waitForServicePublicDomain,
