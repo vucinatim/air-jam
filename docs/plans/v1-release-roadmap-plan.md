@@ -956,8 +956,10 @@ For 1.0:
 1. a synthetic failure becomes one durable deduplicated alert with correlated
    evidence
 2. the alert reaches the correct notification and GitHub issue policy
-3. an agent can diagnose it using only machine surfaces
+3. the cold-start agent proof in the execution plan passes
 4. alert noise and false-positive behavior have been reviewed during a soak
+5. shared claims, idempotency, and revision fences prevent duplicate delivery
+   or production effects during the proof
 
 ## Gate 5: Security, Abuse, Privacy, And Supply-Chain Trust
 

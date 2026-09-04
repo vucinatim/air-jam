@@ -509,6 +509,100 @@ the next monoliths while Gate 4 is added. Do not pre-create `incidents/`,
 `runbooks/`, or another abstraction directory until real implementation has a
 distinct authority and more than one concrete consumer.
 
+### Local Agent Loop And Sensory Model
+
+The governing freedom, authority, and swarm policy remains solely in the
+[agent operating ecosystem](../working-agreements.md#agent-operating-ecosystem).
+For 1.0, local agents may enter from a periodic `/loop`, GitHub or provider
+signal, or explicit maintainer prompt. This section maps those agents onto the
+concrete Air Jam surfaces and defines the proof they must be able to complete.
+
+#### Sensory Sources
+
+Following the authority ownership defined above, the concrete inspection map
+is:
+
+| Question                                            | Canonical source                                                                                                             | Durable coordination or evidence                                                    |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Is the product behavior healthy?                    | Air Jam reliability status, synthetics, SLOs, alerts, runtime state, and structured logs                                     | Operational event, synthetic run, SLO evaluation, and alert records                 |
+| Is the infrastructure and exact deployment healthy? | Repo-owned Railway doctor, project, environment, and variable reads plus provider-native Railway CLI or MCP logs and metrics | Provider identity and bounded evidence reference, not a copied raw provider payload |
+| Is code delivery healthy?                           | GitHub checks, reviews, pull requests, and deployment status                                                                 | Pull request, review, check, and exact commit history                               |
+| What release work is owned or dependency-ready?     | Readiness status, next, inspect, and claim commands                                                                          | Canonical readiness manifest and typed completion evidence                          |
+| Can a defect be reproduced and evaluated locally?   | Git state, layered checks, unified dev logs, browser proof, and semantic game-session actions                                | Regression test, screenshot/log artifact, branch, and pull request                  |
+| Is cost or capacity approaching a boundary?         | Railway usage evidence plus Air Jam budget, quota, queue, and admission state                                                | Immutable budget evidence and source-owned policy decision                          |
+
+Do not ingest all provider data into Air Jam merely to make it searchable. A
+stable pointer plus the small correlation spine below is enough until repeated
+cross-provider investigations prove that a richer projection is needed.
+
+#### Existing Correlation And Evidence Contracts
+
+The versioned `operationalCorrelationSchemaV1` and
+`operationalEvidenceSchemaV1` remain the sole operational correlation and
+evidence vocabularies. Machine-readable inspection should expose their existing
+fields when the source owns them; missing identities remain explicitly absent
+and adapters do not invent them.
+
+Environment, component, event, synthetic, SLO, and alert identity continue to
+live in their existing envelope or domain records. A GitHub issue, branch, pull
+request, readiness item, or provider result is linked through an existing
+evidence reference or adapter-owned projection field; it does not silently
+extend the strict correlation schema. Raw logs, secrets, credentials, untrusted
+exception text, and creator-controlled payloads never become correlation or
+evidence fields.
+
+#### Cold-Start Agent Proof
+
+Given the repository and one maintained alert issue but no undocumented
+operator knowledge, a fresh local agent must demonstrate these capabilities.
+It does not have to reason in this order:
+
+1. **Discover and notice**: find the relevant commands through repo help and
+   canonical docs, then inspect the durable alert, provider/deployment signal,
+   GitHub activity, scheduled observation, or maintainer report.
+2. **Orient cheaply**: inspect readiness, Air Jam reliability, the exact
+   deployment, and relevant GitHub state before opening broad logs or running
+   expensive checks.
+3. **Investigate freely**: correlate current source truth, reproduce locally,
+   inspect code and history, and form or discard hypotheses without taking a
+   claim or requesting approval.
+4. **Coordinate only when useful**: claim a readiness item for planned release
+   work, use the maintained alert issue for shared operational work, and use a
+   branch or pull request for code. Pure observation needs no ownership record.
+5. **Choose the smallest effective action**: prefer a local fix or existing
+   focused repair, replay, pause, rollback, or provider action. Production
+   effects follow the authority bands in the working agreements.
+6. **Verify independently**: do not use a command's successful return as its
+   own proof. Re-read health, state, deployment identity, invariants, or the
+   user story through a separate query or synthetic.
+7. **Retain signal, not narration**: update the existing issue, PR, readiness
+   evidence, or operational audit with the outcome and exact references. Do not
+   create a parallel agent diary or copy transient investigation chatter into
+   application state.
+8. **Stop cleanly**: when authority, ambiguity, repeated failure, or blast
+   radius exceeds the available boundary, leave a concise escalation bundle
+   containing current state, checked evidence, attempted effects, terminal
+   outcome, and the exact decision or authority needed next.
+
+This proof tests the ecosystem while leaving the agent free to choose its own
+reasoning path.
+
+#### 1.0 Coordination Mapping
+
+Existing surfaces provide enough coordination for 1.0:
+
+1. one alert key maintains one GitHub issue as the operational rendezvous
+2. issue assignment and comments expose active human or agent ownership when
+   shared coordination is useful
+3. readiness claims prevent two agents from silently implementing the same
+   planned release item
+4. branches and pull requests expose code ownership, review, and integration
+5. database leases, idempotency keys, and optimistic revisions protect actual
+   jobs and production mutations
+
+The working agreements remain the sole authority for when a new coordination
+primitive becomes justified.
+
 ### Reliability Foundation Corrections (`G4-07`, `G3-07`)
 
 Before continuous production activation, close the small trust gaps found by
@@ -534,6 +628,26 @@ Retention durations belong to the privacy and operating policy specified by
 implementation is the separately claimable `G3-07` item, depends on `G5-03`,
 and reuses the existing Gate 4 services. There must not be an undocumented
 delete loop or foreign-key workaround.
+
+Implement `G4-07` in three reviewable batches that preserve one architecture:
+
+1. **Trust boundary**: centralize the executable redaction vocabulary and
+   normalize untrusted failure codes at ingestion. Prove nested and adversarial
+   payloads, not only expected examples.
+2. **Chronology and concurrency**: make persisted synthetic time database-owned,
+   isolate each due check, and protect SLO state with the existing database
+   authority and revision model. Do not add another lock service.
+3. **Agent-facing proof and touched-module cleanup**: prove stable redacted JSON,
+   the existing correlation and evidence projections, partial synthetic
+   failure, concurrent stale evaluation rejection, and continued execution of
+   unrelated checks. Split touched flat modules only where the resulting
+   domain boundary is real.
+
+`G4-07` is complete when malformed input cannot leak secret-shaped data or
+create inconsistent failure identity, one broken synthetic cannot starve the
+catalog, an older evaluation cannot regress newer alert state, all persisted
+chronology is authority-consistent, and an agent can explain those outcomes
+through the canonical machine surface.
 
 ### Production Migration Lifecycle (`G3-06`)
 
@@ -673,6 +787,13 @@ identity. The narrow projection needs only:
 4. bounded retry and visible delivery failure without rolling back the source
    alert
 
+The adapter-owned issue block should make the cold-start path obvious without
+turning the issue into application truth. It renders the issue-relevant subset
+of the existing alert, envelope, correlation, and evidence contracts, plus
+current status and recovery or failed-verification evidence. One stable
+machine-discoverable label marks these maintained operational issues. Human
+and agent discussion stays outside the managed block.
+
 Volatile values such as timestamps, request IDs, and message text never enter
 the issue identity. A recurrence under the same `alertKey` updates or reopens
 the same issue rather than creating a duplicate.
@@ -693,6 +814,19 @@ For 1.0, do not add PagerDuty, Slack, or another paid incident platform merely
 to complete a diagram. GitHub issues plus provider-native infrastructure alerts
 are enough if the failure drills prove the roadmap's urgent-versus-digest
 policy.
+
+Implement `G4-03` as one vertical path:
+
+1. persist an idempotent projection record over the existing `alertKey`
+2. add one issue-only GitHub App adapter with bounded inputs and outputs
+3. let the existing operational worker create, update, reopen, and resolve the
+   issue without blocking internal alert progress
+4. prove retries, recurrence, recovery, preserved discussion, and permission
+   failure against an isolated repository or equivalent provider fixture
+5. run the cold-start agent proof from the maintained issue
+
+Do not add general notification routing, incident assignment state, or an
+arbitrary webhook framework as part of this vertical slice.
 
 ### Emergent Remediation After 1.0
 
