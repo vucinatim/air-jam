@@ -1,7 +1,7 @@
 # Production Recovery Proof
 
 Last updated: 2026-09-04
-Status: implementation and isolated drill proven; reviewed deployment rollback pending
+Status: complete
 
 This evidence record supports readiness item `G3-03`. The
 [production recovery contract](../../contracts/production-recovery-contract.md)
@@ -9,11 +9,18 @@ owns the durable architecture; this document records what was exercised.
 
 ## Current Verdict
 
-The production backup policy, portable database restore, and exact durable-job
-replay are implemented and live-proven. The final deployment rollback drill is
-deliberately deferred until the implementation has passed the repository's
-normal reviewed-merge process and the exact resulting production deployment is
-available as the forward recovery target.
+The production backup policy, portable database restore, exact durable-job
+replay, exact deployment rollback, and forward recovery are implemented and
+live-proven through the canonical repo CLI. The final production cycle verified
+both directions and left the platform on the newest reviewed revision.
+
+The backup, isolated-restore, and replay legs ran at
+`811d6c7ff031c643b66f288c03bf5d5a14115b5a`; the stricter target-name
+attestation then landed at `7c1478588069c58b73e0099a09bcf404539103c7`
+before PR `#92` merged. The recorded disposable target predates that final
+guard, but the shipped resolver now obtains and attests its environment name or
+fails closed. The final rollback and forward-recovery legs ran against the
+reviewed code that ships.
 
 No production database row or stored object was mutated during this work.
 
@@ -107,6 +114,57 @@ reported `Only failed or canceled jobs can be replayed`, and returned the exact
 job, actor, reason, idempotency key, and next inspection actions in an
 `operational_job_replay_failed` escalation bundle. It did not enqueue work.
 
+## Deployment Rollback And Forward Recovery Drill
+
+The recovery implementation landed through reviewed PRs
+[`#92`](https://github.com/vucinatim/air-jam/pull/92),
+[`#93`](https://github.com/vucinatim/air-jam/pull/93), and
+[`#94`](https://github.com/vucinatim/air-jam/pull/94). Each merged through the
+normal protected-branch flow after required CI and Railway previews passed.
+PR `#92` received a GitHub-native Opus review with verdict `CLEAR TO MERGE`;
+PR `#93` received the same verdict, corrected the live Railway mutation
+contract, and resolved every recorded finding; PR `#94` received the third
+PR-specific `CLEAR TO MERGE` review for the runtime identity correction.
+Canonicalizer sessions ended `ready` before both substantial push batches.
+
+Two safe discovery failures improved the contract before the final proof:
+
+1. the first apply used a selection set against Railway's scalar Boolean
+   `deploymentRollback` response. GraphQL rejected the request before mutation;
+   production remained on deployment `9851cbb6-f5ca-4345-8920-e83ba74a8334`
+   and trace `7226484483712567756` preserved the provider error
+2. after the Boolean correction, the first backward and forward operations
+   succeeded at Railway but returned `verification_failed` because rollback
+   instances omit the runtime Git SHA. Both operations still persisted exact
+   post-mutation evidence instead of hiding the production transition. Live
+   readiness proved Railway does expose the new rollback deployment ID, so the
+   application fence was corrected to require that exact identity and to
+   cross-check a runtime revision only when present
+
+The final verified cycle was:
+
+| Direction | Current deployment                     | Selected target                        | New deployment                         | Revision                                   | Recovery time | Evidence SHA-256                                                   |
+| --------- | -------------------------------------- | -------------------------------------- | -------------------------------------- | ------------------------------------------ | ------------: | ------------------------------------------------------------------ |
+| Backward  | `db4c6970-729e-44f1-9ece-c151ef552a71` | `7027e5df-f7e7-4fa0-9b47-69037110640b` | `513fb753-069f-4458-aa8a-08ddb65500bb` | `0ac9ebdc922a194b9465cb87b62e49cbab26d9ff` |     10,526 ms | `2f6cfc9e5d8d5324b6c7fbd346876616354919a25231362b60452ae1ae4546b5` |
+| Forward   | `513fb753-069f-4458-aa8a-08ddb65500bb` | `db4c6970-729e-44f1-9ece-c151ef552a71` | `939dd708-d1d3-4788-a460-5d3cc1ce5f35` | `8bf765f45e217281daa30bb1a471066d097969e7` |      8,248 ms | `83c04b18c5a592eba7b93dc839587fb1fca9371eb35bc07dc8fbcba7ee4f46fe` |
+
+Both results were `verified`. In each direction Railway reported terminal
+`SUCCESS`, the attributed deployment became current, its provider revision and
+matched the selected target, and `https://airjam.io/api/readiness` returned HTTP
+`200`, `ok: true`, and the exact new deployment ID. The retained records also
+show that each image digest equaled its selected target, although revision was
+the attribution fence used in these two operations. The operation digests were
+respectively
+`ba842af9b7e0a2e7bda75d8d8007383061354f6c793990102b2d715f83100da7`
+and `29f602bf0effb1f8ea35bd041c56dd4282776ce6cabba3ed5c844e43c368de61`.
+
+Final provider inspection reported deployment
+`939dd708-d1d3-4788-a460-5d3cc1ce5f35` as current and successful on revision
+`8bf765f45e217281daa30bb1a471066d097969e7`. Public readiness reported the same
+deployment ID with hosted release origin, request policy, and schema head
+`0036` all ready. The runtime revision is `null` by Railway rollback behavior;
+the provider record remains the revision authority for that instance.
+
 ## Cleanup Proof
 
 After evidence capture, the complete disposable Railway environment was
@@ -115,16 +173,12 @@ deleted. A provider list returned only production and no environment with ID
 server was stopped and both run-owned temporary directories were moved to the
 system Trash.
 
-## Pending Closure
+## Closure
 
-Before `G3-03` closes:
-
-1. merge and deploy this recovery implementation through the normal protected
-   pull-request process
-2. select the exact new platform deployment and its previous known-good target
-3. use the canonical rollback command to roll back, verify provider and
-   `/api/readiness` revision identity, then restore the reviewed forward
-   deployment through the same exact-target mechanism
-4. record both measured recovery times and final production readiness here
-
-This is one remaining proof step, not an architecture gap.
+Readiness item `G3-03` is complete. Its typed evidence references the portable
+repository proof, reviewed merge commits, and the three pull requests. The proof
+records the hashes and exact identities of the owner-only backup, restore, and
+rollback evidence without making release readiness depend on one operator's
+local `.airjam` directory. No production database row or stored object was
+mutated by the proof, and no disposable Railway or local PostgreSQL resource
+remains.

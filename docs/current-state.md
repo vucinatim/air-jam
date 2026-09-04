@@ -287,13 +287,33 @@ These are now baseline truths, not open architecture debates:
     5. the exact outcome, provider identifiers, recovery facts, and remaining
        scope are retained in the
        [hosted-release cutover evidence](./audits/v1-security/hosted-release-domain-cutover-evidence.md)
+20. the production recovery surface is complete and live-proven:
+    1. Railway recurring backups have exact daily, weekly, and monthly policy
+       with provider read-back
+    2. a fresh PostgreSQL 17 snapshot restored into a disposable Railway
+       PostgreSQL 18 environment with exact schema-head and all-table-count
+       verification; the environment and local proxy were removed afterward
+    3. durable job replay preserves exact lineage, actor intent, correlation,
+       resource scope, and one audited replay event, while ineligible replay
+       fails with a structured escalation bundle
+    4. deployment recovery is preview-first and fences exact project,
+       environment, service, current deployment, target revision or image,
+       provider result, exact public deployment identity, actor, and reason;
+       Railway rollback instances report no runtime revision, so the provider
+       record remains revision authority
+    5. the final production backward rollback verified in 10,526 ms and forward
+       recovery verified in 8,248 ms; production was left on the newest reviewed
+       revision
+    6. the complete measurements, safe discovery failures, provider IDs, and
+       evidence digests live in the
+       [production recovery proof](./audits/v1-reliability/production-recovery-proof.md)
 
 ## What Is Still Open
 
 The roadmap now organizes the remaining work into explicit evidence gates:
 
 1. external-agent golden-path proof
-2. launch-scale reliability, backpressure, cost, backup, restore, and rollback
+2. remaining launch-scale reliability, backpressure, cost, and overload proof
 3. production activation and observation of the implemented operational
    sensors and deduplicated GitHub issue bridge
 4. security, abuse, privacy, and supply-chain trust
@@ -456,11 +476,12 @@ Gate `G3-01` is closed with the
 [production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).
 Production currently costs about `$8` per Railway cycle, uses little database
 and object-storage capacity, and showed no `5xx` in the sampled seven-day
-traffic. The audit also makes the launch gap explicit: synchronous release
+traffic. At the time it was captured, the audit identified synchronous release
 work, dynamic release delivery, process-local realtime authority, no recurring
 database backup, no app-specific spend brake, incomplete lifecycle cleanup,
-and no continuously proven alert/rollback path. No production state was changed
-by the audit.
+and no continuously proven alert/rollback path. Recurring backup and exact
+rollback have since been closed by `G3-03`; the remaining gaps retain their
+current owners. No production state was changed by the original audit.
 
 Gate `G3-02` is active. Its first production-valid slice establishes the
 [production control contract](./contracts/production-control-contract.md),
@@ -546,8 +567,8 @@ In short:
    `G3-02`, then provision and observe the operational worker safely
 3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
    Codex plus Claude Desktop golden-path proofs
-4. run recovery proof and supply-chain trust as independent lanes after the
-   shared foundation is stable
+4. keep the completed recovery contract stable and finish supply-chain trust as
+   an independent lane
 5. run overload, recovery, and security closure drills through the existing
    focused agent-operable controls
 6. finish docs/demo/story against shipped evidence, then cut and rehearse one
@@ -559,8 +580,8 @@ In short:
 
 1. the repo has enough implemented infrastructure that the main risk is now
    committing to stale assumptions or freezing accidental complexity
-2. the production baseline and target capacity envelope are now measured and
-   explicit, but recovery, deliberate overload, and continuous alert/issue
+2. the production baseline, target capacity envelope, and recovery path are now
+   measured and explicit, but deliberate overload and continuous alert/issue
    proof have not yet been demonstrated
 3. product telemetry anonymous-session and actor-class counts are approximate
    discovery measures, not durable people or identity proof
