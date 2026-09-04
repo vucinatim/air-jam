@@ -534,7 +534,10 @@ The canonical architecture and delivery order now lives in
 In short:
 
 1. close the bounded reliability-review gaps and add the canonical production
-   migration lifecycle before continuous worker activation
+   migration lifecycle before continuous worker activation; `G3-06` now has
+   the source-owned schema policy, CLI lifecycle, runtime/worker guards, and
+   durable evidence authority implemented, with isolated PostgreSQL and
+   production rollout evidence still pending
 2. finish warned artifact retention and invisible realtime admission in
    `G3-02`, then provision and observe the operational worker safely
 3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the

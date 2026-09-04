@@ -37,6 +37,7 @@ import {
 import type { PlatformMachineDeviceGrantStatus } from "@air-jam/sdk/platform-machine";
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -197,6 +198,115 @@ export const {
 } = createRuntimeDatabaseSchema({
   appIdGameIdReference: () => games.id,
 });
+
+export const platformSchemaMigrationRunStatusValues = [
+  "applying",
+  "applied",
+  "apply_failed",
+  "verified",
+  "verification_failed",
+] as const;
+
+export type PlatformSchemaMigrationRunStatus =
+  (typeof platformSchemaMigrationRunStatusValues)[number];
+
+const platformSchemaMigrationRunStatusSql = sql.raw(
+  platformSchemaMigrationRunStatusValues
+    .map((status) => `'${status}'`)
+    .join(", "),
+);
+
+export const platformSchemaMigrationRuns = pgTable(
+  "platform_schema_migration_runs",
+  {
+    id: text("id").primaryKey(),
+    contractVersion: integer("contract_version").default(1).notNull(),
+    planDigest: text("plan_digest").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    targetFingerprint: text("target_fingerprint").notNull(),
+    sourceCommit: text("source_commit").notNull(),
+    sourceHeadTag: text("source_head_tag").notNull(),
+    sourceHeadCreatedAt: bigint("source_head_created_at", {
+      mode: "number",
+    }).notNull(),
+    sourceHeadHash: text("source_head_hash").notNull(),
+    status: text("status").$type<PlatformSchemaMigrationRunStatus>().notNull(),
+    actor: text("actor").notNull(),
+    reason: text("reason").notNull(),
+    plan: jsonb("plan").$type<Record<string, unknown>>().notNull(),
+    backupEvidence: jsonb("backup_evidence")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    drainEvidence: jsonb("drain_evidence")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    verification: jsonb("verification").$type<Record<string, unknown>>(),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("platform_schema_migration_runs_plan_digest_uidx").on(
+      table.planDigest,
+    ),
+    uniqueIndex("platform_schema_migration_runs_idempotency_key_uidx").on(
+      table.idempotencyKey,
+    ),
+    index("platform_schema_migration_runs_status_updated_at_idx").on(
+      table.status,
+      table.updatedAt,
+    ),
+    check(
+      "platform_schema_migration_runs_contract_version_check",
+      sql`${table.contractVersion} = 1`,
+    ),
+    check(
+      "platform_schema_migration_runs_status_check",
+      sql`${table.status} in (${platformSchemaMigrationRunStatusSql})`,
+    ),
+    check(
+      "platform_schema_migration_runs_digest_check",
+      sql`${table.planDigest} ~ '^[a-f0-9]{64}$' and ${table.sourceHeadHash} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check(
+      "platform_schema_migration_runs_required_text_check",
+      sql`length(btrim(${table.idempotencyKey})) > 0 and length(btrim(${table.targetFingerprint})) > 0 and length(btrim(${table.sourceCommit})) > 0 and length(btrim(${table.sourceHeadTag})) > 0 and length(btrim(${table.actor})) > 0 and length(btrim(${table.reason})) > 0`,
+    ),
+    check(
+      "platform_schema_migration_runs_documents_check",
+      sql`jsonb_typeof(${table.plan}) = 'object' and jsonb_typeof(${table.backupEvidence}) = 'object' and jsonb_typeof(${table.drainEvidence}) = 'object' and (${table.verification} is null or jsonb_typeof(${table.verification}) = 'object')`,
+    ),
+    check(
+      "platform_schema_migration_runs_lifecycle_check",
+      sql`(
+        ${table.status} = 'applying'
+        and ${table.appliedAt} is null
+        and ${table.completedAt} is null
+        and ${table.verification} is null
+      ) or (
+        ${table.status} = 'applied'
+        and ${table.appliedAt} is not null
+        and ${table.completedAt} is null
+        and ${table.verification} is null
+      ) or (
+        ${table.status} = 'apply_failed'
+        and ${table.appliedAt} is null
+        and ${table.completedAt} is not null
+        and ${table.verification} is not null
+      ) or (
+        ${table.status} in ('verified', 'verification_failed')
+        and ${table.appliedAt} is not null
+        and ${table.completedAt} is not null
+        and ${table.verification} is not null
+      )`,
+    ),
+  ],
+);
 
 export const gameReleaseGenerations = pgTable(
   "game_release_generations",

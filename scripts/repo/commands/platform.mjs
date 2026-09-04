@@ -8,13 +8,17 @@ import {
   readRelativeTree,
 } from "../../platform/lib/platform-ai-pack-artifacts.mjs";
 import { preparePlatformGeneratedArtifacts } from "../../platform/lib/platform-generated-prepare.mjs";
+import { assertPlatformSchemaHeadIsFresh } from "../../platform/lib/platform-schema-head-generator.mjs";
+import {
+  resolvePlatformDatabaseTarget,
+  resolveRailwayPlatformDatabaseTarget,
+} from "../lib/platform-database-target.mjs";
 import {
   createRailwayApiClient,
   resolveRailwayApiToken,
 } from "../lib/railway-api.mjs";
 import { runCommand, runCommandResult } from "../lib/shell.mjs";
 import { registerOperationsContractCommands } from "./operations-contract.mjs";
-import { runRepoPlatformDbBackupCommand } from "./platform-db-backup.mjs";
 
 const logGeneratedPrepareResult = (result) => {
   console.log(
@@ -97,6 +101,7 @@ const runPlatformGeneratedCheck = async () => {
   await Promise.all([
     assertGeneratedContentDocsSourceIsFresh(),
     assertGeneratedContentBlogSourceIsFresh(),
+    assertPlatformSchemaHeadIsFresh(),
   ]);
 
   const result = await assertPlatformAiPackGenerationIsDeterministic();
@@ -112,138 +117,48 @@ const runPlatformAiPackCheck = async () => {
   );
 };
 
-const runRailwayJson = (args, operation) => {
-  const result = runCommandResult("railway", args, {
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  if (result.error) {
-    throw new Error(
-      `Railway CLI is required for ${operation} when project-token access is unavailable: ${result.error.message}`,
-    );
-  }
-  if (result.status !== 0) {
-    throw new Error(
-      result.stderr?.trim() || `Railway ${operation} failed without an error.`,
-    );
-  }
-  return JSON.parse(result.stdout);
-};
-
-export const resolveRailwayPlatformDatabaseUrlWithCli = (
-  { environmentId, projectId },
-  readRailwayJson = runRailwayJson,
-) => {
-  if (!projectId) {
-    throw new Error(
-      "Remote telemetry requires --railway-project or RAILWAY_PROJECT_ID when project-token access cannot inspect the environment.",
-    );
-  }
-
-  const services = readRailwayJson(
-    [
-      "service",
-      "list",
-      "--project",
-      projectId,
-      "--environment",
-      environmentId,
-      "--json",
-    ],
-    "service discovery",
-  );
-  const postgresService = services.find(
-    (service) =>
-      service.name?.toLowerCase().includes("postgres") ||
-      service.source?.image?.toLowerCase().includes("postgres"),
-  );
-  if (!postgresService) {
-    throw new Error(
-      `Could not find PostgreSQL in Railway environment ${environmentId}.`,
-    );
-  }
-
-  const variables = readRailwayJson(
-    [
-      "variable",
-      "list",
-      "--project",
-      projectId,
-      "--environment",
-      environmentId,
-      "--service",
-      postgresService.id,
-      "--json",
-    ],
-    "database credential resolution",
-  );
-  const databaseUrl =
-    variables.DATABASE_PUBLIC_URL ?? variables.DATABASE_URL ?? null;
-  if (!databaseUrl) {
-    throw new Error(
-      `PostgreSQL in Railway environment ${environmentId} has no database URL.`,
-    );
-  }
-  return databaseUrl;
-};
-
-export const resolveRailwayPlatformDatabaseUrl = async (
-  { environmentId, projectId },
-  {
-    createClient = createRailwayApiClient,
-    resolveWithCli = resolveRailwayPlatformDatabaseUrlWithCli,
-  } = {},
-) => {
-  try {
-    const client = createClient();
-    const environment = await client.getEnvironment(environmentId);
-    const infrastructureServices = environment.serviceInstances.filter(
-      (instance) => !instance.railwayConfigFile,
-    );
-
-    for (const service of infrastructureServices) {
-      const variables = await client.getVariables({
-        projectId: environment.projectId,
-        environmentId: environment.id,
-        serviceId: service.serviceId,
-      });
-      const databaseUrl =
-        variables.DATABASE_PUBLIC_URL ?? variables.DATABASE_URL ?? null;
-      if (databaseUrl) return databaseUrl;
-    }
-  } catch {
-    // Project tokens may not inspect ephemeral PR environments. The bounded
-    // authenticated CLI fallback below preserves one repo-owned command.
-  }
-
-  return resolveWithCli({
-    environmentId,
-    projectId: projectId ?? process.env.RAILWAY_PROJECT_ID ?? null,
-  });
-};
-
-const runPlatformDatabaseOperator = async ({ script, operation, options }) => {
-  const databaseUrl = options.railwayEnvironment
-    ? await resolveRailwayPlatformDatabaseUrl({
-        environmentId: options.railwayEnvironment,
-        projectId: options.railwayProject ?? null,
+const platformDatabaseOperatorInvocation = async ({
+  script,
+  operation,
+  options,
+  includeTarget = false,
+  silent = false,
+}) => {
+  const resolved = includeTarget
+    ? await resolvePlatformDatabaseTarget({
+        railwayEnvironment: options.railwayEnvironment,
+        railwayProject: options.railwayProject,
       })
-    : null;
-
-  runCommand(
-    "pnpm",
-    [
+    : options.railwayEnvironment
+      ? await resolveRailwayPlatformDatabaseTarget({
+          environmentId: options.railwayEnvironment,
+          projectId: options.railwayProject ?? null,
+        })
+      : null;
+  return {
+    args: [
+      ...(silent ? ["--silent"] : []),
       "--filter",
       "platform",
       "exec",
       "tsx",
       "--env-file-if-exists=.env.local",
       script,
-      JSON.stringify(operation),
+      JSON.stringify(
+        includeTarget ? { ...operation, target: resolved.target } : operation,
+      ),
     ],
-    {
-      env: databaseUrl ? { DATABASE_URL: databaseUrl } : undefined,
-    },
-  );
+    env: resolved ? { DATABASE_URL: resolved.databaseUrl } : undefined,
+  };
+};
+
+const runPlatformDatabaseOperator = async ({ script, operation, options }) => {
+  const invocation = await platformDatabaseOperatorInvocation({
+    script,
+    operation,
+    options,
+  });
+  runCommand("pnpm", invocation.args, { env: invocation.env });
 };
 
 const capturePlatformDatabaseOperator = async ({
@@ -251,28 +166,15 @@ const capturePlatformDatabaseOperator = async ({
   operation,
   options,
 }) => {
-  const databaseUrl = options.railwayEnvironment
-    ? await resolveRailwayPlatformDatabaseUrl({
-        environmentId: options.railwayEnvironment,
-        projectId: options.railwayProject ?? null,
-      })
-    : null;
-  const result = runCommandResult(
-    "pnpm",
-    [
-      "--filter",
-      "platform",
-      "exec",
-      "tsx",
-      "--env-file-if-exists=.env.local",
-      script,
-      JSON.stringify(operation),
-    ],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: databaseUrl ? { DATABASE_URL: databaseUrl } : undefined,
-    },
-  );
+  const invocation = await platformDatabaseOperatorInvocation({
+    script,
+    operation,
+    options,
+  });
+  const result = runCommandResult("pnpm", invocation.args, {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: invocation.env,
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(
@@ -280,6 +182,28 @@ const capturePlatformDatabaseOperator = async ({
     );
   }
   return result.stdout;
+};
+
+const runPlatformMigrationOperator = async ({ operation, options }) => {
+  const invocation = await platformDatabaseOperatorInvocation({
+    script: "scripts/platform-database-migration-cli.ts",
+    operation,
+    options,
+    includeTarget: true,
+    silent: true,
+  });
+  const result = runCommandResult("pnpm", invocation.args, {
+    env: invocation.env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.error) {
+    throw new Error(
+      `Could not start database operator: ${result.error.message}`,
+    );
+  }
+  if (result.status !== 0) process.exitCode = result.status ?? 1;
 };
 
 const resolveDomainHostname = (value) => {
@@ -847,9 +771,7 @@ export const registerPlatformCommands = (program) => {
 
   const issueProjectionCommand = reliabilityCommand
     .command("issues")
-    .description(
-      "Inspect and safely advance deduplicated GitHub alert issues",
-    );
+    .description("Inspect and safely advance deduplicated GitHub alert issues");
 
   addPlatformDatabaseTargetOption(
     issueProjectionCommand
@@ -1692,12 +1614,136 @@ export const registerPlatformCommands = (program) => {
     });
   });
 
-  platformCommand
-    .command("db-backup")
-    .description("Write a local backup of the platform database")
-    .action(() => {
-      runRepoPlatformDbBackupCommand();
+  const databaseCommand = platformCommand
+    .command("database")
+    .description(
+      "Inspect, back up, migrate, and verify the authoritative platform database",
+    );
+
+  addPlatformDatabaseTargetOption(
+    databaseCommand
+      .command("backup")
+      .description("Create a fingerprint-bound PostgreSQL backup and manifest")
+      .option("--output <path>", "Explicit backup artifact path")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformMigrationOperator({
+      operation: {
+        command: "backup",
+        output: options.output,
+        json: Boolean(options.json),
+      },
+      options,
     });
+  });
+
+  const migrationCommand = databaseCommand
+    .command("migration")
+    .description(
+      "Run the immutable plan, guarded apply, and independent verify lifecycle",
+    );
+
+  addPlatformDatabaseTargetOption(
+    migrationCommand
+      .command("inspect")
+      .description(
+        "Compare an exact database target with the source migration catalog",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformMigrationOperator({
+      operation: { command: "inspect", json: Boolean(options.json) },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    migrationCommand
+      .command("plan")
+      .description("Create a backup-bound immutable migration plan")
+      .option("--authority <authority>", "local or production", "local")
+      .option("--output <path>", "Explicit immutable plan path")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformMigrationOperator({
+      operation: {
+        command: "plan",
+        authority: options.authority,
+        output: options.output,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    migrationCommand
+      .command("apply")
+      .description(
+        "Apply one exact migration plan; lanes stay paused until verify",
+      )
+      .requiredOption("--plan <path>", "Immutable plan document")
+      .requiredOption("--plan-digest <sha256>", "Expected plan digest")
+      .requiredOption("--authority <authority>", "local or production")
+      .requiredOption("--actor <actor>", "Stable operator identity")
+      .requiredOption("--reason <reason>", "Auditable change reason")
+      .requiredOption("--idempotency-key <key>", "Stable retry identity")
+      .option(
+        "--drain-timeout-seconds <seconds>",
+        "Maximum lane drain wait",
+        "300",
+      )
+      .requiredOption("--apply", "Authorize the exact planned mutation")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformMigrationOperator({
+      operation: {
+        command: "apply",
+        plan: options.plan,
+        planDigest: options.planDigest,
+        authority: options.authority,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        drainTimeoutSeconds: Number(options.drainTimeoutSeconds),
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    migrationCommand
+      .command("verify")
+      .description(
+        "Verify schema and exact deployed revision, then restore lanes",
+      )
+      .requiredOption("--plan <path>", "Immutable plan document")
+      .requiredOption("--plan-digest <sha256>", "Expected plan digest")
+      .requiredOption("--authority <authority>", "local or production")
+      .requiredOption("--actor <actor>", "Stable operator identity")
+      .requiredOption("--reason <reason>", "Auditable verification reason")
+      .option(
+        "--platform-url <url>",
+        "Deployed platform origin for readiness proof",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformMigrationOperator({
+      operation: {
+        command: "verify",
+        plan: options.plan,
+        planDigest: options.planDigest,
+        authority: options.authority,
+        actor: options.actor,
+        reason: options.reason,
+        platformUrl: options.platformUrl,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
 
   return platformCommand;
 };

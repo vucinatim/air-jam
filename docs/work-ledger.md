@@ -18,6 +18,29 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-04 - Production Schema Changes Gained One Guarded Lifecycle
+
+- replaced the standalone backup command and manual production Drizzle recipe
+  with one repo CLI spanning exact-target inspection, fingerprinted backup,
+  immutable planning, guarded application, and independent verification
+- kept the committed Drizzle journal authoritative while requiring every new
+  migration to carry hashed online, operational-lane, or exclusive policy and
+  explicit database-object verification checks
+- generated an exact source schema head for runtime use; platform readiness and
+  every operational-worker scheduling surface now fail closed when the live
+  database is missing, behind, ahead, drifted, or unavailable
+- added durable migration runs binding plan digest, idempotency, source commit,
+  target fingerprint, backup, actor intent, lane drain, failure, and
+  verification evidence
+- made operational-lane migrations preserve current controls, pause and drain
+  only affected writers, retain paused state on failure, and restore through
+  revision-fenced canonical production controls only after exact-deployment
+  readiness succeeds
+- proved the full 37-migration fresh path plus isolated inspect, real backup,
+  immutable plan, apply, object verification, final verification, idempotent
+  replay, and deliberate deployed-readiness failure on PostgreSQL 17; retained
+  reviewed merge and production rollout as explicit closure work for `G3-06`
+
 ## 2026-09-04 - One Alert Now Owns One Durable GitHub Issue
 
 - closed `G4-03` with a narrow projection instead of adding a generic incident

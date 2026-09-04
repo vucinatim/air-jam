@@ -4,9 +4,9 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  resolveRailwayPlatformDatabaseUrl,
-  resolveRailwayPlatformDatabaseUrlWithCli,
-} from "../commands/platform.mjs";
+  resolveRailwayPlatformDatabaseTarget,
+  resolveRailwayPlatformDatabaseTargetWithCli,
+} from "../lib/platform-database-target.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -51,7 +51,7 @@ test("telemetry reads expose JSON and mutations require explicit apply", () => {
 
 test("remote telemetry resolves PostgreSQL without exposing a second operator path", async () => {
   const calls = [];
-  const databaseUrl = resolveRailwayPlatformDatabaseUrlWithCli(
+  const resolvedWithCli = resolveRailwayPlatformDatabaseTargetWithCli(
     { environmentId: "environment-1", projectId: "project-1" },
     (args, operation) => {
       calls.push({ args, operation });
@@ -76,7 +76,15 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
     },
   );
 
-  assert.equal(databaseUrl, "postgresql://public-connection");
+  assert.equal(resolvedWithCli.databaseUrl, "postgresql://public-connection");
+  assert.deepEqual(resolvedWithCli.target, {
+    kind: "railway",
+    projectId: "project-1",
+    environmentId: "environment-1",
+    environmentName: null,
+    databaseServiceId: "service-postgres",
+    databaseServiceName: "Postgres",
+  });
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[1].args.slice(-3), [
     "--service",
@@ -84,7 +92,7 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
     "--json",
   ]);
 
-  const fallbackUrl = await resolveRailwayPlatformDatabaseUrl(
+  const fallback = await resolveRailwayPlatformDatabaseTarget(
     { environmentId: "environment-1", projectId: "project-1" },
     {
       createClient: () => ({
@@ -95,9 +103,20 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
       resolveWithCli: ({ environmentId, projectId }) => {
         assert.equal(environmentId, "environment-1");
         assert.equal(projectId, "project-1");
-        return "postgresql://oauth-cli-fallback";
+        return {
+          databaseUrl: "postgresql://oauth-cli-fallback",
+          target: {
+            kind: "railway",
+            projectId,
+            environmentId,
+            environmentName: "preview",
+            databaseServiceId: "service-postgres",
+            databaseServiceName: "Postgres",
+          },
+        };
       },
     },
   );
-  assert.equal(fallbackUrl, "postgresql://oauth-cli-fallback");
+  assert.equal(fallback.databaseUrl, "postgresql://oauth-cli-fallback");
+  assert.equal(fallback.target.environmentName, "preview");
 });

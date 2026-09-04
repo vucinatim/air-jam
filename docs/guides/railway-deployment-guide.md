@@ -1,6 +1,6 @@
 # Railway Deployment Guide
 
-Last updated: 2026-09-01
+Last updated: 2026-09-04
 Status: active guide
 
 Related docs:
@@ -63,12 +63,16 @@ The workflow needs a single repo secret: `RAILWAY_PROJECT_TOKEN` (a Railway proj
 
 ### Production schema management
 
-Production schema is migration-managed (Drizzle Kit). The
-`drizzle.__drizzle_migrations` tracking table is the source of truth for what
-has been applied. New migrations land via `drizzle-kit migrate` run manually
-against `DATABASE_PUBLIC_URL` from a maintainer's machine, never via the
-production deploy pipeline. The preview-only container migration path does not
-run when `RAILWAY_ENVIRONMENT_NAME=production`.
+Production schema is migration-managed through the canonical repo lifecycle.
+The committed Drizzle journal remains the source of truth, but agents must use
+`platform database migration inspect|plan|apply|verify`; raw `drizzle-kit`
+invocation and manually extracted production credentials are not supported
+operator paths. The preview-only container migration path still does not run
+when `RAILWAY_ENVIRONMENT_NAME=production`.
+
+See the [production database migration contract](../contracts/production-database-migration-contract.md)
+for migration modes, immutable plans, lane drain behavior, failure semantics,
+and the exact merge/apply/deploy/verify sequence.
 
 ## Repo Commands
 
@@ -84,6 +88,7 @@ pnpm run repo -- platform release-origin inspect
 pnpm --silent run repo -- platform release-origin inspect --json
 pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json
 pnpm --silent run repo -- platform release-origin attest --platform-url https://airjam.io --release-url https://<release-domain>/releases/g/<game-id>/r/<release-id>/generations/<generation-id> --railway-project <project-id> --json
+pnpm --silent run repo -- platform database migration inspect --railway-environment <environment-id> --railway-project <project-id> --json
 ```
 
 `railway doctor` should answer:
@@ -177,7 +182,7 @@ process, verify:
    no dead-letter events and every configured launch-critical synthetic has a
    retained recent run
 10. classify every unchanged service as unaffected and confirm that its
-   preceding successful deployment remains live
+    preceding successful deployment remains live
 
 ## Hosted Release Product-Readiness Validation
 

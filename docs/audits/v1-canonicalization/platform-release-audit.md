@@ -22,17 +22,17 @@ and readiness manifest own decisions and accepted work.
 
 ### Product and release paths
 
-| Capability                   | Human surface                        | Machine surface                                                | Domain/data path                                                          |
-| ---------------------------- | ------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Game catalog and ownership   | tRPC `gameRouter`, dashboard, Arcade | `/api/cli/games/**`, public CLI/MCP                            | `server/games/`, `games`, `app_ids`, public release lookup                |
-| Hosted release submission    | creator releases dashboard           | `/api/cli/releases/**`, `airjam release`, Air Jam MCP          | `machine-release.ts`, artifact service, R2, release tables                |
-| Release checks and promotion | creator and ops release UIs          | creator inspect/finalize/publish; no ops lifecycle machine API | validation, screenshot, moderation, status services                       |
-| Public release serving       | Arcade and `/play/[slugOrId]`        | stable URLs returned by machine API                            | dynamic `/releases/g/**` reads DB/R2 and rewrites text assets             |
-| Managed catalog media        | media dashboard and catalog          | `/api/cli/games/**/media/**`                                   | media service, metadata, shared R2, dynamic `/media/g/**`                 |
-| Abuse reports                | public form and ops/creator panels   | reports included in creator summaries; no ops action API       | `game_release_reports`, `releaseRouter.reportPublic`                      |
-| Product telemetry            | collector and ops dashboard          | repo CLI telemetry overview, health, rebuild, and retain       | strict contract, ingestion, raw ledger, daily projection, retention       |
-| Runtime creator analytics    | creator UI and ops overview          | no creator CLI in this lane                                    | platform reads `runtime_usage_*` written by realtime server               |
-| Platform recovery            | none                                 | `repo platform db-backup`; provider inspection                 | local backup artifact; no canonical migrate/restore/release-ops lifecycle |
+| Capability                   | Human surface                        | Machine surface                                                      | Domain/data path                                                                       |
+| ---------------------------- | ------------------------------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Game catalog and ownership   | tRPC `gameRouter`, dashboard, Arcade | `/api/cli/games/**`, public CLI/MCP                                  | `server/games/`, `games`, `app_ids`, public release lookup                             |
+| Hosted release submission    | creator releases dashboard           | `/api/cli/releases/**`, `airjam release`, Air Jam MCP                | `machine-release.ts`, artifact service, R2, release tables                             |
+| Release checks and promotion | creator and ops release UIs          | creator inspect/finalize/publish; no ops lifecycle machine API       | validation, screenshot, moderation, status services                                    |
+| Public release serving       | Arcade and `/play/[slugOrId]`        | stable URLs returned by machine API                                  | dynamic `/releases/g/**` reads DB/R2 and rewrites text assets                          |
+| Managed catalog media        | media dashboard and catalog          | `/api/cli/games/**/media/**`                                         | media service, metadata, shared R2, dynamic `/media/g/**`                              |
+| Abuse reports                | public form and ops/creator panels   | reports included in creator summaries; no ops action API             | `game_release_reports`, `releaseRouter.reportPublic`                                   |
+| Product telemetry            | collector and ops dashboard          | repo CLI telemetry overview, health, rebuild, and retain             | strict contract, ingestion, raw ledger, daily projection, retention                    |
+| Runtime creator analytics    | creator UI and ops overview          | no creator CLI in this lane                                          | platform reads `runtime_usage_*` written by realtime server                            |
+| Platform recovery            | none                                 | `repo platform database backup`; migration inspect/plan/apply/verify | fingerprinted backup and guarded migration lifecycle; isolated restore remains `G3-03` |
 
 ### Provider and expensive-work boundaries
 
@@ -226,7 +226,7 @@ and readiness manifest own decisions and accepted work.
 - Severity: high
 - Release classification: blocks-1.0
 - Confidence: high
-- Evidence: `apps/platform/scripts/run-platform.mjs` migrates only non-production Railway environments; the deployment guide requires manual `drizzle-kit migrate` against `DATABASE_PUBLIC_URL`; `repo platform --help` has telemetry and backup but no migrate/status/restore; the guide documents `repo railway doctor` while current Railway help has only `whoami`, `project`, `env`, and `vars`; no deploy workflow coordinates schema compatibility.
+- Resolution evidence: `platform database migration` now owns exact-target inspect, fingerprinted backup, immutable plan, guarded apply, and independent verify; generated schema identity gates platform readiness and worker claims; production migration policy and failure behavior are canonicalized in `docs/contracts/production-database-migration-contract.md`. Isolated restore remains separately tracked by `G3-03`.
 - Current behavior: A human retrieves a public credential and remembers an ad hoc command around deploy. Agents cannot inspect, preview, apply with a backup gate, or verify compatibility through the repo CLI.
 - Architectural harm: Code can deploy against the wrong schema or schema can change without recovery evidence. The real release procedure contradicts agent-first operations and its docs are stale.
 - Canonical end state: Repo CLI owns migration inspect/plan/backup/apply/verify and documented recovery, with explicit production approval and target identity. Deploy follows a compatible migration sequence.

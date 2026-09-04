@@ -4,13 +4,17 @@ import {
   assessHostedReleaseOrigin,
   isHostedReleaseOriginRequired,
 } from "@/lib/releases/hosted-release-origin";
+import { readPlatformSchemaCompatibility } from "@/server/operations/platform-schema-compatibility";
 import { NextResponse } from "next/server";
 
-export function GET() {
+export async function GET() {
   const deployment = resolvePlatformDeploymentConfig();
   const releaseOrigin = assessHostedReleaseOrigin();
   const releaseOriginRequired = isHostedReleaseOriginRequired();
-  const ok = !releaseOriginRequired || releaseOrigin.status === "ready";
+  const schema = await readPlatformSchemaCompatibility();
+  const ok =
+    (!releaseOriginRequired || releaseOrigin.status === "ready") &&
+    schema.compatible;
 
   return NextResponse.json(
     {
@@ -33,6 +37,7 @@ export function GET() {
           reason:
             releaseOrigin.status === "ready" ? null : releaseOrigin.reason,
         },
+        databaseSchema: schema,
       },
     },
     { status: ok ? 200 : 503 },
