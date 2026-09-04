@@ -110,8 +110,9 @@ The internal report at `/dashboard/ops/telemetry` presents product telemetry
 beside separately labeled platform lifecycle and runtime usage facts. Product
 telemetry is not a source of gameplay, quota, billing, or creator-reward truth.
 
-Apply the platform database migrations before collecting telemetry. The
-canonical agent and maintainer surface is discoverable through:
+Apply the platform database migrations before collecting telemetry through the
+repo-owned lifecycle documented below. The canonical telemetry surface is
+discoverable through:
 
 ```bash
 pnpm run repo -- platform telemetry --help
@@ -166,11 +167,20 @@ Infrastructure requirements:
 5. a dedicated cookieless public origin for creator-controlled release assets
 6. one separately deployed platform operational-job worker
 
-The database migrations have already been added under [drizzle](./drizzle) and can be applied with:
+The database migrations under [drizzle](./drizzle) are operated through one
+agent-safe lifecycle:
 
 ```bash
-pnpm --filter platform exec drizzle-kit migrate --config drizzle.config.ts
+pnpm run repo -- platform database migration --help
+pnpm --silent run repo -- platform database migration inspect --json
 ```
+
+For production, pass the exact Railway project and environment to every step.
+Planning creates a fingerprint-bound backup; apply requires explicit authority,
+intent, idempotency, and `--apply`; verify independently checks the deployed
+revision before restoring any drained operational lanes. Do not run
+`drizzle-kit migrate` directly against production. See the
+[production database migration contract](../../docs/contracts/production-database-migration-contract.md).
 
 Environment variables for the hosted release lane are documented in [`.env.example`](./.env.example).
 

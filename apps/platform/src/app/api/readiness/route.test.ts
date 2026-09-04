@@ -1,5 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { platformSchemaHead } from "@/db/platform-schema-head.generated";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
+
+const readSchemaCompatibility = vi.hoisted(() => vi.fn());
+
+vi.mock("@/server/operations/platform-schema-compatibility", () => ({
+  readPlatformSchemaCompatibility: readSchemaCompatibility,
+}));
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -13,6 +20,17 @@ const resetEnv = (): void => {
 };
 
 beforeEach(() => {
+  readSchemaCompatibility.mockResolvedValue({
+    contractVersion: 1,
+    status: "ready",
+    compatible: true,
+    expected: platformSchemaHead,
+    observed: {
+      createdAt: platformSchemaHead.createdAt,
+      hash: platformSchemaHead.hash,
+    },
+    reason: null,
+  });
   process.env.NODE_ENV = "production";
   process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST = "https://airjam.io";
   process.env.RAILWAY_PROJECT_ID = "project-air-jam";
@@ -26,7 +44,7 @@ afterEach(resetEnv);
 
 describe("platform readiness boundary", () => {
   it("fails production readiness when the hosted release origin is unavailable", async () => {
-    const response = GET();
+    const response = await GET();
     const body = await response.json();
 
     expect(response.status).toBe(503);
@@ -58,7 +76,7 @@ describe("platform readiness boundary", () => {
     process.env.AIRJAM_RELEASES_PUBLIC_ORIGIN =
       "https://airjamusercontent.example";
 
-    const response = GET();
+    const response = await GET();
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -81,7 +99,7 @@ describe("platform readiness boundary", () => {
     process.env.AIRJAM_BUILT_PLATFORM_PUBLIC_ORIGIN =
       "https://previous.airjam.io";
 
-    const response = GET();
+    const response = await GET();
     const body = await response.json();
 
     expect(response.status).toBe(503);
@@ -103,7 +121,7 @@ describe("platform readiness boundary", () => {
   it("keeps preview readiness available while release delivery stays disabled", async () => {
     process.env.RAILWAY_ENVIRONMENT_NAME = "air-jam-pr-71";
 
-    const response = GET();
+    const response = await GET();
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -123,7 +141,7 @@ describe("platform readiness boundary", () => {
     process.env.RAILWAY_PUBLIC_DOMAIN =
       "air-jam-platform-production.up.railway.app";
 
-    const response = GET();
+    const response = await GET();
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -139,6 +157,34 @@ describe("platform readiness boundary", () => {
         hostedReleaseOrigin: {
           required: false,
           status: "disabled",
+        },
+      },
+    });
+  });
+
+  it("fails readiness when the database migration head is incompatible", async () => {
+    process.env.AIRJAM_RELEASES_PUBLIC_ORIGIN =
+      "https://airjamusercontent.example";
+    readSchemaCompatibility.mockResolvedValue({
+      contractVersion: 1,
+      status: "behind",
+      compatible: false,
+      expected: platformSchemaHead,
+      observed: null,
+      reason: "database_schema_behind",
+    });
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toMatchObject({
+      ok: false,
+      boundaries: {
+        databaseSchema: {
+          status: "behind",
+          compatible: false,
+          reason: "database_schema_behind",
         },
       },
     });

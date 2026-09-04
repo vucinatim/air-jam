@@ -1,3 +1,4 @@
+import { platformSchemaHead } from "@/db/platform-schema-head.generated";
 import { createServer } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -5,6 +6,18 @@ import {
   startOperationalJobWorkerService,
   type OperationalJobWorkerServiceHandle,
 } from "./operational-job-worker-service";
+
+const readCompatibleSchema = async () => ({
+  contractVersion: 1 as const,
+  status: "ready" as const,
+  compatible: true,
+  expected: platformSchemaHead,
+  observed: {
+    createdAt: platformSchemaHead.createdAt,
+    hash: platformSchemaHead.hash,
+  },
+  reason: null,
+});
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -81,6 +94,7 @@ describe("operational job worker service", () => {
     const maintenance = deferred<void>();
     const lifecycleCleanup = deferred<void>();
     handle = await startOperationalJobWorkerService({
+      readSchemaCompatibility: readCompatibleSchema,
       env: {
         AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
         AIRJAM_PLATFORM_WORKER_PORT: String(port),
@@ -234,6 +248,7 @@ describe("operational job worker service", () => {
   it("keeps a lost issue-projection lease visible as degraded authority", async () => {
     const port = await reservePort();
     handle = await startOperationalJobWorkerService({
+      readSchemaCompatibility: readCompatibleSchema,
       env: {
         AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
         AIRJAM_PLATFORM_WORKER_PORT: String(port),
@@ -297,5 +312,50 @@ describe("operational job worker service", () => {
         lastIssueProjectionStatus: "lease_lost",
       },
     });
+  });
+
+  it("stays observable but schedules no work when schema authority is incompatible", async () => {
+    const port = await reservePort();
+    let cycles = 0;
+    handle = await startOperationalJobWorkerService({
+      env: {
+        AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
+        AIRJAM_PLATFORM_WORKER_PORT: String(port),
+        AIRJAM_PLATFORM_WORKER_ID: "worker:schema-blocked",
+        AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
+      },
+      readSchemaCompatibility: async () => ({
+        contractVersion: 1,
+        status: "behind",
+        compatible: false,
+        expected: platformSchemaHead,
+        observed: null,
+        reason: "database_schema_behind",
+      }),
+      runCycle: async ({ kind }) => {
+        cycles += 1;
+        return { status: "idle", kind };
+      },
+    });
+
+    await expect(
+      readJson(await fetch(`http://127.0.0.1:${port}/health`)),
+    ).resolves.toMatchObject({
+      status: 200,
+      body: {
+        authorityReady: false,
+        schemaCompatibility: { status: "behind", compatible: false },
+        authorities: { schema: { status: "failed" } },
+      },
+    });
+    await expect(
+      readJson(await fetch(`http://127.0.0.1:${port}/ready`)),
+    ).resolves.toMatchObject({ status: 503 });
+    expect(cycles).toBe(0);
   });
 });

@@ -4,9 +4,10 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  resolveRailwayPlatformDatabaseUrl,
-  resolveRailwayPlatformDatabaseUrlWithCli,
-} from "../commands/platform.mjs";
+  resolvePlatformDatabaseTarget,
+  resolveRailwayPlatformDatabaseTarget,
+  resolveRailwayPlatformDatabaseTargetWithCli,
+} from "../lib/platform-database-target.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -51,7 +52,7 @@ test("telemetry reads expose JSON and mutations require explicit apply", () => {
 
 test("remote telemetry resolves PostgreSQL without exposing a second operator path", async () => {
   const calls = [];
-  const databaseUrl = resolveRailwayPlatformDatabaseUrlWithCli(
+  const resolvedWithCli = resolveRailwayPlatformDatabaseTargetWithCli(
     { environmentId: "environment-1", projectId: "project-1" },
     (args, operation) => {
       calls.push({ args, operation });
@@ -76,7 +77,15 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
     },
   );
 
-  assert.equal(databaseUrl, "postgresql://public-connection");
+  assert.equal(resolvedWithCli.databaseUrl, "postgresql://public-connection");
+  assert.deepEqual(resolvedWithCli.target, {
+    kind: "railway",
+    projectId: "project-1",
+    environmentId: "environment-1",
+    environmentName: null,
+    databaseServiceId: "service-postgres",
+    databaseServiceName: "Postgres",
+  });
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[1].args.slice(-3), [
     "--service",
@@ -84,7 +93,7 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
     "--json",
   ]);
 
-  const fallbackUrl = await resolveRailwayPlatformDatabaseUrl(
+  const fallback = await resolveRailwayPlatformDatabaseTarget(
     { environmentId: "environment-1", projectId: "project-1" },
     {
       createClient: () => ({
@@ -95,9 +104,40 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
       resolveWithCli: ({ environmentId, projectId }) => {
         assert.equal(environmentId, "environment-1");
         assert.equal(projectId, "project-1");
-        return "postgresql://oauth-cli-fallback";
+        return {
+          databaseUrl: "postgresql://oauth-cli-fallback",
+          target: {
+            kind: "railway",
+            projectId,
+            environmentId,
+            environmentName: "preview",
+            databaseServiceId: "service-postgres",
+            databaseServiceName: "Postgres",
+          },
+        };
       },
     },
   );
-  assert.equal(fallbackUrl, "postgresql://oauth-cli-fallback");
+  assert.equal(fallback.databaseUrl, "postgresql://oauth-cli-fallback");
+  assert.equal(fallback.target.environmentName, "preview");
+});
+
+test("direct database targets are local only when their host is loopback", async () => {
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  try {
+    process.env.DATABASE_URL =
+      "postgresql://airjam:secret@localhost:5432/airjam";
+    const local = await resolvePlatformDatabaseTarget();
+    assert.equal(local.target.kind, "local");
+    assert.equal(local.target.environmentName, "local");
+
+    process.env.DATABASE_URL =
+      "postgresql://airjam:secret@production.proxy.rlwy.net:5432/airjam";
+    const unclassified = await resolvePlatformDatabaseTarget();
+    assert.equal(unclassified.target.kind, "unclassified");
+    assert.equal(unclassified.target.environmentName, null);
+  } finally {
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDatabaseUrl;
+  }
 });

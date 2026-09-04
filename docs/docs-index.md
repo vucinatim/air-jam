@@ -106,6 +106,8 @@ The measured Gate 3 production baseline is:
 6. [audits/v1-reliability/production-operational-job-worker-proof.md](./audits/v1-reliability/production-operational-job-worker-proof.md)
 7. [audits/v1-reliability/production-lifecycle-cleanup-proof.md](./audits/v1-reliability/production-lifecycle-cleanup-proof.md)
 8. [contracts/production-control-contract.md](./contracts/production-control-contract.md)
+9. [contracts/production-database-migration-contract.md](./contracts/production-database-migration-contract.md)
+10. [audits/v1-reliability/production-migration-lifecycle-proof.md](./audits/v1-reliability/production-migration-lifecycle-proof.md)
 
 It distinguishes the current low-cost, low-usage production state from the
 queues, quotas, recovery, static-delivery, and operational controls still

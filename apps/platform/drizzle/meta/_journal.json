@@ -253,6 +253,13 @@
       "when": 1788489225483,
       "tag": "0035_operational-alert-issue-projection",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1788493929558,
+      "tag": "0036_canonical_production_migration_lifecycle",
+      "breakpoints": true
     }
   ]
 }

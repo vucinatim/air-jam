@@ -13,6 +13,11 @@ import {
 } from "@/server/operations/operational-event-delivery-service";
 import { runDueOperationalSynthetics } from "@/server/operations/operational-synthetic-scheduler";
 import { resolveOperationalSyntheticRuntimeConfig } from "@/server/operations/operational-synthetic-service";
+import {
+  PlatformSchemaIncompatibleError,
+  readPlatformSchemaCompatibility,
+  type PlatformSchemaCompatibility,
+} from "@/server/operations/platform-schema-compatibility";
 import { validateEnv } from "@air-jam/env";
 import {
   normalizeUnknownOperationalFailure,
@@ -159,6 +164,7 @@ export type OperationalJobWorkerServiceHandle = {
 };
 
 const workerAuthorityNames = [
+  "schema",
   "jobs",
   "maintenance",
   "lifecycleCleanup",
@@ -176,6 +182,7 @@ type WorkerAuthorityState = {
 };
 
 const coreWorkerAuthorityNames = [
+  "schema",
   "jobs",
   "eventDelivery",
 ] as const satisfies readonly WorkerAuthorityName[];
@@ -191,6 +198,7 @@ export const startOperationalJobWorkerService = async ({
   runSynthetics = runDueOperationalSynthetics,
   runIssueProjection = runOperationalAlertIssueProjectionCycle,
   repairIssueProjection = repairExpiredOperationalAlertIssueProjections,
+  readSchemaCompatibility = readPlatformSchemaCompatibility,
 }: {
   env?: Record<string, string | undefined>;
   runCycle?: typeof runOperationalJobWorkerCycle;
@@ -202,6 +210,7 @@ export const startOperationalJobWorkerService = async ({
   runSynthetics?: typeof runDueOperationalSynthetics;
   runIssueProjection?: typeof runOperationalAlertIssueProjectionCycle;
   repairIssueProjection?: typeof repairExpiredOperationalAlertIssueProjections;
+  readSchemaCompatibility?: typeof readPlatformSchemaCompatibility;
 } = {}): Promise<OperationalJobWorkerServiceHandle> => {
   const config = loadOperationalJobWorkerServiceConfig(env);
   const githubIssueConfig = resolveGitHubAlertIssueConfig(env);
@@ -216,6 +225,7 @@ export const startOperationalJobWorkerService = async ({
   let lastCycleResult: OperationalJobWorkerCycleResult | null = null;
   let lastErrorAt: string | null = null;
   let lastErrorCode: string | null = null;
+  let schemaCompatibility: PlatformSchemaCompatibility | null = null;
   const authorities = Object.fromEntries(
     workerAuthorityNames.map((name) => [
       name,
@@ -304,7 +314,24 @@ export const startOperationalJobWorkerService = async ({
     );
   };
 
+  const refreshSchemaCompatibility = async () => {
+    const compatibility = await readSchemaCompatibility();
+    schemaCompatibility = compatibility;
+    if (compatibility.compatible) {
+      recordAuthoritySuccess("schema");
+      return;
+    }
+    recordAuthorityFailure(
+      "schema",
+      new PlatformSchemaIncompatibleError(compatibility),
+    );
+  };
+
+  const canScheduleWork = () =>
+    accepting && !closed && schemaCompatibility?.compatible === true;
+
   const runOne = (kind: (typeof operationalJobWorkerKinds)[number]) => {
+    if (!canScheduleWork()) return;
     const task = runCycle({ kind, workerId: config.workerId })
       .then((result) => {
         lastCycleAt = new Date().toISOString();
@@ -330,7 +357,7 @@ export const startOperationalJobWorkerService = async ({
   };
 
   const schedule = () => {
-    if (!accepting || closed || scheduling) return;
+    if (!canScheduleWork() || scheduling) return;
     scheduling = true;
     try {
       while (inFlight.size < config.maxInFlight) {
@@ -346,6 +373,14 @@ export const startOperationalJobWorkerService = async ({
       scheduling = false;
     }
   };
+
+  await refreshSchemaCompatibility();
+  const schemaTimer = setInterval(() => {
+    void refreshSchemaCompatibility().catch((error: unknown) => {
+      recordAuthorityFailure("schema", error);
+    });
+  }, config.repairMs);
+  schemaTimer.unref();
 
   const scheduler = setInterval(schedule, config.pollMs);
   scheduler.unref();
@@ -407,7 +442,7 @@ export const startOperationalJobWorkerService = async ({
   };
 
   const runMaintenance = () => {
-    if (!accepting || closed || maintenanceInFlight) return;
+    if (!canScheduleWork() || maintenanceInFlight) return;
     const task = repairExpired().finally(() => {
       if (maintenanceInFlight === task) maintenanceInFlight = null;
     });
@@ -435,7 +470,7 @@ export const startOperationalJobWorkerService = async ({
   };
 
   const runLifecycleCleanupScheduler = () => {
-    if (!accepting || closed || lifecycleCleanupInFlight) return;
+    if (!canScheduleWork() || lifecycleCleanupInFlight) return;
     const task = scheduleCleanupJobs().finally(() => {
       if (lifecycleCleanupInFlight === task) lifecycleCleanupInFlight = null;
     });
@@ -450,7 +485,7 @@ export const startOperationalJobWorkerService = async ({
   runLifecycleCleanupScheduler();
 
   const deliverNextEvent = () => {
-    if (!accepting || closed || eventDeliveryInFlight) return;
+    if (!canScheduleWork() || eventDeliveryInFlight) return;
     const task = deliverEvent({ workerId: config.workerId })
       .then((result) => {
         lastEventDeliveryAt = new Date().toISOString();
@@ -475,7 +510,7 @@ export const startOperationalJobWorkerService = async ({
   deliverNextEvent();
 
   const runSyntheticSchedule = () => {
-    if (!accepting || closed || syntheticInFlight) return;
+    if (!canScheduleWork() || syntheticInFlight) return;
     const task = runSynthetics({
       actor: config.workerId,
       config: resolveOperationalSyntheticRuntimeConfig(env),
@@ -550,6 +585,7 @@ export const startOperationalJobWorkerService = async ({
     if (
       !accepting ||
       closed ||
+      schemaCompatibility?.compatible !== true ||
       issueProjectionInFlight ||
       !githubIssueConfig.enabled ||
       !githubIssueProjector
@@ -635,6 +671,7 @@ export const startOperationalJobWorkerService = async ({
       issueProjectionInFlight: issueProjectionInFlight !== null,
       issueProjectionConfigured: githubIssueConfig.enabled,
       maxInFlight: config.maxInFlight,
+      schemaCompatibility,
       authorityReady,
       authorities,
       degradedAuthorities,
@@ -713,6 +750,7 @@ export const startOperationalJobWorkerService = async ({
   const drain = async () => {
     accepting = false;
     clearInterval(scheduler);
+    clearInterval(schemaTimer);
     clearInterval(repairTimer);
     clearInterval(lifecycleCleanupTimer);
     clearInterval(eventDeliveryTimer);

@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { executeLifecycleCleanupJobAttempt } from "@/server/operations/lifecycle-cleanup-job-executor";
+import { assertPlatformSchemaCompatible } from "@/server/operations/platform-schema-compatibility";
 import { executeReleaseArtifactJobAttempt } from "@/server/releases/release-artifact-service";
 import { executeReleaseBrowserJobAttempt } from "@/server/releases/release-browser-job-executor";
 import { executeReleaseModerationJobAttempt } from "@/server/releases/release-moderation-job-executor";
@@ -154,12 +155,15 @@ export const runOperationalJobWorkerCycle = async ({
   workerId,
   database = db,
   executors = operationalJobExecutors,
+  assertSchemaCompatible = assertPlatformSchemaCompatible,
 }: {
   kind: OperationalJobKind;
   workerId: string;
   database?: JobDatabase;
   executors?: OperationalJobExecutors;
+  assertSchemaCompatible?: typeof assertPlatformSchemaCompatible;
 }): Promise<OperationalJobWorkerCycleResult> => {
+  await assertSchemaCompatible({ database });
   const claimed = await claimOperationalJob({ database, kind, workerId });
   if (!claimed) return { status: "idle", kind };
   if (!claimed.leaseToken) {
