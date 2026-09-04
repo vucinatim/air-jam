@@ -323,19 +323,7 @@ test("Railway recovery helpers expose backup policy and exact deployment actions
         };
       }
       if (body.query.includes("RailwayDeploymentRollback")) {
-        return {
-          data: {
-            deploymentRollback: {
-              id: "deployment-new",
-              status: "INITIALIZING",
-              serviceId: "service-1",
-              environmentId: "environment-1",
-              meta: { commitHash: "abc123" },
-              canRedeploy: false,
-              canRollback: false,
-            },
-          },
-        };
+        return { data: { deploymentRollback: true } };
       }
       throw new Error(`Unexpected query: ${body.query}`);
     }),
@@ -370,12 +358,72 @@ test("Railway recovery helpers expose backup policy and exact deployment actions
   const rollback = await client.rollbackDeployment({
     deploymentId: "deployment-old",
   });
-  assert.equal(rollback.id, "deployment-new");
+  assert.equal(rollback, true);
+  assert.doesNotMatch(
+    observed[4].query,
+    /deploymentRollback\(id: \$id\)\s*\{/u,
+  );
   assert.deepEqual(observed[2].variables, {
     volumeInstanceId: "volume-1",
     kinds: ["DAILY", "WEEKLY"],
   });
   assert.deepEqual(observed[4].variables, { id: "deployment-old" });
+});
+
+test("Railway waits for an exact service deployment identity change", async () => {
+  let reads = 0;
+  const client = createRailwayApiClient({
+    token: "token",
+    fetchImpl: createMockFetch((body) => {
+      assert.match(body.query, /query RailwayEnvironment/u);
+      reads += 1;
+      const deploymentId =
+        reads === 1 ? "deployment-current" : "deployment-rollback";
+      return {
+        data: {
+          environment: {
+            id: "environment-1",
+            name: "production",
+            projectId: "project-1",
+            serviceInstances: {
+              edges: [
+                {
+                  node: {
+                    serviceId: "service-1",
+                    serviceName: "platform",
+                    railwayConfigFile: "/railway.json",
+                    latestDeployment: {
+                      id: deploymentId,
+                      status: "INITIALIZING",
+                      serviceId: "service-1",
+                      environmentId: "environment-1",
+                      meta: { commitHash: "abc123" },
+                      canRedeploy: false,
+                      canRollback: false,
+                    },
+                    domains: { customDomains: [], serviceDomains: [] },
+                  },
+                },
+              ],
+            },
+            volumeInstances: { edges: [] },
+          },
+        },
+      };
+    }),
+  });
+
+  const result = await client.waitForServiceDeploymentChange({
+    environmentId: "environment-1",
+    serviceId: "service-1",
+    previousDeploymentId: "deployment-current",
+    retries: 2,
+    retryDelayMs: 0,
+  });
+
+  assert.equal(result.changed, true);
+  assert.equal(result.deployment.id, "deployment-rollback");
+  assert.equal(result.attempt, 2);
 });
 
 test("Railway API requests have an absolute aborting deadline", async () => {

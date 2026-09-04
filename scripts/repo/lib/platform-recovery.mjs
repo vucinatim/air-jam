@@ -423,12 +423,23 @@ export const rollbackPlatformDeployment = async (
   }
 
   const startedAt = new Date();
-  const rollback = await client.rollbackDeployment({
+  const accepted = await client.rollbackDeployment({
     deploymentId: targetDeploymentId,
   });
-  if (!rollback?.id) {
+  if (!accepted) {
     throw new Error(
-      "Railway accepted the rollback request without returning an attributable deployment ID; stop and inspect provider state before any retry.",
+      "Railway did not accept the exact deployment rollback request; inspect provider state before any retry.",
+    );
+  }
+  const attribution = await client.waitForServiceDeploymentChange({
+    environmentId,
+    serviceId,
+    previousDeploymentId: currentDeploymentId,
+  });
+  const rollback = attribution.deployment;
+  if (!attribution.changed || !rollback?.id) {
+    throw new Error(
+      "Railway accepted the rollback request but no attributable replacement became current; stop and inspect provider state before any retry.",
     );
   }
   const terminal = await client.waitForDeployment({

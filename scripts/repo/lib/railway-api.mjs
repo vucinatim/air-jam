@@ -882,24 +882,46 @@ export const createRailwayApiClient = ({
     const data = await request({
       query: `
         mutation RailwayDeploymentRollback($id: String!) {
-          deploymentRollback(id: $id) {
-            id
-            status
-            createdAt
-            updatedAt
-            url
-            staticUrl
-            serviceId
-            environmentId
-            meta
-            canRedeploy
-            canRollback
-          }
+          deploymentRollback(id: $id)
         }
       `,
       variables: { id: deploymentId },
     });
-    return normalizeDeployment(data.deploymentRollback);
+    return data.deploymentRollback === true;
+  };
+
+  const waitForServiceDeploymentChange = async ({
+    environmentId,
+    serviceId,
+    previousDeploymentId,
+    retries = 180,
+    retryDelayMs = 2000,
+  }) => {
+    let lastDeployment = null;
+    for (let attempt = 1; attempt <= retries; attempt += 1) {
+      const environment = await getEnvironment(environmentId);
+      const service = environment.serviceInstances.find(
+        (candidate) => candidate.serviceId === serviceId,
+      );
+      if (!service) {
+        throw new Error(
+          `Service ${serviceId} is not present in Railway environment ${environmentId}.`,
+        );
+      }
+      lastDeployment = service.latestDeployment;
+      if (lastDeployment?.id && lastDeployment.id !== previousDeploymentId) {
+        return { deployment: lastDeployment, attempt, changed: true };
+      }
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      }
+    }
+    return {
+      deployment: lastDeployment,
+      attempt: retries,
+      changed: false,
+      timeout: true,
+    };
   };
 
   const waitForDeployment = async ({
@@ -1003,6 +1025,7 @@ export const createRailwayApiClient = ({
     getDeployment,
     listDeployments,
     rollbackDeployment,
+    waitForServiceDeploymentChange,
     waitForDeployment,
     resolveServicePublicDomain,
     waitForServicePublicDomain,
