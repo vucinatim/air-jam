@@ -13,15 +13,16 @@ Related docs:
 6. [Production Observability Baseline](../strategy/production-observability-baseline.md)
 7. [Product Telemetry Architecture](../architecture/product-telemetry-architecture.md)
 8. [Agent Tooling Architecture](../architecture/agent-tooling-architecture.md)
-9. [Agent Session Contract](../contracts/agent-session-contract.md)
-10. [Discoverability And Launch Promotion Plan](./discoverability-and-launch-promotion-plan.md)
-11. [Framework Launch Article Draft](../content/framework-launch-article-draft.md)
-12. [Organic Discovery Retrospective](../archive/2026-08-26-organic-discovery-retrospective.md)
-13. [Previous V1 Plan Snapshot](../archive/2026-08-26-v1-release-plan-pre-roadmap.md)
-14. [Deployment And Monetization Strategy](../strategy/deployment-and-monetization-strategy.md)
-15. [1.0 Release Execution Plan](./v1-release-execution-plan.md)
-16. [Gate 1 Codebase Assessment](../audits/v1-canonicalization/codebase-assessment.md)
-17. [Gate 1 Canonicalization Execution Set](../audits/v1-canonicalization/canonicalization-execution-set.md)
+9. [Agent Operating Ecosystem Strategy](../strategy/agent-operating-ecosystem-strategy.md)
+10. [Agent Session Contract](../contracts/agent-session-contract.md)
+11. [Discoverability And Launch Promotion Plan](./discoverability-and-launch-promotion-plan.md)
+12. [Framework Launch Article Draft](../content/framework-launch-article-draft.md)
+13. [Organic Discovery Retrospective](../archive/2026-08-26-organic-discovery-retrospective.md)
+14. [Previous V1 Plan Snapshot](../archive/2026-08-26-v1-release-plan-pre-roadmap.md)
+15. [Deployment And Monetization Strategy](../strategy/deployment-and-monetization-strategy.md)
+16. [1.0 Release Execution Plan](./v1-release-execution-plan.md)
+17. [Gate 1 Codebase Assessment](../audits/v1-canonicalization/codebase-assessment.md)
+18. [Gate 1 Canonicalization Execution Set](../audits/v1-canonicalization/canonicalization-execution-set.md)
 
 ## Purpose
 
@@ -916,6 +917,10 @@ Gate 4 follows the canonical
 and
 [agent operating ecosystem](../working-agreements.md#agent-operating-ecosystem).
 It does not define a second reasoning or swarm policy.
+
+The detailed cross-environment operating model, canonical loops, 1.0 boundary,
+and evidence-driven post-1.0 evolution are defined in the
+[Agent Operating Ecosystem Strategy](../strategy/agent-operating-ecosystem-strategy.md).
 
 For 1.0:
 

@@ -511,8 +511,10 @@ distinct authority and more than one concrete consumer.
 
 ### Local Agent Loop And Sensory Model
 
-The governing freedom, authority, and swarm policy remains solely in the
-[agent operating ecosystem](../working-agreements.md#agent-operating-ecosystem).
+The governing freedom and authority rules remain in the
+[working agreements](../working-agreements.md#agent-freedom-and-operational-authority),
+while the detailed cross-environment operating model lives in the
+[Agent Operating Ecosystem Strategy](../strategy/agent-operating-ecosystem-strategy.md).
 For 1.0, local agents may enter from a periodic `/loop`, GitHub or provider
 signal, or explicit maintainer prompt. This section maps those agents onto the
 concrete Air Jam surfaces and defines the proof they must be able to complete.

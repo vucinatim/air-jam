@@ -36,6 +36,11 @@ and release work:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
+The cross-environment strategy for smart local agents operating through Air
+Jam, GitHub, and Railway is:
+
+1. [strategy/agent-operating-ecosystem-strategy.md](./strategy/agent-operating-ecosystem-strategy.md)
+
 The active Gate 5 production boundary cutover is governed by:
 
 1. [plans/hosted-release-domain-cutover-plan.md](./plans/hosted-release-domain-cutover-plan.md)
@@ -81,6 +86,7 @@ privacy, and supply-chain security baseline is:
 
 The audit owns evidence and decisions. `G5-02` and `G5-03` in the readiness
 manifest own implementation and proof; the document is not a parallel backlog.
+
 The Gate 4 authority boundary and future vocabulary for operational evidence,
 alerts, incidents, and runbooks is defined by:
 
