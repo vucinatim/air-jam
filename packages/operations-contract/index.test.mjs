@@ -21,6 +21,7 @@ import {
   operationalAlertSchemaV1,
   operationalEventEnvelopeSchemaV1,
   operationalFailureSchemaV1,
+  operationalIdentifierSchema,
   operationalIncidentSchemaV1,
   operationalRunbookActionSchemaV1,
   operationalRunbookSchemaV1,
@@ -468,6 +469,11 @@ test("recovered alerts require coherent recovery chronology", () => {
 });
 
 test("alert issue projections bind leases, revisions, and terminal evidence", () => {
+  assert.equal(
+    operationalIdentifierSchema.parse("worker:github/one"),
+    "worker:github/one",
+  );
+  assert.throws(() => operationalIdentifierSchema.parse("worker with spaces"));
   const projection = {
     contractVersion: 1,
     projectionId: "projection:1",

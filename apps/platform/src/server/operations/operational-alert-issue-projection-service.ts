@@ -12,22 +12,23 @@ import {
   operationalAlertIssueProjectionSchemaV1,
   operationalAlertSchemaV1,
   operationalFailureSchemaV1,
+  operationalIdentifierSchema,
   type OperationalAlertIssueProjectionV1,
   type OperationalFailureV1,
 } from "@air-jam/operations-contract";
 import { and, asc, count, desc, eq, lt, lte, sql } from "drizzle-orm";
 import { resolveDatabaseAuthorityNow } from "./database-authority";
-import { enqueueOperationalEventInTransaction } from "./operational-event-delivery-service";
 import {
   GitHubAlertIssueAdapterError,
   type GitHubAlertIssueProjectionResult,
   type GitHubAlertIssueProjector,
 } from "./github-alert-issue-adapter";
+import { enqueueOperationalEventInTransaction } from "./operational-event-delivery-service";
 
 export type OperationalAlertIssueProjectionDatabase = typeof db;
 type ProjectionRow = typeof operationalAlertIssueProjections.$inferSelect;
 
-const ISSUE_PROJECTION_LEASE_SECONDS = 180;
+export const ISSUE_PROJECTION_LEASE_SECONDS = 300;
 const ISSUE_PROJECTION_RETRY_MAX_SECONDS = 300;
 
 export class OperationalAlertIssueProjectionConflictError extends Error {
@@ -52,6 +53,16 @@ const normalizeRequiredText = (value: string, label: string): string => {
     );
   }
   return normalized;
+};
+
+const normalizeIdentifier = (value: string, label: string): string => {
+  const parsed = operationalIdentifierSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new OperationalAlertIssueProjectionConflictError(
+      `${label} must be a valid operations identifier.`,
+    );
+  }
+  return parsed.data;
 };
 
 const normalizeRepository = (repository: string): string => {
@@ -150,7 +161,10 @@ export const synchronizeNextOperationalAlertIssueProjection = async ({
     const alert = operationalAlertSchemaV1.parse(alertRow.document);
     const existing = await tx.query.operationalAlertIssueProjections.findFirst({
       where: (table, { and, eq }) =>
-        and(eq(table.alertKey, alert.alertKey), eq(table.repository, repository)),
+        and(
+          eq(table.alertKey, alert.alertKey),
+          eq(table.repository, repository),
+        ),
     });
     if (
       existing &&
@@ -193,18 +207,24 @@ export const synchronizeNextOperationalAlertIssueProjection = async ({
       if (inserted) return serializeProjection(inserted);
       return null;
     }
+    const retainsDeliveryState =
+      existing.status === "pending" || existing.status === "dead_letter";
     const next: ProjectionRow = {
       ...existing,
       targetAlertRevision: alert.revision,
       targetAlert: alert,
-      status: "pending",
-      attemptCount: 0,
-      maxAttempts,
-      availableAt: authorityNow,
-      leaseOwner: null,
-      leaseToken: null,
-      leaseExpiresAt: null,
-      lastError: null,
+      ...(retainsDeliveryState
+        ? {}
+        : {
+            status: "pending" as const,
+            attemptCount: 0,
+            maxAttempts,
+            availableAt: authorityNow,
+            leaseOwner: null,
+            leaseToken: null,
+            leaseExpiresAt: null,
+            lastError: null,
+          }),
       updatedAt: authorityNow,
     };
     const [updated] = await tx
@@ -237,7 +257,7 @@ export const claimOperationalAlertIssueProjection = async ({
   now?: Date;
 }): Promise<ProjectionRow | null> => {
   const repository = normalizeRepository(rawRepository);
-  const workerId = normalizeRequiredText(rawWorkerId, "Worker ID");
+  const workerId = normalizeIdentifier(rawWorkerId, "Worker ID");
   return database.transaction(async (tx) => {
     const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const [candidate] = await tx
@@ -412,9 +432,14 @@ export const failOperationalAlertIssueProjection = async ({
     });
     const deadLetter =
       row.attemptCount >= row.maxAttempts || !failure.retryable;
+    const requestedRetrySeconds = failure.details?.retryAfterSeconds;
     const retrySeconds = Math.min(
       ISSUE_PROJECTION_RETRY_MAX_SECONDS,
-      2 ** Math.max(0, row.attemptCount - 1),
+      typeof requestedRetrySeconds === "number" &&
+        Number.isSafeInteger(requestedRetrySeconds) &&
+        requestedRetrySeconds > 0
+        ? requestedRetrySeconds
+        : 2 ** Math.max(0, row.attemptCount - 1),
     );
     const next: ProjectionRow = {
       ...row,
@@ -490,8 +515,7 @@ export const repairExpiredOperationalAlertIssueProjections = async ({
       const failure = createStructuredOperationalFailure({
         code: "github_issue_projection.lease_expired",
         failureClass: "timeout",
-        summary:
-          "The GitHub issue projection lease expired before completion.",
+        summary: "The GitHub issue projection lease expired before completion.",
         retryable: !deadLetter,
       });
       const next: ProjectionRow = {
@@ -576,12 +600,14 @@ export const runOperationalAlertIssueProjectionCycle = async ({
                   : "dependency",
             summary: "The GitHub alert issue projection could not be applied.",
             retryable: error.retryable,
+            details: error.retryAfterSeconds
+              ? { retryAfterSeconds: error.retryAfterSeconds }
+              : undefined,
           })
         : normalizeUnknownOperationalFailure({
             error,
             code: "github_issue_projection.failed",
-            summary:
-              "The GitHub alert issue projection failed unexpectedly.",
+            summary: "The GitHub alert issue projection failed unexpectedly.",
             retryable: true,
           });
     const projection = await failOperationalAlertIssueProjection({
@@ -761,10 +787,12 @@ export const requeueOperationalAlertIssueProjection = async ({
           "The idempotency key was already used for a different issue projection requeue.",
         );
       }
-      const current = await tx.query.operationalAlertIssueProjections.findFirst({
-        where: (table, { and, eq }) =>
-          and(eq(table.repository, repository), eq(table.alertKey, alertKey)),
-      });
+      const current = await tx.query.operationalAlertIssueProjections.findFirst(
+        {
+          where: (table, { and, eq }) =>
+            and(eq(table.repository, repository), eq(table.alertKey, alertKey)),
+        },
+      );
       return {
         replayed: true,
         auditEventId: eventId,

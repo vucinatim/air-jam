@@ -31,10 +31,11 @@ The provider-fixture and PostgreSQL suites jointly prove the required story:
 8. loss of the retained issue number reconciles by the hidden alert marker
    instead of creating a duplicate
 
-The provider fixture uses a real local HTTP boundary rather than a direct
-function stub. GitHub response documents are runtime-validated, every request
-has a bounded timeout, pagination is bounded, and an identity conflict fails
-closed.
+The provider fixture injects a deterministic `fetch` implementation at the
+adapter boundary. GitHub response documents are runtime-validated, every
+request has a bounded timeout, pagination is bounded, rejected cached tokens
+are evicted, primary and secondary throttling remain retryable, and an identity
+conflict fails closed.
 
 ## Durable Queue And Failure Proof
 
@@ -47,10 +48,12 @@ The PostgreSQL suite proves:
 
 1. concurrent `SKIP LOCKED` claims have one winner
 2. owner, token, expiry, state, and revision fence completion
-3. the lease covers the adapter's bounded worst-case request sequence
+3. a static budget assertion keeps the 300-second lease above the adapter's
+   conservative 22-request worst case at 10 seconds per request
 4. expired leases return to the pending queue with visible attempt evidence
 5. non-retryable permission failure becomes an inspectable dead letter while
-   the authoritative alert remains open and unchanged
+   the authoritative alert remains open and unchanged, and later alert
+   revisions cannot silently revive it
 6. retries are bounded and use persisted availability rather than process
    memory
 7. dead-letter requeue requires an actor, reason, attempt budget, and
@@ -92,10 +95,10 @@ mutations remain previews until `--apply` is explicit.
 The implementation passed:
 
 1. operations contract: `19/19`
-2. GitHub adapter/provider fixture: `2/2`
+2. GitHub adapter/provider fixture: `4/4`
 3. PostgreSQL issue lifecycle and concurrency: `3/3`
 4. repo CLI reliability contract: `5/5`
-5. worker authority and drain behavior: `2/2`
+5. worker authority and drain behavior: `3/3`
 6. platform and database-contract typechecks
 7. focused lint and CI-structure contract checks
 8. the repository batch gate on the final implementation revision

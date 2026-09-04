@@ -68,6 +68,11 @@ describe("operational job worker service", () => {
         RAILWAY_ENVIRONMENT_NAME: "production",
       }),
     ).toThrow(/invalid environment configuration/i);
+    expect(() =>
+      loadOperationalJobWorkerServiceConfig({
+        AIRJAM_PLATFORM_WORKER_ID: "worker with spaces",
+      }),
+    ).toThrow(/invalid environment configuration/i);
   });
 
   it("stays unready until database authority succeeds and drains behind authenticated control", async () => {
@@ -224,5 +229,73 @@ describe("operational job worker service", () => {
     lifecycleCleanup.resolve();
     await handle.close();
     handle = null;
+  });
+
+  it("keeps a lost issue-projection lease visible as degraded authority", async () => {
+    const port = await reservePort();
+    handle = await startOperationalJobWorkerService({
+      env: {
+        AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
+        AIRJAM_PLATFORM_WORKER_PORT: String(port),
+        AIRJAM_PLATFORM_WORKER_ID: "worker:lease-test",
+        AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT: "1",
+        AIRJAM_GITHUB_ISSUES_APP_ID: "github-app",
+        AIRJAM_GITHUB_ISSUES_INSTALLATION_ID: "github-installation",
+        AIRJAM_GITHUB_ISSUES_PRIVATE_KEY: "test-private-key",
+        AIRJAM_GITHUB_ISSUES_REPOSITORY: "vucinatim/air-jam",
+      },
+      runCycle: async ({ kind }) => ({ status: "idle", kind }),
+      repair: async () => ({ replayed: false, jobs: [] }),
+      cleanup: async () => ({ candidates: [], cleaned: [] }),
+      scheduleCleanup: async () => ({ candidates: [], jobs: [] }),
+      deliverEvent: async () => ({ status: "idle" }),
+      repairEventDelivery: async () => [],
+      repairIssueProjection: async () => [],
+      runIssueProjection: async () => ({
+        status: "lease_lost",
+        projectionId: "projection:lease-test",
+      }),
+      runSynthetics: async () => ({
+        environment: "test",
+        scheduledAt: new Date().toISOString(),
+        dueCount: 0,
+        completedCount: 0,
+        failureCount: 0,
+        staleIgnoredCount: 0,
+        skippedCount: 0,
+        checks: [],
+      }),
+    });
+    const origin = `http://127.0.0.1:${port}`;
+
+    let status: Awaited<ReturnType<typeof readJson>> | null = null;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      status = await readJson(await fetch(`${origin}/health`));
+      if (
+        (status.body.authorities as Record<string, { status: string }>)
+          .issueProjection?.status === "failed"
+      ) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(status).toMatchObject({
+      status: 200,
+      body: {
+        authorities: {
+          issueProjection: {
+            status: "failed",
+            lastFailureCode: "OperationalAlertIssueProjectionFailure",
+          },
+        },
+        lastIssueProjectionStatus: "lease_lost",
+      },
+    });
   });
 });

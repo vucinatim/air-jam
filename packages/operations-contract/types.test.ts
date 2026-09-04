@@ -1,6 +1,7 @@
 import {
   createRunbookPreviewDigest,
   getOperationsContractJsonSchema,
+  operationalIdentifierSchema,
   operationalRunbookPreviewSchemaV1,
   type OperationalRunbookActionV1,
   type OperationalRunbookPreviewV1,
@@ -14,5 +15,6 @@ const parsedPreview: OperationalRunbookPreviewV1 =
 const previewDigest: string = createRunbookPreviewDigest(parsedPreview);
 const actionPreviewDigest: OperationalRunbookActionV1["previewDigestSha256"] =
   previewDigest;
+const identifier: string = operationalIdentifierSchema.parse("worker:one");
 
-void [jsonSchema, actionPreviewDigest];
+void [jsonSchema, actionPreviewDigest, identifier];

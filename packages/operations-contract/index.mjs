@@ -218,9 +218,10 @@ export const operationsContractSchemaNames = Object.freeze([
 const contractVersionSchema = z.literal(OPERATIONS_CONTRACT_VERSION);
 const isoDateTimeSchema = z.string().datetime();
 const nonEmptyTextSchema = z.string().trim().min(1);
-const identifierSchema = nonEmptyTextSchema
+export const operationalIdentifierSchema = nonEmptyTextSchema
   .max(200)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/u);
+const identifierSchema = operationalIdentifierSchema;
 const eventKindSchema = nonEmptyTextSchema
   .max(160)
   .regex(/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/u);
@@ -913,7 +914,9 @@ export const operationalAlertIssueProjectionSchemaV1 = z
       });
     }
     const leased = projection.status === "delivering";
-    if (leased !== Boolean(projection.leaseOwner && projection.leaseExpiresAt)) {
+    if (
+      leased !== Boolean(projection.leaseOwner && projection.leaseExpiresAt)
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["status"],

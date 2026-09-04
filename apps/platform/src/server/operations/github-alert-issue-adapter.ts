@@ -58,14 +58,15 @@ const githubAlertIssueEnvSchema = z
       enabled: true as const,
       appId: value.AIRJAM_GITHUB_ISSUES_APP_ID!,
       installationId: value.AIRJAM_GITHUB_ISSUES_INSTALLATION_ID!,
-      privateKey: value.AIRJAM_GITHUB_ISSUES_PRIVATE_KEY!.replace(/\\n/gu, "\n"),
+      privateKey: value.AIRJAM_GITHUB_ISSUES_PRIVATE_KEY!.replace(
+        /\\n/gu,
+        "\n",
+      ),
       repository: repository.data,
     };
   });
 
-export type GitHubAlertIssueConfig = z.output<
-  typeof githubAlertIssueEnvSchema
->;
+export type GitHubAlertIssueConfig = z.output<typeof githubAlertIssueEnvSchema>;
 
 export const resolveGitHubAlertIssueConfig = (
   env: Record<string, string | undefined> = process.env,
@@ -91,22 +92,29 @@ export type GitHubAlertIssueProjector = (input: {
 export class GitHubAlertIssueAdapterError extends Error {
   readonly code: string;
   readonly retryable: boolean;
+  readonly retryAfterSeconds: number | null;
 
   constructor({
     code,
     message,
     retryable,
+    retryAfterSeconds = null,
   }: {
     code: string;
     message: string;
     retryable: boolean;
+    retryAfterSeconds?: number | null;
   }) {
     super(message);
     this.name = "GitHubAlertIssueAdapterError";
     this.code = code;
     this.retryable = retryable;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
+
+export const GITHUB_ALERT_ISSUE_REQUEST_TIMEOUT_MS = 10_000;
+export const GITHUB_ALERT_ISSUE_MAX_REQUESTS_PER_PROJECTION = 22;
 
 const escapeMarkdown = (value: string) => value.replace(/[|\\]/gu, "\\$&");
 
@@ -174,7 +182,7 @@ export const mergeOperationalAlertIssueBlock = ({
   }
   const start = body.indexOf(managedBlockStart);
   const end = body.indexOf(managedBlockEnd);
-  if ((start >= 0) !== (end >= 0) || (start >= 0 && end < start)) {
+  if (start >= 0 !== end >= 0 || (start >= 0 && end < start)) {
     throw new GitHubAlertIssueAdapterError({
       code: "github.managed_block_invalid",
       message: "The target issue contains an incomplete Air Jam managed block.",
@@ -193,6 +201,7 @@ type GitHubIssue = {
   title: string;
   body: string | null;
   state: "open" | "closed";
+  labels: Array<string | { name: string }>;
   pull_request?: unknown;
 };
 
@@ -205,6 +214,10 @@ const parseGitHubIssue = (value: unknown): GitHubIssue =>
         title: z.string(),
         body: z.string().nullable(),
         state: z.enum(["open", "closed"]),
+        labels: z
+          .array(z.union([z.string(), z.object({ name: z.string() })]))
+          .optional()
+          .transform((labels) => labels ?? []),
         pull_request: z.unknown().optional(),
       })
       .passthrough(),
@@ -254,6 +267,20 @@ const titleForAlert = (alert: OperationalAlertV1) =>
     0,
     256,
   );
+
+const issueHasOperationalLabel = (issue: GitHubIssue) =>
+  issue.labels.some((label) =>
+    typeof label === "string"
+      ? label === OPERATIONAL_ALERT_ISSUE_LABEL
+      : label.name === OPERATIONAL_ALERT_ISSUE_LABEL,
+  );
+
+const parseRetryAfterSeconds = (response: Response): number | null => {
+  const value = response.headers.get("retry-after");
+  if (!value || !/^[1-9][0-9]*$/u.test(value)) return null;
+  const seconds = Number.parseInt(value, 10);
+  return Number.isSafeInteger(seconds) && seconds > 0 ? seconds : null;
+};
 
 export const createGitHubAlertIssueProjector = ({
   config,
@@ -333,7 +360,7 @@ export const createGitHubAlertIssueProjector = ({
           "x-github-api-version": "2022-11-28",
         },
         body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(GITHUB_ALERT_ISSUE_REQUEST_TIMEOUT_MS),
       });
     } catch {
       throw new GitHubAlertIssueAdapterError({
@@ -343,16 +370,21 @@ export const createGitHubAlertIssueProjector = ({
       });
     }
     if (!response.ok) {
+      const retryAfterSeconds = parseRetryAfterSeconds(response);
+      if (!jwt && response.status === 401) cachedToken = null;
       const retryable =
+        (!jwt && response.status === 401) ||
         response.status === 408 ||
         response.status === 429 ||
         response.status >= 500 ||
         (response.status === 403 &&
-          response.headers.get("x-ratelimit-remaining") === "0");
+          (response.headers.get("x-ratelimit-remaining") === "0" ||
+            retryAfterSeconds !== null));
       throw new GitHubAlertIssueAdapterError({
         code: `github.http_${response.status}`,
         message: `The GitHub issues API rejected the request with HTTP ${response.status}.`,
         retryable,
+        retryAfterSeconds,
       });
     }
     if (response.status === 204) return undefined as T;
@@ -414,7 +446,8 @@ export const createGitHubAlertIssueProjector = ({
         if (issue.pull_request) {
           throw new GitHubAlertIssueAdapterError({
             code: "github.issue_identity_conflict",
-            message: "The retained GitHub issue number identifies a pull request.",
+            message:
+              "The retained GitHub issue number identifies a pull request.",
             retryable: false,
           });
         }
@@ -433,9 +466,7 @@ export const createGitHubAlertIssueProjector = ({
       const values = parseGitHubResponse(
         z.array(z.unknown()),
         await request<unknown>({
-          path: `${repositoryPath}/issues?state=all&labels=${encodeURIComponent(
-            OPERATIONAL_ALERT_ISSUE_LABEL,
-          )}&per_page=100&page=${page}`,
+          path: `${repositoryPath}/issues?state=all&per_page=100&page=${page}`,
         }),
       );
       const issues = values
@@ -479,7 +510,11 @@ export const createGitHubAlertIssueProjector = ({
       }
       return {
         action: "created",
-        issue: { number: issue.number, url: issue.html_url, state: issue.state },
+        issue: {
+          number: issue.number,
+          url: issue.html_url,
+          state: issue.state,
+        },
         managedBodyHash,
       };
     }
@@ -492,10 +527,22 @@ export const createGitHubAlertIssueProjector = ({
     const titleChanged = issue.title !== desiredTitle;
     const bodyChanged = issue.body !== desiredBody;
     const stateChanged = issue.state !== desiredState;
+    const labelChanged = !issueHasOperationalLabel(issue);
+    if (labelChanged) {
+      await request({
+        path: `${repositoryPath}/issues/${issue.number}/labels`,
+        method: "POST",
+        body: { labels: [OPERATIONAL_ALERT_ISSUE_LABEL] },
+      });
+    }
     if (!titleChanged && !bodyChanged && !stateChanged) {
       return {
-        action: "unchanged",
-        issue: { number: issue.number, url: issue.html_url, state: issue.state },
+        action: labelChanged ? "updated" : "unchanged",
+        issue: {
+          number: issue.number,
+          url: issue.html_url,
+          state: issue.state,
+        },
         managedBodyHash,
       };
     }

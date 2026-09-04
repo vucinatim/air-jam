@@ -1,12 +1,15 @@
 import { generateKeyPairSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  GITHUB_ALERT_ISSUE_MAX_REQUESTS_PER_PROJECTION,
+  GITHUB_ALERT_ISSUE_REQUEST_TIMEOUT_MS,
   GitHubAlertIssueAdapterError,
   createGitHubAlertIssueProjector,
   mergeOperationalAlertIssueBlock,
   renderOperationalAlertIssueBlock,
   resolveGitHubAlertIssueConfig,
 } from "./github-alert-issue-adapter";
+import { ISSUE_PROJECTION_LEASE_SECONDS } from "./operational-alert-issue-projection-service";
 
 const privateKey = generateKeyPairSync("rsa", { modulusLength: 2048 })
   .privateKey.export({ type: "pkcs8", format: "pem" })
@@ -54,6 +57,7 @@ describe("GitHub alert issue adapter", () => {
       title: string;
       body: string | null;
       state: "open" | "closed";
+      labels: Array<{ name: string }>;
     }> = [];
     let createCount = 0;
     const fetchImpl: typeof fetch = async (input, init) => {
@@ -66,9 +70,25 @@ describe("GitHub alert issue adapter", () => {
         });
       }
       if (url.pathname.endsWith("/labels/airjam%3Aoperational-alert")) {
-        return labelExists ? jsonResponse({ name: "label" }) : jsonResponse({}, 404);
+        return labelExists
+          ? jsonResponse({ name: "label" })
+          : jsonResponse({}, 404);
       }
       if (url.pathname.endsWith("/labels") && method === "POST") {
+        const issueNumber = Number(url.pathname.split("/").at(-2));
+        const issue = issues.find(
+          (candidate) => candidate.number === issueNumber,
+        );
+        if (issue) {
+          if (
+            !issue.labels.some(
+              (label) => label.name === "airjam:operational-alert",
+            )
+          ) {
+            issue.labels.push({ name: "airjam:operational-alert" });
+          }
+          return jsonResponse(issue.labels, 200);
+        }
         labelExists = true;
         return jsonResponse({ name: "airjam:operational-alert" }, 201);
       }
@@ -87,12 +107,15 @@ describe("GitHub alert issue adapter", () => {
           title: body.title,
           body: body.body,
           state: "open" as const,
+          labels: [{ name: "airjam:operational-alert" }],
         };
         issues.push(issue);
         return jsonResponse(issue, 201);
       }
       const issueNumber = Number(url.pathname.split("/").at(-1));
-      const issue = issues.find((candidate) => candidate.number === issueNumber);
+      const issue = issues.find(
+        (candidate) => candidate.number === issueNumber,
+      );
       if (!issue) return jsonResponse({}, 404);
       if (method === "GET") return jsonResponse(issue);
       const body = JSON.parse(String(init?.body)) as Partial<typeof issue>;
@@ -146,11 +169,16 @@ describe("GitHub alert issue adapter", () => {
     expect(issues[0]).toMatchObject({ state: "open" });
     expect(issues[0]!.body).toContain("Failed at alert revision `4`");
 
+    issues[0]!.labels = [{ name: "human:triage" }];
     const reconciled = await projector({
       alert: createAlert({ revision: 4 }),
       knownIssueNumber: null,
     });
-    expect(reconciled.action).toBe("unchanged");
+    expect(reconciled.action).toBe("updated");
+    expect(issues[0]!.labels).toEqual([
+      { name: "human:triage" },
+      { name: "airjam:operational-alert" },
+    ]);
     expect(createCount).toBe(1);
     expect(issues).toHaveLength(1);
   });
@@ -192,5 +220,69 @@ describe("GitHub alert issue adapter", () => {
       code: "github.http_403",
       retryable: false,
     });
+  });
+
+  it("evicts rejected cached tokens and retries GitHub throttling", async () => {
+    let tokenRequests = 0;
+    let apiRequests = 0;
+    const projector = createGitHubAlertIssueProjector({
+      config: {
+        enabled: true,
+        appId: "123",
+        installationId: "456",
+        privateKey,
+        repository: "vucinatim/air-jam",
+      },
+      fetchImpl: async (input) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith("/access_tokens")) {
+          tokenRequests += 1;
+          return jsonResponse({
+            token: `installation-token-${tokenRequests}`,
+            expires_at: "2026-09-04T02:00:00.000Z",
+          });
+        }
+        apiRequests += 1;
+        if (apiRequests === 1) return jsonResponse({}, 401);
+        return new Response(JSON.stringify({}), {
+          status: 403,
+          headers: {
+            "content-type": "application/json",
+            "retry-after": "60",
+            "x-ratelimit-remaining": "100",
+          },
+        });
+      },
+      apiBaseUrl: "https://fixture.invalid",
+      now: () => new Date("2026-09-04T01:00:00.000Z"),
+    });
+
+    await expect(
+      projector({
+        alert: createAlert({ revision: 1 }),
+        knownIssueNumber: null,
+      }),
+    ).rejects.toMatchObject<Partial<GitHubAlertIssueAdapterError>>({
+      code: "github.http_401",
+      retryable: true,
+    });
+    await expect(
+      projector({
+        alert: createAlert({ revision: 1 }),
+        knownIssueNumber: null,
+      }),
+    ).rejects.toMatchObject<Partial<GitHubAlertIssueAdapterError>>({
+      code: "github.http_403",
+      retryable: true,
+      retryAfterSeconds: 60,
+    });
+    expect(tokenRequests).toBe(2);
+  });
+
+  it("keeps the projector request budget below its database lease", () => {
+    expect(ISSUE_PROJECTION_LEASE_SECONDS * 1_000).toBeGreaterThan(
+      GITHUB_ALERT_ISSUE_MAX_REQUESTS_PER_PROJECTION *
+        GITHUB_ALERT_ISSUE_REQUEST_TIMEOUT_MS,
+    );
   });
 });

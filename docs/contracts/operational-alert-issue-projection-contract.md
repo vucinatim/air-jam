@@ -73,14 +73,19 @@ Delivery states are:
 
 PostgreSQL row locks with `SKIP LOCKED`, lease tokens, exact revisions, and a
 unique alert/repository index prevent duplicate worker authority. Retry uses
-bounded exponential backoff. Non-retryable authorization failures and exhausted
-attempt budgets become visible dead letters; they never roll back or mutate the
-source alert.
+bounded backoff that honors a GitHub retry hint within the configured ceiling.
+New alert revisions refresh the retained target document without resetting an
+in-flight retry budget or reviving a dead letter. Non-retryable authorization
+failures and exhausted attempt budgets become visible dead letters; they leave
+that terminal state only through the audited requeue path and never roll back or
+mutate the source alert.
 
 An uncertain provider outcome is reconciled before creation. The adapter first
-uses a retained issue number, then scans a bounded set of labeled issues for the
-exact hidden alert-key marker. A crash after GitHub accepted a create/update can
-therefore converge without creating a second issue.
+uses a retained issue number, then scans a bounded set of issues for the exact
+hidden alert-key marker. Marker reconciliation does not depend on the label
+remaining attached, and an existing issue has the machine label restored
+additively without replacing human labels. A crash after GitHub accepted a
+create/update can therefore converge without creating a second issue.
 
 Expired leases are repairable. Dead letters can be requeued with an actor,
 reason, explicit attempt budget, and idempotency key. The requeue and its source

@@ -1,20 +1,23 @@
-import { scheduleLifecycleCleanup } from "@/server/operations/lifecycle-cleanup-service";
 import {
   createGitHubAlertIssueProjector,
   resolveGitHubAlertIssueConfig,
 } from "@/server/operations/github-alert-issue-adapter";
+import { scheduleLifecycleCleanup } from "@/server/operations/lifecycle-cleanup-service";
+import {
+  repairExpiredOperationalAlertIssueProjections,
+  runOperationalAlertIssueProjectionCycle,
+} from "@/server/operations/operational-alert-issue-projection-service";
 import {
   repairExpiredOperationalEventDeliveries,
   runOperationalEventDeliveryCycle,
 } from "@/server/operations/operational-event-delivery-service";
 import { runDueOperationalSynthetics } from "@/server/operations/operational-synthetic-scheduler";
 import { resolveOperationalSyntheticRuntimeConfig } from "@/server/operations/operational-synthetic-service";
-import {
-  repairExpiredOperationalAlertIssueProjections,
-  runOperationalAlertIssueProjectionCycle,
-} from "@/server/operations/operational-alert-issue-projection-service";
 import { validateEnv } from "@air-jam/env";
-import { normalizeUnknownOperationalFailure } from "@air-jam/operations-contract";
+import {
+  normalizeUnknownOperationalFailure,
+  operationalIdentifierSchema,
+} from "@air-jam/operations-contract";
 import { createServer, type ServerResponse } from "node:http";
 import { z } from "zod";
 import { repairExpiredOperationalJobs } from "./operational-job-service";
@@ -29,6 +32,17 @@ const optionalTrimmedString = z.preprocess(
   (value) =>
     typeof value === "string" && value.trim() ? value.trim() : undefined,
   z.string().optional(),
+);
+
+const optionalOperationalIdentifier = optionalTrimmedString.superRefine(
+  (value, context) => {
+    if (value && !operationalIdentifierSchema.safeParse(value).success) {
+      context.addIssue({
+        code: "custom",
+        message: "Must be a valid operations identifier.",
+      });
+    }
+  },
 );
 
 const positiveInteger = (fallback: number) =>
@@ -53,7 +67,7 @@ const workerEnvSchema = z
     AIRJAM_PLATFORM_WORKER_HOST: optionalTrimmedString.transform(
       (value) => value ?? "0.0.0.0",
     ),
-    AIRJAM_PLATFORM_WORKER_ID: optionalTrimmedString,
+    AIRJAM_PLATFORM_WORKER_ID: optionalOperationalIdentifier,
     AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: optionalTrimmedString,
     AIRJAM_PLATFORM_WORKER_POLL_MS: positiveInteger(2_000),
     AIRJAM_PLATFORM_WORKER_REPAIR_MS: positiveInteger(30_000),
@@ -550,7 +564,13 @@ export const startOperationalJobWorkerService = async ({
       .then((result) => {
         lastIssueProjectionAt = new Date().toISOString();
         lastIssueProjectionStatus = result.status;
-        if (result.status === "retried" || result.status === "dead_lettered") {
+        if (
+          result.status === "retried" ||
+          result.status === "dead_lettered" ||
+          result.status === "lease_lost"
+        ) {
+          const projection =
+            "projection" in result ? result.projection : undefined;
           const error = new Error(
             `GitHub issue projection ended with ${result.status}.`,
           );
@@ -561,8 +581,10 @@ export const startOperationalJobWorkerService = async ({
             error,
             details: {
               status: result.status,
-              alertKey: result.projection.alertKey,
-              failureCode: result.projection.lastError?.code ?? null,
+              alertKey: projection?.alertKey ?? null,
+              failureCode: projection
+                ? (projection.lastError?.code ?? null)
+                : "github_issue_projection.lease_lost",
             },
           });
           return;
