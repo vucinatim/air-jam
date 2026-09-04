@@ -50,16 +50,20 @@ YAML:
 
 ```bash
 pnpm --silent run repo -- release install-matrix spec --json
-pnpm --silent run repo -- release install-matrix verify --json
+pnpm --silent run repo -- release install-matrix verify \
+  --candidate <candidate-directory> \
+  --json
 pnpm --silent run repo -- release install-matrix aggregate \
   --evidence-root <downloaded-cell-evidence> \
   --json
 ```
 
-The canonical source is
+The canonical matrix source is
 `scripts/repo/programs/public-install-matrix.json`. The GitHub workflow runs
 all six cells and retains one JSON document per cell plus one aggregate
-document. Aggregation fails unless every cell proves the same exact commit.
+document. The candidate is built and packed once before the matrix begins;
+cells never rebuild it. Aggregation fails unless every cell proves the same
+exact commit, candidate digest, and package digest/integrity set.
 
 The passing 1.0-candidate measurement, exact environments, package integrity,
 timings, and defects removed while establishing this contract are preserved in

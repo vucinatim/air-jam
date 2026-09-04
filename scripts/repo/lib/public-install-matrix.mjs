@@ -400,11 +400,15 @@ export const writeJsonAtomically = (outputPath, value) => {
 
 export const runPublicInstallMatrixCell = async ({
   manifestPath = defaultPublicInstallMatrixPath,
+  candidateDirectory,
   expectedOperatingSystem,
   expectedNodeMajor,
   onProgress = () => {},
 } = {}) => {
   const manifest = readPublicInstallMatrix(manifestPath);
+  if (!candidateDirectory) {
+    throw new Error("Public install matrix verification requires --candidate.");
+  }
   const cell = resolveObservedCell(manifest);
   assertExpectedCell({ cell, expectedOperatingSystem, expectedNodeMajor });
   const commit = resolveCleanCommit();
@@ -412,6 +416,8 @@ export const runPublicInstallMatrixCell = async ({
   const bootstrap = await runGoldenPathBootstrap({
     template: manifest.scaffold.template,
     bootstrapClient: "npx",
+    candidateDirectory,
+    expectedCommit: commit,
     onProgress,
   });
   const totalDurationMs = Date.now() - startedAt;
@@ -429,6 +435,7 @@ export const runPublicInstallMatrixCell = async ({
     matrix: manifest.id,
     source: manifest.source,
     commit,
+    candidate: bootstrap.candidate,
     cell,
     environment: {
       platform: process.platform,
@@ -511,12 +518,32 @@ export const aggregatePublicInstallMatrixEvidence = ({
   if (commits.size !== 1) {
     throw new Error("Install matrix cells do not prove one exact commit.");
   }
+  const candidateDigests = new Set(
+    cells.map((entry) => entry.candidate?.digest).filter(Boolean),
+  );
+  if (candidateDigests.size !== 1 || cells.some((entry) => !entry.candidate)) {
+    throw new Error(
+      "Install matrix cells do not prove one immutable candidate.",
+    );
+  }
+  const packageDigestSets = new Set(
+    cells.map((entry) =>
+      stablePackageDigestSet(entry.proof?.registry?.published),
+    ),
+  );
+  if (packageDigestSets.size !== 1) {
+    throw new Error(
+      "Install matrix cells do not prove the same package bytes.",
+    );
+  }
 
   return {
     ok: true,
     contract: matrixAggregateContract,
     matrix: manifest.id,
     commit: [...commits][0],
+    candidateDigest: [...candidateDigests][0],
+    packageDigests: JSON.parse([...packageDigestSets][0]),
     source: manifest.source,
     scaffoldResourceBudgets: summary.scaffold.resourceBudgets,
     cells: expectedIds.map((id) => {
@@ -531,4 +558,22 @@ export const aggregatePublicInstallMatrixEvidence = ({
       };
     }),
   };
+};
+
+const stablePackageDigestSet = (packages) => {
+  if (!Array.isArray(packages) || packages.length === 0) {
+    throw new Error(
+      "Install matrix evidence is missing published package digests.",
+    );
+  }
+  return JSON.stringify(
+    packages
+      .map((entry) => ({
+        name: entry.name,
+        version: entry.version,
+        sha256: entry.sha256,
+        integrity: entry.integrity,
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name)),
+  );
 };

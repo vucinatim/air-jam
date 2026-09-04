@@ -1,245 +1,205 @@
-# Air Jam Release Workflow
+# Air Jam Public Package Release Workflow
 
-Last updated: 2026-03-27
+Last updated: 2026-09-04
+
 Status: canonical workflow
 
 Related docs:
 
-1. [Release Prep Plan (Archived)](../archive/2026-03-31-release-prep-plan.md)
-2. [Monorepo Operating System](../monorepo-operating-system.md)
-3. [Docs Index](../docs-index.md)
+1. [Public Package Release Trust Contract](../contracts/public-package-release-trust-contract.md)
+2. [Public Package Support Contract](../contracts/public-package-support-contract.md)
+3. [Monorepo Operating System](../monorepo-operating-system.md)
 
-## Canonical Release Model
+## Canonical Model
 
-Air Jam publishes packages from GitHub Actions using npm trusted publishing.
+Air Jam releases the complete five-package public graph as one immutable
+candidate. GitHub Actions builds and packs the graph once, retains its identity
+and dependency evidence, sends those exact bytes through all six supported
+installation-matrix cells, and publishes only those bytes through npm trusted
+publishing.
 
-This is the canonical path.
+There is one path:
 
-It is:
+1. merge the reviewed release commit to `main`
+2. manually dispatch `publish-packages.yml` from `main`
+3. let the workflow create one immutable candidate
+4. validate the same candidate on Linux, macOS, and Windows with Node.js 22 and
+   24
+5. publish its exact tarballs using npm OIDC and provenance
+6. verify registry integrity, provenance, and the requested dist-tag
+7. create package tags and GitHub releases only after the complete graph is
+   verified
 
-1. GitHub-native to trigger
-2. token-free for npm publishing
-3. validated by the publish gate before publish
-4. followed by package-specific git tags and GitHub releases
+Partial package releases, tag-triggered publishing, local npm-token publishing,
+and rebuilds inside the privileged job are not supported.
 
-Local manual publishing is fallback-only.
+## Coordinated Package Graph
 
-## Packages
-
-Trusted publishing must be configured separately on npm for all five public
-packages:
+The release unit is:
 
 1. `@air-jam/sdk`
-2. `@air-jam/cli`
-3. `@air-jam/mcp-server`
+2. `@air-jam/mcp-server`
+3. `@air-jam/cli`
 4. `@air-jam/server`
 5. `create-airjam`
 
-## One-Time Manual Setup On npm
+All five packages use one version. Publication follows dependency order so an
+Air Jam package is never published before its public Air Jam dependency.
 
-You must do this once per package on npmjs.com.
+## One-Time npm Configuration
 
-For each package:
+npm trusted publishing must be configured independently for all five package
+names. For each package, configure:
 
-1. open the package settings page on npm
-2. find the `Trusted Publisher` section
-3. choose `GitHub Actions`
-4. configure:
-   1. Organization or user: `vucinatim`
-   2. Repository: `air-jam`
-   3. Workflow filename: `publish-packages.yml`
-   4. Environment name: leave blank
+1. provider: GitHub Actions
+2. organization or user: `vucinatim`
+3. repository: `air-jam`
+4. workflow filename: `publish-packages.yml`
+5. environment: blank unless the workflow and every npm trusted-publisher
+   record are deliberately migrated together
 
-Repeat that for all four published packages.
+The workflow requires npm CLI 11.5.1 or newer for trusted publishing. Air Jam
+pins the exact npm version used by the release workflow rather than resolving a
+mutable `latest` version. npm's current setup requirements are documented in
+[Trusted publishing for npm packages](https://docs.npmjs.com/trusted-publishers/).
 
-Important:
+After trusted publishing is proven, no `NPM_TOKEN` repository secret or legacy
+automation token should remain.
 
-1. the workflow filename must match exactly
-2. npm checks this only when a publish happens, not when you save the config
-3. each package can have only one trusted publisher
+## Prepare The Release Commit
 
-## One-Time Cleanup After Trusted Publishing Works
+Update all five package versions intentionally and keep the public graph
+coordinated. Before merging, run the normal staged development gates and the
+final release gate required by the release process.
 
-After the first successful trusted publish:
-
-1. delete the `NPM_TOKEN` repository secret from GitHub if it still exists
-2. revoke old npm publish tokens from your npm account
-
-This reduces future secret drift and removes the token rotation problem.
-
-## Release Steps
-
-### 1. Prepare versions
-
-Update package versions intentionally in the repo before publishing.
-
-This workflow publishes the versions that already exist in:
-
-1. `packages/sdk/package.json`
-2. `packages/cli/package.json`
-3. `packages/mcp-server/package.json`
-4. `packages/server/package.json`
-5. `packages/create-airjam/package.json`
-
-### 2. Run local validation before release
-
-Recommended final local gate:
-
-```bash
-pnpm check:release:doctor
-```
-
-This command first enforces `pnpm install --frozen-lockfile`, then runs the real local prerelease gate. That keeps simple dependency drift from first surfacing on GitHub Actions.
-
-It also runs two fast structural contracts before the heavy gate:
-
-1. `pnpm test:repo-contracts`
-2. `pnpm check:platform:deploy`
-
-Those exist specifically to catch mistakes that were previously hidden by local workspace state:
-
-1. workflow toolchain drift versus `packageManager`
-2. missing workspace bin entrypoints before build
-3. hosted platform deploy coupling that only appears in a clean copy
-
-The underlying heavy local gate is:
-
-```bash
-pnpm check:release
-```
-
-It includes strict perf, browser Playwright smoke, and scaffold tarball smoke.
-
-GitHub publish uses a lighter remote sanity gate:
+The workflow itself runs the remote publish gate before it creates a candidate:
 
 ```bash
 pnpm check:release:publish
 ```
 
-This is intentionally not the full prerelease sweep. It keeps only:
+Candidate creation then records:
 
-1. repo contract tests
-2. clean platform build
-3. typecheck
-4. server lifecycle/routing smoke
+1. the exact full source commit
+2. Node.js, npm, pnpm, and package-manager versions
+3. root manifest and lockfile digests
+4. prepared public dependency declarations
+5. a normalized production dependency inventory
+6. a production license inventory with no missing entries
+7. a bounded OSV batch query over the exact resolved production inventory that
+   blocks any known finding
+8. every tarball's name, size, SHA-256 digest, and npm SHA-512 integrity
+9. one deterministic candidate digest over all immutable identity fields
 
-For normal pull-request validation, use the lighter CI contract:
+The creator requires a clean tracked checkout before and after building. It
+writes through a private staging directory and exposes the candidate only after
+strict validation succeeds.
+
+## Agent And Maintainer Interface
+
+Discover the complete machine surface through:
 
 ```bash
-pnpm check:ci
+pnpm run repo -- release --help
+pnpm run repo -- release candidate --help
 ```
 
-### 3. Merge the release commit
-
-Publish from the exact commit you want tagged and released.
-
-### 4. Trigger GitHub Actions
-
-There are two canonical entrypaths.
-
-#### Manual workflow dispatch
-
-Use the `Publish Packages` workflow directly, or trigger it through `gh`.
-
-Examples:
+Useful read and proof commands are:
 
 ```bash
-pnpm release:public
-```
+pnpm --silent run repo -- release candidate verify \
+  --candidate <candidate-directory> \
+  --expected-commit <full-git-sha> \
+  --json
 
-```bash
-gh workflow run publish-packages.yml -f package=all-public -f channel=latest
-```
-
-#### Automated tag-triggered release
-
-Create and push a canonical public release tag.
-
-Examples:
-
-```bash
-pnpm release:public:tag
-```
-
-```bash
-pnpm run repo -- release tag --channel next
-```
-
-Tag mapping:
-
-1. `release/public-v<version>` -> full public graph to `latest`
-2. `release/public-next-v<version>` -> full public graph to `next`
-
-### 5. What the workflow does
-
-The workflow:
-
-1. installs dependencies
-2. runs `pnpm check:release:publish`
-3. resolves the selected package set explicitly
-4. publishes the selected package set in dependency order to npm via trusted publishing
-5. creates matching package-specific git tag(s)
-6. creates matching package-specific GitHub release(s)
-
-The heavy prerelease checks stay local:
-
-1. strict perf sanity
-2. scaffold tarball smoke
-3. browser Playwright smoke
-4. hermetic platform deploy check
-
-The clean public-install support matrix is a separate cross-platform contract:
-
-```bash
 pnpm --silent run repo -- release install-matrix spec --json
-pnpm --silent run repo -- release install-matrix verify --json
+
+pnpm --silent run repo -- release install-matrix verify \
+  --candidate <candidate-directory> \
+  --expected-os <linux|macos|windows> \
+  --expected-node <22|24> \
+  --json
 ```
 
-GitHub runs the exact six supported operating-system and Node.js cells through
-`.github/workflows/public-install-matrix.yml`. Each cell packs the five-package
-candidate graph once, publishes those bytes to a run-scoped registry that
-cannot fall back to old Air Jam packages, invokes the documented
-`npx create-airjam`, verifies installed CLI and MCP contracts, and records
-package-size and cold-install budgets. The aggregate job refuses missing,
-duplicate, unexpected, or mixed-commit evidence.
+Normal release dispatch:
 
-That is deliberate. GitHub publish should confirm the repo still builds and the server release path is sane, not rerun every expensive local sign-off gate.
+```bash
+pnpm run repo -- release trigger --channel latest
+```
 
-## Tag Format
+The trigger command always targets `main` and always dispatches the complete
+public graph.
 
-Package tags are:
+## Workflow Trust Boundaries
 
-1. `sdk-v<version>`
-2. `cli-v<version>`
-3. `mcp-server-v<version>`
-4. `server-v<version>`
-5. `create-airjam-v<version>`
+The jobs deliberately have different authority:
 
-Examples:
+1. `candidate` can read source, install dependencies, build, audit, and upload
+   the immutable candidate artifact; it has no npm OIDC or source-write access
+2. `verify` cells can read source and candidate bytes, install into isolated
+   registries, and upload evidence; they have no publish authority
+3. `aggregate` rejects missing, duplicate, unexpected, mixed-commit,
+   mixed-candidate, or mixed-package-digest cell evidence
+4. `publish` has npm OIDC but only source read access; it installs no repository
+   dependencies and runs the small standalone exact-tarball publisher
+5. `finalize` receives source write access only after npm publication and
+   verification complete
 
-1. `sdk-v0.9.0`
-2. `server-v0.9.0`
-3. `create-airjam-v0.9.0`
+All third-party GitHub Actions are pinned to full commit SHAs with readable
+version comments. Dependabot proposes action updates for normal reviewed
+changes.
 
-## Failure Notes
+## Retry And Partial External State
 
-If publishing fails with an npm authentication error:
+A workflow retry may reconcile state; it may not redefine it.
 
-1. verify the trusted publisher config on npm matches exactly
-2. verify the workflow file is named `publish-packages.yml`
-3. verify the job ran on a GitHub-hosted runner
-4. verify the workflow still has `id-token: write`
+For every already-existing package version, the publisher requires npm's
+reported integrity to equal the candidate's exact integrity and requires a
+valid npm provenance attestation. Different bytes at the same version are a
+hard failure. A missing or stale dist-tag may be reconciled only after exact
+package identity is proven.
 
-If release creation fails because a tag already exists:
+New package versions are first published under one candidate-specific temporary
+tag. The requested `next` or `latest` channel is reconciled only after all five
+versions have exact integrity and provenance, then the temporary tag is
+removed. A failed publish may therefore leave an immutable version discoverable
+by its exact version or candidate tag, but it cannot partially move the public
+coordinated channel.
 
-1. the version was already tagged before
-2. choose a new version or clean up the mistaken tag before retrying
+Tags must resolve to the candidate commit. Existing GitHub releases are updated
+with the retained candidate, matrix, and publication evidence rather than
+silently pointing at a different source identity.
 
-## Maintainer Rule
+## Emergency Release
 
-Do not use ad hoc local publishes as the normal process.
+An emergency release uses the same workflow:
 
-If a local emergency publish is ever necessary:
+```bash
+pnpm run repo -- release trigger \
+  --channel latest \
+  --emergency-reason "Describe the active incident and why release is urgent"
+```
 
-1. record why it happened
-2. bring the repo back to the canonical GitHub Actions flow immediately after
+The reason is retained in publication evidence and must be meaningful. Urgency
+may shorten observation time, but it does not bypass source review, candidate
+creation, matrix proof, OIDC, provenance, or post-publish verification.
+
+If GitHub Actions or npm trusted publishing is unavailable, publication waits.
+There is no local token fallback. A compromised existing version can be
+deprecated or its access revoked through explicit npm account operations while
+the corrected version follows this same path.
+
+## Final 1.0 Rehearsal Boundary
+
+The first real prerelease and the later `latest` promotion are Gate 7 production
+checkpoints. Their retained evidence must prove:
+
+1. all npm trusted-publisher records were configured for the exact workflow
+2. all six matrix cells consumed the same candidate digest and package bytes
+3. npm integrity equals the candidate integrity for all five packages
+4. provenance exists for every published package
+5. the requested dist-tag resolves to the coordinated version
+6. package tags and GitHub releases resolve to the candidate commit
+
+Candidate and workflow implementation makes this proof executable; it does not
+pre-claim success before the registry rehearsal actually runs.

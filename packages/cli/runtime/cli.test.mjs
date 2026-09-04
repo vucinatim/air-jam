@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { chmod, cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { generatePlatformAiPackArtifacts } from "../../../scripts/platform/lib/platform-ai-pack-artifacts.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +31,15 @@ const runCli = (...args) =>
       FORCE_COLOR: "0",
     },
   });
+
+const runCliFailure = (...args) => {
+  try {
+    runCli(...args);
+    assert.fail("Expected Air Jam CLI command to fail.");
+  } catch (error) {
+    return `${String(error.stdout ?? "")}\n${String(error.stderr ?? "")}`;
+  }
+};
 
 test("airjam reports the installed package version", () => {
   assert.equal(runCli("--version").trim(), "0.9.2");
@@ -81,7 +90,8 @@ test("airjam exposes ai-pack help", () => {
   const output = runCliHelp("ai-pack", "status");
 
   assert.match(output, /Usage: airjam ai-pack status/);
-  assert.match(output, /--manifest-url <url>/);
+  assert.doesNotMatch(output, /manifest-url/);
+  assert.match(runCliHelp("ai-pack", "repair"), /installed CLI/);
 });
 
 test("airjam exposes game list help", () => {
@@ -253,31 +263,110 @@ test("airjam MCP inspection and profiles expose stable JSON", () => {
   assert.match(profile.content, /\[mcp_servers\.airjam\]/);
 });
 
-test("airjam AI pack inspection exposes stable JSON", async () => {
+test("airjam AI pack inspection exposes stable JSON", () => {
   const managedRoot = path.join(packageRoot, "template-assets", "managed");
-  const artifactRoot = await mkdtemp(
-    path.join(os.tmpdir(), "airjam-cli-ai-pack-test-"),
+  const status = JSON.parse(
+    runCli("ai-pack", "status", "--dir", managedRoot, "--json"),
   );
 
+  assert.equal(status.upToDate, true);
+  assert.equal(status.comparison.differingFiles.length, 0);
+  assert.equal(status.comparison.manifestSource, "packaged-snapshot");
+  assert.equal(status.comparison.trustedPackage, "@air-jam/cli");
+});
+
+test("airjam AI pack repairs verified same-version drift transactionally", async () => {
+  const managedRoot = path.join(packageRoot, "template-assets", "managed");
+  const projectRoot = await mkdtemp(
+    path.join(os.tmpdir(), "airjam-ai-pack-repair-"),
+  );
   try {
-    await generatePlatformAiPackArtifacts({ targetRoot: artifactRoot });
+    await cp(managedRoot, projectRoot, { recursive: true });
+    const managedFile = path.join(
+      projectRoot,
+      "docs/airjam/development-loop.md",
+    );
+    const expected = await readFile(managedFile, "utf8");
+    await writeFile(managedFile, "drifted\n");
+
     const status = JSON.parse(
-      runCli(
-        "ai-pack",
-        "status",
-        "--dir",
-        managedRoot,
-        "--manifest-file",
-        path.join(artifactRoot, "manifest.json"),
-        "--json",
-      ),
+      runCli("ai-pack", "status", "--dir", projectRoot, "--json"),
+    );
+    assert.equal(status.drifted, true);
+    const repaired = JSON.parse(
+      runCli("ai-pack", "repair", "--dir", projectRoot, "--json"),
+    );
+    assert.equal(repaired.repaired, true);
+    assert.equal(await readFile(managedFile, "utf8"), expected);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test(
+  "airjam AI pack restores original files when transactional publication fails",
+  { skip: process.platform === "win32" },
+  async () => {
+    const managedRoot = path.join(packageRoot, "template-assets", "managed");
+    const projectRoot = await mkdtemp(
+      path.join(os.tmpdir(), "airjam-ai-pack-rollback-"),
+    );
+    const manifestDirectory = path.join(projectRoot, ".airjam");
+    try {
+      await cp(managedRoot, projectRoot, { recursive: true });
+      const managedFile = path.join(
+        projectRoot,
+        "docs/airjam/development-loop.md",
+      );
+      const manifestPath = path.join(manifestDirectory, "ai-pack.json");
+      const originalManifest = await readFile(manifestPath, "utf8");
+      await writeFile(managedFile, "local drift that must survive failure\n");
+      await chmod(manifestDirectory, 0o500);
+
+      assert.match(
+        runCliFailure("ai-pack", "repair", "--dir", projectRoot, "--json"),
+        /EACCES|EPERM|permission denied/iu,
+      );
+      assert.equal(
+        await readFile(managedFile, "utf8"),
+        "local drift that must survive failure\n",
+      );
+      assert.equal(await readFile(manifestPath, "utf8"), originalManifest);
+    } finally {
+      await chmod(manifestDirectory, 0o700).catch(() => undefined);
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  },
+);
+
+test("airjam AI pack rejects rollback and unsafe managed paths", async () => {
+  const managedRoot = path.join(packageRoot, "template-assets", "managed");
+  const projectRoot = await mkdtemp(
+    path.join(os.tmpdir(), "airjam-ai-pack-trust-"),
+  );
+  try {
+    await cp(managedRoot, projectRoot, { recursive: true });
+    const manifestPath = path.join(projectRoot, ".airjam/ai-pack.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.packVersion = "999.0.0";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    assert.match(
+      runCliFailure("ai-pack", "update", "--dir", projectRoot, "--json"),
+      /Refusing to roll an AI pack back/u,
     );
 
-    assert.equal(status.upToDate, true);
-    assert.equal(status.comparison.differingFiles.length, 0);
-    assert.equal(status.comparison.manifestSource, "manifest-file");
+    manifest.packVersion = "0.1.0";
+    manifest.managedFiles[0].path = "../outside.md";
+    manifest.contentDigest = createHash("sha256")
+      .update(JSON.stringify(manifest.managedFiles))
+      .digest("hex");
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    assert.match(
+      runCliFailure("ai-pack", "status", "--dir", projectRoot, "--json"),
+      /Unsafe AI pack managed path/u,
+    );
   } finally {
-    await rm(artifactRoot, { recursive: true, force: true });
+    await rm(projectRoot, { recursive: true, force: true });
   }
 });
 

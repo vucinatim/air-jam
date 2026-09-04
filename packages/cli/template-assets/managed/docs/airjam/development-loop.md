@@ -47,5 +47,5 @@ If behavior or canonical patterns changed:
 
 1. update docs in the same change
 2. keep examples and scaffolding aligned
-3. if you are unsure whether the local AI pack is still aligned with the hosted canonical pack, compare it with `pnpm exec airjam ai-pack status --dir .` or `pnpm exec airjam ai-pack diff --dir .`
-4. use `pnpm exec airjam ai-pack update --dir .` only when you explicitly want to refresh canonical files under `docs/airjam/`; it never owns or overwrites project instructions, project-local skills, or user-created notes
+3. if you are unsure whether the local AI pack matches the provenance-backed snapshot in the installed CLI, compare it with `pnpm exec airjam ai-pack status --dir .` or `pnpm exec airjam ai-pack diff --dir .`
+4. use `pnpm exec airjam ai-pack update --dir .` for a newer installed pack, or `pnpm exec airjam ai-pack repair --dir .` to restore same-version drift; these commands never own or overwrite project instructions, project-local skills, or user-created notes

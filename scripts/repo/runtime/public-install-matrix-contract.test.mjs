@@ -160,6 +160,9 @@ const createCellEvidence = ({ cell, commit = "a".repeat(40) }) => ({
   contract: "air-jam-public-install-matrix-cell/v1",
   matrix: "air-jam-public-install-matrix",
   commit,
+  candidate: {
+    digest: "d".repeat(64),
+  },
   cell,
   environment: {
     platform: cell.nodePlatform,
@@ -177,6 +180,14 @@ const createCellEvidence = ({ cell, commit = "a".repeat(40) }) => ({
   },
   proof: {
     packageVersion: "0.9.2",
+    registry: {
+      published: resolvePublicPackages().map((entry) => ({
+        name: entry.packageName,
+        version: entry.version,
+        sha256: "e".repeat(64),
+        integrity: `sha512-${Buffer.from(entry.packageName).toString("base64")}`,
+      })),
+    },
     discovery: { mcpTools: ["airjam.inspect_project"] },
     quality: {
       typecheck: "passed",

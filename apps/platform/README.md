@@ -260,7 +260,14 @@ before deploy termination.
 
 The same worker schedules retention-eligible release-generation and managed
 media cleanup. `AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS` controls the
-schedule interval and defaults to 15 minutes. Preview and enqueue cleanup via:
+schedule interval and defaults to 15 minutes. It also applies the canonical
+product-telemetry retention policy immediately on startup and every 15 minutes
+by default. `AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS` may change only the
+schedule cadence; the retention durations remain owned by the product-telemetry
+domain contract. Both schedules are independent readiness authorities, so a
+failure degrades `/ready` and stays visible to operators.
+
+Preview and enqueue lifecycle cleanup via:
 
 ```bash
 pnpm --silent run repo -- platform operations lifecycle cleanup --help

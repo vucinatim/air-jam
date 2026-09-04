@@ -7,7 +7,7 @@ const rootDir = path.resolve(
   "../..",
 );
 
-const PUBLIC_PACKAGE_DEFINITIONS = [
+export const PUBLIC_PACKAGE_DEFINITIONS = [
   {
     id: "sdk",
     packageName: "@air-jam/sdk",
@@ -16,18 +16,18 @@ const PUBLIC_PACKAGE_DEFINITIONS = [
     tagPrefix: "sdk",
   },
   {
-    id: "cli",
-    packageName: "@air-jam/cli",
-    packageFilter: "@air-jam/cli",
-    workingDirectory: "packages/cli",
-    tagPrefix: "cli",
-  },
-  {
     id: "mcp-server",
     packageName: "@air-jam/mcp-server",
     packageFilter: "@air-jam/mcp-server",
     workingDirectory: "packages/mcp-server",
     tagPrefix: "mcp-server",
+  },
+  {
+    id: "cli",
+    packageName: "@air-jam/cli",
+    packageFilter: "@air-jam/cli",
+    workingDirectory: "packages/cli",
+    tagPrefix: "cli",
   },
   {
     id: "server",
@@ -44,10 +44,6 @@ const PUBLIC_PACKAGE_DEFINITIONS = [
     tagPrefix: "create-airjam",
   },
 ];
-
-const PUBLIC_PACKAGE_IDS = new Set(
-  PUBLIC_PACKAGE_DEFINITIONS.map((pkg) => pkg.id),
-);
 
 const readVersion = (workingDirectory) => {
   const packageJsonPath = path.join(rootDir, workingDirectory, "package.json");
@@ -78,30 +74,11 @@ export const resolveUnifiedPublicVersion = () => {
   return Array.from(versions)[0];
 };
 
-export const resolvePublicPackages = (selection = "all-public") => {
-  if (selection === "all-public") {
-    return PUBLIC_PACKAGE_DEFINITIONS.map(withResolvedReleaseMetadata);
-  }
-
-  if (!PUBLIC_PACKAGE_IDS.has(selection)) {
-    throw new Error(
-      `Invalid package selection "${selection}". Use one of: all-public, ${Array.from(PUBLIC_PACKAGE_IDS).join(", ")}.`,
-    );
-  }
-
-  const pkg = PUBLIC_PACKAGE_DEFINITIONS.find(
-    (entry) => entry.id === selection,
-  );
-  if (!pkg) {
-    throw new Error(`Unknown public package "${selection}".`);
-  }
-
-  return [withResolvedReleaseMetadata(pkg)];
-};
+export const resolvePublicPackages = () =>
+  PUBLIC_PACKAGE_DEFINITIONS.map(withResolvedReleaseMetadata);
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const command = process.argv[2] ?? "resolve";
-  const selection = process.argv[3] ?? "all-public";
 
   if (command !== "resolve") {
     if (command === "version") {
@@ -113,5 +90,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
 
-  process.stdout.write(JSON.stringify(resolvePublicPackages(selection)));
+  process.stdout.write(JSON.stringify(resolvePublicPackages()));
 }

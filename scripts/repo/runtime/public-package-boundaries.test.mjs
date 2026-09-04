@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { generatePlatformAiPackArtifacts } from "../../platform/lib/platform-ai-pack-artifacts.mjs";
 import { resolvePublicPackages } from "../../release/public-packages.mjs";
 import { listLocalScaffoldDirectDependencyNames } from "../lib/local-scaffold-packages.mjs";
 
@@ -152,23 +154,47 @@ test("the canonical AI pack manifest is committed with the CLI assets", () => {
   );
 
   assert.equal(trackedFiles.trim(), manifestPath);
-  assert.deepEqual(readJson(manifestPath), {
-    schemaVersion: 1,
-    packVersion: "0.1.0",
-    channel: "stable",
-    releaseDate: "2026-03-29T00:00:00.000Z",
-    source: {
-      mode: "packaged-snapshot",
-      canonicalDocsSource: "content/docs",
-      canonicalBasePackSource: "packages/cli/template-assets/managed",
-    },
-    scaffold: {
-      template: null,
-      createAirjamVersion: null,
-    },
-    update: {
-      manifestUrl: "https://airjam.io/ai-pack/manifest.json",
-      docsBaseUrl: "https://airjam.io/docs",
-    },
+  const manifest = readJson(manifestPath);
+  assert.equal(manifest.schemaVersion, 2);
+  assert.equal(manifest.packVersion, "0.1.0");
+  assert.deepEqual(manifest.source, {
+    mode: "packaged-snapshot",
+    package: "@air-jam/cli",
   });
+  assert.equal(manifest.update, undefined);
+  assert.ok(manifest.managedFiles.length > 0);
+  assert.match(manifest.contentDigest, /^[a-f0-9]{64}$/u);
+});
+
+test("the hosted AI pack is an exact read-only mirror, not a second manifest model", async () => {
+  const targetRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "airjam-hosted-ai-pack-"),
+  );
+  try {
+    const result = await generatePlatformAiPackArtifacts({ targetRoot });
+    const packagedManifest = readJson(
+      "packages/cli/template-assets/managed/.airjam/ai-pack.json",
+    );
+    const hostedManifest = JSON.parse(
+      fs.readFileSync(path.join(targetRoot, "manifest.json"), "utf8"),
+    );
+    assert.deepEqual(hostedManifest, packagedManifest);
+    assert.equal(result.contentDigest, packagedManifest.contentDigest);
+    assert.equal(fs.existsSync(path.join(targetRoot, "stable")), false);
+    for (const file of packagedManifest.managedFiles) {
+      assert.equal(
+        fs.readFileSync(path.join(targetRoot, "files", file.path), "utf8"),
+        fs.readFileSync(
+          path.join(
+            repoRoot,
+            "packages/cli/template-assets/managed",
+            file.path,
+          ),
+          "utf8",
+        ),
+      );
+    }
+  } finally {
+    fs.rmSync(targetRoot, { recursive: true, force: true });
+  }
 });

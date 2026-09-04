@@ -16,6 +16,7 @@ import {
   resolveUnifiedPublicVersion,
 } from "../../release/public-packages.mjs";
 import { repoRoot } from "./paths.mjs";
+import { validatePublicReleaseCandidate } from "./public-release-candidate.mjs";
 
 const require = createRequire(import.meta.url);
 const commandMaxBuffer = 64 * 1024 * 1024;
@@ -408,40 +409,64 @@ export const prepareGoldenPathCandidateRegistry = async ({
   port,
   commandEnv,
   run,
+  candidateDirectory,
+  expectedCommit,
   onProgress = () => {},
 }) => {
   const packDir = path.join(runRoot, "packages");
   fs.mkdirSync(packDir, { recursive: true });
   const publicPackages = resolvePublicPackages();
-  const version = resolveUnifiedPublicVersion();
-  for (const { packageFilter } of publicPackages) {
-    run(
-      `build:${packageFilter}`,
-      "pnpm",
-      ["--filter", packageFilter, "build"],
-      repoRoot,
-    );
-  }
-
   const tarballs = new Map();
-  const packageArtifacts = [];
-  for (const packageDefinition of publicPackages) {
-    const packageDir = path.join(repoRoot, packageDefinition.workingDirectory);
-    const output = run(
-      `pack:${packageDefinition.packageName}`,
-      "pnpm",
-      ["pack", "--pack-destination", packDir],
-      packageDir,
-    );
-    const tarballPath = findPackedTarball({ output, packageDir });
-    tarballs.set(packageDefinition.packageName, tarballPath);
-    const tarball = fs.readFileSync(tarballPath);
-    packageArtifacts.push({
-      name: packageDefinition.packageName,
-      version: packageDefinition.version,
-      tarballBytes: tarball.length,
-      integrity: sha512Integrity(tarball),
+  let packageArtifacts;
+  let version;
+  let candidate = null;
+  if (candidateDirectory) {
+    const validated = validatePublicReleaseCandidate(candidateDirectory, {
+      expectedCommit,
     });
+    version = validated.manifest.version;
+    packageArtifacts = validated.packageArtifacts.map(
+      ({ tarballPath, ...artifact }) => {
+        tarballs.set(artifact.name, tarballPath);
+        return artifact;
+      },
+    );
+    candidate = {
+      digest: validated.candidateDigest,
+    };
+  } else {
+    version = resolveUnifiedPublicVersion();
+    for (const { packageFilter } of publicPackages) {
+      run(
+        `build:${packageFilter}`,
+        "pnpm",
+        ["--filter", packageFilter, "build"],
+        repoRoot,
+      );
+    }
+
+    packageArtifacts = [];
+    for (const packageDefinition of publicPackages) {
+      const packageDir = path.join(
+        repoRoot,
+        packageDefinition.workingDirectory,
+      );
+      const output = run(
+        `pack:${packageDefinition.packageName}`,
+        "pnpm",
+        ["pack", "--pack-destination", packDir],
+        packageDir,
+      );
+      const tarballPath = findPackedTarball({ output, packageDir });
+      tarballs.set(packageDefinition.packageName, tarballPath);
+      const tarball = fs.readFileSync(tarballPath);
+      packageArtifacts.push({
+        name: packageDefinition.packageName,
+        version: packageDefinition.version,
+        tarballBytes: tarball.length,
+        integrity: sha512Integrity(tarball),
+      });
+    }
   }
 
   onProgress("registry:start");
@@ -471,6 +496,7 @@ export const prepareGoldenPathCandidateRegistry = async ({
       registry,
       version,
       packageArtifacts,
+      candidate,
     };
   } catch (error) {
     await stopChild(registry.child);
@@ -482,6 +508,8 @@ export const runGoldenPathBootstrap = async ({
   template = "minimal",
   bootstrapClient = "pnpm-dlx",
   keepWorkspace = false,
+  candidateDirectory,
+  expectedCommit,
   onProgress = () => {},
 } = {}) => {
   if (bootstrapClient !== "pnpm-dlx" && bootstrapClient !== "npx") {
@@ -496,9 +524,7 @@ export const runGoldenPathBootstrap = async ({
   // filesystem identity from the start.
   const temporaryRoot = resolveGoldenPathTemporaryRoot();
   const runRoot = fs.realpathSync.native(
-    fs.mkdtempSync(
-      path.join(temporaryRoot, "airjam-golden-path-bootstrap-"),
-    ),
+    fs.mkdtempSync(path.join(temporaryRoot, "airjam-golden-path-bootstrap-")),
   );
   const projectName = "signal-relay-bootstrap";
   const projectDir = path.join(runRoot, "workspace", projectName);
@@ -573,6 +599,8 @@ export const runGoldenPathBootstrap = async ({
       port,
       commandEnv,
       run,
+      candidateDirectory,
+      expectedCommit,
       onProgress,
     });
     registry = prepared.registry;
@@ -810,6 +838,7 @@ export const runGoldenPathBootstrap = async ({
       template,
       bootstrapClient,
       packageVersion: version,
+      candidate: prepared.candidate,
       registry: {
         kind: "run-scoped-loopback-verdaccio",
         upstream: "https://registry.npmjs.org/",

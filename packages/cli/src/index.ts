@@ -49,7 +49,12 @@ import path from "node:path";
 import { runGameDevCli } from "../runtime/game-dev.mjs";
 import { runSecureInitCli } from "../runtime/secure-dev.mjs";
 import { runProjectTopologyCli } from "../runtime/topology.mjs";
-import { runAiPackDiff, runAiPackStatus, runAiPackUpdate } from "./ai-pack";
+import {
+  runAiPackDiff,
+  runAiPackRepair,
+  runAiPackStatus,
+  runAiPackUpdate,
+} from "./ai-pack";
 import { runMcpConfig, runMcpDoctor, runMcpInit } from "./mcp";
 import {
   closeSession,
@@ -1089,27 +1094,17 @@ const buildProgram = () => {
 
   const aiPackCommand = program
     .command("ai-pack")
-    .description("Inspect or update hosted AI pack assets");
+    .description("Inspect or update provenance-backed AI pack assets");
 
   aiPackCommand
     .command("status")
     .description("Show AI pack status for a project")
     .option("--dir <path>", "Project directory to inspect")
-    .option(
-      "--manifest-url <url>",
-      "Override the hosted AI pack root manifest URL",
-    )
-    .option(
-      "--manifest-file <path>",
-      "Read the AI pack root manifest from a local file",
-    )
     .option("--json", "Print one machine-readable JSON document", false)
     .action(async (options: unknown) => {
       await runAiPackStatus(
         resolveActionOptions<{
           dir?: string;
-          manifestUrl?: string;
-          manifestFile?: string;
           json?: boolean;
         }>(options),
       );
@@ -1119,21 +1114,11 @@ const buildProgram = () => {
     .command("diff")
     .description("Show AI pack file differences for a project")
     .option("--dir <path>", "Project directory to inspect")
-    .option(
-      "--manifest-url <url>",
-      "Override the hosted AI pack root manifest URL",
-    )
-    .option(
-      "--manifest-file <path>",
-      "Read the AI pack root manifest from a local file",
-    )
     .option("--json", "Print one machine-readable JSON document", false)
     .action(async (options: unknown) => {
       await runAiPackDiff(
         resolveActionOptions<{
           dir?: string;
-          manifestUrl?: string;
-          manifestFile?: string;
           json?: boolean;
         }>(options),
       );
@@ -1143,27 +1128,25 @@ const buildProgram = () => {
     .command("update")
     .description("Update managed AI pack assets for a project")
     .option("--dir <path>", "Project directory to inspect")
-    .option(
-      "--manifest-url <url>",
-      "Override the hosted AI pack root manifest URL",
-    )
-    .option(
-      "--manifest-file <path>",
-      "Read the AI pack root manifest from a local file",
-    )
-    .option(
-      "--force",
-      "Overwrite same-version managed file drift during update",
-      false,
-    )
     .option("--json", "Print one machine-readable JSON document", false)
     .action(async (options: unknown) => {
       await runAiPackUpdate(
         resolveActionOptions<{
           dir?: string;
-          manifestUrl?: string;
-          manifestFile?: string;
-          force?: boolean;
+          json?: boolean;
+        }>(options),
+      );
+    });
+
+  aiPackCommand
+    .command("repair")
+    .description("Restore same-version managed files from the installed CLI")
+    .option("--dir <path>", "Project directory to repair")
+    .option("--json", "Print one machine-readable JSON document", false)
+    .action(async (options: unknown) => {
+      await runAiPackRepair(
+        resolveActionOptions<{
+          dir?: string;
           json?: boolean;
         }>(options),
       );

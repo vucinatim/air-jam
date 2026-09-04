@@ -24,7 +24,7 @@ It is the public delivery plane for:
 1. human-facing docs pages
 2. machine-readable docs discovery endpoints
 3. agent-facing retrieval hints
-4. the hosted AI-pack distribution root
+4. a read-only mirror of the packaged AI-pack snapshot
 
 ## Public Surface
 
@@ -94,9 +94,12 @@ without inventing a second docs product.
 
 ### AI-Pack Distribution Layer
 
-The hosted AI-pack manifests live alongside the docs surface because they are
+The hosted AI-pack snapshot lives alongside the docs surface because it is
 another machine-readable delivery format for the same broad documentation and
-agent-guidance system.
+agent-guidance system. `/ai-pack/manifest.json` is the exact packaged schema-2
+manifest, and its declared files are mirrored below
+`/ai-pack/files/<managed-path>`. There is no hosted update-channel hierarchy or
+second manifest model.
 
 ## Boundary Rules
 
