@@ -49,7 +49,7 @@ jobs:
           fi
 
       - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           # Candidate creation validates durable readiness evidence commits.
           fetch-depth: 0
@@ -84,7 +84,7 @@ jobs:
           echo "version=$(jq -r .version "$RUNNER_TEMP/public-release-candidate/manifest.json")" >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable candidate
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: public-release-candidate
           path: ${{ runner.temp }}/public-release-candidate
@@ -109,7 +109,7 @@ jobs:
         node: [22, 24]
     steps:
       - name: Checkout exact candidate source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.candidate.outputs.commit }}
           fetch-depth: 1
@@ -141,7 +141,7 @@ jobs:
           --output artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
 
       - name: Upload cell evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: publish-install-${{ matrix.system.id }}-node-${{ matrix.node }}
           path: artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
@@ -155,7 +155,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout exact candidate source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.candidate.outputs.commit }}
 
@@ -190,7 +190,7 @@ jobs:
         run: test "$(jq -r .candidateDigest artifacts/public-install-matrix.json)" = "$EXPECTED_DIGEST"
 
       - name: Upload aggregate evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: publish-install-matrix
           path: artifacts/public-install-matrix.json
@@ -207,7 +207,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout exact verifier
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.candidate.outputs.commit }}
           fetch-depth: 1
@@ -243,7 +243,7 @@ jobs:
           --apply
 
       - name: Upload publication evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: public-release-publication
           path: artifacts/public-release-publication.json
@@ -259,7 +259,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout exact candidate source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ needs.candidate.outputs.commit }}
           fetch-depth: 0
@@ -294,7 +294,15 @@ jobs:
           CANDIDATE_DIGEST: ${{ needs.candidate.outputs.digest }}
         run: |
           set -euo pipefail
+          PACKAGES_FILE="$RUNNER_TEMP/public-release-packages.tsv"
+          node scripts/release/public-packages.mjs resolve |
+            jq -r '.[] | [.packageName, .tag, .releaseName] | @tsv' > "$PACKAGES_FILE"
+          test "$(wc -l < "$PACKAGES_FILE" | tr -d ' ')" -eq 5
+
           while IFS=$'\t' read -r PACKAGE_NAME TAG RELEASE_NAME; do
+            test -n "$PACKAGE_NAME"
+            test -n "$TAG"
+            test -n "$RELEASE_NAME"
             if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
               test "$(git rev-list -n 1 "$TAG")" = "$EXPECTED_COMMIT"
             else
@@ -317,7 +325,4 @@ jobs:
                 artifacts/release-evidence/public-install-matrix.json \
                 artifacts/release-evidence/public-release-publication.json
             fi
-          done < <(
-            node scripts/release/public-packages.mjs resolve |
-              jq -r '.[] | [.packageName, .tag, .releaseName] | @tsv'
-          )
+          done < "$PACKAGES_FILE"

@@ -42,7 +42,7 @@ const runCliFailure = (...args) => {
 };
 
 test("airjam reports the installed package version", () => {
-  assert.equal(runCli("--version").trim(), "0.9.2");
+  assert.equal(runCli("--version").trim(), "0.9.3");
 });
 
 test("airjam exposes dev help", () => {

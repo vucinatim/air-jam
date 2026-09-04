@@ -21,6 +21,7 @@ import {
   resolvePublicPackages,
 } from "../../release/public-packages.mjs";
 import {
+  assertPublicVersionAvailability,
   computeCandidateDigest,
   publicReleaseCandidateContract,
   resolveCandidatePublicationTag,
@@ -39,6 +40,40 @@ const writeJson = (filePath, value) => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 };
+
+test("candidate creation rejects any public version already present on npm", () => {
+  assert.doesNotThrow(() =>
+    assertPublicVersionAvailability([
+      { name: "@air-jam/sdk", version: "0.9.3", published: null },
+    ]),
+  );
+  assert.throws(
+    () =>
+      assertPublicVersionAvailability([
+        {
+          name: "@air-jam/sdk",
+          version: "0.9.2",
+          published: { integrity: "sha512-existing" },
+        },
+        { name: "@air-jam/cli", version: "0.9.3", published: null },
+      ]),
+    /@air-jam\/sdk@0\.9\.2[\s\S]*Bump the coordinated public version/u,
+  );
+});
+
+test("candidate creation checks registry availability before expensive gates", () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, "scripts/repo/lib/public-release-candidate.mjs"),
+    "utf8",
+  );
+  const availabilityIndex = source.indexOf(
+    'onProgress("registry:version-availability")',
+  );
+  const releaseGateIndex = source.indexOf('onProgress("gate:release-publish")');
+  assert.ok(availabilityIndex >= 0);
+  assert.ok(releaseGateIndex >= 0);
+  assert.ok(availabilityIndex < releaseGateIndex);
+});
 
 const createCandidateFixture = () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-candidate-test-"));
@@ -266,6 +301,13 @@ test("dependency audit queries are exact, deduplicated, and normalized", () => {
 
 test("all GitHub Actions dependencies use immutable commits", () => {
   const workflowDirectory = path.join(repoRoot, ".github/workflows");
+  const trustedPins = JSON.parse(
+    fs.readFileSync(
+      path.join(repoRoot, "scripts/release/github-action-pins.json"),
+      "utf8",
+    ),
+  );
+  const observedActions = new Set();
   for (const filename of fs.readdirSync(workflowDirectory)) {
     const source = fs.readFileSync(
       path.join(workflowDirectory, filename),
@@ -277,17 +319,24 @@ test("all GitHub Actions dependencies use immutable commits", () => {
       const reference = match[1];
       const separator = reference.lastIndexOf("@");
       assert.ok(separator > 0, `${filename}: ${reference}`);
-      assert.match(
-        reference.slice(separator + 1),
-        /^[a-f0-9]{40}$/u,
-        `${filename}: ${reference}`,
+      const action = reference.slice(0, separator);
+      const sha = reference.slice(separator + 1);
+      const pin = trustedPins[action];
+      assert.ok(pin, `${filename}: ${action} has no trusted pin record`);
+      observedActions.add(action);
+      assert.equal(
+        sha,
+        pin.sha,
+        `${filename}: ${action} must use its trusted SHA`,
       );
-      assert.ok(
+      assert.equal(
         match[2]?.trim(),
-        `${filename}: ${reference} needs a version comment`,
+        pin.version,
+        `${filename}: ${action} must use its trusted version comment`,
       );
     }
   }
+  assert.deepEqual(observedActions, new Set(Object.keys(trustedPins)));
 });
 
 test("publish workflow validates one candidate before privileged publication", () => {
@@ -324,4 +373,10 @@ test("publish workflow validates one candidate before privileged publication", (
     ).run,
     /publish-public-candidate\.mjs[\s\S]*--apply/u,
   );
+  const finalizeRun = workflow.jobs.finalize.steps.find(
+    (entry) => entry.name === "Reconcile package tags and releases",
+  ).run;
+  assert.doesNotMatch(finalizeRun, /done\s*<\s*<\(/u);
+  assert.match(finalizeRun, /test "\$\(wc -l < "\$PACKAGES_FILE"/u);
+  assert.match(finalizeRun, /done < "\$PACKAGES_FILE"/u);
 });

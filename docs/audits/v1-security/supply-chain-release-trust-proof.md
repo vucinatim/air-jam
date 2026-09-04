@@ -61,6 +61,13 @@ The candidate digest excludes wall-clock metadata and binds every immutable
 identity field. Output is staged privately and renamed into place only after
 the complete candidate validates.
 
+The coordinated source version is now `0.9.3`, because npm already contains
+immutable `0.9.2` releases with older bytes. Candidate creation checks public
+registry availability before the expensive gate and build, so version reuse
+fails in the unprivileged job rather than at publication time. A partial
+publication is recovered by rerunning failed jobs in its original workflow and
+reusing the retained candidate.
+
 ## Workflow Authority Separation
 
 `.github/workflows/publish-packages.yml` accepts manual dispatch from `main`
@@ -75,15 +82,19 @@ only and publishes no partial graph. Its authority is separated by job:
 | `finalize`  | Reconcile tags/releases after npm verification                             | npm OIDC                                       |
 
 Every third-party action in every workflow is pinned to a full 40-character
-commit SHA and retains a readable version comment. Dependabot owns reviewed
-GitHub Actions update proposals. The release workflow pins its npm CLI version
-instead of installing a mutable `latest` tool.
+commit SHA and retains a readable version comment. The canonical SHA/version
+mapping lives in `scripts/release/github-action-pins.json`, and repository tests
+require every workflow reference to match it. Dependabot owns reviewed GitHub
+Actions update proposals. The release workflow pins its npm CLI version instead
+of installing a mutable `latest` tool.
 
 An existing npm version is accepted only when its registry integrity equals the
 candidate and its npm provenance attestation is present. New versions publish
 under a candidate-specific temporary tag; `next` or `latest` changes only after
-the complete graph succeeds, then the temporary tag is removed. Package tags
-must resolve to the exact candidate commit, and GitHub releases retain
+the complete graph succeeds, then the temporary tag is removed. npm reconciles
+dist-tags one package at a time, so interruption can leave a prefix moved; a
+failed-job retry against the retained candidate converges the channel. Package
+tags must resolve to the exact candidate commit, and GitHub releases retain
 candidate, matrix, and publication evidence.
 
 ## AI-Pack Trust Boundary

@@ -69,14 +69,22 @@ automation token should remain.
 ## Prepare The Release Commit
 
 Update all five package versions intentionally and keep the public graph
-coordinated. Before merging, run the normal staged development gates and the
-final release gate required by the release process.
+coordinated. The current unreleased graph is `0.9.3`; `0.9.2` is immutable on
+npm and cannot be reused. Before merging, run the normal staged development
+gates and the final release gate required by the release process.
 
 The workflow itself runs the remote publish gate before it creates a candidate:
 
 ```bash
 pnpm check:release:publish
 ```
+
+Before the expensive gate or build begins, candidate creation queries the
+public npm registry and rejects any occupied package/version pair. This keeps a
+forgotten version bump out of the privileged publication boundary. Recovery
+after a partial external publication reuses the retained candidate by rerunning
+the failed jobs in the original workflow run; it does not create a new
+candidate for an already occupied version.
 
 Candidate creation then records:
 
@@ -164,8 +172,10 @@ New package versions are first published under one candidate-specific temporary
 tag. The requested `next` or `latest` channel is reconciled only after all five
 versions have exact integrity and provenance, then the temporary tag is
 removed. A failed publish may therefore leave an immutable version discoverable
-by its exact version or candidate tag, but it cannot partially move the public
-coordinated channel.
+by its exact version or candidate tag. npm has no multi-package atomic dist-tag
+operation, so a failure during channel reconciliation can move a prefix of the
+graph; rerunning the failed job against the retained candidate safely converges
+the remaining tags.
 
 Tags must resolve to the candidate commit. Existing GitHub releases are updated
 with the retained candidate, matrix, and publication evidence rather than

@@ -1,10 +1,10 @@
 {
   "packageManager": "pnpm@9.9.0",
   "packages": {
-    "create-airjam": "0.9.2",
-    "@air-jam/cli": "0.9.2",
-    "@air-jam/sdk": "0.9.2",
-    "@air-jam/server": "0.9.2",
-    "@air-jam/mcp-server": "0.9.2"
+    "create-airjam": "0.9.3",
+    "@air-jam/cli": "0.9.3",
+    "@air-jam/sdk": "0.9.3",
+    "@air-jam/server": "0.9.3",
+    "@air-jam/mcp-server": "0.9.3"
   }
 }

@@ -42,6 +42,18 @@ const canonicalize = (value) => {
 
 export const stableJson = (value) => JSON.stringify(canonicalize(value));
 
+export const assertPublicVersionAvailability = (observations) => {
+  const occupied = observations.filter((entry) => entry.published);
+  if (occupied.length === 0) return;
+
+  const versions = occupied
+    .map((entry) => `${entry.name}@${entry.version}`)
+    .join(", ");
+  throw new Error(
+    `Public package version is already present on npm: ${versions}. Bump the coordinated public version before creating a new candidate. To recover a partially completed publication, rerun the failed jobs in the original workflow so they reuse its retained candidate.`,
+  );
+};
+
 const writeJson = (filePath, value) => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, {
@@ -86,6 +98,45 @@ const run = (
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8"));
 
+const readPublishedPackage = (name, version) => {
+  const result = run(
+    "npm",
+    [
+      "view",
+      `${name}@${version}`,
+      "dist.integrity",
+      "dist.attestations",
+      "--json",
+      "--registry",
+      npmRegistry,
+    ],
+    { allowFailure: true, timeout: 60_000 },
+  );
+  if (result.status !== 0) {
+    if (/E404|is not in this registry|No match found/iu.test(result.stderr)) {
+      return null;
+    }
+    throw new Error(
+      `Unable to inspect ${name}@${version} on npm:\n${result.stderr.trim()}`,
+    );
+  }
+  const value = JSON.parse(result.stdout);
+  return {
+    integrity: value["dist.integrity"] ?? value.integrity ?? null,
+    attestations: value["dist.attestations"] ?? value.attestations ?? null,
+  };
+};
+
+const assertPublicPackageVersionsAvailable = (publicPackages) => {
+  assertPublicVersionAvailability(
+    publicPackages.map((pkg) => ({
+      name: pkg.packageName,
+      version: pkg.version,
+      published: readPublishedPackage(pkg.packageName, pkg.version),
+    })),
+  );
+};
+
 const resolveCleanCommit = () => {
   const status = run("git", [
     "status",
@@ -123,7 +174,10 @@ const visitInstalledPackages = (nodeModulesDirectory, packages) => {
     const manifestPath = path.join(entryPath, "package.json");
     if (!fs.existsSync(manifestPath)) continue;
     const manifest = readJson(manifestPath);
-    if (typeof manifest.name !== "string" || typeof manifest.version !== "string") {
+    if (
+      typeof manifest.name !== "string" ||
+      typeof manifest.version !== "string"
+    ) {
       throw new Error(`Installed package manifest is invalid: ${manifestPath}`);
     }
     packages.set(`${manifest.name}@${manifest.version}`, {
@@ -163,7 +217,10 @@ const materializeCandidateConsumer = ({ staging, artifacts }) => {
     { cwd: consumerDirectory },
   );
   const packages = new Map();
-  visitInstalledPackages(path.join(consumerDirectory, "node_modules"), packages);
+  visitInstalledPackages(
+    path.join(consumerDirectory, "node_modules"),
+    packages,
+  );
   return { consumerDirectory, packages };
 };
 
@@ -174,10 +231,10 @@ const collectDependencyInventory = ({ publicPackages, installedPackages }) => {
     packages: [...installedPackages.values()]
       .map(({ name, version }) => ({ name, version }))
       .sort((left, right) =>
-      compareStrings(
-        `${left.name}@${left.version}`,
-        `${right.name}@${right.version}`,
-      ),
+        compareStrings(
+          `${left.name}@${left.version}`,
+          `${right.name}@${right.version}`,
+        ),
       ),
   };
 };
@@ -268,10 +325,7 @@ const collectDependencyAudit = (dependencyInventoryPath) => {
   const audit = JSON.parse(result.stdout);
   if (audit.vulnerabilityCount > 0) {
     const findings = audit.findings
-      .map(
-        (entry) =>
-          `${entry.id} (${entry.package}@${entry.version})`,
-      )
+      .map((entry) => `${entry.id} (${entry.package}@${entry.version})`)
       .join(", ");
     throw new Error(
       `Production dependency audit found ${audit.vulnerabilityCount} known vulnerabilities: ${findings}.`,
@@ -406,10 +460,7 @@ const validateCandidateEvidence = ({ root, manifest, expectedPackages }) => {
       !entry.version ||
       typeof entry.license !== "string" ||
       !entry.license ||
-      ![
-        "installed-package",
-        "npm-registry-metadata",
-      ].includes(entry.source)
+      !["installed-package", "npm-registry-metadata"].includes(entry.source)
     ) {
       throw new Error(`Candidate license inventory entry ${index} is invalid.`);
     }
@@ -637,6 +688,9 @@ export const createPublicReleaseCandidate = ({
     throw new Error(`Candidate output already exists: ${output}`);
 
   const commit = resolveCleanCommit();
+  const publicPackages = resolvePublicPackages();
+  onProgress("registry:version-availability");
+  assertPublicPackageVersionsAvailable(publicPackages);
   const parent = path.dirname(output);
   fs.mkdirSync(parent, { recursive: true });
   const staging = path.join(
@@ -650,7 +704,6 @@ export const createPublicReleaseCandidate = ({
   try {
     onProgress("gate:release-publish");
     run("pnpm", ["check:release:publish"]);
-    const publicPackages = resolvePublicPackages();
     for (const pkg of publicPackages) {
       onProgress(`build:${pkg.packageName}`);
       run("pnpm", ["--filter", pkg.packageFilter, "build"]);
@@ -776,33 +829,6 @@ export const createPublicReleaseCandidate = ({
   }
 };
 
-const readPublishedPackage = (name, version) => {
-  const result = run(
-    "npm",
-    [
-      "view",
-      `${name}@${version}`,
-      "dist.integrity",
-      "dist.attestations",
-      "--json",
-    ],
-    { allowFailure: true, timeout: 60_000 },
-  );
-  if (result.status !== 0) {
-    if (/E404|is not in this registry|No match found/iu.test(result.stderr)) {
-      return null;
-    }
-    throw new Error(
-      `Unable to inspect ${name}@${version} on npm:\n${result.stderr.trim()}`,
-    );
-  }
-  const value = JSON.parse(result.stdout);
-  return {
-    integrity: value["dist.integrity"] ?? value.integrity ?? null,
-    attestations: value["dist.attestations"] ?? value.attestations ?? null,
-  };
-};
-
 const assertPublishedPackage = ({ artifact, published }) => {
   if (!published) {
     throw new Error(
@@ -847,9 +873,11 @@ const waitForVerifiedPublishedPackage = (artifact) => {
 };
 
 const readDistTags = (name) => {
-  const result = run("npm", ["view", name, "dist-tags", "--json"], {
-    timeout: 60_000,
-  });
+  const result = run(
+    "npm",
+    ["view", name, "dist-tags", "--json", "--registry", npmRegistry],
+    { timeout: 60_000 },
+  );
   return JSON.parse(result.stdout);
 };
 
@@ -916,10 +944,9 @@ export const publishPublicReleaseCandidate = ({
     }
   }
 
-  // Only expose the requested public channel after the complete graph exists
-  // with exact candidate integrity and provenance. A failed publish can leave
-  // an immutable version and candidate-specific tag behind, but never a
-  // partially coordinated latest/next graph.
+  // Begin channel reconciliation only after the complete graph exists with
+  // exact candidate integrity and provenance. npm moves package dist-tags one
+  // at a time, so a retry may need to finish a partially reconciled channel.
   const packages = [];
   for (const observation of observations) {
     const { artifact, published, status } = observation;

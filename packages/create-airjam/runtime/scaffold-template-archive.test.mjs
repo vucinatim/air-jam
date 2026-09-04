@@ -39,7 +39,7 @@ test("create-airjam reports the installed package version", () => {
     [path.join(packageRoot, "dist/index.js"), "--version"],
     { cwd: packageRoot, encoding: "utf8" },
   );
-  assert.equal(output.trim(), "0.9.2");
+  assert.equal(output.trim(), "0.9.3");
 });
 
 test("template archives are deterministic across source metadata and timezones", async () => {

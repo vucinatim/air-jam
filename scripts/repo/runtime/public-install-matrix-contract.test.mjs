@@ -179,7 +179,7 @@ const createCellEvidence = ({ cell, commit = "a".repeat(40) }) => ({
     cellTotalMs: { observed: 1, maximum: 2 },
   },
   proof: {
-    packageVersion: "0.9.2",
+    packageVersion: resolvePublicPackages()[0].version,
     registry: {
       published: resolvePublicPackages().map((entry) => ({
         name: entry.packageName,

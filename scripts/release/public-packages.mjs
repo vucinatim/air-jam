@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const rootDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -77,7 +77,10 @@ export const resolveUnifiedPublicVersion = () => {
 export const resolvePublicPackages = () =>
   PUBLIC_PACKAGE_DEFINITIONS.map(withResolvedReleaseMetadata);
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+) {
   const command = process.argv[2] ?? "resolve";
 
   if (command !== "resolve") {
