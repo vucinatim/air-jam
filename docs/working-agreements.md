@@ -280,6 +280,10 @@ work, Railway, and GitHub. Swarm coordination should begin with claims,
 idempotency, and visible ownership on existing surfaces; add a dedicated
 orchestrator only when observed contention or scheduling needs justify one.
 
+The detailed layers, operating loops, 1.0 boundary, and post-1.0 evolution are
+defined in the
+[Agent Operating Ecosystem Strategy](./strategy/agent-operating-ecosystem-strategy.md).
+
 ## Doc Roles
 
 ### `README.md`

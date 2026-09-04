@@ -84,14 +84,15 @@ manifest own implementation and proof; the document is not a parallel backlog.
 The Gate 4 authority boundary and future vocabulary for operational evidence,
 alerts, incidents, and runbooks is defined by:
 
-1. [contracts/operational-events-and-incidents-contract.md](./contracts/operational-events-and-incidents-contract.md)
-2. [contracts/operational-reliability-contract.md](./contracts/operational-reliability-contract.md)
-3. [contracts/operational-alert-issue-projection-contract.md](./contracts/operational-alert-issue-projection-contract.md)
-4. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
-5. [audits/v1-operations/operational-reliability-proof.md](./audits/v1-operations/operational-reliability-proof.md)
-6. [audits/v1-operations/operational-alert-issue-projection-proof.md](./audits/v1-operations/operational-alert-issue-projection-proof.md)
-7. [audits/v1-operations/production-rollout-incident-audit.md](./audits/v1-operations/production-rollout-incident-audit.md)
-8. the machine-readable catalogs, JSON Schemas, validators, and reliability
+1. [strategy/agent-operating-ecosystem-strategy.md](./strategy/agent-operating-ecosystem-strategy.md)
+2. [contracts/operational-events-and-incidents-contract.md](./contracts/operational-events-and-incidents-contract.md)
+3. [contracts/operational-reliability-contract.md](./contracts/operational-reliability-contract.md)
+4. [contracts/operational-alert-issue-projection-contract.md](./contracts/operational-alert-issue-projection-contract.md)
+5. [audits/v1-operations/operational-contract-proof.md](./audits/v1-operations/operational-contract-proof.md)
+6. [audits/v1-operations/operational-reliability-proof.md](./audits/v1-operations/operational-reliability-proof.md)
+7. [audits/v1-operations/operational-alert-issue-projection-proof.md](./audits/v1-operations/operational-alert-issue-projection-proof.md)
+8. [audits/v1-operations/production-rollout-incident-audit.md](./audits/v1-operations/production-rollout-incident-audit.md)
+9. the machine-readable catalogs, JSON Schemas, validators, and reliability
    operations exposed through
    `pnpm --silent run repo -- platform operations contract --help` and
    `pnpm --silent run repo -- platform operations reliability --help`
