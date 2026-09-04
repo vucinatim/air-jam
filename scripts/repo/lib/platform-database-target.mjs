@@ -29,6 +29,36 @@ const isLoopbackDatabaseUrl = (databaseUrl) => {
   return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname);
 };
 
+const resolveRailwayDatabaseUrl = (variables) => {
+  if (variables.DATABASE_PUBLIC_URL) return variables.DATABASE_PUBLIC_URL;
+
+  const proxyHost = variables.RAILWAY_TCP_PROXY_DOMAIN;
+  const proxyPort = variables.RAILWAY_TCP_PROXY_PORT;
+  const user = variables.PGUSER ?? variables.POSTGRES_USER;
+  const password = variables.PGPASSWORD ?? variables.POSTGRES_PASSWORD;
+  const database = variables.PGDATABASE ?? variables.POSTGRES_DB;
+  if (proxyHost && proxyPort && user && password && database) {
+    const url = new URL("postgresql://railway.invalid");
+    url.hostname = proxyHost;
+    url.port = proxyPort;
+    url.username = user;
+    url.password = password;
+    url.pathname = `/${encodeURIComponent(database)}`;
+    url.searchParams.set("sslmode", "require");
+    return url.toString();
+  }
+
+  const fallback = variables.DATABASE_URL;
+  if (!fallback) return null;
+  try {
+    return new URL(fallback).hostname.endsWith(".railway.internal")
+      ? null
+      : fallback;
+  } catch {
+    return null;
+  }
+};
+
 const runRailwayJson = (args, operation) => {
   const result = runCommandResult("railway", args, {
     stdio: ["ignore", "pipe", "pipe"],
@@ -91,10 +121,10 @@ export const resolveRailwayPlatformDatabaseTargetWithCli = (
     ],
     "database credential resolution",
   );
-  const databaseUrl = variables.DATABASE_PUBLIC_URL ?? variables.DATABASE_URL;
+  const databaseUrl = resolveRailwayDatabaseUrl(variables);
   if (!databaseUrl) {
     throw new Error(
-      `PostgreSQL in Railway environment ${environmentId} has no database URL.`,
+      `PostgreSQL in Railway environment ${environmentId} has no locally reachable database URL; create a temporary TCP proxy for an isolated operator target.`,
     );
   }
   return {
@@ -128,8 +158,7 @@ export const resolveRailwayPlatformDatabaseTarget = async (
         environmentId: environment.id,
         serviceId: service.serviceId,
       });
-      const databaseUrl =
-        variables.DATABASE_PUBLIC_URL ?? variables.DATABASE_URL;
+      const databaseUrl = resolveRailwayDatabaseUrl(variables);
       if (databaseUrl) {
         return {
           databaseUrl,

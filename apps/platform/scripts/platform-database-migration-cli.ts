@@ -23,9 +23,9 @@ import { and, sql as drizzleSql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { spawnSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
-  createReadStream,
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -42,6 +42,14 @@ import {
   digestCanonicalJson,
   readPlatformMigrationCatalog,
 } from "../../../scripts/platform/lib/platform-migration-catalog.mjs";
+import {
+  createPlatformDatabaseDump,
+  platformBackupContractVersion,
+  readPlatformDatabaseIdentity,
+  sha256File,
+  type PlatformBackupEvidence,
+  type PlatformDatabaseTarget,
+} from "./lib/platform-postgres-tooling";
 
 const contractVersion = 1 as const;
 const repoRoot = path.resolve(
@@ -53,29 +61,9 @@ const operationsRoot = path.join(
   repoRoot,
   ".airjam/operations/database-migrations",
 );
-const sha256 = (value: string | Buffer) =>
-  createHash("sha256").update(value).digest("hex");
-const sha256File = (filePath: string) =>
-  new Promise<string>((resolve, reject) => {
-    const hash = createHash("sha256");
-    const stream = createReadStream(filePath);
-    stream.on("error", reject);
-    stream.on("data", (chunk) => hash.update(chunk));
-    stream.on("end", () => resolve(hash.digest("hex")));
-  });
-
-type Target = {
-  kind: "local" | "railway" | "unclassified";
-  projectId: string | null;
-  environmentId: string | null;
-  environmentName: string | null;
-  databaseServiceId: string | null;
-  databaseServiceName: string | null;
-};
-
 type Operation = {
   command: "inspect" | "backup" | "plan" | "apply" | "verify";
-  target: Target;
+  target: PlatformDatabaseTarget;
   json?: boolean;
   output?: string;
   plan?: string;
@@ -109,17 +97,7 @@ type Catalog = {
 
 type Inspection = Awaited<ReturnType<typeof inspectDatabase>>;
 type DatabaseIdentity = Inspection["target"];
-type BackupEvidence = {
-  contractVersion: number;
-  createdAt: string;
-  targetFingerprint: string;
-  schemaHead: Inspection["observed"];
-  artifact: {
-    path: string;
-    sha256: string;
-    sizeBytes: number;
-    format: "postgres-custom";
-  };
+type CompletePlatformBackupEvidence = PlatformBackupEvidence & {
   manifestPath: string;
   manifestSha256: string;
 };
@@ -141,7 +119,7 @@ type MigrationPlan = {
     laneControls: OperationalLaneControlSnapshot[];
   };
   verificationChecks: string[];
-  backup: BackupEvidence;
+  backup: CompletePlatformBackupEvidence;
   digest: string;
 };
 type MigrationRun = NonNullable<
@@ -171,24 +149,6 @@ const sourceIdentity = () => ({
   clean: git("status", "--porcelain").length === 0,
 });
 
-const databaseIdentity = async (
-  client: ReturnType<typeof postgres>,
-  target: Target,
-) => {
-  const [row] = await client<
-    { database_name: string; server_version: string }[]
-  >`select current_database() as database_name, current_setting('server_version_num') as server_version`;
-  const publicIdentity = {
-    target,
-    databaseName: row.database_name,
-    serverVersion: row.server_version,
-  };
-  return {
-    ...publicIdentity,
-    fingerprint: sha256(canonicalJson(publicIdentity)),
-  };
-};
-
 const inspectDatabase = async ({
   client,
   catalog,
@@ -196,7 +156,7 @@ const inspectDatabase = async ({
 }: {
   client: ReturnType<typeof postgres>;
   catalog: Catalog;
-  target: Target;
+  target: PlatformDatabaseTarget;
 }) => {
   const [relation] = await client<{ relation: string | null }[]>`
     select to_regclass('drizzle.__drizzle_migrations')::text as relation
@@ -234,7 +194,7 @@ const inspectDatabase = async ({
     contractVersion,
     status,
     compatible: status === "ready",
-    target: await databaseIdentity(client, target),
+    target: await readPlatformDatabaseIdentity(client, target),
     source: {
       catalogDigest: catalog.digest,
       head: catalog.head,
@@ -255,61 +215,19 @@ const inspectDatabase = async ({
 const outputPath = (candidate: string | undefined, fallback: string) =>
   path.resolve(repoRoot, candidate ?? path.join(operationsRoot, fallback));
 
-const postgresConnectionEnvironment = (
-  databaseUrl: string,
-  { docker = false }: { docker?: boolean } = {},
-) => {
-  const parsed = new URL(databaseUrl);
-  if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
-    throw new Error("DATABASE_URL must use the postgres protocol.");
-  }
-  const hostname =
-    docker &&
-    ["localhost", "127.0.0.1", "::1", "[::1]"].includes(parsed.hostname)
-      ? "host.docker.internal"
-      : parsed.hostname;
-  const environment: Record<string, string> = {
-    PGHOST: hostname,
-    PGPORT: parsed.port || "5432",
-    PGDATABASE: decodeURIComponent(parsed.pathname.replace(/^\//u, "")),
-  };
-  if (parsed.username) environment.PGUSER = decodeURIComponent(parsed.username);
-  if (parsed.password)
-    environment.PGPASSWORD = decodeURIComponent(parsed.password);
-
-  const parameterEnvironmentNames: Record<string, string> = {
-    application_name: "PGAPPNAME",
-    channel_binding: "PGCHANNELBINDING",
-    connect_timeout: "PGCONNECT_TIMEOUT",
-    options: "PGOPTIONS",
-    sslcert: "PGSSLCERT",
-    sslkey: "PGSSLKEY",
-    sslmode: "PGSSLMODE",
-    sslrootcert: "PGSSLROOTCERT",
-    target_session_attrs: "PGTARGETSESSIONATTRS",
-  };
-  for (const [name, value] of parsed.searchParams) {
-    const environmentName = parameterEnvironmentNames[name];
-    if (!environmentName) {
-      throw new Error(
-        `DATABASE_URL uses unsupported PostgreSQL parameter ${name}.`,
-      );
-    }
-    environment[environmentName] = value;
-  }
-  return environment;
-};
-
 const runBackup = async ({
+  client,
   databaseUrl,
   inspection,
   output,
 }: {
+  client: ReturnType<typeof postgres>;
   databaseUrl: string;
   inspection: Inspection;
   output?: string;
-}): Promise<BackupEvidence> => {
-  mkdirSync(operationsRoot, { recursive: true });
+}): Promise<CompletePlatformBackupEvidence> => {
+  mkdirSync(operationsRoot, { recursive: true, mode: 0o700 });
+  chmodSync(operationsRoot, 0o700);
   const timestamp = new Date().toISOString().replaceAll(":", "-");
   const dumpPath = outputPath(
     output,
@@ -321,63 +239,20 @@ const runBackup = async ({
       "Backup output already exists; choose a new artifact path.",
     );
   }
-  const args = [
-    "--format=custom",
-    "--no-owner",
-    "--no-privileges",
-    "--file",
+  const recoverySnapshot = await createPlatformDatabaseDump({
+    client,
+    databaseUrl,
     dumpPath,
-  ];
-  const connectionEnvironment = postgresConnectionEnvironment(databaseUrl);
-  let result = spawnSync("pg_dump", args, {
-    encoding: "utf8",
-    env: { ...process.env, ...connectionEnvironment },
-    stdio: ["ignore", "pipe", "pipe"],
+    schemaHead: inspection.observed,
   });
-  const shouldUseDocker =
-    (result.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT" ||
-    result.stderr?.includes("server version mismatch") === true;
-  if (result.status !== 0 && shouldUseDocker) {
-    const dockerConnectionEnvironment = postgresConnectionEnvironment(
-      databaseUrl,
-      { docker: true },
-    );
-    result = spawnSync(
-      "docker",
-      [
-        "run",
-        "--rm",
-        "--add-host",
-        "host.docker.internal:host-gateway",
-        ...Object.keys(dockerConnectionEnvironment).flatMap((name) => [
-          "-e",
-          name,
-        ]),
-        "-v",
-        `${path.dirname(dumpPath)}:/backup`,
-        "postgres:17",
-        "pg_dump",
-        ...args.slice(0, -1),
-        "/backup/" + path.basename(dumpPath),
-      ],
-      {
-        encoding: "utf8",
-        env: { ...process.env, ...dockerConnectionEnvironment },
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
-  }
-  if (result.error) {
-    throw new Error(`pg_dump failed to start: ${result.error.message}`);
-  }
-  if (result.status !== 0) {
-    throw new Error(result.stderr?.trim() || "pg_dump failed.");
-  }
+  chmodSync(dumpPath, 0o600);
   const evidence = {
-    contractVersion,
+    contractVersion: platformBackupContractVersion,
     createdAt: new Date().toISOString(),
     targetFingerprint: inspection.target.fingerprint,
+    sourceDatabase: inspection.target,
     schemaHead: inspection.observed,
+    recoverySnapshot,
     artifact: {
       path: path.relative(repoRoot, dumpPath),
       sha256: await sha256File(dumpPath),
@@ -386,7 +261,10 @@ const runBackup = async ({
     },
   };
   const manifestPath = `${dumpPath}.json`;
-  writeFileSync(manifestPath, `${canonicalJson(evidence)}\n`, { flag: "wx" });
+  writeFileSync(manifestPath, `${canonicalJson(evidence)}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
   return {
     ...evidence,
     manifestPath: path.relative(repoRoot, manifestPath),
@@ -415,7 +293,7 @@ const readPlan = (filePath: string) => {
   return { plan, absolutePath, digest: calculated };
 };
 
-const validateBackup = async (backup: BackupEvidence) => {
+const validateBackup = async (backup: CompletePlatformBackupEvidence) => {
   const manifestPath = path.resolve(repoRoot, backup.manifestPath);
   const artifactPath = path.resolve(repoRoot, backup.artifact.path);
   if (!existsSync(manifestPath) || !existsSync(artifactPath)) {
@@ -463,11 +341,13 @@ const verifyChecks = async (
 
 const writePlan = async ({
   catalog,
+  client,
   databaseUrl,
   operation,
   inspection,
 }: {
   catalog: Catalog;
+  client: ReturnType<typeof postgres>;
   databaseUrl: string;
   operation: Operation;
   inspection: Inspection;
@@ -512,7 +392,11 @@ const writePlan = async ({
   const laneControls = await Promise.all(
     affectedLanes.map((lane) => getOperationalLaneControl({ lane })),
   );
-  const backup = await runBackup({ databaseUrl, inspection });
+  const backup = await runBackup({
+    client,
+    databaseUrl,
+    inspection,
+  });
   const unsigned = {
     contractVersion,
     command: "platform.database.migration" as const,
@@ -1162,6 +1046,7 @@ const main = async () => {
         target: operation.target,
       });
       result = await runBackup({
+        client,
         databaseUrl: process.env.DATABASE_URL,
         inspection,
         output: operation.output,
@@ -1175,6 +1060,7 @@ const main = async () => {
       });
       result = await writePlan({
         catalog,
+        client,
         databaseUrl: process.env.DATABASE_URL,
         operation,
         inspection,

@@ -93,6 +93,55 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
     "--json",
   ]);
 
+  const resolvedFromProxy = resolveRailwayPlatformDatabaseTargetWithCli(
+    { environmentId: "environment-2", projectId: "project-1" },
+    (_args, operation) =>
+      operation === "service discovery"
+        ? [
+            {
+              id: "service-postgres-2",
+              name: "Postgres",
+              source: { image: "postgres:18" },
+            },
+          ]
+        : {
+            DATABASE_URL: "postgresql://private-connection",
+            PGUSER: "recovery user",
+            PGPASSWORD: "secret/value",
+            PGDATABASE: "recovery database",
+            RAILWAY_TCP_PROXY_DOMAIN: "proxy.example.test",
+            RAILWAY_TCP_PROXY_PORT: "12345",
+          },
+  );
+  const proxyUrl = new URL(resolvedFromProxy.databaseUrl);
+  assert.equal(proxyUrl.hostname, "proxy.example.test");
+  assert.equal(proxyUrl.port, "12345");
+  assert.equal(proxyUrl.username, "recovery%20user");
+  assert.equal(proxyUrl.password, "secret%2Fvalue");
+  assert.equal(proxyUrl.pathname, "/recovery%20database");
+  assert.equal(proxyUrl.searchParams.get("sslmode"), "require");
+
+  assert.throws(
+    () =>
+      resolveRailwayPlatformDatabaseTargetWithCli(
+        { environmentId: "environment-private", projectId: "project-1" },
+        (_args, operation) =>
+          operation === "service discovery"
+            ? [
+                {
+                  id: "service-postgres-private",
+                  name: "Postgres",
+                  source: { image: "postgres:18" },
+                },
+              ]
+            : {
+                DATABASE_URL:
+                  "postgresql://railway:secret@postgres.railway.internal:5432/railway",
+              },
+      ),
+    /temporary TCP proxy/u,
+  );
+
   const fallback = await resolveRailwayPlatformDatabaseTarget(
     { environmentId: "environment-1", projectId: "project-1" },
     {

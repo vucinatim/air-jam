@@ -260,6 +260,124 @@ test("waitForDeployment returns success once the deployment reaches a terminal s
   assert.equal(calls, 2);
 });
 
+test("Railway recovery helpers expose backup policy and exact deployment actions", async () => {
+  const observed = [];
+  const client = createRailwayApiClient({
+    token: "token",
+    fetchImpl: createMockFetch((body) => {
+      observed.push(body);
+      if (body.query.includes("RailwayVolumeBackups")) {
+        return {
+          data: {
+            volumeInstanceBackupList: [
+              {
+                id: "backup-1",
+                name: "daily",
+                createdAt: "2026-09-04T00:00:00.000Z",
+                expiresAt: "2026-09-10T00:00:00.000Z",
+                usedMB: 1,
+                referencedMB: 2,
+              },
+            ],
+          },
+        };
+      }
+      if (body.query.includes("RailwayVolumeBackupSchedules")) {
+        return {
+          data: {
+            volumeInstanceBackupScheduleList: [
+              {
+                id: "schedule-1",
+                name: "daily",
+                cron: "0 0 * * *",
+                kind: "DAILY",
+                retentionSeconds: 518400,
+                createdAt: "2026-09-04T00:00:00.000Z",
+              },
+            ],
+          },
+        };
+      }
+      if (body.query.includes("RailwayVolumeBackupScheduleUpdate")) {
+        return { data: { volumeInstanceBackupScheduleUpdate: true } };
+      }
+      if (body.query.includes("RailwayDeployments")) {
+        return {
+          data: {
+            deployments: {
+              edges: [
+                {
+                  node: {
+                    id: "deployment-old",
+                    status: "REMOVED",
+                    serviceId: "service-1",
+                    environmentId: "environment-1",
+                    meta: { commitHash: "abc123" },
+                    canRedeploy: true,
+                    canRollback: true,
+                  },
+                },
+              ],
+            },
+          },
+        };
+      }
+      if (body.query.includes("RailwayDeploymentRollback")) {
+        return {
+          data: {
+            deploymentRollback: {
+              id: "deployment-new",
+              status: "INITIALIZING",
+              serviceId: "service-1",
+              environmentId: "environment-1",
+              meta: { commitHash: "abc123" },
+              canRedeploy: false,
+              canRollback: false,
+            },
+          },
+        };
+      }
+      throw new Error(`Unexpected query: ${body.query}`);
+    }),
+  });
+
+  assert.equal(
+    (await client.listVolumeBackups({ volumeInstanceId: "volume-1" }))[0].id,
+    "backup-1",
+  );
+  assert.equal(
+    (
+      await client.listVolumeBackupSchedules({
+        volumeInstanceId: "volume-1",
+      })
+    )[0].kind,
+    "DAILY",
+  );
+  assert.equal(
+    await client.updateVolumeBackupSchedules({
+      volumeInstanceId: "volume-1",
+      kinds: ["DAILY", "WEEKLY"],
+    }),
+    true,
+  );
+  const deployments = await client.listDeployments({
+    projectId: "project-1",
+    environmentId: "environment-1",
+    serviceId: "service-1",
+  });
+  assert.equal(deployments[0].canRollback, true);
+  assert.equal(deployments[0].meta.commitHash, "abc123");
+  const rollback = await client.rollbackDeployment({
+    deploymentId: "deployment-old",
+  });
+  assert.equal(rollback.id, "deployment-new");
+  assert.deepEqual(observed[2].variables, {
+    volumeInstanceId: "volume-1",
+    kinds: ["DAILY", "WEEKLY"],
+  });
+  assert.deepEqual(observed[4].variables, { id: "deployment-old" });
+});
+
 test("Railway API requests have an absolute aborting deadline", async () => {
   let aborted = false;
   const client = createRailwayApiClient({
