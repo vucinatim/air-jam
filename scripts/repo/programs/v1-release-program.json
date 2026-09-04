@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-04T00:06:46.000Z",
+  "updatedAt": "2026-09-04T00:31:08.711Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -661,7 +661,8 @@
         "agentHoursMax": 12
       },
       "evidenceRequirements": [
-        "one confirmed actionable alert key creates, updates, reopens, and resolves one maintained issue with linked source, recovery, and failed-verification evidence"
+        "one confirmed actionable alert key creates, updates, reopens, and resolves one maintained issue with linked source, recovery, and failed-verification evidence",
+        "a cold-start local agent discovers the relevant commands from the maintained issue and correlates current Air Jam, Railway, GitHub, and local truth without undocumented operator knowledge or secret-bearing payload copies"
       ]
     },
     {
@@ -1075,11 +1076,13 @@
         "agentHoursMax": 14
       },
       "evidenceRequirements": [
-        "redaction, normalized failure code, database-time chronology, per-check isolation, and fenced SLO regression tests"
+        "redaction and normalized failure-code regression tests cover nested adversarial untrusted payloads",
+        "database-time chronology, per-check isolation, and fenced concurrent SLO evaluation are proven without another coordination service",
+        "the canonical agent machine surface explains exact correlation identities, partial-check progress, and stale-evaluation rejection through stable redacted JSON"
       ],
       "status": "pending",
-      "updatedAt": "2026-09-03T23:40:25.853Z",
-      "note": "Agent-autonomy and minimum Gate 4 scope are now defined; reliability implementation remains unstarted and ready to claim independently."
+      "updatedAt": "2026-09-04T00:31:08.711Z",
+      "note": "Detailed implementation and cold-start agent proof are now canonical; reliability implementation remains unstarted and dependency-ready."
     },
     {
       "id": "G3-07",
