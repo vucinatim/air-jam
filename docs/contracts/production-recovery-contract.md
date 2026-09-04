@@ -145,6 +145,9 @@ Railway-generated rollback deployments may omit the runtime Git revision even
 though their provider deployment record retains it. The exact deployment ID is
 therefore the mandatory application identity fence; a reported runtime revision
 is an additional consistency check, not a prerequisite for rollback health.
+The current check intentionally uses one fail-closed readiness read. Before a
+service scales to multiple concurrently routable replicas, this verifier must
+gain a bounded convergence policy that still requires the exact deployment ID.
 
 Recovery time is measured from provider mutation through application
 verification. After a positive provider acknowledgement, every attribution,

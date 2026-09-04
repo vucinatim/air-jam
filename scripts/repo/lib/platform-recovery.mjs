@@ -348,7 +348,9 @@ const fetchHealthEvidence = async ({
     return {
       passed: false,
       expectedDeploymentId,
+      reportedDeploymentId: null,
       expectedRevision,
+      reportedRevision: null,
       error: error instanceof Error ? error.message : String(error),
     };
   } finally {

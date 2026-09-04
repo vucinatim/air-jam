@@ -541,7 +541,7 @@ test("deployment rollback preserves a post-acceptance provider read failure", as
   assert.match(result.escalationBundle.error, /provider read unavailable/u);
 });
 
-test("deployment rollback returns an escalation bundle when health verification fails", async () => {
+test("deployment rollback fails closed for unhealthy or mismatched readiness", async () => {
   const current = deployment({
     id: "deployment-current",
     status: "SUCCESS",
@@ -553,58 +553,93 @@ test("deployment rollback returns an escalation bundle when health verification 
     status: "SUCCESS",
     revision: "revision-old",
   });
-  let currentEnvironment = environment(current);
-  const client = {
-    getEnvironment: async () => currentEnvironment,
-    getDeployment: async () => target,
-    rollbackDeployment: async () => {
-      currentEnvironment = environment(rolledBack);
-      return true;
-    },
-    waitForServiceDeployment: async () => ({
-      deployment: rolledBack,
-      attempt: 1,
-      matched: true,
-    }),
-    waitForDeployment: async () => ({ deployment: rolledBack, ok: true }),
-  };
-  const result = await rollbackPlatformDeployment(
+  const cases = [
     {
-      projectId: "project-airjam",
-      environmentId: "environment-production",
-      serviceId: "service-platform",
-      currentDeploymentId: "deployment-current",
-      targetDeploymentId: "deployment-old",
-      healthUrl: "https://www.airjam.io/api/readiness",
-      actor: "agent:test",
-      reason: "Prove failed application verification.",
-      apply: true,
+      label: "unhealthy readiness",
+      responseOk: false,
+      status: 503,
+      body: {
+        ok: false,
+        deployment: {
+          deploymentId: "deployment-rollback",
+          revision: "revision-old",
+        },
+      },
     },
     {
-      createClient: () => client,
-      fetchImpl: async () => ({
+      label: "wrong deployment identity",
+      responseOk: true,
+      status: 200,
+      body: {
         ok: true,
-        status: 200,
-        headers: { get: () => "application/json" },
-        json: async () => ({
-          ok: true,
-          deployment: {
-            deploymentId: "deployment-unrelated",
-            revision: "revision-old",
-          },
-        }),
-      }),
+        deployment: {
+          deploymentId: "deployment-unrelated",
+          revision: "revision-old",
+        },
+      },
     },
-  );
-  assert.equal(result.status, "verification_failed");
-  assert.equal(result.checks.at(-1).id, "application.health");
-  assert.equal(result.checks.at(-1).passed, false);
-  assert.equal(
-    result.escalationBundle.kind,
-    "deployment_rollback_checks_failed",
-  );
-  assert.equal(
-    result.escalationBundle.rollbackDeploymentId,
-    "deployment-rollback",
-  );
+    {
+      label: "wrong reported revision",
+      responseOk: true,
+      status: 200,
+      body: {
+        ok: true,
+        deployment: {
+          deploymentId: "deployment-rollback",
+          revision: "revision-unrelated",
+        },
+      },
+    },
+  ];
+
+  for (const healthCase of cases) {
+    let currentEnvironment = environment(current);
+    const client = {
+      getEnvironment: async () => currentEnvironment,
+      getDeployment: async () => target,
+      rollbackDeployment: async () => {
+        currentEnvironment = environment(rolledBack);
+        return true;
+      },
+      waitForServiceDeployment: async () => ({
+        deployment: rolledBack,
+        attempt: 1,
+        matched: true,
+      }),
+      waitForDeployment: async () => ({ deployment: rolledBack, ok: true }),
+    };
+    const result = await rollbackPlatformDeployment(
+      {
+        projectId: "project-airjam",
+        environmentId: "environment-production",
+        serviceId: "service-platform",
+        currentDeploymentId: "deployment-current",
+        targetDeploymentId: "deployment-old",
+        healthUrl: "https://www.airjam.io/api/readiness",
+        actor: "agent:test",
+        reason: "Prove failed application verification.",
+        apply: true,
+      },
+      {
+        createClient: () => client,
+        fetchImpl: async () => ({
+          ok: healthCase.responseOk,
+          status: healthCase.status,
+          headers: { get: () => "application/json" },
+          json: async () => healthCase.body,
+        }),
+      },
+    );
+    assert.equal(result.status, "verification_failed", healthCase.label);
+    assert.equal(result.checks.at(-1).id, "application.health");
+    assert.equal(result.checks.at(-1).passed, false, healthCase.label);
+    assert.equal(
+      result.escalationBundle.kind,
+      "deployment_rollback_checks_failed",
+    );
+    assert.equal(
+      result.escalationBundle.rollbackDeploymentId,
+      "deployment-rollback",
+    );
+  }
 });
