@@ -12,6 +12,8 @@ Related sources:
 5. [Production Control Contract](../contracts/production-control-contract.md)
 6. [Air Jam 1.0 Release Roadmap](../plans/v1-release-roadmap-plan.md)
 7. [Air Jam 1.0 Release Execution Plan](../plans/v1-release-execution-plan.md)
+8. [External Agent Golden Path Contract](../contracts/external-agent-golden-path-contract.md)
+9. [Agent Session Contract](../contracts/agent-session-contract.md)
 
 ## Purpose
 
@@ -27,6 +29,12 @@ This document defines that ecosystem, the minimum 1.0 substrate, the intended
 long-term loops, and the tests for deciding when another mechanism is actually
 needed. It does not replace the 1.0 readiness manifest or create a second work
 tracker.
+
+This strategy governs agents operating and improving the Air Jam product across
+the repo and its providers. Agents authoring games through Air Jam's public
+harness remain governed by the external-agent golden-path and agent-session
+contracts; both lanes share the same principle that important behavior must be
+machine-operable rather than UI-only.
 
 ## Core Position
 
@@ -80,15 +88,12 @@ script.
 
 ### Constrain effects, not thought
 
-Read access should be broad, fast, structured, and redacted. Production effects
-become more explicit as blast radius grows:
-
-| Effect class                 | Examples                                                                                             | Required boundary                                                                              |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Observe                      | health, logs, alerts, deploys, costs, tests                                                          | authenticated read plus redaction where needed                                                 |
-| Build and prove              | branch edits, tests, isolated staging, pull request                                                  | normal branch and review boundary                                                              |
-| Reversible production action | pause a queue, retry one job, restart or roll back one exact deployment                              | exact target, bounded scope, idempotency where applicable, verification, stop or rollback path |
-| Material authority           | publish packages, promote production code, delete data, change secrets or auth policy, raise budgets | explicit maintainer approval and durable evidence                                              |
+Read access should be broad, fast, structured, and redacted. The four authority
+bands and their exact requirements live only in the
+[working-agreements rubric](../working-agreements.md#agent-freedom-and-operational-authority).
+In this ecosystem, its examples span health, logs, alerts, deployments, cost,
+local branch work, isolated staging, exact reversible recovery, publication,
+data deletion, secrets, auth policy, and budget changes.
 
 An urgent incident may shorten waiting time. It does not weaken artifact,
 review, identity, or verification requirements.
@@ -122,9 +127,9 @@ A generic remediation DSL, arbitrary command executor, centralized runbook
 engine, or dedicated swarm scheduler is not a prerequisite. Add one only after
 multiple observed workflows need the same missing invariant.
 
-## The Six Layers
+## The Five Layers
 
-### 1. Sensors
+### 1. Sensors and orientation
 
 Agents need both user-visible symptoms and authoritative internal state.
 
@@ -144,8 +149,6 @@ A sensor is complete when an agent can discover it, query it without UI
 scraping, understand freshness and authority, and correlate it to the relevant
 environment, release, deployment, room, job, or commit.
 
-### 2. Orientation
-
 A cold-start agent should be able to answer these questions quickly:
 
 1. Which environment and revision am I looking at?
@@ -158,11 +161,15 @@ A cold-start agent should be able to answer these questions quickly:
 
 For 1.0, existing repo CLI commands, GitHub issues, and provider reads may answer
 those questions independently. If repeated investigations show that discovery
-cost is still high, add one thin `operator briefing` read model that links those
+cost is still high, add one thin operator-briefing read model that links those
 sources. It must not become a second monitoring database or manufacture a
 single health verdict from incomparable evidence.
 
-### 3. Durable shared memory
+The concrete question-to-source map remains in the execution plan's
+[Sensory Sources](../plans/v1-release-execution-plan.md#sensory-sources) table.
+This strategy explains the layer without becoming a second sensor inventory.
+
+### 2. Shared memory
 
 Use the smallest existing durable surface for each kind of memory:
 
@@ -177,7 +184,7 @@ Use the smallest existing durable surface for each kind of memory:
 Chat transcripts and local agent context are useful working memory but are not
 the only retained authority for a material decision or completed proof.
 
-### 4. Hands
+### 3. Hands
 
 An operational capability should expose a complete, focused machine lifecycle:
 
@@ -192,7 +199,7 @@ An operational capability should expose a complete, focused machine lifecycle:
 Stable JSON belongs on reads. Destructive or costly writes stay explicit but
 automatable. UI adapters remain optional thin clients of the same services.
 
-### 5. Agents and collaboration
+### 4. Agents and collaboration
 
 Agent roles are useful prompts and ownership boundaries, not permanent services.
 A loop may use one agent for a small incident or several for disjoint work:
@@ -213,7 +220,7 @@ where effects could collide.
 Do not require a fixed number of agents, a fixed role graph, or a central planner
 for every event.
 
-### 6. Effect governance
+### 5. Effect boundaries
 
 Every production-capable tool should make the following available when relevant:
 
@@ -333,8 +340,8 @@ product management.
 4. focused CLI/MCP operations for existing supported lifecycles
 5. safe exact rollback, restore, replay, pause, and maintenance paths where the
    current product owns them
-6. activation, retention, capacity, degradation, security, privacy, and
-   supply-chain proof from the canonical 1.0 roadmap
+6. capacity, degradation, security, privacy, and supply-chain proof from the
+   canonical 1.0 roadmap
 7. reviewed exact-artifact delivery and terminal production verification
 8. one cold-start proof that an agent can diagnose from durable evidence without
    private maintainer knowledge
@@ -352,32 +359,28 @@ product management.
 
 ## Evolution After 1.0
 
-Grow autonomy from observed operational evidence:
+The roadmap's
+[Autonomy Ladder](../plans/v1-release-roadmap-plan.md#autonomy-ladder) is the sole
+progression vocabulary. 1.0 requires Levels 1 and 2 end to end and may prove
+focused Level 3 and Level 4 actions inside Gate 3. It does not require Level 5
+production promotion.
 
-### Stage A: assisted observation
+After 1.0, grow each level from observed operational evidence:
 
-Periodic or event-triggered agents read current signals, maintain actionable
-issues, diagnose, and recommend. Humans still authorize material effects.
+1. broaden bounded healing only for individually proven reversible effects;
+   every effect verifies itself and stops, rolls back, or escalates on
+   uncertainty
+2. advance Level 5 repair delivery by letting agents reproduce recurring
+   defects, add regression tests, produce reviewed pull requests, and validate
+   previews; production promotion stays independently governed until repeated
+   evidence justifies a narrower automatic lane
+3. add coordination infrastructure only if real concurrent agents repeatedly
+   need something GitHub, readiness claims, database leases, and provider
+   identities cannot express; candidate needs include event wakeups, work
+   leasing, dependency scheduling, or verification assignment
 
-### Stage B: bounded recovery
-
-Allow automatic execution only for individually proven reversible actions such
-as a narrowly targeted retry, pause, restart, or rollback. Each action verifies
-itself and stops or escalates on uncertainty.
-
-### Stage C: autonomous repair delivery
-
-Agents reproduce recurring defects, add regression tests, produce reviewed pull
-requests, and validate previews. Production promotion remains independently
-governed until repeated evidence justifies a narrower automatic lane.
-
-### Stage D: earned orchestration
-
-Add coordination infrastructure only if real concurrent agents repeatedly need
-something GitHub, readiness claims, database leases, and provider identities
-cannot express. Candidate needs include event wakeups, work leasing, dependency
-scheduling, or verification assignment. Implement the smallest missing
-primitive, not an all-purpose agent platform.
+Earned orchestration is not another autonomy level. It is an implementation
+choice made only when existing coordination surfaces stop being sufficient.
 
 ## Tests For New Complexity
 
