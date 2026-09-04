@@ -316,6 +316,7 @@ export const setPlatformBackupSchedule = async (
 const fetchHealthEvidence = async ({
   healthUrl,
   fetchImpl,
+  expectedDeploymentId,
   expectedRevision,
 }) => {
   const controller = new AbortController();
@@ -326,21 +327,30 @@ const fetchHealthEvidence = async ({
     const body = contentType.includes("application/json")
       ? await response.json()
       : { text: (await response.text()).slice(0, 500) };
+    const reportedDeploymentId = body?.deployment?.deploymentId ?? null;
     const reportedRevision = body?.deployment?.revision ?? null;
     return {
       passed:
         response.ok &&
         body?.ok !== false &&
-        (!expectedRevision || reportedRevision === expectedRevision),
+        reportedDeploymentId === expectedDeploymentId &&
+        (!expectedRevision ||
+          !reportedRevision ||
+          reportedRevision === expectedRevision),
       status: response.status,
       reportedOk: body?.ok ?? null,
+      expectedDeploymentId,
+      reportedDeploymentId,
       expectedRevision,
       reportedRevision,
     };
   } catch (error) {
     return {
       passed: false,
+      expectedDeploymentId,
+      reportedDeploymentId: null,
       expectedRevision,
+      reportedRevision: null,
       error: error instanceof Error ? error.message : String(error),
     };
   } finally {
@@ -593,6 +603,7 @@ export const rollbackPlatformDeployment = async (
     ? await fetchHealthEvidence({
         healthUrl: verificationUrl,
         fetchImpl,
+        expectedDeploymentId: rollback.id,
         expectedRevision,
       })
     : { passed: false, skipped: true, reason: "deployment_not_healthy" };
