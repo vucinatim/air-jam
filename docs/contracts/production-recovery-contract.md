@@ -126,8 +126,12 @@ requires:
 5. an independent public readiness URL
 6. actor, reason, and explicit `--apply`
 
-After Railway creates the rollback deployment, the operator waits for terminal
-provider state and independently verifies:
+Railway acknowledges rollback with a Boolean rather than returning the new
+deployment identity. After positive acknowledgement, the operator polls the
+exact service until a new current deployment matches the selected target's Git
+revision, or its image digest when no revision exists. It tolerates transient
+provider read errors inside that bounded attribution window, then waits for
+terminal provider state and independently verifies:
 
 1. the rollback deployment succeeded
 2. it became the service's current deployment
@@ -135,9 +139,12 @@ provider state and independently verifies:
 4. application readiness is healthy and reports that same revision
 
 Recovery time is measured from provider mutation through application
-verification. Any failed check returns an escalation bundle and requires a
-fresh inspection before another exact action. It never silently selects an
-older deployment or widens the target.
+verification. After a positive provider acknowledgement, every attribution,
+polling, provider-read, or verification failure returns an escalation bundle
+and requires a fresh inspection before another exact action. Ambiguous mutation
+responses are also preserved as structured evidence because a rollback may be
+in flight. The operator never silently selects an unrelated deployment, an
+older deployment, or a wider target.
 
 Deployment rollback is a reversible provider action that a local agent may use
 when incident evidence justifies it. Restoring production data remains a

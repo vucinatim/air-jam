@@ -887,30 +887,39 @@ export const createRailwayApiClient = ({
       `,
       variables: { id: deploymentId },
     });
-    return data.deploymentRollback === true;
+    return data.deploymentRollback;
   };
 
-  const waitForServiceDeploymentChange = async ({
+  const waitForServiceDeployment = async ({
     environmentId,
     serviceId,
-    previousDeploymentId,
+    matches,
     retries = 180,
     retryDelayMs = 2000,
   }) => {
     let lastDeployment = null;
+    let lastError = null;
     for (let attempt = 1; attempt <= retries; attempt += 1) {
-      const environment = await getEnvironment(environmentId);
-      const service = environment.serviceInstances.find(
-        (candidate) => candidate.serviceId === serviceId,
-      );
-      if (!service) {
-        throw new Error(
-          `Service ${serviceId} is not present in Railway environment ${environmentId}.`,
+      try {
+        const environment = await getEnvironment(environmentId);
+        const service = environment.serviceInstances.find(
+          (candidate) => candidate.serviceId === serviceId,
         );
-      }
-      lastDeployment = service.latestDeployment;
-      if (lastDeployment?.id && lastDeployment.id !== previousDeploymentId) {
-        return { deployment: lastDeployment, attempt, changed: true };
+        if (!service) {
+          return {
+            deployment: lastDeployment,
+            attempt,
+            matched: false,
+            error: `Service ${serviceId} is not present in Railway environment ${environmentId}.`,
+          };
+        }
+        lastDeployment = service.latestDeployment;
+        if (lastDeployment && matches(lastDeployment)) {
+          return { deployment: lastDeployment, attempt, matched: true };
+        }
+        lastError = null;
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
       }
       if (attempt < retries) {
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
@@ -919,8 +928,9 @@ export const createRailwayApiClient = ({
     return {
       deployment: lastDeployment,
       attempt: retries,
-      changed: false,
+      matched: false,
       timeout: true,
+      ...(lastError ? { error: lastError } : {}),
     };
   };
 
@@ -1025,7 +1035,7 @@ export const createRailwayApiClient = ({
     getDeployment,
     listDeployments,
     rollbackDeployment,
-    waitForServiceDeploymentChange,
+    waitForServiceDeployment,
     waitForDeployment,
     resolveServicePublicDomain,
     waitForServicePublicDomain,
