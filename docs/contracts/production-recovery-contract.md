@@ -136,7 +136,15 @@ terminal provider state and independently verifies:
 1. the rollback deployment succeeded
 2. it became the service's current deployment
 3. its Git revision matches the selected target revision when one exists
-4. application readiness is healthy and reports that same revision
+4. application readiness is healthy and reports the exact new rollback
+   deployment ID
+5. when application readiness exposes a Git revision, it matches the
+   provider-attested target revision
+
+Railway-generated rollback deployments may omit the runtime Git revision even
+though their provider deployment record retains it. The exact deployment ID is
+therefore the mandatory application identity fence; a reported runtime revision
+is an additional consistency check, not a prerequisite for rollback health.
 
 Recovery time is measured from provider mutation through application
 verification. After a positive provider acknowledgement, every attribution,

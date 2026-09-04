@@ -325,7 +325,10 @@ test("deployment rollback is exact-target fenced and independently verified", as
         headers: { get: () => "application/json" },
         json: async () => ({
           ok: true,
-          deployment: { revision: "revision-old" },
+          deployment: {
+            deploymentId: "deployment-rollback",
+            revision: null,
+          },
         }),
       }),
     },
@@ -580,12 +583,15 @@ test("deployment rollback returns an escalation bundle when health verification 
     {
       createClient: () => client,
       fetchImpl: async () => ({
-        ok: false,
-        status: 503,
+        ok: true,
+        status: 200,
         headers: { get: () => "application/json" },
         json: async () => ({
-          ok: false,
-          deployment: { revision: "revision-old" },
+          ok: true,
+          deployment: {
+            deploymentId: "deployment-unrelated",
+            revision: "revision-old",
+          },
         }),
       }),
     },
