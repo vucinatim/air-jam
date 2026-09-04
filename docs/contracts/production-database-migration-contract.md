@@ -50,6 +50,11 @@ Every new migration declares at least one independent `table`, `index`, or
 `constraint` verification check. Historical migrations are recognized but
 cannot be introduced as pending work on a production plan.
 
+Policy-governed journal entries must also have a timestamp newer than the
+entry immediately before them. Inspection distinguishes migrations that are
+merely pending from a historical gap that Drizzle can no longer apply; a gap
+is drift, so planning fails before backup, lane control, or schema mutation.
+
 ## Canonical Lifecycle
 
 The repo CLI is the only normal operator surface:
@@ -74,6 +79,10 @@ The lifecycle is:
 5. `verify` independently checks the database again and, for production, calls
    the deployed `/api/readiness` endpoint and requires the exact planned Git
    revision. Only then does it restore lanes that the migration paused.
+
+Apply and verify share one PostgreSQL advisory lifecycle lock. This prevents
+concurrent operators from applying the same catalog or restoring the same lane
+snapshot twice.
 
 The plan and backup are local operational artifacts under
 `.airjam/operations/database-migrations` by default. They may contain database
@@ -124,6 +133,11 @@ plan, backup evidence, drain evidence, actor, reason, and verification result.
 backup returns the artifact path, SHA-256, size, target fingerprint, source
 schema head, and manifest digest. Producing a backup does not prove restore;
 isolated restore and recovery rehearsal belong to Gate `G3-03`.
+
+Backup artifacts are hashed as streams so database size does not become an
+operator-memory ceiling. Connection credentials are supplied to `pg_dump` or
+its version-matched Docker fallback through libpq environment variables, never
+process arguments.
 
 ## Production Sequence
 

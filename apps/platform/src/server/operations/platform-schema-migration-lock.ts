@@ -3,9 +3,9 @@ import postgres from "postgres";
 
 type PlatformDatabaseClient = ReturnType<typeof postgres>;
 
-const migrationApplyLockScope = "airjam:platform-schema-migration-apply";
+const migrationLifecycleLockScope = "airjam:platform-schema-migration";
 
-export const acquirePlatformSchemaMigrationApplyLock = async ({
+export const acquirePlatformSchemaMigrationLock = async ({
   client = platformDatabaseClient,
 }: {
   client?: PlatformDatabaseClient;
@@ -14,11 +14,11 @@ export const acquirePlatformSchemaMigrationApplyLock = async ({
   let acquired = false;
   try {
     const [row] = await connection<{ acquired: boolean }[]>`
-      select pg_try_advisory_lock(hashtext(${migrationApplyLockScope})) as acquired
+      select pg_try_advisory_lock(hashtext(${migrationLifecycleLockScope})) as acquired
     `;
     if (!row?.acquired) {
       throw new Error(
-        "Another platform schema migration apply is in progress.",
+        "Another platform schema migration lifecycle operation is in progress.",
       );
     }
     acquired = true;
@@ -32,7 +32,7 @@ export const acquirePlatformSchemaMigrationApplyLock = async ({
     acquired = false;
     try {
       await connection`
-        select pg_advisory_unlock(hashtext(${migrationApplyLockScope}))
+        select pg_advisory_unlock(hashtext(${migrationLifecycleLockScope}))
       `;
     } finally {
       await connection.release();

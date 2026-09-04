@@ -90,4 +90,13 @@ test("new migrations require explicit mode and verification policy", () => {
   });
   assert.deepEqual(catalog.head.affectedLanes, ["release_processing"]);
   assert.deepEqual(catalog.head.verificationChecks, ["table:policy_required"]);
+
+  const journalPath = path.join(root, "meta/_journal.json");
+  const journal = JSON.parse(fs.readFileSync(journalPath, "utf8"));
+  journal.entries[35].when = 100;
+  fs.writeFileSync(journalPath, JSON.stringify(journal));
+  assert.throws(
+    () => readPlatformMigrationCatalog({ migrationsRoot: root }),
+    /must have a newer timestamp than the preceding journal entry/u,
+  );
 });

@@ -1,6 +1,6 @@
 import { db, platformDatabaseClient } from "@/db";
 import { operationalJobs } from "@/db/schema";
-import { acquirePlatformSchemaMigrationApplyLock } from "@/server/operations/platform-schema-migration-lock";
+import { acquirePlatformSchemaMigrationLock } from "@/server/operations/platform-schema-migration-lock";
 import {
   beginPlatformSchemaMigrationRun,
   getPlatformSchemaMigrationRun,
@@ -24,7 +24,14 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
@@ -48,6 +55,14 @@ const operationsRoot = path.join(
 );
 const sha256 = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
+const sha256File = (filePath: string) =>
+  new Promise<string>((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = createReadStream(filePath);
+    stream.on("error", reject);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolve(hash.digest("hex")));
+  });
 
 type Target = {
   kind: "local" | "railway" | "unclassified";
@@ -205,11 +220,14 @@ const inspectDatabase = async ({
     (entry) => !appliedTimestamps.has(String(entry.createdAt)),
   );
   const observed = applied.at(-1) ?? null;
+  const blockedPending = observed
+    ? pending.filter((entry) => entry.createdAt <= Number(observed.created_at))
+    : [];
   let status: "ready" | "behind" | "missing_journal" | "drifted" | "ahead";
   if (!relation?.relation) status = "missing_journal";
-  else if (unknown.length > 0) status = "drifted";
   else if (observed && Number(observed.created_at) > catalog.head.createdAt)
     status = "ahead";
+  else if (unknown.length > 0 || blockedPending.length > 0) status = "drifted";
   else if (pending.length > 0) status = "behind";
   else status = "ready";
   return {
@@ -226,6 +244,7 @@ const inspectDatabase = async ({
       : null,
     appliedCount: applied.length,
     pending,
+    blockedPending,
     unknown: unknown.map((row) => ({
       createdAt: Number(row.created_at),
       hash: row.hash,
@@ -315,10 +334,10 @@ const runBackup = async ({
     env: { ...process.env, ...connectionEnvironment },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  if (
-    result.status !== 0 &&
-    result.stderr.includes("server version mismatch")
-  ) {
+  const shouldUseDocker =
+    (result.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT" ||
+    result.stderr?.includes("server version mismatch") === true;
+  if (result.status !== 0 && shouldUseDocker) {
     const dockerConnectionEnvironment = postgresConnectionEnvironment(
       databaseUrl,
       { docker: true },
@@ -348,10 +367,12 @@ const runBackup = async ({
       },
     );
   }
-  if (result.status !== 0) {
-    throw new Error(result.stderr.trim() || "pg_dump failed.");
+  if (result.error) {
+    throw new Error(`pg_dump failed to start: ${result.error.message}`);
   }
-  const artifact = readFileSync(dumpPath);
+  if (result.status !== 0) {
+    throw new Error(result.stderr?.trim() || "pg_dump failed.");
+  }
   const evidence = {
     contractVersion,
     createdAt: new Date().toISOString(),
@@ -359,8 +380,8 @@ const runBackup = async ({
     schemaHead: inspection.observed,
     artifact: {
       path: path.relative(repoRoot, dumpPath),
-      sha256: sha256(artifact),
-      sizeBytes: artifact.byteLength,
+      sha256: await sha256File(dumpPath),
+      sizeBytes: statSync(dumpPath).size,
       format: "postgres-custom" as const,
     },
   };
@@ -369,7 +390,7 @@ const runBackup = async ({
   return {
     ...evidence,
     manifestPath: path.relative(repoRoot, manifestPath),
-    manifestSha256: sha256(readFileSync(manifestPath)),
+    manifestSha256: await sha256File(manifestPath),
   };
 };
 
@@ -394,16 +415,16 @@ const readPlan = (filePath: string) => {
   return { plan, absolutePath, digest: calculated };
 };
 
-const validateBackup = (backup: BackupEvidence) => {
+const validateBackup = async (backup: BackupEvidence) => {
   const manifestPath = path.resolve(repoRoot, backup.manifestPath);
   const artifactPath = path.resolve(repoRoot, backup.artifact.path);
   if (!existsSync(manifestPath) || !existsSync(artifactPath)) {
     throw new Error("Migration backup evidence is missing.");
   }
-  if (sha256(readFileSync(manifestPath)) !== backup.manifestSha256) {
+  if ((await sha256File(manifestPath)) !== backup.manifestSha256) {
     throw new Error("Migration backup manifest digest changed.");
   }
-  if (sha256(readFileSync(artifactPath)) !== backup.artifact.sha256) {
+  if ((await sha256File(artifactPath)) !== backup.artifact.sha256) {
     throw new Error("Migration backup artifact digest changed.");
   }
 };
@@ -532,7 +553,7 @@ const writePlan = async ({
   };
 };
 
-const assertPlanMatches = ({
+const assertPlanMatches = async ({
   plan,
   expectedDigest,
   inspection,
@@ -560,7 +581,7 @@ const assertPlanMatches = ({
   if (inspection.target.fingerprint !== plan.target.fingerprint) {
     throw new Error("Database target fingerprint does not match the plan.");
   }
-  validateBackup(plan.backup);
+  await validateBackup(plan.backup);
 };
 
 const pauseLanes = async ({
@@ -701,7 +722,7 @@ const applyPlanWithLockHeld = async ({
   const existing = await getPlatformSchemaMigrationRun({
     planDigest: digest,
   }).catch(() => null);
-  assertPlanMatches({
+  await assertPlanMatches({
     plan,
     expectedDigest: digest,
     inspection,
@@ -882,7 +903,7 @@ const applyPlan = async ({
   client: ReturnType<typeof postgres>;
   catalog: Catalog;
 }) => {
-  const releaseLock = await acquirePlatformSchemaMigrationApplyLock();
+  const releaseLock = await acquirePlatformSchemaMigrationLock();
   try {
     const inspection = await inspectDatabase({
       client,
@@ -935,7 +956,7 @@ const restoreLanes = async ({
   return restored;
 };
 
-const verifyPlan = async ({
+const verifyPlanWithLockHeld = async ({
   operation,
   client,
   catalog,
@@ -1053,6 +1074,33 @@ const verifyPlan = async ({
   };
 };
 
+const verifyPlan = async ({
+  operation,
+  client,
+  catalog,
+}: {
+  operation: Operation;
+  client: ReturnType<typeof postgres>;
+  catalog: Catalog;
+}) => {
+  const releaseLock = await acquirePlatformSchemaMigrationLock();
+  try {
+    const inspection = await inspectDatabase({
+      client,
+      catalog,
+      target: operation.target,
+    });
+    return await verifyPlanWithLockHeld({
+      operation,
+      client,
+      catalog,
+      inspection,
+    });
+  } finally {
+    await releaseLock();
+  }
+};
+
 const print = (result: Record<string, unknown>, json: boolean) => {
   if (json) console.log(JSON.stringify(result, null, 2));
   else {
@@ -1100,14 +1148,19 @@ const main = async () => {
     onnotice: () => undefined,
   });
   try {
-    const inspection = await inspectDatabase({
-      client,
-      catalog,
-      target: operation.target,
-    });
     let result: Record<string, unknown>;
-    if (operation.command === "inspect") result = inspection;
-    else if (operation.command === "backup") {
+    if (operation.command === "inspect") {
+      result = await inspectDatabase({
+        client,
+        catalog,
+        target: operation.target,
+      });
+    } else if (operation.command === "backup") {
+      const inspection = await inspectDatabase({
+        client,
+        catalog,
+        target: operation.target,
+      });
       result = await runBackup({
         databaseUrl: process.env.DATABASE_URL,
         inspection,
@@ -1115,6 +1168,11 @@ const main = async () => {
       });
       result.status = "created";
     } else if (operation.command === "plan") {
+      const inspection = await inspectDatabase({
+        client,
+        catalog,
+        target: operation.target,
+      });
       result = await writePlan({
         catalog,
         databaseUrl: process.env.DATABASE_URL,
@@ -1124,7 +1182,7 @@ const main = async () => {
     } else if (operation.command === "apply") {
       result = await applyPlan({ operation, client, catalog });
     } else {
-      result = await verifyPlan({ operation, client, catalog, inspection });
+      result = await verifyPlan({ operation, client, catalog });
     }
     print(result, Boolean(operation.json));
   } finally {

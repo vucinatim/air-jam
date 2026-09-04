@@ -156,6 +156,17 @@ export const readPlatformMigrationCatalog = ({
   if (new Set(createdAtValues).size !== createdAtValues.length) {
     throw new Error("Platform Drizzle migrations must have unique timestamps.");
   }
+  for (
+    let position = PLATFORM_MIGRATION_POLICY_REQUIRED_AFTER_INDEX + 1;
+    position < entries.length;
+    position += 1
+  ) {
+    if (entries[position].createdAt <= entries[position - 1].createdAt) {
+      throw new Error(
+        `Policy-governed migration ${entries[position].tag} must have a newer timestamp than the preceding journal entry.`,
+      );
+    }
+  }
   const head = entries.at(-1);
   if (!head) throw new Error("Platform Drizzle journal cannot be empty.");
   if (head.createdAt !== Math.max(...createdAtValues)) {

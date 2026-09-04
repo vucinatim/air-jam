@@ -82,6 +82,18 @@ After final review hardening, additional PostgreSQL 17 proofs established:
 4. the full `pnpm check:batch` gate remains green after the authority, drift,
    concurrency, credential, retry, and diagnosis hardening
 
+The recorded GitHub-native Opus review then identified six non-blocking edge
+cases. They were resolved without creating a second review loop: future
+journal timestamps are monotonic, unappliable historical gaps fail before
+planning, source-ahead is diagnosed precisely, missing local `pg_dump` can use
+the Docker fallback without a null dereference, backup hashing is streaming,
+and apply plus verify now share the same lifecycle lock.
+
+The amended implementation then passed the two-test PostgreSQL lifecycle suite
+against a fresh PostgreSQL 17 database. The repo CLI also streamed and hashed a
+new 631,425-byte custom-format backup; PostgreSQL 17 `pg_restore --list`
+accepted the resulting archive.
+
 The first ordinary Docker initialization attempt found the host's persistent
 Docker store full. The proof was rerun safely with a bounded tmpfs database;
 no unrelated Docker data was pruned.
