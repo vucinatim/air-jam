@@ -522,36 +522,34 @@ concrete Air Jam surfaces and defines the proof they must be able to complete.
 Following the authority ownership defined above, the concrete inspection map
 is:
 
-| Question                                            | Canonical source                                                                              | Durable coordination or evidence                                                    |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Is the product behavior healthy?                    | Air Jam reliability status, synthetics, SLOs, alerts, runtime state, and structured logs      | Operational event, synthetic run, SLO evaluation, and alert records                 |
-| Is the infrastructure and exact deployment healthy? | Repo-owned Railway commands over provider deployments, logs, metrics, health, and variables   | Provider identity and bounded evidence reference, not a copied raw provider payload |
-| Is code delivery healthy?                           | GitHub checks, reviews, pull requests, and deployment status                                  | Pull request, review, check, and exact commit history                               |
-| What release work is owned or dependency-ready?     | Readiness status, next, inspect, and claim commands                                           | Canonical readiness manifest and typed completion evidence                          |
-| Can a defect be reproduced and evaluated locally?   | Git state, layered checks, unified dev logs, browser proof, and semantic game-session actions | Regression test, screenshot/log artifact, branch, and pull request                  |
-| Is cost or capacity approaching a boundary?         | Railway usage evidence plus Air Jam budget, quota, queue, and admission state                 | Immutable budget evidence and source-owned policy decision                          |
+| Question                                            | Canonical source                                                                                                             | Durable coordination or evidence                                                    |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Is the product behavior healthy?                    | Air Jam reliability status, synthetics, SLOs, alerts, runtime state, and structured logs                                     | Operational event, synthetic run, SLO evaluation, and alert records                 |
+| Is the infrastructure and exact deployment healthy? | Repo-owned Railway doctor, project, environment, and variable reads plus provider-native Railway CLI or MCP logs and metrics | Provider identity and bounded evidence reference, not a copied raw provider payload |
+| Is code delivery healthy?                           | GitHub checks, reviews, pull requests, and deployment status                                                                 | Pull request, review, check, and exact commit history                               |
+| What release work is owned or dependency-ready?     | Readiness status, next, inspect, and claim commands                                                                          | Canonical readiness manifest and typed completion evidence                          |
+| Can a defect be reproduced and evaluated locally?   | Git state, layered checks, unified dev logs, browser proof, and semantic game-session actions                                | Regression test, screenshot/log artifact, branch, and pull request                  |
+| Is cost or capacity approaching a boundary?         | Railway usage evidence plus Air Jam budget, quota, queue, and admission state                                                | Immutable budget evidence and source-owned policy decision                          |
 
 Do not ingest all provider data into Air Jam merely to make it searchable. A
 stable pointer plus the small correlation spine below is enough until repeated
 cross-provider investigations prove that a richer projection is needed.
 
-#### Correlation Spine
+#### Existing Correlation And Evidence Contracts
 
-Machine-readable inspection and retained evidence should expose these
-identities when the source owns them:
+The versioned `operationalCorrelationSchemaV1` and
+`operationalEvidenceSchemaV1` remain the sole operational correlation and
+evidence vocabularies. Machine-readable inspection should expose their existing
+fields when the source owns them; missing identities remain explicitly absent
+and adapters do not invent them.
 
-1. environment and authoritative component or service
-2. exact Git revision and provider deployment identity
-3. `alertKey`, alert revision, event ID, and synthetic or SLO identity
-4. bounded trace, request, room, runtime, release, or job identity when relevant
-5. evidence reference and observation time from the owning authority
-6. related readiness item, GitHub issue, branch, or pull request when one exists
-
-Missing identities remain explicitly absent; adapters must not invent them.
-Raw logs, secrets, credentials, untrusted exception text, and creator-controlled
-payloads never become correlation fields. This spine should be added to the
-existing status and evidence projections as their owning slices are touched,
-not through a second universal event format.
+Environment, component, event, synthetic, SLO, and alert identity continue to
+live in their existing envelope or domain records. A GitHub issue, branch, pull
+request, readiness item, or provider result is linked through an existing
+evidence reference or adapter-owned projection field; it does not silently
+extend the strict correlation schema. Raw logs, secrets, credentials, untrusted
+exception text, and creator-controlled payloads never become correlation or
+evidence fields.
 
 #### Cold-Start Agent Proof
 
@@ -640,9 +638,10 @@ Implement `G4-07` in three reviewable batches that preserve one architecture:
    isolate each due check, and protect SLO state with the existing database
    authority and revision model. Do not add another lock service.
 3. **Agent-facing proof and touched-module cleanup**: prove stable redacted JSON,
-   exact correlation identities, partial synthetic failure, concurrent stale
-   evaluation rejection, and continued execution of unrelated checks. Split
-   touched flat modules only where the resulting domain boundary is real.
+   the existing correlation and evidence projections, partial synthetic
+   failure, concurrent stale evaluation rejection, and continued execution of
+   unrelated checks. Split touched flat modules only where the resulting
+   domain boundary is real.
 
 `G4-07` is complete when malformed input cannot leak secret-shaped data or
 create inconsistent failure identity, one broken synthetic cannot starve the
@@ -790,10 +789,10 @@ identity. The narrow projection needs only:
 
 The adapter-owned issue block should make the cold-start path obvious without
 turning the issue into application truth. It renders the issue-relevant subset
-of the correlation spine defined above, plus current status and recovery or
-failed-verification evidence. One stable machine-discoverable label marks these
-maintained operational issues. Human and agent discussion stays outside the
-managed block.
+of the existing alert, envelope, correlation, and evidence contracts, plus
+current status and recovery or failed-verification evidence. One stable
+machine-discoverable label marks these maintained operational issues. Human
+and agent discussion stays outside the managed block.
 
 Volatile values such as timestamps, request IDs, and message text never enter
 the issue identity. A recurrence under the same `alertKey` updates or reopens

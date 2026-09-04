@@ -661,8 +661,7 @@
         "agentHoursMax": 12
       },
       "evidenceRequirements": [
-        "one confirmed actionable alert key creates, updates, reopens, and resolves one maintained issue with linked source, recovery, and failed-verification evidence",
-        "a cold-start local agent discovers the relevant commands from the maintained issue and correlates current Air Jam, Railway, GitHub, and local truth without undocumented operator knowledge or secret-bearing payload copies"
+        "one confirmed actionable alert key creates, updates, reopens, and resolves one maintained issue with linked source, recovery, and failed-verification evidence"
       ]
     },
     {
@@ -1076,9 +1075,7 @@
         "agentHoursMax": 14
       },
       "evidenceRequirements": [
-        "redaction and normalized failure-code regression tests cover nested adversarial untrusted payloads",
-        "database-time chronology, per-check isolation, and fenced concurrent SLO evaluation are proven without another coordination service",
-        "the canonical agent machine surface explains exact correlation identities, partial-check progress, and stale-evaluation rejection through stable redacted JSON"
+        "redaction, normalized failure code, database-time chronology, per-check isolation, and fenced SLO regression tests"
       ],
       "status": "pending",
       "updatedAt": "2026-09-04T00:31:08.711Z",
