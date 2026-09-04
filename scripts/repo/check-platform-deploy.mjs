@@ -396,14 +396,16 @@ const main = async () => {
           port,
         });
         if (
-          readiness.status !== 200 ||
-          readiness.body?.ok !== true ||
+          readiness.status !== 503 ||
+          readiness.body?.ok !== false ||
           readiness.body?.boundaries?.platformRequestPolicy
             ?.platformPublicOrigin !== PLATFORM_BUILD_ORIGIN ||
-          readiness.body?.boundaries?.hostedReleaseOrigin?.status !== "ready"
+          readiness.body?.boundaries?.hostedReleaseOrigin?.status !== "ready" ||
+          readiness.body?.boundaries?.databaseSchema?.status !== "unavailable" ||
+          readiness.body?.boundaries?.databaseSchema?.compatible !== false
         ) {
           throw new Error(
-            `Standalone platform readiness did not preserve the built origin: ${JSON.stringify(readiness)}`,
+            `Standalone platform readiness did not preserve the built origin and fail closed without schema authority: ${JSON.stringify(readiness)}`,
           );
         }
       },
