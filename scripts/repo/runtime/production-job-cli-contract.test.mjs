@@ -96,6 +96,7 @@ test("durable job mutations are preview-first and carry required audit fences", 
   assert.match(cancelHelp, /--expected-revision/u);
   assert.match(cancelHelp, /--idempotency-key/u);
   assert.match(replayHelp, /--idempotency-key/u);
+  assert.match(replayHelp, /independently verify/u);
   assert.match(repairHelp, /--idempotency-key/u);
   assert.match(repairHelp, /--kind/u);
   assert.match(repairHelp, /--limit/u);

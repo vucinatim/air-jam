@@ -186,6 +186,100 @@ type ProductionControlCliInput =
       json: boolean;
     };
 
+type OperationalJobInspection = Awaited<ReturnType<typeof getOperationalJob>>;
+type OperationalJobReplayInput = Extract<
+  ProductionControlCliInput,
+  { command: "jobs-replay" }
+>;
+
+const verifyOperationalJobReplayLineage = ({
+  original,
+  persisted,
+  input,
+  expectedReplayJobId,
+}: {
+  original: OperationalJobInspection["job"];
+  persisted: OperationalJobInspection;
+  input: OperationalJobReplayInput;
+  expectedReplayJobId: string;
+}) => {
+  const replayEvent = persisted.events.find(
+    (event) => event.kind === "replayed",
+  );
+  const checks = [
+    {
+      id: "job.replay-target",
+      passed:
+        persisted.job.id === expectedReplayJobId &&
+        persisted.job.id !== original.id &&
+        persisted.job.replayOfJobId === original.id,
+      expected: {
+        replayJobId: expectedReplayJobId,
+        replayOfJobId: original.id,
+      },
+      observed: {
+        replayJobId: persisted.job.id,
+        replayOfJobId: persisted.job.replayOfJobId,
+      },
+    },
+    {
+      id: "job.replay-scope",
+      passed:
+        persisted.job.kind === original.kind &&
+        persisted.job.creatorId === original.creatorId &&
+        persisted.job.gameId === original.gameId &&
+        persisted.job.releaseId === original.releaseId &&
+        persisted.job.generationId === original.generationId &&
+        persisted.job.resourceKind === original.resourceKind &&
+        persisted.job.resourceId === original.resourceId &&
+        persisted.job.correlationId === original.correlationId,
+      expected: {
+        kind: original.kind,
+        creatorId: original.creatorId,
+        gameId: original.gameId,
+        releaseId: original.releaseId,
+        generationId: original.generationId,
+        resourceKind: original.resourceKind,
+        resourceId: original.resourceId,
+        correlationId: original.correlationId,
+      },
+      observed: {
+        kind: persisted.job.kind,
+        creatorId: persisted.job.creatorId,
+        gameId: persisted.job.gameId,
+        releaseId: persisted.job.releaseId,
+        generationId: persisted.job.generationId,
+        resourceKind: persisted.job.resourceKind,
+        resourceId: persisted.job.resourceId,
+        correlationId: persisted.job.correlationId,
+      },
+    },
+    {
+      id: "job.replay-audit-event",
+      passed:
+        replayEvent?.actor === input.actor &&
+        replayEvent.reason === input.reason &&
+        replayEvent.correlationId === original.correlationId &&
+        replayEvent.detailKeys.includes("replayOfJobId"),
+      expected: {
+        actor: input.actor,
+        reason: input.reason,
+        correlationId: original.correlationId,
+        detailKey: "replayOfJobId",
+      },
+      observed: replayEvent
+        ? {
+            actor: replayEvent.actor,
+            reason: replayEvent.reason,
+            correlationId: replayEvent.correlationId,
+            detailKeys: replayEvent.detailKeys,
+          }
+        : null,
+    },
+  ];
+  return { passed: checks.every((check) => check.passed), checks };
+};
+
 const fail = (message: string): never => {
   throw new Error(message);
 };
@@ -765,22 +859,71 @@ const main = async (): Promise<void> => {
         }
         return;
       }
-      const replay = await replayOperationalJob({
-        database,
-        jobId: input.jobId,
-        idempotencyKey: input.idempotencyKey,
-        actor: input.actor,
-        reason: input.reason,
-      });
-      if (input.json)
-        printJson(input.command, true, {
-          jobContractVersion: operationalJobContractVersion,
-          ...replay,
+      let replayJobId: string | null = null;
+      try {
+        const replay = await replayOperationalJob({
+          database,
+          jobId: input.jobId,
+          idempotencyKey: input.idempotencyKey,
+          actor: input.actor,
+          reason: input.reason,
         });
-      else
-        console.log(
-          `${replay.replayed ? "Reused" : "Enqueued"} replay job ${replay.job.id}.`,
-        );
+        replayJobId = replay.job.id;
+        const persisted = await getOperationalJob({
+          database,
+          jobId: replay.job.id,
+        });
+        const verification = verifyOperationalJobReplayLineage({
+          original,
+          persisted,
+          input,
+          expectedReplayJobId: replay.job.id,
+        });
+        if (!verification.passed) {
+          throw new Error(
+            "Persisted replay lineage did not match the exact requested job.",
+          );
+        }
+        const result = {
+          jobContractVersion: operationalJobContractVersion,
+          status: "verified",
+          verifiedAt: new Date().toISOString(),
+          ...replay,
+          persisted: persisted.job,
+          verification,
+        };
+        if (input.json) printJson(input.command, true, result);
+        else
+          console.log(
+            `${replay.replayed ? "Reused" : "Enqueued"} and independently verified replay job ${replay.job.id}.`,
+          );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Operational job replay verification failed.";
+        const result = {
+          jobContractVersion: operationalJobContractVersion,
+          status: "failed",
+          error: { message },
+          escalationBundle: {
+            kind: "operational_job_replay_failed",
+            originalJobId: input.jobId,
+            replayJobId,
+            actor: input.actor,
+            reason: input.reason,
+            idempotencyKey: input.idempotencyKey,
+            nextActions: [
+              "Inspect the original and replay jobs through platform operations jobs inspect.",
+              "Preserve the exact idempotency key and do not enqueue a broader replay.",
+              "Repair the underlying job or worker condition before retrying the same logical replay.",
+            ],
+          },
+        };
+        if (input.json) printJson(input.command, replayJobId !== null, result);
+        else console.error(message);
+        process.exitCode = 1;
+      }
       return;
     }
 

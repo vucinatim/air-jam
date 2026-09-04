@@ -141,6 +141,19 @@ const connectionNodes = (connection) =>
         .filter((value) => value != null)
     : [];
 
+const normalizeDeployment = (deployment) =>
+  deployment
+    ? {
+        ...deployment,
+        meta:
+          deployment.meta && typeof deployment.meta === "object"
+            ? deployment.meta
+            : {},
+        canRedeploy: Boolean(deployment.canRedeploy),
+        canRollback: Boolean(deployment.canRollback),
+      }
+    : null;
+
 const firstNonEmptyString = (...values) => {
   for (const value of values) {
     if (typeof value === "string" && value.trim().length > 0) {
@@ -548,6 +561,11 @@ export const createRailwayApiClient = ({
                     status
                     url
                     staticUrl
+                    createdAt
+                    updatedAt
+                    meta
+                    canRedeploy
+                    canRollback
                   }
                   domains {
                     serviceDomains {
@@ -556,6 +574,23 @@ export const createRailwayApiClient = ({
                     customDomains {
                       domain
                     }
+                  }
+                }
+              }
+            }
+            volumeInstances {
+              edges {
+                node {
+                  id
+                  environmentId
+                  serviceId
+                  mountPath
+                  currentSizeMB
+                  sizeMB
+                  state
+                  volume {
+                    id
+                    name
                   }
                 }
               }
@@ -571,8 +606,106 @@ export const createRailwayApiClient = ({
     const environment = data.environment;
     return {
       ...environment,
-      serviceInstances: connectionNodes(environment.serviceInstances),
+      serviceInstances: connectionNodes(environment.serviceInstances).map(
+        (instance) => ({
+          ...instance,
+          latestDeployment: normalizeDeployment(instance.latestDeployment),
+        }),
+      ),
+      volumeInstances: connectionNodes(environment.volumeInstances),
     };
+  };
+
+  const listVolumeBackups = async ({ volumeInstanceId }) => {
+    const data = await request({
+      query: `
+        query RailwayVolumeBackups($volumeInstanceId: String!) {
+          volumeInstanceBackupList(volumeInstanceId: $volumeInstanceId) {
+            id
+            name
+            createdAt
+            expiresAt
+            usedMB
+            referencedMB
+          }
+        }
+      `,
+      variables: { volumeInstanceId },
+    });
+    return data.volumeInstanceBackupList ?? [];
+  };
+
+  const listVolumeBackupSchedules = async ({ volumeInstanceId }) => {
+    const data = await request({
+      query: `
+        query RailwayVolumeBackupSchedules($volumeInstanceId: String!) {
+          volumeInstanceBackupScheduleList(volumeInstanceId: $volumeInstanceId) {
+            id
+            name
+            cron
+            kind
+            retentionSeconds
+            createdAt
+          }
+        }
+      `,
+      variables: { volumeInstanceId },
+    });
+    return data.volumeInstanceBackupScheduleList ?? [];
+  };
+
+  const updateVolumeBackupSchedules = async ({ volumeInstanceId, kinds }) => {
+    const data = await request({
+      query: `
+        mutation RailwayVolumeBackupScheduleUpdate(
+          $volumeInstanceId: String!
+          $kinds: [VolumeInstanceBackupScheduleKind!]!
+        ) {
+          volumeInstanceBackupScheduleUpdate(
+            volumeInstanceId: $volumeInstanceId
+            kinds: $kinds
+          )
+        }
+      `,
+      variables: { volumeInstanceId, kinds },
+    });
+    return data.volumeInstanceBackupScheduleUpdate;
+  };
+
+  const listDeployments = async ({
+    projectId,
+    environmentId,
+    serviceId,
+    first = 20,
+  }) => {
+    const data = await request({
+      query: `
+        query RailwayDeployments($input: DeploymentListInput!, $first: Int) {
+          deployments(input: $input, first: $first) {
+            edges {
+              node {
+                id
+                status
+                createdAt
+                updatedAt
+                url
+                staticUrl
+                serviceId
+                environmentId
+                meta
+                canRedeploy
+                canRollback
+              }
+            }
+          }
+        }
+      `,
+      variables: {
+        input: { projectId, environmentId, serviceId },
+        first,
+      },
+    });
+    return connectionNodes(data.deployments).map(normalizeDeployment);
   };
 
   const createEnvironment = async ({
@@ -731,6 +864,9 @@ export const createRailwayApiClient = ({
             environmentId
             createdAt
             updatedAt
+            meta
+            canRedeploy
+            canRollback
           }
         }
       `,
@@ -739,7 +875,31 @@ export const createRailwayApiClient = ({
       },
     });
 
-    return data.deployment;
+    return normalizeDeployment(data.deployment);
+  };
+
+  const rollbackDeployment = async ({ deploymentId }) => {
+    const data = await request({
+      query: `
+        mutation RailwayDeploymentRollback($id: String!) {
+          deploymentRollback(id: $id) {
+            id
+            status
+            createdAt
+            updatedAt
+            url
+            staticUrl
+            serviceId
+            environmentId
+            meta
+            canRedeploy
+            canRollback
+          }
+        }
+      `,
+      variables: { id: deploymentId },
+    });
+    return normalizeDeployment(data.deploymentRollback);
   };
 
   const waitForDeployment = async ({
@@ -832,12 +992,17 @@ export const createRailwayApiClient = ({
     getProjectUsageEvidence,
     listEnvironments,
     getEnvironment,
+    listVolumeBackups,
+    listVolumeBackupSchedules,
+    updateVolumeBackupSchedules,
     createEnvironment,
     deleteEnvironment,
     getVariables,
     upsertVariableCollection,
     triggerServiceDeployment,
     getDeployment,
+    listDeployments,
+    rollbackDeployment,
     waitForDeployment,
     resolveServicePublicDomain,
     waitForServicePublicDomain,

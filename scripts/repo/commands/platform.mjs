@@ -14,6 +14,12 @@ import {
   resolveRailwayPlatformDatabaseTarget,
 } from "../lib/platform-database-target.mjs";
 import {
+  inspectPlatformRecovery,
+  rollbackPlatformDeployment,
+  setPlatformBackupSchedule,
+  writePlatformRecoveryEvidence,
+} from "../lib/platform-recovery.mjs";
+import {
   createRailwayApiClient,
   resolveRailwayApiToken,
 } from "../lib/railway-api.mjs";
@@ -152,13 +158,71 @@ const platformDatabaseOperatorInvocation = async ({
   };
 };
 
-const runPlatformDatabaseOperator = async ({ script, operation, options }) => {
+const runPlatformOperator = async ({
+  script,
+  operation,
+  options,
+  includeTarget = false,
+  silent = false,
+  errorLabel = "platform database operator",
+}) => {
   const invocation = await platformDatabaseOperatorInvocation({
     script,
     operation,
     options,
+    includeTarget,
+    silent,
   });
-  runCommand("pnpm", invocation.args, { env: invocation.env });
+  const capturesStructuredOutput = Boolean(operation.json);
+  const result = runCommandResult("pnpm", invocation.args, {
+    env: invocation.env,
+    stdio: capturesStructuredOutput ? ["ignore", "pipe", "pipe"] : "inherit",
+    maxBuffer: capturesStructuredOutput ? 20 * 1024 * 1024 : undefined,
+  });
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.error) {
+    if (result.error.code === "ENOBUFS") {
+      throw new Error(
+        `${errorLabel} exceeded the 20 MiB structured-output limit. Narrow the requested result rather than accepting truncated JSON.`,
+      );
+    }
+    throw new Error(`Could not start ${errorLabel}: ${result.error.message}`);
+  }
+  if (result.status !== 0) process.exitCode = result.status ?? 1;
+};
+
+const platformMigrationOperator = Object.freeze({
+  script: "scripts/platform-database-migration-cli.ts",
+  includeTarget: true,
+  silent: true,
+  errorLabel: "database migration operator",
+});
+
+const platformRestoreOperator = Object.freeze({
+  script: "scripts/platform-database-restore-cli.ts",
+  includeTarget: true,
+  silent: true,
+  errorLabel: "database restore operator",
+});
+
+const attachPlatformRecoveryEvidence = ({ kind, result }) => {
+  try {
+    return {
+      ...result,
+      evidence: writePlatformRecoveryEvidence({ kind, result }),
+      evidencePersistence: { status: "verified" },
+    };
+  } catch (error) {
+    return {
+      ...result,
+      evidence: null,
+      evidencePersistence: {
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
 };
 
 const capturePlatformDatabaseOperator = async ({
@@ -174,6 +238,7 @@ const capturePlatformDatabaseOperator = async ({
   const result = runCommandResult("pnpm", invocation.args, {
     stdio: ["ignore", "pipe", "pipe"],
     env: invocation.env,
+    maxBuffer: 20 * 1024 * 1024,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -182,28 +247,6 @@ const capturePlatformDatabaseOperator = async ({
     );
   }
   return result.stdout;
-};
-
-const runPlatformMigrationOperator = async ({ operation, options }) => {
-  const invocation = await platformDatabaseOperatorInvocation({
-    script: "scripts/platform-database-migration-cli.ts",
-    operation,
-    options,
-    includeTarget: true,
-    silent: true,
-  });
-  const result = runCommandResult("pnpm", invocation.args, {
-    env: invocation.env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  if (result.stdout) process.stdout.write(result.stdout);
-  if (result.stderr) process.stderr.write(result.stderr);
-  if (result.error) {
-    throw new Error(
-      `Could not start database operator: ${result.error.message}`,
-    );
-  }
-  if (result.status !== 0) process.exitCode = result.status ?? 1;
 };
 
 const resolveDomainHostname = (value) => {
@@ -459,6 +502,269 @@ export const registerPlatformCommands = (program) => {
     .command("platform")
     .description("Platform maintainer helpers");
 
+  const recoveryCommand = platformCommand
+    .command("recovery")
+    .description(
+      "Inspect and operate exact-target backup, restore, rollback, and replay recovery",
+    );
+
+  recoveryCommand
+    .command("status")
+    .description(
+      "Inspect backup policy and exact deployment rollback candidates",
+    )
+    .requiredOption("--railway-project <id>", "Railway project id")
+    .requiredOption("--railway-environment <id>", "Railway environment id")
+    .requiredOption(
+      "--database-service <id>",
+      "Railway service id owning the authoritative database volume",
+    )
+    .option(
+      "--deployment-limit <count>",
+      "Maximum deployment history per application service",
+      "20",
+    )
+    .option("--json", "Print the stable machine-readable contract")
+    .action(async (options) => {
+      const deploymentLimit = Number(options.deploymentLimit);
+      if (
+        !Number.isSafeInteger(deploymentLimit) ||
+        deploymentLimit < 1 ||
+        deploymentLimit > 100
+      ) {
+        throw new Error("--deployment-limit must be an integer from 1 to 100.");
+      }
+      const result = await inspectPlatformRecovery({
+        projectId: options.railwayProject,
+        environmentId: options.railwayEnvironment,
+        databaseServiceId: options.databaseService,
+        deploymentLimit,
+      });
+      if (options.json) console.log(JSON.stringify(result, null, 2));
+      else {
+        console.log(`Platform recovery: ${result.status}`);
+        console.log(
+          `Backup policy: ${result.backup.policy.ready ? "ready" : "incomplete"} (${result.backup.policy.observedKinds.join(", ") || "none"})`,
+        );
+        console.log(
+          `Latest provider backup: ${result.backup.latestBackup?.createdAt ?? "none"}`,
+        );
+        for (const service of result.deployments) {
+          console.log(
+            `${service.serviceName}: ${service.current?.id ?? "no current deployment"}; ${service.rollbackCandidates.length} rollback candidate(s)`,
+          );
+        }
+      }
+    });
+
+  const recoveryBackupsCommand = recoveryCommand
+    .command("backups")
+    .description("Inspect and configure recurring provider backups");
+
+  recoveryBackupsCommand
+    .command("schedule")
+    .description("Preview or apply the exact recurring backup schedule")
+    .requiredOption("--railway-project <id>", "Railway project id")
+    .requiredOption("--railway-environment <id>", "Railway environment id")
+    .requiredOption("--database-service <id>", "Railway database service id")
+    .requiredOption(
+      "--kind <kind...>",
+      "One or more DAILY, WEEKLY, or MONTHLY schedules",
+    )
+    .requiredOption("--actor <actor>", "Audited operator identity")
+    .requiredOption("--reason <reason>", "Auditable change reason")
+    .option(
+      "--apply",
+      "Persist the provider schedule; omission is a read-only preview",
+    )
+    .option("--json", "Print the stable machine-readable contract")
+    .action(async (options) => {
+      const result = await setPlatformBackupSchedule({
+        projectId: options.railwayProject,
+        environmentId: options.railwayEnvironment,
+        databaseServiceId: options.databaseService,
+        kinds: options.kind,
+        actor: options.actor,
+        reason: options.reason,
+        apply: Boolean(options.apply),
+      });
+      const output = options.apply
+        ? attachPlatformRecoveryEvidence({ kind: "backup-schedule", result })
+        : result;
+      if (options.json) console.log(JSON.stringify(output, null, 2));
+      else {
+        console.log(`Recurring backup schedule: ${result.status}`);
+        if (output.evidence) console.log(`Evidence: ${output.evidence.path}`);
+        if (output.evidencePersistence?.status === "failed") {
+          console.error(
+            `Evidence persistence failed after the provider operation: ${output.evidencePersistence.error}`,
+          );
+        }
+      }
+      if (
+        result.status === "verification_failed" ||
+        output.evidencePersistence?.status === "failed"
+      ) {
+        process.exitCode = 1;
+      }
+    });
+
+  const recoveryDeploymentCommand = recoveryCommand
+    .command("deployment")
+    .description("Inspect and operate provider deployment recovery");
+
+  recoveryDeploymentCommand
+    .command("rollback")
+    .description(
+      "Preview or apply one exact deployment rollback with verification",
+    )
+    .requiredOption("--railway-project <id>", "Railway project id")
+    .requiredOption("--railway-environment <id>", "Railway environment id")
+    .requiredOption("--service <id>", "Exact Railway service id")
+    .requiredOption(
+      "--current-deployment <id>",
+      "Expected current deployment fence",
+    )
+    .requiredOption("--target-deployment <id>", "Known-good rollback target")
+    .requiredOption("--health-url <url>", "Independent application health URL")
+    .requiredOption("--actor <actor>", "Audited operator identity")
+    .requiredOption("--reason <reason>", "Auditable recovery reason")
+    .option("--apply", "Execute the rollback; omission is a read-only preview")
+    .option("--json", "Print the stable machine-readable contract")
+    .action(async (options) => {
+      const result = await rollbackPlatformDeployment({
+        projectId: options.railwayProject,
+        environmentId: options.railwayEnvironment,
+        serviceId: options.service,
+        currentDeploymentId: options.currentDeployment,
+        targetDeploymentId: options.targetDeployment,
+        healthUrl: options.healthUrl,
+        actor: options.actor,
+        reason: options.reason,
+        apply: Boolean(options.apply),
+      });
+      const output = options.apply
+        ? attachPlatformRecoveryEvidence({
+            kind: "deployment-rollback",
+            result,
+          })
+        : result;
+      if (options.json) console.log(JSON.stringify(output, null, 2));
+      else {
+        console.log(`Deployment rollback: ${result.status}`);
+        if (result.recoveryTimeMs !== undefined) {
+          console.log(`Recovery time: ${result.recoveryTimeMs} ms`);
+        }
+        if (output.evidence) console.log(`Evidence: ${output.evidence.path}`);
+        if (output.evidencePersistence?.status === "failed") {
+          console.error(
+            `Evidence persistence failed after the provider operation: ${output.evidencePersistence.error}`,
+          );
+        }
+      }
+      if (
+        result.status === "verification_failed" ||
+        output.evidencePersistence?.status === "failed"
+      ) {
+        process.exitCode = 1;
+      }
+    });
+
+  const recoveryRestoreCommand = recoveryCommand
+    .command("restore")
+    .description(
+      "Plan, apply, and independently verify a logical backup in an isolated database",
+    );
+
+  addPlatformDatabaseTargetOption(
+    recoveryRestoreCommand
+      .command("plan")
+      .description("Create an immutable restore plan for an isolated target")
+      .requiredOption(
+        "--backup-manifest <path>",
+        "Recovery-capable backup manifest",
+      )
+      .option(
+        "--attest-isolated-loopback",
+        "Attest that a loopback target is disposable and is not a remote tunnel",
+      )
+      .option("--output <path>", "Explicit immutable plan path")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformOperator({
+      ...platformRestoreOperator,
+      operation: {
+        command: "plan",
+        backupManifest: options.backupManifest,
+        attestIsolatedLoopback: Boolean(options.attestIsolatedLoopback),
+        output: options.output,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    recoveryRestoreCommand
+      .command("apply")
+      .description("Apply one exact isolated restore plan and verify its data")
+      .requiredOption("--plan <path>", "Immutable restore plan")
+      .requiredOption("--plan-digest <sha256>", "Expected restore plan digest")
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption("--reason <reason>", "Auditable restore reason")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable retry identity for this logical restore",
+      )
+      .requiredOption("--apply", "Authorize mutation of the isolated target")
+      .option(
+        "--attest-isolated-loopback",
+        "Attest that a loopback target is disposable and is not a remote tunnel",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformOperator({
+      ...platformRestoreOperator,
+      operation: {
+        command: "apply",
+        plan: options.plan,
+        planDigest: options.planDigest,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        apply: Boolean(options.apply),
+        attestIsolatedLoopback: Boolean(options.attestIsolatedLoopback),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    recoveryRestoreCommand
+      .command("verify")
+      .description("Independently re-check one isolated restore target")
+      .requiredOption("--plan <path>", "Immutable restore plan")
+      .requiredOption("--plan-digest <sha256>", "Expected restore plan digest")
+      .option(
+        "--attest-isolated-loopback",
+        "Attest that a loopback target is disposable and is not a remote tunnel",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformOperator({
+      ...platformRestoreOperator,
+      operation: {
+        command: "verify",
+        plan: options.plan,
+        planDigest: options.planDigest,
+        attestIsolatedLoopback: Boolean(options.attestIsolatedLoopback),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
   const operationsCommand = platformCommand
     .command("operations")
     .description(
@@ -479,7 +785,7 @@ export const registerPlatformCommands = (program) => {
     )
     .option("--json", "Print the stable machine-readable contract")
     .action(async (options) => {
-      await runPlatformDatabaseOperator({
+      await runPlatformOperator({
         script: "scripts/operational-reliability-cli.ts",
         operation: { command: "catalog", json: Boolean(options.json) },
         options,
@@ -496,7 +802,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "status",
@@ -519,7 +825,7 @@ export const registerPlatformCommands = (program) => {
       .description("Inspect queue, lease, delivery, and dead-letter counts")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: { command: "events-status", json: Boolean(options.json) },
       options,
@@ -537,7 +843,7 @@ export const registerPlatformCommands = (program) => {
       .option("--limit <limit>", "Maximum rows from 1 to 500", "100")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "events-list",
@@ -556,7 +862,7 @@ export const registerPlatformCommands = (program) => {
       .requiredOption("--event <event-id>", "Operational event ID")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "events-inspect",
@@ -575,7 +881,7 @@ export const registerPlatformCommands = (program) => {
       .option("--apply", "Deliver one event; omission is a read-only preview")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "events-deliver-once",
@@ -598,7 +904,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "events-repair-expired",
@@ -630,7 +936,7 @@ export const registerPlatformCommands = (program) => {
       .option("--apply", "Requeue the event; omission is a read-only preview")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "events-requeue-dead-letter",
@@ -664,7 +970,7 @@ export const registerPlatformCommands = (program) => {
       .option("--apply", "Execute the check; omission is a read-only preview")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "synthetics-run",
@@ -687,7 +993,7 @@ export const registerPlatformCommands = (program) => {
       .option("--apply", "Execute due checks; omission is a read-only preview")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "synthetics-run-due",
@@ -711,7 +1017,7 @@ export const registerPlatformCommands = (program) => {
       .option("--limit <limit>", "Maximum rows from 1 to 500", "100")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "synthetics-list",
@@ -739,7 +1045,7 @@ export const registerPlatformCommands = (program) => {
       .option("--status <status>", "open or recovered")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "alerts-list",
@@ -758,7 +1064,7 @@ export const registerPlatformCommands = (program) => {
       .requiredOption("--alert-key <alert-key>", "Stable operational alert key")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "alerts-inspect",
@@ -780,7 +1086,7 @@ export const registerPlatformCommands = (program) => {
       .option("--repository <owner/name>", "Optional target repository filter")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "issues-status",
@@ -803,7 +1109,7 @@ export const registerPlatformCommands = (program) => {
       .option("--limit <limit>", "Maximum rows from 1 to 500", "100")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "issues-list",
@@ -824,7 +1130,7 @@ export const registerPlatformCommands = (program) => {
       .requiredOption("--alert-key <alert-key>", "Stable operational alert key")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "issues-inspect",
@@ -847,7 +1153,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "issues-project-once",
@@ -871,7 +1177,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "issues-repair-expired",
@@ -905,7 +1211,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/operational-reliability-cli.ts",
       operation: {
         command: "issues-requeue-dead-letter",
@@ -1038,7 +1344,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/product-telemetry-cli.ts",
       operation: {
         command: "overview",
@@ -1058,7 +1364,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/product-telemetry-cli.ts",
       operation: {
         command: "health",
@@ -1077,7 +1383,7 @@ export const registerPlatformCommands = (program) => {
       .option("--apply", "Apply the rebuild; omission is a read-only preview")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/product-telemetry-cli.ts",
       operation: {
         command: "rebuild",
@@ -1100,7 +1406,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/product-telemetry-cli.ts",
       operation: {
         command: "retain",
@@ -1117,7 +1423,7 @@ export const registerPlatformCommands = (program) => {
       .description("Inspect every canonical expensive-lane control")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: { command: "status", json: Boolean(options.json) },
       options,
@@ -1154,7 +1460,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "lane-set",
@@ -1186,7 +1492,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: { command: "budget-status", json: Boolean(options.json) },
       options,
@@ -1238,7 +1544,7 @@ export const registerPlatformCommands = (program) => {
       return;
     }
     const evidence = await collectRailwayProjectBudgetEvidence({ projectId });
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "budget-sync",
@@ -1282,7 +1588,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "lifecycle-cleanup",
@@ -1313,7 +1619,7 @@ export const registerPlatformCommands = (program) => {
       .option("--game <game-id>", "Owned game ID for game-scoped quotas")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "quota-status",
@@ -1341,7 +1647,7 @@ export const registerPlatformCommands = (program) => {
       .option("--game <game-id>", "Owned game ID for game-scoped quotas")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "quota-check",
@@ -1368,7 +1674,7 @@ export const registerPlatformCommands = (program) => {
     .option("--kind <kind>", "Canonical operational job kind")
     .option("--json", "Print the stable machine-readable contract")
     .action(async (options) => {
-      await runPlatformDatabaseOperator({
+      await runPlatformOperator({
         script: "scripts/production-control-cli.ts",
         operation: {
           command: "jobs-policy",
@@ -1388,7 +1694,7 @@ export const registerPlatformCommands = (program) => {
       .option("--kind <kind>", "Canonical operational job kind")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "jobs-status",
@@ -1418,7 +1724,7 @@ export const registerPlatformCommands = (program) => {
       .option("--limit <limit>", "Maximum jobs to return, from 1 to 500", "100")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "jobs-list",
@@ -1442,7 +1748,7 @@ export const registerPlatformCommands = (program) => {
       .requiredOption("--job <job-id>", "Operational job ID")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "jobs-inspect",
@@ -1476,7 +1782,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "jobs-cancel",
@@ -1495,7 +1801,9 @@ export const registerPlatformCommands = (program) => {
   addPlatformDatabaseTargetOption(
     jobsCommand
       .command("replay")
-      .description("Preview or enqueue an audited replay of one terminal job")
+      .description(
+        "Preview or enqueue and independently verify one exact terminal-job replay",
+      )
       .requiredOption("--job <job-id>", "Terminal operational job ID")
       .requiredOption("--actor <actor>", "Audited operator identity")
       .requiredOption("--reason <reason>", "Durable operator reason")
@@ -1506,7 +1814,7 @@ export const registerPlatformCommands = (program) => {
       .option("--apply", "Enqueue the replay; omission is a read-only preview")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "jobs-replay",
@@ -1538,7 +1846,7 @@ export const registerPlatformCommands = (program) => {
       .option("--apply", "Persist the repair; omission is a read-only preview")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "jobs-repair-expired",
@@ -1573,7 +1881,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "jobs-cleanup-orphans",
@@ -1601,7 +1909,7 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformDatabaseOperator({
+    await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: {
         command: "jobs-worker-once",
@@ -1627,7 +1935,8 @@ export const registerPlatformCommands = (program) => {
       .option("--output <path>", "Explicit backup artifact path")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformMigrationOperator({
+    await runPlatformOperator({
+      ...platformMigrationOperator,
       operation: {
         command: "backup",
         output: options.output,
@@ -1651,7 +1960,8 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformMigrationOperator({
+    await runPlatformOperator({
+      ...platformMigrationOperator,
       operation: { command: "inspect", json: Boolean(options.json) },
       options,
     });
@@ -1665,7 +1975,8 @@ export const registerPlatformCommands = (program) => {
       .option("--output <path>", "Explicit immutable plan path")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformMigrationOperator({
+    await runPlatformOperator({
+      ...platformMigrationOperator,
       operation: {
         command: "plan",
         authority: options.authority,
@@ -1696,7 +2007,8 @@ export const registerPlatformCommands = (program) => {
       .requiredOption("--apply", "Authorize the exact planned mutation")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformMigrationOperator({
+    await runPlatformOperator({
+      ...platformMigrationOperator,
       operation: {
         command: "apply",
         plan: options.plan,
@@ -1730,7 +2042,8 @@ export const registerPlatformCommands = (program) => {
       )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
-    await runPlatformMigrationOperator({
+    await runPlatformOperator({
+      ...platformMigrationOperator,
       operation: {
         command: "verify",
         plan: options.plan,

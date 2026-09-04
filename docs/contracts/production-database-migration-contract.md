@@ -139,6 +139,10 @@ operator-memory ceiling. Connection credentials are supplied to `pg_dump` or
 its version-matched Docker fallback through libpq environment variables, never
 process arguments.
 
+Recovery-capable backup manifests, isolated restore planning, and independent
+data verification are defined by the
+[production recovery contract](./production-recovery-contract.md).
+
 ## Production Sequence
 
 Production plans are created only from the clean, merged commit intended for
