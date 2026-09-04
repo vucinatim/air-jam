@@ -278,8 +278,11 @@ The operational worker owns:
 8. optional `AIRJAM_PLATFORM_WORKER_*` scheduling and drain bounds
 9. the explicit `AIRJAM_SYNTHETIC_*` targets required by the enabled synthetic
    catalog
-10. a repository-installed, issue-only GitHub App identity only after Gate
-    `G4-03` enables incident issue projection
+10. `AIRJAM_GITHUB_ISSUES_APP_ID`,
+    `AIRJAM_GITHUB_ISSUES_INSTALLATION_ID`,
+    `AIRJAM_GITHUB_ISSUES_PRIVATE_KEY`, and
+    `AIRJAM_GITHUB_ISSUES_REPOSITORY` for the repository-installed,
+    issue-only GitHub App used by Gate `G4-03`
 
 It should not receive Better Auth, the multiplayer master key, maintainer
 personal GitHub tokens, broad repository credentials, or creator-facing OAuth

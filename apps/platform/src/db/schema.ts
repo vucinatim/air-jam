@@ -184,6 +184,7 @@ export const {
   operationalSyntheticRuns,
   operationalSloEvaluations,
   operationalAlerts,
+  operationalAlertIssueProjections,
   operationalControlEvents,
   operationalLaneControls,
   runtimeUsageSessions,

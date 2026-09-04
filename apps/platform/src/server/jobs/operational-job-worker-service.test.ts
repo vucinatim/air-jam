@@ -84,8 +84,13 @@ describe("operational job worker service", () => {
         AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
         AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
         AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
         AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT: "1",
         AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS: "1000",
+        AIRJAM_GITHUB_ISSUES_APP_ID: "github-app",
+        AIRJAM_GITHUB_ISSUES_INSTALLATION_ID: "github-installation",
+        AIRJAM_GITHUB_ISSUES_PRIVATE_KEY: "test-private-key",
+        AIRJAM_GITHUB_ISSUES_REPOSITORY: "vucinatim/air-jam",
       },
       runCycle: async ({ kind }) => {
         await cycle.promise;
@@ -102,6 +107,8 @@ describe("operational job worker service", () => {
       },
       deliverEvent: async () => ({ status: "idle" }),
       repairEventDelivery: async () => [],
+      repairIssueProjection: async () => [],
+      runIssueProjection: async () => ({ status: "idle" }),
       runSynthetics: async () => ({
         environment: "test",
         scheduledAt: new Date().toISOString(),
@@ -173,7 +180,10 @@ describe("operational job worker service", () => {
             status: "failed",
             lastFailureCode: "OperationalSyntheticBatchFailure",
           },
+          issueProjection: { status: "ready" },
         },
+        issueProjectionConfigured: true,
+        lastIssueProjectionStatus: "idle",
         lastSyntheticBatch: {
           dueCount: 2,
           completedCount: 1,

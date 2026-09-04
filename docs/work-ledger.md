@@ -18,6 +18,28 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-04 - One Alert Now Owns One Durable GitHub Issue
+
+- closed `G4-03` with a narrow projection instead of adding a generic incident
+  workflow, hosted reasoning service, or automatic remediation framework
+- kept `operational_alerts` authoritative while using GitHub only for durable
+  notice, coordination, assignment, comments, and history
+- gave each repository/alert key one leased PostgreSQL projection with exact
+  revision fencing, bounded retry, dead-letter inspection, expired-lease
+  repair, and audited idempotent requeue
+- implemented create, update, recovery close, and recurrence reopen against one
+  issue identity; uncertain creates reconcile through a hidden marker instead
+  of duplicating issues
+- preserved agent and maintainer text outside a strictly owned managed block
+  containing alert, source-event, SLO-evaluation, failed/passed verification,
+  and canonical CLI inspection pointers
+- isolated a repository-installed issue-only GitHub App identity to the
+  operational worker and kept secrets out of documents, status, and previews
+- exposed alert and issue-projection inspection plus safe maintenance through
+  the canonical repo CLI and wired the PostgreSQL regression proof into CI
+- retained production activation under `G3-08`; shipping the capability does
+  not silently provision a continuously running production actor
+
 ## 2026-09-04 - Reliability Foundation Was Hardened Before Continuous Execution
 
 - closed `G4-07` without adding a generic incident engine, remediation DSL, or

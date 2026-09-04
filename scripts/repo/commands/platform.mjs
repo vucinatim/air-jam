@@ -800,9 +800,13 @@ export const registerPlatformCommands = (program) => {
     });
   });
 
+  const alertsCommand = reliabilityCommand
+    .command("alerts")
+    .description("Inspect durable internal alert state");
+
   addPlatformDatabaseTargetOption(
-    reliabilityCommand
-      .command("alerts")
+    alertsCommand
+      .command("list")
       .description("List durable internal alert state")
       .option(
         "--environment <environment>",
@@ -817,6 +821,179 @@ export const registerPlatformCommands = (program) => {
         command: "alerts-list",
         environment: options.environment,
         status: options.status,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    alertsCommand
+      .command("inspect")
+      .description("Inspect one durable internal alert by stable key")
+      .requiredOption("--alert-key <alert-key>", "Stable operational alert key")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "alerts-inspect",
+        alertKey: options.alertKey,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  const issueProjectionCommand = reliabilityCommand
+    .command("issues")
+    .description(
+      "Inspect and safely advance deduplicated GitHub alert issues",
+    );
+
+  addPlatformDatabaseTargetOption(
+    issueProjectionCommand
+      .command("status")
+      .description("Inspect GitHub issue projection queue and failures")
+      .option("--repository <owner/name>", "Optional target repository filter")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "issues-status",
+        repository: options.repository,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    issueProjectionCommand
+      .command("list")
+      .description("List redacted GitHub issue projection records")
+      .option("--repository <owner/name>", "Optional target repository filter")
+      .option(
+        "--status <status>",
+        "pending, delivering, delivered, or dead_letter",
+      )
+      .option("--limit <limit>", "Maximum rows from 1 to 500", "100")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "issues-list",
+        repository: options.repository,
+        status: options.status,
+        limit: options.limit,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    issueProjectionCommand
+      .command("inspect")
+      .description("Inspect one alert-key and repository projection")
+      .requiredOption("--repository <owner/name>", "Target repository")
+      .requiredOption("--alert-key <alert-key>", "Stable operational alert key")
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "issues-inspect",
+        repository: options.repository,
+        alertKey: options.alertKey,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    issueProjectionCommand
+      .command("project-once")
+      .description("Preview or project one dependency-ready alert to GitHub")
+      .requiredOption("--worker <worker-id>", "Stable worker identity")
+      .option(
+        "--apply",
+        "Apply one GitHub issue projection; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "issues-project-once",
+        workerId: options.worker,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    issueProjectionCommand
+      .command("repair-expired")
+      .description("Preview or repair expired GitHub issue projection leases")
+      .option("--repository <owner/name>", "Optional target repository filter")
+      .option("--limit <limit>", "Maximum rows from 1 to 500", "100")
+      .option(
+        "--apply",
+        "Repair expired leases; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "issues-repair-expired",
+        repository: options.repository,
+        limit: options.limit,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    issueProjectionCommand
+      .command("requeue-dead-letter")
+      .description(
+        "Preview or requeue one dead-lettered GitHub issue projection",
+      )
+      .requiredOption("--repository <owner/name>", "Target repository")
+      .requiredOption("--alert-key <alert-key>", "Stable operational alert key")
+      .requiredOption("--actor <actor>", "Audited agent or operator identity")
+      .requiredOption("--reason <reason>", "Durable requeue reason")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable key for this logical requeue command",
+      )
+      .option("--max-attempts <count>", "Fresh retry budget from 1 to 20", "8")
+      .option(
+        "--apply",
+        "Requeue the projection; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    await runPlatformDatabaseOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "issues-requeue-dead-letter",
+        repository: options.repository,
+        alertKey: options.alertKey,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        maxAttempts: options.maxAttempts,
+        apply: Boolean(options.apply),
         json: Boolean(options.json),
       },
       options,

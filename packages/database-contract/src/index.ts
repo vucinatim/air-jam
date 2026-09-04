@@ -1,4 +1,5 @@
 import {
+  DEFAULT_OPERATIONAL_ALERT_ISSUE_MAX_ATTEMPTS,
   DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
   type OperationalAlertV1,
   type OperationalEventEnvelopeV1,
@@ -12,6 +13,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -1020,6 +1022,135 @@ export const createRuntimeDatabaseSchema = ({
     }),
   );
 
+  const operationalAlertIssueProjections = pgTable(
+    "operational_alert_issue_projections",
+    {
+      id: text("id").primaryKey(),
+      contractVersion: integer("contract_version").default(1).notNull(),
+      alertKey: text("alert_key").notNull(),
+      repository: text("repository").notNull(),
+      targetAlertRevision: integer("target_alert_revision").notNull(),
+      targetAlert: jsonb("target_alert")
+        .$type<OperationalAlertV1>()
+        .notNull(),
+      projectedAlertRevision: integer("projected_alert_revision")
+        .default(0)
+        .notNull(),
+      status: text("status")
+        .$type<"pending" | "delivering" | "delivered" | "dead_letter">()
+        .default("pending")
+        .notNull(),
+      attemptCount: integer("attempt_count").default(0).notNull(),
+      maxAttempts: integer("max_attempts")
+        .default(DEFAULT_OPERATIONAL_ALERT_ISSUE_MAX_ATTEMPTS)
+        .notNull(),
+      availableAt: timestamp("available_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+      leaseOwner: text("lease_owner"),
+      leaseToken: text("lease_token"),
+      leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+      issueNumber: integer("issue_number"),
+      issueUrl: text("issue_url"),
+      issueState: text("issue_state").$type<"open" | "closed">(),
+      managedBodyHash: text("managed_body_hash"),
+      projectedAt: timestamp("projected_at", { withTimezone: true }),
+      lastError: jsonb("last_error").$type<OperationalFailureV1>(),
+      createdAt: timestamp("created_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+      updatedAt: timestamp("updated_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+    },
+    (table) => ({
+      alertKeyFk: foreignKey({
+        name: "operational_alert_issue_projection_alert_fk",
+        columns: [table.alertKey],
+        foreignColumns: [operationalAlerts.alertKey],
+      }).onDelete("restrict"),
+      alertRepositoryIdx: uniqueIndex(
+        "operational_alert_issue_projections_alert_repository_idx",
+      ).on(table.alertKey, table.repository),
+      deliveryQueueIdx: index(
+        "operational_alert_issue_projections_delivery_queue_idx",
+      )
+        .on(table.status, table.availableAt, table.createdAt)
+        .where(sql`${table.status} = 'pending'`),
+      leaseExpiryIdx: index(
+        "operational_alert_issue_projections_lease_expiry_idx",
+      )
+        .on(table.leaseExpiresAt)
+        .where(sql`${table.status} = 'delivering'`),
+      statusCheck: check(
+        "operational_alert_issue_projections_status_check",
+        sql`${table.status} in ('pending', 'delivering', 'delivered', 'dead_letter')`,
+      ),
+      issueStateCheck: check(
+        "operational_alert_issue_projections_issue_state_check",
+        sql`${table.issueState} is null or ${table.issueState} in ('open', 'closed')`,
+      ),
+      contractVersionCheck: check(
+        "operational_alert_issue_projections_contract_version_check",
+        sql`${table.contractVersion} = 1`,
+      ),
+      revisionCheck: check(
+        "operational_alert_issue_projections_revision_check",
+        sql`${table.targetAlertRevision} > 0 and ${table.projectedAlertRevision} >= 0 and ${table.projectedAlertRevision} <= ${table.targetAlertRevision}`,
+      ),
+      targetAlertCheck: check(
+        "operational_alert_issue_projections_target_alert_check",
+        sql`jsonb_typeof(${table.targetAlert}) = 'object'`,
+      ),
+      attemptsCheck: check(
+        "operational_alert_issue_projections_attempts_check",
+        sql`${table.attemptCount} >= 0 and ${table.maxAttempts} > 0 and ${table.attemptCount} <= ${table.maxAttempts}`,
+      ),
+      issueIdentityCheck: check(
+        "operational_alert_issue_projections_issue_identity_check",
+        sql`(
+          ${table.issueNumber} is null
+          and ${table.issueUrl} is null
+          and ${table.issueState} is null
+        ) or (
+          ${table.issueNumber} > 0
+          and length(btrim(${table.issueUrl})) > 0
+          and ${table.issueState} is not null
+        )`,
+      ),
+      lifecycleCheck: check(
+        "operational_alert_issue_projections_lifecycle_check",
+        sql`(
+          ${table.status} = 'pending'
+          and ${table.leaseOwner} is null
+          and ${table.leaseToken} is null
+          and ${table.leaseExpiresAt} is null
+        ) or (
+          ${table.status} = 'delivering'
+          and ${table.leaseOwner} is not null
+          and ${table.leaseToken} is not null
+          and ${table.leaseExpiresAt} is not null
+        ) or (
+          ${table.status} = 'delivered'
+          and ${table.leaseOwner} is null
+          and ${table.leaseToken} is null
+          and ${table.leaseExpiresAt} is null
+          and ${table.projectedAlertRevision} = ${table.targetAlertRevision}
+          and ${table.issueNumber} is not null
+          and ${table.managedBodyHash} is not null
+          and ${table.projectedAt} is not null
+          and ${table.lastError} is null
+        ) or (
+          ${table.status} = 'dead_letter'
+          and ${table.leaseOwner} is null
+          and ${table.leaseToken} is null
+          and ${table.leaseExpiresAt} is null
+          and ${table.lastError} is not null
+        )`,
+      ),
+    }),
+  );
+
   return {
     appIds,
     runtimeUsageSessions,
@@ -1039,6 +1170,7 @@ export const createRuntimeDatabaseSchema = ({
     operationalSyntheticRuns,
     operationalSloEvaluations,
     operationalAlerts,
+    operationalAlertIssueProjections,
   };
 };
 
