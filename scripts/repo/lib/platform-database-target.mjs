@@ -24,6 +24,11 @@ const readDatabaseUrl = (filePath) => {
   return null;
 };
 
+const isLoopbackDatabaseUrl = (databaseUrl) => {
+  const hostname = new URL(databaseUrl).hostname;
+  return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname);
+};
+
 const runRailwayJson = (args, operation) => {
   const result = runCommandResult("railway", args, {
     stdio: ["ignore", "pipe", "pipe"],
@@ -168,13 +173,14 @@ export const resolvePlatformDatabaseTarget = async ({
       "No DATABASE_URL found. Set it in the environment or apps/platform/.env.local.",
     );
   }
+  const isLoopback = isLoopbackDatabaseUrl(databaseUrl);
   return {
     databaseUrl,
     target: {
-      kind: "local",
+      kind: isLoopback ? "local" : "unclassified",
       projectId: null,
       environmentId: null,
-      environmentName: "local",
+      environmentName: isLoopback ? "local" : null,
       databaseServiceId: null,
       databaseServiceName: null,
     },

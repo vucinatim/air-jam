@@ -1,5 +1,6 @@
 import { db, platformDatabaseClient } from "@/db";
 import { operationalJobs } from "@/db/schema";
+import { acquirePlatformSchemaMigrationApplyLock } from "@/server/operations/platform-schema-migration-lock";
 import {
   beginPlatformSchemaMigrationRun,
   getPlatformSchemaMigrationRun,
@@ -49,7 +50,7 @@ const sha256 = (value: string | Buffer) =>
   createHash("sha256").update(value).digest("hex");
 
 type Target = {
-  kind: "local" | "railway";
+  kind: "local" | "railway" | "unclassified";
   projectId: string | null;
   environmentId: string | null;
   environmentName: string | null;
@@ -235,6 +236,51 @@ const inspectDatabase = async ({
 const outputPath = (candidate: string | undefined, fallback: string) =>
   path.resolve(repoRoot, candidate ?? path.join(operationsRoot, fallback));
 
+const postgresConnectionEnvironment = (
+  databaseUrl: string,
+  { docker = false }: { docker?: boolean } = {},
+) => {
+  const parsed = new URL(databaseUrl);
+  if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
+    throw new Error("DATABASE_URL must use the postgres protocol.");
+  }
+  const hostname =
+    docker &&
+    ["localhost", "127.0.0.1", "::1", "[::1]"].includes(parsed.hostname)
+      ? "host.docker.internal"
+      : parsed.hostname;
+  const environment: Record<string, string> = {
+    PGHOST: hostname,
+    PGPORT: parsed.port || "5432",
+    PGDATABASE: decodeURIComponent(parsed.pathname.replace(/^\//u, "")),
+  };
+  if (parsed.username) environment.PGUSER = decodeURIComponent(parsed.username);
+  if (parsed.password)
+    environment.PGPASSWORD = decodeURIComponent(parsed.password);
+
+  const parameterEnvironmentNames: Record<string, string> = {
+    application_name: "PGAPPNAME",
+    channel_binding: "PGCHANNELBINDING",
+    connect_timeout: "PGCONNECT_TIMEOUT",
+    options: "PGOPTIONS",
+    sslcert: "PGSSLCERT",
+    sslkey: "PGSSLKEY",
+    sslmode: "PGSSLMODE",
+    sslrootcert: "PGSSLROOTCERT",
+    target_session_attrs: "PGTARGETSESSIONATTRS",
+  };
+  for (const [name, value] of parsed.searchParams) {
+    const environmentName = parameterEnvironmentNames[name];
+    if (!environmentName) {
+      throw new Error(
+        `DATABASE_URL uses unsupported PostgreSQL parameter ${name}.`,
+      );
+    }
+    environment[environmentName] = value;
+  }
+  return environment;
+};
+
 const runBackup = async ({
   databaseUrl,
   inspection,
@@ -262,22 +308,21 @@ const runBackup = async ({
     "--no-privileges",
     "--file",
     dumpPath,
-    databaseUrl,
   ];
+  const connectionEnvironment = postgresConnectionEnvironment(databaseUrl);
   let result = spawnSync("pg_dump", args, {
     encoding: "utf8",
+    env: { ...process.env, ...connectionEnvironment },
     stdio: ["ignore", "pipe", "pipe"],
   });
   if (
     result.status !== 0 &&
     result.stderr.includes("server version mismatch")
   ) {
-    const dockerDatabaseUrl = new URL(databaseUrl);
-    if (
-      ["localhost", "127.0.0.1", "::1"].includes(dockerDatabaseUrl.hostname)
-    ) {
-      dockerDatabaseUrl.hostname = "host.docker.internal";
-    }
+    const dockerConnectionEnvironment = postgresConnectionEnvironment(
+      databaseUrl,
+      { docker: true },
+    );
     result = spawnSync(
       "docker",
       [
@@ -285,15 +330,22 @@ const runBackup = async ({
         "--rm",
         "--add-host",
         "host.docker.internal:host-gateway",
+        ...Object.keys(dockerConnectionEnvironment).flatMap((name) => [
+          "-e",
+          name,
+        ]),
         "-v",
         `${path.dirname(dumpPath)}:/backup`,
         "postgres:17",
         "pg_dump",
-        ...args.slice(0, -2),
+        ...args.slice(0, -1),
         "/backup/" + path.basename(dumpPath),
-        dockerDatabaseUrl.toString(),
       ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      {
+        encoding: "utf8",
+        env: { ...process.env, ...dockerConnectionEnvironment },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
     );
   }
   if (result.status !== 0) {
@@ -407,13 +459,14 @@ const writePlan = async ({
   }
   const authority = operation.authority ?? "local";
   if (
-    inspection.target.target.kind === "railway" &&
-    (inspection.target.target.environmentName === "production" ||
-      inspection.target.target.environmentName === null) &&
+    (inspection.target.target.kind === "unclassified" ||
+      (inspection.target.target.kind === "railway" &&
+        (inspection.target.target.environmentName === "production" ||
+          inspection.target.target.environmentName === null))) &&
     authority !== "production"
   ) {
     throw new Error(
-      "A production or unclassified Railway target requires --authority production.",
+      "A production or unclassified database target requires --authority production.",
     );
   }
   const source = sourceIdentity();
@@ -495,8 +548,8 @@ const assertPlanMatches = ({
   if (operation.planDigest !== expectedDigest) {
     throw new Error("--plan-digest must exactly match the plan document.");
   }
-  if (plan.authority === "production" && operation.authority !== "production") {
-    throw new Error("Production plans require --authority production.");
+  if (operation.authority !== plan.authority) {
+    throw new Error("--authority must exactly match the migration plan.");
   }
   if (plan.source.catalogDigest !== catalog.digest) {
     throw new Error("Migration catalog changed after the plan was created.");
@@ -626,7 +679,7 @@ const recordRun = async ({
   });
 };
 
-const applyPlan = async ({
+const applyPlanWithLockHeld = async ({
   operation,
   client,
   catalog,
@@ -660,19 +713,42 @@ const applyPlan = async ({
       "Migration plan already belongs to a different idempotency key.",
     );
   }
-  if (existing?.status === "applied" || existing?.status === "verified") {
-    return {
-      contractVersion,
-      status: existing.status,
-      replayed: true,
-      run: existing,
-    };
-  }
   const atPlannedHead =
     canonicalJson(inspection.observed) === canonicalJson(plan.before.observed);
   const atAppliedHead = inspection.compatible;
   if (!atPlannedHead && !atAppliedHead) {
     throw new Error("Database schema changed after the plan was created.");
+  }
+  if (
+    atPlannedHead &&
+    (inspection.status !== plan.before.status ||
+      inspection.unknown.length > 0 ||
+      inspection.appliedCount !== plan.before.appliedCount)
+  ) {
+    throw new Error(
+      "Database migration history changed after the plan was created.",
+    );
+  }
+  if (existing?.status === "applied" || existing?.status === "verified") {
+    if (!atAppliedHead) {
+      throw new Error(
+        "Recorded migration run no longer matches the database schema head.",
+      );
+    }
+    const checks = await verifyChecks(client, plan.verificationChecks);
+    if (checks.some((check) => !check.passed)) {
+      throw new Error(
+        "Recorded migration run no longer passes database verification.",
+      );
+    }
+    return {
+      contractVersion,
+      status: existing.status,
+      replayed: true,
+      run: existing,
+      inspection,
+      checks,
+    };
   }
   if (existing && atAppliedHead) {
     const checks = await verifyChecks(client, plan.verificationChecks);
@@ -797,16 +873,41 @@ const applyPlan = async ({
   };
 };
 
+const applyPlan = async ({
+  operation,
+  client,
+  catalog,
+}: {
+  operation: Operation;
+  client: ReturnType<typeof postgres>;
+  catalog: Catalog;
+}) => {
+  const releaseLock = await acquirePlatformSchemaMigrationApplyLock();
+  try {
+    const inspection = await inspectDatabase({
+      client,
+      catalog,
+      target: operation.target,
+    });
+    return await applyPlanWithLockHeld({
+      operation,
+      client,
+      catalog,
+      inspection,
+    });
+  } finally {
+    await releaseLock();
+  }
+};
+
 const restoreLanes = async ({
   plan,
   run,
   actor,
-  reason,
 }: {
   plan: MigrationPlan;
   run: MigrationRun;
   actor: string;
-  reason: string;
 }) => {
   const evidence = run.drainEvidence as {
     paused: Array<{
@@ -822,7 +923,7 @@ const restoreLanes = async ({
         input: {
           lane: item.previous.lane,
           mode: item.previous.mode,
-          reason: `Schema migration ${plan.digest} verified: ${reason}`,
+          reason: `Schema migration ${plan.digest} verified`,
           retryAfterSeconds: item.previous.retryAfterSeconds,
           expectedRevision: item.current.revision,
           actor,
@@ -850,6 +951,9 @@ const verifyPlan = async ({
   const { plan, digest } = readPlan(requireText(operation.plan, "Plan path"));
   if (operation.planDigest !== digest) {
     throw new Error("--plan-digest must exactly match the plan document.");
+  }
+  if (operation.authority !== plan.authority) {
+    throw new Error("--authority must exactly match the migration plan.");
   }
   if (plan.source.catalogDigest !== catalog.digest) {
     throw new Error("Migration catalog changed after the plan was created.");
@@ -919,7 +1023,7 @@ const verifyPlan = async ({
   }
   let restored;
   try {
-    restored = await restoreLanes({ plan, run, actor, reason });
+    restored = await restoreLanes({ plan, run, actor });
   } catch (error) {
     const failedVerification = {
       ...verification,
@@ -1018,7 +1122,7 @@ const main = async () => {
         inspection,
       });
     } else if (operation.command === "apply") {
-      result = await applyPlan({ operation, client, catalog, inspection });
+      result = await applyPlan({ operation, client, catalog });
     } else {
       result = await verifyPlan({ operation, client, catalog, inspection });
     }

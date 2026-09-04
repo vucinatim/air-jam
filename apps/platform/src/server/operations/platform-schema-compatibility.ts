@@ -27,6 +27,7 @@ export type PlatformSchemaCompatibility = {
     | "database_schema_behind"
     | "database_schema_ahead"
     | "migration_hash_mismatch"
+    | "migration_journal_corrupt"
     | "database_authority_unavailable";
 };
 
@@ -88,32 +89,11 @@ export const readPlatformSchemaCompatibility = async ({
 }: {
   database?: SchemaCompatibilityDatabase;
 } = {}): Promise<PlatformSchemaCompatibility> => {
+  let relationRows: Awaited<ReturnType<SchemaCompatibilityDatabase["execute"]>>;
   try {
-    const relationRows = await database.execute(
+    relationRows = await database.execute(
       sql`select to_regclass('drizzle.__drizzle_migrations') as relation`,
     );
-    const relation = (
-      relationRows[0] as { relation?: string | null } | undefined
-    )?.relation;
-    if (!relation) return classifyPlatformSchemaHead(null);
-
-    const headRows = await database.execute(sql`
-      select hash, created_at
-      from drizzle.__drizzle_migrations
-      order by created_at desc
-      limit 1
-    `);
-    const row = headRows[0] as
-      | { hash?: string; created_at?: number | string }
-      | undefined;
-    if (!row?.hash || row.created_at === undefined) {
-      return classifyPlatformSchemaHead(null);
-    }
-    const createdAt = Number(row.created_at);
-    if (!Number.isSafeInteger(createdAt)) {
-      throw new Error("Migration journal head timestamp is invalid.");
-    }
-    return classifyPlatformSchemaHead({ createdAt, hash: row.hash });
   } catch {
     return buildCompatibility({
       status: "unavailable",
@@ -121,6 +101,38 @@ export const readPlatformSchemaCompatibility = async ({
       reason: "database_authority_unavailable",
     });
   }
+  const relation = (relationRows[0] as { relation?: string | null } | undefined)
+    ?.relation;
+  if (!relation) return classifyPlatformSchemaHead(null);
+
+  let headRows: Awaited<ReturnType<SchemaCompatibilityDatabase["execute"]>>;
+  try {
+    headRows = await database.execute(sql`
+      select hash, created_at
+      from drizzle.__drizzle_migrations
+      order by created_at desc
+      limit 1
+    `);
+  } catch {
+    return buildCompatibility({
+      status: "unavailable",
+      observed: null,
+      reason: "database_authority_unavailable",
+    });
+  }
+  const row = headRows[0] as
+    | { hash?: string; created_at?: number | string }
+    | undefined;
+  if (!row) return classifyPlatformSchemaHead(null);
+  const createdAt = Number(row.created_at);
+  if (!row.hash || !Number.isSafeInteger(createdAt)) {
+    return buildCompatibility({
+      status: "drifted",
+      observed: null,
+      reason: "migration_journal_corrupt",
+    });
+  }
+  return classifyPlatformSchemaHead({ createdAt, hash: row.hash });
 };
 
 export class PlatformSchemaIncompatibleError extends Error {

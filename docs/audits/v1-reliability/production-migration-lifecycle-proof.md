@@ -32,8 +32,14 @@ Focused repository and platform tests prove:
 5. product readiness fails on an incompatible schema
 6. an operational worker rejects a cycle before job authority is touched when
    the schema is incompatible
-7. the pre-existing Railway database resolver contract still resolves targets
+7. only loopback database hosts receive local authority; direct remote URLs are
+   unclassified and inherit production gates
+8. the pre-existing Railway database resolver contract still resolves targets
    without printing credentials
+9. CI explicitly runs the durable migration lifecycle PostgreSQL suite rather
+   than allowing its environment-aware tests to skip
+10. corrupt journal data is distinguishable from unavailable database
+    authority while remaining fail-closed
 
 The generated migration `0036_canonical_production_migration_lifecycle.sql`
 creates the durable run authority and verifies its table, lifecycle constraint,
@@ -63,6 +69,18 @@ deployment origin. The command failed, the durable run moved to
 `verification_failed`, and its retained checks showed all database checks
 passed while `deployment:exact-revision-readiness` failed. The lifecycle did
 not report success or perform restoration.
+
+After final review hardening, additional PostgreSQL 17 proofs established:
+
+1. a session-level advisory lock rejects a concurrent apply and can be safely
+   reacquired after release
+2. the durable migration lifecycle and lock suite passes with two database
+   tests and is explicitly wired into the GitHub test lane
+3. the actual repo CLI creates a valid 158,590-byte PostgreSQL 17 custom backup
+   plus manifest while supplying connection credentials only through libpq
+   environment variables, never process arguments
+4. the full `pnpm check:batch` gate remains green after the authority, drift,
+   concurrency, credential, retry, and diagnosis hardening
 
 The first ordinary Docker initialization attempt found the host's persistent
 Docker store full. The proof was rerun safely with a bounded tmpfs database;

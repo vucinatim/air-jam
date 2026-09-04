@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  resolvePlatformDatabaseTarget,
   resolveRailwayPlatformDatabaseTarget,
   resolveRailwayPlatformDatabaseTargetWithCli,
 } from "../lib/platform-database-target.mjs";
@@ -119,4 +120,24 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
   );
   assert.equal(fallback.databaseUrl, "postgresql://oauth-cli-fallback");
   assert.equal(fallback.target.environmentName, "preview");
+});
+
+test("direct database targets are local only when their host is loopback", async () => {
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  try {
+    process.env.DATABASE_URL =
+      "postgresql://airjam:secret@localhost:5432/airjam";
+    const local = await resolvePlatformDatabaseTarget();
+    assert.equal(local.target.kind, "local");
+    assert.equal(local.target.environmentName, "local");
+
+    process.env.DATABASE_URL =
+      "postgresql://airjam:secret@production.proxy.rlwy.net:5432/airjam";
+    const unclassified = await resolvePlatformDatabaseTarget();
+    assert.equal(unclassified.target.kind, "unclassified");
+    assert.equal(unclassified.target.environmentName, null);
+  } finally {
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousDatabaseUrl;
+  }
 });

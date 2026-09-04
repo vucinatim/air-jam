@@ -50,6 +50,10 @@ test("CI preserves every confidence lane behind one stable required check", () =
   );
   assert.match(
     lanes[2].command,
+    /platform-schema-migration-run-service\.postgres\.test\.ts/u,
+  );
+  assert.match(
+    lanes[2].command,
     /operational-event-publisher\.postgres\.test\.ts/u,
   );
   assert.equal(lanes[2].postgresImage, "postgres:17-alpine");

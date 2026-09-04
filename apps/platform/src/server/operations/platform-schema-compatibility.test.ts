@@ -1,6 +1,9 @@
 import { platformSchemaHead } from "@/db/platform-schema-head.generated";
-import { describe, expect, it } from "vitest";
-import { classifyPlatformSchemaHead } from "./platform-schema-compatibility";
+import { describe, expect, it, vi } from "vitest";
+import {
+  classifyPlatformSchemaHead,
+  readPlatformSchemaCompatibility,
+} from "./platform-schema-compatibility";
 
 describe("platform schema compatibility", () => {
   it("accepts only the exact generated migration head", () => {
@@ -31,6 +34,21 @@ describe("platform schema compatibility", () => {
       status: "drifted",
       compatible: false,
       reason: "migration_hash_mismatch",
+    });
+  });
+
+  it("distinguishes a corrupt journal head from unavailable authority", async () => {
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce([{ relation: "drizzle.__drizzle_migrations" }])
+      .mockResolvedValueOnce([{ hash: "bad", created_at: "not-a-number" }]);
+
+    await expect(
+      readPlatformSchemaCompatibility({ database: { execute } as never }),
+    ).resolves.toMatchObject({
+      status: "drifted",
+      compatible: false,
+      reason: "migration_journal_corrupt",
     });
   });
 });

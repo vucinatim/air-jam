@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, describe, expect, it } from "vitest";
+import { acquirePlatformSchemaMigrationApplyLock } from "./platform-schema-migration-lock";
 import {
   PlatformSchemaMigrationRunConflictError,
   beginPlatformSchemaMigrationRun,
@@ -45,6 +46,21 @@ describeWithPostgres(
         .delete(platformSchemaMigrationRuns)
         .where(eq(platformSchemaMigrationRuns.planDigest, planDigest));
       await client.end();
+    });
+
+    it("serializes migration apply across independent invocations", async () => {
+      const release = await acquirePlatformSchemaMigrationApplyLock({ client });
+      await expect(
+        acquirePlatformSchemaMigrationApplyLock({ client }),
+      ).rejects.toThrow(
+        "Another platform schema migration apply is in progress",
+      );
+      await release();
+
+      const releaseAfterRetry = await acquirePlatformSchemaMigrationApplyLock({
+        client,
+      });
+      await releaseAfterRetry();
     });
 
     it("replays intent, fences conflicting identity, and enforces lifecycle transitions", async () => {

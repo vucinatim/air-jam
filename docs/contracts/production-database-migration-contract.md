@@ -23,6 +23,10 @@ the exact journal head.
 There is no second migration registry, hand-written production SQL path, or
 automatic production migration at application startup.
 
+Only loopback database hosts are classified as local. A direct non-loopback
+`DATABASE_URL` is deliberately unclassified and receives the same explicit
+production-authority gates as a production or unclassified Railway target.
+
 ## Migration Policy
 
 Every migration after journal index `35` declares its operating mode inside the
@@ -85,6 +89,13 @@ The operational worker checks the same schema authority before every claim and
 periodically while running. An incompatible schema leaves the process alive and
 observable but blocks all new job, maintenance, event-delivery, synthetic, and
 issue-projection work.
+
+Job claims recheck schema authority immediately before every claim. Other worker
+loops use the shared compatibility snapshot, refreshed every
+`AIRJAM_PLATFORM_WORKER_REPAIR_MS` (30 seconds by default). That bounded overlap
+is safe only because production accepts adjacent-version-compatible `online`
+migrations and refuses `exclusive` migrations; it is not permission to weaken
+the online compatibility rule.
 
 Application changes paired with an `online` migration must remain compatible
 with both adjacent schema versions during rollout. Changes that cannot satisfy
