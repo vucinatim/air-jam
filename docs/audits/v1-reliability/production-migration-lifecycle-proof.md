@@ -2,7 +2,7 @@
 
 Date: 2026-09-04
 Gate: `G3-06`
-Status: isolated implementation proof; production rollout evidence pending
+Status: complete production proof
 
 ## Proven Contract
 
@@ -98,15 +98,36 @@ The first ordinary Docker initialization attempt found the host's persistent
 Docker store full. The proof was rerun safely with a bounded tmpfs database;
 no unrelated Docker data was pruned.
 
-## Evidence Still Required Before Closure
+## Production Evidence
 
-This document does not claim production completion yet. Closure requires:
+Pull request [#89](https://github.com/vucinatim/air-jam/pull/89) passed every
+required CI and Railway preview check. Canonicalizer returned `ready`; the one
+GitHub-native Claude Opus review returned `CLEAR TO MERGE`, and its six
+non-blocking threads were fixed, answered, and resolved before merge.
 
-1. green batch and CI-equivalent gates
-2. one Canonicalizer review before push
-3. one green GitHub PR and one GitHub-native Claude Opus review
-4. merge, production plan/apply, exact-revision verification, and Railway
-   readiness evidence
+The reviewed change merged to `main` as
+`5a280c43337f4dc5f00069457ee3a89b8c7cffc0`. The repo CLI then completed the
+production lifecycle against Railway project
+`0b0761f9-9bb1-4d4f-8191-50d43cccdee7`, environment
+`53607220-1116-4d93-89b2-d508835901ac`:
+
+1. `inspect` identified the exact production target at journal index `35` with
+   only migration `0036` pending and no unknown or blocked history
+2. `plan` created immutable plan digest
+   `5321d064a3a5f372c30d437350ce30a3db5b6ae13a9af6fddafb631ea193bdd9`
+   and a 632,568-byte custom-format backup with SHA-256
+   `808080066147dc01238042b67a09e24f5b9f25fb8cf2279847bdcea29b575d68`
+3. guarded `apply` advanced production to exact journal head `0036`, passed all
+   declared object checks, and persisted run
+   `572a389a-e93e-4ecc-9887-75a69e69424c`
+4. Railway deployment `1ca7a865-2ab5-417e-8221-574c0071736d` served the exact
+   planned commit on `airjam.io`
+5. independent `verify` observed schema status `ready`, passed the table,
+   constraint, index, and exact-revision readiness checks, and moved the same
+   durable run to `verified`
+
+No operational lanes were affected by this online migration. No manual SQL,
+database URL extraction, or UI-only operator step was used.
 
 ## Deferred Scope
 

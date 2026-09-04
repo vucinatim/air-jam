@@ -194,7 +194,8 @@ The intended live shape is now also the deployment shape:
 1. Railway hosts the platform app
 2. Railway hosts the realtime server and Postgres
 3. Railway hosts the release browser worker
-4. production migration `0034` for durable operational reliability is applied
+4. production schema is independently verified at migration head `0036`
+   through the canonical migration lifecycle
 5. the repo defines the operational worker, but its production service rollout
    remains pending the documented activation, drain, rollback, and cost proof
 6. R2 stores release and media objects

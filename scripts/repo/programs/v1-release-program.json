@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-04T03:45:29.489Z",
+  "updatedAt": "2026-09-04T05:33:57.633Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -1066,10 +1066,19 @@
         "repo CLI inspect, immutable plan, guarded apply, and independent verify evidence",
         "failure-path proof that incompatible schema drains affected writers and blocks worker claims"
       ],
-      "status": "in_progress",
-      "updatedAt": "2026-09-04T03:45:29.489Z",
+      "status": "complete",
+      "updatedAt": "2026-09-04T05:33:57.633Z",
       "owner": "/root",
-      "note": "Implementing the canonical agent-operated production migration lifecycle and schema compatibility gate."
+      "note": "Merged, applied, and independently verified the canonical agent-operated migration lifecycle against the exact Railway production revision.",
+      "evidence": [
+        "document:docs/audits/v1-reliability/production-migration-lifecycle-proof.md",
+        "document:docs/contracts/production-database-migration-contract.md",
+        "command:pnpm-check-batch",
+        "command:production-migration-run-verified",
+        "url:https://github.com/vucinatim/air-jam/pull/89",
+        "artifact:git:5a280c43337f4dc5f00069457ee3a89b8c7cffc0"
+      ],
+      "completedAt": "2026-09-04T05:33:57.633Z"
     },
     {
       "id": "G4-07",

@@ -315,12 +315,15 @@ work state without becoming a second product authority:
 The foundation integration through PR `#61`, the production-health recovery in
 PR `#76`, the public install matrix in PR `#74`, and the durable reliability
 loop in PR `#75` are merged. Production is healthy on exact main revision
-`c6a8a14a228adef6c367f99d94d26d514f1ae4b5`: the platform, realtime server,
-and browser worker all reached terminal `SUCCESS`, migration `0034` is applied,
-and live browser smoke covers the landing page, direct Arcade navigation,
-branding, and game-card hover behavior. The separately defined operational
-worker is not provisioned in production yet, so continuous synthetics, SLO
-evaluation, and alert generation are implemented but intentionally inactive.
+`5a280c43337f4dc5f00069457ee3a89b8c7cffc0`: the platform reached terminal
+`SUCCESS` as Railway deployment `1ca7a865-2ab5-417e-8221-574c0071736d`, schema
+migration `0036` is independently verified, and the realtime server plus
+browser worker remain successful on their latest watched-path-relevant
+revisions. Live browser smoke covers the landing page, direct Arcade
+navigation, branding, and game-card hover behavior. The separately defined
+operational worker is not provisioned in production yet, so continuous
+synthetics, SLO evaluation, and alert generation are implemented but
+intentionally inactive.
 Production code is delivered incrementally; stable package promotion, public
 release visibility, final docs, the launch article, and distribution are
 coordinated only after one exact candidate passes rehearsal.
@@ -425,10 +428,10 @@ vocabulary, event and failure identities share one normalized code, synthetic
 chronology is database-owned, each scheduled check is isolated and reported,
 and older SLO evaluations cannot regress newer alert state. Scheduling is a
 separate orchestration module rather than another responsibility in the
-persistence service. Production schema migration `0034` is applied, but the
-operational worker service is deliberately not deployed until its activation
-preflight, drain, synthetic configuration, rollback, and cost-observation path
-is ready.
+persistence service. Production schema migration `0036` is applied and
+verified, but the operational worker service is deliberately not deployed
+until its activation preflight, drain, synthetic configuration, rollback, and
+cost-observation path is ready.
 Gate `G4-03` is closed by the
 [operational alert issue projection contract](./contracts/operational-alert-issue-projection-contract.md)
 and its
@@ -533,11 +536,9 @@ The canonical architecture and delivery order now lives in
 [the remaining-1.0 section of the execution plan](./plans/v1-release-execution-plan.md#remaining-10-architecture).
 In short:
 
-1. close the bounded reliability-review gaps and add the canonical production
-   migration lifecycle before continuous worker activation; `G3-06` now has
-   the source-owned schema policy, CLI lifecycle, runtime/worker guards, and
-   durable evidence authority implemented, with isolated PostgreSQL and
-   production rollout evidence still pending
+1. keep the now-complete canonical production migration lifecycle and schema
+   compatibility boundary stable; `G3-06` is merged, applied, and independently
+   verified against the exact Railway production deployment
 2. finish warned artifact retention and invisible realtime admission in
    `G3-02`, then provision and observe the operational worker safely
 3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
