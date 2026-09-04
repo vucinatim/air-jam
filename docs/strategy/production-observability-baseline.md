@@ -165,19 +165,20 @@ code cannot manufacture authoritative infrastructure facts. See the
 
 ## Defined Operational Authority Boundary
 
-Air Jam owns a versioned contract for lifecycle/runtime events, correlation,
-incidents, and governed runbooks. This is domain state needed to operate Air
-Jam safely; it is not a replacement for provider logs, external uptime, or a
-general-purpose observability vendor.
+Air Jam owns a versioned contract for lifecycle/runtime events and alerts, with
+future vocabulary for incidents and governed runbooks. This is domain state
+needed to operate Air Jam safely; it is not a replacement for provider logs,
+external uptime, or a general-purpose observability vendor.
 
-The contract keeps approximate product telemetry outside incident and
-remediation authority, deduplicates confirmed symptoms through deterministic
-fingerprints, and defines preview, approval, blast-radius, verification, and
-rollback rules before automatic actions are implemented.
+The contract keeps approximate product telemetry outside operational authority,
+deduplicates confirmed symptoms through deterministic fingerprints, and leaves
+room for preview, approval, blast-radius, verification, and rollback rules when
+a real production action requires them.
 
 The durable outbox, synthetic/SLO evaluator, and internal alert lifecycle are
-implemented. The correlator, notification adapters, GitHub issue delivery, and
-runbook executor remain Gate 4 implementation work. Until those slices are
+implemented. Narrow notification and GitHub issue delivery remain Gate 4 work.
+A generic incident lifecycle and runbook executor are post-1.0 options that
+real agent workflows must justify. Until the 1.0 slices are
 proven, alerts are internal durable state and explicit operator action remains
 the mutation authority.
 

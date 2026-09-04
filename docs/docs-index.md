@@ -31,8 +31,8 @@ The 1.0 release roadmap is the governing product track:
 
 The machine-backed subordinate execution plan owns dependency-aware work
 packages, evidence, the batched checkpoint model, and the canonical architecture
-for the remaining 1.0 reliability, recovery, incident, security, and release
-work:
+for the remaining 1.0 reliability, recovery, agent-operated alerting, security,
+and release work:
 
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
@@ -81,8 +81,8 @@ privacy, and supply-chain security baseline is:
 
 The audit owns evidence and decisions. `G5-02` and `G5-03` in the readiness
 manifest own implementation and proof; the document is not a parallel backlog.
-The Gate 4 authority boundary for operational evidence, incident correlation,
-and safely governed runbooks is defined by:
+The Gate 4 authority boundary and future vocabulary for operational evidence,
+alerts, incidents, and runbooks is defined by:
 
 1. [contracts/operational-events-and-incidents-contract.md](./contracts/operational-events-and-incidents-contract.md)
 2. [contracts/operational-reliability-contract.md](./contracts/operational-reliability-contract.md)
@@ -144,7 +144,8 @@ the currently executable queue. The next independent work is:
 1. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
 2. close the remaining ranked Gate 5 security findings after the completed
    `games.air-jam.app` production cutover
-3. correlate durable operational alerts into incidents and GitHub issues
+3. project confirmed operational alert keys into maintained GitHub
+   issues with linked evidence for local agents
 4. run isolated backup/restore and rollback/replay proof
 5. prove supply-chain provenance, privacy claims, and the emergency release
    procedure

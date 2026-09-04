@@ -39,8 +39,8 @@ The current priorities are:
 2. audit and canonicalize the codebase before public API stability is promised
 3. prove the complete lifecycle through an external agent from a clean
    environment
-4. harden production capacity, recovery, security, alerts, incident handling,
-   and bounded automated remediation before inviting launch traffic
+4. harden production capacity, recovery, security, sensory feedback, alerting,
+   and agent diagnosis before inviting launch traffic
 5. finish package, documentation, demo, article, and distribution work against
    one exact release candidate
 6. launch with a free creation harness and useful hobby cloud inside an explicit
@@ -294,8 +294,8 @@ The roadmap now organizes the remaining work into explicit evidence gates:
 
 1. external-agent golden-path proof
 2. launch-scale reliability, backpressure, cost, backup, restore, and rollback
-3. incident correlation, GitHub issue delivery, governed runbooks, and bounded
-   remediation
+3. trustworthy operational sensors, agent diagnosis, and narrow deduplicated
+   GitHub issue delivery
 4. security, abuse, privacy, and supply-chain trust
 5. final public documentation, demo, article, npm prerelease, and promotion
    proof
@@ -425,8 +425,11 @@ drain, synthetic configuration, rollback, and cost-observation path is ready.
 The bounded reliability corrections discovered after `G4-02` are now owned by
 `G4-07`; operational evidence retention is owned by `G3-07`, and both gate the
 separately claimable `G3-08` activation.
-This does not claim that continuous evaluations, incident correlation, external
-notification, GitHub issue delivery, or governed remediation are deployed.
+This does not claim that continuous evaluations, external notification, or
+GitHub issue delivery are deployed. A generic incident lifecycle and governed
+automatic-remediation engine are intentionally not 1.0 requirements: smart
+local agents should use the shared evidence and focused Air Jam, Railway,
+GitHub, and local tools instead.
 
 Gate `G3-01` is closed with the
 [production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).
@@ -521,10 +524,10 @@ In short:
    `G3-02`, then provision and observe the operational worker safely
 3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
    Codex plus Claude Desktop golden-path proofs
-4. run recovery proof, incident/GitHub delivery, and supply-chain trust as
+4. run recovery proof, narrow alert/GitHub delivery, and supply-chain trust as
    independent lanes after the shared foundation is stable
-5. add governed runbooks, approve only the proven automatic allowlist, and run
-   overload, recovery, remediation, and security closure drills
+5. run overload, recovery, and security closure drills through the existing
+   focused agent-operable controls
 6. finish docs/demo/story against shipped evidence, then cut and rehearse one
    immutable 1.0 candidate
 7. agents continue to claim, complete, or block work only through the canonical
@@ -535,12 +538,13 @@ In short:
 1. the repo has enough implemented infrastructure that the main risk is now
    committing to stale assumptions or freezing accidental complexity
 2. the production baseline and target capacity envelope are now measured and
-   explicit, but recovery, deliberate overload, and incident-automation proof
-   have not yet been demonstrated
+   explicit, but recovery, deliberate overload, and continuous alert/issue
+   proof have not yet been demonstrated
 3. product telemetry anonymous-session and actor-class counts are approximate
    discovery measures, not durable people or identity proof
-4. full code-changing self-healing is a post-1.0 direction; 1.0 requires strong
-   detection, automated triage, and only bounded reversible remediation
+4. self-healing should emerge from smart agents running against strong sensors,
+   shared evidence, and focused tools; a generic runbook or code-changing
+   automation engine is post-1.0 and must be justified by real incidents
 5. monetization mechanics are intentionally deferred until activation or
    requested value is real, but cost metering, quotas, queues, spend alerts,
    degradation, and kill switches are launch requirements

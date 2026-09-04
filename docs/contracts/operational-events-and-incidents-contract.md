@@ -28,10 +28,12 @@ It covers:
 6. privacy, redaction, versioning, and fail-closed behavior
 
 The durable outbox, event store, structured failure producers, SLO evaluations,
-synthetic runs, and internal alerts now implement this boundary. Incident
-storage, notification delivery, GitHub issue maintenance, and governed runbook
-execution remain later Gate 4 work and must consume these records rather than
-inventing parallel event models.
+synthetic runs, and internal alerts now implement the active 1.0 boundary. A
+narrow GitHub issue projection remains later Gate 4 work and must consume these
+records rather than inventing a parallel event model. Incident and runbook
+schemas remain available as future vocabulary; they do not require Air Jam to
+build a generic incident manager or remediation engine before real agent
+workflows justify one.
 
 ## Canonical Machine Surface
 
@@ -438,6 +440,7 @@ This contract slice is complete when:
 6. the docs and machine catalog describe the same authority and safety model
 
 Gate `G4-02` implements the durable outbox, SLO/synthetic/error producers, and
-internal alert lifecycle against this boundary. The next Gate 4 slices add
-incident correlation and GitHub delivery, runbook execution/audit, and failure
-drills without weakening its authority model.
+internal alert lifecycle against this boundary. Gate `G4-03` adds narrow,
+deduplicated GitHub issue delivery without weakening its authority model.
+Broader incident correlation and governed remediation are post-1.0 options,
+not required continuations of this contract.

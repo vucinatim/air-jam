@@ -86,6 +86,10 @@ Agents working on the 1.0 program must:
 Air Jam is an agent-first project. A product or operator capability is not
 complete when it can only be used through a human UI.
 
+Follow the canonical agent-freedom and effect-authority rubric in
+`docs/working-agreements.md#agent-freedom-and-operational-authority`. Constrain
+effects, not intelligence.
+
 For every new operational surface:
 
 1. expose a canonical repo CLI, MCP action, or equally explicit machine
@@ -105,6 +109,11 @@ For every new operational surface:
 Agents should use the canonical machine surface whenever one exists. Ad hoc SQL,
 UI clicking, and one-off shell logic are diagnostic fallbacks, not the normal
 operating model.
+
+The intended loop-and-swarm environment is described in
+`docs/working-agreements.md#agent-operating-ecosystem`: rich sensors, durable
+shared memory, focused tools, and effect-level authority rather than a rigid
+central reasoning engine.
 
 For Railway work specifically, prefer the repo-native Railway toolkit over the
 generic Railway CLI:

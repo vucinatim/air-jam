@@ -1,6 +1,6 @@
 # Air Jam 1.0 Canonicalization Decision Register
 
-Last updated: 2026-08-28
+Last updated: 2026-09-04
 Status: complete for `G1-01`
 Readiness owner: `G1-01`
 
@@ -31,11 +31,11 @@ public and high-impact cuts, and `G1-05` implements them.
 | CAN-103 | accepted-existing           | G1-03, G1-05, G5-02        | Delete generic lifecycle-bypassing mutations and keep trusted transitions.                                                 |
 | CAN-104 | accepted-existing           | G1-03, G1-05, G3-04        | Enforce and serialize the one-live-release invariant in PostgreSQL.                                                        |
 | CAN-105 | accepted-existing           | G5-01, G5-02               | Remove reporter contact from creator-facing projections and prove privacy boundaries.                                      |
-| CAN-106 | accepted-existing, narrowed | G4-01, G4-04, G5-02        | Complete abuse triage through one private machine adapter; public MCP expansion is not required.                           |
+| CAN-106 | accepted-existing, narrowed | G4-01, G5-02               | Complete abuse triage through one private machine adapter; public MCP expansion is not required.                           |
 | CAN-107 | accepted-existing           | G1-03, G1-05, G3-02        | UI and machine adapters must share actor-aware application services and admission policy.                                  |
 | CAN-108 | accepted-existing           | G3-01, G3-02, G3-03, G4-02 | Durable platform job authority is the root fix; CAN-206 is one adapter consequence.                                        |
 | CAN-109 | accepted-existing           | G3-02                      | Ratified quotas, cleanup, and usage inspection already belong to this item.                                                |
-| CAN-110 | accepted-existing           | G3-03, G4-04, G7-01        | Production migration becomes a private inspect/backup/apply/verify/restore operation.                                      |
+| CAN-110 | accepted-existing           | G3-03, G3-06, G7-01        | Production migration becomes a private inspect/backup/apply/verify/restore operation.                                      |
 | CAN-111 | accepted-existing           | G1-02, G1-03, G1-05        | One internal DB contract owns shared tables; platform remains sole migration authority.                                    |
 | CAN-112 | accepted-existing           | G1-03, G1-05               | Extract a testable orchestrator while preserving the existing replicated-state model.                                      |
 | CAN-113 | accepted-existing, split    | G3-02, G5-02               | Cross-adapter bypass blocks 1.0; distributed/global limiting remains before-scale unless topology evidence changes.        |

@@ -18,6 +18,26 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-04 - Agent Autonomy Was Reframed Around Capability, Not Ceremony
+
+- recorded the maintainer decision to constrain production effects rather than
+  agent reasoning: local agents receive rich sensors, shared evidence, and
+  focused Railway, GitHub, Air Jam, and local actions
+- defined the intended loop-and-swarm ecosystem: Railway and runtime state stay
+  provider/application truth, GitHub issues and pull requests provide durable
+  coordination, readiness owns release claims, and agents choose diagnosis and
+  implementation paths
+- narrowed the Gate 4 launch bar to trustworthy synthetics, alerts, agent
+  diagnosis, and one deduplicated GitHub issue path
+- removed the generic incident lifecycle, runbook persistence engine, and
+  automatic-remediation allowlist from mandatory 1.0 scope; retained them as
+  post-1.0 options earned by real incidents
+- explicitly ruled out a dedicated swarm scheduler until observed coordination
+  needs justify it
+- preserved strong effect boundaries for destructive, privileged, costly, and
+  public operations without forcing low-risk reads or reversible work through a
+  uniform state machine
+
 ## 2026-09-04 - Public Install And Durable Reliability Landed In Production
 
 - merged the six-cell public install proof in PR `#74` and the durable

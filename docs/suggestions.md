@@ -63,6 +63,7 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 57. Replace the remaining hardcoded hosted-release `/controller` suffix in `packages/sdk/src/arcade/url.ts` with the shared hosted-release controller-path contract so URL construction cannot drift across package boundaries.
 58. Decide whether hosted HTML bootstrap should preserve the immutable generation URL in visible browser history; its current `history.replaceState` to `/` means a direct visitor who reloads the rewritten release-host root receives the intentional platform-route `404`.
 59. Extend the published Railway/agentic-devtools surface with exact deployment stop/drain and correct custom-domain verification-token reads, so future agent-operated maintenance does not need the official CLI local MCP as a provider-gap fallback.
+60. After 1.0 produces real operational incidents, evaluate whether repeated agent workflows justify a generalized incident lifecycle, typed runbook extraction, or a dedicated loop/swarm scheduler. Start from retained issues, PRs, claims, and action evidence; add only the smallest missing coordination primitive instead of prebuilding a central self-healing platform.
 
 ## Framework Boundary Follow-Ups
 

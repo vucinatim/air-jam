@@ -39,17 +39,14 @@ manually maintaining a second checklist.
 
 ## Program Estimate
 
-Planning envelope:
+The readiness manifest owns the live agent-hour, maintainer-hour, and calendar
+planning envelope. Read it through `readiness status --json`; this plan does not
+copy those changing totals. The aggressive case assumes parallel execution and
+little audit fallout, while the conservative case includes a real redesign
+discovered by reliability, security, or scale proof.
 
-1. `285-520` active agent execution hours
-2. `28-56` maintainer hours, concentrated into explicit checkpoints
-3. `5-7` likely calendar weeks with stable boundaries and parallel execution
-4. `3-4` aggressive weeks if audits and production proofs reveal little fallout
-5. `8-10` conservative weeks if canonicalization, security, or scale work finds
-   a real redesign
-
-These are scheduling estimates, not completion evidence. The program closes
-only through the roadmap gates.
+This is scheduling guidance, not completion evidence. The program closes only
+through the roadmap gates.
 
 ## One Authority Per Kind Of Truth
 
@@ -230,15 +227,14 @@ condition.
 
 ## Human Checkpoint Policy
 
-Maintainer judgment is intentionally concentrated into six checkpoints:
+Maintainer judgment is intentionally concentrated into five checkpoints:
 
 1. `G0-03`: product, naming, compatibility, budget, quota, and autonomy
    decisions
 2. `G1-04`: public compatibility changes and high-impact removals
-3. `G4-05`: production automatic-remediation allowlist
-4. `G5-04`: residual security risk acceptance
-5. `G6-05`: final social experience, demonstration, and public story
-6. `G7-04`: final go/no-go
+3. `G5-04`: residual security risk acceptance
+4. `G6-05`: final social experience, demonstration, and public story
+5. `G7-04`: final go/no-go
 
 Final release authority is intentionally separate from product review.
 
@@ -328,7 +324,8 @@ Once Gate 1 boundaries are stable, execute these lanes in parallel:
 
 1. `golden-path`: external-agent lifecycle and public blockers
 2. `reliability`: cost limits, queues, cleanup, recovery, and load
-3. `operations`: operational events, synthetics, incidents, and runbooks
+3. `operations`: operational events, synthetics, alerts, agent diagnosis, and
+   narrow GitHub issue projection
 4. `security`: threats, abuse controls, secrets, provenance, and privacy
 
 One central integrator owns cross-lane contracts and validation. Independent
@@ -430,27 +427,22 @@ Current counts, estimates, ownership, ready work, and blockers must always be
 read from `pnpm --silent run repo -- readiness status --json` and `readiness
 next --json`. They are intentionally not copied into this architecture section.
 
-### One Operating Model
+### Deployment And Authority Topology
 
-The remaining architecture is one evidence and control loop:
+The remaining implementation follows the canonical
+[agent operating ecosystem](../working-agreements.md#agent-operating-ecosystem)
+and
+[effect-authority rubric](../working-agreements.md#agent-freedom-and-operational-authority).
+This plan owns only the concrete 1.0 deployment and authority shape.
 
-```text
-domain/runtime/provider signal
-  -> durable operational event
-  -> source-owned synthetic and SLO evaluation
-  -> deterministic incident correlation
-  -> notification and GitHub issue projection
-  -> runbook preview
-  -> approved or allowlisted invocation
-  -> bounded action
-  -> independent verification
-  -> resolve, roll back, or escalate
-```
+Authority remains where the truth originates:
 
-Recovery, capacity, security, and release evidence feed this loop; they do not
-create separate automation systems. Product telemetry stays outside the loop
-because visits and anonymous behavior are approximate product signals, not
-authority for operational mutation.
+1. Railway owns deployment and provider state
+2. Air Jam owns application, runtime, release, and operational evidence
+3. GitHub issues and pull requests own durable collaboration and delivery
+   history
+4. readiness owns release-program dependencies, claims, and completion evidence
+5. local agents own diagnosis, planning, implementation, and collaboration
 
 The deployable topology remains deliberately small:
 
@@ -458,7 +450,7 @@ The deployable topology remains deliberately small:
 2. the realtime server owns room and controller runtime authority
 3. the browser worker owns narrow untrusted-page browser execution
 4. one operational worker owns durable background jobs, event delivery,
-   synthetics, incident projection, and governed runbook execution
+   synthetics, alert evaluation, retention, and narrow GitHub issue projection
 5. PostgreSQL owns durable coordination, leases, revisions, audit, and evidence
 6. R2 owns immutable release/media bytes, while lifecycle and access policy stay
    in platform domain services
@@ -480,17 +472,18 @@ touched:
    database authority. Schema checks and migrations live here rather than in
    CLI-specific SQL.
 3. platform operations services own transactional behavior: event delivery,
-   SLO evaluation, incident correlation, retention, runbook state, and audit.
+   SLO evaluation, alert state, retention, and mutation audit where a current
+   production action requires it.
 4. provider adapters translate GitHub, Railway, R2, and browser-worker responses
    into bounded domain results. They never own policy or persist raw provider
-   payloads as incident documents.
+   payloads as application-owned documents.
 5. worker composition owns cadence, concurrency, drain, and independent
    subsystem health. A failure in one cycle cannot starve unrelated checks or
    erase another subsystem's failure state.
 6. the repo CLI, MCP, API, and future control-room UI remain thin clients of the
-   same application services. Reads return stable redacted JSON. Mutations are
-   preview-first and require explicit apply, actor, reason, idempotency, and the
-   relevant revision or preview digest.
+   same application services. Reads return stable redacted JSON. Mutations carry
+   only the safeguards justified by their authority and blast radius under the
+   working-agreements rubric.
 7. evidence artifacts record exact commands, versions, provider identities,
    timestamps, digests, and terminal outcomes; prose may interpret that
    evidence but never substitutes for it.
@@ -504,9 +497,7 @@ apps/platform/src/server/operations/
   shared/       database time, redaction, lease and audit primitives
   events/       outbox, delivery, retention and producer boundaries
   reliability/ synthetic execution, SLO evaluation and alert state
-  incidents/    correlation, evidence links, lifecycle and issue policy
-  runbooks/     catalog, preview, invocation, action and verification
-  integrations/ narrow GitHub, Railway, R2 and notification adapters
+  integrations/ narrow GitHub issue, Railway, R2 and notification adapters
 ```
 
 The public import remains one `@air-jam/operations-contract` package and the
@@ -514,7 +505,9 @@ machine surface remains under `pnpm run repo -- platform operations`. Internal
 files may be split by contract family, but a file move alone is not a release
 deliverable. The reason to split is to prevent the existing large contract,
 synthetic-service, event-service, and platform-command modules from becoming
-the next monoliths while Gate 4 is added.
+the next monoliths while Gate 4 is added. Do not pre-create `incidents/`,
+`runbooks/`, or another abstraction directory until real implementation has a
+distinct authority and more than one concrete consumer.
 
 ### Reliability Foundation Corrections (`G4-07`, `G3-07`)
 
@@ -532,8 +525,8 @@ the final reliability review in the same owning boundaries:
 5. serialize or fence SLO evaluation so a late result cannot regress breach or
    recovery streak state
 6. add explicit retention for delivered outbox rows, operational events,
-   synthetic runs, evaluations, alerts, incident evidence, and action audit
-   without deleting evidence required by an open incident or unresolved action
+   synthetic runs, evaluations, alerts, and production-action audit without
+   deleting evidence referenced by an open alert, issue, or unresolved action
 
 The first five corrections belong to the separately claimable `G4-07` item.
 Retention durations belong to the privacy and operating policy specified by
@@ -662,77 +655,60 @@ checks, exact target isolation, and cleanup. A production database restore or
 destructive data action remains human-approved; safe isolated drills are
 autonomous.
 
-### Incident And GitHub Issue Projection
+### Alert And GitHub Issue Projection
 
-`G4-03` adds durable incident state after the event store. It does not turn
-GitHub into the source of truth.
+`G4-03` connects trustworthy operational evidence to the shared surface where
+local agents can notice, coordinate, and act. It does not build a second generic
+incident system.
 
-The database model needs four explicit concepts:
+For 1.0, the existing durable `alertKey` and revision provide the issue
+identity. The narrow projection needs only:
 
-1. an incident identified by the contract's deterministic fingerprint and
-   protected by an optimistic revision
-2. append-only evidence links from source events, alerts, synthetic runs, and
-   provider attestations
-3. recurrence and resolution history on the same fingerprinted incident
-4. a specialized external-delivery outbox for issue/notification projections
-   with lease, retry, dead-letter, and idempotency state
+1. one idempotent issue-delivery record keyed by `alertKey` and target
+   repository
+2. links to the relevant source events, synthetic runs, deployment identity,
+   and provider evidence rather than copied raw payloads
+3. create, update, reopen, and resolve behavior that preserves human-authored
+   text outside the adapter-owned block
+4. bounded retry and visible delivery failure without rolling back the source
+   alert
 
-The correlator consumes each eligible source record exactly once through a
-unique evidence identity. Volatile values such as timestamps, request IDs, and
-messages never enter the fingerprint. A recurrence reopens the same incident;
-it does not create a second issue.
+Volatile values such as timestamps, request IDs, and message text never enter
+the issue identity. A recurrence under the same `alertKey` updates or reopens
+the same issue rather than creating a duplicate.
 
-GitHub delivery is a replaceable adapter. The initial adapter should use a
-repository-installed GitHub App with issue-only permission, never a maintainer
-personal token. A hidden incident marker and revision in the issue body make
-create/update/reopen idempotent. Labels, title, severity, affected environment,
-first/last occurrence, evidence references, and current runbook state are
-projections from the incident. Human edits outside the owned block are
-preserved.
+The adapter uses a repository-installed GitHub App with issue-only permission,
+never a maintainer personal token. The operational worker is the only Air Jam
+service that receives that identity. Platform web, realtime, browser worker,
+and creator-controlled code do not receive it.
 
-The operational worker may receive only this narrow GitHub App identity for the
-adapter. Platform web, realtime, browser worker, and creator-controlled code do
-not receive it. External delivery failure leaves the incident intact and
-retryable; it never rolls back source evidence.
+GitHub is shared coordination and memory, not application truth. Agents may use
+the issue as a durable rendezvous point, then inspect current truth directly
+from Railway, Air Jam operations, logs, tests, and the local repository. A
+separate incident lifecycle becomes justified only when real incidents need
+ownership, recurrence, evidence, or resolution behavior that the alert plus
+issue cannot express cleanly.
 
 For 1.0, do not add PagerDuty, Slack, or another paid incident platform merely
 to complete a diagram. GitHub issues plus provider-native infrastructure alerts
 are enough if the failure drills prove the roadmap's urgent-versus-digest
-policy. The adapter boundary remains ready for another sink when actual use
-justifies it.
+policy.
 
-### Governed Runbooks
+### Emergent Remediation After 1.0
 
-`G4-04` implements the already-versioned runbook contract as a closed catalog,
-not arbitrary shell execution.
+Smart looping agents can already use the focused Air Jam, Railway, GitHub, and
+local tools to diagnose a problem, implement a fix, open a reviewed pull
+request, roll back a deployment, or invoke an existing bounded recovery
+command. That is the intended first self-healing model.
 
-Every runbook follows one state path:
-
-```text
-descriptor -> preview -> invocation -> actions -> verification
-                                      -> rollback or escalation
-```
-
-Rules:
-
-1. descriptors are source-owned and versioned
-2. previews bind exact resources, current revisions, expected preconditions,
-   proposed actions, expiry, cost/blast-radius bounds, and a digest
-3. apply accepts only an unexpired matching preview and records actor,
-   authority, reason, incident, and idempotency identity
-4. actions use narrow typed adapters, never free-form commands or URLs
-5. verification is independent from the mutation response
-6. failed verification executes the declared bounded rollback when safe, then
-   escalates once; it never loops indefinitely
-7. every transition and before/after observation is append-only and available
-   through the CLI/MCP surface
-
-The initial catalog should stay intentionally small: pause/resume one expensive
-lane, repair an expired lease, replay one idempotent failed job, restart one
-unhealthy stateless service, and roll back one just-deployed stateless service
-to its exact previous known-good deployment. Only actions proven by drills are
-presented at `G4-05` for automatic allowlisting. Everything else remains
-observe, diagnose, or recommend.
+Do not build a generic runbook persistence or automatic-remediation engine for
+1.0. When repeated real incidents reveal a stable recovery pattern, extract
+the smallest shared typed action from the proven agent workflow. If automatic
+execution later becomes worthwhile, it must bind exact resources, authority,
+cost and blast-radius limits, idempotency, independent verification, and a
+finite rollback or escalation path. The current operations contract preserves
+that future vocabulary without requiring its entire state machine to be
+deployed now.
 
 ### Supply Chain, Privacy, And Emergency Release
 
@@ -788,7 +764,7 @@ change; do not copy the register into another checklist.
 The sequence below expresses architectural dependency, not live status.
 Readiness still determines what an agent may claim.
 
-Blocks A through J are the current detailed sequence for the remaining work and
+Blocks A through I are the current detailed sequence for the remaining work and
 supersede the earlier broad wave ordering wherever the two differ. The wave
 model remains useful only as historical program grouping.
 
@@ -798,20 +774,20 @@ model remains useful only as historical program grouping.
 | B. Production controls        | `G3-02`, `G3-07`, `G3-08`, `G5-03` | Artifact and evidence retention plus invisible realtime admission are complete; the operational worker is activated safely |
 | C. Isolated external proof    | `G2-03` through `G2-05`            | Codex and Claude Desktop prove the public lifecycle without production authority or maintainer intervention                |
 | D. Recovery proof             | `G3-03`                            | Recurring backup, isolated restore, deployment rollback, lane pause/resume, and job replay have measured evidence          |
-| E. Incident projection        | `G4-03`                            | One confirmed symptom becomes one maintained incident and GitHub issue                                                     |
+| E. Alert and issue projection | `G4-03`                            | One confirmed actionable alert key maintains one GitHub issue with linked evidence                                         |
 | F. Supply-chain trust         | `G5-03`                            | Exact validated package bytes, provenance, privacy, and emergency release are proven                                       |
-| G. Governed remediation       | `G4-04` through `G4-06`            | Typed runbooks preview, execute, verify, roll back, and escalate under the approved allowlist                              |
-| H. Scale and security closure | `G3-04`, `G3-05`, `G5-02`, `G5-04` | Capacity, degradation, residual security risk, recovery time, and the honest support envelope close                        |
-| I. Public proof               | `G6-02` through `G6-06`            | Docs, discovery, demo, article, release notes, and assets match shipped behavior                                           |
-| J. Candidate and launch       | `G7-01` through `G7-06`            | One immutable candidate is rehearsed, approved, launched, observed, and recorded                                           |
+| G. Scale and security closure | `G3-04`, `G3-05`, `G5-02`, `G5-04` | Capacity, degradation, residual security risk, recovery time, and the honest support envelope close                        |
+| H. Public proof               | `G6-02` through `G6-06`            | Docs, discovery, demo, article, release notes, and assets match shipped behavior                                           |
+| I. Candidate and launch       | `G7-01` through `G7-06`            | One immutable candidate is rehearsed, approved, launched, observed, and recorded                                           |
 
 After block A stabilizes shared contracts, C, D, E, F, and the independent
 control work inside B may proceed in parallel. B finishes only after F ratifies
 the retention policy, because production activation must exercise the final
-cleanup behavior. G waits on E because runbooks act on incident authority. H
-waits on the controls and recovery work because load and failure drills must
-exercise the real final mechanisms. I can begin from proven golden-path
-evidence but freezes only after operational and security behavior is settled.
+cleanup behavior. G waits on the controls and recovery work because load and
+failure drills must exercise the real final mechanisms. H can begin from proven
+golden-path evidence but freezes only after operational and security behavior
+is settled. Everything after `G7-01` proceeds only from the exact candidate
+that `G7-01` freezes.
 
 ### Pull Request Shape
 
@@ -824,11 +800,10 @@ Prefer reviewable, independently deployable pull requests in this order:
 4. `G3-08` operational-worker provisioning and observed activation
 5. isolated rehearsal profile and primary external-agent proof
 6. backup/restore/rollback/replay surface and drill
-7. incident persistence/correlation, then GitHub delivery
+7. narrow alert-key GitHub issue projection
 8. package build-once/provenance and privacy/emergency proof
-9. runbook persistence/execution, then allowlist drill
-10. remaining security closure and capacity/degradation proof
-11. public demo/docs/story and exact release candidate
+9. remaining security closure and capacity/degradation proof
+10. public demo/docs/story and exact release candidate
 
 Split a listed pull request further when it crosses unrelated authority or
 becomes difficult to review. Do not split one invariant across PRs in a way that
@@ -854,8 +829,10 @@ The remaining work must not expand into:
 5. generic arbitrary-code remediation
 6. automatic production code merge or promotion
 7. a paid alerting platform without measured need
-8. a second task tracker, incident truth store, provider control plane, or
-   dashboard-only operating path
+8. a second task tracker, generic incident truth store, provider control plane,
+   or dashboard-only operating path
+9. a mandatory runbook state machine or swarm scheduler before observed usage
+   proves that focused tools, claims, issues, and agent loops are insufficient
 
 These boundaries keep the architecture complete without confusing maturity
 with infrastructure count.
