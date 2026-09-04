@@ -552,6 +552,11 @@
       "updatedAt": "2026-09-04T08:49:40.615Z",
       "evidence": [
         "document:docs/audits/v1-reliability/production-recovery-proof.md",
+        "command:pnpm --silent run repo -- platform recovery status --json",
+        "command:pnpm --silent run repo -- platform recovery restore apply --json",
+        "command:pnpm --silent run repo -- platform recovery deployment rollback --apply --json",
+        "command:pnpm --silent run repo -- platform operations jobs replay --apply --json",
+        "artifact:git:e0d9dab6d83e6b47585dd9d6c1389db09490a283",
         "artifact:git:0ac9ebdc922a194b9465cb87b62e49cbab26d9ff",
         "artifact:git:8bf765f45e217281daa30bb1a471066d097969e7",
         "url:https://github.com/vucinatim/air-jam/pull/92",

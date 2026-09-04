@@ -760,9 +760,10 @@ derived:
 | Deployment binaries                             | Exact Git commit and provider deployment identity; roll back to the previous terminal-success deployment |
 
 The canonical recovery surface should expose status, backup evidence, isolated
-restore planning and verification, deployment rollback preview/apply, queue
-pause/resume, and one-job replay. It should orchestrate provider capabilities
-rather than build a second backup engine.
+restore planning and verification, deployment rollback preview/apply, and
+one-job replay. Queue pause/resume remains part of the production-control and
+worker-activation lanes rather than recovery ownership. Recovery should
+orchestrate provider capabilities rather than build a second backup engine.
 
 Recovery proofs must record recovery point, recovery time, data/invariant
 checks, exact target isolation, and cleanup. A production database restore or
@@ -907,7 +908,7 @@ model remains useful only as historical program grouping.
 | A. Reliability hardening      | `G3-06`, `G4-07`, `G5-02`          | Review gaps, schema compatibility, and module boundaries are safe before continuous execution                              |
 | B. Production controls        | `G3-02`, `G3-07`, `G3-08`, `G5-03` | Artifact and evidence retention plus invisible realtime admission are complete; the operational worker is activated safely |
 | C. Isolated external proof    | `G2-03` through `G2-05`            | Codex and Claude Desktop prove the public lifecycle without production authority or maintainer intervention                |
-| D. Recovery proof             | `G3-03`                            | Recurring backup, isolated restore, deployment rollback, lane pause/resume, and job replay have measured evidence          |
+| D. Recovery proof             | `G3-03`                            | Recurring backup, isolated restore, deployment rollback, and exact job replay have measured evidence                       |
 | E. Alert and issue projection | `G4-03`                            | One confirmed actionable alert key maintains one GitHub issue with linked evidence                                         |
 | F. Supply-chain trust         | `G5-03`                            | Exact validated package bytes, provenance, privacy, and emergency release are proven                                       |
 | G. Scale and security closure | `G3-04`, `G3-05`, `G5-02`, `G5-04` | Capacity, degradation, residual security risk, recovery time, and the honest support envelope close                        |

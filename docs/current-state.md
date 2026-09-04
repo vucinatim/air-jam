@@ -297,8 +297,10 @@ These are now baseline truths, not open architecture debates:
        resource scope, and one audited replay event, while ineligible replay
        fails with a structured escalation bundle
     4. deployment recovery is preview-first and fences exact project,
-       environment, service, current deployment, target fingerprint, provider
-       result, public runtime identity, actor, and reason
+       environment, service, current deployment, target revision or image,
+       provider result, exact public deployment identity, actor, and reason;
+       Railway rollback instances report no runtime revision, so the provider
+       record remains revision authority
     5. the final production backward rollback verified in 10,526 ms and forward
        recovery verified in 8,248 ms; production was left on the newest reviewed
        revision
@@ -474,11 +476,12 @@ Gate `G3-01` is closed with the
 [production capacity, cost, and recovery audit](./audits/v1-reliability/production-capacity-cost-and-recovery-audit.md).
 Production currently costs about `$8` per Railway cycle, uses little database
 and object-storage capacity, and showed no `5xx` in the sampled seven-day
-traffic. The audit also makes the launch gap explicit: synchronous release
+traffic. At the time it was captured, the audit identified synchronous release
 work, dynamic release delivery, process-local realtime authority, no recurring
 database backup, no app-specific spend brake, incomplete lifecycle cleanup,
-and no continuously proven alert/rollback path. No production state was changed
-by the audit.
+and no continuously proven alert/rollback path. Recurring backup and exact
+rollback have since been closed by `G3-03`; the remaining gaps retain their
+current owners. No production state was changed by the original audit.
 
 Gate `G3-02` is active. Its first production-valid slice establishes the
 [production control contract](./contracts/production-control-contract.md),

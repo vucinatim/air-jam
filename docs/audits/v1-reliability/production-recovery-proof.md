@@ -14,6 +14,14 @@ replay, exact deployment rollback, and forward recovery are implemented and
 live-proven through the canonical repo CLI. The final production cycle verified
 both directions and left the platform on the newest reviewed revision.
 
+The backup, isolated-restore, and replay legs ran at
+`811d6c7ff031c643b66f288c03bf5d5a14115b5a`; the stricter target-name
+attestation then landed at `7c1478588069c58b73e0099a09bcf404539103c7`
+before PR `#92` merged. The recorded disposable target predates that final
+guard, but the shipped resolver now obtains and attests its environment name or
+fails closed. The final rollback and forward-recovery legs ran against the
+reviewed code that ships.
+
 No production database row or stored object was mutated during this work.
 
 ## Production Backup Policy
@@ -114,10 +122,10 @@ The recovery implementation landed through reviewed PRs
 [`#94`](https://github.com/vucinatim/air-jam/pull/94). Each merged through the
 normal protected-branch flow after required CI and Railway previews passed.
 PR `#92` received a GitHub-native Opus review with verdict `CLEAR TO MERGE`;
-PR `#93` corrected the live Railway mutation contract and resolved every
-recorded finding; PR `#94` received a second PR-specific `CLEAR TO MERGE`
-review for the runtime identity correction. Canonicalizer sessions ended
-`ready` before both substantial push batches.
+PR `#93` received the same verdict, corrected the live Railway mutation
+contract, and resolved every recorded finding; PR `#94` received the third
+PR-specific `CLEAR TO MERGE` review for the runtime identity correction.
+Canonicalizer sessions ended `ready` before both substantial push batches.
 
 Two safe discovery failures improved the contract before the final proof:
 
@@ -142,9 +150,11 @@ The final verified cycle was:
 
 Both results were `verified`. In each direction Railway reported terminal
 `SUCCESS`, the attributed deployment became current, its provider revision and
-image matched the selected target, and `https://airjam.io/api/readiness`
-returned HTTP `200`, `ok: true`, and the exact new deployment ID. The operation
-digests were respectively
+matched the selected target, and `https://airjam.io/api/readiness` returned HTTP
+`200`, `ok: true`, and the exact new deployment ID. The retained records also
+show that each image digest equaled its selected target, although revision was
+the attribution fence used in these two operations. The operation digests were
+respectively
 `ba842af9b7e0a2e7bda75d8d8007383061354f6c793990102b2d715f83100da7`
 and `29f602bf0effb1f8ea35bd041c56dd4282776ce6cabba3ed5c844e43c368de61`.
 
