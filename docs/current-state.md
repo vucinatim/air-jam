@@ -314,16 +314,19 @@ work state without becoming a second product authority:
 
 The foundation integration through PR `#61`, the production-health recovery in
 PR `#76`, the public install matrix in PR `#74`, and the durable reliability
-loop in PR `#75` are merged. Production is healthy on exact main revision
-`5a280c43337f4dc5f00069457ee3a89b8c7cffc0`: the platform reached terminal
-`SUCCESS` as Railway deployment `1ca7a865-2ab5-417e-8221-574c0071736d`, schema
-migration `0036` is independently verified, and the realtime server plus
-browser worker remain successful on their latest watched-path-relevant
-revisions. Live browser smoke covers the landing page, direct Arcade
-navigation, branding, and game-card hover behavior. The separately defined
-operational worker is not provisioned in production yet, so continuous
-synthetics, SLO evaluation, and alert generation are implemented but
-intentionally inactive.
+loop in PR `#75` are merged. The latest schema-bearing production rollout was
+main revision `5a280c43337f4dc5f00069457ee3a89b8c7cffc0`: the platform reached
+terminal `SUCCESS` as Railway deployment
+`1ca7a865-2ab5-417e-8221-574c0071736d`, and schema migration `0036` was
+independently verified against that exact revision. Production schema remains
+at exact head `0036`; current deployment identity comes from the live
+`/api/readiness` machine contract rather than a commit copied into this
+deploy-triggering document. The realtime server and browser worker remain
+successful on their latest watched-path-relevant revisions. Live browser smoke
+covers the landing page, direct Arcade navigation, branding, and game-card
+hover behavior. The separately defined operational worker is not provisioned
+in production yet, so continuous synthetics, SLO evaluation, and alert
+generation are implemented but intentionally inactive.
 Production code is delivered incrementally; stable package promotion, public
 release visibility, final docs, the launch article, and distribution are
 coordinated only after one exact candidate passes rehearsal.
