@@ -40,6 +40,11 @@ The pre-reset overloaded ledger has been preserved at:
   immutable plan, apply, object verification, final verification, idempotent
   replay, and deliberate deployed-readiness failure on PostgreSQL 17; retained
   reviewed merge and production rollout as explicit closure work for `G3-06`
+- merged reviewed PR `#89`, used its own repo CLI to create a fingerprint-bound
+  production backup and immutable plan, applied migration `0036`, and verified
+  exact Railway deployment `1ca7a865-2ab5-417e-8221-574c0071736d` at merge
+  commit `5a280c43337f4dc5f00069457ee3a89b8c7cffc0`; durable run
+  `572a389a-e93e-4ecc-9887-75a69e69424c` finished `verified`
 
 ## 2026-09-04 - One Alert Now Owns One Durable GitHub Issue
 
