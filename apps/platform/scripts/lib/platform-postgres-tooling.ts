@@ -48,8 +48,40 @@ export type PlatformBackupEvidence = {
     sizeBytes: number;
     format: "postgres-custom";
   };
-  manifestPath?: string;
-  manifestSha256?: string;
+};
+
+export const assertPlatformDatabaseRestoreTarget = ({
+  target,
+  sourceTarget,
+  attestIsolatedLoopback = false,
+}: {
+  target: PlatformDatabaseTarget;
+  sourceTarget?: PlatformDatabaseTarget;
+  attestIsolatedLoopback?: boolean;
+}) => {
+  if (target.kind === "local") {
+    if (target.environmentName === "local" && attestIsolatedLoopback) return;
+    throw new Error(
+      "A loopback restore target cannot be provider-attested; pass --attest-isolated-loopback only after verifying it is a disposable local database and not a tunnel.",
+    );
+  }
+  const attestedEnvironmentName = target.environmentName?.trim() ?? "";
+  if (
+    target.kind === "railway" &&
+    attestedEnvironmentName.length > 0 &&
+    attestedEnvironmentName.toLowerCase() !== "production" &&
+    Boolean(target.environmentId) &&
+    Boolean(target.databaseServiceId) &&
+    Boolean(sourceTarget?.environmentId) &&
+    Boolean(sourceTarget?.databaseServiceId) &&
+    target.environmentId !== sourceTarget?.environmentId &&
+    target.databaseServiceId !== sourceTarget?.databaseServiceId
+  ) {
+    return;
+  }
+  throw new Error(
+    "Database restore requires an explicitly attested isolated loopback target or a provider-attested non-production Railway database with environment and service identities distinct from the backup source; production, unattested, and unclassified targets are forbidden.",
+  );
 };
 
 export const sha256 = (value: string | Buffer) =>

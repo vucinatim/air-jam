@@ -64,8 +64,10 @@ backup schedule kinds:
 
 Railway owns the actual cron placement and retention duration. Air Jam owns the
 required schedule kinds and verifies them by provider read-back after every
-change. A successful mutation writes a checksummed local evidence document.
-Missing or extra schedule kinds leave recovery status unready.
+change. Schedule mutation accepts only that complete set, so a partial request
+cannot silently remove another required cadence. A successful mutation writes
+a checksummed local evidence document. Missing or extra schedule kinds leave
+recovery status unready.
 
 The repo does not implement a custom snapshot scheduler.
 
@@ -92,11 +94,15 @@ Restore is a three-step lifecycle:
 3. `verify` independently re-reads the target and requires the exact migration
    head and every captured table count
 
-A restore target is eligible only when it is either loopback or a
-provider-attested non-production Railway database whose environment and service
-identities both differ from the backup source. Production and unclassified
-remote URLs are forbidden. The target PostgreSQL major version may not be older
-than the source.
+A restore target is eligible only when it is either an explicitly
+operator-attested isolated loopback database or a provider-attested
+non-production Railway database whose environment and service identities both
+differ from the backup source. Because a loopback URL may hide a remote tunnel,
+every loopback plan, apply, and verify invocation requires
+`--attest-isolated-loopback`; agents must use it only after proving the target is
+disposable and local. Production, unattested, and unclassified remote targets
+are forbidden. The target PostgreSQL major version may not be older than the
+source.
 
 The immutable plan also binds the empty or pre-existing target fingerprint.
 Changing the target, artifact, manifest, migration catalog, or plan invalidates
@@ -162,7 +168,10 @@ return a structured escalation bundle and do not fall back to a broader replay.
 
 Local operational evidence lives under ignored `.airjam/operations` paths with
 owner-only permissions. It may contain resource identifiers and row counts but
-not credentials or raw private job payloads.
+not credentials or raw private job payloads. If evidence persistence fails
+after a provider mutation, the CLI still returns the complete provider result,
+reports the evidence failure separately, and exits nonzero; it never hides an
+already-completed rollback or schedule change behind a local filesystem error.
 
 An isolated drill is incomplete until it records:
 

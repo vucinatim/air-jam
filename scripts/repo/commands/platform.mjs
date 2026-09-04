@@ -173,13 +173,20 @@ const runPlatformOperator = async ({
     includeTarget,
     silent,
   });
+  const capturesStructuredOutput = Boolean(operation.json);
   const result = runCommandResult("pnpm", invocation.args, {
     env: invocation.env,
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: capturesStructuredOutput ? ["ignore", "pipe", "pipe"] : "inherit",
+    maxBuffer: capturesStructuredOutput ? 20 * 1024 * 1024 : undefined,
   });
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
   if (result.error) {
+    if (result.error.code === "ENOBUFS") {
+      throw new Error(
+        `${errorLabel} exceeded the 20 MiB structured-output limit. Narrow the requested result rather than accepting truncated JSON.`,
+      );
+    }
     throw new Error(`Could not start ${errorLabel}: ${result.error.message}`);
   }
   if (result.status !== 0) process.exitCode = result.status ?? 1;
@@ -199,6 +206,25 @@ const platformRestoreOperator = Object.freeze({
   errorLabel: "database restore operator",
 });
 
+const attachPlatformRecoveryEvidence = ({ kind, result }) => {
+  try {
+    return {
+      ...result,
+      evidence: writePlatformRecoveryEvidence({ kind, result }),
+      evidencePersistence: { status: "verified" },
+    };
+  } catch (error) {
+    return {
+      ...result,
+      evidence: null,
+      evidencePersistence: {
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+};
+
 const capturePlatformDatabaseOperator = async ({
   script,
   operation,
@@ -212,6 +238,7 @@ const capturePlatformDatabaseOperator = async ({
   const result = runCommandResult("pnpm", invocation.args, {
     stdio: ["ignore", "pipe", "pipe"],
     env: invocation.env,
+    maxBuffer: 20 * 1024 * 1024,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -561,16 +588,25 @@ export const registerPlatformCommands = (program) => {
         reason: options.reason,
         apply: Boolean(options.apply),
       });
-      const evidence = options.apply
-        ? writePlatformRecoveryEvidence({ kind: "backup-schedule", result })
-        : null;
-      const output = evidence ? { ...result, evidence } : result;
+      const output = options.apply
+        ? attachPlatformRecoveryEvidence({ kind: "backup-schedule", result })
+        : result;
       if (options.json) console.log(JSON.stringify(output, null, 2));
       else {
         console.log(`Recurring backup schedule: ${result.status}`);
-        if (evidence) console.log(`Evidence: ${evidence.path}`);
+        if (output.evidence) console.log(`Evidence: ${output.evidence.path}`);
+        if (output.evidencePersistence?.status === "failed") {
+          console.error(
+            `Evidence persistence failed after the provider operation: ${output.evidencePersistence.error}`,
+          );
+        }
       }
-      if (result.status === "verification_failed") process.exitCode = 1;
+      if (
+        result.status === "verification_failed" ||
+        output.evidencePersistence?.status === "failed"
+      ) {
+        process.exitCode = 1;
+      }
     });
 
   const recoveryDeploymentCommand = recoveryCommand
@@ -607,19 +643,31 @@ export const registerPlatformCommands = (program) => {
         reason: options.reason,
         apply: Boolean(options.apply),
       });
-      const evidence = options.apply
-        ? writePlatformRecoveryEvidence({ kind: "deployment-rollback", result })
-        : null;
-      const output = evidence ? { ...result, evidence } : result;
+      const output = options.apply
+        ? attachPlatformRecoveryEvidence({
+            kind: "deployment-rollback",
+            result,
+          })
+        : result;
       if (options.json) console.log(JSON.stringify(output, null, 2));
       else {
         console.log(`Deployment rollback: ${result.status}`);
         if (result.recoveryTimeMs !== undefined) {
           console.log(`Recovery time: ${result.recoveryTimeMs} ms`);
         }
-        if (evidence) console.log(`Evidence: ${evidence.path}`);
+        if (output.evidence) console.log(`Evidence: ${output.evidence.path}`);
+        if (output.evidencePersistence?.status === "failed") {
+          console.error(
+            `Evidence persistence failed after the provider operation: ${output.evidencePersistence.error}`,
+          );
+        }
       }
-      if (result.status === "verification_failed") process.exitCode = 1;
+      if (
+        result.status === "verification_failed" ||
+        output.evidencePersistence?.status === "failed"
+      ) {
+        process.exitCode = 1;
+      }
     });
 
   const recoveryRestoreCommand = recoveryCommand
@@ -636,6 +684,10 @@ export const registerPlatformCommands = (program) => {
         "--backup-manifest <path>",
         "Recovery-capable backup manifest",
       )
+      .option(
+        "--attest-isolated-loopback",
+        "Attest that a loopback target is disposable and is not a remote tunnel",
+      )
       .option("--output <path>", "Explicit immutable plan path")
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
@@ -644,6 +696,7 @@ export const registerPlatformCommands = (program) => {
       operation: {
         command: "plan",
         backupManifest: options.backupManifest,
+        attestIsolatedLoopback: Boolean(options.attestIsolatedLoopback),
         output: options.output,
         json: Boolean(options.json),
       },
@@ -664,6 +717,10 @@ export const registerPlatformCommands = (program) => {
         "Stable retry identity for this logical restore",
       )
       .requiredOption("--apply", "Authorize mutation of the isolated target")
+      .option(
+        "--attest-isolated-loopback",
+        "Attest that a loopback target is disposable and is not a remote tunnel",
+      )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
     await runPlatformOperator({
@@ -676,6 +733,7 @@ export const registerPlatformCommands = (program) => {
         reason: options.reason,
         idempotencyKey: options.idempotencyKey,
         apply: Boolean(options.apply),
+        attestIsolatedLoopback: Boolean(options.attestIsolatedLoopback),
         json: Boolean(options.json),
       },
       options,
@@ -688,6 +746,10 @@ export const registerPlatformCommands = (program) => {
       .description("Independently re-check one isolated restore target")
       .requiredOption("--plan <path>", "Immutable restore plan")
       .requiredOption("--plan-digest <sha256>", "Expected restore plan digest")
+      .option(
+        "--attest-isolated-loopback",
+        "Attest that a loopback target is disposable and is not a remote tunnel",
+      )
       .option("--json", "Print the stable machine-readable contract"),
   ).action(async (options) => {
     await runPlatformOperator({
@@ -696,6 +758,7 @@ export const registerPlatformCommands = (program) => {
         command: "verify",
         plan: options.plan,
         planDigest: options.planDigest,
+        attestIsolatedLoopback: Boolean(options.attestIsolatedLoopback),
         json: Boolean(options.json),
       },
       options,

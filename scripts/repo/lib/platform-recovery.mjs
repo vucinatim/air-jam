@@ -56,6 +56,12 @@ const normalizeKinds = (kinds) => {
       );
     }
   }
+  const required = [...PLATFORM_BACKUP_SCHEDULE_KINDS].sort();
+  if (canonicalJson(normalized) !== canonicalJson(required)) {
+    throw new Error(
+      `Production backup policy requires the exact schedule set: ${required.join(", ")}.`,
+    );
+  }
   return normalized;
 };
 
@@ -328,11 +334,13 @@ const fetchHealthEvidence = async ({
         (!expectedRevision || reportedRevision === expectedRevision),
       status: response.status,
       reportedOk: body?.ok ?? null,
+      expectedRevision,
       reportedRevision,
     };
   } catch (error) {
     return {
       passed: false,
+      expectedRevision,
       error: error instanceof Error ? error.message : String(error),
     };
   } finally {
@@ -418,6 +426,11 @@ export const rollbackPlatformDeployment = async (
   const rollback = await client.rollbackDeployment({
     deploymentId: targetDeploymentId,
   });
+  if (!rollback?.id) {
+    throw new Error(
+      "Railway accepted the rollback request without returning an attributable deployment ID; stop and inspect provider state before any retry.",
+    );
+  }
   const terminal = await client.waitForDeployment({
     deploymentId: rollback.id,
   });

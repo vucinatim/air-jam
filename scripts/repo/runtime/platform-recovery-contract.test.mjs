@@ -99,6 +99,7 @@ test("recovery CLI exposes preview-first backup and rollback actions", () => {
   assert.match(restoreHelp, /verify/u);
   assert.match(restorePlanHelp, /--backup-manifest/u);
   assert.match(restorePlanHelp, /--railway-environment/u);
+  assert.match(restorePlanHelp, /--attest-isolated-loopback/u);
   for (const option of [
     "--plan",
     "--plan-digest",
@@ -220,6 +221,20 @@ test("backup schedule applies once and verifies by provider read-back", async ()
   assert.equal(applied.checks[0].passed, true);
 });
 
+test("backup schedule rejects a partial production policy", async () => {
+  await assert.rejects(
+    setPlatformBackupSchedule({
+      projectId: "project-airjam",
+      environmentId: "environment-production",
+      databaseServiceId: "service-postgres",
+      kinds: ["daily"],
+      actor: "agent:test",
+      reason: "A partial policy must never remove required schedules.",
+    }),
+    /exact schedule set/u,
+  );
+});
+
 test("backup schedule returns exact escalation evidence when read-back differs", async () => {
   const current = deployment({ id: "deployment-current", status: "SUCCESS" });
   const client = {
@@ -331,6 +346,36 @@ test("deployment rollback refuses a stale current-deployment fence", async () =>
       { createClient: () => client },
     ),
     /Current deployment fence failed/u,
+  );
+});
+
+test("deployment rollback stops when Railway omits the new deployment identity", async () => {
+  const current = deployment({
+    id: "deployment-current",
+    status: "SUCCESS",
+  });
+  const target = deployment({ id: "deployment-old" });
+  const client = {
+    getEnvironment: async () => environment(current),
+    getDeployment: async () => target,
+    rollbackDeployment: async () => null,
+  };
+  await assert.rejects(
+    rollbackPlatformDeployment(
+      {
+        projectId: "project-airjam",
+        environmentId: "environment-production",
+        serviceId: "service-platform",
+        currentDeploymentId: "deployment-current",
+        targetDeploymentId: "deployment-old",
+        healthUrl: "https://www.airjam.io/api/readiness",
+        actor: "agent:test",
+        reason: "Reject unattributable rollback result.",
+        apply: true,
+      },
+      { createClient: () => client },
+    ),
+    /attributable deployment ID/u,
   );
 });
 

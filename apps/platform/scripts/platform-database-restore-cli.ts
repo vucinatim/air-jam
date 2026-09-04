@@ -14,6 +14,7 @@ import {
   readPlatformMigrationCatalog,
 } from "../../../scripts/platform/lib/platform-migration-catalog.mjs";
 import {
+  assertPlatformDatabaseRestoreTarget,
   platformBackupContractVersion,
   platformRecoverySnapshotDigest,
   readPlatformDatabaseIdentity,
@@ -79,6 +80,7 @@ type Operation = {
   reason?: string;
   idempotencyKey?: string;
   apply?: boolean;
+  attestIsolatedLoopback?: boolean;
 };
 
 const requireText = (value: string | undefined, label: string) => {
@@ -87,28 +89,6 @@ const requireText = (value: string | undefined, label: string) => {
   return normalized;
 };
 const resolveRepoPath = (value: string) => path.resolve(repoRoot, value);
-
-const assertIsolatedTarget = (
-  target: PlatformDatabaseTarget,
-  sourceTarget?: PlatformDatabaseTarget,
-) => {
-  if (target.kind === "local") return;
-  if (
-    target.kind === "railway" &&
-    target.environmentName !== "production" &&
-    Boolean(target.environmentId) &&
-    Boolean(target.databaseServiceId) &&
-    Boolean(sourceTarget?.environmentId) &&
-    Boolean(sourceTarget?.databaseServiceId) &&
-    target.environmentId !== sourceTarget?.environmentId &&
-    target.databaseServiceId !== sourceTarget?.databaseServiceId
-  ) {
-    return;
-  }
-  throw new Error(
-    "Database restore requires a local target or a provider-attested non-production Railway database with environment and service identities distinct from the backup source; production and unclassified targets are forbidden.",
-  );
-};
 
 const inspectTarget = async (
   client: ReturnType<typeof postgres>,
@@ -191,7 +171,11 @@ const writePlan = async ({
   const source = await readBackup(
     requireText(operation.backupManifest, "Backup manifest"),
   );
-  assertIsolatedTarget(operation.target, source.backup.sourceDatabase.target);
+  assertPlatformDatabaseRestoreTarget({
+    target: operation.target,
+    sourceTarget: source.backup.sourceDatabase.target,
+    attestIsolatedLoopback: operation.attestIsolatedLoopback,
+  });
   if (source.backup.targetFingerprint === inspection.identity.fingerprint) {
     throw new Error("Restore source and target fingerprints must differ.");
   }
@@ -274,10 +258,11 @@ const assertPlanTarget = ({
   operation: Operation;
   digest: string;
 }) => {
-  assertIsolatedTarget(
-    operation.target,
-    plan.source.backup.sourceDatabase.target,
-  );
+  assertPlatformDatabaseRestoreTarget({
+    target: operation.target,
+    sourceTarget: plan.source.backup.sourceDatabase.target,
+    attestIsolatedLoopback: operation.attestIsolatedLoopback,
+  });
   if (operation.planDigest !== digest) {
     throw new Error("--plan-digest must exactly match the restore plan.");
   }

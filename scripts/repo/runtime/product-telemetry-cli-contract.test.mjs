@@ -56,6 +56,17 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
     { environmentId: "environment-1", projectId: "project-1" },
     (args, operation) => {
       calls.push({ args, operation });
+      if (operation === "environment attestation") {
+        return {
+          environments: {
+            edges: [
+              {
+                node: { id: "environment-1", name: "recovery-drill" },
+              },
+            ],
+          },
+        };
+      }
       if (operation === "service discovery") {
         return [
           {
@@ -82,12 +93,12 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
     kind: "railway",
     projectId: "project-1",
     environmentId: "environment-1",
-    environmentName: null,
+    environmentName: "recovery-drill",
     databaseServiceId: "service-postgres",
     databaseServiceName: "Postgres",
   });
-  assert.equal(calls.length, 2);
-  assert.deepEqual(calls[1].args.slice(-3), [
+  assert.equal(calls.length, 3);
+  assert.deepEqual(calls[2].args.slice(-3), [
     "--service",
     "service-postgres",
     "--json",
@@ -96,22 +107,32 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
   const resolvedFromProxy = resolveRailwayPlatformDatabaseTargetWithCli(
     { environmentId: "environment-2", projectId: "project-1" },
     (_args, operation) =>
-      operation === "service discovery"
-        ? [
-            {
-              id: "service-postgres-2",
-              name: "Postgres",
-              source: { image: "postgres:18" },
+      operation === "environment attestation"
+        ? {
+            environments: {
+              edges: [
+                {
+                  node: { id: "environment-2", name: "recovery-drill" },
+                },
+              ],
             },
-          ]
-        : {
-            DATABASE_URL: "postgresql://private-connection",
-            PGUSER: "recovery user",
-            PGPASSWORD: "secret/value",
-            PGDATABASE: "recovery database",
-            RAILWAY_TCP_PROXY_DOMAIN: "proxy.example.test",
-            RAILWAY_TCP_PROXY_PORT: "12345",
-          },
+          }
+        : operation === "service discovery"
+          ? [
+              {
+                id: "service-postgres-2",
+                name: "Postgres",
+                source: { image: "postgres:18" },
+              },
+            ]
+          : {
+              DATABASE_URL: "postgresql://private-connection",
+              PGUSER: "recovery user",
+              PGPASSWORD: "secret/value",
+              PGDATABASE: "recovery database",
+              RAILWAY_TCP_PROXY_DOMAIN: "proxy.example.test",
+              RAILWAY_TCP_PROXY_PORT: "12345",
+            },
   );
   const proxyUrl = new URL(resolvedFromProxy.databaseUrl);
   assert.equal(proxyUrl.hostname, "proxy.example.test");
@@ -126,18 +147,31 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
       resolveRailwayPlatformDatabaseTargetWithCli(
         { environmentId: "environment-private", projectId: "project-1" },
         (_args, operation) =>
-          operation === "service discovery"
-            ? [
-                {
-                  id: "service-postgres-private",
-                  name: "Postgres",
-                  source: { image: "postgres:18" },
+          operation === "environment attestation"
+            ? {
+                environments: {
+                  edges: [
+                    {
+                      node: {
+                        id: "environment-private",
+                        name: "recovery-drill",
+                      },
+                    },
+                  ],
                 },
-              ]
-            : {
-                DATABASE_URL:
-                  "postgresql://railway:secret@postgres.railway.internal:5432/railway",
-              },
+              }
+            : operation === "service discovery"
+              ? [
+                  {
+                    id: "service-postgres-private",
+                    name: "Postgres",
+                    source: { image: "postgres:18" },
+                  },
+                ]
+              : {
+                  DATABASE_URL:
+                    "postgresql://railway:secret@postgres.railway.internal:5432/railway",
+                },
       ),
     /temporary TCP proxy/u,
   );
@@ -169,6 +203,15 @@ test("remote telemetry resolves PostgreSQL without exposing a second operator pa
   );
   assert.equal(fallback.databaseUrl, "postgresql://oauth-cli-fallback");
   assert.equal(fallback.target.environmentName, "preview");
+
+  assert.throws(
+    () =>
+      resolveRailwayPlatformDatabaseTargetWithCli(
+        { environmentId: "environment-unknown", projectId: "project-1" },
+        () => ({ environments: { edges: [] } }),
+      ),
+    /could not attest environment/u,
+  );
 });
 
 test("direct database targets are local only when their host is loopback", async () => {

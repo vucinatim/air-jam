@@ -85,6 +85,25 @@ export const resolveRailwayPlatformDatabaseTargetWithCli = (
       "A Railway project ID is required when project-token access cannot inspect the environment.",
     );
   }
+  const project = readRailwayJson(
+    [
+      "status",
+      "--project",
+      projectId,
+      "--environment",
+      environmentId,
+      "--json",
+    ],
+    "environment attestation",
+  );
+  const environment = project.environments?.edges
+    ?.map((edge) => edge.node)
+    .find((candidate) => candidate.id === environmentId);
+  if (!environment?.name) {
+    throw new Error(
+      `Railway CLI could not attest environment ${environmentId} in project ${projectId}.`,
+    );
+  }
   const services = readRailwayJson(
     [
       "service",
@@ -133,7 +152,7 @@ export const resolveRailwayPlatformDatabaseTargetWithCli = (
       kind: "railway",
       projectId,
       environmentId,
-      environmentName: null,
+      environmentName: environment.name,
       databaseServiceId: service.id,
       databaseServiceName: service.name ?? null,
     },
