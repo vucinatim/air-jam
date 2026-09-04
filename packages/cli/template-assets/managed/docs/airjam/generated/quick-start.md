@@ -99,9 +99,10 @@ Use these commands from your project root:
 pnpm exec airjam ai-pack status --dir .
 pnpm exec airjam ai-pack diff --dir .
 pnpm exec airjam ai-pack update --dir .
+pnpm exec airjam ai-pack repair --dir .
 ```
 
-`ai-pack update` replaces only AI-pack-managed framework references with the current canonical versions. It is intentionally a replace operation, not a merge tool, and it does not own `AGENTS.md`, `CLAUDE.md`, project-local skills, application code, or user-created notes.
+`ai-pack update` consumes only the snapshot inside the installed, provenance-backed CLI package. `ai-pack repair` explicitly restores same-version managed drift. Both replace only AI-pack-managed framework references; neither is a merge tool or owns `AGENTS.md`, `CLAUDE.md`, project-local skills, application code, or user-created notes.
 
 ### Server not connecting locally
 

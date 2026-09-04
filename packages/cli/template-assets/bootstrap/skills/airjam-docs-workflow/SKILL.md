@@ -21,7 +21,7 @@ When a canonical docs contract changes, keep the derivative surfaces aligned in 
 1. source docs under `content/docs/`
 2. generated scaffold docs under `packages/cli/template-assets/managed/docs/airjam/generated/`
 3. repo-local skills under `packages/cli/template-assets/bootstrap/skills/`
-4. hosted AI pack files if they are generated from those sources
+4. the provenance-backed AI pack snapshot and hosted read-only delivery files generated from those sources
 
 Use hosted Air Jam docs only when:
 

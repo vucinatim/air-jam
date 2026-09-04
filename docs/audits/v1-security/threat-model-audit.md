@@ -526,29 +526,34 @@ The detailed findings below reduce to these non-negotiable rules:
 - Release classification: blocks-1.0
 - Confidence: high
 - Evidence:
-  - `.github/workflows/publish-packages.yml:88-236` grants OIDC/release
-    authority around dependency installation, installs mutable `npm@latest`,
-    rebuilds packages, and publishes with `--no-git-checks`
-  - workflow actions use mutable major tags rather than full commit SHAs
-  - `.github/workflows/preview-comment.yml:7-18,62-70` places a Railway token in
-    a job that invokes a mutable third-party action
-  - the existing isolated-registry proof binds local tarballs but explicitly
-    does not prove the real npm registry or complete OS matrix
-- Current controls: frozen pnpm lockfile, package graph/version guards, trusted
-  npm publishing with provenance, concurrency, already-published
-  reconciliation, and SHA-512 local candidate proof.
+  - the original publish workflow mixed dependency installation, rebuilding,
+    npm OIDC, mutable action/tool references, and publication
+  - the original isolated-registry proof repacked per cell and therefore did
+    not prove one byte identity from build through publication
+- Closure evidence (2026-09-04):
+  - `scripts/repo/lib/public-release-candidate.mjs` creates and strictly
+    validates one clean-commit candidate containing exact package, dependency,
+    license, audit, lockfile, manifest, and toolchain identity
+  - `.github/workflows/publish-packages.yml` separates candidate, six-cell
+    verification, aggregate, OIDC publish, and source-finalization authority;
+    the publish job installs no repository dependencies and cannot rebuild
+  - every workflow action is pinned to a full commit SHA; the npm version is
+    exact; package integrity and provenance are verified after publication
+  - [Supply-Chain, Telemetry Privacy, And Emergency Release Proof](./supply-chain-release-trust-proof.md)
+- Current controls: build-once exact candidate, complete public graph,
+  dependency/license/audit evidence, frozen lockfile, SHA-pinned workflows,
+  job-level least privilege, trusted publishing, provenance, safe retry
+  reconciliation, and SHA-512 registry verification.
 - Threat and harm: a compromised install dependency/action or mutable tool can
   run in a credentialed job; the bytes tested are not necessarily the bytes
   rebuilt and published.
-- Canonical end state: SHA-pin actions and tools; use minimum step/job
-  permissions; build, test, pack, hash, SBOM, license-check, and vulnerability-
-  check once; publish only that immutable workflow artifact under a protected
-  environment; attest exact commit/workflow/artifact identity.
+- Canonical end state: implemented. A protected GitHub environment remains an
+  optional later policy layer because enabling it before npm's trusted-
+  publisher records match would break the token-free publisher.
 - Owner and dependencies: release engineering; `G5-03`, `G6-01`, Gate 7.
-- Required proof: adversarial credential-isolation workflow, provenance/SBOM
-  verification, exact SHA-512 equality from tested tarball through npm, real-
-  registry install on the support matrix, and rehearsed revoke/deprecate/
-  emergency release procedure.
+- Remaining proof: configure all five npm trusted-publisher records and retain
+  the first real-registry prerelease evidence in Gate 7. The implementation
+  remains blocks-1.0 until that external rehearsal succeeds.
 
 ### AJ-SEC-011 — Mutable unsigned AI-pack origin can rewrite agent-facing project guidance
 
@@ -558,25 +563,32 @@ The detailed findings below reduce to these non-negotiable rules:
 - Release classification: blocks-1.0
 - Confidence: high
 - Evidence:
-  - `scripts/platform/lib/platform-ai-pack-artifacts.mjs:85-194` generates a
-    manifest and hashes from the same authority without an independent
-    signature
-  - `packages/cli/src/ai-pack.ts:163-319,641-688` fetches mutable manifest/text,
-    permits local URL override/fallback, lacks complete schema/timeout/byte
-    bounds, and writes before a trust-anchor verification
-- Current controls: SHA-256 content comparison, same-version overwrite refusal,
-  managed-file-only replacement, and a packaged fallback.
+  - the original platform-generated manifest and content hashes came from one
+    mutable hosted authority
+  - the original CLI accepted remote and local override authorities before
+    updating agent-facing project instructions
+- Closure evidence (2026-09-04):
+  - the updater's sole authority is now the schema-2 guidance snapshot packaged
+    inside the installed `@air-jam/cli` artifact
+  - hosted manifest URLs, override files, fetches, and fallback behavior were
+    removed rather than retained as compatibility paths
+  - strict pre-write size/hash/content validation, version rollback refusal,
+    same-version repair, symlink refusal, staged commit, rollback, and obsolete-
+    managed-file removal are executable and tested
+  - [Supply-Chain, Telemetry Privacy, And Emergency Release Proof](./supply-chain-release-trust-proof.md)
+- Current controls: provenance-bound packaged snapshot, strict schema and exact
+  file identity, rollback protection, managed-file-only transactional update,
+  and explicit repair.
 - Threat and harm: compromise of the platform/CDN or a local manifest override
   can distribute internally consistent malicious instructions to privileged
   creator agents. Hashes from the compromised origin do not establish trust.
-- Canonical end state: signed, versioned, expiring root metadata anchored to an
-  offline or provenance-bound key; default host allowlist; strict schemas and
-  byte/count limits; rollback protection; pre-write verification; staged atomic
-  apply and recovery.
+- Canonical end state: implemented through the smaller provenance-bound package
+  authority. There is no network update path requiring a parallel signature,
+  expiry, redirect, or host-allowlist system.
 - Owner and dependencies: CLI, public docs/AI-pack release; `G5-02`, `G5-03`.
-- Required proof: wrong signature, expired/rolled-back metadata, redirect,
-  private host, traversal, oversized content, partial download, interrupted
-  update, and rollback tests.
+- Remaining proof: the final `@air-jam/cli` tarball must pass the coordinated
+  npm provenance rehearsal in Gate 7. Network-origin attack cases are removed
+  from the reachable update model rather than accepted and filtered.
 
 ### AJ-SEC-012 — Telemetry, session, OAuth, and account retention/privacy are not fully enforced
 
@@ -586,10 +598,8 @@ The detailed findings below reduce to these non-negotiable rules:
 - Release classification: blocks-1.0
 - Confidence: high
 - Evidence:
-  - product telemetry has strong request minimization and a documented 90-day
-    raw retention policy, but retention remains a callable operation rather
-    than a proven scheduled invariant in
-    `apps/platform/src/server/product-telemetry/persistence.ts:183-270`
+  - product telemetry originally had strong request minimization and a
+    documented 90-day raw retention policy, but retention was only callable
   - runtime analytics retain room/app/origin identity and arbitrary payloads in
     `packages/database-contract/src/index.ts:35-208` and
     `packages/server/src/analytics/runtime-usage.ts:8-31`
@@ -598,10 +608,20 @@ The detailed findings below reduce to these non-negotiable rules:
     `apps/platform/src/db/schema.ts:47-87`
   - no complete account export/delete, token minimization/encryption, runtime
     retention, or restore-boundary deletion proof was found
+- Closure evidence for the product-telemetry slice (2026-09-04):
+  - the operational worker now implements the canonical retention service on
+    startup and on a bounded schedule, reports it as an independent readiness
+    authority, and drains an in-flight run during shutdown; `G3-08` still owns
+    production activation and observation
+  - `/privacy` publicly discloses the executable telemetry schema,
+    minimization, ephemeral identity, retention, and aggregate reporting while
+    explicitly excluding unresolved data planes
+  - [Supply-Chain, Telemetry Privacy, And Emergency Release Proof](./supply-chain-release-trust-proof.md)
 - Current controls: minimized first-party product telemetry, bounded same-origin
   ingestion, no raw product-telemetry IP/full URL/query/email/fingerprinting,
-  deterministic projections, CLI retention preview/apply, and ordinary session
-  expiry fields.
+  deterministic projections, readiness-owned scheduled retention capability,
+  CLI retention preview/apply, honest activation-aware public disclosure, and
+  ordinary session expiry fields.
 - Threat and harm: documented retention can silently become indefinite;
   arbitrary runtime payloads and reusable provider/session data can outlive
   their purpose; account deletion and privacy claims cannot be proven.
@@ -612,10 +632,12 @@ The detailed findings below reduce to these non-negotiable rules:
   media, and telemetry with explicit backup/restore semantics.
 - Owner and dependencies: platform data, auth, runtime analytics; `G5-02`,
   `G5-03`, Gate 3/4 operations.
-- Required proof: production expiry drill, cleanup last-success and eligible-row
-  alerts, seeded account export/delete and restore-boundary test, retention
-  conformance, bounded analytics queue/load test, and user-facing privacy
-  disclosure matching implementation.
+- Remaining proof: `G3-08` owns production activation and observation of
+  recurring telemetry retention. `G5-02` and Gate 3 still own runtime
+  payload/retention, account and OAuth minimization, export/deletion,
+  report/media lifecycles, and their production expiry and restore-boundary
+  drills. This finding remains blocks-1.0; only the product-telemetry behavior
+  and disclosure are implemented here.
 
 ### AJ-SEC-013 — Auth and provider tooling can fail open, redirect credentials, or expose secrets
 
@@ -769,6 +791,10 @@ The detailed findings below reduce to these non-negotiable rules:
   path, collision, size, count, and compression limits fail closed; partial
   extraction is never exposed as the requested target; the exact local package
   graph has SHA-512 clean-room proof; and generated projects pass quality gates.
+- Closure evidence (2026-09-04): the immutable candidate now carries these
+  exact tarballs into every support-matrix cell; aggregate evidence binds each
+  package SHA-256 and integrity value to one candidate digest. See the
+  [supply-chain release trust proof](./supply-chain-release-trust-proof.md).
 - Threat and harm: after a supply-chain compromise or future scaffold growth,
   extraction/install can consume surprising disk, time, or dependency surface.
 - Canonical end state: generic extraction budgets and deterministic package/

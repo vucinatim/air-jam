@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/public-install-matrix.yml"
+      - ".github/workflows/publish-packages.yml"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -18,7 +19,11 @@ on:
       - "scripts/repo/commands/release.mjs"
       - "scripts/repo/lib/golden-path-bootstrap.mjs"
       - "scripts/repo/lib/public-install-matrix.mjs"
+      - "scripts/repo/lib/public-release-candidate.mjs"
       - "scripts/repo/programs/public-install-matrix.json"
+
+permissions:
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -28,10 +33,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  candidate:
+    name: Build immutable candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # Candidate creation validates durable readiness evidence commits.
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install repository dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create exact public release candidate
+        run: >-
+          pnpm --silent run repo -- release candidate create
+          --output "$RUNNER_TEMP/public-release-candidate"
+          --json
+
+      - name: Upload immutable candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-release-candidate
+          path: ${{ runner.temp }}/public-release-candidate
+          if-no-files-found: error
+          retention-days: 30
+
   verify:
     name: ${{ matrix.system.id }} / Node ${{ matrix.node }}
+    needs: candidate
     runs-on: ${{ matrix.system.runner }}
-    timeout-minutes: 40
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -47,12 +90,12 @@ jobs:
           - 24
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
@@ -63,15 +106,22 @@ jobs:
       - name: Install repository dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download immutable candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: public-release-candidate
+          path: artifacts/public-release-candidate
+
       - name: Verify public installation cell
         run: >-
           pnpm --silent run repo -- release install-matrix verify
+          --candidate artifacts/public-release-candidate
           --expected-os ${{ matrix.system.id }}
           --expected-node ${{ matrix.node }}
           --output artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
 
       - name: Upload cell evidence
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: public-install-${{ matrix.system.id }}-node-${{ matrix.node }}
           path: artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
@@ -85,12 +135,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: "24"
           package-manager-cache: false
@@ -102,7 +150,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Download cell evidence
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: public-install-*
           path: artifacts/cells
@@ -115,7 +163,7 @@ jobs:
           --output artifacts/public-install-matrix.json
 
       - name: Upload aggregate evidence
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: public-install-matrix
           path: artifacts/public-install-matrix.json

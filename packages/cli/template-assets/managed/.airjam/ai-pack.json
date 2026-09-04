@@ -1,19 +1,173 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "packVersion": "0.1.0",
   "channel": "stable",
   "releaseDate": "2026-03-29T00:00:00.000Z",
   "source": {
     "mode": "packaged-snapshot",
-    "canonicalDocsSource": "content/docs",
-    "canonicalBasePackSource": "packages/cli/template-assets/managed"
+    "package": "@air-jam/cli"
   },
   "scaffold": {
     "template": null,
     "createAirjamVersion": null
   },
-  "update": {
-    "manifestUrl": "https://airjam.io/ai-pack/manifest.json",
-    "docsBaseUrl": "https://airjam.io/docs"
-  }
+  "managedFiles": [
+    {
+      "path": "docs/airjam/agent-gold-path.md",
+      "kind": "docs-local",
+      "size": 4746,
+      "sha256": "fa581eabc10667c3d108419ceb8bc7c4c8bc62724803f85049833c3086316c92"
+    },
+    {
+      "path": "docs/airjam/agent-mcp.md",
+      "kind": "docs-local",
+      "size": 6900,
+      "sha256": "8ec4826b12bb92908038980a4dc34d0c082f99eba054f52a26d16eb6a1e35202"
+    },
+    {
+      "path": "docs/airjam/canvas-2d-gameplay.md",
+      "kind": "docs-local",
+      "size": 1808,
+      "sha256": "d19086c4d1c0b52fe64e91a6de068803db18f7879719e1e90dbaa26ef1be14ae"
+    },
+    {
+      "path": "docs/airjam/composition-shell-contract.md",
+      "kind": "docs-local",
+      "size": 2666,
+      "sha256": "91bf49cb98f3b94cabd145d960a9562786e73c029b3955904ef45a8f8bf71a06"
+    },
+    {
+      "path": "docs/airjam/debug-and-testing.md",
+      "kind": "docs-local",
+      "size": 2889,
+      "sha256": "65adf52e5cdcf0648ab56af1c0b639e30cf93495a85e2971b83168b571db97af"
+    },
+    {
+      "path": "docs/airjam/development-loop.md",
+      "kind": "docs-local",
+      "size": 2453,
+      "sha256": "a4a805fa89d199b2cd9282561339ca066a17f902b12ce73ba18f1cc066818d81"
+    },
+    {
+      "path": "docs/airjam/docs-index.md",
+      "kind": "docs-local",
+      "size": 2392,
+      "sha256": "35c70672b7401b4f1e14abd8a88d9b50ecb8925b39245072474ac4fa88d27fb2"
+    },
+    {
+      "path": "docs/airjam/generated/architecture.md",
+      "kind": "docs-generated",
+      "size": 7230,
+      "sha256": "6f492a36445ea6e84320bc30ca3314a376a83b074a2452243c5a6647f52665ef"
+    },
+    {
+      "path": "docs/airjam/generated/controller-ui.md",
+      "kind": "docs-generated",
+      "size": 1578,
+      "sha256": "fd54779b68ecffc359d29fad15a1bf17f965a2f8dd0602fbe3700a3237f906e2"
+    },
+    {
+      "path": "docs/airjam/generated/debugging-and-logs.md",
+      "kind": "docs-generated",
+      "size": 4575,
+      "sha256": "7998e1427b96d162986c193d32f30a97d35f92346c8d50a0a8b77019fb738897"
+    },
+    {
+      "path": "docs/airjam/generated/for-agents.md",
+      "kind": "docs-generated",
+      "size": 1262,
+      "sha256": "4e63b02a4d2737bbefce16701749a62e0bae9ad787e41158bc16ca9b802ae013"
+    },
+    {
+      "path": "docs/airjam/generated/host-system.md",
+      "kind": "docs-generated",
+      "size": 9618,
+      "sha256": "38561068538f6cd69bd8aa43d022bba6eee1eb6a635933d9d738ff305620ce8a"
+    },
+    {
+      "path": "docs/airjam/generated/input-system.md",
+      "kind": "docs-generated",
+      "size": 6024,
+      "sha256": "86395f226fc78c13eee4632998f60911d487739a027f82858371c8d233d4932f"
+    },
+    {
+      "path": "docs/airjam/generated/introduction.md",
+      "kind": "docs-generated",
+      "size": 5194,
+      "sha256": "f6b2220d39b2a72e736f0f757ba01c948f09ae9063c98c202ec5bbe9ec749d58"
+    },
+    {
+      "path": "docs/airjam/generated/networked-state.md",
+      "kind": "docs-generated",
+      "size": 7057,
+      "sha256": "f6e8a0d752bc6a2a8bef82e9a4e9552f4f23e46e3d3dedacd4ac03076c4b0cb9"
+    },
+    {
+      "path": "docs/airjam/generated/project-structure.md",
+      "kind": "docs-generated",
+      "size": 4418,
+      "sha256": "e8656cca6330442d6c3f990c37b82038867abaa672c50d8798b2e88c2f06d062"
+    },
+    {
+      "path": "docs/airjam/generated/quick-start.md",
+      "kind": "docs-generated",
+      "size": 8657,
+      "sha256": "e6a718299346c8f64b862b8d2a62d270ca683e66c41bdfd5bd6278e0174b37df"
+    },
+    {
+      "path": "docs/airjam/generated/sdk-hooks.md",
+      "kind": "docs-generated",
+      "size": 16017,
+      "sha256": "0697f9d3db87814784ab7919f41d40d2d8b0c399e98e0ac165ef8649052e0362"
+    },
+    {
+      "path": "docs/airjam/generated/state-and-rendering.md",
+      "kind": "docs-generated",
+      "size": 3176,
+      "sha256": "c9e52a44c5f865db217a5bb538d0ee64b82ef342c78bc85acc830c488e3c8198"
+    },
+    {
+      "path": "docs/airjam/generated/unified-dev-logs.md",
+      "kind": "docs-generated",
+      "size": 5592,
+      "sha256": "f210c6e197bc5029b281edbc8d28b74a40cde06f1de41aca89d762968f438bbb"
+    },
+    {
+      "path": "docs/airjam/iconography.md",
+      "kind": "docs-local",
+      "size": 1264,
+      "sha256": "d50f06e49d72dea63f82b9d8276480c5dc13007cdd66ac0371f8c08a6019a2e4"
+    },
+    {
+      "path": "docs/airjam/prefab-authoring.md",
+      "kind": "docs-local",
+      "size": 2887,
+      "sha256": "0383338b0e68386433bc1847a6e2191fe6ce580625431d6332d11da6241ea92c"
+    },
+    {
+      "path": "docs/airjam/preview-controllers.md",
+      "kind": "docs-local",
+      "size": 4464,
+      "sha256": "d1189e966a7891abc265793d264a201b0cf8c56902342697999c70356f18cac5"
+    },
+    {
+      "path": "docs/airjam/r3f-3d-scene.md",
+      "kind": "docs-local",
+      "size": 2979,
+      "sha256": "7142a7e1a513f3a43a0838b48daf85cca9780ffca58f34db50c06a24a56176d0"
+    },
+    {
+      "path": "docs/airjam/state-lanes-cookbook.md",
+      "kind": "docs-local",
+      "size": 3206,
+      "sha256": "5dde111762f1071ef5e7fc23ffe1adac07454662ad8dced7a42a8d40e4f6150b"
+    },
+    {
+      "path": "docs/airjam/visual-system.md",
+      "kind": "docs-local",
+      "size": 2830,
+      "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
+    }
+  ],
+  "contentDigest": "1fc3f33ef591de4243be3b1356306a27b6650d4ec3b063f0d02f15edff120f93"
 }

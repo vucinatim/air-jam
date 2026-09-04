@@ -259,8 +259,23 @@ The initial retention policy is:
 2. daily session-contribution records: 90 days after their aggregate is stable
 3. daily aggregate metrics: long-term
 
-Retention runs as explicit maintenance behavior with testable boundaries. Read
-queries do not delete or conceal expired evidence as a side effect.
+When deployed, the independently deployed operational worker runs retention
+immediately on startup and every 15 minutes by default. It calls the same
+retention domain service as the repo CLI; it does not own alternate deletion
+rules. Retention is a named readiness authority, and a failed run degrades
+worker readiness until a later success. Shutdown waits for an in-flight
+retention operation. Read queries do not delete or conceal expired evidence as
+a side effect.
+
+The worker is not yet active in production. `G3-08` owns its production
+activation and observation; until then, the explicit repo-CLI apply command is
+the available operator path and the public disclosure says recurring
+enforcement is pending.
+
+The public `/privacy` disclosure explains this bounded telemetry plane in user-
+facing language. It explicitly avoids making broader account, OAuth, runtime,
+report, media, export, or deletion claims that those subsystems have not yet
+proven.
 
 ## Failure And Evolution Rules
 

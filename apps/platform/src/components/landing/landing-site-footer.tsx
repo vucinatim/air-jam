@@ -45,6 +45,12 @@ export const LandingSiteFooter = () => {
               >
                 Blog
               </Link>
+              <Link
+                href="/privacy"
+                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+              >
+                Telemetry &amp; privacy
+              </Link>
             </div>
             <div className="md:border-border/50 flex items-center gap-4 md:ml-2 md:border-l md:pl-6">
               <Link

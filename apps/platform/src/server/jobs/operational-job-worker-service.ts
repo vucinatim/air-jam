@@ -18,6 +18,7 @@ import {
   readPlatformSchemaCompatibility,
   type PlatformSchemaCompatibility,
 } from "@/server/operations/platform-schema-compatibility";
+import { applyProductTelemetryRetention } from "@/server/product-telemetry/persistence";
 import { validateEnv } from "@air-jam/env";
 import {
   normalizeUnknownOperationalFailure,
@@ -77,6 +78,7 @@ const workerEnvSchema = z
     AIRJAM_PLATFORM_WORKER_POLL_MS: positiveInteger(2_000),
     AIRJAM_PLATFORM_WORKER_REPAIR_MS: positiveInteger(30_000),
     AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: positiveInteger(900_000),
+    AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS: positiveInteger(900_000),
     AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: positiveInteger(1_000),
     AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: positiveInteger(30_000),
     AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: positiveInteger(5_000),
@@ -116,6 +118,7 @@ const workerEnvSchema = z
       pollMs: value.AIRJAM_PLATFORM_WORKER_POLL_MS,
       repairMs: value.AIRJAM_PLATFORM_WORKER_REPAIR_MS,
       lifecycleCleanupMs: value.AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS,
+      telemetryRetentionMs: value.AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS,
       eventDeliveryMs: value.AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS,
       syntheticMs: value.AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS,
       issueProjectionMs: value.AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS,
@@ -168,6 +171,7 @@ const workerAuthorityNames = [
   "jobs",
   "maintenance",
   "lifecycleCleanup",
+  "telemetryRetention",
   "eventDelivery",
   "synthetics",
   "issueProjection",
@@ -185,6 +189,7 @@ const coreWorkerAuthorityNames = [
   "schema",
   "jobs",
   "eventDelivery",
+  "telemetryRetention",
 ] as const satisfies readonly WorkerAuthorityName[];
 
 export const startOperationalJobWorkerService = async ({
@@ -193,6 +198,7 @@ export const startOperationalJobWorkerService = async ({
   repair = repairExpiredOperationalJobs,
   cleanup = cleanupReleaseJobOrphanOutputs,
   scheduleCleanup = scheduleLifecycleCleanup,
+  retainTelemetry = applyProductTelemetryRetention,
   deliverEvent = runOperationalEventDeliveryCycle,
   repairEventDelivery = repairExpiredOperationalEventDeliveries,
   runSynthetics = runDueOperationalSynthetics,
@@ -205,6 +211,7 @@ export const startOperationalJobWorkerService = async ({
   repair?: typeof repairExpiredOperationalJobs;
   cleanup?: typeof cleanupReleaseJobOrphanOutputs;
   scheduleCleanup?: typeof scheduleLifecycleCleanup;
+  retainTelemetry?: typeof applyProductTelemetryRetention;
   deliverEvent?: typeof runOperationalEventDeliveryCycle;
   repairEventDelivery?: typeof repairExpiredOperationalEventDeliveries;
   runSynthetics?: typeof runDueOperationalSynthetics;
@@ -239,6 +246,7 @@ export const startOperationalJobWorkerService = async ({
   ) as Record<WorkerAuthorityName, WorkerAuthorityState>;
   let maintenanceInFlight: Promise<void> | null = null;
   let lifecycleCleanupInFlight: Promise<void> | null = null;
+  let telemetryRetentionInFlight: Promise<void> | null = null;
   let eventDeliveryInFlight: Promise<void> | null = null;
   let syntheticInFlight: Promise<void> | null = null;
   let issueProjectionInFlight: Promise<void> | null = null;
@@ -484,6 +492,40 @@ export const startOperationalJobWorkerService = async ({
   lifecycleCleanupTimer.unref();
   runLifecycleCleanupScheduler();
 
+  const runTelemetryRetention = () => {
+    if (!canScheduleWork() || telemetryRetentionInFlight) return;
+    const task = retainTelemetry()
+      .then((result) => {
+        recordAuthoritySuccess("telemetryRetention");
+        console.log(
+          JSON.stringify({
+            service: "air-jam-platform-worker",
+            event: "product_telemetry.retention_applied",
+            rawEventsDeleted: result.rawEventsDeleted,
+            sessionContributionsDeleted: result.sessionContributionsDeleted,
+            rawCutoff: result.rawCutoff.toISOString(),
+            sessionContributionCutoffDate: result.sessionContributionCutoffDate,
+          }),
+        );
+      })
+      .catch((error: unknown) => {
+        recordAuthorityFailure("telemetryRetention", error);
+        logFailure({ event: "product_telemetry.retention_failed", error });
+      })
+      .finally(() => {
+        if (telemetryRetentionInFlight === task)
+          telemetryRetentionInFlight = null;
+      });
+    telemetryRetentionInFlight = task;
+  };
+
+  const telemetryRetentionTimer = setInterval(
+    runTelemetryRetention,
+    config.telemetryRetentionMs,
+  );
+  telemetryRetentionTimer.unref();
+  runTelemetryRetention();
+
   const deliverNextEvent = () => {
     if (!canScheduleWork() || eventDeliveryInFlight) return;
     const task = deliverEvent({ workerId: config.workerId })
@@ -666,6 +708,7 @@ export const startOperationalJobWorkerService = async ({
       inFlight: inFlight.size,
       maintenanceInFlight: maintenanceInFlight !== null,
       lifecycleCleanupInFlight: lifecycleCleanupInFlight !== null,
+      telemetryRetentionInFlight: telemetryRetentionInFlight !== null,
       eventDeliveryInFlight: eventDeliveryInFlight !== null,
       syntheticInFlight: syntheticInFlight !== null,
       issueProjectionInFlight: issueProjectionInFlight !== null,
@@ -753,6 +796,7 @@ export const startOperationalJobWorkerService = async ({
     clearInterval(schemaTimer);
     clearInterval(repairTimer);
     clearInterval(lifecycleCleanupTimer);
+    clearInterval(telemetryRetentionTimer);
     clearInterval(eventDeliveryTimer);
     clearInterval(syntheticTimer);
     clearInterval(issueProjectionTimer);
@@ -765,6 +809,7 @@ export const startOperationalJobWorkerService = async ({
         ...inFlight,
         ...(maintenanceInFlight ? [maintenanceInFlight] : []),
         ...(lifecycleCleanupInFlight ? [lifecycleCleanupInFlight] : []),
+        ...(telemetryRetentionInFlight ? [telemetryRetentionInFlight] : []),
         ...(eventDeliveryInFlight ? [eventDeliveryInFlight] : []),
         ...(syntheticInFlight ? [syntheticInFlight] : []),
         ...(issueProjectionInFlight ? [issueProjectionInFlight] : []),

@@ -69,11 +69,7 @@ const assertPlatformAiPackGenerationIsDeterministic = async () => {
       }
     }
 
-    const requiredManifestPaths = [
-      "manifest.json",
-      `${firstResult.channel}/manifest.json`,
-      `${firstResult.channel}/${firstResult.packVersion}/manifest.json`,
-    ];
+    const requiredManifestPaths = ["manifest.json"];
     for (const relativePath of requiredManifestPaths) {
       if (!firstTree.has(relativePath)) {
         throw new Error(
@@ -85,6 +81,7 @@ const assertPlatformAiPackGenerationIsDeterministic = async () => {
     if (
       firstResult.channel !== secondResult.channel ||
       firstResult.packVersion !== secondResult.packVersion ||
+      firstResult.contentDigest !== secondResult.contentDigest ||
       firstResult.fileCount !== secondResult.fileCount ||
       firstPaths.length !== firstResult.fileCount + requiredManifestPaths.length
     ) {

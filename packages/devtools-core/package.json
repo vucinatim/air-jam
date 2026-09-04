@@ -89,7 +89,7 @@
     "@air-jam/harness": "workspace:^",
     "@air-jam/sdk": "workspace:^",
     "cross-spawn": "^7.0.6",
-    "socket.io-client": "^4.8.1",
+    "socket.io-client": "^4.8.3",
     "tsx": "^4.20.6",
     "yauzl": "^3.2.1",
     "yazl": "^3.3.1",

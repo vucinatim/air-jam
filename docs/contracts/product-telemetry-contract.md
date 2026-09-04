@@ -313,8 +313,34 @@ The initial retention rules are:
 2. daily session contributions: 90 days after their aggregate is stable
 3. daily aggregates: retained long-term
 
-Cleanup is an explicit, independently testable operation. Reporting reads must
-not perform hidden retention work.
+When deployed, the independently deployed operational worker applies this
+policy immediately on startup and then every 15 minutes by default. Its cadence
+is configurable through `AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS`, but the
+durations are not. Retention is an explicit, independently testable operation
+shared by the worker and the preview/apply repo CLI. Reporting reads must not
+perform hidden retention work.
+
+Telemetry retention is a named worker readiness authority. A failed run
+degrades worker readiness and remains visible through the worker status surface
+until a later successful run. Shutdown drains an in-flight retention operation
+before the process closes.
+
+Production activation and observation of the worker remain `G3-08` work. Until
+that checkpoint completes, the public disclosure must say recurring production
+enforcement is pending rather than presenting implemented scheduling code as a
+live guarantee.
+
+## User-Facing Disclosure
+
+`/privacy` is the public disclosure for this bounded telemetry plane. It must
+describe the accepted data, prohibited data, ephemeral browser identity,
+retention periods, the current enforcement state, and aggregate-only operator
+view in plain language.
+
+That page intentionally does not claim to be a complete hosted-account privacy
+policy. Account, OAuth, runtime-usage, report, media, export, and deletion
+behavior remain separate privacy surfaces and must not inherit stronger claims
+from this telemetry contract.
 
 ## Required Proof
 
@@ -333,3 +359,6 @@ The implementation must prove:
     behavior while recording their canonical events
 11. no obsolete third-party website-analytics implementation, environment,
     CSP, or documentation contract remains
+12. scheduled retention succeeds as a named worker readiness authority and is
+    awaited during shutdown
+13. the user-facing disclosure stays within the executable telemetry boundary

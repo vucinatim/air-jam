@@ -1,114 +1,97 @@
 # AI Pack Manifest Contract
 
-Last updated: 2026-05-08  
-Status: current contract
+Last updated: 2026-09-04
+
+Status: canonical 1.0 contract
 
 Related docs:
 
 1. [../architecture/documentation-and-ai-pack-architecture.md](../architecture/documentation-and-ai-pack-architecture.md)
 2. [../architecture/platform-docs-surface-architecture.md](../architecture/platform-docs-surface-architecture.md)
 3. [../guides/ai-pack-workflow-guide.md](../guides/ai-pack-workflow-guide.md)
+4. [public-package-release-trust-contract.md](./public-package-release-trust-contract.md)
 
 ## Purpose
 
-This document defines the manifest contract for the hosted and local AI-pack
-system.
+The AI pack is a managed framework-guidance bundle. Its manifest says exactly
+which local files Air Jam owns, which content the installed CLI can restore,
+and which version produced those bytes.
 
-## Core Position
+## Trust Model
 
-The AI pack is a managed guidance bundle.
+The update authority is the snapshot packaged in the installed `@air-jam/cli`
+artifact. npm provenance and the immutable public release candidate protect that
+artifact. A hosted endpoint is not trusted to rewrite local agent guidance.
 
-Its manifests exist to make three things explicit:
+The platform publishes the same schema-2 manifest at
+`/ai-pack/manifest.json`, with its declared files available below
+`/ai-pack/files/<managed-path>`, for humans, browsers, archives, and inspection.
+It does not create a second channel/version/pointer hierarchy. This hosted copy
+is a read-only delivery surface; the CLI does not fetch it during `status`,
+`diff`, `update`, or `repair`.
 
-1. what pack version is canonical
-2. which files are managed by that pack
-3. how a local project compares against the hosted canonical pack
+## Local Manifest
 
-## Manifest Layers
+Every scaffolded project stores `.airjam/ai-pack.json` using schema version 2.
+It records:
 
-### Hosted Root Manifest
-
-Path shape:
-
-1. `/ai-pack/manifest.json`
-
-This manifest owns:
-
-1. schema version
-2. available channels
-3. latest version per channel
-4. pointers to channel and version manifests
-
-### Hosted Channel Manifest
-
-Path shape:
-
-1. `/ai-pack/<channel>/manifest.json`
-
-This manifest owns:
-
-1. the channel name
-2. latest pack version
-3. channel version history metadata
-
-### Hosted Version Manifest
-
-Path shape:
-
-1. `/ai-pack/<channel>/<version>/manifest.json`
-
-This manifest owns:
-
-1. pack version identity
+1. semantic pack version and stable/canary channel
 2. release date
-3. file list
-4. file kinds
-5. file hashes
-6. canonical source metadata
+3. the fixed `packaged-snapshot` source and `@air-jam/cli` package identity
+4. scaffold template and `create-airjam` version metadata
+5. the exact managed file list, kind, byte size, and SHA-256 digest
+6. one content digest over the ordered managed file metadata
 
-### Local Project Manifest
+Manifest parsing is strict. Unknown fields, unsafe paths, duplicate paths,
+invalid sizes, invalid hashes, or unsupported source identities fail closed.
 
-Path shape:
+## Managed File Boundary
 
-1. `.airjam/ai-pack.json`
+Only declared regular files below `docs/airjam/` are managed. The manifest is
+managed implicitly. Paths may not be absolute, traverse upward, contain empty
+segments, or use platform-specific separators.
 
-This manifest owns:
+The AI pack does not own:
 
-1. the local project's known pack version
-2. the update source URL
-3. scaffold metadata
-4. source mode information
+1. `AGENTS.md` or `CLAUDE.md`
+2. project-local skills
+3. application code
+4. project notes
+5. files outside the declared managed set
 
-## Managed File Rule
+Unmanaged files below `docs/airjam/` survive an update. Files declared by the
+previous manifest but removed from the new manifest are removed as obsolete.
 
-The version manifest file list is the source of truth for managed AI-pack
-files.
+## Machine Lifecycle
 
-For the current contract, that includes:
+```bash
+pnpm exec airjam ai-pack status --dir . --json
+pnpm exec airjam ai-pack diff --dir . --json
+pnpm exec airjam ai-pack update --dir . --json
+pnpm exec airjam ai-pack repair --dir . --json
+```
 
-1. canonical local framework references under `docs/airjam/`
-2. generated public-doc snapshots under `docs/airjam/generated/`
-3. the local manifest at `.airjam/ai-pack.json`
+`status` and `diff` compare against the installed package without network
+access. `update` applies a strictly newer packaged version. `repair` explicitly
+restores drift at the same version. A local version newer than the installed
+CLI is never downgraded; the operator must upgrade the CLI.
 
-Project-owned entry instructions and skills are deliberately outside this file
-list so a framework update cannot overwrite user policy.
+Before mutation, the CLI verifies every packaged file, stages the complete next
+tree, verifies the staged tree, and then swaps the managed docs tree and
+manifest with rollback backups. A failed transaction restores the prior state.
+Symlinked managed trees or manifests fail closed.
 
-## Update Rule
+## Generation
 
-AI-pack updates are replace-oriented, not merge-oriented.
+The committed packaged manifest is generated after canonical public docs are
+materialized:
 
-That means:
+```bash
+pnpm --filter @air-jam/cli docs-pack:generate
+pnpm --filter @air-jam/cli ai-pack:manifest:generate
+pnpm --filter @air-jam/cli ai-pack:check
+```
 
-1. managed files are compared against the hosted canonical manifest
-2. `status` and `diff` expose drift
-3. `update` replaces managed files when explicitly requested
-
-The AI pack should not pretend to be a general-purpose merge or sync engine.
-
-## Design Rules
-
-1. Keep manifest URLs explicit and stable.
-2. Keep file hashing and file-kind metadata machine-readable.
-3. Keep local manifest state separate from hosted version manifests.
-4. Treat the manifest contract as the ownership boundary for AI-pack-managed
-   files.
+The check requires the declared files and digests to exactly match the packaged
+snapshot. Platform artifact generation consumes the same source snapshot so the
+hosted read-only representation cannot become an independent knowledge silo.

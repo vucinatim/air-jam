@@ -3,235 +3,326 @@ name: Publish Packages
 on:
   workflow_dispatch:
     inputs:
-      package:
-        description: "Public package set to publish"
-        required: true
-        default: "all-public"
-        type: choice
-        options:
-          - all-public
-          - sdk
-          - cli
-          - mcp-server
-          - server
-          - create-airjam
       channel:
         description: "npm dist-tag to publish under"
         required: true
-        default: "latest"
+        default: "next"
         type: choice
         options:
-          - latest
           - next
-  push:
-    tags:
-      - "release/public-v*"
-      - "release/public-next-v*"
+          - latest
+      emergency_reason:
+        description: "Optional incident reason; urgency never bypasses release proof"
+        required: false
+        type: string
+
+permissions:
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AIRJAM_RELEASE_NPM_VERSION: "12.0.2"
 
 concurrency:
   group: publish-packages
   cancel-in-progress: false
 
 jobs:
-  prepare:
+  candidate:
+    name: Build immutable candidate
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     outputs:
-      packages: ${{ steps.resolve.outputs.packages }}
-      channel: ${{ steps.resolve.outputs.channel }}
+      commit: ${{ steps.identity.outputs.commit }}
+      digest: ${{ steps.identity.outputs.digest }}
+      version: ${{ steps.identity.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Resolve Publish Inputs
-        id: resolve
+      - name: Require the production branch
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_PACKAGE: ${{ github.event.inputs.package }}
-          INPUT_CHANNEL: ${{ github.event.inputs.channel }}
-          REF_NAME: ${{ github.ref_name }}
+          RELEASE_REF: ${{ github.ref }}
+          EMERGENCY_REASON: ${{ inputs.emergency_reason }}
         run: |
-          UNIFIED_VERSION="$(node ./scripts/release/public-packages.mjs version)"
-
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            RELEASE_PACKAGE="${INPUT_PACKAGE}"
-            RELEASE_CHANNEL="${INPUT_CHANNEL}"
-          else
-            RELEASE_PACKAGE="all-public"
-
-            case "$REF_NAME" in
-              release/public-next-v*)
-                RELEASE_CHANNEL="next"
-                TAG_VERSION="${REF_NAME#release/public-next-v}"
-                ;;
-              release/public-v*)
-                RELEASE_CHANNEL="latest"
-                TAG_VERSION="${REF_NAME#release/public-v}"
-                ;;
-              *)
-                echo "Unsupported release tag: $REF_NAME"
-                exit 1
-                ;;
-            esac
-
-            if [ "$TAG_VERSION" != "$UNIFIED_VERSION" ]; then
-              echo "Release tag version $TAG_VERSION does not match unified public package version $UNIFIED_VERSION"
-              exit 1
-            fi
+          test "$RELEASE_REF" = "refs/heads/main"
+          if [ -n "$EMERGENCY_REASON" ] && [ "${#EMERGENCY_REASON}" -lt 12 ]; then
+            echo "Emergency reason must contain at least 12 characters." >&2
+            exit 1
           fi
 
-          PACKAGES_JSON="$(node ./scripts/release/public-packages.mjs resolve "$RELEASE_PACKAGE")"
-          echo "packages=$PACKAGES_JSON" >> "$GITHUB_OUTPUT"
-          echo "channel=$RELEASE_CHANNEL" >> "$GITHUB_OUTPUT"
-
-  validate-publish:
-    runs-on: ubuntu-latest
-    needs: prepare
-    permissions:
-      id-token: write
-    steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          # Candidate creation validates durable readiness evidence commits.
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
-      - name: Ensure npm CLI Supports Trusted Publishing
-        run: |
-          npm install -g npm@latest
-          node --version
-          npm --version
+      - name: Pin trusted-publishing npm CLI
+        run: npm install --global "npm@$AIRJAM_RELEASE_NPM_VERSION"
 
       - name: Enable corepack
         run: corepack enable
 
-      - name: Install dependencies
+      - name: Install repository dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate Publish Path
-        run: pnpm check:release:publish
+      - name: Create exact public release candidate
+        run: >-
+          pnpm --silent run repo -- release candidate create
+          --output "$RUNNER_TEMP/public-release-candidate"
+          --json
+
+      - name: Resolve candidate identity
+        id: identity
+        run: |
+          echo "commit=$(jq -r .source.commit "$RUNNER_TEMP/public-release-candidate/manifest.json")" >> "$GITHUB_OUTPUT"
+          echo "digest=$(jq -r .candidateDigest "$RUNNER_TEMP/public-release-candidate/manifest.json")" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq -r .version "$RUNNER_TEMP/public-release-candidate/manifest.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-release-candidate
+          path: ${{ runner.temp }}/public-release-candidate
+          if-no-files-found: error
+          retention-days: 90
+
+  verify:
+    name: ${{ matrix.system.id }} / Node ${{ matrix.node }}
+    needs: candidate
+    runs-on: ${{ matrix.system.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        system:
+          - id: linux
+            runner: ubuntu-latest
+          - id: macos
+            runner: macos-latest
+          - id: windows
+            runner: windows-latest
+        node: [22, 24]
+    steps:
+      - name: Checkout exact candidate source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ needs.candidate.outputs.commit }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install repository dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download immutable candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: public-release-candidate
+          path: artifacts/public-release-candidate
+
+      - name: Verify exact candidate installation
+        run: >-
+          pnpm --silent run repo -- release install-matrix verify
+          --candidate artifacts/public-release-candidate
+          --expected-os ${{ matrix.system.id }}
+          --expected-node ${{ matrix.node }}
+          --output artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
+
+      - name: Upload cell evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-install-${{ matrix.system.id }}-node-${{ matrix.node }}
+          path: artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    name: Aggregate exact candidate proof
+    needs: [candidate, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ needs.candidate.outputs.commit }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install repository dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download cell evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: publish-install-*
+          path: artifacts/cells
+          merge-multiple: true
+
+      - name: Aggregate matrix
+        run: >-
+          pnpm --silent run repo -- release install-matrix aggregate
+          --evidence-root artifacts/cells
+          --output artifacts/public-install-matrix.json
+
+      - name: Match candidate identity
+        env:
+          EXPECTED_DIGEST: ${{ needs.candidate.outputs.digest }}
+        run: test "$(jq -r .candidateDigest artifacts/public-install-matrix.json)" = "$EXPECTED_DIGEST"
+
+      - name: Upload aggregate evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publish-install-matrix
+          path: artifacts/public-install-matrix.json
+          if-no-files-found: error
+          retention-days: 90
 
   publish:
+    name: Trusted publish exact bytes
+    needs: [candidate, aggregate]
     runs-on: ubuntu-latest
-    needs:
-      - prepare
-      - validate-publish
+    timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
       id-token: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - name: Checkout exact verifier
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          fetch-depth: 0
+          ref: ${{ needs.candidate.outputs.commit }}
+          fetch-depth: 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
-      - name: Ensure npm CLI Supports Trusted Publishing
-        run: |
-          npm install -g npm@latest
-          node --version
-          npm --version
+      - name: Pin trusted-publishing npm CLI
+        run: npm install --global "npm@$AIRJAM_RELEASE_NPM_VERSION"
 
-      - name: Enable corepack
-        run: corepack enable
+      - name: Download immutable candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: public-release-candidate
+          path: artifacts/public-release-candidate
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Publish and verify exact tarballs
+        env:
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          EMERGENCY_REASON: ${{ inputs.emergency_reason }}
+          EXPECTED_COMMIT: ${{ needs.candidate.outputs.commit }}
+        run: >-
+          node scripts/release/publish-public-candidate.mjs
+          --candidate artifacts/public-release-candidate
+          --channel "$RELEASE_CHANNEL"
+          --expected-commit "$EXPECTED_COMMIT"
+          --emergency-reason "$EMERGENCY_REASON"
+          --output artifacts/public-release-publication.json
+          --apply
+
+      - name: Upload publication evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-release-publication
+          path: artifacts/public-release-publication.json
+          if-no-files-found: error
+          retention-days: 90
+
+  finalize:
+    name: Tag and document verified release
+    needs: [candidate, aggregate, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact candidate source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ needs.candidate.outputs.commit }}
+          fetch-depth: 0
+
+      - name: Download immutable candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: public-release-candidate
+          path: artifacts/public-release-candidate
+
+      - name: Download matrix evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: publish-install-matrix
+          path: artifacts/release-evidence
+
+      - name: Download publication evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: public-release-publication
+          path: artifacts/release-evidence
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Publish Selected Public Packages
+      - name: Reconcile package tags and releases
         env:
-          PACKAGES_JSON: ${{ needs.prepare.outputs.packages }}
-          RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
           GH_TOKEN: ${{ github.token }}
+          EXPECTED_COMMIT: ${{ needs.candidate.outputs.commit }}
+          CANDIDATE_DIGEST: ${{ needs.candidate.outputs.digest }}
         run: |
           set -euo pipefail
+          PACKAGES_FILE="$RUNNER_TEMP/public-release-packages.tsv"
+          node scripts/release/public-packages.mjs resolve |
+            jq -r '.[] | [.packageName, .tag, .releaseName] | @tsv' > "$PACKAGES_FILE"
+          test "$(wc -l < "$PACKAGES_FILE" | tr -d ' ')" -eq 5
 
-          printf '%s' "$PACKAGES_JSON" > /tmp/airjam-public-packages.json
-
-          while IFS=$'\t' read -r ID PACKAGE_NAME PACKAGE_FILTER WORKING_DIRECTORY VERSION TAG RELEASE_NAME; do
-            PUBLISHED_ON_NPM=0
-            LOCAL_TAG_EXISTS=0
-            REMOTE_TAG_EXISTS=0
-            RELEASE_EXISTS=0
-
-            if npm view "${PACKAGE_NAME}@${VERSION}" version >/dev/null 2>&1; then
-              PUBLISHED_ON_NPM=1
-              echo "${PACKAGE_NAME}@${VERSION} is already published on npm; reconciling tag and release state"
-            fi
-
-            if git rev-parse "$TAG" >/dev/null 2>&1; then
-              LOCAL_TAG_EXISTS=1
-            fi
-
-            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-              REMOTE_TAG_EXISTS=1
+          while IFS=$'\t' read -r PACKAGE_NAME TAG RELEASE_NAME; do
+            test -n "$PACKAGE_NAME"
+            test -n "$TAG"
+            test -n "$RELEASE_NAME"
+            if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+              test "$(git rev-list -n 1 "$TAG")" = "$EXPECTED_COMMIT"
+            else
+              git tag "$TAG" "$EXPECTED_COMMIT"
+              git push origin "refs/tags/$TAG"
             fi
 
             if gh release view "$TAG" >/dev/null 2>&1; then
-              RELEASE_EXISTS=1
-            fi
-
-            if [ "$PUBLISHED_ON_NPM" -eq 0 ] && [ "$REMOTE_TAG_EXISTS" -eq 1 ]; then
-              echo "Tag $TAG already exists remotely, but ${PACKAGE_NAME}@${VERSION} is not published on npm"
-              exit 1
-            fi
-
-            if [ "$PUBLISHED_ON_NPM" -eq 0 ]; then
-              pnpm --filter "${PACKAGE_FILTER}..." build
-
-              (
-                cd "${WORKING_DIRECTORY}"
-                pnpm publish --access public --tag "${RELEASE_CHANNEL}" --provenance --no-git-checks
-              )
-            fi
-
-            if [ "$LOCAL_TAG_EXISTS" -eq 0 ]; then
-              git tag "$TAG"
-            fi
-
-            if [ "$REMOTE_TAG_EXISTS" -eq 0 ]; then
-              git push origin "$TAG"
-            fi
-
-            if [ "$RELEASE_EXISTS" -eq 0 ]; then
+              gh release upload "$TAG" \
+                artifacts/public-release-candidate/manifest.json \
+                artifacts/release-evidence/public-install-matrix.json \
+                artifacts/release-evidence/public-release-publication.json \
+                --clobber
+            else
               gh release create "$TAG" \
+                --target "$EXPECTED_COMMIT" \
                 --title "$RELEASE_NAME" \
-                --generate-notes
+                --notes "Immutable Air Jam candidate: $CANDIDATE_DIGEST" \
+                artifacts/public-release-candidate/manifest.json \
+                artifacts/release-evidence/public-install-matrix.json \
+                artifacts/release-evidence/public-release-publication.json
             fi
-          done < <(node <<'EOF'
-          const fs = require("node:fs");
-          const packages = JSON.parse(fs.readFileSync("/tmp/airjam-public-packages.json", "utf8"));
-
-          for (const pkg of packages) {
-            const fields = [
-              pkg.id,
-              pkg.packageName,
-              pkg.packageFilter,
-              pkg.workingDirectory,
-              pkg.version,
-              pkg.tag,
-              pkg.releaseName,
-            ];
-            process.stdout.write(fields.join("\t") + "\n");
-          }
-          EOF
-          )
+          done < "$PACKAGES_FILE"

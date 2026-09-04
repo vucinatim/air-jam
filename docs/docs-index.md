@@ -76,13 +76,15 @@ The Gate 6 public package graph, supported Node/OS matrix, budgets, and
 machine-executable clean-install contract are defined by:
 
 1. [contracts/public-package-support-contract.md](./contracts/public-package-support-contract.md)
-2. [audits/v1-public-release/public-install-matrix-audit.md](./audits/v1-public-release/public-install-matrix-audit.md)
-3. `pnpm --silent run repo -- release install-matrix spec --json`
+2. [contracts/public-package-release-trust-contract.md](./contracts/public-package-release-trust-contract.md)
+3. [audits/v1-public-release/public-install-matrix-audit.md](./audits/v1-public-release/public-install-matrix-audit.md)
+4. `pnpm --silent run repo -- release install-matrix spec --json`
 
 The ranked Gate 5 public, privileged, artifact, runtime, agent, provider,
 privacy, and supply-chain security baseline is:
 
 1. [audits/v1-security/threat-model-audit.md](./audits/v1-security/threat-model-audit.md)
+2. [audits/v1-security/supply-chain-release-trust-proof.md](./audits/v1-security/supply-chain-release-trust-proof.md)
 
 The audit owns evidence and decisions. `G5-02` and `G5-03` in the readiness
 manifest own implementation and proof; the document is not a parallel backlog.

@@ -58,7 +58,7 @@ This layer owns:
 2. `llms.txt`
 3. docs manifest and search index surfaces
 4. generated project-facing agent docs
-5. hosted AI-pack manifests and file bundles
+5. a hosted read-only mirror of the packaged AI-pack manifest and files
 6. local AI-pack drift and update workflow
 
 ## Why This Matters
@@ -80,5 +80,6 @@ Those audiences overlap, but they do not consume documentation the same way.
 3. Keep machine-oriented docs explicit instead of assuming browser scraping.
 4. Prefer one stable concept explained well over duplicating the same idea
    across many weak pages.
-5. Keep the hosted docs registry and the hosted AI pack aligned as delivery
-   outputs of one canonical guidance system.
+5. Keep the hosted docs registry, the read-only hosted AI pack, and the
+   provenance-backed CLI snapshot aligned as delivery outputs of one canonical
+   guidance system; only the installed CLI snapshot may update local files.

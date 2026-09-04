@@ -11,8 +11,8 @@ Related docs:
 
 ## Purpose
 
-This guide explains the intended workflow for projects consuming the hosted Air
-Jam AI pack.
+This guide explains the intended workflow for projects consuming the Air Jam AI
+pack embedded in the installed `@air-jam/cli` package.
 
 ## What The AI Pack Is For
 
@@ -34,6 +34,7 @@ From a scaffolded project root:
 pnpm exec airjam ai-pack status --dir .
 pnpm exec airjam ai-pack diff --dir .
 pnpm exec airjam ai-pack update --dir .
+pnpm exec airjam ai-pack repair --dir .
 ```
 
 ## Intended Workflow
@@ -41,7 +42,7 @@ pnpm exec airjam ai-pack update --dir .
 ### `status`
 
 Use this first when you want to know whether the local project is behind the
-hosted canonical pack.
+trusted snapshot in the installed CLI.
 
 ### `diff`
 
@@ -51,6 +52,14 @@ Use this when you want to inspect exactly which managed files differ.
 
 Use this only when you explicitly want to replace AI-pack-managed files with the
 current canonical versions.
+
+The updater never downloads executable guidance from a mutable URL. Upgrade the
+CLI through npm first when you want a newer pack.
+
+### `repair`
+
+Use this explicit operation to restore same-version managed drift. `update`
+will not silently turn a same-version package into different content.
 
 ## Ownership Rule
 
@@ -70,6 +79,8 @@ It does not own:
 2. updates are explicit
 3. updates are not merge operations
 4. local manifest state is stored at `.airjam/ai-pack.json`
+5. version rollback and same-version content substitution are rejected
+6. all replacement files are verified and staged before the project changes
 
 ## Design Rule
 

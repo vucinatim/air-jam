@@ -19,6 +19,13 @@ const readCompatibleSchema = async () => ({
   reason: null,
 });
 
+const telemetryRetentionResult = () => ({
+  rawEventsDeleted: 0,
+  sessionContributionsDeleted: 0,
+  rawCutoff: new Date("2026-01-01T00:00:00.000Z"),
+  sessionContributionCutoffDate: "2026-01-01",
+});
+
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
@@ -70,6 +77,7 @@ describe("operational job worker service", () => {
       port: 4321,
       workerId: "worker:test",
       maxInFlight: 7,
+      telemetryRetentionMs: 900_000,
     });
     expect(() =>
       loadOperationalJobWorkerServiceConfig({
@@ -124,6 +132,7 @@ describe("operational job worker service", () => {
         await lifecycleCleanup.promise;
         return { candidates: [], jobs: [] };
       },
+      retainTelemetry: async () => telemetryRetentionResult(),
       deliverEvent: async () => ({ status: "idle" }),
       repairEventDelivery: async () => [],
       repairIssueProjection: async () => [],
@@ -195,6 +204,7 @@ describe("operational job worker service", () => {
           eventDelivery: { status: "ready" },
           maintenance: { status: "pending" },
           lifecycleCleanup: { status: "pending" },
+          telemetryRetention: { status: "ready" },
           synthetics: {
             status: "failed",
             lastFailureCode: "OperationalSyntheticBatchFailure",
@@ -249,6 +259,7 @@ describe("operational job worker service", () => {
     const port = await reservePort();
     handle = await startOperationalJobWorkerService({
       readSchemaCompatibility: readCompatibleSchema,
+      retainTelemetry: async () => telemetryRetentionResult(),
       env: {
         AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
         AIRJAM_PLATFORM_WORKER_PORT: String(port),
@@ -314,6 +325,137 @@ describe("operational job worker service", () => {
     });
   });
 
+  it("degrades readiness after retention failure and recovers on the next successful run", async () => {
+    const port = await reservePort();
+    let retentionAttempts = 0;
+    handle = await startOperationalJobWorkerService({
+      readSchemaCompatibility: readCompatibleSchema,
+      env: {
+        AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
+        AIRJAM_PLATFORM_WORKER_PORT: String(port),
+        AIRJAM_PLATFORM_WORKER_ID: "worker:retention-recovery",
+        AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS: "200",
+        AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
+      },
+      runCycle: async ({ kind }) => ({ status: "idle", kind }),
+      repair: async () => ({ replayed: false, jobs: [] }),
+      cleanup: async () => ({ candidates: [], cleaned: [] }),
+      scheduleCleanup: async () => ({ candidates: [], jobs: [] }),
+      retainTelemetry: async () => {
+        retentionAttempts += 1;
+        if (retentionAttempts === 1) {
+          throw new Error("retention unavailable");
+        }
+        return telemetryRetentionResult();
+      },
+      deliverEvent: async () => ({ status: "idle" }),
+      repairEventDelivery: async () => [],
+      runSynthetics: async () => ({
+        environment: "test",
+        scheduledAt: new Date().toISOString(),
+        dueCount: 0,
+        completedCount: 0,
+        failureCount: 0,
+        staleIgnoredCount: 0,
+        skippedCount: 0,
+        checks: [],
+      }),
+    });
+    const origin = `http://127.0.0.1:${port}`;
+
+    let failed: Awaited<ReturnType<typeof readJson>> | null = null;
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      failed = await readJson(await fetch(`${origin}/ready`));
+      if (
+        (failed.body.authorities as Record<string, { status: string }>)
+          .telemetryRetention?.status === "failed"
+      ) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(failed).toMatchObject({
+      status: 503,
+      body: {
+        authorityReady: false,
+        authorities: {
+          telemetryRetention: {
+            status: "failed",
+            lastFailureCode: "Error",
+          },
+        },
+      },
+    });
+
+    let recovered: Awaited<ReturnType<typeof readJson>> | null = null;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      recovered = await readJson(await fetch(`${origin}/ready`));
+      if (recovered.status === 200) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(recovered).toMatchObject({
+      status: 200,
+      body: {
+        authorityReady: true,
+        authorities: { telemetryRetention: { status: "ready" } },
+      },
+    });
+  });
+
+  it("waits for in-flight telemetry retention while draining", async () => {
+    const port = await reservePort();
+    const retention = deferred<ReturnType<typeof telemetryRetentionResult>>();
+    handle = await startOperationalJobWorkerService({
+      readSchemaCompatibility: readCompatibleSchema,
+      env: {
+        AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
+        AIRJAM_PLATFORM_WORKER_PORT: String(port),
+        AIRJAM_PLATFORM_WORKER_ID: "worker:retention-drain",
+        AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS: "1000",
+      },
+      runCycle: async ({ kind }) => ({ status: "idle", kind }),
+      repair: async () => ({ replayed: false, jobs: [] }),
+      cleanup: async () => ({ candidates: [], cleaned: [] }),
+      scheduleCleanup: async () => ({ candidates: [], jobs: [] }),
+      retainTelemetry: async () => retention.promise,
+      deliverEvent: async () => ({ status: "idle" }),
+      repairEventDelivery: async () => [],
+      runSynthetics: async () => ({
+        environment: "test",
+        scheduledAt: new Date().toISOString(),
+        dueCount: 0,
+        completedCount: 0,
+        failureCount: 0,
+        staleIgnoredCount: 0,
+        skippedCount: 0,
+        checks: [],
+      }),
+    });
+
+    let closed = false;
+    const closePromise = handle.close().then(() => {
+      closed = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(closed).toBe(false);
+    retention.resolve(telemetryRetentionResult());
+    await closePromise;
+    expect(closed).toBe(true);
+    handle = null;
+  });
+
   it("stays observable but schedules no work when schema authority is incompatible", async () => {
     const port = await reservePort();
     let cycles = 0;
@@ -337,6 +479,7 @@ describe("operational job worker service", () => {
         observed: null,
         reason: "database_schema_behind",
       }),
+      retainTelemetry: async () => telemetryRetentionResult(),
       runCycle: async ({ kind }) => {
         cycles += 1;
         return { status: "idle", kind };

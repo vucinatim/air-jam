@@ -6,6 +6,7 @@ import {
   basePackRoot,
   exportedDocs,
   outputDocsRoot,
+  readVerifiedAiPackSnapshot,
   requiredBasePackPaths,
   requiredGeneratedDocPaths,
 } from "./ai-pack-contract.mjs";
@@ -41,39 +42,12 @@ const validateRequiredPaths = () =>
     .map((relativePath) => `Missing required AI pack file: ${relativePath}`);
 
 const validateManifestShape = async () => {
-  const manifestPath = path.join(basePackRoot, ".airjam", "ai-pack.json");
-  const manifest = JSON.parse(await fsp.readFile(manifestPath, "utf8"));
-  const errors = [];
-
-  if (manifest.schemaVersion !== 1) {
-    errors.push("AI pack manifest must set schemaVersion to 1.");
+  try {
+    await readVerifiedAiPackSnapshot();
+    return [];
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
   }
-  if (
-    typeof manifest.packVersion !== "string" ||
-    manifest.packVersion.length === 0
-  ) {
-    errors.push("AI pack manifest must include a non-empty packVersion.");
-  }
-  if (manifest.channel !== "stable" && manifest.channel !== "canary") {
-    errors.push('AI pack manifest channel must be "stable" or "canary".');
-  }
-  if (
-    typeof manifest.releaseDate !== "string" ||
-    manifest.releaseDate.length === 0
-  ) {
-    errors.push("AI pack manifest must include a non-empty releaseDate.");
-  }
-  if (manifest.source?.mode !== "packaged-snapshot") {
-    errors.push('AI pack manifest source.mode must be "packaged-snapshot".');
-  }
-  if (typeof manifest.update?.manifestUrl !== "string") {
-    errors.push("AI pack manifest must include update.manifestUrl.");
-  }
-  if (typeof manifest.update?.docsBaseUrl !== "string") {
-    errors.push("AI pack manifest must include update.docsBaseUrl.");
-  }
-
-  return errors;
 };
 
 const validateGeneratedDirectoryShape = async () => {
