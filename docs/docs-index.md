@@ -144,7 +144,7 @@ the currently executable queue. The next independent work is:
 1. finish Gate `G3-02` artifact-retention, realtime-admission, and overload proof
 2. close the remaining ranked Gate 5 security findings after the completed
    `games.air-jam.app` production cutover
-3. project confirmed operational alert fingerprints into maintained GitHub
+3. project confirmed operational alert keys into maintained GitHub
    issues with linked evidence for local agents
 4. run isolated backup/restore and rollback/replay proof
 5. prove supply-chain provenance, privacy claims, and the emergency release

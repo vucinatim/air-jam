@@ -39,17 +39,14 @@ manually maintaining a second checklist.
 
 ## Program Estimate
 
-Planning envelope:
+The readiness manifest owns the live agent-hour, maintainer-hour, and calendar
+planning envelope. Read it through `readiness status --json`; this plan does not
+copy those changing totals. The aggressive case assumes parallel execution and
+little audit fallout, while the conservative case includes a real redesign
+discovered by reliability, security, or scale proof.
 
-1. `285-520` active agent execution hours
-2. `28-56` maintainer hours, concentrated into explicit checkpoints
-3. `5-7` likely calendar weeks with stable boundaries and parallel execution
-4. `3-4` aggressive weeks if audits and production proofs reveal little fallout
-5. `8-10` conservative weeks if canonicalization, security, or scale work finds
-   a real redesign
-
-These are scheduling estimates, not completion evidence. The program closes
-only through the roadmap gates.
+This is scheduling guidance, not completion evidence. The program closes only
+through the roadmap gates.
 
 ## One Authority Per Kind Of Truth
 
@@ -664,10 +661,10 @@ autonomous.
 local agents can notice, coordinate, and act. It does not build a second generic
 incident system.
 
-For 1.0, the existing durable alert fingerprint and revision are the incident
+For 1.0, the existing durable `alertKey` and revision provide the issue
 identity. The narrow projection needs only:
 
-1. one idempotent issue-delivery record keyed by alert fingerprint and target
+1. one idempotent issue-delivery record keyed by `alertKey` and target
    repository
 2. links to the relevant source events, synthetic runs, deployment identity,
    and provider evidence rather than copied raw payloads
@@ -677,8 +674,8 @@ identity. The narrow projection needs only:
    alert
 
 Volatile values such as timestamps, request IDs, and message text never enter
-the fingerprint. A recurrence updates or reopens the same issue rather than
-creating a duplicate.
+the issue identity. A recurrence under the same `alertKey` updates or reopens
+the same issue rather than creating a duplicate.
 
 The adapter uses a repository-installed GitHub App with issue-only permission,
 never a maintainer personal token. The operational worker is the only Air Jam
@@ -777,7 +774,7 @@ model remains useful only as historical program grouping.
 | B. Production controls        | `G3-02`, `G3-07`, `G3-08`, `G5-03` | Artifact and evidence retention plus invisible realtime admission are complete; the operational worker is activated safely |
 | C. Isolated external proof    | `G2-03` through `G2-05`            | Codex and Claude Desktop prove the public lifecycle without production authority or maintainer intervention                |
 | D. Recovery proof             | `G3-03`                            | Recurring backup, isolated restore, deployment rollback, lane pause/resume, and job replay have measured evidence          |
-| E. Alert and issue projection | `G4-03`                            | One confirmed actionable alert fingerprint maintains one GitHub issue with linked evidence                                 |
+| E. Alert and issue projection | `G4-03`                            | One confirmed actionable alert key maintains one GitHub issue with linked evidence                                         |
 | F. Supply-chain trust         | `G5-03`                            | Exact validated package bytes, provenance, privacy, and emergency release are proven                                       |
 | G. Scale and security closure | `G3-04`, `G3-05`, `G5-02`, `G5-04` | Capacity, degradation, residual security risk, recovery time, and the honest support envelope close                        |
 | H. Public proof               | `G6-02` through `G6-06`            | Docs, discovery, demo, article, release notes, and assets match shipped behavior                                           |
@@ -789,7 +786,8 @@ the retention policy, because production activation must exercise the final
 cleanup behavior. G waits on the controls and recovery work because load and
 failure drills must exercise the real final mechanisms. H can begin from proven
 golden-path evidence but freezes only after operational and security behavior
-is settled. Block I begins only from the exact frozen candidate.
+is settled. Everything after `G7-01` proceeds only from the exact candidate
+that `G7-01` freezes.
 
 ### Pull Request Shape
 
@@ -802,7 +800,7 @@ Prefer reviewable, independently deployable pull requests in this order:
 4. `G3-08` operational-worker provisioning and observed activation
 5. isolated rehearsal profile and primary external-agent proof
 6. backup/restore/rollback/replay surface and drill
-7. narrow alert-fingerprint GitHub issue projection
+7. narrow alert-key GitHub issue projection
 8. package build-once/provenance and privacy/emergency proof
 9. remaining security closure and capacity/degradation proof
 10. public demo/docs/story and exact release candidate

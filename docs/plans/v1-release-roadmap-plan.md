@@ -559,21 +559,31 @@ hatch. For 1.0:
 #### 1.0 Agent Authority Ceiling
 
 Air Jam does not need to implement a central autonomy engine for these actions.
-A smart agent running locally or on an approved loop may use existing focused
-tools to:
+Once a relevant focused machine surface is implemented and proven, a smart
+agent running locally or on an approved loop may use it to:
 
 1. collect health, cost, queue, lifecycle, and provider evidence
 2. correlate evidence and create/update one GitHub issue per confirmed alert
-   fingerprint
+   key
 3. retry an idempotent failed job within its fixed attempt and cost budget
-4. restart one unhealthy stateless service at most twice in 30 minutes
+4. restart one unhealthy stateless service at most twice in 30 minutes, but
+   only through a surface that enforces that ceiling and cooldown
 5. roll back a just-deployed stateless service to the exact previous known-good
-   deployment when canary failure is unambiguous, once per deployment
+   deployment when canary failure is unambiguous, once per deployment, but only
+   through a surface that enforces that binding and attempt ceiling
 6. pause and resume expensive job intake using explicit budget/health
    thresholds
 7. expire temporary uploads, dead rooms, and leases under documented lifecycle
    rules
 8. verify every action and revert or escalate when verification fails
+
+The purpose-specific command, provider action, or loop's durable coordination—
+not merely an audit record—must enforce the fixed attempt, cooldown,
+exact-target, and once-per-deployment bounds above. If no such surface exists,
+the effect is not authorized and the agent escalates. No 1.0 item must build a
+restart surface merely to satisfy this ceiling. `G3-03` owns exact-target and
+independent-verification proof for the rollback and replay surfaces it does
+ship.
 
 The following always require maintainer approval:
 
@@ -588,7 +598,7 @@ The following always require maintainer approval:
 Agents may reproduce defects, write regression tests, prepare code, and open a
 PR automatically. They may not merge or promote a code-changing repair to
 production in 1.0. Security, data-integrity, authorization, and billing failures
-diagnose and contain through existing bounded controls, then escalate.
+diagnose and contain through proven bounded controls, then escalate.
 
 Controls are proportional to effect. Reads and diagnosis remain fluid.
 Reversible production actions require an exact target, bounded attempts,
@@ -605,10 +615,10 @@ machine merely for uniformity.
 2. queued publishing, optional moderation, analytics delay, and warning-level
    cost drift create/update one issue or digest entry and wait for normal
    waking hours
-3. repeated symptoms update one alert fingerprint rather than sending repeated
+3. repeated symptoms update one alert key rather than sending repeated
    pages
-4. a recovery action that verifies successfully produces a digest entry; a
-   failed verification escalates once with the complete evidence bundle
+4. recovery or failed-verification evidence updates the existing issue or
+   digest entry rather than opening a parallel notification path
 
 #### Monetization And Budget-Review Triggers
 
@@ -855,7 +865,7 @@ Keep three planes explicit:
 1. **product telemetry**: approximate visits, discovery, intent, and agent reach
 2. **lifecycle/runtime events**: authoritative rooms, sessions, releases, jobs,
    deploys, and failures
-3. **operational alerts**: actionable symptoms, severity, fingerprint,
+3. **operational alerts**: actionable symptoms, severity, stable key,
    correlated evidence, and notification state
 
 Product telemetry must never trigger correctness-critical remediation by itself.
@@ -864,11 +874,11 @@ Product telemetry must never trigger correctness-critical remediation by itself.
 
 `signal -> fingerprint -> correlate -> incident -> diagnose -> remediate -> verify -> close or escalate`
 
-This remains the architectural direction. For 1.0, the durable alert and its
-fingerprint are sufficient authority for agent diagnosis and one maintained
-GitHub issue. A separate generic incident lifecycle, remediation state machine,
-and automatic runbook engine are not required before real incidents demonstrate
-that need.
+This remains the architectural direction. For 1.0, the durable alert's
+`alertKey` and revision are sufficient authority for agent diagnosis and one
+maintained GitHub issue. A separate generic incident lifecycle, remediation
+state machine, and automatic runbook engine are not required before real
+incidents demonstrate that need.
 
 ### Foundation Work
 
@@ -887,10 +897,10 @@ that need.
    6. release submission/publish dependencies
 6. establish structured error reporting across platform, server, worker, and
    hosted game/runtime stories
-7. fingerprint and deduplicate actionable alerts before creating external work
-   items
+7. use the stable alert key to deduplicate actionable alerts before creating
+   external work items
 8. build a narrow GitHub issue bridge that creates or updates one issue per
-   confirmed alert fingerprint with:
+   confirmed alert key with:
    1. affected version and environment
    2. severity and first/last occurrence
    3. correlated evidence
@@ -922,9 +932,10 @@ For 1.0:
 2. **Level 1 - alert**: synthetics/SLOs notify on actionable symptoms
 3. **Level 2 - triage**: agents correlate evidence, deduplicate, and maintain an
    incident or GitHub issue
-4. **Level 3 - recommend**: agents select and preview a runbook for approval
-5. **Level 4 - bounded heal**: allowlisted reversible runbooks execute
-   automatically, then verify or roll back
+4. **Level 3 - recommend**: agents propose a bounded recovery effect and preview
+   it when that materially reduces risk
+5. **Level 4 - bounded heal**: a proven reversible effect executes within its
+   authority and limits, then verifies or rolls back
 6. **Level 5 - repair delivery**: agents reproduce defects, create regression
    tests and code changes, open a PR, pass gates, canary, and promote or revert
 
@@ -932,11 +943,11 @@ For 1.0:
 
 1. Level 1 works end to end for launch-critical services
 2. Level 2 is deliberately narrow: an agent receives sufficient evidence to
-   diagnose the failure, and one fingerprint maintains one GitHub issue
-3. existing reversible recovery commands are proven in Gate 3, but a generic
-   Level 3 or Level 4 runbook system is not a 1.0 requirement
-4. Levels 3 through 5 advance after 1.0 only from real incident evidence and a
-   narrow case for the added machinery
+   diagnose the failure, and one alert key maintains one GitHub issue
+3. focused Level 3 and Level 4 capabilities may be proven in Gate 3 without a
+   generic runbook system or central autonomy engine
+4. Level 5 production promotion remains post-1.0 and advances only from real
+   incident evidence and a narrow case for the added authority
 5. any production mutation still carries the authority, target, cost,
    idempotency, verification, and rollback appropriate to its blast radius
 
@@ -946,9 +957,7 @@ For 1.0:
    evidence
 2. the alert reaches the correct notification and GitHub issue policy
 3. an agent can diagnose it using only machine surfaces
-4. existing Gate 3 recovery controls expose bounded verification and failure
-   instead of silently looping
-5. alert noise and false-positive behavior have been reviewed during a soak
+4. alert noise and false-positive behavior have been reviewed during a soak
 
 ## Gate 5: Security, Abuse, Privacy, And Supply-Chain Trust
 

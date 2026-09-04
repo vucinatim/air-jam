@@ -243,7 +243,9 @@ of these is true:
 Otherwise retain the intended boundary in the roadmap or suggestions backlog
 without implementing the mechanism. Prefer one complete CLI or MCP path over
 simultaneously shipping CLI, MCP, API, and UI adapters with no users. New
-adapters remain thin clients of the same service when demand appears.
+adapters remain thin clients of the same service when demand appears. One
+machine path is the floor for an operational capability, not permission to ship
+a UI-only lifecycle.
 
 Contracts should describe authority, inputs, outputs, invariants, and evidence.
 They should not prescribe an agent's reasoning sequence. A smarter future

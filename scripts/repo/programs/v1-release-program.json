@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-03T23:40:25.853Z",
+  "updatedAt": "2026-09-04T00:06:46.000Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -544,7 +544,8 @@
         "agentHoursMax": 22
       },
       "evidenceRequirements": [
-        "measured restore and rollback artifacts without production data mutation"
+        "measured restore and rollback artifacts without production data mutation",
+        "agent-operable rollback and replay actions use exact targets, return independent verification evidence, and stop with an escalation bundle when verification fails"
       ]
     },
     {
@@ -660,7 +661,7 @@
         "agentHoursMax": 12
       },
       "evidenceRequirements": [
-        "one confirmed actionable alert fingerprint creates, updates, reopens, and resolves one maintained issue with linked evidence"
+        "one confirmed actionable alert key creates, updates, reopens, and resolves one maintained issue with linked source, recovery, and failed-verification evidence"
       ]
     },
     {
@@ -706,6 +707,7 @@
       },
       "evidenceRequirements": [
         "negative-path security tests and operator controls",
+        "private agent-operable abuse-report triage through shared application services with human and machine adapters remaining thin",
         "repo CLI proof that the exact merged production deployment reached terminal SUCCESS and its canonical platform origin plus public liveness/readiness identity match the deployed revision",
         "branch-protection proof that required CI applies to administrators plus one GitHub-native Opus review on the green merge candidate and measured fast local check tiers"
       ],

@@ -29,9 +29,11 @@ The pre-reset overloaded ledger has been preserved at:
   implementation paths
 - narrowed the Gate 4 launch bar to trustworthy synthetics, alerts, agent
   diagnosis, and one deduplicated GitHub issue path
-- removed the generic incident lifecycle, runbook persistence engine,
-  automatic-remediation allowlist, and dedicated swarm scheduler from mandatory
-  1.0 scope; retained them as post-1.0 options earned by real incidents
+- removed the generic incident lifecycle, runbook persistence engine, and
+  automatic-remediation allowlist from mandatory 1.0 scope; retained them as
+  post-1.0 options earned by real incidents
+- explicitly ruled out a dedicated swarm scheduler until observed coordination
+  needs justify it
 - preserved strong effect boundaries for destructive, privileged, costly, and
   public operations without forcing low-risk reads or reversible work through a
   uniform state machine
