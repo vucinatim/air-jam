@@ -123,11 +123,13 @@ Operational failures contain only:
 
 Unknown exception messages and stacks are not retained. Secret-shaped keys,
 including authorization, cookie, token, password, credential, exact `key`, and
-secret fields, are removed recursively. Compound credential names such as `apiKey`,
-`signing_key`, and `private-key` are recognized lexically; unrelated words such
-as `monkey` or `keyboardLayout` remain available as useful evidence. Logs for
-publisher failures contain only a stable source failure code and exception
-class.
+secret fields, are removed recursively. Compound credential names such as
+`apiKey`, `signing_key`, `private-key`, compact `accesstoken`, and plural
+`apiKeys` are recognized conservatively; unrelated words such as `monkey` or
+`keyboardLayout` remain available as useful evidence. The explicitly public
+diagnostic field `targetKey` is retained; other standalone or compound `key`
+fields fail closed. Logs for publisher failures contain only a stable source
+failure code and exception class.
 
 A producer normalizes an untrusted failure code once. The resulting stable code
 is used for both the event kind and the structured failure. Raw and normalized
@@ -198,12 +200,22 @@ the transaction anchors `completedAt`, `startedAt`, event time, and evidence tim
 to PostgreSQL `clock_timestamp()`. The submitted process wall clock is
 provisional and never becomes retained chronology.
 
+The idempotency fence is acquired before a check performs network or realtime
+side effects. The bounded check executes while its PostgreSQL transaction-level
+advisory lock is held; another worker with the same idempotency key waits, reads
+the retained replay, and does not repeat the external story. This deliberately
+uses the existing transaction authority instead of adding a second lease table
+or singleton-worker assumption.
+
 The due-run scheduler isolates every catalog item. A lookup, execution, or
 persistence failure for one check becomes a secret-safe per-check failure and
-does not prevent later checks from running. Its JSON result reports due,
-completed, failed, and skipped counts plus one explicit outcome per check. A
-resolved batch with failures leaves the worker's synthetic authority degraded;
-isolation never turns partial failure into apparent success.
+does not prevent later checks from running. Its JSON result reports genuinely
+due, completed, failed, stale-ignored, and not-due counts plus one explicit
+outcome per check; a lookup failure is not guessed to be due. A resolved batch
+with failures leaves the worker's synthetic authority degraded. A fenced stale
+evaluation remains a successful retained run but is counted, logged, and
+exposed in worker status; isolation never turns a partial or fenced result into
+invisible success.
 
 ## SLO And Alert Policy
 
@@ -226,7 +238,8 @@ Historical evidence may legitimately arrive after newer evidence. The run and
 its operational event remain durable, but an evaluation older than the latest
 retained SLO evaluation is explicitly returned as `stale_ignored`. It cannot
 alter streaks, alert status, recovery time, or alert revision. The disposition
-is returned by the same CLI result; no parallel correlation schema is needed.
+is returned by the same CLI result and surfaced by scheduler and worker batch
+state; no parallel correlation schema is needed.
 
 Alerts open only after the declared consecutive breach threshold and recover
 only after the declared consecutive recovery threshold. Alert recovery retains

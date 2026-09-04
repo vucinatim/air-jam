@@ -12,10 +12,11 @@ evaluation, and internal alert state.
 The canonical behavior is defined in the
 [Operational Reliability Contract](../../contracts/operational-reliability-contract.md).
 
-The `G4-07` hardening pass preserves that architecture and closes five review
+The `G4-07` hardening pass preserves that architecture and closes the review
 gaps before continuous production execution: adversarial secret-key filtering,
-single-source failure identity, database-owned synthetic chronology, per-check
-scheduler isolation, and stale SLO fencing.
+single-source failure identity, database-owned synthetic chronology, pre-effect
+idempotency fencing, per-check scheduler isolation, visible stale SLO fencing,
+and CI-owned PostgreSQL regression proof.
 
 ## Proven Launch Stories
 
@@ -77,10 +78,11 @@ stacks, full URLs, and secret-shaped nested details do not enter the durable
 documents or safe logs.
 
 The adversarial vocabulary covers camel case, snake case, kebab case, uppercase,
-and compact compound key names such as API, signing, private, and encryption
-keys. Negative controls prove unrelated evidence names containing `key`-like
-text are not discarded. A malformed realtime failure code is normalized once
-and the persisted event kind exactly equals the retained failure code.
+plural keys, and compact compound credential names, including compact base
+terms such as `accesstoken`, `sessionid`, and `userpassword`. Negative controls
+prove unrelated evidence names containing `key`-like text are not discarded. A
+malformed realtime failure code is normalized once and the persisted event kind
+exactly equals the retained failure code.
 
 Hosted-runtime reports are accepted only from the socket authorized for the
 declared room and role, are client- and room-rate-limited, derive runtime
@@ -110,16 +112,21 @@ The CLI contract suite proves:
 6. payload values, failure details, and lease tokens are absent from JSON reads
 
 The due-run apply result additionally exposes one outcome per catalog check and
-aggregate due/completed/failed/skipped counts. A failure in the first check is
-proven not to starve the other five, and the worker retains the failed synthetic
-authority instead of reporting the resolved batch as healthy.
+aggregate due/completed/failed/stale-ignored/not-due counts. A failure in the
+first check is proven not to starve the other five, lookup failure is not
+misclassified as due, and the worker retains the failed synthetic authority
+instead of reporting the resolved batch as healthy. Fenced evaluations remain
+visible in the latest batch and structured worker logs without making the
+auxiliary synthetic authority unavailable.
 
 ## Chronology And Concurrency Hardening Proof
 
 Synthetic network duration is measured independently of wall-clock time. The
-persistence transaction acquires the SLO stream lock, reads PostgreSQL authority
-time, rebases the retained run and evidence to it, and uses the same timestamp
-for its event and SLO window.
+full single-run lifecycle acquires its idempotency lock before external effects,
+so concurrent workers execute the story once and the loser receives a replay.
+The persistence transaction then acquires the SLO stream lock, reads PostgreSQL
+authority time, rebases the retained run and evidence to it, and uses the same
+timestamp for its event and SLO window.
 
 The PostgreSQL regression suite persists a complete breach and recovery stream,
 then deliberately submits an older failure. It proves:
@@ -153,14 +160,21 @@ The following focused evidence passed against the local migrated PostgreSQL
 authority:
 
 1. operations contract: `18/18`
-2. operational reliability PostgreSQL invariants: `4/4`
+2. operational reliability PostgreSQL invariants: `5/5`
 3. repo CLI reliability contract: `4/4`
-4. realtime server targeted suites green, including PostgreSQL publisher `3/3`
+4. realtime server PostgreSQL publisher: `3/3`
 5. hosted SDK error-boundary behavior: `3/3`
-6. platform policy, executor, health, request reporting, and worker suites,
-   including chronology and scheduler isolation: focused suites green
+6. platform policy, executor, scheduler, and worker focused suites: `10/10`
 7. platform, SDK, and realtime-server targeted typechecks
 8. Drizzle schema drift check with no ungenerated migration
+
+The GitHub `Tests` confidence lane provisions PostgreSQL 17, runs the ordinary
+repository suite without enabling database-only tests, then applies the
+canonical Drizzle migration set and runs the reliability CLI plus the focused
+platform and realtime PostgreSQL suites serially. Scoping the database variable
+to those commands avoids unsafe table-cleanup races in unrelated historical
+integration suites. These concurrency and chronology claims are therefore
+regression evidence, not a one-time local-only artifact.
 
 The repository-wide `pnpm check:ci` result is retained as a separate typed
 readiness evidence reference so narrow tests are not used to claim broad

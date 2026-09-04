@@ -72,6 +72,26 @@ export class OperationalSyntheticConflictError extends Error {
   }
 }
 
+const normalizeOperationalSyntheticCommand = ({
+  actor,
+  reason,
+  idempotencyKey,
+}: {
+  actor: string;
+  reason: string;
+  idempotencyKey: string;
+}) => {
+  const normalizedActor = actor.trim();
+  const normalizedReason = reason.trim();
+  const normalizedKey = idempotencyKey.trim();
+  if (!normalizedActor || !normalizedReason || !normalizedKey) {
+    throw new OperationalSyntheticConflictError(
+      "Actor, reason, and idempotency key are required.",
+    );
+  }
+  return { normalizedActor, normalizedReason, normalizedKey };
+};
+
 type OperationalSyntheticReplayReader = Pick<OperationalEventDatabase, "query">;
 
 export const resolveReplayedSyntheticRun = async ({
@@ -917,6 +937,84 @@ const evaluateAndRouteAlertInTransaction = async ({
   };
 };
 
+const acquireOperationalSyntheticExecutionFence = async ({
+  tx,
+  checkId,
+  environment,
+  idempotencyKey,
+}: {
+  tx: OperationalEventTransaction;
+  checkId: string;
+  environment: DeploymentEnvironment;
+  idempotencyKey: string;
+}) => {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`airjam:synthetic:${idempotencyKey}`}))`,
+  );
+  return resolveReplayedSyntheticRun({
+    database: tx,
+    checkId,
+    environment,
+    idempotencyKey,
+  });
+};
+
+const persistOperationalSyntheticRunInTransaction = async ({
+  tx,
+  submittedRun,
+  actor,
+  reason,
+  idempotencyKey,
+  testNow,
+}: {
+  tx: OperationalEventTransaction;
+  submittedRun: OperationalSyntheticRunV1;
+  actor: string;
+  reason: string;
+  idempotencyKey: string;
+  testNow?: Date;
+}): Promise<OperationalSyntheticPersistenceResult> => {
+  const check = getOperationalSyntheticCheck(submittedRun.checkId);
+  const definition = getOperationalSloDefinition(check.sloId);
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`airjam:slo:${definition.sloId}:${submittedRun.environment}`}))`,
+  );
+  const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
+  const run = anchorOperationalSyntheticRunToDatabaseTime({
+    run: submittedRun,
+    authorityNow,
+  });
+  await enqueueOperationalEventInTransaction({
+    tx,
+    event: buildSyntheticEvent({
+      check,
+      run,
+      actor,
+      reason,
+    }),
+    now: authorityNow,
+  });
+  await tx.insert(operationalSyntheticRuns).values({
+    id: run.runId,
+    idempotencyKey,
+    checkId: run.checkId,
+    environment: run.environment,
+    status: run.status,
+    eventId: run.eventId,
+    document: run,
+    startedAt: new Date(run.startedAt),
+    completedAt: new Date(run.completedAt),
+    createdAt: new Date(run.completedAt),
+  });
+  const routed = await evaluateAndRouteAlertInTransaction({
+    tx,
+    run,
+    check,
+    actor,
+  });
+  return { run, ...routed };
+};
+
 export const persistOperationalSyntheticRun = async ({
   database = db,
   run: rawRun,
@@ -933,66 +1031,70 @@ export const persistOperationalSyntheticRun = async ({
   now?: Date;
 }): Promise<OperationalSyntheticPersistenceResult> => {
   const submittedRun = operationalSyntheticRunSchemaV1.parse(rawRun);
-  const check = getOperationalSyntheticCheck(submittedRun.checkId);
-  const normalizedActor = actor.trim();
-  const normalizedReason = reason.trim();
-  const normalizedKey = idempotencyKey.trim();
-  if (!normalizedActor || !normalizedReason || !normalizedKey) {
-    throw new OperationalSyntheticConflictError(
-      "Actor, reason, and idempotency key are required.",
-    );
-  }
+  const { normalizedActor, normalizedReason, normalizedKey } =
+    normalizeOperationalSyntheticCommand({ actor, reason, idempotencyKey });
   return database.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`airjam:synthetic:${normalizedKey}`}))`,
-    );
-    const replay = await resolveReplayedSyntheticRun({
-      database: tx,
+    const replay = await acquireOperationalSyntheticExecutionFence({
+      tx,
       checkId: submittedRun.checkId,
       environment: submittedRun.environment,
       idempotencyKey: normalizedKey,
     });
-    if (replay) {
-      return replay;
-    }
-    const definition = getOperationalSloDefinition(check.sloId);
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`airjam:slo:${definition.sloId}:${submittedRun.environment}`}))`,
-    );
-    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
-    const run = anchorOperationalSyntheticRunToDatabaseTime({
-      run: submittedRun,
-      authorityNow,
-    });
-    await enqueueOperationalEventInTransaction({
+    if (replay) return replay;
+    return persistOperationalSyntheticRunInTransaction({
       tx,
-      event: buildSyntheticEvent({
-        check,
-        run,
-        actor: normalizedActor,
-        reason: normalizedReason,
-      }),
-      now: authorityNow,
-    });
-    await tx.insert(operationalSyntheticRuns).values({
-      id: run.runId,
-      idempotencyKey: normalizedKey,
-      checkId: run.checkId,
-      environment: run.environment,
-      status: run.status,
-      eventId: run.eventId,
-      document: run,
-      startedAt: new Date(run.startedAt),
-      completedAt: new Date(run.completedAt),
-      createdAt: new Date(run.completedAt),
-    });
-    const routed = await evaluateAndRouteAlertInTransaction({
-      tx,
-      run,
-      check,
+      submittedRun,
       actor: normalizedActor,
+      reason: normalizedReason,
+      idempotencyKey: normalizedKey,
+      testNow,
     });
-    return { run, ...routed };
+  });
+};
+
+export const runOperationalSynthetic = async ({
+  database = db,
+  checkId,
+  actor,
+  reason,
+  idempotencyKey,
+  config = resolveOperationalSyntheticRuntimeConfig(),
+  fetchImpl,
+  socketFactory,
+}: {
+  database?: OperationalEventDatabase;
+  checkId: string;
+  actor: string;
+  reason: string;
+  idempotencyKey: string;
+  config?: OperationalSyntheticRuntimeConfig;
+  fetchImpl?: typeof fetch;
+  socketFactory?: typeof io;
+}): Promise<OperationalSyntheticPersistenceResult> => {
+  const check = getOperationalSyntheticCheck(checkId);
+  const { normalizedActor, normalizedReason, normalizedKey } =
+    normalizeOperationalSyntheticCommand({ actor, reason, idempotencyKey });
+  return database.transaction(async (tx) => {
+    const replay = await acquireOperationalSyntheticExecutionFence({
+      tx,
+      checkId: check.checkId,
+      environment: config.environment,
+      idempotencyKey: normalizedKey,
+    });
+    if (replay) return replay;
+    const run = await executeOperationalSyntheticCheck({
+      check,
+      config,
+      fetchImpl,
+      socketFactory,
+    });
+    return persistOperationalSyntheticRunInTransaction({
+      tx,
+      submittedRun: operationalSyntheticRunSchemaV1.parse(run),
+      actor: normalizedActor,
+      reason: normalizedReason,
+      idempotencyKey: normalizedKey,
+    });
   });
 };
 

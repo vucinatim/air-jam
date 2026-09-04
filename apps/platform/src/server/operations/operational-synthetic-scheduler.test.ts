@@ -36,7 +36,8 @@ describe("operational synthetic scheduling", () => {
           evaluation: null,
           alert: null,
           transition: null,
-          evaluationDisposition: "evaluated",
+          evaluationDisposition:
+            visited.length === 2 ? "stale_ignored" : "evaluated",
         };
       }) as typeof runOperationalSynthetic,
     });
@@ -46,6 +47,7 @@ describe("operational synthetic scheduling", () => {
       dueCount: 6,
       completedCount: 5,
       failureCount: 1,
+      staleIgnoredCount: 1,
       skippedCount: 0,
     });
     expect(result.checks[0]).toMatchObject({
@@ -56,5 +58,53 @@ describe("operational synthetic scheduling", () => {
       },
     });
     expect(JSON.stringify(result)).not.toContain("must-not-leak");
+  });
+
+  it("distinguishes not-due checks from lookup failures without inflating due accounting", async () => {
+    const now = new Date("2026-09-04T12:00:00.000Z");
+    let lookupCount = 0;
+    const visited: string[] = [];
+    const database = {
+      query: {
+        operationalSyntheticRuns: {
+          findFirst: async () => {
+            lookupCount += 1;
+            if (lookupCount === 1) return { completedAt: now };
+            if (lookupCount === 2) throw new Error("lookup unavailable");
+            return null;
+          },
+        },
+      },
+    };
+    const result = await runDueOperationalSynthetics({
+      database: database as never,
+      actor: "agent:test",
+      config,
+      now,
+      runSynthetic: (async ({ checkId }) => {
+        visited.push(checkId);
+        return {
+          run: { checkId } as never,
+          evaluation: null,
+          alert: null,
+          transition: null,
+          evaluationDisposition: "evaluated",
+        };
+      }) as typeof runOperationalSynthetic,
+    });
+
+    expect(visited).toHaveLength(4);
+    expect(result).toMatchObject({
+      dueCount: 4,
+      completedCount: 4,
+      failureCount: 1,
+      staleIgnoredCount: 0,
+      skippedCount: 1,
+    });
+    expect(result.checks[0]).toMatchObject({ status: "not_due" });
+    expect(result.checks[1]).toMatchObject({
+      status: "failed",
+      failure: { code: "synthetic.schedule_item_failed" },
+    });
   });
 });

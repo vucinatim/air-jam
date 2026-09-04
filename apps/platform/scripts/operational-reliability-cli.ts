@@ -15,15 +15,13 @@ import {
   runOperationalEventDeliveryCycle,
 } from "../src/server/operations/operational-event-delivery-service";
 import { getOperationalReliabilityCatalog } from "../src/server/operations/operational-reliability-policy";
-import {
-  runDueOperationalSynthetics,
-  runOperationalSynthetic,
-} from "../src/server/operations/operational-synthetic-scheduler";
+import { runDueOperationalSynthetics } from "../src/server/operations/operational-synthetic-scheduler";
 import {
   getOperationalReliabilityStatus,
   listOperationalAlerts,
   listOperationalSyntheticRuns,
   resolveOperationalSyntheticRuntimeConfig,
+  runOperationalSynthetic,
 } from "../src/server/operations/operational-synthetic-service";
 
 type Input =

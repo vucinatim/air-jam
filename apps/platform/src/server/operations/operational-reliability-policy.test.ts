@@ -29,6 +29,13 @@ describe("operational reliability policy", () => {
     }
     for (const slo of OPERATIONAL_SLO_DEFINITIONS) {
       expect(slo.syntheticCheckIds.length).toBeGreaterThan(0);
+      expect([...slo.syntheticCheckIds].sort()).toEqual(
+        OPERATIONAL_SYNTHETIC_CHECKS.filter(
+          (check) => check.sloId === slo.sloId,
+        )
+          .map((check) => check.checkId)
+          .sort(),
+      );
       expect(slo.alerting.consecutiveBreaches).toBeGreaterThan(1);
       expect(slo.alerting.consecutiveRecoveries).toBeGreaterThan(1);
     }

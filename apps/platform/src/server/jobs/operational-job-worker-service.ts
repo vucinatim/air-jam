@@ -206,8 +206,10 @@ export const startOperationalJobWorkerService = async ({
     dueCount: number;
     completedCount: number;
     failureCount: number;
+    staleIgnoredCount: number;
     skippedCount: number;
     failedCheckIds: string[];
+    staleIgnoredCheckIds: string[];
   } | null = null;
   let kindCursor = 0;
 
@@ -431,14 +433,35 @@ export const startOperationalJobWorkerService = async ({
         const failedCheckIds = result.checks
           .filter((check) => check.status === "failed")
           .map((check) => check.checkId);
+        const staleIgnoredCheckIds = result.checks
+          .filter(
+            (check) =>
+              check.status === "completed" &&
+              check.result.evaluationDisposition === "stale_ignored",
+          )
+          .map((check) => check.checkId);
         lastSyntheticBatch = {
           scheduledAt: result.scheduledAt,
           dueCount: result.dueCount,
           completedCount: result.completedCount,
           failureCount: result.failureCount,
+          staleIgnoredCount: result.staleIgnoredCount,
           skippedCount: result.skippedCount,
           failedCheckIds,
+          staleIgnoredCheckIds,
         };
+        if (staleIgnoredCheckIds.length > 0) {
+          console.warn(
+            JSON.stringify({
+              service: "air-jam-platform-worker",
+              event: "operational_synthetic.evaluation_fenced",
+              details: {
+                staleIgnoredCount: result.staleIgnoredCount,
+                staleIgnoredCheckIds,
+              },
+            }),
+          );
+        }
         if (result.failureCount === 0) {
           recordAuthoritySuccess("synthetics");
           return;

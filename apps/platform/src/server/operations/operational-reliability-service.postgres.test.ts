@@ -24,6 +24,7 @@ import {
   executeOperationalSyntheticCheck,
   listOperationalAlerts,
   persistOperationalSyntheticRun,
+  runOperationalSynthetic,
   type OperationalSyntheticRuntimeConfig,
 } from "./operational-synthetic-service";
 
@@ -436,6 +437,47 @@ describeWithPostgres("operational reliability PostgreSQL invariants", () => {
       revision: 2,
       recoveredAt: at(35 * 60_000).toISOString(),
     });
+  });
+
+  it("fences duplicate execution before external synthetic side effects", async () => {
+    let fetchCount = 0;
+    const config: OperationalSyntheticRuntimeConfig = {
+      environment: "test",
+      targets: {
+        "platform.home": "https://platform.example.test/",
+        "platform.docs": "https://platform.example.test/docs",
+      },
+      realtimeOrigin: "https://realtime.example.test",
+      requestOrigin: "https://platform.example.test",
+      appId: "app:synthetic-execution-fence-test",
+    };
+    const fetchImpl = (async () => {
+      fetchCount += 1;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      return new Response("ok", { status: 200 });
+    }) as typeof fetch;
+    const command = {
+      database,
+      checkId: "landing-docs",
+      actor: "agent:synthetic-execution-fence-test",
+      reason: "Prove duplicate side effects are fenced before execution.",
+      idempotencyKey: `execution-fence:${suffix}`,
+      config,
+      fetchImpl,
+    };
+
+    const results = await Promise.all([
+      runOperationalSynthetic(command),
+      runOperationalSynthetic(command),
+    ]);
+
+    expect(fetchCount).toBe(2);
+    expect(
+      results.map((result) => result.evaluationDisposition).sort(),
+    ).toEqual(["evaluated", "replayed"]);
+    expect(
+      await database.select().from(schema.operationalSyntheticRuns),
+    ).toHaveLength(1);
   });
 
   it("executes and retains every launch-critical synthetic story through one durable pipeline", async () => {

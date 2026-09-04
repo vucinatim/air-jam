@@ -4,18 +4,11 @@ import {
   type DeploymentEnvironment,
   type OperationalFailureV1,
 } from "@air-jam/operations-contract";
-import { io } from "socket.io-client";
 import type { OperationalEventDatabase } from "./operational-event-delivery-service";
+import { OPERATIONAL_SYNTHETIC_CHECKS } from "./operational-reliability-policy";
 import {
-  getOperationalSyntheticCheck,
-  OPERATIONAL_SYNTHETIC_CHECKS,
-} from "./operational-reliability-policy";
-import {
-  executeOperationalSyntheticCheck,
-  OperationalSyntheticConflictError,
-  persistOperationalSyntheticRun,
   resolveOperationalSyntheticRuntimeConfig,
-  resolveReplayedSyntheticRun,
+  runOperationalSynthetic,
   type OperationalSyntheticPersistenceResult,
   type OperationalSyntheticRuntimeConfig,
 } from "./operational-synthetic-service";
@@ -26,6 +19,7 @@ export type OperationalSyntheticScheduleResult = {
   dueCount: number;
   completedCount: number;
   failureCount: number;
+  staleIgnoredCount: number;
   skippedCount: number;
   checks: Array<
     | {
@@ -46,53 +40,6 @@ export type OperationalSyntheticScheduleResult = {
   >;
 };
 
-export const runOperationalSynthetic = async ({
-  database = db,
-  checkId,
-  actor,
-  reason,
-  idempotencyKey,
-  config = resolveOperationalSyntheticRuntimeConfig(),
-  fetchImpl,
-  socketFactory,
-}: {
-  database?: OperationalEventDatabase;
-  checkId: string;
-  actor: string;
-  reason: string;
-  idempotencyKey: string;
-  config?: OperationalSyntheticRuntimeConfig;
-  fetchImpl?: typeof fetch;
-  socketFactory?: typeof io;
-}): Promise<OperationalSyntheticPersistenceResult> => {
-  const normalizedKey = idempotencyKey.trim();
-  if (!normalizedKey) {
-    throw new OperationalSyntheticConflictError(
-      "An idempotency key is required.",
-    );
-  }
-  const replay = await resolveReplayedSyntheticRun({
-    database,
-    checkId,
-    environment: config.environment,
-    idempotencyKey: normalizedKey,
-  });
-  if (replay) return replay;
-  const run = await executeOperationalSyntheticCheck({
-    check: getOperationalSyntheticCheck(checkId),
-    config,
-    fetchImpl,
-    socketFactory,
-  });
-  return persistOperationalSyntheticRun({
-    database,
-    run,
-    actor,
-    reason,
-    idempotencyKey: normalizedKey,
-  });
-};
-
 export const runDueOperationalSynthetics = async ({
   database = db,
   actor,
@@ -110,8 +57,9 @@ export const runDueOperationalSynthetics = async ({
   let dueCount = 0;
   let completedCount = 0;
   let failureCount = 0;
+  let staleIgnoredCount = 0;
+  let skippedCount = 0;
   for (const check of OPERATIONAL_SYNTHETIC_CHECKS) {
-    let markedDue = false;
     try {
       const latest = await database.query.operationalSyntheticRuns.findFirst({
         where: (table, { and, eq }) =>
@@ -131,10 +79,10 @@ export const runDueOperationalSynthetics = async ({
           status: "not_due",
           latestCompletedAt: latest.completedAt.toISOString(),
         });
+        skippedCount += 1;
         continue;
       }
       dueCount += 1;
-      markedDue = true;
       const bucket = Math.floor(
         now.getTime() / (check.intervalSeconds * 1_000),
       );
@@ -147,9 +95,11 @@ export const runDueOperationalSynthetics = async ({
         config,
       });
       completedCount += 1;
+      if (result.evaluationDisposition === "stale_ignored") {
+        staleIgnoredCount += 1;
+      }
       checks.push({ checkId: check.checkId, status: "completed", result });
     } catch (error) {
-      if (!markedDue) dueCount += 1;
       failureCount += 1;
       checks.push({
         checkId: check.checkId,
@@ -172,7 +122,8 @@ export const runDueOperationalSynthetics = async ({
     dueCount,
     completedCount,
     failureCount,
-    skippedCount: checks.length - dueCount,
+    staleIgnoredCount,
+    skippedCount,
     checks,
   };
 };

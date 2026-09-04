@@ -34,7 +34,14 @@ jobs:
             command: pnpm typecheck
           - name: Tests
             history: 0
-            command: pnpm test
+            command: >-
+              pnpm test &&
+              env DATABASE_URL="$AIR_JAM_CI_DATABASE_URL" pnpm --filter platform exec drizzle-kit migrate &&
+              env AIR_JAM_TEST_DATABASE_URL="$AIR_JAM_CI_DATABASE_URL" node --test scripts/repo/runtime/operational-reliability-cli-contract.test.mjs &&
+              env AIR_JAM_TEST_DATABASE_URL="$AIR_JAM_CI_DATABASE_URL" pnpm --filter platform test -- src/server/operations/operational-reliability-service.postgres.test.ts &&
+              env AIR_JAM_TEST_DATABASE_URL="$AIR_JAM_CI_DATABASE_URL" pnpm --filter server test -- --run tests/operational-event-publisher.postgres.test.ts
+            postgresImage: postgres:17-alpine
+            databaseUrl: postgresql://postgres:postgres@localhost:5432/airjam_test
           - name: Workspace build
             history: 1
             command: pnpm build
@@ -46,6 +53,22 @@ jobs:
             command: >-
               pnpm --filter server... build &&
               pnpm run repo -- perf sanity --profile ci
+    services:
+      postgres:
+        image: ${{ matrix.postgresImage || '' }}
+        env:
+          POSTGRES_DB: airjam_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d airjam_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      AIR_JAM_CI_DATABASE_URL: ${{ matrix.databaseUrl || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5

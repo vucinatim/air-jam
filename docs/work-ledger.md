@@ -33,14 +33,19 @@ The pre-reset overloaded ledger has been preserved at:
   stale-evaluation fence; historical runs remain durable but cannot regress
   breach/recovery streaks or alert revisions
 - isolated every due synthetic catalog item and added a stable batch result
-  with per-check outcomes and due/completed/failed/skipped counts
+  with per-check outcomes and exact due/completed/failed/stale/not-due counts
+- moved the idempotency fence ahead of external synthetic effects, so multiple
+  worker replicas cannot duplicate a real room or protocol story
 - kept worker health truthful when an isolated batch partially fails and made
-  the latest safe batch summary inspectable through worker status
+  failed and stale-fenced outcomes inspectable through worker status
 - extracted scheduler orchestration from the execution/persistence service so
   cadence, isolation, and batch reporting have one focused module
-- proved the boundary with `18/18` operations-contract tests, `4/4`
+- moved the PostgreSQL regression suites into the ordinary GitHub test lane so
+  concurrency and database-time invariants remain continuously enforced
+- proved the boundary with `18/18` operations-contract tests, `5/5`
   PostgreSQL reliability invariants, `3/3` PostgreSQL realtime-publisher tests,
-  the `4/4` CLI contract suite, focused platform tests, and the full batch gate
+  the `4/4` CLI contract suite, `10/10` focused platform tests, and the full
+  batch gate
 
 ## 2026-09-04 - Agent Autonomy Was Reframed Around Capability, Not Ceremony
 

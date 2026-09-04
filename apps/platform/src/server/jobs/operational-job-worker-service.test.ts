@@ -105,10 +105,11 @@ describe("operational job worker service", () => {
       runSynthetics: async () => ({
         environment: "test",
         scheduledAt: new Date().toISOString(),
-        dueCount: 1,
-        completedCount: 0,
+        dueCount: 2,
+        completedCount: 1,
         failureCount: 1,
-        skippedCount: 5,
+        staleIgnoredCount: 1,
+        skippedCount: 4,
         checks: [
           {
             checkId: "platform-realtime-health",
@@ -120,6 +121,17 @@ describe("operational job worker service", () => {
               summary: "A due operational synthetic could not be retained.",
               retryable: true,
               details: { checkId: "platform-realtime-health" },
+            },
+          },
+          {
+            checkId: "landing-docs",
+            status: "completed",
+            result: {
+              run: {} as never,
+              evaluation: null,
+              alert: null,
+              transition: null,
+              evaluationDisposition: "stale_ignored",
             },
           },
         ],
@@ -163,11 +175,13 @@ describe("operational job worker service", () => {
           },
         },
         lastSyntheticBatch: {
-          dueCount: 1,
-          completedCount: 0,
+          dueCount: 2,
+          completedCount: 1,
           failureCount: 1,
-          skippedCount: 5,
+          staleIgnoredCount: 1,
+          skippedCount: 4,
           failedCheckIds: ["platform-realtime-health"],
+          staleIgnoredCheckIds: ["landing-docs"],
         },
       },
     });
