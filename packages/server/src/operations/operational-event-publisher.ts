@@ -117,7 +117,7 @@ export const createDatabaseServerOperationalEventPublisher = ({
       contractVersion: 1,
       plane: "lifecycle_runtime",
       eventId: `server-failure:${crypto.randomUUID()}`,
-      kind: input.code,
+      kind: failure.code,
       severity: "error",
       outcome: "failed",
       authority: "airjam_authoritative",

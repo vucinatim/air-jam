@@ -2,6 +2,7 @@ import type { Socket } from "socket.io-client";
 import { describe, expect, it } from "vitest";
 import { getOperationalSyntheticCheck } from "./operational-reliability-policy";
 import {
+  anchorOperationalSyntheticRunToDatabaseTime,
   executeOperationalSyntheticCheck,
   type OperationalSyntheticRuntimeConfig,
 } from "./operational-synthetic-service";
@@ -43,6 +44,28 @@ const execute = (
   });
 
 describe("operational synthetic execution", () => {
+  it("anchors persisted chronology to database time without changing measured duration", async () => {
+    const run = await execute("landing-docs", {
+      fetchImpl: (async () => new Response("ok")) as typeof fetch,
+    });
+    const authorityNow = new Date("2026-09-04T12:00:00.000Z");
+    const anchored = anchorOperationalSyntheticRunToDatabaseTime({
+      run,
+      authorityNow,
+    });
+
+    expect(anchored.completedAt).toBe(authorityNow.toISOString());
+    expect(Date.parse(anchored.startedAt)).toBe(
+      authorityNow.getTime() - run.durationMilliseconds,
+    );
+    expect(anchored.durationMilliseconds).toBe(run.durationMilliseconds);
+    expect(
+      anchored.evidence.every(
+        (item) => item.collectedAt === anchored.completedAt,
+      ),
+    ).toBe(true);
+  });
+
   it("evaluates HTTP, JSON readiness, hosted HTML, and missing targets safely", async () => {
     const healthyFetch = async (input: string | URL | Request) => {
       const url = input.toString();

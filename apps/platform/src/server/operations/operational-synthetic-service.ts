@@ -23,6 +23,7 @@ import type {
 } from "@air-jam/sdk/protocol";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { io, type Socket } from "socket.io-client";
+import { resolveDatabaseAuthorityNow } from "./database-authority";
 import {
   enqueueOperationalEventInTransaction,
   type OperationalEventDatabase,
@@ -56,12 +57,51 @@ export type OperationalSyntheticRuntimeConfig = {
   appId: string | null;
 };
 
+export type OperationalSyntheticPersistenceResult = {
+  run: OperationalSyntheticRunV1;
+  evaluation: ReturnType<typeof operationalSloEvaluationSchemaV1.parse> | null;
+  alert: OperationalAlertV1 | null;
+  transition: "opened" | "recovered" | "refreshed" | "replayed" | null;
+  evaluationDisposition: "evaluated" | "stale_ignored" | "replayed";
+};
+
 export class OperationalSyntheticConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "OperationalSyntheticConflictError";
   }
 }
+
+type OperationalSyntheticReplayReader = Pick<OperationalEventDatabase, "query">;
+
+export const resolveReplayedSyntheticRun = async ({
+  database,
+  checkId,
+  environment,
+  idempotencyKey,
+}: {
+  database: OperationalSyntheticReplayReader;
+  checkId: string;
+  environment: DeploymentEnvironment;
+  idempotencyKey: string;
+}): Promise<OperationalSyntheticPersistenceResult | null> => {
+  const replay = await database.query.operationalSyntheticRuns.findFirst({
+    where: (table, { eq }) => eq(table.idempotencyKey, idempotencyKey),
+  });
+  if (!replay) return null;
+  if (replay.checkId !== checkId || replay.environment !== environment) {
+    throw new OperationalSyntheticConflictError(
+      "The idempotency key was already used for a different synthetic run.",
+    );
+  }
+  return {
+    run: replay.document,
+    evaluation: null,
+    alert: null,
+    transition: "replayed",
+    evaluationDisposition: "replayed",
+  };
+};
 
 const absoluteUrl = (value: string | undefined): string | null => {
   const normalized = value?.trim();
@@ -469,6 +509,7 @@ export const executeOperationalSyntheticCheck = async ({
   startedAt?: Date;
   runId?: string;
 }): Promise<OperationalSyntheticRunV1> => {
+  const executionStartedAt = performance.now();
   const observations = [];
   for (const step of check.steps) {
     observations.push(
@@ -482,7 +523,11 @@ export const executeOperationalSyntheticCheck = async ({
           }),
     );
   }
-  const completedAt = new Date();
+  const durationMilliseconds = Math.max(
+    0,
+    Math.round(performance.now() - executionStartedAt),
+  );
+  const completedAt = new Date(startedAt.getTime() + durationMilliseconds);
   const status = observations.some(
     (observation) => observation.status === "error",
   )
@@ -498,10 +543,7 @@ export const executeOperationalSyntheticCheck = async ({
     status,
     startedAt: startedAt.toISOString(),
     completedAt: completedAt.toISOString(),
-    durationMilliseconds: Math.max(
-      0,
-      completedAt.getTime() - startedAt.getTime(),
-    ),
+    durationMilliseconds,
     eventId: `synthetic-event:${runId}`,
     observations,
     evidence: [
@@ -511,6 +553,32 @@ export const executeOperationalSyntheticCheck = async ({
         collectedAt: completedAt.toISOString(),
       },
     ],
+  });
+};
+
+export const anchorOperationalSyntheticRunToDatabaseTime = ({
+  run: rawRun,
+  authorityNow,
+}: {
+  run: OperationalSyntheticRunV1;
+  authorityNow: Date;
+}): OperationalSyntheticRunV1 => {
+  const run = operationalSyntheticRunSchemaV1.parse(rawRun);
+  const completedAt = new Date(authorityNow);
+  if (Number.isNaN(completedAt.getTime())) {
+    throw new OperationalSyntheticConflictError(
+      "The database authority time was invalid.",
+    );
+  }
+  const startedAt = new Date(completedAt.getTime() - run.durationMilliseconds);
+  return operationalSyntheticRunSchemaV1.parse({
+    ...run,
+    startedAt: startedAt.toISOString(),
+    completedAt: completedAt.toISOString(),
+    evidence: run.evidence.map((evidence) => ({
+      ...evidence,
+      collectedAt: completedAt.toISOString(),
+    })),
   });
 };
 
@@ -626,9 +694,27 @@ const evaluateAndRouteAlertInTransaction = async ({
 }) => {
   const definition = getOperationalSloDefinition(check.sloId);
   const evaluatedAt = new Date(run.completedAt);
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtext(${`airjam:slo:${definition.sloId}:${run.environment}`}))`,
-  );
+  const evaluationId = `slo-evaluation:${definition.sloId}:${run.runId}`;
+  const previous = await tx.query.operationalSloEvaluations.findFirst({
+    where: (table, { and, eq }) =>
+      and(
+        eq(table.sloId, definition.sloId),
+        eq(table.environment, run.environment),
+      ),
+    orderBy: (table, { desc }) => desc(table.evaluatedAt),
+  });
+  if (previous && previous.evaluatedAt.getTime() > evaluatedAt.getTime()) {
+    const existing = await tx.query.operationalAlerts.findFirst({
+      where: (table, { eq }) =>
+        eq(table.alertKey, `slo:${definition.sloId}:${run.environment}`),
+    });
+    return {
+      evaluation: null,
+      alert: existing?.document ?? null,
+      transition: null,
+      evaluationDisposition: "stale_ignored" as const,
+    };
+  }
   const windowStartedAt = new Date(
     evaluatedAt.getTime() - definition.windowSeconds * 1_000,
   );
@@ -659,14 +745,6 @@ const evaluateAndRouteAlertInTransaction = async ({
       : ratio! >= definition.objectiveBasisPoints
         ? "healthy"
         : "breaching";
-  const previous = await tx.query.operationalSloEvaluations.findFirst({
-    where: (table, { and, eq }) =>
-      and(
-        eq(table.sloId, definition.sloId),
-        eq(table.environment, run.environment),
-      ),
-    orderBy: (table, { desc }) => desc(table.evaluatedAt),
-  });
   const previousDocument = previous?.document;
   const consecutiveBreaches =
     baseStatus === "breaching"
@@ -682,7 +760,7 @@ const evaluateAndRouteAlertInTransaction = async ({
       : 0;
   const evaluation = operationalSloEvaluationSchemaV1.parse({
     contractVersion: 1,
-    evaluationId: `slo-evaluation:${definition.sloId}:${run.runId}`,
+    evaluationId,
     sloId: definition.sloId,
     environment: run.environment,
     service: definition.service,
@@ -733,7 +811,12 @@ const evaluateAndRouteAlertInTransaction = async ({
   const shouldRefresh =
     baseStatus === "breaching" && existing?.status === "open";
   if (!shouldOpen && !shouldRecover && !shouldRefresh) {
-    return { evaluation, alert: existing?.document ?? null, transition: null };
+    return {
+      evaluation,
+      alert: existing?.document ?? null,
+      transition: null,
+      evaluationDisposition: "evaluated" as const,
+    };
   }
 
   const alertStatus = shouldRecover ? "recovered" : "open";
@@ -821,14 +904,16 @@ const evaluateAndRouteAlertInTransaction = async ({
       updatedAt: evaluatedAt,
     });
   }
+  const transition: "opened" | "recovered" | "refreshed" = shouldOpen
+    ? "opened"
+    : shouldRecover
+      ? "recovered"
+      : "refreshed";
   return {
     evaluation,
     alert,
-    transition: shouldOpen
-      ? "opened"
-      : shouldRecover
-        ? "recovered"
-        : "refreshed",
+    transition,
+    evaluationDisposition: "evaluated" as const,
   };
 };
 
@@ -838,15 +923,17 @@ export const persistOperationalSyntheticRun = async ({
   actor,
   reason,
   idempotencyKey,
+  now: testNow,
 }: {
   database?: OperationalEventDatabase;
   run: OperationalSyntheticRunV1;
   actor: string;
   reason: string;
   idempotencyKey: string;
-}) => {
-  const run = operationalSyntheticRunSchemaV1.parse(rawRun);
-  const check = getOperationalSyntheticCheck(run.checkId);
+  now?: Date;
+}): Promise<OperationalSyntheticPersistenceResult> => {
+  const submittedRun = operationalSyntheticRunSchemaV1.parse(rawRun);
+  const check = getOperationalSyntheticCheck(submittedRun.checkId);
   const normalizedActor = actor.trim();
   const normalizedReason = reason.trim();
   const normalizedKey = idempotencyKey.trim();
@@ -859,25 +946,24 @@ export const persistOperationalSyntheticRun = async ({
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtext(${`airjam:synthetic:${normalizedKey}`}))`,
     );
-    const replay = await tx.query.operationalSyntheticRuns.findFirst({
-      where: (table, { eq }) => eq(table.idempotencyKey, normalizedKey),
+    const replay = await resolveReplayedSyntheticRun({
+      database: tx,
+      checkId: submittedRun.checkId,
+      environment: submittedRun.environment,
+      idempotencyKey: normalizedKey,
     });
     if (replay) {
-      if (
-        replay.checkId !== run.checkId ||
-        replay.environment !== run.environment
-      ) {
-        throw new OperationalSyntheticConflictError(
-          "The idempotency key was already used for a different synthetic run.",
-        );
-      }
-      return {
-        run: replay.document,
-        evaluation: null,
-        alert: null,
-        transition: "replayed" as const,
-      };
+      return replay;
     }
+    const definition = getOperationalSloDefinition(check.sloId);
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`airjam:slo:${definition.sloId}:${submittedRun.environment}`}))`,
+    );
+    const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
+    const run = anchorOperationalSyntheticRunToDatabaseTime({
+      run: submittedRun,
+      authorityNow,
+    });
     await enqueueOperationalEventInTransaction({
       tx,
       event: buildSyntheticEvent({
@@ -886,7 +972,7 @@ export const persistOperationalSyntheticRun = async ({
         actor: normalizedActor,
         reason: normalizedReason,
       }),
-      now: new Date(run.completedAt),
+      now: authorityNow,
     });
     await tx.insert(operationalSyntheticRuns).values({
       id: run.runId,
@@ -908,108 +994,6 @@ export const persistOperationalSyntheticRun = async ({
     });
     return { run, ...routed };
   });
-};
-
-export const runOperationalSynthetic = async ({
-  database = db,
-  checkId,
-  actor,
-  reason,
-  idempotencyKey,
-  config = resolveOperationalSyntheticRuntimeConfig(),
-  fetchImpl,
-  socketFactory,
-}: {
-  database?: OperationalEventDatabase;
-  checkId: string;
-  actor: string;
-  reason: string;
-  idempotencyKey: string;
-  config?: OperationalSyntheticRuntimeConfig;
-  fetchImpl?: typeof fetch;
-  socketFactory?: typeof io;
-}) => {
-  const normalizedKey = idempotencyKey.trim();
-  if (!normalizedKey) {
-    throw new OperationalSyntheticConflictError(
-      "An idempotency key is required.",
-    );
-  }
-  const existing = await database.query.operationalSyntheticRuns.findFirst({
-    where: (table, { eq }) => eq(table.idempotencyKey, normalizedKey),
-  });
-  if (existing) {
-    if (
-      existing.checkId !== checkId ||
-      existing.environment !== config.environment
-    ) {
-      throw new OperationalSyntheticConflictError(
-        "The idempotency key was already used for a different synthetic run.",
-      );
-    }
-    return {
-      run: existing.document,
-      evaluation: null,
-      alert: null,
-      transition: "replayed" as const,
-    };
-  }
-  const run = await executeOperationalSyntheticCheck({
-    check: getOperationalSyntheticCheck(checkId),
-    config,
-    fetchImpl,
-    socketFactory,
-  });
-  return persistOperationalSyntheticRun({
-    database,
-    run,
-    actor,
-    reason,
-    idempotencyKey: normalizedKey,
-  });
-};
-
-export const runDueOperationalSynthetics = async ({
-  database = db,
-  actor,
-  config = resolveOperationalSyntheticRuntimeConfig(),
-  now = new Date(),
-}: {
-  database?: OperationalEventDatabase;
-  actor: string;
-  config?: OperationalSyntheticRuntimeConfig;
-  now?: Date;
-}) => {
-  const results = [];
-  for (const check of OPERATIONAL_SYNTHETIC_CHECKS) {
-    const latest = await database.query.operationalSyntheticRuns.findFirst({
-      where: (table, { and, eq }) =>
-        and(
-          eq(table.checkId, check.checkId),
-          eq(table.environment, config.environment),
-        ),
-      orderBy: (table, { desc }) => desc(table.completedAt),
-    });
-    if (
-      latest &&
-      latest.completedAt.getTime() + check.intervalSeconds * 1_000 >
-        now.getTime()
-    ) {
-      continue;
-    }
-    const bucket = Math.floor(now.getTime() / (check.intervalSeconds * 1_000));
-    results.push(
-      await runOperationalSynthetic({
-        database,
-        checkId: check.checkId,
-        actor,
-        reason: "Scheduled launch-critical synthetic check.",
-        idempotencyKey: `scheduled:${config.environment}:${check.checkId}:${bucket}`,
-        config,
-      }),
-    );
-  }
-  return results;
 };
 
 export const getOperationalReliabilityStatus = async ({

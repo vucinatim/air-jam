@@ -102,7 +102,28 @@ describe("operational job worker service", () => {
       },
       deliverEvent: async () => ({ status: "idle" }),
       repairEventDelivery: async () => [],
-      runSynthetics: async () => [],
+      runSynthetics: async () => ({
+        environment: "test",
+        scheduledAt: new Date().toISOString(),
+        dueCount: 1,
+        completedCount: 0,
+        failureCount: 1,
+        skippedCount: 5,
+        checks: [
+          {
+            checkId: "platform-realtime-health",
+            status: "failed",
+            failure: {
+              contractVersion: 1,
+              code: "synthetic.schedule_item_failed",
+              class: "internal",
+              summary: "A due operational synthetic could not be retained.",
+              retryable: true,
+              details: { checkId: "platform-realtime-health" },
+            },
+          },
+        ],
+      }),
     });
     const origin = `http://127.0.0.1:${port}`;
 
@@ -136,7 +157,17 @@ describe("operational job worker service", () => {
           eventDelivery: { status: "ready" },
           maintenance: { status: "pending" },
           lifecycleCleanup: { status: "pending" },
-          synthetics: { status: "ready" },
+          synthetics: {
+            status: "failed",
+            lastFailureCode: "OperationalSyntheticBatchFailure",
+          },
+        },
+        lastSyntheticBatch: {
+          dueCount: 1,
+          completedCount: 0,
+          failureCount: 1,
+          skippedCount: 5,
+          failedCheckIds: ["platform-realtime-health"],
         },
       },
     });

@@ -293,8 +293,22 @@ test("structured failure helpers discard exception text and secret-shaped detail
     stage: "invalid stage with spaces",
     details: {
       provider: "object-store",
+      key: "secret",
       authorization: "Bearer secret",
-      nested: { accessToken: "secret", attempt: 2 },
+      nested: {
+        accessToken: "secret",
+        apiKey: "secret",
+        api_key: "secret",
+        "API-KEY": "secret",
+        signingKey: "secret",
+        signingkey: "secret",
+        privateKey: "secret",
+        encryption_key: "secret",
+        attempt: 2,
+        monkey: "visible",
+        keyboardLayout: "visible",
+        hockeyScore: 3,
+      },
     },
   });
   assert.equal(failure.code, "internal.unclassified");
@@ -302,7 +316,12 @@ test("structured failure helpers discard exception text and secret-shaped detail
   assert.equal(failure.stage, undefined);
   assert.deepEqual(failure.details, {
     provider: "object-store",
-    nested: { attempt: 2 },
+    nested: {
+      attempt: 2,
+      monkey: "visible",
+      keyboardLayout: "visible",
+      hockeyScore: 3,
+    },
   });
   assert.doesNotMatch(JSON.stringify(failure), /secret/u);
 

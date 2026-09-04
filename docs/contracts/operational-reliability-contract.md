@@ -1,6 +1,6 @@
 # Operational Reliability Contract
 
-Last updated: 2026-08-30
+Last updated: 2026-09-04
 Status: canonical implemented contract
 
 Related sources:
@@ -10,6 +10,7 @@ Related sources:
 3. [Production Observability Baseline](../strategy/production-observability-baseline.md)
 4. [`@air-jam/operations-contract`](../../packages/operations-contract/index.mjs)
 5. [Operational reliability policy](../../apps/platform/src/server/operations/operational-reliability-policy.ts)
+6. [Operational synthetic scheduler](../../apps/platform/src/server/operations/operational-synthetic-scheduler.ts)
 
 ## Purpose
 
@@ -121,9 +122,16 @@ Operational failures contain only:
 6. optional recursively bounded, defensively filtered structured details
 
 Unknown exception messages and stacks are not retained. Secret-shaped keys,
-including authorization, cookie, token, password, credential, key, and secret
-fields, are removed recursively. Logs for publisher failures contain only a
-stable source failure code and exception class.
+including authorization, cookie, token, password, credential, exact `key`, and
+secret fields, are removed recursively. Compound credential names such as `apiKey`,
+`signing_key`, and `private-key` are recognized lexically; unrelated words such
+as `monkey` or `keyboardLayout` remain available as useful evidence. Logs for
+publisher failures contain only a stable source failure code and exception
+class.
+
+A producer normalizes an untrusted failure code once. The resulting stable code
+is used for both the event kind and the structured failure. Raw and normalized
+identities cannot diverge inside one retained event.
 
 Realtime app-identity verification and runtime-usage persistence use this
 shared producer. Their raw database errors and submitted app credentials never
@@ -185,6 +193,18 @@ Runs retain one observation per declared step. Status is derived exactly:
 2. otherwise any `failed` observation makes the run `failed`
 3. otherwise the run is `passed`
 
+Execution duration is measured with a monotonic process clock. At persistence,
+the transaction anchors `completedAt`, `startedAt`, event time, and evidence time
+to PostgreSQL `clock_timestamp()`. The submitted process wall clock is
+provisional and never becomes retained chronology.
+
+The due-run scheduler isolates every catalog item. A lookup, execution, or
+persistence failure for one check becomes a secret-safe per-check failure and
+does not prevent later checks from running. Its JSON result reports due,
+completed, failed, and skipped counts plus one explicit outcome per check. A
+resolved batch with failures leaves the worker's synthetic authority degraded;
+isolation never turns partial failure into apparent success.
+
 ## SLO And Alert Policy
 
 The source-owned catalog contains four SLOs:
@@ -198,8 +218,15 @@ The source-owned catalog contains four SLOs:
 
 Each evaluation stores its exact observation window, counts, ratio, objective,
 status, and alert streaks. The database transaction takes a per-SLO advisory
-lock and row lock so concurrent workers cannot open duplicate alerts or lose a
-revision fence.
+lock before assigning database-authority chronology, then uses an alert row lock
+and revision fence. Concurrent workers therefore cannot open duplicate alerts,
+lose an update, or assign chronology in a different order from evaluation.
+
+Historical evidence may legitimately arrive after newer evidence. The run and
+its operational event remain durable, but an evaluation older than the latest
+retained SLO evaluation is explicitly returned as `stale_ignored`. It cannot
+alter streaks, alert status, recovery time, or alert revision. The disposition
+is returned by the same CLI result; no parallel correlation schema is needed.
 
 Alerts open only after the declared consecutive breach threshold and recover
 only after the declared consecutive recovery threshold. Alert recovery retains

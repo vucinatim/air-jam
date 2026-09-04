@@ -18,6 +18,30 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-04 - Reliability Foundation Was Hardened Before Continuous Execution
+
+- closed `G4-07` without adding a generic incident engine, remediation DSL, or
+  parallel correlation model
+- replaced substring-only secret filtering with lexical, recursive handling of
+  compound API, signing, private, encryption, access, auth, and session key
+  names while retaining unrelated diagnostic fields
+- made normalized structured failure identity authoritative for both realtime
+  event kind and retained failure code
+- changed retained synthetic chronology to use PostgreSQL authority time while
+  preserving monotonic execution duration
+- serialized each SLO stream before assigning chronology and added an explicit
+  stale-evaluation fence; historical runs remain durable but cannot regress
+  breach/recovery streaks or alert revisions
+- isolated every due synthetic catalog item and added a stable batch result
+  with per-check outcomes and due/completed/failed/skipped counts
+- kept worker health truthful when an isolated batch partially fails and made
+  the latest safe batch summary inspectable through worker status
+- extracted scheduler orchestration from the execution/persistence service so
+  cadence, isolation, and batch reporting have one focused module
+- proved the boundary with `18/18` operations-contract tests, `4/4`
+  PostgreSQL reliability invariants, `3/3` PostgreSQL realtime-publisher tests,
+  the `4/4` CLI contract suite, focused platform tests, and the full batch gate
+
 ## 2026-09-04 - Agent Autonomy Was Reframed Around Capability, Not Ceremony
 
 - recorded the maintainer decision to constrain production effects rather than

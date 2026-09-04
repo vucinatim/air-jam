@@ -316,6 +316,7 @@ describeWithPostgres("operational reliability PostgreSQL invariants", () => {
         actor: "agent:reliability-test",
         reason: "Prove the retained synthetic-to-alert lifecycle.",
         idempotencyKey: `persist:${run.runId}`,
+        now: new Date(run.completedAt),
       });
 
     for (const [index, minutes] of [0, 1, 2].entries()) {
@@ -377,6 +378,64 @@ describeWithPostgres("operational reliability PostgreSQL invariants", () => {
     expect(
       alertEvents.filter((row) => row.envelope.kind.startsWith("alert.slo.")),
     ).toHaveLength(2);
+  });
+
+  it("retains late evidence without allowing an older SLO evaluation to regress alert state", async () => {
+    const persist = (run: OperationalSyntheticRunV1) =>
+      persistOperationalSyntheticRun({
+        database,
+        run,
+        actor: "agent:reliability-fence-test",
+        reason: "Prove stale SLO evaluations are fenced.",
+        idempotencyKey: `fence:${run.runId}`,
+        now: new Date(run.completedAt),
+      });
+
+    for (const [index, minutes] of [0, 1, 2].entries()) {
+      await persist(
+        syntheticRun({
+          label: `fence-failure-${index + 1}`,
+          status: "failed",
+          completedAt: at(minutes * 60_000),
+        }),
+      );
+    }
+    for (const [index, minutes] of [33, 34, 35].entries()) {
+      await persist(
+        syntheticRun({
+          label: `fence-recovery-${index + 1}`,
+          status: "passed",
+          completedAt: at(minutes * 60_000),
+        }),
+      );
+    }
+
+    const late = await persist(
+      syntheticRun({
+        label: "late-failure",
+        status: "failed",
+        completedAt: at(3 * 60_000),
+      }),
+    );
+    expect(late).toMatchObject({
+      evaluation: null,
+      evaluationDisposition: "stale_ignored",
+      transition: null,
+      alert: { status: "recovered", revision: 2 },
+    });
+
+    const [runs, evaluations, alerts] = await Promise.all([
+      database.select().from(schema.operationalSyntheticRuns),
+      database.select().from(schema.operationalSloEvaluations),
+      database.select().from(schema.operationalAlerts),
+    ]);
+    expect(runs).toHaveLength(7);
+    expect(evaluations).toHaveLength(6);
+    expect(alerts[0]?.document).toMatchObject({
+      status: "recovered",
+      revision: 2,
+      recoveredAt: at(35 * 60_000).toISOString(),
+    });
   });
 
   it("executes and retains every launch-critical synthetic story through one durable pipeline", async () => {
