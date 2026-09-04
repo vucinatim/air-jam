@@ -1,4 +1,12 @@
+import {
+  createGitHubAlertIssueProjector,
+  resolveGitHubAlertIssueConfig,
+} from "@/server/operations/github-alert-issue-adapter";
 import { scheduleLifecycleCleanup } from "@/server/operations/lifecycle-cleanup-service";
+import {
+  repairExpiredOperationalAlertIssueProjections,
+  runOperationalAlertIssueProjectionCycle,
+} from "@/server/operations/operational-alert-issue-projection-service";
 import {
   repairExpiredOperationalEventDeliveries,
   runOperationalEventDeliveryCycle,
@@ -6,7 +14,10 @@ import {
 import { runDueOperationalSynthetics } from "@/server/operations/operational-synthetic-scheduler";
 import { resolveOperationalSyntheticRuntimeConfig } from "@/server/operations/operational-synthetic-service";
 import { validateEnv } from "@air-jam/env";
-import { normalizeUnknownOperationalFailure } from "@air-jam/operations-contract";
+import {
+  normalizeUnknownOperationalFailure,
+  operationalIdentifierSchema,
+} from "@air-jam/operations-contract";
 import { createServer, type ServerResponse } from "node:http";
 import { z } from "zod";
 import { repairExpiredOperationalJobs } from "./operational-job-service";
@@ -21,6 +32,17 @@ const optionalTrimmedString = z.preprocess(
   (value) =>
     typeof value === "string" && value.trim() ? value.trim() : undefined,
   z.string().optional(),
+);
+
+const optionalOperationalIdentifier = optionalTrimmedString.superRefine(
+  (value, context) => {
+    if (value && !operationalIdentifierSchema.safeParse(value).success) {
+      context.addIssue({
+        code: "custom",
+        message: "Must be a valid operations identifier.",
+      });
+    }
+  },
 );
 
 const positiveInteger = (fallback: number) =>
@@ -45,13 +67,14 @@ const workerEnvSchema = z
     AIRJAM_PLATFORM_WORKER_HOST: optionalTrimmedString.transform(
       (value) => value ?? "0.0.0.0",
     ),
-    AIRJAM_PLATFORM_WORKER_ID: optionalTrimmedString,
+    AIRJAM_PLATFORM_WORKER_ID: optionalOperationalIdentifier,
     AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: optionalTrimmedString,
     AIRJAM_PLATFORM_WORKER_POLL_MS: positiveInteger(2_000),
     AIRJAM_PLATFORM_WORKER_REPAIR_MS: positiveInteger(30_000),
     AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: positiveInteger(900_000),
     AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: positiveInteger(1_000),
     AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: positiveInteger(30_000),
+    AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: positiveInteger(5_000),
     AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT: positiveInteger(4),
     AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS: positiveInteger(300_000),
   })
@@ -90,6 +113,7 @@ const workerEnvSchema = z
       lifecycleCleanupMs: value.AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS,
       eventDeliveryMs: value.AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS,
       syntheticMs: value.AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS,
+      issueProjectionMs: value.AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS,
       maxInFlight: value.AIRJAM_PLATFORM_WORKER_MAX_IN_FLIGHT,
       drainTimeoutMs: value.AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS,
     };
@@ -140,6 +164,7 @@ const workerAuthorityNames = [
   "lifecycleCleanup",
   "eventDelivery",
   "synthetics",
+  "issueProjection",
 ] as const;
 
 type WorkerAuthorityName = (typeof workerAuthorityNames)[number];
@@ -164,6 +189,8 @@ export const startOperationalJobWorkerService = async ({
   deliverEvent = runOperationalEventDeliveryCycle,
   repairEventDelivery = repairExpiredOperationalEventDeliveries,
   runSynthetics = runDueOperationalSynthetics,
+  runIssueProjection = runOperationalAlertIssueProjectionCycle,
+  repairIssueProjection = repairExpiredOperationalAlertIssueProjections,
 }: {
   env?: Record<string, string | undefined>;
   runCycle?: typeof runOperationalJobWorkerCycle;
@@ -173,8 +200,14 @@ export const startOperationalJobWorkerService = async ({
   deliverEvent?: typeof runOperationalEventDeliveryCycle;
   repairEventDelivery?: typeof repairExpiredOperationalEventDeliveries;
   runSynthetics?: typeof runDueOperationalSynthetics;
+  runIssueProjection?: typeof runOperationalAlertIssueProjectionCycle;
+  repairIssueProjection?: typeof repairExpiredOperationalAlertIssueProjections;
 } = {}): Promise<OperationalJobWorkerServiceHandle> => {
   const config = loadOperationalJobWorkerServiceConfig(env);
+  const githubIssueConfig = resolveGitHubAlertIssueConfig(env);
+  const githubIssueProjector = githubIssueConfig.enabled
+    ? createGitHubAlertIssueProjector({ config: githubIssueConfig })
+    : null;
   const inFlight = new Set<Promise<OperationalJobWorkerCycleResult>>();
   let accepting = true;
   let closed = false;
@@ -198,6 +231,7 @@ export const startOperationalJobWorkerService = async ({
   let lifecycleCleanupInFlight: Promise<void> | null = null;
   let eventDeliveryInFlight: Promise<void> | null = null;
   let syntheticInFlight: Promise<void> | null = null;
+  let issueProjectionInFlight: Promise<void> | null = null;
   let lastEventDeliveryAt: string | null = null;
   let lastEventDeliveryStatus: string | null = null;
   let lastSyntheticAt: string | null = null;
@@ -211,6 +245,10 @@ export const startOperationalJobWorkerService = async ({
     failedCheckIds: string[];
     staleIgnoredCheckIds: string[];
   } | null = null;
+  let lastIssueProjectionAt: string | null = null;
+  let lastIssueProjectionStatus: string | null = githubIssueConfig.enabled
+    ? null
+    : "disabled";
   let kindCursor = 0;
 
   const recordAuthoritySuccess = (authority: WorkerAuthorityName) => {
@@ -350,6 +388,20 @@ export const startOperationalJobWorkerService = async ({
       successful = false;
       recordAuthorityFailure("maintenance", error);
       logFailure({ event: "operational_event.delivery_repair_failed", error });
+    }
+    if (githubIssueConfig.enabled) {
+      try {
+        await repairIssueProjection({
+          repository: githubIssueConfig.repository,
+        });
+      } catch (error) {
+        successful = false;
+        recordAuthorityFailure("maintenance", error);
+        logFailure({
+          event: "github_issue_projection.delivery_repair_failed",
+          error,
+        });
+      }
     }
     if (successful) recordAuthoritySuccess("maintenance");
   };
@@ -494,6 +546,68 @@ export const startOperationalJobWorkerService = async ({
   syntheticTimer.unref();
   runSyntheticSchedule();
 
+  const runIssueProjectionSchedule = () => {
+    if (
+      !accepting ||
+      closed ||
+      issueProjectionInFlight ||
+      !githubIssueConfig.enabled ||
+      !githubIssueProjector
+    ) {
+      return;
+    }
+    const task = runIssueProjection({
+      repository: githubIssueConfig.repository,
+      workerId: config.workerId,
+      projector: githubIssueProjector,
+    })
+      .then((result) => {
+        lastIssueProjectionAt = new Date().toISOString();
+        lastIssueProjectionStatus = result.status;
+        if (
+          result.status === "retried" ||
+          result.status === "dead_lettered" ||
+          result.status === "lease_lost"
+        ) {
+          const projection =
+            "projection" in result ? result.projection : undefined;
+          const error = new Error(
+            `GitHub issue projection ended with ${result.status}.`,
+          );
+          error.name = "OperationalAlertIssueProjectionFailure";
+          recordAuthorityFailure("issueProjection", error);
+          logFailure({
+            event: "github_issue_projection.delivery_degraded",
+            error,
+            details: {
+              status: result.status,
+              alertKey: projection?.alertKey ?? null,
+              failureCode: projection
+                ? (projection.lastError?.code ?? null)
+                : "github_issue_projection.lease_lost",
+            },
+          });
+          return;
+        }
+        recordAuthoritySuccess("issueProjection");
+      })
+      .catch((error: unknown) => {
+        recordAuthorityFailure("issueProjection", error);
+        logFailure({ event: "github_issue_projection.schedule_failed", error });
+      })
+      .finally(() => {
+        if (issueProjectionInFlight === task) issueProjectionInFlight = null;
+      });
+    issueProjectionInFlight = task;
+  };
+
+  const issueProjectionTimer = setInterval(
+    runIssueProjectionSchedule,
+    config.issueProjectionMs,
+  );
+  issueProjectionTimer.unref();
+  runIssueProjectionSchedule();
+
   const status = () => {
     const authorityReady = coreWorkerAuthorityNames.every(
       (authority) => authorities[authority].status === "ready",
@@ -518,6 +632,8 @@ export const startOperationalJobWorkerService = async ({
       lifecycleCleanupInFlight: lifecycleCleanupInFlight !== null,
       eventDeliveryInFlight: eventDeliveryInFlight !== null,
       syntheticInFlight: syntheticInFlight !== null,
+      issueProjectionInFlight: issueProjectionInFlight !== null,
+      issueProjectionConfigured: githubIssueConfig.enabled,
       maxInFlight: config.maxInFlight,
       authorityReady,
       authorities,
@@ -529,6 +645,8 @@ export const startOperationalJobWorkerService = async ({
       lastEventDeliveryStatus,
       lastSyntheticAt,
       lastSyntheticBatch,
+      lastIssueProjectionAt,
+      lastIssueProjectionStatus,
       lastErrorAt,
       lastErrorCode,
     };
@@ -599,6 +717,7 @@ export const startOperationalJobWorkerService = async ({
     clearInterval(lifecycleCleanupTimer);
     clearInterval(eventDeliveryTimer);
     clearInterval(syntheticTimer);
+    clearInterval(issueProjectionTimer);
     const timeout = new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, config.drainTimeoutMs);
       timer.unref();
@@ -610,6 +729,7 @@ export const startOperationalJobWorkerService = async ({
         ...(lifecycleCleanupInFlight ? [lifecycleCleanupInFlight] : []),
         ...(eventDeliveryInFlight ? [eventDeliveryInFlight] : []),
         ...(syntheticInFlight ? [syntheticInFlight] : []),
+        ...(issueProjectionInFlight ? [issueProjectionInFlight] : []),
       ]).then(() => undefined),
       timeout,
     ]);

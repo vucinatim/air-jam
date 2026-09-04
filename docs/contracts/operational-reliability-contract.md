@@ -28,9 +28,10 @@ It owns:
 6. preview-first, audited repair through the repository CLI
 7. the trust boundary for reports from untrusted hosted runtimes
 
-Incident correlation, notification adapters, GitHub issue maintenance, and
-runbook execution build on this contract in later Gate 4 items. They must not
-replace its event, delivery, SLO, or alert authorities.
+The narrow GitHub issue projection consumes this contract through its own
+adapter boundary. Broader incident correlation, notification adapters, and
+runbook execution remain later options and must not replace event, delivery,
+SLO, or alert authority.
 
 ## Canonical Machine Surface
 
@@ -43,7 +44,8 @@ pnpm --silent run repo -- platform operations reliability status --json
 pnpm --silent run repo -- platform operations reliability events status --json
 pnpm --silent run repo -- platform operations reliability events list --json
 pnpm --silent run repo -- platform operations reliability synthetics list --json
-pnpm --silent run repo -- platform operations reliability alerts --json
+pnpm --silent run repo -- platform operations reliability alerts list --json
+pnpm --silent run repo -- platform operations reliability issues status --json
 ```
 
 Mutating commands are previews unless `--apply` is explicit:
@@ -246,8 +248,10 @@ only after the declared consecutive recovery threshold. Alert recovery retains
 the original opening time, exact recovery time, latest evaluation, and
 optimistic revision.
 
-This alert state is internal Air Jam truth. External notifications and GitHub
-issues are projections owned by the following Gate 4 slice.
+This alert state is internal Air Jam truth. The narrow GitHub projection is
+defined separately in the
+[operational alert issue projection contract](./operational-alert-issue-projection-contract.md)
+and never becomes alert authority.
 
 ## Worker Readiness
 
@@ -272,7 +276,8 @@ Operational worker cadence:
 
 1. `AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS` defaults to `1000`
 2. `AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS` defaults to `30000`
-3. existing poll, repair, cleanup, concurrency, drain, and control-token values
+3. `AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS` defaults to `5000`
+4. existing poll, repair, cleanup, concurrency, drain, and control-token values
    retain their current meanings
 
 Synthetic targets:
@@ -303,10 +308,11 @@ Implemented here:
 5. durable alert opening and recovery
 6. truthful worker readiness
 7. complete CLI inspection and safe maintenance lifecycle
+8. narrow, leased, deduplicated GitHub issue projection
 
 Not owned by this contract:
 
-1. external notification routing beyond the narrow 1.0 issue projection
+1. external notification routing beyond the implemented narrow issue projection
 2. a generic incident lifecycle
 3. governed runbook execution
 4. autonomous code-changing repair

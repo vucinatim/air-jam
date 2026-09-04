@@ -212,7 +212,7 @@ These are now baseline truths, not open architecture debates:
        expiry, actions, and blast radius through SHA-256 digests
     4. approval, bounded automation, verification, rollback, and terminal
        evidence rules fail closed
-    5. all thirteen schema families are inspectable as Draft 7 JSON Schema and
+    5. all fourteen schema families are inspectable as Draft 7 JSON Schema and
        runtime-validatable through the canonical repo CLI
 16. Gate 4 now also has one durable reliability loop:
     1. authoritative producers persist events through a transactional outbox
@@ -294,8 +294,8 @@ The roadmap now organizes the remaining work into explicit evidence gates:
 
 1. external-agent golden-path proof
 2. launch-scale reliability, backpressure, cost, backup, restore, and rollback
-3. trustworthy operational sensors, agent diagnosis, and narrow deduplicated
-   GitHub issue delivery
+3. production activation and observation of the implemented operational
+   sensors and deduplicated GitHub issue bridge
 4. security, abuse, privacy, and supply-chain trust
 5. final public documentation, demo, article, npm prerelease, and promotion
    proof
@@ -429,10 +429,19 @@ persistence service. Production schema migration `0034` is applied, but the
 operational worker service is deliberately not deployed until its activation
 preflight, drain, synthetic configuration, rollback, and cost-observation path
 is ready.
+Gate `G4-03` is closed by the
+[operational alert issue projection contract](./contracts/operational-alert-issue-projection-contract.md)
+and its
+[proof](./audits/v1-operations/operational-alert-issue-projection-proof.md).
+Each alert key now owns one leased, bounded, deduplicated GitHub issue
+projection with create, update, recovery close, recurrence reopen, marker-based
+reconciliation, preserved discussion, inspectable dead letters, and a complete
+preview-first repo CLI lifecycle. The issue-only GitHub App identity belongs
+only on the operational worker.
 Operational evidence retention is owned by `G3-07`; it and the remaining
 activation dependencies gate separately claimable `G3-08` activation.
-This does not claim that continuous evaluations, external notification, or
-GitHub issue delivery are deployed. A generic incident lifecycle and governed
+This does not claim that continuous evaluations or GitHub issue delivery are
+active in production. A generic incident lifecycle and governed
 automatic-remediation engine are intentionally not 1.0 requirements: smart
 local agents should use the shared evidence and focused Air Jam, Railway,
 GitHub, and local tools instead.
@@ -530,8 +539,8 @@ In short:
    `G3-02`, then provision and observe the operational worker safely
 3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
    Codex plus Claude Desktop golden-path proofs
-4. run recovery proof, narrow alert/GitHub delivery, and supply-chain trust as
-   independent lanes after the shared foundation is stable
+4. run recovery proof and supply-chain trust as independent lanes after the
+   shared foundation is stable
 5. run overload, recovery, and security closure drills through the existing
    focused agent-operable controls
 6. finish docs/demo/story against shipped evidence, then cut and rehearse one

@@ -5,6 +5,8 @@ export const OPERATIONS_CONTRACT_VERSION = 1;
 export const OPERATIONS_CONTRACT_NAME = "air-jam-operations";
 export const OPERATIONS_EVENT_MAX_PAYLOAD_BYTES = 64 * 1024;
 export const DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS = 8;
+export const DEFAULT_OPERATIONAL_ALERT_ISSUE_MAX_ATTEMPTS = 8;
+export const OPERATIONAL_ALERT_ISSUE_LABEL = "airjam:operational-alert";
 
 export const deploymentEnvironments = Object.freeze([
   "production",
@@ -74,6 +76,15 @@ export const operationalSyntheticRunStatuses = Object.freeze([
 ]);
 
 export const operationalAlertStatuses = Object.freeze(["open", "recovered"]);
+
+export const operationalAlertIssueProjectionStatuses = Object.freeze([
+  "pending",
+  "delivering",
+  "delivered",
+  "dead_letter",
+]);
+
+export const operationalAlertIssueStates = Object.freeze(["open", "closed"]);
 
 export const operationalSubjectTypes = Object.freeze([
   "platform",
@@ -195,6 +206,7 @@ export const operationsContractSchemaNames = Object.freeze([
   "synthetic_check",
   "synthetic_run",
   "alert",
+  "alert_issue_projection",
   "incident_fingerprint_input",
   "incident",
   "runbook",
@@ -206,9 +218,10 @@ export const operationsContractSchemaNames = Object.freeze([
 const contractVersionSchema = z.literal(OPERATIONS_CONTRACT_VERSION);
 const isoDateTimeSchema = z.string().datetime();
 const nonEmptyTextSchema = z.string().trim().min(1);
-const identifierSchema = nonEmptyTextSchema
+export const operationalIdentifierSchema = nonEmptyTextSchema
   .max(200)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/u);
+const identifierSchema = operationalIdentifierSchema;
 const eventKindSchema = nonEmptyTextSchema
   .max(160)
   .regex(/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/u);
@@ -851,6 +864,98 @@ export const operationalAlertSchemaV1 = z
     }
   });
 
+export const githubRepositorySchema = nonEmptyTextSchema
+  .max(200)
+  .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
+
+export const operationalAlertIssueProjectionSchemaV1 = z
+  .object({
+    contractVersion: contractVersionSchema,
+    projectionId: identifierSchema,
+    provider: z.literal("github"),
+    repository: githubRepositorySchema,
+    alertKey: identifierSchema,
+    targetAlertRevision: z.number().int().min(1),
+    projectedAlertRevision: z.number().int().min(0),
+    status: z.enum(operationalAlertIssueProjectionStatuses),
+    attemptCount: z.number().int().min(0),
+    maxAttempts: z.number().int().min(1).max(20),
+    availableAt: isoDateTimeSchema,
+    leaseOwner: identifierSchema.nullable(),
+    leaseExpiresAt: isoDateTimeSchema.nullable(),
+    issue: z
+      .object({
+        number: z.number().int().positive(),
+        url: z.string().url(),
+        state: z.enum(operationalAlertIssueStates),
+      })
+      .strict()
+      .nullable(),
+    managedBodyHash: sha256Schema.nullable(),
+    projectedAt: isoDateTimeSchema.nullable(),
+    lastError: operationalFailureSchemaV1.nullable(),
+    createdAt: isoDateTimeSchema,
+    updatedAt: isoDateTimeSchema,
+  })
+  .strict()
+  .superRefine((projection, context) => {
+    if (projection.projectedAlertRevision > projection.targetAlertRevision) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["projectedAlertRevision"],
+        message: "projectedAlertRevision must not exceed targetAlertRevision",
+      });
+    }
+    if (projection.attemptCount > projection.maxAttempts) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["attemptCount"],
+        message: "attemptCount must not exceed maxAttempts",
+      });
+    }
+    const leased = projection.status === "delivering";
+    if (
+      leased !== Boolean(projection.leaseOwner && projection.leaseExpiresAt)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["status"],
+        message:
+          "only delivering projections require a lease owner and expiration",
+      });
+    }
+    if (projection.projectedAlertRevision > 0 && !projection.issue) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["issue"],
+        message: "a projected alert revision requires GitHub issue identity",
+      });
+    }
+    if (projection.status === "delivered") {
+      if (
+        projection.projectedAlertRevision !== projection.targetAlertRevision ||
+        !projection.issue ||
+        !projection.managedBodyHash ||
+        !projection.projectedAt ||
+        projection.lastError
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["status"],
+          message:
+            "delivered projections require exact issue, body, chronology, and revision evidence",
+        });
+      }
+    }
+    if (projection.status === "dead_letter" && !projection.lastError) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["lastError"],
+        message: "dead-letter projections require a structured failure",
+      });
+    }
+  });
+
 export const incidentFingerprintInputSchemaV1 = z
   .object({
     contractVersion: contractVersionSchema,
@@ -1393,6 +1498,7 @@ const schemaByName = Object.freeze({
   synthetic_check: operationalSyntheticCheckSchemaV1,
   synthetic_run: operationalSyntheticRunSchemaV1,
   alert: operationalAlertSchemaV1,
+  alert_issue_projection: operationalAlertIssueProjectionSchemaV1,
   incident_fingerprint_input: incidentFingerprintInputSchemaV1,
   incident: operationalIncidentSchemaV1,
   runbook: operationalRunbookSchemaV1,
@@ -1692,10 +1798,12 @@ const operationsContractCatalog = Object.freeze({
     syntheticCheckSchema: "synthetic_check",
     syntheticRunSchema: "synthetic_run",
     alertSchema: "alert",
+    alertIssueProjectionSchema: "alert_issue_projection",
     failureClasses: operationalFailureClasses,
     sloStatuses: operationalSloStatuses,
     syntheticRunStatuses: operationalSyntheticRunStatuses,
     alertStatuses: operationalAlertStatuses,
+    alertIssueProjectionStatuses: operationalAlertIssueProjectionStatuses,
     rules: Object.freeze([
       "unknown exceptions become bounded internal failures without raw messages or stacks",
       "SLO state is derived from retained authoritative synthetic runs",

@@ -4,6 +4,9 @@ export declare const OPERATIONS_CONTRACT_VERSION: 1;
 export declare const OPERATIONS_CONTRACT_NAME: "air-jam-operations";
 export declare const OPERATIONS_EVENT_MAX_PAYLOAD_BYTES: number;
 export declare const DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS: 8;
+export declare const DEFAULT_OPERATIONAL_ALERT_ISSUE_MAX_ATTEMPTS: 8;
+export declare const OPERATIONAL_ALERT_ISSUE_LABEL: "airjam:operational-alert";
+export declare const operationalIdentifierSchema: ZodType<string>;
 
 export declare const deploymentEnvironments: readonly [
   "production",
@@ -65,6 +68,13 @@ export declare const operationalSyntheticRunStatuses: readonly [
   "error",
 ];
 export declare const operationalAlertStatuses: readonly ["open", "recovered"];
+export declare const operationalAlertIssueProjectionStatuses: readonly [
+  "pending",
+  "delivering",
+  "delivered",
+  "dead_letter",
+];
+export declare const operationalAlertIssueStates: readonly ["open", "closed"];
 export declare const operationalSubjectTypes: readonly [
   "platform",
   "service",
@@ -138,6 +148,7 @@ export declare const operationsContractSchemaNames: readonly [
   "synthetic_check",
   "synthetic_run",
   "alert",
+  "alert_issue_projection",
   "incident_fingerprint_input",
   "incident",
   "runbook",
@@ -159,6 +170,10 @@ export type OperationalSloStatus = (typeof operationalSloStatuses)[number];
 export type OperationalSyntheticRunStatus =
   (typeof operationalSyntheticRunStatuses)[number];
 export type OperationalAlertStatus = (typeof operationalAlertStatuses)[number];
+export type OperationalAlertIssueProjectionStatus =
+  (typeof operationalAlertIssueProjectionStatuses)[number];
+export type OperationalAlertIssueState =
+  (typeof operationalAlertIssueStates)[number];
 export type OperationalSubjectType = (typeof operationalSubjectTypes)[number];
 export type OperationalEvidenceKind = (typeof evidenceKinds)[number];
 export type IncidentSeverity = (typeof incidentSeverities)[number];
@@ -346,6 +361,34 @@ export interface OperationalAlertV1 {
   recoveredAt?: string;
   revision: number;
 }
+
+export interface OperationalAlertIssueProjectionV1 {
+  contractVersion: 1;
+  projectionId: string;
+  provider: "github";
+  repository: string;
+  alertKey: string;
+  targetAlertRevision: number;
+  projectedAlertRevision: number;
+  status: OperationalAlertIssueProjectionStatus;
+  attemptCount: number;
+  maxAttempts: number;
+  availableAt: string;
+  leaseOwner: string | null;
+  leaseExpiresAt: string | null;
+  issue: {
+    number: number;
+    url: string;
+    state: OperationalAlertIssueState;
+  } | null;
+  managedBodyHash: string | null;
+  projectedAt: string | null;
+  lastError: OperationalFailureV1 | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export declare const githubRepositorySchema: ZodType<string>;
 
 export interface IncidentFingerprintInputV1 {
   contractVersion: 1;
@@ -548,6 +591,7 @@ export declare const operationalSloEvaluationSchemaV1: ZodType<OperationalSloEva
 export declare const operationalSyntheticCheckSchemaV1: ZodType<OperationalSyntheticCheckV1>;
 export declare const operationalSyntheticRunSchemaV1: ZodType<OperationalSyntheticRunV1>;
 export declare const operationalAlertSchemaV1: ZodType<OperationalAlertV1>;
+export declare const operationalAlertIssueProjectionSchemaV1: ZodType<OperationalAlertIssueProjectionV1>;
 export declare const incidentFingerprintInputSchemaV1: ZodType<IncidentFingerprintInputV1>;
 export declare const operationalIncidentSchemaV1: ZodType<OperationalIncidentV1>;
 export declare const operationalRunbookSchemaV1: ZodType<OperationalRunbookV1>;

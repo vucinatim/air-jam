@@ -1202,3 +1202,16 @@ export const listOperationalAlerts = async ({
     .orderBy(desc(operationalAlerts.updatedAt));
   return rows.map((row) => operationalAlertSchemaV1.parse(row.document));
 };
+
+export const inspectOperationalAlert = async ({
+  database = db,
+  alertKey,
+}: {
+  database?: OperationalEventDatabase;
+  alertKey: string;
+}): Promise<OperationalAlertV1 | null> => {
+  const row = await database.query.operationalAlerts.findFirst({
+    where: (table, { eq }) => eq(table.alertKey, alertKey),
+  });
+  return row ? operationalAlertSchemaV1.parse(row.document) : null;
+};

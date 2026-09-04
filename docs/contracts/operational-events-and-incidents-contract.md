@@ -433,7 +433,7 @@ Every action binds to the exact descriptor version it evaluated.
 This contract slice is complete when:
 
 1. the shared runtime schemas and deterministic helpers pass their tests
-2. the repo CLI discovers, exports, and validates all thirteen schema families
+2. the repo CLI discovers, exports, and validates all fourteen schema families
 3. product telemetry cannot validate as an operational event
 4. unknown versions, fields, states, and unsafe runbook authority fail closed
 5. payload validation output does not echo submitted values

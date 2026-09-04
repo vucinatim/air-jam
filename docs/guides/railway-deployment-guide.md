@@ -207,6 +207,19 @@ Configure these reliability values on the operational worker:
 4. `AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN` pointing to the browser worker
 5. `AIRJAM_SYNTHETIC_APP_ID` when the platform app identity is not appropriate
 
+Configure the narrow GitHub issue bridge only on that worker, using a
+repository-installed App with repository metadata read and Issues read/write:
+
+1. `AIRJAM_GITHUB_ISSUES_APP_ID`
+2. `AIRJAM_GITHUB_ISSUES_INSTALLATION_ID`
+3. `AIRJAM_GITHUB_ISSUES_PRIVATE_KEY`
+4. `AIRJAM_GITHUB_ISSUES_REPOSITORY=vucinatim/air-jam`
+5. optional `AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS` (default `5000`)
+
+Do not copy these values to platform web, realtime, browser-worker, or PR
+preview services. Use the issue-only App identity rather than a maintainer
+token.
+
 Configure `AIRJAM_OPERATIONAL_ENVIRONMENT=production` and
 `AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX` on the realtime server. Hosted
 runtime crash reports are bounded, room-authorized evidence; they are never
@@ -220,6 +233,7 @@ pnpm --silent run repo -- platform operations reliability status \
   --railway-environment <environment-id> \
   --railway-project <project-id> \
   --json
+pnpm --silent run repo -- platform operations reliability issues --help
 ```
 
 For PR environments, verify the same shape against the ephemeral Railway domains.

@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-04T01:14:29.816Z",
+  "updatedAt": "2026-09-04T02:49:38.619Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -651,7 +651,7 @@
       "priority": 30,
       "title": "Project actionable alerts into deduplicated GitHub issues",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [
         "G4-02",
         "G4-07"
@@ -662,7 +662,16 @@
       },
       "evidenceRequirements": [
         "one confirmed actionable alert key creates, updates, reopens, and resolves one maintained issue with linked source, recovery, and failed-verification evidence"
-      ]
+      ],
+      "owner": "/root",
+      "note": "Implemented one durable alert-key projection with create/update/recovery-close/recurrence-reopen, marker reconciliation, preserved discussion, least-privilege GitHub App identity, bounded leased delivery, audited repair, complete repo CLI operation, CI regression proof, and explicit deferred production activation.",
+      "updatedAt": "2026-09-04T02:49:38.619Z",
+      "evidence": [
+        "document:docs/contracts/operational-alert-issue-projection-contract.md",
+        "document:docs/audits/v1-operations/operational-alert-issue-projection-proof.md",
+        "command:pnpm-check-batch"
+      ],
+      "completedAt": "2026-09-04T02:49:38.619Z"
     },
     {
       "id": "G5-01",

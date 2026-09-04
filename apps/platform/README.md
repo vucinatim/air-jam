@@ -274,6 +274,25 @@ AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN=https://<browser-worker-origin>
 AIRJAM_SYNTHETIC_APP_ID=<synthetic-app-id>
 ```
 
+The same worker owns the narrow alert-to-GitHub issue projection. Configure a
+repository-installed GitHub App with Issues read/write and repository metadata
+read; do not use a maintainer token:
+
+```bash
+AIRJAM_GITHUB_ISSUES_APP_ID=<app-id>
+AIRJAM_GITHUB_ISSUES_INSTALLATION_ID=<installation-id>
+AIRJAM_GITHUB_ISSUES_PRIVATE_KEY=<pem-private-key>
+AIRJAM_GITHUB_ISSUES_REPOSITORY=vucinatim/air-jam
+AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS=5000
+```
+
+Inspect or safely advance the complete machine lifecycle through:
+
+```bash
+pnpm --silent run repo -- platform operations reliability alerts --help
+pnpm --silent run repo -- platform operations reliability issues --help
+```
+
 Inspect the exact six-check, four-SLO policy and the retained state through:
 
 ```bash

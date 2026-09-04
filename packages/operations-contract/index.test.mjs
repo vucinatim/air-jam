@@ -17,9 +17,11 @@ import {
   getOperationsContractCatalog,
   getOperationsContractJsonSchema,
   normalizeUnknownOperationalFailure,
+  operationalAlertIssueProjectionSchemaV1,
   operationalAlertSchemaV1,
   operationalEventEnvelopeSchemaV1,
   operationalFailureSchemaV1,
+  operationalIdentifierSchema,
   operationalIncidentSchemaV1,
   operationalRunbookActionSchemaV1,
   operationalRunbookSchemaV1,
@@ -462,6 +464,62 @@ test("recovered alerts require coherent recovery chronology", () => {
     operationalAlertSchemaV1.parse({
       ...alert,
       recoveredAt: "2026-08-30T02:59:00.000Z",
+    }),
+  );
+});
+
+test("alert issue projections bind leases, revisions, and terminal evidence", () => {
+  assert.equal(
+    operationalIdentifierSchema.parse("worker:github/one"),
+    "worker:github/one",
+  );
+  assert.throws(() => operationalIdentifierSchema.parse("worker with spaces"));
+  const projection = {
+    contractVersion: 1,
+    projectionId: "projection:1",
+    provider: "github",
+    repository: "air-jam/operations",
+    alertKey: "slo:multiplayer:production",
+    targetAlertRevision: 3,
+    projectedAlertRevision: 3,
+    status: "delivered",
+    attemptCount: 1,
+    maxAttempts: 8,
+    availableAt: timestamp,
+    leaseOwner: null,
+    leaseExpiresAt: null,
+    issue: {
+      number: 42,
+      url: "https://github.com/air-jam/operations/issues/42",
+      state: "closed",
+    },
+    managedBodyHash: "a".repeat(64),
+    projectedAt: laterTimestamp,
+    lastError: null,
+    createdAt: timestamp,
+    updatedAt: laterTimestamp,
+  };
+  assert.equal(
+    operationalAlertIssueProjectionSchemaV1.parse(projection).status,
+    "delivered",
+  );
+  assert.throws(() =>
+    operationalAlertIssueProjectionSchemaV1.parse({
+      ...projection,
+      projectedAlertRevision: 2,
+    }),
+  );
+  assert.throws(() =>
+    operationalAlertIssueProjectionSchemaV1.parse({
+      ...projection,
+      status: "delivering",
+    }),
+  );
+  assert.throws(() =>
+    operationalAlertIssueProjectionSchemaV1.parse({
+      ...projection,
+      status: "dead_letter",
+      lastError: null,
     }),
   );
 });

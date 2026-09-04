@@ -26,6 +26,18 @@ test("operational reliability is fully discoverable through the repo CLI", () =>
     "reliability",
     "synthetics",
   );
+  const alerts = readHelp(
+    "platform",
+    "operations",
+    "reliability",
+    "alerts",
+  );
+  const issues = readHelp(
+    "platform",
+    "operations",
+    "reliability",
+    "issues",
+  );
 
   for (const command of [
     "catalog",
@@ -49,6 +61,19 @@ test("operational reliability is fully discoverable through the repo CLI", () =>
   for (const command of ["run", "run-due", "list"]) {
     assert.match(synthetics, new RegExp(command, "u"));
   }
+  for (const command of ["list", "inspect"]) {
+    assert.match(alerts, new RegExp(command, "u"));
+  }
+  for (const command of [
+    "status",
+    "list",
+    "inspect",
+    "project-once",
+    "repair-expired",
+    "requeue-dead-letter",
+  ]) {
+    assert.match(issues, new RegExp(command, "u"));
+  }
 });
 
 test("reliability mutations are preview-first and carry explicit audit fences", () => {
@@ -66,9 +91,23 @@ test("reliability mutations are preview-first and carry explicit audit fences", 
     "synthetics",
     "run",
   );
-  for (const help of [requeue, synthetic]) {
+  const issueProjection = readHelp(
+    "platform",
+    "operations",
+    "reliability",
+    "issues",
+    "project-once",
+  );
+  const issueRequeue = readHelp(
+    "platform",
+    "operations",
+    "reliability",
+    "issues",
+    "requeue-dead-letter",
+  );
+  for (const help of [requeue, synthetic, issueRequeue]) {
     assert.match(help, /--apply/u);
-    assert.match(help, /read-only preview/u);
+    assert.match(help, /read-only\s+preview/u);
     assert.match(help, /--actor/u);
     assert.match(help, /--reason/u);
     assert.match(help, /--idempotency-key/u);
@@ -77,6 +116,12 @@ test("reliability mutations are preview-first and carry explicit audit fences", 
   assert.match(requeue, /--max-attempts/u);
   assert.match(requeue, /--event/u);
   assert.match(synthetic, /--check/u);
+  assert.match(issueProjection, /--apply/u);
+  assert.match(issueProjection, /read-only\s+preview/u);
+  assert.match(issueProjection, /--worker/u);
+  assert.match(issueProjection, /--json/u);
+  assert.match(issueRequeue, /--repository/u);
+  assert.match(issueRequeue, /--alert-key/u);
 });
 
 test("source-owned reliability policy is stdout-only JSON without a database", () => {
@@ -204,5 +249,61 @@ test(
       await sql`delete from operational_event_outbox where id = ${eventId}`;
       await sql.end();
     }
+  },
+);
+
+test(
+  "GitHub issue projection reads and preview are database-backed and secret-free",
+  { skip: !postgresProofUrl },
+  () => {
+    const privateKey = "github-private-key-must-not-print";
+    const run = (...args) =>
+      execFileSync(process.execPath, [cliPath, ...args], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          DATABASE_URL: postgresProofUrl,
+          AIRJAM_GITHUB_ISSUES_APP_ID: "123",
+          AIRJAM_GITHUB_ISSUES_INSTALLATION_ID: "456",
+          AIRJAM_GITHUB_ISSUES_PRIVATE_KEY: privateKey,
+          AIRJAM_GITHUB_ISSUES_REPOSITORY: "vucinatim/air-jam",
+        },
+      });
+    const status = JSON.parse(
+      run(
+        "platform",
+        "operations",
+        "reliability",
+        "issues",
+        "status",
+        "--repository",
+        "vucinatim/air-jam",
+        "--json",
+      ),
+    );
+    assert.equal(status.command, "issues-status");
+    assert.equal(status.result.repository, "vucinatim/air-jam");
+
+    const previewText = run(
+      "platform",
+      "operations",
+      "reliability",
+      "issues",
+      "project-once",
+      "--worker",
+      "agent:cli-proof",
+      "--json",
+    );
+    const preview = JSON.parse(previewText);
+    assert.deepEqual(preview.result, {
+      applied: false,
+      operation: "project one dependency-ready alert to GitHub",
+      configured: true,
+      repository: "vucinatim/air-jam",
+      workerId: "agent:cli-proof",
+    });
+    assert.doesNotMatch(previewText, new RegExp(privateKey, "u"));
+    assert.doesNotMatch(previewText, /installation-token|privateKey|appId/u);
   },
 );

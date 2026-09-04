@@ -18,11 +18,24 @@ import { getOperationalReliabilityCatalog } from "../src/server/operations/opera
 import { runDueOperationalSynthetics } from "../src/server/operations/operational-synthetic-scheduler";
 import {
   getOperationalReliabilityStatus,
+  inspectOperationalAlert,
   listOperationalAlerts,
   listOperationalSyntheticRuns,
   resolveOperationalSyntheticRuntimeConfig,
   runOperationalSynthetic,
 } from "../src/server/operations/operational-synthetic-service";
+import {
+  createGitHubAlertIssueProjector,
+  resolveGitHubAlertIssueConfig,
+} from "../src/server/operations/github-alert-issue-adapter";
+import {
+  getOperationalAlertIssueProjectionStatus,
+  inspectOperationalAlertIssueProjection,
+  listOperationalAlertIssueProjections,
+  repairExpiredOperationalAlertIssueProjections,
+  requeueOperationalAlertIssueProjection,
+  runOperationalAlertIssueProjectionCycle,
+} from "../src/server/operations/operational-alert-issue-projection-service";
 
 type Input =
   | { command: "catalog"; json: boolean }
@@ -83,6 +96,45 @@ type Input =
       command: "alerts-list";
       environment?: string;
       status?: "open" | "recovered";
+      json: boolean;
+    }
+  | { command: "alerts-inspect"; alertKey: string; json: boolean }
+  | { command: "issues-status"; repository?: string; json: boolean }
+  | {
+      command: "issues-list";
+      repository?: string;
+      status?: "pending" | "delivering" | "delivered" | "dead_letter";
+      limit: number;
+      json: boolean;
+    }
+  | {
+      command: "issues-inspect";
+      repository: string;
+      alertKey: string;
+      json: boolean;
+    }
+  | {
+      command: "issues-project-once";
+      workerId: string;
+      apply: boolean;
+      json: boolean;
+    }
+  | {
+      command: "issues-repair-expired";
+      repository?: string;
+      limit: number;
+      apply: boolean;
+      json: boolean;
+    }
+  | {
+      command: "issues-requeue-dead-letter";
+      repository: string;
+      alertKey: string;
+      actor: string;
+      reason: string;
+      idempotencyKey: string;
+      maxAttempts: number;
+      apply: boolean;
       json: boolean;
     };
 
@@ -218,6 +270,71 @@ const parseInput = (): Input => {
         json,
       };
     }
+    case "alerts-inspect":
+      return {
+        command,
+        alertKey: requiredText(raw, "alertKey"),
+        json,
+      };
+    case "issues-status":
+      return { command, repository: optionalText(raw, "repository"), json };
+    case "issues-list": {
+      const status = optionalText(raw, "status");
+      if (
+        status &&
+        !["pending", "delivering", "delivered", "dead_letter"].includes(
+          status,
+        )
+      ) {
+        fail("status must be pending, delivering, delivered, or dead_letter.");
+      }
+      return {
+        command,
+        repository: optionalText(raw, "repository"),
+        status: status as
+          | "pending"
+          | "delivering"
+          | "delivered"
+          | "dead_letter"
+          | undefined,
+        limit: integer(raw, "limit", 1, 500),
+        json,
+      };
+    }
+    case "issues-inspect":
+      return {
+        command,
+        repository: requiredText(raw, "repository"),
+        alertKey: requiredText(raw, "alertKey"),
+        json,
+      };
+    case "issues-project-once":
+      return {
+        command,
+        workerId: requiredText(raw, "workerId"),
+        apply: Boolean(raw.apply),
+        json,
+      };
+    case "issues-repair-expired":
+      return {
+        command,
+        repository: optionalText(raw, "repository"),
+        limit: integer(raw, "limit", 1, 500),
+        apply: Boolean(raw.apply),
+        json,
+      };
+    case "issues-requeue-dead-letter":
+      return {
+        command,
+        repository: requiredText(raw, "repository"),
+        alertKey: requiredText(raw, "alertKey"),
+        actor: requiredText(raw, "actor"),
+        reason: requiredText(raw, "reason"),
+        idempotencyKey: requiredText(raw, "idempotencyKey"),
+        maxAttempts: integer(raw, "maxAttempts", 1, 20),
+        apply: Boolean(raw.apply),
+        json,
+      };
     default:
       return fail(`Unknown operational reliability command ${command}.`);
   }
@@ -240,6 +357,10 @@ const main = async () => {
   const database = drizzle(client, { schema });
   try {
     const config = resolveOperationalSyntheticRuntimeConfig();
+    const githubIssueConfig =
+      input.command === "issues-project-once"
+        ? resolveGitHubAlertIssueConfig()
+        : null;
     let result: unknown;
     switch (input.command) {
       case "status":
@@ -361,6 +482,101 @@ const main = async () => {
           environment: parseEnvironment(input.environment),
           status: input.status,
         });
+        break;
+      case "alerts-inspect":
+        result = await inspectOperationalAlert({
+          database,
+          alertKey: input.alertKey,
+        });
+        break;
+      case "issues-status":
+        result = await getOperationalAlertIssueProjectionStatus({
+          database,
+          repository: input.repository,
+        });
+        break;
+      case "issues-list":
+        result = await listOperationalAlertIssueProjections({
+          database,
+          repository: input.repository,
+          status: input.status,
+          limit: input.limit,
+        });
+        break;
+      case "issues-inspect":
+        result = await inspectOperationalAlertIssueProjection({
+          database,
+          repository: input.repository,
+          alertKey: input.alertKey,
+        });
+        break;
+      case "issues-project-once":
+        result = input.apply
+          ? githubIssueConfig?.enabled
+            ? await runOperationalAlertIssueProjectionCycle({
+                database,
+                repository: githubIssueConfig.repository,
+                workerId: input.workerId,
+                projector: createGitHubAlertIssueProjector({
+                  config: githubIssueConfig,
+                }),
+              })
+            : fail(
+                "GitHub issue projection is not configured for this process.",
+              )
+          : {
+              applied: false,
+              operation: "project one dependency-ready alert to GitHub",
+              configured: Boolean(githubIssueConfig?.enabled),
+              repository: githubIssueConfig?.enabled
+                ? githubIssueConfig.repository
+                : null,
+              workerId: input.workerId,
+            };
+        break;
+      case "issues-repair-expired":
+        result = input.apply
+          ? {
+              applied: true,
+              repaired: await repairExpiredOperationalAlertIssueProjections({
+                database,
+                repository: input.repository,
+                limit: input.limit,
+              }),
+            }
+          : {
+              applied: false,
+              operation: "repair expired GitHub issue projection leases",
+              repository: input.repository ?? null,
+              limit: input.limit,
+            };
+        break;
+      case "issues-requeue-dead-letter":
+        result = input.apply
+          ? await requeueOperationalAlertIssueProjection({
+              database,
+              repository: input.repository,
+              alertKey: input.alertKey,
+              actor: input.actor,
+              reason: input.reason,
+              idempotencyKey: input.idempotencyKey,
+              maxAttempts: input.maxAttempts,
+            })
+          : {
+              applied: false,
+              operation: "requeue one dead-lettered GitHub issue projection",
+              eligible:
+                (
+                  await inspectOperationalAlertIssueProjection({
+                    database,
+                    repository: input.repository,
+                    alertKey: input.alertKey,
+                  })
+                )?.status === "dead_letter",
+              repository: input.repository,
+              alertKey: input.alertKey,
+              maxAttempts: input.maxAttempts,
+            };
         break;
     }
     print({

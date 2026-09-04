@@ -7,6 +7,8 @@
       "/apps/platform/**",
       "/content/**",
       "/docs/**",
+      "/packages/database-contract/**",
+      "/packages/operations-contract/**",
       "/packages/sdk/**",
       "/packages/env/**",
       "/package.json",
