@@ -1,6 +1,6 @@
 # Air Jam 1.0 Release Roadmap
 
-Last updated: 2026-08-31
+Last updated: 2026-09-09
 Status: active governing release plan
 
 Related docs:
@@ -48,6 +48,42 @@ If work materially affects confidence in the 1.0 promise, it belongs here.
 Subordinate implementation plans may exist only when a roadmap gate needs a
 bounded multi-step track. They must link back here and must not redefine the
 release contract.
+
+## Lean Release Bar
+
+On `2026-09-09`, the maintainer rebalanced the remaining program after the
+reliability and clean-room agent work proved the core architecture but showed
+diminishing returns from exhaustive pre-launch assurance.
+
+The governing 1.0 bar is now:
+
+> Air Jam prevents serious security, data-loss, runaway-cost, and launch-
+> availability failures; truthfully proves its public agent-first promise; and
+> presents a polished creator and player experience. It does not need mature-
+> company operational completeness before it has real adoption.
+
+Apply this bar to every remaining item:
+
+1. substantial work must remove a concrete 1.0 blocker or materially improve
+   the creator, player, or launch experience
+2. reuse one valid proof across gates instead of building duplicate rehearsal,
+   demo, or evidence machinery
+3. constrain privileged and expensive effects without constraining agent
+   reasoning, game design, ordinary play, or public framework flexibility
+4. prove a minimum launch floor of `100` concurrent rooms and `400` controllers
+   for at least `30` minutes, then measure and publish what Air Jam actually
+   supports; do not build speculative scale or require an arbitrary multiple of
+   an imagined peak
+5. prefer one focused control and one honest failure drill over a generalized
+   policy, incident, retention, or remediation platform
+6. rotate work across security, product polish, agent proof, public content, and
+   launch so one subsystem does not absorb the whole release program
+7. defer additional infrastructure when its value depends on usage evidence
+   that Air Jam does not yet have
+
+The readiness manifest contains a dedicated creator/player polish item because
+the previous program asked for a final human review without explicitly owning
+the implementation work needed to make that experience release-ready.
 
 ## Executive Conclusion
 
@@ -110,8 +146,9 @@ finished.
    authoritative lifecycle, billing, runtime, or incident state.
 7. **Boring failure**: overload and dependency failure degrade predictably,
    preserve data, bound cost, and expose a recovery path.
-8. **Evidence closes gates**: a checklist item is not complete merely because
-   code exists; it needs a reproducible proof artifact.
+8. **Proportionate evidence closes gates**: code alone is insufficient, but one
+   reproducible proof should satisfy every compatible claim rather than being
+   rebuilt for each gate.
 
 ## Current Baseline
 
@@ -139,16 +176,16 @@ the public loop from outside the repo, and making launch failure safe.
 
 ## Release Gates
 
-| Gate                          | Question                                                                                                        | Required evidence                                                                                                |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 0. Re-baseline                | Are we committing to the right 1.0 product and architecture?                                                    | Accepted contract, explicit cuts, supported-client matrix, capacity and autonomy policy                          |
-| 1. Canonicalize               | Is there one clean implementation model without obsolete competing paths?                                       | Architecture audit, removals/refactors, package/config/docs alignment, green canonical checks                    |
-| 2. Golden path                | Can an external agent complete the full lifecycle from a clean environment?                                     | Recorded clean-room run with machine-readable artifacts and no private intervention                              |
-| 3. Launch safety              | Can production absorb and safely reject launch traffic without uncontrolled cost or data loss?                  | Capacity envelope, burst/soak results, rollback/restore proof, overload and dependency-failure drills            |
-| 4. Agent-operated reliability | Can the system detect and explain launch-critical failures without waking the maintainer for routine diagnosis? | SLOs, synthetics, structured evidence, agent inspection, deduplicated issue flow, and existing recovery controls |
-| 5. Security and trust         | Are public creation, runtime, release, and agent surfaces safe enough for wider use?                            | Threat review, abuse controls, auth/secret proof, quota policy, dependency and artifact checks                   |
-| 6. Public release             | Are packages, docs, examples, claims, and launch content aligned with shipped reality?                          | Clean install proof, package/release candidate, public docs crawl, article/demo assets, distribution checklist   |
-| 7. Rehearsal and launch       | Can we release, observe, recover, and communicate from one exact candidate?                                     | Production rehearsal, go/no-go record, terminal deploy health, live smoke, rollback readiness, launch sequence   |
+| Gate                          | Question                                                                                                        | Required evidence                                                                                                  |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 0. Re-baseline                | Are we committing to the right 1.0 product and architecture?                                                    | Accepted contract, explicit cuts, supported-client matrix, capacity and autonomy policy                            |
+| 1. Canonicalize               | Is there one clean implementation model without obsolete competing paths?                                       | Architecture audit, removals/refactors, package/config/docs alignment, green canonical checks                      |
+| 2. Golden path                | Can an external agent complete the full lifecycle from a clean environment?                                     | Recorded clean-room run with machine-readable artifacts and no private intervention                                |
+| 3. Launch safety              | Can production absorb ordinary launch traffic and reject overload without uncontrolled cost or data loss?       | Honest measured envelope, focused burst/overload and dependency-recovery proof, retained rollback/restore evidence |
+| 4. Agent-operated reliability | Can the system detect and explain launch-critical failures without waking the maintainer for routine diagnosis? | SLOs, synthetics, structured evidence, agent inspection, deduplicated issue flow, and existing recovery controls   |
+| 5. Security and trust         | Are public creation, runtime, release, and agent surfaces safe enough for wider use?                            | Threat review, abuse controls, auth/secret proof, quota policy, dependency and artifact checks                     |
+| 6. Public release             | Are creator/player flows, packages, docs, examples, claims, and launch content aligned with shipped reality?    | Product-experience proof, clean install, docs crawl, article/demo assets, and distribution checklist               |
+| 7. Rehearsal and launch       | Can we release, observe, recover, and communicate from one exact candidate?                                     | Production rehearsal, go/no-go record, terminal deploy health, live smoke, rollback readiness, launch sequence     |
 
 ## Gate 0: Product And Architecture Re-Baseline
 
@@ -175,8 +212,9 @@ The approval covers the complete G0-01 and G0-02 packets:
    hobby cloud are free for 1.0; payments and checkout are not release blockers
 6. variable infrastructure is bounded at `$100` in an ordinary month and
    `$150` for the billing cycle containing the 1.0/HN launch
-7. the capacity proof targets `100` sustained rooms and a three-times launch
-   burst, with gameplay degraded last
+7. the capacity proof sustains at least `100` concurrent rooms and `400`
+   controllers for `30` minutes, exercises a `5`-minute two-times admission burst,
+   publishes the honest supported envelope, and degrades gameplay last
 8. bounded verified stateless/provider recovery may be automatic, but
    production code promotion and budget increases require approval
 
@@ -186,6 +224,15 @@ but 1.0 does not need a custom automatic-runbook engine. The release must ship
 the sensory feedback, shared evidence, focused actions, and effect-level
 authority those agents need. Generalized orchestration is earned from real
 incidents after launch.
+
+On `2026-09-09`, the maintainer retained `100` concurrent rooms as a useful
+minimum launch floor but superseded the three-times-burst proof with the lean
+release bar above. The proof models four controllers per room, sustains that
+load for at least `30` minutes, and then attempts a `5`-minute two-times
+admission burst. The budget ceiling and gameplay-last policy remain unchanged. The
+release must prove safe overload behavior and publish measured capacity, but it
+must not invent larger traffic assumptions merely to justify more
+infrastructure.
 
 This decision is the product authority for later gates. Reopening it requires a
 new explicit maintainer decision rather than terminology or implementation
@@ -511,22 +558,22 @@ The following is the design and test target, not a claim about the currently
 deployed single-instance system. Gate 3 must measure it from production-like
 infrastructure before it becomes the published support envelope.
 
-| Lane                              |             Sustained target |        Short burst target | Overload behavior                                                    |
-| --------------------------------- | ---------------------------: | ------------------------: | -------------------------------------------------------------------- |
-| Active rooms                      |                        `100` |      `300` for 15 minutes | Stop new rooms; preserve existing rooms                              |
-| Realtime controllers              |                      `1,600` |    `4,800` for 15 minutes | Reject new joins above room/global capacity with retry guidance      |
-| Dynamic platform/API traffic      |                    `100 RPS` |   `300 RPS` for 5 minutes | Rate-limit expensive mutations before reads                          |
-| Cached public pages/releases/docs |                    `500 RPS` | `1,500 RPS` for 5 minutes | Serve stale-safe cached content or explicit retry responses          |
-| Browser validation                |          `2` concurrent jobs |         Queue depth `100` | Queue with position/timeout; pause intake before overload            |
-| Artifact ingestion                |       `4` concurrent uploads |          Queue depth `50` | Reject before upload when no bounded slot exists                     |
-| Database connections              | `40` application connections |   `80%` warning threshold | Backpressure at the application boundary; never open unbounded pools |
+| Lane                              | Minimum sustained proof                           | Short burst attempt         | Overload behavior                                                    |
+| --------------------------------- | ------------------------------------------------- | --------------------------- | -------------------------------------------------------------------- |
+| Active rooms                      | `100` for `30` minutes                            | `200` for `5` minutes       | Stop new rooms; preserve existing rooms                              |
+| Realtime controllers              | `400` for `30` minutes, plus one `16`-player room | `800` for `5` minutes       | Reject new joins above room/global capacity with retry guidance      |
+| Dynamic platform/API traffic      | `100 RPS` for `10` minutes                        | `200 RPS` for `5` minutes   | Rate-limit expensive mutations before reads                          |
+| Cached public pages/releases/docs | `500 RPS` for `10` minutes                        | `1,000 RPS` for `5` minutes | Serve stale-safe cached content or explicit retry responses          |
+| Browser validation                | `2` concurrent jobs                               | Queue depth `100`           | Queue with position/timeout; pause intake before overload            |
+| Artifact ingestion                | `4` concurrent uploads                            | Queue depth `50`            | Reject before upload when no bounded slot exists                     |
+| Database connections              | `40` application connections                      | `80%` warning threshold     | Backpressure at the application boundary; never open unbounded pools |
 
-The expected launch peak for planning is `100` rooms, not the burst target.
-Gate 3 must prove at least the sustained envelope and run a deliberate burst at
-three times that expected peak, consistent with this roadmap's release gate.
-If the current architecture cannot meet it cleanly, the honest choices are to
-lower and publish the measured envelope or fix the bottleneck before launch;
-the number must not survive as fiction.
+The minimum launch floor is `100` rooms with a realistic four-controller
+average, not an unlimited-scale claim. Gate 3 must prove the sustained row and
+attempt the short two-times burst. The burst may reject excess new work, but it
+must preserve active sessions, avoid corruption and uncontrolled cost, and
+return stable reasons. If the sustained floor fails, fix the measured
+bottleneck before launch rather than lowering the requirement silently.
 
 #### Queue And Fairness Policy
 
@@ -661,7 +708,10 @@ The maintainer approved these decisions as one batch:
 1. `$100` ordinary and `$150` launch-cycle variable-infrastructure ceilings
 2. the generous shadow-first free allowances and gameplay-last degradation
    order
-3. the `100`-room sustained launch target and three-times burst proof
+3. a minimum `100`-room, `400`-controller, `30`-minute sustained floor; one
+   `5`-minute two-times admission burst; an honest measured operating envelope; and
+   gameplay-last degradation; this supersedes only the earlier three-times-
+   burst requirement
 4. Railway as the one launch-certified BYOC provider while other providers
    remain portable by contract
 5. bounded agent-initiated recovery through proven stateless/provider tools,
@@ -798,6 +848,8 @@ From a clean environment, a supported external agent must:
    1. release blocker
    2. explicit 1.0 cut
    3. post-1.0 improvement
+8. the final full-lifecycle replay is also the source of truth for the public
+   demonstration; do not build or execute a second independent demo pipeline
 
 ### Done When
 
@@ -820,13 +872,14 @@ Make an HN-scale traffic spike a capacity event, not a personal emergency.
    5. database connections and transaction throughput
    6. artifact/media storage and bandwidth
 2. verify connection pooling and per-service connection ceilings
-3. verify autoscaling behavior and regional constraints
+3. verify the current deployment's scaling behavior and regional constraints
 4. put bounded queues and concurrency controls in front of expensive work
 5. verify rate limits, payload limits, room/session limits, and release quotas
 6. cache static releases, public docs, and agent resources appropriately
-7. enforce automatic lifecycle cleanup for rooms, jobs, uploads, and temporary
-   artifacts
-8. add spend caps, kill switches, and feature-level circuit breakers
+7. retain the lifecycle cleanup already implemented for rooms, jobs, uploads,
+   and temporary artifacts
+8. provide one practical spend brake and one agent-operable emergency control
+   that stops accepting new expensive work
 9. ensure overload produces explicit retry/rejection behavior rather than
    partial corruption or unbounded work
 
@@ -839,16 +892,20 @@ Make an HN-scale traffic spike a capacity event, not a personal emergency.
 5. prove optional subsystem failure does not take down core play
 6. define degraded modes for publishing, moderation, media, telemetry, and agent
    resources
-7. run a sustained soak and a burst above the published support envelope
+7. run one bounded baseline, realistic burst/overload, and dependency-recovery
+   drill against the architecture that will launch
 
 ### Done When
 
-1. the supported envelope is published internally and tested at no less than
-   three times its expected launch peak
+1. at least `100` concurrent rooms and `400` controllers remain healthy for
+   `30` minutes, followed by a `5`-minute attempt to admit twice that load; the
+   supported envelope is measured honestly and published without pretending
+   every attempted connection was accepted
 2. traffic above the safe envelope is rejected or degraded deliberately
 3. backup restore and deployment rollback have measured recovery times
 4. no tested dependency failure creates silent data loss or uncontrolled spend
-5. one operator command can disable or pause each expensive/risky lane
+5. one discoverable agent-operable path can stop new expensive work, while
+   active rooms continue whenever technically safe
 
 ## Gate 4: Operational Events And Agent-Operated Reliability
 
@@ -1012,6 +1069,22 @@ Make wider public creation and hosting safe enough to operate unattended.
 
 Make the public experience as coherent as the implementation.
 
+### Creator And Player Experience Proof
+
+Before freezing launch content, complete one bounded product pass across:
+
+1. homepage to Arcade navigation, including a direct `/arcade` load
+2. game-card interaction, responsive layout, loading, empty, and error states
+3. room creation, room-code presentation, phone joining, reconnect, and restart
+4. desktop and mobile behavior for three representative interaction models,
+   with a basic catalog smoke for the remaining launch games
+5. the first-time developer path from discovery through installation and
+   `pnpm run dev`
+
+This is launch-trust polish, not an invitation to redesign every game. Fix
+visible breakage, confusing states, and contract violations; defer broad game-
+specific refinement that does not affect the public promise.
+
 ### Package And Installation Proof
 
 1. decide the exact package versions that become 1.0
@@ -1061,9 +1134,12 @@ supporting evidence, not claims of product-market fit.
 1. a clean public install succeeds without local substitutions
 2. the release candidate and package graph pass the release doctor
 3. docs and agent resources are complete and crawlable
-4. the demo is reproducible rather than selectively edited proof
+4. the demo is curated from the final reproducible golden-path proof rather
+   than a duplicate execution pipeline
 5. every article/product claim links to shipped behavior
 6. the discoverability plan has one concrete launch sequence with final assets
+7. the creator and player experience proof has no unresolved release-blocking
+   visual, interaction, loading, empty-state, or error-state defect
 
 ## Gate 7: Release Rehearsal, Go/No-Go, And Launch
 
@@ -1076,16 +1152,19 @@ traffic arrives.
 
 1. cut an immutable release candidate from one exact commit
 2. run all clean-checkout quality and release gates
-3. run the five-game manual launch-set proof
-4. run the complete external-agent golden path
+3. run the focused creator/player smoke on three representative games and a
+   basic catalog smoke on the remaining launch set
+4. verify the retained final golden-path scenario still works on the exact
+   candidate without repeating the entire clean-room development run
 5. publish the candidate packages to the prerelease channel
 6. deploy the candidate through the production topology
 7. run live platform, realtime, Arcade, hosted-release, semantic-session,
    telemetry, and agent-resource smoke tests
-8. exercise rollback, queue pause, and at least one dependency-degradation path
+8. exercise the emergency pause and one dependency-recovery path; confirm the
+   already proven exact rollback remains available
 9. verify dashboards, synthetics, alerts, GitHub issue projection, and agent CLI
-10. freeze article/demo screenshots, commands, versions, and links against that
-    candidate
+10. freeze the article/demo screenshots, commands, versions, and links already
+    derived from the final golden-path proof against that candidate
 
 ### Go/No-Go
 
@@ -1129,6 +1208,11 @@ required for correctness or truthful positioning:
    proven
 10. creator reward pools before realized revenue, sponsor funding, abuse
     controls, and unit economics exist
+11. a generalized abuse-management, incident-remediation, or evidence-
+    retention platform beyond the narrow controls required by current data and
+    threats
+12. fine-grained quota categories, additional operational abstractions, or
+    repeated proof runs without a measured launch risk or distinct public claim
 
 ## Remaining Launch Decisions
 

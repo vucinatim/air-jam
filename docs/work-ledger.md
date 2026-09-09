@@ -18,6 +18,31 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-09 - Remaining 1.0 Work Was Rebalanced Around Launch Value
+
+- ratified a lean release bar after reviewing the time and complexity cost of
+  the reliability, security, and clean-room agent program: prevent serious
+  harm, prove the public promise, polish the creator/player experience, and
+  launch one exact candidate without requiring mature-company operations first
+- retained host authority, a practical spend brake, emergency pause, honest
+  load/failure proof, Claude Desktop interoperability, final golden path,
+  public docs/story, and exact-candidate rehearsal as real 1.0 requirements
+- added explicit creator/player implementation ownership for homepage, Arcade,
+  direct navigation, mobile joining, reconnect, representative games, and
+  public loading/empty/error states; the old plan had only a final human review
+  of that experience
+- retained a useful minimum of `100` concurrent rooms and `400` controllers for
+  `30` minutes, replaced the old three-times burst with a `5`-minute two-times
+  admission attempt, and required measured capacity plus safe overload behavior
+- directed the final golden-path run to supply the demo evidence, moved final
+  npm proof into the candidate rehearsal, and folded worker observation into
+  that same rehearsal instead of building duplicate proof pipelines
+- deferred generalized moderation, incident-remediation, evidence-retention,
+  self-healing, quota, and scaling systems until real use demonstrates the need
+- revised the readiness work items and estimates so autonomous agents follow
+  this release-first sequence rather than mechanically deepening infrastructure
+- changed no runtime behavior and performed no merge or production deployment
+
 ## 2026-09-09 - Final Golden-Path Review Findings Were Closed
 
 - ran the single final Opus review on green PR `#111`; it found four actionable

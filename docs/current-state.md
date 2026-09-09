@@ -28,24 +28,34 @@ For historical progress, use [work-ledger.md](./work-ledger.md).
 Air Jam is now governed by the
 [1.0 release roadmap](./plans/v1-release-roadmap-plan.md).
 
-The focus has moved from a narrow final-proof-and-publish pass to a deliberate
-1.0 re-baseline shaped by six months of progress in general-purpose coding
-agents, MCP, CLI operability, and Air Jam's own harness.
+The architecture re-baseline is complete. On `2026-09-09`, the remaining
+program was narrowed around the shortest trustworthy path to a polished 1.0:
+prevent serious harm, prove the public agent promise, make the creator/player
+experience feel finished, communicate it clearly, and launch one exact
+candidate. Mature-company operational completeness is not the pre-adoption
+release bar.
+
+The validated machine program now reports `74%` estimate-weighted progress and
+`51–103` remaining agent-hours. Those estimates include product polish that the
+older infrastructure-heavy plan failed to own explicitly.
 
 The current priorities are:
 
 1. execute the ratified public 1.0 contract: one `Air Jam` product, a complete
    agent-operable development harness, and no separate mandatory hosted editor
-2. audit and canonicalize the codebase before public API stability is promised
-3. prove the complete lifecycle through an external agent from a clean
-   environment
-4. harden production capacity, recovery, security, sensory feedback, alerting,
-   and agent diagnosis before inviting launch traffic
-5. finish package, documentation, demo, article, and distribution work against
+2. finish the launch-critical host-authority boundary without changing the
+   ordinary room-code experience
+3. explicitly polish homepage, Arcade, mobile joining, reconnect, representative
+   games, and public failure states
+4. prove Claude Desktop interoperability and run one final reusable external-
+   agent lifecycle
+5. close only the practical spend brake, emergency pause, honest operating
+   envelope, and residual security risk
+6. finish package, documentation, demo, article, and distribution work against
    one exact release candidate
-6. launch with a free creation harness and useful hobby cloud inside an explicit
+7. launch with a free creation harness and useful hobby cloud inside an explicit
    cost envelope, rather than tying sustainability to signup count
-7. keep development fast through the canonical
+8. keep development fast through the canonical
    [check layers](./working-agreements.md#development-check-layers), then use the
    [review and merge rules](./working-agreements.md#review-stacks-and-integration)
    and
@@ -579,41 +589,38 @@ The canonical architecture and delivery order now lives in
 [the remaining-1.0 section of the execution plan](./plans/v1-release-execution-plan.md#remaining-10-architecture).
 In short:
 
-1. keep the now-complete canonical production migration lifecycle and schema
-   compatibility boundary stable; `G3-06` is merged, applied, and independently
-   verified against the exact Railway production deployment
-2. exercise the now-live realtime admission, operational worker, and storage
-   retention lifecycle under measured load, overload, dependency failure,
-   recovery, cost, and rollback conditions; migrate the four Railway
-   application services and PostgreSQL to one
-   reviewed `.railway/railway.ts` project graph before treating deployment
-   configuration as release-ready
-3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
-   Codex plus Claude Desktop golden-path proofs
-4. keep the completed recovery contract stable and finish supply-chain trust as
-   an independent lane
-5. run overload, recovery, and security closure drills through the existing
-   focused agent-operable controls
-6. finish docs/demo/story against shipped evidence, then cut and rehearse one
-   immutable 1.0 candidate
-7. agents continue to claim, complete, or block work only through the canonical
+1. finish review and coordinated delivery of the existing host-authority branch
+2. complete the new `G6-07` creator/player experience pass before more
+   infrastructure expansion
+3. prove Claude Desktop discovery/session bootstrap, then run one final golden
+   path whose retained evidence also becomes the launch demo source
+4. close the practical spend brake, emergency pause, bounded evidence
+   protection, and one honest load/dependency-recovery drill
+5. reconcile already-implemented supply-chain proof and present the residual
+   security checkpoint
+6. finish docs/demo/story against the polished shipped behavior, then cut and
+   rehearse one immutable 1.0 candidate
+7. reuse completed recovery, migration, alerting, install-matrix, and Codex
+   proofs rather than rebuilding them
+8. agents continue to claim, complete, or block work only through the canonical
    readiness manifest
 
 ## Current Caveats
 
 1. the repo has enough implemented infrastructure that the main risk is now
    committing to stale assumptions or freezing accidental complexity
-2. the production baseline, target capacity envelope, and recovery path are now
-   measured and explicit, but deliberate overload and continuous alert/issue
-   proof have not yet been demonstrated
+2. the production baseline and recovery path are measured; launch still
+   requires `100` concurrent rooms and `400` controllers sustained for `30`
+   minutes, a `5`-minute two-times admission attempt, safe overload behavior,
+   and one dependency-recovery proof
 3. product telemetry anonymous-session and actor-class counts are approximate
    discovery measures, not durable people or identity proof
 4. self-healing should emerge from smart agents running against strong sensors,
    shared evidence, and focused tools; a generic runbook or code-changing
    automation engine is post-1.0 and must be justified by real incidents
 5. monetization mechanics are intentionally deferred until activation or
-   requested value is real, but cost metering, quotas, queues, spend alerts,
-   degradation, and kill switches are launch requirements
+   requested value is real; existing metering, bounded queues, admission, and
+   alerts need only one practical spend brake and emergency stop path for 1.0
 
 ## Canonical Read Order
 

@@ -3,16 +3,16 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-09T04:59:10.518Z",
+  "updatedAt": "2026-09-09T10:25:45.427Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
-    "agentHoursMin": 290,
-    "agentHoursMax": 535,
-    "targetCalendarWeeksMin": 5,
-    "targetCalendarWeeksMax": 7,
-    "maintainerHoursMin": 28,
-    "maintainerHoursMax": 56
+    "agentHoursMin": 203,
+    "agentHoursMax": 382,
+    "targetCalendarWeeksMin": 1,
+    "targetCalendarWeeksMax": 2,
+    "maintainerHoursMin": 4,
+    "maintainerHoursMax": 8
   },
   "gates": [
     {
@@ -445,11 +445,11 @@
         "G2-03"
       ],
       "estimate": {
-        "agentHoursMin": 3,
-        "agentHoursMax": 6
+        "agentHoursMin": 2,
+        "agentHoursMax": 4
       },
       "evidenceRequirements": [
-        "second-client transcript without private maintainer knowledge"
+        "Claude Desktop independently installs or connects through the supported public path, discovers Air Jam, opens a semantic session, reads state, invokes an action, and closes the session without private maintainer knowledge"
       ]
     },
     {
@@ -457,7 +457,7 @@
       "gate": "G2",
       "lane": "golden-path",
       "priority": 50,
-      "title": "Resolve discovered blockers and replay the golden path to closure",
+      "title": "Run one final golden path and retain the launch-demo evidence",
       "authority": "autonomous",
       "status": "pending",
       "dependsOn": [
@@ -465,11 +465,11 @@
         "G2-04"
       ],
       "estimate": {
-        "agentHoursMin": 9,
-        "agentHoursMax": 17
+        "agentHoursMin": 4,
+        "agentHoursMax": 7
       },
       "evidenceRequirements": [
-        "final reproducible run and classified residual friction"
+        "one final reproducible full-lifecycle run, reusable demo artifacts, and classified residual friction"
       ]
     },
     {
@@ -505,7 +505,7 @@
       "gate": "G3",
       "lane": "reliability",
       "priority": 20,
-      "title": "Implement quotas, bounded queues, cleanup, spend guards, and kill switches",
+      "title": "Close the practical spend brake, emergency pause, and overload controls",
       "authority": "autonomous",
       "status": "in_progress",
       "dependsOn": [
@@ -513,14 +513,14 @@
         "G3-01"
       ],
       "estimate": {
-        "agentHoursMin": 18,
-        "agentHoursMax": 36
+        "agentHoursMin": 3,
+        "agentHoursMax": 6
       },
       "evidenceRequirements": [
-        "limit and overload tests plus agent-operable control commands"
+        "focused limit and overload tests plus one agent-operable spend brake and emergency stop-accepting-new-work command"
       ],
       "owner": "/root/g3-controls",
-      "note": "Realtime global admission, production budget authority, deploy-safe cleanup scheduling, and the operational worker are reviewed, merged, and live on exact revision e6f03c1f. Remaining scope is measured load/overload/dependency recovery plus spend-guard and kill-switch closure; G3-08 retains the worker observation and rollback bar.",
+      "note": "Realtime admission, durable queues, cleanup, production budget authority, and the operational worker are already reviewed and live. The lean 1.0 remainder is only a practical spend brake and emergency pause; measured load and dependency recovery belong to G3-04, while candidate observation belongs to G3-08 and G7-03.",
       "updatedAt": "2026-09-08T12:38:51.140Z",
       "evidence": [
         "document:docs/audits/v1-reliability/production-operational-job-worker-proof.md",
@@ -577,20 +577,20 @@
       "gate": "G3",
       "lane": "reliability",
       "priority": 30,
-      "title": "Run capacity, burst, soak, overload, and dependency-degradation drills",
+      "title": "Run one honest baseline, burst, overload, and dependency-recovery drill",
       "authority": "autonomous",
       "status": "pending",
       "dependsOn": [
         "G3-02",
-        "G3-03",
-        "G3-08"
+        "G3-03"
       ],
       "estimate": {
-        "agentHoursMin": 15,
-        "agentHoursMax": 30
+        "agentHoursMin": 4,
+        "agentHoursMax": 8
       },
       "evidenceRequirements": [
-        "three-times-launch-envelope evidence and safe-failure results"
+        "100 concurrent rooms and 400 controllers sustained for at least 30 minutes, followed by a 5-minute attempt at twice that admission load",
+        "measured CPU, memory, database-connection, latency, failure, and cost evidence with safe rejection of excess new work, active-room continuity where technically safe, and one dependency recovery result"
       ]
     },
     {
@@ -598,15 +598,15 @@
       "gate": "G3",
       "lane": "reliability",
       "priority": 40,
-      "title": "Close reliability findings and publish the tested operating envelope",
+      "title": "Publish the measured operating envelope and residual reliability risk",
       "authority": "autonomous",
       "status": "pending",
       "dependsOn": [
         "G3-04"
       ],
       "estimate": {
-        "agentHoursMin": 7,
-        "agentHoursMax": 12
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
       },
       "evidenceRequirements": [
         "capacity envelope, recovery times, and residual risk record"
@@ -727,7 +727,7 @@
       "gate": "G5",
       "lane": "security",
       "priority": 20,
-      "title": "Close auth, ownership, secret, limit, abuse, and privileged-endpoint findings",
+      "title": "Close launch-critical auth, ownership, privacy, abuse, and privileged-endpoint findings",
       "authority": "autonomous",
       "status": "in_progress",
       "dependsOn": [
@@ -735,17 +735,17 @@
         "G5-01"
       ],
       "estimate": {
-        "agentHoursMin": 16,
-        "agentHoursMax": 30
+        "agentHoursMin": 4,
+        "agentHoursMax": 8
       },
       "evidenceRequirements": [
-        "negative-path security tests and operator controls",
-        "private agent-operable abuse-report triage through shared application services with human and machine adapters remaining thin",
-        "repo CLI proof that the exact merged production deployment reached terminal SUCCESS and its canonical platform origin plus public liveness/readiness identity match the deployed revision",
-        "branch-protection proof that required CI applies to administrators plus one GitHub-native Opus review on the green merge candidate and measured fast local check tiers"
+        "negative-path tests for host authority and every launch-critical privileged endpoint",
+        "minimal private agent-operable abuse-report inspection and disposition through shared application services, without a generalized moderation workflow",
+        "honest privacy and deletion behavior for the data Air Jam actually stores",
+        "reviewed exact-production proof for the host-authority cutover with ordinary room creation, joining, and reconnection unchanged"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Dedicated games.air-jam.app production cutover is live and provider-attested on merged revision ebf63d8; G5-02 remains open for rollback proof, observation, legacy-host disposition, and remaining security findings.",
+      "note": "The dedicated games.air-jam.app origin and most surrounding controls are already live. Lean 1.0 closes the real host-authority boundary, privileged bypasses, minimum private abuse triage, and truthful data lifecycle; richer roles, moderation workflows, and speculative abuse systems are post-1.0.",
       "updatedAt": "2026-09-01T14:21:48.429Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
@@ -765,21 +765,21 @@
       "gate": "G5",
       "lane": "security",
       "priority": 30,
-      "title": "Prove supply-chain provenance, privacy claims, and emergency release procedure",
+      "title": "Close implemented supply-chain trust and hand registry proof to rehearsal",
       "authority": "autonomous",
       "status": "in_progress",
       "dependsOn": [
         "G5-01"
       ],
       "estimate": {
-        "agentHoursMin": 10,
-        "agentHoursMax": 18
+        "agentHoursMin": 1,
+        "agentHoursMax": 3
       },
       "evidenceRequirements": [
-        "provenance, dependency, privacy, and emergency-release evidence"
+        "implemented provenance, dependency, privacy, and emergency-release proof with final npm registry evidence explicitly owned by G7-02 and G7-03"
       ],
       "owner": "/root",
-      "note": "Auditing and closing the canonical supply-chain provenance, privacy, dependency, and emergency-release lifecycle.",
+      "note": "The build-once candidate, pinned workflow, packaged AI guidance, privacy disclosure, retention capability, and emergency path are implemented. This item only reconciles that proof; the real registry publication belongs to the exact-candidate rehearsal rather than a duplicate preflight.",
       "updatedAt": "2026-09-04T09:22:53.828Z"
     },
     {
@@ -795,8 +795,8 @@
         "G5-03"
       ],
       "estimate": {
-        "agentHoursMin": 2,
-        "agentHoursMax": 5
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
       },
       "evidenceRequirements": [
         "maintainer risk-acceptance or returned-finding record"
@@ -843,8 +843,8 @@
         "G2-05"
       ],
       "estimate": {
-        "agentHoursMin": 7,
-        "agentHoursMax": 12
+        "agentHoursMin": 3,
+        "agentHoursMax": 6
       },
       "evidenceRequirements": [
         "public docs crawl and agent-discovery proof"
@@ -855,18 +855,18 @@
       "gate": "G6",
       "lane": "public-release",
       "priority": 20,
-      "title": "Produce the reproducible external-agent demonstration pipeline",
+      "title": "Curate the final golden-path evidence into the launch demonstration",
       "authority": "autonomous",
       "status": "pending",
       "dependsOn": [
         "G2-05"
       ],
       "estimate": {
-        "agentHoursMin": 6,
-        "agentHoursMax": 10
+        "agentHoursMin": 1,
+        "agentHoursMax": 3
       },
       "evidenceRequirements": [
-        "repeatable unedited demo inputs, outputs, and verification"
+        "launch-ready demonstration assembled from G2-05 inputs, outputs, visuals, and verification without a duplicate execution pipeline"
       ]
     },
     {
@@ -879,11 +879,12 @@
       "status": "pending",
       "dependsOn": [
         "G6-02",
-        "G6-03"
+        "G6-03",
+        "G6-07"
       ],
       "estimate": {
-        "agentHoursMin": 8,
-        "agentHoursMax": 14
+        "agentHoursMin": 4,
+        "agentHoursMax": 8
       },
       "evidenceRequirements": [
         "claim-to-shipped-behavior audit for every launch asset"
@@ -901,8 +902,8 @@
         "G6-04"
       ],
       "estimate": {
-        "agentHoursMin": 2,
-        "agentHoursMax": 4
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
       },
       "evidenceRequirements": [
         "maintainer product and narrative review record"
@@ -920,8 +921,8 @@
         "G6-05"
       ],
       "estimate": {
-        "agentHoursMin": 5,
-        "agentHoursMax": 8
+        "agentHoursMin": 1,
+        "agentHoursMax": 3
       },
       "evidenceRequirements": [
         "frozen article, assets, commands, versions, and links"
@@ -939,11 +940,12 @@
         "G3-05",
         "G4-03",
         "G5-04",
-        "G6-06"
+        "G6-06",
+        "G6-07"
       ],
       "estimate": {
-        "agentHoursMin": 4,
-        "agentHoursMax": 7
+        "agentHoursMin": 3,
+        "agentHoursMax": 5
       },
       "evidenceRequirements": [
         "candidate commit and complete quality-gate bundle"
@@ -961,8 +963,8 @@
         "G7-01"
       ],
       "estimate": {
-        "agentHoursMin": 3,
-        "agentHoursMax": 5
+        "agentHoursMin": 2,
+        "agentHoursMax": 3
       },
       "evidenceRequirements": [
         "terminal package publish and deployment success"
@@ -973,18 +975,18 @@
       "gate": "G7",
       "lane": "launch",
       "priority": 30,
-      "title": "Run the complete production rehearsal, live smoke, rollback, and degradation proof",
+      "title": "Run one exact-candidate production rehearsal and live recovery smoke",
       "authority": "autonomous",
       "status": "pending",
       "dependsOn": [
         "G7-02"
       ],
       "estimate": {
-        "agentHoursMin": 5,
-        "agentHoursMax": 9
+        "agentHoursMin": 3,
+        "agentHoursMax": 6
       },
       "evidenceRequirements": [
-        "production rehearsal bundle for the exact candidate"
+        "exact-candidate live smoke, worker observation, alert and emergency-pause proof, and rollback readiness without repeating already retained recovery drills"
       ]
     },
     {
@@ -996,7 +998,8 @@
       "authority": "human_checkpoint",
       "status": "pending",
       "dependsOn": [
-        "G7-03"
+        "G7-03",
+        "G3-08"
       ],
       "estimate": {
         "agentHoursMin": 1,
@@ -1018,8 +1021,8 @@
         "G7-04"
       ],
       "estimate": {
-        "agentHoursMin": 3,
-        "agentHoursMax": 6
+        "agentHoursMin": 2,
+        "agentHoursMax": 4
       },
       "evidenceRequirements": [
         "terminal public release, production, article, and distribution evidence"
@@ -1037,8 +1040,8 @@
         "G7-05"
       ],
       "estimate": {
-        "agentHoursMin": 4,
-        "agentHoursMax": 6
+        "agentHoursMin": 2,
+        "agentHoursMax": 4
       },
       "evidenceRequirements": [
         "stabilization report, ledger closeout, and archived execution plan"
@@ -1141,18 +1144,18 @@
       "gate": "G3",
       "lane": "reliability",
       "priority": 22,
-      "title": "Implement alert-safe operational evidence retention and cleanup",
+      "title": "Protect active incident evidence under a bounded retention policy",
       "authority": "autonomous",
       "dependsOn": [
         "G4-07",
         "G5-03"
       ],
       "estimate": {
-        "agentHoursMin": 6,
-        "agentHoursMax": 12
+        "agentHoursMin": 1,
+        "agentHoursMax": 3
       },
       "evidenceRequirements": [
-        "ratified retention policy plus cleanup tests that preserve evidence linked by an open alert, issue, or unresolved action"
+        "one bounded retention policy and focused cleanup tests proving evidence linked by an open alert, issue, or unresolved action is preserved without a generalized retention engine"
       ],
       "status": "pending",
       "updatedAt": "2026-09-03T23:06:16.461Z"
@@ -1162,23 +1165,75 @@
       "gate": "G3",
       "lane": "reliability",
       "priority": 23,
-      "title": "Activate and observe the production operational worker safely",
+      "title": "Close operational-worker observation inside the candidate rehearsal",
       "authority": "autonomous",
       "dependsOn": [
         "G3-02",
         "G3-06",
         "G3-07",
-        "G4-07"
+        "G4-07",
+        "G7-03"
       ],
       "estimate": {
-        "agentHoursMin": 5,
-        "agentHoursMax": 10
+        "agentHoursMin": 1,
+        "agentHoursMax": 2
       },
       "evidenceRequirements": [
-        "least-privilege provider attestation, migration compatibility, paused-lane startup, manual cycle, evaluation-window, cost, and rollback evidence"
+        "existing least-privilege and migration proof plus candidate-rehearsal evidence for one healthy evaluation window, actual cost, drain, and rollback readiness"
       ],
       "status": "pending",
       "updatedAt": "2026-09-03T23:06:17.154Z"
+    },
+    {
+      "id": "G0-05",
+      "gate": "G0",
+      "lane": "release-direction",
+      "priority": 50,
+      "title": "Rebaseline remaining 1.0 work around launch-critical proof and product polish",
+      "authority": "autonomous",
+      "dependsOn": [],
+      "estimate": {
+        "agentHoursMin": 1,
+        "agentHoursMax": 3
+      },
+      "evidenceRequirements": [
+        "ratified lean release bar reflected in roadmap, execution plan, and readiness manifest"
+      ],
+      "status": "complete",
+      "updatedAt": "2026-09-09T10:25:45.427Z",
+      "owner": "/root",
+      "note": "Lean release bar now includes a concrete 100-room, 400-controller, 30-minute floor and 5-minute two-times admission attempt; launch monitoring remains final launch setup.",
+      "evidence": [
+        "decision:maintainer-ratified-2026-09-09-lean-release-bar",
+        "document:docs/plans/v1-release-roadmap-plan.md",
+        "document:docs/plans/v1-release-execution-plan.md",
+        "document:docs/current-state.md",
+        "command:pnpm-readiness-validate",
+        "command:pnpm-check-changed",
+        "decision:maintainer-ratified-100-room-400-controller-launch-floor"
+      ],
+      "completedAt": "2026-09-09T10:25:45.427Z"
+    },
+    {
+      "id": "G6-07",
+      "gate": "G6",
+      "lane": "product-polish",
+      "priority": 15,
+      "title": "Polish the launch-critical creator and player experience",
+      "authority": "autonomous",
+      "dependsOn": [
+        "G0-05"
+      ],
+      "estimate": {
+        "agentHoursMin": 6,
+        "agentHoursMax": 12
+      },
+      "evidenceRequirements": [
+        "desktop and mobile proof for homepage, Arcade, room creation, phone joining, reconnection, and representative games",
+        "release-blocking visual, loading, empty, and error-state defects resolved"
+      ],
+      "status": "pending",
+      "updatedAt": "2026-09-09T10:00:12.332Z"
     }
   ]
 }
