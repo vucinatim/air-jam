@@ -205,6 +205,13 @@ These are now baseline truths, not open architecture debates:
         independent, and bounded external-agent plus cleanup process lifetimes
     14. `G2-04` still owns independent Claude Desktop proof, and `G2-05` owns
         final replay plus residual-friction closure across both supported clients
+    15. the final PR review's four delivery findings are closed: deployed staging
+        credentials can rotate after expiry, `G2-03` names the actual deployed
+        commit, semantic sessions no longer gain an implicit browser controller,
+        and Unicode release filenames use an ASCII-safe signed metadata contract
+    16. production R2 browser-upload CORS now targets `https://airjam.io`, and a
+        real presigned preflight returns the expected origin, methods, and exact
+        signed upload headers
 15. Gate 4 now has one agent-operable operational authority contract:
     1. product telemetry, authoritative lifecycle/runtime facts, and durable
        incidents remain separate evidence planes

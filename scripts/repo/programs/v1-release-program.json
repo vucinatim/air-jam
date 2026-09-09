@@ -423,9 +423,9 @@
       "updatedAt": "2026-09-09T04:59:10.518Z",
       "evidence": [
         "document:docs/audits/v1-golden-path/primary-agent-run-audit.md",
-        "artifact:git:cdf023760726e6b8a5b7003a8f628093d7983528",
+        "artifact:git:a0104ca0a3dec2ff877d03feac0b337373f0f9b6",
         "url:https://games-staging.air-jam.app",
-        "command:pnpm --silent run repo -- golden-path staging deploy --railway-project 0b0761f9-9bb1-4d4f-8191-50d43cccdee7 --railway-environment 814fa07a-ed20-48c0-ba1a-b8a0524c516e --commit cdf023760726e6b8a5b7003a8f628093d7983528 --json",
+        "command:pnpm --silent run repo -- golden-path staging deploy --railway-project 0b0761f9-9bb1-4d4f-8191-50d43cccdee7 --railway-environment 814fa07a-ed20-48c0-ba1a-b8a0524c516e --commit a0104ca0a3dec2ff877d03feac0b337373f0f9b6 --json",
         "document:docs/audits/v1-golden-path/evidence/g2-03-20260909-a22/README.md",
         "artifact:git:8c25542136aae706979309b9701b71e0aa041f13",
         "command:pnpm --silent run repo -- golden-path run-primary --railway-project 0b0761f9-9bb1-4d4f-8191-50d43cccdee7 --railway-environment 814fa07a-ed20-48c0-ba1a-b8a0524c516e --run-id g2-03-20260909-a22 --json"

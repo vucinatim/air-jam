@@ -4,6 +4,7 @@ import {
   assertR2DeleteObjectsSucceeded,
   buildReleaseAttachmentContentDisposition,
   createR2ReleaseStorage,
+  normalizeR2ReleaseMetadata,
   normalizeReleaseDownloadFilename,
 } from "./release-storage-r2";
 
@@ -35,12 +36,29 @@ describe("R2 release storage uploads", () => {
     expect(target.headers).toMatchObject({
       "content-type": "application/zip",
       "if-none-match": "*",
-      "x-amz-meta-original-filename": "signal-relay.zip",
+      "x-amz-meta-original-filename": "utf8.c2lnbmFsLXJlbGF5LnppcA",
     });
     expect(url.searchParams.has("x-amz-meta-original-filename")).toBe(false);
     expect(url.searchParams.get("X-Amz-SignedHeaders")).toContain(
       "x-amz-meta-original-filename",
     );
+  });
+
+  it("decodes filename transport metadata before exposing storage facts", () => {
+    expect(
+      normalizeR2ReleaseMetadata({
+        "ORIGINAL-FILENAME": "utf8.5ri45oiPLnppcA",
+        checksum: "stable",
+      }),
+    ).toEqual({
+      "original-filename": "游戏.zip",
+      checksum: "stable",
+    });
+    expect(
+      normalizeR2ReleaseMetadata({
+        "original-filename": "not-canonical",
+      }),
+    ).toEqual({});
   });
 });
 

@@ -2,7 +2,9 @@ import {
   DEFAULT_CONTROLLER_VIEWPORT,
   DEFAULT_HOST_VIEWPORT,
   launchHarnessBrowser,
-  openVisualHarnessSession,
+  openVisualHarnessControllerSession,
+  openVisualHarnessHostSession,
+  type OpenVisualHarnessControllerSessionResult,
   type VisualHarnessMode,
 } from "@air-jam/harness/visual";
 import {
@@ -55,7 +57,7 @@ const resolvedHostUrl = (() => {
 })();
 
 const browser = await launchHarnessBrowser();
-const session = await openVisualHarnessSession({
+const session = await openVisualHarnessHostSession({
   browser,
   mode: requestedMode as VisualHarnessMode,
   urls: {
@@ -67,9 +69,14 @@ const session = await openVisualHarnessSession({
     browserBuildUrl,
   },
 });
+let controllerSession: OpenVisualHarnessControllerSessionResult | null = null;
 
 const shutdown = async (exitCode = 0) => {
-  await Promise.allSettled([session.close(), browser.close()]);
+  await Promise.allSettled([
+    controllerSession?.close(),
+    session.close(),
+    browser.close(),
+  ]);
   process.exit(exitCode);
 };
 
@@ -90,6 +97,18 @@ process.on("message", (message: unknown) => {
         projectDir: process.cwd(),
         relativeDir: message.relativeDir,
       });
+      controllerSession ??= await openVisualHarnessControllerSession({
+        browser,
+        urls: {
+          appOrigin,
+          hostUrl: resolvedHostUrl,
+          controllerBaseUrl,
+          publicHost,
+          localBuildUrl,
+          browserBuildUrl,
+        },
+        host: session.host,
+      });
       await mkdir(captureDir, { recursive: true });
       const captures = [
         {
@@ -102,13 +121,13 @@ process.on("message", (message: unknown) => {
           surface: "controller" as const,
           fileName: "controller-phone.png",
           viewport: DEFAULT_CONTROLLER_VIEWPORT,
-          page: session.controller.page,
+          page: controllerSession.controller.page,
         },
       ];
       for (const capture of captures) {
         await capture.page.waitForTimeout(300);
         const filePath = path.join(captureDir, capture.fileName);
-        await capture.page.screenshot({ path: filePath, fullPage: true });
+        await capture.page.screenshot({ path: filePath });
         response.screenshots.push({
           surface: capture.surface,
           width: capture.viewport.width,

@@ -118,6 +118,7 @@ export const verifyCloudflareR2TemporaryCredentials = ({
   secretAccessKey,
   sessionToken,
   now = Date.now(),
+  allowExpired = false,
 }) => {
   const endpointIdentity = resolveEndpointIdentity(endpoint);
   const normalizedAccountId = requiredText(accountId, "R2 account id");
@@ -211,7 +212,7 @@ export const verifyCloudflareR2TemporaryCredentials = ({
   if (claims.iat > nowSeconds + CLOCK_SKEW_SECONDS) {
     throw new Error("R2 temporary credential is not active yet.");
   }
-  if (claims.exp <= nowSeconds) {
+  if (claims.exp <= nowSeconds && !allowExpired) {
     throw new Error("R2 temporary credential has expired.");
   }
 

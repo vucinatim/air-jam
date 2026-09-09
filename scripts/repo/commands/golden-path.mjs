@@ -13,6 +13,7 @@ import {
   deployGoldenPathStaging,
   emptyGoldenPathStagingBucket,
   provisionGoldenPathStaging,
+  rotateGoldenPathStagingReleaseStorageCredential,
 } from "../lib/golden-path-staging-lifecycle.mjs";
 import { resolveGoldenPathRailwayStagingTarget } from "../lib/golden-path-staging-target.mjs";
 import { repoRoot } from "../lib/paths.mjs";
@@ -136,7 +137,7 @@ export const registerGoldenPathCommands = (program) => {
   const stagingCommand = goldenPathCommand
     .command("staging")
     .description(
-      "Provision, inspect, deploy, and clean the isolated golden-path environment",
+      "Provision, inspect, rotate, deploy, and clean the isolated golden-path environment",
     );
 
   stagingCommand
@@ -195,6 +196,37 @@ export const registerGoldenPathCommands = (program) => {
           `Provisioned ${result.environmentName} with ${result.r2.bucket} until ${result.r2.expiresAt}.`,
         );
         console.log("No deployments were started.");
+      }
+    });
+
+  stagingCommand
+    .command("rotate-storage-credential")
+    .description(
+      "Rotate an active or expired staging R2 credential and restart its consumers",
+    )
+    .requiredOption("--railway-project <id>", "Railway project id")
+    .requiredOption("--railway-environment <id>", "Staging environment id")
+    .option("--ttl-hours <hours>", "Temporary R2 credential lifetime", "24")
+    .option("--json", "Print stable non-secret JSON")
+    .action(async (options) => {
+      const ttlHours = Number.parseInt(options.ttlHours, 10);
+      if (!Number.isSafeInteger(ttlHours) || ttlHours <= 0) {
+        throw new Error("--ttl-hours must be a positive integer.");
+      }
+      const result = await rotateGoldenPathStagingReleaseStorageCredential({
+        projectId: options.railwayProject,
+        environmentId: options.railwayEnvironment,
+        ttlSeconds: ttlHours * 60 * 60,
+        onProgress: (stage) => {
+          process.stderr.write(`[golden-path staging] ${stage}\n`);
+        },
+      });
+      if (options.json) printJson(result);
+      else {
+        console.log(
+          `Rotated ${result.environmentName} release storage through ${result.r2.expiresAt}.`,
+        );
+        console.log("Platform and operational worker restarted successfully.");
       }
     });
 

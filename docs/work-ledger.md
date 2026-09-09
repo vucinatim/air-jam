@@ -18,6 +18,23 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-09 - Final Golden-Path Review Findings Were Closed
+
+- ran the single final Opus review on green PR `#111`; it found four actionable
+  defects rather than issuing a superficial approval
+- added and live-proved recovery for expired isolated-staging R2 credentials,
+  including production-access denial probes and exact-commit consumer restarts
+- corrected `G2-03` to the Railway deployment's actual `a0104ca0...` commit
+- restored semantic session membership so visual browser controllers are lazy,
+  explicit side effects rather than implicit participants in every agent session
+- preserved international release filenames through canonical UTF-8 metadata
+  encoding instead of restricting the user-visible upload contract to ASCII
+- corrected production R2 CORS from the retired `air-jam.app` origin to
+  `https://airjam.io`, retained the policy in the repo, and passed a real signed
+  browser-style preflight with the exact upload headers
+- passed the full batch gate after the focused recovery, harness, devtools,
+  upload, type, lint, and contract checks
+
 ## 2026-09-09 - The Clean-Room Codex Lifecycle Passed End To End
 
 - completed the first controller-certified external-agent lifecycle from an

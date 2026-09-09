@@ -209,6 +209,76 @@ const probeTemporaryR2Isolation = async ({
   };
 };
 
+const mintProvenStagingReleaseStorageCredential = async ({
+  client,
+  projectId,
+  primaryEnvironment,
+  stagingBucket,
+  ttlSeconds,
+  now,
+  probeR2Isolation,
+}) => {
+  const primaryPlatform = serviceByName(primaryEnvironment, "air-jam-platform");
+  const primaryVariables = await client.getVariables({
+    projectId,
+    environmentId: primaryEnvironment.id,
+    serviceId: primaryPlatform.serviceId,
+  });
+  const accountId = requiredText(
+    primaryVariables.AIRJAM_RELEASES_R2_ACCOUNT_ID,
+    "Production R2 account id",
+  );
+  const parentAccessKeyId = requiredText(
+    primaryVariables.AIRJAM_RELEASES_R2_ACCESS_KEY_ID,
+    "Production R2 access key id",
+  );
+  const parentSecretAccessKey = requiredText(
+    primaryVariables.AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY,
+    "Production R2 secret access key",
+  );
+  const productionBucket = requiredText(
+    primaryVariables.AIRJAM_RELEASES_R2_BUCKET,
+    "Production R2 bucket",
+  );
+  const endpoint =
+    primaryVariables.AIRJAM_RELEASES_R2_ENDPOINT?.trim() ||
+    `https://${accountId}.r2.cloudflarestorage.com`;
+  const temporaryCredential = createCloudflareR2TemporaryCredentials({
+    endpoint,
+    accountId,
+    parentAccessKeyId,
+    parentSecretAccessKey,
+    bucket: requiredText(stagingBucket, "Staging R2 bucket"),
+    ttlSeconds,
+    now,
+  });
+  const r2Probe = await probeR2Isolation({
+    endpoint,
+    stagingBucket: temporaryCredential.bucket,
+    productionBucket,
+    parentCredentials: {
+      accessKeyId: parentAccessKeyId,
+      secretAccessKey: parentSecretAccessKey,
+    },
+    temporaryCredentials: {
+      accessKeyId: temporaryCredential.accessKeyId,
+      secretAccessKey: temporaryCredential.secretAccessKey,
+      sessionToken: temporaryCredential.sessionToken,
+    },
+  });
+
+  return {
+    accountId,
+    temporaryCredential,
+    r2Probe,
+    credentialVariables: {
+      AIRJAM_RELEASES_R2_ACCESS_KEY_ID: temporaryCredential.accessKeyId,
+      AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: temporaryCredential.secretAccessKey,
+      AIRJAM_RELEASES_R2_SESSION_TOKEN: temporaryCredential.sessionToken,
+    },
+  };
+};
+
 export const provisionGoldenPathStaging = async ({
   projectId,
   environmentId,
@@ -258,54 +328,16 @@ export const provisionGoldenPathStaging = async ({
     );
   }
 
-  const primaryPlatform = serviceByName(primaryEnvironment, "air-jam-platform");
-  const primaryVariables = await client.getVariables({
-    projectId,
-    environmentId: primaryEnvironment.id,
-    serviceId: primaryPlatform.serviceId,
-  });
-  const accountId = requiredText(
-    primaryVariables.AIRJAM_RELEASES_R2_ACCOUNT_ID,
-    "Production R2 account id",
-  );
-  const parentAccessKeyId = requiredText(
-    primaryVariables.AIRJAM_RELEASES_R2_ACCESS_KEY_ID,
-    "Production R2 access key id",
-  );
-  const parentSecretAccessKey = requiredText(
-    primaryVariables.AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY,
-    "Production R2 secret access key",
-  );
-  const productionBucket = requiredText(
-    primaryVariables.AIRJAM_RELEASES_R2_BUCKET,
-    "Production R2 bucket",
-  );
-  const endpoint =
-    primaryVariables.AIRJAM_RELEASES_R2_ENDPOINT?.trim() ||
-    `https://${accountId}.r2.cloudflarestorage.com`;
-  const temporaryCredential = createCloudflareR2TemporaryCredentials({
-    endpoint,
-    accountId,
-    parentAccessKeyId,
-    parentSecretAccessKey,
-    bucket: r2Bucket,
-    ttlSeconds,
-    now,
-  });
-  const r2Probe = await probeR2Isolation({
-    endpoint,
-    stagingBucket: temporaryCredential.bucket,
-    productionBucket,
-    parentCredentials: {
-      accessKeyId: parentAccessKeyId,
-      secretAccessKey: parentSecretAccessKey,
-    },
-    temporaryCredentials: {
-      accessKeyId: temporaryCredential.accessKeyId,
-      secretAccessKey: temporaryCredential.secretAccessKey,
-      sessionToken: temporaryCredential.sessionToken,
-    },
-  });
+  const { accountId, temporaryCredential, r2Probe, credentialVariables } =
+    await mintProvenStagingReleaseStorageCredential({
+      client,
+      projectId,
+      primaryEnvironment,
+      stagingBucket: r2Bucket,
+      ttlSeconds,
+      now,
+      probeR2Isolation,
+    });
 
   const appId = `air-jam-staging-${randomUUID()}`;
   const masterKey = randomSecret();
@@ -318,9 +350,7 @@ export const provisionGoldenPathStaging = async ({
   const sharedReleaseVariables = {
     AIRJAM_RELEASES_R2_BUCKET: temporaryCredential.bucket,
     AIRJAM_RELEASES_R2_ACCOUNT_ID: accountId,
-    AIRJAM_RELEASES_R2_ACCESS_KEY_ID: temporaryCredential.accessKeyId,
-    AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: temporaryCredential.secretAccessKey,
-    AIRJAM_RELEASES_R2_SESSION_TOKEN: temporaryCredential.sessionToken,
+    ...credentialVariables,
     AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: internalAccessToken,
     AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: browserAccessToken,
     AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: browserWebSocketUrl,
@@ -437,6 +467,130 @@ const assertDeploymentSucceeded = (result, serviceName, operation) => {
     deploymentId: result.deployment.id,
     status: result.deployment.status,
     operation,
+  };
+};
+
+const deployedCommitSha = (service) => {
+  const commitSha = service.latestDeployment?.meta?.commitHash;
+  if (typeof commitSha !== "string" || !/^[0-9a-f]{40}$/u.test(commitSha)) {
+    throw new Error(
+      `Railway staging ${service.serviceName} must have a deployed Git commit before rotating release-storage credentials.`,
+    );
+  }
+  return commitSha;
+};
+
+export const rotateGoldenPathStagingReleaseStorageCredential = async ({
+  projectId,
+  environmentId,
+  ttlSeconds = 24 * 60 * 60,
+  client = createRailwayApiClient({ requestTimeoutMs: 30_000 }),
+  now = Date.now(),
+  probeR2Isolation = probeTemporaryR2Isolation,
+  onProgress = () => {},
+}) => {
+  const {
+    environment,
+    primaryEnvironment,
+    primaryEnvironmentId,
+    servicePairs,
+  } = await resolveGoldenPathStagingEnvironmentPair({
+    projectId,
+    environmentId,
+    client,
+  });
+  const serviceVariablePairs = await collectGoldenPathServiceVariablePairs({
+    client,
+    projectId,
+    environmentId,
+    primaryEnvironmentId,
+    servicePairs,
+  });
+  assertGoldenPathStagingEnvironmentIsolation({
+    environment,
+    primaryEnvironment,
+    serviceVariablePairs,
+    allowExpiredReleaseStorageCredential: true,
+    now,
+  });
+
+  const platform = serviceByName(environment, "air-jam-platform");
+  const worker = serviceByName(environment, "air-jam-platform-worker");
+  const stagingVariables = await client.getVariables({
+    projectId,
+    environmentId,
+    serviceId: platform.serviceId,
+  });
+  const { temporaryCredential, r2Probe, credentialVariables } =
+    await mintProvenStagingReleaseStorageCredential({
+      client,
+      projectId,
+      primaryEnvironment,
+      stagingBucket: stagingVariables.AIRJAM_RELEASES_R2_BUCKET,
+      ttlSeconds,
+      now,
+      probeR2Isolation,
+    });
+  for (const service of [platform, worker]) {
+    await client.upsertVariableCollection({
+      projectId,
+      environmentId,
+      serviceId: service.serviceId,
+      skipDeploys: true,
+      variables: credentialVariables,
+    });
+  }
+
+  const refreshedEnvironment = await client.getEnvironment(environmentId);
+  const refreshedPairs = await collectGoldenPathServiceVariablePairs({
+    client,
+    projectId,
+    environmentId,
+    primaryEnvironmentId,
+    servicePairs,
+  });
+  const isolation = assertGoldenPathStagingEnvironmentIsolation({
+    environment: refreshedEnvironment,
+    primaryEnvironment,
+    serviceVariablePairs: refreshedPairs,
+    now,
+  });
+
+  const deployments = await Promise.all(
+    [platform, worker].map(async (service) => {
+      const commitSha = deployedCommitSha(service);
+      onProgress(`rotate:${service.serviceName}:trigger`);
+      const deploymentId = await client.triggerServiceDeployment({
+        environmentId,
+        serviceId: service.serviceId,
+        commitSha,
+      });
+      const result = await client.waitForDeployment({ deploymentId });
+      const evidence = assertDeploymentSucceeded(
+        result,
+        service.serviceName,
+        "credential-rotation",
+      );
+      onProgress(`rotate:${service.serviceName}:success`);
+      return { ...evidence, commitSha };
+    }),
+  );
+
+  return {
+    ok: true,
+    projectId,
+    environmentId,
+    environmentName: refreshedEnvironment.name,
+    r2: {
+      bucket: temporaryCredential.bucket,
+      scope: temporaryCredential.scope,
+      issuedAt: temporaryCredential.issuedAt,
+      expiresAt: temporaryCredential.expiresAt,
+      ttlSeconds: temporaryCredential.ttlSeconds,
+      probe: r2Probe,
+    },
+    deployments,
+    isolation,
   };
 };
 

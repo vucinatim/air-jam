@@ -191,11 +191,19 @@ export type OpenVisualHarnessSessionOptions = {
   mode: VisualHarnessMode;
 };
 
-type OpenVisualHarnessHostSessionResult = {
+export type OpenVisualHarnessHostSessionResult = {
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl"> & {
     controllerJoinUrl: null;
   };
   host: VisualHarnessPageSurface;
+  close: () => Promise<void>;
+};
+
+export type OpenVisualHarnessControllerSessionResult = {
+  urls: VisualHarnessUrls;
+  controller: VisualHarnessPageSurface & {
+    fullscreenPromptDismissed: boolean;
+  };
   close: () => Promise<void>;
 };
 
@@ -208,7 +216,7 @@ export type OpenVisualHarnessSessionResult = {
   close: () => Promise<void>;
 };
 
-const openVisualHarnessHostSession = async ({
+export const openVisualHarnessHostSession = async ({
   browser,
   urls,
   mode,
@@ -243,6 +251,53 @@ const openVisualHarnessHostSession = async ({
   }
 };
 
+export const openVisualHarnessControllerSession = async ({
+  browser,
+  urls,
+  host,
+}: Omit<OpenVisualHarnessSessionOptions, "mode"> & {
+  host: VisualHarnessPageSurface;
+}): Promise<OpenVisualHarnessControllerSessionResult> => {
+  const controllerContext = await browser.newContext({
+    viewport: DEFAULT_CONTROLLER_VIEWPORT,
+  });
+
+  try {
+    const controllerJoinUrl = await resolveControllerJoinUrl({
+      hostPage: host.page,
+      hostGame: host.game,
+      hostEmbedded: host.embedded,
+      controllerBaseUrl: urls.controllerBaseUrl,
+    });
+    const controllerPage = await controllerContext.newPage();
+    await controllerPage.goto(controllerJoinUrl, {
+      waitUntil: "domcontentloaded",
+    });
+    const fullscreenPromptDismissed =
+      await dismissHarnessControllerFullscreenPrompt(controllerPage);
+    const controllerGame: VisualQuerySurface = host.embedded
+      ? await waitForFrameToLoad({
+          page: controllerPage,
+          testId: "arcade-controller-game-frame",
+        })
+      : controllerPage;
+
+    return {
+      urls: { ...urls, controllerJoinUrl },
+      controller: {
+        page: controllerPage,
+        game: controllerGame,
+        embedded: host.embedded,
+        fullscreenPromptDismissed,
+      },
+      close: () => controllerContext.close(),
+    };
+  } catch (error) {
+    await controllerContext.close().catch(() => null);
+    throw error;
+  }
+};
+
 export const openVisualHarnessSession = async ({
   browser,
   urls,
@@ -253,49 +308,27 @@ export const openVisualHarnessSession = async ({
     urls,
     mode,
   });
-  const controllerContext = await browser.newContext({
-    viewport: DEFAULT_CONTROLLER_VIEWPORT,
-  });
 
   try {
-    const controllerJoinUrl = await resolveControllerJoinUrl({
-      hostPage: hostSession.host.page,
-      hostGame: hostSession.host.game,
-      hostEmbedded: hostSession.host.embedded,
-      controllerBaseUrl: urls.controllerBaseUrl,
+    const controllerSession = await openVisualHarnessControllerSession({
+      browser,
+      urls,
+      host: hostSession.host,
     });
-
-    const controllerPage = await controllerContext.newPage();
-    await controllerPage.goto(controllerJoinUrl, {
-      waitUntil: "domcontentloaded",
-    });
-    const fullscreenPromptDismissed =
-      await dismissHarnessControllerFullscreenPrompt(controllerPage);
-    const controllerGame: VisualQuerySurface = hostSession.host.embedded
-      ? await waitForFrameToLoad({
-          page: controllerPage,
-          testId: "arcade-controller-game-frame",
-        })
-      : controllerPage;
 
     return {
-      urls: { ...hostSession.urls, controllerJoinUrl },
+      urls: controllerSession.urls,
       host: hostSession.host,
-      controller: {
-        page: controllerPage,
-        game: controllerGame,
-        embedded: hostSession.host.embedded,
-        fullscreenPromptDismissed,
-      },
+      controller: controllerSession.controller,
       close: async () => {
         await Promise.allSettled([
           hostSession.close(),
-          controllerContext.close(),
+          controllerSession.close(),
         ]);
       },
     };
   } catch (error) {
-    await Promise.allSettled([hostSession.close(), controllerContext.close()]);
+    await hostSession.close().catch(() => null);
     throw error;
   }
 };

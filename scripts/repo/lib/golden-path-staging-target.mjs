@@ -289,6 +289,8 @@ const assertReleaseIsolation = ({
   environment,
   primaryEnvironment,
   serviceVariablePairs,
+  allowExpiredReleaseStorageCredential = false,
+  now = Date.now(),
 }) => {
   const platformPair = serviceVariablePairs.find(
     (pair) =>
@@ -382,6 +384,8 @@ const assertReleaseIsolation = ({
       platformPair.stagingVariables.AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY,
     sessionToken:
       platformPair.stagingVariables.AIRJAM_RELEASES_R2_SESSION_TOKEN,
+    allowExpired: allowExpiredReleaseStorageCredential,
+    now,
   });
   for (const name of [
     "AIRJAM_RELEASES_R2_BUCKET",
@@ -414,7 +418,11 @@ const assertReleaseIsolation = ({
       `Railway ${environment.name} ${platformPair.serviceName} must configure a browser endpoint or executable.`,
     );
   }
-  if (!browserEndpoint) return temporaryCredential;
+  const releaseStorageCredential = {
+    ...temporaryCredential,
+    endpointHostname: new URL(endpoint).hostname,
+  };
+  if (!browserEndpoint) return releaseStorageCredential;
 
   if (
     variableValue(
@@ -475,10 +483,7 @@ const assertReleaseIsolation = ({
     );
   }
 
-  return {
-    ...temporaryCredential,
-    endpointHostname: new URL(endpoint).hostname,
-  };
+  return releaseStorageCredential;
 };
 
 export const assertGoldenPathStagingEnvironmentIsolation = ({
@@ -487,6 +492,8 @@ export const assertGoldenPathStagingEnvironmentIsolation = ({
   stagingDatabaseUrl,
   primaryDatabaseUrl,
   serviceVariablePairs,
+  allowExpiredReleaseStorageCredential = false,
+  now = Date.now(),
 }) => {
   for (const pair of serviceVariablePairs) {
     assertProviderEnvironmentIdentity({
@@ -512,6 +519,8 @@ export const assertGoldenPathStagingEnvironmentIsolation = ({
     environment,
     primaryEnvironment,
     serviceVariablePairs,
+    allowExpiredReleaseStorageCredential,
+    now,
   });
 
   return {

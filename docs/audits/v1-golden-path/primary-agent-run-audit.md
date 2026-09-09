@@ -258,6 +258,42 @@ staging lifecycle replaced every affected authority, proved the separation
 through provider state and live denial probes, and supplied the admissible
 environment used by passing run `a22`.
 
+## Final PR Review Corrections
+
+The single final Opus review of PR `#111` found four concrete delivery defects
+after the original clean-room proof had passed. The follow-up batch closed each
+one at its owning boundary:
+
+1. deployed staging environments now expose an explicit
+   `rotate-storage-credential` lifecycle operation; it accepts an expired token
+   only long enough to re-prove the signed bucket identity, mints and live-probes
+   a replacement, updates both consumers, and redeploys them on their existing
+   exact commits
+2. the `G2-03` readiness evidence now identifies the actual Railway-deployed
+   commit `a0104ca0a3dec2ff877d03feac0b337373f0f9b6`, matching deployment
+   `9b91fb7d-c86e-4127-b7c8-c13c86d0d7f0`
+3. semantic sessions once again start with only the hidden host and explicitly
+   requested virtual controllers; a real browser controller is created lazily
+   only when visual capture is requested
+4. release filename metadata is encoded as canonical UTF-8 base64url before it
+   enters the signed HTTP header and decoded before immutable-fact comparison,
+   preserving Unicode filenames without relying on browser ByteString behavior
+
+The recovery path was then exercised against the already-expired isolated
+staging environment. It issued a seven-day credential ending
+`2026-09-16T05:56:45.000Z`, proved staging write plus production read/write
+denial, removed its probe, and restarted the platform and operational worker on
+exact commit `a0104ca0a3dec2ff877d03feac0b337373f0f9b6`. The resulting staging
+status was healthy, isolated, and explicitly ineligible for production.
+
+The review also exposed external configuration drift: the production R2 CORS
+policy still allowed the retired `https://air-jam.app` origin. The policy now
+allows only `https://airjam.io`, the exact upload headers, and `GET`, `HEAD`,
+and `PUT`. A real signed browser-style preflight returned `204` with the
+expected origin, methods, headers, and 3600-second cache lifetime. The canonical
+policy is retained at
+[`apps/platform/infra/r2-cors.production.json`](../../../apps/platform/infra/r2-cors.production.json).
+
 ## Remaining Closure Work
 
 The primary Codex lane no longer has a known product blocker. Gate `G2-04` must

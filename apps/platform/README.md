@@ -194,6 +194,21 @@ Minimum additional env needed for the hosted release lane:
 6. optional `AIRJAM_RELEASES_R2_SESSION_TOKEN` for short-lived, bucket-scoped
    preview credentials
 
+The production browser-upload CORS policy is source-controlled at
+[`infra/r2-cors.production.json`](./infra/r2-cors.production.json). Apply and
+inspect it through Cloudflare's CLI; the account id is the non-secret
+`AIRJAM_RELEASES_R2_ACCOUNT_ID` value:
+
+```bash
+CLOUDFLARE_ACCOUNT_ID=<account-id> npx wrangler r2 bucket cors set air-jam-releases --file apps/platform/infra/r2-cors.production.json
+CLOUDFLARE_ACCOUNT_ID=<account-id> npx wrangler r2 bucket cors list air-jam-releases
+```
+
+The policy deliberately permits only `https://airjam.io`, the required signed
+upload headers, and the release download/upload methods. A real browser-style
+`OPTIONS` request to a fresh presigned upload URL is the final deployment proof;
+the CLI listing alone does not prove that R2 serves the expected headers.
+
 `AIRJAM_RELEASES_PUBLIC_ORIGIN` must be an absolute origin on a separate
 cookie site from the authenticated platform. Air Jam production uses
 `https://games.air-jam.app` for the platform at `https://airjam.io`. It must not

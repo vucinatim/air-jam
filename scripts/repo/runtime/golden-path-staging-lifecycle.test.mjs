@@ -8,6 +8,7 @@ import {
   deployGoldenPathStaging,
   emptyGoldenPathStagingBucket,
   provisionGoldenPathStaging,
+  rotateGoldenPathStagingReleaseStorageCredential,
 } from "../lib/golden-path-staging-lifecycle.mjs";
 
 const repoRoot = path.resolve(
@@ -269,6 +270,7 @@ test("golden-path staging CLI exposes non-secret provisioning and cleanup", () =
     { cwd: repoRoot, encoding: "utf8" },
   );
   assert.match(help, /provision/u);
+  assert.match(help, /rotate-storage-credential/u);
   assert.match(help, /status/u);
   assert.match(help, /empty-storage/u);
 });
@@ -368,6 +370,93 @@ test("provision rotates every authority before deployment and proves R2 isolatio
   assert.notEqual(server.AIR_JAM_MASTER_KEY, "production-master");
   assert.equal(platform.NEXT_PUBLIC_AUTH_GITHUB_ENABLED, "false");
   assert.equal(platform.OPENAI_API_KEY, "");
+});
+
+test("rotation recovers a deployed environment after its scoped credential expires", async () => {
+  const fixture = createFixture();
+  const issuedAt = Date.now();
+  await provisionGoldenPathStaging({
+    projectId,
+    environmentId: stagingId,
+    releaseOrigin: "https://games-staging.air-jam.app",
+    r2Bucket: "air-jam-preview-releases",
+    ttlSeconds: 3_600,
+    now: issuedAt,
+    client: fixture.client,
+    probeR2Isolation: async () => ({
+      stagingWrite: true,
+      productionReadDenied: true,
+      productionWriteDenied: true,
+      probeObjectRemoved: true,
+    }),
+  });
+  const deployedCommit = "d".repeat(40);
+  for (const serviceName of ["air-jam-platform", "air-jam-platform-worker"]) {
+    const service = fixture.staging.serviceInstances.find(
+      (candidate) => candidate.serviceName === serviceName,
+    );
+    service.latestDeployment = {
+      id: `existing-${serviceName}`,
+      status: "SUCCESS",
+      meta: { commitHash: deployedCommit },
+    };
+  }
+  const previousSessionToken = fixture.variables.get(
+    `${stagingId}:air-jam-platform-service`,
+  ).AIRJAM_RELEASES_R2_SESSION_TOKEN;
+  const stages = [];
+
+  const result = await rotateGoldenPathStagingReleaseStorageCredential({
+    projectId,
+    environmentId: stagingId,
+    ttlSeconds: 7_200,
+    now: issuedAt + 3_601_000,
+    client: fixture.client,
+    probeR2Isolation: async ({ stagingBucket, productionBucket }) => {
+      assert.equal(stagingBucket, "air-jam-preview-releases");
+      assert.equal(productionBucket, "air-jam-releases");
+      return {
+        stagingWrite: true,
+        productionReadDenied: true,
+        productionWriteDenied: true,
+        probeObjectRemoved: true,
+      };
+    },
+    onProgress: (stage) => stages.push(stage),
+  });
+
+  const platform = fixture.variables.get(
+    `${stagingId}:air-jam-platform-service`,
+  );
+  const worker = fixture.variables.get(
+    `${stagingId}:air-jam-platform-worker-service`,
+  );
+  assert.notEqual(
+    platform.AIRJAM_RELEASES_R2_SESSION_TOKEN,
+    previousSessionToken,
+  );
+  assert.equal(
+    worker.AIRJAM_RELEASES_R2_SESSION_TOKEN,
+    platform.AIRJAM_RELEASES_R2_SESSION_TOKEN,
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.r2.ttlSeconds, 7_200);
+  assert.deepEqual(
+    result.deployments.map(({ serviceName, commitSha }) => ({
+      serviceName,
+      commitSha,
+    })),
+    [
+      { serviceName: "air-jam-platform", commitSha: deployedCommit },
+      { serviceName: "air-jam-platform-worker", commitSha: deployedCommit },
+    ],
+  );
+  assert.deepEqual(stages.slice().sort(), [
+    "rotate:air-jam-platform-worker:success",
+    "rotate:air-jam-platform-worker:trigger",
+    "rotate:air-jam-platform:success",
+    "rotate:air-jam-platform:trigger",
+  ]);
 });
 
 test("deploy starts data and application services in dependency order", async () => {

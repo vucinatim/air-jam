@@ -96,3 +96,23 @@ test("rejects expired and overlong sessions", () => {
     /TTL must be between/u,
   );
 });
+
+test("can authenticate an expired scoped session only for credential recovery", () => {
+  const credential = createCloudflareR2TemporaryCredentials(fixture);
+
+  assert.deepEqual(
+    verifyCloudflareR2TemporaryCredentials({
+      ...fixture,
+      ...credential,
+      allowExpired: true,
+      now: fixture.now + fixture.ttlSeconds * 1_000,
+    }),
+    {
+      bucket: fixture.bucket,
+      scope: "object-read-write",
+      issuedAt: "2026-09-08T12:00:00.000Z",
+      expiresAt: "2026-09-08T13:00:00.000Z",
+      ttlSeconds: 3_600,
+    },
+  );
+});
