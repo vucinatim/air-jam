@@ -1,0 +1,17 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": ["https://airjam.io"],
+        "methods": ["GET", "HEAD", "PUT"],
+        "headers": [
+          "content-type",
+          "if-none-match",
+          "x-amz-meta-original-filename"
+        ]
+      },
+      "exposeHeaders": ["ETag"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

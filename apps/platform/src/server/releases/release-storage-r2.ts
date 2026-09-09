@@ -9,6 +9,10 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "node:stream";
 import {
+  decodeReleaseFilenameMetadata,
+  encodeReleaseFilenameMetadata,
+} from "./release-filename-metadata";
+import {
   type ReleaseStorage,
   type ReleaseStoredObjectHead,
   type ReleaseStoredObjectSummary,
@@ -16,6 +20,7 @@ import {
 import { getReleaseStorageConfig } from "./release-storage-config";
 
 const METADATA_ORIGINAL_FILENAME_KEY = "original-filename";
+const METADATA_ORIGINAL_FILENAME_HEADER = `x-amz-meta-${METADATA_ORIGINAL_FILENAME_KEY}`;
 
 export const normalizeReleaseDownloadFilename = (filename: string): string => {
   const leaf = filename.replaceAll("\\", "/").split("/").at(-1)?.trim();
@@ -39,14 +44,21 @@ export const buildReleaseAttachmentContentDisposition = (
   return `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`;
 };
 
-const normalizeMetadata = (
+export const normalizeR2ReleaseMetadata = (
   metadata: Record<string, string> | undefined,
 ): Record<string, string> =>
   Object.fromEntries(
-    Object.entries(metadata ?? {}).map(([key, value]) => [
-      key.toLowerCase(),
-      value,
-    ]),
+    Object.entries(metadata ?? {}).flatMap(([key, value]) => {
+      const normalizedKey = key.toLowerCase();
+      if (normalizedKey !== METADATA_ORIGINAL_FILENAME_KEY) {
+        return [[normalizedKey, value]];
+      }
+      try {
+        return [[normalizedKey, decodeReleaseFilenameMetadata(value)]];
+      } catch {
+        return [];
+      }
+    }),
   );
 
 const createR2Client = (): S3Client => {
@@ -62,6 +74,7 @@ const createR2Client = (): S3Client => {
     credentials: {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
+      ...(config.sessionToken ? { sessionToken: config.sessionToken } : {}),
     },
   });
 };
@@ -137,7 +150,7 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
         contentType: response.ContentType ?? null,
         etag: response.ETag ?? null,
         lastModifiedAt: response.LastModified ?? null,
-        metadata: normalizeMetadata(response.Metadata),
+        metadata: normalizeR2ReleaseMetadata(response.Metadata),
       };
     } catch (error) {
       const errorCode =
@@ -210,12 +223,18 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
         ContentType: contentType,
         IfNoneMatch: "*",
         Metadata: {
-          [METADATA_ORIGINAL_FILENAME_KEY]: originalFilename,
+          [METADATA_ORIGINAL_FILENAME_KEY]:
+            encodeReleaseFilenameMetadata(originalFilename),
         },
       });
 
       const url = await getSignedUrl(client, command, {
         expiresIn: config.uploadUrlTtlSeconds,
+        // Keep object metadata in an explicit signed request header. R2 accepts
+        // metadata hoisted into a presigned URL but does not persist it on the
+        // resulting object, which would make the immutable upload facts fail
+        // closed during worker observation.
+        unhoistableHeaders: new Set([METADATA_ORIGINAL_FILENAME_HEADER]),
       });
 
       return {
@@ -225,6 +244,8 @@ export const createR2ReleaseStorage = (): ReleaseStorage => {
         headers: {
           "content-type": contentType,
           "if-none-match": "*",
+          [METADATA_ORIGINAL_FILENAME_HEADER]:
+            encodeReleaseFilenameMetadata(originalFilename),
         },
         expiresAt: new Date(
           Date.now() + config.uploadUrlTtlSeconds * 1_000,

@@ -1,9 +1,66 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { resetReleaseStorageConfigForTests } from "./release-storage-config";
 import {
   assertR2DeleteObjectsSucceeded,
   buildReleaseAttachmentContentDisposition,
+  createR2ReleaseStorage,
+  normalizeR2ReleaseMetadata,
   normalizeReleaseDownloadFilename,
 } from "./release-storage-r2";
+
+const ORIGINAL_ENV = { ...process.env };
+
+afterEach(() => {
+  for (const key of Object.keys(process.env)) {
+    if (!(key in ORIGINAL_ENV)) delete process.env[key];
+  }
+  Object.assign(process.env, ORIGINAL_ENV);
+  resetReleaseStorageConfigForTests();
+});
+
+describe("R2 release storage uploads", () => {
+  it("requires filename metadata as an explicit signed header", async () => {
+    process.env.AIRJAM_RELEASES_R2_BUCKET = "release-bucket";
+    process.env.AIRJAM_RELEASES_R2_ACCOUNT_ID = "example-account";
+    process.env.AIRJAM_RELEASES_R2_ACCESS_KEY_ID = "test-access-key";
+    process.env.AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY = "test-secret-key";
+    resetReleaseStorageConfigForTests();
+
+    const target = await createR2ReleaseStorage().createArtifactUploadTarget({
+      key: "games/game/releases/release/source/artifact.zip",
+      contentType: "application/zip",
+      originalFilename: "signal-relay.zip",
+    });
+    const url = new URL(target.url);
+
+    expect(target.headers).toMatchObject({
+      "content-type": "application/zip",
+      "if-none-match": "*",
+      "x-amz-meta-original-filename": "utf8.c2lnbmFsLXJlbGF5LnppcA",
+    });
+    expect(url.searchParams.has("x-amz-meta-original-filename")).toBe(false);
+    expect(url.searchParams.get("X-Amz-SignedHeaders")).toContain(
+      "x-amz-meta-original-filename",
+    );
+  });
+
+  it("decodes filename transport metadata before exposing storage facts", () => {
+    expect(
+      normalizeR2ReleaseMetadata({
+        "ORIGINAL-FILENAME": "utf8.5ri45oiPLnppcA",
+        checksum: "stable",
+      }),
+    ).toEqual({
+      "original-filename": "游戏.zip",
+      checksum: "stable",
+    });
+    expect(
+      normalizeR2ReleaseMetadata({
+        "original-filename": "not-canonical",
+      }),
+    ).toEqual({});
+  });
+});
 
 describe("R2 release storage downloads", () => {
   it("reduces caller-provided names to a safe leaf filename", () => {
