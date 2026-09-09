@@ -1,7 +1,7 @@
 # Production Realtime Admission Proof
 
 Last updated: 2026-09-08
-Status: Gate `G3-02` realtime-admission slice implemented and locally proven; reviewed merge, production rollout, and load proof pending
+Status: Gate `G3-02` realtime-admission slice reviewed, merged, and production-proven; measured load proof pending
 
 ## Outcome
 
@@ -106,13 +106,18 @@ The failure policy protects active play and cost at the same time:
 7. a candidate proves fresh database and budget authority before it drains an
    incumbent; if the activated candidate disappears, the incumbent recovers
    admission once no live successor remains
+8. deployment-derived previews keep production budget evidence explicitly out
+   of scope while retaining PostgreSQL lane and hard-capacity enforcement; they
+   do not collect, copy, or fabricate production budget evidence
 
 The realtime `/health` projection remains a process-liveness response and
 includes only bounded admission authority, accepting-work, drain, heartbeat,
 pending-reconciliation, terminal-loss, and `hasError` state. It deliberately
 does not expose raw error messages, instance identity, or policy internals.
 `/ready` is the traffic-readiness boundary and returns `503` when hosted
-admission authority is unavailable or the instance is draining.
+admission authority is unavailable or the instance is draining. Both endpoints
+also expose whether production budget authority is `required` or
+`not_applicable`.
 
 The 1.0 deployment contract remains exactly one realtime replica. PostgreSQL
 provides shared admission and lease authority, but gameplay and room placement
@@ -187,33 +192,50 @@ Signed host-grant and host-resume authority is security evidence owned by the
 [host grant authority proof](../v1-security/host-grant-authority-proof.md), not
 by this capacity proof.
 
-The post-edit complete local batch passed on 2026-09-08 with the protected
-PostgreSQL lane enabled: canonical guards, typechecks, lint, repo contracts,
-194 server tests, 281 SDK tests, and 453 platform tests all passed. The batch
-also exposed and removed one ambient hosted-release configuration dependency
-from the PostgreSQL release-generation test, so the protected lane is
-hermetic. Canonicalizer then returned `ready` after the shared operational-
-authority readers, live-instance predicate, and local-master-key eligibility
-were reduced to one owner and the complete batch passed again. This is complete
-local delivery evidence, not a production claim: protected PR CI,
-GitHub-native final review, and production validation still have to pass.
+The exact intermediate realtime-admission boundary passed on 2026-09-08 under
+the repository's Node 22 runtime: all typechecks, 269 SDK tests, 156 ordinary
+server tests, 379 ordinary platform tests, 14 admission/identity PostgreSQL
+server tests, and 14 focused platform PostgreSQL tests. The broader integrated
+batch had already passed canonical guards, lint, repo contracts, builds, and
+the protected PostgreSQL lane. Canonicalizer returned `ready` after the shared
+operational-authority readers and live-instance predicate were reduced to one
+owner.
+
+## Reviewed Merge And Production Proof
+
+Protected [PR `#109`](https://github.com/vucinatim/air-jam/pull/109)
+merged normally after:
+
+1. the full batch gate passed with `75` test files and `383` tests
+2. the fresh PostgreSQL 17 migration and admission suite passed `14/14`
+3. every CI, workspace-build, standalone-deploy, performance, and public-install
+   matrix check passed on Linux, macOS, and Windows under Node 22 and 24
+4. Canonicalizer returned `ready`
+5. one GitHub-native Opus review returned clear to merge; its eight comments
+   were corrected or answered on exact evidence and every review thread was
+   resolved before merge
+
+Merge commit `e6f03c1fd0f97d5f591ab99f6d2d98042da7e28b` deployed successfully
+to all affected Railway production services. Exact deployment evidence is:
+
+1. platform deployment `2d46a702-ade8-48de-ac62-dfd945496594`
+2. realtime deployment `dcecb524-9eff-4c0e-8189-8c10398bbf4e`
+3. operational-worker deployment `a667f069-1609-4586-80ab-4befae6de106`
+4. browser-worker deployment correctly skipped because its watched paths were
+   unchanged
+
+Public platform readiness reported the exact merge revision, production
+environment, ready hosted-release origin, and migration `0039` schema head.
+Realtime `/health` and `/ready` both returned `200`, required production budget
+authority, accepted new work, and reported no authority error. The operational
+worker returned `200`, required and fresh budget evidence, no degraded required
+authorities, and a complete `6/6` production synthetic batch with zero failures
+or skips.
 
 ## Remaining Gate And Rollout Proof
 
-This document does not close `G3-02` and does not claim that migrations `0038`
-and `0039` or this admission service are live. Closure still requires:
-
-1. reviewed, green protected PRs for each production-valid rollout slice
-2. guarded production backup, immutable plans, application, and verification
-   for the `0038` expand and platform-writer rollout, followed only after old-
-   replica removal by the `0039` contract/admission migration
-3. exact platform and realtime deployment plus health, schema, and log
-   validation at each compatibility boundary
-4. measured sustained, burst, exact-ceiling, soak, graceful-drain, database-
-   failure, and recovery drills
-5. observed interaction with budget state and the continuously deployed
-   operational worker
-
-Until those steps exist as retained evidence, production continues to run the
-previous reviewed behavior at main revision
-`5a30c1a415f64dcc901dcb42b26a6e1df429eb8c`.
+This document does not close `G3-02`. The implementation, reviewed delivery,
+schema rollout, exact production deployment, budget interaction, and initial
+continuous-worker proof are complete. Closure still requires measured
+sustained, burst, exact-ceiling, soak, graceful-drain, database-failure, and
+recovery drills plus the remaining spend-guard and kill-switch evidence.

@@ -53,7 +53,7 @@ const createLaunchSessionCookie = async (now?: number): Promise<string> => {
 };
 
 describe("platform host-grant trust boundary", () => {
-  it("issues a v3 single-use system grant bound to the anonymous abuse session", async () => {
+  it("issues a minimal v3 single-use system grant", async () => {
     databaseMocks.limit.mockResolvedValue([
       { gameId: "game-system", creatorId: "creator-system" },
     ]);
@@ -82,10 +82,22 @@ describe("platform host-grant trust boundary", () => {
       gameId: "game-system",
       creatorId: "creator-system",
       sessionKind: "system",
-      intent: "system_register",
-      abuseSessionId: "11111111-1111-4111-8111-111111111111",
       origins: ["https://airjam.io"],
     });
+    expect(Object.keys(verified.claims!).sort()).toEqual(
+      [
+        "appId",
+        "aud",
+        "creatorId",
+        "exp",
+        "gameId",
+        "iat",
+        "jti",
+        "origins",
+        "sessionKind",
+        "typ",
+      ].sort(),
+    );
     expect(verified.claims?.jti).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );

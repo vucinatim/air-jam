@@ -1,6 +1,6 @@
 # Railway Deployment Guide
 
-Last updated: 2026-09-04
+Last updated: 2026-09-08
 Status: active guide
 
 Related docs:
@@ -29,6 +29,16 @@ The production Railway project should contain four deployable services:
 3. `air-jam-release-browser-worker`
 4. `air-jam-platform-worker`
 
+The platform and realtime Dockerfiles use the repository's Node 22 runtime
+floor. `apps/platform/railway.worker.json` records the operational worker's
+required build, bundled entrypoint, readiness boundary, and watched paths.
+Railway no longer permits a new service to attach legacy per-service Config as
+Code, so the live provider settings must match that contract until the whole
+project is migrated atomically to one `.railway/railway.ts` Infrastructure as
+Code graph. Do not create a second partial or leave some services owned by each
+system; Railway forbids mixed ownership and stops reading legacy files on
+2026-12-01.
+
 Persistent infrastructure remains external:
 
 1. PostgreSQL on Railway
@@ -56,8 +66,25 @@ That means:
    Railway service reference `${{Postgres.DATABASE_URL}}`. Never store it as a
    literal: a PR environment generates new Postgres credentials, and a copied
    production connection string will fail authentication.
-4. `resolvePlatformDeploymentConfig` detects `RAILWAY_ENVIRONMENT_NAME != "production"` and forces `githubAuthEnabled = false`. Avoids the GitHub OAuth wildcard-callback problem and keeps preview auth simple.
-5. `.github/workflows/preview-comment.yml` polls Railway, resolves the platform service domain in the new environment, and posts a sticky preview-URL comment on the PR.
+4. The realtime service must also retain
+   `AIRJAM_DEPLOYMENT_DEPENDS_ON_PLATFORM` as an ordering-only Railway reference
+   to `air-jam-platform`; application code intentionally does not read this
+   variable. The operational worker's four
+   `RAILWAY_SERVICE_AIR_JAM_*_URL` values must be service references to its
+   platform, realtime, self, and browser-worker siblings. Railway uses those
+   references as the PR-environment startup graph: platform migrates the fresh
+   database first, realtime activates second, and the operational worker waits
+   transitively for every synthetic target. Do not replace those references
+   with rendered URLs; doing so removes deployment ordering even when the
+   runtime value looks identical.
+5. `resolvePlatformDeploymentConfig` detects `RAILWAY_ENVIRONMENT_NAME != "production"` and forces `githubAuthEnabled = false`. Avoids the GitHub OAuth wildcard-callback problem and keeps preview auth simple.
+6. The realtime server derives preview policy from the canonical deployment
+   environment resolver. Railway identity takes precedence over explicit local
+   overrides, so production cannot self-identify as preview. The server
+   requires the preview database for lane and capacity authority, while marking
+   production provider-budget evidence as `not_applicable`; preview workers do
+   not need production usage credentials to make realtime ready.
+7. `.github/workflows/preview-comment.yml` polls Railway, resolves the platform service domain in the new environment, and posts a sticky preview-URL comment on the PR.
 
 The workflow needs a single repo secret: `RAILWAY_PROJECT_TOKEN` (a Railway project-scoped token).
 
@@ -204,13 +231,22 @@ PostgreSQL across deploys; a process restart must never be treated as job loss.
 
 Configure these reliability values on the operational worker:
 
-1. `AIRJAM_OPERATIONAL_ENVIRONMENT=production`
-2. `AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL` pointing to one exact immutable live
+1. `AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL` pointing to one exact immutable live
    generation
-3. `AIRJAM_SYNTHETIC_WORKER_ORIGIN` pointing to the operational worker's public
+2. `AIRJAM_SYNTHETIC_WORKER_ORIGIN` pointing to the operational worker's public
    health origin
-4. `AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN` pointing to the browser worker
-5. `AIRJAM_SYNTHETIC_APP_ID` when the platform app identity is not appropriate
+3. `AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN` pointing to the browser worker
+4. `AIRJAM_SYNTHETIC_APP_ID` when the platform app identity is not appropriate
+
+Do not set `AIRJAM_OPERATIONAL_ENVIRONMENT` on Railway. The provider-owned
+`RAILWAY_ENVIRONMENT_NAME` is authoritative, so production resolves to
+production while every PR environment resolves to preview even when Railway
+clones service variables. In PR environments, operational synthetics use the
+environment-scoped `RAILWAY_SERVICE_AIR_JAM_PLATFORM_URL`,
+`RAILWAY_SERVICE_AIR_JAM_SERVER_URL`,
+`RAILWAY_SERVICE_AIR_JAM_PLATFORM_WORKER_URL`, and
+`RAILWAY_SERVICE_AIR_JAM_RELEASE_BROWSER_WORKER_URL` targets instead of the
+production-oriented explicit origins above.
 
 The same worker is the sole continuous Railway budget-evidence collector.
 Configure `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, and an

@@ -27,10 +27,14 @@ type ControllerJoinAck = {
 };
 
 const allowAllAuthService = {
-  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+  verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
     isVerified: true,
     appId,
     verifiedVia: "appId" as const,
+    hostSessionKind:
+      appId === "public-required"
+        ? ("game" as const)
+        : (hostSessionKind ?? "system"),
   }),
 } as AuthService;
 
@@ -39,58 +43,23 @@ describe("server room lifecycle", () => {
     server: { authService: allowAllAuthService },
   });
 
-  it("keeps the original room authoritative when a system host registers twice", async () => {
+  it("binds host authority from verification instead of a self-declared system kind", async () => {
     const host = await harness.connectSocket();
-    expect((await harness.bootstrapHost(host, undefined, "system")).ok).toBe(
-      true,
-    );
-
-    const firstRegistration = await harness.emitWithAck<HostCreateRoomAck>(
-      host,
-      "host:registerSystem",
-      { roomId: "SYS100" },
-    );
-    expect(firstRegistration).toMatchObject({ ok: true, roomId: "SYS100" });
-
-    const repeatedRegistration = await harness.emitWithAck<HostCreateRoomAck>(
-      host,
-      "host:registerSystem",
-      { roomId: "SYS200" },
-    );
-    expect(repeatedRegistration).toMatchObject({
-      ok: false,
-      code: ErrorCode.ALREADY_CONNECTED,
-      message: "Host is already registered to room SYS100",
-    });
-
-    expect(harness.getRoomManager().getRoomByHostId(host.id!)).toBe("SYS100");
-    expect(harness.getRoomManager().getRoom("SYS100")?.masterHostSocketId).toBe(
-      host.id,
-    );
-    expect(harness.getRoomManager().getRoom("SYS200")).toBeUndefined();
-  });
-
-  it("rejects system registration from a game-scoped host authority", async () => {
-    const gameHost = await harness.connectSocket();
-    expect((await harness.bootstrapHost(gameHost, undefined, "game")).ok).toBe(
-      true,
-    );
-
-    const registration = await harness.emitWithAck<HostCreateRoomAck>(
-      gameHost,
-      "host:registerSystem",
-      { roomId: "SYS300" },
-    );
-
-    expect(registration).toMatchObject({
-      ok: false,
-      code: ErrorCode.UNAUTHORIZED,
-      message: "Unauthorized: System host authority required",
-    });
-    expect(harness.getRoomManager().getRoom("SYS300")).toBeUndefined();
     expect(
-      harness.getRoomManager().getRoomByHostId(gameHost.id!),
-    ).toBeUndefined();
+      (await harness.bootstrapHost(host, "public-required", "system")).ok,
+    ).toBe(true);
+
+    const created = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    const session = harness.getRoomManager().getRoom(created.roomId!);
+
+    expect(created.ok).toBe(true);
+    expect(session?.analytics.hostSessionKind).toBe("game");
+    expect(session?.focus).toBe("GAME");
+    expect(session?.lifecycleState).toBe("GAME_ACTIVE");
   });
 
   it("allows host reconnect after disconnect", async () => {
@@ -126,7 +95,7 @@ describe("server room lifecycle", () => {
     );
   });
 
-  it("rejects reconnect and system registration without the room owner's resume capability", async () => {
+  it("rejects reconnect without the room owner's resume capability", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -138,19 +107,6 @@ describe("server room lifecycle", () => {
 
     const attacker = await harness.connectSocket();
     expect((await harness.bootstrapHost(attacker)).ok).toBe(true);
-
-    const registerAck = await harness.emitWithAck<HostCreateRoomAck>(
-      attacker,
-      "host:registerSystem",
-      { roomId },
-    );
-    expect(registerAck).toMatchObject({
-      ok: false,
-      code: ErrorCode.UNAUTHORIZED,
-    });
-    expect(harness.getRoomManager().getRoom(roomId)?.masterHostSocketId).toBe(
-      host.id,
-    );
 
     host.disconnect();
     await harness.delay(30);

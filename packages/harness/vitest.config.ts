@@ -8,6 +8,10 @@ export default defineConfig({
         __dirname,
         "../sdk/src/runtime-topology.ts",
       ),
+      "@air-jam/sdk/runtime-inspection": path.resolve(
+        __dirname,
+        "../sdk/src/runtime-inspection.ts",
+      ),
       "@air-jam/sdk/agent-tooling": path.resolve(
         __dirname,
         "../sdk/src/agent-tooling.ts",

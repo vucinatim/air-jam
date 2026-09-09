@@ -387,6 +387,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     if (!socket || !socket.connected || !activeRoomId) {
       return Promise.resolve({
         ok: false,
+        code: ErrorCode.CONNECTION_FAILED,
         message: "Host is not connected to a room.",
       });
     }
@@ -397,7 +398,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     cancelPendingHostReset();
 
-    return new Promise<HostRegistrationAck>((resolve, reject) => {
+    return new Promise<HostRegistrationAck>((resolve) => {
       const operation: PendingHostResetOperation = {
         roomId: activeRoomId,
         retryTimeout: null,
@@ -409,6 +410,12 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         pendingHostResetRef.current === operation &&
         parsedRoomIdRef.current === operation.roomId &&
         socket.connected;
+
+      const cancelOperationIfOwned = (): void => {
+        if (pendingHostResetRef.current === operation) {
+          cancelPendingHostReset();
+        }
+      };
 
       const finish = (ack: HostRegistrationAck): void => {
         if (pendingHostResetRef.current !== operation) {
@@ -427,7 +434,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         retry?: AdmissionRetryDecision,
       ): void => {
         if (!isCurrentOperation()) {
-          cancelPendingHostReset();
+          cancelOperationIfOwned();
           return;
         }
 
@@ -454,7 +461,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
           .then(
             (ack) => {
               if (!isCurrentOperation()) {
-                cancelPendingHostReset();
+                cancelOperationIfOwned();
                 return;
               }
 
@@ -493,11 +500,18 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
               finish(ack);
             },
             (error: unknown) => {
-              if (pendingHostResetRef.current !== operation) {
+              if (!isCurrentOperation()) {
+                cancelOperationIfOwned();
                 return;
               }
-              pendingHostResetRef.current = null;
-              reject(error);
+              finish({
+                ok: false,
+                code: ErrorCode.CONNECTION_FAILED,
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Host room reset failed because the realtime connection was interrupted.",
+              });
             },
           );
       };
@@ -612,6 +626,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   useEffect(() => {
     let disposed = false;
     let hostAdmissionEpoch = 0;
+    const isStaleHostAdmissionOperation = (operationEpoch: number): boolean =>
+      disposed || operationEpoch !== hostAdmissionEpoch;
     let admissionRetryTimeout: ReturnType<typeof setTimeout> | null = null;
     const clearAdmissionRetryTimeout = (): void => {
       if (!admissionRetryTimeout) {
@@ -689,7 +705,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       try {
         bootstrapPayload = await resolveBootstrapPayload();
       } catch (error) {
-        if (disposed || operationEpoch !== hostAdmissionEpoch) {
+        if (isStaleHostAdmissionOperation(operationEpoch)) {
           return;
         }
         const latestState = store.getState();
@@ -716,11 +732,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         return;
       }
 
-      if (
-        disposed ||
-        operationEpoch !== hostAdmissionEpoch ||
-        !socket.connected
-      ) {
+      if (isStaleHostAdmissionOperation(operationEpoch) || !socket.connected) {
         return;
       }
 
@@ -731,7 +743,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
           bootstrapPayload,
         );
       } catch (error) {
-        if (disposed || operationEpoch !== hostAdmissionEpoch) {
+        if (isStaleHostAdmissionOperation(operationEpoch)) {
           return;
         }
         const latestState = store.getState();
@@ -763,11 +775,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         return;
       }
 
-      if (
-        disposed ||
-        operationEpoch !== hostAdmissionEpoch ||
-        !socket.connected
-      ) {
+      if (isStaleHostAdmissionOperation(operationEpoch) || !socket.connected) {
         return;
       }
 
@@ -803,8 +811,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         retry?: AdmissionRetryDecision,
       ): void => {
         if (
-          disposed ||
-          operationEpoch !== hostAdmissionEpoch ||
+          isStaleHostAdmissionOperation(operationEpoch) ||
           !socket.connected
         ) {
           return;
@@ -839,7 +846,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         });
 
         socket.emit("host:createRoom", payload, (ack: HostRegistrationAck) => {
-          if (disposed || operationEpoch !== hostAdmissionEpoch) {
+          if (isStaleHostAdmissionOperation(operationEpoch)) {
             return;
           }
 
@@ -908,8 +915,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
           const attemptReconnect = (attempt: number) => {
             if (
-              disposed ||
-              operationEpoch !== hostAdmissionEpoch ||
+              isStaleHostAdmissionOperation(operationEpoch) ||
               !socket.connected
             ) {
               return;
@@ -932,7 +938,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
               "host:reconnect",
               reconnectPayload,
               (ack: HostRegistrationAck) => {
-                if (disposed || operationEpoch !== hostAdmissionEpoch) {
+                if (isStaleHostAdmissionOperation(operationEpoch)) {
                   return;
                 }
                 const latestState = store.getState();

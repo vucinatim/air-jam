@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hostBootstrapSchema } from "../src/protocol/host";
 import {
   createHostGrant,
   verifyHostGrant,
@@ -19,16 +20,19 @@ const createClaims = (
     creatorId: "creator-test",
     iat: now,
     exp: now + 60,
-    scopes: ["host:bootstrap"],
     origins: ["https://airjam.io"],
     sessionKind: "system",
-    intent: "system_register",
-    abuseSessionId: crypto.randomUUID(),
     ...overrides,
   };
 };
 
 describe("signed host-grant protocol", () => {
+  it("defaults an omitted bootstrap session kind to game authority", () => {
+    expect(hostBootstrapSchema.parse({})).toEqual({
+      hostSessionKind: "game",
+    });
+  });
+
   it("round-trips the complete v3 authority claims", async () => {
     const claims = createClaims();
     const token = await createHostGrant({ secret, claims });
@@ -42,18 +46,19 @@ describe("signed host-grant protocol", () => {
         ...claims,
       },
     });
+    expect(Object.keys(claims)).toHaveLength(9);
   });
 
   it("rejects a modified signed token", async () => {
     const claims = createClaims();
     const token = await createHostGrant({ secret, claims });
-    const [header, payload, signature] = token.split(".");
+    const [payload, signature] = token.split(".");
     const modifiedPayload = `${payload!.slice(0, -1)}${payload!.endsWith("a") ? "b" : "a"}`;
 
     await expect(
       verifyHostGrant({
         secret,
-        token: `${header}.${modifiedPayload}.${signature}`,
+        token: `${modifiedPayload}.${signature}`,
         now: claims.iat,
       }),
     ).resolves.toEqual({

@@ -3,7 +3,6 @@ import {
   ErrorCode,
   type HostBootstrapAck,
   type HostGrantClaims,
-  type HostSessionKind,
 } from "@air-jam/sdk/protocol";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -46,7 +45,6 @@ describeWithPostgres("signed host-grant socket lifecycle", () => {
       authMode: "required",
       databaseUrl,
       hostGrantSecret,
-      nodeEnv: "test",
     },
   });
   const harness = setupServerTestHarness({ server: { authService } });
@@ -91,11 +89,8 @@ describeWithPostgres("signed host-grant socket lifecycle", () => {
         creatorId,
         iat: now,
         exp: now + 60,
-        scopes: ["host:bootstrap"],
         origins: ["https://airjam.io"],
         sessionKind: "system",
-        intent: "system_register",
-        abuseSessionId: crypto.randomUUID(),
         ...overrides,
       },
     });
@@ -104,11 +99,9 @@ describeWithPostgres("signed host-grant socket lifecycle", () => {
   const bootstrapWithGrant = async (
     socket: Awaited<ReturnType<typeof harness.connectSocket>>,
     hostGrant: string,
-    hostSessionKind: HostSessionKind = "system",
   ) =>
     harness.emitWithAck<HostBootstrapAck>(socket, "host:bootstrap", {
       hostGrant,
-      hostSessionKind,
     });
 
   it("accepts one legitimate launch and rejects raw replay", async () => {
@@ -152,62 +145,50 @@ describeWithPostgres("signed host-grant socket lifecycle", () => {
     },
   );
 
-  it("cannot use a fresh signed grant to hijack an active room", async () => {
-    const owner = await harness.connectSocket({ origin: "https://airjam.io" });
-    expect(
-      await bootstrapWithGrant(owner, await issueSystemGrant()),
-    ).toMatchObject({ ok: true });
+  it.each(["system", "game"] as const)(
+    "binds a %s room from the verified grant claim",
+    async (sessionKind) => {
+      const host = await harness.connectSocket({
+        origin: "https://airjam.io",
+      });
+      const grant = await issueSystemGrant({ sessionKind });
+      await expect(bootstrapWithGrant(host, grant)).resolves.toMatchObject({
+        ok: true,
+      });
+
+      const created = await harness.emitWithAck<HostRegistrationAck>(
+        host,
+        "host:createRoom",
+        { maxPlayers: 4 },
+      );
+      expect(created).toMatchObject({ ok: true });
+      expect(
+        harness.getRoomManager().getRoom(created.roomId!)?.analytics
+          .hostSessionKind,
+      ).toBe(sessionKind);
+    },
+  );
+
+  it("ignores a client-declared system kind for a game-scoped grant", async () => {
+    const host = await harness.connectSocket({
+      origin: "https://airjam.io",
+    });
+    const gameGrant = await issueSystemGrant({ sessionKind: "game" });
+    await expect(
+      harness.emitWithAck<HostBootstrapAck>(host, "host:bootstrap", {
+        hostGrant: gameGrant,
+        hostSessionKind: "system",
+      }),
+    ).resolves.toMatchObject({ ok: true });
+
     const created = await harness.emitWithAck<HostRegistrationAck>(
-      owner,
+      host,
       "host:createRoom",
       { maxPlayers: 4 },
     );
-    expect(created).toMatchObject({ ok: true });
-
-    const attacker = await harness.connectSocket({
-      origin: "https://airjam.io",
-    });
     expect(
-      await bootstrapWithGrant(attacker, await issueSystemGrant()),
-    ).toMatchObject({ ok: true });
-    await expect(
-      harness.emitWithAck<HostRegistrationAck>(
-        attacker,
-        "host:registerSystem",
-        { roomId: created.roomId },
-      ),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: ErrorCode.UNAUTHORIZED,
-    });
-    expect(
-      harness.getRoomManager().getRoom(created.roomId!)?.masterHostSocketId,
-    ).toBe(owner.id);
-  });
-
-  it("rejects registerSystem after a game-scoped grant bootstrap", async () => {
-    const gameHost = await harness.connectSocket({
-      origin: "https://airjam.io",
-    });
-    const gameGrant = await issueSystemGrant({
-      sessionKind: "game",
-      intent: "create_room",
-    });
-    await expect(
-      bootstrapWithGrant(gameHost, gameGrant, "game"),
-    ).resolves.toMatchObject({ ok: true });
-
-    await expect(
-      harness.emitWithAck<HostRegistrationAck>(
-        gameHost,
-        "host:registerSystem",
-        { roomId: "SYS400" },
-      ),
-    ).resolves.toMatchObject({
-      ok: false,
-      code: ErrorCode.UNAUTHORIZED,
-      message: "Unauthorized: System host authority required",
-    });
-    expect(harness.getRoomManager().getRoom("SYS400")).toBeUndefined();
+      harness.getRoomManager().getRoom(created.roomId!)?.analytics
+        .hostSessionKind,
+    ).toBe("game");
   });
 });

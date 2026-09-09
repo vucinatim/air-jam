@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -18,43 +18,98 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
-## 2026-09-08 - Retention Went Live And Realtime Admission Reached Local Proof
+## 2026-09-09 - Final Golden-Path Review Findings Were Closed
 
-- merged reviewed PR `#102` and deployed exact main revision
-  `5a30c1a415f64dcc901dcb42b26a6e1df429eb8c`, making the complete superseded-
-  unpublished release lifecycle live in production through verified migration
-  `0037`
-- moved 180-day inactivity, durable seven-day creator warning, safe generation
-  export, retention renewal, and PostgreSQL-enforced cleanup eligibility from a
-  rollout claim to a production fact; activation of the separate operational
-  worker remains owned by `G3-08`
-- implemented the next `G3-02` slice on its working branch: PostgreSQL-backed
-  realtime instance, room, and controller admission leases while keeping
-  latency-sensitive gameplay state inside the realtime process
-- kept the room-code and controller-join UX unchanged and ratified generous
-  normal-mode burst ceilings of 300 rooms and 4,800 controllers over sustained
-  targets of 100 and 1,600; creator/game room allowances of 50 remain shadow
-  policy unless the room lane is deliberately restricted
-- added stable machine inspection through
-  `platform operations realtime status`, fail-closed new-work behavior,
-  resumable existing-controller handling, graceful drain state, crash expiry,
-  and creator/game identity at the shared app-credential boundary
-- exercised the focused lifecycle, exact room-ceiling race, stale-instance,
-  identity, socket-boundary, quota, fresh-migration, and CLI paths against an
-  isolated local PostgreSQL authority
-- retained an honest delivery boundary in the
-  [production realtime admission proof](./audits/v1-reliability/production-realtime-admission-proof.md):
-  the admission implementation is not merged or live; final boundary coverage,
-  full gates, protected review, guarded migration, exact deployment, and load/
-  dependency/recovery proof remain open
-- replaced the unsafe one-step ownership/admission migration with a real
-  expand/writer/contract sequence: `0038` adds nullable app creator identity
-  and backfills existing rows, the adjacent platform deployment always writes
-  that identity, and `0039` performs a second overlap backfill, validates the
-  named non-null constraint, and adds realtime admission authority
-- proved both an exact rolling upgrade from production migration `0037` with
-  old and new writers overlapping and a fresh PostgreSQL 14 catalog through
-  `0040`, which the canonical inspector classified as `ready`
+- ran the single final Opus review on green PR `#111`; it found four actionable
+  defects rather than issuing a superficial approval
+- added and live-proved recovery for expired isolated-staging R2 credentials,
+  including production-access denial probes and exact-commit consumer restarts
+- corrected `G2-03` to the Railway deployment's actual `a0104ca0...` commit
+- restored semantic session membership so visual browser controllers are lazy,
+  explicit side effects rather than implicit participants in every agent session
+- preserved international release filenames through canonical UTF-8 metadata
+  encoding instead of restricting the user-visible upload contract to ASCII
+- corrected production R2 CORS from the retired `air-jam.app` origin to
+  `https://airjam.io`, retained the policy in the repo, and passed a real signed
+  browser-style preflight with the exact upload headers
+- passed the full batch gate after the focused recovery, harness, devtools,
+  upload, type, lint, and contract checks
+
+## 2026-09-09 - The Clean-Room Codex Lifecycle Passed End To End
+
+- completed the first controller-certified external-agent lifecycle from an
+  empty workspace with no Air Jam repository access, maintainer credentials,
+  provider credentials, or undeclared network access
+- proved public package discovery, scaffolding, game implementation, complete
+  evaluation, two-controller semantic play, authoritative state inspection,
+  machine visual capture, deterministic fault diagnosis and repair, release
+  bundling, hidden staging submission, independent verification, and cleanup
+- used repeated classified failures as product evidence to close real seams in
+  Node module resolution, evaluation discovery, browser ownership, visual
+  capture, candidate-registry warming, presigned upload access, R2 metadata,
+  staging database identity, run-scoped authentication, and stale-runtime
+  recovery
+- retained the 144-event sanitized transcript and decisive machine artifacts
+  under
+  [the G2-03 evidence directory](./audits/v1-golden-path/evidence/g2-03-20260909-a22/),
+  with 149 source artifacts bound by the run manifest
+- verified ready hidden release
+  `cfc41e51-efa2-4c28-9259-8d0988b275d9`, while public exposure and production
+  publication remained disabled
+- left Gate 2 deliberately open for the independent Claude Desktop lane and
+  final settled-client replay; the Codex proof does not stand in for those
+  separate claims
+
+## 2026-09-08 - Shared Realtime Admission And The Operational Worker Went Live
+
+- replaced process-local hosted admission with one PostgreSQL authority for
+  realtime instances, rooms, controllers, creator/game policy, lease expiry,
+  rolling handoff, and graceful drain while keeping gameplay state in the
+  realtime process and preserving the invisible room-code experience
+- made the production budget requirement one canonical operations-contract
+  decision shared by platform, realtime, and worker boundaries; previews now
+  fail closed when a required sibling target is missing and never inherit a
+  production synthetic URL
+- made production cleanup scheduling deploy-safe and activated the separately
+  drainable operational worker for durable release work, lifecycle cleanup,
+  budget refresh, event delivery, and continuous synthetic evaluation
+- passed the full batch gate, fresh PostgreSQL migration/admission proof,
+  cross-platform Node 22/24 public-install matrix, Canonicalizer, and one final
+  GitHub-native Opus review; corrected or answered all eight review comments
+  before merge
+- merged protected [PR `#109`](https://github.com/vucinatim/air-jam/pull/109)
+  normally as `e6f03c1fd0f97d5f591ab99f6d2d98042da7e28b`
+- verified exact Railway production deployments for platform
+  `2d46a702-ade8-48de-ac62-dfd945496594`, realtime server
+  `dcecb524-9eff-4c0e-8189-8c10398bbf4e`, and operational worker
+  `a667f069-1609-4586-80ab-4befae6de106`
+- observed public platform readiness at the exact merge revision, realtime
+  health/readiness accepting new work with required budget authority, and the
+  worker accepting with fresh budget evidence, no degraded required authority,
+  and a clean `6/6` production synthetic batch
+- used the evidence-only follow-up PR to expose a fresh-preview startup race:
+  realtime and worker correctly failed closed before the platform migration
+  owner had finished; added permanent Railway service-reference dependencies
+  so new PR environments order platform migration, realtime activation, and
+  synthetic-worker activation instead of relying on build timing
+- recreated PR `#110` as a genuinely empty Railway environment and retained the
+  exact ordered deployment proof: platform `def2e2b1-0c5a-4fba-9630-ed31719433ee`
+  completed migration `0039` first while realtime deployment
+  `df44780f-86bc-48c9-a315-a73d454e7f31` remained `WAITING` with no snapshot or
+  runtime logs; after the protected GitHub checks completed, realtime became
+  healthy without the former missing-relation failure, and operational worker
+  `dca3022a-5ae0-4c40-99ea-9e92487f6322` activated last
+- verified all three public preview contracts at exact revision
+  `452a6bdba48586fbb0628c82df0937ab975e009b`: platform schema compatibility was
+  ready, realtime accepted new work with preview budget evidence correctly
+  marked not applicable, and the worker reported no degraded authority plus a
+  clean `6/6` synthetic batch
+- kept `G3-02` and `G3-08` open: initial deployment is proven, while deliberate
+  load/overload/dependency-recovery and retained cost/drain/rollback observation
+  still need measured evidence
+
+## 2026-09-08 - Host Bootstrap Authority Reached Local Proof
+
 - recorded the independent integration findings instead of accepting the first
   green batch: critical PostgreSQL suites now belong to protected CI, Railway
   evidence collection no longer holds database authority across provider I/O,
@@ -62,20 +117,35 @@ The pre-reset overloaded ledger has been preserved at:
   cannot register a system host, and hosted master-key authentication is gone
 - implemented and documented the local
   [host grant authority proof](./audits/v1-security/host-grant-authority-proof.md):
-  non-forgeable anonymous launch identity, exact-origin v3 grants, one-winner
-  PostgreSQL consumption, explicit audience/session/intent claims, and server-
-  issued room resume capabilities close the `AJ-SEC-003` design without adding
-  user-visible permission or join flows; coordinated migration `0040` rollout
-  and hostile-path production proof remain open
+  exact-origin v3 grants, transactionally single-use `jti` authority, explicit
+  audience/session claims, and server-issued room resume capabilities
+  close the `AJ-SEC-003` design without adding user-visible permission or join
+  flows; coordinated migration `0040` rollout and hostile-path production proof
+  remain open
 - passed the complete post-edit local batch with the protected PostgreSQL lane:
   canonical guards, typechecks, lint, repo contracts, 194 server tests, 281 SDK
   tests, and 453 platform tests; the run also found and removed an ambient
   hosted-release configuration dependency from a PostgreSQL test before the
   batch was accepted as evidence
-- completed the one pre-push Canonicalizer session with a `ready` verdict after
-  consolidating operational-authority readers, realtime live-instance policy,
-  and local-master-key eligibility into their canonical shared owners; the
-  complete PostgreSQL-enabled batch passed again after those review fixes
+- ran one pre-push Canonicalizer session, which first returned `CONTINUE`,
+  with actionable findings covering client-controlled session elevation,
+  duplicated signing machinery, redundant grant-consumption persistence,
+  hosted master-key staging configuration, authentication-coupled cleanup,
+  Arcade lifecycle proof accuracy, stale operational-worker status, and
+  obsolete abuse-identity guidance
+- corrected those findings in one coherent pass: verified authority now owns
+  session kind, host grants and launch sessions share one domain-separated
+  envelope primitive, the grant row and claims contain only authorization
+  facts, cleanup cannot deny valid authentication, the callerless system-
+  registration event is removed, and active docs/scaffolds match the contract
+- applied the full migration catalog through `0040` to clean local PostgreSQL,
+  passed the `13/13` focused database authority tests plus the phased migration
+  proof, and passed the complete PostgreSQL-enabled batch with 200 repo
+  contracts, 200 server tests, 287 SDK tests, and 464 platform tests
+- resumed that same Canonicalizer session
+  `2408e343-78a8-43a8-b14f-1e44d07a3467`; it returned `READY` after verifying
+  every original finding against the corrected working tree, leaving only one
+  non-blocking stale threat-model phrase that was corrected before push
 
 ## 2026-09-04 - Production Recovery Was Automated And Live-Proven
 

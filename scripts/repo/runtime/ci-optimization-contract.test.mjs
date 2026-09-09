@@ -71,7 +71,7 @@ test("CI preserves every confidence lane behind one stable required check", () =
   assert.match(lanes[2].command, /auth-service\.postgres\.test\.ts/u);
   assert.match(
     lanes[2].command,
-    /host-grant-lifecycle\.integration\.test\.ts/u,
+    /host-grant-lifecycle\.postgres\.test\.ts/u,
   );
   assert.match(
     lanes[2].command,

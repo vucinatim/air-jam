@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -189,20 +189,29 @@ These are now baseline truths, not open architecture debates:
        scaffold archives; Gate 6 now enforces that value beneath a 100 MiB
        package ceiling and proves cold scaffold installation below ten minutes
        on every supported cell
-    10. the retained Codex primary run independently built the full Signal Relay
-        game, passed all four quality gates, and reached semantic-session control
-        before both supported Chromium paths hit the same macOS Mach-port denial
+    10. early retained Codex runs independently built the full Signal Relay
+        game and turned browser, session, evaluation, evidence, staging, and
+        upload failures into classified product findings
     11. independent review reopened `G2-03`: the retained local run remains
         useful diagnostic evidence, but its ignored artifact path was not
         independently retrievable and the controller could trust agent-authored
         verification claims
-    12. the corrected controller now owns isolation probes, quality gates,
-        cleanup, and release-verification authority; `G2-03` requires a new
-        durable replay before completion, `G2-04` owns independent Claude
-        Desktop proof, and `G2-05` owns browser/staging closure
+    12. the corrected controller owns isolation probes, quality gates, cleanup,
+        and release-verification authority; the new durable `a22` replay passed
+        the complete create, control, inspect, fault-repair, visual, evaluation,
+        hidden-release, verification, and cleanup lifecycle
     13. the integration review further made staging isolation environment-wide
         and fail-closed, made evidence retention rollback-safe and extension
         independent, and bounded external-agent plus cleanup process lifetimes
+    14. `G2-04` still owns independent Claude Desktop proof, and `G2-05` owns
+        final replay plus residual-friction closure across both supported clients
+    15. the final PR review's four delivery findings are closed: deployed staging
+        credentials can rotate after expiry, `G2-03` names the actual deployed
+        commit, semantic sessions no longer gain an implicit browser controller,
+        and Unicode release filenames use an ASCII-safe signed metadata contract
+    16. production R2 browser-upload CORS now targets `https://airjam.io`, and a
+        real presigned preflight returns the expected origin, methods, and exact
+        signed upload headers
 15. Gate 4 now has one agent-operable operational authority contract:
     1. product telemetry, authoritative lifecycle/runtime facts, and durable
        incidents remain separate evidence planes
@@ -333,20 +342,17 @@ work state without becoming a second product authority:
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
 The foundation integration through PR `#61`, the production-health recovery in
-PR `#76`, the public install matrix in PR `#74`, and the durable reliability
-loop in PR `#75` are merged. The latest schema-bearing production rollout was
-main revision `5a280c43337f4dc5f00069457ee3a89b8c7cffc0`: the platform reached
-terminal `SUCCESS` as Railway deployment
-`1ca7a865-2ab5-417e-8221-574c0071736d`, and schema migration `0036` was
-independently verified against that exact revision. Production schema remains
-at exact head `0036`; current deployment identity comes from the live
-`/api/readiness` machine contract rather than a commit copied into this
-deploy-triggering document. The realtime server and browser worker remain
-successful on their latest watched-path-relevant revisions. Live browser smoke
-covers the landing page, direct Arcade navigation, branding, and game-card
-hover behavior. The separately defined operational worker is not provisioned
-in production yet, so continuous synthetics, SLO evaluation, and alert
-generation are implemented but intentionally inactive.
+PR `#76`, the public install matrix in PR `#74`, the durable reliability loop in
+PR `#75`, and realtime-admission rollout in PR `#109` are merged. Production
+platform, realtime, and operational-worker deployments converged on main
+revision `e6f03c1fd0f97d5f591ab99f6d2d98042da7e28b`; migration `0039` was applied
+and independently verified. The operational worker is provisioned and reported
+fresh budget evidence, no degraded required authority, and a clean `6/6`
+synthetic batch. Current deployment identity still comes from live readiness
+contracts rather than a commit copied into this deploy-triggering document. The
+browser worker remains successful on its latest watched-path-relevant revision.
+This evidence does not claim that the GitHub issue projection is configured or
+delivering issues in production.
 Production code is delivered incrementally; stable package promotion, public
 release visibility, final docs, the launch article, and distribution are
 coordinated only after one exact candidate passes rehearsal.
@@ -404,21 +410,18 @@ archive-extraction budgets. The proof used a fallback-free candidate registry
 and empty cache, so neither an old npm package nor the monorepo could satisfy
 it; npm and production were not changed.
 
-Gate `G2-03` is now explicitly blocked on isolated staging credentials and
-controller-readable provider identity. Its completion requires a new
-controller-owned Signal Relay replay whose durable artifacts, isolation checks,
-quality gates, cleanup, and release verification do not depend on agent-authored
-success claims. The old PR-52 hostname is no longer admissible staging proof because it
-still served platform health after Railway reported no corresponding ephemeral
-environment. The runner now requires provider-owned Railway project and
-environment identity and proves separation from production before agent
-startup. Pull request `#61` produced an ephemeral environment with a distinct
-Postgres instance, but Railway cloned the production R2 bucket, storage
-credentials, release-pipeline tokens, and other sensitive values, while the
-provider API can now attest those service-by-service facts without exposing the
-values. It is therefore not admissible isolated staging. Correcting those
-boundaries remains explicit work rather than an automatic side effect of the
-proof harness.
+Gate `G2-03` now has a terminal passing Codex primary run. The external agent
+started in an empty workspace without repository access, maintainer/provider
+credentials, or undeclared network access; discovered the five public
+candidate packages; implemented Signal Relay; passed the complete quality
+evaluation; operated two controllers through semantic sessions; diagnosed and
+repaired the declared win-score fault; captured and inspected host/controller
+visuals; submitted a ready hidden release to provider-attested isolated
+staging; and cleaned every run-owned process and identity. The complete
+sanitized transcript and decisive machine evidence are retained in
+[the primary-agent audit](./audits/v1-golden-path/primary-agent-run-audit.md).
+`G2-04` remains the independent Claude Desktop proof, and `G2-05` remains the
+final settled-client replay and residual-friction closeout.
 
 Gate `G2-02` is closed at `511ee85` with the
 [public bootstrap audit](./audits/v1-golden-path/public-bootstrap-audit.md).
@@ -438,12 +441,12 @@ before 1.0. The audit deliberately leaves implementation open in `G5-02` and
 The working branch now contains the locally proven
 [host grant and host resume authority slice](./audits/v1-security/host-grant-authority-proof.md)
 for `AJ-SEC-003`: an anonymous signed launch session, exact-origin v3 grants
-with abuse identity and single-use PostgreSQL consumption, system-versus-game
-intent enforcement, server-issued room resume capabilities, repeated-system-
-registration protection, and removal of hosted master-key authentication.
-The normal Arcade, room-code, and controller UX is unchanged. This remains a
-local implementation claim until migration `0040`, the coordinated breaking
-cutover, hostile-path smoke checks, and exact production evidence pass.
+with transactionally single-use PostgreSQL consumption, server-owned session
+authority, server-issued room resume capabilities, removal of the callerless
+system-registration path, and removal of hosted master-key authentication. The
+normal Arcade, room-code, and controller UX is unchanged. This remains a local
+implementation claim until migration `0040`, the coordinated breaking cutover,
+hostile-path smoke checks, and exact production evidence pass.
 
 Gate `G4-01` is closed with the
 [operational events and incidents contract](./contracts/operational-events-and-incidents-contract.md)
@@ -462,10 +465,10 @@ vocabulary, event and failure identities share one normalized code, synthetic
 chronology is database-owned, each scheduled check is isolated and reported,
 and older SLO evaluations cannot regress newer alert state. Scheduling is a
 separate orchestration module rather than another responsibility in the
-persistence service. Production schema migration `0036` is applied and
-verified, but the operational worker service is deliberately not deployed
-until its activation preflight, drain, synthetic configuration, rollback, and
-cost-observation path is ready.
+persistence service. Production schema migration `0039` is applied and
+verified, and the operational worker is deployed with budget, lifecycle,
+event-delivery, and synthetic authorities active. Production activation of the
+separately configured GitHub issue projection is not yet claimed.
 Gate `G4-03` is closed by the
 [operational alert issue projection contract](./contracts/operational-alert-issue-projection-contract.md)
 and its
@@ -477,8 +480,8 @@ preview-first repo CLI lifecycle. The issue-only GitHub App identity belongs
 only on the operational worker.
 Operational evidence retention is owned by `G3-07`; it and the remaining
 activation dependencies gate separately claimable `G3-08` activation.
-This does not claim that continuous evaluations or GitHub issue delivery are
-active in production. A generic incident lifecycle and governed
+This does not claim that GitHub issue delivery is active in production. A
+generic incident lifecycle and governed
 automatic-remediation engine are intentionally not 1.0 requirements: smart
 local agents should use the shared evidence and focused Air Jam, Railway,
 GitHub, and local tools instead.
@@ -536,28 +539,19 @@ tombstones control quota accounting, and the canonical CLI provides redacted
 preview/apply plus resource-filtered inspection. Superseded unpublished
 generations now also have a PostgreSQL-enforced 180-day lifecycle with a
 durable seven-day warning, creator export through dashboard/API/CLI/MCP, and
-retention renewal when exported or published. This complete retention slice is
-live in production through reviewed PR `#102`, main revision
-`5a30c1a415f64dcc901dcb42b26a6e1df429eb8c`, and verified migration `0037`.
-Its production rollout is no longer open. The operational worker remains a
-separate activation item under `G3-08`.
-
-Its eighth slice is the locally implemented
-[production realtime admission proof](./audits/v1-reliability/production-realtime-admission-proof.md).
-PostgreSQL owns lightweight instance, room, and controller leases while the
-realtime process continues to own gameplay hot state. The ordinary room-code
-and controller-join UX is unchanged. Normal mode preserves generous burst
-ceilings of 300 rooms and 4,800 controllers over sustained targets of 100 and
-1,600; the 50-room creator/game policy remains observational until the room
-lane is deliberately restricted. The canonical repo CLI can inspect shared
-capacity and drain state without exposing leases or gameplay state. Migration
-`0038` now owns the nullable app-creator identity expansion and compatible
-platform writer rollout; migration `0039` owns the validated non-null contract
-and realtime admission tables. The exact `0037` rolling upgrade and a fresh
-catalog through `0040` pass locally. The service, socket integration, and
-focused PostgreSQL proof still exist only on the working branch: reviewed
-merge, production rollout, sustained/burst load, overload, dependency-failure,
-and recovery proof remain open. Gate `G3-02` therefore remains active.
+retention renewal when exported or published. Its eighth slice adds the
+[production realtime admission proof](./audits/v1-reliability/production-realtime-admission-proof.md):
+PostgreSQL now owns global hosted room and controller admission, lease expiry,
+single-replica rolling handoff, graceful drain, and creator/game shadow policy
+without changing the player-facing room-code flow. Protected PR `#109` passed
+the full CI and public-install matrix, Canonicalizer, and one GitHub-native Opus
+review before merging. Platform, realtime, and operational-worker production
+deployments all converged on merge revision
+`e6f03c1fd0f97d5f591ab99f6d2d98042da7e28b`; platform schema and hosted-release
+boundaries were ready, realtime accepted work with required budget authority,
+and the worker reported fresh budget evidence, no degraded required authority,
+and a clean `6/6` synthetic batch. `G3-02` remains open only for deliberate
+load/overload/recovery and remaining spend-guard/kill-switch closure evidence.
 
 The previous narrow v1 closeout plan was superseded by the 1.0 roadmap and is
 preserved in the
@@ -596,19 +590,24 @@ In short:
 1. keep the now-complete canonical production migration lifecycle and schema
    compatibility boundary stable; `G3-06` is merged, applied, and independently
    verified against the exact Railway production deployment
-2. finish the phased `0038` app-ownership expand/writer rollout, then review,
-   deploy, and measure the invisible realtime admission slice through `0039`;
-   coordinate the `0040` host-authority cutover under paused new-room admission
-   before provisioning and observing the operational worker safely
-3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
-   Codex plus Claude Desktop golden-path proofs
-4. keep the completed recovery contract stable and finish supply-chain trust as
+2. integrate, review, and deploy the additive `0040` host-grant authority
+   migration and coordinated breaking application cutover under paused new-room
+   admission, then retain hostile-path and exact production evidence
+3. exercise the now-live realtime admission, operational worker, and storage
+   retention lifecycle under measured load, overload, dependency failure,
+   recovery, cost, and rollback conditions; migrate the four Railway
+   application services and PostgreSQL to one
+   reviewed `.railway/railway.ts` project graph before treating deployment
+   configuration as release-ready
+4. use the now-proven isolated Railway/R2 rehearsal profile to complete the
+   independent Claude Desktop golden-path proof and final cross-client replay
+5. keep the completed recovery contract stable and finish supply-chain trust as
    an independent lane
-5. run overload, recovery, and security closure drills through the existing
+6. run overload, recovery, and security closure drills through the existing
    focused agent-operable controls
-6. finish docs/demo/story against shipped evidence, then cut and rehearse one
+7. finish docs/demo/story against shipped evidence, then cut and rehearse one
    immutable 1.0 candidate
-7. agents continue to claim, complete, or block work only through the canonical
+8. agents continue to claim, complete, or block work only through the canonical
    readiness manifest
 
 ## Current Caveats

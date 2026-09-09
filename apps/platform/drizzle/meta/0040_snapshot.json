@@ -1,5 +1,5 @@
 {
-  "id": "d11cd63f-d871-408b-af87-ac3d1ac034ce",
+  "id": "08700be7-3ae6-42e6-95aa-c3aa2dd94a81",
   "prevId": "ab71cf1f-dd64-4368-a239-5b5bf929cc7c",
   "version": "7",
   "dialect": "postgresql",
@@ -5940,20 +5940,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "abuse_session_id": {
-          "name": "abuse_session_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "session_kind": {
           "name": "session_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "intent": {
-          "name": "intent",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -5996,15 +5984,11 @@
       "checkConstraints": {
         "realtime_host_grant_consumptions_required_text_check": {
           "name": "realtime_host_grant_consumptions_required_text_check",
-          "value": "length(btrim(\"realtime_host_grant_consumptions\".\"jti\")) > 0 and length(btrim(\"realtime_host_grant_consumptions\".\"app_id\")) > 0 and length(btrim(\"realtime_host_grant_consumptions\".\"abuse_session_id\")) > 0"
+          "value": "length(btrim(\"realtime_host_grant_consumptions\".\"jti\")) > 0 and length(btrim(\"realtime_host_grant_consumptions\".\"app_id\")) > 0"
         },
         "realtime_host_grant_consumptions_session_kind_check": {
           "name": "realtime_host_grant_consumptions_session_kind_check",
           "value": "\"realtime_host_grant_consumptions\".\"session_kind\" in ('game', 'system')"
-        },
-        "realtime_host_grant_consumptions_intent_check": {
-          "name": "realtime_host_grant_consumptions_intent_check",
-          "value": "\"realtime_host_grant_consumptions\".\"intent\" in ('create_room', 'system_register')"
         },
         "realtime_host_grant_consumptions_chronology_check": {
           "name": "realtime_host_grant_consumptions_chronology_check",

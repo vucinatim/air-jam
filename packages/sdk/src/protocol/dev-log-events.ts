@@ -143,8 +143,6 @@ export const AIRJAM_DEV_LOG_EVENTS = {
     bootstrapRejected: "host.bootstrap.rejected",
     disconnectPendingRoomClose: "host.disconnect.pending_room_close",
     disconnectRoomClosed: "host.disconnect.room_closed",
-    registerSystemAccepted: "host.register_system.accepted",
-    registerSystemRejected: "host.register_system.rejected",
     createRoomAccepted: "host.create_room.accepted",
     createRoomRejected: "host.create_room.rejected",
     reconnectAccepted: "host.reconnect.accepted",

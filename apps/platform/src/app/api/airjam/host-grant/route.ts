@@ -68,11 +68,8 @@ export async function POST(request: NextRequest) {
       creatorId: appIdentity.creatorId,
       iat: now,
       exp: now + HOST_GRANT_TTL_SECONDS,
-      scopes: ["host:bootstrap"],
       origins: [deploymentConfig.platformPublicOrigin],
       sessionKind: "system",
-      intent: "system_register",
-      abuseSessionId: launchSession.claims.abuseSessionId,
     },
   });
 

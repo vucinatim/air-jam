@@ -13,9 +13,14 @@ type HostCreateRoomAck = {
 describe("server auth and rate limiting", () => {
   describe("auth checks", () => {
     const authService = {
-      verifyHostBootstrap: async ({ appId }: { appId?: string }) => {
+      verifyHostBootstrap: async ({ appId, hostSessionKind }) => {
         if (appId === "valid-key") {
-          return { isVerified: true, appId, verifiedVia: "appId" as const };
+          return {
+            isVerified: true,
+            appId,
+            verifiedVia: "appId" as const,
+            hostSessionKind: hostSessionKind ?? "system",
+          };
         }
         return { isVerified: false, error: "Unauthorized" };
       },
@@ -64,13 +69,7 @@ describe("server auth and rate limiting", () => {
 
   describe("static-mode origin policy", () => {
     const authService = {
-      verifyHostBootstrap: async ({
-        appId,
-        origin,
-      }: {
-        appId?: string;
-        origin?: string;
-      }) => {
+      verifyHostBootstrap: async ({ appId, origin, hostSessionKind }) => {
         if (appId !== "valid-key") {
           return { isVerified: false, error: "Unauthorized" };
         }
@@ -80,7 +79,12 @@ describe("server auth and rate limiting", () => {
             error: "Unauthorized: Origin not allowed for this App ID",
           };
         }
-        return { isVerified: true, appId, verifiedVia: "appId" as const };
+        return {
+          isVerified: true,
+          appId,
+          verifiedVia: "appId" as const,
+          hostSessionKind: hostSessionKind ?? "system",
+        };
       },
     } as AuthService;
     const harness = setupServerTestHarness({
@@ -116,10 +120,11 @@ describe("server auth and rate limiting", () => {
     const harness = setupServerTestHarness({
       server: {
         authService: {
-          verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+          verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
             isVerified: true,
             appId,
             verifiedVia: "appId" as const,
+            hostSessionKind: hostSessionKind ?? "system",
           }),
         } as AuthService,
         rateLimitWindowMs: 60_000,
@@ -152,17 +157,12 @@ describe("server auth and rate limiting", () => {
 
   describe("static app quotas", () => {
     const authService = {
-      verifyHostBootstrap: async ({
-        appId,
-        origin,
-      }: {
-        appId?: string;
-        origin?: string;
-      }) => ({
+      verifyHostBootstrap: async ({ appId, origin, hostSessionKind }) => ({
         isVerified: true,
         appId,
         verifiedVia: "appId" as const,
         verifiedOrigin: origin,
+        hostSessionKind: hostSessionKind ?? "system",
       }),
     } as AuthService;
 
@@ -272,10 +272,11 @@ describe("server auth and rate limiting", () => {
     const harness = setupServerTestHarness({
       server: {
         authService: {
-          verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+          verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
             isVerified: true,
             appId,
             verifiedVia: "appId" as const,
+            hostSessionKind: hostSessionKind ?? "system",
           }),
         } as AuthService,
         rateLimitWindowMs: 60_000,

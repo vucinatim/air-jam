@@ -2,6 +2,7 @@ import {
   DEFAULT_OPERATIONAL_ALERT_ISSUE_MAX_ATTEMPTS,
   DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
   type OperationalAlertV1,
+  type OperationalBudgetRequirement,
   type OperationalEventEnvelopeV1,
   type OperationalFailureV1,
   type OperationalSloEvaluationV1,
@@ -302,11 +303,13 @@ export const decideOperationalAdmissionPolicy = ({
   lane,
   control,
   budget,
+  budgetRequirement,
   quota = null,
 }: {
   lane: OperationalLane;
   control: OperationalLaneControlSnapshot | null;
   budget: Pick<OperationalBudgetAuthoritySnapshot, "evidenceStatus" | "state">;
+  budgetRequirement: OperationalBudgetRequirement;
   quota?: {
     authorityAvailable: boolean;
     current: number | null;
@@ -337,11 +340,13 @@ export const decideOperationalAdmissionPolicy = ({
       "Projected quota usage exceeds the safe integer range.",
     );
   }
+  const applicableBudgetState =
+    budgetRequirement === "required" ? budget.state : null;
   const quotaEnforced =
     control?.mode === "restricted" ||
-    budget.state === "protection" ||
-    budget.state === "near_ceiling" ||
-    budget.state === "ceiling";
+    applicableBudgetState === "protection" ||
+    applicableBudgetState === "near_ceiling" ||
+    applicableBudgetState === "ceiling";
   const denied = (
     reason: Exclude<OperationalAdmissionPolicyReason, null>,
     retryAfterSeconds: number | null = null,
@@ -357,10 +362,16 @@ export const decideOperationalAdmissionPolicy = ({
   if (control.mode === "paused") {
     return denied("lane_paused", control.retryAfterSeconds);
   }
-  if (budget.evidenceStatus !== "fresh" || budget.state === null) {
+  if (
+    budgetRequirement === "required" &&
+    (budget.evidenceStatus !== "fresh" || budget.state === null)
+  ) {
     return denied("control_unavailable", 30);
   }
-  if (operationalBudgetBlockedLanes[budget.state].has(lane)) {
+  if (
+    applicableBudgetState !== null &&
+    operationalBudgetBlockedLanes[applicableBudgetState].has(lane)
+  ) {
     return denied("budget_protection");
   }
   if (quota && (!quota.authorityAvailable || quota.current === null)) {
@@ -889,9 +900,7 @@ export const createRuntimeDatabaseSchema = ({
     {
       jti: text("jti").primaryKey(),
       appId: text("app_id").notNull(),
-      abuseSessionId: text("abuse_session_id").notNull(),
       sessionKind: text("session_kind").notNull(),
-      intent: text("intent").notNull(),
       consumedAt: timestamp("consumed_at", { withTimezone: true })
         .defaultNow()
         .notNull(),
@@ -901,15 +910,11 @@ export const createRuntimeDatabaseSchema = ({
       index("realtime_host_grant_consumptions_expiry_idx").on(table.expiresAt),
       check(
         "realtime_host_grant_consumptions_required_text_check",
-        sql`length(btrim(${table.jti})) > 0 and length(btrim(${table.appId})) > 0 and length(btrim(${table.abuseSessionId})) > 0`,
+        sql`length(btrim(${table.jti})) > 0 and length(btrim(${table.appId})) > 0`,
       ),
       check(
         "realtime_host_grant_consumptions_session_kind_check",
         sql`${table.sessionKind} in ('game', 'system')`,
-      ),
-      check(
-        "realtime_host_grant_consumptions_intent_check",
-        sql`${table.intent} in ('create_room', 'system_register')`,
       ),
       check(
         "realtime_host_grant_consumptions_chronology_check",

@@ -673,6 +673,100 @@ describe("session reconnect behavior", () => {
     expect(resetAttempts).toBe(1);
   });
 
+  it("normalizes reset transport timeouts into a connection-failure acknowledgement", async () => {
+    vi.useFakeTimers();
+    mocked.hostSocket.emit.mockImplementation(
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+          return;
+        }
+        if (event === "host:createRoom") {
+          callback?.({
+            ok: true,
+            roomId: "ROOM1",
+            hostResumeCapability: TEST_HOST_RESUME_CAPABILITY,
+          });
+        }
+      },
+    );
+
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const resetPromise = result.current.resetRoom();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    await expect(resetPromise).resolves.toEqual({
+      ok: false,
+      code: "CONNECTION_FAILED",
+      message:
+        'Timed out waiting for acknowledgement for realtime event "host:resetRoom".',
+    });
+  });
+
+  it("ignores a stale reset acknowledgement without cancelling its replacement", async () => {
+    const resetCallbacks: Array<(ack: unknown) => void> = [];
+    mocked.hostSocket.emit.mockImplementation(
+      (event: string, _payload: unknown, callback?: (ack: unknown) => void) => {
+        if (event === "host:bootstrap") {
+          callback?.({ ok: true });
+          return;
+        }
+        if (event === "host:createRoom") {
+          callback?.({
+            ok: true,
+            roomId: "ROOM1",
+            hostResumeCapability: TEST_HOST_RESUME_CAPABILITY,
+          });
+          return;
+        }
+        if (event === "host:resetRoom" && callback) {
+          resetCallbacks.push(callback);
+        }
+      },
+    );
+
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: createHostWrapper(),
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const staleReset = result.current.resetRoom();
+    const currentReset = result.current.resetRoom();
+    await expect(staleReset).resolves.toMatchObject({
+      ok: false,
+      code: "CONNECTION_FAILED",
+    });
+
+    await act(async () => {
+      resetCallbacks[0]?.({ ok: true, roomId: "STALE" });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      resetCallbacks[1]?.({
+        ok: true,
+        roomId: "ROOM2",
+        hostResumeCapability: { token: "replacement-reset-token" },
+      });
+      await Promise.resolve();
+    });
+
+    await expect(currentReset).resolves.toMatchObject({
+      ok: true,
+      roomId: "ROOM2",
+    });
+    expect(result.current.roomId).toBe("ROOM2");
+  });
+
   it("cancels a pending reset admission retry on unmount", async () => {
     vi.useFakeTimers();
     vi.spyOn(Math, "random").mockReturnValue(0);

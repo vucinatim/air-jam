@@ -1,12 +1,24 @@
 import {
+  DEFAULT_CONTROLLER_VIEWPORT,
+  DEFAULT_HOST_VIEWPORT,
   launchHarnessBrowser,
+  openVisualHarnessControllerSession,
   openVisualHarnessHostSession,
+  type OpenVisualHarnessControllerSessionResult,
   type VisualHarnessMode,
 } from "@air-jam/harness/visual";
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
 } from "@air-jam/sdk/runtime-inspection";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import {
+  AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
+  isRuntimeOwnerCaptureRequest,
+  resolveProjectRelativeRuntimeCaptureDir,
+  type AirJamRuntimeOwnerCaptureResult,
+} from "../runtime-owner-protocol.js";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
@@ -57,11 +69,79 @@ const session = await openVisualHarnessHostSession({
     browserBuildUrl,
   },
 });
+let controllerSession: OpenVisualHarnessControllerSessionResult | null = null;
 
 const shutdown = async (exitCode = 0) => {
-  await Promise.allSettled([session.close(), browser.close()]);
+  await Promise.allSettled([
+    controllerSession?.close(),
+    session.close(),
+    browser.close(),
+  ]);
   process.exit(exitCode);
 };
+
+process.on("message", (message: unknown) => {
+  if (!isRuntimeOwnerCaptureRequest(message)) return;
+  void (async () => {
+    const capturedAt = new Date().toISOString();
+    const response: AirJamRuntimeOwnerCaptureResult = {
+      type: AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
+      requestId: message.requestId,
+      ok: false,
+      capturedAt,
+      screenshots: [],
+      error: null,
+    };
+    try {
+      const captureDir = resolveProjectRelativeRuntimeCaptureDir({
+        projectDir: process.cwd(),
+        relativeDir: message.relativeDir,
+      });
+      controllerSession ??= await openVisualHarnessControllerSession({
+        browser,
+        urls: {
+          appOrigin,
+          hostUrl: resolvedHostUrl,
+          controllerBaseUrl,
+          publicHost,
+          localBuildUrl,
+          browserBuildUrl,
+        },
+        host: session.host,
+      });
+      await mkdir(captureDir, { recursive: true });
+      const captures = [
+        {
+          surface: "host" as const,
+          fileName: "host-desktop.png",
+          viewport: DEFAULT_HOST_VIEWPORT,
+          page: session.host.page,
+        },
+        {
+          surface: "controller" as const,
+          fileName: "controller-phone.png",
+          viewport: DEFAULT_CONTROLLER_VIEWPORT,
+          page: controllerSession.controller.page,
+        },
+      ];
+      for (const capture of captures) {
+        await capture.page.waitForTimeout(300);
+        const filePath = path.join(captureDir, capture.fileName);
+        await capture.page.screenshot({ path: filePath });
+        response.screenshots.push({
+          surface: capture.surface,
+          width: capture.viewport.width,
+          height: capture.viewport.height,
+          relativePath: path.relative(process.cwd(), filePath),
+        });
+      }
+      response.ok = true;
+    } catch (error) {
+      response.error = error instanceof Error ? error.message : String(error);
+    }
+    process.send?.(response);
+  })();
+});
 
 process.on("SIGTERM", () => {
   void shutdown(0);

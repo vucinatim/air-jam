@@ -10,10 +10,11 @@ type HostCreateRoomAck = {
 };
 
 const allowAllAuthService = {
-  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+  verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
     isVerified: true,
     appId,
     verifiedVia: "appId" as const,
+    hostSessionKind: hostSessionKind ?? "system",
   }),
 } as AuthService;
 

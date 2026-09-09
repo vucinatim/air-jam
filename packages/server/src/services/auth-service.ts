@@ -1,12 +1,9 @@
-import {
-  normalizeUnknownOperationalFailure,
-  resolveDeploymentEnvironment,
-  type DeploymentEnvironment,
-} from "@air-jam/operations-contract";
+import { normalizeUnknownOperationalFailure } from "@air-jam/operations-contract";
 import {
   AIRJAM_DEV_LOG_EVENTS,
   verifyHostGrant,
   type HostGrantClaims,
+  type HostSessionKind,
 } from "@air-jam/sdk/protocol";
 import { and, eq, sql } from "drizzle-orm";
 import {
@@ -14,8 +11,6 @@ import {
   realtimeHostGrantConsumptions,
   type ServerDatabase,
 } from "../db.js";
-import { resolveServerRuntimeDatabaseUrl } from "../env/database-url-policy.js";
-import { isLocalMasterKeyAllowed } from "../env/server-env.js";
 import { createServerLogger, type ServerLogger } from "../logging/logger.js";
 import {
   publishServerOperationalFailureSafely,
@@ -42,7 +37,7 @@ export interface VerifyHostBootstrapInput {
   appId?: string;
   hostGrant?: string;
   origin?: string;
-  hostSessionKind?: "game" | "system";
+  hostSessionKind?: HostSessionKind;
 }
 
 export interface HostBootstrapVerificationResult extends VerificationResult {
@@ -50,6 +45,7 @@ export interface HostBootstrapVerificationResult extends VerificationResult {
   verifiedVia?: "appId" | "hostGrant";
   verifiedOrigin?: string;
   grantClaims?: HostGrantClaims;
+  hostSessionKind?: HostSessionKind;
 }
 
 export interface HostBootstrapAuthService {
@@ -64,8 +60,6 @@ export interface AuthServiceEnvironment {
   masterKey?: string;
   hostGrantSecret?: string;
   databaseUrl?: string;
-  nodeEnv?: string;
-  operationalEnvironment?: DeploymentEnvironment;
 }
 
 export interface AuthServiceOptions {
@@ -86,6 +80,10 @@ const normalizeOrigin = (value?: string): string | null => {
     return null;
   }
 };
+
+const HOST_GRANT_CLEANUP_INTERVAL_MS = 60_000;
+const HOST_GRANT_CLEANUP_RETENTION_MARGIN_MINUTES = 5;
+const HOST_GRANT_CLEANUP_BATCH_SIZE = 256;
 
 const resolveActiveAppIdRecord = async ({
   appId,
@@ -128,28 +126,16 @@ export class AuthService {
   private hostGrantSecret: string | undefined;
   private databaseUrl: string | undefined;
   private authMode: AuthMode;
-  private nodeEnv: string;
-  private operationalEnvironment: DeploymentEnvironment;
   private db: ServerDatabase | null;
   private operationalEventPublisher: ServerOperationalEventPublisher | null;
+  private nextHostGrantCleanupAt = 0;
 
   constructor(options: AuthServiceOptions = {}) {
     this.logger = options.logger ?? createServerLogger({ component: "auth" });
-    this.masterKey = options.env?.masterKey ?? process.env.AIR_JAM_MASTER_KEY;
-    this.hostGrantSecret =
-      options.env?.hostGrantSecret ?? process.env.AIR_JAM_HOST_GRANT_SECRET;
-    this.databaseUrl =
-      options.env?.databaseUrl ??
-      resolveServerRuntimeDatabaseUrl(process.env).databaseUrl;
+    this.masterKey = options.env?.masterKey;
+    this.hostGrantSecret = options.env?.hostGrantSecret;
+    this.databaseUrl = options.env?.databaseUrl;
     this.authMode = this.resolveAuthMode(options.env);
-    this.nodeEnv =
-      options.env?.nodeEnv ?? process.env.NODE_ENV ?? "development";
-    this.operationalEnvironment =
-      options.env?.operationalEnvironment ??
-      resolveDeploymentEnvironment({
-        ...process.env,
-        ...(options.env?.nodeEnv ? { NODE_ENV: options.env.nodeEnv } : {}),
-      });
     this.db = options.db ?? null;
     this.operationalEventPublisher = options.operationalEventPublisher ?? null;
 
@@ -158,11 +144,7 @@ export class AuthService {
         { event: AIRJAM_DEV_LOG_EVENTS.auth.modeDisabled },
         "Authentication disabled (set AIR_JAM_AUTH_MODE=required to enforce app identity checks)",
       );
-    } else if (
-      this.canUseLocalMasterKey() &&
-      !this.databaseUrl &&
-      !this.hostGrantSecret
-    ) {
+    } else if (this.masterKey && !this.databaseUrl && !this.hostGrantSecret) {
       this.logger.info(
         { event: AIRJAM_DEV_LOG_EVENTS.auth.modeMasterKey },
         "Running with local-development master key authentication",
@@ -195,11 +177,11 @@ export class AuthService {
       return null;
     }
 
-    if (this.hostGrantSecret && !this.db && !this.canUseLocalMasterKey()) {
+    if (this.hostGrantSecret && !this.db && !this.masterKey) {
       return "Signed host grants require PostgreSQL consumption authority.";
     }
 
-    if (this.db || this.canUseLocalMasterKey()) {
+    if (this.db || this.masterKey) {
       return null;
     }
 
@@ -238,39 +220,20 @@ export class AuthService {
       }
       const grantClaims = grantResult.claims;
 
-      const requestedHostSessionKind = hostSessionKind ?? "system";
-      const expectedIntent =
-        requestedHostSessionKind === "system"
-          ? "system_register"
-          : "create_room";
-      if (
-        grantClaims.sessionKind !== requestedHostSessionKind ||
-        grantClaims.intent !== expectedIntent
-      ) {
+      const grantOrigins = grantClaims.origins.map((value) =>
+        normalizeOrigin(value),
+      );
+      if (!normalizedOrigin) {
         return {
           isVerified: false,
-          error: "Unauthorized: Host grant session intent mismatch",
+          error: "Unauthorized: Missing or Invalid Origin",
         };
       }
-
-      const grantOrigins = grantClaims.origins
-        .map((value) => normalizeOrigin(value))
-        .filter((value): value is string => value !== null);
-
-      if (grantOrigins.length > 0) {
-        if (!normalizedOrigin) {
-          return {
-            isVerified: false,
-            error: "Unauthorized: Missing or Invalid Origin",
-          };
-        }
-
-        if (!grantOrigins.includes(normalizedOrigin)) {
-          return {
-            isVerified: false,
-            error: "Unauthorized: Origin not allowed by Host Grant",
-          };
-        }
+      if (!grantOrigins.includes(normalizedOrigin)) {
+        return {
+          isVerified: false,
+          error: "Unauthorized: Origin not allowed by Host Grant",
+        };
       }
 
       if (!this.db) {
@@ -300,25 +263,12 @@ export class AuthService {
             return { status: "invalid_identity" as const };
           }
 
-          await transaction.execute(sql`
-            delete from ${realtimeHostGrantConsumptions}
-            where ${realtimeHostGrantConsumptions.jti} in (
-              select ${realtimeHostGrantConsumptions.jti}
-              from ${realtimeHostGrantConsumptions}
-              where ${realtimeHostGrantConsumptions.expiresAt} <= clock_timestamp()
-              order by ${realtimeHostGrantConsumptions.expiresAt} asc
-              limit 256
-              for update skip locked
-            )
-          `);
           const inserted = await transaction
             .insert(realtimeHostGrantConsumptions)
             .values({
               jti: grantClaims.jti,
               appId: grantClaims.appId,
-              abuseSessionId: grantClaims.abuseSessionId,
               sessionKind: grantClaims.sessionKind,
-              intent: grantClaims.intent,
               expiresAt: new Date(grantClaims.exp * 1_000),
             })
             .onConflictDoNothing()
@@ -342,6 +292,8 @@ export class AuthService {
             error: "Unauthorized: Host grant was already consumed",
           };
         }
+
+        await this.cleanupExpiredHostGrantConsumptions();
       } catch (error) {
         this.logger.error({ err: error }, "Host grant consumption failed");
         return {
@@ -358,6 +310,7 @@ export class AuthService {
         verifiedVia: "hostGrant",
         verifiedOrigin: normalizedOrigin,
         grantClaims,
+        hostSessionKind: grantClaims.sessionKind,
       };
     }
 
@@ -369,6 +322,11 @@ export class AuthService {
       creatorId: appIdResult.creatorId,
       verifiedVia: appIdResult.isVerified ? "appId" : undefined,
       verifiedOrigin: appIdResult.isVerified ? normalizedOrigin : undefined,
+      hostSessionKind: appIdResult.isVerified
+        ? this.authMode === "disabled"
+          ? (hostSessionKind ?? "system")
+          : "game"
+        : undefined,
     };
   }
 
@@ -395,7 +353,7 @@ export class AuthService {
 
     // The shared key is an explicitly local-only development convenience. It
     // is never a hosted identity because it carries no game or creator scope.
-    if (this.canUseLocalMasterKey() && appId === this.masterKey) {
+    if (this.masterKey && appId === this.masterKey) {
       return { isVerified: true };
     }
 
@@ -506,35 +464,37 @@ export class AuthService {
   }
 
   private resolveAuthMode(env?: AuthServiceEnvironment): AuthMode {
-    const configuredMode =
-      env?.authMode ?? process.env.AIR_JAM_AUTH_MODE?.toLowerCase();
-
-    if (configuredMode === "disabled") {
-      return "disabled";
-    }
-
-    if (configuredMode === "required") {
-      return "required";
-    }
-
-    // Auto mode (default):
-    // - Production defaults to required.
-    // - Development defaults to disabled for friction-free local iteration.
-    // - Use AIR_JAM_AUTH_MODE=required to enforce auth in development.
-    if ((env?.nodeEnv ?? process.env.NODE_ENV) === "production") {
-      return "required";
-    }
-
-    return "disabled";
+    return env?.authMode === "required" ? "required" : "disabled";
   }
 
-  private canUseLocalMasterKey(): boolean {
-    return (
-      Boolean(this.masterKey) &&
-      isLocalMasterKeyAllowed({
-        nodeEnv: this.nodeEnv,
-        operationalEnvironment: this.operationalEnvironment,
-      })
-    );
+  private async cleanupExpiredHostGrantConsumptions(): Promise<void> {
+    if (!this.db) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now < this.nextHostGrantCleanupAt) {
+      return;
+    }
+    this.nextHostGrantCleanupAt = now + HOST_GRANT_CLEANUP_INTERVAL_MS;
+
+    try {
+      await this.db.execute(sql`
+        delete from ${realtimeHostGrantConsumptions}
+        where ${realtimeHostGrantConsumptions.jti} in (
+          select ${realtimeHostGrantConsumptions.jti}
+          from ${realtimeHostGrantConsumptions}
+          where ${realtimeHostGrantConsumptions.expiresAt}
+            <= clock_timestamp() - (${HOST_GRANT_CLEANUP_RETENTION_MARGIN_MINUTES} * interval '1 minute')
+          order by ${realtimeHostGrantConsumptions.expiresAt} asc
+          limit ${HOST_GRANT_CLEANUP_BATCH_SIZE}
+        )
+      `);
+    } catch (error) {
+      this.logger.warn(
+        { err: error },
+        "Expired host grant consumption cleanup failed",
+      );
+    }
   }
 }

@@ -1,7 +1,7 @@
 # Host Grant And Host Resume Authority Proof
 
-Last updated: 2026-09-08
-Status: Gate `G5-02` authority slice implemented and locally proven; reviewed merge and coordinated production cutover pending
+Last updated: 2026-09-09
+Status: Gate `G5-02` authority slice locally proven and Canonicalizer-ready; reviewed merge and coordinated production cutover pending
 
 ## Outcome
 
@@ -25,29 +25,28 @@ The security machinery stays below that product surface.
 One explicit chain now owns Arcade system-host bootstrap:
 
 1. platform middleware issues the `__Host-airjam-launch-session` secure,
-   host-only cookie with a non-forgeable anonymous abuse-session identity
+   host-only cookie for the anonymous Arcade launch
 2. the same-origin host-grant endpoint requires the exact platform origin and
    a valid, unexpired launch session
 3. the endpoint resolves one active app credential and its canonical game and
    creator identity from PostgreSQL
 4. it issues an `airjam.host_grant.v3` grant containing a UUID `jti`, fixed
    realtime audience, app/game/creator identity, bounded lifetime, allowed
-   origin, session kind, launch intent, and abuse-session identity
-5. the realtime auth service validates every claim and atomically consumes the
-   `jti` in PostgreSQL before granting socket bootstrap authority
-6. host lifecycle handlers require the grant's system session kind and
-   `system_register` intent before accepting Arcade system registration
+   origins, and session kind
+5. the realtime auth service validates every claim and consumes the `jti` in
+   one PostgreSQL transaction before granting socket bootstrap authority
+6. the Arcade system host uses the ordinary `host:createRoom` lifecycle action
 
 Migration `0040_host_grant_consumption.sql` adds the durable single-use
-authority and its expiry index. Consumption identity, session kind, intent,
-chronology, and non-empty claims are constrained by PostgreSQL rather than
+authority and its expiry index. The durable row retains only `jti`, `app_id`,
+`session_kind`, `expires_at`, and `consumed_at`; the primary key, session kind,
+chronology, and non-empty identifiers are constrained by PostgreSQL rather than
 trusted to process memory.
 
-The database lookup and insert occur in one statement. Two realtime instances
-or concurrent sockets racing the same grant therefore cannot both accept it.
-Invalid origin, audience, scope, intent, session kind, app ownership, expiry,
-or replay fails closed without consuming a grant that was otherwise valid for
-a different intended action.
+The authoritative validation and insert occur in one transaction, and the
+`jti` primary key admits only one insert. Two realtime instances or concurrent
+sockets racing the same grant therefore cannot both accept it. Invalid origin,
+audience, session kind, app ownership, expiry, or replay fails closed.
 
 ## Active-Room Ownership
 
@@ -58,10 +57,9 @@ reconnect. A room code alone is no longer master authority.
 The realtime server rejects:
 
 1. reconnect without the exact room capability
-2. system registration over a room owned by another active host
-3. a second `registerSystem` call that attempts to bind one socket to a
-   different room
-4. system registration from game-scoped bootstrap authority
+2. host lifecycle actions before the socket establishes bootstrap authority
+3. a public app-ID bootstrap that attempts to elevate itself to system authority
+4. a room ownership claim from a socket without the matching resume capability
 
 A room reset creates a new room and rotates the resume capability. The old
 room capability cannot claim the new room. Legacy room-only browser storage is
@@ -73,7 +71,8 @@ discarded rather than silently treated as authority.
 Production and Railway preview environments in required-auth mode need the
 canonical PostgreSQL app/grant authority. The master key remains available only
 for explicit development and test environments where it is useful as a local
-tool.
+tool; the realtime server environment validator is the sole policy owner for
+that eligibility.
 
 This is a deliberate zero-compatibility cleanup:
 
@@ -93,29 +92,34 @@ The retained focused proof covers:
    requirements at the platform endpoint
 4. canonical app/game/creator binding
 5. one-time and exactly-one-winner concurrent PostgreSQL consumption
-6. missing and forged origin, replay, mismatched intent, stale ownership, and
-   bounded expired-consumption cleanup
+6. missing and forged origin, replay, stale ownership, and bounded
+   expired-consumption cleanup
 7. legitimate first launch while rejecting raw replay and active-room hijack
-8. rejection of game-scoped system registration
-9. rejection of repeated system registration without orphaning the original
-   room or its indexes
+8. rejection of public app-ID bootstrap attempts to claim system authority
+9. explicit local-only system bootstrap when authentication is disabled
 10. host reconnect capability issuance, persistence, required ownership, and
     rotation on room reset
 11. hosted master-key rejection and explicit local-development behavior
 12. a fresh migration catalog through `0040` classified `ready` by the
     canonical database-migration inspector
 
-The focused server proof currently passes `54/54` tests against local
-PostgreSQL 14. The phased `0037` to `0038` to `0039` ownership/admission upgrade
-test and a fresh catalog application through `0040` also pass. These are local
-implementation facts, not production claims.
+The focused server database authority proof passes `13/13` tests against local
+PostgreSQL after a fresh catalog application through `0040`. The phased `0037`
+to `0038` to `0039` ownership/admission upgrade test also passes. These are
+local implementation facts, not production claims.
 
-The post-edit complete local batch also passed on 2026-09-08 with the protected
-PostgreSQL lane enabled: canonical guards, typechecks, lint, repo contracts,
-194 server tests, 281 SDK tests, and 453 platform tests all passed. Canonicalizer
-returned `ready` after shared operational-authority and local-master-key rules
-were reduced to one owner. Protected review and production proof remain
-separate gates.
+The post-correction complete local batch passed on 2026-09-09 with PostgreSQL
+enabled: generated-source checks, typechecks, lint, canonical guard, 200 repo
+contract tests, 200 server tests, 287 SDK tests, and 464 platform tests passed.
+The one pre-push Canonicalizer session initially returned `CONTINUE`: it
+identified client-controlled session elevation, duplicated signing machinery,
+redundant grant persistence, hosted master-key provisioning, authentication-
+coupled cleanup, inaccurate lifecycle proof language, stale operational-worker
+status, and obsolete abuse-identity guidance. Those findings are corrected in
+the working tree. The same session, `2408e343-78a8-43a8-b14f-1e44d07a3467`,
+then returned `READY`, confirming one owner per boundary, verified-state session
+authority, no surviving compatibility shims, and a minimal matching migration.
+Protected GitHub review and production proof remain separate gates.
 
 ## Coordinated Rollout Boundary
 

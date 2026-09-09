@@ -58,7 +58,6 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
       env: {
         authMode: "required",
         databaseUrl,
-        nodeEnv: "test",
       },
     });
     await expect(auth.verifyHostBootstrap({ appId: appKey })).resolves.toEqual(
@@ -86,11 +85,8 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
         creatorId,
         iat: now,
         exp: now + 60,
-        scopes: ["host:bootstrap"],
         origins: ["https://airjam.io"],
         sessionKind: "system",
-        intent: "system_register",
-        abuseSessionId: crypto.randomUUID(),
         ...overrides,
       },
     });
@@ -104,7 +100,6 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
         authMode: "required",
         databaseUrl,
         hostGrantSecret,
-        nodeEnv: "test",
       },
     });
 
@@ -115,7 +110,6 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
     await expect(
       auth.verifyHostBootstrap({
         hostGrant,
-        hostSessionKind: "system",
         origin: "https://airjam.io",
       }),
     ).resolves.toEqual(
@@ -125,13 +119,13 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
         gameId,
         creatorId,
         verifiedVia: "hostGrant",
+        hostSessionKind: "system",
       }),
     );
 
     await expect(
       auth.verifyHostBootstrap({
         hostGrant,
-        hostSessionKind: "system",
         origin: "https://airjam.io",
       }),
     ).resolves.toEqual({
@@ -148,7 +142,6 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
       Array.from({ length: 8 }, () =>
         auth.verifyHostBootstrap({
           hostGrant,
-          hostSessionKind: "system",
           origin: "https://airjam.io",
         }),
       ),
@@ -164,20 +157,9 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
     ).toHaveLength(7);
   });
 
-  it("rejects a mismatched session intent without consuming the grant", async () => {
+  it("takes session authority from the grant instead of the client request", async () => {
     const auth = createHostGrantAuth();
-    const hostGrant = await createSystemHostGrant();
-
-    await expect(
-      auth.verifyHostBootstrap({
-        hostGrant,
-        hostSessionKind: "game",
-        origin: "https://airjam.io",
-      }),
-    ).resolves.toEqual({
-      isVerified: false,
-      error: "Unauthorized: Host grant session intent mismatch",
-    });
+    const hostGrant = await createSystemHostGrant({ sessionKind: "game" });
 
     await expect(
       auth.verifyHostBootstrap({
@@ -185,16 +167,19 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
         hostSessionKind: "system",
         origin: "https://airjam.io",
       }),
-    ).resolves.toEqual(expect.objectContaining({ isVerified: true }));
+    ).resolves.toEqual(
+      expect.objectContaining({
+        isVerified: true,
+        hostSessionKind: "game",
+      }),
+    );
   });
 
   it("rejects a missing origin without consuming the grant", async () => {
     const auth = createHostGrantAuth();
     const hostGrant = await createSystemHostGrant();
 
-    await expect(
-      auth.verifyHostBootstrap({ hostGrant, hostSessionKind: "system" }),
-    ).resolves.toEqual({
+    await expect(auth.verifyHostBootstrap({ hostGrant })).resolves.toEqual({
       isVerified: false,
       error: "Unauthorized: Missing or Invalid Origin",
     });
@@ -202,7 +187,6 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
     await expect(
       auth.verifyHostBootstrap({
         hostGrant,
-        hostSessionKind: "system",
         origin: "https://airjam.io",
       }),
     ).resolves.toEqual(expect.objectContaining({ isVerified: true }));
@@ -219,7 +203,6 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
     await expect(
       auth.verifyHostBootstrap({
         hostGrant,
-        hostSessionKind: "system",
         origin: "https://airjam.io",
       }),
     ).resolves.toEqual({
@@ -235,14 +218,18 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
     expect(remaining?.count).toBe(0);
   });
 
-  it("cleans expired grant consumptions during bounded admission work", async () => {
-    const expiredJti = crypto.randomUUID();
+  it("cleans only grant consumptions beyond the retention margin", async () => {
+    const staleJti = crypto.randomUUID();
+    const recentJti = crypto.randomUUID();
     await client`
       insert into realtime_host_grant_consumptions (
-        jti, app_id, abuse_session_id, session_kind, intent, consumed_at, expires_at
+        jti, app_id, session_kind, consumed_at, expires_at
       ) values (
-        ${expiredJti}, ${appKey}, ${crypto.randomUUID()}, 'system',
-        'system_register', now() - interval '2 minutes', now() - interval '1 minute'
+        ${staleJti}, ${appKey}, 'system',
+        now() - interval '12 minutes', now() - interval '10 minutes'
+      ), (
+        ${recentJti}, ${appKey}, 'system',
+        now() - interval '2 minutes', now() - interval '1 minute'
       )
     `;
 
@@ -251,7 +238,6 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
     await expect(
       auth.verifyHostBootstrap({
         hostGrant,
-        hostSessionKind: "system",
         origin: "https://airjam.io",
       }),
     ).resolves.toEqual(expect.objectContaining({ isVerified: true }));
@@ -259,8 +245,14 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
     const [remaining] = await client<[{ count: number }]>`
       select count(*)::int as count
       from realtime_host_grant_consumptions
-      where jti = ${expiredJti}
+      where jti in (${staleJti}, ${recentJti})
     `;
-    expect(remaining?.count).toBe(0);
+    expect(remaining?.count).toBe(1);
+    const [recent] = await client<[{ count: number }]>`
+      select count(*)::int as count
+      from realtime_host_grant_consumptions
+      where jti = ${recentJti}
+    `;
+    expect(recent?.count).toBe(1);
   });
 });

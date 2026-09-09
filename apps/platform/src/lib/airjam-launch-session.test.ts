@@ -6,7 +6,7 @@ import {
 } from "./airjam-launch-session";
 
 describe("Air Jam anonymous launch-session capability", () => {
-  it("issues a 24-hour signed capability with a non-forgeable abuse identity", async () => {
+  it("issues a 24-hour signed capability with a neutral unique identifier", async () => {
     const issued = await createAirJamLaunchSession({
       secret: "test-host-grant-secret",
       now: 1_800_000_000,
@@ -15,7 +15,7 @@ describe("Air Jam anonymous launch-session capability", () => {
 
     expect(issued.claims).toEqual({
       typ: "airjam.launch_session.v1",
-      abuseSessionId: "11111111-1111-4111-8111-111111111111",
+      jti: "11111111-1111-4111-8111-111111111111",
       iat: 1_800_000_000,
       exp: 1_800_000_000 + AIR_JAM_LAUNCH_SESSION_TTL_SECONDS,
     });
@@ -26,6 +26,23 @@ describe("Air Jam anonymous launch-session capability", () => {
         now: 1_800_000_001,
       }),
     ).resolves.toEqual({ ok: true, claims: issued.claims });
+  });
+
+  it("uses a distinct signing domain from host grants", async () => {
+    const issued = await createAirJamLaunchSession({
+      secret: "test-host-grant-secret",
+      now: 1_800_000_000,
+      createId: () => "11111111-1111-4111-8111-111111111111",
+    });
+    const { verifyHostGrant } = await import("@air-jam/sdk/protocol");
+
+    await expect(
+      verifyHostGrant({
+        secret: "test-host-grant-secret",
+        token: issued.token,
+        now: 1_800_000_001,
+      }),
+    ).resolves.toEqual({ ok: false, error: "Invalid host grant signature" });
   });
 
   it("fails closed for tampered, wrongly signed, and expired capabilities", async () => {

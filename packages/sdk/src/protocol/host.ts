@@ -80,18 +80,10 @@ export interface HostSocketAuthority {
 export const hostBootstrapSchema = z.object({
   appId: z.string().optional(),
   hostGrant: z.string().min(1).optional(),
-  hostSessionKind: hostSessionKindSchema.default("system"),
+  hostSessionKind: hostSessionKindSchema.default("game"),
 });
 
 export type HostBootstrapPayload = z.infer<typeof hostBootstrapSchema>;
-
-export const hostRegisterSystemSchema = z.object({
-  roomId: roomCodeSchema,
-});
-
-export type HostRegisterSystemPayload = z.infer<
-  typeof hostRegisterSystemSchema
->;
 
 export const systemLaunchGameSchema = z.object({
   roomId: roomCodeSchema,

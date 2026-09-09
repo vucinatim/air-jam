@@ -5,8 +5,8 @@ export const PLATFORM_SCHEMA_CONTRACT_VERSION = 1 as const;
 
 export const platformSchemaHead = {
   tag: "0040_host_grant_consumption",
-  createdAt: 1788835707497,
-  hash: "446fefda29ca3caeaadef856efb67cf1a501229fec64776137366df79dfa49ba",
+  createdAt: 1788939243862,
+  hash: "f8b2cd744cfaa64055fa79dc0ba7972757466b7a47729f798a12715e85bec7e7",
   catalogDigest:
-    "a17d9ccdc77cfccd42d4d9137d0f01a5c1f6e328277b41c60707290b6579b2a5",
+    "7dfb90a08817705e8b9d74605904cecb2eccc67310165f81ec040c02554d46e7",
 } as const;

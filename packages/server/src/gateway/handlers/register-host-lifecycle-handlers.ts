@@ -8,7 +8,6 @@ import {
   hostCreateRoomSchema,
   hostJoinAsChildSchema,
   hostReconnectSchema,
-  hostRegisterSystemSchema,
   hostRemoveControllerSchema,
   hostResetRoomSchema,
   systemLaunchGameSchema,
@@ -19,7 +18,6 @@ import {
   type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
   type HostReconnectPayload,
-  type HostRegisterSystemPayload,
   type HostRegistrationAck,
   type HostRemoveControllerPayload,
   type HostResetRoomPayload,
@@ -58,6 +56,7 @@ import {
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
 import { redactIdentifier } from "../../logging/logger.js";
+import type { HostBootstrapVerificationResult } from "../../services/auth-service.js";
 import type {
   RealtimeAdmissionDenial,
   RealtimeRoomLease,
@@ -90,23 +89,20 @@ export const registerHostLifecycleHandlers = (
   });
 
   const bindHostAuthority = (
-    appId?: string,
-    gameId?: string,
-    creatorId?: string,
-    verifiedVia?: "appId" | "hostGrant",
-    verifiedOrigin?: string,
-    hostSessionKind: HostSessionKind = "system",
+    verification: HostBootstrapVerificationResult & {
+      hostSessionKind: HostSessionKind;
+    },
   ): string => {
     const traceId = `host_${uuidv4().replace(/-/g, "").slice(0, 12)}`;
     socket.data.hostAuthority = {
-      appId,
-      gameId,
-      creatorId,
+      appId: verification.appId,
+      gameId: verification.gameId,
+      creatorId: verification.creatorId,
       traceId,
       verifiedAt: Date.now(),
-      verifiedVia,
-      verifiedOrigin,
-      hostSessionKind,
+      verifiedVia: verification.verifiedVia,
+      verifiedOrigin: verification.verifiedOrigin,
+      hostSessionKind: verification.hostSessionKind,
     };
     return traceId;
   };
@@ -437,7 +433,7 @@ export const registerHostLifecycleHandlers = (
       if (!socket.connected) {
         return;
       }
-      if (!verification.isVerified) {
+      if (!verification.isVerified || !verification.hostSessionKind) {
         logHostEvent(
           "warn",
           AIRJAM_DEV_LOG_EVENTS.host.bootstrapRejected,
@@ -484,14 +480,10 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const traceId = bindHostAuthority(
-        verification.appId,
-        verification.gameId,
-        verification.creatorId,
-        verification.verifiedVia,
-        verification.verifiedOrigin,
-        parsed.data.hostSessionKind,
-      );
+      const traceId = bindHostAuthority({
+        ...verification,
+        hostSessionKind: verification.hostSessionKind,
+      });
       logHostEvent(
         "info",
         AIRJAM_DEV_LOG_EVENTS.host.bootstrapVerified,
@@ -511,159 +503,6 @@ export const registerHostLifecycleHandlers = (
         }),
       );
       callback({ ok: true, traceId });
-    },
-  );
-
-  socket.on(
-    "host:registerSystem",
-    async (payload: HostRegisterSystemPayload, callback) => {
-      if (
-        context.isRateLimited(
-          "host-registration",
-          context.hostRegistrationRateLimitMax,
-        )
-      ) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-          "Rejected host registerSystem due to socket rate limit",
-          { reason: "rate_limited" },
-        );
-        callback({
-          ok: false,
-          message: "Too many host registration attempts. Please try again.",
-          code: ErrorCode.SERVICE_UNAVAILABLE,
-        });
-        return;
-      }
-
-      if (!ensureHostAuthority("host:registerSystem", callback)) {
-        return;
-      }
-
-      if (socket.data.hostAuthority?.hostSessionKind !== "system") {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-          "Rejected system registration from a game-scoped host authority",
-          { reason: "system_host_authority_required" },
-        );
-        callback({
-          ok: false,
-          message: "Unauthorized: System host authority required",
-          code: ErrorCode.UNAUTHORIZED,
-        });
-        return;
-      }
-
-      if (isStaticAppRateLimited("static-app-lifecycle")) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-          "Rejected host registerSystem due to static app quota",
-          { reason: "static_app_quota" },
-        );
-        callback({
-          ok: false,
-          message:
-            "Too many host lifecycle attempts for this app. Please try again.",
-          code: ErrorCode.SERVICE_UNAVAILABLE,
-        });
-        return;
-      }
-
-      const parsed = hostRegisterSystemSchema.safeParse(payload);
-      if (!parsed.success) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-          "Rejected host registerSystem with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { roomId } = parsed.data;
-
-      const existingRoomId = roomManager.getRoomByHostId(socket.id);
-      if (existingRoomId && existingRoomId !== roomId) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-          "Rejected repeated system registration for a different room",
-          {
-            roomId,
-            existingRoomId,
-            reason: "host_already_bound",
-          },
-        );
-        callback({
-          ok: false,
-          message: `Host is already registered to room ${existingRoomId}`,
-          code: ErrorCode.ALREADY_CONNECTED,
-        });
-        return;
-      }
-
-      let session = roomManager.getRoom(roomId);
-      if (session) {
-        if (session.masterHostSocketId !== socket.id) {
-          logHostEvent(
-            "warn",
-            AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-            "Rejected system host registration because the room is already owned",
-            {
-              roomId,
-              reason: "resume_capability_required",
-            },
-          );
-          callback({
-            ok: false,
-            message: "Room ownership must be resumed by its existing host",
-            code: ErrorCode.UNAUTHORIZED,
-          });
-          return;
-        }
-        clearPendingRoomCloseTimer(session);
-      } else {
-        const created = await createAndBindRoomForHost({
-          roomId,
-          maxPlayers: 32,
-          hostSessionKind: "system",
-        });
-        if (!created.ok) {
-          rejectAdmission(created.denial, callback);
-          return;
-        }
-        session = created.session;
-      }
-
-      roomManager.setHostRoom(socket.id, roomId);
-      socket.join(roomId);
-
-      logHostEvent(
-        "info",
-        AIRJAM_DEV_LOG_EVENTS.host.registerSystemAccepted,
-        "Host registered as system host",
-        {
-          roomId,
-        },
-      );
-      runtimeUsagePublisher.publish(
-        createRoomRuntimeUsageEvent(session, {
-          kind: "room_registered",
-        }),
-      );
-      callback(buildHostRegistrationAck(session));
-      io.to(roomId).emit("server:roomReady", { roomId });
     },
   );
 
@@ -758,7 +597,7 @@ export const registerHostLifecycleHandlers = (
 
       const created = await createAndBindRoomForHost({
         maxPlayers: maxPlayers ?? 8,
-        hostSessionKind: socket.data.hostAuthority?.hostSessionKind ?? "game",
+        hostSessionKind: socket.data.hostAuthority!.hostSessionKind,
       });
       if (!created.ok) {
         logHostEvent(
