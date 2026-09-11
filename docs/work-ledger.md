@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-09-09
+Last updated: 2026-09-11
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,25 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-09-11 - Launch-Critical Player Recovery Received a Real Browser Pass
+
+- isolated local development from stale remote database settings while
+  preserving the existing local database and provider configuration
+- replaced misleading catalog empty states with shared error/retry feedback,
+  made game-card launches keyboard accessible, and removed hidden catalog work
+- added visible controller join/reconnect recovery using existing SDK state
+  and an iframe-only retry for delayed game controllers
+- stopped rejected automatic launches from repeatedly retrying and retained
+  explicit player-controlled recovery in the existing runtime reducer
+- proved local room creation, keyboard launch, failed join, phone-sized game
+  controller rendering, temporary network recovery, and catalog outage/retry
+- fixed explicit agent attachment replacing its target's development stack
+  and ordered SDK startup before consumers to prevent partially written imports
+- retained bounded evidence and remaining gaps in the
+  [launch experience recovery audit](./audits/v1-public-release/launch-experience-recovery-audit.md)
+- kept G6-07 open for the remaining release experience evidence; no merge or
+  production deployment was performed
 
 ## 2026-09-09 - Remaining 1.0 Work Was Rebalanced Around Launch Value
 

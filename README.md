@@ -100,6 +100,32 @@ cd air-jam
 pnpm install
 ```
 
+For platform development, start the repo-owned local database:
+
+```bash
+pnpm run repo -- db up
+pnpm --silent run repo -- db url
+```
+
+Set the printed `DATABASE_URL` in the repository-root `.env.local`. The normal
+dev command passes it to both the platform and realtime server, ahead of any
+older service-local settings. Do not reuse production database credentials for
+ordinary development. Keep existing local data; do not use `db reset` to resolve
+a branch/schema mismatch.
+
+For a fresh local database, apply the checked-out migrations explicitly:
+
+```bash
+DATABASE_URL="$(pnpm --silent run repo -- db url)" pnpm --filter platform exec drizzle-kit migrate
+pnpm --silent run repo -- platform database migration inspect --json
+pnpm run dev
+```
+
+Local reference games do not need hosted release storage or
+`AIRJAM_RELEASES_PUBLIC_ORIGIN`. Testing a hosted catalog does require the
+matching isolated database, storage, and game-asset origin; pointing local code
+at an old hosted database is not a substitute for that setup.
+
 Useful top-level workflows:
 
 ```bash
