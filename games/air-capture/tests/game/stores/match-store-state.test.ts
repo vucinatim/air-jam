@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { agentContract } from "../../../src/game/contracts/agent";
 import { createEmptyTeamCounts } from "../../../src/game/domain/match-readiness";
 import {
   MATCH_COUNTDOWN_DURATION_MS,
@@ -22,6 +23,36 @@ const createState = (
 describe("air-capture match store state", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it.each(["lobby", "countdown", "playing", "ended"] as const)(
+    "reports start readiness accurately in %s",
+    async (matchPhase) => {
+      const snapshot = await agentContract.projectSnapshot({
+        controllerId: "p1",
+        stores: {
+          default: createState({
+            matchPhase,
+            teamAssignments: { p1: { teamId: "solaris" } },
+            botCounts: { solaris: 0, nebulon: 1 },
+          }),
+        },
+      });
+      expect(snapshot.canStartMatch).toBe(matchPhase === "lobby");
+    },
+  );
+
+  it("does not report an unready lobby as startable", async () => {
+    const snapshot = await agentContract.projectSnapshot({
+      controllerId: "p1",
+      stores: {
+        default: createState({
+          teamAssignments: { p1: { teamId: "solaris" } },
+          botCounts: { solaris: 0, nebulon: 0 },
+        }),
+      },
+    });
+    expect(snapshot.canStartMatch).toBe(false);
   });
 
   it("auto-assigns connected players into balanced teams", () => {

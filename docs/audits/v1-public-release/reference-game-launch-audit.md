@@ -1,11 +1,23 @@
 # Reference game launch audit
 
 Date: 2026-09-11
-Scope: G6-07; Pong, Code Review, Last Band Standing, and The Office.
+Scope: G6-07; Pong, Code Review, Last Band Standing, The Office, and the
+explicitly scoped Air Capture snapshot follow-up below.
 Evidence level: source contracts and focused executable tests, plus the
 integrating agent's explicitly identified local Pong lifecycle below. The
 source-audit subtask did not operate the browser, restart the shared dev stack,
 or verify production.
+
+## Air Capture snapshot follow-up
+
+Air Capture's `canStartMatch` projection now requires a ready lobby, matching
+the authoritative reducer. Countdown, playing, and ended snapshots no longer
+advertise initial start as available. No gameplay, action, or team-readiness
+rule changed. Five new snapshot cases cover all four phases and an unready
+lobby; all 88 Air Capture tests, typecheck, and lint passed. The bundled
+scaffold archive was regenerated through the canonical generator and checked
+for source parity. This is focused semantic proof, not a new browser,
+physical-phone, or hosted-release run.
 
 ## Findings and changes
 
