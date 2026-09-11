@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-09
+Last updated: 2026-09-11
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -35,8 +35,8 @@ experience feel finished, communicate it clearly, and launch one exact
 candidate. Mature-company operational completeness is not the pre-adoption
 release bar.
 
-The validated machine program now reports `74%` estimate-weighted progress and
-`51–103` remaining agent-hours. Those estimates include product polish that the
+The validated machine program now reports `75%` estimate-weighted progress and
+`49–99` remaining agent-hours. Those estimates include product polish that the
 older infrastructure-heavy plan failed to own explicitly.
 
 The current priorities are:
@@ -47,8 +47,8 @@ The current priorities are:
    ordinary room-code experience
 3. explicitly polish homepage, Arcade, mobile joining, reconnect, representative
    games, and public failure states
-4. prove Claude Desktop interoperability and run one final reusable external-
-   agent lifecycle
+4. build on the completed Claude Desktop interoperability proof and run one
+   final reusable external-agent lifecycle
 5. close only the practical spend brake, emergency pause, honest operating
    envelope, and residual security risk
 6. finish package, documentation, demo, article, and distribution work against
@@ -64,6 +64,15 @@ The current priorities are:
 ## What Is Structurally Done
 
 These are now baseline truths, not open architecture debates:
+
+The second supported agent client is now proven locally: Claude Desktop
+independently discovered the registry-installed candidate, started its runtime,
+opened a semantic session, changed and re-read authoritative game state, and
+closed everything it started. See the
+[retained client proof](./audits/v1-golden-path/claude-desktop-interop-audit.md).
+This does not claim a frozen final candidate, public package promotion, or
+production rollout; current launch-experience changes remain on the local
+working branch.
 
 1. the framework, platform, realtime server, and browser-worker split is established
 2. the dashboard and hosted release model are real:

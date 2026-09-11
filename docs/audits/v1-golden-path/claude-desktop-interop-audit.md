@@ -1,7 +1,7 @@
 # Claude Desktop Interoperability Audit
 
 Date: 2026-09-11
-Status: preflight and setup correction; independent client proof remains open
+Status: passed candidate secondary-client local proof; frozen-candidate rehearsal remains separate
 Work item: `G2-04`
 
 ## What This Proves
@@ -46,7 +46,7 @@ introduced.
 - the local homepage still returned HTTP 200 and the current unified signal
   log contained no errors after the rebuild
 
-## Independent Proof Still Required
+## Independent Client Proof
 
 The installed client's configuration UI is evidence that the raw profile can
 still be tested; it is not certification that Air Jam works through that
@@ -60,12 +60,26 @@ latest at `0.9.2`, while this source candidate is `0.9.3`. The new
 registry for prerelease proof; do not publish packages merely to bypass this
 preflight or count the old public package as the current candidate.
 
-The remaining run must connect Claude Desktop to an isolated registry-installed
-game, independently discover tools/resources, and open, read, invoke, and close
-a semantic session without the monorepo or prior agent transcript. Retain the
-actual client/tool evidence and remove the run-specific registration afterward.
-Permission to add that temporary connection to the maintainer's existing
-Desktop app was requested; until supplied, its configuration stays unchanged.
+The maintainer subsequently approved a temporary local connection. The
+[retained independent run](./evidence/g2-04-20260911/README.md) passed through
+Claude Desktop's incognito Chat mode against registry-installed `0.9.3`
+candidate packages. The run controller prepared the clean project and client
+configuration; Claude independently discovered and operated it without the
+monorepo, a prior transcript, or follow-up implementation hints.
 
-No independent Claude session, registry publication, push, merge, or production
-deployment is claimed by this audit.
+Claude opened room `R8SM`, read the initial counter, invoked the advertised
+`player:tap`, and confirmed `0 → 1` with a separate authoritative read. It
+closed the session, verified the handle was gone, stopped the development
+process it had started, and recovered the original empty process baseline.
+The run controller independently checked cleanup, removed the temporary
+registration, verified the original connector was unchanged, and restarted
+Desktop to unload the test server.
+
+The install proof also caught four stale generated starter archives left by
+the earlier reference-game changes. They were regenerated and verified before
+the successful candidate install. The earlier failed preparation remains
+described in the evidence rather than being treated as a passing attempt.
+
+This closes `G2-04`, not the final immutable-candidate rehearsal or the full
+coding lifecycle in a second client. No public registry publication, push,
+merge, production deployment, or new extension system was needed.

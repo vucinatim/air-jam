@@ -18,6 +18,23 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-11 - Claude Desktop Independently Completed the Semantic Loop
+
+- regenerated four stale bundled reference-game archives through the canonical
+  generator, then passed the clean registry bootstrap on Node 24 and pnpm 9
+- connected the registry-installed `0.9.3` candidate to the actual Claude
+  Desktop client using an isolated project and empty Air Jam credential store
+- Claude discovered the game contract, started development, opened a semantic
+  session, invoked `player:tap`, independently confirmed the count changed from
+  zero to one, and closed the session and runtime without follow-up hints
+- verified empty process status independently, removed only the temporary MCP
+  registration, and restarted the client to unload it
+- closed `G2-04` with [client evidence](./audits/v1-golden-path/evidence/g2-04-20260911/README.md);
+  retained the failed stale-archive attempt and distinguished normalized tool
+  observations from transport metadata
+- no push, merge, deployment, public publication, or production mutation;
+  the final full-lifecycle candidate rehearsal remains separate
+
 ## 2026-09-11 - Claude Desktop Preflight Fixed the Project Launch Target
 
 - corrected the client-global Desktop profile to launch from the selected

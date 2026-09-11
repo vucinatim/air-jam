@@ -1,0 +1,45 @@
+2026-09-11T20:18:09.952Z [airjam] [info] Server started and connected successfully { metadata: undefined }
+2026-09-11T20:18:09.953Z [airjam] [info] Client transport closed { metadata: undefined }
+2026-09-11T20:18:09.953Z [airjam] [info] Server transport closed (intentional shutdown) { metadata: undefined }
+2026-09-11T20:18:09.953Z [airjam] [info] Client transport closed { metadata: undefined }
+2026-09-11T20:18:11.946Z [airjam] [info] Server transport closed { metadata: undefined }
+2026-09-11T20:18:11.946Z [airjam] [info] Client transport closed { metadata: undefined }
+2026-09-11T20:18:11.948Z [airjam] [info] Server started and connected successfully { metadata: undefined }
+2026-09-11T20:18:11.949Z [airjam] [info] Message from client: method="initialize" id=0 params { metadata: undefined }
+2026-09-11T20:18:12.885Z [airjam] [info] Message from server: id=0 result { metadata: undefined }
+2026-09-11T20:18:12.885Z [airjam] [info] Message from client: method="notifications/initialized" { metadata: undefined }
+2026-09-11T20:18:12.887Z [airjam] [info] Message from client: method="tools/list" id=1 params { metadata: undefined }
+2026-09-11T20:18:12.893Z [airjam] [info] Message from server: id=1 result { metadata: undefined }
+2026-09-11T20:19:30.181Z [airjam] [info] Message from client: method="tools/call" id=2 params { metadata: undefined }
+2026-09-11T20:19:30.310Z [airjam] [info] Message from server: id=2 result(1 blocks) { metadata: undefined }
+2026-09-11T20:20:17.385Z [airjam] [info] Message from client: method="tools/call" id=3 params { metadata: undefined }
+2026-09-11T20:20:17.389Z [airjam] [info] Message from server: id=3 result(1 blocks) { metadata: undefined }
+2026-09-11T20:20:37.723Z [airjam] [info] Message from client: method="tools/call" id=4 params { metadata: undefined }
+2026-09-11T20:20:37.738Z [airjam] [info] Message from server: id=4 result(1 blocks) { metadata: undefined }
+2026-09-11T20:21:37.010Z [airjam] [info] Message from client: method="tools/call" id=5 params { metadata: undefined }
+2026-09-11T20:21:38.573Z [airjam] [info] Message from server: id=5 result(1 blocks) { metadata: undefined }
+2026-09-11T20:22:07.189Z [airjam] [info] Message from client: method="tools/call" id=6 params { metadata: undefined }
+2026-09-11T20:22:07.460Z [airjam] [info] Message from server: id=6 result(1 blocks) { metadata: undefined }
+2026-09-11T20:22:31.060Z [airjam] [info] Message from client: method="tools/call" id=7 params { metadata: undefined }
+2026-09-11T20:22:36.496Z [airjam] [info] Message from server: id=7 result(1 blocks) { metadata: undefined }
+2026-09-11T20:23:07.174Z [airjam] [info] Message from client: method="tools/call" id=8 params { metadata: undefined }
+2026-09-11T20:23:17.856Z [airjam] [info] Message from server: id=8 result(1 blocks) { metadata: undefined }
+2026-09-11T20:24:13.662Z [airjam] [info] Message from client: method="tools/call" id=9 params { metadata: undefined }
+2026-09-11T20:24:15.449Z [airjam] [info] Message from server: id=9 result(1 blocks) { metadata: undefined }
+2026-09-11T20:24:27.620Z [airjam] [info] Message from client: method="tools/call" id=10 params { metadata: undefined }
+2026-09-11T20:24:32.075Z [airjam] [info] Message from server: id=10 result(1 blocks) { metadata: undefined }
+2026-09-11T20:24:50.656Z [airjam] [info] Message from client: method="tools/call" id=11 params { metadata: undefined }
+2026-09-11T20:24:52.384Z [airjam] [info] Message from server: id=11 result(1 blocks) { metadata: undefined }
+2026-09-11T20:25:06.766Z [airjam] [info] Message from client: method="tools/call" id=12 params { metadata: undefined }
+2026-09-11T20:25:06.773Z [airjam] [info] Message from server: id=12 result(1 blocks) { metadata: undefined }
+2026-09-11T20:25:28.394Z [airjam] [info] Message from client: method="tools/call" id=13 params { metadata: undefined }
+2026-09-11T20:25:28.398Z [airjam] [info] Message from server: id=13 result(1 blocks) { metadata: undefined }
+2026-09-11T20:26:04.767Z [airjam] [info] Message from client: method="tools/call" id=14 params { metadata: undefined }
+2026-09-11T20:26:04.875Z [airjam] [info] Message from server: id=14 result(1 blocks) { metadata: undefined }
+2026-09-11T20:27:08.460Z [airjam] [info] Message from client: method="tools/call" id=15 params { metadata: undefined }
+2026-09-11T20:27:08.575Z [airjam] [info] Message from server: id=15 result(1 blocks) { metadata: undefined }
+2026-09-11T20:29:22.028Z [airjam] [info] Client transport closed { metadata: undefined }
+2026-09-11T20:29:22.028Z [airjam] [info] Server transport closed (intentional shutdown) { metadata: undefined }
+2026-09-11T20:29:22.028Z [airjam] [info] Client transport closed { metadata: undefined }
+2026-09-11T20:29:22.105Z [airjam] [info] Server transport closed { metadata: undefined }
+2026-09-11T20:29:22.105Z [airjam] [info] Client transport closed { metadata: undefined }
