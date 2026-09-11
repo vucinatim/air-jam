@@ -18,6 +18,26 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-11 - Practical Spend Controls and Emergency CLI Were Proved Locally
+
+- connected existing platform admissions and worker claims to the shared
+  spend policy; no new budget model, quota category, table, or scheduler
+- made dashboard and machine game creation share one atomic game/App ID
+  service, and gated only new Arcade listings rather than ordinary edits
+- added one preview-first emergency command over existing lane controls;
+  all eleven expensive lanes pause together while cleanup/telemetry remain
+  unchanged and running work can finish
+- proved denial/recovery, real PostgreSQL rollback, concurrent idempotency,
+  preserved running completion, and selective recovery in 95 focused tests
+- exercised the real repo CLI in the isolated local database, including
+  old-command replay after selective recovery; restored all lanes to normal
+- retained [control proof and remaining production gaps](./audits/v1-reliability/platform-spend-brake-proof.md)
+- reconciled stale privacy/worker-activation wording and
+  [supply-chain handoff](./audits/v1-security/supply-chain-release-trust-proof.md):
+  final registry provenance and sustained production observation remain Gate 7
+  work, not claims inferred from local tests
+- no push, merge, deployment, public-package publication, or production pause
+
 ## 2026-09-11 - Claude Desktop Independently Completed the Semantic Loop
 
 - regenerated four stale bundled reference-game archives through the canonical

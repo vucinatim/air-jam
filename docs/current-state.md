@@ -35,8 +35,8 @@ experience feel finished, communicate it clearly, and launch one exact
 candidate. Mature-company operational completeness is not the pre-adoption
 release bar.
 
-The validated machine program now reports `75%` estimate-weighted progress and
-`49–99` remaining agent-hours. Those estimates include product polish that the
+The validated machine program now reports `77%` estimate-weighted progress and
+`45–90` remaining agent-hours. Those estimates include product polish that the
 older infrastructure-heavy plan failed to own explicitly.
 
 The current priorities are:
@@ -49,8 +49,9 @@ The current priorities are:
    games, and public failure states
 4. build on the completed Claude Desktop interoperability proof and run one
    final reusable external-agent lifecycle
-5. close only the practical spend brake, emergency pause, honest operating
-   envelope, and residual security risk
+5. build on the locally proven spend brake and emergency pause; finish the
+   honest operating envelope, bounded evidence retention, and residual security
+   risk
 6. finish package, documentation, demo, article, and distribution work against
    one exact release candidate
 7. launch with a free creation harness and useful hobby cloud inside an explicit
@@ -73,6 +74,14 @@ closed everything it started. See the
 This does not claim a frozen final candidate, public package promotion, or
 production rollout; current launch-experience changes remain on the local
 working branch.
+
+The practical platform controls and supply-chain reconciliation are locally
+complete. Shared admission rules now cover new costly work, with one atomic
+emergency-pause command and selective recovery; see the
+[control proof](./audits/v1-reliability/platform-spend-brake-proof.md). The
+[trust handoff](./audits/v1-security/supply-chain-release-trust-proof.md)
+explicitly leaves final npm registry/provenance and production observation to
+the exact-candidate rehearsal. Neither local closure is a deployment claim.
 
 1. the framework, platform, realtime server, and browser-worker split is established
 2. the dashboard and hosted release model are real:
@@ -342,8 +351,8 @@ The roadmap now organizes the remaining work into explicit evidence gates:
 
 1. external-agent golden-path proof
 2. remaining launch-scale reliability, backpressure, cost, and overload proof
-3. production activation and observation of the implemented operational
-   sensors and deduplicated GitHub issue bridge
+3. exact-candidate observation of the deployed operational sensors and
+   production delivery proof for the deduplicated GitHub issue bridge
 4. security, abuse, privacy, and supply-chain trust
 5. final public documentation, demo, article, npm prerelease, and promotion
    proof
@@ -362,19 +371,16 @@ work state without becoming a second product authority:
 
 The foundation integration through PR `#61`, the production-health recovery in
 PR `#76`, the public install matrix in PR `#74`, and the durable reliability
-loop in PR `#75` are merged. The latest schema-bearing production rollout was
-main revision `5a280c43337f4dc5f00069457ee3a89b8c7cffc0`: the platform reached
-terminal `SUCCESS` as Railway deployment
-`1ca7a865-2ab5-417e-8221-574c0071736d`, and schema migration `0036` was
-independently verified against that exact revision. Production schema remains
-at exact head `0036`; current deployment identity comes from the live
-`/api/readiness` machine contract rather than a commit copied into this
-deploy-triggering document. The realtime server and browser worker remain
-successful on their latest watched-path-relevant revisions. Live browser smoke
-covers the landing page, direct Arcade navigation, branding, and game-card
-hover behavior. The separately defined operational worker is not provisioned
-in production yet, so continuous synthetics, SLO evaluation, and alert
-generation are implemented but intentionally inactive.
+loop in PR `#75` are merged. The later
+[production realtime admission proof](./audits/v1-reliability/production-realtime-admission-proof.md)
+records the coordinated platform, realtime, and operational-worker rollout,
+schema head `0039`, and initial healthy worker readiness with a complete
+synthetic batch. Current deployment identity comes from the live
+`/api/readiness` machine contract; retained deployment proof is not a fresh
+health check. Live browser smoke covers the landing page, direct Arcade
+navigation, branding, and game-card hover behavior. The operational worker is
+deployed; a complete recurring-retention observation window and final
+operational rehearsal remain `G3-08` / `G7-03` work.
 Production code is delivered incrementally; stable package promotion, public
 release visibility, final docs, the launch article, and distribution are
 coordinated only after one exact candidate passes rehearsal.
@@ -476,10 +482,11 @@ vocabulary, event and failure identities share one normalized code, synthetic
 chronology is database-owned, each scheduled check is isolated and reported,
 and older SLO evaluations cannot regress newer alert state. Scheduling is a
 separate orchestration module rather than another responsibility in the
-persistence service. Production schema migration `0036` is applied and
-verified, but the operational worker service is deliberately not deployed
-until its activation preflight, drain, synthetic configuration, rollback, and
-cost-observation path is ready.
+persistence service. The
+[production worker proof](./audits/v1-reliability/production-operational-job-worker-proof.md)
+records the deployed worker and its initial healthy readiness. Final
+observation, drain, rollback, and cost evidence remain in the exact-candidate
+rehearsal rather than a second activation project.
 Gate `G4-03` is closed by the
 [operational alert issue projection contract](./contracts/operational-alert-issue-projection-contract.md)
 and its
@@ -490,9 +497,9 @@ reconciliation, preserved discussion, inspectable dead letters, and a complete
 preview-first repo CLI lifecycle. The issue-only GitHub App identity belongs
 only on the operational worker.
 Operational evidence retention is owned by `G3-07`; it and the remaining
-activation dependencies gate separately claimable `G3-08` activation.
-This does not claim that continuous evaluations or GitHub issue delivery are
-active in production. A generic incident lifecycle and governed
+observation dependencies gate separately claimable `G3-08` closure.
+Initial worker health does not prove a complete recurring evaluation window
+or production GitHub issue delivery. A generic incident lifecycle and governed
 automatic-remediation engine are intentionally not 1.0 requirements: smart
 local agents should use the shared evidence and focused Air Jam, Railway,
 GitHub, and local tools instead.

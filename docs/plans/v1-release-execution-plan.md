@@ -649,11 +649,14 @@ the final reliability review in the same owning boundaries:
    deleting evidence referenced by an open alert, issue, or unresolved action
 
 The first five corrections belong to the separately claimable `G4-07` item.
-Retention durations belong to the privacy and operating policy specified by
-`G5-03` and included in the residual-risk review at `G5-04`; the cleanup
-implementation is the separately claimable `G3-07` item, depends on `G5-03`,
-and reuses the existing Gate 4 services. There must not be an undocumented
-delete loop or foreign-key workaround.
+The separately claimable `G3-07` item owns both the bounded operational-evidence
+retention durations and their cleanup implementation, as its rebaselined
+evidence requirement specifies. It depends on the privacy/trust reconciliation
+in `G5-03` and reuses the existing Gate 4 services. Product telemetry's existing
+90-day policy is not an implicit policy for operational events or audit rows.
+Any unresolved privacy tradeoff remains visible at `G5-04`; no duration is
+silently assumed by closing `G5-03`. There must not be an undocumented delete
+loop or foreign-key workaround.
 
 Implement `G4-07` in three reviewable batches that preserve one architecture:
 

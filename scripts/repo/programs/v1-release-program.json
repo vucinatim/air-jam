@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-11T20:35:30.459Z",
+  "updatedAt": "2026-09-11T20:57:04.685Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -517,7 +517,7 @@
       "priority": 20,
       "title": "Close the practical spend brake, emergency pause, and overload controls",
       "authority": "autonomous",
-      "status": "in_progress",
+      "status": "complete",
       "dependsOn": [
         "G0-03",
         "G3-01"
@@ -530,8 +530,8 @@
         "focused limit and overload tests plus one agent-operable spend brake and emergency stop-accepting-new-work command"
       ],
       "owner": "/root/g3-controls",
-      "note": "Continuing the claimed control lane under root coordination: wire the existing budget admission policy into release/media enqueue and claim boundaries; preserve active work, cleanup, telemetry, local development, and idempotent replay. No new quota system or production mutation.",
-      "updatedAt": "2026-09-11T20:16:27.503Z",
+      "note": "Practical control implementation locally complete: shared spend admissions/claims, atomic game creation and canonical listing checks, one audited atomic emergency-pause CLI.95 isolated integration tests and actual CLI pause/selective recovery/replay passed; full batch green; same Canonicalizer session ready after focused consolidation. Existing realtime rollout proof reused. Load belongs G3-04/G3-05; fresh production collection and exact-candidate observation/drill remain G3-08/G7-03. No push, merge, deployment or production mutation.",
+      "updatedAt": "2026-09-11T20:57:03.606Z",
       "evidence": [
         "document:docs/audits/v1-reliability/production-operational-job-worker-proof.md",
         "command:pnpm-test",
@@ -542,8 +542,12 @@
         "command:pnpm-check-batch",
         "document:docs/audits/v1-reliability/production-realtime-admission-proof.md",
         "url:https://github.com/vucinatim/air-jam/pull/109",
-        "command:railway-production-readiness"
-      ]
+        "command:railway-production-readiness",
+        "document:docs/audits/v1-reliability/platform-spend-brake-proof.md",
+        "artifact:file:docs/audits/v1-reliability/evidence/g3-02-20260911/emergency-cli.json",
+        "command:pnpm-check-batch-20260911-controls"
+      ],
+      "completedAt": "2026-09-11T20:57:03.606Z"
     },
     {
       "id": "G3-03",
@@ -777,7 +781,7 @@
       "priority": 30,
       "title": "Close implemented supply-chain trust and hand registry proof to rehearsal",
       "authority": "autonomous",
-      "status": "in_progress",
+      "status": "complete",
       "dependsOn": [
         "G5-01"
       ],
@@ -789,8 +793,15 @@
         "implemented provenance, dependency, privacy, and emergency-release proof with final npm registry evidence explicitly owned by G7-02 and G7-03"
       ],
       "owner": "/root",
-      "note": "The build-once candidate, pinned workflow, packaged AI guidance, privacy disclosure, retention capability, and emergency path are implemented. This item only reconciles that proof; the real registry publication belongs to the exact-candidate rehearsal rather than a duplicate preflight.",
-      "updatedAt": "2026-09-04T09:22:53.828Z"
+      "note": "Reconciled implemented build-once candidate, workflow authority, packaged guidance, bounded telemetry privacy and emergency-release proof. Corrected stale worker activation statements from retained deployment evidence, without claiming recurring observation. Final exact-byte matrix G7-01; trusted publishers/registry integrity/provenance G7-02; live observation G7-03/G3-08. G3-07 owns operational evidence policy; AJ-SEC-012/016 residuals remain open. No publication or provider mutation.",
+      "updatedAt": "2026-09-11T20:57:04.685Z",
+      "evidence": [
+        "document:docs/audits/v1-security/supply-chain-release-trust-proof.md",
+        "document:docs/contracts/public-package-release-trust-contract.md",
+        "document:docs/audits/v1-public-release/public-install-matrix-audit.md",
+        "document:docs/contracts/product-telemetry-contract.md"
+      ],
+      "completedAt": "2026-09-11T20:57:04.685Z"
     },
     {
       "id": "G5-04",
