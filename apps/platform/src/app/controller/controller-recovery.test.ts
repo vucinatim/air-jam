@@ -92,21 +92,25 @@ describe("controller recovery", () => {
     expect(reconnect).not.toHaveBeenCalled();
   });
 
-  it("explains automatic reconnection without inviting competing retries", () => {
-    act(() => {
-      root.render(
-        createElement(ControllerConnectionSurface, {
-          controller: { connectionStatus: "reconnecting", reconnect: vi.fn() },
-          roomId: "ABCD",
-          onOpenRoomMenu: vi.fn(),
-        }),
+  it.each(["idle", "connecting", "reconnecting"] as const)(
+    "shows %s room connection progress without premature failure or competing retries",
+    (connectionStatus) => {
+      act(() => {
+        root.render(
+          createElement(ControllerConnectionSurface, {
+            controller: { connectionStatus, reconnect: vi.fn() },
+            roomId: "ABCD",
+            onOpenRoomMenu: vi.fn(),
+          }),
+        );
+      });
+      expect(container.querySelector('[role="status"]')?.textContent).toContain(
+        "Connecting",
       );
-    });
-    expect(container.querySelector('[role="status"]')?.textContent).toContain(
-      "Connecting",
-    );
-    expect(container.textContent).not.toContain("Try again");
-  });
+      expect(container.textContent).not.toContain("Try again");
+      expect(container.textContent).not.toContain("Unable to connect");
+    },
+  );
 
   it("reloads only the embedded controller and keeps a delayed frame available to recover", () => {
     let revision = 0;

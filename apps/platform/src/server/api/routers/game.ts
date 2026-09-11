@@ -95,27 +95,28 @@ export const gameRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       const gameId = crypto.randomUUID();
 
-      // Create game
-      const [game] = await db
-        .insert(games)
-        .values({
-          id: gameId,
-          name: input.name,
-          url: input.url ?? null,
-          userId: ctx.user.id,
-        })
-        .returning();
+      return db.transaction(async (tx) => {
+        const [game] = await tx
+          .insert(games)
+          .values({
+            id: gameId,
+            name: input.name,
+            url: input.url ?? null,
+            userId: ctx.user.id,
+          })
+          .returning();
 
-      // Auto-generate app ID for the game
-      const appId = `aj_app_${crypto.randomUUID().replace(/-/g, "")}`;
-      await db.insert(appIds).values({
-        id: crypto.randomUUID(),
-        gameId: gameId,
-        creatorId: ctx.user.id,
-        key: appId,
+        // Auto-generate app ID for the game
+        const appId = `aj_app_${crypto.randomUUID().replace(/-/g, "")}`;
+        await tx.insert(appIds).values({
+          id: crypto.randomUUID(),
+          gameId: gameId,
+          creatorId: ctx.user.id,
+          key: appId,
+        });
+
+        return game;
       });
-
-      return game;
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {

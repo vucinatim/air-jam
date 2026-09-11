@@ -26,11 +26,17 @@ export default function NewGamePage() {
       utils.game.list.invalidate();
       router.push(`/dashboard/games/${game.id}`);
     },
-    onError: (err) => alert(err.message),
   });
 
   return (
-    <div className="relative space-y-6">
+    <form
+      className="relative space-y-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (createGame.isPending || !name.trim()) return;
+        createGame.mutate({ name: name.trim(), url: url.trim() || undefined });
+      }}
+    >
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Create New Game</h1>
         <p className="text-muted-foreground">
@@ -46,8 +52,12 @@ export default function NewGamePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Game Name</Label>
+            <Label htmlFor="game-name">Game Name</Label>
             <Input
+              id="game-name"
+              name="name"
+              required
+              disabled={createGame.isPending}
               placeholder="e.g. Space Racers"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -55,8 +65,12 @@ export default function NewGamePage() {
             />
           </div>
           <div className="space-y-2">
-            <Label>Preview URL (optional)</Label>
+            <Label htmlFor="game-preview-url">Preview URL (optional)</Label>
             <Input
+              id="game-preview-url"
+              name="url"
+              type="url"
+              disabled={createGame.isPending}
               placeholder="http://localhost:5173 or https://your-site.com"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -69,20 +83,19 @@ export default function NewGamePage() {
         </CardContent>
       </Card>
 
+      {createGame.error ? (
+        <p role="alert" className="text-destructive text-sm">
+          Couldn’t create your game: {createGame.error.message} Your details are
+          still here; correct them or try again.
+        </p>
+      ) : null}
+
       <div className="bg-background/95 supports-backdrop-filter:bg-background/60 sticky bottom-0 -mx-4 border-t px-4 py-4 backdrop-blur md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => router.back()}>
+          <Button type="button" variant="ghost" onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button
-            onClick={() =>
-              createGame.mutate({
-                name,
-                url: url.trim() ? url.trim() : undefined,
-              })
-            }
-            disabled={createGame.isPending || !name}
-          >
+          <Button type="submit" disabled={createGame.isPending || !name.trim()}>
             {createGame.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -92,6 +105,6 @@ export default function NewGamePage() {
           </Button>
         </div>
       </div>
-    </div>
+    </form>
   );
 }

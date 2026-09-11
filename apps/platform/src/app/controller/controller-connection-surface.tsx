@@ -28,6 +28,7 @@ export function ControllerConnectionSurface({
   onOpenRoomMenu,
 }: ControllerConnectionSurfaceProps) {
   const connecting =
+    controller.connectionStatus === "idle" ||
     controller.connectionStatus === "connecting" ||
     controller.connectionStatus === "reconnecting";
   const lastError = controller.lastError?.trim();

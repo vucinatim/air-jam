@@ -2,6 +2,7 @@
 
 import { ReleaseDetailPanels } from "@/components/releases/release-detail-panels";
 import { ReleaseStatusBadge } from "@/components/releases/release-status-badge";
+import { RetryNotice } from "@/components/retry-notice";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,7 +88,13 @@ export default function GameReleasesPage() {
     string | null
   >(null);
 
-  const { data: releases, isLoading } = api.release.listByGame.useQuery(
+  const {
+    data: releases,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = api.release.listByGame.useQuery(
     { gameId },
     {
       enabled: !!gameId,
@@ -306,6 +313,10 @@ export default function GameReleasesPage() {
               {" \u00B7 "}
               Published {formatDateShort(liveRelease.publishedAt)}
             </>
+          ) : isLoading ? (
+            "Loading release history…"
+          ) : isError ? (
+            "Release history is currently unavailable."
           ) : (
             "No live release yet. Upload a build archive and make it live."
           )}
@@ -342,8 +353,11 @@ export default function GameReleasesPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Version label</label>
+              <label htmlFor="release-version" className="text-sm font-medium">
+                Version label
+              </label>
               <Input
+                id="release-version"
                 value={versionLabel}
                 onChange={(e) => setVersionLabel(e.target.value)}
                 placeholder="v1.0.0"
@@ -351,10 +365,11 @@ export default function GameReleasesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">
+              <label htmlFor="release-archive" className="text-sm font-medium">
                 Build archive (.zip)
               </label>
               <Input
+                id="release-archive"
                 ref={fileInputRef}
                 type="file"
                 accept=".zip,application/zip"
@@ -414,8 +429,24 @@ export default function GameReleasesPage() {
       <div>
         <h2 className="mb-4 text-lg font-semibold">Release History</h2>
 
+        {isError ? (
+          <RetryNotice
+            message="We couldn’t load the release history."
+            detail={
+              releases?.length
+                ? "Previously loaded releases are still shown below."
+                : undefined
+            }
+            isRetrying={isFetching}
+            onRetry={() => void refetch()}
+          />
+        ) : null}
+
         {isLoading ? (
-          <div className="text-muted-foreground py-12 text-center text-sm">
+          <div
+            role="status"
+            className="text-muted-foreground py-12 text-center text-sm"
+          >
             Loading releases...
           </div>
         ) : releases && releases.length > 0 ? (
@@ -603,7 +634,11 @@ export default function GameReleasesPage() {
 
                         {hasDetails && (
                           <CollapsibleTrigger asChild>
-                            <Button size="sm" variant="ghost">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`Show details for ${release.versionLabel?.trim() || "untitled release"}`}
+                            >
                               <ChevronDown className="h-3.5 w-3.5 transition-transform [[data-state=open]_&]:rotate-180" />
                             </Button>
                           </CollapsibleTrigger>
@@ -638,7 +673,7 @@ export default function GameReleasesPage() {
               );
             })}
           </div>
-        ) : (
+        ) : isError ? null : (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16">
             <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
               <Package className="text-muted-foreground h-6 w-6" />
