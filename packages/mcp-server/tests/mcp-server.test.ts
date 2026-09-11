@@ -508,10 +508,45 @@ describe("inspectMcpProjectSetup", () => {
     expect(codex.content).toContain('command = "pnpm"');
     expect(codex.content).toContain('args = ["exec", "airjam-mcp"]');
     expect(codex.content).toContain(`cwd = "${root}"`);
-    expect(JSON.parse(claudeDesktop.content)).toEqual(
-      JSON.parse(portable.content),
-    );
+    expect(claudeDesktop).toMatchObject({
+      profile: "claude-desktop",
+      format: "json",
+      scope: "client-global",
+      installCommand: null,
+    });
+    expect(JSON.parse(claudeDesktop.content)).toEqual({
+      mcpServers: {
+        airjam: {
+          command: "pnpm",
+          args: ["--dir", path.resolve(root), "exec", "airjam-mcp"],
+        },
+      },
+    });
   });
+
+  it.each([
+    "a project with spaces",
+    "./relative projects/../game project",
+    path.join(os.tmpdir(), "absolute game project"),
+  ])(
+    "pins the Desktop launch directory as one absolute argument: %s",
+    (projectDir) => {
+      const profile = renderMcpClientProfile({
+        profile: "claude-desktop",
+        projectDir,
+      });
+      const declaration = JSON.parse(profile.content).mcpServers.airjam;
+      expect(declaration.command).toBe("pnpm");
+      expect(declaration.args).toEqual([
+        "--dir",
+        path.resolve(projectDir),
+        "exec",
+        "airjam-mcp",
+      ]);
+      expect(path.isAbsolute(declaration.args[1])).toBe(true);
+      expect(profile.installCommand).toBeNull();
+    },
+  );
 
   it("keeps the portable declaration separate from client registration state", async () => {
     const root = await createStandaloneGameRoot();

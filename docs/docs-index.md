@@ -69,7 +69,8 @@ The canonical Gate 2 external-agent proof is defined by:
 1. [contracts/external-agent-golden-path-contract.md](./contracts/external-agent-golden-path-contract.md)
 2. [audits/v1-golden-path/public-bootstrap-audit.md](./audits/v1-golden-path/public-bootstrap-audit.md)
 3. [audits/v1-golden-path/primary-agent-run-audit.md](./audits/v1-golden-path/primary-agent-run-audit.md)
-4. the machine-readable scenario and prompt exposed through
+4. [audits/v1-golden-path/claude-desktop-interop-audit.md](./audits/v1-golden-path/claude-desktop-interop-audit.md)
+5. the machine-readable scenario and prompt exposed through
    `pnpm --silent run repo -- golden-path spec --json`
 
 The Gate 6 public package graph, supported Node/OS matrix, budgets, and

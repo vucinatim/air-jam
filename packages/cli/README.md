@@ -69,6 +69,13 @@ The portable declaration is `.mcp.json`. Codex and Claude Desktop use their
 own client registration formats; `mcp doctor` reports declarations and actual
 client registrations separately.
 
+The Claude Desktop profile targets the selected game's absolute directory.
+Merge its `airjam` entry into Desktop's configuration through **Settings >
+Developer > Edit config**, preserving other connectors, then restart Desktop
+and check its connection status. Rendering a profile does not register it;
+`claude mcp add` is a Claude Code command, not a Desktop installer. See the
+[`@air-jam/mcp-server` setup guide](https://github.com/vucinatim/air-jam/tree/main/packages/mcp-server#discover-and-connect) for details.
+
 ## Framework guidance ownership
 
 The CLI owns the canonical managed framework pack under `docs/airjam/`.

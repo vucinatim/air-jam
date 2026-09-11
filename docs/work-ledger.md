@@ -18,6 +18,18 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-11 - Claude Desktop Preflight Fixed the Project Launch Target
+
+- corrected the client-global Desktop profile to launch from the selected
+  game's absolute directory, preserving the existing MCP service
+- removed the misleading Claude Code registration command from Desktop output
+- tested path handling and rebuilt the public CLI; retained the distinction
+  between configuration output, registration, and an actual client session
+- recorded the remaining independent client proof and unchanged client setup
+  in the [Claude Desktop audit](./audits/v1-golden-path/claude-desktop-interop-audit.md)
+- no push, merge, deployment, public publication, or client configuration
+  change was performed
+
 ## 2026-09-11 - Creator Entrypoints and Reference-Game Starts Were Exercised
 
 - made dashboard search functional, navigation native, and registration and
