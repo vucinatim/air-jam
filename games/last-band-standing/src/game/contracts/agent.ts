@@ -13,6 +13,7 @@ import {
   songBuckets,
   type SongBucketId,
 } from "../content/song-bank";
+import { isMatchReadyToStart } from "../domain/match-readiness";
 import { rankPlayers } from "../domain/round-engine";
 
 const DEFAULT_STORE_DOMAIN = "default";
@@ -135,11 +136,12 @@ export const agentContract = defineAirJamAgentContract({
     const readyCount = state.playerOrder.filter(
       (playerId) => state.readyByPlayerId[playerId],
     ).length;
-    const canStartMatch =
-      state.phase === "lobby" &&
-      state.playerOrder.length > 0 &&
-      readyCount === state.playerOrder.length &&
-      bucketSelection.hasEnoughSongs;
+    const canStartMatch = isMatchReadyToStart({
+      phase: state.phase,
+      playerIds: state.playerOrder,
+      readyByPlayerId: state.readyByPlayerId,
+      hasEnoughSongs: bucketSelection.hasEnoughSongs,
+    });
 
     const players = state.playerOrder.map((playerId) => {
       const score = state.scoreboardByPlayerId[playerId] ?? null;

@@ -97,7 +97,17 @@ export const reduceSyncConnectedPlayers = (
 export const reduceStartMatch = (
   state: SpaceStoreSnapshot,
   connectedPlayerIds: string[] | undefined,
-) => reduceResetRuntimeState(state, "playing", connectedPlayerIds);
+) => {
+  if (
+    state.matchPhase !== "lobby" ||
+    !connectedPlayerIds?.length ||
+    connectedPlayerIds.some((id) => !state.playerAssignments[id])
+  ) {
+    return state;
+  }
+
+  return reduceResetRuntimeState(state, "playing", connectedPlayerIds);
+};
 
 export const reduceRestartMatch = (
   state: SpaceStoreSnapshot,

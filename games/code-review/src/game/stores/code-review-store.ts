@@ -16,7 +16,8 @@ export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
   ...createInitialCodeReviewState(),
 
   actions: {
-    startMatch: () => set((state) => reduceStartMatch(state)),
+    startMatch: ({ connectedPlayerIds }) =>
+      set((state) => reduceStartMatch(state, connectedPlayerIds)),
 
     resetToLobby: () => set((state) => reduceResetToLobby(state)),
 

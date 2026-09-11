@@ -97,7 +97,7 @@ export const agentContract = defineAirJamAgentContract({
     return {
       matchPhase: state.matchPhase,
       scores: { ...state.scores },
-      canStartMatch: readiness.canStart,
+      canStartMatch: state.matchPhase === "lobby" && readiness.canStart,
       myAssignment,
       teams: TEAM_IDS.map((team) =>
         summarizeTeam(team, state.teamAssignments, state.botCounts),
@@ -107,7 +107,7 @@ export const agentContract = defineAirJamAgentContract({
         "join_team",
         "set_bot_count",
         "start_match",
-        "award_point",
+        "host:award_point",
         "return_to_lobby",
       ],
     };
@@ -173,7 +173,7 @@ export const agentContract = defineAirJamAgentContract({
         resultDescription: "The match phase switches from lobby to playing.",
       },
     ),
-    award_point: agentAction.participant(
+    award_point: agentAction.host(
       {
         actionName: "scorePoint",
         storeDomain: DEFAULT_STORE_DOMAIN,
@@ -185,7 +185,7 @@ export const agentContract = defineAirJamAgentContract({
         toPayload: (team) => ({ team }),
         description:
           "Award one point to a Code Review team for deterministic QA and ended-state checks.",
-        availability: "Playing only.",
+        availability: "Host-side staging only. Playing phase.",
         resultDescription:
           "The score increments for the requested team and can drive the match into its ended state.",
       },

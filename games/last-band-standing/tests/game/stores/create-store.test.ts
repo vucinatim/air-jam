@@ -100,6 +100,32 @@ describe("complete match lifecycle", () => {
     vi.useRealTimers();
   });
 
+  it("requires all lobby players ready before a controller can start", () => {
+    const host = {
+      actorId: "host",
+      role: "host" as const,
+      connectedPlayerIds: ["alpha", "beta"],
+    };
+    const alpha = { ...host, actorId: "alpha", role: "controller" as const };
+    const actions = useGameStore.getState().actions;
+    actions.resetLobby(host, undefined);
+    actions.setPlayers(host, {
+      players: [
+        { id: "alpha", label: "Alpha" },
+        { id: "beta", label: "Beta" },
+      ],
+    });
+    actions.setReady(alpha, { ready: true });
+    actions.startMatch(alpha, undefined);
+    expect(useGameStore.getState().phase).toBe("lobby");
+    actions.startMatch(host, undefined);
+    expect(useGameStore.getState().phase).toBe("lobby");
+    actions.setReady({ ...alpha, actorId: "beta" }, { ready: true });
+    actions.startMatch(alpha, undefined);
+    expect(useGameStore.getState().phase).toBe("match-countdown");
+    actions.resetLobby(host, undefined);
+  });
+
   it.each([2, 6, 10])(
     "completes every round and ranks all %i players",
     (playerCount) => {

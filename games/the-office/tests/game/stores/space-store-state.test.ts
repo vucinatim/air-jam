@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { agentContract } from "../../../src/game/contracts/agent";
 import {
   createInitialSpaceGameState,
   reduceRestartMatch,
@@ -8,6 +9,30 @@ import {
 } from "../../../src/game/stores/space-store-state";
 
 describe("space store lifecycle reducers", () => {
+  it("describes character selections without claiming full-roster readiness", async () => {
+    const snapshot = await agentContract.projectSnapshot({
+      controllerId: "alpha",
+      stores: {
+        default: {
+          ...createInitialSpaceGameState(),
+          playerAssignments: { alpha: "spela" },
+        },
+      },
+    });
+    expect(snapshot.lobby?.hasCharacterSelections).toBe(true);
+    expect(snapshot.lobby).not.toHaveProperty("canStartMatch");
+  });
+
+  it("waits for every connected coworker selection before starting", () => {
+    const empty = createInitialSpaceGameState();
+    expect(reduceStartMatch(empty, [])).toBe(empty);
+    const selected = { ...empty, playerAssignments: { alpha: "spela" } };
+    expect(reduceStartMatch(selected, ["alpha", "beta"])).toBe(selected);
+    expect(reduceStartMatch(selected, ["alpha"]).matchPhase).toBe("playing");
+    const playing = { ...selected, matchPhase: "playing" as const };
+    expect(reduceStartMatch(playing, ["alpha"])).toBe(playing);
+  });
+
   it("starts a fresh match from the current lobby assignments", () => {
     const selectedState = {
       ...createInitialSpaceGameState(),

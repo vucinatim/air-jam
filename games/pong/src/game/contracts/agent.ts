@@ -94,7 +94,7 @@ export const agentContract = defineAirJamAgentContract({
       matchPhase: state.matchPhase,
       scores: { ...state.scores },
       pointsToWin: state.pointsToWin,
-      canStartMatch: readiness.canStart,
+      canStartMatch: state.matchPhase === "lobby" && readiness.canStart,
       missingTeam: readiness.missingTeam,
       myAssignment,
       teams: TEAM_IDS.map((team) =>
@@ -108,7 +108,7 @@ export const agentContract = defineAirJamAgentContract({
         "set_points_to_win",
         "set_bot_count",
         "start_match",
-        "award_point",
+        "host:award_point",
         "restart_match",
         "return_to_lobby",
       ],
@@ -192,7 +192,7 @@ export const agentContract = defineAirJamAgentContract({
         resultDescription: "The match phase switches from lobby to playing.",
       },
     ),
-    award_point: agentAction.participant(
+    award_point: agentAction.host(
       {
         actionName: "scorePoint",
         storeDomain: DEFAULT_STORE_DOMAIN,
@@ -206,7 +206,7 @@ export const agentContract = defineAirJamAgentContract({
         }),
         description:
           "Award one point to a Pong team. Useful for agent QA and deterministic match-end checks.",
-        availability: "Playing only.",
+        availability: "Host-side staging only. Playing phase.",
         resultDescription:
           "The score increments, and the match can end if the win threshold is reached.",
       },

@@ -66,7 +66,9 @@ const runGameAgentHelper = <T>({
       ...(contractPath ? ["--contract", contractPath] : []),
       ...args,
     ],
-    cwd,
+    // tsx discovers the nearest tsconfig from cwd. Resolve authored imports
+    // beside their config, not from the caller's monorepo/session directory.
+    cwd: configPath ? path.dirname(configPath) : cwd,
   });
 
   if (!result.ok) {

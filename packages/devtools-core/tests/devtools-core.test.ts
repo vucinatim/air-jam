@@ -235,9 +235,11 @@ console.log(JSON.stringify({
 };
 
 const createControllerSocketFixture = async ({
+  aliasedAgentImport = false,
   replayStaleDefaultSyncAfterHostAction = false,
   embeddedArcadeIdentity = null,
 }: {
+  aliasedAgentImport?: boolean;
   replayStaleDefaultSyncAfterHostAction?: boolean;
   embeddedArcadeIdentity?: {
     epoch: number;
@@ -268,9 +270,16 @@ const createControllerSocketFixture = async ({
     },
   });
   await mkdir(path.join(root, "src"), { recursive: true });
+  if (aliasedAgentImport) {
+    // The caller's project root has no alias configuration. The helper must
+    // discover the tsconfig belonging to the authored config and contract.
+    await writeJson(path.join(root, "src", "tsconfig.json"), {
+      compilerOptions: { baseUrl: ".", paths: { "@/*": ["./*"] } },
+    });
+  }
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    'import { agentContract } from "./game/contracts/agent";\nexport const airjam = { controllerPath: "/controller", agent: agentContract, visualScenariosModule: "./game/contracts/visual-scenarios.mjs" };\n',
+    `import { agentContract } from "${aliasedAgentImport ? "@/game/contracts/agent" : "./game/contracts/agent"}";\nexport const airjam = { controllerPath: "/controller", agent: agentContract, visualScenariosModule: "./game/contracts/visual-scenarios.mjs" };\n`,
     "utf8",
   );
   await mkdir(path.join(root, "src", "game", "contracts"), {
@@ -1236,59 +1245,65 @@ describe("agent contracts", () => {
     );
   });
 
-  it("projects a game snapshot and invokes semantic game actions through a controller session", async () => {
-    const fixture = await createControllerSocketFixture();
+  it.each([false, true])(
+    "projects and invokes game actions with project-local aliases: %s",
+    async (aliasedAgentImport) => {
+      const fixture = await createControllerSocketFixture({
+        aliasedAgentImport,
+      });
 
-    const connected = await connectController({
-      cwd: fixture.root,
-      gameId: "socket-fixture",
-      controllerJoinUrl: fixture.joinUrl,
-      nickname: "AgentCtrl",
-    });
+      const connected = await connectController({
+        cwd: fixture.root,
+        gameId: "socket-fixture",
+        controllerJoinUrl: fixture.joinUrl,
+        nickname: "AgentCtrl",
+      });
 
-    const projected = await readGameSnapshot({
-      controllerSessionId: connected.controllerSessionId,
-      requestSync: true,
-      timeoutMs: 1_000,
-    });
-    expect(projected.snapshotStoreDomains).toEqual(["default"]);
-    expect(projected.snapshot).toMatchObject({
-      phase: "lobby",
-      score: 3,
-      controllerId: connected.controllerId,
-    });
+      const projected = await readGameSnapshot({
+        controllerSessionId: connected.controllerSessionId,
+        requestSync: true,
+        timeoutMs: 1_000,
+      });
+      expect(projected.snapshotStoreDomains).toEqual(["default"]);
+      expect(projected.snapshot).toMatchObject({
+        phase: "lobby",
+        score: 3,
+        controllerId: connected.controllerId,
+      });
 
-    const invoked = await invokeGameAction({
-      controllerSessionId: connected.controllerSessionId,
-      actionId: "set_score",
-      payload: 7,
-    });
-    await new Promise((resolve) => setTimeout(resolve, 25));
+      const invoked = await invokeGameAction({
+        controllerSessionId: connected.controllerSessionId,
+        actionId: "set_score",
+        payload: 7,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 25));
 
-    expect(invoked.actionId).toBe("set_score");
-    expect(invoked.actionName).toBe("setScore");
-    expect(invoked.storeDomain).toBe("default");
-    expect(invoked.acknowledgement).toEqual({
-      ok: true,
-      status: "accepted",
-      source: "host",
-    });
-    expect(fixture.receivedActions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionName: "setScore",
-          storeDomain: "default",
-          payload: {
-            score: 7,
-          },
-        }),
-      ]),
-    );
+      expect(invoked.actionId).toBe("set_score");
+      expect(invoked.actionName).toBe("setScore");
+      expect(invoked.storeDomain).toBe("default");
+      expect(invoked.acknowledgement).toEqual({
+        ok: true,
+        status: "accepted",
+        source: "host",
+      });
+      expect(fixture.receivedActions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            actionName: "setScore",
+            storeDomain: "default",
+            payload: {
+              score: 7,
+            },
+          }),
+        ]),
+      );
 
-    await disconnectController({
-      controllerSessionId: connected.controllerSessionId,
-    });
-  }, 20_000);
+      await disconnectController({
+        controllerSessionId: connected.controllerSessionId,
+      });
+    },
+    20_000,
+  );
 
   it("does not infer an agent contract from a file that config does not publish", async () => {
     const root = await createTempRoot();

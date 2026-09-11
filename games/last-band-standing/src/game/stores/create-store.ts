@@ -6,8 +6,10 @@ import {
 } from "@/game/constants";
 import {
   defaultSelectedSongBucketIds,
+  getUniqueSongCountForBuckets,
   toggleSelectedSongBucketIds,
 } from "@/game/content/song-bank";
+import { isMatchReadyToStart } from "@/game/domain/match-readiness";
 import { rankPlayers } from "@/game/domain/round-engine";
 import { createAirJamStore } from "@air-jam/sdk";
 import { buildPlayerLabelMap, filterRecordByPlayerIds } from "./player-helpers";
@@ -186,10 +188,6 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
 
     startMatch: ({ actorId, role }) => {
       set((state) => {
-        if (state.phase !== "lobby") {
-          return state;
-        }
-
         if (
           role !== "host" &&
           (!actorId || state.readyByPlayerId[actorId] !== true)
@@ -197,13 +195,20 @@ export const useGameStore = createAirJamStore<QuizState>((set) => ({
           return state;
         }
 
-        const activePlayerIds = state.playerOrder.filter(
-          (playerId) => state.readyByPlayerId[playerId],
-        );
-
-        if (activePlayerIds.length === 0) {
+        if (
+          !isMatchReadyToStart({
+            phase: state.phase,
+            playerIds: state.playerOrder,
+            readyByPlayerId: state.readyByPlayerId,
+            hasEnoughSongs:
+              getUniqueSongCountForBuckets(state.selectedSongBucketIds) >=
+              state.totalRounds,
+          })
+        ) {
           return state;
         }
+
+        const activePlayerIds = [...state.playerOrder];
 
         const playlistSelection = pickPlaylistSongs(
           state.totalRounds,
