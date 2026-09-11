@@ -1,10 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { createTRPCContext } from "../trpc";
 
-const database = vi.hoisted(() => ({ transaction: vi.fn() }));
+const database = vi.hoisted(() => ({
+  transaction: vi.fn(),
+  query: {
+    games: { findFirst: vi.fn() },
+    gameReleases: { findFirst: vi.fn() },
+  },
+  update: vi.fn(),
+}));
 vi.mock("@/db", () => ({ db: database }));
+vi.mock(
+  "@/server/operations/production-control-service",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/server/operations/production-control-service")
+    >()),
+    assertOperationalLaneAccepting: vi.fn(),
+  }),
+);
 
 import { appIds, games } from "@/db/schema";
+import {
+  assertOperationalLaneAccepting,
+  OperationalAdmissionDeniedError,
+} from "@/server/operations/production-control-service";
 import { gameRouter } from "./game";
 
 type RouterContext = Awaited<ReturnType<typeof createTRPCContext>>;
@@ -82,5 +102,125 @@ describe("game creation transaction", () => {
         .create({ name: "New game" }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     expect(database.transaction).not.toHaveBeenCalled();
+    expect(assertOperationalLaneAccepting).not.toHaveBeenCalled();
+  });
+
+  it("rejects a blank normalized name as bad input before admission", async () => {
+    await expect(
+      gameRouter.createCaller(context).create({ name: "   " }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(assertOperationalLaneAccepting).not.toHaveBeenCalled();
+    expect(database.transaction).not.toHaveBeenCalled();
+  });
+
+  it("maps creation denial to the existing retryable tRPC error", async () => {
+    vi.mocked(assertOperationalLaneAccepting).mockRejectedValueOnce(
+      denial("game_creation"),
+    );
+    await expect(
+      gameRouter.createCaller(context).create({ name: "Game" }),
+    ).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
+    expect(database.transaction).not.toHaveBeenCalled();
+  });
+});
+
+const denial = (lane: "game_creation" | "game_listing") =>
+  new OperationalAdmissionDeniedError({
+    contractVersion: 1,
+    decisionId: "decision-1",
+    lane,
+    controlStatus: "available",
+    mode: "paused",
+    outcome: "denied",
+    reason: "lane_paused",
+    retryAfterSeconds: 90,
+    controlRevision: 2,
+  });
+
+describe("dashboard listing admission", () => {
+  beforeEach(() => {
+    database.query.games.findFirst.mockResolvedValue({
+      id: "game-1",
+      arcadeVisibility: "hidden",
+      config: {},
+    });
+    database.query.gameReleases.findFirst.mockResolvedValue({
+      id: "live-release",
+    });
+    database.update.mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([{ id: "game-1" }]),
+        }),
+      }),
+    });
+  });
+
+  it("blocks hidden-to-listed with no write when listing admission is denied", async () => {
+    vi.mocked(assertOperationalLaneAccepting).mockRejectedValueOnce(
+      denial("game_listing"),
+    );
+    await expect(
+      gameRouter
+        .createCaller(context)
+        .update({ id: "game-1", arcadeVisibility: "listed" }),
+    ).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
+    expect(assertOperationalLaneAccepting).toHaveBeenCalledExactlyOnceWith({
+      database,
+      lane: "game_listing",
+    });
+    expect(database.update).not.toHaveBeenCalled();
+  });
+
+  it("allows admitted listing only with a live release", async () => {
+    await gameRouter
+      .createCaller(context)
+      .update({ id: "game-1", arcadeVisibility: "listed" });
+    expect(database.update).toHaveBeenCalledOnce();
+    database.update.mockClear();
+    database.query.gameReleases.findFirst.mockResolvedValue(null);
+    await expect(
+      gameRouter
+        .createCaller(context)
+        .update({ id: "game-1", arcadeVisibility: "listed" }),
+    ).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message:
+        "A game can only be listed in Arcade after a hosted release is made live.",
+    });
+    expect(database.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["listed", { arcadeVisibility: "hidden" as const }],
+    ["listed", { arcadeVisibility: "listed" as const, name: "Updated" }],
+    ["listed", { name: "Updated" }],
+    ["hidden", { name: "Updated" }],
+  ])(
+    "does not gate existing-game maintenance: %s %j",
+    async (visibility, input) => {
+      database.query.games.findFirst.mockResolvedValue({
+        id: "game-1",
+        arcadeVisibility: visibility,
+        config: {},
+      });
+      vi.mocked(assertOperationalLaneAccepting).mockRejectedValue(
+        denial("game_listing"),
+      );
+      await gameRouter.createCaller(context).update({ id: "game-1", ...input });
+      expect(assertOperationalLaneAccepting).not.toHaveBeenCalled();
+      expect(database.update).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("checks ownership before admission or mutation", async () => {
+    database.query.games.findFirst.mockResolvedValue(null);
+    await expect(
+      gameRouter
+        .createCaller(context)
+        .update({ id: "game-1", arcadeVisibility: "listed" }),
+    ).rejects.toThrow("unauthorized");
+    expect(assertOperationalLaneAccepting).not.toHaveBeenCalled();
+    expect(database.update).not.toHaveBeenCalled();
   });
 });

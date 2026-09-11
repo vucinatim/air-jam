@@ -1395,6 +1395,46 @@ export const registerPlatformCommands = (program) => {
     });
   });
 
+  addPlatformDatabaseTargetOption(
+    operationsCommand
+      .command("emergency-pause")
+      .description(
+        "Atomically stop new expensive work; preserve active work, cleanup, and telemetry",
+      )
+      .requiredOption(
+        "--reason <reason>",
+        "Durable incident or operator reason",
+      )
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable key for this emergency action; retries do not re-pause recovered lanes",
+      )
+      .option(
+        "--retry-after-seconds <seconds>",
+        "Positive retry guidance returned while paused",
+      )
+      .option("--apply", "Persist the pause; omission is a read-only preview")
+      .option(
+        "--json",
+        "Print scope, lane states, and the original pause receipt",
+      ),
+  ).action(async (options) => {
+    await runPlatformOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "emergency-pause",
+        reason: options.reason,
+        actor: options.actor,
+        idempotencyKey: options.idempotencyKey,
+        retryAfterSeconds: options.retryAfterSeconds ?? null,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
   const realtimeCommand = operationsCommand
     .command("realtime")
     .description(

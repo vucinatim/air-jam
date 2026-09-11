@@ -37,18 +37,18 @@ import {
   listReleaseJobOrphanOutputs,
 } from "../src/server/jobs/release-job-output-cleanup";
 import {
+  applyOperationalEmergencyPause,
+  previewOperationalEmergencyPause,
+} from "../src/server/operations/emergency-pause-service";
+import {
   inspectLifecycleCleanupCandidates,
   scheduleLifecycleCleanup,
 } from "../src/server/operations/lifecycle-cleanup-service";
+import { syncRailwayOperationalBudgetEvidence } from "../src/server/operations/production-budget-refresh-service";
 import {
   findOperationalBudgetEvidenceReplay,
   getOperationalBudgetStatus,
 } from "../src/server/operations/production-budget-service";
-import {
-  createRailwayBudgetEvidenceAdapter,
-  resolveRailwayBudgetEvidenceConfig,
-} from "../src/server/operations/railway-budget-evidence-adapter";
-import { syncRailwayOperationalBudgetEvidence } from "../src/server/operations/production-budget-refresh-service";
 import {
   getOperationalLaneControl,
   listOperationalLaneControls,
@@ -63,10 +63,23 @@ import {
   decideOperationalQuotaAdmissionWithDatabase,
   listOperationalQuotaUsage,
 } from "../src/server/operations/production-quota-service";
+import {
+  createRailwayBudgetEvidenceAdapter,
+  resolveRailwayBudgetEvidenceConfig,
+} from "../src/server/operations/railway-budget-evidence-adapter";
 import { inspectRealtimeAdmission } from "../src/server/operations/realtime-admission-inspection-service";
 
 type ProductionControlCliInput =
   | { command: "status"; json: boolean }
+  | {
+      command: "emergency-pause";
+      actor: string;
+      reason: string;
+      idempotencyKey: string;
+      retryAfterSeconds: number | null;
+      apply: boolean;
+      json: boolean;
+    }
   | { command: "budget-status"; json: boolean }
   | { command: "realtime-status"; json: boolean }
   | {
@@ -547,6 +560,21 @@ const parseInput = (raw: string | undefined): ProductionControlCliInput => {
       json,
     };
   }
+  if (input.command === "emergency-pause") {
+    return {
+      command: "emergency-pause",
+      actor: readRequiredText(input, "actor"),
+      reason: readRequiredText(input, "reason"),
+      idempotencyKey: readRequiredText(input, "idempotencyKey"),
+      retryAfterSeconds:
+        input.retryAfterSeconds === null ||
+        input.retryAfterSeconds === undefined
+          ? null
+          : readInteger(input, "retryAfterSeconds", 1),
+      apply: input.apply === true,
+      json,
+    };
+  }
   if (input.command !== "lane-set") {
     return fail("Unknown production-control command.");
   }
@@ -646,6 +674,32 @@ const main = async (): Promise<void> => {
             `${lane.lane}: ${lane.mode} (revision ${lane.revision})${lane.reason ? ` — ${lane.reason}` : ""}`,
           );
         }
+      }
+      return;
+    }
+
+    if (input.command === "emergency-pause") {
+      const result = input.apply
+        ? await applyOperationalEmergencyPause({ database, input })
+        : await previewOperationalEmergencyPause({ database, input });
+      if (input.json) printJson(input.command, input.apply, result);
+      else {
+        console.log(
+          result.replayed
+            ? "This key already has an emergency-pause receipt; no new pause is applied."
+            : !input.apply
+              ? `Would pause ${result.scope.lanes.length} expensive lanes. Pass --apply to persist.`
+              : `Paused ${result.scope.lanes.length} expensive lanes atomically.`,
+        );
+        for (const lane of result.lanes) {
+          console.log(
+            `${lane.lane}: current ${lane.current.mode} (revision ${lane.current.revision})`,
+          );
+        }
+        console.log("Active work, cleanup, and telemetry are not cancelled.");
+        console.log(
+          "Inspect operations status, then recover selected lanes with lane set and their current revisions.",
+        );
       }
       return;
     }

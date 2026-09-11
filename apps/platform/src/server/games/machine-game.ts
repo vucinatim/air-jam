@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { appIds, games } from "@/db/schema";
+import { games } from "@/db/schema";
 import { arcadeVisibilitySchema } from "@/lib/games/arcade-visibility";
 import {
   gameConfigSourceUrlSchema,
@@ -9,15 +9,13 @@ import {
 } from "@/lib/games/game-config-contract";
 import type { PlatformMachineOwnedGameSummary } from "@air-jam/sdk/platform-machine";
 import { and, desc, eq } from "drizzle-orm";
-import { z } from "zod";
-import { PlatformMachineAuthError } from "../auth/machine-auth-errors";
-
-const machineOwnedGameSlugSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+import { PlatformApplicationError } from "../application-error";
+import {
+  PlatformMachineAuthError,
+  rethrowOperationalAdmissionForMachine,
+} from "../auth/machine-auth-errors";
+import { createOwnedGame, ownedGameSlugSchema } from "./game-creation-service";
+import { assertGameListingAllowed } from "./game-listing-admission-service";
 
 const toMachineNotFoundError = (message: string) =>
   new PlatformMachineAuthError({
@@ -95,29 +93,6 @@ export const assertOwnedGameBySlugOrIdForMachine = async ({
   throw toMachineNotFoundError(`No owned game matched "${normalized}".`);
 };
 
-const assertArcadeVisibilityAllowed = async ({
-  gameId,
-  arcadeVisibility,
-}: {
-  gameId: string;
-  arcadeVisibility: "hidden" | "listed";
-}) => {
-  if (arcadeVisibility !== "listed") {
-    return;
-  }
-
-  const liveRelease = await db.query.gameReleases.findFirst({
-    where: (table, { and, eq }) =>
-      and(eq(table.gameId, gameId), eq(table.status, "live")),
-  });
-
-  if (!liveRelease) {
-    throw toMachineValidationError(
-      "A game can only be listed in Arcade after a hosted release is made live.",
-    );
-  }
-};
-
 export const createOwnedGameForMachine = async ({
   userId,
   input,
@@ -133,46 +108,23 @@ export const createOwnedGameForMachine = async ({
     templateId?: string;
   };
 }) => {
-  const gameId = crypto.randomUUID();
-  const normalizedSlug = input.slug
-    ? machineOwnedGameSlugSchema.parse(input.slug)
-    : null;
-  const arcadeVisibility = input.arcadeVisibility ?? "hidden";
-
-  await assertArcadeVisibilityAllowed({ gameId, arcadeVisibility });
-
   try {
-    const [game] = await db
-      .insert(games)
-      .values({
-        id: gameId,
-        userId,
-        name: input.name.trim(),
-        slug: normalizedSlug,
-        description: input.description?.trim() || null,
-        url: input.url?.trim() || null,
-        arcadeVisibility,
-        config: parseGameConfig({
-          ...(input.sourceUrl
-            ? { sourceUrl: gameConfigSourceUrlSchema.parse(input.sourceUrl) }
-            : {}),
-          ...(input.templateId
-            ? { templateId: gameConfigTemplateIdSchema.parse(input.templateId) }
-            : {}),
-        }),
-      })
-      .returning();
-
-    await db.insert(appIds).values({
-      id: crypto.randomUUID(),
-      gameId,
-      creatorId: userId,
-      key: `aj_app_${crypto.randomUUID().replace(/-/g, "")}`,
+    await assertGameListingAllowed({
+      game: null,
+      arcadeVisibility: input.arcadeVisibility,
     });
-
+    const game = await createOwnedGame({ userId, input });
     return serializeOwnedGameForMachine(game);
   } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
+    if (
+      error instanceof PlatformApplicationError &&
+      error.code === "validation_failed"
+    ) {
+      throw toMachineValidationError(error.message);
+    }
     if (error instanceof Error && error.message.includes("23505")) {
+      const normalizedSlug = input.slug?.trim();
       throw toMachineConflictError(
         normalizedSlug
           ? `Slug "${normalizedSlug}" is already taken.`
@@ -205,11 +157,20 @@ export const updateOwnedGameForMachine = async ({
     userId,
   });
 
-  if (input.arcadeVisibility) {
-    await assertArcadeVisibilityAllowed({
-      gameId: existingGame.id,
+  try {
+    await assertGameListingAllowed({
+      game: existingGame,
       arcadeVisibility: input.arcadeVisibility,
     });
+  } catch (error) {
+    rethrowOperationalAdmissionForMachine(error);
+    if (
+      error instanceof PlatformApplicationError &&
+      error.code === "validation_failed"
+    ) {
+      throw toMachineValidationError(error.message);
+    }
+    throw error;
   }
 
   const configPatch = { ...parseGameConfigLenient(existingGame.config) };
@@ -238,7 +199,7 @@ export const updateOwnedGameForMachine = async ({
       .set({
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.slug !== undefined
-          ? { slug: machineOwnedGameSlugSchema.parse(input.slug) }
+          ? { slug: ownedGameSlugSchema.parse(input.slug) }
           : {}),
         ...(input.description !== undefined
           ? { description: input.description?.trim() || null }

@@ -56,7 +56,9 @@ test("cost-creating platform work shares one production-control authority", asyn
     workerAuthority,
     /acquireOperationalLaneLock\(tx, policy\.lane\)/u,
   );
-  assert.match(workerAuthority, /laneControl\?\.mode === "paused"/u);
+  assert.match(workerAuthority, /readOperationalLaneAdmission\(\{/u);
+  assert.match(workerAuthority, /admission\.outcome === "denied"/u);
+  assert.doesNotMatch(workerAuthority, /laneControl\?\.mode === "paused"/u);
   assert.match(jobPolicy, /lane: "browser_validation"/u);
   assert.match(jobPolicy, /lane: "moderation"/u);
   assert.match(

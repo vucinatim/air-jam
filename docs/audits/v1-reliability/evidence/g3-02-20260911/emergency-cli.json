@@ -1,0 +1,24 @@
+{
+  "format": "air-jam-local-operator-proof/v1",
+  "date": "2026-09-11",
+  "scope": "local isolated PostgreSQL only",
+  "database": "airjam_spend_brake_20260911",
+  "command": "pnpm --silent run repo -- platform operations emergency-pause",
+  "idempotencyKey": "g3-02-cli-drill-20260911T2047",
+  "result": "passed",
+  "observations": {
+    "previewReadOnly": true,
+    "atomicPausedLaneCount": 11,
+    "unchangedLanes": ["product_telemetry", "lifecycle_cleanup"],
+    "selectivelyRecoveredLane": "release_submission",
+    "replayDidNotRepause": true,
+    "replayPreviewWouldApply": false
+  },
+  "productionMutations": 0,
+  "cleanup": {
+    "all13LanesNormal": true,
+    "method": "Selective lane set with current revisions; no blanket resume or direct SQL",
+    "auditEvents": "Retained in the isolated fixture"
+  },
+  "evidenceSource": "Normalized assertions from actual repo CLI preview, apply, status, selective lane recovery, and replay against an isolated local database; not a production or provider drill."
+}

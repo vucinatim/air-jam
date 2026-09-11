@@ -1,6 +1,6 @@
 # Production Control Contract
 
-Last updated: 2026-09-08
+Last updated: 2026-09-11
 Status: canonical 1.0 contract
 
 Related docs:
@@ -157,6 +157,17 @@ keeps previews usable without copying production usage credentials or
 fabricating provider evidence, while `/health` and `/ready` expose the effective
 requirement for agent inspection.
 
+Platform cost admissions and worker claims use that same budget requirement
+and shared policy. Missing or stale production evidence returns
+`control_unavailable`; a fresh blocking spend state returns
+`budget_protection`. Local/preview work does not require production evidence.
+Telemetry and lifecycle cleanup honor explicit lane pauses but remain
+independent of budget evidence so they can support diagnosis and recovery.
+
+Game creation is one shared dashboard/machine transaction for the hidden game
+and its App ID, after admission. Arcade listing admission applies to hidden →
+listed transitions, not unlisting or editing a game that is already listed.
+
 The ordinary threshold sequence is `$25`, `$50`, `$75`, `$90`, and `$100`.
 The one-cycle 1.0 launch sequence is `$50`, `$75`, `$100`, `$135`, and `$150`.
 The launch profile is inactive until the exact provider cycle start is approved
@@ -255,13 +266,21 @@ and retry policy remain independently controllable. Jobs identify either a
 required only for release-generation work. `cancel_requested` is a persisted
 cooperative state between running and terminal cancellation.
 
-Claiming is transactional and synchronized with persisted lane state. Normal
-and restricted lanes may drain admitted work; paused lanes start none. A worker
+Claiming is transactional and synchronized with persisted lane state and fresh
+production spend authority. Normal and restricted lanes may drain admitted work
+only when the shared budget policy allows it; paused lanes start none. A worker
 owns a database-time lease capped by the absolute job deadline, heartbeats it,
 and cannot stage, succeed, fail, or extend work at or after that deadline.
 Retryable failure schedules a bounded retry; terminal failure remains
 inspectable. Queue depth and per-creator/global concurrency are checked before
 admission. One creator cannot occupy every worker slot.
+
+The spend brake does not reject bounded queue bookkeeping or operator replay.
+An already-running phase may atomically save its output, enqueue its successor,
+and complete after protection activates. The successor cannot claim execution
+until the policy permits it. Denied claims consume no attempt; database failures
+remain visible through the worker failure path rather than looking like an
+empty queue.
 
 The platform owns job orchestration and creator-visible release state. A narrow
 processor owns archive/check execution. The browser worker remains isolated
@@ -329,6 +348,35 @@ The canonical repo surface is:
 ```bash
 pnpm --silent run repo -- platform operations --help
 ```
+
+Emergency admission pause is one fixed-scope action over the existing controls:
+
+```bash
+pnpm --silent run repo -- platform operations emergency-pause \
+  --actor <operator> --reason <incident> --idempotency-key <incident-key> --json
+```
+
+The default is a read-only preview. Add `--apply` to atomically pause all eleven
+expensive lanes, excluding `product_telemetry` and `lifecycle_cleanup`. The
+command resolves revisions under the existing lane locks and records the same
+before/after audit events as individual lane changes. It does not introduce a
+global flag or rewrite budget evidence. `--railway-project` and
+`--railway-environment` select the explicit provider target when authorized;
+omitting them uses the configured database, so inspect the target before apply.
+
+The JSON receipt distinguishes the original `previous`/`applied` states from
+`current` state on replay. Reusing the same key never re-pauses a lane an
+operator has subsequently recovered; changed input with the same key fails.
+Use a new key for a genuinely new emergency. Previewing an already-used key
+also reports replay rather than promising a new pause.
+
+Recovery is deliberately selective: inspect `operations status --json`, then
+use `operations lane set --mode <previous-mode>` with the current expected
+revision, a new idempotency key, actor, reason, and `--apply`. Review intervening
+changes instead of blindly restoring every lane. Active rooms, running job
+completion, issued upload URLs, and infrastructure billing are not cancelled
+by this admission action. Production pause authority remains governed by the
+working agreements; command availability is not permission to execute it.
 
 Budget inspection and evidence collection are:
 
@@ -423,14 +471,24 @@ temporary in-memory queue, transport-only quota, or dashboard-only control.
 
 ## Done Criteria
 
-Gate `G3-02` is complete only when:
+The rebaselined roadmap and readiness manifest own the release bar. `G3-02`
+closes the practical controls rather than implementing every future allowance
+or inventing a hosted subsystem for the reserved `preview_capacity` lane:
 
-1. every listed lane has a real decision owner and operator control
-2. ratified allowances are inspectable and enforced under the correct budget
-   states
-3. release/browser work is durably bounded, cancellable, and replay-safe
-4. lifecycle cleanup is automatic, idempotent, and inspectable
-5. limit, concurrency, queue-full, stale-revision, idempotency, and failure-mode
-   tests pass
-6. the canonical CLI covers inspection and every safe mutation lifecycle
-7. no human or machine transport can bypass the application-service policy
+1. existing costly product admissions and worker claims use the shared lane
+   and spend decisions, consistently across human and machine adapters
+2. one discoverable, audited emergency action stops new expensive work without
+   cancelling safe active work, cleanup, or telemetry
+3. existing release/browser queues, concurrency bounds, realtime capacity,
+   cancellation, replay, and lifecycle cleanup remain intact
+4. focused tests prove denial, recovery, atomicity, idempotency, and preserved
+   active-work behavior
+5. the canonical CLI exposes inspection, explicit pause, and selective recovery
+
+Per-creator quota inspection is not evidence that every product mutation
+enforces that allowance. Any remaining integration must stay explicit; the
+spend-brake implementation introduces no additional quota categories. The
+measured operating envelope and overload drill belong to `G3-04`/`G3-05`;
+fresh production budget collection, operational-worker observation, and the
+exact-candidate emergency drill belong to `G3-08`/`G7-03`. Local tests do not
+close those production claims.

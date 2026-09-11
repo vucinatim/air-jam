@@ -231,8 +231,11 @@ or skips.
 
 ## Remaining Gate And Rollout Proof
 
-This document does not close `G3-02`. The implementation, reviewed delivery,
-schema rollout, exact production deployment, budget interaction, and initial
-continuous-worker proof are complete. Closure still requires measured
-sustained, burst, exact-ceiling, soak, graceful-drain, database-failure, and
-recovery drills plus the remaining spend-guard and kill-switch evidence.
+This realtime slice alone does not close `G3-02`. Its implementation, reviewed
+delivery, schema rollout, exact production deployment, budget interaction, and
+initial continuous-worker proof are retained above. The later
+[platform spend-brake proof](./platform-spend-brake-proof.md) closes the local
+practical control and emergency-command work. Under the rebaselined roadmap,
+measured sustained/burst/overload and dependency-recovery proof belongs to
+`G3-04`/`G3-05`; final production observation and the exact-candidate emergency
+drill remain `G3-08`/`G7-03`. These are not inferred from this earlier rollout.
