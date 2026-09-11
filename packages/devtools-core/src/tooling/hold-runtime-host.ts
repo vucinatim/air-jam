@@ -36,7 +36,6 @@ const controllerBaseUrl = getFlagValue("--controller-base-url");
 const publicHost = getFlagValue("--public-host");
 const localBuildUrl = getFlagValue("--local-build-url");
 const browserBuildUrl = getFlagValue("--browser-build-url");
-const roomId = getFlagValue("--room-id");
 const requestedMode = getFlagValue("--mode") ?? "standalone-dev";
 const timeoutMs = Number(getFlagValue("--timeout-ms") ?? "15000");
 
@@ -46,23 +45,13 @@ if (!appOrigin || !hostUrl || !controllerBaseUrl || !publicHost) {
   );
 }
 
-const resolvedHostUrl = (() => {
-  if (!roomId) {
-    return hostUrl;
-  }
-
-  const nextUrl = new URL(hostUrl);
-  nextUrl.searchParams.set("room", roomId);
-  return nextUrl.toString();
-})();
-
 const browser = await launchHarnessBrowser();
 const session = await openVisualHarnessHostSession({
   browser,
   mode: requestedMode as VisualHarnessMode,
   urls: {
     appOrigin,
-    hostUrl: resolvedHostUrl,
+    hostUrl,
     controllerBaseUrl,
     publicHost,
     localBuildUrl,
@@ -101,7 +90,7 @@ process.on("message", (message: unknown) => {
         browser,
         urls: {
           appOrigin,
-          hostUrl: resolvedHostUrl,
+          hostUrl,
           controllerBaseUrl,
           publicHost,
           localBuildUrl,

@@ -2,6 +2,7 @@ import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   arcadeSurfaceRuntimeIdentitySchema,
   embeddedReplicatedStoreDomainFromArcadeIdentity,
+  localReferenceSourceGameId,
 } from "@air-jam/sdk/arcade/surface";
 import type {
   AirJamStateSyncPayload,
@@ -311,14 +312,6 @@ const parseHelperJson = <T>(output: string): T => {
   return JSON.parse(output.slice(startIndex, endIndex + 1)) as T;
 };
 
-const isRoomNotFoundJoinError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return /room not found/i.test(error.message);
-};
-
 const terminateIsolatedRuntimeOwner = async (
   process: ChildProcess | null,
 ): Promise<void> => {
@@ -419,14 +412,12 @@ const startIsolatedRuntimeOwner = async ({
   gameId,
   mode,
   secure,
-  roomId,
   timeoutMs,
 }: {
   cwd: string;
   gameId?: string;
   mode: NonNullable<ConnectControllerOptions["mode"]>;
   secure: boolean;
-  roomId?: string;
   timeoutMs: number;
 }): Promise<{
   process: ChildProcess;
@@ -473,10 +464,6 @@ const startIsolatedRuntimeOwner = async ({
   if (topology.urls.browserBuildUrl) {
     args.push("--browser-build-url", topology.urls.browserBuildUrl);
   }
-  if (roomId) {
-    args.push("--room-id", roomId);
-  }
-
   const helperProcess = spawn(process.execPath, args, {
     cwd,
     stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -742,9 +729,14 @@ export const resolveControllerSessionGameRuntime = async ({
     minimumRevision,
     timeoutMs,
   });
-  const parsedSurface = arcadeSurfaceRuntimeIdentitySchema.safeParse(
-    surfaceSnapshot?.data,
-  );
+  // Replicated surface state also contains presentation fields. Validate its
+  // identity projection without weakening the strict bridge identity contract.
+  const surfaceData = surfaceSnapshot?.data;
+  const parsedSurface = arcadeSurfaceRuntimeIdentitySchema.safeParse({
+    epoch: surfaceData?.epoch,
+    kind: surfaceData?.kind,
+    gameId: surfaceData?.gameId,
+  });
 
   if (!parsedSurface.success) {
     throw new Error(
@@ -759,10 +751,15 @@ export const resolveControllerSessionGameRuntime = async ({
     );
   }
 
-  session.summary.gameId = parsedSurface.data.gameId;
+  const sourceGameId =
+    session.projectMode === "monorepo"
+      ? (localReferenceSourceGameId(parsedSurface.data.gameId) ??
+        parsedSurface.data.gameId)
+      : parsedSurface.data.gameId;
+  session.summary.gameId = sourceGameId;
 
   return {
-    gameId: parsedSurface.data.gameId,
+    gameId: sourceGameId,
     defaultStoreDomain: embeddedReplicatedStoreDomainFromArcadeIdentity(
       parsedSurface.data,
     ),
@@ -935,7 +932,9 @@ export const connectController = async ({
   const normalizedRequestedRoomId = roomId?.trim().toUpperCase() || undefined;
   const normalizedCapabilityToken = capabilityToken?.trim() || undefined;
   const canUseIsolatedOwner =
-    Boolean(gameId) || context.mode === "standalone-game";
+    !normalizedRequestedRoomId &&
+    !controllerJoinUrl &&
+    (Boolean(gameId) || context.mode === "standalone-game");
 
   const connectWithJoinUrl = async ({
     joinUrlString,
@@ -1082,7 +1081,6 @@ export const connectController = async ({
       gameId,
       mode,
       secure,
-      roomId: normalizedRequestedRoomId,
       timeoutMs,
     });
     if (!owner.controllerJoinUrl) {
@@ -1098,34 +1096,10 @@ export const connectController = async ({
     });
   }
 
-  try {
-    return await connectWithJoinUrl({
-      joinUrlString: resolvedJoinUrl,
-      ownedRuntimeProcess: null,
-    });
-  } catch (error) {
-    if (canUseIsolatedOwner && isRoomNotFoundJoinError(error)) {
-      const owner = await startIsolatedRuntimeOwner({
-        cwd,
-        gameId,
-        mode,
-        secure,
-        roomId: normalizedRequestedRoomId,
-        timeoutMs,
-      });
-      if (!owner.controllerJoinUrl) {
-        await terminateIsolatedRuntimeOwner(owner.process);
-        throw error;
-      }
-
-      return await connectWithJoinUrl({
-        joinUrlString: owner.controllerJoinUrl,
-        ownedRuntimeProcess: owner.process,
-      });
-    }
-
-    throw error;
-  }
+  return connectWithJoinUrl({
+    joinUrlString: resolvedJoinUrl,
+    ownedRuntimeProcess: null,
+  });
 };
 
 export const sendControllerInput = async ({

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const joinAttempts: string[] = [];
 const spawnedOwners: FakeChildProcess[] = [];
+let arcadeSurface: Record<string, unknown> | null = null;
 
 class MockSocket {
   public connected = false;
@@ -25,6 +26,19 @@ class MockSocket {
   }
 
   emit(event: string, ...args: unknown[]): boolean {
+    if (event === "controller:state_sync_request" && arcadeSurface) {
+      const payload = args[0] as {
+        roomId: string;
+        storeDomain: string;
+        requestId: string;
+      };
+      this.serverEmit("airjam:state_sync", {
+        ...payload,
+        revision: 1,
+        data: arcadeSurface,
+      });
+      return true;
+    }
     if (event === "controller:join") {
       const payload = args[0] as { roomId: string; controllerId: string };
       const callback = args[1] as
@@ -160,6 +174,10 @@ vi.mock("../src/context.js", () => ({
 }));
 
 vi.mock("../src/dev.js", () => ({
+  startDev: vi.fn(async () => {
+    throw new Error("An explicit room must not start development processes");
+  }),
+  stopDev: vi.fn(),
   getTopology: vi.fn(async () => ({
     projectMode: "standalone-game",
     mode: "standalone-dev",
@@ -239,6 +257,7 @@ describe("isolated runtime controller handoff", () => {
   beforeEach(() => {
     joinAttempts.length = 0;
     spawnedOwners.length = 0;
+    arcadeSurface = null;
   });
 
   afterEach(async () => {
@@ -291,26 +310,97 @@ describe("isolated runtime controller handoff", () => {
     expect(spawnedOwners[0]?.killed).toBe(true);
   });
 
-  it("retries with an owned isolated host when an explicit join URL points at a dead room", async () => {
-    const { connectController, disconnectController } =
-      await import("../src/controller.js");
-
-    const session = await connectController({
-      cwd: "/tmp/solo",
+  it.each([
+    { roomId: "ROOM1" },
+    {
       controllerJoinUrl:
         "http://127.0.0.1:7777/controller?room=ROOM1&aj_controller_cap=dead",
-      gameId: "solo-fixture",
+    },
+  ])(
+    "rejects a missing explicit target without creating another host: %j",
+    async (target) => {
+      const { openGameSession } = await import("../src/game-session.js");
+      const { startDev, stopDev } = await import("../src/dev.js");
+
+      await expect(
+        openGameSession({
+          cwd: "/tmp/solo",
+          ...target,
+          gameId: "solo-fixture",
+          timeoutMs: 1_000,
+        }),
+      ).rejects.toThrow("Room not found");
+
+      expect(joinAttempts).toEqual(["ROOM1"]);
+      expect(spawnedOwners).toHaveLength(0);
+      expect(startDev).not.toHaveBeenCalled();
+      expect(stopDev).not.toHaveBeenCalled();
+    },
+  );
+
+  it("attaches a controller to an existing room without acquiring host ownership", async () => {
+    const { connectController, disconnectController } =
+      await import("../src/controller.js");
+    const session = await connectController({
+      cwd: "/tmp/solo",
+      roomId: "ROOM2",
       timeoutMs: 1_000,
     });
 
-    expect(joinAttempts).toEqual(["ROOM1", "ROOM2"]);
     expect(session.roomId).toBe("ROOM2");
-    expect(spawnedOwners).toHaveLength(1);
+    expect(joinAttempts).toEqual(["ROOM2"]);
+    expect(spawnedOwners).toHaveLength(0);
 
     await disconnectController({
       controllerSessionId: session.controllerSessionId,
     });
 
-    expect(spawnedOwners[0]?.killed).toBe(true);
+    expect(spawnedOwners).toHaveLength(0);
   });
+
+  it.each(["monorepo", "standalone-game"] as const)(
+    "resolves local-reference identity only in the monorepo (%s)",
+    async (projectMode) => {
+      const { detectProjectContext } = await import("../src/context.js");
+      const originalContext = await detectProjectContext({ cwd: "/tmp/solo" });
+      vi.mocked(detectProjectContext).mockResolvedValueOnce({
+        ...originalContext,
+        mode: projectMode,
+      });
+      arcadeSurface = {
+        epoch: 7,
+        kind: "game",
+        gameId: "local-reference-pong",
+        controllerUrl: "http://localhost:5173/controller",
+        orientation: "landscape",
+        overlay: "hidden",
+      };
+      const {
+        connectController,
+        resolveControllerSessionGameRuntime,
+        disconnectController,
+      } = await import("../src/controller.js");
+      const session = await connectController({
+        cwd: "/tmp/solo",
+        roomId: "ROOM2",
+        gameId: "wrong-requested-game",
+        mode: "arcade-dev",
+        timeoutMs: 1_000,
+      });
+      try {
+        const runtime = await resolveControllerSessionGameRuntime({
+          controllerSessionId: session.controllerSessionId,
+          timeoutMs: 1_000,
+        });
+        expect(runtime).toEqual({
+          gameId: projectMode === "monorepo" ? "pong" : "local-reference-pong",
+          defaultStoreDomain: "aj.embedded.game:7:local-reference-pong",
+        });
+      } finally {
+        await disconnectController({
+          controllerSessionId: session.controllerSessionId,
+        });
+      }
+    },
+  );
 });

@@ -26,6 +26,7 @@ import {
   arcadeSurfaceRuntimeIdentitySchema,
   type ArcadeSurfaceRuntimeIdentity,
 } from "./arcade-surface-identity";
+import { splitBridgeEnvelopeArgs } from "./bridge-envelope-args";
 import { createBridgeHandshake } from "./iframe-bridge";
 import { AIR_JAM_SDK_VERSION } from "./sdk-version";
 
@@ -72,6 +73,9 @@ export type ControllerBridgeClientEventName =
   (typeof controllerBridgeClientEvents)[number];
 export type ControllerBridgeServerEventName =
   (typeof controllerBridgeServerEvents)[number];
+
+const CONTROLLER_BRIDGE_ZERO_REQUIRED_ARGS_EVENTS =
+  new Set<ControllerBridgeServerEventName>(["connect", "disconnect"]);
 
 export type ControllerBridgeClientEventArgs = {
   "controller:input": [payload: ControllerInputEvent];
@@ -311,35 +315,16 @@ export const createControllerBridgeAttachMessage = (
   },
 });
 
-const splitControllerBridgeArgs = (
-  args: unknown[],
-): {
-  eventArgs: unknown[];
-  requestId?: string;
-} => {
-  const maybeOptions = args[args.length - 1] as
-    | { requestId?: string }
-    | undefined;
-  const hasOptions =
-    typeof maybeOptions === "object" &&
-    maybeOptions !== null &&
-    "requestId" in maybeOptions;
-
-  return {
-    eventArgs: hasOptions ? args.slice(0, -1) : args,
-    ...(hasOptions && maybeOptions.requestId
-      ? { requestId: maybeOptions.requestId }
-      : {}),
-  };
-};
-
 export const createControllerBridgeEventMessage = <
   TEvent extends ControllerBridgeServerEventName,
 >(
   event: TEvent,
   ...args: [...ControllerBridgeServerEventArgs[TEvent], { requestId?: string }?]
 ): ControllerBridgeEventMessage => {
-  const { eventArgs, requestId } = splitControllerBridgeArgs(args as unknown[]);
+  const { eventArgs, requestId } = splitBridgeEnvelopeArgs(
+    args as unknown[],
+    CONTROLLER_BRIDGE_ZERO_REQUIRED_ARGS_EVENTS.has(event) ? 0 : 1,
+  );
   return {
     type: AIRJAM_CONTROLLER_BRIDGE_EVENT,
     payload: {
@@ -356,7 +341,10 @@ export const createControllerBridgeEmitMessage = <
   event: TEvent,
   ...args: [...ControllerBridgeClientEventArgs[TEvent], { requestId?: string }?]
 ): ControllerBridgeEmitMessage => {
-  const { eventArgs, requestId } = splitControllerBridgeArgs(args as unknown[]);
+  const { eventArgs, requestId } = splitBridgeEnvelopeArgs(
+    args as unknown[],
+    1,
+  );
   return {
     type: AIRJAM_CONTROLLER_BRIDGE_EMIT,
     payload: {

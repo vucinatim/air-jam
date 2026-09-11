@@ -72,7 +72,9 @@ const devProcessLeases = new Map<
 const acquireDevProcessLease = async (
   options: OpenGameSessionOptions,
 ): Promise<string | null> => {
-  if (options.controllerJoinUrl) {
+  // Explicit targets belong to an already running host. Attaching must never
+  // start, replace, or later stop that host's development processes.
+  if (options.controllerJoinUrl || options.roomId?.trim()) {
     return null;
   }
   const started = await startDev({

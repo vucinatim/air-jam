@@ -34,6 +34,11 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   external: ["react", "react-dom"],
+  // Workspace consumers must not import a partially written bundle generation.
+  // tsup calls this only after both JavaScript formats finish successfully.
+  onSuccess: async () => {
+    console.log("AIR_JAM_SDK_BUILD_READY");
+  },
   define: {
     __AIR_JAM_SDK_VERSION__: JSON.stringify(packageJson.version),
   },

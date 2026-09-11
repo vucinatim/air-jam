@@ -378,6 +378,9 @@ const createControllerSocketFixture = async ({
               epoch: embeddedArcadeIdentity.epoch,
               kind: "game",
               gameId: embeddedArcadeIdentity.gameId,
+              controllerUrl: "http://localhost:5173/controller",
+              orientation: "portrait",
+              overlay: "hidden",
             },
           ] as const,
         ]

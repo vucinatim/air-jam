@@ -1,5 +1,6 @@
 import type { ArcadeGame } from "@/components/arcade";
 import { airJamGithubRepoUrl } from "@/lib/social-links";
+import { localReferenceGameId } from "@air-jam/sdk/arcade/surface";
 import { buildArcadeControllerRuntimeUrl } from "@air-jam/sdk/arcade/url";
 
 type LocalReferenceGameKey =
@@ -11,7 +12,6 @@ type LocalReferenceGameKey =
 
 type LocalReferenceGameConfig = {
   key: LocalReferenceGameKey;
-  id: string;
   slug: string;
   name: string;
   defaultDevUrl?: string;
@@ -56,7 +56,6 @@ const DEFAULT_LOCAL_REFERENCE_GAME: LocalReferenceGameKey = "air-capture";
 const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   {
     key: "air-capture",
-    id: "local-reference-air-capture",
     slug: "local-air-capture",
     name: "Air Capture",
     defaultDevUrl: "http://127.0.0.1:5173",
@@ -65,7 +64,6 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   },
   {
     key: "pong",
-    id: "local-reference-pong",
     slug: "local-pong",
     name: "Pong",
     defaultDevUrl: "http://127.0.0.1:5173",
@@ -74,7 +72,6 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   },
   {
     key: "code-review",
-    id: "local-reference-code-review",
     slug: "local-code-review",
     name: "Code Review",
     sourcePath: "games/code-review",
@@ -82,7 +79,6 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   },
   {
     key: "last-band-standing",
-    id: "local-reference-last-band-standing",
     slug: "local-last-band-standing",
     name: "Last Band Standing",
     sourcePath: "games/last-band-standing",
@@ -90,7 +86,6 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   },
   {
     key: "the-office",
-    id: "local-reference-the-office",
     slug: "local-the-office",
     name: "The Office",
     sourcePath: "games/the-office",
@@ -183,7 +178,8 @@ const findLocalReferenceGameConfig = (
   slugOrId: string,
 ): LocalReferenceGameConfig | null =>
   LOCAL_REFERENCE_GAMES.find(
-    (config) => config.slug === slugOrId || config.id === slugOrId,
+    (config) =>
+      config.slug === slugOrId || localReferenceGameId(config.key) === slugOrId,
   ) ?? null;
 
 const resolveLocalReferenceGameUrl = (
@@ -219,7 +215,7 @@ const toLocalReferenceArcadeGame = (
   }
 
   return {
-    id: config.id,
+    id: localReferenceGameId(config.key),
     slug: config.slug,
     name: config.name,
     ownerName: LOCAL_REFERENCE_OWNER_NAME,
