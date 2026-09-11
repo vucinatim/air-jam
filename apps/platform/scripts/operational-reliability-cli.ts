@@ -1,29 +1,11 @@
 import {
   deploymentEnvironments,
+  OPERATIONAL_EVIDENCE_RETENTION_LIMITS,
   type DeploymentEnvironment,
 } from "@air-jam/operations-contract";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
-import {
-  getOperationalEventDeliveryStatus,
-  inspectOperationalEventDelivery,
-  listOperationalEventDeliveries,
-  previewOperationalEventDeadLetterRequeue,
-  repairExpiredOperationalEventDeliveries,
-  requeueOperationalEventDeadLetter,
-  runOperationalEventDeliveryCycle,
-} from "../src/server/operations/operational-event-delivery-service";
-import { getOperationalReliabilityCatalog } from "../src/server/operations/operational-reliability-policy";
-import { runDueOperationalSynthetics } from "../src/server/operations/operational-synthetic-scheduler";
-import {
-  getOperationalReliabilityStatus,
-  inspectOperationalAlert,
-  listOperationalAlerts,
-  listOperationalSyntheticRuns,
-  resolveOperationalSyntheticRuntimeConfig,
-  runOperationalSynthetic,
-} from "../src/server/operations/operational-synthetic-service";
 import {
   createGitHubAlertIssueProjector,
   resolveGitHubAlertIssueConfig,
@@ -36,10 +18,37 @@ import {
   requeueOperationalAlertIssueProjection,
   runOperationalAlertIssueProjectionCycle,
 } from "../src/server/operations/operational-alert-issue-projection-service";
+import {
+  getOperationalEventDeliveryStatus,
+  inspectOperationalEventDelivery,
+  listOperationalEventDeliveries,
+  previewOperationalEventDeadLetterRequeue,
+  repairExpiredOperationalEventDeliveries,
+  requeueOperationalEventDeadLetter,
+  runOperationalEventDeliveryCycle,
+} from "../src/server/operations/operational-event-delivery-service";
+import { retainOperationalEvidence } from "../src/server/operations/operational-evidence-retention-service";
+import { getOperationalReliabilityCatalog } from "../src/server/operations/operational-reliability-policy";
+import { runDueOperationalSynthetics } from "../src/server/operations/operational-synthetic-scheduler";
+import {
+  getOperationalReliabilityStatus,
+  inspectOperationalAlert,
+  listOperationalAlerts,
+  listOperationalSyntheticRuns,
+  resolveOperationalSyntheticRuntimeConfig,
+  runOperationalSynthetic,
+} from "../src/server/operations/operational-synthetic-service";
 
 type Input =
   | { command: "catalog"; json: boolean }
   | { command: "status"; environment?: string; json: boolean }
+  | {
+      command: "retention";
+      limit: number;
+      cursor?: string;
+      apply: boolean;
+      json: boolean;
+    }
   | { command: "events-status"; json: boolean }
   | {
       command: "events-list";
@@ -184,6 +193,22 @@ const parseInput = (): Input => {
       return { command, json };
     case "status":
       return { command, environment: optionalText(raw, "environment"), json };
+    case "retention":
+      return {
+        command,
+        limit:
+          raw.limit === undefined
+            ? OPERATIONAL_EVIDENCE_RETENTION_LIMITS.default
+            : integer(
+                raw,
+                "limit",
+                OPERATIONAL_EVIDENCE_RETENTION_LIMITS.min,
+                OPERATIONAL_EVIDENCE_RETENTION_LIMITS.max,
+              ),
+        cursor: optionalText(raw, "cursor"),
+        apply: Boolean(raw.apply),
+        json,
+      };
     case "events-status":
       return { command, json };
     case "events-list": {
@@ -363,6 +388,14 @@ const main = async () => {
         : null;
     let result: unknown;
     switch (input.command) {
+      case "retention":
+        result = await retainOperationalEvidence({
+          database,
+          apply: input.apply,
+          limit: input.limit,
+          cursor: input.cursor,
+        });
+        break;
       case "status":
         result = await getOperationalReliabilityStatus({
           database,

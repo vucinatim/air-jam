@@ -6,6 +6,11 @@ export declare const OPERATIONS_EVENT_MAX_PAYLOAD_BYTES: number;
 export declare const DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS: 8;
 export declare const DEFAULT_OPERATIONAL_ALERT_ISSUE_MAX_ATTEMPTS: 8;
 export declare const OPERATIONAL_ALERT_ISSUE_LABEL: "airjam:operational-alert";
+export declare const OPERATIONAL_EVIDENCE_RETENTION_LIMITS: Readonly<{
+  min: 1;
+  default: 200;
+  max: 1000;
+}>;
 export declare const operationalIdentifierSchema: ZodType<string>;
 
 export declare const deploymentEnvironments: readonly [
@@ -215,6 +220,14 @@ export type OperationalActorV1 = {
   type: "system" | "agent" | "operator" | "user" | "provider";
   id: string;
 };
+
+export declare const OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES: Readonly<{
+  event: "event:";
+  syntheticRun: "synthetic-run:";
+  eventDeliveryCommand: "operational-event-delivery-command:";
+  jobEvent: "operational-job-event:";
+  alertIssueRequeue: "alert-issue-requeue:";
+}>;
 
 export interface OperationalEvidenceV1 {
   kind: OperationalEvidenceKind;

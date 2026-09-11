@@ -1,6 +1,6 @@
 # Air Jam 1.0 Release Execution Plan
 
-Last updated: 2026-09-09
+Last updated: 2026-09-12
 Status: active subordinate execution plan
 
 Related docs and machine surfaces:
@@ -657,6 +657,21 @@ in `G5-03` and reuses the existing Gate 4 services. Product telemetry's existing
 Any unresolved privacy tradeoff remains visible at `G5-04`; no duration is
 silently assumed by closing `G5-03`. There must not be an undocumented delete
 loop or foreign-key workaround.
+
+On `2026-09-11`, the maintainer approved **30 days of routine operational
+history and 90 days of completed command receipts**, with unresolved-incident
+evidence protected. Ages are measured from completion/delivery/storage, not
+merely creation. Alert and GitHub issue identities remain durable so recovery
+and reopening do not create new identities. This authorizes implementing and
+proving the policy locally; it does not authorize production deletion in the
+current pre-merge work session. The owning behavior and CLI belong in the
+[operational reliability contract](../contracts/operational-reliability-contract.md).
+
+Completed local correctness and full-document scale validation are recorded in the
+[retention proof](../audits/v1-reliability/operational-evidence-retention-proof.md).
+The collector reuses the worker timer and exposes bounded cursor scans through
+the repo CLI. Migration `0040` precedes activation; reviewed delivery and live
+observation remain separate work, not evidence inferred from local tests.
 
 Implement `G4-07` in three reviewable batches that preserve one architecture:
 

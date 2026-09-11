@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,33 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-09-12 - Bounded Operational Evidence Retention Was Proved Locally
+
+- implemented the approved 30-day routine history / 90-day completed command
+  policy while retaining unresolved incident evidence and alert/issue identities
+- reused the existing worker timer and database owners; one preview-first repo
+  CLI exposes the same collector, including cursor continuation across protected
+  history, without a new scheduler, table, or generic policy engine
+- added a shared writer/exclusive cleanup fence and 16 query-matched indexes;
+  synthetic network requests remain outside the fence
+- rejected an initial history-wide query after realistic volume exceeded its
+  five-second timeout; replaced it with indexed candidate/reference traversal
+- proved preview and actual apply at about 0.7 seconds against 300,000 rows in
+  each of four reliability tables; retained the larger fixture as opt-in proof,
+  not a slower ordinary development gate
+- passed 19 focused PostgreSQL lifecycle tests, including active/stale incident
+  protection, collectible cycles, cursor progress, and a real concurrent writer
+- reopened `G3-07` when the full-document fixture inserted into existing indexes
+  exceeded the five-second timeout; the compact benchmark alone is not closure
+  evidence. [Retained proof](./audits/v1-reliability/operational-evidence-retention-proof.md)
+  distinguishes both attempts. Migration, reviewed rollout, and sustained
+  production observation remain separate; no push, merge, deploy, or production
+  deletion
+- isolated the remaining slowdown to GIN pending lists, configured the four
+  evidence indexes for direct updates, then passed the full-document opt-in
+  fixture: preview 2,263 ms, apply 670 ms, 250 bundles removed and all 299,000
+  recent runs retained. `G3-07` local implementation is complete; rollout is not.
 
 ## 2026-09-11 - Practical Spend Controls and Emergency CLI Were Proved Locally
 

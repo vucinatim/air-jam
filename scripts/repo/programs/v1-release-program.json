@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-11T21:00:45.987Z",
+  "updatedAt": "2026-09-11T22:45:26.003Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -1178,9 +1178,19 @@
       "evidenceRequirements": [
         "one bounded retention policy and focused cleanup tests proving evidence linked by an open alert, issue, or unresolved action is preserved without a generalized retention engine"
       ],
-      "status": "pending",
-      "updatedAt": "2026-09-11T21:00:45.987Z",
-      "note": "Next bounded implementation identified: existing operational evidence schema and references, no generic retention engine. Awaiting maintainer retention-policy choice requested 2026-09-11: proposed30days routine history/90days completed command receipts, preserve unresolved incident evidence and alert/issue identity rows. No deletion policy or cleanup code implemented; telemetry90days is not borrowed implicitly."
+      "status": "complete",
+      "updatedAt": "2026-09-11T22:45:26.003Z",
+      "note": "Local 30/90-day retention complete: one indexed collector, shared writer fence, existing worker timer, and cursor CLI. Full-document month proof passed after fixing measured GIN pending-list overhead. Canonicalizer ready; correctness, CLI, worker, contract, and migration checks passed. No push, merge, deployment, or production deletion; migration and live observation remain delivery work.",
+      "owner": "/root",
+      "evidence": [
+        "decision:2026-09-11 maintainer approved 30-day routine operational history and 90-day command receipts with unresolved incident protection",
+        "document:docs/contracts/operational-reliability-contract.md",
+        "artifact:file:docs/audits/v1-reliability/operational-evidence-retention-proof.md",
+        "command:isolated PostgreSQL retention 11/11, reliability 5/5, issue projection 3/3; month-sized preview 684ms and apply 696ms",
+        "command:Final full-document 300000-per-table PostgreSQL fixture passed: preview2263ms apply670ms;250bundles removed;299000recent runs retained.22focusedPG+8realCLI+11worker+12migration/schema tests passed.",
+        "command:Canonicalizer session ba0908cb-0c21-49af-97f5-6baa32a2aa62 ready after shared evidence vocabulary and batch-limit cleanup"
+      ],
+      "completedAt": "2026-09-11T22:45:26.003Z"
     },
     {
       "id": "G3-08",

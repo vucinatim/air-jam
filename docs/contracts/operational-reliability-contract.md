@@ -1,6 +1,6 @@
 # Operational Reliability Contract
 
-Last updated: 2026-09-04
+Last updated: 2026-09-12
 Status: canonical implemented contract
 
 Related sources:
@@ -253,6 +253,79 @@ defined separately in the
 [operational alert issue projection contract](./operational-alert-issue-projection-contract.md)
 and never becomes alert authority.
 
+## Operational Evidence Retention
+
+The maintainer-approved policy (`2026-09-11`) keeps routine completed operational
+history for **30 days** and completed event-delivery command receipts for
+**90 days**. The database clock owns the cutoffs. Completion, delivery, and
+storage ages matter: a newly delivered old event is not immediately discarded.
+Product telemetry keeps its separate existing policy.
+
+Retention preserves:
+
+1. pending, leased, and dead-letter delivery; unfinished command receipts
+2. each SLO/environment's latest evaluation and the samples needed by its window
+3. evidence for unresolved incidents, including an issue projection whose
+   closure has not been confirmed after internal recovery
+4. references from retained evidence, including causation, evaluation, synthetic
+   run, command, and audit-event links
+5. alert and issue identity rows indefinitely, so revision history and reopening
+   retain the same operational and GitHub identities
+
+This is a fixed cleanup operation over the existing reliability tables, not a
+new incident engine or scheduler. The existing worker runs one bounded batch
+of up to `1000` rows per table alongside telemetry retention on its existing
+15-minute default cadence. This leaves headroom above the synthetic catalog's
+normal arrival rate. Both the worker and CLI use the same service. Writers
+share a database evidence fence; cleanup takes it
+exclusively, so selection and deletion cannot race new persisted links. Network
+synthetic checks run outside that fence. Cleanup failure rolls back the batch
+and remains visible through the worker's own health and logs.
+
+The CLI previews by default and returns counts and cutoffs without event
+payloads or secrets:
+
+```bash
+pnpm --silent run repo -- platform operations reliability retention --json
+pnpm --silent run repo -- platform operations reliability retention --limit 200 --apply --json
+```
+
+The CLI limit is per table (default `200`, maximum `1000`). A preview is not a
+reservation: apply re-evaluates current database state. Results contain
+`counts`, `skippedOversizedCandidates`, `blockedCandidates`, and `nextCursor`.
+Pass a non-null `nextCursor` back as `--cursor <value>` to continue a scan;
+null means the scan has finished and the next call starts from the beginning.
+Protected candidates advance the scan too, so an old incident cannot starve
+unrelated expired history. `blockedCandidates` is normal protection, not a
+cleanup failure. The worker carries this cursor in memory across its existing
+timer ticks; restart safely starts a new scan, without new durable state.
+
+`@air-jam/operations-contract` owns the executable retention bounds and internal
+evidence-reference prefixes used by both producers and cleanup. External
+evidence references remain opaque strings; this is not a restrictive reference
+registry. Evaluation links use the existing event payload and alert fields,
+not a second inferred evidence-prefix convention.
+
+The service reads indexed candidate pages and follows incoming references only
+around those candidates. Migration `0040` supplies the reference and age-order
+indexes and must precede activating the new worker through the normal migration
+lifecycle. The four evidence-array GIN indexes use `fastupdate=off`: direct index
+updates trade some write efficiency for predictable reference lookups at the
+catalog's low write rate. Buffered pending lists caused the full-month fixture
+to exceed the query budget, even with the correct indexes present.
+The transaction has a two-second lock timeout and a five-second
+statement timeout; exceeding either fails without deleting partial evidence.
+Per-table limits bound deletions, not every graph traversal: unusually large
+reference groups may hit the timeout and remain visible as a worker failure.
+Connected expired evidence retires together rather than leaving dangling links
+or preserving self-referencing receipts forever. A connected candidate too
+large for the selected limit is reported as `skippedOversizedCandidates`, not
+silently counted as deleted. Alert/issue identity rows are not deletion targets.
+Receipt-backed replay lasts while that receipt or synthetic run is retained;
+expired idempotency keys are not an unlimited historical lookup. Independent
+logical commands should use fresh keys. Other subsystems' job, control, and
+budget audit records are outside this collector's ownership.
+
 ## Worker Readiness
 
 The operational worker tracks these authorities independently:
@@ -265,7 +338,7 @@ The operational worker tracks these authorities independently:
 6. persisted operational-budget evidence
 
 `/ready` requires recent successful database-backed job and event-delivery
-authority, telemetry-retention authority, and, whenever budget refresh is
+authority, telemetry- and operational-evidence-retention authority, and, whenever budget refresh is
 enabled, fresh persisted budget evidence. Production cannot disable budget
 refresh. Missing or older-than-six-hours evidence makes the worker unready. A
 provider collection failure remains visible in refresh status and logs, but

@@ -281,6 +281,13 @@
       "when": 1788835643710,
       "tag": "0039_realtime_admission_contract",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1789166092026,
+      "tag": "0040_operational_evidence_reference_indexes",
+      "breakpoints": true
     }
   ]
 }

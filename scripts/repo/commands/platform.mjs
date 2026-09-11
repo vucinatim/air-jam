@@ -1,3 +1,4 @@
+import { OPERATIONAL_EVIDENCE_RETENTION_LIMITS } from "@air-jam/operations-contract";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -772,6 +773,50 @@ export const registerPlatformCommands = (program) => {
       operation: {
         command: "status",
         environment: options.environment,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    reliabilityCommand
+      .command("retention")
+      .description(
+        "Preview or prune eligible unreferenced operational evidence",
+      )
+      .option(
+        "--cursor <cursor>",
+        "Continue a bounded scan using the previous nextCursor",
+      )
+      .option(
+        "--limit <limit>",
+        `Maximum eligible rows per table, from ${OPERATIONAL_EVIDENCE_RETENTION_LIMITS.min} to ${OPERATIONAL_EVIDENCE_RETENTION_LIMITS.max}`,
+        String(OPERATIONAL_EVIDENCE_RETENTION_LIMITS.default),
+      )
+      .option(
+        "--apply",
+        "Delete eligible rows; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    const limit = Number(options.limit);
+    if (
+      !Number.isInteger(limit) ||
+      limit < OPERATIONAL_EVIDENCE_RETENTION_LIMITS.min ||
+      limit > OPERATIONAL_EVIDENCE_RETENTION_LIMITS.max
+    ) {
+      throw new Error(
+        `limit must be an integer from ${OPERATIONAL_EVIDENCE_RETENTION_LIMITS.min} to ${OPERATIONAL_EVIDENCE_RETENTION_LIMITS.max}.`,
+      );
+    }
+    await runPlatformOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "retention",
+        limit,
+        cursor: options.cursor,
+        apply: Boolean(options.apply),
         json: Boolean(options.json),
       },
       options,

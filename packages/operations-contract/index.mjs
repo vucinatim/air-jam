@@ -7,6 +7,11 @@ export const OPERATIONS_EVENT_MAX_PAYLOAD_BYTES = 64 * 1024;
 export const DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS = 8;
 export const DEFAULT_OPERATIONAL_ALERT_ISSUE_MAX_ATTEMPTS = 8;
 export const OPERATIONAL_ALERT_ISSUE_LABEL = "airjam:operational-alert";
+export const OPERATIONAL_EVIDENCE_RETENTION_LIMITS = Object.freeze({
+  min: 1,
+  default: 200,
+  max: 1000,
+});
 
 export const deploymentEnvironments = Object.freeze([
   "production",
@@ -334,6 +339,15 @@ export const operationalActorSchemaV1 = z.discriminatedUnion("type", [
   z.object({ type: z.literal("user"), id: identifierSchema }).strict(),
   z.object({ type: z.literal("provider"), id: identifierSchema }).strict(),
 ]);
+
+// Owned internal reference vocabulary; external evidence references stay opaque.
+export const OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES = Object.freeze({
+  event: "event:",
+  syntheticRun: "synthetic-run:",
+  eventDeliveryCommand: "operational-event-delivery-command:",
+  jobEvent: "operational-job-event:",
+  alertIssueRequeue: "alert-issue-requeue:",
+});
 
 export const operationalEvidenceSchemaV1 = z
   .object({

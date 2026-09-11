@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -35,8 +35,8 @@ experience feel finished, communicate it clearly, and launch one exact
 candidate. Mature-company operational completeness is not the pre-adoption
 release bar.
 
-The validated machine program now reports `77%` estimate-weighted progress and
-`45–90` remaining agent-hours. Those estimates include product polish that the
+The validated machine program now reports `78%` estimate-weighted progress and
+`44–87` remaining agent-hours. Those estimates include product polish that the
 older infrastructure-heavy plan failed to own explicitly.
 
 The current priorities are:
@@ -49,9 +49,9 @@ The current priorities are:
    games, and public failure states
 4. build on the completed Claude Desktop interoperability proof and run one
    final reusable external-agent lifecycle
-5. build on the locally proven spend brake and emergency pause; finish the
-   honest operating envelope, bounded evidence retention, and residual security
-   risk
+5. build on the locally proven spend brake, emergency pause, and bounded
+   evidence retention; finish the honest operating envelope and residual
+   security risk
 6. finish package, documentation, demo, article, and distribution work against
    one exact release candidate
 7. launch with a free creation harness and useful hobby cloud inside an explicit
@@ -496,8 +496,17 @@ projection with create, update, recovery close, recurrence reopen, marker-based
 reconciliation, preserved discussion, inspectable dead letters, and a complete
 preview-first repo CLI lifecycle. The issue-only GitHub App identity belongs
 only on the operational worker.
-Operational evidence retention is owned by `G3-07`; it and the remaining
-observation dependencies gate separately claimable `G3-08` closure.
+`G3-07` is locally complete with the approved 30-day history / 90-day command
+policy, protected incident evidence, and one indexed collector shared by the
+existing worker and cursor-capable repo CLI. The
+[retention proof](./audits/v1-reliability/operational-evidence-retention-proof.md)
+includes real concurrent-writer tests and a 1.2-million-row month-sized fixture.
+The full-document benchmark exposed buffered-index lookup cost; configuring
+the four evidence indexes for direct updates fixed it. Final preview took
+2.3 seconds and apply 0.7 seconds, retaining all 299,000 recent runs.
+Migration `0040`, reviewed
+delivery, and live observation remain separate: no production cleanup has run
+as part of this work. Remaining observation dependencies gate `G3-08` closure.
 Initial worker health does not prove a complete recurring evaluation window
 or production GitHub issue delivery. A generic incident lifecycle and governed
 automatic-remediation engine are intentionally not 1.0 requirements: smart
@@ -608,12 +617,12 @@ In short:
 1. finish review and coordinated delivery of the existing host-authority branch
 2. complete the new `G6-07` creator/player experience pass before more
    infrastructure expansion
-3. prove Claude Desktop discovery/session bootstrap, then run one final golden
-   path whose retained evidence also becomes the launch demo source
-4. close the practical spend brake, emergency pause, bounded evidence
-   protection, and one honest load/dependency-recovery drill
-5. reconcile already-implemented supply-chain proof and present the residual
-   security checkpoint
+3. build on completed Claude Desktop discovery/session bootstrap, then run one
+   final golden path whose evidence also becomes the launch demo source
+4. use the locally completed spend brake, emergency pause, and bounded evidence
+   protection in one honest load/dependency-recovery drill (`G3-04`)
+5. use the reconciled supply-chain proof and present the residual security
+   checkpoint
 6. finish docs/demo/story against the polished shipped behavior, then cut and
    rehearse one immutable 1.0 candidate
 7. reuse completed recovery, migration, alerting, install-matrix, and Codex

@@ -1,12 +1,17 @@
 import { platformSchemaHead } from "@/db/platform-schema-head.generated";
 import { createServer } from "node:http";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { retainOperationalEvidence } from "../operations/operational-evidence-retention-service";
+import type { OperationalBudgetStatus } from "../operations/production-budget-service";
 import {
   loadOperationalJobWorkerServiceConfig,
   startOperationalJobWorkerService,
   type OperationalJobWorkerServiceHandle,
 } from "./operational-job-worker-service";
-import type { OperationalBudgetStatus } from "../operations/production-budget-service";
+
+vi.mock("../operations/operational-evidence-retention-service", () => ({
+  retainOperationalEvidence: vi.fn(),
+}));
 
 const readCompatibleSchema = async () => ({
   contractVersion: 1 as const,
@@ -25,6 +30,32 @@ const telemetryRetentionResult = () => ({
   sessionContributionsDeleted: 0,
   rawCutoff: new Date("2026-01-01T00:00:00.000Z"),
   sessionContributionCutoffDate: "2026-01-01",
+});
+
+const evidenceRetentionResult = () => ({
+  contractVersion: 1 as const,
+  mode: "apply" as const,
+  evaluatedAt: "2026-09-11T12:00:00.000Z",
+  historyCutoff: "2026-08-12T12:00:00.000Z",
+  commandCutoff: "2026-06-13T12:00:00.000Z",
+  limit: 1000,
+  nextCursor: null,
+  blockedCandidates: 0,
+  skippedOversizedCandidates: 0,
+  counts: {
+    commands: 0,
+    evaluations: 0,
+    syntheticRuns: 0,
+    outbox: 0,
+    events: 0,
+  },
+});
+
+const lifecycleCleanupResult = () => ({
+  candidates: [],
+  jobs: [],
+  retentionTransitions: [],
+  replayed: false as const,
 });
 
 const budgetStatus = (
@@ -92,9 +123,17 @@ const readJson = async (response: Response) => ({
 describe("operational job worker service", () => {
   let handle: OperationalJobWorkerServiceHandle | null = null;
 
+  beforeEach(() => {
+    vi.mocked(retainOperationalEvidence).mockReset();
+    vi.mocked(retainOperationalEvidence).mockResolvedValue(
+      evidenceRetentionResult(),
+    );
+  });
+
   afterEach(async () => {
     await handle?.close();
     handle = null;
+    vi.restoreAllMocks();
   });
 
   it("validates its independently deployable process contract", () => {
@@ -177,7 +216,7 @@ describe("operational job worker service", () => {
       runCycle: async ({ kind }) => ({ status: "idle", kind }),
       repair: async () => ({ replayed: false, jobs: [] }),
       cleanup: async () => ({ candidates: [], cleaned: [] }),
-      scheduleCleanup: async () => ({ candidates: [], jobs: [] }),
+      scheduleCleanup: async () => lifecycleCleanupResult(),
       retainTelemetry: async () => telemetryRetentionResult(),
       deliverEvent: async () => ({ status: "idle" }),
       repairEventDelivery: async () => [],
@@ -256,7 +295,7 @@ describe("operational job worker service", () => {
       runCycle: async ({ kind }) => ({ status: "idle", kind }),
       repair: async () => ({ replayed: false, jobs: [] }),
       cleanup: async () => ({ candidates: [], cleaned: [] }),
-      scheduleCleanup: async () => ({ candidates: [], jobs: [] }),
+      scheduleCleanup: async () => lifecycleCleanupResult(),
       retainTelemetry: async () => telemetryRetentionResult(),
       deliverEvent: async () => ({ status: "idle" }),
       repairEventDelivery: async () => [],
@@ -354,7 +393,7 @@ describe("operational job worker service", () => {
       scheduleCleanup: async ({ actor }) => {
         lifecycleCleanupActor = actor;
         await lifecycleCleanup.promise;
-        return { candidates: [], jobs: [] };
+        return lifecycleCleanupResult();
       },
       retainTelemetry: async () => telemetryRetentionResult(),
       deliverEvent: async () => ({ status: "idle" }),
@@ -429,6 +468,7 @@ describe("operational job worker service", () => {
           maintenance: { status: "pending" },
           lifecycleCleanup: { status: "pending" },
           telemetryRetention: { status: "ready" },
+          evidenceRetention: { status: "ready" },
           synthetics: {
             status: "failed",
             lastFailureCode: "OperationalSyntheticBatchFailure",
@@ -504,7 +544,7 @@ describe("operational job worker service", () => {
       runCycle: async ({ kind }) => ({ status: "idle", kind }),
       repair: async () => ({ replayed: false, jobs: [] }),
       cleanup: async () => ({ candidates: [], cleaned: [] }),
-      scheduleCleanup: async () => ({ candidates: [], jobs: [] }),
+      scheduleCleanup: async () => lifecycleCleanupResult(),
       deliverEvent: async () => ({ status: "idle" }),
       repairEventDelivery: async () => [],
       repairIssueProjection: async () => [],
@@ -550,111 +590,151 @@ describe("operational job worker service", () => {
     });
   });
 
-  it("degrades readiness after retention failure and recovers on the next successful run", async () => {
-    const port = await reservePort();
-    let retentionAttempts = 0;
-    handle = await startOperationalJobWorkerService({
-      readSchemaCompatibility: readCompatibleSchema,
-      env: {
-        AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
-        AIRJAM_PLATFORM_WORKER_PORT: String(port),
-        AIRJAM_PLATFORM_WORKER_ID: "worker:retention-recovery",
-        AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
-        AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
-        AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
-        AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS: "200",
-        AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: "60000",
-        AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: "60000",
-        AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
-      },
-      runCycle: async ({ kind }) => ({ status: "idle", kind }),
-      repair: async () => ({ replayed: false, jobs: [] }),
-      cleanup: async () => ({ candidates: [], cleaned: [] }),
-      scheduleCleanup: async () => ({ candidates: [], jobs: [] }),
-      retainTelemetry: async () => {
+  it.each(["telemetryRetention", "evidenceRetention"] as const)(
+    "degrades readiness after %s failure and recovers on the next successful run",
+    async (authority) => {
+      const port = await reservePort();
+      let retentionAttempts = 0;
+      const failFirstAttempt = () => {
         retentionAttempts += 1;
-        if (retentionAttempts === 1) {
-          throw new Error("retention unavailable");
-        }
-        return telemetryRetentionResult();
-      },
-      deliverEvent: async () => ({ status: "idle" }),
-      repairEventDelivery: async () => [],
-      runSynthetics: async () => ({
-        environment: "test",
-        scheduledAt: new Date().toISOString(),
-        dueCount: 0,
-        completedCount: 0,
-        failureCount: 0,
-        staleIgnoredCount: 0,
-        skippedCount: 0,
-        checks: [],
-      }),
-    });
-    const origin = `http://127.0.0.1:${port}`;
+        if (retentionAttempts === 1) throw new Error("retention unavailable");
+      };
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const retainEvidence = vi.fn(async () => {
+        if (authority === "evidenceRetention") failFirstAttempt();
+        return { ...evidenceRetentionResult(), skippedOversizedCandidates: 2 };
+      });
+      handle = await startOperationalJobWorkerService({
+        readSchemaCompatibility: readCompatibleSchema,
+        env: {
+          AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
+          AIRJAM_PLATFORM_WORKER_PORT: String(port),
+          AIRJAM_PLATFORM_WORKER_ID: "worker:retention-recovery",
+          AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS: "200",
+          AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
+        },
+        runCycle: async ({ kind }) => ({ status: "idle", kind }),
+        repair: async () => ({ replayed: false, jobs: [] }),
+        cleanup: async () => ({ candidates: [], cleaned: [] }),
+        scheduleCleanup: async () => lifecycleCleanupResult(),
+        retainTelemetry: async () => {
+          if (authority === "telemetryRetention") failFirstAttempt();
+          return telemetryRetentionResult();
+        },
+        retainEvidence,
+        deliverEvent: async () => ({ status: "idle" }),
+        repairEventDelivery: async () => [],
+        runSynthetics: async () => ({
+          environment: "test",
+          scheduledAt: new Date().toISOString(),
+          dueCount: 0,
+          completedCount: 0,
+          failureCount: 0,
+          staleIgnoredCount: 0,
+          skippedCount: 0,
+          checks: [],
+        }),
+      });
+      const origin = `http://127.0.0.1:${port}`;
 
-    let failed: Awaited<ReturnType<typeof readJson>> | null = null;
-    for (let attempt = 0; attempt < 30; attempt += 1) {
-      failed = await readJson(await fetch(`${origin}/ready`));
-      if (
-        (failed.body.authorities as Record<string, { status: string }>)
-          .telemetryRetention?.status === "failed"
-      ) {
-        break;
+      let failed: Awaited<ReturnType<typeof readJson>> | null = null;
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        failed = await readJson(await fetch(`${origin}/ready`));
+        if (
+          (failed.body.authorities as Record<string, { status: string }>)[
+            authority
+          ]?.status === "failed"
+        ) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
       }
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-    expect(failed).toMatchObject({
-      status: 503,
-      body: {
-        authorityReady: false,
-        authorities: {
-          telemetryRetention: {
-            status: "failed",
-            lastFailureCode: "Error",
+      expect(failed).toMatchObject({
+        status: 503,
+        body: {
+          authorityReady: false,
+          authorities: {
+            [authority]: {
+              status: "failed",
+              lastFailureCode: "Error",
+            },
           },
         },
-      },
-    });
+      });
+      expect(errors).toHaveBeenCalledWith(
+        expect.stringContaining(
+          authority === "evidenceRetention"
+            ? "operational_evidence.retention_failed"
+            : "product_telemetry.retention_failed",
+        ),
+      );
 
-    let recovered: Awaited<ReturnType<typeof readJson>> | null = null;
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      recovered = await readJson(await fetch(`${origin}/ready`));
-      if (recovered.status === 200) break;
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    expect(recovered).toMatchObject({
-      status: 200,
-      body: {
-        authorityReady: true,
-        authorities: { telemetryRetention: { status: "ready" } },
-      },
-    });
-  });
+      let recovered: Awaited<ReturnType<typeof readJson>> | null = null;
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        recovered = await readJson(await fetch(`${origin}/ready`));
+        if (recovered.status === 200) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(recovered).toMatchObject({
+        status: 200,
+        body: {
+          authorityReady: true,
+          authorities: {
+            telemetryRetention: { status: "ready" },
+            evidenceRetention: { status: "ready" },
+          },
+        },
+      });
+      expect(retainEvidence).toHaveBeenCalledWith({ apply: true, limit: 1000 });
+      expect(warnings).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '"event":"operational_evidence.retention_oversized_candidates_skipped","skippedOversizedCandidates":2',
+        ),
+      );
+    },
+  );
 
-  it("waits for in-flight telemetry retention while draining", async () => {
+  it("continues retention past protected records, preserves its cursor on failure, and wraps after the final page", async () => {
     const port = await reservePort();
-    const retention = deferred<ReturnType<typeof telemetryRetentionResult>>();
+    const logs = vi.spyOn(console, "log").mockImplementation(() => {});
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let attempts = 0;
+    const retainEvidence = vi.fn(async () => {
+      attempts += 1;
+      if (attempts === 2) throw new Error("temporary retention failure");
+      return {
+        ...evidenceRetentionResult(),
+        nextCursor: attempts === 1 ? "next-page" : null,
+        blockedCandidates: attempts === 1 ? 3 : 0,
+      };
+    });
     handle = await startOperationalJobWorkerService({
       readSchemaCompatibility: readCompatibleSchema,
       env: {
         AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
         AIRJAM_PLATFORM_WORKER_PORT: String(port),
-        AIRJAM_PLATFORM_WORKER_ID: "worker:retention-drain",
+        AIRJAM_PLATFORM_WORKER_ID: "worker:retention-cursor",
         AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
         AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
         AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
-        AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS: "60000",
+        AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS: "10",
         AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: "60000",
         AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: "60000",
         AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
-        AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS: "1000",
       },
       runCycle: async ({ kind }) => ({ status: "idle", kind }),
       repair: async () => ({ replayed: false, jobs: [] }),
       cleanup: async () => ({ candidates: [], cleaned: [] }),
-      scheduleCleanup: async () => ({ candidates: [], jobs: [] }),
-      retainTelemetry: async () => retention.promise,
+      scheduleCleanup: async () => lifecycleCleanupResult(),
+      retainTelemetry: async () => telemetryRetentionResult(),
+      retainEvidence,
       deliverEvent: async () => ({ status: "idle" }),
       repairEventDelivery: async () => [],
       runSynthetics: async () => ({
@@ -668,18 +748,113 @@ describe("operational job worker service", () => {
         checks: [],
       }),
     });
-
-    let closed = false;
-    const closePromise = handle.close().then(() => {
-      closed = true;
+    await vi.waitFor(() =>
+      expect(retainEvidence.mock.calls.length).toBeGreaterThanOrEqual(4),
+    );
+    expect(retainEvidence).toHaveBeenNthCalledWith(1, {
+      apply: true,
+      limit: 1000,
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(closed).toBe(false);
-    retention.resolve(telemetryRetentionResult());
-    await closePromise;
-    expect(closed).toBe(true);
-    handle = null;
+    expect(retainEvidence).toHaveBeenNthCalledWith(2, {
+      apply: true,
+      limit: 1000,
+      cursor: "next-page",
+    });
+    expect(retainEvidence).toHaveBeenNthCalledWith(3, {
+      apply: true,
+      limit: 1000,
+      cursor: "next-page",
+    });
+    expect(retainEvidence).toHaveBeenNthCalledWith(4, {
+      apply: true,
+      limit: 1000,
+    });
+    expect(logs).toHaveBeenCalledWith(
+      expect.stringContaining('"blockedCandidates":3'),
+    );
+    expect(warnings).not.toHaveBeenCalled();
   });
+
+  it.each(["telemetryRetention", "evidenceRetention"] as const)(
+    "does not overlap %s and waits for it while draining",
+    async (authority) => {
+      const port = await reservePort();
+      const telemetry = deferred<ReturnType<typeof telemetryRetentionResult>>();
+      const evidence = deferred<ReturnType<typeof evidenceRetentionResult>>();
+      const retainTelemetry = vi.fn(async () =>
+        authority === "telemetryRetention"
+          ? telemetry.promise
+          : telemetryRetentionResult(),
+      );
+      const retainEvidence = vi.fn(async () =>
+        authority === "evidenceRetention"
+          ? evidence.promise
+          : evidenceRetentionResult(),
+      );
+      handle = await startOperationalJobWorkerService({
+        readSchemaCompatibility: readCompatibleSchema,
+        env: {
+          AIRJAM_PLATFORM_WORKER_HOST: "127.0.0.1",
+          AIRJAM_PLATFORM_WORKER_PORT: String(port),
+          AIRJAM_PLATFORM_WORKER_ID: "worker:retention-drain",
+          AIRJAM_PLATFORM_WORKER_POLL_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_REPAIR_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_LIFECYCLE_CLEANUP_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS: "10",
+          AIRJAM_PLATFORM_WORKER_EVENT_DELIVERY_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_SYNTHETIC_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_ISSUE_PROJECTION_MS: "60000",
+          AIRJAM_PLATFORM_WORKER_DRAIN_TIMEOUT_MS: "1000",
+        },
+        runCycle: async ({ kind }) => ({ status: "idle", kind }),
+        repair: async () => ({ replayed: false, jobs: [] }),
+        cleanup: async () => ({ candidates: [], cleaned: [] }),
+        scheduleCleanup: async () => lifecycleCleanupResult(),
+        retainTelemetry,
+        retainEvidence,
+        deliverEvent: async () => ({ status: "idle" }),
+        repairEventDelivery: async () => [],
+        runSynthetics: async () => ({
+          environment: "test",
+          scheduledAt: new Date().toISOString(),
+          dueCount: 0,
+          completedCount: 0,
+          failureCount: 0,
+          staleIgnoredCount: 0,
+          skippedCount: 0,
+          checks: [],
+        }),
+      });
+
+      // Several cadence ticks occur while this authority remains in flight.
+      await new Promise((resolve) => setTimeout(resolve, 35));
+      const blockedRetention =
+        authority === "telemetryRetention" ? retainTelemetry : retainEvidence;
+      expect(blockedRetention).toHaveBeenCalledOnce();
+      await expect(
+        readJson(await fetch(`http://127.0.0.1:${port}/ready`)),
+      ).resolves.toMatchObject({
+        status: 503,
+        body: {
+          [`${authority}InFlight`]: true,
+          authorities: { [authority]: { status: "pending" } },
+        },
+      });
+
+      let closed = false;
+      const closePromise = handle.close().then(() => {
+        closed = true;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(closed).toBe(false);
+      telemetry.resolve(telemetryRetentionResult());
+      evidence.resolve(evidenceRetentionResult());
+      await closePromise;
+      expect(closed).toBe(true);
+      expect(blockedRetention).toHaveBeenCalledOnce();
+      handle = null;
+    },
+  );
 
   it("stays observable but schedules no work when schema authority is incompatible", async () => {
     const port = await reservePort();
@@ -725,5 +900,6 @@ describe("operational job worker service", () => {
       readJson(await fetch(`http://127.0.0.1:${port}/ready`)),
     ).resolves.toMatchObject({ status: 503 });
     expect(cycles).toBe(0);
+    expect(retainOperationalEvidence).not.toHaveBeenCalled();
   });
 });

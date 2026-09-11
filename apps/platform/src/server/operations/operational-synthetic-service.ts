@@ -8,9 +8,11 @@ import {
   normalizeOrigin,
   resolvePlatformDeploymentConfig,
 } from "@/lib/platform-deployment-config";
+import { acquireOperationalEvidenceWriteFence } from "@air-jam/database-contract";
 import {
   createStructuredOperationalFailure,
   normalizeUnknownOperationalFailure,
+  OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES,
   operationalAlertSchemaV1,
   operationalSloEvaluationSchemaV1,
   operationalSyntheticRunSchemaV1,
@@ -603,7 +605,7 @@ export const executeOperationalSyntheticCheck = async ({
     evidence: [
       {
         kind: "snapshot",
-        reference: `synthetic-run:${runId}`,
+        reference: `${OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES.syntheticRun}${runId}`,
         collectedAt: completedAt.toISOString(),
       },
     ],
@@ -831,7 +833,7 @@ const evaluateAndRouteAlertInTransaction = async ({
     evidence: [
       {
         kind: "event",
-        reference: `event:${run.eventId}`,
+        reference: `${OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES.event}${run.eventId}`,
         collectedAt: evaluatedAt.toISOString(),
       },
     ],
@@ -1008,6 +1010,8 @@ const persistOperationalSyntheticRunInTransaction = async ({
   idempotencyKey: string;
   testNow?: Date;
 }): Promise<OperationalSyntheticPersistenceResult> => {
+  // Fence only persistence, after network work and before per-SLO/reference locks.
+  await acquireOperationalEvidenceWriteFence(tx);
   const check = getOperationalSyntheticCheck(submittedRun.checkId);
   const definition = getOperationalSloDefinition(check.sloId);
   await tx.execute(
