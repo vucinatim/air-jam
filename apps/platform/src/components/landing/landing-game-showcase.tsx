@@ -1,5 +1,6 @@
 "use client";
 
+import { CatalogLoadNotice } from "@/components/catalog/catalog-load-notice";
 import { PublicGameCreatorStrip } from "@/components/catalog/public-game-creator-strip";
 import { landingCopy } from "@/components/landing/landing-content";
 import { Reveal } from "@/components/landing/landing-motion";
@@ -14,12 +15,6 @@ import { api } from "@/trpc/react";
 import { Gamepad2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type RefObject } from "react";
-
-// Full-section blurred-video background was a paint-heavy effect with
-// inconsistent perf across devices. Disabled for now; flip back when
-// the cost has been audited. Hover-side state is still wired so re-enabling
-// is a one-line change.
-const BLURRED_BACKGROUND_ENABLED = false;
 
 function useIsHoverCapable(): boolean {
   const [canHover, setCanHover] = useState(false);
@@ -110,11 +105,6 @@ type Game = {
   ownerName: string | null;
 };
 
-type HoveredMedia = {
-  videoUrl?: string | null;
-  imageUrl?: string | null;
-};
-
 type GameCardProps = {
   game: Game;
   index: number;
@@ -122,7 +112,6 @@ type GameCardProps = {
   hasThumbnail: boolean;
   canHover: boolean;
   isMobileActive: boolean;
-  onHover: (media: HoveredMedia | null) => void;
   onImageError: (gameId: string) => void;
   onVideoError: (gameId: string) => void;
 };
@@ -149,7 +138,6 @@ const GameCard = ({
   hasThumbnail,
   canHover,
   isMobileActive,
-  onHover,
   onImageError,
   onVideoError,
 }: GameCardProps) => {
@@ -173,10 +161,6 @@ const GameCard = ({
 
   const handleMouseEnter = () => {
     if (!canHover) return;
-    onHover({
-      videoUrl: hasVideo ? game.videoUrl : null,
-      imageUrl: game.coverUrl ?? (hasThumbnail ? game.thumbnailUrl : null),
-    });
     if (hasVideo && videoRef.current) {
       videoRef.current.currentTime = 0;
       playPreviewVideo(videoRef.current);
@@ -185,7 +169,6 @@ const GameCard = ({
 
   const handleMouseLeave = () => {
     if (!canHover) return;
-    onHover(null);
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
@@ -211,7 +194,7 @@ const GameCard = ({
       <Reveal
         delay={index * 0.06}
         margin="-40px"
-        className="border-border/40 bg-card/15 group relative flex flex-col overflow-hidden rounded-2xl border transition-[border-color,transform,box-shadow] duration-300 hover:border-airjam-cyan/30 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.28)]"
+        className="border-border/40 bg-card/15 group hover:border-airjam-cyan/30 relative flex flex-col overflow-hidden rounded-2xl border transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.28)]"
       >
         <div className="absolute top-3 left-3 z-20">
           <PublicGameCreatorStrip game={game} />
@@ -256,7 +239,9 @@ const GameCard = ({
               {getPublicGameDisplayName(game)}
             </h3>
             {creatorName ? (
-              <p className="text-muted-foreground mt-1 text-sm">{creatorName}</p>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {creatorName}
+              </p>
             ) : null}
           </div>
         </Link>
@@ -267,7 +252,13 @@ const GameCard = ({
 
 export const LandingGameShowcase = () => {
   const { gameShowcase } = landingCopy;
-  const { data: games, isLoading } = api.game.getAllPublic.useQuery();
+  const {
+    data: games,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = api.game.getAllPublic.useQuery();
   const featured = selectFeaturedPublicGames(games ?? []);
   const canHover = useIsHoverCapable();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -277,7 +268,6 @@ export const LandingGameShowcase = () => {
     gridRef,
     gameIdsKey,
   );
-  const [hoveredMedia, setHoveredMedia] = useState<HoveredMedia | null>(null);
   const [imageLoadErrors, setImageLoadErrors] = useState<
     Record<string, boolean>
   >({});
@@ -285,38 +275,8 @@ export const LandingGameShowcase = () => {
     Record<string, boolean>
   >({});
 
-  const hasBg = hoveredMedia?.videoUrl || hoveredMedia?.imageUrl;
-
   return (
     <section className="relative overflow-hidden py-20 sm:py-28">
-      {/* Blurred background that crossfades to hovered game's video or cover. Currently gated off entirely. */}
-      {BLURRED_BACKGROUND_ENABLED && canHover ? (
-        <div
-          className="pointer-events-none absolute inset-0 transition-opacity duration-500"
-          style={{ opacity: hasBg ? 1 : 0 }}
-        >
-          {hoveredMedia?.videoUrl ? (
-            <video
-              key={hoveredMedia.videoUrl}
-              src={hoveredMedia.videoUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="h-full w-full scale-110 object-cover blur-3xl"
-            />
-          ) : hoveredMedia?.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- decorative blurred background
-            <img
-              src={hoveredMedia.imageUrl}
-              alt=""
-              className="h-full w-full scale-110 object-cover blur-3xl"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-black/76" />
-        </div>
-      ) : null}
-
       <div className="relative container mx-auto max-w-6xl px-4">
         <SectionHeader
           title={gameShowcase.title}
@@ -324,23 +284,36 @@ export const LandingGameShowcase = () => {
         />
 
         <div className="mt-14">
+          {isError ? (
+            <CatalogLoadNotice
+              hasGames={featured.length > 0}
+              isRetrying={isFetching}
+              onRetry={() => void refetch()}
+            />
+          ) : null}
           {isLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="text-airjam-cyan h-10 w-10 animate-spin" />
+            <div role="status" className="flex justify-center py-16">
+              <Loader2
+                aria-hidden="true"
+                className="text-airjam-cyan h-10 w-10 animate-spin"
+              />
+              <span className="sr-only">Loading games…</span>
             </div>
           ) : featured.length === 0 ? (
-            <div className="border-border/40 bg-muted/10 flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed py-20 text-center">
-              <Gamepad2 className="text-muted-foreground h-12 w-12" />
-              <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
-                Listed Arcade games will show up here. Jump into the arcade to
-                play what&apos;s live now.
-              </p>
-              <Button asChild variant="secondary">
-                <Link href={gameShowcase.footerCta.href}>
-                  {gameShowcase.footerCta.label}
-                </Link>
-              </Button>
-            </div>
+            !isError ? (
+              <div className="border-border/40 bg-muted/10 flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed py-20 text-center">
+                <Gamepad2 className="text-muted-foreground h-12 w-12" />
+                <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
+                  No games are featured yet. Check the Arcade for something to
+                  play.
+                </p>
+                <Button asChild variant="secondary">
+                  <Link href={gameShowcase.footerCta.href}>
+                    {gameShowcase.footerCta.label}
+                  </Link>
+                </Button>
+              </div>
+            ) : null
           ) : (
             <div ref={gridRef} className="grid gap-6 sm:grid-cols-2">
               {featured.map((game, i) => {
@@ -357,7 +330,6 @@ export const LandingGameShowcase = () => {
                     hasThumbnail={hasThumbnail}
                     canHover={canHover}
                     isMobileActive={!canHover && mobileCenteredId === game.id}
-                    onHover={setHoveredMedia}
                     onImageError={(gameId) =>
                       setImageLoadErrors((current) => ({
                         ...current,

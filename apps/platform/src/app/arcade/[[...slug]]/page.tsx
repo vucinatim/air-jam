@@ -9,6 +9,7 @@ import {
   parseArcadeLaunchQuery,
   type ArcadeLaunchQuerySource,
 } from "@/components/arcade/arcade-launch-query";
+import { CatalogLoadNotice } from "@/components/catalog/catalog-load-notice";
 import { getPlatformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import { toArcadeGames } from "@/lib/arcade-game-mapper";
 import {
@@ -37,8 +38,12 @@ export default function ArcadePage({
   const slugOrId = resolvedParams.slug?.[0];
   const localReferenceGames = getLocalReferenceArcadeGames();
   const localReferenceGame = getLocalReferenceArcadeGame(slugOrId ?? null);
-  const { data: games, isLoading: gamesLoading } =
-    api.game.getAllPublic.useQuery();
+  const {
+    data: games,
+    isError: gamesError,
+    isFetching: gamesFetching,
+    refetch: refetchGames,
+  } = api.game.getAllPublic.useQuery();
   const publicArcadeGames = games ? toArcadeGames(games) : [];
   const arcadeGames: ArcadeGame[] = [
     ...(localReferenceGame &&
@@ -69,7 +74,17 @@ export default function ArcadePage({
         <ArcadeAudioRuntime>
           <ArcadeSystem
             games={arcadeGames}
-            gamesCatalogReady={!gamesLoading}
+            gamesCatalogReady={games !== undefined}
+            catalogFailed={gamesError}
+            catalogNotice={
+              gamesError ? (
+                <CatalogLoadNotice
+                  hasGames={arcadeGames.length > 0}
+                  isRetrying={gamesFetching}
+                  onRetry={() => void refetchGames()}
+                />
+              ) : null
+            }
             mode="arcade"
             initialGameId={initialGameId}
             hostRouteIntent={hostRouteIntent}

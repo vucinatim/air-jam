@@ -4,21 +4,21 @@ import {
   getControllerLocalProfileClientSnapshot,
   writeControllerLocalProfile,
 } from "@/lib/controller-local-profile";
-import { triggerLocalHaptic } from "@/lib/local-haptics";
-import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
-import {
-  type PartialRoomPlatformSettingsPatch,
-  useAirJamController,
-  useControllerTick,
-  useInputWriter,
-} from "@air-jam/sdk";
-import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
-import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
-import { useCallback, useEffect, useRef } from "react";
 import {
   useControllerLocalSettings,
   type ControllerLocalSettingsSnapshot,
 } from "@/lib/controller-local-settings";
+import { triggerLocalHaptic } from "@/lib/local-haptics";
+import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
+import {
+  useAirJamController,
+  useControllerTick,
+  useInputWriter,
+  type PartialRoomPlatformSettingsPatch,
+} from "@air-jam/sdk";
+import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
+import { airJamArcadePlatformActions } from "@air-jam/sdk/protocol";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ControllerPageLayout,
   type ControllerPageSurfaceMode,
@@ -49,6 +49,9 @@ export function ControllerPageContent({
     controllerIframeSrc,
     controllerIframePending,
     controllerIframeFailed,
+    controllerIframeLoading,
+    controllerIframeRevision,
+    retryControllerFrame,
     iframeRef,
   } = useControllerEmbeddedGameFrame({
     controller,
@@ -131,10 +134,7 @@ export function ControllerPageContent({
   const handleRoomPlatformSettingsPatch = useCallback(
     (patch: PartialRoomPlatformSettingsPatch) => {
       if (canSendRemotePlatformSettings) {
-        emitArcadeAction(
-          airJamArcadePlatformActions.updateRoomSettings,
-          patch,
-        );
+        emitArcadeAction(airJamArcadePlatformActions.updateRoomSettings, patch);
       }
     },
     [canSendRemotePlatformSettings, emitArcadeAction],
@@ -168,6 +168,9 @@ export function ControllerPageContent({
       controllerIframeSrc={controllerIframeSrc}
       controllerIframePending={controllerIframePending}
       controllerIframeFailed={controllerIframeFailed}
+      controllerIframeLoading={controllerIframeLoading}
+      controllerIframeRevision={controllerIframeRevision}
+      onRetryControllerFrame={retryControllerFrame}
       hostQrVisible={hostQrVisible}
       hapticsEnabled={hapticsEnabled}
       roomPlatformSettings={hasControllerCapability ? roomSettings : null}

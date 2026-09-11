@@ -54,6 +54,8 @@ import {
 } from "react";
 
 interface ControllerMenuSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   routeRoomId: string | null;
   activeUrl: string | null;
   controller: AirJamControllerApi;
@@ -122,6 +124,8 @@ const ControllerMenuLeadingChrome = ({
 );
 
 export function ControllerMenuSheet({
+  open: overlayOpen,
+  onOpenChange: setOverlayOpen,
   routeRoomId,
   activeUrl,
   controller,
@@ -145,7 +149,6 @@ export function ControllerMenuSheet({
     getControllerLocalProfileServerSnapshot,
   );
 
-  const [overlayOpen, setOverlayOpen] = useState(false);
   const [exitGameConfirmOpen, setExitGameConfirmOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState<ControllerPersistedProfile>({
     label: "",
@@ -243,16 +246,23 @@ export function ControllerMenuSheet({
     connectionLabels[controller.connectionStatus] ??
     controller.connectionStatus;
 
-  const toggleOverlay = useCallback(() => {
-    if (!overlayOpen) {
+  // Start one draft per opening, whether opened by the notch or room recovery.
+  // Live connection/profile updates must not overwrite fields being edited.
+  const [draftOpen, setDraftOpen] = useState(false);
+  if (draftOpen !== overlayOpen) {
+    setDraftOpen(overlayOpen);
+    if (overlayOpen) {
       setProfileDraft({
         label: controller.selfPlayer?.label ?? localProfile.label,
         avatarId: controller.selfPlayer?.avatarId ?? localProfile.avatarId,
       });
       setRoomDraft(displayedRoomId ?? "");
     }
-    setOverlayOpen((prev) => !prev);
-  }, [controller.selfPlayer, displayedRoomId, localProfile, overlayOpen]);
+  }
+
+  const toggleOverlay = useCallback(() => {
+    setOverlayOpen(!overlayOpen);
+  }, [overlayOpen, setOverlayOpen]);
 
   const applyRoom = useCallback(() => {
     const code = roomDraft
@@ -278,13 +288,14 @@ export function ControllerMenuSheet({
     setApplyRoomSuccess(true);
     applyNavTimerRef.current = setTimeout(() => {
       applyNavTimerRef.current = null;
+      setOverlayOpen(false);
       router.replace(`/controller?room=${encodeURIComponent(code)}`);
     }, 550);
     applySuccessTimerRef.current = setTimeout(() => {
       applySuccessTimerRef.current = null;
       setApplyRoomSuccess(false);
     }, 2800);
-  }, [roomDraft, router, controller.roomId, controller.socket]);
+  }, [roomDraft, router, controller.roomId, controller.socket, setOverlayOpen]);
 
   const saveProfile = useCallback(async () => {
     const next: ControllerPersistedProfile = {
@@ -642,7 +653,9 @@ export function ControllerMenuSheet({
                 <div className={overlayBodyClass}>
                   <div className="mx-auto flex max-w-md flex-col gap-8">
                     <section className="flex flex-col gap-3">
-                      {!hasControllerCapability ? (
+                      {!hasControllerCapability &&
+                      controller.connectionStatus === "connected" &&
+                      controller.roomId ? (
                         <p className="text-muted-foreground flex items-start gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs leading-relaxed">
                           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-70" />
                           <span>

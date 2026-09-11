@@ -41,6 +41,41 @@ const games: ArcadeGame[] = [
 ];
 
 describe("arcade runtime manager", () => {
+  it("keeps a failed auto-launch consumed until an explicit retry or new session", () => {
+    let state = createInitialArcadeRuntimeState({ games });
+    state = reduceArcadeRuntimeState(state, {
+      type: "consume-auto-launch",
+      requestKey: "arcade:g1",
+    });
+    state = reduceArcadeRuntimeState(state, { type: "launch-start" });
+    state = reduceArcadeRuntimeState(state, { type: "launch-failure" });
+    expect(state.isLaunching).toBe(false);
+    expect(state.launchFailed).toBe(true);
+    expect(state.browserActionLaunchBlocked).toBe(true);
+    state = reduceArcadeRuntimeState(state, {
+      type: "browser-action-release-observed",
+    });
+    expect(state.browserActionLaunchBlocked).toBe(false);
+    expect(
+      shouldAutoLaunchGame({
+        autoLaunchRequestKey: "arcade:g1",
+        consumedAutoLaunchRequestKey: state.consumedAutoLaunchRequestKey,
+        isConnected: true,
+        roomId: "ROOM",
+        gamesLength: games.length,
+        surfaceKind: "browser",
+        isLaunching: state.isLaunching,
+        hasLaunchCapability: false,
+      }),
+    ).toBe(false);
+    state = reduceArcadeRuntimeState(state, { type: "launch-start" });
+    expect(state.launchFailed).toBe(false);
+    expect(state.isLaunching).toBe(true);
+    state = reduceArcadeRuntimeState(state, { type: "launch-failure" });
+    state = reduceArcadeRuntimeState(state, { type: "reset-session" });
+    expect(state.launchFailed).toBe(false);
+    expect(state.consumedAutoLaunchRequestKey).toBeNull();
+  });
   it("models arcade browser and game history paths", () => {
     expect(ARCADE_BROWSER_PATH).toBe("/arcade");
     expect(getArcadeGameHistoryPath(games[0]!)).toBe("/arcade/g1");

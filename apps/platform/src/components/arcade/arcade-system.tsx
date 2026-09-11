@@ -1,5 +1,6 @@
 "use client";
 
+import { RetryNotice } from "@/components/retry-notice";
 import {
   arcadeInputSchema,
   getPlatformArcadeHostSessionConfig,
@@ -170,11 +171,15 @@ const pushArcadeGameHistoryEntry = (
 interface ArcadeSystemProps {
   games: ArcadeGame[];
   /**
-   * When false, the public game catalog is still loading — do not drop
+   * When false, the public game catalog has not loaded successfully — do not drop
    * the pending host reconnect restore session during hydration; apply once the matching game
    * entry exists.
    */
   gamesCatalogReady?: boolean;
+  /** A failed refresh is independent of whether a usable catalog was loaded. */
+  catalogFailed?: boolean;
+  /** Route-owned catalog feedback, including retry when loading fails. */
+  catalogNotice?: React.ReactNode;
   /** The mode determines the UI behavior */
   mode?: ArcadeMode;
   /** Initial game ID to select (used for auto-launch) */
@@ -208,6 +213,8 @@ interface ArcadeSystemProps {
 export const ArcadeSystem = ({
   games,
   gamesCatalogReady = true,
+  catalogFailed = false,
+  catalogNotice,
   mode = "arcade",
   initialGameId,
   hostRouteIntent = { kind: "browser" },
@@ -984,8 +991,9 @@ export const ArcadeSystem = ({
     }
   }, [host.players.length, broadcastCurrentState]);
 
-  // Loading state while the public game catalog is not ready.
-  if (!gamesCatalogReady || !games) {
+  // A failed catalog is not authoritative for reconnect restoration, but its
+  // retry UI and any known games must remain accessible in the browser.
+  if ((!gamesCatalogReady && !catalogFailed) || !games) {
     return (
       <div
         className={cn(
@@ -999,6 +1007,13 @@ export const ArcadeSystem = ({
   }
 
   const isBrowserChromeVisible = showChrome && surfaceKind === "browser";
+  const launchNotice = state.launchFailed ? (
+    <RetryNotice
+      message="We couldn’t start the game. Your room is still here."
+      disabled={host.connectionStatus !== "connected" || !selectedGame}
+      onRetry={() => selectedGame && launchGame(selectedGame)}
+    />
+  ) : null;
   const previewControllerLauncherPresentation =
     resolveArcadePreviewControllerLauncherPresentation({
       surfaceKind,
@@ -1018,13 +1033,17 @@ export const ArcadeSystem = ({
           className,
         )}
       >
-        <div className="absolute inset-0">
-          <ArcadeLoader />
-        </div>
+        {!state.launchFailed && (
+          <div className="absolute inset-0">
+            <ArcadeLoader />
+          </div>
+        )}
         <div className="z-10 flex flex-col items-center gap-4 pt-40">
-          <span className="text-airjam-cyan animate-pulse font-mono tracking-widest">
-            CONNECTING TO AIR JAM...
-          </span>
+          {launchNotice ?? (
+            <span className="text-airjam-cyan animate-pulse font-mono tracking-widest">
+              CONNECTING TO AIR JAM...
+            </span>
+          )}
         </div>
       </div>
     );
@@ -1227,6 +1246,9 @@ export const ArcadeSystem = ({
               reducedMotion={reducedMotion}
               onSelectGame={handleSelectBrowserGame}
               header={header}
+              catalogFailed={catalogFailed}
+              catalogNotice={catalogNotice}
+              launchNotice={launchNotice}
               onScrollTopChange={handleBrowserListTopChange}
             />
           )}

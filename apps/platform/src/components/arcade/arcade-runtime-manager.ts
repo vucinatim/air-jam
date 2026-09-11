@@ -8,6 +8,7 @@ export interface ArcadeRuntimeState {
   normalizedGameUrl: string;
   launchCapability: ChildHostCapability | null;
   isLaunching: boolean;
+  launchFailed: boolean;
   consumedAutoLaunchRequestKey: string | null;
   lastExitAt: number;
   browserActionLaunchBlocked: boolean;
@@ -206,6 +207,7 @@ export const createInitialArcadeRuntimeState = ({
   normalizedGameUrl: "",
   launchCapability: null,
   isLaunching: false,
+  launchFailed: false,
   consumedAutoLaunchRequestKey: null,
   lastExitAt: 0,
   browserActionLaunchBlocked: false,
@@ -237,12 +239,14 @@ export const reduceArcadeRuntimeState = (
       return {
         ...state,
         isLaunching: true,
+        launchFailed: false,
       };
 
     case "launch-success":
       return {
         ...state,
         isLaunching: false,
+        launchFailed: false,
         normalizedGameUrl: action.normalizedGameUrl,
         launchCapability: action.launchCapability,
         browserActionLaunchBlocked: false,
@@ -252,7 +256,9 @@ export const reduceArcadeRuntimeState = (
       return {
         ...state,
         isLaunching: false,
-        consumedAutoLaunchRequestKey: null,
+        launchFailed: true,
+        browserActionLaunchBlocked: true,
+        // A rejected deep-link launch waits for an explicit retry, not a render loop.
       };
 
     case "exit-game":
@@ -262,6 +268,7 @@ export const reduceArcadeRuntimeState = (
         launchCapability: null,
         isLaunching: false,
         lastExitAt: action.exitedAt,
+        launchFailed: false,
         browserActionLaunchBlocked: true,
       };
 
@@ -278,6 +285,7 @@ export const reduceArcadeRuntimeState = (
         launchCapability: null,
         isLaunching: false,
         consumedAutoLaunchRequestKey: null,
+        launchFailed: false,
         browserActionLaunchBlocked: false,
       };
 
