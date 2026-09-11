@@ -18,6 +18,23 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-11 - Creator Entrypoints and Reference-Game Starts Were Exercised
+
+- made dashboard search functional, navigation native, and registration and
+  release failures recoverable without losing drafts or cached results
+- documented the existing CLI/MCP setup and publishing path alongside the
+  optional dashboard; introduced no hosted editor or new release workflow
+- made game registration and its app identity one database transaction
+- aligned reference-game authoritative start rules with the existing player
+  interfaces, and kept score-staging commands on the host lane
+- played a two-controller local Pong match through a 5–4 result, restart,
+  return to lobby, and clean session closure using the semantic CLI
+- retained findings, validation, and explicit remaining hosted/device gaps in
+  the [creator entrypoint audit](./audits/v1-public-release/creator-entrypoint-audit.md)
+  and [reference game launch audit](./audits/v1-public-release/reference-game-launch-audit.md)
+- kept the release item open; no push, merge, deployment, or public-package
+  publication was performed
+
 ## 2026-09-11 - Launch-Critical Player Recovery Received a Real Browser Pass
 
 - isolated local development from stale remote database settings while

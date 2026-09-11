@@ -4,6 +4,13 @@ Date: 2026-09-11
 Readiness item: G6-07
 Status: local implementation and validation; not merged or deployed
 
+Follow-up live testing caught a transient false failure on a valid room URL:
+the SDK's initial `idle` state rendered “Unable to connect” before connecting.
+That state now uses the same progress presentation as connecting/reconnecting,
+while no-room guidance and actual disconnected recovery remain unchanged.
+The focused controller recovery suite passes 11 tests, including all three
+in-progress connection states.
+
 ## Problem and scope
 
 The first local homepage visit reported repeated catalog errors. The checkout

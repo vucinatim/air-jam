@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-11T18:25:41.136Z",
+  "updatedAt": "2026-09-11T19:31:03.244Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -1233,11 +1233,13 @@
         "release-blocking visual, loading, empty, and error-state defects resolved"
       ],
       "status": "in_progress",
-      "updatedAt": "2026-09-11T18:25:41.136Z",
+      "updatedAt": "2026-09-11T19:31:03.244Z",
       "owner": "/root",
-      "note": "Local catalog/controller recovery and keyboard launch implemented and browser-validated; corrected explicit semantic attachment and SDK startup races. Hosted, physical-device, cross-game and creator-flow proof plus reviewed delivery remain.",
+      "note": "Local creator recovery and all four reference-game start flows exercised; mixed browser/CLI music round scored, Pong match/restart/lobby passed. Hosted candidate, physical mobile quirks, and audible playback proof remain. No push, merge, or deployment.",
       "evidence": [
-        "document:docs/audits/v1-public-release/launch-experience-recovery-audit.md"
+        "document:docs/audits/v1-public-release/launch-experience-recovery-audit.md",
+        "document:docs/audits/v1-public-release/creator-entrypoint-audit.md",
+        "document:docs/audits/v1-public-release/reference-game-launch-audit.md"
       ]
     }
   ]

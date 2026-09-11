@@ -80,6 +80,15 @@ machine-executable clean-install contract are defined by:
 3. [audits/v1-public-release/public-install-matrix-audit.md](./audits/v1-public-release/public-install-matrix-audit.md)
 4. `pnpm --silent run repo -- release install-matrix spec --json`
 
+The Gate 6 creator/player experience evidence is retained in:
+
+1. [launch experience recovery audit](./audits/v1-public-release/launch-experience-recovery-audit.md)
+2. [creator entrypoint audit](./audits/v1-public-release/creator-entrypoint-audit.md)
+3. [reference game launch audit](./audits/v1-public-release/reference-game-launch-audit.md)
+
+These distinguish local/source checks from remaining hosted and real-device
+proof. `G6-07` in the readiness manifest remains the execution authority.
+
 The ranked Gate 5 public, privileged, artifact, runtime, agent, provider,
 privacy, and supply-chain security baseline is:
 

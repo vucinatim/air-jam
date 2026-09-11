@@ -66,6 +66,8 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 60. After 1.0 produces real operational incidents, evaluate whether repeated agent workflows justify a generalized incident lifecycle, typed runbook extraction, or a dedicated loop/swarm scheduler. Start from retained issues, PRs, claims, and action evidence; add only the smallest missing coordination primitive instead of prebuilding a central self-healing platform.
 61. Migrate the complete Railway project from deprecated per-service `railway.json` files and duplicated provider settings to one reviewed `.railway/railway.ts` Infrastructure as Code graph before 1.0. Import and plan the whole production graph, preserve sealed variables, volumes, domains, source links, service identities, preview behavior, and deploy order, then delete every legacy config file in the same migration so Railway never has mixed ownership and the 2026-12-01 cutoff cannot break deploys.
 
+62. Align Air Capture's agent `canStartMatch` projection with the lobby phase, as now done in Pong and Code Review, and cover it when that game's experience pass is run. The 2026-09-11 canonicality review observed the missing phase guard; this was outside the four-game smoke batch, not a proven launch failure.
+
 ## Framework Boundary Follow-Ups
 
 These are still useful post–Arcade reset, but they should be handled as small hardening passes rather than another migration.
