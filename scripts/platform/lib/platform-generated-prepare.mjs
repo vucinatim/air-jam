@@ -1,3 +1,4 @@
+import { generateAiPackBuildManifest } from "../../../packages/cli/scripts/ai-pack-contract.mjs";
 import { generateBaseDocsPack } from "../../../packages/cli/scripts/base-docs-pack.mjs";
 import { writeGeneratedContentBlogSource } from "../../content/lib/content-blog-source-generator.mjs";
 import { writeGeneratedContentDocsSource } from "../../content/lib/content-docs-source-generator.mjs";
@@ -12,6 +13,9 @@ export async function preparePlatformGeneratedArtifacts() {
     generatePlatformSchemaHead(),
   ]);
 
+  // Base docs generation changes the managed bytes. Finalize their manifest
+  // before the hosted-artifact exporter verifies and copies that snapshot.
+  await generateAiPackBuildManifest();
   const result = await generatePlatformAiPackArtifacts();
 
   return {

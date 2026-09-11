@@ -10,11 +10,6 @@ export const bootstrapPackRoot = path.join(
   "bootstrap",
 );
 export const aiPackManifestRelativePath = ".airjam/ai-pack.json";
-export const aiPackManifestPath = path.join(
-  basePackRoot,
-  aiPackManifestRelativePath,
-);
-
 const semanticVersionPattern =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -162,6 +157,19 @@ export const createAiPackBuildManifest = async ({
     contentDigest: computeAiPackContentDigest(managedFiles),
   };
   return validateAiPackBuildManifest({ manifest, managedFiles });
+};
+
+export const generateAiPackBuildManifest = async ({
+  rootDir = basePackRoot,
+} = {}) => {
+  const manifestPath = path.join(rootDir, aiPackManifestRelativePath);
+  const currentManifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  const manifest = await createAiPackBuildManifest({
+    currentManifest,
+    rootDir,
+  });
+  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  return manifest;
 };
 
 export const readVerifiedAiPackSnapshot = async (rootDir = basePackRoot) => {
