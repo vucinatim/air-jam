@@ -22,10 +22,11 @@ describe("dev log summaries", () => {
     previousSummaryWindowMs = process.env.AIR_JAM_DEV_LOG_SUMMARY_WINDOW_MS;
     process.env.AIR_JAM_DEV_LOG_SUMMARY_WINDOW_MS = "25";
     const authService: HostBootstrapAuthService = {
-      verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+      verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
         isVerified: true,
         appId,
         verifiedVia: "appId" as const,
+        hostSessionKind: hostSessionKind ?? "system",
       }),
     };
 

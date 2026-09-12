@@ -108,6 +108,45 @@ The pre-reset overloaded ledger has been preserved at:
   load/overload/dependency-recovery and retained cost/drain/rollback observation
   still need measured evidence
 
+## 2026-09-08 - Host Bootstrap Authority Reached Local Proof
+
+- recorded the independent integration findings instead of accepting the first
+  green batch: critical PostgreSQL suites now belong to protected CI, Railway
+  evidence collection no longer holds database authority across provider I/O,
+  repeated system registration preserves the original room, game-scoped grants
+  cannot register a system host, and hosted master-key authentication is gone
+- implemented and documented the local
+  [host grant authority proof](./audits/v1-security/host-grant-authority-proof.md):
+  exact-origin v3 grants, transactionally single-use `jti` authority, explicit
+  audience/session claims, and server-issued room resume capabilities
+  close the `AJ-SEC-003` design without adding user-visible permission or join
+  flows; coordinated migration `0040` rollout and hostile-path production proof
+  remain open
+- passed the complete post-edit local batch with the protected PostgreSQL lane:
+  canonical guards, typechecks, lint, repo contracts, 194 server tests, 281 SDK
+  tests, and 453 platform tests; the run also found and removed an ambient
+  hosted-release configuration dependency from a PostgreSQL test before the
+  batch was accepted as evidence
+- ran one pre-push Canonicalizer session, which first returned `CONTINUE`,
+  with actionable findings covering client-controlled session elevation,
+  duplicated signing machinery, redundant grant-consumption persistence,
+  hosted master-key staging configuration, authentication-coupled cleanup,
+  Arcade lifecycle proof accuracy, stale operational-worker status, and
+  obsolete abuse-identity guidance
+- corrected those findings in one coherent pass: verified authority now owns
+  session kind, host grants and launch sessions share one domain-separated
+  envelope primitive, the grant row and claims contain only authorization
+  facts, cleanup cannot deny valid authentication, the callerless system-
+  registration event is removed, and active docs/scaffolds match the contract
+- applied the full migration catalog through `0040` to clean local PostgreSQL,
+  passed the `13/13` focused database authority tests plus the phased migration
+  proof, and passed the complete PostgreSQL-enabled batch with 200 repo
+  contracts, 200 server tests, 287 SDK tests, and 464 platform tests
+- resumed that same Canonicalizer session
+  `2408e343-78a8-43a8-b14f-1e44d07a3467`; it returned `READY` after verifying
+  every original finding against the corrected working tree, leaving only one
+  non-blocking stale threat-model phrase that was corrected before push
+
 ## 2026-09-04 - Production Recovery Was Automated And Live-Proven
 
 - closed `G3-03` with one agent-first repo CLI for provider backup inspection

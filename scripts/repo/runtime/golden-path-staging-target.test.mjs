@@ -140,7 +140,6 @@ const createServiceVariables = ({ environmentId, serviceId }) => {
     return {
       ...common,
       DATABASE_URL: databaseUrl,
-      AIR_JAM_MASTER_KEY: `${suffix}-master-key`,
       AIR_JAM_HOST_GRANT_SECRET: `${suffix}-host-secret`,
     };
   }
@@ -306,11 +305,11 @@ test("environment proof rejects reused production values on every service", () =
   const server = input.serviceVariablePairs.find(
     (pair) => pair.stagingInstance.serviceId === "service-server",
   );
-  server.stagingVariables.AIR_JAM_MASTER_KEY =
-    server.primaryVariables.AIR_JAM_MASTER_KEY;
+  server.stagingVariables.AIR_JAM_HOST_GRANT_SECRET =
+    server.primaryVariables.AIR_JAM_HOST_GRANT_SECRET;
   assert.throws(
     () => assertGoldenPathStagingEnvironmentIsolation(input),
-    /air-jam-server reuses production value for AIR_JAM_MASTER_KEY/u,
+    /air-jam-server reuses production value for AIR_JAM_HOST_GRANT_SECRET/u,
   );
 });
 

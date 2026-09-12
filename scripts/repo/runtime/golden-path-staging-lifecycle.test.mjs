@@ -105,7 +105,6 @@ const initialVariables = ({ environmentId, serviceName }) => {
         "wss://browser-production.example/ws",
       AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://games.air-jam.app",
       AIR_JAM_HOST_GRANT_SECRET: "production-host",
-      AIR_JAM_MASTER_KEY: "production-master",
       AIR_JAM_SYSTEM_APP_ID: "production-app",
       BETTER_AUTH_SECRET: "production-auth",
       BETTER_AUTH_URL: "https://airjam.io",
@@ -153,7 +152,6 @@ const initialVariables = ({ environmentId, serviceName }) => {
       AIR_JAM_ALLOWED_ORIGINS: "https://airjam.io",
       AIR_JAM_AUTH_MODE: "required",
       AIR_JAM_HOST_GRANT_SECRET: "production-host",
-      AIR_JAM_MASTER_KEY: "production-master",
     };
   }
   return {
@@ -366,8 +364,11 @@ test("provision rotates every authority before deployment and proves R2 isolatio
     browser.AIRJAM_BROWSER_WORKER_ACCESS_TOKEN,
     platform.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN,
   );
-  assert.equal(server.AIR_JAM_MASTER_KEY, platform.AIR_JAM_MASTER_KEY);
-  assert.notEqual(server.AIR_JAM_MASTER_KEY, "production-master");
+  assert.equal(
+    server.AIR_JAM_HOST_GRANT_SECRET,
+    platform.AIR_JAM_HOST_GRANT_SECRET,
+  );
+  assert.notEqual(server.AIR_JAM_HOST_GRANT_SECRET, "production-host");
   assert.equal(platform.NEXT_PUBLIC_AUTH_GITHUB_ENABLED, "false");
   assert.equal(platform.OPENAI_API_KEY, "");
 });

@@ -342,20 +342,17 @@ work state without becoming a second product authority:
 1. [plans/v1-release-execution-plan.md](./plans/v1-release-execution-plan.md)
 
 The foundation integration through PR `#61`, the production-health recovery in
-PR `#76`, the public install matrix in PR `#74`, and the durable reliability
-loop in PR `#75` are merged. The latest schema-bearing production rollout was
-main revision `5a280c43337f4dc5f00069457ee3a89b8c7cffc0`: the platform reached
-terminal `SUCCESS` as Railway deployment
-`1ca7a865-2ab5-417e-8221-574c0071736d`, and schema migration `0036` was
-independently verified against that exact revision. Production schema remains
-at exact head `0036`; current deployment identity comes from the live
-`/api/readiness` machine contract rather than a commit copied into this
-deploy-triggering document. The realtime server and browser worker remain
-successful on their latest watched-path-relevant revisions. Live browser smoke
-covers the landing page, direct Arcade navigation, branding, and game-card
-hover behavior. The separately defined operational worker is not provisioned
-in production yet, so continuous synthetics, SLO evaluation, and alert
-generation are implemented but intentionally inactive.
+PR `#76`, the public install matrix in PR `#74`, the durable reliability loop in
+PR `#75`, and realtime-admission rollout in PR `#109` are merged. Production
+platform, realtime, and operational-worker deployments converged on main
+revision `e6f03c1fd0f97d5f591ab99f6d2d98042da7e28b`; migration `0039` was applied
+and independently verified. The operational worker is provisioned and reported
+fresh budget evidence, no degraded required authority, and a clean `6/6`
+synthetic batch. Current deployment identity still comes from live readiness
+contracts rather than a commit copied into this deploy-triggering document. The
+browser worker remains successful on its latest watched-path-relevant revision.
+This evidence does not claim that the GitHub issue projection is configured or
+delivering issues in production.
 Production code is delivered incrementally; stable package promotion, public
 release visibility, final docs, the launch article, and distribution are
 coordinated only after one exact candidate passes rehearsal.
@@ -440,6 +437,17 @@ highest-priority result is that creator-controlled executable game bytes must
 move to a dedicated cookieless origin with strict iframe and browser policies
 before 1.0. The audit deliberately leaves implementation open in `G5-02` and
 `G5-03`; it does not treat documenting a threat as fixing it.
+
+The working branch now contains the locally proven
+[host grant and host resume authority slice](./audits/v1-security/host-grant-authority-proof.md)
+for `AJ-SEC-003`: an anonymous signed launch session, exact-origin v3 grants
+with transactionally single-use PostgreSQL consumption, server-owned session
+authority, server-issued room resume capabilities, removal of the callerless
+system-registration path, and removal of hosted master-key authentication. The
+normal Arcade, room-code, and controller UX is unchanged. This remains a local
+implementation claim until migration `0040`, the coordinated breaking cutover,
+hostile-path smoke checks, and exact production evidence pass.
+
 Gate `G4-01` is closed with the
 [operational events and incidents contract](./contracts/operational-events-and-incidents-contract.md)
 and its [proof](./audits/v1-operations/operational-contract-proof.md). The
@@ -457,10 +465,10 @@ vocabulary, event and failure identities share one normalized code, synthetic
 chronology is database-owned, each scheduled check is isolated and reported,
 and older SLO evaluations cannot regress newer alert state. Scheduling is a
 separate orchestration module rather than another responsibility in the
-persistence service. Production schema migration `0036` is applied and
-verified, but the operational worker service is deliberately not deployed
-until its activation preflight, drain, synthetic configuration, rollback, and
-cost-observation path is ready.
+persistence service. Production schema migration `0039` is applied and
+verified, and the operational worker is deployed with budget, lifecycle,
+event-delivery, and synthetic authorities active. Production activation of the
+separately configured GitHub issue projection is not yet claimed.
 Gate `G4-03` is closed by the
 [operational alert issue projection contract](./contracts/operational-alert-issue-projection-contract.md)
 and its
@@ -472,8 +480,8 @@ preview-first repo CLI lifecycle. The issue-only GitHub App identity belongs
 only on the operational worker.
 Operational evidence retention is owned by `G3-07`; it and the remaining
 activation dependencies gate separately claimable `G3-08` activation.
-This does not claim that continuous evaluations or GitHub issue delivery are
-active in production. A generic incident lifecycle and governed
+This does not claim that GitHub issue delivery is active in production. A
+generic incident lifecycle and governed
 automatic-remediation engine are intentionally not 1.0 requirements: smart
 local agents should use the shared evidence and focused Air Jam, Railway,
 GitHub, and local tools instead.
@@ -582,21 +590,24 @@ In short:
 1. keep the now-complete canonical production migration lifecycle and schema
    compatibility boundary stable; `G3-06` is merged, applied, and independently
    verified against the exact Railway production deployment
-2. exercise the now-live realtime admission, operational worker, and storage
+2. integrate, review, and deploy the additive `0040` host-grant authority
+   migration and coordinated breaking application cutover under paused new-room
+   admission, then retain hostile-path and exact production evidence
+3. exercise the now-live realtime admission, operational worker, and storage
    retention lifecycle under measured load, overload, dependency failure,
    recovery, cost, and rollback conditions; migrate the four Railway
    application services and PostgreSQL to one
    reviewed `.railway/railway.ts` project graph before treating deployment
    configuration as release-ready
-3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
-   Codex plus Claude Desktop golden-path proofs
-4. keep the completed recovery contract stable and finish supply-chain trust as
+4. use the now-proven isolated Railway/R2 rehearsal profile to complete the
+   independent Claude Desktop golden-path proof and final cross-client replay
+5. keep the completed recovery contract stable and finish supply-chain trust as
    an independent lane
-5. run overload, recovery, and security closure drills through the existing
+6. run overload, recovery, and security closure drills through the existing
    focused agent-operable controls
-6. finish docs/demo/story against shipped evidence, then cut and rehearse one
+7. finish docs/demo/story against shipped evidence, then cut and rehearse one
    immutable 1.0 candidate
-7. agents continue to claim, complete, or block work only through the canonical
+8. agents continue to claim, complete, or block work only through the canonical
    readiness manifest
 
 ## Current Caveats

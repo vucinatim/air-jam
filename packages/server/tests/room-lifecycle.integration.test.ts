@@ -6,6 +6,7 @@ import { setupServerTestHarness } from "./helpers/server-test-harness";
 type HostCreateRoomAck = {
   ok: boolean;
   roomId?: string;
+  hostResumeCapability?: { token: string };
   message?: string;
   code?: ErrorCode | string;
   players?: Array<{
@@ -26,16 +27,39 @@ type ControllerJoinAck = {
 };
 
 const allowAllAuthService = {
-  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+  verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
     isVerified: true,
     appId,
     verifiedVia: "appId" as const,
+    hostSessionKind:
+      appId === "public-required"
+        ? ("game" as const)
+        : (hostSessionKind ?? "system"),
   }),
 } as AuthService;
 
 describe("server room lifecycle", () => {
   const harness = setupServerTestHarness({
     server: { authService: allowAllAuthService },
+  });
+
+  it("binds host authority from verification instead of a self-declared system kind", async () => {
+    const host = await harness.connectSocket();
+    expect(
+      (await harness.bootstrapHost(host, "public-required", "system")).ok,
+    ).toBe(true);
+
+    const created = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    const session = harness.getRoomManager().getRoom(created.roomId!);
+
+    expect(created.ok).toBe(true);
+    expect(session?.analytics.hostSessionKind).toBe("game");
+    expect(session?.focus).toBe("GAME");
+    expect(session?.lifecycleState).toBe("GAME_ACTIVE");
   });
 
   it("allows host reconnect after disconnect", async () => {
@@ -49,8 +73,10 @@ describe("server room lifecycle", () => {
 
     expect(createAck.ok).toBe(true);
     expect(createAck.roomId).toBeTypeOf("string");
+    expect(createAck.hostResumeCapability?.token).toBeTypeOf("string");
 
     const roomId = createAck.roomId!;
+    const resumeCapabilityToken = createAck.hostResumeCapability!.token;
     host.disconnect();
     await harness.delay(30);
 
@@ -59,11 +85,54 @@ describe("server room lifecycle", () => {
     const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
       reconnectedHost,
       "host:reconnect",
-      { roomId },
+      { roomId, resumeCapabilityToken },
     );
 
     expect(reconnectAck.ok).toBe(true);
     expect(reconnectAck.roomId).toBe(roomId);
+    expect(reconnectAck.hostResumeCapability).toEqual(
+      createAck.hostResumeCapability,
+    );
+  });
+
+  it("rejects reconnect without the room owner's resume capability", async () => {
+    const host = await harness.connectSocket();
+    expect((await harness.bootstrapHost(host)).ok).toBe(true);
+    const createAck = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    const roomId = createAck.roomId!;
+
+    const attacker = await harness.connectSocket();
+    expect((await harness.bootstrapHost(attacker)).ok).toBe(true);
+
+    host.disconnect();
+    await harness.delay(30);
+
+    const legacyReconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
+      attacker,
+      "host:reconnect",
+      { roomId },
+    );
+    expect(legacyReconnectAck).toMatchObject({
+      ok: false,
+      code: ErrorCode.INVALID_PAYLOAD,
+    });
+
+    const forgedReconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
+      attacker,
+      "host:reconnect",
+      { roomId, resumeCapabilityToken: "not-the-owner-capability" },
+    );
+    expect(forgedReconnectAck).toMatchObject({
+      ok: false,
+      code: ErrorCode.UNAUTHORIZED,
+    });
+    expect(
+      harness.getRoomManager().getRoom(roomId)?.masterHostSocketId,
+    ).not.toBe(attacker.id);
   });
 
   it("returns the current controller roster in the host reconnect ack", async () => {
@@ -77,6 +146,7 @@ describe("server room lifecycle", () => {
 
     expect(createAck.ok).toBe(true);
     const roomId = createAck.roomId!;
+    const resumeCapabilityToken = createAck.hostResumeCapability!.token;
 
     const controller = await harness.connectSocket();
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
@@ -94,7 +164,7 @@ describe("server room lifecycle", () => {
     const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
       reconnectedHost,
       "host:reconnect",
-      { roomId },
+      { roomId, resumeCapabilityToken },
     );
 
     expect(reconnectAck.ok).toBe(true);
@@ -345,6 +415,7 @@ describe("server room lifecycle", () => {
 
     expect(createAck.ok).toBe(true);
     const roomId = createAck.roomId!;
+    const resumeCapabilityToken = createAck.hostResumeCapability!.token;
 
     const controller = await harness.connectSocket();
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
@@ -376,7 +447,7 @@ describe("server room lifecycle", () => {
     const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
       reconnectHost,
       "host:reconnect",
-      { roomId },
+      { roomId, resumeCapabilityToken },
     );
 
     expect(reconnectAck.ok).toBe(true);
@@ -396,6 +467,7 @@ describe("server room lifecycle", () => {
 
     expect(createAck.ok).toBe(true);
     const roomId = createAck.roomId!;
+    const resumeCapabilityToken = createAck.hostResumeCapability!.token;
 
     const controller = await harness.connectSocket();
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
@@ -428,7 +500,7 @@ describe("server room lifecycle", () => {
     const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
       reconnectHost,
       "host:reconnect",
-      { roomId },
+      { roomId, resumeCapabilityToken },
     );
 
     expect(reconnectAck.ok).toBe(true);
@@ -475,6 +547,10 @@ describe("server room lifecycle", () => {
     expect(resetAck.roomId).toBeTypeOf("string");
     expect(resetAck.roomId).not.toBe(previousRoomId);
     expect(resetAck.players ?? []).toEqual([]);
+    expect(resetAck.hostResumeCapability?.token).toBeTypeOf("string");
+    expect(resetAck.hostResumeCapability).not.toEqual(
+      createAck.hostResumeCapability,
+    );
 
     expect(await hostLeftPromise).toEqual({
       roomId: previousRoomId,
@@ -482,6 +558,22 @@ describe("server room lifecycle", () => {
     });
     expect(harness.getRoomManager().getRoom(previousRoomId)).toBeUndefined();
     expect(harness.getRoomManager().getRoom(resetAck.roomId!)).toBeDefined();
+
+    const staleHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(staleHost)).ok).toBe(true);
+    const resumeCapabilityToken = createAck.hostResumeCapability!.token;
+    await expect(
+      harness.emitWithAck<HostCreateRoomAck>(staleHost, "host:reconnect", {
+        roomId: previousRoomId,
+        resumeCapabilityToken,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: ErrorCode.ROOM_NOT_FOUND });
+    await expect(
+      harness.emitWithAck<HostCreateRoomAck>(staleHost, "host:reconnect", {
+        roomId: resetAck.roomId!,
+        resumeCapabilityToken,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: ErrorCode.UNAUTHORIZED });
   });
 
   it("rejects resume attempts when a different device id tries to claim an existing controller binding", async () => {

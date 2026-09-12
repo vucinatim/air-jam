@@ -23,10 +23,11 @@ describe("dev disconnect lifecycle logs", () => {
     previousChildTeardownMs = process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
     process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = "25";
     const authService: HostBootstrapAuthService = {
-      verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+      verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
         isVerified: true,
         appId,
         verifiedVia: "appId" as const,
+        hostSessionKind: hostSessionKind ?? "system",
       }),
     };
     runtime = createAirJamServer({
@@ -84,6 +85,7 @@ describe("dev disconnect lifecycle logs", () => {
       "host:bootstrap",
       {
         appId: "aj_app_disconnect_test",
+        hostSessionKind: "system",
       },
     );
     expect(bootstrapAck.ok).toBe(true);

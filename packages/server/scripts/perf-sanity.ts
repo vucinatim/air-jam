@@ -189,6 +189,7 @@ const createPerfRuntime = () =>
         isVerified: true,
         appId,
         verifiedVia: "appId" as const,
+        hostSessionKind: "game" as const,
       }),
     },
     runtimeUsagePublisher: createNoopRuntimeUsagePublisher(),

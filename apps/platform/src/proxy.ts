@@ -1,3 +1,9 @@
+import {
+  AIR_JAM_LAUNCH_SESSION_COOKIE_NAME,
+  AIR_JAM_LAUNCH_SESSION_TTL_SECONDS,
+  createAirJamLaunchSession,
+  verifyAirJamLaunchSession,
+} from "@/lib/airjam-launch-session";
 import { createLoginHref } from "@/lib/auth-redirect";
 import { resolvePlatformDeploymentConfig } from "@/lib/platform-deployment-config";
 import { isPlatformLivenessPath } from "@/lib/platform-service-contract";
@@ -100,7 +106,33 @@ export const resolveAgentResource = (
     pathname as keyof typeof AGENT_RESOURCE_BY_PATHNAME
   ] ?? null;
 
-export function proxy(request: NextRequest, event: NextFetchEvent) {
+export const isArcadeLaunchSessionRequest = (request: NextRequest): boolean => {
+  if (
+    request.method !== "GET" ||
+    (request.nextUrl.pathname !== "/arcade" &&
+      !request.nextUrl.pathname.startsWith("/arcade/"))
+  ) {
+    return false;
+  }
+
+  const destination = request.headers.get("sec-fetch-dest");
+  const mode = request.headers.get("sec-fetch-mode");
+  // App Router navigation and prefetch both use RSC fetches, not documents.
+  // Missing Fetch Metadata is supported; an explicit iframe/script is not.
+  if (request.headers.get("rsc") === "1") {
+    return (
+      (destination === null || destination === "empty") &&
+      (mode === null || mode === "cors" || mode === "same-origin")
+    );
+  }
+  return (
+    (destination === null || destination === "document") &&
+    (mode === null || mode === "navigate") &&
+    request.headers.get("accept")?.includes("text/html") === true
+  );
+};
+
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
   const releaseDisposition = resolveHostedReleaseRequestDisposition(
     request.url,
     request.headers.get("host"),
@@ -159,7 +191,53 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
     }
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (!isArcadeLaunchSessionRequest(request)) {
+    return response;
+  }
+
+  const secret = process.env.AIR_JAM_HOST_GRANT_SECRET?.trim();
+  if (!secret) {
+    if (process.env.NODE_ENV !== "production") {
+      return response;
+    }
+    return new NextResponse("Arcade launch session is unavailable", {
+      status: 503,
+      headers: { "cache-control": "no-store" },
+    });
+  }
+
+  try {
+    const existingToken = request.cookies.get(
+      AIR_JAM_LAUNCH_SESSION_COOKIE_NAME,
+    )?.value;
+    if (existingToken) {
+      const existingSession = await verifyAirJamLaunchSession({
+        secret,
+        token: existingToken,
+      });
+      if (existingSession.ok) {
+        return response;
+      }
+    }
+
+    const launchSession = await createAirJamLaunchSession({ secret });
+    response.cookies.set({
+      name: AIR_JAM_LAUNCH_SESSION_COOKIE_NAME,
+      value: launchSession.token,
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      path: "/",
+      maxAge: AIR_JAM_LAUNCH_SESSION_TTL_SECONDS,
+    });
+    return response;
+  } catch {
+    return new NextResponse("Arcade launch session is unavailable", {
+      status: 503,
+      headers: { "cache-control": "no-store" },
+    });
+  }
 }
 
 export const config = {
