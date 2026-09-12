@@ -138,6 +138,7 @@ export const isLocalMasterKeyAllowed = ({
 const rawServerEnvSchema = z
   .object({
     NODE_ENV: optionalEnvString,
+    RAILWAY_ENVIRONMENT_NAME: optionalEnvString,
     AIRJAM_OPERATIONAL_ENVIRONMENT: createOptionalEnumSchema(
       "AIRJAM_OPERATIONAL_ENVIRONMENT",
       deploymentEnvironments,
@@ -198,6 +199,7 @@ const rawServerEnvSchema = z
     });
     const operationalEnvironment = resolveDeploymentEnvironment({
       NODE_ENV: value.NODE_ENV,
+      RAILWAY_ENVIRONMENT_NAME: value.RAILWAY_ENVIRONMENT_NAME,
       AIRJAM_OPERATIONAL_ENVIRONMENT: value.AIRJAM_OPERATIONAL_ENVIRONMENT,
     });
     const localMasterKeyEnabled = isLocalMasterKeyAllowed({
@@ -213,8 +215,7 @@ const rawServerEnvSchema = z
     if (
       authMode === "required" &&
       !(localMasterKeyEnabled && value.AIR_JAM_MASTER_KEY) &&
-      !databasePolicy.databaseUrl &&
-      !value.AIR_JAM_HOST_GRANT_SECRET
+      !databasePolicy.databaseUrl
     ) {
       context.addIssue({
         code: "custom",
@@ -226,7 +227,7 @@ const rawServerEnvSchema = z
               REMOTE_DATABASE_BLOCKED_MESSAGE,
               "Required auth cannot rely on that blocked database URL without AIR_JAM_ALLOW_REMOTE_DATABASE=enabled.",
             ].join(" ")
-          : "AIR_JAM_AUTH_MODE=required requires DATABASE_URL or AIR_JAM_HOST_GRANT_SECRET. AIR_JAM_MASTER_KEY is local-development only.",
+          : "AIR_JAM_AUTH_MODE=required requires DATABASE_URL. AIR_JAM_HOST_GRANT_SECRET alone cannot consume grants; AIR_JAM_MASTER_KEY is an alternative only in local development or tests.",
       });
     }
   });
@@ -242,7 +243,9 @@ export const loadServerEnv = (
       "Set AIR_JAM_* values in .env.local (repo root) or packages/server/.env and retry.",
     keyHints: {
       AIR_JAM_AUTH_MODE:
-        "Choose disabled/required. Hosted required auth needs DATABASE_URL or AIR_JAM_HOST_GRANT_SECRET; AIR_JAM_MASTER_KEY is local-development only.",
+        "Choose disabled/required. Hosted required auth needs DATABASE_URL; AIR_JAM_HOST_GRANT_SECRET signs grants but is not a standalone backend. AIR_JAM_MASTER_KEY is local-development/test only.",
+      DATABASE_URL:
+        "Set the canonical PostgreSQL database URL. Outside production, use a local database or explicitly authorize the remote target with AIR_JAM_ALLOW_REMOTE_DATABASE=enabled.",
       AIR_JAM_ALLOW_REMOTE_DATABASE:
         "Choose enabled only when local or test server workflows intentionally need a non-local DATABASE_URL.",
       AIR_JAM_TRUST_PROXY_HEADERS:

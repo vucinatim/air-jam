@@ -106,13 +106,31 @@ export const resolveAgentResource = (
     pathname as keyof typeof AGENT_RESOURCE_BY_PATHNAME
   ] ?? null;
 
-export const isTopLevelArcadeNavigation = (request: NextRequest): boolean =>
-  request.method === "GET" &&
-  (request.nextUrl.pathname === "/arcade" ||
-    request.nextUrl.pathname.startsWith("/arcade/")) &&
-  request.headers.get("sec-fetch-mode") === "navigate" &&
-  request.headers.get("sec-fetch-dest") === "document" &&
-  request.headers.get("accept")?.includes("text/html") === true;
+export const isArcadeLaunchSessionRequest = (request: NextRequest): boolean => {
+  if (
+    request.method !== "GET" ||
+    (request.nextUrl.pathname !== "/arcade" &&
+      !request.nextUrl.pathname.startsWith("/arcade/"))
+  ) {
+    return false;
+  }
+
+  const destination = request.headers.get("sec-fetch-dest");
+  const mode = request.headers.get("sec-fetch-mode");
+  // App Router navigation and prefetch both use RSC fetches, not documents.
+  // Missing Fetch Metadata is supported; an explicit iframe/script is not.
+  if (request.headers.get("rsc") === "1") {
+    return (
+      (destination === null || destination === "empty") &&
+      (mode === null || mode === "cors" || mode === "same-origin")
+    );
+  }
+  return (
+    (destination === null || destination === "document") &&
+    (mode === null || mode === "navigate") &&
+    request.headers.get("accept")?.includes("text/html") === true
+  );
+};
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
   const releaseDisposition = resolveHostedReleaseRequestDisposition(
@@ -174,7 +192,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   }
 
   const response = NextResponse.next();
-  if (!isTopLevelArcadeNavigation(request)) {
+  if (!isArcadeLaunchSessionRequest(request)) {
     return response;
   }
 

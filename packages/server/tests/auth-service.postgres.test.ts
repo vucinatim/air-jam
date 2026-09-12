@@ -157,6 +157,32 @@ describeWithPostgres("host bootstrap PostgreSQL identity", () => {
     ).toHaveLength(7);
   });
 
+  it("consumes a valid grant when the database clock is ahead of the issuer and verifier", async () => {
+    const applicationNow = Date.now() - 90_000;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(applicationNow);
+    try {
+      const auth = createHostGrantAuth();
+      const jti = crypto.randomUUID();
+      const hostGrant = await createSystemHostGrant({ jti });
+      await expect(
+        auth.verifyHostBootstrap({ hostGrant, origin: "https://airjam.io" }),
+      ).resolves.toEqual(expect.objectContaining({ isVerified: true }));
+      const [consumption] = await client`
+        select expires_at < consumed_at as database_clock_ahead
+        from realtime_host_grant_consumptions where jti = ${jti}
+      `;
+      expect(consumption?.database_clock_ahead).toBe(true);
+      await expect(
+        auth.verifyHostBootstrap({ hostGrant, origin: "https://airjam.io" }),
+      ).resolves.toEqual({
+        isVerified: false,
+        error: "Unauthorized: Host grant was already consumed",
+      });
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it("takes session authority from the grant instead of the client request", async () => {
     const auth = createHostGrantAuth();
     const hostGrant = await createSystemHostGrant({ sessionKind: "game" });

@@ -558,6 +558,22 @@ describe("server room lifecycle", () => {
     });
     expect(harness.getRoomManager().getRoom(previousRoomId)).toBeUndefined();
     expect(harness.getRoomManager().getRoom(resetAck.roomId!)).toBeDefined();
+
+    const staleHost = await harness.connectSocket();
+    expect((await harness.bootstrapHost(staleHost)).ok).toBe(true);
+    const resumeCapabilityToken = createAck.hostResumeCapability!.token;
+    await expect(
+      harness.emitWithAck<HostCreateRoomAck>(staleHost, "host:reconnect", {
+        roomId: previousRoomId,
+        resumeCapabilityToken,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: ErrorCode.ROOM_NOT_FOUND });
+    await expect(
+      harness.emitWithAck<HostCreateRoomAck>(staleHost, "host:reconnect", {
+        roomId: resetAck.roomId!,
+        resumeCapabilityToken,
+      }),
+    ).resolves.toMatchObject({ ok: false, code: ErrorCode.UNAUTHORIZED });
   });
 
   it("rejects resume attempts when a different device id tries to claim an existing controller binding", async () => {

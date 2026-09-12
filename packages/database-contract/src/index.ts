@@ -916,10 +916,6 @@ export const createRuntimeDatabaseSchema = ({
         "realtime_host_grant_consumptions_session_kind_check",
         sql`${table.sessionKind} in ('game', 'system')`,
       ),
-      check(
-        "realtime_host_grant_consumptions_chronology_check",
-        sql`${table.expiresAt} > ${table.consumedAt}`,
-      ),
     ],
   );
 

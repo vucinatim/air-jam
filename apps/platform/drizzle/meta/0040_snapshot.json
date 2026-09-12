@@ -5989,10 +5989,6 @@
         "realtime_host_grant_consumptions_session_kind_check": {
           "name": "realtime_host_grant_consumptions_session_kind_check",
           "value": "\"realtime_host_grant_consumptions\".\"session_kind\" in ('game', 'system')"
-        },
-        "realtime_host_grant_consumptions_chronology_check": {
-          "name": "realtime_host_grant_consumptions_chronology_check",
-          "value": "\"realtime_host_grant_consumptions\".\"expires_at\" > \"realtime_host_grant_consumptions\".\"consumed_at\""
         }
       },
       "isRLSEnabled": false
