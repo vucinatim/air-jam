@@ -280,6 +280,31 @@ The detailed findings below reduce to these non-negotiable rules:
   issuer mismatch and insecure non-loopback URL tests fail closed; scope,
   expiry, rotation, revocation, and session-inventory tests pass.
 
+#### 2026-09-12 implementation evidence
+
+The local CLI/MCP shared transport now binds reused saved tokens to their
+stored platform origin before network IO. Invalid URLs fail explicitly; remote
+targets require HTTPS, with HTTP limited to literal loopback development.
+API paths cannot escape the selected origin, fetch rejects redirects (including
+same-origin device-code replay), and device login validates the response issuer
+before storing the requested platform. Deliberate explicit-token/self-hosted
+targets remain supported. No new token schema, policy service, permission
+prompt, or duplicate adapter-specific implementation was introduced.
+
+The focused `packages/devtools-core/tests/platform-auth.test.ts` suite passes
+28 tests on Node 24.12.0, including real HTTP 307 same/cross-origin destinations
+receiving zero redirected requests, pre-IO origin mismatch rejection, unsafe
+URL rejection, normalized equivalent origins, explicit alternate tokens, and
+login-response issuer mismatch. Explicit test-root typechecking and scoped lint
+also pass. The integrated `pnpm check:batch` passed on Node 24 after combining
+the fix with the completed reliability work; the focused 28-test suite also
+passed again on that tree in 3.02 seconds. These prove the destination boundary,
+not a new claim about server token rotation, revocation, or all remaining
+provider tooling. The single Canonicalizer session
+`0b1bdde0-0b27-489f-8a96-5478c72d0b52` returned **READY**, confirming one
+credential-transport owner without a new schema or adapter layer.
+The change is local, not yet published or deployed; `G5-02` remains open.
+
 ### AJ-SEC-003 — Public/replayable host grants can replace room master authority
 
 - Category: authority

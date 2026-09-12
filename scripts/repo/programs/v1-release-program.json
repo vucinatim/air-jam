@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-12T17:04:51.705Z",
+  "updatedAt": "2026-09-12T17:12:58.251Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -784,8 +784,8 @@
         "reviewed exact-production proof for the host-authority cutover with ordinary room creation, joining, and reconnection unchanged"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Root resumes this existing security lane; prior named subagent is not live. PR106 host-authority implementation is separately green, Canonicalizer-ready, unreviewed and not in launch-experience; migration0040 collides with retention. Remaining credential destinations, worker/controller boundaries, private abuse triage and truthful data lifecycle need bounded closure. Delegating AJ-SEC-002 in isolated worktree while G3 load source stays frozen; no new auth framework or production mutation.",
-      "updatedAt": "2026-09-12T16:19:51.472Z",
+      "note": "PR106 correction head 22643106 pushed after one native Opus review; all six conversations reconciled, required CI green, public-install matrix running, no merge/deploy. Credential destination binding integrated at 2d08f8fb: 28 focused tests and full integrated batch pass; Canonicalizer 0b1bdde0-0b27-489f-8a96-5478c72d0b52 READY. Controller/worker boundaries, private abuse triage, truthful data lifecycle and exact-production host cutover remain open. Reconcile unpublished migration0040 collision before combined delivery.",
+      "updatedAt": "2026-09-12T17:12:58.251Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
         "document:docs/plans/hosted-release-domain-cutover-plan.md",

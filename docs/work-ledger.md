@@ -18,6 +18,26 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-12 - Host Review Reconciled And Machine Credential Destinations Bound
+
+- pushed PR #106 correction commit `22643106` after its single native Opus
+  review; four accepted corrections cover Arcade client navigation, environment
+  examples, database-backed hosted auth validation, and cross-clock grant
+  consumption. Six conversations have evidence-backed resolution, including
+  the deliberate no-compatibility and room-lifetime decisions. Required CI is
+  green; the separate public-install matrix is still running. No merge/deploy.
+- integrated machine-token destination binding at `2d08f8fb`: saved logins
+  cannot silently cross origins, invalid/insecure targets fail before IO,
+  redirects cannot replay bearer/device-code requests, and login responses
+  must match the requested issuer. Explicit self-hosted targets remain usable.
+- retained the [finding's implementation evidence](./audits/v1-security/threat-model-audit.md#2026-09-12-implementation-evidence):
+  28 focused tests, integrated full batch, and Canonicalizer
+  `0b1bdde0-0b27-489f-8a96-5478c72d0b52` READY. One shared CLI/MCP transport,
+  no new permission workflow or authentication service.
+- `G5-02` stays open for controller/worker boundaries, private abuse handling,
+  truthful data lifecycle, and exact-production host cutover. These local
+  corrections are not security-gate completion or release publication.
+
 ## 2026-09-12 - Full Launch Drill Established A Bounded Local Envelope
 
 - sustained 100 rooms / 400 controllers for 30 minutes, then 200 / 800 for
