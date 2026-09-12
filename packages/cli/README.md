@@ -76,6 +76,22 @@ and check its connection status. Rendering a profile does not register it;
 `claude mcp add` is a Claude Code command, not a Desktop installer. See the
 [`@air-jam/mcp-server` setup guide](https://github.com/vucinatim/air-jam/tree/main/packages/mcp-server#discover-and-connect) for details.
 
+## Platform machine authentication
+
+CLI and MCP platform operations share one authentication transport. A saved
+login is bound to the platform origin that issued it: changing the platform URL
+cannot silently send that saved token to another server. Log in to the other
+platform, or deliberately supply its own explicit token and target instead.
+Equivalent host casing, default ports, and trailing slashes do not change the
+origin. Self-hosted HTTPS targets are supported; HTTP is limited to loopback
+development addresses.
+
+Invalid target URLs fail rather than falling back to localhost. API paths stay
+on the selected origin, and redirects are rejected rather than replaying
+tokens or device codes elsewhere. Device login stores the requested platform
+only after the response confirms the same origin. This destination boundary
+does not change token scopes, expiry, or server-side ownership checks.
+
 ## Framework guidance ownership
 
 The CLI owns the canonical managed framework pack under `docs/airjam/`.
