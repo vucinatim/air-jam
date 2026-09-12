@@ -163,6 +163,26 @@ test("the public server bundles private workspace runtime dependencies", () => {
   }
 });
 
+test("the published server bundles its repaired PostgreSQL driver", () => {
+  const server = readJson("packages/server/package.json");
+  const buildConfig = fs.readFileSync(
+    path.join(repoRoot, "packages/server/tsup.config.ts"),
+    "utf8",
+  );
+  assert.match(buildConfig, /noExternal:\s*\[[^\]]*["']postgres["']/u);
+  assert.ok(
+    buildConfig.includes("/^drizzle-orm\\/postgres-js(?:\\/.*)?$/"),
+    "the adapter must not import a second unpatched runtime driver",
+  );
+  assert.equal(server.dependencies.postgres, undefined);
+  assert.equal(server.devDependencies.postgres, "^3.4.7");
+  const patches = readJson("package.json").pnpm?.patchedDependencies ?? {};
+  assert.ok(
+    patches["postgres@3.4.7"],
+    "published server must build from the patched driver",
+  );
+});
+
 test("the canonical AI pack manifest is committed with the CLI assets", () => {
   const manifestPath =
     "packages/cli/template-assets/managed/.airjam/ai-pack.json";

@@ -18,6 +18,65 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-12 - Full Launch Drill Established A Bounded Local Envelope
+
+- sustained 100 rooms / 400 controllers for 30 minutes, then 200 / 800 for
+  five minutes at measured input/state cadence; zero message loss, no unexpected
+  disconnects, and input/state p95 of 23/35 ms and 32/40 ms respectively
+- filled the existing 300-room ceiling and safely rejected room 301; overload
+  p95 increased to 78/103 ms, so the strict command correctly exited 1 rather
+  than claiming a fully passing performance profile
+- interrupted only the fixture runtime's database connectivity for 12 seconds;
+  gameplay continued without loss, fresh intake was unavailable, and new-room
+  admission recovered 4.444 seconds after restoration; all owned resources
+  were cleaned up and source fingerprints matched
+- retained [exact measurements, cost assumptions, and limitations](./audits/v1-reliability/launch-load-rehearsal-proof.md#full-release-profile-result);
+  the 100-room local floor is not Railway certification, a 300-room latency
+  promise, or proof of lossless analytics during an unavailable database
+- local synthetic realtime usage projects to about $0.89/hour at 100 active
+  rooms, mostly egress; database/platform/worker and fixed provider costs are
+  explicitly excluded, not hidden in a misleading monthly estimate
+- the final batch passed ordinary checks and its single Canonicalizer session
+  returned READY after consolidating duplicate PostgreSQL fixtures; 38 units,
+  23 actual PostgreSQL regressions, and the post-consolidation source smoke pass
+- no threshold reduction, admission-policy change, extra infrastructure,
+  merge, deployment, or public package promotion
+- closed `G3-04` as the required honest drill and `G3-05` as publication of its
+  bounded envelope, not as a passing strict overload profile or acceptance of
+  release risk; the canonical program records 30/46 complete, 80% weighted,
+  and 39–77 estimated remaining agent-hours
+
+## 2026-09-12 - Launch Rehearsal Exposed Two Concrete Concurrency Failures
+
+- added the opt-in `repo perf launch-load` CLI with an isolated server process,
+  newly migrated disposable database, real authentication/admission, bounded
+  traffic/resource measurements, real-cap rejection, and database interruption;
+  existing CI performance smoke and normal development data stay unchanged
+- ran two short socket drills: both rejected room 301 correctly, but both
+  crashed at the PostgreSQL driver's closed-socket write path during the fault
+- reproduced usage aggregate `23505` collisions separately, then added session
+  and game transaction locks, including rebuild/live-write parity; three actual
+  PostgreSQL regressions and 11 related tests pass
+- the second socket smoke had no pre-outage usage persistence failures and
+  measured about 30 Hz input with zero loss in its small healthy phases
+- retained [failed-run evidence and the driver/package decision](./audits/v1-reliability/launch-load-rehearsal-proof.md);
+  the 35-minute release profile, cost proof, and final batch review remain open
+- both rehearsal databases were disposed of; no push, merge, deployment, driver
+  workaround, or normal-development/production data mutation
+- subsequently repaired stale connection reservation ownership at the driver
+  boundary and included it in server bundles and Docker dependency stages;
+  all 10 ESM/CommonJS regressions pass on Node 24. The actual recovery smoke
+  now passes: zero traffic loss during a 12-second outage, safe intake denial,
+  and fresh admission about 6.4 seconds after connectivity restoration. The
+  full load profile and reviewed delivery remain separate pending evidence.
+- the extracted artifact exposed a second driver lifecycle defect: failed
+  queries were settled but left stale active-query references on closed pool
+  slots, hanging ordinary shutdown. Corrected socket-closure cleanup and
+  passed all 18 ESM/CommonJS regressions, including healthy in-flight draining.
+  The rebuilt artifact now passes recovery and stops in 9 ms after drain;
+  [exact artifact evidence](./audits/v1-reliability/launch-load-packaged-recovery-2026-09-12.json)
+  separates linked local dependencies from final registry certification.
+
 ## 2026-09-12 - Bounded Operational Evidence Retention Was Proved Locally
 
 - implemented the approved 30-day routine history / 90-day completed command

@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  postgres@3.4.7:
+    hash: 77mhlc3gwcvvryifzb5qt3jiwa
+    path: patches/postgres@3.4.7.patch
+
 importers:
 
   .:
@@ -58,7 +63,7 @@ importers:
         version: 16.5.0
       postgres:
         specifier: ^3.4.7
-        version: 3.4.7
+        version: 3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
@@ -205,7 +210,7 @@ importers:
         version: 17.2.3
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa))
       ipaddr.js:
         specifier: ^2.2.0
         version: 2.5.0
@@ -226,7 +231,7 @@ importers:
         version: 1.58.2
       postgres:
         specifier: ^3.4.7
-        version: 3.4.7
+        version: 3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -1015,7 +1020,7 @@ importers:
         version: link:../operations-contract
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa))
     devDependencies:
       typescript:
         specifier: ~5.9.3
@@ -1298,16 +1303,13 @@ importers:
         version: 17.2.3
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa))
       express:
         specifier: ^5.2.1
         version: 5.2.1
       pino:
         specifier: ^10.3.1
         version: 10.3.1
-      postgres:
-        specifier: ^3.4.7
-        version: 3.4.7
       socket.io:
         specifier: ^4.8.3
         version: 4.8.3
@@ -1339,6 +1341,9 @@ importers:
       '@types/uuid':
         specifier: ^11.0.0
         version: 11.0.0
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1
@@ -15696,12 +15701,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7):
+  drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.15.6
       kysely: 0.28.8
-      postgres: 3.4.7
+      postgres: 3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)
 
   dunder-proto@1.0.1:
     dependencies:
@@ -16027,7 +16032,7 @@ snapshots:
       eslint: 9.39.1(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react: 7.37.5(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react-hooks: 7.0.1(eslint@9.39.1(jiti@2.6.1))
@@ -16064,7 +16069,7 @@ snapshots:
       tinyglobby: 0.2.15
       unrs-resolver: 1.11.1
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -16079,7 +16084,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.47.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -18605,7 +18610,7 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  postgres@3.4.7: {}
+  postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa): {}
 
   potpack@1.0.2: {}
 

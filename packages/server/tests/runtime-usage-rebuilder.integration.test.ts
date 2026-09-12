@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { rebuildRuntimeUsageSessionFromLedger } from "../src/analytics/runtime-usage-rebuilder";
 import {
@@ -11,24 +12,26 @@ import {
   runtimeUsageSessions,
 } from "../src/db";
 import {
-  createAnalyticsTestDbHarness,
-  type AnalyticsTestDbHarness,
-} from "./helpers/analytics-test-db";
+  createDisposablePostgresDatabase,
+  validateLocalDatabaseUrl,
+} from "./helpers/postgres-fixture.js";
 
-const hasEnabledDbIntegrationTests =
-  process.env.AIR_JAM_ENABLE_DB_INTEGRATION_TESTS === "enabled";
+const databaseUrl = process.env.AIR_JAM_TEST_DATABASE_URL?.trim();
+const hasEnabledDbIntegrationTests = Boolean(databaseUrl);
 const maybeIt = hasEnabledDbIntegrationTests ? it : it.skip;
 
-let analyticsHarness: AnalyticsTestDbHarness | null = null;
+let fixture:
+  | Awaited<ReturnType<typeof createDisposablePostgresDatabase>>
+  | undefined;
 
 const getRuntimeDb = () => {
-  if (!analyticsHarness) {
+  if (!fixture) {
     throw new Error(
-      "Analytics test database is not initialized. Set AIR_JAM_ENABLE_DB_INTEGRATION_TESTS=enabled to run these tests.",
+      "Runtime usage test database is not initialized. Set AIR_JAM_TEST_DATABASE_URL to run these tests.",
     );
   }
 
-  return analyticsHarness.db;
+  return drizzle(fixture.observer);
 };
 
 beforeAll(async () => {
@@ -36,8 +39,11 @@ beforeAll(async () => {
     return;
   }
 
-  analyticsHarness = await createAnalyticsTestDbHarness();
-}, 120_000);
+  fixture = await createDisposablePostgresDatabase(
+    validateLocalDatabaseUrl(databaseUrl),
+    "runtime-usage-rebuilder",
+  );
+}, 30_000);
 
 const insertLedgerFixture = async (runtimeSessionId: string) => {
   const runtimeDb = getRuntimeDb();
@@ -94,7 +100,7 @@ const insertLedgerFixture = async (runtimeSessionId: string) => {
 };
 
 afterEach(async () => {
-  if (!hasEnabledDbIntegrationTests || !analyticsHarness) {
+  if (!fixture) {
     return;
   }
 
@@ -109,8 +115,8 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  await analyticsHarness?.dispose();
-  analyticsHarness = null;
+  await fixture?.cleanup();
+  fixture = undefined;
 });
 
 describe("runtime usage rebuilder", () => {

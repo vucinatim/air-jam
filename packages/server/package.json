@@ -73,7 +73,6 @@
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "pino": "^10.3.1",
-    "postgres": "^3.4.7",
     "socket.io": "^4.8.3",
     "uuid": "^13.0.2",
     "zod": "^4.2.1"
@@ -86,6 +85,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^24.10.1",
     "@types/uuid": "^11.0.0",
+    "postgres": "^3.4.7",
     "socket.io-client": "^4.8.1",
     "tsup": "^8.5.1",
     "tsx": "^4.19.2",

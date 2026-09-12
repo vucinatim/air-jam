@@ -35,8 +35,9 @@ experience feel finished, communicate it clearly, and launch one exact
 candidate. Mature-company operational completeness is not the pre-adoption
 release bar.
 
-The validated machine program now reports `78%` estimate-weighted progress and
-`44–87` remaining agent-hours. Those estimates include product polish that the
+The validated machine program now reports `80%` estimate-weighted progress and
+`39–77` remaining agent-hours, with 30 of 46 work items complete. These are
+planning estimates, not a release-date promise. They include product polish that the
 older infrastructure-heavy plan failed to own explicitly.
 
 The current priorities are:
@@ -61,6 +62,25 @@ The current priorities are:
    [review and merge rules](./working-agreements.md#review-stacks-and-integration)
    and
    [production-delivery rules](./working-agreements.md#production-delivery-and-public-launch)
+
+The launch-load recovery smoke now passes after correcting a reproduced usage-
+projection race and a database-driver reservation-ownership defect. The driver
+repair is included in the server bundle and deployment dependency stages.
+The extracted artifact also exposed and now passes a disconnected-pool shutdown
+regression; all 18 focused driver cases pass, including healthy query draining.
+The full drill is complete: 100 rooms / 30 minutes and 200 rooms / five minutes
+met their latency/cadence checks with zero message loss. The strict command
+still failed at the 300-room admission ceiling (78/103 ms input/state p95 versus
+50 ms). Room 301 was safely rejected and database recovery took 4.4 seconds.
+This supports a bounded local envelope, not a 300-room performance promise.
+No production change was made.
+See the [rehearsal evidence](./audits/v1-reliability/launch-load-rehearsal-proof.md).
+The full local batch and its single Canonicalizer review passed. The bounded
+operating envelope, recovery limits, outage analytics loss, and cost exclusions
+are published in that evidence; `G3-04` and `G3-05` are complete. Return to the
+remaining security/creator work and reviewed delivery rather than expanding
+this measurement into another scale program. Do not infer deployed release
+readiness from local measurements.
 
 ## What Is Structurally Done
 

@@ -767,6 +767,21 @@ program.
 5. improve a measured bottleneck when the floor fails; do not introduce multi-
    region or distributed-room architecture unless the evidence requires it
 
+The local rehearsal uses a separate realtime process, real required App ID
+authentication, database-backed admission and usage persistence, and a
+dedicated migrated fixture database. It keeps the small `perf sanity` CI check
+unchanged. The explicit `perf launch-load` command owns the longer rehearsal:
+30 Hz controller input and 10 Hz replicated state, baseline then twice-load
+burst, a separate attempt beyond the actual normal room cap, and a short
+database-network interruption below the instance lease lifetime. Existing
+sessions must keep communicating where safe; fresh intake must recover.
+Simulated client addresses exercise normal per-client rate limits rather than
+disabling them. Bounded latency summaries, actual send rate, separate server
+CPU/RSS, database connections, phase results, and cleanup evidence distinguish
+a genuine run from a saturated load generator. A short smoke profile validates
+the runner but cannot close the 30-minute release requirement. Local cost
+extrapolations are labeled assumptions, never provider billing evidence.
+
 The operational worker is already running. `G3-08` now closes only its remaining
 observation claim and reuses the exact-candidate rehearsal rather than creating
 a second rollout program:

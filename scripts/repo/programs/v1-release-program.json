@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-11T22:45:26.003Z",
+  "updatedAt": "2026-09-12T17:04:51.705Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -469,7 +469,7 @@
       "priority": 50,
       "title": "Run one final golden path and retain the launch-demo evidence",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "in_progress",
       "dependsOn": [
         "G2-03",
         "G2-04"
@@ -480,6 +480,12 @@
       },
       "evidenceRequirements": [
         "one final reproducible full-lifecycle run, reusable demo artifacts, and classified residual friction"
+      ],
+      "owner": "/root",
+      "note": "Canonical staging status passed Sep12 16:09 UTC through existing account CLI authority: distinct identities, non-reused production values, signed storage scope/expiry Sep16, isolated pipeline and platform health; productionAllowed false. No provider or credential mutation. Await settled source/load review, deploy exact isolated revision, then existing Signal Relay lifecycle with fresh artifact hashes and demo evidence.",
+      "updatedAt": "2026-09-12T16:10:16.150Z",
+      "evidence": [
+        "document:docs/audits/v1-golden-path/primary-agent-run-audit.md"
       ]
     },
     {
@@ -593,7 +599,7 @@
       "priority": 30,
       "title": "Run one honest baseline, burst, overload, and dependency-recovery drill",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [
         "G3-02",
         "G3-03"
@@ -605,7 +611,18 @@
       "evidenceRequirements": [
         "100 concurrent rooms and 400 controllers sustained for at least 30 minutes, followed by a 5-minute attempt at twice that admission load",
         "measured CPU, memory, database-connection, latency, failure, and cost evidence with safe rejection of excess new work, active-room continuity where technically safe, and one dependency recovery result"
-      ]
+      ],
+      "owner": "/root",
+      "note": "Required honest local drill complete:100rooms30m and200rooms5m passed latency/loss/cadence,301 safely rejected,DBrecovery4.444s,cleanup verified. Strict overload50ms gate remains failed(78/103ms), retained as explicit upper-envelope limit, not a fully passing releaseQualified result. Batch+Canonicalizer77728d61 READY; no production claim.",
+      "updatedAt": "2026-09-12T16:59:22.185Z",
+      "evidence": [
+        "document:docs/audits/v1-reliability/launch-load-rehearsal-proof.md",
+        "artifact:file:docs/audits/v1-reliability/launch-load-smoke-2026-09-12.json",
+        "artifact:file:docs/audits/v1-reliability/launch-load-packaged-recovery-2026-09-12.json",
+        "artifact:file:docs/audits/v1-reliability/launch-load-release-2026-09-12.json",
+        "command:pnpm-check-batch"
+      ],
+      "completedAt": "2026-09-12T16:59:22.185Z"
     },
     {
       "id": "G3-05",
@@ -614,7 +631,7 @@
       "priority": 40,
       "title": "Publish the measured operating envelope and residual reliability risk",
       "authority": "autonomous",
-      "status": "pending",
+      "status": "complete",
       "dependsOn": [
         "G3-04"
       ],
@@ -624,7 +641,15 @@
       },
       "evidenceRequirements": [
         "capacity envelope, recovery times, and residual risk record"
-      ]
+      ],
+      "owner": "/root",
+      "note": "Published local sustained/burst capacity, measured recovery, explicit overload latency failure, outage analytics loss, cost exclusions and exact-candidate limitations; no deployment or human risk acceptance claimed.",
+      "updatedAt": "2026-09-12T17:04:51.705Z",
+      "evidence": [
+        "document:docs/audits/v1-reliability/launch-load-rehearsal-proof.md",
+        "artifact:file:docs/audits/v1-reliability/launch-load-release-2026-09-12.json"
+      ],
+      "completedAt": "2026-09-12T17:04:51.705Z"
     },
     {
       "id": "G4-01",
@@ -759,8 +784,8 @@
         "reviewed exact-production proof for the host-authority cutover with ordinary room creation, joining, and reconnection unchanged"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "The dedicated games.air-jam.app origin and most surrounding controls are already live. Lean 1.0 closes the real host-authority boundary, privileged bypasses, minimum private abuse triage, and truthful data lifecycle; richer roles, moderation workflows, and speculative abuse systems are post-1.0.",
-      "updatedAt": "2026-09-01T14:21:48.429Z",
+      "note": "Root resumes this existing security lane; prior named subagent is not live. PR106 host-authority implementation is separately green, Canonicalizer-ready, unreviewed and not in launch-experience; migration0040 collides with retention. Remaining credential destinations, worker/controller boundaries, private abuse triage and truthful data lifecycle need bounded closure. Delegating AJ-SEC-002 in isolated worktree while G3 load source stays frozen; no new auth framework or production mutation.",
+      "updatedAt": "2026-09-12T16:19:51.472Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
         "document:docs/plans/hosted-release-domain-cutover-plan.md",

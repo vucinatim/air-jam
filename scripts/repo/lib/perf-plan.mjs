@@ -21,9 +21,7 @@ const forwardedFlags = [
 ];
 
 export const buildPerfSanityArgs = (options = {}) => {
-  const profile = options.profile
-    ? perfProfiles[options.profile]
-    : undefined;
+  const profile = options.profile ? perfProfiles[options.profile] : undefined;
   if (options.profile && !profile) {
     throw new Error(
       `Unknown performance profile "${options.profile}". Expected one of: ${Object.keys(perfProfiles).join(", ")}.`,
@@ -47,5 +45,20 @@ export const buildPerfSanityArgs = (options = {}) => {
     args.push("--", ...forwarded);
   }
 
+  return args;
+};
+
+export const buildLaunchLoadArgs = (options = {}) => {
+  const args = [
+    "--silent",
+    "--filter",
+    "@air-jam/server",
+    "exec",
+    "tsx",
+    "scripts/launch-load/main.ts",
+    `--profile=${options.profile ?? "smoke"}`,
+  ];
+  if (options.output !== undefined) args.push(`--output=${options.output}`);
+  if (options.json) args.push("--json");
   return args;
 };

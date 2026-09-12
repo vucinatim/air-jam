@@ -11,6 +11,9 @@ export default defineConfig({
   sourcemap: true,
   platform: "node",
   noExternal: [
+    // Published CLI consumers must receive the repository-patched driver too.
+    "postgres",
+    /^drizzle-orm\/postgres-js(?:\/.*)?$/,
     "@air-jam/database-contract",
     "@air-jam/devtools-core",
     "@air-jam/env",

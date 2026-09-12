@@ -73,5 +73,10 @@
     "verdaccio": "6.2.4",
     "wrangler": "^4.80.0",
     "yaml": "^2.4.2"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "postgres@3.4.7": "patches/postgres@3.4.7.patch"
+    }
   }
 }

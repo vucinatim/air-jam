@@ -22,6 +22,7 @@ RUN corepack enable
 # scripts/repo/runtime/docker-workspace-manifest-contract.test.mjs requires
 # this dependency-stage list to cover every pnpm workspace before install.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY patches ./patches
 
 COPY apps/platform/package.json                 ./apps/platform/
 COPY packages/cli/package.json                  ./packages/cli/
