@@ -28,6 +28,7 @@ export default defineConfig({
     "src/agent-tooling.ts",
     "src/runtime-topology.ts",
     "src/runtime-inspection.ts",
+    "src/runtime-control.ts",
   ],
   format: ["cjs", "esm"],
   dts: true, // Generate declaration files

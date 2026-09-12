@@ -14,11 +14,14 @@ import {
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import {
+  AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
+  isRuntimeOwnerActionRequest,
   isRuntimeOwnerCaptureRequest,
   resolveProjectRelativeRuntimeCaptureDir,
   type AirJamRuntimeOwnerCaptureResult,
 } from "../runtime-owner-protocol.js";
+import { invokeOwnedHostAction } from "./runtime-owner-actions.js";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
@@ -70,6 +73,20 @@ const shutdown = async (exitCode = 0) => {
 };
 
 process.on("message", (message: unknown) => {
+  if (isRuntimeOwnerActionRequest(message)) {
+    void (async () => {
+      const acknowledgement = await invokeOwnedHostAction(
+        session.host,
+        message.action,
+      );
+      process.send?.({
+        type: AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
+        requestId: message.requestId,
+        acknowledgement,
+      });
+    })();
+    return;
+  }
   if (!isRuntimeOwnerCaptureRequest(message)) return;
   void (async () => {
     const capturedAt = new Date().toISOString();
@@ -137,6 +154,10 @@ process.on("SIGTERM", () => {
 });
 
 process.on("SIGINT", () => {
+  void shutdown(0);
+});
+
+process.once("disconnect", () => {
   void shutdown(0);
 });
 

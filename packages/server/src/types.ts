@@ -25,6 +25,8 @@ type ControllerOrientation = NonNullable<
  */
 export interface ControllerSession {
   controllerId: string;
+  /** Private proof, valid only for this controller entry's lifetime. */
+  resumeCapabilityToken: string;
   deviceId: string;
   nickname?: string;
   socketId?: string;

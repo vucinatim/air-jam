@@ -86,6 +86,16 @@ readiness from local measurements.
 
 These are now baseline truths, not open architecture debates:
 
+Player participation and host ownership are now separate in the local source.
+Room codes still join normally; they cannot authorize fabricated host actions
+or take over another player's slot using public IDs. Agent-owned browsers use
+the existing host-local dispatcher through private IPC, with real standalone
+and embedded Pong proof. See the
+[session contract](./contracts/agent-session-contract.md#player-participation-and-host-ownership)
+and [security evidence](./audits/v1-security/threat-model-audit.md#aj-sec-005--room-code-and-optional-controller-capability-grant-excessive-authority).
+This is not deployed security-gate closure: browser-worker containment, abuse/
+privacy findings, and coordinated reviewed delivery remain open.
+
 The second supported agent client is now proven locally: Claude Desktop
 independently discovered the registry-installed candidate, started its runtime,
 opened a semantic session, changed and re-read authoritative game state, and

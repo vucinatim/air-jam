@@ -4,7 +4,6 @@ import {
   controllerStateSchema,
   controllerStateSyncRequestSchema,
   controllerSystemSchema,
-  hostActionRpcSchema,
   hostStateSyncSchema,
   isAirJamArcadePlatformPrefixAction,
   runtimeErrorReportSchema,
@@ -14,7 +13,6 @@ import {
   type AirJamStateSyncPayload,
   type ControllerActionRpcPayload,
   type ControllerStateMessage,
-  type HostActionRpcPayload,
   type PlaySoundEventPayload,
   type RuntimeErrorReportAck,
   type SignalPayload,
@@ -206,21 +204,16 @@ export const registerRealtimeHandlers = (
   const routeControllerActionRpc = ({
     payload,
     callback,
-    actorRole,
   }: {
-    payload: ControllerActionRpcPayload | HostActionRpcPayload;
+    payload: ControllerActionRpcPayload;
     callback?: (ack: AirJamActionInvocationResult) => void;
-    actorRole: "controller" | "host";
   }): void => {
-    const parsed =
-      actorRole === "host"
-        ? hostActionRpcSchema.safeParse(payload)
-        : controllerActionRpcSchema.safeParse(payload);
+    const parsed = controllerActionRpcSchema.safeParse(payload);
     if (!parsed.success) {
       logRealtimeEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC with invalid payload`,
+        `Rejected controller action RPC with invalid payload`,
         {
           reason: "invalid_payload",
           issues: parsed.error.issues,
@@ -229,7 +222,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "invalid_payload",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC with invalid payload.`,
+        `Rejected controller action RPC with invalid payload.`,
       );
       return;
     }
@@ -244,7 +237,7 @@ export const registerRealtimeHandlers = (
       logRealtimeEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because action name is reserved`,
+        `Rejected controller action RPC because action name is reserved`,
         {
           roomId,
           actionName,
@@ -255,7 +248,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "reserved_action",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because action "${actionName}" is reserved.`,
+        `Rejected controller action RPC because action "${actionName}" is reserved.`,
         {
           actionName,
           storeDomain,
@@ -268,7 +261,7 @@ export const registerRealtimeHandlers = (
       logRealtimeEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because socket is unauthorized`,
+        `Rejected controller action RPC because socket is unauthorized`,
         {
           roomId,
           actionName,
@@ -279,7 +272,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "unauthorized",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because socket is unauthorized for this room.`,
+        `Rejected controller action RPC because socket is unauthorized for this room.`,
         {
           roomId,
           actionName,
@@ -293,7 +286,7 @@ export const registerRealtimeHandlers = (
       logRealtimeEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because privileged capability is missing`,
+        `Rejected controller action RPC because privileged capability is missing`,
         {
           roomId,
           actionName,
@@ -304,7 +297,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "missing_capability",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because the controller capability is missing.`,
+        `Rejected controller action RPC because the controller capability is missing.`,
         {
           roomId,
           actionName,
@@ -319,7 +312,7 @@ export const registerRealtimeHandlers = (
       logRealtimeEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because room was not found`,
+        `Rejected controller action RPC because room was not found`,
         {
           roomId,
           actionName,
@@ -330,7 +323,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "room_not_found",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because the room was not found.`,
+        `Rejected controller action RPC because the room was not found.`,
         {
           roomId,
           actionName,
@@ -345,7 +338,7 @@ export const registerRealtimeHandlers = (
       logRealtimeEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because controller mapping was missing`,
+        `Rejected controller action RPC because controller mapping was missing`,
         {
           roomId,
           actionName,
@@ -356,7 +349,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "controller_mapping_missing",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because the controller mapping was missing.`,
+        `Rejected controller action RPC because the controller mapping was missing.`,
         {
           roomId,
           actionName,
@@ -372,7 +365,7 @@ export const registerRealtimeHandlers = (
       logRealtimeEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because controller session was not found`,
+        `Rejected controller action RPC because controller session was not found`,
         {
           roomId,
           controllerId,
@@ -384,7 +377,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "controller_session_missing",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because the controller session was not found.`,
+        `Rejected controller action RPC because the controller session was not found.`,
         {
           roomId,
           controllerId,
@@ -395,9 +388,7 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    const shouldRouteToMaster =
-      actorRole === "controller" &&
-      isAirJamArcadePlatformPrefixAction(actionName);
+    const shouldRouteToMaster = isAirJamArcadePlatformPrefixAction(actionName);
     const hostId = shouldRouteToMaster
       ? session.masterHostSocketId
       : roomManager.getActiveHostId(session);
@@ -405,7 +396,7 @@ export const registerRealtimeHandlers = (
       logRealtimeEvent(
         "warn",
         AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because no host target was available`,
+        `Rejected controller action RPC because no host target was available`,
         {
           roomId,
           controllerId,
@@ -417,7 +408,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "host_target_missing",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because no host target was available.`,
+        `Rejected controller action RPC because no host target was available.`,
         {
           roomId,
           controllerId,
@@ -433,7 +424,7 @@ export const registerRealtimeHandlers = (
       rejectActionRpc(
         callback,
         "host_target_missing",
-        `Rejected ${actorRole === "host" ? "host semantic" : "controller"} action RPC because the host target was not available.`,
+        `Rejected controller action RPC because the host target was not available.`,
         {
           roomId,
           controllerId,
@@ -449,8 +440,8 @@ export const registerRealtimeHandlers = (
       payload: actionPayload,
       storeDomain,
       actor: {
-        id: actorRole === "host" ? "host" : controllerId,
-        role: actorRole,
+        id: controllerId,
+        role: "controller",
       },
     };
 
@@ -496,7 +487,7 @@ export const registerRealtimeHandlers = (
     });
 
     controllerActionRpcSummary.record({
-      key: `${roomId}:${controllerId}:${storeDomain}:${actionName}:${actorRole}:${shouldRouteToMaster ? "master" : "active"}`,
+      key: `${roomId}:${controllerId}:${storeDomain}:${actionName}:controller:${shouldRouteToMaster ? "master" : "active"}`,
       bindings: {
         roomId,
         controllerId,
@@ -504,7 +495,7 @@ export const registerRealtimeHandlers = (
       data: {
         actionName,
         storeDomain,
-        actorRole,
+        actorRole: "controller",
         target: shouldRouteToMaster ? "master_host" : "active_host",
       },
       metrics: {
@@ -964,21 +955,6 @@ export const registerRealtimeHandlers = (
       routeControllerActionRpc({
         payload,
         callback,
-        actorRole: "controller",
-      });
-    },
-  );
-
-  socket.on(
-    "controller:host_action_rpc",
-    (
-      payload: HostActionRpcPayload,
-      callback?: (ack: AirJamActionInvocationResult) => void,
-    ) => {
-      routeControllerActionRpc({
-        payload,
-        callback,
-        actorRole: "host",
       });
     },
   );

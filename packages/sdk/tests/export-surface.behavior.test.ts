@@ -125,6 +125,7 @@ describe("sdk export surface", () => {
         "./metadata",
         "./prefabs",
         "./preview",
+        "./runtime-control",
         "./runtime-inspection",
         "./styles.css",
       ]),
@@ -135,8 +136,14 @@ describe("sdk export surface", () => {
     // Dropped 2026-04-15: no first-party consumer, kept in-source. Re-export
     // as explicit experimental leaves when a real consumer lands.
     expect(packageJson.exports?.["./contracts/v2"]).toBeUndefined();
-    expect(packageJson.exports?.["./runtime-control"]).toBeUndefined();
     expect(packageJson.exports?.["./runtime-observability"]).toBeUndefined();
+    // The owned browser harness consumes this explicit callable contract;
+    // store registration remains internal to the SDK.
+    expect(packageJson.exports?.["./runtime-control"]).toEqual({
+      types: "./dist/runtime-control.d.ts",
+      import: "./dist/runtime-control.js",
+      require: "./dist/runtime-control.cjs",
+    });
     expect(prefabExport).toEqual({
       types: "./dist/prefabs.d.ts",
       import: "./dist/prefabs.js",

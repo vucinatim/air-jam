@@ -21,6 +21,7 @@ type ControllerJoinAck = {
   controllerId?: string;
   roomId?: string;
   resumed?: boolean;
+  resumeCapabilityToken?: string;
   message?: string;
   code?: ErrorCode | string;
 };
@@ -266,7 +267,10 @@ describe("server room lifecycle", () => {
     });
   });
 
-  it("resumes the same controller binding after disconnect when the device id matches", async () => {
+  it("resumes the same controller binding after disconnect with its private proof", async () => {
+    // This tests retained-slot recovery, not expiration. Keep the fixture lease
+    // beyond the test deadline; the harness restores this environment setting.
+    process.env.AIR_JAM_CONTROLLER_RESUME_LEASE_MS = "60000";
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -300,16 +304,16 @@ describe("server room lifecycle", () => {
       controllerId: string;
       resumed?: boolean;
     }>(host, "server:controllerJoined");
-    const resumeAck = await harness.emitWithAck<ControllerJoinAck>(
-      controllerB,
-      "controller:join",
-      {
+    const [resumeAck, resumedNotice] = await Promise.all([
+      harness.emitWithAck<ControllerJoinAck>(controllerB, "controller:join", {
         roomId,
         controllerId: "ctrl_resume_1",
         deviceId,
+        resumeCapabilityToken: firstJoinAck.resumeCapabilityToken,
         nickname: "Resume Me",
-      },
-    );
+      }),
+      resumedNoticePromise,
+    ]);
 
     expect(resumeAck).toEqual(
       expect.objectContaining({
@@ -318,7 +322,7 @@ describe("server room lifecycle", () => {
         resumed: true,
       }),
     );
-    expect(await resumedNoticePromise).toEqual(
+    expect(resumedNotice).toEqual(
       expect.objectContaining({
         controllerId: "ctrl_resume_1",
         resumed: true,
@@ -332,6 +336,142 @@ describe("server room lifecycle", () => {
         connected: true,
       }),
     );
+  });
+
+  it("keeps resume proof private and allows only its owner or a same-socket retry to reclaim a slot", async () => {
+    const host = await harness.connectSocket();
+    await harness.bootstrapHost(host);
+    const room = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    const owner = await harness.connectSocket();
+    const identity = {
+      roomId: room.roomId!,
+      controllerId: "ctrl_private",
+      deviceId: "public_device_hint",
+    };
+    const welcome = harness.waitForEvent<Record<string, unknown>>(
+      owner,
+      "server:welcome",
+    );
+    const presence = harness.waitForEvent<Record<string, unknown>>(
+      host,
+      "server:controllerJoined",
+    );
+    const joined = await harness.emitWithAck<ControllerJoinAck>(
+      owner,
+      "controller:join",
+      identity,
+    );
+    expect(joined.resumeCapabilityToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(JSON.stringify(await welcome)).not.toContain(
+      joined.resumeCapabilityToken!,
+    );
+    expect(JSON.stringify(await presence)).not.toContain(
+      joined.resumeCapabilityToken!,
+    );
+    const retried = await harness.emitWithAck<ControllerJoinAck>(
+      owner,
+      "controller:join",
+      identity,
+    );
+    expect(retried).toMatchObject({
+      ok: true,
+      resumed: true,
+      resumeCapabilityToken: joined.resumeCapabilityToken,
+    });
+    const attacker = await harness.connectSocket();
+    const session = harness.getRoomManager().getRoom(room.roomId!)!;
+    for (const hints of [
+      {},
+      { resumeCapabilityToken: "wrong-proof" },
+      { capabilityToken: session.controllerCapability!.token },
+    ]) {
+      expect(
+        await harness.emitWithAck<ControllerJoinAck>(
+          attacker,
+          "controller:join",
+          { ...identity, ...hints },
+        ),
+      ).toMatchObject({ ok: false, code: ErrorCode.UNAUTHORIZED });
+    }
+    expect(session.controllers.get(identity.controllerId)?.socketId).toBe(
+      owner.id,
+    );
+    session.controllerCapability!.expiresAt = Date.now() - 1;
+    expect(
+      await harness.emitWithAck<ControllerJoinAck>(
+        attacker,
+        "controller:join",
+        {
+          ...identity,
+          capabilityToken: session.controllerCapability!.token,
+        },
+      ),
+    ).toMatchObject({ ok: false, code: ErrorCode.UNAUTHORIZED });
+    const replacement = await harness.connectSocket();
+    expect(
+      await harness.emitWithAck<ControllerJoinAck>(
+        replacement,
+        "controller:join",
+        {
+          ...identity,
+          deviceId: "changed_device_hint",
+          capabilityToken: session.controllerCapability!.token,
+          resumeCapabilityToken: joined.resumeCapabilityToken,
+        },
+      ),
+    ).toMatchObject({
+      ok: true,
+      resumed: true,
+      resumeCapabilityToken: joined.resumeCapabilityToken,
+    });
+    expect(
+      harness.getRoomManager().getControllerInfo(owner.id!),
+    ).toBeUndefined();
+  });
+
+  it("does not restore a retired slot with its former proof, but admits a fresh player normally", async () => {
+    const host = await harness.connectSocket();
+    await harness.bootstrapHost(host);
+    const room = await harness.emitWithAck<HostCreateRoomAck>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 4 },
+    );
+    const owner = await harness.connectSocket();
+    const identity = { roomId: room.roomId!, controllerId: "ctrl_retired" };
+    const joined = await harness.emitWithAck<ControllerJoinAck>(
+      owner,
+      "controller:join",
+      { ...identity, nickname: "Old name" },
+    );
+    await harness.emitWithAck(owner, "controller:leave", identity);
+    const replacement = await harness.connectSocket();
+    const fresh = await harness.emitWithAck<ControllerJoinAck>(
+      replacement,
+      "controller:join",
+      {
+        ...identity,
+        resumeCapabilityToken: joined.resumeCapabilityToken,
+      },
+    );
+    expect(fresh).toMatchObject({ ok: true, resumed: false });
+    expect(fresh.resumeCapabilityToken).not.toBe(joined.resumeCapabilityToken);
+    expect(
+      harness
+        .getRoomManager()
+        .getRoom(room.roomId!)!
+        .controllers.get(identity.controllerId)!.playerProfile.label,
+    ).not.toBe("Old name");
+    expect(
+      await harness.emitWithAck<ControllerJoinAck>(owner, "controller:join", {
+        ...identity,
+        resumeCapabilityToken: joined.resumeCapabilityToken,
+      }),
+    ).toMatchObject({ ok: false, code: ErrorCode.UNAUTHORIZED });
   });
 
   it("removes virtual controllers immediately on disconnect instead of holding a resume lease", async () => {
@@ -484,7 +624,7 @@ describe("server room lifecycle", () => {
     expect(harness.getRoomManager().getRoom(resetAck.roomId!)).toBeDefined();
   });
 
-  it("rejects resume attempts when a different device id tries to claim an existing controller binding", async () => {
+  it("rejects resume attempts when a matching public device id claims a connected binding without its proof", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const createAck = await harness.emitWithAck<HostCreateRoomAck>(
@@ -508,8 +648,13 @@ describe("server room lifecycle", () => {
       },
     );
     expect(firstJoinAck.ok).toBe(true);
-    controllerA.disconnect();
-    await harness.expectNoEvent(host, "server:controllerLeft", 15);
+    // Keep the target slot live: the harness's 100 ms disconnect grace tests
+    // expiry elsewhere and must not turn this authority check into a fresh join.
+    const ownerEntry = harness
+      .getRoomManager()
+      .getRoom(roomId)!
+      .controllers.get("ctrl_resume_conflict_1")!;
+    expect(ownerEntry.socketId).toBe(controllerA.id);
 
     const controllerB = await harness.connectSocket();
     const conflictAck = await harness.emitWithAck<ControllerJoinAck>(
@@ -518,7 +663,7 @@ describe("server room lifecycle", () => {
       {
         roomId,
         controllerId: "ctrl_resume_conflict_1",
-        deviceId: "device_b_conflict",
+        deviceId: "device_a_conflict",
         nickname: "Intruder",
       },
     );
@@ -526,9 +671,16 @@ describe("server room lifecycle", () => {
     expect(conflictAck).toEqual(
       expect.objectContaining({
         ok: false,
-        code: ErrorCode.INVALID_PAYLOAD,
+        code: ErrorCode.UNAUTHORIZED,
       }),
     );
+    expect(
+      harness
+        .getRoomManager()
+        .getRoom(roomId)!
+        .controllers.get("ctrl_resume_conflict_1"),
+    ).toBe(ownerEntry);
+    expect(ownerEntry.socketId).toBe(controllerA.id);
     await harness.expectNoEvent(host, "server:controllerJoined", 50);
   });
 

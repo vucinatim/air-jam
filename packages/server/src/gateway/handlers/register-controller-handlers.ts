@@ -15,6 +15,7 @@ import {
   type PlayerProfile,
 } from "@air-jam/sdk/protocol";
 import Color from "color";
+import { randomBytes } from "node:crypto";
 import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
@@ -235,6 +236,7 @@ export const registerControllerHandlers = (
         nickname,
         avatarId,
         capabilityToken,
+        resumeCapabilityToken,
       } = parsed.data;
       const deviceId = rawDeviceId ?? controllerId;
       const session = roomManager.getRoom(roomId);
@@ -262,9 +264,30 @@ export const registerControllerHandlers = (
       }
 
       const existing = session.controllers.get(controllerId);
+      const existingSocketId = existing?.socketId;
+      const existingLeaseToken = existing?.admissionLease.leaseToken;
       const isResumedJoin = Boolean(existing);
       const isResumeCandidate =
-        Boolean(existing) && existing?.deviceId === deviceId;
+        existing !== undefined &&
+        existing.retiredAt === undefined &&
+        (existing.resumeLeaseExpiresAt === null ||
+          existing.resumeLeaseExpiresAt > Date.now()) &&
+        (existing.socketId === socket.id ||
+          existing.resumeCapabilityToken === resumeCapabilityToken);
+      if (existing && !isResumeCandidate) {
+        logControllerEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
+          "Rejected controller resume without valid slot authority",
+          { roomId, controllerId, reason: "invalid_resume_authority" },
+        );
+        callback({
+          ok: false,
+          message: "Controller session cannot be resumed. Please join again.",
+          code: ErrorCode.UNAUTHORIZED,
+        });
+        return;
+      }
       const roomCapability = session.controllerCapability;
       const hasProvidedCapability = typeof capabilityToken === "string";
       const capabilityExpired = roomCapability
@@ -294,25 +317,6 @@ export const registerControllerHandlers = (
             ? "Controller link expired. Please re-open it from the host."
             : "Invalid controller link",
           code: ErrorCode.UNAUTHORIZED,
-        });
-        return;
-      }
-
-      if (existing && existing.deviceId !== deviceId) {
-        logControllerEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
-          "Rejected controller join because resume binding belongs to another device",
-          {
-            roomId,
-            controllerId,
-            reason: "resume_device_mismatch",
-          },
-        );
-        callback({
-          ok: false,
-          message: "Controller slot is unavailable",
-          code: ErrorCode.INVALID_PAYLOAD,
         });
         return;
       }
@@ -360,9 +364,13 @@ export const registerControllerHandlers = (
             controllerLifecycleEpoch !== operationEpoch ||
             roomManager.getRoom(roomId) !== session ||
             session.admissionLease.leaseToken !== roomLeaseToken ||
+            session.controllers.get(controllerId) !== existing ||
             (existing !== undefined &&
               (existing.retiredAt !== undefined ||
-                session.controllers.get(controllerId) !== existing)) ||
+                existing.socketId !== existingSocketId ||
+                existing.admissionLease.leaseToken !== existingLeaseToken ||
+                (existing.resumeLeaseExpiresAt !== null &&
+                  existing.resumeLeaseExpiresAt <= Date.now()))) ||
             (previousEntry !== undefined &&
               previousEntry.socketId === socket.id &&
               previousEntry.retiredAt !== undefined))
@@ -441,7 +449,7 @@ export const registerControllerHandlers = (
         color = Color("#38bdf8").hex();
       }
 
-      let controllerSession = session.controllers.get(controllerId) ?? existing;
+      let controllerSession = existing;
       if (controllerSession) {
         controllerSession.retiredAt = undefined;
         controllerSession.nickname = nickname ?? controllerSession.nickname;
@@ -473,6 +481,7 @@ export const registerControllerHandlers = (
 
         controllerSession = {
           controllerId,
+          resumeCapabilityToken: randomBytes(32).toString("base64url"),
           deviceId,
           nickname,
           socketId: socket.id,
@@ -537,7 +546,13 @@ export const registerControllerHandlers = (
         }),
       );
 
-      callback({ ok: true, controllerId, roomId, resumed });
+      callback({
+        ok: true,
+        controllerId,
+        roomId,
+        resumed,
+        resumeCapabilityToken: controllerSession.resumeCapabilityToken,
+      });
       socket.emit("server:welcome", {
         controllerId,
         roomId,

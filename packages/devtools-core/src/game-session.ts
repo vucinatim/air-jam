@@ -11,6 +11,7 @@ import {
   connectController,
   disconnectController,
   invokeHostAction,
+  ownsControllerSessionHost,
   readRuntimeSnapshot,
   resolveControllerSessionGameRuntime,
   sendControllerInput,
@@ -117,6 +118,7 @@ const toSessionActionId = (lane: "player" | "host", actionId: string): string =>
 
 const describeSessionActions = (
   actions: AirJamGameAgentActionDescriptor[],
+  ownsHost: boolean,
 ): AirJamGameSessionActionDescriptor[] =>
   actions.map((action) => ({
     actionId: toSessionActionId(
@@ -126,7 +128,10 @@ const describeSessionActions = (
     lane: action.target.kind === "host" ? "host" : "player",
     source: "semantic-game",
     description: action.description,
-    availability: action.availability,
+    availability:
+      action.target.kind === "host" && !ownsHost
+        ? "host_runtime_not_owned: Host actions require an owned host runtime."
+        : action.availability,
     payload: {
       kind: action.payload.kind,
       description: action.payload.description,
@@ -225,7 +230,10 @@ export const openGameSession = async (
       disconnectedAt: controllerSession.disconnectedAt,
       disconnectReason: controllerSession.disconnectReason,
       hasAgentContract: Boolean(contract?.hasContract),
-      actions: describeSessionActions(gameActions),
+      actions: describeSessionActions(
+        gameActions,
+        ownsControllerSessionHost(controllerSession.controllerSessionId),
+      ),
     };
 
     gameSessions.set(summary.gameSessionId, {
@@ -273,7 +281,10 @@ export const readGameSession = async ({
     disconnectedAt: runtimeSnapshot.disconnectedAt,
     disconnectReason: runtimeSnapshot.disconnectReason,
     process: runtimeSnapshot.process,
-    actions: describeSessionActions(actions),
+    actions: describeSessionActions(
+      actions,
+      ownsControllerSessionHost(session.summary.controllerSessionId),
+    ),
   });
   session.actionRegistry = buildActionRegistry(actions);
 
@@ -346,6 +357,7 @@ export const invokeGameSessionAction = async (
     actionName: action.actionName,
     storeDomain: runtimeStoreDomain,
     payload,
+    timeoutMs: options.timeoutMs,
   });
   const snapshotAfter = await readGameSnapshot({
     controllerSessionId: session.summary.controllerSessionId,

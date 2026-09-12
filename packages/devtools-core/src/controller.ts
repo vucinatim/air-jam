@@ -1,3 +1,4 @@
+import type { AirJamActionInvocationResult } from "@air-jam/sdk";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   arcadeSurfaceRuntimeIdentitySchema,
@@ -12,13 +13,13 @@ import type {
   ControllerLeaveAck,
   ControllerStateMessage,
   ControllerWelcomePayload,
-  HostActionRpcPayload,
   PlayerProfile,
   PlayerUpdatedNotice,
   ServerErrorPayload,
   ServerToClientEvents,
   SignalPayload,
 } from "@air-jam/sdk/protocol";
+import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
 import type { HostRuntimeInspectionContract } from "@air-jam/sdk/runtime-inspection";
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
@@ -31,7 +32,9 @@ import {
   resolveDevtoolsHelperScript,
 } from "./helper-scripts.js";
 import {
+  AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
+  isRuntimeOwnerActionResult,
   isRuntimeOwnerCaptureResult,
   type AirJamRuntimeOwnerCaptureResult,
 } from "./runtime-owner-protocol.js";
@@ -74,6 +77,7 @@ type InternalControllerSession = {
   lastSignal: JsonObject | null;
   lastError: JsonObject | null;
   isolatedRuntimeOwner: ChildProcess | null;
+  resumeCapabilityToken: string | null;
 };
 
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -260,30 +264,69 @@ const emitControllerActionWithAck = async ({
     });
   });
 
-const emitHostActionWithAck = async ({
-  socket,
+const requestOwnedHostAction = async ({
+  owner,
   payload,
   timeoutMs,
 }: {
-  socket: ControllerSocket;
-  payload: HostActionRpcPayload;
+  owner: ChildProcess;
+  payload: HostRuntimeActionRequest;
   timeoutMs: number;
-}): Promise<
-  Parameters<
-    NonNullable<
-      Parameters<ClientToServerEvents["controller:host_action_rpc"]>[1]
-    >
-  >[0]
-> =>
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error("Timed out waiting for host action acknowledgement."));
-    }, timeoutMs);
-
-    socket.emit("controller:host_action_rpc", payload, (ack) => {
+}): Promise<AirJamActionInvocationResult> =>
+  await new Promise((resolve) => {
+    const requestId = randomUUID();
+    const finish = (ack: AirJamActionInvocationResult) => {
       clearTimeout(timeout);
+      owner.off("message", onMessage);
+      owner.off("exit", onExit);
+      owner.off("disconnect", onExit);
+      owner.off("error", onError);
       resolve(ack);
-    });
+    };
+    const onError = () =>
+      finish({
+        ok: false,
+        status: "rejected",
+        source: "client",
+        reason: "host_ack_missing",
+        message:
+          "The owned host runtime disconnected before its acknowledgement was observed.",
+      });
+    const onExit = () => onError();
+    const onMessage = (message: unknown) => {
+      if (
+        isRuntimeOwnerActionResult(message) &&
+        message.requestId === requestId
+      )
+        finish(message.acknowledgement);
+    };
+    const timeout = setTimeout(() => {
+      finish({
+        ok: false,
+        status: "rejected",
+        source: "client",
+        reason: "host_ack_timeout",
+        message: "Timed out waiting for the owned host action acknowledgement.",
+      });
+    }, timeoutMs);
+    owner.on("message", onMessage);
+    owner.once("exit", onExit);
+    owner.once("disconnect", onExit);
+    owner.once("error", onError);
+    try {
+      owner.send(
+        {
+          type: AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
+          requestId,
+          action: payload,
+        },
+        (error) => {
+          if (error) onError();
+        },
+      );
+    } catch {
+      onError();
+    }
   });
 
 const parseJoinRoomId = (joinUrl: URL): string | null => {
@@ -666,6 +709,13 @@ const buildSessionSummary = (
   ...session.summary,
 });
 
+export const ownsControllerSessionHost = (
+  controllerSessionId: string,
+): boolean => {
+  const owner = getRequiredSession(controllerSessionId).isolatedRuntimeOwner;
+  return Boolean(owner?.connected && !owner.killed && owner.exitCode === null);
+};
+
 const getRequiredSession = (
   controllerSessionId: string,
 ): InternalControllerSession => {
@@ -1014,6 +1064,7 @@ export const connectController = async ({
       lastSignal: null,
       lastError: null,
       isolatedRuntimeOwner: ownedRuntimeProcess,
+      resumeCapabilityToken: null,
     };
 
     attachSocketListeners(internalSession);
@@ -1029,6 +1080,8 @@ export const connectController = async ({
           nickname: nickname?.trim() || undefined,
           avatarId: avatarId?.trim() || undefined,
           capabilityToken: resolvedCapabilityToken,
+          resumeCapabilityToken:
+            internalSession.resumeCapabilityToken ?? undefined,
         },
         timeoutMs,
       });
@@ -1039,6 +1092,9 @@ export const connectController = async ({
             `Controller join was rejected${ack.code ? ` (${ack.code})` : ""}.`,
         );
       }
+
+      internalSession.resumeCapabilityToken =
+        ack.resumeCapabilityToken ?? internalSession.resumeCapabilityToken;
 
       internalSession.summary.connected = true;
       internalSession.summary.roomId = ack.roomId ?? resolvedRoomId;
@@ -1167,11 +1223,13 @@ export const invokeHostAction = async ({
   actionName,
   storeDomain,
   payload,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 }: {
   controllerSessionId: string;
   actionName: string;
   storeDomain: string;
   payload?: Record<string, unknown>;
+  timeoutMs?: number;
 }): Promise<InvokeControllerActionResult> => {
   const session = getRequiredSession(controllerSessionId);
   if (!session.summary.connected) {
@@ -1181,16 +1239,27 @@ export const invokeHostAction = async ({
   }
 
   const normalizedPayload = payload ? { ...payload } : undefined;
-  const acknowledgement = await emitHostActionWithAck({
-    socket: session.socket,
-    payload: {
-      roomId: session.summary.roomId,
-      actionName,
-      payload: normalizedPayload,
-      storeDomain,
-    },
-    timeoutMs: DEFAULT_TIMEOUT_MS,
-  });
+  const owner = session.isolatedRuntimeOwner;
+  const acknowledgement: AirJamActionInvocationResult =
+    owner && ownsControllerSessionHost(controllerSessionId)
+      ? await requestOwnedHostAction({
+          owner,
+          payload: {
+            roomId: session.summary.roomId,
+            actionName,
+            payload: normalizedPayload,
+            storeDomain,
+          },
+          timeoutMs,
+        })
+      : {
+          ok: false,
+          status: "rejected",
+          source: "client",
+          reason: "host_runtime_not_owned",
+          message:
+            "Host actions require an owned host runtime; room attachments provide player participation only.",
+        };
 
   return {
     ...buildSessionSummary(session),

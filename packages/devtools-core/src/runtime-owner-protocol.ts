@@ -1,4 +1,45 @@
+import type { AirJamActionInvocationResult } from "@air-jam/sdk";
+import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
 import path from "node:path";
+
+export const AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST =
+  "air-jam-runtime-owner.invoke-action/v1" as const;
+export const AIR_JAM_RUNTIME_OWNER_ACTION_RESULT =
+  "air-jam-runtime-owner.invoke-action-result/v1" as const;
+export type AirJamRuntimeOwnerActionRequest = {
+  type: typeof AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST;
+  requestId: string;
+  action: HostRuntimeActionRequest;
+};
+export type AirJamRuntimeOwnerActionResult = {
+  type: typeof AIR_JAM_RUNTIME_OWNER_ACTION_RESULT;
+  requestId: string;
+  acknowledgement: AirJamActionInvocationResult;
+};
+
+export const isRuntimeOwnerActionRequest = (
+  value: unknown,
+): value is AirJamRuntimeOwnerActionRequest =>
+  isRecord(value) &&
+  value.type === AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST &&
+  typeof value.requestId === "string" &&
+  value.requestId.length > 0 &&
+  isRecord(value.action) &&
+  typeof value.action.roomId === "string" &&
+  typeof value.action.storeDomain === "string" &&
+  typeof value.action.actionName === "string" &&
+  (value.action.payload === undefined || isRecord(value.action.payload));
+
+export const isRuntimeOwnerActionResult = (
+  value: unknown,
+): value is AirJamRuntimeOwnerActionResult =>
+  isRecord(value) &&
+  value.type === AIR_JAM_RUNTIME_OWNER_ACTION_RESULT &&
+  typeof value.requestId === "string" &&
+  isRecord(value.acknowledgement) &&
+  typeof value.acknowledgement.ok === "boolean" &&
+  ["accepted", "rejected"].includes(String(value.acknowledgement.status)) &&
+  ["client", "server", "host"].includes(String(value.acknowledgement.source));
 
 export const AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST =
   "air-jam-runtime-owner.capture-visuals/v1" as const;

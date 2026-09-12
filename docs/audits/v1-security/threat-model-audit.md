@@ -396,14 +396,80 @@ The change is local, not yet published or deployed; `G5-02` remains open.
   rejection.
 - Threat and harm: knowledge or brute-force discovery of a short room code is
   effectively a bearer for privileged controller events.
-- Canonical end state: routing codes and privilege capabilities are distinct.
-  Missing capability either rejects the join or receives a deliberately narrow
-  unprivileged grant set. Manual entry uses host approval or a stronger join
-  secret. Capabilities expire, rotate, and reconnect safely.
+- Canonical end state (reconciled 2026-09-12 with the no-new-player-prompts
+  product contract): room codes are party invitations, not private-room
+  authentication. Participants keep ordinary inputs, player actions, sounds,
+  and cooperative system controls. They cannot impersonate the host or resume
+  another player's slot using public IDs. Actual owned host actions use the
+  [private runtime-owner path](../../contracts/agent-session-contract.md#player-participation-and-host-ownership);
+  controller resume uses a server-issued private token. The earlier proposal
+  to add approval to manual joining is superseded, not implemented.
 - Owner and dependencies: SDK and realtime controller authorization; `G5-02`.
 - Required proof: negative tests for every privileged event without the proper
   capability, plus brute-force/rate, expiry, rotation, reconnect, manual-entry,
   and host-revocation tests.
+
+#### 2026-09-12 implementation evidence
+
+The controller host-impersonation event, schema, and payload type are removed.
+Networked player actions always receive server-derived controller identity.
+Owned-host IPC instead invokes the existing local store dispatcher through the
+separate browser-realm control contract. Missing ownership is explicit in
+session discovery/results; no delegation grants or new service were added.
+
+Resume now requires the existing slot's private server-issued token (or its
+already bound socket for an idempotent join). Public controller/device IDs,
+including those copied from presence, are insufficient. The admission await
+rechecks current slot identity/lease/owner to prevent concurrent overwrites.
+Removal invalidates the old slot; a later fresh join receives a new token and
+does not restore previous authority. The private ACK is retained in SDK memory
+and structured local storage, not forwarded through public welcome messages.
+Legacy ID-only bindings are discarded. Denied browser storage uses existing
+in-memory behavior; reload without durable storage necessarily joins fresh.
+The same exercise fixed the existing settings-storage getter throwing during
+controller rendering, through its existing persistence owner.
+
+Focused evidence includes 38 SDK local-control/store tests, 39 controller/
+settings SDK tests, 33 server routing/lifecycle/admission tests, and 23 devtools
+IPC/frame/observation tests plus 31 broader devtools tests. Overlapping suites
+are not summed as unique coverage. Explicit affected source/test TypeScript
+and scoped lint pass. Tests retain ordinary cooperative controls, deny forged
+host identity and public-ID resume, cover stale admission races and expiry,
+and verify exact realm targeting, listener/replication parity, stale binding
+cleanup, private-token omission, and ambiguous acknowledgement semantics.
+
+Real Node 24 source proof used the normal `pnpm run dev -- --game=pong` stack
+with its loopback database, then the canonical devtools controller/semantic
+action APIs. Owned standalone room `DN7N` and embedded Arcade room `X7W2` both
+joined a team, added a bot, and started a match through player actions. Their
+host `scorePoint` calls returned accepted acknowledgements and replicated
+team1 scores from 0 to 1. The standalone store used `default`, revisions 3→4;
+the embedded store used `aj.embedded.game:2:local-reference-pong`, revisions
+3→8. Live bot play also changed the embedded opponent score; this is not an
+isolated physics assertion. Both owned sessions closed successfully, and the
+unified error-level stream was empty. These prove the source-level owned-host
+transport, not a new full external-agent release rehearsal or deployed proof.
+
+The integrated batch passed generated-source checks, workspace typechecking,
+lint, and canonical guards before reaching tests. The combined server run
+exposed a 100 ms test-fixture resume-window race; authority tests now preserve
+their intended live slot rather than racing expiry. A separate log test now
+awaits the existing flush operation instead of sleeping 25 ms. The SDK export
+test was updated to assert the new public control leaf rather than its former
+absence. No production timeout was widened or negative assertion weakened.
+Validation resumed at the affected test stages: the full server suite passes
+203 tests (41 opt-in database cases skipped); platform passes 487 tests (82
+opt-in database cases skipped). SDK passes its 281 unchanged/passing cases and
+the corrected export contract plus runtime-control rerun passes all eight
+cases. This is a completed batch with targeted fallout rechecks, not a claim
+that the initial uninterrupted command exited successfully. Earlier focused
+devtools and real-browser evidence above remain applicable. The single
+Canonicalizer session `77b8f1f0-3f01-4788-8e45-6512fc314b52` returned **READY**:
+the impersonation path is deleted, host control reuses the existing dispatcher,
+and resume authority has one owner. Its optional micro-consolidations do not
+block this batch; a generic IPC abstraction was deliberately not added for
+only two operations with different error contracts.
+`G5-02` remains open for other launch-critical findings and reviewed delivery.
 
 ### AJ-SEC-006 — Malformed, deep, oversized, or high-rate realtime input can deny service
 

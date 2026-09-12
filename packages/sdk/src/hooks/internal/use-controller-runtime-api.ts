@@ -45,6 +45,7 @@ import {
   getOrCreateControllerDeviceId,
   readControllerRoomBinding,
   writeControllerRoomBinding,
+  type ControllerRoomBinding,
 } from "../../runtime/controller-identity";
 import { getControllerRealtimeClient } from "../../runtime/controller-realtime-client";
 import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
@@ -174,13 +175,20 @@ export const useControllerRuntimeApi = (
       if (urlControllerId) return urlControllerId;
     }
     if (parsedRoomId) {
-      const persistedControllerId = readControllerRoomBinding(parsedRoomId);
-      if (persistedControllerId) {
-        return persistedControllerId;
+      const persistedBinding = readControllerRoomBinding(parsedRoomId);
+      if (persistedBinding) {
+        return persistedBinding.controllerId;
       }
     }
     return generateControllerId();
   }, [options.controllerId, embeddedController, parsedRoomId]);
+
+  // Keep recovery authority even when browser storage is unavailable. Never pass
+  // it through the embedded game bridge, public player state, or runtime logs.
+  const resumeBindingRef = useRef<{
+    roomId: string;
+    binding: ControllerRoomBinding;
+  } | null>(null);
 
   const onStateRef = useRef<AirJamControllerOptions["onState"]>(
     options.onState,
@@ -513,6 +521,10 @@ export const useControllerRuntimeApi = (
         return;
       }
 
+      const resumeBinding =
+        resumeBindingRef.current?.roomId === parsedRoomId
+          ? resumeBindingRef.current.binding
+          : readControllerRoomBinding(parsedRoomId);
       const payload = controllerJoinSchema.parse({
         roomId: parsedRoomId,
         controllerId,
@@ -520,6 +532,10 @@ export const useControllerRuntimeApi = (
         nickname: nicknameRef.current || undefined,
         avatarId: avatarIdRef.current || undefined,
         capabilityToken: capabilityToken ?? undefined,
+        resumeCapabilityToken:
+          resumeBinding?.controllerId === controllerId
+            ? resumeBinding.resumeCapabilityToken
+            : undefined,
       });
       emitControllerRuntimeEvent({
         event: AIRJAM_DEV_LOG_EVENTS.runtime.controllerJoinRequested,
@@ -572,7 +588,14 @@ export const useControllerRuntimeApi = (
         }
         if (ack.controllerId) {
           latestState.setControllerId(ack.controllerId);
-          writeControllerRoomBinding(parsedRoomId, ack.controllerId);
+          if (ack.resumeCapabilityToken) {
+            const binding = {
+              controllerId: ack.controllerId,
+              resumeCapabilityToken: ack.resumeCapabilityToken,
+            };
+            resumeBindingRef.current = { roomId: parsedRoomId, binding };
+            writeControllerRoomBinding(parsedRoomId, binding);
+          }
         }
         latestState.setError(undefined);
         latestState.setStatus("connected");
@@ -646,7 +669,6 @@ export const useControllerRuntimeApi = (
       if (!storeRoomId && payload.roomId) {
         latestState.setRoomId(payload.roomId);
       }
-      writeControllerRoomBinding(payload.roomId, payload.controllerId);
       if (Array.isArray(payload.players)) {
         latestState.resetPlayers();
         payload.players.forEach((player) => {

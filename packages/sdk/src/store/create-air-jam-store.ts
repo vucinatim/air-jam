@@ -11,6 +11,7 @@ import type {
   AirJamStateSyncPayload,
 } from "../protocol";
 import { resolveImplicitReplicatedStoreDomainFromWindow } from "../runtime/arcade-runtime-url";
+import { registerHostRuntimeActionStore } from "../runtime/contracts/control";
 import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import { getHostRealtimeClient } from "../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
@@ -728,10 +729,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
 
         syncedStateData = stateData;
         syncedStateSignature = nextSignature;
-        syncRevision = Math.max(
-          syncRevision,
-          runtime.hostStateRevisionFloor,
-        );
+        syncRevision = Math.max(syncRevision, runtime.hostStateRevisionFloor);
         syncRevision += 1;
         if (runtime.canBroadcastHostState && runtime.socket) {
           emitHostStateSync();
@@ -859,10 +857,45 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       socket.on("airjam:state_sync_request", handleStateSyncRequest);
       socket.on("airjam:action_rpc", handleAction);
 
+      const unregisterControl =
+        typeof window === "undefined"
+          ? undefined
+          : registerHostRuntimeActionStore(window, {
+              roomId,
+              storeDomain: resolvedStoreDomain,
+              invoke: async ({ actionName, payload }) => {
+                const runtime = runtimeSnapshotRef.current;
+                if (
+                  runtime.role !== "host" ||
+                  runtime.roomId !== roomId ||
+                  runtime.resolvedStoreDomain !== resolvedStoreDomain ||
+                  runtime.socket !== socket ||
+                  !runtime.canBroadcastHostState
+                ) {
+                  return createClientRejectedActionResult(
+                    "host_runtime_not_ready",
+                    "The owning host runtime is not ready for actions.",
+                  );
+                }
+                const actions = createDispatchedActions({ kind: "default" });
+                if (!Object.hasOwn(actions, actionName)) {
+                  return createClientRejectedActionResult(
+                    "action_not_found",
+                    "The requested public action is not registered on this host store.",
+                  );
+                }
+                const invoke = actions[actionName] as (
+                  payload: unknown,
+                ) => Promise<AirJamActionInvocationResult>;
+                return invoke(payload);
+              },
+            });
+
       return {
         refCount: 0,
         flushHostStateSync,
         cleanup: () => {
+          unregisterControl?.();
           unsubscribe();
           socket.off("server:controllerJoined", handleControllerJoined);
           socket.off("airjam:state_sync", handleSync);

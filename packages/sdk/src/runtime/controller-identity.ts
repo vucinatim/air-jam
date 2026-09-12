@@ -3,6 +3,11 @@ import { generateControllerId } from "../utils/ids";
 const DEVICE_ID_STORAGE_KEY = "airjam_controller_device_id";
 const ROOM_BINDINGS_STORAGE_KEY = "airjam_controller_room_bindings";
 
+export interface ControllerRoomBinding {
+  controllerId: string;
+  resumeCapabilityToken: string;
+}
+
 const getLocalStorage = (): Storage | null => {
   if (typeof window === "undefined") {
     return null;
@@ -35,32 +40,51 @@ export const getOrCreateControllerDeviceIdFromStorage = (
     return generateControllerDeviceId();
   }
 
-  const existing = storage.getItem(DEVICE_ID_STORAGE_KEY);
-  if (existing && existing.trim().length >= 8) {
-    return existing;
-  }
-
   const created = generateControllerDeviceId();
-  storage.setItem(DEVICE_ID_STORAGE_KEY, created);
+  try {
+    const existing = storage.getItem(DEVICE_ID_STORAGE_KEY);
+    if (existing && existing.trim().length >= 8) {
+      return existing;
+    }
+    storage.setItem(DEVICE_ID_STORAGE_KEY, created);
+  } catch {
+    // Device identity remains a usable in-memory hint when storage is denied.
+  }
   return created;
 };
 
-const readRoomBindings = (storage: Storage | null): Record<string, string> => {
+const readRoomBindings = (
+  storage: Storage | null,
+): Record<string, ControllerRoomBinding> => {
   if (!storage) {
     return {};
   }
 
-  const raw = storage.getItem(ROOM_BINDINGS_STORAGE_KEY);
-  if (!raw) {
-    return {};
-  }
-
   try {
+    const raw = storage.getItem(ROOM_BINDINGS_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const next: Record<string, string> = {};
+    const next: Record<string, ControllerRoomBinding> = {};
     for (const [key, value] of Object.entries(parsed)) {
-      if (key.trim().length > 0 && typeof value === "string") {
-        next[key] = value;
+      if (
+        key.trim().length > 0 &&
+        typeof value === "object" &&
+        value !== null
+      ) {
+        const binding = value as Partial<ControllerRoomBinding>;
+        if (
+          typeof binding.controllerId === "string" &&
+          binding.controllerId.trim().length >= 3 &&
+          typeof binding.resumeCapabilityToken === "string" &&
+          binding.resumeCapabilityToken.length > 0
+        ) {
+          next[key] = {
+            controllerId: binding.controllerId,
+            resumeCapabilityToken: binding.resumeCapabilityToken,
+          };
+        }
       }
     }
     return next;
@@ -71,46 +95,50 @@ const readRoomBindings = (storage: Storage | null): Record<string, string> => {
 
 const writeRoomBindings = (
   storage: Storage | null,
-  bindings: Record<string, string>,
+  bindings: Record<string, ControllerRoomBinding>,
 ): void => {
   if (!storage) {
     return;
   }
-  storage.setItem(ROOM_BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
+  try {
+    storage.setItem(ROOM_BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
+  } catch {
+    // The controller runtime retains its private binding in memory.
+  }
 };
 
-export const readControllerRoomBinding = (roomId: string): string | null => {
+export const readControllerRoomBinding = (
+  roomId: string,
+): ControllerRoomBinding | null => {
   return readControllerRoomBindingFromStorage(getLocalStorage(), roomId);
 };
 
 export const readControllerRoomBindingFromStorage = (
   storage: Storage | null,
   roomId: string,
-): string | null => {
+): ControllerRoomBinding | null => {
   const bindings = readRoomBindings(storage);
   const binding = bindings[roomId.toUpperCase()];
-  return typeof binding === "string" && binding.trim().length >= 3
-    ? binding
-    : null;
+  return binding ?? null;
 };
 
 export const writeControllerRoomBinding = (
   roomId: string,
-  controllerId: string,
+  binding: ControllerRoomBinding,
 ): void => {
-  writeControllerRoomBindingToStorage(getLocalStorage(), roomId, controllerId);
+  writeControllerRoomBindingToStorage(getLocalStorage(), roomId, binding);
 };
 
 export const writeControllerRoomBindingToStorage = (
   storage: Storage | null,
   roomId: string,
-  controllerId: string,
+  binding: ControllerRoomBinding,
 ): void => {
-  if (!roomId || !controllerId) {
+  if (!roomId || !binding.controllerId || !binding.resumeCapabilityToken) {
     return;
   }
   const bindings = readRoomBindings(storage);
-  bindings[roomId.toUpperCase()] = controllerId;
+  bindings[roomId.toUpperCase()] = binding;
   writeRoomBindings(storage, bindings);
 };
 

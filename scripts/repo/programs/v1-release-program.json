@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-09-12T17:12:58.251Z",
+  "updatedAt": "2026-09-12T17:39:27.881Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -784,8 +784,8 @@
         "reviewed exact-production proof for the host-authority cutover with ordinary room creation, joining, and reconnection unchanged"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "PR106 correction head 22643106 pushed after one native Opus review; all six conversations reconciled, required CI green, public-install matrix running, no merge/deploy. Credential destination binding integrated at 2d08f8fb: 28 focused tests and full integrated batch pass; Canonicalizer 0b1bdde0-0b27-489f-8a96-5478c72d0b52 READY. Controller/worker boundaries, private abuse triage, truthful data lifecycle and exact-production host cutover remain open. Reconcile unpublished migration0040 collision before combined delivery.",
-      "updatedAt": "2026-09-12T17:12:58.251Z",
+      "note": "Controller authority batch locally verified: removed network host impersonation, owned-browser local dispatch, private player resume proof. Standalone/embedded Pong, integrated checks with documented test fallout rechecks, and Canonicalizer 77b8f1f0-3f01-4788-8e45-6512fc314b52 READY. PR106 required CI and public-install matrix green, unmerged. Browser-worker, abuse/privacy and coordinated production proof remain; no merge/deploy.",
+      "updatedAt": "2026-09-12T17:39:27.881Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
         "document:docs/plans/hosted-release-domain-cutover-plan.md",
@@ -796,7 +796,11 @@
         "url:https://github.com/vucinatim/air-jam/pull/80#pullrequestreview-5079085370",
         "command:production-deployment-e65c8e41-terminal-success",
         "command:release-origin-attest-20-of-20-production-eligible",
-        "command:pnpm-smoke-browser-7-of-7"
+        "command:pnpm-smoke-browser-7-of-7",
+        "document:docs/contracts/agent-session-contract.md",
+        "document:docs/audits/v1-security/threat-model-audit.md",
+        "command:owned-host-standalone-and-embedded-pong-proof",
+        "command:controller-authority-integrated-batch-and-targeted-rechecks"
       ]
     },
     {

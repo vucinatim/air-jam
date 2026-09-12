@@ -18,6 +18,31 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-09-12 - Player Participation Separated From Owned Host Control
+
+- removed controller-origin host impersonation rather than adding another
+  delegation/grant service; agent-owned browser IPC calls the existing local
+  game-store dispatcher, bound to the exact room/domain and game frame
+- kept ordinary room-code joining, player actions, and cooperative controls;
+  private ACK-only resume proof protects an existing player's slot without a
+  new permission prompt or exposing tokens to games/presence/inspection
+- exercised real standalone and embedded Pong: player actions start the match,
+  owned-host scoring is acknowledged and replicated, and both owned sessions
+  clean up. This proves source behavior, not final-candidate publication
+- finished generated/type/lint/canonical checks and test-stage fallout:
+  server 203 passed, platform 487 passed, SDK 281 passed plus its corrected
+  export contract rechecked with runtime-control (eight passed). Opt-in
+  database cases were not silently counted as passing. Fixed two test timing
+  assumptions using retained fixture state and the existing log flush API;
+  production timing was unchanged
+- retained the [contract](./contracts/agent-session-contract.md#player-participation-and-host-ownership)
+  and [implementation evidence](./audits/v1-security/threat-model-audit.md#aj-sec-005--room-code-and-optional-controller-capability-grant-excessive-authority);
+  the batch's single Canonicalizer session
+  `77b8f1f0-3f01-4788-8e45-6512fc314b52` returned READY, with no required changes
+- PR #106's separate public-install matrix is now fully green at `22643106`;
+  all six existing review conversations are resolved. No merge, deployment,
+  public package publication, or security-gate completion is claimed
+
 ## 2026-09-12 - Host Review Reconciled And Machine Credential Destinations Bound
 
 - pushed PR #106 correction commit `22643106` after its single native Opus

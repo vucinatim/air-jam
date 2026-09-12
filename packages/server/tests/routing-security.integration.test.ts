@@ -201,7 +201,7 @@ describe("server routing and security", () => {
     await harness.expectNoEvent(host, "airjam:action_rpc");
   });
 
-  it("routes host semantic action RPCs to the active host with host actor semantics", async () => {
+  it("never forwards the removed controller host-impersonation event", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
@@ -233,23 +233,22 @@ describe("server routing and security", () => {
       storeDomain: "default",
     });
 
-    const forwarded = await harness.waitForEvent<{
-      actionName: string;
-      payload: unknown;
-      storeDomain: string;
-      actor: { id: string; role: "controller" | "host" };
-    }>(host, "airjam:action_rpc");
-
-    expect(forwarded.actionName).toBe("finishMatch");
-    expect(forwarded.storeDomain).toBe("default");
-    expect(forwarded.actor).toEqual({
-      id: "host",
-      role: "host",
-    });
-    expect(forwarded.payload).toBeUndefined();
+    await harness.expectNoEvent(host, "airjam:action_rpc");
+    const forged = await harness.emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:action_rpc",
+      {
+        roomId,
+        actionName: "finishMatch",
+        storeDomain: "default",
+        actor: { id: "host", role: "host" },
+      },
+    );
+    expect(forged.ok).toBe(false);
+    await harness.expectNoEvent(host, "airjam:action_rpc");
   });
 
-  it("returns the host semantic action acknowledgement from the active host", async () => {
+  it("returns the player action acknowledgement from the active host", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
@@ -297,7 +296,7 @@ describe("server routing and security", () => {
       source: "host" | "server" | "client";
       result?: { ok: true };
       reason?: string;
-    }>(controller, "controller:host_action_rpc", {
+    }>(controller, "controller:action_rpc", {
       roomId,
       actionName: "finishMatch",
       payload: undefined,

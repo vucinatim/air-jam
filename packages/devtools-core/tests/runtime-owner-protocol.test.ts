@@ -1,9 +1,50 @@
 import { describe, expect, it } from "vitest";
 import {
+  AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
+  AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
+  isRuntimeOwnerActionRequest,
+  isRuntimeOwnerActionResult,
   isRuntimeOwnerCaptureResult,
   resolveProjectRelativeRuntimeCaptureDir,
 } from "../src/runtime-owner-protocol.js";
+
+describe("runtime owner semantic action messages", () => {
+  it("accepts a narrow typed request and canonical result, rejecting malformed messages", () => {
+    const request = {
+      type: AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
+      requestId: "r1",
+      action: {
+        roomId: "ROOM",
+        storeDomain: "default",
+        actionName: "finishMatch",
+        payload: { score: 2 },
+      },
+    };
+    expect(isRuntimeOwnerActionRequest(request)).toBe(true);
+    expect(
+      isRuntimeOwnerActionRequest({
+        ...request,
+        action: { ...request.action, payload: [] },
+      }),
+    ).toBe(false);
+    expect(isRuntimeOwnerActionRequest({ ...request, requestId: "" })).toBe(
+      false,
+    );
+    const result = {
+      type: AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
+      requestId: "r1",
+      acknowledgement: { ok: true, status: "accepted", source: "host" },
+    };
+    expect(isRuntimeOwnerActionResult(result)).toBe(true);
+    expect(
+      isRuntimeOwnerActionResult({
+        ...result,
+        acknowledgement: { ok: true, status: "invented", source: "host" },
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("runtime owner visual capture paths", () => {
   it("keeps capture artifacts inside the owning project", () => {

@@ -434,6 +434,10 @@ describe("realtime admission socket boundary", () => {
       .getRoomManager()
       .getRoom(room.roomId)!
       .controllers.get(identity.controllerId)!.admissionLease;
+    const resumeCapabilityToken = harness
+      .getRoomManager()
+      .getRoom(room.roomId)!
+      .controllers.get(identity.controllerId)!.resumeCapabilityToken;
 
     originalController.disconnect();
     await vi.waitFor(() =>
@@ -445,7 +449,11 @@ describe("realtime admission socket boundary", () => {
     const deferred = deferNextControllerAdmission();
     const resumedController = await harness.connectSocket();
     const resumeAck = new Promise<{ ok: boolean; code?: string }>((resolve) => {
-      resumedController.emit("controller:join", identity, resolve);
+      resumedController.emit(
+        "controller:join",
+        { ...identity, resumeCapabilityToken },
+        resolve,
+      );
     });
     const admissionInput = await deferred.called.promise;
     expect(admissionInput.existingLease).toEqual(existingLease);
@@ -472,6 +480,54 @@ describe("realtime admission socket boundary", () => {
     expect(releaseController).toHaveBeenCalledTimes(2);
     expect(releaseController).toHaveBeenNthCalledWith(1, existingLease);
     expect(releaseController).toHaveBeenNthCalledWith(2, existingLease);
+  });
+
+  it("cannot overwrite a previously absent controller slot claimed during deferred admission", async () => {
+    const host = await harness.connectSocket();
+    await harness.bootstrapHost(host, "app-race-claim", "game");
+    const room = await harness.emitWithAck<{ ok: boolean; roomId: string }>(
+      host,
+      "host:createRoom",
+      { maxPlayers: 8 },
+    );
+    const identity = {
+      roomId: room.roomId,
+      controllerId: "racing_controller",
+      deviceId: "shared_public_device",
+    };
+    const first = await harness.connectSocket();
+    const deferred = deferNextControllerAdmission();
+    const firstAck = harness.emitWithAck<{ ok: boolean; code?: string }>(
+      first,
+      "controller:join",
+      identity,
+    );
+    await deferred.called.promise;
+    const winner = await harness.connectSocket();
+    expect(
+      await harness.emitWithAck(winner, "controller:join", identity),
+    ).toMatchObject({ ok: true });
+    const winnerEntry = harness
+      .getRoomManager()
+      .getRoom(room.roomId)!
+      .controllers.get(identity.controllerId)!;
+    const lateLease = {
+      ...winnerEntry.admissionLease,
+      leaseToken: "late-lease",
+    };
+    deferred.decision.resolve({ ok: true, lease: lateLease });
+    expect(await firstAck).toMatchObject({
+      ok: false,
+      code: "SERVICE_UNAVAILABLE",
+    });
+    expect(
+      harness
+        .getRoomManager()
+        .getRoom(room.roomId)!
+        .controllers.get(identity.controllerId),
+    ).toBe(winnerEntry);
+    expect(winnerEntry.socketId).toBe(winner.id);
+    expect(releaseController).toHaveBeenCalledWith(lateLease);
   });
 
   it("releases a deferred admission completed after its socket disconnects", async () => {

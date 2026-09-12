@@ -161,6 +161,7 @@ const createControllerWrapper =
 describe("session reconnect behavior", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
+    localStorage.clear();
     mocked.store = createAirJamStore();
     mocked.controllerSocket = mocked.createMockSocket();
     mocked.hostSocket = mocked.createMockSocket();
@@ -212,6 +213,79 @@ describe("session reconnect behavior", () => {
       expect.any(Function),
     );
   });
+
+  it.each([true, false])(
+    "retains private proof across welcome and reconnect with storage available=%s",
+    (storageAvailable) => {
+      if (!storageAvailable) {
+        vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+          throw new Error("Storage unavailable");
+        });
+      }
+      mocked.controllerSocket.emit.mockImplementation(
+        (
+          event: string,
+          _payload: unknown,
+          callback?: (ack: unknown) => void,
+        ) => {
+          if (event === "controller:join")
+            callback?.({
+              ok: true,
+              controllerId: "ctrl_private",
+              resumeCapabilityToken: "private-proof",
+            });
+        },
+      );
+      const { unmount } = renderHook(() => useAirJamController(), {
+        wrapper: createControllerWrapper({
+          roomId: "ROOM1",
+          controllerId: "ctrl_private",
+        }),
+      });
+      expect(
+        mocked.controllerSocket.emit.mock.calls.find(
+          ([event]) => event === "controller:join",
+        )?.[1].resumeCapabilityToken,
+      ).toBeUndefined();
+      const welcome = mocked.controllerSocket.on.mock.calls.find(
+        ([event]) => event === "server:welcome",
+      )![1];
+      const connect = mocked.controllerSocket.on.mock.calls.find(
+        ([event]) => event === "connect",
+      )![1];
+      act(() => {
+        welcome({
+          roomId: "ROOM1",
+          controllerId: "ctrl_private",
+          player: { id: "ctrl_private", label: "Player" },
+        });
+        connect();
+      });
+      expect(mocked.controllerSocket.emit).toHaveBeenLastCalledWith(
+        "controller:join",
+        expect.objectContaining({ resumeCapabilityToken: "private-proof" }),
+        expect.any(Function),
+      );
+      expect(JSON.stringify(mocked.store!.getState())).not.toContain(
+        "private-proof",
+      );
+      unmount();
+      if (!storageAvailable) return;
+      mocked.controllerSocket.emit.mockClear();
+      const remounted = renderHook(() => useAirJamController(), {
+        wrapper: createControllerWrapper({ roomId: "ROOM1" }),
+      });
+      expect(mocked.controllerSocket.emit).toHaveBeenCalledWith(
+        "controller:join",
+        expect.objectContaining({
+          controllerId: "ctrl_private",
+          resumeCapabilityToken: "private-proof",
+        }),
+        expect.any(Function),
+      );
+      remounted.unmount();
+    },
+  );
 
   it("retries a controller admission denial after the server retry-after delay", async () => {
     vi.useFakeTimers();

@@ -3,7 +3,6 @@ import type {
   ControllerActionRpcPayload,
   ControllerInputEvent,
   ControllerStateSyncRequestPayload,
-  HostActionRpcPayload,
   ServerToClientEvents,
 } from "@air-jam/sdk/protocol";
 import { spawn } from "node:child_process";
@@ -236,11 +235,11 @@ console.log(JSON.stringify({
 
 const createControllerSocketFixture = async ({
   aliasedAgentImport = false,
-  replayStaleDefaultSyncAfterHostAction = false,
+  replayStaleDefaultSyncAfterAction = false,
   embeddedArcadeIdentity = null,
 }: {
   aliasedAgentImport?: boolean;
-  replayStaleDefaultSyncAfterHostAction?: boolean;
+  replayStaleDefaultSyncAfterAction?: boolean;
   embeddedArcadeIdentity?: {
     epoch: number;
     gameId: string;
@@ -250,7 +249,6 @@ const createControllerSocketFixture = async ({
   joinUrl: string;
   receivedInputs: ControllerInputEvent[];
   receivedActions: ControllerActionRpcPayload[];
-  receivedHostActions: HostActionRpcPayload[];
   receivedStateSyncRequests: ControllerStateSyncRequestPayload[];
   receivedLeaves: { roomId: string; controllerId: string }[];
   setStorePayload: (
@@ -370,7 +368,6 @@ const createControllerSocketFixture = async ({
 
   const receivedInputs: ControllerInputEvent[] = [];
   const receivedActions: ControllerActionRpcPayload[] = [];
-  const receivedHostActions: HostActionRpcPayload[] = [];
   const receivedStateSyncRequests: ControllerStateSyncRequestPayload[] = [];
   const receivedLeaves: { roomId: string; controllerId: string }[] = [];
   const embeddedGameStoreDomain = embeddedArcadeIdentity
@@ -470,54 +467,24 @@ const createControllerSocketFixture = async ({
       }
     ).on("controller:action_rpc", (payload, callback) => {
       receivedActions.push(payload);
-      callback?.({
-        ok: true,
-        status: "accepted",
-        source: "host",
-      });
-    });
-
-    (
-      socket as unknown as {
-        on: (
-          event: string,
-          listener: (
-            payload: HostActionRpcPayload,
-            callback?: (ack: {
-              ok: true;
-              status: "accepted";
-              source: "host";
-            }) => void,
-          ) => void,
-        ) => void;
-      }
-    ).on("controller:host_action_rpc", (payload, callback) => {
-      receivedHostActions.push(payload);
-      if (payload.actionName === "finishMatch") {
-        const targetStoreDomain = payload.storeDomain;
-        const previousTargetStore = {
-          ...(storePayloads.get(targetStoreDomain) ?? {}),
-        };
-        const previousTargetRevision =
-          storeRevisions.get(targetStoreDomain) ?? 0;
-        storePayloads.set(targetStoreDomain, {
-          ...previousTargetStore,
-          phase: "ended",
-        });
-        storeRevisions.set(targetStoreDomain, previousTargetRevision + 1);
-        if (
-          replayStaleDefaultSyncAfterHostAction &&
-          targetStoreDomain === "default"
-        ) {
-          setTimeout(() => {
+      if (
+        payload.actionName === "setScore" &&
+        replayStaleDefaultSyncAfterAction
+      ) {
+        const previous = { ...storePayloads.get(payload.storeDomain) };
+        const revision = storeRevisions.get(payload.storeDomain) ?? 0;
+        storePayloads.set(payload.storeDomain, { ...previous, score: 9 });
+        storeRevisions.set(payload.storeDomain, revision + 1);
+        setTimeout(
+          () =>
             socket.emit("airjam:state_sync", {
               roomId: payload.roomId,
-              storeDomain: "default",
-              data: previousTargetStore,
-              revision: previousTargetRevision,
-            });
-          }, 50);
-        }
+              storeDomain: payload.storeDomain,
+              data: previous,
+              revision,
+            }),
+          50,
+        );
       }
       callback?.({
         ok: true,
@@ -615,7 +582,6 @@ console.log(JSON.stringify({
     joinUrl: `http://127.0.0.1:${port}/controller?room=ROOM1&aj_controller_cap=cap_fixture`,
     receivedInputs,
     receivedActions,
-    receivedHostActions,
     receivedStateSyncRequests,
     receivedLeaves,
     setStorePayload: (storeDomain, payload) => {
@@ -1534,21 +1500,10 @@ describe("game sessions", () => {
       actionId: "host:finish_match",
       timeoutMs: 1_000,
     });
-    expect(hostInvocation.invocation).toEqual(
-      expect.objectContaining({
-        storeDomain: embeddedStoreDomain,
-        acknowledgement: expect.objectContaining({
-          ok: true,
-          status: "accepted",
-          source: "host",
-        }),
-        snapshotAfter: expect.objectContaining({
-          snapshot: expect.objectContaining({
-            phase: "ended",
-          }),
-        }),
-      }),
-    );
+    expect(hostInvocation.invocation.acknowledgement).toMatchObject({
+      ok: false,
+      reason: "host_runtime_not_owned",
+    });
 
     await closeGameSession({
       gameSessionId: session.gameSessionId,
@@ -1571,75 +1526,34 @@ describe("game sessions", () => {
     expect(fixture.receivedLeaves).toHaveLength(1);
   });
 
-  it("exposes and invokes semantic host actions through the game contract", async () => {
+  it("keeps host actions unavailable when only attached by join URL", async () => {
     const fixture = await createControllerSocketFixture();
-
     const session = await openGameSession({
       cwd: fixture.root,
       gameId: "socket-fixture",
       controllerJoinUrl: fixture.joinUrl,
-      nickname: "AgentHostCtrl",
     });
-
-    expect(session.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionId: "host:finish_match",
-          lane: "host",
-          source: "semantic-game",
-        }),
-      ]),
-    );
-
+    expect(
+      session.actions.find((action) => action.actionId === "host:finish_match")
+        ?.availability,
+    ).toContain("host_runtime_not_owned");
     const invocation = await invokeGameSessionAction({
       gameSessionId: session.gameSessionId,
       actionId: "host:finish_match",
-      timeoutMs: 5_000,
+      timeoutMs: 1000,
     });
-    await new Promise((resolve) => setTimeout(resolve, 25));
-
-    expect(invocation.actionId).toBe("host:finish_match");
-    expect(invocation.lane).toBe("host");
-    expect(invocation.invocation).toEqual(
-      expect.objectContaining({
-        lane: "host",
-        actionName: "finishMatch",
-        acknowledgement: expect.objectContaining({
-          ok: true,
-          status: "accepted",
-          source: "host",
-        }),
-        acknowledgementObservation: "host-acknowledged",
-        outcome: "accepted",
-        snapshotBefore: expect.objectContaining({
-          snapshot: expect.objectContaining({
-            phase: "lobby",
-          }),
-        }),
-        snapshotAfter: expect.objectContaining({
-          snapshot: expect.objectContaining({
-            phase: "ended",
-          }),
-        }),
-      }),
-    );
-    expect(fixture.receivedHostActions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionName: "finishMatch",
-          storeDomain: "default",
-        }),
-      ]),
-    );
-
-    await closeGameSession({
-      gameSessionId: session.gameSessionId,
+    expect(invocation.invocation.acknowledgement).toMatchObject({
+      ok: false,
+      status: "rejected",
+      reason: "host_runtime_not_owned",
     });
+    expect(invocation.invocation.observedStateChange).toBe(false);
+    await closeGameSession({ gameSessionId: session.gameSessionId });
   });
 
   it("keeps request-synced game reads fresh even if an older state sync arrives later", async () => {
     const fixture = await createControllerSocketFixture({
-      replayStaleDefaultSyncAfterHostAction: true,
+      replayStaleDefaultSyncAfterAction: true,
     });
 
     const session = await openGameSession({
@@ -1651,14 +1565,15 @@ describe("game sessions", () => {
 
     const invocation = await invokeGameSessionAction({
       gameSessionId: session.gameSessionId,
-      actionId: "host:finish_match",
+      actionId: "player:set_score",
+      payload: 9,
       timeoutMs: 5_000,
     });
 
     expect(invocation.invocation.snapshotAfter).not.toBeNull();
     expect(invocation.invocation.snapshotAfter?.snapshot).toEqual(
       expect.objectContaining({
-        phase: "ended",
+        score: 9,
       }),
     );
 
@@ -1672,7 +1587,7 @@ describe("game sessions", () => {
 
     expect(inspection.gameSnapshot?.snapshot).toEqual(
       expect.objectContaining({
-        phase: "ended",
+        score: 9,
       }),
     );
 

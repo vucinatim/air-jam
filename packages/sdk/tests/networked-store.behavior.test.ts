@@ -7,6 +7,10 @@ import {
   resetAirJamDiagnosticsForTests,
   setAirJamDiagnosticsEnabled,
 } from "../src/diagnostics";
+import {
+  AIR_JAM_RUNTIME_CONTROL_KEY,
+  type HostRuntimeControl,
+} from "../src/runtime-control";
 import type { HostArcadeRestoreState } from "../src/state/connection-store";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
@@ -234,6 +238,63 @@ describe("createAirJamStore networked behavior", () => {
   afterEach(() => {
     warnSpy.mockRestore();
     resetAirJamDiagnosticsForTests();
+  });
+
+  it("owned host control uses the local dispatcher, listeners and replication", async () => {
+    mockedContext.state.role = "host";
+    const useStore = createTestStore();
+    const events: unknown[] = [];
+    const { unmount } = renderHook(() => {
+      useStore.useHostActionListener((event) => events.push(event));
+      return useStore();
+    });
+    const control = Reflect.get(
+      window,
+      AIR_JAM_RUNTIME_CONTROL_KEY,
+    ) as HostRuntimeControl;
+    await act(async () => {
+      expect(
+        await control.invoke({
+          roomId: "ROOM1",
+          storeDomain: "default",
+          actionName: "setPhase",
+          payload: { phase: "playing" },
+        }),
+      ).toMatchObject({ ok: true });
+    });
+    expect(useStore.getState()).toMatchObject({
+      phase: "playing",
+      lastActor: "host",
+      lastRole: "host",
+    });
+    expect(events).toEqual([
+      expect.objectContaining({
+        actionName: "setPhase",
+        invocationKind: "local",
+        context: expect.objectContaining({ role: "host" }),
+      }),
+    ]);
+    expect(
+      hostSocket.emitted.some((call) => call.event === "host:state_sync"),
+    ).toBe(true);
+    expect(controllerSocket.emitted).toEqual([]);
+    unmount();
+    expect(
+      await control.invoke({
+        roomId: "ROOM1",
+        storeDomain: "default",
+        actionName: "setPhase",
+        payload: { phase: "lobby" },
+      }),
+    ).toMatchObject({ reason: "host_store_unavailable" });
+    expect(useStore.getState().phase).toBe("playing");
+  });
+
+  it("never publishes host control from a controller store", () => {
+    const useStore = createTestStore();
+    const { unmount } = renderHook(() => useStore());
+    expect(Reflect.get(window, AIR_JAM_RUNTIME_CONTROL_KEY)).toBeUndefined();
+    unmount();
   });
 
   it("proxies controller public actions over action RPC", async () => {
@@ -1422,10 +1483,7 @@ describe("createAirJamStore networked behavior", () => {
     });
 
     act(() => {
-      controllerSocket.trigger(
-        "airjam:state_sync",
-        syncAfterClear[0]?.args[0],
-      );
+      controllerSocket.trigger("airjam:state_sync", syncAfterClear[0]?.args[0]);
     });
     expect(controllerStore.getState()).toMatchObject({
       epoch: 5,

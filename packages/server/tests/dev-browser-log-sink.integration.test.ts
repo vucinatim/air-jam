@@ -365,7 +365,7 @@ describe("dev browser log sink", () => {
 
     expect(response.status).toBe(200);
 
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await runtime!.flushDevLogs();
 
     controllerSocket.disconnect();
 
