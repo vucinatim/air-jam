@@ -155,6 +155,37 @@ The disposable service/environment are removed after recording evidence; no
 production deployment or migration was attempted. Reviewer OAuth also expired,
 so Canonicalizer did not run and protected delivery remains pending.
 
+Tim then authorized a separate GPT-6.1 Sol reviewer because Claude is out of
+credits. Its read-only integration review at `36551396` confirmed no new
+actionable source defect, retained this provider failure as release-blocking,
+and found no justified source-only relaxation. It checked the pinned Playwright
+proxy inheritance for Node-side private asset fetching. This review does not
+identify the denying policy or establish a supported deployment configuration;
+final green-PR GitHub review and deployed capture proof remain outstanding.
+
+### Actual Service Runtime Follow-Up
+
+To distinguish a pre-deploy-job restriction from the normal service runtime,
+the unchanged compiled worker was uploaded to a second empty owned environment
+`worker-runtime-proof-oct3` (`c172e10a-7970-49b0-9c0e-57b17744090c`), with
+only service `e3c4d2ab-ec6e-423a-a683-a6c864834f3e`. Its start command first
+probed the launcher's namespace flags with `true`, then would run the same
+compiled capture proof and ordinary worker CLI. No pre-deploy command or
+production credentials were used.
+
+Deployment `b3625b10-b1ea-4596-a210-bb1570640602` built and entered the actual
+service runtime with image
+`sha256:646f1418bb71d2a0f012e627e456d7f11e62715adaa3544fe8b714a58830d50e`.
+Worker and network-policy source matched the reviewed tree; the earlier proof
+context's README was synchronized before upload, without a behavioral change.
+That runtime also printed UID 1000 and `unshare: unshare
+failed: Permission denied`; therefore it could not reach the capture proof or
+start a serving worker. Provider health checks then ended in literal `FAILED`.
+This closes the pre-deploy-versus-runtime uncertainty without changing worker
+source, sandboxing, credentials or production settings. It still does not
+identify the provider's denying mechanism. The second disposable service and
+environment are removed after retaining this evidence.
+
 ## Feasibility observed on 2026-09-12
 
 The existing production worker deployment `40f6a53b-2a34-47eb-b858-e5937b96d2fa`

@@ -20,6 +20,34 @@ The pre-reset overloaded ledger has been preserved at:
 
 ## 2026-10-03 - Intermediate Delivery Recovered And Integrated Locally
 
+- Tim subsequently reported that Claude is out of credits and explicitly
+  authorized a separate GPT-6.1 Sol reviewer for this batch. The substitution
+  preserves pre-push canonicality review and the later single green-PR GitHub
+  review; it is not an Opus or Canonicalizer tool verdict
+- the independent GPT-6.1 Sol reviewer `/root/sol_integration_review` completed
+  read-only integration review of `3655139671a39de035cdd2794ba7d08645d1a9b3`
+  against production `db85cdea418d529099a556a3e7b586f0e994590b`, with no new
+  actionable source defect confirmed. Coverage included grant consumption,
+  host/controller resume, owned host actions, machine credential destinations,
+  budget/emergency authority, retention fences, report privacy/intake/operations,
+  worker authentication/egress/process ownership, creator/controller recovery,
+  game inputs/readiness and package/container wiring. It independently verified
+  the applied `0040` hash and pinned Playwright's proxy inheritance for
+  `route.fetch`. Generated archives were not inspected individually, previous
+  suites were not rerun, and no infrastructure was mutated by the reviewer
+- Sol retained the namespace denial as a deployment blocker, not a new source
+  finding or evidence of a specific denying mechanism. No source-only relaxation
+  was justified. The local review is not final GitHub review; exact public package
+  versions, existing hosted artifacts, old Arcade tabs, coordinated rollout and
+  real unpublished-release capture still require delivery proof
+- followed up the pre-deploy denial in an empty owned actual Railway service
+  runtime, not another pre-deploy job. Deployment
+  `b3625b10-b1ea-4596-a210-bb1570640602` also denied the unchanged non-root
+  namespace probe and ended `FAILED`. No sandbox setting or source behavior
+  was relaxed, and no production credential was copied. The disposable runtime
+  service/environment are removed; provider support or a compatible worker
+  host is the remaining delivery boundary
+
 - resumed interactive delivery after 21 days; preserved the entire pending
   source batch at `564e7034` before integrating the surviving host branch at
   `80499490`. The missing temporary checkout's documented migration correction
