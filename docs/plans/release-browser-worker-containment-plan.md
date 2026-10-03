@@ -12,8 +12,10 @@ release tracker or a replacement for the [1.0 execution plan](./v1-release-execu
 Opening an uploaded game for moderation must not give that game our credentials,
 private-network access, or an unbounded browser lifetime. Normal JavaScript,
 WebGL, public game assets/fonts, and public realtime connections remain usable.
-No player permission prompts, creator approval flow, new moderation queue, or
-additional hosting provider is part of this change.
+No player permission prompts, creator approval flow, or new moderation queue is
+part of this change. Worker placement may change only when required isolation is
+proven on the selected host; a feasibility test does not authorize a domain
+migration or production switch.
 
 Keep the existing platform job/moderation owners and existing dedicated browser
 service. Its authenticated Playwright transport remains an internal trusted-
@@ -75,6 +77,51 @@ capture path, including hostile-network and cancellation cases.
 Run one final combined batch and one Canonicalizer pass only after this coherent
 worker batch is complete. Native GitHub review follows the normal green-PR gate.
 Production rollout and exact-candidate proof remain separate explicit actions.
+
+## Bee worker feasibility and routing decision
+
+Tim approved a disposable bee worker test after both Railway launch paths denied
+namespace creation. The same reviewed worker and network-policy sources built
+as Linux AMD64 and passed the compiled-image containment proof on bee. The proof
+also passed with a read-only root, bounded temporary filesystems, two CPUs,
+2 GiB memory and 256 processes. Docker's normal AppArmor policy remained active;
+only this container used the official pinned Playwright seccomp profile. No host
+setting, source sandbox bypass or production credential was required.
+
+Normal service startup, CLI browser health, missing/incorrect bearer rejection,
+public HTTPS homepage screenshot and SIGTERM shutdown passed. All owned test
+containers are removed; only the rebuildable image and disposable context remain.
+The [machine evidence](../audits/v1-security/2026-10-03-bee-worker-image-proof.json)
+identifies the image/profile hashes, flags, failed optional checks and limits.
+The optional container-wide capability-removal profiles failed health and are
+not supported. The required browser-local capability dropping and `no_new_privs`
+remain unchanged and proven. This is not a multi-capture load test, stable public
+transport, real unpublished-release capture or production cutover.
+
+Read-only DNS/provider discovery found `airjam.io` and `air-jam.app` on
+Namecheap's nameservers. Neither is among the configured Cloudflare token's
+visible zones; Air Jam's existing R2 account has no tunnel. The standard
+[Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
+requires a domain on Cloudflare. Keeping Namecheap authoritative through
+[partial setup](https://developers.cloudflare.com/dns/zone-setups/partial-setup/)
+requires Business or Enterprise; that is not justified for this free product.
+
+Recommended next decision: move only `air-jam.app` DNS to the existing Air Jam
+Cloudflare account, leaving registration and `airjam.io` at Namecheap. Before
+changing nameservers, retain and reproduce all eight observed records, including
+`games`, `games-staging`, the verification TXT records and older redirects/API
+targets. Preserve their current destinations with DNS-only records; proxy only
+the new `capture.air-jam.app` tunnel endpoint. Check DNSSEC, authoritative record
+parity, existing HTTPS origins and rollback before cutover. Do not turn this
+bounded worker placement change into a platform or database hosting migration.
+
+After explicit approval, define the service through bee's existing Compose
+lifecycle with a pinned reviewed image and profile, independent worker secret,
+healthcheck and private tunnel connector. Verify authenticated transport from
+Railway and exact unpublished assets before replacing the current production
+worker. Preserve the existing Railway worker until replacement and rollback are
+validated. No permanent service, Cloudflare zone/tunnel or DNS write is approved
+or activated by the feasibility result.
 
 ## Acceptance proof
 

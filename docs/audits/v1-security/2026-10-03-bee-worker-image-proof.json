@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-03",
+  "scope": "Disposable capture-worker feasibility on bee; not production deployment",
+  "sourceCommit": "de0caeeb",
+  "sourceMatchesReviewedWorker": true,
+  "image": "sha256:b86473bad6cb71f4403eed6d886e482e876943468290bafbaac2c1e5dc58fec9",
+  "architecture": "linux/amd64",
+  "host": {
+    "name": "bee",
+    "kernel": "7.0.0-34-generic",
+    "docker": "29.8.1",
+    "hostSecuritySettingsChanged": false
+  },
+  "runtime": {
+    "user": "pwuser",
+    "apparmor": "docker-default",
+    "seccompSource": "https://raw.githubusercontent.com/microsoft/playwright/v1.58.2/utils/docker/seccomp_profile.json",
+    "seccompSha256": "cc3e61cabda6bbc1e53e54d27ba4d55a9d3be829b6dd1a596f4a7b31b1cc7849",
+    "readOnlyRootFilesystem": true,
+    "temporaryFilesystems": [
+      "/tmp:rw,nosuid,nodev,size=512m",
+      "/home/pwuser:rw,nosuid,nodev,size=64m,uid=1000,gid=1000"
+    ],
+    "cpus": 2,
+    "memoryBytes": 2147483648,
+    "processLimit": 256,
+    "init": true,
+    "publicPortsPublished": false
+  },
+  "checks": {
+    "compiledImageProof": "passed",
+    "readOnlyImageProof": "passed",
+    "httpHttpsAndWsWss": "passed",
+    "privateHeaderDriverFetch": "passed",
+    "loopbackAndRedirectEscapeDenied": "passed",
+    "browserCapabilitiesRoutesEnvironmentAndCleanup": "passed",
+    "cliHealth": { "ok": true, "activeCaptures": 0, "capacity": 2 },
+    "missingHttpBearer": 401,
+    "incorrectWebsocketBearer": "rejected",
+    "publicHttpsHomepageCapture": {
+      "status": 200,
+      "pngBytes": 55649,
+      "title": "Air Jam — Phone-controller multiplayer games for the AI era",
+      "navigationWait": "domcontentloaded"
+    },
+    "normalServiceShutdown": "SIGTERM; owned container removed"
+  },
+  "unsuccessfulOptionalChecks": [
+    "Container-wide capability removal, including a SETPCAP-only variation, failed isolated browser health; these flags are not a supported configuration.",
+    "Homepage navigation using networkidle exceeded 30 seconds; DOM-content navigation and capture subsequently passed. No production capture wait or networking policy was changed."
+  ],
+  "cleanup": {
+    "ownedContainersRemaining": 0,
+    "productionCredentialsUsed": false,
+    "productionCodeOrDatabaseChanged": false,
+    "persistentBeeServiceCreated": false,
+    "buildImageAndTemporaryContextRetained": true
+  },
+  "remaining": [
+    "Approval for stable public routing and any domain DNS migration",
+    "Reviewed, reproducible bee service deployment and rollback",
+    "Railway-to-worker authenticated transport and real unpublished-release capture",
+    "Green integrating PR with native independent GitHub review",
+    "Coordinated production migration, deployment and live validation"
+  ]
+}

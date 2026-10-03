@@ -30,11 +30,13 @@ The platform should point:
 
 at the public websocket endpoint for this service.
 
-## Railway Setup
+## Deployment Runtime
 
-Create a dedicated Railway service for this package.
+Use a dedicated service for this package. The image requires a runtime that
+supports its non-root user/network/PID namespaces and Chromium sandbox; HTTP
+liveness alone does not establish support.
 
-Recommended setup:
+The existing Railway config-as-code wiring is:
 
 1. source repo: `vucinatim/air-jam`
 2. branch: `main`
@@ -42,6 +44,13 @@ Recommended setup:
 4. config-as-code path: `/packages/release-browser-worker/railway.json`
 5. builder: Dockerfile
 6. Dockerfile path: `packages/release-browser-worker/Dockerfile`
+
+The 2026-10-03 disposable Railway pre-deploy and actual service runtime both
+denied namespace creation. This configuration is not currently proven viable
+for the reviewed image. The same AMD64 image passed on bee with the pinned
+Playwright seccomp profile and normal Docker AppArmor policy. Stable public
+routing, persistent service deployment and production replacement remain pending;
+do not disable isolation or point production at a disposable proof.
 
 The supported target is the non-root Linux worker image with Chromium sandboxing
 enabled. It additionally needs unprivileged user/network/PID namespaces. The
@@ -164,9 +173,14 @@ Only already policy-approved numeric dials are redirected to fixture listeners.
 An owned browser context trusts the fixture certificate; production TLS trust
 is unchanged. Run this in an isolated container without provider credentials.
 
-**Delivery status:** local ARM64 image proof passed on 2026-10-03. That is not an
-AMD64 Railway deployment, a production unpublished-release capture, or security-
-gate closure. Reviewed delivery and exact provider validation remain pending.
+**Delivery status:** ARM64 local and AMD64 bee image proofs passed on 2026-10-03,
+including a read-only bee container. Bee service health/authentication, public
+HTTPS capture and graceful shutdown also passed without a host security change.
+Container-wide capability-removal variants failed health and are not supported;
+the launcher's required browser-local privilege dropping remains enabled.
+These are disposable proofs, not a permanent service, authenticated transport
+from Railway, production unpublished-release capture or security-gate closure.
+Reviewed delivery and exact provider validation remain pending.
 See the
 [bounded containment plan](../../docs/plans/release-browser-worker-containment-plan.md)
 for feasibility evidence and unresolved validation, not a security-closure claim.

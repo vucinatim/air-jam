@@ -48,7 +48,7 @@ release completion. GitHub integration, guarded production migration, exact
 provider rollout and live validation are the current delivery boundary. Public
 package promotion, final phone/demo proof and launch remain separate work.
 
-Delivery is currently blocked before push and merge. The Canonicalizer attempt
+Delivery remains pending before push and merge. The Canonicalizer attempt
 could not authenticate; no review ran through that tool. Tim subsequently
 authorized a separate GPT-6.1 Sol reviewer because Claude is out of credits;
 independent source review of `36551396` against production `db85cdea` completed
@@ -60,8 +60,19 @@ non-root probe confirmed `unshare: unshare failed: Permission denied` in the
 new worker container. Local image success and September's older-container
 feasibility do not establish support for this new deployment. A subsequent owned
 actual-service-runtime deployment, not a pre-deploy job, denied the same
-unchanged non-root namespace probe and ended `FAILED`. Resolve the
-worker's supported isolation/deployment path before continuing protected delivery.
+unchanged non-root namespace probe and ended `FAILED`. Tim approved a disposable
+worker proof on bee. The same reviewed AMD64 worker passed there, including a
+read-only filesystem, real capture/egress/process isolation, service health and
+authentication, public HTTPS capture, and graceful shutdown. No host security
+settings changed, and all owned test containers are removed. See the
+[retained worker evidence](./audits/v1-security/2026-10-03-bee-worker-image-proof.json).
+A stable public route remains unapproved: both Air Jam domains use Namecheap
+DNS and neither is present among the configured Cloudflare token's visible zones.
+The recommendation is to move only `air-jam.app` DNS to Air Jam's existing
+Cloudflare account, preserve its existing records, and add `capture.air-jam.app`;
+registration and `airjam.io` stay at Namecheap. This domain migration is a
+maintainer scope decision, not permission implied by worker feasibility testing.
+No permanent bee service, tunnel, DNS change or production worker switch is live.
 Final GitHub review, exact package/artifact compatibility and coordinated live
 cutover remain unproven. Production code and database are unchanged.
 

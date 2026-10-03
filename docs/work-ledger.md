@@ -20,6 +20,27 @@ The pre-reset overloaded ledger has been preserved at:
 
 ## 2026-10-03 - Intermediate Delivery Recovered And Integrated Locally
 
+- Tim approved testing only the isolated capture worker on bee. The reviewed
+  worker/network-policy files were identical in the disposable build context;
+  no second active Air Jam checkout or production credential was copied
+- built and passed the real AMD64 image on bee under the pinned upstream
+  Playwright seccomp profile and Docker's normal AppArmor profile. The same
+  proof passed with a read-only filesystem, bounded temporary storage, two CPUs,
+  2 GiB memory and 256 processes. Host security settings were unchanged
+- verified normal worker CLI health, rejection of missing/incorrect credentials,
+  public HTTPS homepage capture and graceful shutdown. Removed the owned service
+  container; all test containers are gone. Optional container-wide capability
+  removal failed health and is not a supported configuration; a homepage
+  `networkidle` wait timed out, while DOM-content navigation/capture passed
+- retained exact image, runtime flags, successful and unsuccessful checks, and
+  remaining gaps in the
+  [bee worker proof](./audits/v1-security/2026-10-03-bee-worker-image-proof.json).
+  This establishes worker feasibility, not production release capture or rollout
+- read-only provider discovery found both Air Jam domains still on Namecheap
+  DNS, no visible Cloudflare zone for either, and no tunnel in Air Jam's existing
+  R2 account. Stable public routing needs a separate domain decision. Proposed
+  moving only `air-jam.app` DNS while preserving every existing record and adding
+  `capture.air-jam.app`; no DNS/account/tunnel write or permanent service occurred
 - Tim subsequently reported that Claude is out of credits and explicitly
   authorized a separate GPT-6.1 Sol reviewer for this batch. The substitution
   preserves pre-push canonicality review and the later single green-PR GitHub
