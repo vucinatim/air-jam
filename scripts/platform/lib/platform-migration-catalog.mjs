@@ -90,7 +90,9 @@ const parseMigrationPolicy = ({ entry, sql }) => {
     );
   }
   for (const check of verificationChecks) {
-    if (!/^(table|constraint|absent-constraint|index):[a-z0-9_.]+$/u.test(check)) {
+    if (
+      !/^(table|constraint|absent-constraint|index):[a-z0-9_.]+$/u.test(check)
+    ) {
       throw new Error(
         `Migration ${entry.tag} has unsupported verification check ${check}.`,
       );

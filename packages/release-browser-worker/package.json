@@ -26,7 +26,8 @@
     "start": "node dist/cli.js",
     "build": "tsup",
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/network-policy && tsc --noEmit",
-    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/network-policy && node --import tsx --test src/*.test.ts"
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/network-policy && node --import tsx --test src/*.test.ts",
+    "test:image": "node --test runtime/image-proof.mjs"
   },
   "dependencies": {
     "@air-jam/env": "workspace:^",

@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-12
+Last updated: 2026-10-03
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -34,6 +34,28 @@ prevent serious harm, prove the public agent promise, make the creator/player
 experience feel finished, communicate it clearly, and launch one exact
 candidate. Mature-company operational completeness is not the pre-adoption
 release bar.
+
+Interactive intermediate delivery resumed on `2026-10-03` after a three-week
+pause. Pending launch work is preserved at `564e7034`, and the host-authority
+branch is integrated locally at `80499490` on `codex/intermediate-delivery`.
+Migration history now preserves the applied host `0040` exactly, removes its
+cross-clock constraint in `0041`, and orders evidence indexes and private report
+changes through `0044`. Both PostgreSQL upgrade paths pass; Drizzle reports no
+schema drift. The built ARM64 browser-worker image passes real isolated capture,
+HTTP/HTTPS and WS/WSS, private-header driver fetch, denied private egress, and
+process cleanup. This is local proof, not reviewed production delivery or 1.0
+release completion. GitHub integration, guarded production migration, exact
+provider rollout and live validation are the current delivery boundary. Public
+package promotion, final phone/demo proof and launch remain separate work.
+
+Delivery is currently blocked before push and merge. Canonicalizer could not
+authenticate because Claude CLI OAuth expired; no new review ran. The isolated
+Railway AMD64 image built, but its pre-deploy capture proof failed. A bounded
+non-root probe confirmed `unshare: unshare failed: Permission denied` in the
+new worker container. Local image success and September's older-container
+feasibility do not establish support for this new deployment. Resolve the
+worker's supported isolation/deployment path and restore reviewer login before
+continuing protected delivery. Production code and database are unchanged.
 
 The validated machine program now reports `80%` estimate-weighted progress and
 `39–77` remaining agent-hours, with 30 of 46 work items complete. These are

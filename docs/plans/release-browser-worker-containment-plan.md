@@ -1,6 +1,6 @@
 # Release Browser Worker Containment
 
-Last updated: 2026-09-12
+Last updated: 2026-10-03
 Status: active bounded architecture plan
 
 Finding authority: [AJ-SEC-004](../audits/v1-security/threat-model-audit.md#aj-sec-004--browser-worker-can-fail-open-and-gives-untrusted-pages-privileged-egress).
@@ -92,6 +92,68 @@ Production rollout and exact-candidate proof remain separate explicit actions.
 - Exact container evidence identifies the image/source and runtime settings.
   Source checks and a live-runtime feasibility probe are not substituted for
   that deployment proof.
+
+## Integrated image checkpoint — 2026-10-03
+
+The Dockerfile now builds locally; no image pruning, volume deletion or host
+security change was needed. The ARM64 image
+`sha256:ab0eecb3fa1ac89527c9499d07775075242661bab6011ffa5542558fb36e8ede`
+passed the compiled-worker proof in `runtime/image-proof.mjs` using the official
+Playwright `v1.58.2` seccomp profile. Default Docker seccomp rejected startup and
+the worker exited unhealthy, as required.
+
+The real authenticated transport loaded owned HTTP/HTTPS assets and WS/WSS,
+captured a PNG, performed a private-header Node-side asset fetch, denied both
+direct loopback and redirect escape before the fixture listener was reached,
+and cleaned up every inspected Chromium process. The outer browser had no
+effective capabilities, no outbound route and no worker token in its environment;
+all inspected Chromium processes had `no_new_privs`. Chromium's nested sandbox
+zygote legitimately holds capabilities inside its own user namespace, so the
+initial blanket zero-capability assertion was corrected to inspect the browser
+that owns the egress namespace, not disable Chromium sandboxing.
+
+Only policy-approved public numeric dials were redirected to owned listeners.
+The fixture browser context trusts its test certificate; production TLS policy
+and system trust remain unchanged. This is local image proof, not a production
+AMD64 image or exact unpublished-release capture. Protected review, coordinated
+delivery, provider health and live release capture remain required before
+closing `G5-02`. The historical checkpoint below is retained as the reason this
+work originally stopped, not current Docker availability.
+
+## Railway AMD64 Proof — 2026-10-03: Deployment Blocked
+
+An empty, owned environment `worker-proof-oct3`
+(`781f83a9-6892-4ce9-b963-882227463cf9`) contained only a disposable worker
+(`3d1b6f0a-3375-4289-b31e-efc7d37a12a8`). No production database, app credential,
+storage authority or worker token was copied. The compiled-image proof was a
+pre-deploy command, so a failing capture could not start a serving worker.
+
+The actual Dockerfile built AMD64 image
+`sha256:92c4985dc7942dc4f89791cde3dd1209adea3acb971fef391ef7add98d5fe86a`
+in deployment `2f09cb8f-12c1-4308-aec9-e12060e72f39`. Its browser health
+check failed before capture. A same-image debug retry
+`e8176704-c364-4aff-b4a8-e0b21ff00d6e` failed the same check. Configuration
+diagnostic deployment `6e8e6621-7b28-4261-af11-c62ce1b31a33` then printed:
+
+```text
+uid=1000(pwuser) gid=1000(pwuser) groups=1000(pwuser)
+unshare: unshare failed: Permission denied
+```
+
+The probe used the launcher's user/network/PID namespace flags and only `true`,
+not creator code. The provider manifest selected `europe-west4-drams3a`, the
+existing production region. An explicit redeploy `621ffb3e-74d8-4bb2-b1e6-129fe6938562`
+also ended `FAILED` without additional runtime logs. This is evidence that the
+new deployment cannot use the required namespace path, not an attestation of
+containment or a diagnosis of the provider's specific denying policy. September's
+older root-started-container probe does not contradict this result.
+
+Do not remove sandboxing, run creator capture as root, or claim that proxy
+configuration alone replaces direct-egress isolation. A supported worker
+deployment boundary must be established before this batch can safely deploy.
+The disposable service/environment are removed after recording evidence; no
+production deployment or migration was attempted. Reviewer OAuth also expired,
+so Canonicalizer did not run and protected delivery remains pending.
 
 ## Feasibility observed on 2026-09-12
 

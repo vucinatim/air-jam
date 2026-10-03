@@ -144,11 +144,29 @@ agent product. Chromium's sandbox remains the untrusted-JavaScript boundary;
 network and process namespaces add egress containment and process ownership, not
 a claim of a separate filesystem/VM boundary.
 
-**Work in progress:** the implementation above is local and has not been merged
-or deployed. The exact image, full private-asset capture, network-bypass fixtures
-and cancellation cleanup still require integrated proof. Local Docker's default
-seccomp policy rejects unprivileged namespace creation; use a reviewed
-namespace-compatible runtime, never `--no-sandbox`. Exact local container launch
-instructions will be finalized with that proof. See the
+The built-image proof is deliberately separate from ordinary source tests:
+
+```bash
+docker build -f packages/release-browser-worker/Dockerfile -t airjam-release-browser-worker:proof .
+docker run --rm --init --security-opt seccomp=<playwright-seccomp-profile.json> airjam-release-browser-worker:proof pnpm --filter @air-jam/release-browser-worker test:image
+```
+
+Use the [official profile matching Playwright 1.58.2](https://github.com/microsoft/playwright/blob/v1.58.2/utils/docker/seccomp_profile.json).
+Docker's default seccomp policy rejects namespace startup; the worker exits
+unhealthy rather than disabling isolation. The profile changes only this owned
+container's runtime, not the host or Railway configuration.
+
+The proof runs the compiled worker, authenticates its real Playwright transport,
+loads owned HTTP/HTTPS assets and WS/WSS, captures a PNG, exercises private-header
+driver fetches, denies loopback and redirect escape, inspects the browser's
+network routes/capabilities/environment, and verifies child-process cleanup.
+Only already policy-approved numeric dials are redirected to fixture listeners.
+An owned browser context trusts the fixture certificate; production TLS trust
+is unchanged. Run this in an isolated container without provider credentials.
+
+**Delivery status:** local ARM64 image proof passed on 2026-10-03. That is not an
+AMD64 Railway deployment, a production unpublished-release capture, or security-
+gate closure. Reviewed delivery and exact provider validation remain pending.
+See the
 [bounded containment plan](../../docs/plans/release-browser-worker-containment-plan.md)
 for feasibility evidence and unresolved validation, not a security-closure claim.

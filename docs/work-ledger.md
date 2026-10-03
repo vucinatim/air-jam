@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-09-12
+Last updated: 2026-10-03
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,48 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-10-03 - Intermediate Delivery Recovered And Integrated Locally
+
+- resumed interactive delivery after 21 days; preserved the entire pending
+  source batch at `564e7034` before integrating the surviving host branch at
+  `80499490`. The missing temporary checkout's documented migration correction
+  was recovered from committed history and the retained audit
+- recovered applied host `0040` from Git with its original SHA-256
+  `f8b2cd744cfaa64055fa79dc0ba7972757466b7a47729f798a12715e85bec7e7`;
+  added forward `0041` and reconciled cumulative schema snapshots through `0044`
+  rather than rewriting applied history. Final-state verification now checks
+  deliberate constraint removal instead of requiring an obsolete constraint
+- passed both real PostgreSQL upgrade paths, seven migration contract tests,
+  the normal integrated batch, and 52 focused report/emergency/retention/upgrade
+  PostgreSQL tests (one large-volume proof remains explicitly opt-in). The first
+  report-test attempt used an unmigrated disposable database and failed; after
+  migrating that fixture, the complete focused run passed
+- built the actual worker Dockerfile locally and exercised its compiled
+  authenticated transport, sandboxed Chromium, HTTP/HTTPS, WS/WSS, private-header
+  driver fetch, private/redirect denial, no direct network route, secret-free
+  browser environment, and owned process cleanup. Docker's default policy
+  correctly failed startup; the pinned upstream namespace-compatible seccomp
+  profile passed. This ARM64 proof does not substitute for Railway AMD64 rollout
+- production database inspection remained read-only: source is ahead by exactly
+  the five expected migrations with no unknown applied history. No merge,
+  production migration, deployment, stable package promotion or launch is
+  claimed by this local milestone
+- completed the final integrated batch with exit zero. Added the real report,
+  emergency, retention and host-migration regressions to the existing CI
+  PostgreSQL lane rather than introducing another runner or check framework
+- attempted the batch's Canonicalizer pass once, but Claude OAuth had expired
+  and could not refresh. No review ran; this is not a READY verdict. CLI auth
+  status confirmed no active login. Delivery stopped before push and merge
+- built the worker's AMD64 image in an empty owned Railway environment with no
+  production credentials. The pre-deploy capture proof failed safely; a bounded
+  non-root namespace probe reported `unshare: Permission denied`. The exact
+  image/deployments and limitations are retained in the
+  [worker plan](./plans/release-browser-worker-containment-plan.md#railway-amd64-proof--2026-10-03-deployment-blocked).
+  Local success is not provider success; supported isolation remains required
+- removed the three owned local Docker test containers, including their
+  disposable fixture database/anonymous volume. The fixtures are reproducible;
+  no unrelated containers, database volumes or production data were removed
 
 ## 2026-09-12 - Player Participation Separated From Owned Host Control
 
