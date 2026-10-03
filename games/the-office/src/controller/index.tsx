@@ -6,11 +6,7 @@
  * intent to the host via `useInputWriter`. Phase switches (lobby / playing
  * / ended) come from the networked `useSpaceStore`.
  */
-import {
-  useAirJamController,
-  useControllerTick,
-  useInputWriter,
-} from "@air-jam/sdk";
+import { useAirJamController } from "@air-jam/sdk";
 import {
   ControllerPrimaryAction,
   LifecycleActionGroup,
@@ -27,14 +23,7 @@ import {
   ChevronRight,
   ChevronUp,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent,
-} from "react";
+import { useMemo } from "react";
 import {
   getPlayerById,
   getPlayerCapabilityHighlights,
@@ -43,6 +32,7 @@ import {
 import {
   useOfficeFinalTotalMoney,
   useOfficeGameOver,
+  useOfficeLifecycleVersion,
   useOfficeMatchPhase,
   useOfficePlayerAssignment,
   useOfficePlayerBusyTask,
@@ -51,6 +41,7 @@ import {
   useOfficeTotalMoney,
   useSpaceStore,
 } from "../game/stores";
+import { useOfficeControllerInput } from "./use-office-controller-input";
 
 export function ControllerView() {
   const controller = useAirJamController();
@@ -61,11 +52,6 @@ export function ControllerView() {
   );
   const runtimeState = useAirJamController((state) => state.runtimeState);
   const players = useAirJamController((state) => state.players);
-  const writeInput = useInputWriter();
-  const movementRef = useRef({ x: 0, y: 0 });
-  const actionRef = useRef(false);
-  const activePadPointerIdRef = useRef<number | null>(null);
-  const [padDirection, setPadDirection] = useState({ x: 0, y: 0 });
 
   const matchPhase = useOfficeMatchPhase();
   const myPlayerId = useOfficePlayerAssignment(controllerId);
@@ -73,8 +59,7 @@ export function ControllerView() {
     () => (myPlayerId ? getPlayerById(myPlayerId) : null),
     [myPlayerId],
   );
-  const myTaskName = useOfficePlayerBusyTask(controllerId);
-  const isBusy = Boolean(myTaskName);
+  const lifecycleVersion = useOfficeLifecycleVersion();
   const connectedPlayerIds = useMemo(
     () => players.map((player) => player.id),
     [players],
@@ -112,7 +97,9 @@ export function ControllerView() {
   const showLobbyView = matchPhase === "lobby";
   const showEndedView = matchPhase === "ended";
   const showGameplayView =
-    matchPhase === "playing" && runtimeState === "playing";
+    matchPhase === "playing" &&
+    runtimeState === "playing" &&
+    connectionStatus === "connected";
   const showPausedView = matchPhase === "playing" && !showGameplayView;
   const desiredOrientation =
     showLobbyView || showEndedView ? "portrait" : "landscape";
@@ -121,104 +108,6 @@ export function ControllerView() {
     : !hasCharacterSelection
       ? "Pick a coworker to join the shift."
       : `${selectedPlayerCount}/${connectedPlayerCount} coworkers picked.`;
-
-  useControllerTick(
-    () => {
-      writeInput({
-        movementX: isBusy ? 0 : movementRef.current.x,
-        movementY: isBusy ? 0 : movementRef.current.y,
-        action: actionRef.current,
-      });
-    },
-    {
-      enabled:
-        connectionStatus === "connected" &&
-        matchPhase === "playing" &&
-        runtimeState === "playing",
-      intervalMs: 16,
-    },
-  );
-
-  useEffect(() => {
-    const releaseControls = () => {
-      movementRef.current = { x: 0, y: 0 };
-      actionRef.current = false;
-    };
-
-    window.addEventListener("blur", releaseControls);
-    document.addEventListener("visibilitychange", releaseControls);
-
-    return () => {
-      window.removeEventListener("blur", releaseControls);
-      document.removeEventListener("visibilitychange", releaseControls);
-    };
-  }, []);
-
-  const handleMove = (screenX: number, screenY: number) => {
-    movementRef.current = { x: screenX, y: screenY };
-    setPadDirection({ x: screenX, y: screenY });
-  };
-
-  const resolvePadDirection = useCallback(
-    (target: HTMLDivElement, clientX: number, clientY: number) => {
-      const rect = target.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const normalizedX = (clientX - centerX) / (rect.width / 2 || 1);
-      const normalizedY = (clientY - centerY) / (rect.height / 2 || 1);
-      const absX = Math.abs(normalizedX);
-      const absY = Math.abs(normalizedY);
-
-      if (Math.max(absX, absY) < 0.22) {
-        return { x: 0, y: 0 };
-      }
-
-      if (absX > absY) {
-        return { x: normalizedX > 0 ? 1 : -1, y: 0 };
-      }
-
-      return { x: 0, y: normalizedY > 0 ? 1 : -1 };
-    },
-    [],
-  );
-
-  const handlePadPointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      activePadPointerIdRef.current = event.pointerId;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      const nextDirection = resolvePadDirection(
-        event.currentTarget,
-        event.clientX,
-        event.clientY,
-      );
-      handleMove(nextDirection.x, nextDirection.y);
-    },
-    [resolvePadDirection],
-  );
-
-  const handlePadPointerMove = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (activePadPointerIdRef.current !== event.pointerId) {
-        return;
-      }
-      const nextDirection = resolvePadDirection(
-        event.currentTarget,
-        event.clientX,
-        event.clientY,
-      );
-      handleMove(nextDirection.x, nextDirection.y);
-    },
-    [resolvePadDirection],
-  );
-
-  const resetPad = useCallback(() => {
-    activePadPointerIdRef.current = null;
-    handleMove(0, 0);
-  }, []);
-
-  const handleAction = (pressed: boolean) => {
-    actionRef.current = pressed;
-  };
 
   return (
     <SurfaceViewport orientation={desiredOrientation}>
@@ -263,7 +152,7 @@ export function ControllerView() {
                     ? ["pause-toggle", "back-to-lobby"]
                     : ["restart", "back-to-lobby"]
                 }
-                buttonClassName="rounded-none border-[#8b6914]/25 bg-[#8b6914]/10 text-[#7a5b11] hover:bg-[#8b6914]/18"
+                buttonClassName="rounded-none border-[#d9bb63]/40 bg-[#fff1c4]/10 text-[#fff1c4] hover:bg-[#fff1c4]/20"
               />
             )
           }
@@ -295,12 +184,8 @@ export function ControllerView() {
 
         {showGameplayView ? (
           <OfficeControllerGameplayView
+            key={`${controllerId}:${lifecycleVersion}`}
             controllerId={controllerId}
-            padDirection={padDirection}
-            handleAction={handleAction}
-            handlePadPointerDown={handlePadPointerDown}
-            handlePadPointerMove={handlePadPointerMove}
-            resetPad={resetPad}
           />
         ) : null}
       </div>
@@ -416,12 +301,12 @@ function OfficeControllerLobbyView({
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <span className="text-sm font-bold text-[#5c4a2e]">
+        <span className="text-sm font-bold text-[#fff1c4]">
           {hasCharacterSelection
             ? `${myPlayer?.name ?? "Worker"} selected`
             : "Pick a coworker first"}
         </span>
-        <span className="text-[10px] tracking-[0.12em] text-[#8b6914] uppercase">
+        <span className="text-[10px] tracking-[0.12em] text-[#d9bb63] uppercase">
           {selectedPlayerCount}/{connectedPlayerCount}
         </span>
       </div>
@@ -496,18 +381,8 @@ function OfficeControllerEndedView({
 
 function OfficeControllerGameplayView({
   controllerId,
-  padDirection,
-  handleAction,
-  handlePadPointerDown,
-  handlePadPointerMove,
-  resetPad,
 }: {
   controllerId: string | null;
-  padDirection: { x: number; y: number };
-  handleAction: (pressed: boolean) => void;
-  handlePadPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
-  handlePadPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
-  resetPad: () => void;
 }) {
   const gameOver = useOfficeGameOver();
   const myStats = useOfficePlayerStats(controllerId);
@@ -550,17 +425,40 @@ function OfficeControllerGameplayView({
     );
   }
 
+  return <OfficeControllerPlayingControls controllerId={controllerId} />;
+}
+
+function OfficeControllerPlayingControls({
+  controllerId,
+}: {
+  controllerId: string | null;
+}) {
+  const task = useOfficePlayerBusyTask(controllerId);
+  const input = useOfficeControllerInput({ busy: Boolean(task) });
+  const { padDirection } = input;
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
       <div
         className="relative min-h-0 rounded-[28px] border border-[#d8c58a] bg-[#fff8df] shadow-md"
-        onPointerDown={handlePadPointerDown}
-        onPointerMove={handlePadPointerMove}
-        onPointerUp={resetPad}
-        onPointerCancel={resetPad}
-        onLostPointerCapture={resetPad}
+        {...input.padBindings}
         style={{ touchAction: "none" }}
       >
+        {/* Zero-size corners measure the pad's axes after viewport transforms. */}
+        <span
+          ref={input.originRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 left-0 h-0 w-0"
+        />
+        <span
+          ref={input.rightRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 right-0 h-0 w-0"
+        />
+        <span
+          ref={input.bottomRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-0 h-0 w-0"
+        />
         <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-2 p-4">
           <div />
           <div
@@ -612,12 +510,8 @@ function OfficeControllerGameplayView({
         <button
           type="button"
           className="flex min-h-[50%] flex-1 items-center justify-center border border-[#d8c58a] bg-[#fff1bd] px-5 text-4xl font-black text-[#5c4a2e] shadow-lg transition-transform select-none active:scale-[0.98]"
-          onTouchStart={() => handleAction(true)}
-          onTouchEnd={() => handleAction(false)}
-          onTouchCancel={() => handleAction(false)}
-          onMouseDown={() => handleAction(true)}
-          onMouseUp={() => handleAction(false)}
-          onMouseLeave={() => handleAction(false)}
+          {...input.workBindings}
+          style={{ touchAction: "none" }}
         >
           WORK
         </button>

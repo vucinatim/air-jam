@@ -1,5 +1,5 @@
 import { useControllerTick, useInputWriter } from "@air-jam/sdk";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PUNCH_COOLDOWN_MS } from "../../game/domain/combat-rules";
 import { useCodeReviewGyro } from "./use-code-review-gyro";
 
@@ -7,98 +7,105 @@ interface UseCodeReviewControllerInputOptions {
   enabled: boolean;
 }
 
+const neutralInput = () => ({
+  vertical: 0,
+  horizontal: 0,
+  leftPunch: false,
+  rightPunch: false,
+  defend: false,
+});
+
+const isForeground = () => !document.hidden && document.hasFocus();
+
 export const useCodeReviewControllerInput = ({
   enabled,
 }: UseCodeReviewControllerInputOptions) => {
   const writeInput = useInputWriter();
-  const verticalRef = useRef(0);
-  const horizontalRef = useRef(0);
-  const defendRef = useRef(false);
-  const punchRef = useRef({ left: false, right: false });
-  const cooldownRef = useRef({ left: false, right: false });
-  const cooldownTimeoutRef = useRef<{
-    left: number | null;
-    right: number | null;
-  }>({ left: null, right: null });
+  const inputRef = useRef(neutralInput());
+  const cooldownUntilRef = useRef({ left: 0, right: 0 });
+  const [foreground, setForeground] = useState(isForeground);
+  const active = enabled && foreground;
 
-  const gyro = useCodeReviewGyro({ verticalRef, horizontalRef });
+  const releaseControls = useCallback(() => {
+    inputRef.current = neutralInput();
+    // The SDK writer checks session/connection readiness. Neutralize now, not
+    // on the next tick: hidden pages may stop ticking altogether.
+    writeInput({ ...inputRef.current });
+  }, [writeInput]);
+
+  useEffect(() => {
+    const updateForeground = () => {
+      const next = isForeground();
+      if (!next && enabled) releaseControls();
+      setForeground(next);
+    };
+    const onBlur = () => {
+      if (enabled) releaseControls();
+      setForeground(false);
+    };
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", updateForeground);
+    document.addEventListener("visibilitychange", updateForeground);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", updateForeground);
+      document.removeEventListener("visibilitychange", updateForeground);
+    };
+  }, [enabled, releaseControls]);
+
+  useEffect(() => {
+    if (!active) return;
+    return releaseControls;
+  }, [active, releaseControls]);
+
+  const setDirection = useCallback((direction: { x: number; y: number }) => {
+    inputRef.current.horizontal = direction.x;
+    inputRef.current.vertical = direction.y;
+  }, []);
+  const {
+    motionStatus,
+    enableTilt: requestTilt,
+    useTouch: selectTouch,
+  } = useCodeReviewGyro({
+    enabled: active,
+    onDirection: setDirection,
+  });
+  const movementMode: "touch" | "tilt" =
+    motionStatus === "tilt" ? "tilt" : "touch";
 
   useControllerTick(
     () => {
-      const leftPunch = punchRef.current.left;
-      const rightPunch = punchRef.current.right;
-
-      writeInput({
-        vertical: verticalRef.current,
-        horizontal: horizontalRef.current,
-        leftPunch,
-        rightPunch,
-        defend: defendRef.current,
-      });
-
-      if (leftPunch) {
-        punchRef.current.left = false;
-      }
-      if (rightPunch) {
-        punchRef.current.right = false;
-      }
+      if (!active || !isForeground()) return;
+      writeInput({ ...inputRef.current });
+      inputRef.current.leftPunch = false;
+      inputRef.current.rightPunch = false;
     },
-    {
-      enabled,
-      intervalMs: 16,
-    },
+    { enabled: active, intervalMs: 16 },
   );
 
-  useEffect(() => {
-    verticalRef.current = 0;
-    horizontalRef.current = 0;
-  }, []);
+  const move = useCallback(
+    (direction: { x: number; y: number }) => {
+      if (!enabled || !isForeground() || movementMode !== "touch") return;
+      if (!Number.isFinite(direction.x) || !Number.isFinite(direction.y))
+        return;
+      setDirection({
+        x: Math.max(-1, Math.min(1, direction.x)),
+        y: Math.max(-1, Math.min(1, direction.y)),
+      });
+    },
+    [enabled, movementMode, setDirection],
+  );
 
-  const triggerPunch = useCallback((side: "left" | "right") => {
-    if (cooldownRef.current[side]) return;
-
-    punchRef.current[side] = true;
-    cooldownRef.current[side] = true;
-
-    if (cooldownTimeoutRef.current[side] !== null) {
-      window.clearTimeout(cooldownTimeoutRef.current[side]);
-    }
-
-    cooldownTimeoutRef.current[side] = window.setTimeout(() => {
-      cooldownRef.current[side] = false;
-      cooldownTimeoutRef.current[side] = null;
-    }, PUNCH_COOLDOWN_MS);
-  }, []);
-
-  useEffect(() => {
-    const cooldownTimeouts = cooldownTimeoutRef.current;
-
-    return () => {
-      for (const side of ["left", "right"] as const) {
-        if (cooldownTimeouts[side] !== null) {
-          window.clearTimeout(cooldownTimeouts[side]);
-        }
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const releaseControls = () => {
-      verticalRef.current = 0;
-      horizontalRef.current = 0;
-      defendRef.current = false;
-      punchRef.current.left = false;
-      punchRef.current.right = false;
-    };
-
-    window.addEventListener("blur", releaseControls);
-    document.addEventListener("visibilitychange", releaseControls);
-
-    return () => {
-      window.removeEventListener("blur", releaseControls);
-      document.removeEventListener("visibilitychange", releaseControls);
-    };
-  }, []);
+  const triggerPunch = useCallback(
+    (side: "left" | "right") => {
+      if (!enabled || !isForeground()) return;
+      const now = performance.now();
+      if (now < cooldownUntilRef.current[side]) return;
+      cooldownUntilRef.current[side] = now + PUNCH_COOLDOWN_MS;
+      inputRef.current[side === "left" ? "leftPunch" : "rightPunch"] = true;
+    },
+    [enabled],
+  );
 
   const triggerLeftPunch = useCallback(
     () => triggerPunch("left"),
@@ -109,16 +116,26 @@ export const useCodeReviewControllerInput = ({
     [triggerPunch],
   );
   const startDefending = useCallback(() => {
-    defendRef.current = true;
-  }, []);
+    if (enabled && isForeground()) inputRef.current.defend = true;
+  }, [enabled]);
   const stopDefending = useCallback(() => {
-    defendRef.current = false;
+    inputRef.current.defend = false;
   }, []);
+  const enableTilt = useCallback(async () => {
+    if (active) releaseControls();
+    await requestTilt();
+  }, [active, requestTilt, releaseControls]);
+  const useTouch = useCallback(() => {
+    if (active) releaseControls();
+    selectTouch();
+  }, [active, selectTouch, releaseControls]);
 
   return {
-    hasGyroscopeSupport: gyro.hasGyroscopeSupport,
-    needsGyroscopePermission: gyro.needsPermission,
-    requestPermissions: gyro.requestPermissions,
+    movementMode,
+    motionStatus,
+    enableTilt,
+    useTouch,
+    move,
     triggerLeftPunch,
     triggerRightPunch,
     startDefending,

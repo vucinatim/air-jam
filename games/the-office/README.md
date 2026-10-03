@@ -26,13 +26,29 @@ pnpm exec airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --
 pnpm dev -- --secure --secure-mode=tunnel
 ```
 
+## Controller
+
+Every connected player selects a coworker before the shift starts. During play,
+hold or drag the directional pad to move and hold WORK to interact. The pad
+keeps its displayed direction when the controller rotates; its center is neutral.
+WORK also supports Space/Enter hold and release when keyboard-focused.
+
+Pause, disconnection, leaving gameplay, and page interruption discard held
+controls. Returning to play requires a fresh gesture, rather than resuming an
+old movement or work action.
+
+The host advances every participant's energy, happiness, tasks, and breaks
+even before their first input sample. Missing input means no movement or new
+WORK press; it does not freeze the player. Pausing the match still pauses its
+simulation for everyone.
+
 ## Scripts
 
 - `pnpm dev` starts the local game plus Air Jam server
 - `pnpm topology --mode=standalone-dev` prints the resolved local runtime topology
 - `pnpm exec air-jam-server logs` reads the canonical unified dev log
 - `pnpm typecheck` runs TypeScript without emitting
-- `pnpm test` runs the minimal game-store test suite
+- `pnpm test` runs game-store, host simulation, and controller interaction tests
 - `pnpm build` creates the production build
 - `pnpm exec airjam release bundle --dir .` creates the hosted release zip for the dashboard
 

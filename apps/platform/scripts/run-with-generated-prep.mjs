@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { ensureWorkspacePackageBuild } from "../../../scripts/ensure-workspace-package-build.mjs";
 import { preparePlatformGeneratedArtifacts } from "../../../scripts/platform/lib/platform-generated-prepare.mjs";
 
 const [command, ...args] = process.argv.slice(2);
@@ -11,6 +12,7 @@ if (!command) {
   );
 }
 
+await ensureWorkspacePackageBuild("@air-jam/network-policy");
 const result = await preparePlatformGeneratedArtifacts();
 
 console.log(

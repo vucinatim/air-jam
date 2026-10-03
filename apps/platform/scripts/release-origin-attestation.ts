@@ -1,3 +1,4 @@
+import { assessReleaseOriginAddresses } from "@air-jam/network-policy";
 import { lookup } from "node:dns/promises";
 import http, { type IncomingHttpHeaders } from "node:http";
 import https from "node:https";
@@ -7,7 +8,6 @@ import { PLATFORM_READINESS_PATH } from "../src/lib/platform-service-contract";
 import { HOSTED_RELEASE_CONTROLLER_PATH } from "../src/lib/releases/hosted-release-artifact";
 import { inspectHostedReleaseCookieSiteIsolation } from "../src/lib/releases/hosted-release-cookie-site";
 import { createHostedReleaseSecurityHeaders } from "../src/lib/releases/hosted-release-response-policy";
-import { assessReleaseOriginAddresses } from "../src/lib/releases/release-origin-network-policy";
 
 const REQUEST_TIMEOUT_MS = 5_000;
 const MAX_READINESS_RESPONSE_BYTES = 64 * 1024;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
 import type { IncomingMessage } from "node:http";
+import test from "node:test";
 import { isAuthorized, parseBearerToken } from "./access-control";
 
 const createRequest = (
@@ -18,27 +18,49 @@ test("parseBearerToken accepts case-insensitive bearer tokens", () => {
 });
 
 test("parseBearerToken rejects missing or malformed values", () => {
-  assert.equal(parseBearerToken(undefined), null);
-  assert.equal(parseBearerToken(["Bearer abc123"]), null);
-  assert.equal(parseBearerToken("Basic abc123"), null);
-  assert.equal(parseBearerToken("Bearer"), null);
+  for (const value of [
+    undefined,
+    ["Bearer abc123"],
+    ["Bearer abc123", "Bearer other"],
+    "Basic abc123",
+    "Bearer",
+    "Bearer abc123 extra",
+    "Bearer abc123, Bearer other",
+    " Bearer abc123",
+    "Bearer abc123 ",
+    "Bearer  abc123",
+    "Bearer\tabc123",
+    "Bearer abc123\n",
+    "Bearer abc123\u007f",
+    "Bearer abc123é",
+  ])
+    assert.equal(parseBearerToken(value), null);
 });
 
-test("isAuthorized allows all requests when access token is unset", () => {
-  assert.equal(
-    isAuthorized({
-      request: createRequest(undefined),
-      accessToken: null,
-    }),
-    true,
-  );
+test("isAuthorized fails closed even if invalid runtime configuration bypasses the env loader", () => {
+  for (const accessToken of [null, undefined, ""]) {
+    assert.equal(
+      isAuthorized({
+        request: createRequest(undefined),
+        accessToken: accessToken as unknown as string,
+      }),
+      false,
+    );
+    assert.equal(
+      isAuthorized({
+        request: createRequest("Bearer anything"),
+        accessToken: accessToken as unknown as string,
+      }),
+      false,
+    );
+  }
 });
 
 test("isAuthorized requires a matching bearer token when configured", () => {
   assert.equal(
     isAuthorized({
-      request: createRequest("Bearer preview-token"),
-      accessToken: "preview-token",
+      request: createRequest("Bearer unit-test-browser-token-0123456789abcdef"),
+      accessToken: "unit-test-browser-token-0123456789abcdef",
     }),
     true,
   );
@@ -46,8 +68,24 @@ test("isAuthorized requires a matching bearer token when configured", () => {
   assert.equal(
     isAuthorized({
       request: createRequest("Bearer wrong-token"),
-      accessToken: "preview-token",
+      accessToken: "unit-test-browser-token-0123456789abcdef",
     }),
     false,
   );
+});
+
+test("isAuthorized rejects same-length mismatches and malformed authorization", () => {
+  const token = "unit-test-browser-token-0123456789abcdef";
+  for (const header of [
+    undefined,
+    `Bearer ${token.slice(0, -1)}x`,
+    `Bearer ${token} extra`,
+    [`Bearer ${token}`],
+    `Bearer ${token.slice(1)}`,
+    `Bearer ${token}x`,
+  ])
+    assert.equal(
+      isAuthorized({ request: createRequest(header), accessToken: token }),
+      false,
+    );
 });

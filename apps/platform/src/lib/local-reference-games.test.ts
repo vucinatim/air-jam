@@ -1,3 +1,4 @@
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   getLocalReferenceArcadeGame,
@@ -5,6 +6,97 @@ import {
 } from "./local-reference-games";
 
 describe("local reference games", () => {
+  it("shows Minimal when selected by the workspace launcher, with independent host and phone URLs", () => {
+    const env = {
+      NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: "minimal",
+      NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_MINIMAL_URL: "http://localhost:5173",
+      NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_MINIMAL_CONTROLLER_URL:
+        "http://192.168.0.33:5173/controller",
+    };
+    const games = getLocalReferenceArcadeGames({ env, nodeEnv: "development" });
+    expect(games).toHaveLength(1);
+    expect(games[0]).toMatchObject({
+      id: "local-reference-minimal",
+      slug: "local-minimal",
+      name: "Minimal",
+      url: "http://localhost:5173",
+      controllerUrl: "http://192.168.0.33:5173/controller",
+      sourceUrl: "https://github.com/vucinatim/air-jam/tree/main/games/minimal",
+      templateId: "minimal",
+    });
+    for (const route of ["local-minimal", "local-reference-minimal"]) {
+      expect(
+        getLocalReferenceArcadeGame(route, { env, nodeEnv: "development" }),
+      ).toEqual(games[0]);
+      expect(
+        getLocalReferenceArcadeGame(route, { env, nodeEnv: "production" }),
+      ).toBeNull();
+    }
+    expect(
+      getLocalReferenceArcadeGames({ env, nodeEnv: "production" }),
+    ).toEqual([]);
+  });
+
+  it("supports Minimal as the default and direct development fallback", () => {
+    const expected = {
+      name: "Minimal",
+      slug: "local-minimal",
+      url: "http://127.0.0.1:5173",
+      controllerUrl: "http://127.0.0.1:5173/controller",
+    };
+    expect(
+      getLocalReferenceArcadeGames({
+        env: { NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: "minimal" },
+        nodeEnv: "development",
+      }),
+    ).toMatchObject([expected]);
+    expect(
+      getLocalReferenceArcadeGame("local-minimal", {
+        env: {},
+        nodeEnv: "development",
+      }),
+    ).toMatchObject(expected);
+  });
+
+  it("represents every workspace game and statically exposes its launcher URL variables to Next", () => {
+    const gamesRoot = new URL("../../../../games/", import.meta.url);
+    const source = readFileSync(
+      new URL("./local-reference-games.ts", import.meta.url),
+      "utf8",
+    );
+    for (const directory of readdirSync(gamesRoot, {
+      withFileTypes: true,
+    }).filter((entry) => entry.isDirectory())) {
+      const manifestUrl = new URL(
+        `${directory.name}/airjam-template.json`,
+        gamesRoot,
+      );
+      if (!existsSync(manifestUrl)) continue;
+      const manifest = JSON.parse(readFileSync(manifestUrl, "utf8")) as {
+        id: string;
+        name: string;
+      };
+      const envPrefix = `NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_${manifest.id.replace(/-/g, "_").toUpperCase()}`;
+      const url = `http://localhost:5173/${manifest.id}`;
+      const controllerUrl = `http://192.168.0.33:5173/${manifest.id}/controller`;
+      const env = {
+        NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT: manifest.id,
+        [`${envPrefix}_URL`]: url,
+        [`${envPrefix}_CONTROLLER_URL`]: controllerUrl,
+      };
+      expect(
+        getLocalReferenceArcadeGames({ env, nodeEnv: "development" }),
+      ).toMatchObject([
+        { name: manifest.name, templateId: manifest.id, url, controllerUrl },
+      ]);
+      for (const suffix of ["_URL", "_CONTROLLER_URL"]) {
+        expect(source).toMatch(
+          new RegExp(`process\\.env\\s*\\.\\s*${envPrefix}${suffix}\\b`),
+        );
+      }
+    }
+  });
+
   it("defaults to air capture in development", () => {
     const games = getLocalReferenceArcadeGames({
       env: {},

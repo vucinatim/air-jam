@@ -13,7 +13,7 @@ const parseAddress = (address: string) => {
   }
 };
 
-// Attestation may connect only to ordinary public unicast destinations. The
+// Release operations may connect only to ordinary public unicast destinations. The
 // library's range table intentionally groups several IANA special-purpose
 // blocks under `unicast`, so keep those registries explicit here rather than
 // allowing a package-version gap to become an SSRF path.

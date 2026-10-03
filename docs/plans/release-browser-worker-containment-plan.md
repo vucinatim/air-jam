@@ -1,0 +1,216 @@
+# Release Browser Worker Containment
+
+Last updated: 2026-09-12
+Status: active bounded architecture plan
+
+Finding authority: [AJ-SEC-004](../audits/v1-security/threat-model-audit.md#aj-sec-004--browser-worker-can-fail-open-and-gives-untrusted-pages-privileged-egress).
+Execution authority remains `G5-02` in the release manifest. This is not another
+release tracker or a replacement for the [1.0 execution plan](./v1-release-execution-plan.md).
+
+## Product contract
+
+Opening an uploaded game for moderation must not give that game our credentials,
+private-network access, or an unbounded browser lifetime. Normal JavaScript,
+WebGL, public game assets/fonts, and public realtime connections remain usable.
+No player permission prompts, creator approval flow, new moderation queue, or
+additional hosting provider is part of this change.
+
+Keep the existing platform job/moderation owners and existing dedicated browser
+service. Its authenticated Playwright transport remains an internal trusted-
+caller interface; it is not a new public agent product. Ordinary local game
+development continues through the existing dev harness, not this worker.
+
+## End-state boundaries
+
+1. **Inspection authority:** one signed, expiring game/release/generation token.
+   The platform's capture path attaches it only to that generation's canonical
+   asset origin/path. No context-wide credential and no inherited redirect
+   header. Unpublished assets must still load. Old generationless tokens are
+   removed, not supported through a compatibility path.
+2. **Worker admission:** a required strong generated secret in every environment;
+   strict bearer parsing, secret-safe diagnostics, authenticated HTTP/WS entry,
+   and real browser health. No missing-token or sandbox-disabled fallback.
+3. **Browser execution:** non-root Chromium with its sandbox enabled; no worker
+   credentials in browser child environment. A Linux network namespace has no
+   direct outbound route. The browser may reach only the controlled egress path.
+   Namespace startup/cleanup and nested Chromium sandboxing must be proven,
+   not inferred from an environment variable.
+4. **Controlled egress:** one bounded streaming HTTP/CONNECT path in the existing
+   worker, using the canonical public-address classifier and pinning validated
+   addresses at connection time. Preserve TLS hostname verification, public
+   assets and WSS. Deny private, loopback, link-local, metadata, special-use and
+   mixed public/private DNS answers. Recheck new destinations after redirects.
+   No second DNS lookup may bypass the validated address. A private local bridge
+   from the browser namespace is an implementation detail, not another public
+   service or another queue. Its feasibility and capability dropping still need
+   the owned-container proof below.
+5. **Resource ownership:** keep the existing global-two/per-creator-one capture
+   job admission. Worker execution still needs a hard lifetime, owned process/
+   context cleanup, bounded page creation, transfer budgets and output size.
+   Capture the declared viewport, not creator-controlled full-document height.
+   Existing operation failure/retry classification owns failed jobs.
+6. **One untrusted execution lane:** hosted capture must use the isolated worker,
+   including when run locally. Remove the platform's unsandboxed executable-path
+   fallback as part of integration; do not keep it as a convenience escape hatch.
+   This does not remove the trusted local game-development browser harness.
+
+The streaming egress design is subject to actual container proof before it is
+treated as implemented. In particular, Playwright's API-request fetches used for
+private assets must use the same validated egress policy; protecting Chromium
+while leaving its Node-side fetches unbounded would not close the finding.
+
+## Evidence-led delivery
+
+The existing credential and capture owners can be corrected independently and
+remain valid in the final architecture. That work is underway locally: scoped
+tokens, redirect-safe private fetching, explicit connect/screenshot timeouts,
+viewport capture, required worker authentication and non-root/sandbox defaults.
+Do not merge or call the worker contained based only on these changes.
+
+The worker-owned isolation/egress boundary and lifecycle integration are now
+implemented locally, and the platform launch fallback is removed. The package
+CLI exposes help, start and JSON health. These remain unmerged implementation,
+not a completed containment claim. Next prove the exact worker image and full
+capture path, including hostile-network and cancellation cases.
+Run one final combined batch and one Canonicalizer pass only after this coherent
+worker batch is complete. Native GitHub review follows the normal green-PR gate.
+Production rollout and exact-candidate proof remain separate explicit actions.
+
+## Acceptance proof
+
+- Missing/malformed credentials and unsupported sandbox execution fail closed;
+  a healthy HTTP process with a dead browser is not reported healthy.
+- Owned-container hostile fixtures cannot reach a local listener, metadata,
+  private/mixed/rebound DNS, redirect escape, WebSocket bypass, service worker,
+  popup or direct-network bypass. Only fixture-controlled endpoints are used;
+  do not probe actual metadata or unrelated private services.
+- Real unpublished host/chunk/image/font assets and public realtime connections
+  work. Inspection credentials reach only the exact generation, including under
+  redirect tests. The browser environment has no worker/provider secrets.
+- Hanging/oversized/many-page fixtures terminate within the declared budgets;
+  both normal completion and cancellation leave no owned browser/process/socket.
+- Exact container evidence identifies the image/source and runtime settings.
+  Source checks and a live-runtime feasibility probe are not substituted for
+  that deployment proof.
+
+## Feasibility observed on 2026-09-12
+
+The existing production worker deployment `40f6a53b-2a34-47eb-b858-e5937b96d2fa`
+is successful and its token is present with at least 32 characters. The token
+value was not printed. Its current main process is still root and its image
+still disables Chromium sandboxing: the new source is **not deployed**.
+
+Bounded SSH diagnostics showed Linux `6.12.12+bpo-cloud-amd64`, seccomp mode `2`,
+and enabled unprivileged user namespaces. A dropped-privilege UID 65534 process
+successfully created user/network and nested user namespaces. A separate
+credential-free UID 65534 Chromium `145.0.7632.6` process launched with
+`chromiumSandbox: true`, opened only `about:blank`, and closed. This supports
+continuing on the existing provider, not a complete containment claim.
+`chrome://sandbox` is unavailable in that headless-shell build; its diagnostic
+failure was retained rather than called an attestation.
+
+This is consistent with [Playwright's non-root/sandbox guidance](https://playwright.dev/docs/docker#crawling-and-scraping).
+Railway's [outbound-networking documentation](https://docs.railway.com/networking/outbound-networking)
+does not supply evidence of the needed private-destination firewall. Do not
+equate a static outbound IP or private networking with egress containment.
+
+## Implementation and proof checkpoint — 2026-09-12
+
+- The existing classifier and its 40 tests moved unchanged into the private
+  `@air-jam/network-policy` package. The platform and worker share it; cold CLI
+  builds, workspace manifests and deployment watch paths are wired. No old
+  platform classifier or compatibility re-export remains.
+- The worker egress proxy streams HTTP, WS and CONNECT. It validates all A/AAAA
+  answers and dials a vetted numeric address. Its 512 MiB/10,000-request totals
+  accommodate the existing 250 MiB/5,000-file artifact allowance. Thirty-two
+  simultaneous flows are allowed; excess admission receives 503 without killing
+  existing flows. Limits are worker safeguards, not new player UX constraints.
+- Each authenticated transport owns its browser, private proxy and 120-second
+  deadline. The Linux launcher uses user/network/PID namespaces, loopback plus a
+  private Unix bridge, then drops capabilities before Chromium and bridge start.
+  The worker checks actual blank-page execution, not only HTTP process liveness.
+- Platform capture requires the remote authenticated worker, closes popups while
+  retaining game iframes, has a 90-second deadline and 5-second cleanup bound,
+  closes its browser before storage, and rejects PNG output over 16 MiB. Thirty-five
+  capture/config tests and 14 staging-verifier tests pass; PostgreSQL fixtures
+  remain opt-in and were not run in this slice.
+- Nineteen focused proxy tests pass with the browser opt-in enabled, including owned HTTP/WS/CONNECT fixtures,
+  mixed/private/rebound DNS rejection, pinned dialing, fixed budgets,
+  concurrency, cancellation and deadlines. DNS/dial redirection in unit fixtures
+  is a test seam, not actual namespace proof. The encrypted/browser extensions
+  below additionally exercise real HTTPS/WSS, not opaque pretend-TLS bytes.
+- Six worker-entry/lifecycle tests run real local HTTP/WS/proxy sockets and
+  private temp-directory ownership with only Chromium mocked. They cover exact
+  routing/auth, two-capture admission, worker-bearer stripping, confined launch
+  options, failed browser health, disconnect/shutdown and the hard deadline.
+  A silent half-open peer exposed an actual disconnect gap; cancellation now
+  handles client FIN as well as socket close. Three CLI tests cover credential-
+  free help, secret-safe failure and healthy/unhealthy JSON exit behavior.
+  Package test/typecheck commands use the existing cached dependency-build helper
+  so a clean checkout does not depend on previously generated classifier output.
+
+An additional bounded probe on the existing Railway worker launched Chromium
+`145.0.7632.6` as UID 65534 inside user/network/PID namespaces with all capabilities
+dropped and `no_new_privs` set. It opened only `about:blank` and closed. A proposed
+private `/proc` remount was rejected by the provider's mount policy. It was not
+made a requirement or bypassed: this design owns networking and process lifetime;
+Chromium's sandbox remains the JavaScript execution boundary. It does not claim
+separate filesystem or VM isolation.
+
+The exact local image build stopped while downloading the pinned Playwright base
+with Docker's `no space left on device`. The host filesystem has free space, but
+Docker's own storage is full. Permission was requested to remove only the old
+rebuildable Air Jam platform test image and its two stopped test containers;
+no database volumes, unrelated resources or Docker settings were changed.
+
+Local default Docker seccomp also rejects unprivileged namespace creation. A
+bounded probe using the upstream pinned Playwright namespace-compatible profile
+(plus PID-fd syscalls for the newer diagnostic image's `unshare`) confirmed
+namespace/capability behavior. That alternate installed diagnostic image is not
+substituted for the exact production worker image. Final local runtime arguments,
+full unpublished-asset capture, HTTPS/WSS, direct-egress denial and process cleanup
+remain to be proven after the disk-space decision. A subsequent repository batch
+completed with focused rechecks after a server-test isolation defect was repaired;
+see the [integration evidence](../audits/v1-security/threat-model-audit.md#aj-sec-009--reporter-identity-leaks-to-creators-while-public-report-intake-is-unbounded).
+This does not substitute for exact-image containment. Canonicalizer, push,
+merge and deployment remain pending for this unfinished worker batch.
+
+### Encrypted traffic and driver-fetch proof
+
+The source proxy was subsequently tested with a real owned HTTPS server and
+Chromium `145.0.7632.6`, without needing Docker space:
+
+- HTTPS retains the fixture server's certificate fingerprint and SNI hostname;
+  untrusted certificates and wrong hostnames fail normal TLS verification.
+- Real Chromium loads HTTPS HTML, negotiates a WSS subprotocol and exchanges
+  correctly framed text messages in both directions through CONNECT.
+- Playwright's Node-side `route.fetch` uses the same proxy for a private-header
+  request. Its API-request context is denied an owned loopback URL (403), and
+  the fixture listener confirms the forbidden request never arrived.
+
+Only post-policy numeric dials are redirected to owned fixture listeners. The
+browser test trusts one test-only certificate SPKI in that child process;
+production has no trust override and no system trust store was changed. Strict
+TLS trust/hostname rejection is verified separately without that browser override.
+This is real protocol/driver integration, **not Linux namespace or deployed-image
+containment**. No creator-controlled game or unrelated private endpoint was opened.
+
+Reproduce the 19 tests, including the two opt-in real-browser cases:
+
+```bash
+AIR_JAM_TEST_RELEASE_CAPTURE_BROWSER=1 pnpm --filter @air-jam/release-browser-worker exec node --import tsx --test src/egress-proxy.test.ts
+```
+
+The run passed in about 1.9 seconds on Node 24. The ordinary worker test suite
+skips only those two browser cases and retains strict TLS tests. The first
+driver-fetch attempt exposed an over-broad **fixture** dial mock that redirected
+the driver's own proxy connection; it was corrected to preserve real connections
+to the known local proxy. No production networking change was needed for this
+proof. Exact-image tests must still repeat these behaviors inside the namespace.
+
+The follow-through also corrected a capture-owner bug: `page.goto` previously
+discarded its HTTP response, so an HTTP error page could proceed to screenshot
+storage and image moderation. Capture now requires a successful HTTP response;
+403/404/500/503 and missing-response tests verify no screenshot/object is written
+and owned browser cleanup still runs. All 13 capture-service tests pass. Existing
+job failure/retry ownership is unchanged; this adds no moderation workflow.

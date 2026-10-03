@@ -27,6 +27,7 @@ COPY patches ./patches
 COPY apps/platform/package.json                 ./apps/platform/
 COPY packages/cli/package.json                  ./packages/cli/
 COPY packages/database-contract/package.json    ./packages/database-contract/
+COPY packages/network-policy/package.json       ./packages/network-policy/
 COPY packages/operations-contract/package.json  ./packages/operations-contract/
 COPY packages/sdk/package.json                  ./packages/sdk/
 COPY packages/env/package.json                  ./packages/env/

@@ -343,14 +343,27 @@ test("environment proof permits absent optional production secrets", () => {
   assert.doesNotThrow(() => assertGoldenPathStagingEnvironmentIsolation(input));
 });
 
-test("browser access tokens are conditional on a remote browser endpoint", () => {
+test("environment proof rejects a native executable instead of a browser worker", () => {
   const input = isolationInput();
   const platform = input.serviceVariablePairs[0];
   delete platform.stagingVariables.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT;
   delete platform.stagingVariables.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN;
   platform.stagingVariables.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH =
     "/usr/bin/chromium";
-  assert.doesNotThrow(() => assertGoldenPathStagingEnvironmentIsolation(input));
+  assert.throws(
+    () => assertGoldenPathStagingEnvironmentIsolation(input),
+    /must configure its isolated browser worker endpoint/u,
+  );
+});
+
+test("environment proof requires browser worker authentication", () => {
+  const input = isolationInput();
+  delete input.serviceVariablePairs[0].stagingVariables
+    .AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN;
+  assert.throws(
+    () => assertGoldenPathStagingEnvironmentIsolation(input),
+    /AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN/u,
+  );
 });
 
 test("environment proof rejects a browser endpoint outside staging", () => {

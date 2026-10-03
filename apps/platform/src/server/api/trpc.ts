@@ -54,6 +54,10 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
           error.cause instanceof OperationalAdmissionDeniedError
             ? error.cause.decision
             : null,
+        retryAfterSeconds:
+          error.cause instanceof PlatformApplicationError
+            ? error.cause.retryAfterSeconds
+            : null,
       },
     };
   },
@@ -66,8 +70,12 @@ export const getTRPCResponseMeta = ({
 }): ResponseMeta => {
   const retryAfterSeconds = errors.reduce<number | null>((longest, error) => {
     const cause = error.cause;
-    if (!(cause instanceof OperationalAdmissionDeniedError)) return longest;
-    const retryAfter = cause.decision.retryAfterSeconds;
+    const retryAfter =
+      cause instanceof OperationalAdmissionDeniedError
+        ? cause.decision.retryAfterSeconds
+        : cause instanceof PlatformApplicationError
+          ? cause.retryAfterSeconds
+          : null;
     if (retryAfter === null) return longest;
     return longest === null ? retryAfter : Math.max(longest, retryAfter);
   }, null);
@@ -97,7 +105,13 @@ const applicationErrorMiddleware = t.middleware(async ({ next }) => {
       forbidden: "FORBIDDEN",
       conflict: "CONFLICT",
       validation_failed: "BAD_REQUEST",
-    }[cause.code] as "NOT_FOUND" | "FORBIDDEN" | "CONFLICT" | "BAD_REQUEST";
+      rate_limited: "TOO_MANY_REQUESTS",
+    }[cause.code] as
+      | "NOT_FOUND"
+      | "FORBIDDEN"
+      | "CONFLICT"
+      | "BAD_REQUEST"
+      | "TOO_MANY_REQUESTS";
     throw new TRPCError({ code, message: cause.message, cause });
   }
 

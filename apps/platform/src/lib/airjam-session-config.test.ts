@@ -1,12 +1,11 @@
 import { serializeRuntimeTopology } from "@air-jam/sdk/runtime-topology";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getPlatformArcadeHostSessionConfig,
   resolvePlatformTopology,
 } from "./airjam-session-config";
 
 const ORIGINAL_WINDOW = globalThis.window;
-const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 
 describe("resolvePlatformTopology", () => {
   beforeEach(() => {
@@ -14,7 +13,7 @@ describe("resolvePlatformTopology", () => {
     delete process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY;
     delete process.env.NEXT_PUBLIC_AIR_JAM_HOST_GRANT_ENDPOINT;
     delete process.env.NEXT_PUBLIC_AIR_JAM_APP_ID;
-    process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+    vi.unstubAllEnvs();
 
     if (ORIGINAL_WINDOW === undefined) {
       // @ts-expect-error test cleanup
@@ -23,6 +22,8 @@ describe("resolvePlatformTopology", () => {
       globalThis.window = ORIGINAL_WINDOW;
     }
   });
+
+  afterEach(() => vi.unstubAllEnvs());
 
   it("keeps hosted production topology unchanged", () => {
     process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_CONTROLLER_TOPOLOGY =
@@ -71,7 +72,7 @@ describe("resolvePlatformTopology", () => {
   });
 
   it("prefers the platform host grant endpoint for the arcade system in production", () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY =
       serializeRuntimeTopology({
         runtimeMode: "hosted-release",
@@ -87,10 +88,11 @@ describe("resolvePlatformTopology", () => {
     expect(config.hostGrantEndpoint).toBe("/api/airjam/host-grant");
     expect(config.hostSessionKind).toBe("system");
     expect(config.maxPlayers).toBe(16);
+    expect(config).not.toHaveProperty("input");
   });
 
   it("uses app ID bootstrap for the arcade system in local development", () => {
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     process.env.NEXT_PUBLIC_AIR_JAM_APP_ID = "aj_app_local";
     process.env.NEXT_PUBLIC_AIR_JAM_PLATFORM_HOST_TOPOLOGY =
       serializeRuntimeTopology({

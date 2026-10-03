@@ -1,6 +1,6 @@
 # Arcade Surface Contract
 
-Last updated: 2026-09-03
+Last updated: 2026-09-12
 Status: implemented contract
 
 ## Purpose
@@ -214,6 +214,36 @@ Rules:
 2. embedded game state is scoped to the current surface instance
 3. game store domain is resolved automatically by SDK/runtime
 4. game/app code keeps normal `createAirJamStore(...)` usage
+
+## Menu Command Ownership
+
+Menu gestures do not use gameplay `controller:input`. They use the existing
+`controller:action_rpc` route with `storeDomain: "arcade.surface"`:
+
+| Action                   | Payload                                                     | Meaning                         |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------- |
+| `airjam.arcade.navigate` | `{ epoch, direction: "up" \| "down" \| "left" \| "right" }` | Move the browser selection once |
+| `airjam.arcade.confirm`  | `{ epoch }`                                                 | Launch the selected game once   |
+
+The SDK protocol exports the action names and strict payload schemas. The
+server authenticates the controller and routes the `airjam.arcade.*` namespace
+to the master shell, even when an embedded game is active. The shell accepts
+these menu commands only from a current player on the matching browser epoch,
+outside an active launch; confirmation also observes the exit cooldown and
+validates the selected catalog index. Preview mode does not accept menu
+navigation.
+
+The controller emits one command per gesture, not a periodic input stream.
+Directional activation retains the `0.5` threshold and vertical priority;
+returning to neutral allows another move. Confirm requires a new press after
+release. Removing the remote during a surface/connection change discards its
+held gesture without replaying it. Failed launches wait for an explicit retry.
+
+Host-local selection and launch admission advance synchronously through the
+same reducer, so commands arriving before React renders cannot launch an old
+selection or start duplicate concurrent launches. Delayed menu commands cannot
+reach game input schemas or act on a later browser epoch. Game inputs and
+game-defined actions keep their existing APIs.
 
 ## Bridge Rule
 

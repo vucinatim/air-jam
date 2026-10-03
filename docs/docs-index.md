@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-09-04
+Last updated: 2026-09-12
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -44,6 +44,10 @@ Jam, GitHub, and Railway is:
 The active Gate 5 production boundary cutover is governed by:
 
 1. [plans/hosted-release-domain-cutover-plan.md](./plans/hosted-release-domain-cutover-plan.md)
+
+The bounded browser execution and egress boundary under the same Gate 5 is:
+
+1. [plans/release-browser-worker-containment-plan.md](./plans/release-browser-worker-containment-plan.md)
 
 Agents inspect the live execution state through:
 

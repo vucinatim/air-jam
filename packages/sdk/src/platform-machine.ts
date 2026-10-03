@@ -321,14 +321,12 @@ export type PlatformMachineReleaseJob = z.infer<
   typeof platformMachineReleaseJobSchema
 >;
 
+// Creator-visible status only. Report text and contact stay ops-confidential.
 export const platformMachineReleaseReportSchema = z.object({
   id: z.string().min(1),
   releaseId: z.string().min(1),
   status: releaseReportStatusSchema,
   source: releaseReportSourceSchema,
-  reason: z.string().min(1),
-  details: z.string().nullable(),
-  reporterEmail: z.string().nullable(),
   createdAt: z.string().min(1),
   reviewedAt: z.string().nullable(),
 });

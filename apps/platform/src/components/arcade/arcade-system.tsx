@@ -1,10 +1,7 @@
 "use client";
 
 import { RetryNotice } from "@/components/retry-notice";
-import {
-  arcadeInputSchema,
-  getPlatformArcadeHostSessionConfig,
-} from "@/lib/airjam-session-config";
+import { getPlatformArcadeHostSessionConfig } from "@/lib/airjam-session-config";
 import {
   toggleDocumentFullscreen,
   useDocumentFullscreen,
@@ -15,7 +12,6 @@ import {
   useAirJamHost,
   useAudio,
   useAudioRuntimeControls,
-  useHostTick,
   useInheritedPlatformSettings,
   usePlatformSettings,
   type PlatformSettingsSnapshot,
@@ -35,6 +31,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { PlatformSettingsPanel } from "../platform-settings-panel";
 import type { ArcadeAudioId } from "./arcade-audio-runtime";
+import { resolveArcadeBrowserCommand } from "./arcade-browser-command";
 import {
   readArcadeBrowserOverlayPreference,
   writeArcadeBrowserOverlayPreference,
@@ -50,7 +47,6 @@ import { setArcadePlatformSettings } from "./arcade-platform-settings-store";
 import { resolveArcadePreviewControllerLauncherPresentation } from "./arcade-preview-controller-launcher";
 import {
   ARCADE_BROWSER_PATH,
-  EXIT_COOLDOWN_MS,
   getArcadeGameHistoryPath,
   getArcadeHistorySurface,
   getAutoLaunchRequestKey,
@@ -249,15 +245,8 @@ export const ArcadeSystem = ({
     resetSession,
     exitGame: resetRuntimeAfterExit,
     consumeAutoLaunch,
-    releaseBrowserActionLaunchBlock,
   } = runtime;
 
-  // Navigation logic refs
-  const EXIT_COOLDOWN = EXIT_COOLDOWN_MS;
-  const lastVectorStates = useRef<Map<string, { x: number; y: number }>>(
-    new Map(),
-  );
-  const lastArcadeInputLogTimeRef = useRef(0);
   /** Scroll position for chrome styling only; not part of surface authority. */
   const [browserListAtTop, setBrowserListAtTop] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -324,7 +313,7 @@ export const ArcadeSystem = ({
   const reducedMotion = accessibility.reducedMotion;
   const highContrast = accessibility.highContrast;
 
-  const host = useAirJamHost<typeof arcadeInputSchema>();
+  const host = useAirJamHost();
 
   const arcadeJoinUrl = useMemo(() => {
     if (host.joinUrl) {
@@ -620,77 +609,6 @@ export const ArcadeSystem = ({
     ],
   );
 
-  // Canonical host polling loop for browser navigation.
-  useHostTick({
-    enabled:
-      !!host.getInput &&
-      games.length > 0 &&
-      mode === "arcade" &&
-      surfaceKind === "browser",
-    mode: "interval",
-    intervalMs: 16,
-    onTick: () => {
-      host.players.forEach((player) => {
-        const latchedInput = host.getInput?.(player.id);
-        if (!latchedInput) return;
-
-        const now = Date.now();
-        const hasActiveInput =
-          latchedInput.action === true ||
-          (latchedInput.vector &&
-            (Math.abs(latchedInput.vector.x) > 0.01 ||
-              Math.abs(latchedInput.vector.y) > 0.01));
-        if (
-          hasActiveInput &&
-          (!lastArcadeInputLogTimeRef.current ||
-            now - lastArcadeInputLogTimeRef.current > 1000)
-        ) {
-          lastArcadeInputLogTimeRef.current = now;
-        }
-
-        const prevVec = lastVectorStates.current.get(player.id) ?? {
-          x: 0,
-          y: 0,
-        };
-        const wasVectorActive =
-          Math.abs(prevVec.x) > 0.5 || Math.abs(prevVec.y) > 0.5;
-        const isVectorActive =
-          Math.abs(latchedInput.vector.x) > 0.5 ||
-          Math.abs(latchedInput.vector.y) > 0.5;
-
-        if (isVectorActive && !wasVectorActive) {
-          moveSelection(latchedInput.vector, getGridColumns());
-        }
-
-        lastVectorStates.current.set(player.id, latchedInput.vector);
-
-        if (latchedInput.action) {
-          const snapshot = stateRef.current;
-          if (
-            snapshot.browserActionLaunchBlocked ||
-            now - snapshot.lastExitAt < EXIT_COOLDOWN
-          ) {
-            return;
-          }
-          const game = games[stateRef.current.selectedIndex] ?? selectedGame;
-          if (game) {
-            launchGame(game);
-          }
-        }
-      });
-
-      if (stateRef.current.browserActionLaunchBlocked) {
-        const hasActiveAction = host.players.some((player) => {
-          const latchedInput = host.getInput?.(player.id);
-          return latchedInput?.action === true;
-        });
-        if (!hasActiveAction) {
-          releaseBrowserActionLaunchBlock();
-        }
-      }
-    },
-  });
-
   const closeGame = useCallback(() => {
     applyArcadeSessionEffects(
       orchestrateArcadeSession({
@@ -731,6 +649,25 @@ export const ArcadeSystem = ({
         return;
       }
       switch (event.actionName) {
+        case airJamArcadePlatformActions.navigate:
+        case airJamArcadePlatformActions.confirm: {
+          const command = resolveArcadeBrowserCommand({
+            event,
+            mode,
+            surface: useArcadeSurfaceStore.getState(),
+            runtime: stateRef.current,
+            players: host.players,
+            gamesLength: games.length,
+            now: Date.now(),
+          });
+          if (command?.type === "navigate") {
+            moveSelection(command.direction, getGridColumns());
+          } else if (command?.type === "confirm") {
+            const game = games[command.selectedIndex];
+            if (game) launchGame(game);
+          }
+          return;
+        }
         case airJamArcadePlatformActions.ping: {
           if (surfaceKind !== "browser") {
             return;
@@ -811,6 +748,11 @@ export const ArcadeSystem = ({
       audioControls,
       closeGame,
       host.players,
+      games,
+      launchGame,
+      mode,
+      moveSelection,
+      stateRef,
       qrVisible,
       surfaceKind,
       surfaceActions,

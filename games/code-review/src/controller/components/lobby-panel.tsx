@@ -24,14 +24,10 @@ const TEAM_COLOR: Record<TeamId, string> = {
   team2: TEAM2_COLOR,
 };
 
-interface LobbyPanelProps {
-  onRequestPermissions: () => void;
-}
-
 const capturePanelClass =
   "rounded-none border-4 border-zinc-600 bg-zinc-900/85 shadow-[6px_6px_0_rgba(0,0,0,0.55)]";
 
-export const LobbyPanel = ({ onRequestPermissions }: LobbyPanelProps) => {
+export const LobbyPanel = () => {
   const connectionStatus = useAirJamController(
     (state) => state.connectionStatus,
   );
@@ -43,7 +39,6 @@ export const LobbyPanel = ({ onRequestPermissions }: LobbyPanelProps) => {
 
   const joinTeam = (team: TeamId) => {
     actions.joinTeam({ team });
-    onRequestPermissions();
   };
 
   const setBotCount = (team: TeamId, count: number) => {

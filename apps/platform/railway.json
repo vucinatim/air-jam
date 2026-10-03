@@ -8,6 +8,7 @@
       "/content/**",
       "/docs/**",
       "/packages/database-contract/**",
+      "/packages/network-policy/**",
       "/packages/operations-contract/**",
       "/packages/sdk/**",
       "/packages/env/**",

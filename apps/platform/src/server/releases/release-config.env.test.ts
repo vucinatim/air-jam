@@ -1,5 +1,6 @@
 import { EnvValidationError } from "@air-jam/env";
 import { afterEach, describe, expect, it } from "vitest";
+import { loadReleaseModerationEnv } from "./release-env";
 import {
   getReleaseModerationAvailability,
   resetReleaseModerationConfigForTests,
@@ -66,7 +67,6 @@ describe("release env contracts", () => {
   it("reports moderation as unavailable when browser runtime is not configured", () => {
     delete process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT;
     delete process.env.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN;
-    delete process.env.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH;
 
     const availability = getReleaseModerationAvailability();
 
@@ -80,7 +80,8 @@ describe("release env contracts", () => {
 
   it("fails fast for invalid moderation integer env values", () => {
     configureIsolatedReleaseOrigin();
-    process.env.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH = "/tmp/chrome";
+    process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT = "ws://localhost:9222/ws";
+    process.env.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN = "browser-token";
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";
     process.env.OPENAI_API_KEY = "openai-key";
     process.env.AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH = "invalid";
@@ -146,5 +147,66 @@ describe("release env contracts", () => {
         openAi: null,
       });
     }
+  });
+
+  it("does not accept a local executable as an alternative to the worker", () => {
+    delete process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT;
+    process.env.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH = "/tmp/chrome";
+    expect(getReleaseModerationAvailability()).toMatchObject({
+      available: false,
+      reason: expect.stringContaining("AIRJAM_RELEASES_BROWSER_WS_ENDPOINT"),
+    });
+  });
+
+  const captureEnv = {
+    AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: "wss://worker.example.test/ws",
+    AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "worker-token",
+    AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "inspection-secret",
+    AIRJAM_RELEASES_IMAGE_MODERATION_MODE: "disabled",
+  };
+
+  it.each([
+    ["AIRJAM_RELEASES_BROWSER_WS_ENDPOINT", ""],
+    ["AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN", " "],
+    ["AIRJAM_RELEASES_BROWSER_WS_ENDPOINT", "invalid"],
+    ["AIRJAM_RELEASES_BROWSER_WS_ENDPOINT", "https://worker.example.test/ws"],
+    [
+      "AIRJAM_RELEASES_BROWSER_WS_ENDPOINT",
+      "wss://user:secret@worker.example.test/ws",
+    ],
+    [
+      "AIRJAM_RELEASES_BROWSER_WS_ENDPOINT",
+      "wss://worker.example.test/ws#fragment",
+    ],
+    ["AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS", "30001"],
+    ["AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS", "10001"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH", "2561"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT", "1441"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH", "1440junk"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH", "1440.5"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH", "0"],
+  ])("rejects invalid capture setting %s=%s", (key, value) => {
+    expect(() =>
+      loadReleaseModerationEnv({ ...captureEnv, [key]: value }),
+    ).toThrow(EnvValidationError);
+  });
+
+  it("accepts the supported capture maxima with a required authenticated worker", () => {
+    expect(
+      loadReleaseModerationEnv({
+        ...captureEnv,
+        AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS: "30000",
+        AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS: "10000",
+        AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH: "2560",
+        AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT: "1440",
+      }).browserLaunch,
+    ).toEqual({
+      wsEndpoint: captureEnv.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT,
+      accessToken: "worker-token",
+      navigationTimeoutMs: 30000,
+      waitAfterLoadMs: 10000,
+      viewportWidth: 2560,
+      viewportHeight: 1440,
+    });
   });
 });

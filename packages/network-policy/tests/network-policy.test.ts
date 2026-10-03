@@ -3,7 +3,7 @@ import {
   assessReleaseOriginAddresses,
   isLoopbackReleaseOriginAddress,
   isPublicReleaseOriginAddress,
-} from "./release-origin-network-policy";
+} from "../src/index.js";
 
 describe("release-origin network policy", () => {
   it.each([

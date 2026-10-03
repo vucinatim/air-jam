@@ -80,11 +80,12 @@ type ReleaseDetailPanelsProps = {
   }>;
   reports: Array<{
     id: string;
-    reason: string;
+    // Only operator responses include the private report contents.
+    reason?: string;
     status: string;
-    details: string | null;
+    details?: string | null;
     createdAt: Date | string;
-    reporterEmail: string | null;
+    reporterEmail?: string | null;
   }>;
   exportingGenerationId?: string | null;
   onExportGeneration?: (generationId: string) => void;
@@ -329,12 +330,18 @@ export function ReleaseDetailPanels({
           <FileText className="h-3 w-3" />
           Reports
         </div>
+        <p className="text-muted-foreground text-xs">
+          Report text and contact details are private to Air Jam operators, not
+          shared with game creators.
+        </p>
         {reports.length > 0 ? (
           <div className="space-y-2">
             {reports.map((report) => (
               <div key={report.id} className="rounded-md border p-2.5 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{report.reason}</span>
+                  <span className="font-medium">
+                    {report.reason ?? "Player report"}
+                  </span>
                   <Badge
                     variant={
                       report.status === "open" ? "destructive" : "secondary"

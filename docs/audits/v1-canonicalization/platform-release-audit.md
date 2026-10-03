@@ -146,6 +146,12 @@ and readiness manifest own decisions and accepted work.
 
 ### CAN-105 — Reporter contact data is exposed to the reported creator
 
+- Local source update (2026-09-12, not deployed): creator release services and
+  machine schemas now expose report metadata only; raw reason, details, and
+  contact stay ops-private. Public intake returns a receipt and explains the
+  privacy boundary. See `AJ-SEC-009` in the
+  [security audit](../v1-security/threat-model-audit.md) for current proof and
+  remaining spam, disposition, and retention work.
 - Category: public-contract
 - Complexity: contract-drift
 - Severity: high

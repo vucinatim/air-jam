@@ -89,6 +89,13 @@ Inspect the selected work without running it through:
 pnpm --silent run repo -- check plan --json
 ```
 
+Run scaffold smoke/package builds separately from a live dev stack in the same
+checkout: they rebuild shared SDK outputs, whereas the dev watcher owns those
+outputs while pages are running. Stop only an owned stack through the canonical
+local reset, confirm its process has exited, run the smoke, then restart through
+`pnpm run dev` and open fresh runtime surfaces. Do not weaken artifact freshness
+checks or add browser retries to hide concurrent-build failures.
+
 ## Review Authority
 
 Air Jam separates subjective product authority from implementation assurance:

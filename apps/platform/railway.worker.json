@@ -6,6 +6,7 @@
     "watchPatterns": [
       "/apps/platform/**",
       "/packages/database-contract/**",
+      "/packages/network-policy/**",
       "/packages/env/**",
       "/packages/operations-contract/**",
       "/packages/sdk/**",

@@ -1,5 +1,6 @@
 "use client";
 
+import { useArcadeSurfaceStore } from "@/components/arcade/arcade-surface-store";
 import {
   getControllerLocalProfileClientSnapshot,
   writeControllerLocalProfile,
@@ -12,8 +13,6 @@ import { triggerLocalHaptic } from "@/lib/local-haptics";
 import { useDocumentFullscreen } from "@/lib/use-document-fullscreen";
 import {
   useAirJamController,
-  useControllerTick,
-  useInputWriter,
   type PartialRoomPlatformSettingsPatch,
 } from "@air-jam/sdk";
 import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
@@ -40,7 +39,6 @@ export function ControllerPageContent({
   const controller = useAirJamController();
   const { settings: controllerLocalSettings, updateSettings } =
     useControllerLocalSettings();
-  const writeInput = useInputWriter();
 
   const {
     activeUrl,
@@ -57,9 +55,14 @@ export function ControllerPageContent({
     controller,
   });
 
-  const vectorRef = useRef({ x: 0, y: 0 });
-  const actionRef = useRef(false);
-  const lastLoopFailLogRef = useRef(0);
+  const navigationHeldRef = useRef(false);
+  const confirmHeldRef = useRef(false);
+  useEffect(() => {
+    // Switching away from the remote can remove it before pointer-up arrives.
+    // Discard that gesture; returning to the menu must require a fresh press.
+    navigationHeldRef.current = false;
+    confirmHeldRef.current = false;
+  }, [activeUrl, controller.connectionStatus, controller.roomId]);
   const selfPlayerLabel = controller.selfPlayer?.label?.trim() ?? "";
   const selfPlayerAvatarId = controller.selfPlayer?.avatarId?.trim() ?? "";
 
@@ -83,28 +86,6 @@ export function ControllerPageContent({
 
     writeControllerLocalProfile(nextProfile);
   }, [selfPlayerAvatarId, selfPlayerLabel]);
-
-  useControllerTick(
-    () => {
-      const inputResult = writeInput({
-        vector: vectorRef.current,
-        action: actionRef.current,
-        timestamp: Date.now(),
-      });
-
-      const now = Date.now();
-      if (
-        !inputResult &&
-        (!lastLoopFailLogRef.current || now - lastLoopFailLogRef.current > 1000)
-      ) {
-        lastLoopFailLogRef.current = now;
-      }
-    },
-    {
-      enabled: controller.connectionStatus === "connected" && !activeUrl,
-      intervalMs: 16,
-    },
-  );
 
   const emitArcadeAction = useCallback(
     (actionName: string, payload?: unknown) => {
@@ -179,13 +160,38 @@ export function ControllerPageContent({
       controllerLocalSettings={controllerLocalSettings}
       onUpdateControllerLocalSettings={handleControllerLocalSettingsPatch}
       onMove={(vector) => {
-        vectorRef.current = vector;
+        // One command per stick activation; changing direction while held is
+        // not a second gesture. Vertical direction retains the grid priority.
+        const direction =
+          vector.y < -0.5
+            ? "up"
+            : vector.y > 0.5
+              ? "down"
+              : vector.x < -0.5
+                ? "left"
+                : vector.x > 0.5
+                  ? "right"
+                  : null;
+        const wasHeld = navigationHeldRef.current;
+        navigationHeldRef.current = direction !== null;
+        const surface = useArcadeSurfaceStore.getState();
+        if (!direction || wasHeld || surface.kind !== "browser") return;
+        emitArcadeAction(airJamArcadePlatformActions.navigate, {
+          epoch: surface.epoch,
+          direction,
+        });
       }}
       onConfirm={() => {
-        actionRef.current = true;
+        if (confirmHeldRef.current) return;
+        confirmHeldRef.current = true;
+        const surface = useArcadeSurfaceStore.getState();
+        if (surface.kind !== "browser") return;
+        emitArcadeAction(airJamArcadePlatformActions.confirm, {
+          epoch: surface.epoch,
+        });
       }}
       onConfirmRelease={() => {
-        actionRef.current = false;
+        confirmHeldRef.current = false;
       }}
       onPing={handleArcadePing}
     />

@@ -29,6 +29,10 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useMemo, useState } from "react";
+import {
+  getReleaseReportFailureMessage,
+  useReleaseReportDraft,
+} from "./use-release-report-draft";
 
 export default function PlayGamePage({
   params,
@@ -44,9 +48,7 @@ export default function PlayGamePage({
   } = api.game.getBySlugOrId.useQuery({ slugOrId: resolvedParams.slugOrId });
   const reportPublicRelease = api.release.reportPublic.useMutation();
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [reportReason, setReportReason] = useState("");
-  const [reportDetails, setReportDetails] = useState("");
-  const [reporterEmail, setReporterEmail] = useState("");
+  const reportDraft = useReleaseReportDraft();
   const [reportFeedback, setReportFeedback] = useState<{
     variant: "default" | "destructive";
     title: string;
@@ -91,37 +93,31 @@ export default function PlayGamePage({
     ...game,
     controllerUrl: game.controllerUrl,
   });
-  const canReportPublicRelease = game.launchSource === "hosted_release";
+  const canReportPublicRelease =
+    game.launchSource === "hosted_release" && Boolean(game.liveRelease?.id);
 
   const handleSubmitReport = async () => {
+    if (!canReportPublicRelease || !game.liveRelease) return;
+    const submission = reportDraft.begin(game.liveRelease.id);
+    if (!submission) return;
     try {
       setReportFeedback(null);
-      await reportPublicRelease.mutateAsync({
-        slugOrId: resolvedParams.slugOrId,
-        source: "play_page",
-        reason: reportReason,
-        details: reportDetails || undefined,
-        reporterEmail: reporterEmail || undefined,
-      });
+      await reportPublicRelease.mutateAsync(submission);
 
       setReportDialogOpen(false);
-      setReportReason("");
-      setReportDetails("");
-      setReporterEmail("");
+      reportDraft.finish(true);
       setReportFeedback({
         variant: "default",
         title: "Report received",
         description:
-          "The hosted release report was recorded and will be reviewed from the release dashboard.",
+          "Your report was received for review by Air Jam operators. Your report text and optional email are not shared with the game creator.",
       });
     } catch (submissionError) {
+      reportDraft.finish(false);
       setReportFeedback({
         variant: "destructive",
         title: "Could not submit report",
-        description:
-          submissionError instanceof Error
-            ? submissionError.message
-            : "The report could not be submitted.",
+        description: getReleaseReportFailureMessage(submissionError),
       });
     }
   };
@@ -139,9 +135,9 @@ export default function PlayGamePage({
               launchSource={game.launchSource}
               canReport={canReportPublicRelease}
               onReport={() => setReportDialogOpen(true)}
-              reportPending={reportPublicRelease.isPending}
+              reportPending={reportDraft.pending}
             />
-            {reportFeedback ? (
+            {reportFeedback && !reportDialogOpen ? (
               <div className="border-b border-white/10 bg-slate-950/95 px-4 py-3">
                 <Alert variant={reportFeedback.variant}>
                   {reportFeedback.variant === "destructive" ? (
@@ -171,22 +167,41 @@ export default function PlayGamePage({
             </ArcadeAudioRuntime>
           </div>
         </div>
-        <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <Dialog
+          open={reportDialogOpen}
+          onOpenChange={(open) => {
+            if (!reportDraft.pending) setReportDialogOpen(open);
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Report this hosted release</DialogTitle>
               <DialogDescription>
                 Use this if the public Arcade release looks abusive, misleading,
                 or inappropriate. Reports are attached to the live hosted
-                release, not to the creator&apos;s optional preview URL.
+                release, not to the creator&apos;s optional preview URL. Your
+                report text and optional email are private to Air Jam operators
+                and are not shared with the game creator. Retrying an unchanged
+                report does not submit it twice.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              {reportFeedback?.variant === "destructive" && (
+                <Alert variant="destructive">
+                  <AlertTitle>{reportFeedback.title}</AlertTitle>
+                  <AlertDescription>
+                    {reportFeedback.description}
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Reason</label>
                 <Input
-                  value={reportReason}
-                  onChange={(event) => setReportReason(event.target.value)}
+                  value={reportDraft.draft.reason}
+                  onChange={(event) =>
+                    reportDraft.change("reason", event.target.value)
+                  }
+                  disabled={reportDraft.pending}
                   placeholder="Example: explicit sexual content, phishing, hate symbols"
                   maxLength={120}
                 />
@@ -194,8 +209,11 @@ export default function PlayGamePage({
               <div className="space-y-2">
                 <label className="text-sm font-medium">Details</label>
                 <Textarea
-                  value={reportDetails}
-                  onChange={(event) => setReportDetails(event.target.value)}
+                  value={reportDraft.draft.details}
+                  onChange={(event) =>
+                    reportDraft.change("details", event.target.value)
+                  }
+                  disabled={reportDraft.pending}
                   placeholder="Share any extra context that helps review the release."
                   maxLength={2000}
                   rows={5}
@@ -204,8 +222,11 @@ export default function PlayGamePage({
               <div className="space-y-2">
                 <label className="text-sm font-medium">Email (optional)</label>
                 <Input
-                  value={reporterEmail}
-                  onChange={(event) => setReporterEmail(event.target.value)}
+                  value={reportDraft.draft.reporterEmail}
+                  onChange={(event) =>
+                    reportDraft.change("reporterEmail", event.target.value)
+                  }
+                  disabled={reportDraft.pending}
                   placeholder="name@example.com"
                   type="email"
                   maxLength={320}
@@ -216,18 +237,18 @@ export default function PlayGamePage({
               <Button
                 variant="outline"
                 onClick={() => setReportDialogOpen(false)}
-                disabled={reportPublicRelease.isPending}
+                disabled={reportDraft.pending}
               >
                 Cancel
               </Button>
               <Button
                 onClick={() => void handleSubmitReport()}
                 disabled={
-                  reportPublicRelease.isPending ||
-                  reportReason.trim().length < 3
+                  reportDraft.pending ||
+                  reportDraft.draft.reason.trim().length < 3
                 }
               >
-                {reportPublicRelease.isPending ? (
+                {reportDraft.pending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Sending

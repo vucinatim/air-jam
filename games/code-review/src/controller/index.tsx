@@ -22,7 +22,11 @@ export function ControllerView() {
   const desiredOrientation =
     matchPhase === "playing" ? "landscape" : "portrait";
   const {
-    requestPermissions,
+    movementMode,
+    motionStatus,
+    enableTilt,
+    useTouch,
+    move,
     startDefending,
     stopDefending,
     triggerLeftPunch,
@@ -48,13 +52,14 @@ export function ControllerView() {
           {matchPhase === "ended" ? (
             <EndedPanel />
           ) : matchPhase === "lobby" ? (
-            <LobbyPanel
-              onRequestPermissions={() => {
-                void requestPermissions();
-              }}
-            />
+            <LobbyPanel />
           ) : canUseGameplayControls ? (
             <PlayingControls
+              movementMode={movementMode}
+              motionStatus={motionStatus}
+              onEnableTilt={enableTilt}
+              onUseTouch={useTouch}
+              onMove={move}
               onLeftPunch={triggerLeftPunch}
               onRightPunch={triggerRightPunch}
               onDefendStart={startDefending}

@@ -4,9 +4,9 @@
 export const PLATFORM_SCHEMA_CONTRACT_VERSION = 1 as const;
 
 export const platformSchemaHead = {
-  tag: "0040_operational_evidence_reference_indexes",
-  createdAt: 1789166092026,
-  hash: "ae23b05a36cc2e704d68bd801bb6f4742827b9fa72557f840cbc6369999c5a23",
+  tag: "0042_release_report_submission_keys",
+  createdAt: 1789241375159,
+  hash: "7ac5263720a4b795c9b4c3ada09c66ab5ee5b8e7329480822eed0fac7ba7535c",
   catalogDigest:
-    "ba135fe6f27469f810e9a657ea5dd39e60a80b3a9282d0e3ee02461040c85633",
+    "1ed99a03afc90dc8f4474cd3898252beebb4cf5afa545b80263e4bd574e4bd47",
 } as const;

@@ -732,7 +732,7 @@ export function useOfficeGameRuntime({
       players.forEach((player) => {
         const input = getInput(player.id);
         const position = gameState.current.positions[player.id];
-        if (!input || !position) {
+        if (!position) {
           return;
         }
 
@@ -750,11 +750,12 @@ export function useOfficeGameRuntime({
           );
         }
 
-        if (!isDoingTask) {
+        // Input controls intent, not whether the host advances this player.
+        if (input && !isDoingTask) {
           handlePlayerMovement(player.id, input, playerIds);
         }
 
-        if (input.action && !gameState.current.lastAction[player.id]) {
+        if (input?.action && !gameState.current.lastAction[player.id]) {
           const taskStarted = handleTaskStart(
             player.id,
             position,
@@ -776,7 +777,7 @@ export function useOfficeGameRuntime({
           }
         }
 
-        gameState.current.lastAction[player.id] = input.action;
+        gameState.current.lastAction[player.id] = input?.action ?? false;
       });
 
       if (Object.keys(progressByPlayerId).length > 0) {

@@ -25,7 +25,6 @@ const allowedSharedVariableNames = new Set([
   "AIRJAM_BROWSER_WORKER_HOST",
   "AIRJAM_BROWSER_WORKER_PORT",
   "AIRJAM_PLATFORM_WORKER_BUDGET_REFRESH_MS",
-  "AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH",
   "AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS",
   "AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT",
   "AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH",
@@ -409,20 +408,15 @@ const assertReleaseIsolation = ({
     platformPair.stagingVariables,
     "AIRJAM_RELEASES_BROWSER_WS_ENDPOINT",
   );
-  const browserExecutable = variableValue(
-    platformPair.stagingVariables,
-    "AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH",
-  );
-  if (!browserEndpoint && !browserExecutable) {
+  if (!browserEndpoint) {
     throw new Error(
-      `Railway ${environment.name} ${platformPair.serviceName} must configure a browser endpoint or executable.`,
+      `Railway ${environment.name} ${platformPair.serviceName} must configure its isolated browser worker endpoint.`,
     );
   }
   const releaseStorageCredential = {
     ...temporaryCredential,
     endpointHostname: new URL(endpoint).hostname,
   };
-  if (!browserEndpoint) return releaseStorageCredential;
 
   if (
     variableValue(

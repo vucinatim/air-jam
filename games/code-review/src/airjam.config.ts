@@ -14,7 +14,7 @@ export const gameMetadata = defineAirJamGameMetadata({
   slug: "code-review",
   name: "Code Review",
   tagline:
-    "2D fighting arena with gyroscope controls and code-review-themed team brawling.",
+    "2D team brawler with touch controls, optional tilt movement and a code-review twist.",
   category: "arcade",
   minPlayers: 1,
   maxPlayers: 4,

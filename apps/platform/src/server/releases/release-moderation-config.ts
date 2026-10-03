@@ -8,9 +8,8 @@ export type ReleaseModerationConfig = {
   internalAccessSecret: string;
   publicBaseUrl: string;
   browserLaunch: {
-    wsEndpoint: string | null;
-    accessToken: string | null;
-    executablePath: string | null;
+    wsEndpoint: string;
+    accessToken: string;
     navigationTimeoutMs: number;
     waitAfterLoadMs: number;
     viewportWidth: number;
@@ -55,28 +54,26 @@ export const getReleaseModerationAvailability = () => {
 
   const probe = loadReleaseModerationAvailabilityProbeEnv();
   const wsEndpoint = probe.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null;
-  const browserAccessToken =
-    probe.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN ?? null;
-  const executablePath = probe.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null;
+  const browserAccessToken = probe.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN ?? null;
   const internalAccessSecret =
     probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
   const imageModerationMode = probe.AIRJAM_RELEASES_IMAGE_MODERATION_MODE;
   const openAiApiKey = probe.OPENAI_API_KEY ?? null;
 
-  if (!wsEndpoint && !executablePath) {
+  if (!wsEndpoint) {
     cachedReleaseModerationAvailability = {
       available: false,
       reason:
-        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_WS_ENDPOINT or AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH to enable it.",
+        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_WS_ENDPOINT to use the isolated browser worker.",
     };
     return cachedReleaseModerationAvailability;
   }
 
-  if (wsEndpoint && !browserAccessToken) {
+  if (!browserAccessToken) {
     cachedReleaseModerationAvailability = {
       available: false,
       reason:
-        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN when AIRJAM_RELEASES_BROWSER_WS_ENDPOINT is used.",
+        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN to authenticate with the browser worker.",
     };
     return cachedReleaseModerationAvailability;
   }

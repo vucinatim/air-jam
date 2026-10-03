@@ -114,6 +114,16 @@ const createMemoryReleaseStorage = () => {
         "Immutable generation processing must not delete prefixes.",
       );
     },
+    async listObjects() {
+      throw new Error(
+        "Generation processing must read its exact manifest, not list storage.",
+      );
+    },
+    async deleteObjects() {
+      throw new Error(
+        "Immutable generation processing must not delete objects.",
+      );
+    },
   };
 
   const upload = ({
@@ -323,6 +333,8 @@ describeWithPostgres("immutable release generation authority", () => {
       candidateGenerationId: second.generation.id,
       promotedGenerationId: second.generation.id,
     });
+    if (!finalized)
+      throw new Error("Expected the finalized generation to exist.");
     expect(finalized).toMatchObject({
       id: second.generation.id,
       status: "ready",
@@ -351,7 +363,8 @@ describeWithPostgres("immutable release generation authority", () => {
       status: "passed",
     });
 
-    vi.stubEnv("AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH", "/test/chromium");
+    vi.stubEnv("AIRJAM_RELEASES_BROWSER_WS_ENDPOINT", "ws://localhost:9222/ws");
+    vi.stubEnv("AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN", "test-browser-token");
     vi.stubEnv("AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN", "test-secret");
     vi.stubEnv("AIRJAM_RELEASES_IMAGE_MODERATION_MODE", "disabled");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://platform.example");

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const GYRO_MAX_TILT = 25;
 const GYRO_DEAD_ZONE = 12;
@@ -44,73 +44,89 @@ const smoothDirection = (current: number, target: number) => {
 };
 
 interface UseCodeReviewGyroOptions {
-  verticalRef: MutableRefObject<number>;
-  horizontalRef: MutableRefObject<number>;
+  enabled: boolean;
+  onDirection: (direction: { x: number; y: number }) => void;
 }
 
+type MotionStatus = "touch" | "requesting" | "tilt" | "denied" | "unavailable";
+
 export const useCodeReviewGyro = ({
-  verticalRef,
-  horizontalRef,
+  enabled,
+  onDirection,
 }: UseCodeReviewGyroOptions) => {
-  const gyroActiveRef = useRef(false);
-  const deviceOrientationEvent = resolveDeviceOrientationEvent();
-  const hasGyroscopeSupport = deviceOrientationEvent !== null;
-  const needsPermission =
-    typeof deviceOrientationEvent?.requestPermission === "function";
-
-  const handleOrientation = useRef((event: DeviceOrientationEvent) => {
-    if (event.gamma !== null) {
-      verticalRef.current = smoothDirection(
-        verticalRef.current,
-        tiltToDirection(event.gamma, true),
-      );
-    }
-
-    if (event.beta !== null) {
-      horizontalRef.current = smoothDirection(
-        horizontalRef.current,
-        tiltToDirection(event.beta, false),
-      );
-    }
-  });
+  const [motionStatus, setMotionStatus] = useState<MotionStatus>("touch");
+  const requestRef = useRef(0);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
-    if (!hasGyroscopeSupport || needsPermission) return;
-
-    const orientationHandler = handleOrientation.current;
-    window.addEventListener("deviceorientation", orientationHandler);
-    gyroActiveRef.current = true;
-
+    mountedRef.current = true;
     return () => {
-      window.removeEventListener("deviceorientation", orientationHandler);
-      gyroActiveRef.current = false;
-    };
-  }, [hasGyroscopeSupport, needsPermission]);
-
-  useEffect(() => {
-    const orientationHandler = handleOrientation.current;
-
-    return () => {
-      window.removeEventListener("deviceorientation", orientationHandler);
-      gyroActiveRef.current = false;
+      mountedRef.current = false;
+      requestRef.current += 1;
     };
   }, []);
 
-  const requestPermissions = useCallback(async () => {
-    if (gyroActiveRef.current || !deviceOrientationEvent) return;
+  useEffect(() => {
+    if (!enabled || motionStatus !== "tilt") return;
+    // Smoothing belongs to this sensor subscription, never to a previous gesture.
+    const request = requestRef.current;
+    let x = 0;
+    let y = 0;
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      if (
+        request !== requestRef.current ||
+        document.hidden ||
+        !document.hasFocus()
+      )
+        return;
+      if (
+        event.beta === null ||
+        event.gamma === null ||
+        !Number.isFinite(event.beta) ||
+        !Number.isFinite(event.gamma)
+      )
+        return;
+      x = smoothDirection(x, tiltToDirection(event.beta, false));
+      y = smoothDirection(y, tiltToDirection(event.gamma, true));
+      onDirection({ x, y });
+    };
+    window.addEventListener("deviceorientation", handleOrientation);
+    return () =>
+      window.removeEventListener("deviceorientation", handleOrientation);
+  }, [enabled, motionStatus, onDirection]);
 
-    if (deviceOrientationEvent.requestPermission) {
-      const permission = await deviceOrientationEvent.requestPermission();
-      if (permission !== "granted") return;
+  const useTouch = useCallback(() => {
+    requestRef.current += 1;
+    setMotionStatus("touch");
+  }, []);
+
+  const enableTilt = useCallback(async () => {
+    const request = ++requestRef.current;
+    const deviceOrientationEvent = resolveDeviceOrientationEvent();
+    if (!deviceOrientationEvent) {
+      setMotionStatus("unavailable");
+      return;
     }
-
-    window.addEventListener("deviceorientation", handleOrientation.current);
-    gyroActiveRef.current = true;
-  }, [deviceOrientationEvent]);
+    setMotionStatus("requesting");
+    let status: MotionStatus;
+    try {
+      // Call before the first await: iOS requires the original user gesture.
+      const permission = deviceOrientationEvent.requestPermission
+        ? await deviceOrientationEvent.requestPermission()
+        : "granted";
+      status = permission === "granted" ? "tilt" : "denied";
+    } catch {
+      status = "denied";
+    }
+    if (mountedRef.current && request === requestRef.current) {
+      onDirection({ x: 0, y: 0 });
+      setMotionStatus(status);
+    }
+  }, [onDirection]);
 
   return {
-    hasGyroscopeSupport,
-    needsPermission,
-    requestPermissions,
+    motionStatus,
+    enableTilt,
+    useTouch,
   };
 };

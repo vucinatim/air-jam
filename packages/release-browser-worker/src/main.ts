@@ -1,6 +1,6 @@
 import { startReleaseBrowserWorker } from "./index";
 
-const main = async () => {
+export const runReleaseBrowserWorker = async () => {
   const worker = await startReleaseBrowserWorker();
 
   const shutdown = async (signal: string) => {
@@ -21,14 +21,3 @@ const main = async () => {
     });
   }
 };
-
-void main().catch((error) => {
-  console.error(
-    JSON.stringify({
-      service: "air-jam-release-browser-worker",
-      event: "browser_worker.start_failed",
-      error: error instanceof Error ? error.message : String(error),
-    }),
-  );
-  process.exit(1);
-});

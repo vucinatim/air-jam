@@ -5,6 +5,20 @@
 `code-review` is a fast local-multiplayer boxing game built on the Air Jam host/controller model.
 Players join from their phones, pick a team slot, and control fighters inside a shared ring on the host screen.
 
+## Controller
+
+Touch controls work immediately: hold the directional arrows to move, tap Left
+or Right to punch, and hold Guard to block. The same buttons support keyboard
+activation. Pausing, leaving the controller or losing the connection releases
+held controls; returning requires a fresh gesture.
+
+Choose **Enable tilt** during play to use motion instead of arrows. Choosing a
+team never requests sensor permission. **Use touch** remains available to leave
+tilt mode or cancel a pending request; denied/unavailable motion keeps the touch
+pad usable. Motion requires browser support and a secure context, and some
+browsers require explicit permission from a user gesture. See
+[browser motion permission requirements](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent/requestPermission_static).
+
 ## What This Game Teaches
 
 - explicit host and controller runtime ownership
@@ -35,7 +49,7 @@ pnpm dev -- --web-only
 - `pnpm topology --mode=standalone-dev` prints the resolved local runtime topology
 - `pnpm exec airjam secure:init --mode=tunnel --hostname my-game-dev.example.com --tunnel my-game-dev` enables the optional tunnel fallback
 - `pnpm typecheck` runs the TypeScript project check
-- `pnpm test` runs the lightweight domain tests
+- `pnpm test` runs domain and controller interaction tests
 - `pnpm build` creates the production web build
 - `pnpm exec airjam release bundle --dir .` produces the hosted Arcade release zip
 

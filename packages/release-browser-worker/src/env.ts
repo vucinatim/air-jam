@@ -1,4 +1,4 @@
-import { validateEnv } from "@air-jam/env";
+import { isEnvValidationError, validateEnv } from "@air-jam/env";
 import { z } from "zod";
 
 const trimToUndefined = (value: unknown): string | undefined => {
@@ -46,10 +46,20 @@ const workerEnvSchema = z
     ),
     AIRJAM_BROWSER_WORKER_CHROMIUM_SANDBOX: booleanFromEnv(
       "AIRJAM_BROWSER_WORKER_CHROMIUM_SANDBOX",
-      false,
+      true,
+    ).refine(
+      (enabled) => enabled,
+      "Chromium sandboxing is required; disabling it is not supported.",
     ),
     AIRJAM_BROWSER_WORKER_EXECUTABLE_PATH: optionalEnvValue,
-    AIRJAM_BROWSER_WORKER_ACCESS_TOKEN: optionalEnvValue,
+    AIRJAM_BROWSER_WORKER_ACCESS_TOKEN: z
+      .string()
+      .min(32)
+      .max(512)
+      .regex(
+        /^[\x21-\x7e]+$/,
+        "Access token must contain printable ASCII without whitespace.",
+      ),
   })
   .superRefine((value, context) => {
     const portSource = value.PORT ?? value.AIRJAM_BROWSER_WORKER_PORT;
@@ -57,18 +67,23 @@ const workerEnvSchema = z
       return;
     }
 
-    const parsed = Number.parseInt(portSource, 10);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
+    const parsed = Number(portSource);
+    if (
+      !/^\d+$/.test(portSource) ||
+      !Number.isInteger(parsed) ||
+      parsed < 1 ||
+      parsed > 65535
+    ) {
       context.addIssue({
         code: "custom",
         path: value.PORT ? ["PORT"] : ["AIRJAM_BROWSER_WORKER_PORT"],
-        message: "Port must be a positive integer.",
+        message: "Port must be a whole integer from 1 through 65535.",
       });
     }
   })
   .transform((value) => {
     const portSource = value.PORT ?? value.AIRJAM_BROWSER_WORKER_PORT;
-    const parsedPort = portSource ? Number.parseInt(portSource, 10) : 8080;
+    const parsedPort = portSource ? Number(portSource) : 8080;
 
     return {
       host: value.AIRJAM_BROWSER_WORKER_HOST,
@@ -76,7 +91,7 @@ const workerEnvSchema = z
       headless: value.AIRJAM_BROWSER_WORKER_HEADLESS,
       chromiumSandbox: value.AIRJAM_BROWSER_WORKER_CHROMIUM_SANDBOX,
       executablePath: value.AIRJAM_BROWSER_WORKER_EXECUTABLE_PATH ?? null,
-      accessToken: value.AIRJAM_BROWSER_WORKER_ACCESS_TOKEN ?? null,
+      accessToken: value.AIRJAM_BROWSER_WORKER_ACCESS_TOKEN,
     };
   });
 
@@ -84,20 +99,36 @@ export type BrowserWorkerEnv = z.output<typeof workerEnvSchema>;
 
 export const loadBrowserWorkerEnv = (
   env: Record<string, string | undefined> = process.env,
-): BrowserWorkerEnv =>
-  validateEnv({
-    boundary: "release-browser-worker",
-    schema: workerEnvSchema,
-    env,
-    docsHint:
-      "Set AIRJAM_BROWSER_WORKER_* variables for the dedicated release browser worker.",
-    keyHints: {
-      PORT: "Railway typically injects PORT automatically.",
-      AIRJAM_BROWSER_WORKER_PORT:
-        "Use a positive integer port when running outside managed hosts.",
-      AIRJAM_BROWSER_WORKER_HEADLESS:
-        "Set to 'true' or 'false'. Production should normally stay headless.",
-      AIRJAM_BROWSER_WORKER_CHROMIUM_SANDBOX:
-        "Set to 'true' only when the target runtime supports Chromium sandboxing cleanly.",
-    },
-  });
+): BrowserWorkerEnv => {
+  try {
+    return validateEnv({
+      boundary: "release-browser-worker",
+      schema: workerEnvSchema,
+      env,
+      docsHint:
+        "Set AIRJAM_BROWSER_WORKER_* variables for the dedicated release browser worker.",
+      keyHints: {
+        PORT: "Railway typically injects PORT automatically.",
+        AIRJAM_BROWSER_WORKER_PORT:
+          "Use a whole integer port from 1 through 65535 when running outside managed hosts.",
+        AIRJAM_BROWSER_WORKER_HEADLESS:
+          "Set to 'true' or 'false'. Production should normally stay headless.",
+        AIRJAM_BROWSER_WORKER_CHROMIUM_SANDBOX:
+          "Defaults to 'true'. The runtime must support Chromium sandboxing; 'false' is rejected.",
+        AIRJAM_BROWSER_WORKER_ACCESS_TOKEN:
+          "Required in every environment: use a randomly generated secret of 32–512 printable ASCII characters without whitespace.",
+      },
+    });
+  } catch (error) {
+    if (isEnvValidationError(error)) {
+      for (const issue of error.issues) {
+        if (
+          issue.envKey === "AIRJAM_BROWSER_WORKER_ACCESS_TOKEN" &&
+          issue.received !== undefined
+        )
+          issue.received = "[redacted]";
+      }
+    }
+    throw error;
+  }
+};

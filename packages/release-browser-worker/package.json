@@ -22,14 +22,15 @@
     "dist"
   ],
   "scripts": {
-    "dev": "tsx src/main.ts",
+    "dev": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/network-policy && tsx src/cli.ts",
     "start": "node dist/cli.js",
     "build": "tsup",
-    "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/*.test.ts"
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/network-policy && tsc --noEmit",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/network-policy && node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@air-jam/env": "workspace:^",
+    "@air-jam/network-policy": "workspace:^",
     "http-proxy": "^1.18.1",
     "playwright-core": "1.58.2",
     "zod": "^4.2.1"

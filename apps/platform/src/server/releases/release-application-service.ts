@@ -38,6 +38,22 @@ import {
 } from "./release-status-service";
 import { getReleaseStorage } from "./release-storage";
 
+// Apply once at the creator application boundary, before any UI/CLI/MCP
+// adapter sees the result. Free text can identify a reporter just like email.
+const projectCreatorRelease = (
+  release: Awaited<ReturnType<typeof assertOwnedRelease>>,
+) => ({
+  ...release,
+  reports: release.reports.map((report) => ({
+    id: report.id,
+    releaseId: report.releaseId,
+    status: report.status,
+    source: report.source,
+    createdAt: report.createdAt,
+    reviewedAt: report.reviewedAt,
+  })),
+});
+
 const reloadOwnedRelease = async ({
   actor,
   releaseId,
@@ -46,7 +62,9 @@ const reloadOwnedRelease = async ({
   releaseId: string;
 }) => {
   try {
-    return await assertOwnedRelease(releaseId, actor.userId);
+    return projectCreatorRelease(
+      await assertOwnedRelease(releaseId, actor.userId),
+    );
   } catch {
     throw new PlatformApplicationError({
       code: "not_found",
@@ -65,7 +83,7 @@ export const listOwnedGameReleases = async ({
   const game = await resolveOwnedGame({ actor, reference: gameReference });
   const releases = await listReleaseDetailsByGame(game);
 
-  return { game, releases };
+  return { game, releases: releases.map(projectCreatorRelease) };
 };
 
 export const getOwnedRelease = reloadOwnedRelease;

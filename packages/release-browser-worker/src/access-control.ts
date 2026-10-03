@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 
 export const parseBearerToken = (
@@ -7,12 +8,7 @@ export const parseBearerToken = (
     return null;
   }
 
-  const [scheme, value] = authorizationHeader.trim().split(/\s+/, 2);
-  if (!scheme || !value || scheme.toLowerCase() !== "bearer") {
-    return null;
-  }
-
-  return value;
+  return /^Bearer ([\x21-\x7e]+)$/i.exec(authorizationHeader)?.[1] ?? null;
 };
 
 export const isAuthorized = ({
@@ -20,11 +16,16 @@ export const isAuthorized = ({
   accessToken,
 }: {
   request: IncomingMessage;
-  accessToken: string | null;
+  accessToken: string;
 }): boolean => {
-  if (!accessToken) {
-    return true;
+  if (typeof accessToken !== "string" || accessToken.length === 0) {
+    return false;
   }
-
-  return parseBearerToken(request.headers.authorization) === accessToken;
+  const token = parseBearerToken(request.headers.authorization);
+  if (token === null) return false;
+  const supplied = Buffer.from(token);
+  const expected = Buffer.from(accessToken);
+  return (
+    supplied.length === expected.length && timingSafeEqual(supplied, expected)
+  );
 };

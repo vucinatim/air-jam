@@ -1,15 +1,24 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { z } from "zod";
 
 export const RELEASE_INSPECTION_ACCESS_HEADER = "x-airjam-release-access-token";
 
-const RELEASE_INSPECTION_TOKEN_VERSION = "v1";
+const RELEASE_INSPECTION_TOKEN_VERSION = "v2";
+const MAX_RELEASE_INSPECTION_TOKEN_LENGTH = 4096;
 
-type ReleaseInspectionAccessPayload = {
-  v: typeof RELEASE_INSPECTION_TOKEN_VERSION;
-  gameId: string;
-  releaseId: string;
-  exp: number;
-};
+const releaseInspectionAccessPayloadSchema = z
+  .object({
+    v: z.literal(RELEASE_INSPECTION_TOKEN_VERSION),
+    gameId: z.string().min(1).max(256),
+    releaseId: z.string().min(1).max(256),
+    generationId: z.string().min(1).max(256),
+    exp: z.number().int().positive(),
+  })
+  .strict();
+
+type ReleaseInspectionAccessPayload = z.infer<
+  typeof releaseInspectionAccessPayloadSchema
+>;
 
 const encodeBase64Url = (value: string): string =>
   Buffer.from(value, "utf8").toString("base64url");
@@ -30,28 +39,10 @@ const parseReleaseInspectionPayload = (
   encodedPayload: string,
 ): ReleaseInspectionAccessPayload | null => {
   try {
-    const parsed = JSON.parse(
-      decodeBase64Url(encodedPayload),
-    ) as Partial<ReleaseInspectionAccessPayload>;
-
-    if (
-      parsed.v !== RELEASE_INSPECTION_TOKEN_VERSION ||
-      typeof parsed.gameId !== "string" ||
-      parsed.gameId.length === 0 ||
-      typeof parsed.releaseId !== "string" ||
-      parsed.releaseId.length === 0 ||
-      typeof parsed.exp !== "number" ||
-      !Number.isFinite(parsed.exp)
-    ) {
-      return null;
-    }
-
-    return {
-      v: RELEASE_INSPECTION_TOKEN_VERSION,
-      gameId: parsed.gameId,
-      releaseId: parsed.releaseId,
-      exp: parsed.exp,
-    };
+    const parsed = releaseInspectionAccessPayloadSchema.safeParse(
+      JSON.parse(decodeBase64Url(encodedPayload)),
+    );
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
@@ -77,21 +68,26 @@ const isSignatureMatch = ({
 export const createReleaseInspectionAccessToken = ({
   gameId,
   releaseId,
+  generationId,
   secret,
   expiresAtMs,
 }: {
   gameId: string;
   releaseId: string;
+  generationId: string;
   secret: string;
   expiresAtMs: number;
 }): string => {
   const encodedPayload = encodeBase64Url(
-    JSON.stringify({
-      v: RELEASE_INSPECTION_TOKEN_VERSION,
-      gameId,
-      releaseId,
-      exp: expiresAtMs,
-    } satisfies ReleaseInspectionAccessPayload),
+    JSON.stringify(
+      releaseInspectionAccessPayloadSchema.parse({
+        v: RELEASE_INSPECTION_TOKEN_VERSION,
+        gameId,
+        releaseId,
+        generationId,
+        exp: expiresAtMs,
+      }),
+    ),
   );
   const signature = signReleaseInspectionPayload({
     encodedPayload,
@@ -107,24 +103,35 @@ export const verifyReleaseInspectionAccessToken = ({
   token,
   gameId,
   releaseId,
+  generationId,
   secret,
   nowMs = Date.now(),
 }: {
   token: string | null;
   gameId: string;
   releaseId: string;
+  generationId: string;
   secret: string | null;
   nowMs?: number;
 }): boolean => {
-  if (!token || !secret) {
+  if (
+    !token ||
+    !secret ||
+    token.length > MAX_RELEASE_INSPECTION_TOKEN_LENGTH ||
+    !Number.isFinite(nowMs)
+  ) {
     return false;
   }
 
-  const [version, encodedPayload, signature] = token.split(".");
+  const segments = token.split(".");
+  const [version, encodedPayload, signature] = segments;
   if (
+    segments.length !== 3 ||
     version !== RELEASE_INSPECTION_TOKEN_VERSION ||
     !encodedPayload ||
-    !signature
+    !signature ||
+    !/^[A-Za-z0-9_-]+$/.test(encodedPayload) ||
+    !/^[A-Za-z0-9_-]{43}$/.test(signature)
   ) {
     return false;
   }
@@ -146,5 +153,9 @@ export const verifyReleaseInspectionAccessToken = ({
     return false;
   }
 
-  return payload.gameId === gameId && payload.releaseId === releaseId;
+  return (
+    payload.gameId === gameId &&
+    payload.releaseId === releaseId &&
+    payload.generationId === generationId
+  );
 };
