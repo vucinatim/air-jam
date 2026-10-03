@@ -1,6 +1,6 @@
 {
-  "id": "9d440da9-0c75-4b39-bc4f-adbd75ac2caa",
-  "prevId": "78825de8-91dd-4b94-b8bd-f072bfe9f7c0",
+  "id": "1b7c6920-89bf-4326-bb90-f10aa4cf9d26",
+  "prevId": "6f620579-e01b-4ae2-a276-e07e139449eb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1199,6 +1199,134 @@
       },
       "isRLSEnabled": false
     },
+    "public.game_release_report_decisions": {
+      "name": "game_release_report_decisions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "report_id": {
+          "name": "report_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "game_release_report_decisions_revision_idx": {
+          "name": "game_release_report_decisions_revision_idx",
+          "columns": [
+            {
+              "expression": "report_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "revision",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "game_release_report_decisions_command_idx": {
+          "name": "game_release_report_decisions_command_idx",
+          "columns": [
+            {
+              "expression": "report_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "game_release_report_decisions_report_id_game_release_reports_id_fk": {
+          "name": "game_release_report_decisions_report_id_game_release_reports_id_fk",
+          "tableFrom": "game_release_report_decisions",
+          "tableTo": "game_release_reports",
+          "columnsFrom": [
+            "report_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "game_release_report_decisions_revision_check": {
+          "name": "game_release_report_decisions_revision_check",
+          "value": "\"game_release_report_decisions\".\"revision\" > 0"
+        },
+        "game_release_report_decisions_status_check": {
+          "name": "game_release_report_decisions_status_check",
+          "value": "\"game_release_report_decisions\".\"status\" in ('open', 'reviewed', 'dismissed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.game_release_reports": {
       "name": "game_release_reports",
       "schema": "",
@@ -1208,6 +1336,13 @@
           "type": "text",
           "primaryKey": true,
           "notNull": true
+        },
+        "submission_id": {
+          "name": "submission_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
         "release_id": {
           "name": "release_id",
@@ -1257,9 +1392,31 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
+        },
+        "review_revision": {
+          "name": "review_revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         }
       },
       "indexes": {
+        "game_release_reports_submission_id_idx": {
+          "name": "game_release_reports_submission_id_idx",
+          "columns": [
+            {
+              "expression": "submission_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "game_release_reports_release_id_idx": {
           "name": "game_release_reports_release_id_idx",
           "columns": [

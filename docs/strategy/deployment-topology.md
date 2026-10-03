@@ -1,7 +1,7 @@
 # Deployment Topology
 
-Last updated: 2026-09-04
-Status: canonical target topology; operational worker rollout pending
+Last updated: 2026-09-09
+Status: canonical target topology; operational worker live
 
 Related docs:
 
@@ -194,14 +194,16 @@ The intended live shape is now also the deployment shape:
 1. Railway hosts the platform app
 2. Railway hosts the realtime server and Postgres
 3. Railway hosts the release browser worker
-4. production schema is independently verified at migration head `0036`
+4. production schema is independently verified at migration head `0039`
    through the canonical migration lifecycle
-5. the repo defines the operational worker, but its production service rollout
-   remains pending the documented activation, drain, rollback, and cost proof
+5. Railway hosts the operational worker; its budget, lifecycle, event-delivery,
+   and synthetic authorities are active, while GitHub issue projection
+   activation remains a separate unproven step
 6. R2 stores release and media objects
 
-The remaining operational work is the explicit operational-worker rollout and
-steady-state validation, not another topology redesign.
+The remaining operational work is measured steady-state, overload, recovery,
+cost, rollback, and issue-projection activation evidence, not another topology
+redesign.
 
 ## Clean Production Contract
 
@@ -225,14 +227,13 @@ Platform-only env should include at least:
 5. `GITHUB_CLIENT_ID`
 6. `GITHUB_CLIENT_SECRET`
 7. `DATABASE_URL`
-8. `AIR_JAM_MASTER_KEY`
-9. `AIRJAM_RELEASES_R2_BUCKET`
-10. `AIRJAM_RELEASES_R2_ACCOUNT_ID` or `AIRJAM_RELEASES_R2_ENDPOINT`
-11. `AIRJAM_RELEASES_R2_ACCESS_KEY_ID`
-12. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
-13. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
-14. `AIR_JAM_SYSTEM_APP_ID`
-15. `AIR_JAM_HOST_GRANT_SECRET`
+8. `AIRJAM_RELEASES_R2_BUCKET`
+9. `AIRJAM_RELEASES_R2_ACCOUNT_ID` or `AIRJAM_RELEASES_R2_ENDPOINT`
+10. `AIRJAM_RELEASES_R2_ACCESS_KEY_ID`
+11. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
+12. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
+13. `AIR_JAM_SYSTEM_APP_ID`
+14. `AIR_JAM_HOST_GRANT_SECRET`
 
 The web process should not claim or execute release jobs.
 
@@ -241,10 +242,9 @@ The web process should not claim or execute release jobs.
 Server-only env should include at least:
 
 1. `DATABASE_URL`
-2. `AIR_JAM_MASTER_KEY`
-3. `AIR_JAM_AUTH_MODE`
-4. `AIR_JAM_ALLOWED_ORIGINS`
-5. `AIR_JAM_HOST_GRANT_SECRET`
+2. `AIR_JAM_AUTH_MODE`
+3. `AIR_JAM_ALLOWED_ORIGINS`
+4. `AIR_JAM_HOST_GRANT_SECRET`
 
 `AIR_JAM_ALLOWED_ORIGINS` accepts comma-separated exact origins, a leading
 subdomain wildcard such as `https://*.vercel.app`, or `*`. Prefer the narrowest
@@ -282,20 +282,20 @@ The operational worker owns:
 9. optional `AIRJAM_PLATFORM_WORKER_*` scheduling and drain bounds, including
    the 15-minute budget-refresh cadence
 10. the explicit `AIRJAM_SYNTHETIC_*` targets required by the enabled synthetic
-   catalog
+    catalog
 11. `AIRJAM_GITHUB_ISSUES_APP_ID`,
     `AIRJAM_GITHUB_ISSUES_INSTALLATION_ID`,
     `AIRJAM_GITHUB_ISSUES_PRIVATE_KEY`, and
     `AIRJAM_GITHUB_ISSUES_REPOSITORY` for the repository-installed,
     issue-only GitHub App used by Gate `G4-03`
 
-It should not receive Better Auth, the multiplayer master key, maintainer
-personal GitHub tokens, broad repository credentials, or creator-facing OAuth
-credentials. Synthetic public origins are inert check targets rather than
-application authority and remain explicitly configured. PR and local workers
-leave budget refresh explicitly disabled unless they are intentionally given a
-separate, exactly attested project/environment token; they never inherit the
-production token.
+It should not receive Better Auth, local-development authentication
+conveniences, maintainer personal GitHub tokens, broad repository credentials,
+or creator-facing OAuth credentials. Synthetic public origins are inert check
+targets rather than application authority and remain explicitly configured. PR
+and local workers leave budget refresh explicitly disabled unless they are
+intentionally given a separate, exactly attested project/environment token;
+they never inherit the production token.
 
 ## Recommended Hardening Path
 

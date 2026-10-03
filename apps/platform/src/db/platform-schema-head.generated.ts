@@ -4,9 +4,9 @@
 export const PLATFORM_SCHEMA_CONTRACT_VERSION = 1 as const;
 
 export const platformSchemaHead = {
-  tag: "0042_release_report_submission_keys",
-  createdAt: 1789241375159,
+  tag: "0044_release_report_submission_keys",
+  createdAt: 1789246514172,
   hash: "7ac5263720a4b795c9b4c3ada09c66ab5ee5b8e7329480822eed0fac7ba7535c",
   catalogDigest:
-    "1ed99a03afc90dc8f4474cd3898252beebb4cf5afa545b80263e4bd574e4bd47",
+    "9ec71182da14139f7892104fa3499822f9d0d55e44f5349ea2db0305bb597244",
 } as const;

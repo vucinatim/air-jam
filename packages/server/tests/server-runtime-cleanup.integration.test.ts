@@ -16,10 +16,11 @@ describe("server runtime cleanup", () => {
   beforeEach(async () => {
     roomManager = new RoomManager();
     const authService: HostBootstrapAuthService = {
-      verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+      verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
         isVerified: true,
         appId,
         verifiedVia: "appId" as const,
+        hostSessionKind: hostSessionKind ?? "system",
       }),
     };
 

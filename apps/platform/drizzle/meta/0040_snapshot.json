@@ -1,5 +1,5 @@
 {
-  "id": "9d440da9-0c75-4b39-bc4f-adbd75ac2caa",
+  "id": "08700be7-3ae6-42e6-95aa-c3aa2dd94a81",
   "prevId": "ab71cf1f-dd64-4368-a239-5b5bf929cc7c",
   "version": "7",
   "dialect": "postgresql",
@@ -2914,43 +2914,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "operational_event_delivery_commands_retention_age_idx": {
-          "name": "operational_event_delivery_commands_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"created_at\", \"completed_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_event_delivery_commands_audit_event_idx": {
-          "name": "operational_event_delivery_commands_audit_event_idx",
-          "columns": [
-            {
-              "expression": "(\"result\" ->> 'auditEventId')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_event_delivery_commands\".\"result\" ->> 'auditEventId') is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -3143,76 +3106,6 @@
           ],
           "isUnique": false,
           "where": "\"operational_event_outbox\".\"status\" = 'delivering'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_event_outbox_retention_age_idx": {
-          "name": "operational_event_outbox_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"created_at\", \"updated_at\", \"delivered_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_event_outbox_evidence_idx": {
-          "name": "operational_event_outbox_evidence_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" -> 'evidence') jsonb_path_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {
-            "fastupdate": false
-          }
-        },
-        "operational_event_outbox_causation_idx": {
-          "name": "operational_event_outbox_causation_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" #>> '{correlation,causationEventId}')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_event_outbox\".\"envelope\" #>> '{correlation,causationEventId}') is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_event_outbox_evaluation_idx": {
-          "name": "operational_event_outbox_evaluation_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" #>> '{payload,evaluationId}')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_event_outbox\".\"envelope\" #>> '{payload,evaluationId}') is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3435,76 +3328,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_events_retention_age_idx": {
-          "name": "operational_events_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"stored_at\", \"occurred_at\", \"observed_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_events_evidence_idx": {
-          "name": "operational_events_evidence_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" -> 'evidence') jsonb_path_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {
-            "fastupdate": false
-          }
-        },
-        "operational_events_causation_idx": {
-          "name": "operational_events_causation_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" #>> '{correlation,causationEventId}')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_events\".\"envelope\" #>> '{correlation,causationEventId}') is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_events_evaluation_idx": {
-          "name": "operational_events_evaluation_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" #>> '{payload,evaluationId}')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_events\".\"envelope\" #>> '{payload,evaluationId}') is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4959,59 +4782,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "operational_slo_evaluations_trigger_event_idx": {
-          "name": "operational_slo_evaluations_trigger_event_idx",
-          "columns": [
-            {
-              "expression": "trigger_event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_slo_evaluations_retention_age_idx": {
-          "name": "operational_slo_evaluations_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"created_at\", \"evaluated_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_slo_evaluations_evidence_idx": {
-          "name": "operational_slo_evaluations_evidence_idx",
-          "columns": [
-            {
-              "expression": "(\"document\" -> 'evidence') jsonb_path_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {
-            "fastupdate": false
-          }
         }
       },
       "foreignKeys": {
@@ -5137,59 +4907,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "operational_synthetic_runs_event_idx": {
-          "name": "operational_synthetic_runs_event_idx",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_synthetic_runs_retention_age_idx": {
-          "name": "operational_synthetic_runs_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"created_at\", \"completed_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_synthetic_runs_evidence_idx": {
-          "name": "operational_synthetic_runs_evidence_idx",
-          "columns": [
-            {
-              "expression": "(\"document\" -> 'evidence') jsonb_path_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {
-            "fastupdate": false
-          }
         }
       },
       "foreignKeys": {
@@ -6203,6 +5920,79 @@
         "realtime_controller_admission_leases_resume_check": {
           "name": "realtime_controller_admission_leases_resume_check",
           "value": "(\"realtime_controller_admission_leases\".\"disconnected_at\" is null and \"realtime_controller_admission_leases\".\"resume_expires_at\" is null) or (\"realtime_controller_admission_leases\".\"disconnected_at\" is not null and \"realtime_controller_admission_leases\".\"resume_expires_at\" > \"realtime_controller_admission_leases\".\"disconnected_at\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.realtime_host_grant_consumptions": {
+      "name": "realtime_host_grant_consumptions",
+      "schema": "",
+      "columns": {
+        "jti": {
+          "name": "jti",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session_kind": {
+          "name": "session_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "realtime_host_grant_consumptions_expiry_idx": {
+          "name": "realtime_host_grant_consumptions_expiry_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "realtime_host_grant_consumptions_required_text_check": {
+          "name": "realtime_host_grant_consumptions_required_text_check",
+          "value": "length(btrim(\"realtime_host_grant_consumptions\".\"jti\")) > 0 and length(btrim(\"realtime_host_grant_consumptions\".\"app_id\")) > 0"
+        },
+        "realtime_host_grant_consumptions_session_kind_check": {
+          "name": "realtime_host_grant_consumptions_session_kind_check",
+          "value": "\"realtime_host_grant_consumptions\".\"session_kind\" in ('game', 'system')"
+        },
+        "realtime_host_grant_consumptions_chronology_check": {
+          "name": "realtime_host_grant_consumptions_chronology_check",
+          "value": "\"realtime_host_grant_consumptions\".\"expires_at\" > \"realtime_host_grant_consumptions\".\"consumed_at\""
         }
       },
       "isRLSEnabled": false

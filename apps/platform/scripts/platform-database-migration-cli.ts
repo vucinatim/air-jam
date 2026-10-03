@@ -45,6 +45,7 @@ import {
   canonicalJson,
   digestCanonicalJson,
   readPlatformMigrationCatalog,
+  resolveMigrationVerificationChecks,
 } from "../../../scripts/platform/lib/platform-migration-catalog.mjs";
 import {
   assertPlatformMigrationPlanAuthority,
@@ -335,7 +336,7 @@ const verifyChecks = async (
         select to_regclass(${`public.${identity}`})::text as relation
       `;
       passed = Boolean(row?.relation);
-    } else if (kind === "constraint") {
+    } else if (kind === "constraint" || kind === "absent-constraint") {
       const [tableName, constraintName] = identity.split(".", 2);
       const [row] = await client<{ exists: boolean }[]>`
         select exists(
@@ -347,7 +348,7 @@ const verifyChecks = async (
             and c.conname = ${constraintName}
         ) as exists
       `;
-      passed = row?.exists === true;
+      passed = row?.exists === (kind === "constraint");
     }
     results.push({ check, passed });
   }
@@ -425,9 +426,7 @@ const writePlan = async ({
     },
     pending: inspection.pending,
     drain: { affectedLanes, laneControls },
-    verificationChecks: inspection.pending.flatMap(
-      (entry) => entry.verificationChecks,
-    ),
+    verificationChecks: resolveMigrationVerificationChecks(inspection.pending),
     backup,
   };
   const digest = digestCanonicalJson(unsigned);

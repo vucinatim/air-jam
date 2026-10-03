@@ -340,7 +340,6 @@ export const provisionGoldenPathStaging = async ({
     });
 
   const appId = `air-jam-staging-${randomUUID()}`;
-  const masterKey = randomSecret();
   const hostGrantSecret = randomSecret();
   const browserAccessToken = randomSecret();
   const internalAccessToken = randomSecret();
@@ -364,7 +363,6 @@ export const provisionGoldenPathStaging = async ({
       variables: {
         ...sharedReleaseVariables,
         AIR_JAM_HOST_GRANT_SECRET: hostGrantSecret,
-        AIR_JAM_MASTER_KEY: masterKey,
         AIR_JAM_SYSTEM_APP_ID: appId,
         BETTER_AUTH_SECRET: authSecret,
         BETTER_AUTH_URL: platformOrigin,
@@ -402,7 +400,6 @@ export const provisionGoldenPathStaging = async ({
         AIR_JAM_ALLOWED_ORIGINS: platformOrigin,
         AIR_JAM_AUTH_MODE: "required",
         AIR_JAM_HOST_GRANT_SECRET: hostGrantSecret,
-        AIR_JAM_MASTER_KEY: masterKey,
       },
     },
     {

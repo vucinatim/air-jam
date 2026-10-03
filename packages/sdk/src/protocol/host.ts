@@ -17,6 +17,12 @@ export const childHostCapabilitySchema = z.object({
 
 export type ChildHostCapability = z.infer<typeof childHostCapabilitySchema>;
 
+export const hostResumeCapabilitySchema = z.object({
+  token: z.string().min(1),
+});
+
+export type HostResumeCapability = z.infer<typeof hostResumeCapabilitySchema>;
+
 export interface HostArcadeSurfaceCheckpoint {
   /** Last Arcade surface epoch accepted by the room before this reconnect. */
   epoch: number;
@@ -49,6 +55,8 @@ export interface HostRegistrationAck {
   controllers?: ControllerPresenceNotice[];
   /** Official Air Jam controller capability bundle for privileged controller channels. */
   controllerCapability?: ControllerPrivilegedCapability;
+  /** Bearer capability required to reclaim this room after the master socket disconnects. */
+  hostResumeCapability?: HostResumeCapability;
 }
 
 export interface HostBootstrapAck {
@@ -72,18 +80,10 @@ export interface HostSocketAuthority {
 export const hostBootstrapSchema = z.object({
   appId: z.string().optional(),
   hostGrant: z.string().min(1).optional(),
-  hostSessionKind: hostSessionKindSchema.default("system"),
+  hostSessionKind: hostSessionKindSchema.default("game"),
 });
 
 export type HostBootstrapPayload = z.infer<typeof hostBootstrapSchema>;
-
-export const hostRegisterSystemSchema = z.object({
-  roomId: roomCodeSchema,
-});
-
-export type HostRegisterSystemPayload = z.infer<
-  typeof hostRegisterSystemSchema
->;
 
 export const systemLaunchGameSchema = z.object({
   roomId: roomCodeSchema,
@@ -116,6 +116,7 @@ export type HostCreateRoomPayload = z.infer<typeof hostCreateRoomSchema>;
 
 export const hostReconnectSchema = z.object({
   roomId: roomCodeSchema,
+  resumeCapabilityToken: z.string().min(1),
 });
 
 export type HostReconnectPayload = z.infer<typeof hostReconnectSchema>;

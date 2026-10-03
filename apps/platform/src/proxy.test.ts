@@ -1,5 +1,10 @@
 import { NextRequest, type NextFetchEvent } from "next/server";
 import { describe, expect, it, vi } from "vitest";
+import {
+  AIR_JAM_LAUNCH_SESSION_COOKIE_NAME,
+  createAirJamLaunchSession,
+  verifyAirJamLaunchSession,
+} from "./lib/airjam-launch-session";
 
 const recordAgentResourceRequestBestEffort = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
@@ -11,6 +16,7 @@ vi.mock("@/server/product-telemetry/agent-resource", () => ({
 
 import {
   config,
+  isArcadeLaunchSessionRequest,
   proxy,
   resolveAgentResource,
   resolveHostedReleaseRequestDisposition,
@@ -33,10 +39,10 @@ describe("agent-resource proxy", () => {
     expect(resolveAgentResource("/ai-pack/stable/manifest.json")).toBeNull();
   });
 
-  it("records a classified resource without changing its response lane", () => {
+  it("records a classified resource without changing its response lane", async () => {
     const request = new NextRequest("https://airjam.io/llms.txt");
     const event = makeEvent();
-    const response = proxy(request, event);
+    const response = await proxy(request, event);
 
     expect(recordAgentResourceRequestBestEffort).toHaveBeenCalledWith({
       resource: "llms_txt",
@@ -46,8 +52,8 @@ describe("agent-resource proxy", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
-  it("preserves the dashboard authentication redirect", () => {
-    const response = proxy(
+  it("preserves the dashboard authentication redirect", async () => {
+    const response = await proxy(
       new NextRequest("https://airjam.io/dashboard/ops/telemetry?days=30"),
       makeEvent(),
     );
@@ -58,8 +64,8 @@ describe("agent-resource proxy", () => {
     );
   });
 
-  it("allows an authenticated dashboard request to continue", () => {
-    const response = proxy(
+  it("allows an authenticated dashboard request to continue", async () => {
+    const response = await proxy(
       new NextRequest("https://airjam.io/dashboard/ops/telemetry", {
         headers: { cookie: "better-auth.session_token=session" },
       }),
@@ -71,6 +77,250 @@ describe("agent-resource proxy", () => {
 
   it("keeps the matcher aligned with every observed resource", () => {
     expect(config.matcher).toEqual(["/:path*"]);
+  });
+});
+
+describe("Arcade launch-session navigation", () => {
+  const navigationHeaders = {
+    accept: "text/html,application/xhtml+xml",
+    host: "airjam.io",
+    "sec-fetch-dest": "document",
+    "sec-fetch-mode": "navigate",
+  };
+
+  it("sets a host-only 24-hour capability cookie on a top-level Arcade navigation", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://airjam.io");
+    vi.stubEnv("AIR_JAM_HOST_GRANT_SECRET", "host-grant-test-secret");
+    try {
+      const request = new NextRequest("https://airjam.io/arcade", {
+        headers: navigationHeaders,
+      });
+      expect(isArcadeLaunchSessionRequest(request)).toBe(true);
+
+      const response = await proxy(request, makeEvent());
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(response.headers.get("set-cookie")).toMatch(
+        /^__Host-airjam-launch-session=[^;]+; Path=\/; Expires=.*; Max-Age=86400; Secure; HttpOnly; SameSite=strict$/,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("preserves an existing valid abuse identity across Arcade navigation", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://airjam.io");
+    vi.stubEnv("AIR_JAM_HOST_GRANT_SECRET", "host-grant-test-secret");
+    try {
+      const existing = await createAirJamLaunchSession({
+        secret: "host-grant-test-secret",
+      });
+      const response = await proxy(
+        new NextRequest("https://airjam.io/arcade", {
+          headers: {
+            ...navigationHeaders,
+            cookie: `${AIR_JAM_LAUNCH_SESSION_COOKIE_NAME}=${existing.token}`,
+          },
+        }),
+        makeEvent(),
+      );
+
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(response.headers.get("set-cookie")).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it.each<{ name: string; headers: Record<string, string> }>([
+    {
+      name: "client navigation",
+      headers: {
+        rsc: "1",
+        accept: "text/x-component",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+      },
+    },
+    {
+      name: "App Router prefetch",
+      headers: {
+        rsc: "1",
+        accept: "*/*",
+        "next-router-prefetch": "1",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+      },
+    },
+    {
+      name: "RSC without Fetch Metadata",
+      headers: { rsc: "1", accept: "text/x-component" },
+    },
+    {
+      name: "document without Fetch Metadata",
+      headers: { accept: "text/html,application/xhtml+xml" },
+    },
+  ])("provisions a valid launch cookie for $name", async ({ headers }) => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://airjam.io");
+    vi.stubEnv("AIR_JAM_HOST_GRANT_SECRET", "host-grant-test-secret");
+    try {
+      const request = new NextRequest(
+        "https://airjam.io/arcade?_rsc=navigation",
+        {
+          headers: { ...headers, host: "airjam.io" },
+        },
+      );
+      expect(isArcadeLaunchSessionRequest(request)).toBe(true);
+      const response = await proxy(request, makeEvent());
+      const token = response.cookies.get(
+        AIR_JAM_LAUNCH_SESSION_COOKIE_NAME,
+      )?.value;
+      expect(token).toBeTruthy();
+      expect(
+        await verifyAirJamLaunchSession({
+          secret: "host-grant-test-secret",
+          token: token!,
+        }),
+      ).toMatchObject({ ok: true });
+      expect(response.headers.get("set-cookie")).toMatch(
+        /; Secure; HttpOnly; SameSite=strict$/,
+      );
+      expect(response.headers.get("set-cookie")).not.toContain("Domain=");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it.each<{ path: string; method: string; headers: Record<string, string> }>([
+    { path: "/arcade", method: "POST", headers: navigationHeaders },
+    {
+      path: "/arcade",
+      method: "GET",
+      headers: { ...navigationHeaders, rsc: "1", "sec-fetch-dest": "iframe" },
+    },
+    {
+      path: "/arcade/app.js",
+      method: "GET",
+      headers: {
+        rsc: "1",
+        accept: "*/*",
+        "sec-fetch-dest": "script",
+        "sec-fetch-mode": "no-cors",
+      },
+    },
+    { path: "/arcade/app.js", method: "GET", headers: { accept: "*/*" } },
+    {
+      path: "/arcade",
+      method: "GET",
+      headers: {
+        accept: "*/*",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+      },
+    },
+    { path: "/arcade-other", method: "GET", headers: navigationHeaders },
+    {
+      path: "/",
+      method: "GET",
+      headers: { rsc: "1", "next-router-prefetch": "1" },
+    },
+  ])(
+    "does not mint for unsupported $method $path request shapes",
+    async ({ path, method, headers }) => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://airjam.io");
+      vi.stubEnv("AIR_JAM_HOST_GRANT_SECRET", "host-grant-test-secret");
+      try {
+        const request = new NextRequest(`https://airjam.io${path}`, {
+          method,
+          headers: { ...headers, host: "airjam.io" },
+        });
+        expect(isArcadeLaunchSessionRequest(request)).toBe(false);
+        expect(
+          (await proxy(request, makeEvent())).headers.get("set-cookie"),
+        ).toBeNull();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
+  it("rotates an invalid launch-session cookie", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://airjam.io");
+    vi.stubEnv("AIR_JAM_HOST_GRANT_SECRET", "host-grant-test-secret");
+    try {
+      const response = await proxy(
+        new NextRequest("https://airjam.io/arcade", {
+          headers: {
+            ...navigationHeaders,
+            cookie: `${AIR_JAM_LAUNCH_SESSION_COOKIE_NAME}=invalid.token`,
+          },
+        }),
+        makeEvent(),
+      );
+
+      expect(response.headers.get("set-cookie")).toMatch(
+        /^__Host-airjam-launch-session=[^;]+;/,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("does not mint launch authority for subresources or iframe navigations", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://airjam.io");
+    vi.stubEnv("AIR_JAM_HOST_GRANT_SECRET", "host-grant-test-secret");
+    try {
+      const iframeRequest = new NextRequest("https://airjam.io/arcade", {
+        headers: { ...navigationHeaders, "sec-fetch-dest": "iframe" },
+      });
+      const scriptRequest = new NextRequest(
+        "https://airjam.io/arcade/assets/app.js",
+        {
+          headers: {
+            accept: "*/*",
+            host: "airjam.io",
+            "sec-fetch-dest": "script",
+            "sec-fetch-mode": "no-cors",
+          },
+        },
+      );
+
+      expect(isArcadeLaunchSessionRequest(iframeRequest)).toBe(false);
+      expect(isArcadeLaunchSessionRequest(scriptRequest)).toBe(false);
+      expect(
+        (await proxy(iframeRequest, makeEvent())).headers.get("set-cookie"),
+      ).toBeNull();
+      expect(
+        (await proxy(scriptRequest, makeEvent())).headers.get("set-cookie"),
+      ).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("fails closed when production cannot sign an Arcade launch session", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://airjam.io");
+    vi.stubEnv("AIR_JAM_HOST_GRANT_SECRET", "");
+    try {
+      const response = await proxy(
+        new NextRequest("https://airjam.io/arcade", {
+          headers: navigationHeaders,
+        }),
+        makeEvent(),
+      );
+
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("set-cookie")).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
@@ -274,7 +524,7 @@ describe("hosted release request routing", () => {
     ).toEqual({ kind: "block_unknown_host" });
   });
 
-  it("returns the security disposition as concrete proxy responses", () => {
+  it("returns the security disposition as concrete proxy responses", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("RAILWAY_ENVIRONMENT_NAME", "production");
     vi.stubEnv("RAILWAY_PUBLIC_DOMAIN", "");
@@ -288,20 +538,20 @@ describe("hosted release request routing", () => {
     );
 
     try {
-      const direct = proxy(
+      const direct = await proxy(
         new NextRequest(
           "https://airjamusercontent.net/releases/g/game-1/r/release-1/generations/generation-1/",
           { headers: { host: "airjamusercontent.net" } },
         ),
         makeEvent(),
       );
-      const blocked = proxy(
+      const blocked = await proxy(
         new NextRequest("https://airjamusercontent.net/login", {
           headers: { host: "airjamusercontent.net" },
         }),
         makeEvent(),
       );
-      const redirected = proxy(
+      const redirected = await proxy(
         new NextRequest(
           "https://airjam.io/releases/g/game-1/r/release-1/generations/generation-1/",
           {
@@ -327,7 +577,7 @@ describe("hosted release request routing", () => {
       );
 
       vi.stubEnv("AIRJAM_RELEASES_PUBLIC_ORIGIN", "");
-      const unavailable = proxy(
+      const unavailable = await proxy(
         new NextRequest(
           "https://airjam.io/releases/g/game-1/r/release-1/generations/generation-1/",
           {

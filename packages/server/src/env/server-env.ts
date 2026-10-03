@@ -124,9 +124,21 @@ const resolveAuthMode = ({
   return nodeEnv === "production" ? "required" : "disabled";
 };
 
+export const isLocalMasterKeyAllowed = ({
+  nodeEnv,
+  operationalEnvironment,
+}: {
+  nodeEnv: string;
+  operationalEnvironment: ServerEnvConfig["operationalEnvironment"];
+}): boolean =>
+  nodeEnv !== "production" &&
+  (operationalEnvironment === "development" ||
+    operationalEnvironment === "test");
+
 const rawServerEnvSchema = z
   .object({
     NODE_ENV: optionalEnvString,
+    RAILWAY_ENVIRONMENT_NAME: optionalEnvString,
     AIRJAM_OPERATIONAL_ENVIRONMENT: createOptionalEnumSchema(
       "AIRJAM_OPERATIONAL_ENVIRONMENT",
       deploymentEnvironments,
@@ -185,6 +197,15 @@ const rawServerEnvSchema = z
       configuredAuthMode: value.AIR_JAM_AUTH_MODE as AuthMode | undefined,
       nodeEnv,
     });
+    const operationalEnvironment = resolveDeploymentEnvironment({
+      NODE_ENV: value.NODE_ENV,
+      RAILWAY_ENVIRONMENT_NAME: value.RAILWAY_ENVIRONMENT_NAME,
+      AIRJAM_OPERATIONAL_ENVIRONMENT: value.AIRJAM_OPERATIONAL_ENVIRONMENT,
+    });
+    const localMasterKeyEnabled = isLocalMasterKeyAllowed({
+      nodeEnv,
+      operationalEnvironment,
+    });
     const databasePolicy = resolveServerRuntimeDatabaseUrl({
       NODE_ENV: nodeEnv,
       DATABASE_URL: value.DATABASE_URL,
@@ -193,9 +214,8 @@ const rawServerEnvSchema = z
 
     if (
       authMode === "required" &&
-      !value.AIR_JAM_MASTER_KEY &&
-      !databasePolicy.databaseUrl &&
-      !value.AIR_JAM_HOST_GRANT_SECRET
+      !(localMasterKeyEnabled && value.AIR_JAM_MASTER_KEY) &&
+      !databasePolicy.databaseUrl
     ) {
       context.addIssue({
         code: "custom",
@@ -207,7 +227,7 @@ const rawServerEnvSchema = z
               REMOTE_DATABASE_BLOCKED_MESSAGE,
               "Required auth cannot rely on that blocked database URL without AIR_JAM_ALLOW_REMOTE_DATABASE=enabled.",
             ].join(" ")
-          : "AIR_JAM_AUTH_MODE=required requires at least one auth backend: AIR_JAM_MASTER_KEY, DATABASE_URL, or AIR_JAM_HOST_GRANT_SECRET.",
+          : "AIR_JAM_AUTH_MODE=required requires DATABASE_URL. AIR_JAM_HOST_GRANT_SECRET alone cannot consume grants; AIR_JAM_MASTER_KEY is an alternative only in local development or tests.",
       });
     }
   });
@@ -223,7 +243,9 @@ export const loadServerEnv = (
       "Set AIR_JAM_* values in .env.local (repo root) or packages/server/.env and retry.",
     keyHints: {
       AIR_JAM_AUTH_MODE:
-        "Choose disabled/required. If required, configure AIR_JAM_MASTER_KEY, DATABASE_URL, or AIR_JAM_HOST_GRANT_SECRET.",
+        "Choose disabled/required. Hosted required auth needs DATABASE_URL; AIR_JAM_HOST_GRANT_SECRET signs grants but is not a standalone backend. AIR_JAM_MASTER_KEY is local-development/test only.",
+      DATABASE_URL:
+        "Set the canonical PostgreSQL database URL. Outside production, use a local database or explicitly authorize the remote target with AIR_JAM_ALLOW_REMOTE_DATABASE=enabled.",
       AIR_JAM_ALLOW_REMOTE_DATABASE:
         "Choose enabled only when local or test server workflows intentionally need a non-local DATABASE_URL.",
       AIR_JAM_TRUST_PROXY_HEADERS:
@@ -245,6 +267,10 @@ export const loadServerEnv = (
   // strict.
   const railwayEnvironmentName = env.RAILWAY_ENVIRONMENT_NAME?.trim();
   const operationalEnvironment = resolveDeploymentEnvironment(env);
+  const localMasterKeyAllowed = isLocalMasterKeyAllowed({
+    nodeEnv,
+    operationalEnvironment,
+  });
   const isRailwayPreviewEnvironment =
     Boolean(railwayEnvironmentName) && operationalEnvironment === "preview";
   const operationalBudgetRequirement = resolveOperationalBudgetRequirement(env);
@@ -284,7 +310,7 @@ export const loadServerEnv = (
         | ProxyHeaderTrustMode
         | undefined) ?? "auto",
     remoteDatabaseBlocked: databasePolicy.remoteDatabaseBlocked,
-    masterKey: parsed.AIR_JAM_MASTER_KEY,
+    masterKey: localMasterKeyAllowed ? parsed.AIR_JAM_MASTER_KEY : undefined,
     hostGrantSecret: parsed.AIR_JAM_HOST_GRANT_SECRET,
     databaseUrl: databasePolicy.databaseUrl,
     logLevel: parsed.AIR_JAM_LOG_LEVEL,

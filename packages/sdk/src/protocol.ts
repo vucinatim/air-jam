@@ -8,6 +8,7 @@ export * from "./protocol/host-grant";
 export * from "./protocol/notices";
 export * from "./protocol/runtime-reporting";
 export * from "./protocol/signals";
+export * from "./protocol/signed-envelope";
 export * from "./protocol/socket-events";
 export * from "./protocol/sync";
 export * from "./protocol/url-policy";

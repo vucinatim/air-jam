@@ -19,7 +19,6 @@ import type {
   HostCreateRoomPayload,
   HostJoinAsChildPayload,
   HostReconnectPayload,
-  HostRegisterSystemPayload,
   HostRegistrationAck,
   HostRemoveControllerPayload,
   HostResetRoomPayload,
@@ -62,10 +61,6 @@ export interface ClientToServerEvents {
   "host:bootstrap": (
     payload: HostBootstrapPayload,
     callback: (ack: HostBootstrapAck) => void,
-  ) => void;
-  "host:registerSystem": (
-    payload: HostRegisterSystemPayload,
-    callback: (ack: HostRegistrationAck) => void,
   ) => void;
   "host:createRoom": (
     payload: HostCreateRoomPayload,

@@ -90,7 +90,7 @@ const parseMigrationPolicy = ({ entry, sql }) => {
     );
   }
   for (const check of verificationChecks) {
-    if (!/^(table|constraint|index):[a-z0-9_.]+$/u.test(check)) {
+    if (!/^(table|constraint|absent-constraint|index):[a-z0-9_.]+$/u.test(check)) {
       throw new Error(
         `Migration ${entry.tag} has unsupported verification check ${check}.`,
       );
@@ -103,6 +103,16 @@ const parseMigrationPolicy = ({ entry, sql }) => {
     verificationChecks,
     policySource: "directive",
   };
+};
+
+export const resolveMigrationVerificationChecks = (entries) => {
+  const checks = new Map();
+  for (const entry of entries) {
+    for (const check of entry.verificationChecks) {
+      checks.set(check.replace(/^absent-constraint:/u, "constraint:"), check);
+    }
+  }
+  return [...checks.values()];
 };
 
 export const readPlatformMigrationCatalog = ({

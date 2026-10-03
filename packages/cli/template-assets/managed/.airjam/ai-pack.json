@@ -111,8 +111,8 @@
     {
       "path": "docs/airjam/generated/quick-start.md",
       "kind": "docs-generated",
-      "size": 11730,
-      "sha256": "848cedaef0e8f39777c9e0b73b5a695a4ed6de80d19483e1fb773dd6df41ac3f"
+      "size": 12077,
+      "sha256": "796c23803757ecd526472b2c2a892e1f0d4e0763a270dd83a9d41064a80b851d"
     },
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
@@ -169,5 +169,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "f8d0983f4d4a5a13f738de9c4382c37ffe2ac6d894337bb1c799cd059e512d65"
+  "contentDigest": "770132004bf5c171bdfb855f2bd47d6b22cf113a98507d2437d46e5c7e33be1e"
 }

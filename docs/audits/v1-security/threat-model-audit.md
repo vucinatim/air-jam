@@ -324,10 +324,10 @@ The change is local, not yet published or deployed; `G5-02` remains open.
   production auth fail-closed behavior, and socket lifecycle rate limits.
 - Threat and harm: raw clients can omit or forge `Origin`, replay a grant, and
   attempt to bind or replace privileged host authority for a live room.
-- Canonical end state: host-grant issuance has a non-forgeable abuse identity;
-  claims bind `jti`, audience, session kind, and launch/room intent; the server
-  consumes them atomically once. An active master host can be replaced only
-  with a server-issued reconnect/lease capability.
+- Canonical end state: claims bind `jti`, audience, session kind, and allowed
+  origins; the server consumes each `jti` atomically once. An active
+  master host can be replaced only with a server-issued reconnect/lease
+  capability.
 - Owner and dependencies: platform host auth, SDK protocol, realtime lifecycle;
   `G5-02`.
 - Required proof: raw-client tests reject missing/forged origin, replay,

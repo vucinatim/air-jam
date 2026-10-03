@@ -190,6 +190,7 @@ export const {
   operationalControlEvents,
   operationalLaneControls,
   realtimeAdmissionInstances,
+  realtimeHostGrantConsumptions,
   realtimeControllerAdmissionLeases,
   realtimeRoomAdmissionLeases,
   runtimeUsageSessions,

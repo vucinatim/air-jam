@@ -8,7 +8,6 @@ import {
   hostCreateRoomSchema,
   hostJoinAsChildSchema,
   hostReconnectSchema,
-  hostRegisterSystemSchema,
   hostRemoveControllerSchema,
   hostResetRoomSchema,
   systemLaunchGameSchema,
@@ -19,7 +18,6 @@ import {
   type HostCreateRoomPayload,
   type HostJoinAsChildPayload,
   type HostReconnectPayload,
-  type HostRegisterSystemPayload,
   type HostRegistrationAck,
   type HostRemoveControllerPayload,
   type HostResetRoomPayload,
@@ -58,6 +56,7 @@ import {
   transitionToSystemFocus,
 } from "../../domain/room-session-domain.js";
 import { redactIdentifier } from "../../logging/logger.js";
+import type { HostBootstrapVerificationResult } from "../../services/auth-service.js";
 import type {
   RealtimeAdmissionDenial,
   RealtimeRoomLease,
@@ -90,23 +89,20 @@ export const registerHostLifecycleHandlers = (
   });
 
   const bindHostAuthority = (
-    appId?: string,
-    gameId?: string,
-    creatorId?: string,
-    verifiedVia?: "appId" | "hostGrant",
-    verifiedOrigin?: string,
-    hostSessionKind: HostSessionKind = "system",
+    verification: HostBootstrapVerificationResult & {
+      hostSessionKind: HostSessionKind;
+    },
   ): string => {
     const traceId = `host_${uuidv4().replace(/-/g, "").slice(0, 12)}`;
     socket.data.hostAuthority = {
-      appId,
-      gameId,
-      creatorId,
+      appId: verification.appId,
+      gameId: verification.gameId,
+      creatorId: verification.creatorId,
       traceId,
       verifiedAt: Date.now(),
-      verifiedVia,
-      verifiedOrigin,
-      hostSessionKind,
+      verifiedVia: verification.verifiedVia,
+      verifiedOrigin: verification.verifiedOrigin,
+      hostSessionKind: verification.hostSessionKind,
     };
     return traceId;
   };
@@ -124,6 +120,7 @@ export const registerHostLifecycleHandlers = (
     return {
       roomId,
       masterHostSocketId: socket.id,
+      hostResumeCapability: { token: uuidv4() },
       analytics,
       focus: startsInGameFocus ? "GAME" : "SYSTEM",
       launchCapability: undefined,
@@ -290,6 +287,7 @@ export const registerHostLifecycleHandlers = (
     players: buildHostRosterSnapshot(session),
     controllers: buildHostControllerSnapshot(session),
     controllerCapability: getControllerCapabilityForAck(session),
+    hostResumeCapability: session.hostResumeCapability,
   });
 
   const getHostLogger = (bindings: Record<string, unknown> = {}) => {
@@ -430,11 +428,12 @@ export const registerHostLifecycleHandlers = (
         appId: parsed.data.appId,
         hostGrant: parsed.data.hostGrant,
         origin: requestOrigin,
+        hostSessionKind: parsed.data.hostSessionKind,
       });
       if (!socket.connected) {
         return;
       }
-      if (!verification.isVerified) {
+      if (!verification.isVerified || !verification.hostSessionKind) {
         logHostEvent(
           "warn",
           AIRJAM_DEV_LOG_EVENTS.host.bootstrapRejected,
@@ -481,14 +480,10 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const traceId = bindHostAuthority(
-        verification.appId,
-        verification.gameId,
-        verification.creatorId,
-        verification.verifiedVia,
-        verification.verifiedOrigin,
-        parsed.data.hostSessionKind,
-      );
+      const traceId = bindHostAuthority({
+        ...verification,
+        hostSessionKind: verification.hostSessionKind,
+      });
       logHostEvent(
         "info",
         AIRJAM_DEV_LOG_EVENTS.host.bootstrapVerified,
@@ -508,110 +503,6 @@ export const registerHostLifecycleHandlers = (
         }),
       );
       callback({ ok: true, traceId });
-    },
-  );
-
-  socket.on(
-    "host:registerSystem",
-    async (payload: HostRegisterSystemPayload, callback) => {
-      if (
-        context.isRateLimited(
-          "host-registration",
-          context.hostRegistrationRateLimitMax,
-        )
-      ) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-          "Rejected host registerSystem due to socket rate limit",
-          { reason: "rate_limited" },
-        );
-        callback({
-          ok: false,
-          message: "Too many host registration attempts. Please try again.",
-          code: ErrorCode.SERVICE_UNAVAILABLE,
-        });
-        return;
-      }
-
-      if (!ensureHostAuthority("host:registerSystem", callback)) {
-        return;
-      }
-
-      if (isStaticAppRateLimited("static-app-lifecycle")) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-          "Rejected host registerSystem due to static app quota",
-          { reason: "static_app_quota" },
-        );
-        callback({
-          ok: false,
-          message:
-            "Too many host lifecycle attempts for this app. Please try again.",
-          code: ErrorCode.SERVICE_UNAVAILABLE,
-        });
-        return;
-      }
-
-      const parsed = hostRegisterSystemSchema.safeParse(payload);
-      if (!parsed.success) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.registerSystemRejected,
-          "Rejected host registerSystem with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { roomId } = parsed.data;
-
-      let session = roomManager.getRoom(roomId);
-      if (session) {
-        clearPendingRoomCloseTimer(session);
-        session.masterHostSocketId = socket.id;
-        syncRoomAnalyticsState(session.analytics, socket.data.hostAuthority);
-        roomManager.setRoom(roomId, session);
-      } else {
-        const created = await createAndBindRoomForHost({
-          roomId,
-          maxPlayers: 32,
-          hostSessionKind: "system",
-        });
-        if (!created.ok) {
-          rejectAdmission(created.denial, callback);
-          return;
-        }
-        session = created.session;
-      }
-
-      roomManager.setHostRoom(socket.id, roomId);
-      socket.join(roomId);
-
-      logHostEvent(
-        "info",
-        AIRJAM_DEV_LOG_EVENTS.host.registerSystemAccepted,
-        "Host registered as system host",
-        {
-          roomId,
-        },
-      );
-      runtimeUsagePublisher.publish(
-        createRoomRuntimeUsageEvent(session, {
-          kind: "room_registered",
-        }),
-      );
-      callback(buildHostRegistrationAck(session));
-      io.to(roomId).emit("server:roomReady", { roomId });
     },
   );
 
@@ -706,7 +597,7 @@ export const registerHostLifecycleHandlers = (
 
       const created = await createAndBindRoomForHost({
         maxPlayers: maxPlayers ?? 8,
-        hostSessionKind: socket.data.hostAuthority?.hostSessionKind ?? "game",
+        hostSessionKind: socket.data.hostAuthority!.hostSessionKind,
       });
       if (!created.ok) {
         logHostEvent(
@@ -829,7 +720,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const { roomId } = parsed.data;
+      const { roomId, resumeCapabilityToken } = parsed.data;
 
       const session = roomManager.getRoom(roomId);
       if (!session) {
@@ -850,6 +741,24 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
+      if (session.hostResumeCapability.token !== resumeCapabilityToken) {
+        logHostEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.host.reconnectRejected,
+          "Rejected host reconnect with an invalid resume capability",
+          {
+            roomId,
+            reason: "invalid_resume_capability",
+          },
+        );
+        callback({
+          ok: false,
+          message: "Invalid host resume capability",
+          code: ErrorCode.UNAUTHORIZED,
+        });
+        return;
+      }
+
       const previousMasterSocket = io.sockets.sockets.get(
         session.masterHostSocketId,
       );
@@ -862,7 +771,6 @@ export const registerHostLifecycleHandlers = (
         const previousGameState = session.runtimeState;
 
         session.masterHostSocketId = socket.id;
-        syncRoomAnalyticsState(session.analytics, socket.data.hostAuthority);
         roomManager.setRoom(roomId, session);
         roomManager.setHostRoom(socket.id, roomId);
         socket.join(roomId);

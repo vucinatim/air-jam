@@ -5,6 +5,7 @@ import { setupServerTestHarness } from "./helpers/server-test-harness";
 type HostCreateRoomAck = {
   ok: boolean;
   roomId?: string;
+  hostResumeCapability?: { token: string };
 };
 
 type ControllerJoinAck = {
@@ -12,10 +13,11 @@ type ControllerJoinAck = {
 };
 
 const allowAllAuthService = {
-  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+  verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
     isVerified: true,
     appId,
     verifiedVia: "appId" as const,
+    hostSessionKind: hostSessionKind ?? "system",
   }),
 } as AuthService;
 
@@ -36,6 +38,7 @@ describe("server stability churn", () => {
 
     expect(createAck.ok).toBe(true);
     const roomId = createAck.roomId!;
+    const resumeCapabilityToken = createAck.hostResumeCapability!.token;
 
     for (let i = 0; i < 5; i += 1) {
       host.disconnect();
@@ -46,7 +49,7 @@ describe("server stability churn", () => {
       const reconnectAck = await harness.emitWithAck<HostCreateRoomAck>(
         host,
         "host:reconnect",
-        { roomId },
+        { roomId, resumeCapabilityToken },
       );
 
       expect(reconnectAck.ok).toBe(true);

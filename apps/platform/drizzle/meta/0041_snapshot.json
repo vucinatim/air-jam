@@ -1,6 +1,6 @@
 {
-  "id": "6f620579-e01b-4ae2-a276-e07e139449eb",
-  "prevId": "9d440da9-0c75-4b39-bc4f-adbd75ac2caa",
+  "id": "78825de8-91dd-4b94-b8bd-f072bfe9f7c0",
+  "prevId": "08700be7-3ae6-42e6-95aa-c3aa2dd94a81",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1199,134 +1199,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.game_release_report_decisions": {
-      "name": "game_release_report_decisions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "report_id": {
-          "name": "report_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor": {
-          "name": "actor",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "game_release_report_decisions_revision_idx": {
-          "name": "game_release_report_decisions_revision_idx",
-          "columns": [
-            {
-              "expression": "report_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "revision",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "game_release_report_decisions_command_idx": {
-          "name": "game_release_report_decisions_command_idx",
-          "columns": [
-            {
-              "expression": "report_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "idempotency_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "game_release_report_decisions_report_id_game_release_reports_id_fk": {
-          "name": "game_release_report_decisions_report_id_game_release_reports_id_fk",
-          "tableFrom": "game_release_report_decisions",
-          "tableTo": "game_release_reports",
-          "columnsFrom": [
-            "report_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "game_release_report_decisions_revision_check": {
-          "name": "game_release_report_decisions_revision_check",
-          "value": "\"game_release_report_decisions\".\"revision\" > 0"
-        },
-        "game_release_report_decisions_status_check": {
-          "name": "game_release_report_decisions_status_check",
-          "value": "\"game_release_report_decisions\".\"status\" in ('open', 'reviewed', 'dismissed')"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.game_release_reports": {
       "name": "game_release_reports",
       "schema": "",
@@ -1385,13 +1257,6 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
-        },
-        "review_revision": {
-          "name": "review_revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {
@@ -3049,43 +2914,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "operational_event_delivery_commands_retention_age_idx": {
-          "name": "operational_event_delivery_commands_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"created_at\", \"completed_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_event_delivery_commands_audit_event_idx": {
-          "name": "operational_event_delivery_commands_audit_event_idx",
-          "columns": [
-            {
-              "expression": "(\"result\" ->> 'auditEventId')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_event_delivery_commands\".\"result\" ->> 'auditEventId') is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -3278,76 +3106,6 @@
           ],
           "isUnique": false,
           "where": "\"operational_event_outbox\".\"status\" = 'delivering'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_event_outbox_retention_age_idx": {
-          "name": "operational_event_outbox_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"created_at\", \"updated_at\", \"delivered_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_event_outbox_evidence_idx": {
-          "name": "operational_event_outbox_evidence_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" -> 'evidence') jsonb_path_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {
-            "fastupdate": false
-          }
-        },
-        "operational_event_outbox_causation_idx": {
-          "name": "operational_event_outbox_causation_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" #>> '{correlation,causationEventId}')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_event_outbox\".\"envelope\" #>> '{correlation,causationEventId}') is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_event_outbox_evaluation_idx": {
-          "name": "operational_event_outbox_evaluation_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" #>> '{payload,evaluationId}')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_event_outbox\".\"envelope\" #>> '{payload,evaluationId}') is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3570,76 +3328,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_events_retention_age_idx": {
-          "name": "operational_events_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"stored_at\", \"occurred_at\", \"observed_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_events_evidence_idx": {
-          "name": "operational_events_evidence_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" -> 'evidence') jsonb_path_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {
-            "fastupdate": false
-          }
-        },
-        "operational_events_causation_idx": {
-          "name": "operational_events_causation_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" #>> '{correlation,causationEventId}')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_events\".\"envelope\" #>> '{correlation,causationEventId}') is not null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_events_evaluation_idx": {
-          "name": "operational_events_evaluation_idx",
-          "columns": [
-            {
-              "expression": "(\"envelope\" #>> '{payload,evaluationId}')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "(\"operational_events\".\"envelope\" #>> '{payload,evaluationId}') is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5094,59 +4782,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "operational_slo_evaluations_trigger_event_idx": {
-          "name": "operational_slo_evaluations_trigger_event_idx",
-          "columns": [
-            {
-              "expression": "trigger_event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_slo_evaluations_retention_age_idx": {
-          "name": "operational_slo_evaluations_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"created_at\", \"evaluated_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_slo_evaluations_evidence_idx": {
-          "name": "operational_slo_evaluations_evidence_idx",
-          "columns": [
-            {
-              "expression": "(\"document\" -> 'evidence') jsonb_path_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {
-            "fastupdate": false
-          }
         }
       },
       "foreignKeys": {
@@ -5272,59 +4907,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "operational_synthetic_runs_event_idx": {
-          "name": "operational_synthetic_runs_event_idx",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_synthetic_runs_retention_age_idx": {
-          "name": "operational_synthetic_runs_retention_age_idx",
-          "columns": [
-            {
-              "expression": "greatest(\"created_at\", \"completed_at\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "operational_synthetic_runs_evidence_idx": {
-          "name": "operational_synthetic_runs_evidence_idx",
-          "columns": [
-            {
-              "expression": "(\"document\" -> 'evidence') jsonb_path_ops",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {
-            "fastupdate": false
-          }
         }
       },
       "foreignKeys": {
@@ -6338,6 +5920,75 @@
         "realtime_controller_admission_leases_resume_check": {
           "name": "realtime_controller_admission_leases_resume_check",
           "value": "(\"realtime_controller_admission_leases\".\"disconnected_at\" is null and \"realtime_controller_admission_leases\".\"resume_expires_at\" is null) or (\"realtime_controller_admission_leases\".\"disconnected_at\" is not null and \"realtime_controller_admission_leases\".\"resume_expires_at\" > \"realtime_controller_admission_leases\".\"disconnected_at\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.realtime_host_grant_consumptions": {
+      "name": "realtime_host_grant_consumptions",
+      "schema": "",
+      "columns": {
+        "jti": {
+          "name": "jti",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session_kind": {
+          "name": "session_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "realtime_host_grant_consumptions_expiry_idx": {
+          "name": "realtime_host_grant_consumptions_expiry_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "realtime_host_grant_consumptions_required_text_check": {
+          "name": "realtime_host_grant_consumptions_required_text_check",
+          "value": "length(btrim(\"realtime_host_grant_consumptions\".\"jti\")) > 0 and length(btrim(\"realtime_host_grant_consumptions\".\"app_id\")) > 0"
+        },
+        "realtime_host_grant_consumptions_session_kind_check": {
+          "name": "realtime_host_grant_consumptions_session_kind_check",
+          "value": "\"realtime_host_grant_consumptions\".\"session_kind\" in ('game', 'system')"
         }
       },
       "isRLSEnabled": false

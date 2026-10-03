@@ -13,11 +13,6 @@ export const HostEvents = {
   BOOTSTRAP: "host:bootstrap",
 
   /**
-   * Register as the system/arcade master host
-   */
-  REGISTER_SYSTEM: "host:registerSystem",
-
-  /**
    * Join as a child host (game launched from arcade)
    */
   JOIN_AS_CHILD: "host:joinAsChild",
