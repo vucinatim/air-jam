@@ -1,0 +1,109 @@
+{
+  "dateLocal": "2026-10-04",
+  "timezone": "Europe/Ljubljana",
+  "sourceBaseline": "c8b3b676582915b9c49c4178cb84d980b2876417",
+  "scope": "Uncommitted managed-session owner, fresh offline Pong rendering and owned public-network compatibility. Not production integration or containment closure.",
+  "authentication": "Existing Wrangler OAuth passed in memory; no credential created or persisted",
+  "sessionOwner": {
+    "source": "apps/platform/src/server/releases/cloudflare-browser-session.ts",
+    "lifecycle": "Authenticated REST acquisition, deadline-bounded CDP connection, original API origin only, explicit owned-session deletion and bounded connection cleanup, including connection failure",
+    "unitTestsPassed": 16,
+    "productionCallerIntegrated": false,
+    "limitations": [
+      "An acquisition that times out before returning its identifier cannot be explicitly deleted; provider inactivity expiry remains the backstop",
+      "Acknowledged closing is not terminal closure evidence; successful live sessions were independently checked afterward",
+      "Managed browser network isolation and security maintenance remain unconfirmed"
+    ]
+  },
+  "freshGameBuild": {
+    "command": "node packages/cli/bin/airjam.mjs release bundle --dir games/pong --out .airjam/proofs/cloudflare-capture-20261004/pong.zip",
+    "sdkRebuiltFirst": true,
+    "artifact": "games/pong/.airjam/proofs/cloudflare-capture-20261004/pong.zip",
+    "validatedFiles": 14,
+    "extractedBytes": 3906657,
+    "sha256": "4e804d626feb40e580ec28bfadb4eb79c4d91b90f942cec25516848464b3086c"
+  },
+  "offlineGame": {
+    "sessionId": "c1dc17ac-c978-4190-a4a1-aab37fd79cda",
+    "durationMs": 5571,
+    "origin": "http://capture-fixture.invalid",
+    "generationPath": "/releases/g/pong-proof/r/owned-release/generations/owned-generation/",
+    "fixtureSeam": "Only the already-public-policy-approved numeric HTTP dial was mapped to an owned local listener. Real inspection routing, DNS pinning, generation token creation/verification and hosted asset/bootstrap helpers ran unchanged.",
+    "privateAssets": [
+      "index.html",
+      "assets/index-DQjkV4YL.js",
+      "assets/index-LWxLMpSj.css",
+      "assets/index-Dsjb5sQJ.js",
+      "assets/team-slot-tile-VYCdGM2Q.js",
+      "sounds/pong-hit.wav",
+      "sounds/pong-score.wav",
+      "sounds/pong-start.wav",
+      "sounds/pong-win.wav"
+    ],
+    "visibleSurface": "Pong lobby with team slots, readiness, controller link and play control; loading screen absent",
+    "uncaughtPageErrors": [],
+    "viewport": { "width": 1440, "height": 900 },
+    "screenshot": {
+      "bytes": 252044,
+      "sha256": "1b31a5085596253acc36a7367ce26703b4cd0543d7cf6d8afa02ef9cb1dac944",
+      "storage": "In memory only"
+    },
+    "limitations": "Offline built-game rendering, not R2/upload, TLS fixture, multiplayer, visual screenshot inspection or provider private-network denial. Non-generation traffic was aborted in this test only, not restricted in product code.",
+    "earlierAttempts": [
+      "Initial fixture directory resolution failed before provider acquisition; corrected repo-relative path",
+      "Case-sensitive Pong text wait failed; competing context/session cleanup masked that failure. Corrected case-insensitive wait and used the session owner for cleanup",
+      "Existing pre-rebuild Pong output passed before the fresh CLI bundle; retained fresh build as authoritative evidence"
+    ]
+  },
+  "publicNetwork": {
+    "sessionId": "3ba8f553-1e5b-48d0-970b-173d6ff70f62",
+    "httpsUrl": "https://airjam.io/api/readiness",
+    "httpsStatus": 200,
+    "wssUrl": "wss://api.airjam.io/socket.io/?EIO=4&transport=websocket",
+    "result": "Browser WebSocket opened and closed; no room actions or messages sent",
+    "backendDiscovery": "Current runtime topology in an existing public hosted release, not an assumed or stale server hostname",
+    "limitations": "One owned HTTPS/WSS compatibility probe, not all creator dependencies or private/mixed/rebound DNS containment"
+  },
+  "staging": {
+    "url": "https://games-staging.air-jam.app/",
+    "status": "TLS hostname mismatch",
+    "certificateNames": ["*.up.railway.app", "up.railway.app"],
+    "action": "Did not disable certificate validation or reuse the old staging host"
+  },
+  "productionReadback": {
+    "command": "pnpm --silent run repo -- platform release-origin inspect --platform-url https://airjam.io --json",
+    "readinessHttpStatus": 200,
+    "releaseOriginStatus": "ready",
+    "revision": "db85cdea418d529099a556a3e7b586f0e994590b",
+    "deploymentId": "2e4a5ffd-a578-4d7c-978d-86728c53a61d"
+  },
+  "validation": {
+    "focusedUnitTestsPassed": 55,
+    "providerIntegrationTestSkippedByDefault": true,
+    "explicitLiveGameTestPassed": true,
+    "sourceChangedGateMs": 4064,
+    "sourceTypecheckAndLint": "passed",
+    "testTypecheckAndLint": "All changed capture test files and source lint pass after final formatting and already-gone cleanup cases",
+    "fullBatchAndIndependentReview": "Not run for this unfinished, unpushed provider slice"
+  },
+  "cleanupReadback": {
+    "successfulSessions": [
+      { "sessionId": "b1b2dcaf-f719-4985-afc7-f7a23c2c8a64", "httpStatus": 410, "message": "Gone" },
+      { "sessionId": "c1dc17ac-c978-4190-a4a1-aab37fd79cda", "httpStatus": 410, "message": "Gone" },
+      { "sessionId": "3ba8f553-1e5b-48d0-970b-173d6ff70f62", "httpStatus": 410, "message": "Gone" }
+    ],
+    "activeSessionCommand": "CLOUDFLARE_ACCOUNT_ID=c45f3cd61fcad1e24e5e14401f258723 npx -y wrangler@4.147.0 browser list --json",
+    "activeSessions": [],
+    "installedWranglerLimitation": "Repo-pinned 4.80.0 does not expose browser commands; used registry-verified current official 4.147.0 CLI without changing project dependencies"
+  },
+  "sourceSha256": {
+    "apps/platform/src/server/releases/cloudflare-browser-session.ts": "6ce83f4307eba62427dd6f601cdbaa6e4f706eeb330629c9ae5af743c4b6a426",
+    "apps/platform/src/server/releases/cloudflare-browser-session.test.ts": "014cabaf6a3a97f633a089577c04d509e33a0e75d2ee2390912d23a4065aa1ad",
+    "apps/platform/src/server/releases/cloudflare-game-capture.integration.test.ts": "1bc297c04c367c4ef1be270875a340b7b89938ab05e468b4a41e6a733241bf71",
+    "games/pong/dist/index.html": "2f6f3b54097c3fe98ea034e467da78f338b9b030194a757806ef03d937e17b1a",
+    "games/pong/dist/assets/index-DQjkV4YL.js": "ab2f6c2c526be429330dacd61c2c78a2676132d613e57eed188206bde1b568b3"
+  },
+  "productionChanged": false,
+  "credentialsCreated": false,
+  "subscriptionOrDnsChanged": false
+}

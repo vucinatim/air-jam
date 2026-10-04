@@ -1,6 +1,6 @@
 # Release Browser Worker Containment
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 Status: active bounded architecture plan
 
 Finding authority: [AJ-SEC-004](../audits/v1-security/threat-model-audit.md#aj-sec-004--browser-worker-can-fail-open-and-gives-untrusted-pages-privileged-egress).
@@ -78,7 +78,7 @@ Run one final combined batch and one Canonicalizer pass only after this coherent
 worker batch is complete. Native GitHub review follows the normal green-PR gate.
 Production rollout and exact-candidate proof remain separate explicit actions.
 
-## Bee worker feasibility and routing decision
+## Bee worker feasibility and rejected placement
 
 Tim approved a disposable bee worker test after both Railway launch paths denied
 namespace creation. The same reviewed worker and network-policy sources built
@@ -106,22 +106,155 @@ requires a domain on Cloudflare. Keeping Namecheap authoritative through
 [partial setup](https://developers.cloudflare.com/dns/zone-setups/partial-setup/)
 requires Business or Enterprise; that is not justified for this free product.
 
-Recommended next decision: move only `air-jam.app` DNS to the existing Air Jam
-Cloudflare account, leaving registration and `airjam.io` at Namecheap. Before
-changing nameservers, retain and reproduce all eight observed records, including
-`games`, `games-staging`, the verification TXT records and older redirects/API
-targets. Preserve their current destinations with DNS-only records; proxy only
-the new `capture.air-jam.app` tunnel endpoint. Check DNSSEC, authoritative record
-parity, existing HTTPS origins and rollback before cutover. Do not turn this
-bounded worker placement change into a platform or database hosting migration.
+Tim subsequently rejected production capture on the core private bee server:
+container isolation does not justify exposing the host that holds unrelated
+private services to uploaded code. The earlier bee service, tunnel and
+`air-jam.app` DNS migration recommendation is withdrawn. Preserve the disposable
+proof as compatibility evidence, not a placement decision. No permanent service,
+Cloudflare zone/tunnel, DNS write or production worker switch occurred.
 
-After explicit approval, define the service through bee's existing Compose
-lifecycle with a pinned reviewed image and profile, independent worker secret,
-healthcheck and private tunnel connector. Verify authenticated transport from
-Railway and exact unpublished assets before replacing the current production
-worker. Preserve the existing Railway worker until replacement and rollback are
-validated. No permanent service, Cloudflare zone/tunnel or DNS write is approved
-or activated by the feasibility result.
+## Railway first provider investigation
+
+Tim requested Railway-supported isolation first, Cloudflare second. Air Jam's
+platform, realtime, database and operations worker remain on Railway. Only the
+untrusted capture execution boundary is being evaluated.
+
+[Railway Sandboxes](https://docs.railway.com/sandboxes) are documented as isolated
+Linux VMs for on-demand code execution, including production jobs. Their default
+`ISOLATED` mode permits outbound internet traffic but denies access to the
+environment's private services. Tim approved one disposable trial on 2026-10-03.
+It provisioned successfully with `ISOLATED` mode, no domains, a five-minute idle
+timeout and no supplied credentials. Native namespace creation failed as both
+root and `ubuntu`, including a user-namespace-only probe. The exact denying
+mechanism is not established; no source was uploaded and no worker/browser was
+launched. Do not disable sandboxing or change provider security settings to make
+this pass. Destruction is confirmed by API readback and an empty active list.
+This rejects the tested VM path for the current reviewed worker, not every
+possible Railway architecture. The CLI still labels Sandboxes experimental.
+
+The fallback trial used
+[Cloudflare Browser Run via remote Playwright](https://developers.cloudflare.com/browser-run/cdp/playwright/).
+The configured agentic-devtools token verified active but browser acquisition
+returned an authentication error; the cause is not established and revocation
+must not be inferred. The existing normal-user Wrangler OAuth login included
+browser access and worked without another login or credential creation.
+
+One remote CDP session acquired in 2.87 seconds, rendered an owned inline WebGL2
+canvas with the expected pixel and captured a bounded PNG. Explicit deletion
+returned `closed`; total capture and cleanup took under six seconds. The session
+requested an empty allowed-domain list, but no network-denial fixture ran: that
+is not guardrail enforcement evidence. No real game or external page was opened.
+The browser reported version `128.0.6613.137`; its security maintenance guarantees
+need confirmation, rather than assuming patch status from the version string.
+Exact identities, results and limitations are retained in the
+[provider proof](../audits/v1-security/2026-10-03-capture-provider-proof.json).
+
+Cloudflare is now the next integration candidate. Railway remains the trusted
+orchestrator and product host; no bee service, Cloudflare Worker deployment or
+Air Jam DNS migration is required for the documented CDP integration. This
+changes the connection protocol, so it is not a drop-in endpoint for the existing
+Playwright `connect()` call. Keep the existing job/moderation owners and inspection
+contract; do not introduce another scheduler or a provider abstraction framework.
+
+The follow-up [routing proof](../audits/v1-security/2026-10-03-cloudflare-routing-proof.json)
+confirmed HTTP guardrail denial against the owned public Air Jam origin. A WSS
+attempt also failed with HTTP 403, but no handshake response headers were
+observed: that error alone does not establish general WebSocket containment.
+An owned private HTML/chunk/CSS/WebGL fixture rendered through the existing
+generation-scoped routing with a fixture-only transport mapping. Redirects and
+other-generation requests were blocked. This is not real R2/game/realtime proof.
+
+CDP's API request client reached an owned caller-side private listener; its IO
+does not run inside the remote browser's guardrails. The private routing owner
+now uses a bounded public-address fetcher instead of `route.fetch()`. It checks
+all A/AAAA answers, dials a validated numeric address, verifies TLS against the
+original hostname, strips inherited browser credentials, and fetches one GET/HEAD
+response without redirect following. Limits derive from the existing release
+file/count/size contract; closing the browser context cancels DNS, sockets and
+queued IO. Private asset tests now use explicit network-denial and pinned
+owned-fixture checks rather than permitting direct loopback fetching. All 39
+targeted fetch/routing/capture tests pass. This local hardening does not migrate
+the transport or certify the managed provider boundary.
+
+The separate optional Chromium redirect test is restored in
+`release-inspection-routing.browser.test.ts`. It uses the real routing and
+fetch owners, mapping only approved numeric dials to an owned HTTP fixture.
+Private HTML/chunks load; same-origin and cross-origin redirects and an external
+asset reach their destinations without the inspection header. Its loopback
+browser permission is fixture-only, not private-network denial evidence. The
+43 combined session/fetch/routing/browser cases pass in 1.52 seconds. The initial
+attempt lacked the pinned browser binary; after installing it through the
+platform's `playwright-core` CLI, the fixture also needed trusted localhost
+origins and the same scoped loopback permission as the original browser proof.
+Neither correction relaxed production policy. Explicit test-file typechecking
+and platform lint pass.
+
+```bash
+pnpm --filter platform exec playwright-core install chromium --only-shell
+AIR_JAM_TEST_RELEASE_CAPTURE_BROWSER=1 pnpm --filter platform test -- \
+  src/server/releases/release-inspection-routing.browser.test.ts
+```
+
+The authorized GPT-6.1 Sol canonicality review found no actionable source
+blockers in the new delta since `c8b3b676`; its reported missing browser regression
+coverage is addressed above. This is local source review, not final GitHub review,
+managed-isolation risk acceptance or live uploaded-release proof.
+
+The [built-game proof](../audits/v1-security/2026-10-04-cloudflare-game-capture-proof.json)
+now covers fresh Pong output rather than only synthetic HTML. Its real lobby,
+JavaScript chunks, stylesheet and sounds rendered through the hardened inspection
+owner and existing hosted asset/bootstrap helpers, with no uncaught page errors.
+The fixture mapped only validated numeric HTTP dials to an owned local listener;
+it did not replace the fetcher or claim real R2 delivery. A separate owned
+HTTPS/WSS probe passed without creating a room. The new managed-session owner
+acquires via REST, connects via CDP, deletes its exact session even after a failed
+connection, and bounds cleanup. Its 16 unit cases and the existing 39 capture
+cases pass. The production screenshot service still uses the existing worker;
+the new owner is a tested integration candidate, not a provider switch.
+
+The old `games-staging.air-jam.app` hostname now returns a Railway certificate
+that does not match it. Do not bypass TLS or reuse September's staging proof as
+current upload/capture evidence. The next uploaded-release proof needs a working
+isolated preview with the matching database, storage and asset origin.
+
+Run the opt-in built-game fixture only with explicit test credentials, after
+building the SDK and bundling Pong through `airjam release bundle`:
+
+```bash
+AIRJAM_TEST_CLOUDFLARE_CAPTURE=1 \
+AIRJAM_TEST_CLOUDFLARE_ACCOUNT_ID=<account-id> \
+AIRJAM_TEST_CLOUDFLARE_API_TOKEN=<test-token> \
+pnpm --filter platform test src/server/releases/cloudflare-game-capture.integration.test.ts
+```
+
+Use an existing authenticated credential resolver to supply the token in memory;
+do not put real secrets into the command history or retained proof. This paid
+network test is skipped in normal local and CI runs. Its offline traffic denial
+is fixture-only; no creator dependency restrictions are introduced.
+
+Cloudflare's [session guardrails](https://developers.cloudflare.com/browser-run/features/guardrails/)
+document HTTP/HTTPS hostname allowlists, not complete public-address, DNS-rebinding
+or WSS containment. Do not claim they alone replace our egress contract or impose
+a fixed creator CDN allowlist without revisiting the product contract. Actual
+unpublished generation assets, redirect-safe credential routing, public HTTP/WSS,
+private-address/DNS/direct-bypass denial, resource limits and cancellation still
+need owned-fixture proof. Production also needs a least-privilege machine
+credential, provider security maintenance assurance and reviewed exact-candidate
+integration. Basic rendering alone does not close `G5-02`.
+
+Resolve the managed network-policy guarantee before implementing the transport
+switch. A fixed CDN allowlist would change the capture product contract; a
+custom HTTP/WebSocket forwarding layer would be a material architecture expansion,
+not an automatic response to missing provider guarantees. Neither is approved
+or implemented. Do not claim that managed rendering is impossible merely because
+the current documentation does not establish every required guarantee.
+
+Its [paid browser pricing](https://developers.cloudflare.com/browser-run/pricing/)
+includes ten browser-hours per month and charges $0.09 per additional hour, with
+separate concurrency charges and Workers plan costs; the free ten-minute daily
+allowance is not a launch operating envelope. The bounded session trial did not
+activate a subscription. No persistent service, template/checkpoint, DNS change,
+production configuration or capture-worker switch occurred.
 
 ## Acceptance proof
 

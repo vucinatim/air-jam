@@ -69,8 +69,11 @@ The worker also exposes:
 
 ## Network Boundary
 
-Both Chromium traffic and Playwright's Node-side private-asset fetches use the
-same worker-local HTTP/CONNECT proxy. Each connection resolves A and AAAA records,
+Chromium traffic and worker-side Playwright API requests use the worker-local
+HTTP/CONNECT proxy. The platform's private generation routing now uses its own
+bounded, DNS-pinned fetcher, with the same canonical public-address classifier:
+CDP API requests would otherwise run on the trusted caller outside this proxy.
+Each proxy connection resolves A and AAAA records,
 rejects the entire answer set if any address is non-public, and dials a vetted
 numeric address. The private `@air-jam/network-policy` package owns classification;
 there is no worker-specific CIDR copy. Resolver queries intentionally do not use
@@ -180,7 +183,14 @@ Container-wide capability-removal variants failed health and are not supported;
 the launcher's required browser-local privilege dropping remains enabled.
 These are disposable proofs, not a permanent service, authenticated transport
 from Railway, production unpublished-release capture or security-gate closure.
-Reviewed delivery and exact provider validation remain pending.
+Core bee hosting is rejected; that compatibility proof does not approve
+production placement. A disposable Railway isolated VM also denied native
+namespace creation and was destroyed. Cloudflare Browser Run passed remote CDP,
+owned WebGL2 rendering, PNG capture and session closure using existing Wrangler
+OAuth. Full capture containment and canonical production integration remain
+unproven; this is not a drop-in endpoint for Playwright `connect()`.
+See the [provider proof](../../docs/audits/v1-security/2026-10-03-capture-provider-proof.json).
+Reviewed delivery remains pending.
 See the
 [bounded containment plan](../../docs/plans/release-browser-worker-containment-plan.md)
 for feasibility evidence and unresolved validation, not a security-closure claim.

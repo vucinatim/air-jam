@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-10-03T20:14:47.684Z",
+  "updatedAt": "2026-10-04T00:51:42.782Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -482,10 +482,11 @@
         "one final reproducible full-lifecycle run, reusable demo artifacts, and classified residual friction"
       ],
       "owner": "/root",
-      "note": "Canonical staging status passed Sep12 16:09 UTC through existing account CLI authority: distinct identities, non-reused production values, signed storage scope/expiry Sep16, isolated pipeline and platform health; productionAllowed false. No provider or credential mutation. Await settled source/load review, deploy exact isolated revision, then existing Signal Relay lifecycle with fresh artifact hashes and demo evidence.",
-      "updatedAt": "2026-09-12T16:10:16.150Z",
+      "note": "2026-10-04 read-only canonical staging status rejected the old September staging environment ID. Project inspection with the same authority succeeds and lists only production, PR deployments disabled; no current isolated demo target exists. September staging status and Sep16 storage expiry are historical, not present readiness. Final lifecycle requires settled capture integration and a newly validated disposable target with distinct credentials; no provisioning or credential change was made.",
+      "updatedAt": "2026-10-04T00:44:59.670Z",
       "evidence": [
-        "document:docs/audits/v1-golden-path/primary-agent-run-audit.md"
+        "document:docs/audits/v1-golden-path/primary-agent-run-audit.md",
+        "command:golden-path-staging-target-revalidation-20261004"
       ]
     },
     {
@@ -784,8 +785,8 @@
         "reviewed exact-production proof for the host-authority cutover with ordinary room creation, joining, and reconnection unchanged"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Supported worker execution is proven on bee. Await the domain/routing decision before persistent service setup and coordinated reviewed delivery.",
-      "updatedAt": "2026-10-03T20:14:47.684Z",
+      "note": "The managed session owner, hardened private fetch and real offline Pong render are locally proven; the production capture transport remains unchanged. Its final integration depends on the explicit material-risk choice already presented. Independent creator/player work continues; this is not a request for another general go.",
+      "updatedAt": "2026-10-04T00:13:13.679Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
         "document:docs/plans/hosted-release-domain-cutover-plan.md",
@@ -832,11 +833,27 @@
         "command:railway-actual-worker-runtime-namespace-denial-20261003",
         "decision:tim-approved-isolated-worker-proof-on-bee-20261003",
         "artifact:file:docs/audits/v1-security/2026-10-03-bee-worker-image-proof.json",
-        "command:bee-amd64-readonly-worker-image-and-service-proof-20261003"
+        "command:bee-amd64-readonly-worker-image-and-service-proof-20261003",
+        "decision:tim-rejected-core-bee-for-untrusted-capture-20261003",
+        "decision:tim-requested-railway-first-cloudflare-second-20261003",
+        "url:https://docs.railway.com/sandboxes",
+        "decision:tim-approved-bounded-railway-vm-proof-20261003",
+        "command:railway-isolated-vm-namespace-denial-and-cleanup-20261003",
+        "command:cloudflare-oauth-cdp-webgl2-capture-and-cleanup-20261003",
+        "artifact:file:docs/audits/v1-security/2026-10-03-capture-provider-proof.json",
+        "decision:tim-approved-cloudflare-capture-integration-20261003",
+        "artifact:file:docs/audits/v1-security/2026-10-03-cloudflare-routing-proof.json",
+        "command:release-inspection-fetch-routing-capture-39-tests-pass",
+        "command:release-inspection-source-and-test-typecheck-lint-pass",
+        "artifact:file:docs/audits/v1-security/2026-10-04-cloudflare-game-capture-proof.json",
+        "command:cloudflare-session-16-and-capture-39-tests-pass",
+        "command:cloudflare-fresh-pong-render-private-assets-and-session-cleanup",
+        "command:cloudflare-owned-public-https-wss-pass",
+        "command:changed-capture-source-and-test-typecheck-lint-pass"
       ],
       "blocker": {
         "type": "human",
-        "summary": "Bee passes the reviewed isolated worker image and service proof. Stable public routing needs approval to migrate only air-jam.app DNS to Cloudflare, preserving all existing records; no production or DNS change has occurred."
+        "summary": "Await the pending maintainer choice: accept Cloudflare managed browser isolation without independently proven private-IP/DNS-rebinding browser-network denial, or retain the custom browser-network firewall requirement. Prior general continuation approval is intact."
       }
     },
     {
@@ -1330,9 +1347,9 @@
         "release-blocking visual, loading, empty, and error-state defects resolved"
       ],
       "status": "in_progress",
-      "updatedAt": "2026-10-03T18:25:10.296Z",
+      "updatedAt": "2026-10-04T00:51:42.782Z",
       "owner": "/root",
-      "note": "2026-10-03 surviving player polish is preserved and integrated with host authority; prior scaffold/controller evidence retained. Current delivery targets a coherent reviewed main/prod state, not final physical-device or launch-demo gate closure.",
+      "note": "2026-10-04 integrated pnpm check:batch passed; all 37 creator cases ran. Authorized Sol canonicality review found no source blockers. Restored its reported browser redirect/header coverage gap; 43 focused capture checks, explicit test typechecking and platform lint pass. Creator source preserved at 315a273c. Shared pending-integration components prevent standalone cherry-pick. Hosted/mobile proof, green-PR review and capture risk decision remain open.",
       "evidence": [
         "document:docs/audits/v1-public-release/launch-experience-recovery-audit.md",
         "document:docs/audits/v1-public-release/creator-entrypoint-audit.md",
@@ -1354,7 +1371,14 @@
         "command:minimal-native-activation-red-green-20260912",
         "command:minimal-catalog-semantic-lan-proof-20260912",
         "command:minimal-fresh-scaffold-seven-tests-20260912",
-        "command:minimal-iframe-client-rejection-cdp-20260912"
+        "command:minimal-iframe-client-rejection-cdp-20260912",
+        "command:creator-upload-recovery-13-tests-20261004",
+        "command:creator-media-upload-recovery-22-tests-20261004",
+        "command:creator-security-recovery-29-tests-20261004",
+        "command:creator-overview-recovery-37-tests-20261004",
+        "command:creator-capture-integrated-check-batch-pass-20261004",
+        "command:gpt61-sol-new-delta-canonicality-review-20261004",
+        "command:release-routing-browser-and-session-fetch-43-tests-pass-20261004"
       ]
     }
   ]

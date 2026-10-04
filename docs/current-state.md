@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -48,7 +48,7 @@ release completion. GitHub integration, guarded production migration, exact
 provider rollout and live validation are the current delivery boundary. Public
 package promotion, final phone/demo proof and launch remain separate work.
 
-Delivery remains pending before push and merge. The Canonicalizer attempt
+Reviewed production delivery remains pending. The Canonicalizer attempt
 could not authenticate; no review ran through that tool. Tim subsequently
 authorized a separate GPT-6.1 Sol reviewer because Claude is out of credits;
 independent source review of `36551396` against production `db85cdea` completed
@@ -66,15 +66,43 @@ read-only filesystem, real capture/egress/process isolation, service health and
 authentication, public HTTPS capture, and graceful shutdown. No host security
 settings changed, and all owned test containers are removed. See the
 [retained worker evidence](./audits/v1-security/2026-10-03-bee-worker-image-proof.json).
-A stable public route remains unapproved: both Air Jam domains use Namecheap
-DNS and neither is present among the configured Cloudflare token's visible zones.
-The recommendation is to move only `air-jam.app` DNS to Air Jam's existing
-Cloudflare account, preserve its existing records, and add `capture.air-jam.app`;
-registration and `airjam.io` stay at Namecheap. This domain migration is a
-maintainer scope decision, not permission implied by worker feasibility testing.
+Tim rejected production capture on the core private bee host. The bee proof
+remains compatibility evidence only; its proposed tunnel and DNS migration are
+withdrawn. Provider investigation now follows Railway first, Cloudflare second.
+The approved disposable Railway `ISOLATED` VM provisioned, but denied native
+namespace creation as both root and non-root. No source or credentials were
+uploaded; destruction is confirmed by the API. Cloudflare Browser Run then
+passed remote CDP, owned WebGL2 rendering, PNG capture and explicit session
+closure using the existing Wrangler OAuth login. Its stored agentic-devtools
+token is active but failed browser authentication; no new login was needed.
+Follow-up CDP probes rendered a scoped private HTML/chunk/CSS/WebGL fixture and
+blocked outside-generation redirects; no real game/R2 capture was performed.
+CDP API requests can reach caller-side private listeners independently of browser
+guardrails. The local routing owner now uses bounded public-only, DNS-pinned
+fetching with original-host TLS verification and context-owned cancellation;
+39 targeted tests and source typecheck/lint pass. These are unmerged changes.
+Cloudflare's documented hostname allowlists do not establish the complete
+public-address/DNS/WSS contract. Do not add creator CDN restrictions or a new
+forwarding system to force a fit. Fresh built Pong now renders its actual lobby,
+chunks, CSS and audio through the hardened private fetch owner; separate owned
+HTTPS/WSS compatibility also passes. The managed-session candidate has 16 passing
+lifecycle tests; all 55 focused capture tests pass. It is not wired into production
+capture. The old staging hostname has a TLS mismatch and cannot supply current
+uploaded-release proof. Provider guarantees, real unpublished R2 capture, machine
+credentials and final transport integration remain open. See the
+[built-game proof](./audits/v1-security/2026-10-04-cloudflare-game-capture-proof.json),
+[routing proof](./audits/v1-security/2026-10-03-cloudflare-routing-proof.json),
+[provider proof](./audits/v1-security/2026-10-03-capture-provider-proof.json) and
+[provider investigation](./plans/release-browser-worker-containment-plan.md#railway-first-provider-investigation).
 No permanent bee service, tunnel, DNS change or production worker switch is live.
 Final GitHub review, exact package/artifact compatibility and coordinated live
 cutover remain unproven. Production code and database are unchanged.
+
+The four creator recovery surfaces are preserved at `315a273c`; private asset
+fetching and the unwired managed-session candidate are preserved at `cbe41501`.
+The integrated local batch passes, and the authorized Sol review of the new
+delta found no actionable source blockers. Its browser regression coverage gap
+is restored and passes. Local confidence is not hosted or production sign-off.
 
 The validated machine program now reports `80%` estimate-weighted progress and
 `39–77` remaining agent-hours, with 30 of 46 work items complete. These are

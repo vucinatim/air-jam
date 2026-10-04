@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -18,8 +18,144 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Creator Recovery Integration And Demo Target Revalidation
+
+- The integrated `pnpm check:batch` completed with exit code zero: generated
+  sources, full workspace typechecking, lint, canonical guards and tests. All
+  37 creator recovery cases ran; the platform suite reported 660 passed and
+  117 environment-dependent skips. This is not hosted or database proof
+- The creator pages depend on shared components in the pending integration,
+  so they cannot be cherry-picked alone onto the current production baseline.
+  The explicitly authorized Sol canonicality review of the new delta found no
+  actionable source blockers; it did not repeat the earlier integration review
+- Restored the optional real Chromium redirect/header regression identified as
+  a coverage gap by review. All 43 combined session/fetch/routing/browser cases
+  pass, including real private HTML/chunks and credential-free same/cross-origin
+  redirects and external assets. The fixture uses mapped numeric IO and scoped
+  loopback permission; it does not establish provider network containment. Test
+  typechecking and platform lint pass; retained setup corrections and limits in
+  the [containment plan](./plans/release-browser-worker-containment-plan.md#railway-first-provider-investigation)
+- Read-only staging revalidation rejected the old September environment ID.
+  The same repo CLI successfully read the Air Jam project and found only
+  production, with PR deployments disabled. This is an absent demo target,
+  not evidence of revoked login. The September staging and credential evidence
+  remains historical; no environment, credential or production state changed
+- Preserved creator recovery at `315a273c` and capture hardening/session ownership
+  at `cbe41501` on the intermediate-delivery branch. Neither commit switches
+  production to Cloudflare or accepts its unresolved isolation guarantee
+
+## 2026-10-04 - Game Overview Draft Ownership And Recovery
+
+- Reproduced profile edits being erased by background reads and Arcade listing
+  updates. The loaded editor now owns its draft until accepted save or a change
+  of game; removed the reset-on-every-query-update effect
+- Save/listing/copy failures stay inline. Accepted profile fields update the
+  canonical cache without overwriting managed media URLs; failed listing rolls
+  back only visibility. Failed secondary reads and slug checks no longer imply
+  absent content or a taken slug. Permission and publishing rules are unchanged
+- Eight regressions and the combined 37 creator tests pass, as do source/test
+  typechecking and lint. The final scoped gate took 6.13 seconds, above the
+  five-second target. Retained scope and evidence in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#game-overview-draft-and-recovery-follow-up).
+  No browser, hosted write, provider, commit, merge or deployment occurred
+
+## 2026-10-04 - Creator Settings Recovery
+
+- Failed reads now offer retry instead of claiming a missing identity. Save and
+  clipboard failures stay inline; an origin draft survives a failed save
+- Regeneration retains its warning and confirmation through the request and
+  failed attempts. Accepted server responses update the query cache directly,
+  so failed refreshes do not leave the old App ID displayed as current. No
+  permission policy, database contract or real key changed
+- Seven new regressions and the combined 29 creator tests pass. Source and test
+  typechecking and lint pass; the scoped gate took 6.95 seconds, above the
+  five-second target. Retained evidence and limits in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#security-settings-recovery-follow-up).
+  No browser, provider, commit, merge or deployment occurred
+
+## 2026-10-04 - Managed Media Recovery And Independent Upload Ownership
+
+- Media reads now distinguish failure from empty history and retain cached
+  assets with the existing retry notice. Upload and asset-action failures stay
+  inline rather than opening blocking browser alerts
+- Each media card owns its file and pending operation; thumbnail, cover and
+  video uploads remain independent. Removed page-wide pending markers and kept
+  assignment/archive on their existing tRPC mutations
+- Nine new regressions and the combined 22 creator tests pass. Source lint and
+  typecheck, plus explicit test-file typechecking, pass. The scoped gate took
+  5.95 seconds, above its five-second target. Retained proof and limitations in
+  the [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#managed-media-recovery-follow-up).
+  No browser, provider, merge or production change occurred
+
+## 2026-10-04 - Creator Upload Pending And Recovery Fix
+
+- Continued independent creator/player work while the proposed Cloudflare
+  managed-isolation security boundary awaits a maintainer decision
+- Fixed editable upload inputs being cleared after a different submitted build
+  completed. One TanStack mutation now owns the complete upload lifecycle;
+  pending inputs are locked, failures retain them, and retries stay explicit
+- Six upload regressions and seven existing creator tests pass, as do source
+  typecheck/lint and explicit test-file typechecking. The scoped gate took 6.07
+  seconds under concurrent checks, above its five-second target. Retained the
+  finding and limits in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#release-upload-recovery-follow-up).
+  No browser, hosted-upload, merge or production proof was claimed
+
+## 2026-10-04 - Cloudflare Built Game And Session Ownership Proof
+
+- Added a bounded Cloudflare session owner: authenticated REST acquisition,
+  deadline-bounded CDP connection, explicit session deletion even after failed
+  connection, and bounded idempotent cleanup. Credentials cannot follow a
+  returned debugger URL. All 16 lifecycle tests and 39 existing focused capture
+  tests pass; this owner is not yet used by the production screenshot service
+- Rebuilt the SDK and bundled Pong through the game CLI. Its real lobby rendered
+  through the hardened private asset fetcher and canonical hosted URL/bootstrap
+  helpers, including JavaScript chunks, CSS and audio, without uncaught page
+  errors. The owned fixture mapped numeric dials only; this is not R2/upload or
+  multiplayer proof. A separate public HTTPS/WSS probe passed without room actions
+- Production readiness still reports `db85cdea` and a ready release origin.
+  The old staging hostname fails TLS hostname validation; it was not bypassed.
+  Retained source/artifact hashes, successful and corrected failed fixture
+  attempts, and remaining provider/integration limits in the
+  [built-game proof](./audits/v1-security/2026-10-04-cloudflare-game-capture-proof.json).
+  No credential, subscription, DNS, merge or production change occurred
+
 ## 2026-10-03 - Intermediate Delivery Recovered And Integrated Locally
 
+- The approved Cloudflare continuation passed HTTP guardrail denial and an
+  owned private HTML/chunk/CSS/WebGL routing fixture with credential scoping and
+  redirect denial. All disposable browser sessions explicitly closed. The
+  fixture also confirmed that CDP API-request IO runs on the trusted caller,
+  independently of remote browser guardrails. Replaced private `route.fetch()`
+  with bounded DNS-pinned public IO, original-host TLS checks and context-owned
+  cancellation, using existing upload size/count limits. The 39 targeted tests
+  and implementation lint/typecheck pass; no provider integration, credentials,
+  merge or production change occurred. Retained successes, failed navigation,
+  fixture-only mapping and the corrected test harness in the
+  [routing proof](./audits/v1-security/2026-10-03-cloudflare-routing-proof.json).
+  Provider-level network guarantees remain unresolved; no creator CDN
+  restrictions or custom forwarding system were introduced
+- Tim approved the bounded provider trial. Railway provisioned one `ISOLATED`
+  VM with no domains or supplied credentials, but native root/non-root namespace
+  probes failed with `Operation not permitted`. No worker source or browser was
+  launched; destruction and an empty active sandbox list are confirmed
+- Cloudflare's stored agentic-devtools token verified active but failed browser
+  authentication. The existing normal-user Wrangler OAuth login had browser
+  access: remote CDP, an owned WebGL2 canvas, PNG capture and explicit session
+  closure passed in under six seconds. No credential creation, deployment,
+  subscription, DNS or production change occurred. Retained both outcomes and
+  remaining containment checks in the
+  [provider proof](./audits/v1-security/2026-10-03-capture-provider-proof.json).
+  Basic rendering is proven; full capture security and integration are not
+- Tim rejected placing untrusted capture on the core private bee server. The
+  earlier bee/tunnel/DNS proposal is withdrawn, while the disposable image proof
+  remains valid compatibility evidence. He requested Railway first and
+  Cloudflare second. Read-only provider research found Railway's isolated
+  sandbox VM primitive and confirmed its network mode in the live API; no VM
+  was created and the CLI still labels the product experimental. Remote
+  Cloudflare Browser Run is the fallback candidate, not a proven capture lane.
+  Updated the existing containment plan/current snapshot and resumed `G5-02`
+  from its obsolete human DNS blocker. No provider or production changes occurred
 - Tim approved testing only the isolated capture worker on bee. The reviewed
   worker/network-policy files were identical in the disposable build context;
   no second active Air Jam checkout or production credential was copied
