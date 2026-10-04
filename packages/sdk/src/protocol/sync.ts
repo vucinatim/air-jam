@@ -56,13 +56,6 @@ export interface ControllerActionRpcPayload {
   storeDomain: string;
 }
 
-export interface HostActionRpcPayload {
-  roomId: string;
-  actionName: string;
-  payload: AirJamActionPayload | undefined;
-  storeDomain: string;
-}
-
 export interface AirJamStateSyncPayload {
   roomId: string;
   data: Record<string, unknown>;
@@ -85,15 +78,6 @@ export interface AirJamActionRpcPayload {
 }
 
 export const controllerActionRpcSchema = z
-  .object({
-    roomId: roomCodeSchema,
-    actionName: z.string().trim().min(1),
-    payload: z.union([airJamActionPayloadSchema, z.undefined()]).optional(),
-    storeDomain: z.string().trim().min(1).max(128),
-  })
-  .strict();
-
-export const hostActionRpcSchema = z
   .object({
     roomId: roomCodeSchema,
     actionName: z.string().trim().min(1),

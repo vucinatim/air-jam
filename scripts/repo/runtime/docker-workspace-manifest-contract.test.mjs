@@ -12,6 +12,18 @@ const rootPackageJson = JSON.parse(
   fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
 );
 
+test("platform image resolves game-origin routing at build and runtime", () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, "apps/platform/Dockerfile"),
+    "utf8",
+  );
+  assert.match(source, /^ARG AIRJAM_RELEASES_PUBLIC_ORIGIN$/mu);
+  assert.match(
+    source,
+    /AIRJAM_RELEASES_PUBLIC_ORIGIN=\$AIRJAM_RELEASES_PUBLIC_ORIGIN/u,
+  );
+});
+
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 const listDockerfiles = (rootDir, currentDir = rootDir) => {
@@ -142,6 +154,32 @@ test("repository-owned Node base images meet the runtime floor", () => {
       Number.parseInt(configuredMajor, 10) >= minimumNodeMajor,
       `${dockerfilePath} must meet the repository minimum Node major`,
     );
+  }
+});
+
+test("workspace Docker installs copy dependency patches before the frozen install", () => {
+  const patches = Object.values(
+    rootPackageJson.pnpm?.patchedDependencies ?? {},
+  );
+  assert.ok(patches.length > 0, "the repaired dependency must remain patched");
+  for (const patch of patches) {
+    assert.match(patch, /^patches\//u);
+    assert.ok(
+      fs.existsSync(path.join(repoRoot, patch)),
+      `Missing dependency patch ${patch}`,
+    );
+  }
+  for (const dockerfilePath of listDockerfiles(repoRoot)) {
+    const source = fs.readFileSync(path.join(repoRoot, dockerfilePath), "utf8");
+    for (const stage of source.split(/(?=^FROM\s)/mu)) {
+      const install = /^RUN\s+pnpm install --frozen-lockfile/mu.exec(stage);
+      if (!install) continue;
+      const copy = /^COPY\s+patches\/?\s+\.\/patches\/?\s*$/mu.exec(stage);
+      assert.ok(
+        copy && copy.index < install.index,
+        `${dockerfilePath} must copy patches before installing`,
+      );
+    }
   }
 });
 

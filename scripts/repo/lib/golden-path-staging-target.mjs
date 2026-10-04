@@ -3,12 +3,9 @@ import { resolveRailwayDatabaseUrl } from "./platform-database-target.mjs";
 import { createRailwayApiClient } from "./railway-api.mjs";
 
 const railwayPlatformConfigFile = "/apps/platform/railway.json";
-const railwayBrowserWorkerConfigFile =
-  "/packages/release-browser-worker/railway.json";
 export const canonicalGoldenPathApplicationServiceNames = Object.freeze([
   "air-jam-platform",
   "air-jam-platform-worker",
-  "air-jam-release-browser-worker",
   "air-jam-server",
 ]);
 const canonicalApplicationServiceNames = new Set(
@@ -19,13 +16,8 @@ const railwayReadyDeploymentStatuses = new Set(["SUCCESS", "SLEEPING"]);
 // Equal production/staging values fail closed unless the variable is explicitly
 // known to be provider metadata or non-sensitive process configuration.
 const allowedSharedVariableNames = new Set([
-  "AIRJAM_BROWSER_WORKER_CHROMIUM_SANDBOX",
-  "AIRJAM_BROWSER_WORKER_EXECUTABLE_PATH",
-  "AIRJAM_BROWSER_WORKER_HEADLESS",
-  "AIRJAM_BROWSER_WORKER_HOST",
-  "AIRJAM_BROWSER_WORKER_PORT",
+  "AIRJAM_RELEASES_BROWSER_ACCOUNT_ID",
   "AIRJAM_PLATFORM_WORKER_BUDGET_REFRESH_MS",
-  "AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH",
   "AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS",
   "AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT",
   "AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH",
@@ -73,8 +65,8 @@ const allowedSharedVariableNames = new Set([
 
 const listRailwayServiceDomains = (instance) =>
   [
-    ...(instance?.domains?.customDomains ?? []).map((entry) => entry.domain),
     ...(instance?.domains?.serviceDomains ?? []).map((entry) => entry.domain),
+    ...(instance?.domains?.customDomains ?? []).map((entry) => entry.domain),
     instance?.latestDeployment?.staticUrl,
     instance?.latestDeployment?.url,
   ].filter((value) => typeof value === "string" && value.trim().length > 0);
@@ -296,16 +288,12 @@ const assertReleaseIsolation = ({
     (pair) =>
       pair.stagingInstance.railwayConfigFile === railwayPlatformConfigFile,
   );
-  const browserWorkerPair = serviceVariablePairs.find(
-    (pair) =>
-      pair.stagingInstance.railwayConfigFile === railwayBrowserWorkerConfigFile,
-  );
   const operationalWorkerPair = serviceVariablePairs.find(
     (pair) => pair.stagingInstance.serviceName === "air-jam-platform-worker",
   );
-  if (!platformPair || !browserWorkerPair || !operationalWorkerPair) {
+  if (!platformPair || !operationalWorkerPair) {
     throw new Error(
-      "Railway staging must include the canonical platform, operational worker, and release browser worker services.",
+      "Railway staging must include the canonical platform and operational worker services.",
     );
   }
 
@@ -332,6 +320,8 @@ const assertReleaseIsolation = ({
     "AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY",
     "AIRJAM_RELEASES_R2_SESSION_TOKEN",
     "AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN",
+    "AIRJAM_RELEASES_BROWSER_ACCOUNT_ID",
+    "AIRJAM_RELEASES_BROWSER_API_TOKEN",
   ]) {
     requireRailwayVariable(
       platformPair.stagingVariables,
@@ -394,6 +384,8 @@ const assertReleaseIsolation = ({
     "AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY",
     "AIRJAM_RELEASES_R2_SESSION_TOKEN",
     "AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN",
+    "AIRJAM_RELEASES_BROWSER_ACCOUNT_ID",
+    "AIRJAM_RELEASES_BROWSER_API_TOKEN",
   ]) {
     if (
       variableValue(operationalWorkerPair.stagingVariables, name) !==
@@ -405,83 +397,28 @@ const assertReleaseIsolation = ({
     }
   }
 
-  const browserEndpoint = variableValue(
-    platformPair.stagingVariables,
-    "AIRJAM_RELEASES_BROWSER_WS_ENDPOINT",
-  );
-  const browserExecutable = variableValue(
-    platformPair.stagingVariables,
-    "AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH",
-  );
-  if (!browserEndpoint && !browserExecutable) {
-    throw new Error(
-      `Railway ${environment.name} ${platformPair.serviceName} must configure a browser endpoint or executable.`,
-    );
-  }
   const releaseStorageCredential = {
     ...temporaryCredential,
     endpointHostname: new URL(endpoint).hostname,
   };
-  if (!browserEndpoint) return releaseStorageCredential;
 
-  if (
-    variableValue(
-      operationalWorkerPair.stagingVariables,
-      "AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN",
-    ) !==
-    variableValue(
-      platformPair.stagingVariables,
-      "AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN",
-    )
-  ) {
-    throw new Error(
-      "Railway staging operational worker must share platform AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN.",
-    );
-  }
-
-  requireRailwayVariable(
+  const browserAccountId = requireRailwayVariable(
     platformPair.stagingVariables,
-    "AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN",
+    "AIRJAM_RELEASES_BROWSER_ACCOUNT_ID",
     environment.name,
     platformPair.serviceName,
   );
+  if (!/^[a-f0-9]{32}$/u.test(browserAccountId)) {
+    throw new Error(
+      "Railway staging browser account ID must be a Cloudflare account ID.",
+    );
+  }
   requireRailwayVariable(
-    browserWorkerPair.stagingVariables,
-    "AIRJAM_BROWSER_WORKER_ACCESS_TOKEN",
+    platformPair.stagingVariables,
+    "AIRJAM_RELEASES_BROWSER_API_TOKEN",
     environment.name,
-    browserWorkerPair.serviceName,
+    platformPair.serviceName,
   );
-
-  let endpointHostname;
-  try {
-    endpointHostname = new URL(browserEndpoint).hostname;
-  } catch {
-    throw new Error(
-      "Railway staging AIRJAM_RELEASES_BROWSER_WS_ENDPOINT must be a valid URL.",
-    );
-  }
-  const workerHostnames = new Set(
-    listRailwayServiceDomains(browserWorkerPair.stagingInstance).flatMap(
-      (domain) => {
-        try {
-          return [
-            new URL(/^https?:\/\//u.test(domain) ? domain : `https://${domain}`)
-              .hostname,
-          ];
-        } catch {
-          return [];
-        }
-      },
-    ),
-  );
-  if (
-    !endpointHostname.endsWith(".railway.internal") &&
-    !workerHostnames.has(endpointHostname)
-  ) {
-    throw new Error(
-      "Railway staging browser endpoint does not target its release browser worker.",
-    );
-  }
 
   return releaseStorageCredential;
 };

@@ -1,4 +1,5 @@
 import { normalizeUnknownOperationalFailure } from "@air-jam/operations-contract";
+import { sql } from "drizzle-orm";
 import {
   runtimeUsageEvents,
   runtimeUsageSessions,
@@ -91,11 +92,24 @@ export const createDatabaseRuntimeUsageLedgerPublisher = (
   };
 };
 
-const persistRuntimeUsageEvent = async (
+/** Acquire before ledger/projection reads, inside the caller's transaction. */
+export const acquireRuntimeUsageSessionLock = async (
+  tx: ServerDatabase,
+  runtimeSessionId: string,
+): Promise<void> => {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`airjam:runtime-usage:session:${runtimeSessionId}`}))`,
+  );
+};
+
+export const persistRuntimeUsageEvent = async (
   db: ServerDatabase,
   event: RuntimeUsageEvent,
 ): Promise<void> => {
   await db.transaction(async (tx) => {
+    if (event.runtimeSessionId) {
+      await acquireRuntimeUsageSessionLock(tx, event.runtimeSessionId);
+    }
     if (
       event.runtimeSessionId &&
       event.roomId &&

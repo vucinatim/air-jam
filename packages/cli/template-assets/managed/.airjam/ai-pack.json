@@ -75,8 +75,8 @@
     {
       "path": "docs/airjam/generated/for-agents.md",
       "kind": "docs-generated",
-      "size": 1262,
-      "sha256": "4e63b02a4d2737bbefce16701749a62e0bae9ad787e41158bc16ca9b802ae013"
+      "size": 3916,
+      "sha256": "fca62f1760b114bc62c6afa981da0107abafce7ce251adc3e38ae4d35b68432e"
     },
     {
       "path": "docs/airjam/generated/host-system.md",
@@ -111,8 +111,8 @@
     {
       "path": "docs/airjam/generated/quick-start.md",
       "kind": "docs-generated",
-      "size": 9533,
-      "sha256": "cacabd957277f62361fea7def22ce754e3f26a78cfce381af0761270f11db18d"
+      "size": 12077,
+      "sha256": "796c23803757ecd526472b2c2a892e1f0d4e0763a270dd83a9d41064a80b851d"
     },
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
@@ -169,5 +169,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "45541ba07f9ffad70e0b1c2d3a699f75f4776f42b4c4f03980ce0ce1cb3c67f8"
+  "contentDigest": "770132004bf5c171bdfb855f2bd47d6b22cf113a98507d2437d46e5c7e33be1e"
 }

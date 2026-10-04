@@ -1,6 +1,6 @@
 # Working Agreements
 
-Last updated: 2026-08-31
+Last updated: 2026-10-03
 Status: stable operating rules
 
 This file defines how humans and agents should use the Air Jam repo operating system.
@@ -89,6 +89,13 @@ Inspect the selected work without running it through:
 pnpm --silent run repo -- check plan --json
 ```
 
+Run scaffold smoke/package builds separately from a live dev stack in the same
+checkout: they rebuild shared SDK outputs, whereas the dev watcher owns those
+outputs while pages are running. Stop only an owned stack through the canonical
+local reset, confirm its process has exited, run the smoke, then restart through
+`pnpm run dev` and open fresh runtime surfaces. Do not weaken artifact freshness
+checks or add browser retries to hide concurrent-build failures.
+
 ## Review Authority
 
 Air Jam separates subjective product authority from implementation assurance:
@@ -107,6 +114,14 @@ Air Jam separates subjective product authority from implementation assurance:
    while CI, review conversations, and branch protection remain mandatory
 
 ## Review Stacks And Integration
+
+For the `2026-10-03` intermediate-delivery batch, Tim explicitly authorized a
+separate GPT-6.1 Sol reviewer in place of Claude because Claude is out of credits.
+This substitution covers the canonicality-focused pre-push pass and the later
+single green-PR GitHub review. Independence, review coverage, GitHub evidence,
+CI, conversation resolution and production validation requirements below stay
+unchanged. Record the actual reviewer model; do not claim an Opus or Canonicalizer
+tool verdict. This is a batch-specific exception, not a permanent policy change.
 
 Stacked pull requests are review slices, not permission to merge a knowingly
 incomplete intermediate state to `main`.

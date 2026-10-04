@@ -5,7 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { readPlatformMigrationCatalog } from "../../platform/lib/platform-migration-catalog.mjs";
+import {
+  readPlatformMigrationCatalog,
+  resolveMigrationVerificationChecks,
+} from "../../platform/lib/platform-migration-catalog.mjs";
 import {
   assertPlatformMigrationPlanAuthority,
   inspectPlatformMigrationDeploymentProvenance,
@@ -18,6 +21,26 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
 );
+
+test("migration verification checks the final constraint state across an upgrade", () => {
+  const created = "constraint:host_grants.chronology";
+  const removed = "absent-constraint:host_grants.chronology";
+  const retained = "constraint:host_grants.identity";
+  assert.deepEqual(
+    resolveMigrationVerificationChecks([
+      { verificationChecks: ["table:host_grants", created, retained] },
+      { verificationChecks: [removed] },
+    ]),
+    ["table:host_grants", removed, retained],
+  );
+  assert.deepEqual(
+    resolveMigrationVerificationChecks([
+      { verificationChecks: [removed] },
+      { verificationChecks: [created] },
+    ]),
+    [created],
+  );
+});
 
 test("platform migration CLI exposes one inspect-plan-apply-verify lifecycle", () => {
   const help = execFileSync(

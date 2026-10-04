@@ -56,7 +56,7 @@ export const usePongStore = createAirJamStore<PongState>((set) => ({
 
     returnToLobby: () => set((state) => reduceReturnToLobby(state)),
 
-    scorePoint: (_ctx, { team }) =>
-      set((state) => reduceScorePoint(state, team)),
+    scorePoint: ({ role }, { team }) =>
+      set((state) => (role === "host" ? reduceScorePoint(state, team) : state)),
   },
 }));

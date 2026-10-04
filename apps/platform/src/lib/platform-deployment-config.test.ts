@@ -45,15 +45,26 @@ describe("resolvePlatformDeploymentConfig", () => {
     });
   });
 
-  it("prefers the Railway public domain inside Railway preview environments", () => {
+  it("prefers the provider hostname for ordinary previews with copied production URLs", () => {
     expect(
       resolvePlatformDeploymentConfig({
         RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-17",
         RAILWAY_PUBLIC_DOMAIN: "air-jam-platform-air-jam-pr-17.up.railway.app",
+        NEXT_PUBLIC_APP_URL: "https://airjam.io",
+      }).platformPublicOrigin,
+    ).toBe("https://air-jam-platform-air-jam-pr-17.up.railway.app");
+  });
+
+  it("keeps the configured preview platform separate from Railway's game hostname", () => {
+    expect(
+      resolvePlatformDeploymentConfig({
+        RAILWAY_ENVIRONMENT_NAME: "air-jam-pr-17",
+        RAILWAY_PUBLIC_DOMAIN: "games-preview.air-jam.app",
+        AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://games-preview.air-jam.app",
         NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST:
-          "https://air-jam-platform-production.up.railway.app",
+          "https://air-jam-platform-air-jam-pr-17.up.railway.app",
         NEXT_PUBLIC_APP_URL:
-          "https://air-jam-platform-production.up.railway.app",
+          "https://air-jam-platform-air-jam-pr-17.up.railway.app",
         BETTER_AUTH_URL: "https://air-jam-platform-production.up.railway.app",
       }),
     ).toMatchObject({
@@ -61,9 +72,23 @@ describe("resolvePlatformDeploymentConfig", () => {
         "https://air-jam-platform-air-jam-pr-17.up.railway.app",
       authBaseUrl: "https://air-jam-platform-air-jam-pr-17.up.railway.app",
       platformRequestHosts: ["air-jam-platform-air-jam-pr-17.up.railway.app"],
+      authTrustedOrigins: [
+        "https://air-jam-platform-air-jam-pr-17.up.railway.app",
+      ],
       hasExplicitPlatformPublicOrigin: true,
       isRailwayPreviewEnvironment: true,
     });
+  });
+
+  it("never adds the game hostname to production authentication trust", () => {
+    const config = resolvePlatformDeploymentConfig({
+      RAILWAY_ENVIRONMENT_NAME: "production",
+      NEXT_PUBLIC_APP_URL: "https://airjam.io",
+      RAILWAY_PUBLIC_DOMAIN: "games.air-jam.app",
+      AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://games.air-jam.app",
+    });
+    expect(config.authTrustedOrigins).toEqual(["https://airjam.io"]);
+    expect(config.platformRequestHosts).toEqual(["airjam.io", "www.airjam.io"]);
   });
 
   it("does not flag the Railway production environment as a preview", () => {

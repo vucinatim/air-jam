@@ -5,9 +5,8 @@ import {
   formatAnalyticsTimestamp,
   type GameAnalyticsDailyPoint,
   type GameAnalyticsDebugSnapshot,
-  type GameAnalyticsSession,
-  type GameAnalyticsTotals,
 } from "@/components/game-analytics/game-analytics-panels";
+import { RetryNotice } from "@/components/retry-notice";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -47,46 +46,57 @@ export default function GameAnalyticsPage() {
   const params = useParams();
   const gameId = params.gameId as string;
 
-  const { data: game, isLoading: isLoadingGame } = api.game.get.useQuery(
+  const gameQuery = api.game.get.useQuery(
     { id: gameId },
     { enabled: !!gameId },
   );
-  const { data: analyticsOverview, isLoading: isLoadingOverview } =
-    api.analytics.getGameOverview.useQuery(
-      { gameId, days: 30 },
-      { enabled: !!gameId },
-    );
-  const { data: recentSessions, isLoading: isLoadingSessions } =
-    api.analytics.getRecentGameSessions.useQuery(
-      { gameId, limit: 10 },
-      { enabled: !!gameId },
-    );
-  const { data: debugSnapshot } = api.analytics.getGameDebugSnapshot.useQuery(
+  const overviewQuery = api.analytics.getGameOverview.useQuery(
+    { gameId, days: 30 },
+    { enabled: !!gameId },
+  );
+  const sessionsQuery = api.analytics.getRecentGameSessions.useQuery(
+    { gameId, limit: 10 },
+    { enabled: !!gameId },
+  );
+  const debugQuery = api.analytics.getGameDebugSnapshot.useQuery(
     { gameId },
     { enabled: !!gameId },
   );
 
-  if (isLoadingGame || isLoadingOverview || isLoadingSessions) {
-    return <Skeleton className="h-[640px] w-full" />;
+  const failedQueries = [
+    gameQuery,
+    overviewQuery,
+    sessionsQuery,
+    debugQuery,
+  ].filter((query) => query.isError);
+  const readError =
+    failedQueries.length > 0 ? (
+      <RetryNotice
+        message="We couldn’t load some analytics data."
+        detail="Previously loaded data is still shown where available."
+        isRetrying={failedQueries.some((query) => query.isFetching)}
+        onRetry={() => {
+          for (const query of failedQueries) void query.refetch();
+        }}
+      />
+    ) : null;
+  const game = gameQuery.data;
+  const analyticsOverview = overviewQuery.data;
+  if (!game || !analyticsOverview) {
+    return (
+      readError ?? (
+        <div role="status" className="flex flex-col gap-4">
+          <p>Loading analytics…</p>
+          <Skeleton className="h-160 w-full" />
+        </div>
+      )
+    );
   }
 
-  if (!game) {
-    return <div>Game not found</div>;
-  }
-
-  const daily: GameAnalyticsDailyPoint[] = analyticsOverview?.daily ?? [];
-  const totals: GameAnalyticsTotals = analyticsOverview?.totals ?? {
-    sessionCount: 0,
-    totalGameActiveSeconds: 0,
-    totalControllerSeconds: 0,
-    totalRawEligiblePlaytimeSeconds: 0,
-    totalEligiblePlaytimeSeconds: 0,
-    guardedSessionCount: 0,
-    peakConcurrentControllers: 0,
-    lastActivityAt: null,
-  };
-  const sessions: GameAnalyticsSession[] = recentSessions ?? [];
-  const debug: GameAnalyticsDebugSnapshot | null = debugSnapshot ?? null;
+  const daily = analyticsOverview.daily;
+  const totals = analyticsOverview.totals;
+  const sessions = sessionsQuery.data;
+  const debug = debugQuery.data;
 
   const hasActivity = daily.some(
     (d) => d.sessionCount > 0 || d.totalEligiblePlaytimeSeconds > 0,
@@ -131,6 +141,7 @@ export default function GameAnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      {readError}
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
@@ -420,11 +431,22 @@ export default function GameAnalyticsPage() {
             <CardHeader className="shrink-0">
               <CardTitle>Recent Sessions</CardTitle>
               <CardDescription>
-                Last {sessions.length} completed sessions.
+                {sessions
+                  ? `Last ${sessions.length} completed sessions.`
+                  : "Recent completed sessions."}
               </CardDescription>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 overflow-y-auto">
-              {sessions.length > 0 ? (
+              {!sessions ? (
+                <p
+                  role={sessionsQuery.isError ? undefined : "status"}
+                  className="text-muted-foreground text-sm"
+                >
+                  {sessionsQuery.isError
+                    ? "Session history is unavailable. Use Try again above to retry."
+                    : "Loading session history…"}
+                </p>
+              ) : sessions.length > 0 ? (
                 <div className="space-y-2">
                   {sessions.map((session) => (
                     <div
@@ -496,7 +518,18 @@ export default function GameAnalyticsPage() {
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <DebugPanel debug={debug} />
+            {debug ? (
+              <DebugPanel debug={debug} />
+            ) : (
+              <p
+                role={debugQuery.isError ? undefined : "status"}
+                className="text-muted-foreground border-t px-4 py-6 text-sm"
+              >
+                {debugQuery.isError
+                  ? "Pipeline details are unavailable. Use Try again above to retry."
+                  : "Loading pipeline details…"}
+              </p>
+            )}
           </CollapsibleContent>
         </div>
       </Collapsible>
@@ -508,8 +541,8 @@ export default function GameAnalyticsPage() {
 /*  Debug Panel                                                        */
 /* ------------------------------------------------------------------ */
 
-function DebugPanel({ debug }: { debug: GameAnalyticsDebugSnapshot | null }) {
-  if (!debug?.runtimeSessionId) {
+function DebugPanel({ debug }: { debug: GameAnalyticsDebugSnapshot }) {
+  if (!debug.runtimeSessionId) {
     return (
       <div className="text-muted-foreground border-t px-4 py-6 text-center text-sm">
         No analytics session has been recorded yet for this game.

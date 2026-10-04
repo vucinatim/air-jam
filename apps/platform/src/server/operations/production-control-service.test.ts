@@ -4,7 +4,7 @@ import {
   operationalLaneValues,
   type OperationalLaneControlSnapshot,
 } from "@air-jam/database-contract";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertOperationalLaneAccepting,
   buildOperationalLaneControlList,
@@ -12,6 +12,7 @@ import {
   getDefaultOperationalLaneControl,
   OperationalAdmissionDeniedError,
   OperationalControlConflictError,
+  readOperationalLaneAdmission,
   setOperationalLaneControl,
 } from "./production-control-service";
 
@@ -100,7 +101,15 @@ const createFakeDatabase = ({
   const database = {
     query,
     select: () => ({
-      from: async () => (control ? [control] : []),
+      from: (table: unknown) => ({
+        then: (resolve: (rows: LaneRow[]) => unknown) =>
+          resolve(control ? [control] : []),
+        where: () => ({
+          limit: async () =>
+            table === operationalLaneControls && control ? [control] : [],
+          orderBy: () => ({ limit: async () => [] }),
+        }),
+      }),
     }),
     transaction: async <T>(
       callback: (tx: typeof transactionDatabase) => Promise<T>,
@@ -117,6 +126,7 @@ const createFakeDatabase = ({
 };
 
 describe("production control service", () => {
+  afterEach(() => vi.unstubAllEnvs());
   it("returns every canonical lane and treats missing rows as normal revision zero", () => {
     const controls = buildOperationalLaneControlList([
       makeLaneRow({ lane: "release_processing", mode: "paused" }),
@@ -144,6 +154,8 @@ describe("production control service", () => {
     };
     const decision = decideOperationalLaneAdmission({
       control,
+      budget: { evidenceStatus: "missing", state: null },
+      budgetRequirement: "not_applicable",
       decisionId: "decision-1",
     });
 
@@ -177,6 +189,8 @@ describe("production control service", () => {
 
   it("keeps restricted lanes open for the quota layer to evaluate", () => {
     const decision = decideOperationalLaneAdmission({
+      budget: { evidenceStatus: "missing", state: null },
+      budgetRequirement: "not_applicable",
       control: {
         ...getDefaultOperationalLaneControl("preview_capacity"),
         mode: "restricted",
@@ -195,17 +209,117 @@ describe("production control service", () => {
     });
   });
 
-  it("fails closed with a typed decision when control authority is unavailable", async () => {
+  it.each([
+    ["release_processing", "near_ceiling", "denied"],
+    ["browser_validation", "near_ceiling", "denied"],
+    ["moderation", "near_ceiling", "denied"],
+    ["release_submission", "near_ceiling", "allowed"],
+    ["artifact_ingestion", "ceiling", "denied"],
+    ["media_ingestion", "ceiling", "denied"],
+    ["release_processing", "warning", "allowed"],
+  ] as const)(
+    "uses the canonical %s threshold at %s",
+    (lane, state, outcome) => {
+      const decision = decideOperationalLaneAdmission({
+        control: getDefaultOperationalLaneControl(lane),
+        budget: { evidenceStatus: "fresh", state },
+        budgetRequirement: "required",
+      });
+      expect(decision).toMatchObject({
+        outcome,
+        reason: outcome === "denied" ? "budget_protection" : null,
+      });
+      if (outcome === "denied") {
+        expect(new OperationalAdmissionDeniedError(decision).message).toContain(
+          "budget protection",
+        );
+        expect(
+          new OperationalAdmissionDeniedError(decision).message,
+        ).not.toContain("is paused");
+      }
+    },
+  );
+
+  it.each(["missing", "stale"] as const)(
+    "requires fresh production evidence, not %s evidence",
+    (evidenceStatus) => {
+      expect(
+        decideOperationalLaneAdmission({
+          control: getDefaultOperationalLaneControl("release_processing"),
+          budget: { evidenceStatus, state: null },
+          budgetRequirement: "required",
+        }),
+      ).toMatchObject({
+        outcome: "denied",
+        reason: "control_unavailable",
+        retryAfterSeconds: 30,
+      });
+    },
+  );
+
+  it("reads required production budget and resumes local admission without provider evidence", async () => {
+    vi.stubEnv("RAILWAY_ENVIRONMENT_NAME", "");
+    vi.stubEnv("AIRJAM_OPERATIONAL_ENVIRONMENT", "production");
+    const { database } = createFakeDatabase();
+    const input = {
+      database,
+      lane: "release_processing" as const,
+      asOf: new Date("2042-01-01"),
+    };
+    await expect(readOperationalLaneAdmission(input)).resolves.toMatchObject({
+      outcome: "denied",
+      reason: "control_unavailable",
+    });
+    vi.stubEnv("AIRJAM_OPERATIONAL_ENVIRONMENT", "development");
+    await expect(assertOperationalLaneAccepting(input)).resolves.toMatchObject({
+      outcome: "allowed",
+    });
+    vi.stubEnv("AIRJAM_OPERATIONAL_ENVIRONMENT", "preview");
+    await expect(assertOperationalLaneAccepting(input)).resolves.toMatchObject({
+      outcome: "allowed",
+    });
+  });
+
+  it.each(["lifecycle_cleanup", "product_telemetry"] as const)(
+    "keeps %s independent of budget reads but honors its pause",
+    async (lane) => {
+      vi.stubEnv("RAILWAY_ENVIRONMENT_NAME", "production");
+      const { database } = createFakeDatabase();
+      // No execute implementation: a budget clock read would make this fail.
+      await expect(
+        assertOperationalLaneAccepting({ database, lane }),
+      ).resolves.toMatchObject({ outcome: "allowed" });
+      const paused = createFakeDatabase({
+        initialControl: makeLaneRow({ lane, mode: "paused" }),
+      });
+      await expect(
+        assertOperationalLaneAccepting({ database: paused.database, lane }),
+      ).rejects.toMatchObject({ decision: { reason: "lane_paused" } });
+    },
+  );
+
+  it("propagates failed database reads and preserves the cause in admission errors", async () => {
+    vi.stubEnv("RAILWAY_ENVIRONMENT_NAME", "");
+    vi.stubEnv("AIRJAM_OPERATIONAL_ENVIRONMENT", "test");
+    const cause = new Error("database unavailable");
     const database = {
-      query: {
-        operationalLaneControls: {
-          findFirst: async () => {
-            throw new Error("database unavailable");
-          },
-        },
-      },
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => {
+              throw cause;
+            },
+          }),
+        }),
+      }),
     } as unknown as Database;
 
+    await expect(
+      readOperationalLaneAdmission({
+        database,
+        lane: "release_processing",
+      }),
+    ).rejects.toBe(cause);
     await expect(
       assertOperationalLaneAccepting({
         database,
@@ -213,6 +327,7 @@ describe("production control service", () => {
         decisionId: "decision-unavailable",
       }),
     ).rejects.toMatchObject({
+      cause,
       decision: {
         contractVersion: 1,
         decisionId: "decision-unavailable",

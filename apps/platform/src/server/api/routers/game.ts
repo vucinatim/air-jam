@@ -18,6 +18,8 @@ import {
   HOSTED_RELEASE_HOST_PATH,
 } from "@/lib/releases/hosted-release-artifact";
 import { assertOwnedGame } from "@/server/games/assert-owned-game";
+import { createOwnedGame } from "@/server/games/game-creation-service";
+import { assertGameListingAllowed } from "@/server/games/game-listing-admission-service";
 import {
   EMPTY_GAME_MEDIA_ACTIVE,
   loadGameMediaActive,
@@ -88,35 +90,13 @@ export const gameRouter = createTRPCRouter({
     .use(rateLimitMiddleware("game.create", RATE_LIMITS.gameCreate))
     .input(
       z.object({
-        name: z.string().min(1),
+        name: z.string().trim().min(1),
         url: z.string().url().optional(),
       }),
     )
-    .mutation(async ({ input, ctx }) => {
-      const gameId = crypto.randomUUID();
-
-      // Create game
-      const [game] = await db
-        .insert(games)
-        .values({
-          id: gameId,
-          name: input.name,
-          url: input.url ?? null,
-          userId: ctx.user.id,
-        })
-        .returning();
-
-      // Auto-generate app ID for the game
-      const appId = `aj_app_${crypto.randomUUID().replace(/-/g, "")}`;
-      await db.insert(appIds).values({
-        id: crypto.randomUUID(),
-        gameId: gameId,
-        creatorId: ctx.user.id,
-        key: appId,
-      });
-
-      return game;
-    }),
+    .mutation(({ input, ctx }) =>
+      createOwnedGame({ userId: ctx.user.id, input }),
+    ),
 
   list: protectedProcedure.query(async ({ ctx }) => {
     const ownedGames = await db
@@ -312,18 +292,10 @@ export const gameRouter = createTRPCRouter({
 
       const existingGame = await assertOwnedGame(id, ctx.user.id);
 
-      if (data.arcadeVisibility === "listed") {
-        const liveRelease = await db.query.gameReleases.findFirst({
-          where: (table, { and, eq }) =>
-            and(eq(table.gameId, id), eq(table.status, "live")),
-        });
-
-        if (!liveRelease) {
-          throw new Error(
-            "A game can only be listed in Arcade after a hosted release is made live.",
-          );
-        }
-      }
+      await assertGameListingAllowed({
+        game: existingGame,
+        arcadeVisibility: data.arcadeVisibility,
+      });
 
       const hasConfigUpdate =
         sourceUrl !== undefined || templateId !== undefined;

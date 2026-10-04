@@ -41,6 +41,36 @@ const games: ArcadeGame[] = [
 ];
 
 describe("arcade runtime manager", () => {
+  it("keeps a failed auto-launch consumed until an explicit retry or new session", () => {
+    let state = createInitialArcadeRuntimeState({ games });
+    state = reduceArcadeRuntimeState(state, {
+      type: "consume-auto-launch",
+      requestKey: "arcade:g1",
+    });
+    state = reduceArcadeRuntimeState(state, { type: "launch-start" });
+    state = reduceArcadeRuntimeState(state, { type: "launch-failure" });
+    expect(state.isLaunching).toBe(false);
+    expect(state.launchFailed).toBe(true);
+    expect(
+      shouldAutoLaunchGame({
+        autoLaunchRequestKey: "arcade:g1",
+        consumedAutoLaunchRequestKey: state.consumedAutoLaunchRequestKey,
+        isConnected: true,
+        roomId: "ROOM",
+        gamesLength: games.length,
+        surfaceKind: "browser",
+        isLaunching: state.isLaunching,
+        hasLaunchCapability: false,
+      }),
+    ).toBe(false);
+    state = reduceArcadeRuntimeState(state, { type: "launch-start" });
+    expect(state.launchFailed).toBe(false);
+    expect(state.isLaunching).toBe(true);
+    state = reduceArcadeRuntimeState(state, { type: "launch-failure" });
+    state = reduceArcadeRuntimeState(state, { type: "reset-session" });
+    expect(state.launchFailed).toBe(false);
+    expect(state.consumedAutoLaunchRequestKey).toBeNull();
+  });
   it("models arcade browser and game history paths", () => {
     expect(ARCADE_BROWSER_PATH).toBe("/arcade");
     expect(getArcadeGameHistoryPath(games[0]!)).toBe("/arcade/g1");
@@ -63,11 +93,11 @@ describe("arcade runtime manager", () => {
     expect(getInitialSelectedIndex([], "g1")).toBe(0);
   });
 
-  it("navigates selection with wrap-around by vector", () => {
+  it("navigates selection with wrap-around by direction", () => {
     expect(
       getNextSelectedIndex({
         selectedIndex: 0,
-        vector: { x: 1, y: 0 },
+        direction: "right",
         columns: 2,
         gamesLength: games.length,
       }),
@@ -76,7 +106,7 @@ describe("arcade runtime manager", () => {
     expect(
       getNextSelectedIndex({
         selectedIndex: 3,
-        vector: { x: 1, y: 0 },
+        direction: "right",
         columns: 2,
         gamesLength: games.length,
       }),
@@ -85,7 +115,7 @@ describe("arcade runtime manager", () => {
     expect(
       getNextSelectedIndex({
         selectedIndex: 1,
-        vector: { x: 0, y: 1 },
+        direction: "down",
         columns: 2,
         gamesLength: games.length,
       }),
@@ -94,12 +124,69 @@ describe("arcade runtime manager", () => {
     expect(
       getNextSelectedIndex({
         selectedIndex: 0,
-        vector: { x: 0, y: -1 },
+        direction: "up",
         columns: 2,
         gamesLength: games.length,
       }),
     ).toBe(2);
   });
+
+  it.each([
+    {
+      selectedIndex: 0,
+      direction: "left" as const,
+      columns: 3,
+      gamesLength: 5,
+      expected: 4,
+    },
+    {
+      selectedIndex: 2,
+      direction: "up" as const,
+      columns: 3,
+      gamesLength: 5,
+      expected: 4,
+    },
+    {
+      selectedIndex: 4,
+      direction: "down" as const,
+      columns: 3,
+      gamesLength: 5,
+      expected: 1,
+    },
+    {
+      selectedIndex: 9,
+      direction: "left" as const,
+      columns: 3,
+      gamesLength: 5,
+      expected: 3,
+    },
+    {
+      selectedIndex: 0,
+      direction: "up" as const,
+      columns: 1,
+      gamesLength: 4,
+      expected: 3,
+    },
+    {
+      selectedIndex: 0,
+      direction: "down" as const,
+      columns: 3,
+      gamesLength: 1,
+      expected: 0,
+    },
+    {
+      selectedIndex: 0,
+      direction: "right" as const,
+      columns: 3,
+      gamesLength: 0,
+      expected: 0,
+    },
+  ])(
+    "keeps navigation bounded across partial grids: $direction from $selectedIndex",
+    ({ expected, ...input }) => {
+      expect(getNextSelectedIndex(input)).toBe(expected);
+    },
+  );
 
   it("tracks launch and exit transitions without stale runtime state", () => {
     let state = createInitialArcadeRuntimeState({
@@ -132,27 +219,6 @@ describe("arcade runtime manager", () => {
     expect(state.isLaunching).toBe(false);
     expect(state.consumedAutoLaunchRequestKey).toBe("arcade:g2");
     expect(state.lastExitAt).toBe(123_456);
-    expect(state.browserActionLaunchBlocked).toBe(true);
-  });
-
-  it("blocks browser action relaunch after exit until controller actions are released", () => {
-    let state = createInitialArcadeRuntimeState({
-      games,
-      initialGameId: "g2",
-    });
-
-    state = reduceArcadeRuntimeState(state, {
-      type: "exit-game",
-      exitedAt: 123_456,
-    });
-
-    expect(state.browserActionLaunchBlocked).toBe(true);
-
-    state = reduceArcadeRuntimeState(state, {
-      type: "browser-action-release-observed",
-    });
-
-    expect(state.browserActionLaunchBlocked).toBe(false);
   });
 
   it("clears stale launch state on session reset without applying exit cooldown", () => {
@@ -182,7 +248,6 @@ describe("arcade runtime manager", () => {
     expect(state.isLaunching).toBe(false);
     expect(state.consumedAutoLaunchRequestKey).toBeNull();
     expect(state.lastExitAt).toBe(0);
-    expect(state.browserActionLaunchBlocked).toBe(false);
   });
 
   it("derives a stable auto-launch request key per route intent", () => {

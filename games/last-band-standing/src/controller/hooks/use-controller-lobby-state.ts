@@ -7,6 +7,7 @@ import {
   songBuckets,
   type SongBucketId,
 } from "@/game/content/song-bank";
+import { isMatchReadyToStart } from "@/game/domain/match-readiness";
 import { normalizePlayerName } from "@/game/domain/player-utils";
 import { useGameStore } from "@/game/stores";
 import { useAirJamController } from "@air-jam/sdk";
@@ -50,11 +51,12 @@ export const useControllerLobbyState = () => {
   const uniqueSongCount = getUniqueSongCountForBuckets(selectedSongBucketIds);
   const hasEnoughSongs = uniqueSongCount >= totalRounds;
   const selectedBucketCount = selectedSongBucketIds.length;
-  const canStartMatch =
-    phase === "lobby" &&
-    playerOrder.length > 0 &&
-    readyCount === playerOrder.length &&
-    hasEnoughSongs;
+  const canStartMatch = isMatchReadyToStart({
+    phase,
+    playerIds: playerOrder,
+    readyByPlayerId,
+    hasEnoughSongs,
+  });
   const startMatchHelper = hasEnoughSongs
     ? "Everyone is ready."
     : `Host needs ${totalRounds - uniqueSongCount} more unique songs.`;

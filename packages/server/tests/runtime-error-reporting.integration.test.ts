@@ -8,10 +8,11 @@ import type { AuthService } from "../src/services/auth-service";
 import { setupServerTestHarness } from "./helpers/server-test-harness";
 
 const allowAllAuthService = {
-  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+  verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
     isVerified: true,
     appId,
     verifiedVia: "appId" as const,
+    hostSessionKind: hostSessionKind ?? "system",
   }),
 } as AuthService;
 

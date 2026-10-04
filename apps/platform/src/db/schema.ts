@@ -51,6 +51,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
@@ -189,6 +190,7 @@ export const {
   operationalControlEvents,
   operationalLaneControls,
   realtimeAdmissionInstances,
+  realtimeHostGrantConsumptions,
   realtimeControllerAdmissionLeases,
   realtimeRoomAdmissionLeases,
   runtimeUsageSessions,
@@ -1053,6 +1055,7 @@ export const gameReleaseReports = pgTable(
   "game_release_reports",
   {
     id: text("id").primaryKey(),
+    submissionId: uuid("submission_id").defaultRandom().notNull(),
     releaseId: text("release_id")
       .references(() => gameReleases.id, { onDelete: "cascade" })
       .notNull(),
@@ -1063,8 +1066,12 @@ export const gameReleaseReports = pgTable(
     reporterEmail: text("reporter_email"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     reviewedAt: timestamp("reviewed_at"),
+    reviewRevision: integer("review_revision").default(0).notNull(),
   },
   (table) => ({
+    submissionIdx: uniqueIndex("game_release_reports_submission_id_idx").on(
+      table.submissionId,
+    ),
     releaseIdx: index("game_release_reports_release_id_idx").on(
       table.releaseId,
     ),
@@ -1073,6 +1080,41 @@ export const gameReleaseReports = pgTable(
       table.createdAt,
     ),
   }),
+);
+
+// Private operator decisions; never included in creator report projections.
+export const gameReleaseReportDecisions = pgTable(
+  "game_release_report_decisions",
+  {
+    id: text("id").primaryKey(),
+    reportId: text("report_id")
+      .references(() => gameReleaseReports.id, { onDelete: "cascade" })
+      .notNull(),
+    revision: integer("revision").notNull(),
+    status: text("status").$type<ReleaseReportStatus>().notNull(),
+    actor: text("actor").notNull(),
+    reason: text("reason").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("game_release_report_decisions_revision_idx").on(
+      table.reportId,
+      table.revision,
+    ),
+    uniqueIndex("game_release_report_decisions_command_idx").on(
+      table.reportId,
+      table.idempotencyKey,
+    ),
+    check(
+      "game_release_report_decisions_revision_check",
+      sql`${table.revision} > 0`,
+    ),
+    check(
+      "game_release_report_decisions_status_check",
+      sql`${table.status} in ('open', 'reviewed', 'dismissed')`,
+    ),
+  ],
 );
 
 export const gameMediaAssets = pgTable(

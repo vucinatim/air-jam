@@ -1,17 +1,18 @@
 import type { ArcadeGame } from "@/components/arcade";
 import { airJamGithubRepoUrl } from "@/lib/social-links";
+import { localReferenceGameId } from "@air-jam/sdk/arcade/surface";
 import { buildArcadeControllerRuntimeUrl } from "@air-jam/sdk/arcade/url";
 
 type LocalReferenceGameKey =
   | "air-capture"
   | "pong"
+  | "minimal"
   | "code-review"
   | "last-band-standing"
   | "the-office";
 
 type LocalReferenceGameConfig = {
   key: LocalReferenceGameKey;
-  id: string;
   slug: string;
   name: string;
   defaultDevUrl?: string;
@@ -20,7 +21,7 @@ type LocalReferenceGameConfig = {
 };
 
 type LocalReferenceGameOptions = {
-  env?: NodeJS.ProcessEnv;
+  env?: Partial<NodeJS.ProcessEnv>;
   nodeEnv?: string | undefined;
 };
 
@@ -36,6 +37,10 @@ const CLIENT_LOCAL_REFERENCE_ENV: NodeJS.ProcessEnv = {
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_URL,
   NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_CONTROLLER_URL:
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_PONG_CONTROLLER_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_MINIMAL_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_MINIMAL_URL,
+  NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_MINIMAL_CONTROLLER_URL:
+    process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_MINIMAL_CONTROLLER_URL,
   NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL:
     process.env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL,
   NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_CONTROLLER_URL:
@@ -56,7 +61,6 @@ const DEFAULT_LOCAL_REFERENCE_GAME: LocalReferenceGameKey = "air-capture";
 const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   {
     key: "air-capture",
-    id: "local-reference-air-capture",
     slug: "local-air-capture",
     name: "Air Capture",
     defaultDevUrl: "http://127.0.0.1:5173",
@@ -65,7 +69,6 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   },
   {
     key: "pong",
-    id: "local-reference-pong",
     slug: "local-pong",
     name: "Pong",
     defaultDevUrl: "http://127.0.0.1:5173",
@@ -73,8 +76,15 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
     templateId: "pong",
   },
   {
+    key: "minimal",
+    slug: "local-minimal",
+    name: "Minimal",
+    defaultDevUrl: "http://127.0.0.1:5173",
+    sourcePath: "games/minimal",
+    templateId: "minimal",
+  },
+  {
     key: "code-review",
-    id: "local-reference-code-review",
     slug: "local-code-review",
     name: "Code Review",
     sourcePath: "games/code-review",
@@ -82,7 +92,6 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   },
   {
     key: "last-band-standing",
-    id: "local-reference-last-band-standing",
     slug: "local-last-band-standing",
     name: "Last Band Standing",
     sourcePath: "games/last-band-standing",
@@ -90,7 +99,6 @@ const LOCAL_REFERENCE_GAMES: readonly LocalReferenceGameConfig[] = [
   },
   {
     key: "the-office",
-    id: "local-reference-the-office",
     slug: "local-the-office",
     name: "The Office",
     sourcePath: "games/the-office",
@@ -110,7 +118,7 @@ const normalizeLocalReferenceUrl = (
 
 const readConfiguredLocalReferenceUrl = (
   gameKey: LocalReferenceGameKey,
-  env: NodeJS.ProcessEnv,
+  env: Partial<NodeJS.ProcessEnv>,
 ): string | null => {
   switch (gameKey) {
     case "air-capture":
@@ -124,6 +132,10 @@ const readConfiguredLocalReferenceUrl = (
     case "code-review":
       return normalizeLocalReferenceUrl(
         env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_URL,
+      );
+    case "minimal":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_MINIMAL_URL,
       );
     case "last-band-standing":
       return normalizeLocalReferenceUrl(
@@ -140,7 +152,7 @@ const readConfiguredLocalReferenceUrl = (
 
 const readConfiguredLocalReferenceControllerUrl = (
   gameKey: LocalReferenceGameKey,
-  env: NodeJS.ProcessEnv,
+  env: Partial<NodeJS.ProcessEnv>,
 ): string | null => {
   switch (gameKey) {
     case "air-capture":
@@ -154,6 +166,10 @@ const readConfiguredLocalReferenceControllerUrl = (
     case "code-review":
       return normalizeLocalReferenceUrl(
         env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_CODE_REVIEW_CONTROLLER_URL,
+      );
+    case "minimal":
+      return normalizeLocalReferenceUrl(
+        env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_MINIMAL_CONTROLLER_URL,
       );
     case "last-band-standing":
       return normalizeLocalReferenceUrl(
@@ -169,7 +185,7 @@ const readConfiguredLocalReferenceControllerUrl = (
 };
 
 const resolveDefaultLocalReferenceKey = (
-  env: NodeJS.ProcessEnv,
+  env: Partial<NodeJS.ProcessEnv>,
 ): LocalReferenceGameKey => {
   const configuredValue =
     env.NEXT_PUBLIC_AIR_JAM_LOCAL_REFERENCE_DEFAULT?.trim().toLowerCase();
@@ -183,12 +199,13 @@ const findLocalReferenceGameConfig = (
   slugOrId: string,
 ): LocalReferenceGameConfig | null =>
   LOCAL_REFERENCE_GAMES.find(
-    (config) => config.slug === slugOrId || config.id === slugOrId,
+    (config) =>
+      config.slug === slugOrId || localReferenceGameId(config.key) === slugOrId,
   ) ?? null;
 
 const resolveLocalReferenceGameUrl = (
   config: LocalReferenceGameConfig,
-  env: NodeJS.ProcessEnv,
+  env: Partial<NodeJS.ProcessEnv>,
   defaultGameKey: LocalReferenceGameKey,
   options: { allowDirectFallback?: boolean } = {},
 ): string | null => {
@@ -207,7 +224,7 @@ const resolveLocalReferenceGameUrl = (
 const toLocalReferenceArcadeGame = (
   config: LocalReferenceGameConfig,
   url: string,
-  env: NodeJS.ProcessEnv,
+  env: Partial<NodeJS.ProcessEnv>,
 ): ArcadeGame => {
   const controllerUrl =
     readConfiguredLocalReferenceControllerUrl(config.key, env) ??
@@ -219,7 +236,7 @@ const toLocalReferenceArcadeGame = (
   }
 
   return {
-    id: config.id,
+    id: localReferenceGameId(config.key),
     slug: config.slug,
     name: config.name,
     ownerName: LOCAL_REFERENCE_OWNER_NAME,

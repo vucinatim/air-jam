@@ -225,11 +225,15 @@ export const readPersistedPlatformSettings = (): PlatformSettingsSnapshot => {
     return DEFAULT_PLATFORM_SETTINGS;
   }
 
-  const current = tryParseJson(
-    window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY),
-  );
-  if (current) {
-    return normalizePlatformSettings(current);
+  try {
+    const current = tryParseJson(
+      window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY),
+    );
+    if (current) {
+      return normalizePlatformSettings(current);
+    }
+  } catch {
+    // Browser policy may deny storage entirely; settings remain usable in memory.
   }
 
   return DEFAULT_PLATFORM_SETTINGS;

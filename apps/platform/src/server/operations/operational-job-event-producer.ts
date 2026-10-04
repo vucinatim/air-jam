@@ -3,6 +3,7 @@ import type {
   OperationalJobEvent,
 } from "@/server/jobs/operational-job-internals";
 import {
+  OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES,
   resolveDeploymentEnvironment,
   type JsonValue,
   type OperationalFailureV1,
@@ -69,7 +70,7 @@ export const enqueueOperationalJobFailureEventInTransaction = async ({
       evidence: [
         {
           kind: "job",
-          reference: `operational-job-event:${jobEvent.id}`,
+          reference: `${OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES.jobEvent}${jobEvent.id}`,
           collectedAt: occurredAt.toISOString(),
         },
       ],

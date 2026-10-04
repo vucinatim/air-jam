@@ -1,18 +1,16 @@
 import * as Sentry from "@sentry/nextjs";
+import { resolvePlatformDeploymentConfig } from "./lib/platform-deployment-config";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     await import("../sentry.server.config");
 
-    const railwayEnvironmentName = process.env.RAILWAY_ENVIRONMENT_NAME?.trim();
-    const isRailwayPreviewEnvironment =
-      Boolean(railwayEnvironmentName) &&
-      railwayEnvironmentName !== "production";
+    const { isRailwayPreviewEnvironment } = resolvePlatformDeploymentConfig(
+      process.env,
+    );
 
     if (isRailwayPreviewEnvironment) {
-      // Seed minimal preview data (test user + one listed game) so PR
-      // previews have a usable arcade out of the box. Dynamic import
-      // keeps production cold-start free of this code path entirely.
+      // Preview identities enable real uploads and room creation, not fake games.
       try {
         const { seedPreviewData } = await import("./lib/seed-preview");
         await seedPreviewData();

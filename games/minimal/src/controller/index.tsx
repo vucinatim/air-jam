@@ -47,7 +47,7 @@ export function ControllerView() {
 
         <button
           type="button"
-          onPointerDown={handleTap}
+          onClick={handleTap}
           disabled={!canTap}
           className="flex h-[50vmin] w-[50vmin] items-center justify-center rounded-full bg-emerald-500 text-4xl font-black tracking-[0.1em] text-emerald-950 uppercase shadow-lg shadow-emerald-500/30 transition active:scale-95 disabled:bg-neutral-800 disabled:text-neutral-600 disabled:shadow-none"
         >

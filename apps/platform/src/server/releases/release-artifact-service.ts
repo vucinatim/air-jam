@@ -25,7 +25,6 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
-import type { assertOwnedRelease } from "./assert-owned-release";
 import {
   readReleaseArchiveManifest,
   streamValidatedReleaseArchiveFiles,
@@ -41,11 +40,10 @@ import {
   buildReleaseSiteObjectKey,
 } from "./release-storage-keys";
 
-type OwnedRelease = Awaited<ReturnType<typeof assertOwnedRelease>>;
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 type RequestReleaseUploadTargetInput = {
-  release: OwnedRelease;
+  release: { id: string; gameId: string };
   originalFilename: string;
   sizeBytes: number;
   actor: string;

@@ -47,11 +47,6 @@ const applicationServices = [
     railwayConfigFile: "/packages/server/railway.json",
   },
   {
-    serviceId: "service-browser-worker",
-    serviceName: "air-jam-release-browser-worker",
-    railwayConfigFile: "/packages/release-browser-worker/railway.json",
-  },
-  {
     serviceId: "service-operational-worker",
     serviceName: "air-jam-platform-worker",
     railwayConfigFile: null,
@@ -80,7 +75,9 @@ const createEnvironment = (id) => {
           customDomains:
             production && service.serviceId === "service-platform"
               ? [{ domain: "airjam.io" }]
-              : [],
+              : !production && service.serviceId === "service-platform"
+                ? [{ domain: "games-staging.air-jam.app" }]
+                : [],
           serviceDomains: [
             {
               domain: `${service.serviceName}-${suffix}.up.railway.app`,
@@ -131,8 +128,8 @@ const createServiceVariables = ({ environmentId, serviceId }) => {
             AIRJAM_RELEASES_R2_SESSION_TOKEN: stagingR2Credential.sessionToken,
           }),
       AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: `${suffix}-internal-token`,
-      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: `wss://air-jam-release-browser-worker-${suffix}.up.railway.app/ws`,
-      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: `${suffix}-browser-token`,
+      AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+      AIRJAM_RELEASES_BROWSER_API_TOKEN: `${suffix}-browser-token`,
       BETTER_AUTH_SECRET: `${suffix}-auth-secret`,
     };
   }
@@ -140,7 +137,6 @@ const createServiceVariables = ({ environmentId, serviceId }) => {
     return {
       ...common,
       DATABASE_URL: databaseUrl,
-      AIR_JAM_MASTER_KEY: `${suffix}-master-key`,
       AIR_JAM_HOST_GRANT_SECRET: `${suffix}-host-secret`,
     };
   }
@@ -160,16 +156,12 @@ const createServiceVariables = ({ environmentId, serviceId }) => {
             AIRJAM_RELEASES_R2_SESSION_TOKEN: stagingR2Credential.sessionToken,
           }),
       AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: `${suffix}-internal-token`,
-      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: `${suffix}-browser-token`,
-      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: `wss://air-jam-release-browser-worker-${suffix}.up.railway.app/ws`,
+      AIRJAM_RELEASES_BROWSER_API_TOKEN: `${suffix}-browser-token`,
+      AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
       AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: `${suffix}-worker-token`,
     };
   }
-  return {
-    ...common,
-    AIRJAM_BROWSER_WORKER_ACCESS_TOKEN: `${suffix}-browser-token`,
-    AIRJAM_BROWSER_WORKER_HEADLESS: "true",
-  };
+  throw new Error(`Unexpected application service: ${serviceId}`);
 };
 
 const createServiceVariablePairs = () => {
@@ -306,11 +298,11 @@ test("environment proof rejects reused production values on every service", () =
   const server = input.serviceVariablePairs.find(
     (pair) => pair.stagingInstance.serviceId === "service-server",
   );
-  server.stagingVariables.AIR_JAM_MASTER_KEY =
-    server.primaryVariables.AIR_JAM_MASTER_KEY;
+  server.stagingVariables.AIR_JAM_HOST_GRANT_SECRET =
+    server.primaryVariables.AIR_JAM_HOST_GRANT_SECRET;
   assert.throws(
     () => assertGoldenPathStagingEnvironmentIsolation(input),
-    /air-jam-server reuses production value for AIR_JAM_MASTER_KEY/u,
+    /air-jam-server reuses production value for AIR_JAM_HOST_GRANT_SECRET/u,
   );
 });
 
@@ -343,23 +335,39 @@ test("environment proof permits absent optional production secrets", () => {
   assert.doesNotThrow(() => assertGoldenPathStagingEnvironmentIsolation(input));
 });
 
-test("browser access tokens are conditional on a remote browser endpoint", () => {
+test("environment proof rejects a native executable instead of managed browser credentials", () => {
   const input = isolationInput();
   const platform = input.serviceVariablePairs[0];
-  delete platform.stagingVariables.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT;
-  delete platform.stagingVariables.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN;
+  delete platform.stagingVariables.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID;
+  delete platform.stagingVariables.AIRJAM_RELEASES_BROWSER_API_TOKEN;
   platform.stagingVariables.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH =
     "/usr/bin/chromium";
-  assert.doesNotThrow(() => assertGoldenPathStagingEnvironmentIsolation(input));
-});
-
-test("environment proof rejects a browser endpoint outside staging", () => {
-  const input = isolationInput();
-  input.serviceVariablePairs[0].stagingVariables.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT =
-    "wss://unrelated-browser.example/ws";
   assert.throws(
     () => assertGoldenPathStagingEnvironmentIsolation(input),
-    /browser endpoint does not target its release browser worker/u,
+    /missing required AIRJAM_RELEASES_BROWSER_ACCOUNT_ID/u,
+  );
+});
+
+test("environment proof requires managed browser authentication", () => {
+  const input = isolationInput();
+  delete input.serviceVariablePairs[0].stagingVariables
+    .AIRJAM_RELEASES_BROWSER_API_TOKEN;
+  assert.throws(
+    () => assertGoldenPathStagingEnvironmentIsolation(input),
+    /AIRJAM_RELEASES_BROWSER_API_TOKEN/u,
+  );
+});
+
+test("environment proof rejects an invalid managed browser account", () => {
+  const input = isolationInput();
+  input.serviceVariablePairs[0].stagingVariables.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID =
+    "invalid-account";
+  input.serviceVariablePairs.find(
+    (pair) => pair.stagingInstance.serviceId === "service-operational-worker",
+  ).stagingVariables.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID = "invalid-account";
+  assert.throws(
+    () => assertGoldenPathStagingEnvironmentIsolation(input),
+    /browser account ID must be a Cloudflare account ID/u,
   );
 });
 

@@ -6,7 +6,6 @@ import {
   rethrowOperationalAdmissionForMachine,
 } from "../auth/machine-auth-errors";
 import { serializeOwnedGameForMachine } from "../games/machine-game";
-import { getReleaseDetails } from "./get-release-details";
 import {
   createOwnedDraftRelease,
   finalizeOwnedReleaseUpload,
@@ -17,9 +16,7 @@ import {
   requestOwnedReleaseUploadTarget,
 } from "./release-application-service";
 
-type ReleaseDetails = NonNullable<
-  Awaited<ReturnType<typeof getReleaseDetails>>
->;
+type ReleaseDetails = Awaited<ReturnType<typeof getOwnedRelease>>;
 
 const serializeReleaseGenerationForMachine = (
   generation: ReleaseDetails["generations"][number],
@@ -123,9 +120,6 @@ export const serializeReleaseForMachine = (release: ReleaseDetails) => {
       releaseId: report.releaseId,
       status: report.status,
       source: report.source,
-      reason: report.reason,
-      details: report.details ?? null,
-      reporterEmail: report.reporterEmail ?? null,
       createdAt: report.createdAt.toISOString(),
       reviewedAt: report.reviewedAt?.toISOString() ?? null,
     })),

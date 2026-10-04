@@ -3,7 +3,6 @@ import type {
   ControllerActionRpcPayload,
   ControllerInputEvent,
   ControllerStateSyncRequestPayload,
-  HostActionRpcPayload,
   ServerToClientEvents,
 } from "@air-jam/sdk/protocol";
 import { spawn } from "node:child_process";
@@ -235,10 +234,12 @@ console.log(JSON.stringify({
 };
 
 const createControllerSocketFixture = async ({
-  replayStaleDefaultSyncAfterHostAction = false,
+  aliasedAgentImport = false,
+  replayStaleDefaultSyncAfterAction = false,
   embeddedArcadeIdentity = null,
 }: {
-  replayStaleDefaultSyncAfterHostAction?: boolean;
+  aliasedAgentImport?: boolean;
+  replayStaleDefaultSyncAfterAction?: boolean;
   embeddedArcadeIdentity?: {
     epoch: number;
     gameId: string;
@@ -248,7 +249,6 @@ const createControllerSocketFixture = async ({
   joinUrl: string;
   receivedInputs: ControllerInputEvent[];
   receivedActions: ControllerActionRpcPayload[];
-  receivedHostActions: HostActionRpcPayload[];
   receivedStateSyncRequests: ControllerStateSyncRequestPayload[];
   receivedLeaves: { roomId: string; controllerId: string }[];
   setStorePayload: (
@@ -268,9 +268,16 @@ const createControllerSocketFixture = async ({
     },
   });
   await mkdir(path.join(root, "src"), { recursive: true });
+  if (aliasedAgentImport) {
+    // The caller's project root has no alias configuration. The helper must
+    // discover the tsconfig belonging to the authored config and contract.
+    await writeJson(path.join(root, "src", "tsconfig.json"), {
+      compilerOptions: { baseUrl: ".", paths: { "@/*": ["./*"] } },
+    });
+  }
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    'import { agentContract } from "./game/contracts/agent";\nexport const airjam = { controllerPath: "/controller", agent: agentContract, visualScenariosModule: "./game/contracts/visual-scenarios.mjs" };\n',
+    `import { agentContract } from "${aliasedAgentImport ? "@/game/contracts/agent" : "./game/contracts/agent"}";\nexport const airjam = { controllerPath: "/controller", agent: agentContract, visualScenariosModule: "./game/contracts/visual-scenarios.mjs" };\n`,
     "utf8",
   );
   await mkdir(path.join(root, "src", "game", "contracts"), {
@@ -361,7 +368,6 @@ const createControllerSocketFixture = async ({
 
   const receivedInputs: ControllerInputEvent[] = [];
   const receivedActions: ControllerActionRpcPayload[] = [];
-  const receivedHostActions: HostActionRpcPayload[] = [];
   const receivedStateSyncRequests: ControllerStateSyncRequestPayload[] = [];
   const receivedLeaves: { roomId: string; controllerId: string }[] = [];
   const embeddedGameStoreDomain = embeddedArcadeIdentity
@@ -378,6 +384,9 @@ const createControllerSocketFixture = async ({
               epoch: embeddedArcadeIdentity.epoch,
               kind: "game",
               gameId: embeddedArcadeIdentity.gameId,
+              controllerUrl: "http://localhost:5173/controller",
+              orientation: "portrait",
+              overlay: "hidden",
             },
           ] as const,
         ]
@@ -458,54 +467,24 @@ const createControllerSocketFixture = async ({
       }
     ).on("controller:action_rpc", (payload, callback) => {
       receivedActions.push(payload);
-      callback?.({
-        ok: true,
-        status: "accepted",
-        source: "host",
-      });
-    });
-
-    (
-      socket as unknown as {
-        on: (
-          event: string,
-          listener: (
-            payload: HostActionRpcPayload,
-            callback?: (ack: {
-              ok: true;
-              status: "accepted";
-              source: "host";
-            }) => void,
-          ) => void,
-        ) => void;
-      }
-    ).on("controller:host_action_rpc", (payload, callback) => {
-      receivedHostActions.push(payload);
-      if (payload.actionName === "finishMatch") {
-        const targetStoreDomain = payload.storeDomain;
-        const previousTargetStore = {
-          ...(storePayloads.get(targetStoreDomain) ?? {}),
-        };
-        const previousTargetRevision =
-          storeRevisions.get(targetStoreDomain) ?? 0;
-        storePayloads.set(targetStoreDomain, {
-          ...previousTargetStore,
-          phase: "ended",
-        });
-        storeRevisions.set(targetStoreDomain, previousTargetRevision + 1);
-        if (
-          replayStaleDefaultSyncAfterHostAction &&
-          targetStoreDomain === "default"
-        ) {
-          setTimeout(() => {
+      if (
+        payload.actionName === "setScore" &&
+        replayStaleDefaultSyncAfterAction
+      ) {
+        const previous = { ...storePayloads.get(payload.storeDomain) };
+        const revision = storeRevisions.get(payload.storeDomain) ?? 0;
+        storePayloads.set(payload.storeDomain, { ...previous, score: 9 });
+        storeRevisions.set(payload.storeDomain, revision + 1);
+        setTimeout(
+          () =>
             socket.emit("airjam:state_sync", {
               roomId: payload.roomId,
-              storeDomain: "default",
-              data: previousTargetStore,
-              revision: previousTargetRevision,
-            });
-          }, 50);
-        }
+              storeDomain: payload.storeDomain,
+              data: previous,
+              revision,
+            }),
+          50,
+        );
       }
       callback?.({
         ok: true,
@@ -603,7 +582,6 @@ console.log(JSON.stringify({
     joinUrl: `http://127.0.0.1:${port}/controller?room=ROOM1&aj_controller_cap=cap_fixture`,
     receivedInputs,
     receivedActions,
-    receivedHostActions,
     receivedStateSyncRequests,
     receivedLeaves,
     setStorePayload: (storeDomain, payload) => {
@@ -1233,59 +1211,65 @@ describe("agent contracts", () => {
     );
   });
 
-  it("projects a game snapshot and invokes semantic game actions through a controller session", async () => {
-    const fixture = await createControllerSocketFixture();
+  it.each([false, true])(
+    "projects and invokes game actions with project-local aliases: %s",
+    async (aliasedAgentImport) => {
+      const fixture = await createControllerSocketFixture({
+        aliasedAgentImport,
+      });
 
-    const connected = await connectController({
-      cwd: fixture.root,
-      gameId: "socket-fixture",
-      controllerJoinUrl: fixture.joinUrl,
-      nickname: "AgentCtrl",
-    });
+      const connected = await connectController({
+        cwd: fixture.root,
+        gameId: "socket-fixture",
+        controllerJoinUrl: fixture.joinUrl,
+        nickname: "AgentCtrl",
+      });
 
-    const projected = await readGameSnapshot({
-      controllerSessionId: connected.controllerSessionId,
-      requestSync: true,
-      timeoutMs: 1_000,
-    });
-    expect(projected.snapshotStoreDomains).toEqual(["default"]);
-    expect(projected.snapshot).toMatchObject({
-      phase: "lobby",
-      score: 3,
-      controllerId: connected.controllerId,
-    });
+      const projected = await readGameSnapshot({
+        controllerSessionId: connected.controllerSessionId,
+        requestSync: true,
+        timeoutMs: 1_000,
+      });
+      expect(projected.snapshotStoreDomains).toEqual(["default"]);
+      expect(projected.snapshot).toMatchObject({
+        phase: "lobby",
+        score: 3,
+        controllerId: connected.controllerId,
+      });
 
-    const invoked = await invokeGameAction({
-      controllerSessionId: connected.controllerSessionId,
-      actionId: "set_score",
-      payload: 7,
-    });
-    await new Promise((resolve) => setTimeout(resolve, 25));
+      const invoked = await invokeGameAction({
+        controllerSessionId: connected.controllerSessionId,
+        actionId: "set_score",
+        payload: 7,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 25));
 
-    expect(invoked.actionId).toBe("set_score");
-    expect(invoked.actionName).toBe("setScore");
-    expect(invoked.storeDomain).toBe("default");
-    expect(invoked.acknowledgement).toEqual({
-      ok: true,
-      status: "accepted",
-      source: "host",
-    });
-    expect(fixture.receivedActions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionName: "setScore",
-          storeDomain: "default",
-          payload: {
-            score: 7,
-          },
-        }),
-      ]),
-    );
+      expect(invoked.actionId).toBe("set_score");
+      expect(invoked.actionName).toBe("setScore");
+      expect(invoked.storeDomain).toBe("default");
+      expect(invoked.acknowledgement).toEqual({
+        ok: true,
+        status: "accepted",
+        source: "host",
+      });
+      expect(fixture.receivedActions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            actionName: "setScore",
+            storeDomain: "default",
+            payload: {
+              score: 7,
+            },
+          }),
+        ]),
+      );
 
-    await disconnectController({
-      controllerSessionId: connected.controllerSessionId,
-    });
-  }, 20_000);
+      await disconnectController({
+        controllerSessionId: connected.controllerSessionId,
+      });
+    },
+    20_000,
+  );
 
   it("does not infer an agent contract from a file that config does not publish", async () => {
     const root = await createTempRoot();
@@ -1516,21 +1500,10 @@ describe("game sessions", () => {
       actionId: "host:finish_match",
       timeoutMs: 1_000,
     });
-    expect(hostInvocation.invocation).toEqual(
-      expect.objectContaining({
-        storeDomain: embeddedStoreDomain,
-        acknowledgement: expect.objectContaining({
-          ok: true,
-          status: "accepted",
-          source: "host",
-        }),
-        snapshotAfter: expect.objectContaining({
-          snapshot: expect.objectContaining({
-            phase: "ended",
-          }),
-        }),
-      }),
-    );
+    expect(hostInvocation.invocation.acknowledgement).toMatchObject({
+      ok: false,
+      reason: "host_runtime_not_owned",
+    });
 
     await closeGameSession({
       gameSessionId: session.gameSessionId,
@@ -1553,75 +1526,34 @@ describe("game sessions", () => {
     expect(fixture.receivedLeaves).toHaveLength(1);
   });
 
-  it("exposes and invokes semantic host actions through the game contract", async () => {
+  it("keeps host actions unavailable when only attached by join URL", async () => {
     const fixture = await createControllerSocketFixture();
-
     const session = await openGameSession({
       cwd: fixture.root,
       gameId: "socket-fixture",
       controllerJoinUrl: fixture.joinUrl,
-      nickname: "AgentHostCtrl",
     });
-
-    expect(session.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionId: "host:finish_match",
-          lane: "host",
-          source: "semantic-game",
-        }),
-      ]),
-    );
-
+    expect(
+      session.actions.find((action) => action.actionId === "host:finish_match")
+        ?.availability,
+    ).toContain("host_runtime_not_owned");
     const invocation = await invokeGameSessionAction({
       gameSessionId: session.gameSessionId,
       actionId: "host:finish_match",
-      timeoutMs: 5_000,
+      timeoutMs: 1000,
     });
-    await new Promise((resolve) => setTimeout(resolve, 25));
-
-    expect(invocation.actionId).toBe("host:finish_match");
-    expect(invocation.lane).toBe("host");
-    expect(invocation.invocation).toEqual(
-      expect.objectContaining({
-        lane: "host",
-        actionName: "finishMatch",
-        acknowledgement: expect.objectContaining({
-          ok: true,
-          status: "accepted",
-          source: "host",
-        }),
-        acknowledgementObservation: "host-acknowledged",
-        outcome: "accepted",
-        snapshotBefore: expect.objectContaining({
-          snapshot: expect.objectContaining({
-            phase: "lobby",
-          }),
-        }),
-        snapshotAfter: expect.objectContaining({
-          snapshot: expect.objectContaining({
-            phase: "ended",
-          }),
-        }),
-      }),
-    );
-    expect(fixture.receivedHostActions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionName: "finishMatch",
-          storeDomain: "default",
-        }),
-      ]),
-    );
-
-    await closeGameSession({
-      gameSessionId: session.gameSessionId,
+    expect(invocation.invocation.acknowledgement).toMatchObject({
+      ok: false,
+      status: "rejected",
+      reason: "host_runtime_not_owned",
     });
+    expect(invocation.invocation.observedStateChange).toBe(false);
+    await closeGameSession({ gameSessionId: session.gameSessionId });
   });
 
   it("keeps request-synced game reads fresh even if an older state sync arrives later", async () => {
     const fixture = await createControllerSocketFixture({
-      replayStaleDefaultSyncAfterHostAction: true,
+      replayStaleDefaultSyncAfterAction: true,
     });
 
     const session = await openGameSession({
@@ -1633,14 +1565,15 @@ describe("game sessions", () => {
 
     const invocation = await invokeGameSessionAction({
       gameSessionId: session.gameSessionId,
-      actionId: "host:finish_match",
+      actionId: "player:set_score",
+      payload: 9,
       timeoutMs: 5_000,
     });
 
     expect(invocation.invocation.snapshotAfter).not.toBeNull();
     expect(invocation.invocation.snapshotAfter?.snapshot).toEqual(
       expect.objectContaining({
-        phase: "ended",
+        score: 9,
       }),
     );
 
@@ -1654,7 +1587,7 @@ describe("game sessions", () => {
 
     expect(inspection.gameSnapshot?.snapshot).toEqual(
       expect.objectContaining({
-        phase: "ended",
+        score: 9,
       }),
     );
 

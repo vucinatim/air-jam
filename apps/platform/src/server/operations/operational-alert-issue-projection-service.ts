@@ -3,8 +3,10 @@ import {
   operationalAlertIssueProjections,
   operationalAlerts,
 } from "@/db/schema";
+import { acquireOperationalEvidenceWriteFence } from "@air-jam/database-contract";
 import {
   DEFAULT_OPERATIONAL_ALERT_ISSUE_MAX_ATTEMPTS,
+  OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES,
   createOperationsDocumentDigest,
   createStructuredOperationalFailure,
   githubRepositorySchema,
@@ -131,6 +133,7 @@ export const synchronizeNextOperationalAlertIssueProjection = async ({
     );
   }
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const [candidate] = await tx
       .select({ alert: operationalAlerts })
       .from(operationalAlerts)
@@ -259,6 +262,7 @@ export const claimOperationalAlertIssueProjection = async ({
   const repository = normalizeRepository(rawRepository);
   const workerId = normalizeIdentifier(rawWorkerId, "Worker ID");
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const [candidate] = await tx
       .select()
@@ -351,6 +355,7 @@ export const completeOperationalAlertIssueProjection = async ({
   now?: Date;
 }): Promise<OperationalAlertIssueProjectionV1> =>
   database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const [current] = await tx
       .select()
       .from(operationalAlertIssueProjections)
@@ -418,6 +423,7 @@ export const failOperationalAlertIssueProjection = async ({
 }): Promise<OperationalAlertIssueProjectionV1> => {
   const failure = operationalFailureSchemaV1.parse(rawFailure);
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const [current] = await tx
       .select()
       .from(operationalAlertIssueProjections)
@@ -493,6 +499,7 @@ export const repairExpiredOperationalAlertIssueProjections = async ({
     );
   }
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const rows = await tx
       .select()
@@ -768,6 +775,7 @@ export const requeueOperationalAlertIssueProjection = async ({
   }
   const eventId = `alert-issue-requeue:${createOperationsDocumentDigest(idempotencyKey)}`;
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtext(${`airjam:alert-issue-requeue:${idempotencyKey}`}))`,
     );
@@ -885,7 +893,7 @@ export const requeueOperationalAlertIssueProjection = async ({
         evidence: [
           {
             kind: "command",
-            reference: `alert-issue-requeue:${idempotencyKey}`,
+            reference: `${OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES.alertIssueRequeue}${idempotencyKey}`,
             collectedAt: authorityNow.toISOString(),
           },
         ],

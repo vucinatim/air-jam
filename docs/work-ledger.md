@@ -1,6 +1,6 @@
 # Air Jam Work Ledger
 
-Last updated: 2026-09-09
+Last updated: 2026-10-04
 Status: historical memory
 
 This file is the append-only historical memory for the repo.
@@ -17,6 +17,640 @@ For the current snapshot, use [current-state.md](./current-state.md).
 The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
+
+## 2026-10-04 - Isolated Hosted Managed-Capture Rehearsal Passed
+
+- Preserved Mara and Andrej's private gift deployment; used an owned Pong copy
+  in a fresh provider-attested Railway environment, with separate PostgreSQL,
+  preview-only storage credential and distinct Browser Run token
+- Real rehearsal found and corrected platform/game origin selection, competing
+  browser cleanup, missing preview system identity, omitted game-origin Docker
+  build input, and Next-stripped navigation headers. Focused regressions and
+  bounded checks protect each correction; the final source revision passed CI
+- The actual deployed worker captured the hidden unpublished R2 generation and
+  completed processing on its first corrected-image attempt. Earlier failed
+  jobs remain durable history; repair used the canonical audited replay command
+- Proved anonymous hidden-release denial before and after publishing. Listed
+  only the disposable preview copy for cross-origin host/controller play,
+  controller-owned match start, completion, reload/reconnect and lobby reset
+- Recorded [scoped hosted evidence](./audits/v1-security/2026-10-04-hosted-managed-capture-proof.json)
+  and local visual artifacts. This was a desktop browser controller, not a
+  physical phone or semantic gameplay test. Preview image moderation was off
+- Production read-only inspection found five pending online migrations with
+  no unknown hashes. No production code, schema, deployment or legacy-service
+  retirement occurred; final GitHub review and guarded rollout remain pending
+
+## 2026-10-04 - Restricted Browser Credentials Staged
+
+- Tim approved separate Browser Run-only production/preview credentials.
+  Created both through the published agentic-devtools bootstrap client with
+  explicit permissions; provider read-back verified exactly one Air Jam
+  account-scoped policy with Browser Run Read and Write only
+- Stored private deployment copies outside Git in the agentic-devtools Air Jam
+  credential directory, mode `0700`, with files mode `0600`. No secret was
+  printed, committed, passed in command arguments or placed in `.env.local`
+- Stored the production account/token variables on Railway platform and job
+  worker through the repo-owned API, with deployment disabled. Both read-backs
+  matched; their successful deployment identities stayed unchanged. Preview
+  credentials were not inserted into production
+- The preview credential passed actual managed-session acquisition, remote
+  fixture rendering, PNG capture and acknowledged cleanup. The image stayed
+  in memory; this does not establish actual uploaded-release/R2 capture
+- All current-head [CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37202101846)
+  and the [installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37202101888)
+  passed for `92e5efa9`. Final GitHub review, fresh hosted target, hidden capture,
+  migrations and exact deployment remain pending; no merge or launch occurred
+
+## 2026-10-04 - Accepted Managed Capture Integration
+
+- Tim accepted Cloudflare managed browser isolation and authorized reviewed
+  delivery/release when confidence is established. Railway remains the trusted
+  product/job host; private bee capture and an independently enforced browser
+  network firewall are not part of the accepted architecture
+- Integrated the existing screenshot service with owned Cloudflare sessions,
+  account/API-token configuration, bounded cleanup, and unchanged generation
+  asset permissions. Staging now operates three Railway app services, requires
+  a separate Browser Run token and rejects production-token reuse before writes
+- Removed the obsolete custom browser-worker package, lock dependencies,
+  Docker manifest copies and active sibling health check. Git retains the code
+  and the archived investigation. The deployed legacy service was not removed
+- The integrated batch passed full workspace typechecking, lint, canonical
+  guards and tests; the platform suite reported 680 passed and 118
+  environment-dependent skips. Focused capture/synthetic tests passed 62 cases,
+  staging tests passed 24. The authorized GPT-6.1 Sol pre-push source review
+  found no actionable blockers; this is not the final GitHub merge review
+- Read-only provider inspection found only production, with PR deployments
+  disabled and all existing deployments terminal-successful. Migration
+  inspection found five pending online migrations, no unknown hashes or
+  historical gaps. No schema, token, provider configuration or deployment changed
+- Narrow machine-token creation consent, hidden uploaded R2 capture, hosted
+  player/mobile proof and the final reviewed exact rollout remain pending in
+  the [managed capture plan](./plans/release-browser-worker-containment-plan.md).
+  This batch does not close `G5-02`, merge to main or announce Air Jam 1.0
+
+## 2026-10-04 - Green Reviewed Creator Recovery Revision
+
+- Pushed the reviewed CLI approval, account and analytics recovery through
+  `11a76bf6` to [draft PR 112](https://github.com/vucinatim/air-jam/pull/112).
+  All six [CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37169046827)
+  and the required aggregate passed, including isolated PostgreSQL tests
+- All six [installation cells and their aggregate](https://github.com/vucinatim/air-jam/actions/runs/37169046830)
+  passed using one immutable package set, without Air Jam registry fallback.
+  Verified candidate `b4389cb8` is GitHub's test merge of production `db85cdea`
+  and PR head `11a76bf6`, not a main merge. The
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#github-verification-of-the-reviewed-recovery-revision)
+  retains provenance and scope
+- The PR remains draft with auto-merge disabled. No final merge review,
+  provider switch, production deployment or package publication occurred.
+  Managed-isolation acceptance and final hosted/mobile integration remain open
+
+## 2026-10-04 - Reviewed Creator Recovery Batch
+
+- The integrating batch passed at `8ae5bc8c`: generated sources, full workspace
+  typechecking, lint, canonical guards and tests. The platform stage reported
+  676 passing tests and 118 environment-dependent skips, not live database or
+  provider proof
+- The authorized GPT-6.1 Sol review of `ec65ce8c..8ae5bc8c` found an old
+  account's pending save could overwrite a newly loaded account. Guarded the
+  canonical cache identity before and after read cancellation; no account
+  service, permission or shared API changed
+- Both deferred identity regressions fail before the correction and pass
+  afterward. All 55 creator recovery tests pass, with source/test typechecking
+  and lint. The changed gate took 5.917 seconds, above its five-second target.
+  The full batch preceded the bounded correction; no duplicate full batch or
+  review was run. Evidence is retained in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#reviewed-account-identity-ownership)
+- Prepared CLI approval, account and analytics recovery for one push to
+  [draft PR 112](https://github.com/vucinatim/air-jam/pull/112). The older green
+  GitHub checks do not cover this new batch. Final GitHub review, hosted/mobile
+  proof, managed-isolation acceptance and production delivery remain open
+
+## 2026-10-04 - Account Draft And Analytics Recovery
+
+- Reproduced an account refresh erasing an unsaved creator name. The loaded
+  editor now owns its draft; failed saves retain it, and accepted responses
+  update the canonical query cache before refresh. Removed blocking alerts and
+  the reset-on-refresh effect without changing account access or validation
+- Analytics no longer turns failed reads into zero activity, empty histories
+  or an absent runtime session. Existing data stays visible with one failed-
+  query retry notice; no tracking rule, chart or machine API changed
+- Eight old-source failures are covered by eleven new regressions. All 53
+  creator recovery component tests pass together. Source/test typechecking and
+  lint pass; the scoped gate took 6.34 seconds, above its five-second target.
+  Retained the findings in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#account-draft-and-analytics-read-recovery).
+  These are local edits, not browser, hosted-account or production proof;
+  managed-isolation acceptance and final delivery remain open
+
+## 2026-10-04 - Green Integration Checks And CLI Approval Recovery
+
+- All six [CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37166739710)
+  passed at `ec65ce8c`, including isolated database tests and the corrected
+  strict reconnect benchmark. The first failed run remains retained below
+- The [public installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37166739738)
+  passed all six Linux/macOS/Windows and Node 22/24 combinations, plus aggregate
+  candidate consistency. Its commit `d37fd50f` is the verified synthetic merge
+  of production `db85cdea` and PR head `ec65ce8c`; it is not a main merge,
+  package publication or hosted release proof
+- Independently fixed the browser CLI-approval page sticking in pending after
+  a network rejection. One TanStack mutation retains the code and permits
+  explicit retry; native form submission and announced completion improve
+  keyboard/accessibility recovery. No grant or access policy changed
+- Five focused component tests and all 42 creator recovery tests pass. Source
+  and explicit test typechecking/lint pass; the scoped changed gate took 4.60
+  seconds. These later local edits are not covered by the earlier green GitHub revision. The
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#cli-login-approval-recovery)
+  retains their scope. The PR stays draft; managed-isolation acceptance, hosted
+  integration, final GitHub review and production delivery remain open
+
+## 2026-10-04 - Draft Integration CI And Authenticated Benchmark Reconnect
+
+- Opened [draft PR 112](https://github.com/vucinatim/air-jam/pull/112) at
+  `5bbc7343`, with auto-merge disabled and production delivery explicitly held.
+  Local work is committed and pushed; the PR does not accept the outstanding
+  Cloudflare isolation tradeoff or authorize a provider switch
+- The first [CI run](https://github.com/vucinatim/air-jam/actions/runs/37166351930)
+  passed static contracts, type safety, tests (including its isolated PostgreSQL
+  lane), workspace build and standalone deployment. Performance smoke failed:
+  the benchmark omitted the new controller resume capability, so the server
+  correctly rejected its public-ID-only reconnects. Retained the failure rather
+  than weakening thresholds or changing server authority
+- The benchmark now uses the canonical `ControllerJoinAck`, requires returned
+  slot authority and carries it across reconnects. The existing server test
+  typecheck now includes the benchmark; its old explicit `.ts` imports were
+  corrected to the repo's `.js` convention. Server typechecking and script lint
+  pass. The exact strict CI performance profile passes locally with database
+  authority disabled: 20 reconnects, zero failures or resume misses, 1.56 ms
+  reconnect p95. The 50 ms lease and all thresholds are unchanged. This is not
+  yet green CI for the corrected commit or production proof
+
+## 2026-10-04 - Creator Recovery Integration And Demo Target Revalidation
+
+- The integrated `pnpm check:batch` completed with exit code zero: generated
+  sources, full workspace typechecking, lint, canonical guards and tests. All
+  37 creator recovery cases ran; the platform suite reported 660 passed and
+  117 environment-dependent skips. This is not hosted or database proof
+- The creator pages depend on shared components in the pending integration,
+  so they cannot be cherry-picked alone onto the current production baseline.
+  The explicitly authorized Sol canonicality review of the new delta found no
+  actionable source blockers; it did not repeat the earlier integration review
+- Restored the optional real Chromium redirect/header regression identified as
+  a coverage gap by review. All 43 combined session/fetch/routing/browser cases
+  pass, including real private HTML/chunks and credential-free same/cross-origin
+  redirects and external assets. The fixture uses mapped numeric IO and scoped
+  loopback permission; it does not establish provider network containment. Test
+  typechecking and platform lint pass; retained setup corrections and limits in
+  the [historical containment plan](./archive/2026-10-04-self-hosted-release-browser-containment-plan.md#railway-first-provider-investigation)
+- Read-only staging revalidation rejected the old September environment ID.
+  The same repo CLI successfully read the Air Jam project and found only
+  production, with PR deployments disabled. This is an absent demo target,
+  not evidence of revoked login. The September staging and credential evidence
+  remains historical; no environment, credential or production state changed
+- Preserved creator recovery at `315a273c` and capture hardening/session ownership
+  at `cbe41501` on the intermediate-delivery branch. Neither commit switches
+  production to Cloudflare or accepts its unresolved isolation guarantee
+
+## 2026-10-04 - Game Overview Draft Ownership And Recovery
+
+- Reproduced profile edits being erased by background reads and Arcade listing
+  updates. The loaded editor now owns its draft until accepted save or a change
+  of game; removed the reset-on-every-query-update effect
+- Save/listing/copy failures stay inline. Accepted profile fields update the
+  canonical cache without overwriting managed media URLs; failed listing rolls
+  back only visibility. Failed secondary reads and slug checks no longer imply
+  absent content or a taken slug. Permission and publishing rules are unchanged
+- Eight regressions and the combined 37 creator tests pass, as do source/test
+  typechecking and lint. The final scoped gate took 6.13 seconds, above the
+  five-second target. Retained scope and evidence in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#game-overview-draft-and-recovery-follow-up).
+  No browser, hosted write, provider, commit, merge or deployment occurred
+
+## 2026-10-04 - Creator Settings Recovery
+
+- Failed reads now offer retry instead of claiming a missing identity. Save and
+  clipboard failures stay inline; an origin draft survives a failed save
+- Regeneration retains its warning and confirmation through the request and
+  failed attempts. Accepted server responses update the query cache directly,
+  so failed refreshes do not leave the old App ID displayed as current. No
+  permission policy, database contract or real key changed
+- Seven new regressions and the combined 29 creator tests pass. Source and test
+  typechecking and lint pass; the scoped gate took 6.95 seconds, above the
+  five-second target. Retained evidence and limits in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#security-settings-recovery-follow-up).
+  No browser, provider, commit, merge or deployment occurred
+
+## 2026-10-04 - Managed Media Recovery And Independent Upload Ownership
+
+- Media reads now distinguish failure from empty history and retain cached
+  assets with the existing retry notice. Upload and asset-action failures stay
+  inline rather than opening blocking browser alerts
+- Each media card owns its file and pending operation; thumbnail, cover and
+  video uploads remain independent. Removed page-wide pending markers and kept
+  assignment/archive on their existing tRPC mutations
+- Nine new regressions and the combined 22 creator tests pass. Source lint and
+  typecheck, plus explicit test-file typechecking, pass. The scoped gate took
+  5.95 seconds, above its five-second target. Retained proof and limitations in
+  the [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#managed-media-recovery-follow-up).
+  No browser, provider, merge or production change occurred
+
+## 2026-10-04 - Creator Upload Pending And Recovery Fix
+
+- Continued independent creator/player work while the proposed Cloudflare
+  managed-isolation security boundary awaits a maintainer decision
+- Fixed editable upload inputs being cleared after a different submitted build
+  completed. One TanStack mutation now owns the complete upload lifecycle;
+  pending inputs are locked, failures retain them, and retries stay explicit
+- Six upload regressions and seven existing creator tests pass, as do source
+  typecheck/lint and explicit test-file typechecking. The scoped gate took 6.07
+  seconds under concurrent checks, above its five-second target. Retained the
+  finding and limits in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#release-upload-recovery-follow-up).
+  No browser, hosted-upload, merge or production proof was claimed
+
+## 2026-10-04 - Cloudflare Built Game And Session Ownership Proof
+
+- Added a bounded Cloudflare session owner: authenticated REST acquisition,
+  deadline-bounded CDP connection, explicit session deletion even after failed
+  connection, and bounded idempotent cleanup. Credentials cannot follow a
+  returned debugger URL. All 16 lifecycle tests and 39 existing focused capture
+  tests pass; this owner is not yet used by the production screenshot service
+- Rebuilt the SDK and bundled Pong through the game CLI. Its real lobby rendered
+  through the hardened private asset fetcher and canonical hosted URL/bootstrap
+  helpers, including JavaScript chunks, CSS and audio, without uncaught page
+  errors. The owned fixture mapped numeric dials only; this is not R2/upload or
+  multiplayer proof. A separate public HTTPS/WSS probe passed without room actions
+- Production readiness still reports `db85cdea` and a ready release origin.
+  The old staging hostname fails TLS hostname validation; it was not bypassed.
+  Retained source/artifact hashes, successful and corrected failed fixture
+  attempts, and remaining provider/integration limits in the
+  [built-game proof](./audits/v1-security/2026-10-04-cloudflare-game-capture-proof.json).
+  No credential, subscription, DNS, merge or production change occurred
+
+## 2026-10-03 - Intermediate Delivery Recovered And Integrated Locally
+
+- The approved Cloudflare continuation passed HTTP guardrail denial and an
+  owned private HTML/chunk/CSS/WebGL routing fixture with credential scoping and
+  redirect denial. All disposable browser sessions explicitly closed. The
+  fixture also confirmed that CDP API-request IO runs on the trusted caller,
+  independently of remote browser guardrails. Replaced private `route.fetch()`
+  with bounded DNS-pinned public IO, original-host TLS checks and context-owned
+  cancellation, using existing upload size/count limits. The 39 targeted tests
+  and implementation lint/typecheck pass; no provider integration, credentials,
+  merge or production change occurred. Retained successes, failed navigation,
+  fixture-only mapping and the corrected test harness in the
+  [routing proof](./audits/v1-security/2026-10-03-cloudflare-routing-proof.json).
+  Provider-level network guarantees remain unresolved; no creator CDN
+  restrictions or custom forwarding system were introduced
+- Tim approved the bounded provider trial. Railway provisioned one `ISOLATED`
+  VM with no domains or supplied credentials, but native root/non-root namespace
+  probes failed with `Operation not permitted`. No worker source or browser was
+  launched; destruction and an empty active sandbox list are confirmed
+- Cloudflare's stored agentic-devtools token verified active but failed browser
+  authentication. The existing normal-user Wrangler OAuth login had browser
+  access: remote CDP, an owned WebGL2 canvas, PNG capture and explicit session
+  closure passed in under six seconds. No credential creation, deployment,
+  subscription, DNS or production change occurred. Retained both outcomes and
+  remaining containment checks in the
+  [provider proof](./audits/v1-security/2026-10-03-capture-provider-proof.json).
+  Basic rendering is proven; full capture security and integration are not
+- Tim rejected placing untrusted capture on the core private bee server. The
+  earlier bee/tunnel/DNS proposal is withdrawn, while the disposable image proof
+  remains valid compatibility evidence. He requested Railway first and
+  Cloudflare second. Read-only provider research found Railway's isolated
+  sandbox VM primitive and confirmed its network mode in the live API; no VM
+  was created and the CLI still labels the product experimental. Remote
+  Cloudflare Browser Run is the fallback candidate, not a proven capture lane.
+  Updated the existing containment plan/current snapshot and resumed `G5-02`
+  from its obsolete human DNS blocker. No provider or production changes occurred
+- Tim approved testing only the isolated capture worker on bee. The reviewed
+  worker/network-policy files were identical in the disposable build context;
+  no second active Air Jam checkout or production credential was copied
+- built and passed the real AMD64 image on bee under the pinned upstream
+  Playwright seccomp profile and Docker's normal AppArmor profile. The same
+  proof passed with a read-only filesystem, bounded temporary storage, two CPUs,
+  2 GiB memory and 256 processes. Host security settings were unchanged
+- verified normal worker CLI health, rejection of missing/incorrect credentials,
+  public HTTPS homepage capture and graceful shutdown. Removed the owned service
+  container; all test containers are gone. Optional container-wide capability
+  removal failed health and is not a supported configuration; a homepage
+  `networkidle` wait timed out, while DOM-content navigation/capture passed
+- retained exact image, runtime flags, successful and unsuccessful checks, and
+  remaining gaps in the
+  [bee worker proof](./audits/v1-security/2026-10-03-bee-worker-image-proof.json).
+  This establishes worker feasibility, not production release capture or rollout
+- read-only provider discovery found both Air Jam domains still on Namecheap
+  DNS, no visible Cloudflare zone for either, and no tunnel in Air Jam's existing
+  R2 account. Stable public routing needs a separate domain decision. Proposed
+  moving only `air-jam.app` DNS while preserving every existing record and adding
+  `capture.air-jam.app`; no DNS/account/tunnel write or permanent service occurred
+- Tim subsequently reported that Claude is out of credits and explicitly
+  authorized a separate GPT-6.1 Sol reviewer for this batch. The substitution
+  preserves pre-push canonicality review and the later single green-PR GitHub
+  review; it is not an Opus or Canonicalizer tool verdict
+- the independent GPT-6.1 Sol reviewer `/root/sol_integration_review` completed
+  read-only integration review of `3655139671a39de035cdd2794ba7d08645d1a9b3`
+  against production `db85cdea418d529099a556a3e7b586f0e994590b`, with no new
+  actionable source defect confirmed. Coverage included grant consumption,
+  host/controller resume, owned host actions, machine credential destinations,
+  budget/emergency authority, retention fences, report privacy/intake/operations,
+  worker authentication/egress/process ownership, creator/controller recovery,
+  game inputs/readiness and package/container wiring. It independently verified
+  the applied `0040` hash and pinned Playwright's proxy inheritance for
+  `route.fetch`. Generated archives were not inspected individually, previous
+  suites were not rerun, and no infrastructure was mutated by the reviewer
+- Sol retained the namespace denial as a deployment blocker, not a new source
+  finding or evidence of a specific denying mechanism. No source-only relaxation
+  was justified. The local review is not final GitHub review; exact public package
+  versions, existing hosted artifacts, old Arcade tabs, coordinated rollout and
+  real unpublished-release capture still require delivery proof
+- followed up the pre-deploy denial in an empty owned actual Railway service
+  runtime, not another pre-deploy job. Deployment
+  `b3625b10-b1ea-4596-a210-bb1570640602` also denied the unchanged non-root
+  namespace probe and ended `FAILED`. No sandbox setting or source behavior
+  was relaxed, and no production credential was copied. The disposable runtime
+  service/environment are removed; provider support or a compatible worker
+  host is the remaining delivery boundary
+
+- resumed interactive delivery after 21 days; preserved the entire pending
+  source batch at `564e7034` before integrating the surviving host branch at
+  `80499490`. The missing temporary checkout's documented migration correction
+  was recovered from committed history and the retained audit
+- recovered applied host `0040` from Git with its original SHA-256
+  `f8b2cd744cfaa64055fa79dc0ba7972757466b7a47729f798a12715e85bec7e7`;
+  added forward `0041` and reconciled cumulative schema snapshots through `0044`
+  rather than rewriting applied history. Final-state verification now checks
+  deliberate constraint removal instead of requiring an obsolete constraint
+- passed both real PostgreSQL upgrade paths, seven migration contract tests,
+  the normal integrated batch, and 52 focused report/emergency/retention/upgrade
+  PostgreSQL tests (one large-volume proof remains explicitly opt-in). The first
+  report-test attempt used an unmigrated disposable database and failed; after
+  migrating that fixture, the complete focused run passed
+- built the actual worker Dockerfile locally and exercised its compiled
+  authenticated transport, sandboxed Chromium, HTTP/HTTPS, WS/WSS, private-header
+  driver fetch, private/redirect denial, no direct network route, secret-free
+  browser environment, and owned process cleanup. Docker's default policy
+  correctly failed startup; the pinned upstream namespace-compatible seccomp
+  profile passed. This ARM64 proof does not substitute for Railway AMD64 rollout
+- production database inspection remained read-only: source is ahead by exactly
+  the five expected migrations with no unknown applied history. No merge,
+  production migration, deployment, stable package promotion or launch is
+  claimed by this local milestone
+- completed the final integrated batch with exit zero. Added the real report,
+  emergency, retention and host-migration regressions to the existing CI
+  PostgreSQL lane rather than introducing another runner or check framework
+- attempted the batch's Canonicalizer pass once, but Claude OAuth had expired
+  and could not refresh. No review ran; this is not a READY verdict. CLI auth
+  status confirmed no active login. Delivery stopped before push and merge
+- built the worker's AMD64 image in an empty owned Railway environment with no
+  production credentials. The pre-deploy capture proof failed safely; a bounded
+  non-root namespace probe reported `unshare: Permission denied`. The exact
+  image/deployments and limitations are retained in the
+  [historical worker plan](./archive/2026-10-04-self-hosted-release-browser-containment-plan.md#railway-amd64-proof--2026-10-03-deployment-blocked).
+  Local success is not provider success; supported isolation remains required
+- removed the three owned local Docker test containers, including their
+  disposable fixture database/anonymous volume. The fixtures are reproducible;
+  no unrelated containers, database volumes or production data were removed
+
+## 2026-09-12 - Player Participation Separated From Owned Host Control
+
+- removed controller-origin host impersonation rather than adding another
+  delegation/grant service; agent-owned browser IPC calls the existing local
+  game-store dispatcher, bound to the exact room/domain and game frame
+- kept ordinary room-code joining, player actions, and cooperative controls;
+  private ACK-only resume proof protects an existing player's slot without a
+  new permission prompt or exposing tokens to games/presence/inspection
+- exercised real standalone and embedded Pong: player actions start the match,
+  owned-host scoring is acknowledged and replicated, and both owned sessions
+  clean up. This proves source behavior, not final-candidate publication
+- finished generated/type/lint/canonical checks and test-stage fallout:
+  server 203 passed, platform 487 passed, SDK 281 passed plus its corrected
+  export contract rechecked with runtime-control (eight passed). Opt-in
+  database cases were not silently counted as passing. Fixed two test timing
+  assumptions using retained fixture state and the existing log flush API;
+  production timing was unchanged
+- retained the [contract](./contracts/agent-session-contract.md#player-participation-and-host-ownership)
+  and [implementation evidence](./audits/v1-security/threat-model-audit.md#aj-sec-005--room-code-and-optional-controller-capability-grant-excessive-authority);
+  the batch's single Canonicalizer session
+  `77b8f1f0-3f01-4788-8e45-6512fc314b52` returned READY, with no required changes
+- PR #106's separate public-install matrix is now fully green at `22643106`;
+  all six existing review conversations are resolved. No merge, deployment,
+  public package publication, or security-gate completion is claimed
+
+## 2026-09-12 - Host Review Reconciled And Machine Credential Destinations Bound
+
+- pushed PR #106 correction commit `22643106` after its single native Opus
+  review; four accepted corrections cover Arcade client navigation, environment
+  examples, database-backed hosted auth validation, and cross-clock grant
+  consumption. Six conversations have evidence-backed resolution, including
+  the deliberate no-compatibility and room-lifetime decisions. Required CI is
+  green; the separate public-install matrix is still running. No merge/deploy.
+- integrated machine-token destination binding at `2d08f8fb`: saved logins
+  cannot silently cross origins, invalid/insecure targets fail before IO,
+  redirects cannot replay bearer/device-code requests, and login responses
+  must match the requested issuer. Explicit self-hosted targets remain usable.
+- retained the [finding's implementation evidence](./audits/v1-security/threat-model-audit.md#2026-09-12-implementation-evidence):
+  28 focused tests, integrated full batch, and Canonicalizer
+  `0b1bdde0-0b27-489f-8a96-5478c72d0b52` READY. One shared CLI/MCP transport,
+  no new permission workflow or authentication service.
+- `G5-02` stays open for controller/worker boundaries, private abuse handling,
+  truthful data lifecycle, and exact-production host cutover. These local
+  corrections are not security-gate completion or release publication.
+
+## 2026-09-12 - Full Launch Drill Established A Bounded Local Envelope
+
+- sustained 100 rooms / 400 controllers for 30 minutes, then 200 / 800 for
+  five minutes at measured input/state cadence; zero message loss, no unexpected
+  disconnects, and input/state p95 of 23/35 ms and 32/40 ms respectively
+- filled the existing 300-room ceiling and safely rejected room 301; overload
+  p95 increased to 78/103 ms, so the strict command correctly exited 1 rather
+  than claiming a fully passing performance profile
+- interrupted only the fixture runtime's database connectivity for 12 seconds;
+  gameplay continued without loss, fresh intake was unavailable, and new-room
+  admission recovered 4.444 seconds after restoration; all owned resources
+  were cleaned up and source fingerprints matched
+- retained [exact measurements, cost assumptions, and limitations](./audits/v1-reliability/launch-load-rehearsal-proof.md#full-release-profile-result);
+  the 100-room local floor is not Railway certification, a 300-room latency
+  promise, or proof of lossless analytics during an unavailable database
+- local synthetic realtime usage projects to about $0.89/hour at 100 active
+  rooms, mostly egress; database/platform/worker and fixed provider costs are
+  explicitly excluded, not hidden in a misleading monthly estimate
+- the final batch passed ordinary checks and its single Canonicalizer session
+  returned READY after consolidating duplicate PostgreSQL fixtures; 38 units,
+  23 actual PostgreSQL regressions, and the post-consolidation source smoke pass
+- no threshold reduction, admission-policy change, extra infrastructure,
+  merge, deployment, or public package promotion
+- closed `G3-04` as the required honest drill and `G3-05` as publication of its
+  bounded envelope, not as a passing strict overload profile or acceptance of
+  release risk; the canonical program records 30/46 complete, 80% weighted,
+  and 39–77 estimated remaining agent-hours
+
+## 2026-09-12 - Launch Rehearsal Exposed Two Concrete Concurrency Failures
+
+- added the opt-in `repo perf launch-load` CLI with an isolated server process,
+  newly migrated disposable database, real authentication/admission, bounded
+  traffic/resource measurements, real-cap rejection, and database interruption;
+  existing CI performance smoke and normal development data stay unchanged
+- ran two short socket drills: both rejected room 301 correctly, but both
+  crashed at the PostgreSQL driver's closed-socket write path during the fault
+- reproduced usage aggregate `23505` collisions separately, then added session
+  and game transaction locks, including rebuild/live-write parity; three actual
+  PostgreSQL regressions and 11 related tests pass
+- the second socket smoke had no pre-outage usage persistence failures and
+  measured about 30 Hz input with zero loss in its small healthy phases
+- retained [failed-run evidence and the driver/package decision](./audits/v1-reliability/launch-load-rehearsal-proof.md);
+  the 35-minute release profile, cost proof, and final batch review remain open
+- both rehearsal databases were disposed of; no push, merge, deployment, driver
+  workaround, or normal-development/production data mutation
+- subsequently repaired stale connection reservation ownership at the driver
+  boundary and included it in server bundles and Docker dependency stages;
+  all 10 ESM/CommonJS regressions pass on Node 24. The actual recovery smoke
+  now passes: zero traffic loss during a 12-second outage, safe intake denial,
+  and fresh admission about 6.4 seconds after connectivity restoration. The
+  full load profile and reviewed delivery remain separate pending evidence.
+- the extracted artifact exposed a second driver lifecycle defect: failed
+  queries were settled but left stale active-query references on closed pool
+  slots, hanging ordinary shutdown. Corrected socket-closure cleanup and
+  passed all 18 ESM/CommonJS regressions, including healthy in-flight draining.
+  The rebuilt artifact now passes recovery and stops in 9 ms after drain;
+  [exact artifact evidence](./audits/v1-reliability/launch-load-packaged-recovery-2026-09-12.json)
+  separates linked local dependencies from final registry certification.
+
+## 2026-09-12 - Bounded Operational Evidence Retention Was Proved Locally
+
+- implemented the approved 30-day routine history / 90-day completed command
+  policy while retaining unresolved incident evidence and alert/issue identities
+- reused the existing worker timer and database owners; one preview-first repo
+  CLI exposes the same collector, including cursor continuation across protected
+  history, without a new scheduler, table, or generic policy engine
+- added a shared writer/exclusive cleanup fence and 16 query-matched indexes;
+  synthetic network requests remain outside the fence
+- rejected an initial history-wide query after realistic volume exceeded its
+  five-second timeout; replaced it with indexed candidate/reference traversal
+- proved preview and actual apply at about 0.7 seconds against 300,000 rows in
+  each of four reliability tables; retained the larger fixture as opt-in proof,
+  not a slower ordinary development gate
+- passed 19 focused PostgreSQL lifecycle tests, including active/stale incident
+  protection, collectible cycles, cursor progress, and a real concurrent writer
+- reopened `G3-07` when the full-document fixture inserted into existing indexes
+  exceeded the five-second timeout; the compact benchmark alone is not closure
+  evidence. [Retained proof](./audits/v1-reliability/operational-evidence-retention-proof.md)
+  distinguishes both attempts. Migration, reviewed rollout, and sustained
+  production observation remain separate; no push, merge, deploy, or production
+  deletion
+- isolated the remaining slowdown to GIN pending lists, configured the four
+  evidence indexes for direct updates, then passed the full-document opt-in
+  fixture: preview 2,263 ms, apply 670 ms, 250 bundles removed and all 299,000
+  recent runs retained. `G3-07` local implementation is complete; rollout is not.
+
+## 2026-09-11 - Practical Spend Controls and Emergency CLI Were Proved Locally
+
+- connected existing platform admissions and worker claims to the shared
+  spend policy; no new budget model, quota category, table, or scheduler
+- made dashboard and machine game creation share one atomic game/App ID
+  service, and gated only new Arcade listings rather than ordinary edits
+- added one preview-first emergency command over existing lane controls;
+  all eleven expensive lanes pause together while cleanup/telemetry remain
+  unchanged and running work can finish
+- proved denial/recovery, real PostgreSQL rollback, concurrent idempotency,
+  preserved running completion, and selective recovery in 95 focused tests
+- exercised the real repo CLI in the isolated local database, including
+  old-command replay after selective recovery; restored all lanes to normal
+- retained [control proof and remaining production gaps](./audits/v1-reliability/platform-spend-brake-proof.md)
+- reconciled stale privacy/worker-activation wording and
+  [supply-chain handoff](./audits/v1-security/supply-chain-release-trust-proof.md):
+  final registry provenance and sustained production observation remain Gate 7
+  work, not claims inferred from local tests
+- no push, merge, deployment, public-package publication, or production pause
+
+## 2026-09-11 - Claude Desktop Independently Completed the Semantic Loop
+
+- regenerated four stale bundled reference-game archives through the canonical
+  generator, then passed the clean registry bootstrap on Node 24 and pnpm 9
+- connected the registry-installed `0.9.3` candidate to the actual Claude
+  Desktop client using an isolated project and empty Air Jam credential store
+- Claude discovered the game contract, started development, opened a semantic
+  session, invoked `player:tap`, independently confirmed the count changed from
+  zero to one, and closed the session and runtime without follow-up hints
+- verified empty process status independently, removed only the temporary MCP
+  registration, and restarted the client to unload it
+- closed `G2-04` with [client evidence](./audits/v1-golden-path/evidence/g2-04-20260911/README.md);
+  retained the failed stale-archive attempt and distinguished normalized tool
+  observations from transport metadata
+- no push, merge, deployment, public publication, or production mutation;
+  the final full-lifecycle candidate rehearsal remains separate
+
+## 2026-09-11 - Claude Desktop Preflight Fixed the Project Launch Target
+
+- corrected the client-global Desktop profile to launch from the selected
+  game's absolute directory, preserving the existing MCP service
+- removed the misleading Claude Code registration command from Desktop output
+- tested path handling and rebuilt the public CLI; retained the distinction
+  between configuration output, registration, and an actual client session
+- recorded the remaining independent client proof and unchanged client setup
+  in the [Claude Desktop audit](./audits/v1-golden-path/claude-desktop-interop-audit.md)
+- no push, merge, deployment, public publication, or client configuration
+  change was performed
+
+## 2026-09-11 - Creator Entrypoints and Reference-Game Starts Were Exercised
+
+- made dashboard search functional, navigation native, and registration and
+  release failures recoverable without losing drafts or cached results
+- documented the existing CLI/MCP setup and publishing path alongside the
+  optional dashboard; introduced no hosted editor or new release workflow
+- made game registration and its app identity one database transaction
+- aligned reference-game authoritative start rules with the existing player
+  interfaces, and kept score-staging commands on the host lane
+- played a two-controller local Pong match through a 5–4 result, restart,
+  return to lobby, and clean session closure using the semantic CLI
+- retained findings, validation, and explicit remaining hosted/device gaps in
+  the [creator entrypoint audit](./audits/v1-public-release/creator-entrypoint-audit.md)
+  and [reference game launch audit](./audits/v1-public-release/reference-game-launch-audit.md)
+- kept the release item open; no push, merge, deployment, or public-package
+  publication was performed
+
+## 2026-09-11 - Launch-Critical Player Recovery Received a Real Browser Pass
+
+- isolated local development from stale remote database settings while
+  preserving the existing local database and provider configuration
+- replaced misleading catalog empty states with shared error/retry feedback,
+  made game-card launches keyboard accessible, and removed hidden catalog work
+- added visible controller join/reconnect recovery using existing SDK state
+  and an iframe-only retry for delayed game controllers
+- stopped rejected automatic launches from repeatedly retrying and retained
+  explicit player-controlled recovery in the existing runtime reducer
+- proved local room creation, keyboard launch, failed join, phone-sized game
+  controller rendering, temporary network recovery, and catalog outage/retry
+- fixed explicit agent attachment replacing its target's development stack
+  and ordered SDK startup before consumers to prevent partially written imports
+- retained bounded evidence and remaining gaps in the
+  [launch experience recovery audit](./audits/v1-public-release/launch-experience-recovery-audit.md)
+- kept G6-07 open for the remaining release experience evidence; no merge or
+  production deployment was performed
+
+## 2026-09-09 - Remaining 1.0 Work Was Rebalanced Around Launch Value
+
+- ratified a lean release bar after reviewing the time and complexity cost of
+  the reliability, security, and clean-room agent program: prevent serious
+  harm, prove the public promise, polish the creator/player experience, and
+  launch one exact candidate without requiring mature-company operations first
+- retained host authority, a practical spend brake, emergency pause, honest
+  load/failure proof, Claude Desktop interoperability, final golden path,
+  public docs/story, and exact-candidate rehearsal as real 1.0 requirements
+- added explicit creator/player implementation ownership for homepage, Arcade,
+  direct navigation, mobile joining, reconnect, representative games, and
+  public loading/empty/error states; the old plan had only a final human review
+  of that experience
+- retained a useful minimum of `100` concurrent rooms and `400` controllers for
+  `30` minutes, replaced the old three-times burst with a `5`-minute two-times
+  admission attempt, and required measured capacity plus safe overload behavior
+- directed the final golden-path run to supply the demo evidence, moved final
+  npm proof into the candidate rehearsal, and folded worker observation into
+  that same rehearsal instead of building duplicate proof pipelines
+- deferred generalized moderation, incident-remediation, evidence-retention,
+  self-healing, quota, and scaling systems until real use demonstrates the need
+- revised the readiness work items and estimates so autonomous agents follow
+  this release-first sequence rather than mechanically deepening infrastructure
+- changed no runtime behavior and performed no merge or production deployment
 
 ## 2026-09-09 - Final Golden-Path Review Findings Were Closed
 
@@ -107,6 +741,45 @@ The pre-reset overloaded ledger has been preserved at:
 - kept `G3-02` and `G3-08` open: initial deployment is proven, while deliberate
   load/overload/dependency-recovery and retained cost/drain/rollback observation
   still need measured evidence
+
+## 2026-09-08 - Host Bootstrap Authority Reached Local Proof
+
+- recorded the independent integration findings instead of accepting the first
+  green batch: critical PostgreSQL suites now belong to protected CI, Railway
+  evidence collection no longer holds database authority across provider I/O,
+  repeated system registration preserves the original room, game-scoped grants
+  cannot register a system host, and hosted master-key authentication is gone
+- implemented and documented the local
+  [host grant authority proof](./audits/v1-security/host-grant-authority-proof.md):
+  exact-origin v3 grants, transactionally single-use `jti` authority, explicit
+  audience/session claims, and server-issued room resume capabilities
+  close the `AJ-SEC-003` design without adding user-visible permission or join
+  flows; coordinated migration `0040` rollout and hostile-path production proof
+  remain open
+- passed the complete post-edit local batch with the protected PostgreSQL lane:
+  canonical guards, typechecks, lint, repo contracts, 194 server tests, 281 SDK
+  tests, and 453 platform tests; the run also found and removed an ambient
+  hosted-release configuration dependency from a PostgreSQL test before the
+  batch was accepted as evidence
+- ran one pre-push Canonicalizer session, which first returned `CONTINUE`,
+  with actionable findings covering client-controlled session elevation,
+  duplicated signing machinery, redundant grant-consumption persistence,
+  hosted master-key staging configuration, authentication-coupled cleanup,
+  Arcade lifecycle proof accuracy, stale operational-worker status, and
+  obsolete abuse-identity guidance
+- corrected those findings in one coherent pass: verified authority now owns
+  session kind, host grants and launch sessions share one domain-separated
+  envelope primitive, the grant row and claims contain only authorization
+  facts, cleanup cannot deny valid authentication, the callerless system-
+  registration event is removed, and active docs/scaffolds match the contract
+- applied the full migration catalog through `0040` to clean local PostgreSQL,
+  passed the `13/13` focused database authority tests plus the phased migration
+  proof, and passed the complete PostgreSQL-enabled batch with 200 repo
+  contracts, 200 server tests, 287 SDK tests, and 464 platform tests
+- resumed that same Canonicalizer session
+  `2408e343-78a8-43a8-b14f-1e44d07a3467`; it returned `READY` after verifying
+  every original finding against the corrected working tree, leaving only one
+  non-blocking stale threat-model phrase that was corrected before push
 
 ## 2026-09-04 - Production Recovery Was Automated And Live-Proven
 

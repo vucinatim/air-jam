@@ -490,7 +490,6 @@ describeWithPostgres("operational reliability PostgreSQL invariants", () => {
         "realtime.health": "https://realtime.example.test/health",
         "hosted.release": "https://release.example.test/",
         "worker.ready": "https://worker.example.test/ready",
-        "browser_worker.health": "https://browser-worker.example.test/health",
         "realtime.room_controller": "https://realtime.example.test/",
         "realtime.semantic_action": "https://realtime.example.test/",
       },

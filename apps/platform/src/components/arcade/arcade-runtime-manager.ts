@@ -1,5 +1,8 @@
-import type { ChildHostCapability } from "@air-jam/sdk/protocol";
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import type {
+  ArcadeBrowserDirection,
+  ChildHostCapability,
+} from "@air-jam/sdk/protocol";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { ArcadeGame } from "./arcade-surface-types";
 
 /** Browser vs game “mode” for the arcade shell lives in `ArcadeSurfaceState.kind` (replicated). This reducer only tracks host-local launch mechanics (selection, tokens, URLs). */
@@ -8,9 +11,9 @@ export interface ArcadeRuntimeState {
   normalizedGameUrl: string;
   launchCapability: ChildHostCapability | null;
   isLaunching: boolean;
+  launchFailed: boolean;
   consumedAutoLaunchRequestKey: string | null;
   lastExitAt: number;
-  browserActionLaunchBlocked: boolean;
 }
 
 export const EXIT_COOLDOWN_MS = 500;
@@ -79,12 +82,12 @@ export const clampSelectedIndex = (
 
 export const getNextSelectedIndex = ({
   selectedIndex,
-  vector,
+  direction,
   columns,
   gamesLength,
 }: {
   selectedIndex: number;
-  vector: { x: number; y: number };
+  direction: ArcadeBrowserDirection;
   columns: number;
   gamesLength: number;
 }): number => {
@@ -92,7 +95,10 @@ export const getNextSelectedIndex = ({
     return 0;
   }
 
-  if (vector.y < -0.5) {
+  selectedIndex = clampSelectedIndex(selectedIndex, gamesLength);
+  columns = Math.max(1, Math.floor(columns));
+
+  if (direction === "up") {
     const nextIndex = selectedIndex - columns;
     if (nextIndex < 0) {
       const currentColumn = selectedIndex % columns;
@@ -102,7 +108,7 @@ export const getNextSelectedIndex = ({
     return nextIndex;
   }
 
-  if (vector.y > 0.5) {
+  if (direction === "down") {
     const nextIndex = selectedIndex + columns;
     if (nextIndex >= gamesLength) {
       return selectedIndex % columns;
@@ -110,12 +116,12 @@ export const getNextSelectedIndex = ({
     return nextIndex;
   }
 
-  if (vector.x < -0.5) {
+  if (direction === "left") {
     const nextIndex = selectedIndex - 1;
     return nextIndex < 0 ? gamesLength - 1 : nextIndex;
   }
 
-  if (vector.x > 0.5) {
+  if (direction === "right") {
     const nextIndex = selectedIndex + 1;
     return nextIndex >= gamesLength ? 0 : nextIndex;
   }
@@ -179,7 +185,7 @@ type RuntimeAction =
   | { type: "select"; index: number; gamesLength: number }
   | {
       type: "move";
-      vector: { x: number; y: number };
+      direction: ArcadeBrowserDirection;
       columns: number;
       gamesLength: number;
     }
@@ -191,7 +197,6 @@ type RuntimeAction =
     }
   | { type: "launch-failure" }
   | { type: "exit-game"; exitedAt: number }
-  | { type: "browser-action-release-observed" }
   | { type: "reset-session" }
   | { type: "consume-auto-launch"; requestKey: string };
 
@@ -206,9 +211,9 @@ export const createInitialArcadeRuntimeState = ({
   normalizedGameUrl: "",
   launchCapability: null,
   isLaunching: false,
+  launchFailed: false,
   consumedAutoLaunchRequestKey: null,
   lastExitAt: 0,
-  browserActionLaunchBlocked: false,
 });
 
 export const reduceArcadeRuntimeState = (
@@ -227,7 +232,7 @@ export const reduceArcadeRuntimeState = (
         ...state,
         selectedIndex: getNextSelectedIndex({
           selectedIndex: state.selectedIndex,
-          vector: action.vector,
+          direction: action.direction,
           columns: action.columns,
           gamesLength: action.gamesLength,
         }),
@@ -237,22 +242,24 @@ export const reduceArcadeRuntimeState = (
       return {
         ...state,
         isLaunching: true,
+        launchFailed: false,
       };
 
     case "launch-success":
       return {
         ...state,
         isLaunching: false,
+        launchFailed: false,
         normalizedGameUrl: action.normalizedGameUrl,
         launchCapability: action.launchCapability,
-        browserActionLaunchBlocked: false,
       };
 
     case "launch-failure":
       return {
         ...state,
         isLaunching: false,
-        consumedAutoLaunchRequestKey: null,
+        launchFailed: true,
+        // A rejected deep-link launch waits for an explicit retry, not a render loop.
       };
 
     case "exit-game":
@@ -262,13 +269,7 @@ export const reduceArcadeRuntimeState = (
         launchCapability: null,
         isLaunching: false,
         lastExitAt: action.exitedAt,
-        browserActionLaunchBlocked: true,
-      };
-
-    case "browser-action-release-observed":
-      return {
-        ...state,
-        browserActionLaunchBlocked: false,
+        launchFailed: false,
       };
 
     case "reset-session":
@@ -278,7 +279,7 @@ export const reduceArcadeRuntimeState = (
         launchCapability: null,
         isLaunching: false,
         consumedAutoLaunchRequestKey: null,
-        browserActionLaunchBlocked: false,
+        launchFailed: false,
       };
 
     case "consume-auto-launch":
@@ -303,15 +304,18 @@ export const useArcadeRuntimeManager = ({
   initialGameId?: string;
   onExitGame?: () => void;
 }) => {
-  const [state, dispatch] = useReducer(
-    reduceArcadeRuntimeState,
+  const [state, setState] = useState(() =>
     createInitialArcadeRuntimeState({ games, initialGameId }),
   );
 
   const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  // Socket commands can arrive back-to-back before React renders. Reduce once,
+  // synchronously, so selection and launch admission share the same state.
+  const dispatch = useCallback((action: RuntimeAction) => {
+    const next = reduceArcadeRuntimeState(stateRef.current, action);
+    stateRef.current = next;
+    setState(next);
+  }, []);
 
   const selectedGame = useMemo(() => {
     return games[state.selectedIndex] ?? null;
@@ -325,19 +329,19 @@ export const useArcadeRuntimeManager = ({
         gamesLength: games.length,
       });
     },
-    [games.length],
+    [dispatch, games.length],
   );
 
   const moveSelection = useCallback(
-    (vector: { x: number; y: number }, columns: number) => {
+    (direction: ArcadeBrowserDirection, columns: number) => {
       dispatch({
         type: "move",
-        vector,
+        direction,
         columns,
         gamesLength: games.length,
       });
     },
-    [games.length],
+    [dispatch, games.length],
   );
 
   const beginLaunch = useCallback((): boolean => {
@@ -348,7 +352,7 @@ export const useArcadeRuntimeManager = ({
 
     dispatch({ type: "launch-start" });
     return true;
-  }, []);
+  }, [dispatch]);
 
   const completeLaunch = useCallback(
     ({
@@ -364,31 +368,30 @@ export const useArcadeRuntimeManager = ({
         launchCapability,
       });
     },
-    [],
+    [dispatch],
   );
 
   const failLaunch = useCallback(() => {
     dispatch({ type: "launch-failure" });
-  }, []);
+  }, [dispatch]);
 
   const resetSession = useCallback(() => {
     dispatch({ type: "reset-session" });
-  }, []);
+  }, [dispatch]);
 
   const exitGame = useCallback(() => {
     dispatch({ type: "exit-game", exitedAt: Date.now() });
     if (mode === "preview") {
       onExitGame?.();
     }
-  }, [mode, onExitGame]);
+  }, [dispatch, mode, onExitGame]);
 
-  const consumeAutoLaunch = useCallback((requestKey: string) => {
-    dispatch({ type: "consume-auto-launch", requestKey });
-  }, []);
-
-  const releaseBrowserActionLaunchBlock = useCallback(() => {
-    dispatch({ type: "browser-action-release-observed" });
-  }, []);
+  const consumeAutoLaunch = useCallback(
+    (requestKey: string) => {
+      dispatch({ type: "consume-auto-launch", requestKey });
+    },
+    [dispatch],
+  );
 
   return {
     state,
@@ -402,6 +405,5 @@ export const useArcadeRuntimeManager = ({
     resetSession,
     exitGame,
     consumeAutoLaunch,
-    releaseBrowserActionLaunchBlock,
   };
 };

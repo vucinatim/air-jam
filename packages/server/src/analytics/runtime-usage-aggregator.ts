@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   type ServerDatabase,
   runtimeUsageControllerSegments,
@@ -94,6 +94,14 @@ export const refreshRuntimeUsageAggregatesForSession = async (
 
   if (affectedGameIds.length === 0 || affectedBucketDates.length === 0) {
     return;
+  }
+
+  // Different sessions share daily rows. Lock in stable game order before
+  // reading/replacing them; the caller already holds its session transaction.
+  for (const gameId of [...affectedGameIds].sort()) {
+    await db.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`airjam:runtime-usage:game:${gameId}`}))`,
+    );
   }
 
   const relevantSessionMetrics = await db

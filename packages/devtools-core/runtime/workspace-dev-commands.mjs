@@ -24,7 +24,7 @@ import {
 
 const BACKEND_PROXY_URL = "http://127.0.0.1:4000";
 
-const startSharedWorkspaceProcesses = ({
+export const startSharedWorkspaceProcesses = async ({
   processGroup,
   activeGame,
   includePlatform,
@@ -33,11 +33,13 @@ const startSharedWorkspaceProcesses = ({
   gameArgs,
   gameEnv,
 }) => {
+  // A warm dist directory can still be rewritten by the watcher's first build.
+  // Wait for that generation, then start its consumers together.
+  await processGroup.run("sdk", "pnpm", ["--filter", "@air-jam/sdk", "dev"], {
+    readyMarker: "AIR_JAM_SDK_BUILD_READY",
+  });
+
   const processes = [
-    {
-      name: "sdk",
-      command: ["pnpm", "--filter", "@air-jam/sdk", "dev"],
-    },
     {
       name: "server",
       command: ["pnpm", "--filter", "@air-jam/server", "dev"],
@@ -111,7 +113,7 @@ export const runWorkspaceStandaloneDevCommand = async ({
     ports: [4000, DEFAULT_GAME_PORT],
   });
 
-  startSharedWorkspaceProcesses({
+  await startSharedWorkspaceProcesses({
     processGroup,
     activeGame,
     includePlatform: false,
@@ -200,7 +202,7 @@ export const runWorkspaceArcadeDevCommand = async ({
     ],
   });
 
-  startSharedWorkspaceProcesses({
+  await startSharedWorkspaceProcesses({
     processGroup,
     activeGame,
     includePlatform: true,

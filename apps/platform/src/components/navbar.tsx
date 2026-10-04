@@ -25,25 +25,15 @@ type NavLink = {
   href: string;
   requiresAuth?: boolean;
   external?: boolean;
-  badge?: string;
-  disabled?: boolean;
   tooltip?: string;
 };
 
-const STUDIO_TOOLTIP = "AI-powered game creation, right from your browser.";
 const ARCADE_TOOLTIP = "Play games. Instantly.";
 const DASHBOARD_TOOLTIP = "Manage and publish games.";
 
 const mainNavLinks: NavLink[] = [
   { label: "Docs", href: "/docs" },
   { label: "Arcade", href: "/arcade", tooltip: ARCADE_TOOLTIP },
-  {
-    label: "Studio",
-    href: "#",
-    badge: "Soon",
-    disabled: true,
-    tooltip: STUDIO_TOOLTIP,
-  },
   {
     label: "Dashboard",
     href: "/dashboard/games",
@@ -141,23 +131,7 @@ export const Navbar = memo(function Navbar() {
               onClick={(e) => e.stopPropagation()}
             >
               {mainNavLinks.map((link) =>
-                link.disabled ? (
-                  <div key={link.label} className="rounded-lg px-3 py-2.5">
-                    <span className="text-muted-foreground/50 flex items-center gap-2 text-sm font-medium">
-                      {link.label}
-                      {link.badge ? (
-                        <span className="border-airjam-cyan/40 text-airjam-cyan rounded-full border px-1.5 py-px text-[10px] leading-tight font-semibold">
-                          {link.badge}
-                        </span>
-                      ) : null}
-                    </span>
-                    {link.tooltip ? (
-                      <p className="text-muted-foreground/40 mt-1 text-xs leading-relaxed">
-                        {link.tooltip}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : link.tooltip ? (
+                link.tooltip ? (
                   <Tooltip key={link.href}>
                     <TooltipTrigger asChild>
                       <Link
@@ -243,25 +217,7 @@ export const Navbar = memo(function Navbar() {
           {/* Desktop links + social */}
           <div className="hidden items-center gap-6 md:flex">
             {mainNavLinks.map((link) =>
-              link.disabled ? (
-                <Tooltip key={link.label}>
-                  <TooltipTrigger asChild>
-                    <span className="text-muted-foreground/50 flex cursor-default items-center gap-1.5 text-sm font-medium">
-                      {link.label}
-                      {link.badge ? (
-                        <span className="border-airjam-cyan/40 text-airjam-cyan rounded-full border px-1.5 py-px text-[10px] leading-tight font-semibold">
-                          {link.badge}
-                        </span>
-                      ) : null}
-                    </span>
-                  </TooltipTrigger>
-                  {link.tooltip ? (
-                    <TooltipContent side="bottom" sideOffset={8}>
-                      {link.tooltip}
-                    </TooltipContent>
-                  ) : null}
-                </Tooltip>
-              ) : link.tooltip ? (
+              link.tooltip ? (
                 <Tooltip key={link.href}>
                   <TooltipTrigger asChild>
                     <Link

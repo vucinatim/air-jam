@@ -1,5 +1,7 @@
 "use client";
 
+import { RetryNotice } from "@/components/retry-notice";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,10 +19,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { AppRouter } from "@/server/api/root";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { inferRouterOutputs } from "@trpc/server";
 import { Loader2, Save } from "lucide-react";
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -33,47 +37,59 @@ const accountFormSchema = z.object({
 });
 
 type AccountForm = z.infer<typeof accountFormSchema>;
+type CreatorAccount = inferRouterOutputs<AppRouter>["user"]["me"];
 
 export default function AccountPage() {
-  const utils = api.useUtils();
-  const { data: me, isLoading } = api.user.me.useQuery();
+  const query = api.user.me.useQuery();
+  const readError = query.isError ? (
+    <RetryNotice
+      message="We couldn’t load your account."
+      detail={
+        query.data
+          ? "Previously loaded account details are still shown."
+          : undefined
+      }
+      isRetrying={query.isFetching}
+      onRetry={() => void query.refetch()}
+    />
+  ) : null;
 
-  const updateProfile = api.user.updateProfile.useMutation({
-    onSuccess: () => {
-      void utils.user.me.invalidate();
-      alert("Account updated");
-    },
-    onError: (error) => {
-      alert(`Error: ${error.message}`);
-    },
-  });
-
-  const form = useForm<AccountForm>({
-    resolver: zodResolver(accountFormSchema),
-    defaultValues: {
-      displayName: "",
-    },
-  });
-
-  useEffect(() => {
-    if (!me) return;
-    form.reset({ displayName: me.name || "" });
-  }, [me, form]);
-
-  const onSubmit = (values: AccountForm) => {
-    updateProfile.mutate({ displayName: values.displayName });
-  };
-
-  if (isLoading) {
-    return <div>Loading account...</div>;
-  }
-
-  if (!me) {
-    return <div>Unable to load account.</div>;
+  if (!query.data) {
+    return readError ?? <div role="status">Loading account…</div>;
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      {readError}
+      <AccountProfile key={query.data.id} account={query.data} />
+    </>
+  );
+}
+
+function AccountProfile({ account }: { account: CreatorAccount }) {
+  const utils = api.useUtils();
+  const form = useForm<AccountForm>({
+    resolver: zodResolver(accountFormSchema),
+    defaultValues: { displayName: account.name },
+  });
+  const updateProfile = api.user.updateProfile.useMutation({
+    onSuccess: async (updatedAccount) => {
+      if (utils.user.me.getData()?.id !== updatedAccount.id) return;
+      await utils.user.me.cancel();
+      if (utils.user.me.getData()?.id !== updatedAccount.id) return;
+      utils.user.me.setData(undefined, updatedAccount);
+      form.reset({ displayName: updatedAccount.name });
+      void utils.user.me.invalidate();
+    },
+  });
+
+  const onSubmit = (values: AccountForm) => {
+    if (updateProfile.isPending) return;
+    updateProfile.mutate({ displayName: values.displayName });
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Account</h1>
         <p className="text-muted-foreground">
@@ -88,9 +104,12 @@ export default function AccountPage() {
             Your display name appears in the arcade as the game author.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="flex flex-col gap-6"
+            >
               <FormField
                 control={form.control}
                 name="displayName"
@@ -98,25 +117,40 @@ export default function AccountPage() {
                   <FormItem>
                     <FormLabel>Display Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Your name" {...field} />
+                      <Input
+                        placeholder="Your name"
+                        disabled={updateProfile.isPending}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input value={me.email} disabled />
-                </FormControl>
-              </FormItem>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="account-email">Email</Label>
+                <Input id="account-email" value={account.email} disabled />
+              </div>
+
+              {updateProfile.isError && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {updateProfile.error.message}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {updateProfile.isSuccess && !form.formState.isDirty && (
+                <Alert role="status">
+                  <AlertDescription>Account updated.</AlertDescription>
+                </Alert>
+              )}
 
               <Button type="submit" disabled={updateProfile.isPending}>
                 {updateProfile.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
                 )}
-                <Save className="mr-2 h-4 w-4" />
+                <Save data-icon="inline-start" />
                 Save Changes
               </Button>
             </form>

@@ -156,7 +156,7 @@ const generatedContentDocsDocuments = [
         slug: "quick-start",
         depth: 1,
         excerpt:
-          "Get your first Air Jam game up and running in minutes using our project generator. 1. Create a New Project The fastest way to start is using our CLI tool. This creates a ready-to-use workspace with a working Pong game,…",
+          "Get your first Air Jam game up and running in minutes using our project generator. You need Node.js 22 or newer and pnpm installed. The generator runs pnpm install for you unless you explicitly choose --skip-install. 1.…",
       },
       {
         title: "1. Create a New Project",
@@ -192,6 +192,13 @@ const generatedContentDocsDocuments = [
         depth: 2,
         excerpt:
           'This project is "vibecode friendly"—it includes documentation and AI instructions to help you build faster. Check AGENTS.md: Project-wide coding contract and workflow for AI coding assistants. Check…',
+      },
+      {
+        title: "Connect Your Coding Agent",
+        slug: "connect-your-coding-agent",
+        depth: 3,
+        excerpt:
+          "Use your existing editor, terminal agent, or MCP client; Air Jam does not require a separate hosted game editor. The generated project includes local instructions and a portable .mcp.json declaration. A declaration is…",
       },
       {
         title: "Run the Complete Evaluation",
@@ -262,6 +269,20 @@ const generatedContentDocsDocuments = [
         depth: 2,
         excerpt:
           "The official Arcade hosting lane is now artifact-based. Self-hosted URLs are still useful for private preview, but public Arcade hosting should use a hosted release artifact. Run the local hosted-release preflight from…",
+      },
+      {
+        title: "Terminal or Agent Publishing",
+        slug: "terminal-or-agent-publishing",
+        depth: 3,
+        excerpt:
+          "The CLI can bundle, upload, and wait for validation using the same release services as the dashboard. Use the game slug or ID created in step 5: This leaves the processed release unpublished. Inspect the returned…",
+      },
+      {
+        title: "Dashboard Publishing",
+        slug: "dashboard-publishing",
+        depth: 3,
+        excerpt:
+          "Alternatively, upload the zip produced by airjam release bundle above: Go to your game's Releases page in the Dashboard. Upload the generated zip artifact. Make the validated release live. Upload managed thumbnail,…",
       },
     ],
     loadComponent: () =>
@@ -1559,6 +1580,20 @@ const generatedContentDocsDocuments = [
         depth: 2,
         excerpt:
           "Air Jam is an open AI-native framework for multiplayer games controlled by phones. Hosts run in your game, inputs are routed through the Air Jam server, and both humans and agents work against typed controller, runtime,…",
+      },
+      {
+        title: "Connect to a Project",
+        slug: "connect-to-a-project",
+        depth: 2,
+        excerpt:
+          "Run these commands from a generated game project with dependencies installed: New projects include .mcp.json. If a project has no declaration, use pnpm exec airjam mcp init --dir .; it does not overwrite an existing…",
+      },
+      {
+        title: "Operate and Evaluate",
+        slug: "operate-and-evaluate",
+        depth: 2,
+        excerpt:
+          "For gameplay assertions, use airjam.opengamesession, airjam.readgamesession, airjam.invokegamesessionaction, and airjam.closegamesession. Read each session's published actions and state; do not guess game-specific…",
       },
       {
         title: "Read These First",

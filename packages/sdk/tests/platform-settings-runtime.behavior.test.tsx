@@ -18,30 +18,48 @@ import {
 
 describe("PlatformSettingsRuntime", () => {
   beforeEach(() => {
-    window.localStorage.clear();
     vi.restoreAllMocks();
+    window.localStorage.clear();
   });
 
   it("uses deterministic defaults without persisted storage", () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(
-        PlatformSettingsRuntime,
-        { persistence: "local" },
+      createElement(PlatformSettingsRuntime, {
+        persistence: "local",
         children,
-      );
+      });
 
     const { result } = renderHook(() => usePlatformSettings(), { wrapper });
 
     expect(result.current.settings).toEqual(DEFAULT_PLATFORM_SETTINGS);
   });
 
+  it("keeps default settings and in-memory updates usable when browser storage is denied", () => {
+    vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new Error("Storage denied");
+    });
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(PlatformSettingsRuntime, {
+        persistence: "local",
+        children,
+      });
+    const { result, unmount } = renderHook(() => usePlatformAudioSettings(), {
+      wrapper,
+    });
+    expect(result.current.musicVolume).toBe(
+      DEFAULT_PLATFORM_SETTINGS.audio.musicVolume,
+    );
+    act(() => result.current.setMusicVolume(0.35));
+    expect(result.current.musicVolume).toBe(0.35);
+    unmount();
+  });
+
   it("persists owner updates to local storage", async () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(
-        PlatformSettingsRuntime,
-        { persistence: "local" },
+      createElement(PlatformSettingsRuntime, {
+        persistence: "local",
         children,
-      );
+      });
 
     const { result } = renderHook(() => usePlatformAudioSettings(), {
       wrapper,
@@ -68,11 +86,10 @@ describe("PlatformSettingsRuntime", () => {
 
   it("persists preview-controller settings alongside other shared defaults", async () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(
-        PlatformSettingsRuntime,
-        { persistence: "local" },
+      createElement(PlatformSettingsRuntime, {
+        persistence: "local",
         children,
-      );
+      });
 
     const { result } = renderHook(() => usePlatformSettings(), { wrapper });
 
@@ -100,11 +117,10 @@ describe("PlatformSettingsRuntime", () => {
 
   it("syncs owner runtimes from platform settings storage changes in other windows", async () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(
-        PlatformSettingsRuntime,
-        { persistence: "local" },
+      createElement(PlatformSettingsRuntime, {
+        persistence: "local",
         children,
-      );
+      });
 
     const { result } = renderHook(() => usePlatformAudioSettings(), {
       wrapper,
@@ -203,7 +219,7 @@ describe("PlatformSettingsRuntime", () => {
         window.dispatchEvent(
           new MessageEvent("message", {
             origin: "https://platform.example",
-            source: mockParent as MessageEventSource,
+            source: mockParent as unknown as MessageEventSource,
             data: {
               type: "AIRJAM_SETTINGS_SYNC",
               payload: {
@@ -297,7 +313,7 @@ describe("PlatformSettingsRuntime", () => {
         window.dispatchEvent(
           new MessageEvent("message", {
             origin: "https://platform.example",
-            source: mockParent as MessageEventSource,
+            source: mockParent as unknown as MessageEventSource,
             data: {
               type: "AIRJAM_SETTINGS_SYNC",
               payload: {
@@ -342,11 +358,10 @@ describe("PlatformSettingsRuntime", () => {
 
   it("reuses an outer owner runtime instead of mounting a nested settings owner", () => {
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(
-        PlatformSettingsRuntime,
-        { persistence: "local" },
-        createElement(PlatformSettingsBoundary, null, children),
-      );
+      createElement(PlatformSettingsRuntime, {
+        persistence: "local",
+        children: createElement(PlatformSettingsBoundary, null, children),
+      });
 
     const { result } = renderHook(() => usePlatformSettings(), { wrapper });
 

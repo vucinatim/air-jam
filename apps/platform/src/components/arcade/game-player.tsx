@@ -34,7 +34,6 @@ import {
   getRuntimeUrlOrigin,
 } from "@air-jam/sdk/arcade/url";
 import type {
-  AirJamActionRpcPayload,
   ChildHostCapability,
   ControllerInputEvent,
   ControllerJoinedNotice,
@@ -45,6 +44,7 @@ import type {
   PlaySoundPayload,
   PlayerUpdatedNotice,
   ServerErrorPayload,
+  ServerToClientEvents,
 } from "@air-jam/sdk/protocol";
 import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import type { ResolvedAirJamRuntimeTopology } from "@air-jam/sdk/runtime-topology";
@@ -605,8 +605,10 @@ export const GamePlayer = ({
     const handlePlaySound = (payload: PlaySoundPayload) => {
       forwardHostBridgeEvent("server:playSound", payload);
     };
-    const handleActionRpc = (payload: AirJamActionRpcPayload) => {
-      forwardHostBridgeEvent("airjam:action_rpc", payload);
+    const handleActionRpc: ServerToClientEvents["airjam:action_rpc"] = (
+      ...args
+    ) => {
+      forwardHostBridgeEvent("airjam:action_rpc", ...args);
     };
     const handleStateSyncRequest = (payload: {
       roomId: string;

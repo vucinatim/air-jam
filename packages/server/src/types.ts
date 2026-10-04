@@ -6,6 +6,7 @@ import type {
   ControllerPrivilegedGrant,
   ControllerSource,
   ControllerStateMessage,
+  HostResumeCapability,
   HostSessionKind,
   PlayerProfile,
   RoomCode,
@@ -25,6 +26,8 @@ type ControllerOrientation = NonNullable<
  */
 export interface ControllerSession {
   controllerId: string;
+  /** Private proof, valid only for this controller entry's lifetime. */
+  resumeCapabilityToken: string;
   deviceId: string;
   nickname?: string;
   socketId?: string;
@@ -69,6 +72,7 @@ export type RoomLifecycleState =
 export interface RoomSession {
   roomId: RoomCode;
   masterHostSocketId: string; // Primary host socket for the room
+  hostResumeCapability: HostResumeCapability; // Bearer capability required to reclaim master ownership
   childHostSocketId?: string; // Secondary game host socket when launched from a system shell
   analytics: RoomAnalyticsState;
   focus: RoomFocus;

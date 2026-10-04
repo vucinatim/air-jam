@@ -1,11 +1,10 @@
-import { db } from "@/db";
-import { gameReleaseReports } from "@/db/schema";
-import {
-  gameReleaseStatusValues,
-  releaseReportSourceSchema,
-} from "@/lib/releases/release-contract";
+import { gameReleaseStatusValues } from "@/lib/releases/release-contract";
 import { MAX_RELEASE_ZIP_BYTES } from "@/lib/releases/release-policy";
-import { findPublicReleaseBySlugOrId } from "@/server/releases/public-release-record";
+import {
+  publicReleaseReportInputSchema,
+  RELEASE_REPORT_INTAKE_POLICY,
+} from "@/lib/releases/release-report-policy";
+import { PlatformApplicationError } from "@/server/application-error";
 import {
   archiveOwnedRelease,
   createOwnedDraftRelease,
@@ -18,13 +17,15 @@ import {
   requestOwnedReleaseGenerationExport,
   requestOwnedReleaseUploadTarget,
 } from "@/server/releases/release-application-service";
+import { submitPublicReleaseReport } from "@/server/releases/release-report-intake";
 import { z } from "zod";
+import { checkRateLimit } from "../rate-limit";
 import {
-  RATE_LIMITS,
   createTRPCRouter,
   opsProcedure,
   protectedProcedure,
   publicProcedure,
+  RATE_LIMITS,
   rateLimitMiddleware,
 } from "../trpc";
 
@@ -45,14 +46,6 @@ const requestUploadTargetInput = z.object({
   releaseId: z.string(),
   originalFilename: z.string().trim().min(1).max(255),
   sizeBytes: z.number().int().positive().max(MAX_RELEASE_ZIP_BYTES),
-});
-
-const reportPublicReleaseInput = z.object({
-  slugOrId: z.string().trim().min(1),
-  source: releaseReportSourceSchema,
-  reason: z.string().trim().min(3).max(120),
-  details: z.string().trim().max(2000).optional(),
-  reporterEmail: z.string().trim().email().max(320).optional(),
 });
 
 type OwnedReleaseDetails = Awaited<ReturnType<typeof getOwnedRelease>>;
@@ -195,23 +188,21 @@ export const releaseRouter = createTRPCRouter({
     }),
 
   reportPublic: publicProcedure
-    .input(reportPublicReleaseInput)
-    .mutation(async ({ input }) => {
-      const publicRelease = await findPublicReleaseBySlugOrId(input.slugOrId);
-
-      const [report] = await db
-        .insert(gameReleaseReports)
-        .values({
-          id: crypto.randomUUID(),
-          releaseId: publicRelease.releaseId,
-          status: "open",
-          source: input.source,
-          reason: input.reason.trim(),
-          details: input.details?.trim() || null,
-          reporterEmail: input.reporterEmail?.trim() || null,
-        })
-        .returning();
-
-      return report;
-    }),
+    .use(({ next }) => {
+      // Fixed key: no client identity, spoofable proxy trust, or attacker-sized map.
+      // This is only a cheap ingress brake; PostgreSQL owns the shared budget.
+      const result = checkRateLimit("release.reportPublic:ingress", {
+        windowMs: 60_000,
+        max: RELEASE_REPORT_INTAKE_POLICY.requestsPerProcessMinute,
+      });
+      if (result.limited)
+        throw new PlatformApplicationError({
+          code: "rate_limited",
+          retryAfterSeconds: result.retryAfter,
+          message: `Report intake is busy. Please retry in ${result.retryAfter} seconds.`,
+        });
+      return next();
+    })
+    .input(publicReleaseReportInputSchema)
+    .mutation(({ input }) => submitPublicReleaseReport({ input })),
 });

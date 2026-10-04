@@ -5,6 +5,9 @@ on their phone; every tap bumps a shared count shown huge on the host screen.
 
 Use this template when you want a clean slate to build on.
 
+The TAP button uses native button activation: touch, mouse, Enter, and Space
+all send one discrete tap. It is disabled while the controller is disconnected.
+
 ## What's here
 
 ```

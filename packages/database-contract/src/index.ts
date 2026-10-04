@@ -895,6 +895,30 @@ export const createRuntimeDatabaseSchema = ({
     ],
   );
 
+  const realtimeHostGrantConsumptions = pgTable(
+    "realtime_host_grant_consumptions",
+    {
+      jti: text("jti").primaryKey(),
+      appId: text("app_id").notNull(),
+      sessionKind: text("session_kind").notNull(),
+      consumedAt: timestamp("consumed_at", { withTimezone: true })
+        .defaultNow()
+        .notNull(),
+      expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    },
+    (table) => [
+      index("realtime_host_grant_consumptions_expiry_idx").on(table.expiresAt),
+      check(
+        "realtime_host_grant_consumptions_required_text_check",
+        sql`length(btrim(${table.jti})) > 0 and length(btrim(${table.appId})) > 0`,
+      ),
+      check(
+        "realtime_host_grant_consumptions_session_kind_check",
+        sql`${table.sessionKind} in ('game', 'system')`,
+      ),
+    ],
+  );
+
   const realtimeRoomAdmissionLeases = pgTable(
     "realtime_room_admission_leases",
     {
@@ -1179,6 +1203,23 @@ export const createRuntimeDatabaseSchema = ({
       leaseExpiryIdx: index("operational_event_outbox_lease_expiry_idx")
         .on(table.leaseExpiresAt)
         .where(sql`${table.status} = 'delivering'`),
+      retentionAgeIdx: index("operational_event_outbox_retention_age_idx").on(
+        sql`greatest(${table.createdAt}, ${table.updatedAt}, ${table.deliveredAt})`,
+        table.id,
+      ),
+      evidenceIdx: index("operational_event_outbox_evidence_idx")
+        .using("gin", sql`(${table.envelope} -> 'evidence') jsonb_path_ops`)
+        .with({ fastupdate: false }),
+      causationIdx: index("operational_event_outbox_causation_idx")
+        .on(sql`(${table.envelope} #>> '{correlation,causationEventId}')`)
+        .where(
+          sql`(${table.envelope} #>> '{correlation,causationEventId}') is not null`,
+        ),
+      evaluationIdx: index("operational_event_outbox_evaluation_idx")
+        .on(sql`(${table.envelope} #>> '{payload,evaluationId}')`)
+        .where(
+          sql`(${table.envelope} #>> '{payload,evaluationId}') is not null`,
+        ),
       statusCheck: check(
         "operational_event_outbox_status_check",
         sql`${table.status} in ('pending', 'delivering', 'delivered', 'dead_letter')`,
@@ -1253,6 +1294,14 @@ export const createRuntimeDatabaseSchema = ({
       eventTimeIdx: index(
         "operational_event_delivery_commands_event_time_idx",
       ).on(table.eventId, table.createdAt),
+      retentionAgeIdx: index(
+        "operational_event_delivery_commands_retention_age_idx",
+      ).on(sql`greatest(${table.createdAt}, ${table.completedAt})`, table.id),
+      auditEventIdx: index(
+        "operational_event_delivery_commands_audit_event_idx",
+      )
+        .on(sql`(${table.result} ->> 'auditEventId')`)
+        .where(sql`(${table.result} ->> 'auditEventId') is not null`),
       actionCheck: check(
         "operational_event_delivery_commands_action_check",
         sql`${table.action} = 'requeue_dead_letter'`,
@@ -1320,6 +1369,23 @@ export const createRuntimeDatabaseSchema = ({
         table.correlationId,
         table.occurredAt,
       ),
+      retentionAgeIdx: index("operational_events_retention_age_idx").on(
+        sql`greatest(${table.storedAt}, ${table.occurredAt}, ${table.observedAt})`,
+        table.id,
+      ),
+      evidenceIdx: index("operational_events_evidence_idx")
+        .using("gin", sql`(${table.envelope} -> 'evidence') jsonb_path_ops`)
+        .with({ fastupdate: false }),
+      causationIdx: index("operational_events_causation_idx")
+        .on(sql`(${table.envelope} #>> '{correlation,causationEventId}')`)
+        .where(
+          sql`(${table.envelope} #>> '{correlation,causationEventId}') is not null`,
+        ),
+      evaluationIdx: index("operational_events_evaluation_idx")
+        .on(sql`(${table.envelope} #>> '{payload,evaluationId}')`)
+        .where(
+          sql`(${table.envelope} #>> '{payload,evaluationId}') is not null`,
+        ),
       contractVersionCheck: check(
         "operational_events_contract_version_check",
         sql`${table.contractVersion} = 1`,
@@ -1359,6 +1425,14 @@ export const createRuntimeDatabaseSchema = ({
         table.environment,
         table.completedAt,
       ),
+      eventIdx: index("operational_synthetic_runs_event_idx").on(table.eventId),
+      retentionAgeIdx: index("operational_synthetic_runs_retention_age_idx").on(
+        sql`greatest(${table.createdAt}, ${table.completedAt})`,
+        table.id,
+      ),
+      evidenceIdx: index("operational_synthetic_runs_evidence_idx")
+        .using("gin", sql`(${table.document} -> 'evidence') jsonb_path_ops`)
+        .with({ fastupdate: false }),
       statusCheck: check(
         "operational_synthetic_runs_status_check",
         sql`${table.status} in ('passed', 'failed', 'error')`,
@@ -1398,6 +1472,15 @@ export const createRuntimeDatabaseSchema = ({
         table.environment,
         table.evaluatedAt,
       ),
+      triggerEventIdx: index(
+        "operational_slo_evaluations_trigger_event_idx",
+      ).on(table.triggerEventId),
+      retentionAgeIdx: index(
+        "operational_slo_evaluations_retention_age_idx",
+      ).on(sql`greatest(${table.createdAt}, ${table.evaluatedAt})`, table.id),
+      evidenceIdx: index("operational_slo_evaluations_evidence_idx")
+        .using("gin", sql`(${table.document} -> 'evidence') jsonb_path_ops`)
+        .with({ fastupdate: false }),
       statusCheck: check(
         "operational_slo_evaluations_status_check",
         sql`${table.status} in ('insufficient_data', 'healthy', 'breaching')`,
@@ -1605,6 +1688,7 @@ export const createRuntimeDatabaseSchema = ({
     runtimeUsageDailyGameMetrics,
     operationalLaneControls,
     realtimeAdmissionInstances,
+    realtimeHostGrantConsumptions,
     realtimeRoomAdmissionLeases,
     realtimeControllerAdmissionLeases,
     operationalControlEvents,
@@ -1625,6 +1709,25 @@ export type RuntimeDatabaseSchema = ReturnType<
 >;
 
 type OperationalSelectDatabase = Pick<PostgresJsDatabase, "select">;
+
+// Writers share this fence; retention takes it exclusively before reading the
+// reference graph so cleanup cannot race a newly attached evidence reference.
+export const acquireOperationalEvidenceWriteFence = async (
+  tx: Pick<PostgresJsDatabase, "execute">,
+): Promise<void> => {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock_shared(hashtext('airjam:operational-evidence-retention'))`,
+  );
+};
+
+export const acquireOperationalEvidenceRetentionFence = async (
+  tx: Pick<PostgresJsDatabase, "execute">,
+): Promise<void> => {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext('airjam:operational-evidence-retention'))`,
+  );
+};
+
 type OperationalAuthorityDatabase = OperationalSelectDatabase &
   Pick<PostgresJsDatabase, "execute">;
 

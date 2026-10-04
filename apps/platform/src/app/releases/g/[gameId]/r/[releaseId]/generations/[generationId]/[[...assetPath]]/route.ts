@@ -61,6 +61,7 @@ export async function GET(
       token: internalAccessToken,
       gameId,
       releaseId,
+      generationId,
       secret: configuredInternalSecret,
     }) && ["checking", "ready", "quarantined", "live"].includes(release.status);
 

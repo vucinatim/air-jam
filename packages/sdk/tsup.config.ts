@@ -28,12 +28,18 @@ export default defineConfig({
     "src/agent-tooling.ts",
     "src/runtime-topology.ts",
     "src/runtime-inspection.ts",
+    "src/runtime-control.ts",
   ],
   format: ["cjs", "esm"],
   dts: true, // Generate declaration files
   clean: true,
   sourcemap: true,
   external: ["react", "react-dom"],
+  // Workspace consumers must not import a partially written bundle generation.
+  // tsup calls this only after both JavaScript formats finish successfully.
+  onSuccess: async () => {
+    console.log("AIR_JAM_SDK_BUILD_READY");
+  },
   define: {
     __AIR_JAM_SDK_VERSION__: JSON.stringify(packageJson.version),
   },

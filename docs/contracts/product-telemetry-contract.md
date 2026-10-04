@@ -313,7 +313,7 @@ The initial retention rules are:
 2. daily session contributions: 90 days after their aggregate is stable
 3. daily aggregates: retained long-term
 
-When deployed, the independently deployed operational worker applies this
+The independently deployed operational worker applies this
 policy immediately on startup and then every 15 minutes by default. Its cadence
 is configurable through `AIRJAM_PLATFORM_WORKER_TELEMETRY_RETENTION_MS`, but the
 durations are not. Retention is an explicit, independently testable operation
@@ -325,16 +325,19 @@ degrades worker readiness and remains visible through the worker status surface
 until a later successful run. Shutdown drains an in-flight retention operation
 before the process closes.
 
-Production activation and observation of the worker remain `G3-08` work. Until
-that checkpoint completes, the public disclosure must say recurring production
-enforcement is pending rather than presenting implemented scheduling code as a
-live guarantee.
+The [production worker proof](../audits/v1-reliability/production-operational-job-worker-proof.md)
+records exact deployment identity and initial healthy readiness. That is not a
+completed recurring-retention observation window. `G3-08` retains that
+observation gap inside the exact-candidate `G7-03` rehearsal. The public
+disclosure describes the retention policy, scheduled deletion, and failure
+visibility without turning implementation or one healthy check into a promise
+of uninterrupted enforcement.
 
 ## User-Facing Disclosure
 
 `/privacy` is the public disclosure for this bounded telemetry plane. It must
 describe the accepted data, prohibited data, ephemeral browser identity,
-retention periods, the current enforcement state, and aggregate-only operator
+retention periods, enforcement and failure behavior, and aggregate-only operator
 view in plain language.
 
 That page intentionally does not claim to be a complete hosted-account privacy

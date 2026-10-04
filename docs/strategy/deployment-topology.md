@@ -1,7 +1,7 @@
 # Deployment Topology
 
-Last updated: 2026-09-04
-Status: canonical target topology; operational worker rollout pending
+Last updated: 2026-09-09
+Status: canonical target topology; operational worker live
 
 Related docs:
 
@@ -111,32 +111,22 @@ Config-as-code path:
 
 1. `/packages/server/railway.json`
 
-### 3. Release Screenshot / Moderation Worker
+### 3. Managed Screenshot Browser
 
-Provider: `Railway`  
-Repo ownership: `packages/release-browser-worker`
+Provider: Cloudflare Browser Run
+Repo ownership: `apps/platform/src/server/releases`
 
-Responsibilities:
+The Railway operational worker acquires a dedicated managed browser session for
+each screenshot job and closes it before persisting the result. Cloudflare owns
+the browser execution environment; Air Jam owns deadlines, generation-scoped
+private asset access, screenshots, and moderation decisions. No browser runs on
+the platform, realtime server, or private bee host.
 
-1. open hosted release URLs in a real browser
-2. capture release screenshots during finalize and publish
-3. support image moderation evaluation
-
-Should not own:
-
-1. websocket gameplay runtime
-2. platform page rendering
-3. release artifact persistence
-
-Worker access is an explicit auth boundary:
-
-1. health and discovery can remain narrow unauthenticated routes
-2. proxied HTTP and WebSocket browser access should require a bearer token
-3. the platform should provide that token through `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN`
-
-Config-as-code path:
-
-1. `/packages/release-browser-worker/railway.json`
+An account-scoped Browser Run token authorizes session acquisition and deletion.
+Production and preview use distinct tokens. Managed provider isolation is the
+accepted boundary, not a claim that Air Jam installs a browser-side network
+firewall. The [capture plan](../plans/release-browser-worker-containment-plan.md)
+records the decision and remaining rollout proof.
 
 ### 4. Platform Release-Job Worker
 
@@ -194,14 +184,16 @@ The intended live shape is now also the deployment shape:
 1. Railway hosts the platform app
 2. Railway hosts the realtime server and Postgres
 3. Railway hosts the release browser worker
-4. production schema is independently verified at migration head `0036`
+4. production schema is independently verified at migration head `0039`
    through the canonical migration lifecycle
-5. the repo defines the operational worker, but its production service rollout
-   remains pending the documented activation, drain, rollback, and cost proof
+5. Railway hosts the operational worker; its budget, lifecycle, event-delivery,
+   and synthetic authorities are active, while GitHub issue projection
+   activation remains a separate unproven step
 6. R2 stores release and media objects
 
-The remaining operational work is the explicit operational-worker rollout and
-steady-state validation, not another topology redesign.
+The remaining operational work is measured steady-state, overload, recovery,
+cost, rollback, and issue-projection activation evidence, not another topology
+redesign.
 
 ## Clean Production Contract
 
@@ -225,14 +217,13 @@ Platform-only env should include at least:
 5. `GITHUB_CLIENT_ID`
 6. `GITHUB_CLIENT_SECRET`
 7. `DATABASE_URL`
-8. `AIR_JAM_MASTER_KEY`
-9. `AIRJAM_RELEASES_R2_BUCKET`
-10. `AIRJAM_RELEASES_R2_ACCOUNT_ID` or `AIRJAM_RELEASES_R2_ENDPOINT`
-11. `AIRJAM_RELEASES_R2_ACCESS_KEY_ID`
-12. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
-13. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
-14. `AIR_JAM_SYSTEM_APP_ID`
-15. `AIR_JAM_HOST_GRANT_SECRET`
+8. `AIRJAM_RELEASES_R2_BUCKET`
+9. `AIRJAM_RELEASES_R2_ACCOUNT_ID` or `AIRJAM_RELEASES_R2_ENDPOINT`
+10. `AIRJAM_RELEASES_R2_ACCESS_KEY_ID`
+11. `AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY`
+12. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
+13. `AIR_JAM_SYSTEM_APP_ID`
+14. `AIR_JAM_HOST_GRANT_SECRET`
 
 The web process should not claim or execute release jobs.
 
@@ -241,10 +232,9 @@ The web process should not claim or execute release jobs.
 Server-only env should include at least:
 
 1. `DATABASE_URL`
-2. `AIR_JAM_MASTER_KEY`
-3. `AIR_JAM_AUTH_MODE`
-4. `AIR_JAM_ALLOWED_ORIGINS`
-5. `AIR_JAM_HOST_GRANT_SECRET`
+2. `AIR_JAM_AUTH_MODE`
+3. `AIR_JAM_ALLOWED_ORIGINS`
+4. `AIR_JAM_HOST_GRANT_SECRET`
 
 `AIR_JAM_ALLOWED_ORIGINS` accepts comma-separated exact origins, a leading
 subdomain wildcard such as `https://*.vercel.app`, or `*`. Prefer the narrowest
@@ -254,15 +244,12 @@ or a lookalike suffix.
 
 The realtime server should not need the platform's release-storage or moderation env.
 
-### Browser Worker Env
+### Managed Browser Credentials
 
-Worker-specific env should be limited to whatever the browser service needs to run safely, such as:
-
-1. browser process settings
-2. optional access token or shared secret for callers
-3. any worker-level observability config
-
-The worker should not need database or multiplayer env unless a later design explicitly makes that necessary.
+The platform and operational worker share `AIRJAM_RELEASES_BROWSER_ACCOUNT_ID`
+and `AIRJAM_RELEASES_BROWSER_API_TOKEN`. The token grants only Browser Run access
+in the designated account. There is no self-hosted endpoint or local executable
+fallback and no independent Railway browser service to configure.
 
 ### Platform Operational Worker Env
 
@@ -272,8 +259,8 @@ The operational worker owns:
 2. the release-storage variables required by artifact work and cleanup
 3. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`, shared with the platform's private
    generation-serving route
-4. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
-5. `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN` when the browser worker requires it
+4. `AIRJAM_RELEASES_BROWSER_ACCOUNT_ID`
+5. `AIRJAM_RELEASES_BROWSER_API_TOKEN`
 6. `OPENAI_API_KEY` only when moderation mode enables it
 7. `AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN`
 8. `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, and a sealed,
@@ -282,20 +269,20 @@ The operational worker owns:
 9. optional `AIRJAM_PLATFORM_WORKER_*` scheduling and drain bounds, including
    the 15-minute budget-refresh cadence
 10. the explicit `AIRJAM_SYNTHETIC_*` targets required by the enabled synthetic
-   catalog
+    catalog
 11. `AIRJAM_GITHUB_ISSUES_APP_ID`,
     `AIRJAM_GITHUB_ISSUES_INSTALLATION_ID`,
     `AIRJAM_GITHUB_ISSUES_PRIVATE_KEY`, and
     `AIRJAM_GITHUB_ISSUES_REPOSITORY` for the repository-installed,
     issue-only GitHub App used by Gate `G4-03`
 
-It should not receive Better Auth, the multiplayer master key, maintainer
-personal GitHub tokens, broad repository credentials, or creator-facing OAuth
-credentials. Synthetic public origins are inert check targets rather than
-application authority and remain explicitly configured. PR and local workers
-leave budget refresh explicitly disabled unless they are intentionally given a
-separate, exactly attested project/environment token; they never inherit the
-production token.
+It should not receive Better Auth, local-development authentication
+conveniences, maintainer personal GitHub tokens, broad repository credentials,
+or creator-facing OAuth credentials. Synthetic public origins are inert check
+targets rather than application authority and remain explicitly configured. PR
+and local workers leave budget refresh explicitly disabled unless they are
+intentionally given a separate, exactly attested project/environment token;
+they never inherit the production token.
 
 ## Recommended Hardening Path
 
@@ -329,9 +316,9 @@ For the realtime server:
 
 ### Phase 3. Extract Browser Moderation Into A Real Subsystem
 
-Stand up a dedicated browser runtime and wire:
+Use a dedicated managed browser session for each capture and wire:
 
-1. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
+1. `AIRJAM_RELEASES_BROWSER_ACCOUNT_ID` and `AIRJAM_RELEASES_BROWSER_API_TOKEN`
 2. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
 3. moderation-specific env
 

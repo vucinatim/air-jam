@@ -17,6 +17,15 @@ vi.mock("./assert-release-exists", () => ({
   assertReleaseExists: vi.fn(),
 }));
 
+vi.mock("@/server/games/owned-game-access", () => ({
+  resolveOwnedGame: vi.fn(),
+}));
+
+vi.mock("./get-release-details", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./get-release-details")>()),
+  listReleaseDetailsByGame: vi.fn(),
+}));
+
 vi.mock("./release-artifact-service", () => ({
   requestReleaseUploadTarget: vi.fn(),
 }));
@@ -27,11 +36,19 @@ vi.mock("./release-status-service", () => ({
   quarantineRelease: vi.fn(),
 }));
 
+import { resolveOwnedGame } from "@/server/games/owned-game-access";
 import { enqueueOperationalJob } from "@/server/jobs/operational-job-service";
 import { assertOwnedRelease } from "./assert-owned-release";
 import { assertReleaseExists } from "./assert-release-exists";
 import {
+  listReleaseDetailsByGame,
+  projectReleaseGeneration,
+} from "./get-release-details";
+import {
   finalizeOwnedReleaseUpload,
+  getOwnedRelease,
+  listOwnedGameReleases,
+  listReleasesForOperations,
   publishOwnedRelease,
   quarantineReleaseForOperations,
   requestOwnedReleaseUploadTarget,
@@ -40,6 +57,23 @@ import { requestReleaseUploadTarget } from "./release-artifact-service";
 import { publishRelease, quarantineRelease } from "./release-status-service";
 
 const now = new Date("2026-04-25T10:01:00.000Z");
+const reportMetadata = {
+  id: "report_1",
+  releaseId: "release_1",
+  status: "open" as const,
+  source: "play_page" as const,
+  createdAt: now,
+  reviewedAt: null,
+};
+const privateReport = {
+  ...reportMetadata,
+  submissionId: crypto.randomUUID(),
+  reason: "Private reporter name in reason",
+  details: "Private reporter address in details",
+  reporterEmail: "private-reporter@example.test",
+  reviewRevision: 0,
+  futurePrivateField: "Do not spread future report fields",
+};
 const generation = {
   id: "generation_1",
   releaseId: "release_1",
@@ -64,6 +98,11 @@ const generation = {
   readyAt: null,
   failedAt: null,
   abandonedAt: null,
+  storageInactiveAt: null,
+  storageRetentionWarnedAt: null,
+  storageRetentionEligibleAt: null,
+  storageCleanupStartedAt: null,
+  storageDeletedAt: null,
 };
 
 const releaseJob = {
@@ -101,21 +140,95 @@ const makeRelease = ({
 }: {
   status: "ready" | "live" | "uploading" | "failed";
   jobs?: (typeof releaseJob)[];
-}) =>
-  ({
-    id: "release_1",
-    gameId: "game_1",
-    status,
-    candidateGenerationId: status === "uploading" ? generation.id : null,
-    promotedGenerationId:
-      status === "ready" || status === "live" ? generation.id : null,
-    generations: [generation],
-    jobs,
-  }) as Awaited<ReturnType<typeof assertOwnedRelease>>;
+}): Awaited<ReturnType<typeof assertOwnedRelease>> => ({
+  id: "release_1",
+  gameId: "game_1",
+  sourceKind: "upload",
+  versionLabel: null,
+  createdAt: now,
+  uploadedAt: null,
+  checkedAt: null,
+  publishedAt: null,
+  quarantinedAt: null,
+  archivedAt: null,
+  status,
+  candidateGenerationId: status === "uploading" ? generation.id : null,
+  promotedGenerationId:
+    status === "ready" || status === "live" ? generation.id : null,
+  generations: [projectReleaseGeneration(generation, now)],
+  candidateGeneration: null,
+  promotedGeneration: null,
+  checks: [],
+  owner: null,
+  game: {
+    id: "game_1",
+    userId: "user_1",
+    name: "Pong",
+    slug: "pong",
+    url: null,
+    description: null,
+    arcadeVisibility: "hidden",
+    config: {},
+    createdAt: now,
+    updatedAt: now,
+  },
+  jobs,
+  reports: [privateReport],
+});
 
 describe("release application service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("projects only report status for creator reads without mutating private records", async () => {
+    const release = makeRelease({ status: "live" });
+    vi.mocked(assertOwnedRelease).mockResolvedValueOnce(release);
+    const result = await getOwnedRelease({
+      actor: { userId: "user_1" },
+      releaseId: release.id,
+    });
+    expect(result.reports).toEqual([reportMetadata]);
+    expect(release.reports).toEqual([privateReport]);
+  });
+
+  it("uses the same report projection for creator list responses", async () => {
+    const game = { id: "game_1", userId: "user_1" } as Awaited<
+      ReturnType<typeof resolveOwnedGame>
+    >;
+    vi.mocked(resolveOwnedGame).mockResolvedValueOnce(game);
+    vi.mocked(listReleaseDetailsByGame).mockResolvedValueOnce([
+      makeRelease({ status: "live" }),
+    ]);
+    const result = await listOwnedGameReleases({
+      actor: { userId: "user_1" },
+      gameReference: { kind: "id", gameId: game.id },
+    });
+    expect(resolveOwnedGame).toHaveBeenCalledWith({
+      actor: { userId: "user_1" },
+      reference: { kind: "id", gameId: game.id },
+    });
+    expect(result.releases[0]?.reports).toEqual([reportMetadata]);
+  });
+
+  it("does not return an owned release when ownership validation fails", async () => {
+    vi.mocked(assertOwnedRelease).mockRejectedValueOnce(
+      new Error("Unauthorized"),
+    );
+    await expect(
+      getOwnedRelease({
+        actor: { userId: "other_user" },
+        releaseId: "release_1",
+      }),
+    ).rejects.toMatchObject({ code: "not_found" });
+  });
+
+  it("rejects creator access to the private operations list in the service itself", async () => {
+    await expect(
+      listReleasesForOperations({
+        actor: { userId: "user_1", role: "creator" },
+      }),
+    ).rejects.toMatchObject({ code: "forbidden" });
   });
 
   it("authorizes before publishing and returns the authoritative read-back", async () => {
@@ -129,6 +242,7 @@ describe("release application service", () => {
     });
 
     expect(result.status).toBe("live");
+    expect(result.reports).toEqual([reportMetadata]);
     expect(assertOwnedRelease).toHaveBeenNthCalledWith(
       1,
       "release_1",
@@ -156,6 +270,7 @@ describe("release application service", () => {
     });
 
     expect(result.job).toEqual(releaseJob);
+    expect(result.release.reports).toEqual([reportMetadata]);
     expect(enqueueOperationalJob).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "release_artifact_processing",
@@ -181,6 +296,7 @@ describe("release application service", () => {
     });
 
     expect(result.job.id).toBe(releaseJob.id);
+    expect(result.release.reports).toEqual([reportMetadata]);
     expect(enqueueOperationalJob).not.toHaveBeenCalled();
   });
 
@@ -225,6 +341,7 @@ describe("release application service", () => {
     });
     expect(result.upload).not.toHaveProperty("key");
     expect(result.release.status).toBe("uploading");
+    expect(result.release.reports).toEqual([reportMetadata]);
   });
 
   it("enforces the operations actor inside the application boundary", async () => {

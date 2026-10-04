@@ -22,7 +22,6 @@ const config: OperationalSyntheticRuntimeConfig = {
     "realtime.health": "https://realtime.example.test/health",
     "hosted.release": "https://release.example.test/",
     "worker.ready": "https://worker.example.test/ready",
-    "browser_worker.health": "https://browser-worker.example.test/health",
     "realtime.room_controller": "https://realtime.example.test/",
     "realtime.semantic_action": "https://realtime.example.test/",
   },
@@ -58,15 +57,11 @@ describe("operational synthetic execution", () => {
         "air-jam-server-air-jam-pr-109.up.railway.app",
       RAILWAY_SERVICE_AIR_JAM_PLATFORM_WORKER_URL:
         "air-jam-platform-worker-air-jam-pr-109.up.railway.app",
-      RAILWAY_SERVICE_AIR_JAM_RELEASE_BROWSER_WORKER_URL:
-        "air-jam-release-browser-worker-air-jam-pr-109.up.railway.app",
       AIRJAM_OPERATIONAL_ENVIRONMENT: "production",
       NEXT_PUBLIC_APP_URL: "https://airjam.io",
       NEXT_PUBLIC_AIR_JAM_SERVER_URL: "https://api.airjam.io",
       AIRJAM_SYNTHETIC_WORKER_ORIGIN:
         "https://air-jam-operations-worker-production.up.railway.app",
-      AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN:
-        "https://air-jam-release-browser-worker-production.up.railway.app",
     });
 
     expect(runtime).toMatchObject({
@@ -78,8 +73,6 @@ describe("operational synthetic execution", () => {
           "https://air-jam-server-air-jam-pr-109.up.railway.app/health",
         "worker.ready":
           "https://air-jam-platform-worker-air-jam-pr-109.up.railway.app/ready",
-        "browser_worker.health":
-          "https://air-jam-release-browser-worker-air-jam-pr-109.up.railway.app/health",
       },
     });
   });
@@ -246,10 +239,6 @@ describe("operational synthetic execution", () => {
     expect(run.observations.slice(1)).toEqual([
       expect.objectContaining({
         stepId: "operational-worker",
-        status: "passed",
-      }),
-      expect.objectContaining({
-        stepId: "browser-worker",
         status: "passed",
       }),
     ]);

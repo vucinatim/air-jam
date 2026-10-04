@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
+  OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES,
+  OPERATIONAL_EVIDENCE_RETENTION_LIMITS,
   OPERATIONS_CONTRACT_VERSION,
   OPERATIONS_EVENT_MAX_PAYLOAD_BYTES,
   areOperationalEventEnvelopesIdempotentlyEquivalent,
@@ -20,6 +22,7 @@ import {
   operationalAlertIssueProjectionSchemaV1,
   operationalAlertSchemaV1,
   operationalEventEnvelopeSchemaV1,
+  operationalEvidenceSchemaV1,
   operationalFailureSchemaV1,
   operationalIdentifierSchema,
   operationalIncidentSchemaV1,
@@ -36,6 +39,31 @@ import {
 const timestamp = "2026-08-30T03:00:00.000Z";
 const laterTimestamp = "2026-08-30T03:01:00.000Z";
 const expiryTimestamp = "2026-08-30T03:10:00.000Z";
+
+test("internal evidence identities and retention bounds share one contract without restricting external references", () => {
+  assert.deepEqual(OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES, {
+    event: "event:",
+    syntheticRun: "synthetic-run:",
+    eventDeliveryCommand: "operational-event-delivery-command:",
+    jobEvent: "operational-job-event:",
+    alertIssueRequeue: "alert-issue-requeue:",
+  });
+  assert.deepEqual(OPERATIONAL_EVIDENCE_RETENTION_LIMITS, {
+    min: 1,
+    default: 200,
+    max: 1000,
+  });
+  assert.ok(Object.isFrozen(OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES));
+  assert.ok(Object.isFrozen(OPERATIONAL_EVIDENCE_RETENTION_LIMITS));
+  assert.equal(
+    operationalEvidenceSchemaV1.parse({
+      kind: "snapshot",
+      reference: "https://example.com/operator-proof",
+      collectedAt: timestamp,
+    }).reference,
+    "https://example.com/operator-proof",
+  );
+});
 
 const correlation = {
   contractVersion: 1,

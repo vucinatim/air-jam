@@ -19,10 +19,13 @@ const cliPath = path.join(repoRoot, "scripts", "repo", "cli.mjs");
 const projectId = "project-airjam";
 const productionId = "environment-production";
 const stagingId = "environment-staging";
+const browserCredential = {
+  browserAccountId: "0123456789abcdef0123456789abcdef",
+  browserApiToken: "staging-browser",
+};
 const serviceNames = [
   "air-jam-platform",
   "air-jam-platform-worker",
-  "air-jam-release-browser-worker",
   "air-jam-server",
 ];
 
@@ -53,9 +56,7 @@ const createEnvironment = ({ production }) => {
             ? "/apps/platform/railway.json"
             : serviceName === "air-jam-server"
               ? "/packages/server/railway.json"
-              : serviceName === "air-jam-release-browser-worker"
-                ? "/packages/release-browser-worker/railway.json"
-                : null,
+              : null,
         latestDeployment: null,
         domains: {
           serviceDomains: [
@@ -100,9 +101,10 @@ const initialVariables = ({ environmentId, serviceName }) => {
       AIRJAM_RELEASES_R2_ACCESS_KEY_ID: "parent-access",
       AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: "parent-secret",
       AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "production-internal",
-      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "production-browser",
-      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT:
-        "wss://browser-production.example/ws",
+      AIRJAM_RELEASES_BROWSER_API_TOKEN: "production-browser",
+      AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: browserCredential.browserAccountId,
+      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: "wss://production-browser.example",
+      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "production-legacy-browser",
       AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://games.air-jam.app",
       AIR_JAM_HOST_GRANT_SECRET: "production-host",
       AIR_JAM_MASTER_KEY: "production-master",
@@ -128,17 +130,18 @@ const initialVariables = ({ environmentId, serviceName }) => {
       AIRJAM_RELEASES_R2_ACCESS_KEY_ID: "parent-access",
       AIRJAM_RELEASES_R2_SECRET_ACCESS_KEY: "parent-secret",
       AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "production-internal",
-      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "production-browser",
-      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT:
-        "wss://browser-production.example/ws",
+      AIRJAM_RELEASES_BROWSER_API_TOKEN: "production-browser",
+      AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: browserCredential.browserAccountId,
+      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: "wss://production-browser.example",
+      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "production-legacy-browser",
       AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://games.air-jam.app",
       AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: "production-worker",
       AIRJAM_SYNTHETIC_APP_ID: "production-app",
-      AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN:
-        "https://browser-production.example",
       AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL:
         "https://games.air-jam.app/releases/example",
       AIRJAM_SYNTHETIC_WORKER_ORIGIN: "https://worker-production.example",
+      AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN:
+        "https://production-browser.example",
       AIR_JAM_SYSTEM_APP_ID: "production-app",
       NEXT_PUBLIC_AIR_JAM_APP_ID: "production-app",
       NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://airjam.io",
@@ -156,10 +159,7 @@ const initialVariables = ({ environmentId, serviceName }) => {
       AIR_JAM_MASTER_KEY: "production-master",
     };
   }
-  return {
-    ...common,
-    AIRJAM_BROWSER_WORKER_ACCESS_TOKEN: "production-browser",
-  };
+  throw new Error(`Unexpected application service: ${serviceName}`);
 };
 
 const createFixture = () => {
@@ -308,10 +308,40 @@ test("golden-path staging CLI rejects an unknown commit before provider access",
   assert.doesNotMatch(result.stderr, /Missing Railway API token/u);
 });
 
+test("provision rejects missing browser credentials before provider access", async () => {
+  await assert.rejects(
+    provisionGoldenPathStaging({
+      ...browserCredential,
+      browserApiToken: "",
+      client: {
+        getProject: async () => assert.fail("Provider access must not occur"),
+      },
+    }),
+    /Preview browser API token is required/u,
+  );
+});
+
+test("provision rejects a production browser token before storage or variable writes", async () => {
+  const fixture = createFixture();
+  await assert.rejects(
+    provisionGoldenPathStaging({
+      ...browserCredential,
+      browserApiToken: "production-browser",
+      projectId,
+      environmentId: stagingId,
+      client: fixture.client,
+      probeR2Isolation: async () => assert.fail("Storage probe must not occur"),
+    }),
+    /Preview browser API token must be distinct from production/u,
+  );
+  assert.equal(fixture.writes.length, 0);
+});
+
 test("provision rotates every authority before deployment and proves R2 isolation", async () => {
   const fixture = createFixture();
   let probeCalled = false;
   const result = await provisionGoldenPathStaging({
+    ...browserCredential,
     projectId,
     environmentId: stagingId,
     releaseOrigin: "https://games-staging.air-jam.app",
@@ -337,7 +367,26 @@ test("provision rotates every authority before deployment and proves R2 isolatio
   });
 
   assert.equal(probeCalled, true);
-  assert.equal(fixture.writes.length, 4);
+  assert.equal(fixture.writes.length, 3);
+  for (const serviceName of ["air-jam-platform", "air-jam-platform-worker"]) {
+    const variables = fixture.variables.get(
+      `${stagingId}:${serviceName}-service`,
+    );
+    assert.equal(variables.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT, "");
+    assert.equal(variables.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN, "");
+  }
+  for (const serviceName of ["air-jam-platform", "air-jam-server"]) {
+    assert.equal(
+      fixture.variables.get(`${stagingId}:${serviceName}-service`)
+        .AIR_JAM_MASTER_KEY,
+      "",
+    );
+  }
+  assert.equal(
+    fixture.variables.get(`${stagingId}:air-jam-platform-worker-service`)
+      .AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN,
+    "",
+  );
   assert.equal(result.ok, true);
   assert.equal(result.deploymentStarted, false);
   assert.equal(result.r2.bucket, "air-jam-preview-releases");
@@ -353,9 +402,6 @@ test("provision rotates every authority before deployment and proves R2 isolatio
     `${stagingId}:air-jam-platform-worker-service`,
   );
   const server = fixture.variables.get(`${stagingId}:air-jam-server-service`);
-  const browser = fixture.variables.get(
-    `${stagingId}:air-jam-release-browser-worker-service`,
-  );
   assert.equal(platform.AIRJAM_RELEASES_R2_BUCKET, "air-jam-preview-releases");
   assert.ok(platform.AIRJAM_RELEASES_R2_SESSION_TOKEN);
   assert.equal(
@@ -363,11 +409,14 @@ test("provision rotates every authority before deployment and proves R2 isolatio
     platform.AIRJAM_RELEASES_R2_SESSION_TOKEN,
   );
   assert.equal(
-    browser.AIRJAM_BROWSER_WORKER_ACCESS_TOKEN,
-    platform.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN,
+    worker.AIRJAM_RELEASES_BROWSER_API_TOKEN,
+    platform.AIRJAM_RELEASES_BROWSER_API_TOKEN,
   );
-  assert.equal(server.AIR_JAM_MASTER_KEY, platform.AIR_JAM_MASTER_KEY);
-  assert.notEqual(server.AIR_JAM_MASTER_KEY, "production-master");
+  assert.equal(
+    server.AIR_JAM_HOST_GRANT_SECRET,
+    platform.AIR_JAM_HOST_GRANT_SECRET,
+  );
+  assert.notEqual(server.AIR_JAM_HOST_GRANT_SECRET, "production-host");
   assert.equal(platform.NEXT_PUBLIC_AUTH_GITHUB_ENABLED, "false");
   assert.equal(platform.OPENAI_API_KEY, "");
 });
@@ -376,6 +425,7 @@ test("rotation recovers a deployed environment after its scoped credential expir
   const fixture = createFixture();
   const issuedAt = Date.now();
   await provisionGoldenPathStaging({
+    ...browserCredential,
     projectId,
     environmentId: stagingId,
     releaseOrigin: "https://games-staging.air-jam.app",
@@ -462,6 +512,7 @@ test("rotation recovers a deployed environment after its scoped credential expir
 test("deploy starts data and application services in dependency order", async () => {
   const fixture = createFixture();
   await provisionGoldenPathStaging({
+    ...browserCredential,
     projectId,
     environmentId: stagingId,
     releaseOrigin: "https://games-staging.air-jam.app",
@@ -495,7 +546,7 @@ test("deploy starts data and application services in dependency order", async ()
   assert.equal(result.commitSha, commitSha);
   assert.equal(result.postgresVolume.created, true);
   assert.equal(fixture.volumeCreations.length, 1);
-  assert.equal(result.deployments.length, 5);
+  assert.equal(result.deployments.length, 4);
   assert.deepEqual(
     fixture.deployments.map(({ serviceId, commitSha: sha }) => ({
       serviceId,
@@ -505,7 +556,6 @@ test("deploy starts data and application services in dependency order", async ()
       { serviceId: "postgres-service", commitSha: null },
       { serviceId: "air-jam-platform-service", commitSha },
       { serviceId: "air-jam-server-service", commitSha },
-      { serviceId: "air-jam-release-browser-worker-service", commitSha },
       { serviceId: "air-jam-platform-worker-service", commitSha },
     ],
   );
@@ -517,6 +567,7 @@ test("deploy starts data and application services in dependency order", async ()
 test("deploy can safely retry an already-started isolated environment", async () => {
   const fixture = createFixture();
   await provisionGoldenPathStaging({
+    ...browserCredential,
     projectId,
     environmentId: stagingId,
     releaseOrigin: "https://games-staging.air-jam.app",
@@ -551,13 +602,14 @@ test("deploy can safely retry an already-started isolated environment", async ()
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.deployments.length, 5);
+  assert.equal(result.deployments.length, 4);
   assert.equal(result.postgresVolume.created, true);
 });
 
 test("deploy reuses successful target deployments after an interrupted run", async () => {
   const fixture = createFixture();
   await provisionGoldenPathStaging({
+    ...browserCredential,
     projectId,
     environmentId: stagingId,
     releaseOrigin: "https://games-staging.air-jam.app",
@@ -606,7 +658,7 @@ test("deploy reuses successful target deployments after an interrupted run", asy
   assert.equal(result.ok, true);
   assert.equal(result.postgresVolume.created, false);
   assert.equal(fixture.volumeCreations.length, 0);
-  assert.equal(fixture.deployments.length, 3);
+  assert.equal(fixture.deployments.length, 2);
   assert.deepEqual(
     result.deployments.slice(0, 2).map(({ operation }) => operation),
     ["reused", "reused"],

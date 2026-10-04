@@ -18,6 +18,7 @@ import { AnimatePresence } from "framer-motion";
 import { getUniqueSongCountForBuckets } from "../game/content/song-bank";
 import { soundManifest } from "../game/contracts/sounds";
 import { toShellMatchPhase } from "../game/domain/match-phase";
+import { isMatchReadyToStart } from "../game/domain/match-readiness";
 import { useGameStore } from "../game/stores";
 import { ControllerGameOver } from "./components/controller-game-over";
 import { ControllerLobby } from "./components/controller-lobby";
@@ -54,16 +55,14 @@ const ControllerScreen = () => {
   useControllerAudioCues();
 
   const isConnected = connectionStatus === "connected";
-  const readyCount = playerOrder.filter(
-    (playerId) => readyByPlayerId[playerId],
-  ).length;
   const hasEnoughSongs =
     getUniqueSongCountForBuckets(selectedSongBucketIds) >= totalRounds;
-  const canStartMatch =
-    phase === "lobby" &&
-    playerOrder.length > 0 &&
-    readyCount === playerOrder.length &&
-    hasEnoughSongs;
+  const canStartMatch = isMatchReadyToStart({
+    phase,
+    playerIds: playerOrder,
+    readyByPlayerId,
+    hasEnoughSongs,
+  });
   const shellPhase = toShellMatchPhase(phase);
   const shellStatus = useControllerShellStatus({
     roomId,

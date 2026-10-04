@@ -281,6 +281,41 @@
       "when": 1788835643710,
       "tag": "0039_realtime_admission_contract",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1788835707497,
+      "tag": "0040_host_grant_consumption",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1789246514169,
+      "tag": "0041_host_grant_clock_authority",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1789246514170,
+      "tag": "0042_operational_evidence_reference_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1789246514171,
+      "tag": "0043_release_report_decisions",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1789246514172,
+      "tag": "0044_release_report_submission_keys",
+      "breakpoints": true
     }
   ]
 }

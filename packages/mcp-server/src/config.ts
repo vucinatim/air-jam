@@ -137,6 +137,16 @@ export const renderMcpClientProfile = ({
     };
   }
 
+  const config = createProjectLocalMcpConfig();
+  if (profile === "claude-desktop") {
+    // Desktop launches globally, not from the game's project directory.
+    config.mcpServers.airjam.args = [
+      "--dir",
+      path.resolve(projectDir),
+      ...server.args,
+    ];
+  }
+
   return {
     profile,
     format: "json",
@@ -145,11 +155,8 @@ export const renderMcpClientProfile = ({
       profile === "portable"
         ? path.join(projectDir, AIRJAM_PROJECT_MCP_FILE)
         : resolveClaudeDesktopConfigPath(),
-    content: `${JSON.stringify(createProjectLocalMcpConfig(), null, 2)}\n`,
-    installCommand:
-      profile === "claude-desktop"
-        ? `claude mcp add airjam -- ${server.command} ${server.args.join(" ")}`
-        : null,
+    content: `${JSON.stringify(config, null, 2)}\n`,
+    installCommand: null,
   };
 };
 

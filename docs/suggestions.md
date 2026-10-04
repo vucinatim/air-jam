@@ -66,6 +66,8 @@ Only keep live follow-ups here. Completed reset work and stale migration notes s
 60. After 1.0 produces real operational incidents, evaluate whether repeated agent workflows justify a generalized incident lifecycle, typed runbook extraction, or a dedicated loop/swarm scheduler. Start from retained issues, PRs, claims, and action evidence; add only the smallest missing coordination primitive instead of prebuilding a central self-healing platform.
 61. Migrate the complete Railway project from deprecated per-service `railway.json` files and duplicated provider settings to one reviewed `.railway/railway.ts` Infrastructure as Code graph before 1.0. Import and plan the whole production graph, preserve sealed variables, volumes, domains, source links, service identities, preview behavior, and deploy order, then delete every legacy config file in the same migration so Railway never has mixed ownership and the 2026-12-01 cutoff cannot break deploys.
 
+62. Reduce `docs/current-state.md` back to its quick-snapshot role by moving historical implementation inventories and deployment narratives to their existing audits/ledger. The September 11 reconciliation found contradictory worker-activation paragraphs in the same file; retain one current statement and evidence links rather than adding another tracker or generated status system.
+
 ## Framework Boundary Follow-Ups
 
 These are still useful post–Arcade reset, but they should be handled as small hardening passes rather than another migration.

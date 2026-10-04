@@ -9,5 +9,10 @@
     "composite": false,
     "incremental": false
   },
-  "include": ["./**/*.ts", "../src/**/*.ts"]
+  "include": [
+    "./**/*.ts",
+    "../src/**/*.ts",
+    "../scripts/launch-load/**/*.ts",
+    "../scripts/perf-sanity.ts"
+  ]
 }

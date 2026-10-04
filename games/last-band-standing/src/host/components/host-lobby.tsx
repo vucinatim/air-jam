@@ -2,6 +2,7 @@ import {
   getUniqueSongCountForBuckets,
   songBuckets,
 } from "@/game/content/song-bank";
+import { isMatchReadyToStart } from "@/game/domain/match-readiness";
 import {
   createEmptyScore,
   getLabelForPlayer,
@@ -54,11 +55,12 @@ export const HostLobby = () => {
   ).length;
   const uniqueSongCount = getUniqueSongCountForBuckets(selectedSongBucketIds);
   const hasEnoughSongs = uniqueSongCount >= totalRounds;
-  const canStartMatch =
-    phase === "lobby" &&
-    playerOrder.length > 0 &&
-    readyCount === playerOrder.length &&
-    hasEnoughSongs;
+  const canStartMatch = isMatchReadyToStart({
+    phase,
+    playerIds: playerOrder,
+    readyByPlayerId,
+    hasEnoughSongs,
+  });
   const hostJoinControls = useHostJoinControls({
     joinUrl: host.joinUrl,
     canStartMatch,

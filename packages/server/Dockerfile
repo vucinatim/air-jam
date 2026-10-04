@@ -22,10 +22,12 @@ RUN corepack enable
 # scripts/repo/runtime/docker-workspace-manifest-contract.test.mjs requires
 # this dependency-stage list to cover every pnpm workspace before install.
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY patches ./patches
 
 COPY apps/platform/package.json                 ./apps/platform/
 COPY packages/cli/package.json                  ./packages/cli/
 COPY packages/database-contract/package.json    ./packages/database-contract/
+COPY packages/network-policy/package.json       ./packages/network-policy/
 COPY packages/operations-contract/package.json  ./packages/operations-contract/
 COPY packages/sdk/package.json                  ./packages/sdk/
 COPY packages/env/package.json                  ./packages/env/
@@ -34,7 +36,6 @@ COPY packages/harness/package.json              ./packages/harness/
 COPY packages/devtools-core/package.json        ./packages/devtools-core/
 COPY packages/create-airjam/package.json        ./packages/create-airjam/
 COPY packages/mcp-server/package.json           ./packages/mcp-server/
-COPY packages/release-browser-worker/package.json ./packages/release-browser-worker/
 COPY games/air-capture/package.json             ./games/air-capture/
 COPY games/code-review/package.json             ./games/code-review/
 COPY games/minimal/package.json                 ./games/minimal/

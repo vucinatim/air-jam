@@ -14,11 +14,14 @@ import {
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import {
+  AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
+  isRuntimeOwnerActionRequest,
   isRuntimeOwnerCaptureRequest,
   resolveProjectRelativeRuntimeCaptureDir,
   type AirJamRuntimeOwnerCaptureResult,
 } from "../runtime-owner-protocol.js";
+import { invokeOwnedHostAction } from "./runtime-owner-actions.js";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
@@ -36,7 +39,6 @@ const controllerBaseUrl = getFlagValue("--controller-base-url");
 const publicHost = getFlagValue("--public-host");
 const localBuildUrl = getFlagValue("--local-build-url");
 const browserBuildUrl = getFlagValue("--browser-build-url");
-const roomId = getFlagValue("--room-id");
 const requestedMode = getFlagValue("--mode") ?? "standalone-dev";
 const timeoutMs = Number(getFlagValue("--timeout-ms") ?? "15000");
 
@@ -46,23 +48,13 @@ if (!appOrigin || !hostUrl || !controllerBaseUrl || !publicHost) {
   );
 }
 
-const resolvedHostUrl = (() => {
-  if (!roomId) {
-    return hostUrl;
-  }
-
-  const nextUrl = new URL(hostUrl);
-  nextUrl.searchParams.set("room", roomId);
-  return nextUrl.toString();
-})();
-
 const browser = await launchHarnessBrowser();
 const session = await openVisualHarnessHostSession({
   browser,
   mode: requestedMode as VisualHarnessMode,
   urls: {
     appOrigin,
-    hostUrl: resolvedHostUrl,
+    hostUrl,
     controllerBaseUrl,
     publicHost,
     localBuildUrl,
@@ -81,6 +73,20 @@ const shutdown = async (exitCode = 0) => {
 };
 
 process.on("message", (message: unknown) => {
+  if (isRuntimeOwnerActionRequest(message)) {
+    void (async () => {
+      const acknowledgement = await invokeOwnedHostAction(
+        session.host,
+        message.action,
+      );
+      process.send?.({
+        type: AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
+        requestId: message.requestId,
+        acknowledgement,
+      });
+    })();
+    return;
+  }
   if (!isRuntimeOwnerCaptureRequest(message)) return;
   void (async () => {
     const capturedAt = new Date().toISOString();
@@ -101,7 +107,7 @@ process.on("message", (message: unknown) => {
         browser,
         urls: {
           appOrigin,
-          hostUrl: resolvedHostUrl,
+          hostUrl,
           controllerBaseUrl,
           publicHost,
           localBuildUrl,
@@ -148,6 +154,10 @@ process.on("SIGTERM", () => {
 });
 
 process.on("SIGINT", () => {
+  void shutdown(0);
+});
+
+process.once("disconnect", () => {
   void shutdown(0);
 });
 

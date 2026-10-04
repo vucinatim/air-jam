@@ -12,14 +12,7 @@ import { buildCreateAirJamTemplateCommand } from "@/lib/create-airjam-template-c
 import { cn } from "@/lib/utils";
 import { AudioRuntime, useAudio, type SoundManifest } from "@air-jam/sdk";
 import { Check, Code2, Gamepad2, Github } from "lucide-react";
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent,
-} from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import styles from "./arcade-layout.module.css";
 import type { GamePlayerGame } from "./game-player";
 
@@ -43,6 +36,9 @@ interface GameBrowserProps {
   reducedMotion?: boolean;
   onSelectGame: (game: GamePlayerGame, index: number) => void;
   header?: React.ReactNode;
+  catalogFailed?: boolean;
+  catalogNotice?: React.ReactNode;
+  launchNotice?: React.ReactNode;
   /** Fires when the browser list is scrolled to / away from the top (for chrome styling). */
   onScrollTopChange?: (atTop: boolean) => void;
 }
@@ -58,6 +54,9 @@ export const GameBrowser = memo(function GameBrowser({
   reducedMotion = false,
   onSelectGame,
   header,
+  catalogFailed = false,
+  catalogNotice,
+  launchNotice,
   onScrollTopChange,
 }: GameBrowserProps) {
   return (
@@ -69,6 +68,9 @@ export const GameBrowser = memo(function GameBrowser({
         reducedMotion={reducedMotion}
         onSelectGame={onSelectGame}
         header={header}
+        catalogFailed={catalogFailed}
+        catalogNotice={catalogNotice}
+        launchNotice={launchNotice}
         onScrollTopChange={onScrollTopChange}
       />
     </AudioRuntime>
@@ -82,6 +84,9 @@ const GameBrowserContent = ({
   reducedMotion = false,
   onSelectGame,
   header,
+  catalogFailed = false,
+  catalogNotice,
+  launchNotice,
   onScrollTopChange,
 }: GameBrowserProps) => {
   const scrollRootRef = useRef<HTMLDivElement>(null);
@@ -136,7 +141,7 @@ const GameBrowserContent = ({
       const video = videoRefs.current[game.id];
       if (!video) return;
 
-      if (idx === selectedIndex) {
+      if (isVisible && idx === selectedIndex) {
         void video.play().catch(() => {
           // Ignore autoplay race errors; browser policies are satisfied by muted+inline.
         });
@@ -145,7 +150,7 @@ const GameBrowserContent = ({
         video.currentTime = 0;
       }
     });
-  }, [games, selectedIndex]);
+  }, [games, selectedIndex, isVisible]);
 
   const emitScrollTop = useCallback(() => {
     if (!onScrollTopChange) return;
@@ -174,33 +179,29 @@ const GameBrowserContent = ({
     [],
   );
 
-  const copyTemplateCommand = useCallback(
-    async (event: MouseEvent<HTMLButtonElement>, game: GamePlayerGame) => {
-      event.stopPropagation();
+  const copyTemplateCommand = useCallback(async (game: GamePlayerGame) => {
+    const command = buildCreateAirJamTemplateCommand(game.templateId);
+    if (!command) return;
 
-      const command = buildCreateAirJamTemplateCommand(game.templateId);
-      if (!command) return;
+    const didCopy = await copyToClipboard(command);
+    if (!didCopy) {
+      return;
+    }
 
-      const didCopy = await copyToClipboard(command);
-      if (!didCopy) {
-        return;
-      }
+    setCopiedTemplateGameId(game.id);
 
-      setCopiedTemplateGameId(game.id);
-
-      if (copyFeedbackTimeoutRef.current) {
-        clearTimeout(copyFeedbackTimeoutRef.current);
-      }
-      copyFeedbackTimeoutRef.current = setTimeout(() => {
-        setCopiedTemplateGameId(null);
-      }, COPY_FEEDBACK_MS);
-    },
-    [],
-  );
+    if (copyFeedbackTimeoutRef.current) {
+      clearTimeout(copyFeedbackTimeoutRef.current);
+    }
+    copyFeedbackTimeoutRef.current = setTimeout(() => {
+      setCopiedTemplateGameId(null);
+    }, COPY_FEEDBACK_MS);
+  }, []);
 
   return (
     <div
       ref={scrollRootRef}
+      inert={!isVisible}
       onScroll={emitScrollTop}
       className={cn(
         "relative z-10 flex h-full flex-col overflow-y-auto px-12 pt-2 pb-12 transition-all duration-500 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
@@ -243,9 +244,12 @@ const GameBrowserContent = ({
             styles.browserSubtitle,
           )}
         >
-          Select a game using your phone
+          Choose a game here or use your phone
         </p>
       </header>
+
+      {catalogNotice}
+      {launchNotice}
 
       <div
         className={cn(
@@ -254,10 +258,14 @@ const GameBrowserContent = ({
         )}
       >
         {games.length === 0 ? (
-          <div className="col-span-full py-20 text-center text-slate-500">
-            No live Arcade releases are listed yet. Upload a release, make it
-            live, then list the game in Arcade from the dashboard.
-          </div>
+          catalogFailed ? null : (
+            <div
+              role="status"
+              className="col-span-full py-20 text-center text-slate-400"
+            >
+              No games are available yet. Check back soon for something to play.
+            </div>
+          )
         ) : (
           games.map((game, idx) => {
             const isSelected = idx === selectedIndex;
@@ -266,8 +274,7 @@ const GameBrowserContent = ({
             const hasVideo = !!game.videoUrl && !videoLoadErrors[game.id];
             const shouldRevealVideo =
               isSelected && hasVideo && !!videoReady[game.id];
-            const shouldShowFallbackIcon =
-              !hasThumbnail && !(isSelected && hasVideo);
+            const shouldShowFallbackIcon = !hasThumbnail && !shouldRevealVideo;
             const templateCommand = buildCreateAirJamTemplateCommand(
               game.templateId,
             );
@@ -281,12 +288,11 @@ const GameBrowserContent = ({
                   cardRefs.current[idx] = el;
                 }}
                 className={cn(
-                  "cursor-pointer overflow-hidden border bg-slate-950/60 py-0 shadow-lg backdrop-blur-md transition-all duration-200",
+                  "overflow-hidden border bg-slate-950/60 py-0 shadow-lg backdrop-blur-md transition-all duration-200",
                   isSelected
                     ? "border-airjam-cyan/90 scale-[1.02] gap-0 bg-slate-900/80"
                     : "gap-0 border-white/8 opacity-90 hover:border-white/15 hover:opacity-100",
                 )}
-                onClick={() => onSelectGame(game, idx)}
               >
                 <CardContent
                   className={cn(
@@ -359,6 +365,13 @@ const GameBrowserContent = ({
 
                   <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/40 to-black/5" />
 
+                  <button
+                    type="button"
+                    aria-label={`Play ${game.name}`}
+                    className="focus-visible:outline-airjam-cyan absolute inset-0 z-10 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:-outline-offset-4"
+                    onClick={() => onSelectGame(game, idx)}
+                  />
+
                   {hasDeveloperActions ? (
                     <div
                       className={cn(
@@ -372,7 +385,6 @@ const GameBrowserContent = ({
                           target="_blank"
                           rel="noreferrer"
                           className={DEVELOPER_ACTION_CLASS}
-                          onClick={(event) => event.stopPropagation()}
                           aria-label={`Open ${game.name} source on GitHub`}
                           title="Open source on GitHub"
                         >
@@ -385,9 +397,7 @@ const GameBrowserContent = ({
                             <button
                               type="button"
                               className={DEVELOPER_ACTION_CLASS}
-                              onClick={(event) =>
-                                void copyTemplateCommand(event, game)
-                              }
+                              onClick={() => void copyTemplateCommand(game)}
                               aria-label={`Copy create-airjam command for ${game.name}`}
                             >
                               {didCopyTemplate ? (
@@ -413,10 +423,7 @@ const GameBrowserContent = ({
                       styles.gameCreator,
                     )}
                   >
-                    <PublicGameCreatorStrip
-                      game={game}
-                      onClick={(event) => event.stopPropagation()}
-                    />
+                    <PublicGameCreatorStrip game={game} />
                   </div>
 
                   <div

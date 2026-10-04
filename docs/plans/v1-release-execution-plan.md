@@ -1,6 +1,6 @@
 # Air Jam 1.0 Release Execution Plan
 
-Last updated: 2026-09-04
+Last updated: 2026-09-12
 Status: active subordinate execution plan
 
 Related docs and machine surfaces:
@@ -47,6 +47,30 @@ discovered by reliability, security, or scale proof.
 
 This is scheduling guidance, not completion evidence. The program closes only
 through the roadmap gates.
+
+## Lean Release-First Execution Policy
+
+The `2026-09-09` maintainer rebaseline changes how the remaining program is
+executed without weakening the public contract. Air Jam now optimizes for the
+shortest trustworthy path to a polished 1.0, not maximum pre-adoption
+operational maturity.
+
+For every remaining batch:
+
+1. name the concrete launch blocker or creator/player improvement it closes
+2. prefer completing an existing authority over introducing another subsystem
+3. reuse a valid proof for every compatible gate and public asset
+4. time-box investigation and stop expanding when the remaining concern is
+   speculative, low-impact, or dependent on future usage evidence
+5. rotate work across security, product experience, agent proof, public
+   communication, and launch instead of repeatedly deepening one lane
+6. keep ordinary room joining and game-development flexibility invisible to
+   security, quota, and operational machinery in the healthy path
+
+The manifest's revised remaining estimate includes one explicit product-polish
+item and removes duplicate or unnecessarily exhaustive proof work. Provider
+waits and stabilization observation affect elapsed time but are not active
+implementation hours.
 
 ## One Authority Per Kind Of Truth
 
@@ -625,11 +649,29 @@ the final reliability review in the same owning boundaries:
    deleting evidence referenced by an open alert, issue, or unresolved action
 
 The first five corrections belong to the separately claimable `G4-07` item.
-Retention durations belong to the privacy and operating policy specified by
-`G5-03` and included in the residual-risk review at `G5-04`; the cleanup
-implementation is the separately claimable `G3-07` item, depends on `G5-03`,
-and reuses the existing Gate 4 services. There must not be an undocumented
-delete loop or foreign-key workaround.
+The separately claimable `G3-07` item owns both the bounded operational-evidence
+retention durations and their cleanup implementation, as its rebaselined
+evidence requirement specifies. It depends on the privacy/trust reconciliation
+in `G5-03` and reuses the existing Gate 4 services. Product telemetry's existing
+90-day policy is not an implicit policy for operational events or audit rows.
+Any unresolved privacy tradeoff remains visible at `G5-04`; no duration is
+silently assumed by closing `G5-03`. There must not be an undocumented delete
+loop or foreign-key workaround.
+
+On `2026-09-11`, the maintainer approved **30 days of routine operational
+history and 90 days of completed command receipts**, with unresolved-incident
+evidence protected. Ages are measured from completion/delivery/storage, not
+merely creation. Alert and GitHub issue identities remain durable so recovery
+and reopening do not create new identities. This authorizes implementing and
+proving the policy locally; it does not authorize production deletion in the
+current pre-merge work session. The owning behavior and CLI belong in the
+[operational reliability contract](../contracts/operational-reliability-contract.md).
+
+Completed local correctness and full-document scale validation are recorded in the
+[retention proof](../audits/v1-reliability/operational-evidence-retention-proof.md).
+The collector reuses the worker timer and exposes bounded cursor scans through
+the repo CLI. Migration `0040` precedes activation; reviewed delivery and live
+observation remain separate work, not evidence inferred from local tests.
 
 Implement `G4-07` in three reviewable batches that preserve one architecture:
 
@@ -683,8 +725,8 @@ been removed now that this work is part of the active release program.
 
 ### Capacity And Lifecycle Completion
 
-`G3-02` finishes the existing production-control architecture rather than
-introducing another limiter:
+Most of `G3-02` is already live. Its lean 1.0 closeout finishes the existing
+production-control architecture rather than introducing another limiter:
 
 1. superseded unpublished release artifacts move through one durable lifecycle:
    active, warned, reclaimable, deleting, and tombstoned
@@ -696,8 +738,8 @@ introducing another limiter:
    replay, preserving the quota and recovery behavior already implemented
 5. PostgreSQL owns lightweight room and controller admission leases while the
    realtime process continues to own hot gameplay state
-6. room create/join atomically checks lane state and the global, creator, game,
-   room, and controller limits before reserving capacity
+6. room create/join continues to use the shared admission limits already
+   implemented; do not add more quota categories without measured need
 7. disconnect and graceful drain release or expire reservations predictably;
    a dead instance cannot hold capacity forever
 8. overload rejects only new work with a stable reason and retry guidance;
@@ -708,19 +750,46 @@ joining, and gameplay remain visually identical below a limit. Admission and
 permission enforcement are invisible in the healthy path and become explicit
 only when the system genuinely cannot accept more work.
 
-The `G3-08` operational-worker production rollout happens only after migration
-compatibility, required synthetic targets, authenticated drain, secret scope,
-lane controls, and rollback steps all pass preflight. Rollout order is:
+The only new `G3-02` requirements after the rebaseline are one practical spend
+brake and one discoverable emergency action that stops accepting new expensive
+work. Baseline, overload, and dependency recovery are exercised once in
+`G3-04`; `G3-05` publishes the result rather than starting another correction
+program.
 
-1. inspect and migrate schema through the canonical lifecycle
-2. create the worker service from `apps/platform/railway.worker.json`
-3. provision only its declared least-privilege environment
-4. start with mutation-heavy lanes paused and observe readiness
-5. run one synthetic cycle and one safe job cycle manually
-6. enable normal scheduling, observe at least one complete evaluation window,
-   and measure the actual steady cost
-7. retain a one-command drain/disable path and remove the service if it cannot
-   stay within the existing budget and health contract
+`G3-04` has a concrete minimum rather than an open-ended scale program:
+
+1. sustain `100` concurrent rooms and `400` controllers for at least `30`
+   minutes
+2. attempt a `5`-minute burst at twice that admission load
+3. prove active rooms continue where technically safe while excess new work is
+   rejected with stable reasons
+4. retain CPU, memory, database-connection, latency, failure, and cost evidence
+5. improve a measured bottleneck when the floor fails; do not introduce multi-
+   region or distributed-room architecture unless the evidence requires it
+
+The local rehearsal uses a separate realtime process, real required App ID
+authentication, database-backed admission and usage persistence, and a
+dedicated migrated fixture database. It keeps the small `perf sanity` CI check
+unchanged. The explicit `perf launch-load` command owns the longer rehearsal:
+30 Hz controller input and 10 Hz replicated state, baseline then twice-load
+burst, a separate attempt beyond the actual normal room cap, and a short
+database-network interruption below the instance lease lifetime. Existing
+sessions must keep communicating where safe; fresh intake must recover.
+Simulated client addresses exercise normal per-client rate limits rather than
+disabling them. Bounded latency summaries, actual send rate, separate server
+CPU/RSS, database connections, phase results, and cleanup evidence distinguish
+a genuine run from a saturated load generator. A short smoke profile validates
+the runner but cannot close the 30-minute release requirement. Local cost
+extrapolations are labeled assumptions, never provider billing evidence.
+
+The operational worker is already running. `G3-08` now closes only its remaining
+observation claim and reuses the exact-candidate rehearsal rather than creating
+a second rollout program:
+
+1. retain the existing least-privilege, migration, and deployment evidence
+2. observe one healthy evaluation window on the exact candidate
+3. measure its actual steady cost
+4. exercise the existing drain/disable path and confirm rollback readiness
 
 ### Isolated Golden-Path Environment
 
@@ -740,9 +809,10 @@ Use an ephemeral Railway environment with a declared rehearsal profile:
 
 The profile records resource identities and required variable names, never
 secret values. The controller validates isolation before starting the external
-agent and again before publication. After the Codex proof, Claude Desktop
-repeats the discovery/session bootstrap, and `G2-05` repairs only friction found
-by those real runs before the final replay.
+agent and again before publication. After the completed Codex proof, Claude
+Desktop repeats only discovery and semantic-session bootstrap. `G2-05` then
+performs one final full-lifecycle run; that same retained run supplies the
+public demonstration evidence instead of triggering a separate demo pipeline.
 
 Permanent always-on staging remains unjustified until rehearsal frequency or
 measured setup cost proves it cheaper than ephemeral isolation.
@@ -901,46 +971,38 @@ change; do not copy the register into another checklist.
 The sequence below expresses architectural dependency, not live status.
 Readiness still determines what an agent may claim.
 
-Blocks A through I are the current detailed sequence for the remaining work and
-supersede the earlier broad wave ordering wherever the two differ. The wave
-model remains useful only as historical program grouping.
+Blocks A through G are the lean remaining sequence and supersede earlier broad
+wave ordering wherever they differ.
 
-| Delivery block                | Governing items                    | Production-valid outcome                                                                                                   |
-| ----------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| A. Reliability hardening      | `G3-06`, `G4-07`, `G5-02`          | Review gaps, schema compatibility, and module boundaries are safe before continuous execution                              |
-| B. Production controls        | `G3-02`, `G3-07`, `G3-08`, `G5-03` | Artifact and evidence retention plus invisible realtime admission are complete; the operational worker is activated safely |
-| C. Isolated external proof    | `G2-03` through `G2-05`            | Codex and Claude Desktop prove the public lifecycle without production authority or maintainer intervention                |
-| D. Recovery proof             | `G3-03`                            | Recurring backup, isolated restore, deployment rollback, and exact job replay have measured evidence                       |
-| E. Alert and issue projection | `G4-03`                            | One confirmed actionable alert key maintains one GitHub issue with linked evidence                                         |
-| F. Supply-chain trust         | `G5-03`                            | Exact validated package bytes, provenance, privacy, and emergency release are proven                                       |
-| G. Scale and security closure | `G3-04`, `G3-05`, `G5-02`, `G5-04` | Capacity, degradation, residual security risk, recovery time, and the honest support envelope close                        |
-| H. Public proof               | `G6-02` through `G6-06`            | Docs, discovery, demo, article, release notes, and assets match shipped behavior                                           |
-| I. Candidate and launch       | `G7-01` through `G7-06`            | One immutable candidate is rehearsed, approved, launched, observed, and recorded                                           |
+| Delivery block                  | Governing items                  | Release outcome                                                                                                  |
+| ------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| A. Host-security closeout       | `G5-02`                          | The reviewed host-authority cutover closes without changing ordinary room creation, joining, or reconnect UX     |
+| B. Creator/player polish        | `G6-07`                          | Homepage, Arcade, mobile joining, reconnect, representative games, and failure states feel trustworthy           |
+| C. Cross-client public proof    | `G2-04`, `G2-05`                 | Claude Desktop proves interoperability and one final agent lifecycle becomes the reusable launch-demo source     |
+| D. Minimum operational closeout | `G3-02`, `G3-07`, `G5-03`        | Spend brake, emergency pause, bounded evidence protection, and supply-chain handoff are closed                   |
+| E. Honest launch envelope       | `G3-04`, `G3-05`, `G5-04`        | One realistic load/failure drill publishes actual capacity and presents residual security risk for acceptance    |
+| F. Public release package       | `G6-02` through `G6-06`          | Docs, discovery, reused demo evidence, article, release notes, and assets match the polished product             |
+| G. Exact candidate and launch   | `G3-08`, `G7-01` through `G7-06` | One immutable candidate closes worker observation, is rehearsed once, approved, launched, observed, and recorded |
 
-After block A stabilizes shared contracts, C, D, E, F, and the independent
-control work inside B may proceed in parallel. B finishes only after F ratifies
-the retention policy, because production activation must exercise the final
-cleanup behavior. G waits on the controls and recovery work because load and
-failure drills must exercise the real final mechanisms. H can begin from proven
-golden-path evidence but freezes only after operational and security behavior
-is settled. Everything after `G7-01` proceeds only from the exact candidate
-that `G7-01` freezes.
+Completed recovery, migration, alerting, install-matrix, and primary Codex
+proof remain trusted inputs; do not replay them as new projects. Blocks A and B
+may proceed independently. C and the focused work inside D may follow without
+waiting for the entire public package. E exercises the final controls once. F
+may draft earlier but freezes only after B, C, and E settle shipped behavior.
+Everything after `G7-01` proceeds only from its exact candidate.
 
 ### Pull Request Shape
 
 Prefer reviewable, independently deployable pull requests in this order:
 
-1. `G4-07` reliability trust corrections and touched-module extraction
-2. `G3-06` migration inspect/plan/apply/verify lifecycle
-3. `G3-02` artifact retention and realtime admission, then `G3-07` operational
-   evidence retention after its policy is ratified
-4. `G3-08` operational-worker provisioning and observed activation
-5. isolated rehearsal profile and primary external-agent proof
-6. backup/restore/rollback/replay surface and drill
-7. narrow alert-key GitHub issue projection
-8. package build-once/provenance and privacy/emergency proof
-9. remaining security closure and capacity/degradation proof
-10. public demo/docs/story and exact release candidate
+1. finish the existing host-authority PR and coordinated cutover
+2. use focused product-polish PRs for the public and mobile flows
+3. prove Claude Desktop, then run the one final reusable golden path
+4. close the narrow spend, emergency-pause, evidence-retention, and operating-
+   envelope remainder without new generalized infrastructure
+5. reconcile supply-chain proof and present the residual security checkpoint
+6. finish docs, curate the retained demo, and freeze the public story
+7. cut, rehearse, approve, and launch one exact candidate
 
 Split a listed pull request further when it crosses unrelated authority or
 becomes difficult to review. Do not split one invariant across PRs in a way that
@@ -970,6 +1032,10 @@ The remaining work must not expand into:
    or dashboard-only operating path
 9. a mandatory runbook state machine or swarm scheduler before observed usage
    proves that focused tools, claims, issues, and agent loops are insufficient
+10. a generalized abuse-management or evidence-retention platform beyond the
+    narrow launch-critical behavior already identified
+11. additional quota dimensions, repeated clean-room runs, or duplicate demo
+    automation without a distinct public promise or measured failure
 
 These boundaries keep the architecture complete without confusing maturity
 with infrastructure count.
@@ -1011,17 +1077,21 @@ Avoid false precision:
 4. non-critical post-1.0 work belongs in `docs/suggestions.md`, not this
    manifest
 
-## Current Starting State
+## Current Rebaseline State
 
-The initial manifest deliberately marks implementation items pending rather
-than declaring inferred completion from old work.
+At the `2026-09-09` rebaseline, product/architecture canonicalization,
+production recovery, operational evidence, the public install matrix, shared
+realtime admission, durable release work, and the primary Codex clean-room
+lifecycle are complete or already live. They are inputs, not invitations for
+another proof cycle.
 
-The first autonomous queue contains independent work in:
+The active program is now intentionally biased toward:
 
-1. Gate 0 decision-packet preparation
-2. Gate 1 architecture audit
-3. Gate 3 production capacity and recovery inventory
-4. Gate 5 threat modeling
+1. finishing the reviewed host-authority boundary
+2. making the creator and player experience visibly release-ready
+3. proving Claude Desktop interoperability and one final reusable golden path
+4. closing only the minimum spend, overload, retention, and security remainder
+5. finishing the public story and launching one exact candidate
 
 Existing capability is evidence that should make these packages faster. It is
 not automatically accepted as 1.0 proof until the package verifies it against

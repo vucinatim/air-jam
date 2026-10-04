@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { gameReleases, games, users } from "../db/schema";
+import { appIds, gameReleases, games, users } from "../db/schema";
 import { auth } from "./auth";
+import { resolvePlatformDeploymentConfig } from "./platform-deployment-config";
 import { PREVIEW_TESTER_CREDENTIALS } from "./preview-tester-credentials";
 
 const PREVIEW_GAME_ID = "preview-game-001";
 const PREVIEW_RELEASE_ID = "preview-release-001";
+const PREVIEW_APP_ID = "preview-system-app-001";
 
 /**
  * Seed a minimal data set so a Railway PR preview has something to
@@ -23,6 +25,14 @@ const PREVIEW_RELEASE_ID = "preview-release-001";
  * never claim that a placeholder object is a validated or playable build.
  */
 export async function seedPreviewData(): Promise<void> {
+  const deployment = resolvePlatformDeploymentConfig(process.env);
+  const systemAppId =
+    process.env.AIR_JAM_SYSTEM_APP_ID?.trim() || deployment.appId;
+  if (!deployment.isRailwayPreviewEnvironment || !systemAppId) {
+    throw new Error(
+      "Preview seeding requires a preview environment and Arcade App ID.",
+    );
+  }
   const existingUser = await db
     .select({ id: users.id })
     .from(users)
@@ -66,6 +76,25 @@ export async function seedPreviewData(): Promise<void> {
       versionLabel: "preview-seed",
     })
     .onConflictDoNothing();
+
+  await db
+    .insert(appIds)
+    .values({
+      id: PREVIEW_APP_ID,
+      gameId: PREVIEW_GAME_ID,
+      creatorId: userId,
+      key: systemAppId,
+      allowedOrigins: [deployment.platformPublicOrigin],
+      isActive: true,
+    })
+    .onConflictDoUpdate({
+      target: appIds.id,
+      set: {
+        key: systemAppId,
+        allowedOrigins: [deployment.platformPublicOrigin],
+        isActive: true,
+      },
+    });
 
   await db
     .update(games)

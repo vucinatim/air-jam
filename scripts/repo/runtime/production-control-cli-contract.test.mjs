@@ -24,7 +24,28 @@ test("production controls are discoverable through the canonical repo CLI", () =
   assert.match(platformHelp, /operations/u);
   assert.match(operationsHelp, /status/u);
   assert.match(operationsHelp, /lane/u);
+  assert.match(operationsHelp, /emergency-pause/u);
   assert.match(laneHelp, /set/u);
+});
+
+test("emergency pause is discoverable, preview-first, audited, and explicitly scoped", () => {
+  const help = readHelp("platform", "operations", "emergency-pause");
+  for (const flag of [
+    "--apply",
+    "--actor",
+    "--reason",
+    "--idempotency-key",
+    "--json",
+    "--railway-environment",
+    "--retry-after-seconds",
+  ]) {
+    assert.ok(help.includes(flag), `missing ${flag}`);
+  }
+  assert.match(help, /read-only\s+preview/u);
+  assert.match(help, /preserve active work, cleanup, and telemetry/u);
+  assert.match(help, /retries\s+do not re-pause recovered lanes/u);
+  assert.doesNotMatch(help, /--lane\b/u);
+  assert.doesNotMatch(help, /--mode\b/u);
 });
 
 test("control mutations are preview-first, optimistic, audited, and remotely targetable", () => {

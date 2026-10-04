@@ -1,8 +1,9 @@
+import type { ControllerJoinAck } from "@air-jam/sdk/protocol";
 import { performance } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import { io, type Socket } from "socket.io-client";
-import { createNoopRuntimeUsagePublisher } from "../src/analytics/runtime-usage.ts";
-import { createAirJamServer } from "../src/index.ts";
+import { createNoopRuntimeUsagePublisher } from "../src/analytics/runtime-usage.js";
+import { createAirJamServer } from "../src/index.js";
 
 type GenericEventMap = Record<string, (...args: unknown[]) => void>;
 type GenericSocket = Socket<GenericEventMap, GenericEventMap>;
@@ -189,6 +190,7 @@ const createPerfRuntime = () =>
         isVerified: true,
         appId,
         verifiedVia: "appId" as const,
+        hostSessionKind: "game" as const,
       }),
     },
     runtimeUsagePublisher: createNoopRuntimeUsagePublisher(),
@@ -257,7 +259,7 @@ const runBaselineScenario = async (
         sockets.push(socket);
 
         const controllerId = `ctrl_perf_${index}`;
-        const joinAck = await emitWithAck<{ ok: boolean }>(
+        const joinAck = await emitWithAck<ControllerJoinAck>(
           socket,
           "controller:join",
           { roomId, controllerId, nickname: `Perf ${index}` },
@@ -381,7 +383,7 @@ const runReconnectScenario = async (
 
           const controllerId = `ctrl_reconnect_${index}`;
           const deviceId = `device_reconnect_${index}`;
-          const joinAck = await emitWithAck<{ ok: boolean; resumed?: boolean }>(
+          const joinAck = await emitWithAck<ControllerJoinAck>(
             socket,
             "controller:join",
             {
@@ -392,13 +394,18 @@ const runReconnectScenario = async (
             },
           );
 
-          if (!joinAck.ok) {
+          if (!joinAck.ok || !joinAck.resumeCapabilityToken) {
             throw new Error(
               `Initial reconnect scenario join failed for ${controllerId}`,
             );
           }
 
-          return { socket, controllerId, deviceId };
+          return {
+            socket,
+            controllerId,
+            deviceId,
+            resumeCapabilityToken: joinAck.resumeCapabilityToken,
+          };
         },
       ),
     );
@@ -418,32 +425,47 @@ const runReconnectScenario = async (
       await sleep(config.reconnectPauseMs);
 
       const nextControllers = await Promise.all(
-        controllers.map(async ({ controllerId, deviceId }) => {
-          attempts += 1;
-          const socket = await connectSocket(baseUrl);
-          sockets.push(socket);
+        controllers.map(
+          async ({ controllerId, deviceId, resumeCapabilityToken }) => {
+            attempts += 1;
+            const socket = await connectSocket(baseUrl);
+            sockets.push(socket);
 
-          const startedAt = performance.now();
-          const joinAck = await emitWithAck<{ ok: boolean; resumed?: boolean }>(
-            socket,
-            "controller:join",
-            {
-              roomId,
+            const startedAt = performance.now();
+            const joinAck = await emitWithAck<ControllerJoinAck>(
+              socket,
+              "controller:join",
+              {
+                roomId,
+                controllerId,
+                deviceId,
+                resumeCapabilityToken,
+                nickname: controllerId,
+              },
+            );
+            reconnectLatenciesMs.push(performance.now() - startedAt);
+
+            if (!joinAck.ok) {
+              failures += 1;
+              return { socket, controllerId, deviceId, resumeCapabilityToken };
+            }
+            if (!joinAck.resumeCapabilityToken) {
+              throw new Error(
+                `Reconnect acknowledgement omitted slot authority for ${controllerId}`,
+              );
+            }
+            if (!joinAck.resumed) {
+              resumedFailures += 1;
+            }
+
+            return {
+              socket,
               controllerId,
               deviceId,
-              nickname: controllerId,
-            },
-          );
-          reconnectLatenciesMs.push(performance.now() - startedAt);
-
-          if (!joinAck.ok) {
-            failures += 1;
-          } else if (!joinAck.resumed) {
-            resumedFailures += 1;
-          }
-
-          return { socket, controllerId, deviceId };
-        }),
+              resumeCapabilityToken: joinAck.resumeCapabilityToken,
+            };
+          },
+        ),
       );
 
       controllers = nextControllers;

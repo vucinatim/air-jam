@@ -2,7 +2,15 @@ import * as schema from "@/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { setOperationalLaneControl } from "../operations/production-control-service";
 import type { ReleaseStorage } from "../releases/release-storage";
 import {
@@ -910,6 +918,112 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
     );
   });
 
+  it("brakes production claims on unknown, stale, and threshold spend while allowing completion and queued recovery", async () => {
+    const cycleId = `job_budget_${suffix}`;
+    const evidenceId = `${cycleId}:evidence`;
+    const claim = (
+      kind: "release_artifact_processing" | "release_browser_validation",
+      offset = 10,
+    ) =>
+      claimOperationalJob({
+        database,
+        kind,
+        workerId: "worker:budget-proof",
+        now: at(offset),
+      });
+    vi.stubEnv("RAILWAY_ENVIRONMENT_NAME", "production");
+    try {
+      const initialInput = {
+        releaseId: releases.laneNormal,
+        idempotencyKey: "budget-initial",
+      };
+      const initial = await enqueue(initialInput);
+      expect(await claim("release_artifact_processing")).toBeNull();
+      await database.insert(schema.operationalBudgetCycles).values({
+        id: cycleId,
+        periodStart: at(-86_400_000),
+        periodEnd: at(86_400_000),
+        profile: "ordinary",
+        normalTargetMicrousd: 25_000_000,
+        warningMicrousd: 50_000_000,
+        protectionMicrousd: 75_000_000,
+        nearCeilingMicrousd: 90_000_000,
+        ceilingMicrousd: 100_000_000,
+        createdAt: baseTime,
+      });
+      expect(await claim("release_artifact_processing")).toBeNull();
+      await database.insert(schema.operationalBudgetEvidence).values({
+        id: evidenceId,
+        idempotencyKey: evidenceId,
+        cycleId,
+        contractVersion: 1,
+        provider: "test",
+        scopeKind: "project",
+        scopeId: cycleId,
+        scopeName: "spend-brake-test",
+        scopeMetadata: {},
+        currency: "USD",
+        observedAt: at(-7 * 3_600_000),
+        actualAmountMicrousd: 1_000_000,
+        projectedAmountMicrousd: 2_000_000,
+        measurements: {},
+        costBreakdownMicrousd: {},
+        rateCard: {},
+        sourceVersion: "spend-brake-test@1",
+        collectedBy: "test",
+        reason: "Prove new execution uses current budget authority.",
+        createdAt: baseTime,
+      });
+      expect(await claim("release_artifact_processing")).toBeNull();
+      const updateEvidence = (actualAmountMicrousd: number) =>
+        database
+          .update(schema.operationalBudgetEvidence)
+          .set({
+            observedAt: baseTime,
+            actualAmountMicrousd,
+            projectedAmountMicrousd: actualAmountMicrousd,
+          })
+          .where(eq(schema.operationalBudgetEvidence.id, evidenceId));
+      await updateEvidence(90_000_000);
+      expect(await claim("release_artifact_processing")).toBeNull();
+      await updateEvidence(1_000_000);
+      const running = await claim("release_artifact_processing");
+      expect(running?.id).toBe(initial.job.id);
+
+      await updateEvidence(100_000_000);
+      const successor = await enqueue({
+        releaseId: releases.laneNormal,
+        idempotencyKey: "budget-successor",
+        kind: "release_browser_validation",
+        now: at(11),
+      });
+      expect((await enqueue(initialInput)).job.id).toBe(initial.job.id);
+      await completeOperationalJob({
+        database,
+        jobId: running!.id,
+        leaseToken: running!.leaseToken!,
+        workerId: "worker:budget-proof",
+        result: { nextJobId: successor.job.id },
+        reason:
+          "Already-running work can commit its result and queued successor.",
+        now: at(12),
+      });
+      expect(await claim("release_browser_validation", 13)).toBeNull();
+      await updateEvidence(1_000_000);
+      const recovered = await claim("release_browser_validation", 14);
+      expect(recovered?.id).toBe(successor.job.id);
+      expect(recovered?.attemptCount).toBe(1);
+    } finally {
+      vi.unstubAllEnvs();
+      await database
+        .delete(schema.operationalBudgetEvidence)
+        .where(eq(schema.operationalBudgetEvidence.cycleId, cycleId));
+      await database
+        .delete(schema.operationalBudgetCycles)
+        .where(eq(schema.operationalBudgetCycles.id, cycleId));
+    }
+  });
+
   it("claims in normal and restricted modes but stops atomically when paused", async () => {
     await setOperationalLaneControl({
       database,
@@ -1815,6 +1929,12 @@ describeWithPostgres("operational job PostgreSQL invariants", () => {
       },
       async putObject() {
         throw new Error("Cleanup must not write objects.");
+      },
+      async listObjects() {
+        throw new Error("Prefix cleanup must not list objects.");
+      },
+      async deleteObjects() {
+        throw new Error("Prefix cleanup must not delete individual objects.");
       },
       async deletePrefix(prefix) {
         deletedPrefixes.push(prefix);

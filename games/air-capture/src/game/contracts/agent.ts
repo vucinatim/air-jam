@@ -84,7 +84,7 @@ export const agentContract = defineAirJamAgentContract({
     return {
       matchPhase: state.matchPhase,
       pointsToWin: state.pointsToWin,
-      canStartMatch: readiness.canStart,
+      canStartMatch: state.matchPhase === "lobby" && readiness.canStart,
       myAssignment,
       teams: TEAM_IDS.map((teamId) =>
         summarizeTeam(teamId, state.teamAssignments, state.botCounts),

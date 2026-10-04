@@ -1,7 +1,9 @@
+import type { AirJamActionInvocationResult } from "@air-jam/sdk";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   arcadeSurfaceRuntimeIdentitySchema,
   embeddedReplicatedStoreDomainFromArcadeIdentity,
+  localReferenceSourceGameId,
 } from "@air-jam/sdk/arcade/surface";
 import type {
   AirJamStateSyncPayload,
@@ -11,13 +13,13 @@ import type {
   ControllerLeaveAck,
   ControllerStateMessage,
   ControllerWelcomePayload,
-  HostActionRpcPayload,
   PlayerProfile,
   PlayerUpdatedNotice,
   ServerErrorPayload,
   ServerToClientEvents,
   SignalPayload,
 } from "@air-jam/sdk/protocol";
+import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
 import type { HostRuntimeInspectionContract } from "@air-jam/sdk/runtime-inspection";
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
@@ -30,7 +32,9 @@ import {
   resolveDevtoolsHelperScript,
 } from "./helper-scripts.js";
 import {
+  AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
+  isRuntimeOwnerActionResult,
   isRuntimeOwnerCaptureResult,
   type AirJamRuntimeOwnerCaptureResult,
 } from "./runtime-owner-protocol.js";
@@ -73,6 +77,7 @@ type InternalControllerSession = {
   lastSignal: JsonObject | null;
   lastError: JsonObject | null;
   isolatedRuntimeOwner: ChildProcess | null;
+  resumeCapabilityToken: string | null;
 };
 
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -259,30 +264,69 @@ const emitControllerActionWithAck = async ({
     });
   });
 
-const emitHostActionWithAck = async ({
-  socket,
+const requestOwnedHostAction = async ({
+  owner,
   payload,
   timeoutMs,
 }: {
-  socket: ControllerSocket;
-  payload: HostActionRpcPayload;
+  owner: ChildProcess;
+  payload: HostRuntimeActionRequest;
   timeoutMs: number;
-}): Promise<
-  Parameters<
-    NonNullable<
-      Parameters<ClientToServerEvents["controller:host_action_rpc"]>[1]
-    >
-  >[0]
-> =>
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error("Timed out waiting for host action acknowledgement."));
-    }, timeoutMs);
-
-    socket.emit("controller:host_action_rpc", payload, (ack) => {
+}): Promise<AirJamActionInvocationResult> =>
+  await new Promise((resolve) => {
+    const requestId = randomUUID();
+    const finish = (ack: AirJamActionInvocationResult) => {
       clearTimeout(timeout);
+      owner.off("message", onMessage);
+      owner.off("exit", onExit);
+      owner.off("disconnect", onExit);
+      owner.off("error", onError);
       resolve(ack);
-    });
+    };
+    const onError = () =>
+      finish({
+        ok: false,
+        status: "rejected",
+        source: "client",
+        reason: "host_ack_missing",
+        message:
+          "The owned host runtime disconnected before its acknowledgement was observed.",
+      });
+    const onExit = () => onError();
+    const onMessage = (message: unknown) => {
+      if (
+        isRuntimeOwnerActionResult(message) &&
+        message.requestId === requestId
+      )
+        finish(message.acknowledgement);
+    };
+    const timeout = setTimeout(() => {
+      finish({
+        ok: false,
+        status: "rejected",
+        source: "client",
+        reason: "host_ack_timeout",
+        message: "Timed out waiting for the owned host action acknowledgement.",
+      });
+    }, timeoutMs);
+    owner.on("message", onMessage);
+    owner.once("exit", onExit);
+    owner.once("disconnect", onExit);
+    owner.once("error", onError);
+    try {
+      owner.send(
+        {
+          type: AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
+          requestId,
+          action: payload,
+        },
+        (error) => {
+          if (error) onError();
+        },
+      );
+    } catch {
+      onError();
+    }
   });
 
 const parseJoinRoomId = (joinUrl: URL): string | null => {
@@ -309,14 +353,6 @@ const parseHelperJson = <T>(output: string): T => {
   }
 
   return JSON.parse(output.slice(startIndex, endIndex + 1)) as T;
-};
-
-const isRoomNotFoundJoinError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return /room not found/i.test(error.message);
 };
 
 const terminateIsolatedRuntimeOwner = async (
@@ -419,14 +455,12 @@ const startIsolatedRuntimeOwner = async ({
   gameId,
   mode,
   secure,
-  roomId,
   timeoutMs,
 }: {
   cwd: string;
   gameId?: string;
   mode: NonNullable<ConnectControllerOptions["mode"]>;
   secure: boolean;
-  roomId?: string;
   timeoutMs: number;
 }): Promise<{
   process: ChildProcess;
@@ -473,10 +507,6 @@ const startIsolatedRuntimeOwner = async ({
   if (topology.urls.browserBuildUrl) {
     args.push("--browser-build-url", topology.urls.browserBuildUrl);
   }
-  if (roomId) {
-    args.push("--room-id", roomId);
-  }
-
   const helperProcess = spawn(process.execPath, args, {
     cwd,
     stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -679,6 +709,13 @@ const buildSessionSummary = (
   ...session.summary,
 });
 
+export const ownsControllerSessionHost = (
+  controllerSessionId: string,
+): boolean => {
+  const owner = getRequiredSession(controllerSessionId).isolatedRuntimeOwner;
+  return Boolean(owner?.connected && !owner.killed && owner.exitCode === null);
+};
+
 const getRequiredSession = (
   controllerSessionId: string,
 ): InternalControllerSession => {
@@ -742,9 +779,14 @@ export const resolveControllerSessionGameRuntime = async ({
     minimumRevision,
     timeoutMs,
   });
-  const parsedSurface = arcadeSurfaceRuntimeIdentitySchema.safeParse(
-    surfaceSnapshot?.data,
-  );
+  // Replicated surface state also contains presentation fields. Validate its
+  // identity projection without weakening the strict bridge identity contract.
+  const surfaceData = surfaceSnapshot?.data;
+  const parsedSurface = arcadeSurfaceRuntimeIdentitySchema.safeParse({
+    epoch: surfaceData?.epoch,
+    kind: surfaceData?.kind,
+    gameId: surfaceData?.gameId,
+  });
 
   if (!parsedSurface.success) {
     throw new Error(
@@ -759,10 +801,15 @@ export const resolveControllerSessionGameRuntime = async ({
     );
   }
 
-  session.summary.gameId = parsedSurface.data.gameId;
+  const sourceGameId =
+    session.projectMode === "monorepo"
+      ? (localReferenceSourceGameId(parsedSurface.data.gameId) ??
+        parsedSurface.data.gameId)
+      : parsedSurface.data.gameId;
+  session.summary.gameId = sourceGameId;
 
   return {
-    gameId: parsedSurface.data.gameId,
+    gameId: sourceGameId,
     defaultStoreDomain: embeddedReplicatedStoreDomainFromArcadeIdentity(
       parsedSurface.data,
     ),
@@ -935,7 +982,9 @@ export const connectController = async ({
   const normalizedRequestedRoomId = roomId?.trim().toUpperCase() || undefined;
   const normalizedCapabilityToken = capabilityToken?.trim() || undefined;
   const canUseIsolatedOwner =
-    Boolean(gameId) || context.mode === "standalone-game";
+    !normalizedRequestedRoomId &&
+    !controllerJoinUrl &&
+    (Boolean(gameId) || context.mode === "standalone-game");
 
   const connectWithJoinUrl = async ({
     joinUrlString,
@@ -1015,6 +1064,7 @@ export const connectController = async ({
       lastSignal: null,
       lastError: null,
       isolatedRuntimeOwner: ownedRuntimeProcess,
+      resumeCapabilityToken: null,
     };
 
     attachSocketListeners(internalSession);
@@ -1030,6 +1080,8 @@ export const connectController = async ({
           nickname: nickname?.trim() || undefined,
           avatarId: avatarId?.trim() || undefined,
           capabilityToken: resolvedCapabilityToken,
+          resumeCapabilityToken:
+            internalSession.resumeCapabilityToken ?? undefined,
         },
         timeoutMs,
       });
@@ -1040,6 +1092,9 @@ export const connectController = async ({
             `Controller join was rejected${ack.code ? ` (${ack.code})` : ""}.`,
         );
       }
+
+      internalSession.resumeCapabilityToken =
+        ack.resumeCapabilityToken ?? internalSession.resumeCapabilityToken;
 
       internalSession.summary.connected = true;
       internalSession.summary.roomId = ack.roomId ?? resolvedRoomId;
@@ -1082,7 +1137,6 @@ export const connectController = async ({
       gameId,
       mode,
       secure,
-      roomId: normalizedRequestedRoomId,
       timeoutMs,
     });
     if (!owner.controllerJoinUrl) {
@@ -1098,34 +1152,10 @@ export const connectController = async ({
     });
   }
 
-  try {
-    return await connectWithJoinUrl({
-      joinUrlString: resolvedJoinUrl,
-      ownedRuntimeProcess: null,
-    });
-  } catch (error) {
-    if (canUseIsolatedOwner && isRoomNotFoundJoinError(error)) {
-      const owner = await startIsolatedRuntimeOwner({
-        cwd,
-        gameId,
-        mode,
-        secure,
-        roomId: normalizedRequestedRoomId,
-        timeoutMs,
-      });
-      if (!owner.controllerJoinUrl) {
-        await terminateIsolatedRuntimeOwner(owner.process);
-        throw error;
-      }
-
-      return await connectWithJoinUrl({
-        joinUrlString: owner.controllerJoinUrl,
-        ownedRuntimeProcess: owner.process,
-      });
-    }
-
-    throw error;
-  }
+  return connectWithJoinUrl({
+    joinUrlString: resolvedJoinUrl,
+    ownedRuntimeProcess: null,
+  });
 };
 
 export const sendControllerInput = async ({
@@ -1193,11 +1223,13 @@ export const invokeHostAction = async ({
   actionName,
   storeDomain,
   payload,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 }: {
   controllerSessionId: string;
   actionName: string;
   storeDomain: string;
   payload?: Record<string, unknown>;
+  timeoutMs?: number;
 }): Promise<InvokeControllerActionResult> => {
   const session = getRequiredSession(controllerSessionId);
   if (!session.summary.connected) {
@@ -1207,16 +1239,27 @@ export const invokeHostAction = async ({
   }
 
   const normalizedPayload = payload ? { ...payload } : undefined;
-  const acknowledgement = await emitHostActionWithAck({
-    socket: session.socket,
-    payload: {
-      roomId: session.summary.roomId,
-      actionName,
-      payload: normalizedPayload,
-      storeDomain,
-    },
-    timeoutMs: DEFAULT_TIMEOUT_MS,
-  });
+  const owner = session.isolatedRuntimeOwner;
+  const acknowledgement: AirJamActionInvocationResult =
+    owner && ownsControllerSessionHost(controllerSessionId)
+      ? await requestOwnedHostAction({
+          owner,
+          payload: {
+            roomId: session.summary.roomId,
+            actionName,
+            payload: normalizedPayload,
+            storeDomain,
+          },
+          timeoutMs,
+        })
+      : {
+          ok: false,
+          status: "rejected",
+          source: "client",
+          reason: "host_runtime_not_owned",
+          message:
+            "Host actions require an owned host runtime; room attachments provide player participation only.",
+        };
 
   return {
     ...buildSessionSummary(session),

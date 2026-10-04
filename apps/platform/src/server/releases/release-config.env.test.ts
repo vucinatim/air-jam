@@ -1,5 +1,6 @@
 import { EnvValidationError } from "@air-jam/env";
 import { afterEach, describe, expect, it } from "vitest";
+import { loadReleaseModerationEnv } from "./release-env";
 import {
   getReleaseModerationAvailability,
   resetReleaseModerationConfigForTests,
@@ -64,23 +65,24 @@ describe("release env contracts", () => {
   });
 
   it("reports moderation as unavailable when browser runtime is not configured", () => {
-    delete process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT;
-    delete process.env.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN;
-    delete process.env.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH;
+    delete process.env.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID;
+    delete process.env.AIRJAM_RELEASES_BROWSER_API_TOKEN;
 
     const availability = getReleaseModerationAvailability();
 
     expect(availability.available).toBe(false);
     if (!availability.available) {
       expect(availability.reason).toContain(
-        "AIRJAM_RELEASES_BROWSER_WS_ENDPOINT",
+        "AIRJAM_RELEASES_BROWSER_ACCOUNT_ID",
       );
     }
   });
 
   it("fails fast for invalid moderation integer env values", () => {
     configureIsolatedReleaseOrigin();
-    process.env.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH = "/tmp/chrome";
+    process.env.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID =
+      "0123456789abcdef0123456789abcdef";
+    process.env.AIRJAM_RELEASES_BROWSER_API_TOKEN = "browser-token";
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";
     process.env.OPENAI_API_KEY = "openai-key";
     process.env.AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH = "invalid";
@@ -90,26 +92,28 @@ describe("release env contracts", () => {
     );
   });
 
-  it("reports moderation as unavailable when a browser worker token is missing", () => {
-    process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT = "ws://localhost:9222";
+  it("reports moderation as unavailable when a browser API token is missing", () => {
+    process.env.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID =
+      "0123456789abcdef0123456789abcdef";
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";
     process.env.OPENAI_API_KEY = "openai-key";
-    delete process.env.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN;
+    delete process.env.AIRJAM_RELEASES_BROWSER_API_TOKEN;
 
     const availability = getReleaseModerationAvailability();
 
     expect(availability.available).toBe(false);
     if (!availability.available) {
       expect(availability.reason).toContain(
-        "AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN",
+        "AIRJAM_RELEASES_BROWSER_API_TOKEN",
       );
     }
   });
 
   it("parses moderation configuration when required values are present", () => {
     configureIsolatedReleaseOrigin();
-    process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT = "ws://localhost:9222";
-    process.env.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN = "browser-token";
+    process.env.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID =
+      "0123456789abcdef0123456789abcdef";
+    process.env.AIRJAM_RELEASES_BROWSER_API_TOKEN = "browser-token";
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";
     process.env.OPENAI_API_KEY = "openai-key";
 
@@ -121,18 +125,17 @@ describe("release env contracts", () => {
       expect(availability.config.imageModeration.openAi?.model).toBe(
         "omni-moderation-latest",
       );
-      expect(availability.config.browserLaunch.viewportWidth).toBe(1440);
-      expect(availability.config.browserLaunch.accessToken).toBe(
-        "browser-token",
-      );
+      expect(availability.config.browser.viewportWidth).toBe(1440);
+      expect(availability.config.browser.apiToken).toBe("browser-token");
       expect(availability.config.internalAccessSecret).toBe("token");
     }
   });
 
   it("parses capture-only moderation configuration without OpenAI", () => {
     configureIsolatedReleaseOrigin();
-    process.env.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT = "ws://localhost:9222";
-    process.env.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN = "browser-token";
+    process.env.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID =
+      "0123456789abcdef0123456789abcdef";
+    process.env.AIRJAM_RELEASES_BROWSER_API_TOKEN = "browser-token";
     process.env.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN = "token";
     process.env.AIRJAM_RELEASES_IMAGE_MODERATION_MODE = "disabled";
     delete process.env.OPENAI_API_KEY;
@@ -146,5 +149,60 @@ describe("release env contracts", () => {
         openAi: null,
       });
     }
+  });
+
+  it("does not accept a local executable as an alternative to managed isolation", () => {
+    delete process.env.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID;
+    process.env.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH = "/tmp/chrome";
+    expect(getReleaseModerationAvailability()).toMatchObject({
+      available: false,
+      reason: expect.stringContaining("AIRJAM_RELEASES_BROWSER_ACCOUNT_ID"),
+    });
+  });
+
+  const captureEnv = {
+    AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
+    AIRJAM_RELEASES_BROWSER_API_TOKEN: "worker-token",
+    AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "inspection-secret",
+    AIRJAM_RELEASES_IMAGE_MODERATION_MODE: "disabled",
+  };
+
+  it.each([
+    ["AIRJAM_RELEASES_BROWSER_ACCOUNT_ID", ""],
+    ["AIRJAM_RELEASES_BROWSER_API_TOKEN", " "],
+    ["AIRJAM_RELEASES_BROWSER_ACCOUNT_ID", "invalid"],
+    ["AIRJAM_RELEASES_BROWSER_ACCOUNT_ID", "0123456789abcdef"],
+    ["AIRJAM_RELEASES_BROWSER_ACCOUNT_ID", "g".repeat(32)],
+    ["AIRJAM_RELEASES_BROWSER_ACCOUNT_ID", "A".repeat(32)],
+    ["AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS", "30001"],
+    ["AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS", "10001"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH", "2561"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT", "1441"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH", "1440junk"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH", "1440.5"],
+    ["AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH", "0"],
+  ])("rejects invalid capture setting %s=%s", (key, value) => {
+    expect(() =>
+      loadReleaseModerationEnv({ ...captureEnv, [key]: value }),
+    ).toThrow(EnvValidationError);
+  });
+
+  it("accepts the supported capture maxima with required provider credentials", () => {
+    expect(
+      loadReleaseModerationEnv({
+        ...captureEnv,
+        AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS: "30000",
+        AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS: "10000",
+        AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH: "2560",
+        AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT: "1440",
+      }).browser,
+    ).toEqual({
+      accountId: captureEnv.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID,
+      apiToken: "worker-token",
+      navigationTimeoutMs: 30000,
+      waitAfterLoadMs: 10000,
+      viewportWidth: 2560,
+      viewportHeight: 1440,
+    });
   });
 });

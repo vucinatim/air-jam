@@ -25,13 +25,14 @@ const createCollectingPublisher = (): {
 describe("runtime usage publisher seam", () => {
   const collector = createCollectingPublisher();
   const authService: HostBootstrapAuthService = {
-    verifyHostBootstrap: async ({ appId }) => ({
+    verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
       isVerified: true,
       appId,
       gameId:
         appId === "aj_app_usage_standalone" ? "game-standalone-1" : undefined,
       verifiedVia: "appId",
       verifiedOrigin: "http://127.0.0.1",
+      hostSessionKind: hostSessionKind ?? "system",
     }),
   };
   const harness = setupServerTestHarness({

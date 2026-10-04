@@ -1,8 +1,8 @@
 # Primary Agent Run Audit
 
-Last updated: 2026-09-09
+Last updated: 2026-09-12
 
-Status: Gate `G2-03` completion proof retained; Gates `G2-04` and `G2-05` remain
+Status: Gate `G2-03` proof retained; independent `G2-04` proof complete; final `G2-05` replay pending
 
 ## Question
 
@@ -296,11 +296,52 @@ policy is retained at
 
 ## Remaining Closure Work
 
-The primary Codex lane no longer has a known product blocker. Gate `G2-04` must
-now prove that Claude Desktop can independently discover the packaged surface
-and bootstrap semantic sessions without private maintainer knowledge. Gate
-`G2-05` then owns any client-specific corrections, a final exact replay against
-the settled candidate path, and an honest classification of residual friction.
+The primary Codex lane no longer has a known product blocker. Gate `G2-04` has
+now separately proved Claude Desktop discovery and semantic-session bootstrap;
+see [the independent client audit](./claude-desktop-interop-audit.md). Gate
+`G2-05` owns one final replay against settled source, reusable demo evidence,
+and an honest classification of residual friction. Reuse the existing Signal
+Relay scenario and `golden-path run-primary`; no new demo harness or repeated
+full second-client coding run is required.
+
+### 2026-09-12 final replay preflight
+
+Read-only provider checks confirm the existing staging environment
+`814fa07a-ed20-48c0-ba1a-b8a0524c516e` remains accessible through the account
+CLI. All five services have latest deployment status `SUCCESS`. Platform,
+realtime server, and operational worker report revision
+`db85cdea418d529099a556a3e7b586f0e994590b`; the browser worker reports
+`a0104ca0a3dec2ff877d03feac0b337373f0f9b6`. These are older artifacts, not the
+current launch-experience worktree. The staging `/api/health` returned `200`
+with matching environment, deployment, and platform revision.
+
+The repo-loaded `RAILWAY_PROJECT_TOKEN` is production-environment scoped.
+Its staging lookup and account-identity query returned `Not Authorized`, while
+project inspection and production environment listing succeeded. The normal
+Railway CLI account login independently accessed staging. A scoped environment
+list is not a complete account inventory; these observations do **not** imply
+revoked login or deleted staging. No credentials were changed.
+
+Configured storage credential metadata expires at
+`2026-09-16T05:56:45.000Z`, matching the later seven-day rotation recorded
+above—not the expired one-day credential in the original `a22` snapshot.
+The initial check inspected only expiry metadata. The subsequent canonical
+`golden-path staging status` passed at `2026-09-12T16:09:26.772Z`, using the
+existing CLI account credential only in that command's process environment.
+It verified distinct provider/service/database identity, non-reused production
+sensitive values, signed temporary storage scope and expiry, isolated release
+pipeline, distinct public origin, and platform health. `productionAllowed`
+remained false. This is a fresh configuration/isolation attestation, not a new
+storage write or completed hidden-release replay. No credential was printed,
+persisted, or redundantly rotated.
+
+After the load/review batch settles, deploy the
+settled revision to that exact isolated target, revalidate it through the same
+canonical staging check, and let `run-primary` rebuild
+and pack fresh candidate artifacts. Record their identities and the hidden
+release result; do not reuse earlier `0.9.3` archive hashes or call this the
+later immutable Gate 7 production candidate. No provider mutation, public
+publication, or production deployment was made during this preflight.
 
 The `create-airjam` archive size is no longer an unowned concern: `G6-01`
 measured it across the full Node/OS matrix and enforces the explicit 100 MiB
@@ -318,9 +359,10 @@ access.
 The former weakest part was lifecycle composition at clean-room boundaries.
 The repeated failed attempts exposed and then closed package-manager,
 process-ownership, helper-transport, browser, evidence, staging-identity,
-storage-upload, and cleanup seams. The next uncertainty is portability: one
-Codex lane is now proven, but the second supported client and final settled
-candidate still need independent evidence.
+storage-upload, and cleanup seams. The second supported client now has its
+independent proof. The remaining uncertainty is the final settled candidate's
+complete lifecycle and the honest limits of that proof, not whether to add a
+parallel creation architecture.
 
 The correct 1.0 response is not to add a second hosted Studio or a parallel
 operator model. It is to finish the single CLI/MCP harness so creation,

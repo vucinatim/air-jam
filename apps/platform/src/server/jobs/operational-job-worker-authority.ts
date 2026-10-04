@@ -3,6 +3,7 @@ import { operationalJobAttempts, operationalJobs } from "@/db/schema";
 import { resolveDatabaseAuthorityNow } from "@/server/operations/database-authority";
 import { enqueueOperationalJobFailureEventInTransaction } from "@/server/operations/operational-job-event-producer";
 import { acquireOperationalLaneLock } from "@/server/operations/operational-lane-lock";
+import { readOperationalLaneAdmission } from "@/server/operations/production-control-service";
 import {
   operationalJobContractVersion,
   type OperationalJobKind,
@@ -96,10 +97,12 @@ export const claimOperationalJob = async ({
     await acquireOperationalJobLock(tx, "claim", kind);
     await acquireOperationalLaneLock(tx, policy.lane);
     const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
-    const laneControl = await tx.query.operationalLaneControls.findFirst({
-      where: (table, { eq }) => eq(table.lane, policy.lane),
+    const admission = await readOperationalLaneAdmission({
+      database: tx,
+      lane: policy.lane,
+      asOf: authorityNow,
     });
-    if (laneControl?.mode === "paused") return null;
+    if (admission.outcome === "denied") return null;
 
     if (
       (await countActiveLeases({ tx, kind, now: authorityNow })) >=

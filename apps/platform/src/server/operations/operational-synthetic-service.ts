@@ -8,9 +8,11 @@ import {
   normalizeOrigin,
   resolvePlatformDeploymentConfig,
 } from "@/lib/platform-deployment-config";
+import { acquireOperationalEvidenceWriteFence } from "@air-jam/database-contract";
 import {
   createStructuredOperationalFailure,
   normalizeUnknownOperationalFailure,
+  OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES,
   operationalAlertSchemaV1,
   operationalSloEvaluationSchemaV1,
   operationalSyntheticRunSchemaV1,
@@ -161,10 +163,6 @@ export const resolveOperationalSyntheticRuntimeConfig = (
     "RAILWAY_SERVICE_AIR_JAM_PLATFORM_WORKER_URL",
     env.AIRJAM_SYNTHETIC_WORKER_ORIGIN,
   );
-  const browserWorkerOrigin = environmentScopedOrigin(
-    "RAILWAY_SERVICE_AIR_JAM_RELEASE_BROWSER_WORKER_URL",
-    env.AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN,
-  );
   const hostedReleaseUrl = platform.isRailwayPreviewEnvironment
     ? null
     : absoluteUrl(env.AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL);
@@ -179,7 +177,6 @@ export const resolveOperationalSyntheticRuntimeConfig = (
       "realtime.health": urlFromOrigin(realtimeOrigin, "/health"),
       "hosted.release": hostedReleaseUrl,
       "worker.ready": urlFromOrigin(workerOrigin, "/ready"),
-      "browser_worker.health": urlFromOrigin(browserWorkerOrigin, "/health"),
       "realtime.room_controller": realtimeOrigin,
       "realtime.semantic_action": realtimeOrigin,
     }),
@@ -603,7 +600,7 @@ export const executeOperationalSyntheticCheck = async ({
     evidence: [
       {
         kind: "snapshot",
-        reference: `synthetic-run:${runId}`,
+        reference: `${OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES.syntheticRun}${runId}`,
         collectedAt: completedAt.toISOString(),
       },
     ],
@@ -831,7 +828,7 @@ const evaluateAndRouteAlertInTransaction = async ({
     evidence: [
       {
         kind: "event",
-        reference: `event:${run.eventId}`,
+        reference: `${OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES.event}${run.eventId}`,
         collectedAt: evaluatedAt.toISOString(),
       },
     ],
@@ -1008,6 +1005,8 @@ const persistOperationalSyntheticRunInTransaction = async ({
   idempotencyKey: string;
   testNow?: Date;
 }): Promise<OperationalSyntheticPersistenceResult> => {
+  // Fence only persistence, after network work and before per-SLO/reference locks.
+  await acquireOperationalEvidenceWriteFence(tx);
   const check = getOperationalSyntheticCheck(submittedRun.checkId);
   const definition = getOperationalSloDefinition(check.sloId);
   await tx.execute(

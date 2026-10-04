@@ -17,17 +17,21 @@ const optionalEnvValue = z.preprocess(trimToUndefined, z.string().optional());
 const requiredEnvValue = (envKey: string) =>
   z.preprocess(trimToUndefined, z.string().min(1, `${envKey} is required.`));
 
-const positiveIntegerFromEnv = (envKey: string, fallback: number) =>
+const positiveIntegerFromEnv = (
+  envKey: string,
+  fallback: number,
+  maximum = Number.MAX_SAFE_INTEGER,
+) =>
   optionalEnvValue.transform((value, context) => {
     if (!value) {
       return fallback;
     }
 
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed <= 0 || parsed > maximum) {
       context.addIssue({
         code: "custom",
-        message: `${envKey} must be a positive integer.`,
+        message: `${envKey} must be a positive integer no greater than ${maximum}.`,
       });
       return z.NEVER;
     }
@@ -97,9 +101,16 @@ const releaseStorageEnvSchema = z
 
 const releaseModerationEnvSchema = z
   .object({
-    AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: optionalEnvValue,
-    AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: optionalEnvValue,
-    AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH: optionalEnvValue,
+    AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: requiredEnvValue(
+      "AIRJAM_RELEASES_BROWSER_ACCOUNT_ID",
+    ).pipe(
+      z
+        .string()
+        .regex(/^[a-f0-9]{32}$/, "A Cloudflare account ID is required."),
+    ),
+    AIRJAM_RELEASES_BROWSER_API_TOKEN: requiredEnvValue(
+      "AIRJAM_RELEASES_BROWSER_API_TOKEN",
+    ),
     AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: requiredEnvValue(
       "AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN",
     ),
@@ -108,18 +119,22 @@ const releaseModerationEnvSchema = z
     AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS: positiveIntegerFromEnv(
       "AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS",
       20_000,
+      30_000,
     ),
     AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS: positiveIntegerFromEnv(
       "AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS",
       1_000,
+      10_000,
     ),
     AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH: positiveIntegerFromEnv(
       "AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH",
       1440,
+      2560,
     ),
     AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT: positiveIntegerFromEnv(
       "AIRJAM_RELEASES_BROWSER_VIEWPORT_HEIGHT",
       900,
+      1440,
     ),
     AIRJAM_RELEASES_OPENAI_MODERATION_MODEL: optionalEnvValue,
     AIRJAM_RELEASES_OPENAI_BASE_URL: optionalEnvValue,
@@ -129,30 +144,6 @@ const releaseModerationEnvSchema = z
     ),
   })
   .superRefine((value, context) => {
-    if (
-      !value.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT &&
-      !value.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["AIRJAM_RELEASES_BROWSER_WS_ENDPOINT"],
-        message:
-          "Configure AIRJAM_RELEASES_BROWSER_WS_ENDPOINT or AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH to enable screenshot moderation.",
-      });
-    }
-
-    if (
-      value.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT &&
-      !value.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN"],
-        message:
-          "AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN is required when AIRJAM_RELEASES_BROWSER_WS_ENDPOINT is configured.",
-      });
-    }
-
     if (
       value.AIRJAM_RELEASES_IMAGE_MODERATION_MODE === "openai" &&
       !value.OPENAI_API_KEY
@@ -167,10 +158,9 @@ const releaseModerationEnvSchema = z
   })
   .transform((value) => ({
     internalAccessSecret: value.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN,
-    browserLaunch: {
-      wsEndpoint: value.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null,
-      accessToken: value.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN ?? null,
-      executablePath: value.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null,
+    browser: {
+      accountId: value.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID,
+      apiToken: value.AIRJAM_RELEASES_BROWSER_API_TOKEN,
       navigationTimeoutMs: value.AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS,
       waitAfterLoadMs: value.AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS,
       viewportWidth: value.AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH,
@@ -198,9 +188,8 @@ const releaseModerationEnvSchema = z
   }));
 
 const releaseModerationAvailabilityProbeSchema = z.object({
-  AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: optionalEnvValue,
-  AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: optionalEnvValue,
-  AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH: optionalEnvValue,
+  AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: optionalEnvValue,
+  AIRJAM_RELEASES_BROWSER_API_TOKEN: optionalEnvValue,
   AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: optionalEnvValue,
   AIRJAM_RELEASES_IMAGE_MODERATION_MODE: releaseImageModerationModeFromEnv,
   OPENAI_API_KEY: optionalEnvValue,

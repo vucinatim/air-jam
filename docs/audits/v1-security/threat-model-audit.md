@@ -280,6 +280,31 @@ The detailed findings below reduce to these non-negotiable rules:
   issuer mismatch and insecure non-loopback URL tests fail closed; scope,
   expiry, rotation, revocation, and session-inventory tests pass.
 
+#### 2026-09-12 implementation evidence
+
+The local CLI/MCP shared transport now binds reused saved tokens to their
+stored platform origin before network IO. Invalid URLs fail explicitly; remote
+targets require HTTPS, with HTTP limited to literal loopback development.
+API paths cannot escape the selected origin, fetch rejects redirects (including
+same-origin device-code replay), and device login validates the response issuer
+before storing the requested platform. Deliberate explicit-token/self-hosted
+targets remain supported. No new token schema, policy service, permission
+prompt, or duplicate adapter-specific implementation was introduced.
+
+The focused `packages/devtools-core/tests/platform-auth.test.ts` suite passes
+28 tests on Node 24.12.0, including real HTTP 307 same/cross-origin destinations
+receiving zero redirected requests, pre-IO origin mismatch rejection, unsafe
+URL rejection, normalized equivalent origins, explicit alternate tokens, and
+login-response issuer mismatch. Explicit test-root typechecking and scoped lint
+also pass. The integrated `pnpm check:batch` passed on Node 24 after combining
+the fix with the completed reliability work; the focused 28-test suite also
+passed again on that tree in 3.02 seconds. These prove the destination boundary,
+not a new claim about server token rotation, revocation, or all remaining
+provider tooling. The single Canonicalizer session
+`0b1bdde0-0b27-489f-8a96-5478c72d0b52` returned **READY**, confirming one
+credential-transport owner without a new schema or adapter layer.
+The change is local, not yet published or deployed; `G5-02` remains open.
+
 ### AJ-SEC-003 — Public/replayable host grants can replace room master authority
 
 - Category: authority
@@ -299,10 +324,10 @@ The detailed findings below reduce to these non-negotiable rules:
   production auth fail-closed behavior, and socket lifecycle rate limits.
 - Threat and harm: raw clients can omit or forge `Origin`, replay a grant, and
   attempt to bind or replace privileged host authority for a live room.
-- Canonical end state: host-grant issuance has a non-forgeable abuse identity;
-  claims bind `jti`, audience, session kind, and launch/room intent; the server
-  consumes them atomically once. An active master host can be replaced only
-  with a server-issued reconnect/lease capability.
+- Canonical end state: claims bind `jti`, audience, session kind, and allowed
+  origins; the server consumes each `jti` atomically once. An active
+  master host can be replaced only with a server-issued reconnect/lease
+  capability.
 - Owner and dependencies: platform host auth, SDK protocol, realtime lifecycle;
   `G5-02`.
 - Required proof: raw-client tests reject missing/forged origin, replay,
@@ -348,6 +373,79 @@ The detailed findings below reduce to these non-negotiable rules:
   evidence; non-root/sandbox/seccomp attestation; token rotation and
   Chromium-aware readiness through the repo CLI.
 
+#### 2026-10-04 managed isolation decision
+
+Tim accepted managed Cloudflare browser isolation instead of the independently
+enforced browser-network firewall described in the original end state above.
+Railway remains the trusted product/job host; untrusted capture does not run
+on the private bee host. Browser private-IP/DNS-rebinding containment is not
+independently established or claimed. Generation-scoped credentials, public-only
+DNS-pinned privileged fetching, capture limits and owned session cleanup remain
+required. The [current capture plan](../../plans/release-browser-worker-containment-plan.md)
+governs this replacement; the original self-hosted design is historical.
+Integration, narrow machine credentials and reviewed hosted/production proof
+remain open, so this decision alone does not close the finding.
+
+#### 2026-09-12 worker containment work in progress
+
+The [historical bounded containment plan](../../archive/2026-10-04-self-hosted-release-browser-containment-plan.md)
+keeps the existing worker/provider, job admission, and moderation ownership.
+Read-only provider state confirms the current deployed worker has a configured
+token of at least 32 characters, but still runs its original root/sandbox-off
+image. Dropped-privilege user/network namespace probes and a sandbox-requested
+UID 65534 Chromium `145.0.7632.6` blank-page launch pass. Headless shell does not
+provide `chrome://sandbox`; this is feasibility evidence, not final image or
+network-isolation attestation. Probe browser resources were closed.
+
+Local source now requires worker credentials and sandbox-on configuration,
+rejects root execution, removes worker/provider secrets from browser child env,
+and configures the Docker image's non-root user. Ten focused env/auth tests,
+worker typechecking and scoped lint pass. No Docker-image or deployment success
+is claimed for the changed source.
+
+Inspection v2 binds the exact game/release/generation; 16 focused token tests
+pass. Capture removes context-wide headers and fetches private assets with
+automatic redirects disabled. The credential stays out of browser request
+headers. Eight routing units and one actual Chromium fixture pass: private host
+and chunk load, while same-origin outside-path and cross-origin redirect targets
+and external asset requests receive no inspection token. The two owned fixture
+servers are loopback; the test explicitly grants local-network access only for
+those fixtures. This is credential-confinement proof, **not SSRF containment**.
+
+Capture now uses the declared viewport instead of unbounded document height,
+blocks service workers/downloads and popups, and requires authenticated remote
+execution. The local unisolated launch fallback is removed from configuration,
+capture and staging verification. Capture/config tests (35) and staging tests
+(14) pass, including bounded capture/cleanup, viewport and PNG output limits.
+
+The shared address classifier's 40 tests and 15 worker proxy tests pass. Local
+worker source now owns one browser/proxy per connection, a hard lifetime,
+HTTP/WS/CONNECT public-only pinned egress, transfer/admission bounds and a
+browser-backed health probe. A further UID 65534 provider probe opened a blank
+Chromium page inside user/network/PID namespaces after capability dropping.
+This is feasibility, not validation of the new launcher or proxy integration.
+Six worker-entry/lifecycle and three CLI tests also pass. They caught and fixed
+a half-open client disconnect that could otherwise retain its browser until the
+deadline. Chromium is mocked in entry tests; the real sockets and owned proxy/
+directory cleanup are exercised without claiming actual process isolation.
+
+The subsequent 19-test proxy run includes real TLS identity/SNI and invalid-
+certificate rejection, real Chromium HTTPS/WSS messaging, and confirmation that
+Playwright's Node-side private fetching shares the proxy and cannot reach an
+owned loopback listener. Only the browser fixture pins its test certificate;
+production trust is unchanged. This strengthens protocol/driver evidence, not
+the still-missing exact-image namespace proof.
+Capture also now rejects failed/missing HTTP host responses before creating any
+screenshot artifact, rather than letting an error page masquerade as a loaded
+game. The 13 capture-service tests include error-page cleanup/storage regressions.
+
+**Finding remains open:** the exact Docker image build hit Docker storage
+exhaustion before runtime proof. No unrelated Docker resources or database volumes
+were removed. The [historical plan checkpoint](../../archive/2026-10-04-self-hosted-release-browser-containment-plan.md#implementation-and-proof-checkpoint--2026-09-12)
+records the pending scoped cleanup decision, provider mount-policy limitation,
+and remaining exact-image/private-asset/TLS/WS/direct-network/cancellation proof.
+Final integrated batch, canonicality review and reviewed delivery have not run.
+
 ### AJ-SEC-005 — Room code and optional controller capability grant excessive authority
 
 - Category: authority
@@ -371,14 +469,80 @@ The detailed findings below reduce to these non-negotiable rules:
   rejection.
 - Threat and harm: knowledge or brute-force discovery of a short room code is
   effectively a bearer for privileged controller events.
-- Canonical end state: routing codes and privilege capabilities are distinct.
-  Missing capability either rejects the join or receives a deliberately narrow
-  unprivileged grant set. Manual entry uses host approval or a stronger join
-  secret. Capabilities expire, rotate, and reconnect safely.
+- Canonical end state (reconciled 2026-09-12 with the no-new-player-prompts
+  product contract): room codes are party invitations, not private-room
+  authentication. Participants keep ordinary inputs, player actions, sounds,
+  and cooperative system controls. They cannot impersonate the host or resume
+  another player's slot using public IDs. Actual owned host actions use the
+  [private runtime-owner path](../../contracts/agent-session-contract.md#player-participation-and-host-ownership);
+  controller resume uses a server-issued private token. The earlier proposal
+  to add approval to manual joining is superseded, not implemented.
 - Owner and dependencies: SDK and realtime controller authorization; `G5-02`.
 - Required proof: negative tests for every privileged event without the proper
   capability, plus brute-force/rate, expiry, rotation, reconnect, manual-entry,
   and host-revocation tests.
+
+#### 2026-09-12 implementation evidence
+
+The controller host-impersonation event, schema, and payload type are removed.
+Networked player actions always receive server-derived controller identity.
+Owned-host IPC instead invokes the existing local store dispatcher through the
+separate browser-realm control contract. Missing ownership is explicit in
+session discovery/results; no delegation grants or new service were added.
+
+Resume now requires the existing slot's private server-issued token (or its
+already bound socket for an idempotent join). Public controller/device IDs,
+including those copied from presence, are insufficient. The admission await
+rechecks current slot identity/lease/owner to prevent concurrent overwrites.
+Removal invalidates the old slot; a later fresh join receives a new token and
+does not restore previous authority. The private ACK is retained in SDK memory
+and structured local storage, not forwarded through public welcome messages.
+Legacy ID-only bindings are discarded. Denied browser storage uses existing
+in-memory behavior; reload without durable storage necessarily joins fresh.
+The same exercise fixed the existing settings-storage getter throwing during
+controller rendering, through its existing persistence owner.
+
+Focused evidence includes 38 SDK local-control/store tests, 39 controller/
+settings SDK tests, 33 server routing/lifecycle/admission tests, and 23 devtools
+IPC/frame/observation tests plus 31 broader devtools tests. Overlapping suites
+are not summed as unique coverage. Explicit affected source/test TypeScript
+and scoped lint pass. Tests retain ordinary cooperative controls, deny forged
+host identity and public-ID resume, cover stale admission races and expiry,
+and verify exact realm targeting, listener/replication parity, stale binding
+cleanup, private-token omission, and ambiguous acknowledgement semantics.
+
+Real Node 24 source proof used the normal `pnpm run dev -- --game=pong` stack
+with its loopback database, then the canonical devtools controller/semantic
+action APIs. Owned standalone room `DN7N` and embedded Arcade room `X7W2` both
+joined a team, added a bot, and started a match through player actions. Their
+host `scorePoint` calls returned accepted acknowledgements and replicated
+team1 scores from 0 to 1. The standalone store used `default`, revisions 3→4;
+the embedded store used `aj.embedded.game:2:local-reference-pong`, revisions
+3→8. Live bot play also changed the embedded opponent score; this is not an
+isolated physics assertion. Both owned sessions closed successfully, and the
+unified error-level stream was empty. These prove the source-level owned-host
+transport, not a new full external-agent release rehearsal or deployed proof.
+
+The integrated batch passed generated-source checks, workspace typechecking,
+lint, and canonical guards before reaching tests. The combined server run
+exposed a 100 ms test-fixture resume-window race; authority tests now preserve
+their intended live slot rather than racing expiry. A separate log test now
+awaits the existing flush operation instead of sleeping 25 ms. The SDK export
+test was updated to assert the new public control leaf rather than its former
+absence. No production timeout was widened or negative assertion weakened.
+Validation resumed at the affected test stages: the full server suite passes
+203 tests (41 opt-in database cases skipped); platform passes 487 tests (82
+opt-in database cases skipped). SDK passes its 281 unchanged/passing cases and
+the corrected export contract plus runtime-control rerun passes all eight
+cases. This is a completed batch with targeted fallout rechecks, not a claim
+that the initial uninterrupted command exited successfully. Earlier focused
+devtools and real-browser evidence above remain applicable. The single
+Canonicalizer session `77b8f1f0-3f01-4788-8e45-6512fc314b52` returned **READY**:
+the impersonation path is deleted, host control reuses the existing dispatcher,
+and resume authority has one owner. Its optional micro-consolidations do not
+block this batch; a generic IPC abstraction was deliberately not added for
+only two operations with different error contracts.
+`G5-02` remains open for other launch-critical findings and reviewed delivery.
 
 ### AJ-SEC-006 — Malformed, deep, oversized, or high-rate realtime input can deny service
 
@@ -490,6 +654,153 @@ The detailed findings below reduce to these non-negotiable rules:
 
 ### AJ-SEC-009 — Reporter identity leaks to creators while public report intake is unbounded
 
+- Integrated local report regression (2026-09-12): all 54 tests across the
+  application service, machine projections, router/HTTP boundary, report form,
+  operator input, intake input, and rendered release panels passed together
+  (2.76 seconds). The instant gate passed in 912 ms. This proves the combined
+  local report slice, not worker-image containment or production readiness.
+  No report deletion interval is ratified in the current roadmap. The proposed
+  maintainer decision is deletion of reports, optional contact, and decision
+  history 90 days after review/dismissal, with open reports retained and
+  reopening cancelling eligibility. This is a proposal only: no retention
+  implementation, public promise, or production deletion is authorized by it.
+- The subsequent repository batch passed generated sources, workspace types,
+  lint, canonical guards, repo contracts and the early package suites, then
+  failed in ordinary realtime-server tests (44 failures). Reproduction traced
+  this to the repo CLI loading the developer's `DATABASE_URL`: temporary test
+  servers joined the same database authority and correctly drained siblings
+  under the single-server model. A second full reproduction failed 47 tests;
+  an isolated case passed. This is a test-isolation defect, not evidence to
+  weaken production admission. It also disturbed the local dev runtime; the
+  canonical reset and `pnpm run dev -- --game=pong` restored it. `/ready`
+  returned accepting-new-work with no error, and the in-app Arcade connected
+  room `5ZBY`, rendered Pong and had no captured console errors. The owned
+  verification tab was closed. The remaining SDK and platform stages passed
+  separately (282 SDK; 538 platform, 115 opt-in cases skipped). The failed
+  initial batch is not counted as an uninterrupted pass.
+- The test-isolation repair passed the entire server suite with an unusable
+  inherited database URL and a forbidden dev-log destination: 205 tests passed,
+  41 explicit PostgreSQL cases skipped (11.79 seconds). Vitest setup now removes
+  inherited database/log destinations before importing runtime consumers and
+  disables default dev collectors. Logging tests explicitly own their existing
+  temporary collectors; `AIR_JAM_TEST_DATABASE_URL` remains opt-in and untouched.
+  Production admission, joining, and runtime policy did not change. Explicit
+  test-root types and scoped lint passed. A final two-test rerun (409 ms)
+  corrected the regression test itself so importing its helper cannot supply
+  a missing setup hook and mask the bug. This completes the batch's remaining
+  test stages with focused fallout rechecks; exact worker-image proof and the
+  single final Canonicalizer review are still pending.
+- Local migration-stack inspection (2026-09-12; read-only): launch HEAD
+  `1373e48c` contains `0040_operational_evidence_reference_indexes` (introduced
+  by `65e56ac6`), whereas the host-authority PR branch at `22643106` contains
+  `0040_host_grant_consumption`. Both descend from `0039`; the launch branch's
+  current `0041`/`0042` snapshots omit the host-grant table. The initial
+  source-only check did not establish applied database history; its provisional
+  numbering was superseded by the inspection below. Migration references in
+  the report evidence describe this branch before cumulative reconciliation.
+- Follow-up migration-history inspection (2026-09-12; no database mutation):
+  production and the current launch-experience local database are at `0039`,
+  with no unknown migrations. The preserved repo-default `airjam` database
+  contains the original host `0040` hash
+  `f8b2cd744cfaa64055fa79dc0ba7972757466b7a47729f798a12715e85bec7e7`.
+  Host review had removed a cross-clock chronology constraint by editing that
+  migration. On the host branch, restore the applied SQL and snapshot exactly
+  and append `0041_host_grant_clock_authority` to remove the constraint. The
+  corrected source now classifies the preserved database as `behind` with only
+  `0041` pending, not drifted. The database itself remains unchanged.
+  The integration order is host `0040`, its forward correction `0041`, evidence
+  indexes `0042`, report decisions `0043`, and submission keys `0044`. Regenerate
+  cumulative snapshots and predecessor IDs, journal timestamps newer than host
+  `0041` (`1789246514169`), and schema-head metadata together. Preserve both
+  branches' protocol removals and host/controller resume authority, plus the
+  launch branch's server-test database/log isolation. No branch was merged.
+  This audit also corrected two unqualified constraint-verification directives
+  in the never-applied report decision migration; its schema and report behavior
+  did not change. Final-state removal verification and migration upgrade proof
+  live with the host correction, not a second migration registry.
+- Local intake update (2026-09-12; unmerged, not deployed): anonymous reporting
+  now enters one shared application service, targeting the exact displayed
+  release. A private UUID submission key is separate from the creator-visible
+  report ID; receipts contain only `{submissionId, received: true}`. Identical
+  private-key retries are atomic, preserve their receipt after quarantine or
+  review, and consume no additional storage. Different keys remain independent
+  even when their content matches. Cross-person content coalescing was rejected
+  during implementation because it can reveal whether someone else submitted
+  a guessed email/body. The earlier ID/status receipt below is superseded.
+  Migration `0042_release_report_submission_keys` adds the private key and its
+  unique index without adding an identity-tracking system.
+- Shared intake budgets are 120 new rows/UTC minute and 1,000/UTC day, enforced
+  under a PostgreSQL transaction lock. A fixed-key 240 requests/minute process
+  brake bounds ordinary ingress work without relying on spoofable client IPs
+  or allocating per-client state. `reports policy` and `reports status --json`
+  expose the policy and shared usage without report contents. Busy responses
+  carry HTTP 429, retry metadata, and a Retry-After header; the form keeps its
+  draft and private key, prevents double-submit, and distinguishes bad input,
+  unavailable releases, conflicts, and transient failures using safe text.
+  These are persistence/ingress bounds, not a DDoS-prevention claim. The full
+  report retention lifecycle and reviewed production rollout remain open.
+- Final intake proof: 18 real PostgreSQL, eight router/privacy/HTTP, and seven
+  input tests passed together (33 tests, 2.79 seconds). Concurrent retries and
+  budget races, UTC resets, unavailable target rejection, public-ID/private-key
+  separation, independent identical reports, and privacy-preserving receipts
+  are exercised. A real metadata-only `reports status --json` call passed.
+  The fresh fully migrated database was dropped successfully. Five React draft/
+  recovery tests and 11 CLI/migration contract tests passed; scoped lint and
+  explicit test-root types are clean. Scoped changed gate: 8.75 seconds cold,
+  4.07 seconds warm. An earlier discarded-contract run exposed a raw SQL Date
+  encoding defect, fixed by using the column-aware comparison; an impossible
+  live/failed-generation fixture was replaced with proof of the existing
+  database constraint. Neither earlier run is counted as closure evidence.
+- Local operator-path update (2026-09-12; unmerged, not deployed):
+  `platform operations reports list|inspect|decide` now provides a bounded
+  metadata inbox, explicit private inspection with paged history, and
+  revision-checked decisions. `open`, `reviewed`, and `dismissed` remain the
+  existing vocabulary; decisions can be corrected or reopened. A transaction
+  writes the report state and private decision receipt together; exact command
+  replay cannot duplicate a decision or undo a later one. This uses the existing
+  repo operator database authority; actor is an audit identity, not a public
+  authorization claim. There is no automatic quarantine or catalog mutation.
+  Migration `0041_release_report_decisions` adds only the report revision and
+  its decision history, with explicit online/verification metadata. History
+  cascades with report deletion; no new global logging or moderation framework
+  was introduced. See the
+  [platform architecture](../../architecture/platform-control-plane-architecture.md#release)
+  for CLI usage and the privacy/effect boundary.
+- Operator-path proof: 15 input-boundary tests and 14 real PostgreSQL tests
+  passed in 1.53 seconds against a fresh, fully migrated loopback database.
+  They cover preview/no-write, atomic rollback, concurrent same-key replay,
+  conflicting decisions, changed-key payload rejection, reopening, unaffected
+  game/release state, private inspection, and bounded report/history pages.
+  Eight real repo CLI invocations against a second fresh fixture proved
+  list → inspect → preview → apply → replay → conflict → reopen → history page
+  (1.1–1.8 seconds each). Private output remained captured; only sanitized
+  assertions were retained. Both generated databases were dropped successfully;
+  no existing database was migrated or edited. Four CLI discovery/parser/error
+  tests and six migration-policy tests pass. The preceding 24 privacy tests
+  still pass. Platform types, scoped lint, explicit test-root/CLI types, and
+  formatting pass; scoped changed gate was 11.19 seconds cold, 3.65 seconds
+  warm. Batch/Canonicalizer/PR review and production migration are still pending.
+- Local privacy boundary update (2026-09-12; unmerged, not deployed): the
+  shared creator application service now returns only report identity, status,
+  source, and timestamps. Raw reason/details are ops-confidential alongside
+  email: hiding the dedicated contact field alone would still expose personal
+  information written into the report. Creator list/get and mutation read-backs
+  share the same allowlist; machine types and serialization no longer contain
+  those private fields. The existing ops authority retains the full report.
+  Public submission returns only an ID/status receipt, and form/dashboard copy
+  describes the boundary. This supersedes the projection leak described in the
+  original evidence below, not the remaining intake/lifecycle finding.
+- Local proof: 24 focused tests passed across `release-application-service`,
+  `machine-release`, `release-privacy` router, and `release-detail-panels` suites
+  (1.28 seconds combined). The router tests use real middleware/application
+  services with database IO mocked: unauthenticated reads and creator ops
+  access fail; authorized ops retains private evidence; creator get/list and
+  public receipts do not expose it. Service tests cover mutation read-backs and
+  future-field exclusion; machine serialization/schema and rendered states are
+  covered separately. Platform typecheck/scoped lint and explicit test-root
+  TypeScript passed. This is not a live database/browser or deployment proof.
+  The fast changed gate correctly requests the pre-push batch for the public
+  SDK schema change; that batch/review remains pending with worker integration.
 - Category: privacy
 - Priority: P1
 - Severity: high

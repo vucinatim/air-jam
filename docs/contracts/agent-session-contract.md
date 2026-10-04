@@ -1,6 +1,6 @@
 # Agent Session Contract
 
-Last updated: 2026-05-08  
+Last updated: 2026-09-12
 Status: current contract
 
 Related docs:
@@ -62,6 +62,38 @@ Browser surfaces still matter for:
 3. public-surface trust checks
 
 ## Boundary Rule
+
+### Player participation and host ownership
+
+A room code or controller join URL grants participation, not ownership of the
+host. Explicit attachments retain player inputs, player semantic actions,
+state inspection, and ordinary cooperative game controls. They must not invoke
+an action under a fabricated host identity. Session action discovery reports
+`host_runtime_not_owned` for host-only actions when no owning runtime exists.
+
+An implicit game session acquires a browser host it actually owns rather than
+assuming a discovered local room belongs to it. Host actions travel through
+the existing private runtime-owner IPC to that game's browser realm. The SDK's
+`@air-jam/sdk/runtime-control` contract exposes a callable
+`window[AIR_JAM_RUNTIME_CONTROL_KEY].invoke({ roomId, storeDomain, actionName,
+payload })` for live host stores. It calls the normal local action dispatcher,
+preserving host context, action listeners, acknowledgements and replication.
+It is separate from the JSON inspection snapshot, not a network endpoint,
+arbitrary evaluation API, or cross-origin message bridge.
+
+Room/domain ownership and runtime readiness are checked at invocation. Missing,
+ambiguous, stale, or unmounted bindings reject. An embedded game can control its
+own game store, not the Arcade shell; the harness never substitutes the shell
+when its owned game frame is missing. Closing a session disposes only the
+runtime that session owns. Attaching to someone else's room never starts,
+replaces, or stops their host.
+
+Phone reconnect authority is independent: a server-issued private resume token
+proves ownership of the previous player slot. Public controller/device IDs are
+hints, not credentials. The token travels only in the private join exchange and
+local binding storage, never public presence, game-frame welcome messages,
+inspection snapshots, room URLs, or logs. Ordinary room-code joining and
+cooperative player controls need no new human approval.
 
 The session contract should stay above the raw transport layer.
 

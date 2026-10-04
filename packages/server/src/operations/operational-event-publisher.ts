@@ -1,3 +1,4 @@
+import { acquireOperationalEvidenceWriteFence } from "@air-jam/database-contract";
 import {
   DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
   areOperationalEventEnvelopesIdempotentlyEquivalent,
@@ -53,46 +54,48 @@ const enqueueOperationalEvent = async ({
   database: ServerDatabase;
   event: OperationalEventEnvelopeV1;
   persistedAt: Date;
-}): Promise<void> => {
-  const maxAttempts = DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS;
-  const [inserted] = await database
-    .insert(operationalEventOutbox)
-    .values({
-      id: event.eventId,
-      contractVersion: event.contractVersion,
-      envelope: event,
-      maxAttempts,
-      availableAt: persistedAt,
-      createdAt: persistedAt,
-      updatedAt: persistedAt,
-    })
-    .onConflictDoNothing({ target: operationalEventOutbox.id })
-    .returning({ id: operationalEventOutbox.id });
-  if (inserted) return;
+}): Promise<void> =>
+  database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
+    const maxAttempts = DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS;
+    const [inserted] = await tx
+      .insert(operationalEventOutbox)
+      .values({
+        id: event.eventId,
+        contractVersion: event.contractVersion,
+        envelope: event,
+        maxAttempts,
+        availableAt: persistedAt,
+        createdAt: persistedAt,
+        updatedAt: persistedAt,
+      })
+      .onConflictDoNothing({ target: operationalEventOutbox.id })
+      .returning({ id: operationalEventOutbox.id });
+    if (inserted) return;
 
-  const [existing] = await database
-    .select({
-      envelope: operationalEventOutbox.envelope,
-      maxAttempts: operationalEventOutbox.maxAttempts,
-    })
-    .from(operationalEventOutbox)
-    .where(eq(operationalEventOutbox.id, event.eventId))
-    .limit(1);
-  if (
-    !existing ||
-    existing.maxAttempts !== maxAttempts ||
-    !areOperationalEventEnvelopesIdempotentlyEquivalent(
-      existing.envelope,
-      event,
-    )
-  ) {
-    const conflict = new Error(
-      "The operational event ID was already used for a different event.",
-    );
-    conflict.name = "OperationalEventConflictError";
-    throw conflict;
-  }
-};
+    const [existing] = await tx
+      .select({
+        envelope: operationalEventOutbox.envelope,
+        maxAttempts: operationalEventOutbox.maxAttempts,
+      })
+      .from(operationalEventOutbox)
+      .where(eq(operationalEventOutbox.id, event.eventId))
+      .limit(1);
+    if (
+      !existing ||
+      existing.maxAttempts !== maxAttempts ||
+      !areOperationalEventEnvelopesIdempotentlyEquivalent(
+        existing.envelope,
+        event,
+      )
+    ) {
+      const conflict = new Error(
+        "The operational event ID was already used for a different event.",
+      );
+      conflict.name = "OperationalEventConflictError";
+      throw conflict;
+    }
+  });
 
 export const createDatabaseServerOperationalEventPublisher = ({
   database,

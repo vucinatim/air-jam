@@ -2,6 +2,7 @@
 
 import { ReleaseDetailPanels } from "@/components/releases/release-detail-panels";
 import { ReleaseStatusBadge } from "@/components/releases/release-status-badge";
+import { RetryNotice } from "@/components/retry-notice";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import {
   MAX_RELEASE_ZIP_BYTES,
 } from "@/lib/releases/release-policy";
 import { api } from "@/trpc/react";
+import { useMutation } from "@tanstack/react-query";
 import {
   AlertCircle,
   Archive,
@@ -79,15 +81,18 @@ export default function GameReleasesPage() {
     title: string;
     description: string;
   } | null>(null);
-  const [uploadingReleaseId, setUploadingReleaseId] = useState<string | null>(
-    null,
-  );
   const [actionReleaseId, setActionReleaseId] = useState<string | null>(null);
   const [exportingGenerationId, setExportingGenerationId] = useState<
     string | null
   >(null);
 
-  const { data: releases, isLoading } = api.release.listByGame.useQuery(
+  const {
+    data: releases,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = api.release.listByGame.useQuery(
     { gameId },
     {
       enabled: !!gameId,
@@ -119,7 +124,74 @@ export default function GameReleasesPage() {
   const liveRelease =
     releases?.find((release) => release.status === "live") ?? null;
 
-  const handleUploadRelease = async () => {
+  const uploadRelease = useMutation({
+    retry: false,
+    mutationFn: async ({ file, label }: { file: File; label: string }) => {
+      let createdReleaseId: string | null = null;
+
+      try {
+        setFeedback(null);
+        const createdRelease = await createDraft.mutateAsync({
+          gameId,
+          versionLabel: label.trim() || undefined,
+        });
+        createdReleaseId = createdRelease.id;
+
+        const uploadTarget = await requestUploadTarget.mutateAsync({
+          releaseId: createdRelease.id,
+          originalFilename: file.name,
+          sizeBytes: file.size,
+        });
+
+        const uploadResponse = await fetch(uploadTarget.upload.url, {
+          method: uploadTarget.upload.method,
+          headers: uploadTarget.upload.headers,
+          body: file,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(
+            `Release upload failed with status ${uploadResponse.status}. Check the R2 bucket CORS rules and upload credentials.`,
+          );
+        }
+
+        const finalized = await finalizeUpload.mutateAsync({
+          releaseId: createdRelease.id,
+          generationId: uploadTarget.generation.id,
+        });
+
+        setSelectedFile(null);
+        setVersionLabel("");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        setFeedback({
+          variant: "default",
+          title: "Release processing queued",
+          description: `Generation #${finalized.generation.sequence} was uploaded and durable job ${finalized.job.id} will validate and moderate it in the background.`,
+        });
+        await refreshReleaseData();
+      } catch (error) {
+        setFeedback({
+          variant: "destructive",
+          title: "Release upload failed",
+          description:
+            error instanceof Error
+              ? error.message
+              : "The release could not be uploaded or validated.",
+        });
+
+        if (createdReleaseId) {
+          await refreshReleaseData();
+        }
+        throw error;
+      }
+    },
+  });
+
+  const handleUploadRelease = () => {
+    if (uploadRelease.isPending) return;
     if (!selectedFile) {
       setFeedback({
         variant: "destructive",
@@ -139,68 +211,7 @@ export default function GameReleasesPage() {
       return;
     }
 
-    let createdReleaseId: string | null = null;
-
-    try {
-      setFeedback(null);
-      const createdRelease = await createDraft.mutateAsync({
-        gameId,
-        versionLabel: versionLabel.trim() || undefined,
-      });
-      createdReleaseId = createdRelease.id;
-      setUploadingReleaseId(createdRelease.id);
-
-      const uploadTarget = await requestUploadTarget.mutateAsync({
-        releaseId: createdRelease.id,
-        originalFilename: selectedFile.name,
-        sizeBytes: selectedFile.size,
-      });
-
-      const uploadResponse = await fetch(uploadTarget.upload.url, {
-        method: uploadTarget.upload.method,
-        headers: uploadTarget.upload.headers,
-        body: selectedFile,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(
-          `Release upload failed with status ${uploadResponse.status}. Check the R2 bucket CORS rules and upload credentials.`,
-        );
-      }
-
-      const finalized = await finalizeUpload.mutateAsync({
-        releaseId: createdRelease.id,
-        generationId: uploadTarget.generation.id,
-      });
-
-      setSelectedFile(null);
-      setVersionLabel("");
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      setFeedback({
-        variant: "default",
-        title: "Release processing queued",
-        description: `Generation #${finalized.generation.sequence} was uploaded and durable job ${finalized.job.id} will validate and moderate it in the background.`,
-      });
-      await refreshReleaseData();
-    } catch (error) {
-      setFeedback({
-        variant: "destructive",
-        title: "Release upload failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "The release could not be uploaded or validated.",
-      });
-
-      if (createdReleaseId) {
-        await refreshReleaseData();
-      }
-    } finally {
-      setUploadingReleaseId(null);
-    }
+    uploadRelease.mutate({ file: selectedFile, label: versionLabel });
   };
 
   const runReleaseAction = async ({
@@ -275,11 +286,7 @@ export default function GameReleasesPage() {
     }
   };
 
-  const isUploading =
-    createDraft.isPending ||
-    requestUploadTarget.isPending ||
-    finalizeUpload.isPending ||
-    uploadingReleaseId !== null;
+  const isUploading = uploadRelease.isPending;
 
   /* ---- render ---------------------------------------------------- */
 
@@ -306,6 +313,10 @@ export default function GameReleasesPage() {
               {" \u00B7 "}
               Published {formatDateShort(liveRelease.publishedAt)}
             </>
+          ) : isLoading ? (
+            "Loading release history…"
+          ) : isError ? (
+            "Release history is currently unavailable."
           ) : (
             "No live release yet. Upload a build archive and make it live."
           )}
@@ -342,8 +353,12 @@ export default function GameReleasesPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Version label</label>
+              <label htmlFor="release-version" className="text-sm font-medium">
+                Version label
+              </label>
               <Input
+                id="release-version"
+                disabled={isUploading}
                 value={versionLabel}
                 onChange={(e) => setVersionLabel(e.target.value)}
                 placeholder="v1.0.0"
@@ -351,10 +366,12 @@ export default function GameReleasesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">
+              <label htmlFor="release-archive" className="text-sm font-medium">
                 Build archive (.zip)
               </label>
               <Input
+                id="release-archive"
+                disabled={isUploading}
                 ref={fileInputRef}
                 type="file"
                 accept=".zip,application/zip"
@@ -363,7 +380,7 @@ export default function GameReleasesPage() {
             </div>
             <div className="flex items-end">
               <Button
-                onClick={() => void handleUploadRelease()}
+                onClick={handleUploadRelease}
                 disabled={!selectedFile || isUploading}
               >
                 {isUploading ? (
@@ -414,8 +431,24 @@ export default function GameReleasesPage() {
       <div>
         <h2 className="mb-4 text-lg font-semibold">Release History</h2>
 
+        {isError ? (
+          <RetryNotice
+            message="We couldn’t load the release history."
+            detail={
+              releases?.length
+                ? "Previously loaded releases are still shown below."
+                : undefined
+            }
+            isRetrying={isFetching}
+            onRetry={() => void refetch()}
+          />
+        ) : null}
+
         {isLoading ? (
-          <div className="text-muted-foreground py-12 text-center text-sm">
+          <div
+            role="status"
+            className="text-muted-foreground py-12 text-center text-sm"
+          >
             Loading releases...
           </div>
         ) : releases && releases.length > 0 ? (
@@ -603,7 +636,11 @@ export default function GameReleasesPage() {
 
                         {hasDetails && (
                           <CollapsibleTrigger asChild>
-                            <Button size="sm" variant="ghost">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`Show details for ${release.versionLabel?.trim() || "untitled release"}`}
+                            >
                               <ChevronDown className="h-3.5 w-3.5 transition-transform [[data-state=open]_&]:rotate-180" />
                             </Button>
                           </CollapsibleTrigger>
@@ -638,7 +675,7 @@ export default function GameReleasesPage() {
               );
             })}
           </div>
-        ) : (
+        ) : isError ? null : (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16">
             <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
               <Package className="text-muted-foreground h-6 w-6" />

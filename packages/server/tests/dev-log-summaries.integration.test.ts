@@ -5,6 +5,7 @@ import path from "node:path";
 import { io, type Socket } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
+import { DevLogCollector } from "../src/logging/dev-log-collector";
 import type { HostBootstrapAuthService } from "../src/services/auth-service";
 import { getHttpServerLoopbackUrl } from "./helpers/http-server-test-url";
 import { emitWithAck, waitForSocketConnect } from "./helpers/socket-test-utils";
@@ -22,15 +23,16 @@ describe("dev log summaries", () => {
     previousSummaryWindowMs = process.env.AIR_JAM_DEV_LOG_SUMMARY_WINDOW_MS;
     process.env.AIR_JAM_DEV_LOG_SUMMARY_WINDOW_MS = "25";
     const authService: HostBootstrapAuthService = {
-      verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+      verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
         isVerified: true,
         appId,
         verifiedVia: "appId" as const,
+        hostSessionKind: hostSessionKind ?? "system",
       }),
     };
 
     runtime = createAirJamServer({
-      devLogDir: tempDir,
+      devLogCollector: new DevLogCollector({ enabled: true, logDir: tempDir }),
       authService,
     });
     await runtime.start(0);

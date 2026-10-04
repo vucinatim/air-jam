@@ -2,32 +2,13 @@ import { assessHostedReleaseOrigin } from "@/lib/releases/hosted-release-origin"
 import {
   loadReleaseModerationAvailabilityProbeEnv,
   loadReleaseModerationEnv,
+  type ReleaseModerationEnvConfig,
 } from "./release-env";
 
-export type ReleaseModerationConfig = {
-  internalAccessSecret: string;
+export type ReleaseModerationConfig = ReleaseModerationEnvConfig & {
   publicBaseUrl: string;
-  browserLaunch: {
-    wsEndpoint: string | null;
-    accessToken: string | null;
-    executablePath: string | null;
-    navigationTimeoutMs: number;
-    waitAfterLoadMs: number;
-    viewportWidth: number;
-    viewportHeight: number;
-  };
-  imageModeration: {
-    mode: "openai" | "disabled";
-    openAi: {
-      apiKey: string;
-      model: string;
-      baseUrl: string;
-      timeoutMs: number;
-    } | null;
-  };
 };
 
-let cachedReleaseModerationConfig: ReleaseModerationConfig | null = null;
 let cachedReleaseModerationAvailability:
   | {
       available: true;
@@ -54,29 +35,27 @@ export const getReleaseModerationAvailability = () => {
   }
 
   const probe = loadReleaseModerationAvailabilityProbeEnv();
-  const wsEndpoint = probe.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT ?? null;
-  const browserAccessToken =
-    probe.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN ?? null;
-  const executablePath = probe.AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH ?? null;
+  const accountId = probe.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID;
+  const browserApiToken = probe.AIRJAM_RELEASES_BROWSER_API_TOKEN;
   const internalAccessSecret =
     probe.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN ?? null;
   const imageModerationMode = probe.AIRJAM_RELEASES_IMAGE_MODERATION_MODE;
   const openAiApiKey = probe.OPENAI_API_KEY ?? null;
 
-  if (!wsEndpoint && !executablePath) {
+  if (!accountId) {
     cachedReleaseModerationAvailability = {
       available: false,
       reason:
-        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_WS_ENDPOINT or AIRJAM_RELEASES_BROWSER_EXECUTABLE_PATH to enable it.",
+        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_ACCOUNT_ID to use Cloudflare Browser Run.",
     };
     return cachedReleaseModerationAvailability;
   }
 
-  if (wsEndpoint && !browserAccessToken) {
+  if (!browserApiToken) {
     cachedReleaseModerationAvailability = {
       available: false,
       reason:
-        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN when AIRJAM_RELEASES_BROWSER_WS_ENDPOINT is used.",
+        "Release screenshot moderation is not configured. Set AIRJAM_RELEASES_BROWSER_API_TOKEN to authenticate with Cloudflare Browser Run.",
     };
     return cachedReleaseModerationAvailability;
   }
@@ -109,22 +88,14 @@ export const getReleaseModerationAvailability = () => {
   }
 
   const parsed = loadReleaseModerationEnv();
-  cachedReleaseModerationConfig = {
-    internalAccessSecret: parsed.internalAccessSecret,
-    publicBaseUrl: releaseOrigin.publicOrigin,
-    browserLaunch: parsed.browserLaunch,
-    imageModeration: parsed.imageModeration,
-  };
-
   cachedReleaseModerationAvailability = {
     available: true,
-    config: cachedReleaseModerationConfig,
+    config: { ...parsed, publicBaseUrl: releaseOrigin.publicOrigin },
   };
 
   return cachedReleaseModerationAvailability;
 };
 
 export const resetReleaseModerationConfigForTests = (): void => {
-  cachedReleaseModerationConfig = null;
   cachedReleaseModerationAvailability = null;
 };

@@ -4,8 +4,10 @@ import {
   operationalEventOutbox,
   operationalEvents,
 } from "@/db/schema";
+import { acquireOperationalEvidenceWriteFence } from "@air-jam/database-contract";
 import {
   DEFAULT_OPERATIONAL_EVENT_DELIVERY_MAX_ATTEMPTS,
+  OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES,
   areOperationalEventEnvelopesIdempotentlyEquivalent,
   createOperationsDocumentDigest,
   createStructuredOperationalFailure,
@@ -87,6 +89,7 @@ export const enqueueOperationalEventInTransaction = async ({
   maxAttempts?: number;
   now?: Date;
 }): Promise<OutboxRow> => {
+  await acquireOperationalEvidenceWriteFence(tx);
   const event = operationalEventEnvelopeSchemaV1.parse(rawEvent);
   if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
     throw new OperationalEventConflictError(
@@ -160,6 +163,7 @@ export const claimOperationalEventDelivery = async ({
 }): Promise<OutboxRow | null> => {
   const workerId = normalizeRequiredText(rawWorkerId, "Worker ID");
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const [candidate] = await tx
       .select()
@@ -246,6 +250,7 @@ export const completeOperationalEventDelivery = async ({
 }): Promise<ReturnType<typeof serializeOutbox>> => {
   const workerId = normalizeRequiredText(rawWorkerId, "Worker ID");
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const [current] = await tx
       .select()
       .from(operationalEventOutbox)
@@ -338,6 +343,7 @@ export const failOperationalEventDelivery = async ({
   const workerId = normalizeRequiredText(rawWorkerId, "Worker ID");
   const failure = operationalFailureSchemaV1.parse(rawFailure);
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const [current] = await tx
       .select()
       .from(operationalEventOutbox)
@@ -400,6 +406,7 @@ export const repairExpiredOperationalEventDeliveries = async ({
     );
   }
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     const authorityNow = await resolveDatabaseAuthorityNow(tx, testNow);
     const rows = await tx
       .select()
@@ -548,6 +555,7 @@ export const requeueOperationalEventDeadLetter = async ({
     maxAttempts,
   });
   return database.transaction(async (tx) => {
+    await acquireOperationalEvidenceWriteFence(tx);
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtext(${`airjam:event-delivery-command:${input.idempotencyKey}`}))`,
     );
@@ -669,7 +677,7 @@ export const requeueOperationalEventDeadLetter = async ({
         evidence: [
           {
             kind: "command",
-            reference: `operational-event-delivery-command:${commandId}`,
+            reference: `${OPERATIONAL_EVIDENCE_REFERENCE_PREFIXES.eventDeliveryCommand}${commandId}`,
             collectedAt: authorityNow.toISOString(),
           },
         ],

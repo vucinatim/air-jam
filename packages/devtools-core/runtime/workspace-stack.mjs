@@ -334,11 +334,51 @@ export const createWorkspaceProcessGroup = ({
       exitPromise: null,
     };
     childEntry.exitPromise = new Promise((resolve) => {
-      child.once("exit", () => {
+      const markExited = () => {
         childEntry.exited = true;
         resolve();
-      });
+      };
+      child.once("exit", markExited);
+      child.once("error", markExited);
     });
+
+    const ready = options.readyMarker
+      ? new Promise((resolve, reject) => {
+          let bufferedOutput = "";
+          const cleanup = () => {
+            child.stdout.off("data", onOutput);
+            child.off("exit", onExit);
+            child.off("error", onError);
+          };
+          const onOutput = (data) => {
+            bufferedOutput += data.toString();
+            if (bufferedOutput.includes(options.readyMarker)) {
+              cleanup();
+              resolve();
+            } else {
+              // Retain only a possible marker split across stdout chunks.
+              bufferedOutput = bufferedOutput.slice(
+                -(options.readyMarker.length - 1),
+              );
+            }
+          };
+          const onExit = (code, signal) => {
+            cleanup();
+            reject(
+              new Error(
+                `${name} exited before becoming ready (${signal ?? code}).`,
+              ),
+            );
+          };
+          const onError = (error) => {
+            cleanup();
+            reject(error);
+          };
+          child.stdout.on("data", onOutput);
+          child.once("exit", onExit);
+          child.once("error", onError);
+        })
+      : Promise.resolve();
 
     logSink.recordStart({
       processName: name,
@@ -409,8 +449,13 @@ export const createWorkspaceProcessGroup = ({
       console.error(`[${name}] exited with code ${code ?? "null"}`);
       void shutdown(code ?? 1);
     });
+    child.on("error", (error) => {
+      console.error(`[${name}] could not start: ${error.message}`);
+      void shutdown(1);
+    });
 
     children.push(childEntry);
+    return ready;
   };
 
   process.on("SIGINT", () => {

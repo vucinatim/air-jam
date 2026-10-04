@@ -3,15 +3,6 @@ import {
   parseRuntimeTopology,
   resolveRuntimeTopology,
 } from "@air-jam/sdk/runtime-topology";
-import { z } from "zod";
-
-export const arcadeInputSchema = z.object({
-  vector: z.object({
-    x: z.number(),
-    y: z.number(),
-  }),
-  action: z.boolean(),
-});
 
 const PLATFORM_ARCADE_MAX_PLAYERS = 16;
 
@@ -89,8 +80,5 @@ export const getPlatformArcadeHostSessionConfig = () => {
     // The Arcade room exists before a game is selected, so it must support
     // the full framework capacity rather than the SDK's per-game default.
     maxPlayers: PLATFORM_ARCADE_MAX_PLAYERS,
-    input: {
-      schema: arcadeInputSchema,
-    },
   };
 };

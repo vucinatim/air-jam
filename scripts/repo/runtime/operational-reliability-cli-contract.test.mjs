@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -26,22 +26,13 @@ test("operational reliability is fully discoverable through the repo CLI", () =>
     "reliability",
     "synthetics",
   );
-  const alerts = readHelp(
-    "platform",
-    "operations",
-    "reliability",
-    "alerts",
-  );
-  const issues = readHelp(
-    "platform",
-    "operations",
-    "reliability",
-    "issues",
-  );
+  const alerts = readHelp("platform", "operations", "reliability", "alerts");
+  const issues = readHelp("platform", "operations", "reliability", "issues");
 
   for (const command of [
     "catalog",
     "status",
+    "retention",
     "events",
     "synthetics",
     "alerts",
@@ -149,6 +140,116 @@ test("source-owned reliability policy is stdout-only JSON without a database", (
 });
 
 const postgresProofUrl = process.env.AIR_JAM_TEST_DATABASE_URL?.trim();
+
+test("evidence retention is preview-first, per-table bounded, and exactly targetable", () => {
+  const help = readHelp("platform", "operations", "reliability", "retention");
+  assert.match(help, /--apply/u);
+  assert.match(help, /read-only\s+preview/u);
+  assert.match(help, /per table/u);
+  assert.match(help, /1 to 1000/u);
+  assert.match(help, /default: "200"/u);
+  assert.match(help, /--cursor <cursor>/u);
+  assert.match(help, /nextCursor/u);
+  assert.match(help, /--json/u);
+  assert.match(help, /--railway-environment/u);
+  assert.match(help, /--railway-project/u);
+});
+
+test("retention rejects invalid bounds before database or provider resolution", () => {
+  for (const limit of ["0", "1001", "1.5", "not-a-number"]) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        cliPath,
+        "platform",
+        "operations",
+        "reliability",
+        "retention",
+        "--limit",
+        limit,
+        "--railway-environment",
+        "must-not-be-resolved",
+        "--json",
+      ],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: { ...process.env, DATABASE_URL: "" },
+      },
+    );
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /limit must be an integer from 1 to 1000/u);
+    assert.equal(result.stdout, "");
+  }
+});
+
+test(
+  "retention forwards preview defaults and explicit bounded apply to the shared service",
+  { skip: !postgresProofUrl },
+  () => {
+    const run = (...args) =>
+      JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            cliPath,
+            "platform",
+            "operations",
+            "reliability",
+            "retention",
+            "--json",
+            ...args,
+          ],
+          {
+            cwd: repoRoot,
+            encoding: "utf8",
+            env: { ...process.env, DATABASE_URL: postgresProofUrl },
+          },
+        ),
+      );
+    const preview = run();
+    const applied = run("--apply", "--limit", "1");
+    if (applied.result.nextCursor) {
+      const continued = run(
+        "--cursor",
+        applied.result.nextCursor,
+        "--limit",
+        "1",
+      );
+      assert.equal(continued.result.mode, "preview");
+      assert.equal(continued.result.limit, 1);
+    }
+    for (const [document, mode, limit] of [
+      [preview, "preview", 200],
+      [applied, "apply", 1],
+    ]) {
+      assert.equal(document.contractVersion, 1);
+      assert.equal(document.command, "retention");
+      assert.equal(document.applied, mode === "apply");
+      assert.equal(document.result.contractVersion, 1);
+      assert.equal(document.result.mode, mode);
+      assert.equal(document.result.limit, limit);
+      assert.ok(
+        document.result.nextCursor === null ||
+          typeof document.result.nextCursor === "string",
+      );
+      assert.ok(
+        Number.isInteger(document.result.blockedCandidates) &&
+          document.result.blockedCandidates >= 0,
+      );
+      for (const key of ["evaluatedAt", "historyCutoff", "commandCutoff"]) {
+        assert.ok(Number.isFinite(Date.parse(document.result[key])));
+      }
+      assert.deepEqual(
+        Object.keys(document.result.counts).sort(),
+        ["commands", "evaluations", "syntheticRuns", "outbox", "events"].sort(),
+      );
+      for (const count of Object.values(document.result.counts)) {
+        assert.ok(Number.isInteger(count) && count >= 0 && count <= limit);
+      }
+    }
+  },
+);
 
 test(
   "event inspection and repair preview redact payloads, failure details, and leases",

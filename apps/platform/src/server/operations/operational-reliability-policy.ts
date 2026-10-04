@@ -138,11 +138,6 @@ export const OPERATIONAL_SYNTHETIC_CHECKS = Object.freeze([
         targetKey: "worker.ready",
         assertion: "json_ok",
       },
-      {
-        stepId: "browser-worker",
-        targetKey: "browser_worker.health",
-        assertion: "json_ok",
-      },
     ],
   }),
 ] satisfies readonly OperationalSyntheticCheckV1[]);

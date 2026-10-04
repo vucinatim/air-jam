@@ -21,6 +21,7 @@ import {
   arcadeSurfaceRuntimeIdentitySchema,
   type ArcadeSurfaceRuntimeIdentity,
 } from "./arcade-surface-identity";
+import { splitBridgeEnvelopeArgs } from "./bridge-envelope-args";
 import { createBridgeHandshake } from "./iframe-bridge";
 import { AIR_JAM_SDK_VERSION } from "./sdk-version";
 
@@ -58,6 +59,13 @@ export const hostBridgeServerEvents = [
 
 export type HostBridgeClientEventName = (typeof hostBridgeClientEvents)[number];
 export type HostBridgeServerEventName = (typeof hostBridgeServerEvents)[number];
+
+const HOST_BRIDGE_ZERO_REQUIRED_ARGS_EVENTS =
+  new Set<HostBridgeServerEventName>([
+    "connect",
+    "disconnect",
+    "server:closeChild",
+  ]);
 
 export type HostBridgeClientEventArgs = {
   "host:state": [payload: ControllerStateMessage];
@@ -269,35 +277,16 @@ export const createHostBridgeAttachMessage = (
   },
 });
 
-const splitHostBridgeArgs = (
-  args: unknown[],
-): {
-  eventArgs: unknown[];
-  requestId?: string;
-} => {
-  const maybeOptions = args[args.length - 1] as
-    | { requestId?: string }
-    | undefined;
-  const hasOptions =
-    typeof maybeOptions === "object" &&
-    maybeOptions !== null &&
-    "requestId" in maybeOptions;
-
-  return {
-    eventArgs: hasOptions ? args.slice(0, -1) : args,
-    ...(hasOptions && maybeOptions.requestId
-      ? { requestId: maybeOptions.requestId }
-      : {}),
-  };
-};
-
 export const createHostBridgeEventMessage = <
   TEvent extends HostBridgeServerEventName,
 >(
   event: TEvent,
   ...args: [...HostBridgeServerEventArgs[TEvent], { requestId?: string }?]
 ): HostBridgeEventMessage => {
-  const { eventArgs, requestId } = splitHostBridgeArgs(args as unknown[]);
+  const { eventArgs, requestId } = splitBridgeEnvelopeArgs(
+    args as unknown[],
+    HOST_BRIDGE_ZERO_REQUIRED_ARGS_EVENTS.has(event) ? 0 : 1,
+  );
   return {
     type: AIRJAM_HOST_BRIDGE_EVENT,
     payload: {
@@ -314,7 +303,10 @@ export const createHostBridgeEmitMessage = <
   event: TEvent,
   ...args: [...HostBridgeClientEventArgs[TEvent], { requestId?: string }?]
 ): HostBridgeEmitMessage => {
-  const { eventArgs, requestId } = splitHostBridgeArgs(args as unknown[]);
+  const { eventArgs, requestId } = splitBridgeEnvelopeArgs(
+    args as unknown[],
+    1,
+  );
   return {
     type: AIRJAM_HOST_BRIDGE_EMIT,
     payload: {

@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-09
+Last updated: 2026-10-04
 Status: current snapshot
 
 This is the canonical quick-read status surface for the Air Jam repo.
@@ -28,32 +28,183 @@ For historical progress, use [work-ledger.md](./work-ledger.md).
 Air Jam is now governed by the
 [1.0 release roadmap](./plans/v1-release-roadmap-plan.md).
 
-The focus has moved from a narrow final-proof-and-publish pass to a deliberate
-1.0 re-baseline shaped by six months of progress in general-purpose coding
-agents, MCP, CLI operability, and Air Jam's own harness.
+The architecture re-baseline is complete. On `2026-09-09`, the remaining
+program was narrowed around the shortest trustworthy path to a polished 1.0:
+prevent serious harm, prove the public agent promise, make the creator/player
+experience feel finished, communicate it clearly, and launch one exact
+candidate. Mature-company operational completeness is not the pre-adoption
+release bar.
+
+Interactive intermediate delivery resumed on `2026-10-03` after a three-week
+pause. Pending launch work is preserved at `564e7034`, and the host-authority
+branch is integrated locally at `80499490` on `codex/intermediate-delivery`.
+Migration history now preserves the applied host `0040` exactly, removes its
+cross-clock constraint in `0041`, and orders evidence indexes and private report
+changes through `0044`. Both PostgreSQL upgrade paths pass; Drizzle reports no
+schema drift. The built ARM64 browser-worker image passes real isolated capture,
+HTTP/HTTPS and WS/WSS, private-header driver fetch, denied private egress, and
+process cleanup. This is local proof, not reviewed production delivery or 1.0
+release completion. GitHub integration, guarded production migration, exact
+provider rollout and live validation are the current delivery boundary. Public
+package promotion, final phone/demo proof and launch remain separate work.
+
+Reviewed production delivery remains pending. The Canonicalizer attempt
+could not authenticate; no review ran through that tool. Tim subsequently
+authorized a separate GPT-6.1 Sol reviewer because Claude is out of credits;
+independent source review of `36551396` against production `db85cdea` completed
+with no new actionable source defects under the batch-specific
+[review substitution](./working-agreements.md#review-stacks-and-integration).
+This is pre-push source review, not the later green-PR GitHub review or production
+proof. The isolated Railway AMD64 image built, but its pre-deploy capture proof failed. A bounded
+non-root probe confirmed `unshare: unshare failed: Permission denied` in the
+new worker container. Local image success and September's older-container
+feasibility do not establish support for this new deployment. A subsequent owned
+actual-service-runtime deployment, not a pre-deploy job, denied the same
+unchanged non-root namespace probe and ended `FAILED`. Tim approved a disposable
+worker proof on bee. The same reviewed AMD64 worker passed there, including a
+read-only filesystem, real capture/egress/process isolation, service health and
+authentication, public HTTPS capture, and graceful shutdown. No host security
+settings changed, and all owned test containers are removed. See the
+[retained worker evidence](./audits/v1-security/2026-10-03-bee-worker-image-proof.json).
+Tim rejected production capture on the core private bee host. Railway's
+ordinary containers and disposable isolated VM denied the namespaces required
+by the self-hosted browser; the VM and owned trial containers were removed.
+On `2026-10-04`, Tim accepted Cloudflare managed browser isolation and authorized
+reviewed delivery and release when confidence is established. Railway remains
+the product/job host. No independently enforced browser private-IP/DNS firewall
+is claimed. The privileged asset-fetch owner remains public-only and DNS-pinned;
+inspection credentials remain generation-scoped and never enter browser headers.
+
+The working branch now wires screenshot capture to dedicated Cloudflare session
+acquisition and cleanup and removes the obsolete custom worker package. Staging
+provisioning uses the same path with distinct production/preview tokens. The
+production legacy service remains untouched until the replacement is verified.
+Separate Browser Run-only production/preview tokens are now approved, stored
+privately outside Git and policy-verified. Production variables are staged on
+both Railway platform services without deployment; the preview token passed
+remote rendering, PNG capture and provider cleanup through the actual session
+owner. The fresh isolated Railway rehearsal now passes actual unpublished,
+hidden R2 capture through the deployed worker, anonymous private-asset denial,
+and listed preview play across separate platform/game origins. A browser
+controller joined, started and finished a match, reconnected after reload, and
+returned to the lobby. Clean homepage navigation and direct game links also
+boot without a prior launch cookie. This is not physical-phone or public 1.0
+sign-off. See the
+[hosted rehearsal evidence](./audits/v1-security/2026-10-04-hosted-managed-capture-proof.json).
+Final reviewed production rollout remains pending. The old staging hostname
+has a TLS mismatch and cannot supply current uploaded-release proof. Fresh built
+Pong and owned HTTPS/WSS probes already pass through the hardened routing owner;
+these establish compatibility, not deployed capture or provider network guarantees.
+See the
+[built-game proof](./audits/v1-security/2026-10-04-cloudflare-game-capture-proof.json),
+[routing proof](./audits/v1-security/2026-10-03-cloudflare-routing-proof.json),
+[provider proof](./audits/v1-security/2026-10-03-capture-provider-proof.json) and
+[managed capture plan](./plans/release-browser-worker-containment-plan.md).
+No permanent bee service, tunnel, production DNS change or production worker
+switch is live; the rehearsal owns a separate temporary game hostname.
+Final GitHub review, exact package/artifact compatibility and coordinated live
+cutover remain unproven. Production code and database are unchanged.
+
+The four creator recovery surfaces are preserved at `315a273c`; private asset
+fetching and the unwired managed-session candidate are preserved at `cbe41501`.
+The integrated local batch passes, and the authorized Sol review of the new
+delta found no actionable source blockers. Its browser regression coverage gap
+is restored and passes. Local confidence is not hosted or production sign-off.
+The integration is now [draft PR 112](https://github.com/vucinatim/air-jam/pull/112)
+with auto-merge off. Its first CI passed five confidence lanes, including database
+tests, but rejected a stale public-ID-only reconnect benchmark. The benchmark is
+corrected without weakening the strict profile. The CLI approval, account draft
+and analytics recovery batch is now pushed at `11a76bf6`. Its authorized Sol
+review found one account identity race, corrected with two red/green regressions;
+all 55 creator recovery tests and source/test typechecking/lint pass. All six
+[CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37169046827) and the
+[public installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37169046830)
+passed on that revision. The aggregate confirms the same immutable package set
+on Linux, macOS and Windows with Node 22 and 24. Candidate `b4389cb8` is GitHub's
+test merge of production `db85cdea` and PR head `11a76bf6`, not a production
+merge or package publication. See the
+[reviewed creator recovery evidence](./audits/v1-public-release/creator-entrypoint-audit.md#reviewed-account-identity-ownership).
+The PR remains draft. Hosted/mobile proof, the pending managed-isolation choice,
+final integration, the single final GitHub review and production cutover remain
+open; no production state changed.
+
+The validated machine program now reports `80%` estimate-weighted progress and
+`39–77` remaining agent-hours, with 30 of 46 work items complete. These are
+planning estimates, not a release-date promise. They include product polish that the
+older infrastructure-heavy plan failed to own explicitly.
 
 The current priorities are:
 
 1. execute the ratified public 1.0 contract: one `Air Jam` product, a complete
    agent-operable development harness, and no separate mandatory hosted editor
-2. audit and canonicalize the codebase before public API stability is promised
-3. prove the complete lifecycle through an external agent from a clean
-   environment
-4. harden production capacity, recovery, security, sensory feedback, alerting,
-   and agent diagnosis before inviting launch traffic
-5. finish package, documentation, demo, article, and distribution work against
+2. finish the launch-critical host-authority boundary without changing the
+   ordinary room-code experience
+3. explicitly polish homepage, Arcade, mobile joining, reconnect, representative
+   games, and public failure states
+4. build on the completed Claude Desktop interoperability proof and run one
+   final reusable external-agent lifecycle
+5. build on the locally proven spend brake, emergency pause, and bounded
+   evidence retention; finish the honest operating envelope and residual
+   security risk
+6. finish package, documentation, demo, article, and distribution work against
    one exact release candidate
-6. launch with a free creation harness and useful hobby cloud inside an explicit
+7. launch with a free creation harness and useful hobby cloud inside an explicit
    cost envelope, rather than tying sustainability to signup count
-7. keep development fast through the canonical
+8. keep development fast through the canonical
    [check layers](./working-agreements.md#development-check-layers), then use the
    [review and merge rules](./working-agreements.md#review-stacks-and-integration)
    and
    [production-delivery rules](./working-agreements.md#production-delivery-and-public-launch)
 
+The launch-load recovery smoke now passes after correcting a reproduced usage-
+projection race and a database-driver reservation-ownership defect. The driver
+repair is included in the server bundle and deployment dependency stages.
+The extracted artifact also exposed and now passes a disconnected-pool shutdown
+regression; all 18 focused driver cases pass, including healthy query draining.
+The full drill is complete: 100 rooms / 30 minutes and 200 rooms / five minutes
+met their latency/cadence checks with zero message loss. The strict command
+still failed at the 300-room admission ceiling (78/103 ms input/state p95 versus
+50 ms). Room 301 was safely rejected and database recovery took 4.4 seconds.
+This supports a bounded local envelope, not a 300-room performance promise.
+No production change was made.
+See the [rehearsal evidence](./audits/v1-reliability/launch-load-rehearsal-proof.md).
+The full local batch and its single Canonicalizer review passed. The bounded
+operating envelope, recovery limits, outage analytics loss, and cost exclusions
+are published in that evidence; `G3-04` and `G3-05` are complete. Return to the
+remaining security/creator work and reviewed delivery rather than expanding
+this measurement into another scale program. Do not infer deployed release
+readiness from local measurements.
+
 ## What Is Structurally Done
 
 These are now baseline truths, not open architecture debates:
+
+Player participation and host ownership are now separate in the local source.
+Room codes still join normally; they cannot authorize fabricated host actions
+or take over another player's slot using public IDs. Agent-owned browsers use
+the existing host-local dispatcher through private IPC, with real standalone
+and embedded Pong proof. See the
+[session contract](./contracts/agent-session-contract.md#player-participation-and-host-ownership)
+and [security evidence](./audits/v1-security/threat-model-audit.md#aj-sec-005--room-code-and-optional-controller-capability-grant-excessive-authority).
+This is not deployed security-gate closure: browser-worker containment, abuse/
+privacy findings, and coordinated reviewed delivery remain open.
+
+The second supported agent client is now proven locally: Claude Desktop
+independently discovered the registry-installed candidate, started its runtime,
+opened a semantic session, changed and re-read authoritative game state, and
+closed everything it started. See the
+[retained client proof](./audits/v1-golden-path/claude-desktop-interop-audit.md).
+This does not claim a frozen final candidate, public package promotion, or
+production rollout; current launch-experience changes remain on the local
+working branch.
+
+The practical platform controls and supply-chain reconciliation are locally
+complete. Shared admission rules now cover new costly work, with one atomic
+emergency-pause command and selective recovery; see the
+[control proof](./audits/v1-reliability/platform-spend-brake-proof.md). The
+[trust handoff](./audits/v1-security/supply-chain-release-trust-proof.md)
+explicitly leaves final npm registry/provenance and production observation to
+the exact-candidate rehearsal. Neither local closure is a deployment claim.
 
 1. the framework, platform, realtime server, and browser-worker split is established
 2. the dashboard and hosted release model are real:
@@ -323,8 +474,8 @@ The roadmap now organizes the remaining work into explicit evidence gates:
 
 1. external-agent golden-path proof
 2. remaining launch-scale reliability, backpressure, cost, and overload proof
-3. production activation and observation of the implemented operational
-   sensors and deduplicated GitHub issue bridge
+3. exact-candidate observation of the deployed operational sensors and
+   production delivery proof for the deduplicated GitHub issue bridge
 4. security, abuse, privacy, and supply-chain trust
 5. final public documentation, demo, article, npm prerelease, and promotion
    proof
@@ -343,19 +494,16 @@ work state without becoming a second product authority:
 
 The foundation integration through PR `#61`, the production-health recovery in
 PR `#76`, the public install matrix in PR `#74`, and the durable reliability
-loop in PR `#75` are merged. The latest schema-bearing production rollout was
-main revision `5a280c43337f4dc5f00069457ee3a89b8c7cffc0`: the platform reached
-terminal `SUCCESS` as Railway deployment
-`1ca7a865-2ab5-417e-8221-574c0071736d`, and schema migration `0036` was
-independently verified against that exact revision. Production schema remains
-at exact head `0036`; current deployment identity comes from the live
-`/api/readiness` machine contract rather than a commit copied into this
-deploy-triggering document. The realtime server and browser worker remain
-successful on their latest watched-path-relevant revisions. Live browser smoke
-covers the landing page, direct Arcade navigation, branding, and game-card
-hover behavior. The separately defined operational worker is not provisioned
-in production yet, so continuous synthetics, SLO evaluation, and alert
-generation are implemented but intentionally inactive.
+loop in PR `#75` are merged. The later
+[production realtime admission proof](./audits/v1-reliability/production-realtime-admission-proof.md)
+records the coordinated platform, realtime, and operational-worker rollout,
+schema head `0039`, and initial healthy worker readiness with a complete
+synthetic batch. Current deployment identity comes from the live
+`/api/readiness` machine contract; retained deployment proof is not a fresh
+health check. Live browser smoke covers the landing page, direct Arcade
+navigation, branding, and game-card hover behavior. The operational worker is
+deployed; a complete recurring-retention observation window and final
+operational rehearsal remain `G3-08` / `G7-03` work.
 Production code is delivered incrementally; stable package promotion, public
 release visibility, final docs, the launch article, and distribution are
 coordinated only after one exact candidate passes rehearsal.
@@ -457,10 +605,11 @@ vocabulary, event and failure identities share one normalized code, synthetic
 chronology is database-owned, each scheduled check is isolated and reported,
 and older SLO evaluations cannot regress newer alert state. Scheduling is a
 separate orchestration module rather than another responsibility in the
-persistence service. Production schema migration `0036` is applied and
-verified, but the operational worker service is deliberately not deployed
-until its activation preflight, drain, synthetic configuration, rollback, and
-cost-observation path is ready.
+persistence service. The
+[production worker proof](./audits/v1-reliability/production-operational-job-worker-proof.md)
+records the deployed worker and its initial healthy readiness. Final
+observation, drain, rollback, and cost evidence remain in the exact-candidate
+rehearsal rather than a second activation project.
 Gate `G4-03` is closed by the
 [operational alert issue projection contract](./contracts/operational-alert-issue-projection-contract.md)
 and its
@@ -470,10 +619,19 @@ projection with create, update, recovery close, recurrence reopen, marker-based
 reconciliation, preserved discussion, inspectable dead letters, and a complete
 preview-first repo CLI lifecycle. The issue-only GitHub App identity belongs
 only on the operational worker.
-Operational evidence retention is owned by `G3-07`; it and the remaining
-activation dependencies gate separately claimable `G3-08` activation.
-This does not claim that continuous evaluations or GitHub issue delivery are
-active in production. A generic incident lifecycle and governed
+`G3-07` is locally complete with the approved 30-day history / 90-day command
+policy, protected incident evidence, and one indexed collector shared by the
+existing worker and cursor-capable repo CLI. The
+[retention proof](./audits/v1-reliability/operational-evidence-retention-proof.md)
+includes real concurrent-writer tests and a 1.2-million-row month-sized fixture.
+The full-document benchmark exposed buffered-index lookup cost; configuring
+the four evidence indexes for direct updates fixed it. Final preview took
+2.3 seconds and apply 0.7 seconds, retaining all 299,000 recent runs.
+Migration `0040`, reviewed
+delivery, and live observation remain separate: no production cleanup has run
+as part of this work. Remaining observation dependencies gate `G3-08` closure.
+Initial worker health does not prove a complete recurring evaluation window
+or production GitHub issue delivery. A generic incident lifecycle and governed
 automatic-remediation engine are intentionally not 1.0 requirements: smart
 local agents should use the shared evidence and focused Air Jam, Railway,
 GitHub, and local tools instead.
@@ -579,41 +737,38 @@ The canonical architecture and delivery order now lives in
 [the remaining-1.0 section of the execution plan](./plans/v1-release-execution-plan.md#remaining-10-architecture).
 In short:
 
-1. keep the now-complete canonical production migration lifecycle and schema
-   compatibility boundary stable; `G3-06` is merged, applied, and independently
-   verified against the exact Railway production deployment
-2. exercise the now-live realtime admission, operational worker, and storage
-   retention lifecycle under measured load, overload, dependency failure,
-   recovery, cost, and rollback conditions; migrate the four Railway
-   application services and PostgreSQL to one
-   reviewed `.railway/railway.ts` project graph before treating deployment
-   configuration as release-ready
-3. provision an isolated ephemeral Railway/R2 rehearsal profile and unblock the
-   Codex plus Claude Desktop golden-path proofs
-4. keep the completed recovery contract stable and finish supply-chain trust as
-   an independent lane
-5. run overload, recovery, and security closure drills through the existing
-   focused agent-operable controls
-6. finish docs/demo/story against shipped evidence, then cut and rehearse one
-   immutable 1.0 candidate
-7. agents continue to claim, complete, or block work only through the canonical
+1. finish review and coordinated delivery of the existing host-authority branch
+2. complete the new `G6-07` creator/player experience pass before more
+   infrastructure expansion
+3. build on completed Claude Desktop discovery/session bootstrap, then run one
+   final golden path whose evidence also becomes the launch demo source
+4. use the locally completed spend brake, emergency pause, and bounded evidence
+   protection in one honest load/dependency-recovery drill (`G3-04`)
+5. use the reconciled supply-chain proof and present the residual security
+   checkpoint
+6. finish docs/demo/story against the polished shipped behavior, then cut and
+   rehearse one immutable 1.0 candidate
+7. reuse completed recovery, migration, alerting, install-matrix, and Codex
+   proofs rather than rebuilding them
+8. agents continue to claim, complete, or block work only through the canonical
    readiness manifest
 
 ## Current Caveats
 
 1. the repo has enough implemented infrastructure that the main risk is now
    committing to stale assumptions or freezing accidental complexity
-2. the production baseline, target capacity envelope, and recovery path are now
-   measured and explicit, but deliberate overload and continuous alert/issue
-   proof have not yet been demonstrated
+2. the production baseline and recovery path are measured; launch still
+   requires `100` concurrent rooms and `400` controllers sustained for `30`
+   minutes, a `5`-minute two-times admission attempt, safe overload behavior,
+   and one dependency-recovery proof
 3. product telemetry anonymous-session and actor-class counts are approximate
    discovery measures, not durable people or identity proof
 4. self-healing should emerge from smart agents running against strong sensors,
    shared evidence, and focused tools; a generic runbook or code-changing
    automation engine is post-1.0 and must be justified by real incidents
 5. monetization mechanics are intentionally deferred until activation or
-   requested value is real, but cost metering, quotas, queues, spend alerts,
-   degradation, and kill switches are launch requirements
+   requested value is real; existing metering, bounded queues, admission, and
+   alerts need only one practical spend brake and emergency stop path for 1.0
 
 ## Canonical Read Order
 

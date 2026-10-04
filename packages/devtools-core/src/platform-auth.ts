@@ -15,6 +15,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
+import { isIP } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
@@ -97,34 +98,52 @@ export class AirJamStoredPlatformSessionError extends Error {
   }
 }
 
-const normalizeUrl = (rawUrl: string): string => {
+const parsePlatformUrl = (rawUrl: string): URL => {
   const trimmed = rawUrl.trim();
-  if (!trimmed) {
-    return LOCAL_PLATFORM_FALLBACK;
+  let url: URL;
+  try {
+    if (!trimmed) throw new Error("Empty URL");
+    const hasScheme = /^[a-z][a-z\d+.-]*:/iu.test(trimmed);
+    const hasHostPort = /^[^/?#]+:\d+(?:[/?#]|$)/u.test(trimmed);
+    if (
+      hasScheme &&
+      !hasHostPort &&
+      !/^[a-z][a-z\d+.-]*:\/\//iu.test(trimmed)
+    ) {
+      throw new Error("Invalid URL scheme");
+    }
+    url = new URL(hasScheme && !hasHostPort ? trimmed : `https://${trimmed}`);
+  } catch {
+    throw new Error("Invalid Air Jam platform URL.");
   }
 
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
+  const loopback =
+    url.hostname === "localhost" ||
+    url.hostname === "[::1]" ||
+    (isIP(url.hostname) === 4 && url.hostname.startsWith("127."));
+  if (
+    (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error(
+      "Air Jam platform URLs require HTTPS, except HTTP on loopback, and must not contain credentials.",
+    );
   }
-
-  return `https://${trimmed}`;
+  return url;
 };
 
 export const resolvePlatformBaseUrl = (
   value: string | undefined = process.env.AIRJAM_PLATFORM_URL,
 ): string => {
   const candidate =
-    value ||
-    process.env.AIR_JAM_PLATFORM_URL ||
-    process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST ||
-    process.env.NEXT_PUBLIC_APP_URL ||
+    value ??
+    process.env.AIR_JAM_PLATFORM_URL ??
+    process.env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST ??
+    process.env.NEXT_PUBLIC_APP_URL ??
     LOCAL_PLATFORM_FALLBACK;
 
-  try {
-    return new URL(normalizeUrl(candidate)).toString().replace(/\/$/, "");
-  } catch {
-    return LOCAL_PLATFORM_FALLBACK;
-  }
+  return parsePlatformUrl(candidate).toString().replace(/\/$/, "");
 };
 
 const sleep = async (durationMs: number) =>
@@ -145,8 +164,21 @@ export const requestPlatformMachineApi = async <T>({
   token?: string;
   schema: { parse: (value: unknown) => T };
 }): Promise<T> => {
-  const response = await fetch(new URL(pathname, baseUrl), {
+  const platformUrl = parsePlatformUrl(baseUrl);
+  const requestUrl = new URL(pathname, platformUrl);
+  if (
+    requestUrl.origin !== platformUrl.origin ||
+    requestUrl.username ||
+    requestUrl.password
+  ) {
+    throw new Error(
+      "Platform agent API requests must stay on the platform origin.",
+    );
+  }
+  const response = await fetch(requestUrl, {
     method,
+    // Redirects can replay device codes or credentials, even on the same origin.
+    redirect: "error",
     headers: {
       ...(body === undefined ? {} : { "content-type": "application/json" }),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
@@ -272,9 +304,17 @@ export const loginPlatformWithDeviceFlow = async ({
         deviceCode: authorization.deviceCode,
       });
 
+      if (
+        parsePlatformUrl(authenticated.platformBaseUrl).origin !==
+        parsePlatformUrl(baseUrl).origin
+      ) {
+        throw new Error(
+          "The login response does not match the requested platform origin.",
+        );
+      }
       const storedSession: AirJamPlatformMachineSessionStore = {
         version: 1,
-        platformBaseUrl: authenticated.platformBaseUrl,
+        platformBaseUrl: baseUrl,
         clientName: clientName?.trim() || null,
         storedAt: new Date().toISOString(),
         user: authenticated.user,
@@ -326,8 +366,17 @@ export const resolvePlatformMachineAuth = async ({
     throw new Error("No stored Air Jam platform session was found.");
   }
 
+  const baseUrl = resolvePlatformBaseUrl(platformUrl ?? stored.platformBaseUrl);
+  if (
+    parsePlatformUrl(baseUrl).origin !==
+    parsePlatformUrl(stored.platformBaseUrl).origin
+  ) {
+    throw new Error(
+      "The stored Air Jam session belongs to a different platform origin. Log in to that platform or supply an explicit token.",
+    );
+  }
   return {
-    baseUrl: resolvePlatformBaseUrl(platformUrl || stored.platformBaseUrl),
+    baseUrl,
     token: stored.session.token,
   };
 };

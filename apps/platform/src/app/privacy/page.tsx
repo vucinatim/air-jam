@@ -46,7 +46,7 @@ export default function PrivacyPage() {
               describes that system—nothing broader.
             </p>
             <p className="text-muted-foreground text-sm">
-              Last updated September 4, 2026
+              Last updated September 11, 2026
             </p>
           </div>
         </header>
@@ -90,12 +90,10 @@ export default function PrivacyPage() {
             Aggregate daily counts are retained long-term.
           </p>
           <p>
-            The deletion operation is implemented and available to Air Jam
-            operators. Recurring enforcement belongs to Air Jam’s separately
-            deployed operational worker; that worker is not active in production
-            yet and must be activated and observed before the 1.0 release. Once
-            active, a failed retention run makes worker readiness fail until a
-            later run succeeds.
+            Air Jam’s operational worker runs deletion on startup and on a
+            recurring schedule. A failed retention run marks the worker as
+            unhealthy until a later run succeeds. Operators can inspect
+            retention status and run the same deletion operation directly.
           </p>
         </Section>
 

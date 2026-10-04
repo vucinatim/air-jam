@@ -7,7 +7,6 @@ import {
 } from "@/components/arcade/embedded-bridge-surface-guard";
 import { getPlatformControllerSessionConfig } from "@/lib/airjam-session-config";
 import { buildEmbeddedRuntimeTopology } from "@/lib/embedded-runtime-topology";
-import { runtimeTopologyToQueryParams } from "@air-jam/sdk/runtime-topology";
 import type { AirJamControllerApi, ControllerOrientation } from "@air-jam/sdk";
 import {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
@@ -40,6 +39,7 @@ import type {
   ServerErrorPayload,
   SignalPayload,
 } from "@air-jam/sdk/protocol";
+import { runtimeTopologyToQueryParams } from "@air-jam/sdk/runtime-topology";
 import {
   useCallback,
   useEffect,
@@ -66,6 +66,9 @@ interface ControllerEmbeddedGameFrameState {
   controllerIframeSrc: string | null;
   controllerIframePending: boolean;
   controllerIframeFailed: boolean;
+  controllerIframeLoading: boolean;
+  controllerIframeRevision: number;
+  retryControllerFrame: () => void;
   iframeRef: RefObject<HTMLIFrameElement | null>;
 }
 
@@ -120,6 +123,8 @@ export function useControllerEmbeddedGameFrame({
   > | null>(null);
   const [bridgeListenerReady, setBridgeListenerReady] = useState(false);
   const [controllerIframeFailed, setControllerIframeFailed] = useState(false);
+  const [controllerIframeLoading, setControllerIframeLoading] = useState(true);
+  const [controllerIframeRevision, setControllerIframeRevision] = useState(0);
   const [
     controllerSurfaceOrientationOverride,
     setControllerSurfaceOrientationOverride,
@@ -221,6 +226,14 @@ export function useControllerEmbeddedGameFrame({
       controllerIframeHandshakeDeadlineRef.current = null;
     }
   }, []);
+
+  const retryControllerFrame = useCallback(() => {
+    closeBridge("controller_reload");
+    clearControllerIframeHandshakeDeadline();
+    setControllerIframeFailed(false);
+    setControllerIframeLoading(true);
+    setControllerIframeRevision((revision) => revision + 1);
+  }, [closeBridge, clearControllerIframeHandshakeDeadline]);
 
   useEffect(() => {
     if (pendingBridgeTeardownRef.current) {
@@ -482,6 +495,7 @@ export function useControllerEmbeddedGameFrame({
       attachBridgePort(port);
       clearControllerIframeHandshakeDeadline();
       setControllerIframeFailed(false);
+      setControllerIframeLoading(false);
     };
 
     window.addEventListener("message", handleMessage);
@@ -494,13 +508,16 @@ export function useControllerEmbeddedGameFrame({
 
   useEffect(() => {
     clearControllerIframeHandshakeDeadline();
+    closeBridge("controller_surface_loading");
 
     if (!activeUrl || !controllerIframeSrc) {
       setControllerIframeFailed(false);
+      setControllerIframeLoading(true);
       return;
     }
 
     setControllerIframeFailed(false);
+    setControllerIframeLoading(true);
     controllerIframeHandshakeDeadlineRef.current = setTimeout(() => {
       if (bridgePortRef.current) {
         return;
@@ -511,16 +528,21 @@ export function useControllerEmbeddedGameFrame({
         "Embedded controller iframe did not attach to the platform bridge.",
         {
           controllerIframeSrc,
-          likelyCause:
-            "controller game surface did not finish loading through the local Arcade test route",
+          roomId: controllerSessionRef.current.roomId,
         },
       );
-    }, 4000);
+    }, 10000);
 
     return () => {
       clearControllerIframeHandshakeDeadline();
     };
-  }, [activeUrl, clearControllerIframeHandshakeDeadline, controllerIframeSrc]);
+  }, [
+    activeUrl,
+    clearControllerIframeHandshakeDeadline,
+    closeBridge,
+    controllerIframeSrc,
+    controllerIframeRevision,
+  ]);
 
   useEffect(() => {
     if (!controller.socket) {
@@ -601,6 +623,9 @@ export function useControllerEmbeddedGameFrame({
     controllerIframeSrc,
     controllerIframePending,
     controllerIframeFailed,
+    controllerIframeLoading,
+    controllerIframeRevision,
+    retryControllerFrame,
     iframeRef,
   };
 }

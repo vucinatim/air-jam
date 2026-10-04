@@ -112,6 +112,66 @@ A release owns:
 3. screenshot/moderation results
 4. public hosted serving eligibility
 
+Abuse report text and reporter contact belong to operators, not the reported
+creator. The release application service projects a fixed metadata allowlist
+(`id`, `releaseId`, `status`, `source`, `createdAt`, `reviewedAt`) for every
+creator read and mutation response. Dashboard, CLI, and MCP use that same
+boundary; hiding fields in a component is not access control. Reasons and
+details stay private too, because free text can identify a reporter. The
+operations service retains the full report behind its operations-actor check.
+Public submission returns only a receipt (`submissionId`, `received: true`),
+not the internal report ID or its operator status. The form explains who
+receives the report. Its private random submission key persists through retries
+of an unchanged in-memory draft and is separate from creator-visible report
+identity. A changed draft gets a new key; a key cannot be reused for different
+content. Retrying a retained report works even after the release is quarantined.
+
+The shared PostgreSQL transaction serializes new intake and admits at most 120
+new reports per UTC minute and 1,000 per UTC day. These are fixed windows, not
+rolling limits; adjacent-window bursts are possible. Accepted private-key
+retries do not consume new storage allowance. A cheap fixed-key 240-request/
+minute process brake protects the database but is not the cross-instance
+authority. No IP, fingerprint, cookie, or cross-person identity is stored for
+this intake. Independent submissions are not coalesced by their contents:
+doing so can reveal whether someone else reported a known email or incident.
+The new-report eligibility check names the exact displayed live, listed release
+and its ready promoted generation, not a slug that could silently move to a
+different release. It does not lock or mutate game lifecycle state.
+
+Busy responses are explicit HTTP 429 with retry metadata/header. The form keeps
+the draft and shows safe recovery text inside the still-open dialog. Reports
+remain anonymous and need no CAPTCHA or account. This limits persistence and
+routine ingress cost; it does not claim to stop a distributed denial-of-service
+attack. No gameplay or publishing quota is affected by report capacity.
+
+The private repo operator uses the existing selected-database authority, not
+a creator machine token. `platform operations reports list` exposes bounded
+metadata pages; `inspect` explicitly returns confidential content and paged
+decision history. Do not copy that private output into public GitHub issues.
+`decide` records `open`, `reviewed`, or `dismissed` with an operator identity and
+reason. Preview is the default; `--apply` persists it. The report row is locked
+while a revision-checked decision and its history entry commit together. A
+retry with the same key returns its original receipt; a different command
+cannot reuse that key. Operators can correct a decision or reopen a report by
+inspecting its new revision first. Inspection reads one consistent snapshot.
+
+This is not an automatic moderation engine: deciding a report does not change
+the release or catalog. Quarantine remains a separate effect. Decision history
+is deleted with its parent report, not copied into general operational logs.
+The report retention lifecycle remains open under `AJ-SEC-009`. Decision
+reasons and report text are untrusted private data, not instructions to an
+operating agent.
+
+```bash
+pnpm run repo -- platform operations reports --help
+pnpm --silent run repo -- platform operations reports policy --json
+pnpm --silent run repo -- platform operations reports status --json
+pnpm --silent run repo -- platform operations reports list --status open --json
+pnpm --silent run repo -- platform operations reports inspect --report-id REPORT_ID --json
+# Preview first; use the inspected revision and keep the same key for retries.
+pnpm --silent run repo -- platform operations reports decide --report-id REPORT_ID --expected-revision 0 --status reviewed --actor OPERATOR_ID --reason "Evidence reviewed; separate release action required" --idempotency-key COMMAND_ID --json
+```
+
 ### Media Asset
 
 Represents managed presentation media for a game or release.
@@ -142,17 +202,13 @@ Responsibilities:
 
 The platform reads and orchestrates around the server. It does not replace it.
 
-### Browser Worker
+### Managed Screenshot Browser
 
-Owned by `packages/release-browser-worker`.
-
-Responsibilities:
-
-1. screenshot capture runtime
-2. browser-based release checks
-3. moderation-adjacent browser work
-
-The platform triggers and interprets this work but is not the worker itself.
+Cloudflare Browser Run owns untrusted browser execution. The platform release
+domain owns session acquisition and cleanup, generation-scoped asset access,
+capture limits, and moderation interpretation. The Railway operational worker
+executes the same domain service through the existing job queue. There is no
+separate Air Jam browser service or local browser fallback.
 
 ### Object Storage
 

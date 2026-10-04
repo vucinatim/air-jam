@@ -77,14 +77,15 @@ export const controllerJoinSchema = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(3),
   /**
-   * Stable local controller device identity used as a reconnect hint.
-   * Older clients may omit this and fall back to controllerId-only behavior.
+   * Local device/source hint, never authority to resume a controller slot.
    */
   deviceId: z.string().min(8).max(128).optional(),
   nickname: z.string().trim().min(1).max(24).optional(),
   /** Preset avatar key (platform-defined); optional at join. */
   avatarId: z.string().trim().min(1).max(48).optional(),
   capabilityToken: z.string().min(1).optional(),
+  /** Private server-issued proof required to resume an existing controller. */
+  resumeCapabilityToken: z.string().min(1).max(128).optional(),
 });
 
 export type ControllerJoinPayload = z.infer<typeof controllerJoinSchema>;
@@ -154,6 +155,8 @@ export interface ControllerJoinAck {
   controllerId?: string;
   roomId?: RoomCode;
   resumed?: boolean;
+  /** Private to the joining client; never publish in presence or bridge state. */
+  resumeCapabilityToken?: string;
   message?: string;
   code?: ErrorCode | string;
   retryAfterSeconds?: number;

@@ -1,6 +1,6 @@
 # Air Jam Docs Index
 
-Last updated: 2026-09-04
+Last updated: 2026-09-12
 Status: current navigation
 
 This is the canonical navigation entry for the Air Jam repository.
@@ -45,6 +45,11 @@ The active Gate 5 production boundary cutover is governed by:
 
 1. [plans/hosted-release-domain-cutover-plan.md](./plans/hosted-release-domain-cutover-plan.md)
 
+The bounded browser execution and egress boundary under the same Gate 5 is:
+
+1. [plans/release-browser-worker-containment-plan.md](./plans/release-browser-worker-containment-plan.md)
+2. [audits/v1-security/2026-10-04-hosted-managed-capture-proof.json](./audits/v1-security/2026-10-04-hosted-managed-capture-proof.json)
+
 Agents inspect the live execution state through:
 
 ```bash
@@ -69,7 +74,8 @@ The canonical Gate 2 external-agent proof is defined by:
 1. [contracts/external-agent-golden-path-contract.md](./contracts/external-agent-golden-path-contract.md)
 2. [audits/v1-golden-path/public-bootstrap-audit.md](./audits/v1-golden-path/public-bootstrap-audit.md)
 3. [audits/v1-golden-path/primary-agent-run-audit.md](./audits/v1-golden-path/primary-agent-run-audit.md)
-4. the machine-readable scenario and prompt exposed through
+4. [audits/v1-golden-path/claude-desktop-interop-audit.md](./audits/v1-golden-path/claude-desktop-interop-audit.md)
+5. the machine-readable scenario and prompt exposed through
    `pnpm --silent run repo -- golden-path spec --json`
 
 The Gate 6 public package graph, supported Node/OS matrix, budgets, and
@@ -79,6 +85,15 @@ machine-executable clean-install contract are defined by:
 2. [contracts/public-package-release-trust-contract.md](./contracts/public-package-release-trust-contract.md)
 3. [audits/v1-public-release/public-install-matrix-audit.md](./audits/v1-public-release/public-install-matrix-audit.md)
 4. `pnpm --silent run repo -- release install-matrix spec --json`
+
+The Gate 6 creator/player experience evidence is retained in:
+
+1. [launch experience recovery audit](./audits/v1-public-release/launch-experience-recovery-audit.md)
+2. [creator entrypoint audit](./audits/v1-public-release/creator-entrypoint-audit.md)
+3. [reference game launch audit](./audits/v1-public-release/reference-game-launch-audit.md)
+
+These distinguish local/source checks from remaining hosted and real-device
+proof. `G6-07` in the readiness manifest remains the execution authority.
 
 The ranked Gate 5 public, privileged, artifact, runtime, agent, provider,
 privacy, and supply-chain security baseline is:

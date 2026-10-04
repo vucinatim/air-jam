@@ -5,6 +5,7 @@ import path from "node:path";
 import { io, type Socket } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
+import { DevLogCollector } from "../src/logging/dev-log-collector";
 import type { HostBootstrapAuthService } from "../src/services/auth-service";
 import { getHttpServerLoopbackUrl } from "./helpers/http-server-test-url";
 import { emitWithAck, waitForSocketConnect } from "./helpers/socket-test-utils";
@@ -23,14 +24,15 @@ describe("dev disconnect lifecycle logs", () => {
     previousChildTeardownMs = process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS;
     process.env.AIR_JAM_CHILD_HOST_TEARDOWN_MS = "25";
     const authService: HostBootstrapAuthService = {
-      verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+      verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
         isVerified: true,
         appId,
         verifiedVia: "appId" as const,
+        hostSessionKind: hostSessionKind ?? "system",
       }),
     };
     runtime = createAirJamServer({
-      devLogDir: tempDir,
+      devLogCollector: new DevLogCollector({ enabled: true, logDir: tempDir }),
       authService,
     });
     await runtime.start(0);
@@ -84,6 +86,7 @@ describe("dev disconnect lifecycle logs", () => {
       "host:bootstrap",
       {
         appId: "aj_app_disconnect_test",
+        hostSessionKind: "system",
       },
     );
     expect(bootstrapAck.ok).toBe(true);

@@ -9,6 +9,7 @@ vi.mock("./release-application-service", () => ({
 import { OperationalAdmissionDeniedError } from "@/server/operations/production-control-service";
 import {
   platformMachineFinalizeReleaseUploadResultSchema,
+  platformMachineReleaseReportSchema,
   platformMachineRequestReleaseGenerationExportResultSchema,
   platformMachineRequestReleaseUploadTargetResultSchema,
 } from "@air-jam/sdk/platform-machine";
@@ -16,6 +17,7 @@ import {
   finalizeReleaseUploadForMachine,
   requestReleaseGenerationExportForMachine,
   requestReleaseUploadTargetForMachine,
+  serializeReleaseForMachine,
 } from "./machine-release";
 import {
   finalizeOwnedReleaseUpload,
@@ -114,6 +116,34 @@ const makeRelease = () => ({
 describe("machine release finalization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("excludes private report content from the CLI/MCP wire response and schema", () => {
+    const metadata = {
+      id: "report_1",
+      releaseId: "rel_1",
+      status: "open" as const,
+      source: "play_page" as const,
+      createdAt: now,
+      reviewedAt: null,
+    };
+    const report = {
+      ...metadata,
+      reason: "Private name in reason",
+      details: "Private address in report body",
+      reporterEmail: "private-reporter@example.test",
+      futurePrivateField: "Do not spread this",
+    };
+    const release = { ...makeRelease(), owner: null, reports: [report] };
+    const result = serializeReleaseForMachine(release);
+    const expected = { ...metadata, createdAt: now.toISOString() };
+    expect(result.reports).toEqual([expected]);
+    expect(
+      platformMachineReleaseReportSchema.parse({
+        ...report,
+        createdAt: now.toISOString(),
+      }),
+    ).toEqual(expected);
   });
 
   it("returns the durable queued job instead of executing release work inline", async () => {

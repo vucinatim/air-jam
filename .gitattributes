@@ -1,3 +1,7 @@
 * text=auto eol=lf
 
 *.zip -text
+
+# Unified patches require a single-space prefix on blank context lines.
+# Preserve that syntax; ordinary source files retain all whitespace checks.
+patches/*.patch whitespace=-blank-at-eol

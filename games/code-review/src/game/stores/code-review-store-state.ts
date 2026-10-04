@@ -1,3 +1,4 @@
+import { getMatchReadiness } from "../domain/match-readiness";
 import {
   assignmentsEqual,
   normalizeAssignments,
@@ -68,8 +69,23 @@ const createMatchSummary = (
   },
 });
 
-export const reduceStartMatch = (state: CodeReviewGameState) => {
-  if (state.matchPhase === "playing") {
+export const reduceStartMatch = (
+  state: CodeReviewGameState,
+  connectedPlayerIds: string[],
+) => {
+  const assignments = pruneDisconnectedAssignments(
+    state.teamAssignments,
+    connectedPlayerIds,
+  );
+  const botCounts = clampBotCounts(state.botCounts, assignments);
+  const readiness = getMatchReadiness(
+    {
+      team1: getTeamHumanCount(assignments, "team1"),
+      team2: getTeamHumanCount(assignments, "team2"),
+    },
+    botCounts,
+  );
+  if (state.matchPhase !== "lobby" || !readiness.canStart) {
     return state;
   }
 
@@ -77,6 +93,8 @@ export const reduceStartMatch = (state: CodeReviewGameState) => {
     matchPhase: "playing" as const,
     matchSummary: null,
     scores: { team1: 0, team2: 0 },
+    teamAssignments: assignments,
+    botCounts,
   };
 };
 

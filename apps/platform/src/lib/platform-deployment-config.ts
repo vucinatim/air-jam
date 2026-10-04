@@ -103,8 +103,14 @@ export const resolvePlatformDeploymentConfig = (
     Boolean(railwayEnvironmentName) &&
     resolveDeploymentEnvironment(env) === "preview";
   const railwayPublicUrl = normalizePublicUrl(env.RAILWAY_PUBLIC_DOMAIN);
+  const railwayOrigin = normalizeOrigin(env.RAILWAY_PUBLIC_DOMAIN);
+  const releaseOrigin = normalizeOrigin(env.AIRJAM_RELEASES_PUBLIC_ORIGIN);
+  const railwayDomainServesReleases =
+    railwayOrigin !== null && railwayOrigin === releaseOrigin;
   const explicitPublicUrl =
-    (isRailwayPreviewEnvironment ? railwayPublicUrl : null) ??
+    (isRailwayPreviewEnvironment && !railwayDomainServesReleases
+      ? railwayPublicUrl
+      : null) ??
     normalizePublicUrl(env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST) ??
     normalizePublicUrl(env.NEXT_PUBLIC_APP_URL) ??
     railwayPublicUrl;
@@ -122,7 +128,7 @@ export const resolvePlatformDeploymentConfig = (
     authBaseUrl,
     normalizeOrigin(env.NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST),
     normalizeOrigin(env.NEXT_PUBLIC_APP_URL),
-    normalizeOrigin(env.RAILWAY_PUBLIC_DOMAIN),
+    railwayDomainServesReleases ? null : railwayOrigin,
     ...splitTrustedOrigins(env.BETTER_AUTH_TRUSTED_ORIGINS),
   ]) {
     if (value) {

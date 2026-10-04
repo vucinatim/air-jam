@@ -1,4 +1,4 @@
-import { ErrorCode } from "@air-jam/sdk/protocol";
+import { airJamArcadePlatformActions, ErrorCode } from "@air-jam/sdk/protocol";
 import { describe, expect, it } from "vitest";
 import type { AuthService } from "../src/services/auth-service";
 import { setupServerTestHarness } from "./helpers/server-test-harness";
@@ -24,10 +24,11 @@ type LaunchGameAck = {
 };
 
 const allowAllAuthService = {
-  verifyHostBootstrap: async ({ appId }: { appId?: string }) => ({
+  verifyHostBootstrap: async ({ appId, hostSessionKind }) => ({
     isVerified: true,
     appId,
     verifiedVia: "appId" as const,
+    hostSessionKind: hostSessionKind ?? "system",
   }),
 } as AuthService;
 
@@ -201,7 +202,7 @@ describe("server routing and security", () => {
     await harness.expectNoEvent(host, "airjam:action_rpc");
   });
 
-  it("routes host semantic action RPCs to the active host with host actor semantics", async () => {
+  it("never forwards the removed controller host-impersonation event", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
@@ -233,23 +234,22 @@ describe("server routing and security", () => {
       storeDomain: "default",
     });
 
-    const forwarded = await harness.waitForEvent<{
-      actionName: string;
-      payload: unknown;
-      storeDomain: string;
-      actor: { id: string; role: "controller" | "host" };
-    }>(host, "airjam:action_rpc");
-
-    expect(forwarded.actionName).toBe("finishMatch");
-    expect(forwarded.storeDomain).toBe("default");
-    expect(forwarded.actor).toEqual({
-      id: "host",
-      role: "host",
-    });
-    expect(forwarded.payload).toBeUndefined();
+    await harness.expectNoEvent(host, "airjam:action_rpc");
+    const forged = await harness.emitWithAck<{ ok: boolean }>(
+      controller,
+      "controller:action_rpc",
+      {
+        roomId,
+        actionName: "finishMatch",
+        storeDomain: "default",
+        actor: { id: "host", role: "host" },
+      },
+    );
+    expect(forged.ok).toBe(false);
+    await harness.expectNoEvent(host, "airjam:action_rpc");
   });
 
-  it("returns the host semantic action acknowledgement from the active host", async () => {
+  it("returns the player action acknowledgement from the active host", async () => {
     const host = await harness.connectSocket();
     expect((await harness.bootstrapHost(host)).ok).toBe(true);
     const controller = await harness.connectSocket();
@@ -297,7 +297,7 @@ describe("server routing and security", () => {
       source: "host" | "server" | "client";
       result?: { ok: true };
       reason?: string;
-    }>(controller, "controller:host_action_rpc", {
+    }>(controller, "controller:action_rpc", {
       roomId,
       actionName: "finishMatch",
       payload: undefined,
@@ -312,7 +312,7 @@ describe("server routing and security", () => {
     });
   });
 
-  it("routes namespaced arcade actions to master host during game focus", async () => {
+  it("keeps Arcade menu commands on the master while gameplay uses the active child", async () => {
     const masterHost = await harness.connectSocket();
     expect((await harness.bootstrapHost(masterHost)).ok).toBe(true);
     const controller = await harness.connectSocket();
@@ -359,29 +359,87 @@ describe("server routing and security", () => {
     );
     expect(childJoinAck.ok).toBe(true);
 
-    controller.emit("controller:action_rpc", {
-      roomId,
-      actionName: "airjam.arcade.toggle_qr",
-      payload: undefined,
-      storeDomain: "arcade.surface",
-    });
-
-    const forwarded = await harness.waitForEvent<{
+    type ForwardedAction = {
       actionName: string;
       payload: unknown;
       storeDomain: string;
       actor: { id: string; role: "controller" | "host" };
-    }>(masterHost, "airjam:action_rpc");
+    };
+    const noMenuActionsOnChild = harness.expectNoEvent(
+      childHost,
+      "airjam:action_rpc",
+    );
+    const menuCommands = [
+      { actionName: airJamArcadePlatformActions.toggleQr, payload: undefined },
+      {
+        actionName: airJamArcadePlatformActions.navigate,
+        payload: { epoch: 1, direction: "right" },
+      },
+      {
+        actionName: airJamArcadePlatformActions.confirm,
+        payload: { epoch: 1 },
+      },
+    ];
+    await Promise.all([
+      noMenuActionsOnChild,
+      (async () => {
+        for (const command of menuCommands) {
+          const forwarded = harness.waitForEvent<ForwardedAction>(
+            masterHost,
+            "airjam:action_rpc",
+          );
+          controller.emit("controller:action_rpc", {
+            roomId,
+            ...command,
+            storeDomain: "arcade.surface",
+          });
+          expect(await forwarded).toEqual({
+            ...command,
+            storeDomain: "arcade.surface",
+            actor: { id: "ctrl_arcade_1", role: "controller" },
+          });
+        }
+      })(),
+    ]);
 
-    expect(forwarded.actionName).toBe("airjam.arcade.toggle_qr");
-    expect(forwarded.storeDomain).toBe("arcade.surface");
-    expect(forwarded.actor).toEqual({
-      id: "ctrl_arcade_1",
-      role: "controller",
+    const gameplayAction = harness.waitForEvent<ForwardedAction>(
+      childHost,
+      "airjam:action_rpc",
+    );
+    const gameplayInput = harness.waitForEvent<{
+      controllerId: string;
+      input: { direction: number };
+    }>(childHost, "server:input");
+    const noGameplayOnMaster = Promise.all([
+      harness.expectNoEvent(masterHost, "airjam:action_rpc"),
+      harness.expectNoEvent(masterHost, "server:input"),
+    ]);
+    controller.emit("controller:action_rpc", {
+      roomId,
+      actionName: "ready",
+      payload: { ready: true },
+      storeDomain: "default",
     });
-    expect(forwarded.payload).toBeUndefined();
-
-    await harness.expectNoEvent(childHost, "airjam:action_rpc");
+    controller.emit("controller:input", {
+      roomId,
+      controllerId: "ctrl_arcade_1",
+      input: { direction: -1 },
+    });
+    const [forwardedAction, forwardedInput] = await Promise.all([
+      gameplayAction,
+      gameplayInput,
+      noGameplayOnMaster,
+    ]);
+    expect(forwardedAction).toEqual({
+      actionName: "ready",
+      payload: { ready: true },
+      storeDomain: "default",
+      actor: { id: "ctrl_arcade_1", role: "controller" },
+    });
+    expect(forwardedInput).toMatchObject({
+      controllerId: "ctrl_arcade_1",
+      input: { direction: -1 },
+    });
   });
 
   it("blocks unauthorized host:play_sound events", async () => {

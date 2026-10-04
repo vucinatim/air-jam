@@ -69,7 +69,7 @@ const summarizePlayer = (
 export const agentContract = defineAirJamAgentContract({
   stores,
   snapshotDescription:
-    "Game-focused snapshot for The Office with character selection, live assignment state, and score totals.",
+    "Game-focused snapshot for The Office with character selection, live assignment state, and score totals. Starting requires every connected controller to select a coworker; compare selectedByControllerId with the session runtime player roster. hasCharacterSelections does not imply everyone is ready.",
   projectSnapshot: (context) => {
     const { controllerId } = context;
     const state = context.stores.default;
@@ -96,7 +96,7 @@ export const agentContract = defineAirJamAgentContract({
       phase: state.matchPhase,
       lobby: {
         selectedPlayerCount: controllerIds.length,
-        canStartMatch: state.matchPhase === "lobby" && controllerIds.length > 0,
+        hasCharacterSelections: controllerIds.length > 0,
         availablePlayers: PLAYERS.map((player) =>
           summarizePlayer(player, controllerIds, state),
         ),
@@ -156,8 +156,9 @@ export const agentContract = defineAirJamAgentContract({
       {
         input: agentActionInput.none(),
         description:
-          "Start the Office match after at least one coworker is selected.",
-        availability: "Lobby only.",
+          "Start the Office match after every connected controller has selected a coworker.",
+        availability:
+          "Lobby only. Requires at least one connected controller and a character selection for each connected controller.",
         resultDescription: "The match phase switches from lobby to playing.",
       },
     ),

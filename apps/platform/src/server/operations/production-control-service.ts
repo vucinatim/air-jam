@@ -1,18 +1,30 @@
 import { db } from "@/db";
-import { operationalControlEvents, operationalLaneControls } from "@/db/schema";
 import {
+  operationalBudgetCycles,
+  operationalBudgetEvidence,
+  operationalControlEvents,
+  operationalLaneControls,
+} from "@/db/schema";
+import {
+  decideOperationalAdmissionPolicy,
   getDefaultOperationalLaneControl,
   operationalLaneValues,
+  readOperationalAuthoritySnapshot,
   readOperationalLaneControl,
   serializeOperationalLaneControl,
   type OperationalLane,
   type OperationalLaneControlSnapshot,
   type OperationalLaneMode,
 } from "@air-jam/database-contract";
+import { resolveOperationalBudgetRequirement } from "@air-jam/operations-contract";
 import { and, eq } from "drizzle-orm";
 import { acquireOperationalLaneLock } from "./operational-lane-lock";
 
 export const PRODUCTION_CONTROL_CONTRACT_VERSION = 1 as const;
+
+/** Budget protection and emergency pauses must preserve diagnosis and recovery. */
+export const OPERATIONAL_RECOVERY_LANES: readonly OperationalLane[] =
+  Object.freeze(["product_telemetry", "lifecycle_cleanup"]);
 
 export type OperationalAdmissionDecision = {
   contractVersion: typeof PRODUCTION_CONTROL_CONTRACT_VERSION;
@@ -21,7 +33,7 @@ export type OperationalAdmissionDecision = {
   controlStatus: "available" | "unavailable";
   mode: OperationalLaneMode | null;
   outcome: "allowed" | "shadow_denied" | "denied";
-  reason: "lane_paused" | "control_unavailable" | null;
+  reason: ReturnType<typeof decideOperationalAdmissionPolicy>["reason"];
   retryAfterSeconds: number | null;
   controlRevision: number | null;
 };
@@ -50,7 +62,11 @@ export class OperationalAdmissionDeniedError extends Error {
     const summary =
       decision.reason === "control_unavailable"
         ? `Production control for lane ${decision.lane} is unavailable.`
-        : `Production lane ${decision.lane} is paused.`;
+        : decision.reason === "budget_protection"
+          ? `Production lane ${decision.lane} is temporarily blocked by budget protection.`
+          : decision.reason === "lane_paused"
+            ? `Production lane ${decision.lane} is paused.`
+            : `Production admission for lane ${decision.lane} is blocked.`;
     super(
       `${summary}${
         decision.retryAfterSeconds
@@ -89,7 +105,7 @@ export const buildOperationalLaneControlList = (
 export const listOperationalLaneControls = async ({
   database = db,
 }: {
-  database?: typeof db;
+  database?: Pick<typeof db, "select">;
 } = {}): Promise<OperationalLaneControlSnapshot[]> => {
   const rows = await database.select().from(operationalLaneControls);
   return buildOperationalLaneControlList(rows);
@@ -110,22 +126,35 @@ export const getOperationalLaneControl = async ({
 
 export const decideOperationalLaneAdmission = ({
   control,
+  budget,
+  budgetRequirement,
   decisionId = crypto.randomUUID(),
 }: {
   control: OperationalLaneControlSnapshot;
+  budget: Parameters<typeof decideOperationalAdmissionPolicy>[0]["budget"];
+  budgetRequirement: Parameters<
+    typeof decideOperationalAdmissionPolicy
+  >[0]["budgetRequirement"];
   decisionId?: string;
-}): OperationalAdmissionDecision => ({
-  contractVersion: PRODUCTION_CONTROL_CONTRACT_VERSION,
-  decisionId,
-  lane: control.lane,
-  controlStatus: "available",
-  mode: control.mode,
-  outcome: control.mode === "paused" ? "denied" : "allowed",
-  reason: control.mode === "paused" ? "lane_paused" : null,
-  retryAfterSeconds:
-    control.mode === "paused" ? control.retryAfterSeconds : null,
-  controlRevision: control.revision,
-});
+}): OperationalAdmissionDecision => {
+  const policy = decideOperationalAdmissionPolicy({
+    lane: control.lane,
+    control,
+    budget,
+    budgetRequirement,
+  });
+  return {
+    contractVersion: PRODUCTION_CONTROL_CONTRACT_VERSION,
+    decisionId,
+    lane: control.lane,
+    controlStatus: "available",
+    mode: control.mode,
+    outcome: policy.outcome,
+    reason: policy.reason,
+    retryAfterSeconds: policy.retryAfterSeconds,
+    controlRevision: control.revision,
+  };
+};
 
 const decideUnavailableOperationalLaneAdmission = ({
   lane,
@@ -145,25 +174,60 @@ const decideUnavailableOperationalLaneAdmission = ({
   controlRevision: null,
 });
 
-export const assertOperationalLaneAccepting = async ({
+type OperationalAdmissionInput = {
+  database?: Pick<typeof db, "select" | "execute">;
+  lane: OperationalLane;
+  decisionId?: string;
+  /** Use the caller's transaction authority clock when one is already held. */
+  asOf?: Date;
+};
+
+export const readOperationalLaneAdmission = async ({
   database = db,
   lane,
   decisionId,
-}: {
-  database?: typeof db;
-  lane: OperationalLane;
-  decisionId?: string;
-}): Promise<OperationalAdmissionDecision> => {
-  let control: OperationalLaneControlSnapshot;
+  asOf,
+}: OperationalAdmissionInput): Promise<OperationalAdmissionDecision> => {
+  // Recovery and sensory lanes must not depend on the spending evidence they
+  // help restore. Their explicit lane pause still applies.
+  const budgetRequirement = OPERATIONAL_RECOVERY_LANES.includes(lane)
+    ? "not_applicable"
+    : resolveOperationalBudgetRequirement();
+  const authority =
+    budgetRequirement === "required"
+      ? await readOperationalAuthoritySnapshot({
+          database,
+          tables: {
+            operationalLaneControls,
+            operationalBudgetCycles,
+            operationalBudgetEvidence,
+          },
+          lane,
+          asOf,
+        })
+      : {
+          control: await getOperationalLaneControl({ database, lane }),
+          budget: { evidenceStatus: "missing" as const, state: null },
+        };
+  return decideOperationalLaneAdmission({
+    ...authority,
+    budgetRequirement,
+    decisionId,
+  });
+};
+
+export const assertOperationalLaneAccepting = async (
+  input: OperationalAdmissionInput,
+): Promise<OperationalAdmissionDecision> => {
+  let decision: OperationalAdmissionDecision;
   try {
-    control = await getOperationalLaneControl({ database, lane });
+    decision = await readOperationalLaneAdmission(input);
   } catch (cause) {
     throw new OperationalAdmissionDeniedError(
-      decideUnavailableOperationalLaneAdmission({ lane, decisionId }),
+      decideUnavailableOperationalLaneAdmission(input),
       { cause },
     );
   }
-  const decision = decideOperationalLaneAdmission({ control, decisionId });
   if (decision.outcome === "denied") {
     throw new OperationalAdmissionDeniedError(decision);
   }
@@ -186,7 +250,7 @@ const replayOperationalControlEvent = async ({
   database,
   input,
 }: {
-  database: typeof db;
+  database: Pick<typeof db, "query">;
   input: SetOperationalLaneControlInput;
 }): Promise<OperationalLaneControlSnapshot | null> => {
   const event = await database.query.operationalControlEvents.findFirst({
@@ -201,17 +265,9 @@ const replayOperationalControlEvent = async ({
   return event.next;
 };
 
-export const setOperationalLaneControl = async ({
-  database = db,
-  input,
-  now = new Date(),
-  eventId = crypto.randomUUID(),
-}: {
-  database?: typeof db;
-  input: SetOperationalLaneControlInput;
-  now?: Date;
-  eventId?: string;
-}): Promise<OperationalLaneControlSnapshot> => {
+const normalizeOperationalLaneControlInput = (
+  input: SetOperationalLaneControlInput,
+): SetOperationalLaneControlInput => {
   const normalizedInput = {
     ...input,
     actor: normalizeRequiredText(input.actor, "Actor"),
@@ -234,7 +290,115 @@ export const setOperationalLaneControl = async ({
       "Retry-after seconds must be positive when provided.",
     );
   }
+  return normalizedInput;
+};
 
+type OperationalControlTransaction = Parameters<
+  Parameters<typeof db.transaction>[0]
+>[0];
+
+export const setOperationalLaneControlInTransaction = async ({
+  tx,
+  input,
+  now = new Date(),
+  eventId = crypto.randomUUID(),
+}: {
+  tx: OperationalControlTransaction;
+  input: SetOperationalLaneControlInput;
+  now?: Date;
+  eventId?: string;
+}): Promise<OperationalLaneControlSnapshot> => {
+  const normalizedInput = normalizeOperationalLaneControlInput(input);
+  await acquireOperationalLaneLock(tx, normalizedInput.lane);
+  const replay = await replayOperationalControlEvent({
+    database: tx,
+    input: normalizedInput,
+  });
+  if (replay) return replay;
+
+  const currentRow = await tx.query.operationalLaneControls.findFirst({
+    where: (table, { eq }) => eq(table.lane, normalizedInput.lane),
+  });
+  const previous = currentRow
+    ? serializeOperationalLaneControl(currentRow)
+    : getDefaultOperationalLaneControl(normalizedInput.lane);
+  if (previous.revision !== normalizedInput.expectedRevision) {
+    throw new OperationalControlConflictError(
+      `Lane ${normalizedInput.lane} is at revision ${previous.revision}, not expected revision ${normalizedInput.expectedRevision}.`,
+    );
+  }
+
+  const nextRevision = previous.revision + 1;
+  const [updatedRow] = currentRow
+    ? await tx
+        .update(operationalLaneControls)
+        .set({
+          mode: normalizedInput.mode,
+          reason: normalizedInput.reason,
+          retryAfterSeconds: normalizedInput.retryAfterSeconds,
+          revision: nextRevision,
+          updatedBy: normalizedInput.actor,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(operationalLaneControls.lane, normalizedInput.lane),
+            eq(
+              operationalLaneControls.revision,
+              normalizedInput.expectedRevision,
+            ),
+          ),
+        )
+        .returning()
+    : await tx
+        .insert(operationalLaneControls)
+        .values({
+          lane: normalizedInput.lane,
+          mode: normalizedInput.mode,
+          reason: normalizedInput.reason,
+          retryAfterSeconds: normalizedInput.retryAfterSeconds,
+          revision: nextRevision,
+          updatedBy: normalizedInput.actor,
+          updatedAt: now,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+  if (!updatedRow) {
+    throw new OperationalControlConflictError(
+      `Lane ${normalizedInput.lane} changed concurrently; inspect its current revision and retry.`,
+    );
+  }
+
+  const next = serializeOperationalLaneControl(updatedRow);
+  await tx.insert(operationalControlEvents).values({
+    id: eventId,
+    idempotencyKey: normalizedInput.idempotencyKey,
+    action: "set_lane_mode",
+    lane: normalizedInput.lane,
+    expectedRevision: normalizedInput.expectedRevision,
+    previous,
+    next,
+    actor: normalizedInput.actor,
+    reason: normalizedInput.reason,
+    createdAt: now,
+  });
+
+  return next;
+};
+
+export const setOperationalLaneControl = async ({
+  database = db,
+  input,
+  now = new Date(),
+  eventId = crypto.randomUUID(),
+}: {
+  database?: typeof db;
+  input: SetOperationalLaneControlInput;
+  now?: Date;
+  eventId?: string;
+}): Promise<OperationalLaneControlSnapshot> => {
+  const normalizedInput = normalizeOperationalLaneControlInput(input);
   const replay = await replayOperationalControlEvent({
     database,
     input: normalizedInput,
@@ -242,91 +406,14 @@ export const setOperationalLaneControl = async ({
   if (replay) return replay;
 
   try {
-    return await database.transaction(async (tx) => {
-      await acquireOperationalLaneLock(tx, normalizedInput.lane);
-      const existingEvent = await tx.query.operationalControlEvents.findFirst({
-        where: (table, { eq }) =>
-          eq(table.idempotencyKey, normalizedInput.idempotencyKey),
-      });
-      if (existingEvent) {
-        if (!isMatchingMutation(existingEvent, normalizedInput)) {
-          throw new OperationalControlConflictError(
-            "The idempotency key was already used for a different control mutation.",
-          );
-        }
-        return existingEvent.next;
-      }
-
-      const currentRow = await tx.query.operationalLaneControls.findFirst({
-        where: (table, { eq }) => eq(table.lane, normalizedInput.lane),
-      });
-      const previous = currentRow
-        ? serializeOperationalLaneControl(currentRow)
-        : getDefaultOperationalLaneControl(normalizedInput.lane);
-      if (previous.revision !== normalizedInput.expectedRevision) {
-        throw new OperationalControlConflictError(
-          `Lane ${normalizedInput.lane} is at revision ${previous.revision}, not expected revision ${normalizedInput.expectedRevision}.`,
-        );
-      }
-
-      const nextRevision = previous.revision + 1;
-      const [updatedRow] = currentRow
-        ? await tx
-            .update(operationalLaneControls)
-            .set({
-              mode: normalizedInput.mode,
-              reason: normalizedInput.reason,
-              retryAfterSeconds: normalizedInput.retryAfterSeconds,
-              revision: nextRevision,
-              updatedBy: normalizedInput.actor,
-              updatedAt: now,
-            })
-            .where(
-              and(
-                eq(operationalLaneControls.lane, normalizedInput.lane),
-                eq(
-                  operationalLaneControls.revision,
-                  normalizedInput.expectedRevision,
-                ),
-              ),
-            )
-            .returning()
-        : await tx
-            .insert(operationalLaneControls)
-            .values({
-              lane: normalizedInput.lane,
-              mode: normalizedInput.mode,
-              reason: normalizedInput.reason,
-              retryAfterSeconds: normalizedInput.retryAfterSeconds,
-              revision: nextRevision,
-              updatedBy: normalizedInput.actor,
-              updatedAt: now,
-            })
-            .onConflictDoNothing()
-            .returning();
-
-      if (!updatedRow) {
-        throw new OperationalControlConflictError(
-          `Lane ${normalizedInput.lane} changed concurrently; inspect its current revision and retry.`,
-        );
-      }
-
-      const next = serializeOperationalLaneControl(updatedRow);
-      await tx.insert(operationalControlEvents).values({
-        id: eventId,
-        idempotencyKey: normalizedInput.idempotencyKey,
-        action: "set_lane_mode",
-        lane: normalizedInput.lane,
-        expectedRevision: normalizedInput.expectedRevision,
-        previous,
-        next,
-        actor: normalizedInput.actor,
-        reason: normalizedInput.reason,
-        createdAt: now,
-      });
-
-      return next;
-    });
+    return await database.transaction((tx) =>
+      setOperationalLaneControlInTransaction({
+        tx,
+        input: normalizedInput,
+        now,
+        eventId,
+      }),
+    );
   } catch (error) {
     const cause =
       error && typeof error === "object" && "cause" in error

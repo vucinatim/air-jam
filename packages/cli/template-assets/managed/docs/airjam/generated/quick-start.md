@@ -5,6 +5,9 @@
 
 Get your first Air Jam game up and running in minutes using our project generator.
 
+You need Node.js 22 or newer and pnpm installed. The generator runs `pnpm install`
+for you unless you explicitly choose `--skip-install`.
+
 ## 1. Create a New Project
 
 The fastest way to start is using our CLI tool. This creates a ready-to-use workspace with a working Pong game, local development server, and SDK configuration.
@@ -89,6 +92,23 @@ This project is "vibecode friendly"—it includes documentation and AI instructi
 These paths are the current starter template shape.
 They are recommended defaults for new projects, not framework-mandated filenames.
 
+### Connect Your Coding Agent
+
+Use your existing editor, terminal agent, or MCP client; Air Jam does not require
+a separate hosted game editor. The generated project includes local instructions
+and a portable `.mcp.json` declaration. A declaration is not the same as a client
+being connected. Inspect the setup and render the configuration your client uses:
+
+```bash
+pnpm exec airjam mcp doctor --dir . --json
+pnpm exec airjam mcp config --profile portable --dir .
+```
+
+The `codex` and `claude-desktop` profiles render their respective registration
+formats. Configuration rendering is read-only: install the rendered entry in
+your client, then check its tool discovery. See [For Agents](./for-agents.md)
+for semantic game control and a CLI-only path.
+
 ### Run the Complete Evaluation
 
 Before sharing a game—and again after any repair—run the canonical complete evaluation:
@@ -155,6 +175,15 @@ it with Air Jam so the runtime has a stable hosted identity.
     - Create a game if you do not already have one
     - Copy its **App ID**
 
+    An agent or terminal user can create the same hosted identity without
+    navigating the dashboard after the one-time browser-assisted login:
+
+    ```bash
+    pnpm exec airjam auth login
+    pnpm exec airjam game create --dir . --name "My Game" --slug my-game
+    pnpm exec airjam game inspect --game my-game
+    ```
+
 2.  **Choose your distribution lane**:
     - Deploy your game to a static hosting provider like Vercel, Netlify, or GitHub Pages.
     - Use that self-hosted URL for normal private review and iteration.
@@ -205,13 +234,21 @@ import { createHostGrant } from "@air-jam/sdk/protocol";
 
 export async function POST(request: Request) {
   const { appId } = await request.json();
+  const { gameId, creatorId } = await loadTrustedAppIdentity(appId);
+  const now = Math.floor(Date.now() / 1000);
 
   const hostGrant = await createHostGrant({
     secret: process.env.AIR_JAM_HOST_GRANT_SECRET!,
     claims: {
+      jti: crypto.randomUUID(),
+      aud: "airjam:realtime",
       appId,
-      exp: Math.floor(Date.now() / 1000) + 60,
+      gameId,
+      creatorId,
+      iat: now,
+      exp: now + 60,
       origins: ["https://your-game.example"],
+      sessionKind: "game",
     },
   });
 
@@ -219,7 +256,10 @@ export async function POST(request: Request) {
 }
 ```
 
-That endpoint is also where you can add your own rules, for example checking the signed-in user or limiting which app IDs they are allowed to bootstrap.
+`loadTrustedAppIdentity` represents your server-side lookup; never copy game or
+creator identity from the browser request. That endpoint is also where you can
+add your own rules, for example checking the signed-in user or limiting which
+app IDs they are allowed to bootstrap.
 
 ## 6. Publish A Hosted Arcade Release
 
@@ -252,10 +292,38 @@ The hosted artifact contract is fixed:
 - host entry at `/`
 - controller entry at `/controller`
 
-3. Go to your game's **Releases** page in the [Dashboard](/dashboard).
-4. Upload the generated zip artifact.
-5. Make the validated release live.
-6. Upload managed thumbnail, cover, and preview media in the Dashboard.
-7. Set the game's Arcade visibility to listed.
+### Terminal or Agent Publishing
+
+The CLI can bundle, upload, and wait for validation using the same release
+services as the dashboard. Use the game slug or ID created in step 5:
+
+```bash
+pnpm exec airjam release submit --game my-game --dir . --wait
+```
+
+This leaves the processed release unpublished. Inspect the returned release ID,
+then explicitly make it live when you are ready:
+
+```bash
+pnpm exec airjam release inspect --release <release-id>
+pnpm exec airjam release publish --release <release-id>
+pnpm exec airjam game media --help
+pnpm exec airjam game update --game my-game --arcade-visibility listed
+```
+
+Publishing a release and listing its game are separate decisions. A processing
+timeout does not cancel the background job: inspect the same release rather
+than submitting another copy. CLI responses retain the release and generation
+identities needed to resume work.
+
+### Dashboard Publishing
+
+Alternatively, upload the zip produced by `airjam release bundle` above:
+
+1. Go to your game's **Releases** page in the [Dashboard](/dashboard).
+2. Upload the generated zip artifact.
+3. Make the validated release live.
+4. Upload managed thumbnail, cover, and preview media in the Dashboard.
+5. Set the game's Arcade visibility to listed.
 
 Your game is now live in the public Arcade on Air Jam-hosted infrastructure.

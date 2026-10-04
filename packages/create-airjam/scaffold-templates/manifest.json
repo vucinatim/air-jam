@@ -27,7 +27,7 @@
       "manifest": {
         "id": "code-review",
         "name": "Code Review",
-        "description": "2D fighting arena with gyroscope controls. Teams punch each other down in a code-review-themed brawler.",
+        "description": "2D team brawler with touch controls and optional tilt movement. Teams punch each other down in a code-review-themed arena.",
         "category": "arcade",
         "scaffold": true,
         "export": {

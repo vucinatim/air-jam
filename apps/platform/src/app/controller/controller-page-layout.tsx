@@ -2,9 +2,7 @@
 
 import { ControllerFullscreenPrompt } from "@/components/controller-fullscreen-prompt";
 import { ControllerMenuSheet } from "@/components/controller-menu-sheet";
-import type {
-  ControllerLocalSettingsSnapshot,
-} from "@/lib/controller-local-settings";
+import type { ControllerLocalSettingsSnapshot } from "@/lib/controller-local-settings";
 import { cn } from "@/lib/utils";
 import type {
   AirJamControllerApi,
@@ -14,6 +12,7 @@ import type {
 } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 import { useState, type RefObject } from "react";
+import { ControllerConnectionSurface } from "./controller-connection-surface";
 import { ControllerGameFrame } from "./controller-game-frame";
 import { ControllerIdleSurface } from "./controller-idle-surface";
 
@@ -32,11 +31,16 @@ interface ControllerPageLayoutProps {
   controllerIframeSrc: string | null;
   controllerIframePending: boolean;
   controllerIframeFailed: boolean;
+  controllerIframeLoading: boolean;
+  controllerIframeRevision: number;
+  onRetryControllerFrame: () => void;
   hostQrVisible: boolean;
   hapticsEnabled: boolean;
   roomPlatformSettings: RoomPlatformSettingsSnapshot | null;
   roomPlatformSettingsReadOnly: boolean;
-  onUpdateRoomPlatformSettings: (patch: PartialRoomPlatformSettingsPatch) => void;
+  onUpdateRoomPlatformSettings: (
+    patch: PartialRoomPlatformSettingsPatch,
+  ) => void;
   controllerLocalSettings: ControllerLocalSettingsSnapshot;
   onUpdateControllerLocalSettings: (
     patch: Partial<ControllerLocalSettingsSnapshot>,
@@ -60,6 +64,9 @@ export function ControllerPageLayout({
   controllerIframeSrc,
   controllerIframePending,
   controllerIframeFailed,
+  controllerIframeLoading,
+  controllerIframeRevision,
+  onRetryControllerFrame,
   hostQrVisible,
   hapticsEnabled,
   roomPlatformSettings,
@@ -73,6 +80,7 @@ export function ControllerPageLayout({
   onPing,
 }: ControllerPageLayoutProps) {
   const isPreview = surfaceMode === "preview";
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false);
   const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -89,13 +97,17 @@ export function ControllerPageLayout({
       <>
         {!isPreview ? (
           <ControllerFullscreenPrompt
-            roomId={routeRoomId}
+            roomId={
+              controller.connectionStatus === "connected" ? routeRoomId : null
+            }
             documentFullscreen={documentFullscreen}
             portalContainer={portalContainer}
           />
         ) : null}
 
         <ControllerMenuSheet
+          open={roomMenuOpen}
+          onOpenChange={setRoomMenuOpen}
           routeRoomId={routeRoomId}
           activeUrl={activeUrl}
           controller={controller}
@@ -119,12 +131,21 @@ export function ControllerPageLayout({
           !isPreview && "sm:p-4",
         )}
       >
-        {activeUrl ? (
+        {controller.connectionStatus !== "connected" ? (
+          <ControllerConnectionSurface
+            controller={controller}
+            roomId={controller.roomId ?? routeRoomId}
+            onOpenRoomMenu={() => setRoomMenuOpen(true)}
+          />
+        ) : activeUrl ? (
           <ControllerGameFrame
             iframeRef={iframeRef}
             controllerIframeSrc={controllerIframeSrc}
             controllerIframePending={controllerIframePending}
             controllerIframeFailed={controllerIframeFailed}
+            controllerIframeLoading={controllerIframeLoading}
+            controllerIframeRevision={controllerIframeRevision}
+            onRetry={onRetryControllerFrame}
           />
         ) : (
           <ControllerIdleSurface

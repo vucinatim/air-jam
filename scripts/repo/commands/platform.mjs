@@ -1,3 +1,4 @@
+import { OPERATIONAL_EVIDENCE_RETENTION_LIMITS } from "@air-jam/operations-contract";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -394,6 +395,11 @@ const runPlatformReleaseOriginOperator = async (
   operation,
   { railwayProjectId = null } = {},
 ) => {
+  runCommand(
+    process.execPath,
+    ["scripts/ensure-workspace-package-build.mjs", "@air-jam/network-policy"],
+    { stdio: ["ignore", 2, 2] },
+  );
   const childOperation =
     operation.command === "attest" ? { ...operation, json: true } : operation;
   const platformEnvFile = "apps/platform/.env.local";
@@ -737,6 +743,152 @@ export const registerPlatformCommands = (program) => {
     );
   registerOperationsContractCommands(operationsCommand);
 
+  const reportsCommand = operationsCommand
+    .command("reports")
+    .description(
+      "Privileged database report operations; private contents must not be posted to GitHub",
+    );
+
+  for (const [name, description] of [
+    ["policy", "Inspect fixed intake budgets without database access"],
+    [
+      "status",
+      "Inspect shared intake usage, remaining capacity and retry time without private report content",
+    ],
+  ]) {
+    const command = reportsCommand
+      .command(name)
+      .description(description)
+      .option("--json", "Print stable metadata-only JSON");
+    if (name === "status") addPlatformDatabaseTargetOption(command);
+    command.action(async (options) =>
+      runPlatformOperator({
+        script: "scripts/release-report-cli.ts",
+        operation: { command: name, json: Boolean(options.json) },
+        options,
+      }),
+    );
+  }
+
+  addPlatformDatabaseTargetOption(
+    reportsCommand
+      .command("list")
+      .description(
+        "List report metadata only, without report text or contact details",
+      )
+      .option("--status <status>", "open, reviewed, or dismissed")
+      .option("--release-id <id>", "Filter by release id")
+      .option("--before-id <id>", "Continue from the previous nextBeforeId")
+      .option("--limit <limit>", "Maximum reports, from 1 to 100", "25")
+      .option("--json", "Print only the stable JSON document"),
+  ).action(async (options) => {
+    const limit = Number(options.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new Error("limit must be an integer from 1 to 100.");
+    }
+    await runPlatformOperator({
+      script: "scripts/release-report-cli.ts",
+      operation: {
+        command: "list",
+        status: options.status,
+        releaseId: options.releaseId,
+        beforeId: options.beforeId,
+        limit,
+        json: Boolean(options.json),
+      },
+      options,
+      silent: true,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    reportsCommand
+      .command("inspect")
+      .description(
+        "Read PRIVATE report contents and decision history; do not publish or post to GitHub",
+      )
+      .requiredOption("--report-id <id>", "Report id")
+      .option(
+        "--before-revision <revision>",
+        "Continue history from nextBeforeRevision; latest 100 by default",
+      )
+      .option(
+        "--json",
+        "Print only the stable JSON document (contains private data)",
+      ),
+  ).action(async (options) => {
+    const beforeRevision =
+      options.beforeRevision === undefined
+        ? undefined
+        : Number(options.beforeRevision);
+    if (
+      beforeRevision !== undefined &&
+      (!Number.isSafeInteger(beforeRevision) || beforeRevision < 1)
+    ) {
+      throw new Error("before-revision must be a positive integer.");
+    }
+    await runPlatformOperator({
+      script: "scripts/release-report-cli.ts",
+      operation: {
+        command: "inspect",
+        reportId: options.reportId,
+        beforeRevision,
+        json: Boolean(options.json),
+      },
+      options,
+      silent: true,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    reportsCommand
+      .command("decide")
+      .description(
+        "Preview or record one private, revision-checked report decision",
+      )
+      .requiredOption("--report-id <id>", "Report id")
+      .requiredOption(
+        "--expected-revision <revision>",
+        "Current reviewRevision from inspection",
+      )
+      .requiredOption("--status <status>", "open, reviewed, or dismissed")
+      .requiredOption(
+        "--actor <actor>",
+        "Operator audit identity, not an authorization role",
+      )
+      .requiredOption("--reason <reason>", "Private decision rationale")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable key for this exact decision; reuse for retries",
+      )
+      .option("--apply", "Record the decision; omission is a read-only preview")
+      .option(
+        "--json",
+        "Print only the stable JSON document (contains private data)",
+      ),
+  ).action(async (options) => {
+    const expectedRevision = Number(options.expectedRevision);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+      throw new Error("expected-revision must be a nonnegative integer.");
+    }
+    await runPlatformOperator({
+      script: "scripts/release-report-cli.ts",
+      operation: {
+        command: "decide",
+        reportId: options.reportId,
+        expectedRevision,
+        status: options.status,
+        actor: options.actor,
+        reason: options.reason,
+        idempotencyKey: options.idempotencyKey,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
+      options,
+      silent: true,
+    });
+  });
+
   const reliabilityCommand = operationsCommand
     .command("reliability")
     .description(
@@ -772,6 +924,50 @@ export const registerPlatformCommands = (program) => {
       operation: {
         command: "status",
         environment: options.environment,
+        json: Boolean(options.json),
+      },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    reliabilityCommand
+      .command("retention")
+      .description(
+        "Preview or prune eligible unreferenced operational evidence",
+      )
+      .option(
+        "--cursor <cursor>",
+        "Continue a bounded scan using the previous nextCursor",
+      )
+      .option(
+        "--limit <limit>",
+        `Maximum eligible rows per table, from ${OPERATIONAL_EVIDENCE_RETENTION_LIMITS.min} to ${OPERATIONAL_EVIDENCE_RETENTION_LIMITS.max}`,
+        String(OPERATIONAL_EVIDENCE_RETENTION_LIMITS.default),
+      )
+      .option(
+        "--apply",
+        "Delete eligible rows; omission is a read-only preview",
+      )
+      .option("--json", "Print the stable machine-readable contract"),
+  ).action(async (options) => {
+    const limit = Number(options.limit);
+    if (
+      !Number.isInteger(limit) ||
+      limit < OPERATIONAL_EVIDENCE_RETENTION_LIMITS.min ||
+      limit > OPERATIONAL_EVIDENCE_RETENTION_LIMITS.max
+    ) {
+      throw new Error(
+        `limit must be an integer from ${OPERATIONAL_EVIDENCE_RETENTION_LIMITS.min} to ${OPERATIONAL_EVIDENCE_RETENTION_LIMITS.max}.`,
+      );
+    }
+    await runPlatformOperator({
+      script: "scripts/operational-reliability-cli.ts",
+      operation: {
+        command: "retention",
+        limit,
+        cursor: options.cursor,
+        apply: Boolean(options.apply),
         json: Boolean(options.json),
       },
       options,
@@ -1391,6 +1587,46 @@ export const registerPlatformCommands = (program) => {
     await runPlatformOperator({
       script: "scripts/production-control-cli.ts",
       operation: { command: "status", json: Boolean(options.json) },
+      options,
+    });
+  });
+
+  addPlatformDatabaseTargetOption(
+    operationsCommand
+      .command("emergency-pause")
+      .description(
+        "Atomically stop new expensive work; preserve active work, cleanup, and telemetry",
+      )
+      .requiredOption(
+        "--reason <reason>",
+        "Durable incident or operator reason",
+      )
+      .requiredOption("--actor <actor>", "Audited operator identity")
+      .requiredOption(
+        "--idempotency-key <key>",
+        "Stable key for this emergency action; retries do not re-pause recovered lanes",
+      )
+      .option(
+        "--retry-after-seconds <seconds>",
+        "Positive retry guidance returned while paused",
+      )
+      .option("--apply", "Persist the pause; omission is a read-only preview")
+      .option(
+        "--json",
+        "Print scope, lane states, and the original pause receipt",
+      ),
+  ).action(async (options) => {
+    await runPlatformOperator({
+      script: "scripts/production-control-cli.ts",
+      operation: {
+        command: "emergency-pause",
+        reason: options.reason,
+        actor: options.actor,
+        idempotencyKey: options.idempotencyKey,
+        retryAfterSeconds: options.retryAfterSeconds ?? null,
+        apply: Boolean(options.apply),
+        json: Boolean(options.json),
+      },
       options,
     });
   });

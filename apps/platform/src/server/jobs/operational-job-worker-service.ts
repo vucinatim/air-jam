@@ -11,6 +11,7 @@ import {
   repairExpiredOperationalEventDeliveries,
   runOperationalEventDeliveryCycle,
 } from "@/server/operations/operational-event-delivery-service";
+import { retainOperationalEvidence } from "@/server/operations/operational-evidence-retention-service";
 import { runDueOperationalSynthetics } from "@/server/operations/operational-synthetic-scheduler";
 import { resolveOperationalSyntheticRuntimeConfig } from "@/server/operations/operational-synthetic-service";
 import {
@@ -37,6 +38,7 @@ import { applyProductTelemetryRetention } from "@/server/product-telemetry/persi
 import { validateEnv } from "@air-jam/env";
 import {
   normalizeUnknownOperationalFailure,
+  OPERATIONAL_EVIDENCE_RETENTION_LIMITS,
   operationalIdentifierSchema,
   resolveDeploymentEnvironment,
 } from "@air-jam/operations-contract";
@@ -248,6 +250,7 @@ const workerAuthorityNames = [
   "maintenance",
   "lifecycleCleanup",
   "telemetryRetention",
+  "evidenceRetention",
   "eventDelivery",
   "synthetics",
   "issueProjection",
@@ -267,6 +270,7 @@ const coreWorkerAuthorityNames = [
   "jobs",
   "eventDelivery",
   "telemetryRetention",
+  "evidenceRetention",
 ] as const satisfies readonly WorkerAuthorityName[];
 
 const DEFAULT_BUDGET_REFRESH_RETRY_INITIAL_MS = 5_000;
@@ -287,6 +291,7 @@ export const startOperationalJobWorkerService = async ({
   cleanup = cleanupReleaseJobOrphanOutputs,
   scheduleCleanup = scheduleLifecycleCleanup,
   retainTelemetry = applyProductTelemetryRetention,
+  retainEvidence = retainOperationalEvidence,
   deliverEvent = runOperationalEventDeliveryCycle,
   repairEventDelivery = repairExpiredOperationalEventDeliveries,
   runSynthetics = runDueOperationalSynthetics,
@@ -303,6 +308,7 @@ export const startOperationalJobWorkerService = async ({
   cleanup?: typeof cleanupReleaseJobOrphanOutputs;
   scheduleCleanup?: typeof scheduleLifecycleCleanup;
   retainTelemetry?: typeof applyProductTelemetryRetention;
+  retainEvidence?: typeof retainOperationalEvidence;
   deliverEvent?: typeof runOperationalEventDeliveryCycle;
   repairEventDelivery?: typeof repairExpiredOperationalEventDeliveries;
   runSynthetics?: typeof runDueOperationalSynthetics;
@@ -370,6 +376,8 @@ export const startOperationalJobWorkerService = async ({
   let maintenanceInFlight: Promise<void> | null = null;
   let lifecycleCleanupInFlight: Promise<void> | null = null;
   let telemetryRetentionInFlight: Promise<void> | null = null;
+  let evidenceRetentionInFlight: Promise<void> | null = null;
+  let evidenceRetentionCursor: string | null = null;
   let eventDeliveryInFlight: Promise<void> | null = null;
   let syntheticInFlight: Promise<void> | null = null;
   let issueProjectionInFlight: Promise<void> | null = null;
@@ -654,12 +662,59 @@ export const startOperationalJobWorkerService = async ({
     telemetryRetentionInFlight = task;
   };
 
-  const telemetryRetentionTimer = setInterval(
-    runTelemetryRetention,
-    config.telemetryRetentionMs,
-  );
-  telemetryRetentionTimer.unref();
-  runTelemetryRetention();
+  const runEvidenceRetention = () => {
+    if (!canScheduleWork() || evidenceRetentionInFlight) return;
+    const task = retainEvidence({
+      apply: true,
+      limit: OPERATIONAL_EVIDENCE_RETENTION_LIMITS.max,
+      ...(evidenceRetentionCursor ? { cursor: evidenceRetentionCursor } : {}),
+    })
+      .then((result) => {
+        evidenceRetentionCursor = result.nextCursor;
+        recordAuthoritySuccess("evidenceRetention");
+        console.log(
+          JSON.stringify({
+            service: "air-jam-platform-worker",
+            event: "operational_evidence.retention_applied",
+            evaluatedAt: result.evaluatedAt,
+            historyCutoff: result.historyCutoff,
+            commandCutoff: result.commandCutoff,
+            limit: result.limit,
+            counts: result.counts,
+            blockedCandidates: result.blockedCandidates,
+            skippedOversizedCandidates: result.skippedOversizedCandidates,
+          }),
+        );
+        if (result.skippedOversizedCandidates > 0) {
+          console.warn(
+            JSON.stringify({
+              service: "air-jam-platform-worker",
+              event:
+                "operational_evidence.retention_oversized_candidates_skipped",
+              skippedOversizedCandidates: result.skippedOversizedCandidates,
+              limit: result.limit,
+            }),
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        recordAuthorityFailure("evidenceRetention", error);
+        logFailure({ event: "operational_evidence.retention_failed", error });
+      })
+      .finally(() => {
+        if (evidenceRetentionInFlight === task)
+          evidenceRetentionInFlight = null;
+      });
+    evidenceRetentionInFlight = task;
+  };
+
+  const runRetention = () => {
+    runTelemetryRetention();
+    runEvidenceRetention();
+  };
+  const retentionTimer = setInterval(runRetention, config.telemetryRetentionMs);
+  retentionTimer.unref();
+  runRetention();
 
   const deliverNextEvent = () => {
     if (!canScheduleWork() || eventDeliveryInFlight) return;
@@ -961,6 +1016,7 @@ export const startOperationalJobWorkerService = async ({
       maintenanceInFlight: maintenanceInFlight !== null,
       lifecycleCleanupInFlight: lifecycleCleanupInFlight !== null,
       telemetryRetentionInFlight: telemetryRetentionInFlight !== null,
+      evidenceRetentionInFlight: evidenceRetentionInFlight !== null,
       eventDeliveryInFlight: eventDeliveryInFlight !== null,
       syntheticInFlight: syntheticInFlight !== null,
       issueProjectionInFlight: issueProjectionInFlight !== null,
@@ -1063,7 +1119,7 @@ export const startOperationalJobWorkerService = async ({
     clearInterval(schemaTimer);
     clearInterval(repairTimer);
     clearInterval(lifecycleCleanupTimer);
-    clearInterval(telemetryRetentionTimer);
+    clearInterval(retentionTimer);
     clearInterval(eventDeliveryTimer);
     clearInterval(syntheticTimer);
     clearInterval(issueProjectionTimer);
@@ -1079,6 +1135,7 @@ export const startOperationalJobWorkerService = async ({
         ...(maintenanceInFlight ? [maintenanceInFlight] : []),
         ...(lifecycleCleanupInFlight ? [lifecycleCleanupInFlight] : []),
         ...(telemetryRetentionInFlight ? [telemetryRetentionInFlight] : []),
+        ...(evidenceRetentionInFlight ? [evidenceRetentionInFlight] : []),
         ...(eventDeliveryInFlight ? [eventDeliveryInFlight] : []),
         ...(syntheticInFlight ? [syntheticInFlight] : []),
         ...(issueProjectionInFlight ? [issueProjectionInFlight] : []),

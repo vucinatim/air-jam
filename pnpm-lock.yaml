@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  postgres@3.4.7:
+    hash: 77mhlc3gwcvvryifzb5qt3jiwa
+    path: patches/postgres@3.4.7.patch
+
 importers:
 
   .:
@@ -58,7 +63,7 @@ importers:
         version: 16.5.0
       postgres:
         specifier: ^3.4.7
-        version: 3.4.7
+        version: 3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
@@ -98,6 +103,9 @@ importers:
       '@air-jam/env':
         specifier: workspace:^
         version: link:../../packages/env
+      '@air-jam/network-policy':
+        specifier: workspace:^
+        version: link:../../packages/network-policy
       '@air-jam/operations-contract':
         specifier: workspace:^
         version: link:../../packages/operations-contract
@@ -205,10 +213,7 @@ importers:
         version: 17.2.3
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7)
-      ipaddr.js:
-        specifier: ^2.2.0
-        version: 2.5.0
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa))
       lucide-react:
         specifier: ^0.554.0
         version: 0.554.0(react@19.2.0)
@@ -226,7 +231,7 @@ importers:
         version: 1.58.2
       postgres:
         specifier: ^3.4.7
-        version: 3.4.7
+        version: 3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -518,6 +523,9 @@ importers:
       globals:
         specifier: ^16.5.0
         version: 16.5.0
+      jsdom:
+        specifier: ^29.0.1
+        version: 29.0.1(@noble/hashes@2.0.1)
       tailwindcss:
         specifier: ^4.0.0
         version: 4.1.17
@@ -888,6 +896,9 @@ importers:
       globals:
         specifier: ^16.5.0
         version: 16.5.0
+      jsdom:
+        specifier: ^29.0.1
+        version: 29.0.1(@noble/hashes@2.0.1)
       tailwindcss:
         specifier: ^4.0.0
         version: 4.1.17
@@ -1015,7 +1026,7 @@ importers:
         version: link:../operations-contract
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa))
     devDependencies:
       typescript:
         specifier: ~5.9.3
@@ -1156,43 +1167,25 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@24.10.1)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)(yaml@2.9.0)
 
+  packages/network-policy:
+    dependencies:
+      ipaddr.js:
+        specifier: ^2.2.0
+        version: 2.5.0
+    devDependencies:
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@29.0.1(@noble/hashes@2.0.1))(lightningcss@1.32.0)(msw@2.12.14(@types/node@24.10.1)(typescript@5.9.3))(terser@5.46.1)(tsx@4.20.6)(yaml@2.9.0)
+
   packages/operations-contract:
     dependencies:
       zod:
         specifier: ^4.2.1
         version: 4.2.1
     devDependencies:
-      typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
-
-  packages/release-browser-worker:
-    dependencies:
-      '@air-jam/env':
-        specifier: workspace:^
-        version: link:../env
-      http-proxy:
-        specifier: ^1.18.1
-        version: 1.18.1
-      playwright-core:
-        specifier: 1.58.2
-        version: 1.58.2
-      zod:
-        specifier: ^4.2.1
-        version: 4.2.1
-    devDependencies:
-      '@types/http-proxy':
-        specifier: ^1.17.16
-        version: 1.17.17
-      '@types/node':
-        specifier: ^24.10.1
-        version: 24.10.1
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(@swc/core@1.15.3)(jiti@2.6.1)(postcss@8.5.14)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.9.0)
-      tsx:
-        specifier: ^4.20.6
-        version: 4.20.6
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -1298,16 +1291,13 @@ importers:
         version: 17.2.3
       drizzle-orm:
         specifier: ^0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa))
       express:
         specifier: ^5.2.1
         version: 5.2.1
       pino:
         specifier: ^10.3.1
         version: 10.3.1
-      postgres:
-        specifier: ^3.4.7
-        version: 3.4.7
       socket.io:
         specifier: ^4.8.3
         version: 4.8.3
@@ -1339,6 +1329,9 @@ importers:
       '@types/uuid':
         specifier: ^11.0.0
         version: 11.0.0
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)
       socket.io-client:
         specifier: ^4.8.1
         version: 4.8.1
@@ -4767,9 +4760,6 @@ packages:
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
 
-  '@types/http-proxy@1.17.17':
-    resolution: {integrity: sha512-ED6LB+Z1AVylNTu7hdzuBqOgMnvG/ld6wGCG8wFnAzKX5uyW2K3WD52v0gnLCTK/VLpXtKckgWuyScYK6cSPaw==}
-
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
@@ -6595,9 +6585,6 @@ packages:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
     engines: {node: '>=6'}
 
-  eventemitter3@4.0.7:
-    resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
-
   events-universal@1.0.1:
     resolution: {integrity: sha512-LUd5euvbMLpwOF8m6ivPCbhQeSiYVNb8Vs0fQ8QjXo0JTkEHpz8pxdQf0gStltaPpw0Cca8b39KxvK9cfKRiAw==}
 
@@ -6738,15 +6725,6 @@ packages:
 
   flatted@3.3.3:
     resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
-
-  follow-redirects@1.16.0:
-    resolution: {integrity: sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw==}
-    engines: {node: '>=4.0'}
-    peerDependencies:
-      debug: '*'
-    peerDependenciesMeta:
-      debug:
-        optional: true
 
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
@@ -7043,10 +7021,6 @@ packages:
   http-errors@2.0.1:
     resolution: {integrity: sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==}
     engines: {node: '>= 0.8'}
-
-  http-proxy@1.18.1:
-    resolution: {integrity: sha512-7mz/721AbnJwIVbnaSv1Cz3Am0ZLT/UBwkC92VlxhXv/k/BBQfM2fXElQNC27BVGr0uwUpplYPQM9LnaBMR5NQ==}
-    engines: {node: '>=8.0.0'}
 
   http-signature@1.4.0:
     resolution: {integrity: sha512-G5akfn7eKbpDN+8nPS/cb57YeA1jLTVxjpCj7tmm3QKPdyDy7T+qSC40e9ptydSWvkwjSXw1VbkpyEm39ukeAg==}
@@ -8923,9 +8897,6 @@ packages:
 
   require-main-filename@2.0.0:
     resolution: {integrity: sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==}
-
-  requires-port@1.0.0:
-    resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
 
   resolve-alpn@1.2.1:
     resolution: {integrity: sha512-0a1F4l73/ZFZOakJnQ3FvkJ2+gSTQWz/r2KE5OdDY0TxPm5h4GkqkWWfM47T7HsbnOtcJVEF4epCVy6u7Q3K+g==}
@@ -14093,10 +14064,6 @@ snapshots:
 
   '@types/http-errors@2.0.5': {}
 
-  '@types/http-proxy@1.17.17':
-    dependencies:
-      '@types/node': 24.10.1
-
   '@types/json-schema@7.0.15': {}
 
   '@types/json5@0.0.29': {}
@@ -15696,12 +15663,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7):
+  drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(kysely@0.28.8)(postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.15.6
       kysely: 0.28.8
-      postgres: 3.4.7
+      postgres: 3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa)
 
   dunder-proto@1.0.1:
     dependencies:
@@ -16284,8 +16251,6 @@ snapshots:
 
   event-target-shim@5.0.1: {}
 
-  eventemitter3@4.0.7: {}
-
   events-universal@1.0.1:
     dependencies:
       bare-events: 2.9.2
@@ -16519,8 +16484,6 @@ snapshots:
       keyv: 4.5.4
 
   flatted@3.3.3: {}
-
-  follow-redirects@1.16.0: {}
 
   for-each@0.3.5:
     dependencies:
@@ -16894,14 +16857,6 @@ snapshots:
       setprototypeof: 1.2.0
       statuses: 2.0.2
       toidentifier: 1.0.1
-
-  http-proxy@1.18.1:
-    dependencies:
-      eventemitter3: 4.0.7
-      follow-redirects: 1.16.0
-      requires-port: 1.0.0
-    transitivePeerDependencies:
-      - debug
 
   http-signature@1.4.0:
     dependencies:
@@ -18605,7 +18560,7 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  postgres@3.4.7: {}
+  postgres@3.4.7(patch_hash=77mhlc3gwcvvryifzb5qt3jiwa): {}
 
   potpack@1.0.2: {}
 
@@ -19084,8 +19039,6 @@ snapshots:
       - supports-color
 
   require-main-filename@2.0.0: {}
-
-  requires-port@1.0.0: {}
 
   resolve-alpn@1.2.1: {}
 
