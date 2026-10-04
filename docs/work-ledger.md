@@ -18,6 +18,27 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Restricted Browser Credentials Staged
+
+- Tim approved separate Browser Run-only production/preview credentials.
+  Created both through the published agentic-devtools bootstrap client with
+  explicit permissions; provider read-back verified exactly one Air Jam
+  account-scoped policy with Browser Run Read and Write only
+- Stored private deployment copies outside Git in the agentic-devtools Air Jam
+  credential directory, mode `0700`, with files mode `0600`. No secret was
+  printed, committed, passed in command arguments or placed in `.env.local`
+- Stored the production account/token variables on Railway platform and job
+  worker through the repo-owned API, with deployment disabled. Both read-backs
+  matched; their successful deployment identities stayed unchanged. Preview
+  credentials were not inserted into production
+- The preview credential passed actual managed-session acquisition, remote
+  fixture rendering, PNG capture and acknowledged cleanup. The image stayed
+  in memory; this does not establish actual uploaded-release/R2 capture
+- All current-head [CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37202101846)
+  and the [installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37202101888)
+  passed for `92e5efa9`. Final GitHub review, fresh hosted target, hidden capture,
+  migrations and exact deployment remain pending; no merge or launch occurred
+
 ## 2026-10-04 - Accepted Managed Capture Integration
 
 - Tim accepted Cloudflare managed browser isolation and authorized reviewed

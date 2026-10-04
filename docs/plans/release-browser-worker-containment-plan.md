@@ -44,6 +44,30 @@ token or inherited browser credentials.
    browser credential grants only required Browser Run permissions in the Air
    Jam account, never storage, DNS or general account administration.
 
+## Credential storage and verification
+
+Tim approved the two restricted tokens on 2026-10-04. Both provider policies
+were read back and verified: Browser Run Read and Write only, scoped to the
+existing Air Jam account. They grant no DNS, storage or token-administration
+permission.
+
+Deployment copies live outside Git in the normal macOS user's
+`~/.config/agentic-devtools/airjam/browser-run-production.json` and
+`browser-run-preview.json`. The directory is mode `0700`; files are `0600`.
+Do not put these secrets in source, `.env.local`, command arguments or output.
+Load them into operator memory/environment only for the intended provider work.
+
+The production account/token variables are stored on Railway's platform and
+operational-worker services, with `skipDeploys: true`. Read-back matches both
+values and deployment identities are unchanged. The preview token is not in
+production; it is reserved for the disposable isolated environment. New
+production processes will consume the staged variables during reviewed rollout.
+
+The preview credential passed the actual managed-session owner: acquisition,
+remote rendering, a PNG screenshot and acknowledged closure. No screenshot
+object was stored. This proves machine authentication and lifecycle, not a
+hidden uploaded R2 release or deployed capture service.
+
 ## Delivery proof still required
 
 The session owner and real offline Pong render were already proven. Integration
@@ -58,8 +82,10 @@ The integrated local batch passes, including full workspace typechecking, lint,
 canonical guards and tests. Focused capture/synthetic tests pass (62), as do
 staging lifecycle/isolation tests (24). The authorized GPT-6.1 Sol pre-push
 source review found no actionable blockers. Environment-dependent local tests
-remain skipped; these checks are not hosted or production sign-off. The narrow
-token creation consent is still pending; no token or deployment was changed.
+remain skipped; these checks are not hosted or production sign-off. Current-head
+[CI](https://github.com/vucinatim/air-jam/actions/runs/37202101846) and the
+[installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37202101888)
+also passed for `92e5efa9`. No production deployment or schema change occurred.
 
 Use one integrating batch and one authorized pre-push review for the coherent
 change. The final green-PR review and exact Railway rollout follow

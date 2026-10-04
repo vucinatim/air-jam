@@ -79,8 +79,12 @@ The working branch now wires screenshot capture to dedicated Cloudflare session
 acquisition and cleanup and removes the obsolete custom worker package. Staging
 provisioning uses the same path with distinct production/preview tokens. The
 production legacy service remains untouched until the replacement is verified.
-Scoped machine-token creation consent, actual unpublished R2 capture, isolated
-hosted proof and final reviewed rollout remain pending. The old staging hostname
+Separate Browser Run-only production/preview tokens are now approved, stored
+privately outside Git and policy-verified. Production variables are staged on
+both Railway platform services without deployment; the preview token passed
+remote rendering, PNG capture and provider cleanup through the actual session
+owner. Actual unpublished R2 capture, isolated hosted proof and final reviewed
+rollout remain pending. The old staging hostname
 has a TLS mismatch and cannot supply current uploaded-release proof. Fresh built
 Pong and owned HTTPS/WSS probes already pass through the hardened routing owner;
 these establish compatibility, not deployed capture or provider network guarantees.
