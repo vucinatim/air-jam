@@ -3,7 +3,8 @@ import { getReleaseModerationConfig } from "@/server/releases/release-moderation
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { getReleaseStorage } from "@/server/releases/release-storage";
 import { buildReleaseGenerationScreenshotObjectKey } from "@/server/releases/release-storage-keys";
-import { chromium, type BrowserContext } from "playwright-core";
+import type { BrowserContext } from "playwright-core";
+import { openCloudflareBrowserSession } from "./cloudflare-browser-session";
 import { createReleaseInspectionAccessToken } from "./release-inspection-access";
 import { installReleaseInspectionRouting } from "./release-inspection-routing";
 
@@ -49,10 +50,12 @@ export const captureReleaseScreenshot = async ({
     expiresAtMs: captureDeadline,
   });
 
-  const browser = await chromium.connect(config.browserLaunch.wsEndpoint, {
-    timeout: config.browserLaunch.navigationTimeoutMs,
-    headers: { authorization: `Bearer ${config.browserLaunch.accessToken}` },
+  const browserSession = await openCloudflareBrowserSession({
+    accountId: config.browser.accountId,
+    apiToken: config.browser.apiToken,
+    timeoutMs: config.browser.navigationTimeoutMs,
   });
+  const { browser } = browserSession;
 
   let context: BrowserContext | undefined;
   let captureTimer: ReturnType<typeof setTimeout> | undefined;
@@ -63,8 +66,8 @@ export const captureReleaseScreenshot = async ({
         serviceWorkers: "block",
         acceptDownloads: false,
         viewport: {
-          width: config.browserLaunch.viewportWidth,
-          height: config.browserLaunch.viewportHeight,
+          width: config.browser.viewportWidth,
+          height: config.browser.viewportHeight,
         },
       });
       await installReleaseInspectionRouting(context, {
@@ -75,7 +78,7 @@ export const captureReleaseScreenshot = async ({
           assetPath: "",
         }),
         token: inspectionAccessToken,
-        requestTimeoutMs: config.browserLaunch.navigationTimeoutMs,
+        requestTimeoutMs: config.browser.navigationTimeoutMs,
       });
       const page = await context.newPage();
       // A capture owns one top-level page; game iframes remain unaffected.
@@ -84,7 +87,7 @@ export const captureReleaseScreenshot = async ({
       });
       const hostResponse = await page.goto(targetUrl, {
         waitUntil: "load",
-        timeout: config.browserLaunch.navigationTimeoutMs,
+        timeout: config.browser.navigationTimeoutMs,
       });
       if (!hostResponse) {
         throw new Error(
@@ -96,14 +99,14 @@ export const captureReleaseScreenshot = async ({
           `Release screenshot host returned HTTP ${hostResponse.status()}.`,
         );
       }
-      if (config.browserLaunch.waitAfterLoadMs > 0) {
-        await page.waitForTimeout(config.browserLaunch.waitAfterLoadMs);
+      if (config.browser.waitAfterLoadMs > 0) {
+        await page.waitForTimeout(config.browser.waitAfterLoadMs);
       }
 
       return page.screenshot({
         type: "png",
         fullPage: false,
-        timeout: config.browserLaunch.navigationTimeoutMs,
+        timeout: config.browser.navigationTimeoutMs,
       });
     };
     screenshot = await Promise.race([
@@ -126,7 +129,7 @@ export const captureReleaseScreenshot = async ({
     try {
       // Closing the connection also cancels any pending page/context operation.
       await Promise.race([
-        Promise.all([context?.close(), browser.close()]),
+        Promise.all([context?.close(), browserSession.close()]),
         new Promise<never>((_, reject) => {
           cleanupTimer = setTimeout(
             () =>
@@ -165,7 +168,7 @@ export const captureReleaseScreenshot = async ({
     screenshotObjectKey,
     contentType: "image/png",
     sizeBytes: screenshot.byteLength,
-    width: config.browserLaunch.viewportWidth,
-    height: config.browserLaunch.viewportHeight,
+    width: config.browser.viewportWidth,
+    height: config.browser.viewportHeight,
   };
 };

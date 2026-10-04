@@ -259,7 +259,7 @@ liveness contract used by deployment infrastructure.
 Optional env for screenshot moderation:
 
 1. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
-2. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT` plus required `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN`; screenshot capture always uses the isolated browser worker, never a platform-local Chromium executable. The Railway worker endpoint uses the stable shape `wss://<worker-domain>/ws`.
+2. `AIRJAM_RELEASES_BROWSER_ACCOUNT_ID` plus required `AIRJAM_RELEASES_BROWSER_API_TOKEN`; screenshot capture acquires a Cloudflare Browser Run session and closes it before storage. Use a token restricted to Browser Run in the Air Jam account. No custom WebSocket endpoint or platform-local Chromium executable is supported.
 3. `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai|disabled`
 4. `OPENAI_API_KEY` when `AIRJAM_RELEASES_IMAGE_MODERATION_MODE=openai`
 

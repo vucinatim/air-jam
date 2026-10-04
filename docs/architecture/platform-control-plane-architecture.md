@@ -202,17 +202,13 @@ Responsibilities:
 
 The platform reads and orchestrates around the server. It does not replace it.
 
-### Browser Worker
+### Managed Screenshot Browser
 
-Owned by `packages/release-browser-worker`.
-
-Responsibilities:
-
-1. screenshot capture runtime
-2. browser-based release checks
-3. moderation-adjacent browser work
-
-The platform triggers and interprets this work but is not the worker itself.
+Cloudflare Browser Run owns untrusted browser execution. The platform release
+domain owns session acquisition and cleanup, generation-scoped asset access,
+capture limits, and moderation interpretation. The Railway operational worker
+executes the same domain service through the existing job queue. There is no
+separate Air Jam browser service or local browser fallback.
 
 ### Object Storage
 

@@ -66,34 +66,29 @@ read-only filesystem, real capture/egress/process isolation, service health and
 authentication, public HTTPS capture, and graceful shutdown. No host security
 settings changed, and all owned test containers are removed. See the
 [retained worker evidence](./audits/v1-security/2026-10-03-bee-worker-image-proof.json).
-Tim rejected production capture on the core private bee host. The bee proof
-remains compatibility evidence only; its proposed tunnel and DNS migration are
-withdrawn. Provider investigation now follows Railway first, Cloudflare second.
-The approved disposable Railway `ISOLATED` VM provisioned, but denied native
-namespace creation as both root and non-root. No source or credentials were
-uploaded; destruction is confirmed by the API. Cloudflare Browser Run then
-passed remote CDP, owned WebGL2 rendering, PNG capture and explicit session
-closure using the existing Wrangler OAuth login. Its stored agentic-devtools
-token is active but failed browser authentication; no new login was needed.
-Follow-up CDP probes rendered a scoped private HTML/chunk/CSS/WebGL fixture and
-blocked outside-generation redirects; no real game/R2 capture was performed.
-CDP API requests can reach caller-side private listeners independently of browser
-guardrails. The local routing owner now uses bounded public-only, DNS-pinned
-fetching with original-host TLS verification and context-owned cancellation;
-39 targeted tests and source typecheck/lint pass. These are unmerged changes.
-Cloudflare's documented hostname allowlists do not establish the complete
-public-address/DNS/WSS contract. Do not add creator CDN restrictions or a new
-forwarding system to force a fit. Fresh built Pong now renders its actual lobby,
-chunks, CSS and audio through the hardened private fetch owner; separate owned
-HTTPS/WSS compatibility also passes. The managed-session candidate has 16 passing
-lifecycle tests; all 55 focused capture tests pass. It is not wired into production
-capture. The old staging hostname has a TLS mismatch and cannot supply current
-uploaded-release proof. Provider guarantees, real unpublished R2 capture, machine
-credentials and final transport integration remain open. See the
+Tim rejected production capture on the core private bee host. Railway's
+ordinary containers and disposable isolated VM denied the namespaces required
+by the self-hosted browser; the VM and owned trial containers were removed.
+On `2026-10-04`, Tim accepted Cloudflare managed browser isolation and authorized
+reviewed delivery and release when confidence is established. Railway remains
+the product/job host. No independently enforced browser private-IP/DNS firewall
+is claimed. The privileged asset-fetch owner remains public-only and DNS-pinned;
+inspection credentials remain generation-scoped and never enter browser headers.
+
+The working branch now wires screenshot capture to dedicated Cloudflare session
+acquisition and cleanup and removes the obsolete custom worker package. Staging
+provisioning uses the same path with distinct production/preview tokens. The
+production legacy service remains untouched until the replacement is verified.
+Scoped machine-token creation consent, actual unpublished R2 capture, isolated
+hosted proof and final reviewed rollout remain pending. The old staging hostname
+has a TLS mismatch and cannot supply current uploaded-release proof. Fresh built
+Pong and owned HTTPS/WSS probes already pass through the hardened routing owner;
+these establish compatibility, not deployed capture or provider network guarantees.
+See the
 [built-game proof](./audits/v1-security/2026-10-04-cloudflare-game-capture-proof.json),
 [routing proof](./audits/v1-security/2026-10-03-cloudflare-routing-proof.json),
 [provider proof](./audits/v1-security/2026-10-03-capture-provider-proof.json) and
-[provider investigation](./plans/release-browser-worker-containment-plan.md#railway-first-provider-investigation).
+[managed capture plan](./plans/release-browser-worker-containment-plan.md).
 No permanent bee service, tunnel, DNS change or production worker switch is live.
 Final GitHub review, exact package/artifact compatibility and coordinated live
 cutover remain unproven. Production code and database are unchanged.

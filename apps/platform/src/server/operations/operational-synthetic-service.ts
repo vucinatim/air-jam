@@ -163,10 +163,6 @@ export const resolveOperationalSyntheticRuntimeConfig = (
     "RAILWAY_SERVICE_AIR_JAM_PLATFORM_WORKER_URL",
     env.AIRJAM_SYNTHETIC_WORKER_ORIGIN,
   );
-  const browserWorkerOrigin = environmentScopedOrigin(
-    "RAILWAY_SERVICE_AIR_JAM_RELEASE_BROWSER_WORKER_URL",
-    env.AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN,
-  );
   const hostedReleaseUrl = platform.isRailwayPreviewEnvironment
     ? null
     : absoluteUrl(env.AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL);
@@ -181,7 +177,6 @@ export const resolveOperationalSyntheticRuntimeConfig = (
       "realtime.health": urlFromOrigin(realtimeOrigin, "/health"),
       "hosted.release": hostedReleaseUrl,
       "worker.ready": urlFromOrigin(workerOrigin, "/ready"),
-      "browser_worker.health": urlFromOrigin(browserWorkerOrigin, "/health"),
       "realtime.room_controller": realtimeOrigin,
       "realtime.semantic_action": realtimeOrigin,
     }),

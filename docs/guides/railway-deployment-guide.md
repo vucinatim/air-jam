@@ -13,8 +13,8 @@ Related docs:
 
 This guide explains the deploy model that now matters:
 
-1. Railway hosts the platform, realtime server, browser worker, and operational-job
-   worker
+1. Railway hosts the platform, realtime server, and operational-job worker;
+   Cloudflare Browser Run supplies dedicated screenshot browser sessions
 2. Railway native PR environments own preview lifecycle
 3. the repo only owns config clarity, inspection, and validation
 
@@ -22,12 +22,18 @@ Do not treat Air Jam deploys as a split Vercel plus Railway system anymore.
 
 ## Canonical Services
 
-The production Railway project should contain four deployable services:
+The production Railway project should contain three deployable app services:
 
 1. `air-jam-platform`
 2. `air-jam-server`
-3. `air-jam-release-browser-worker`
-4. `air-jam-platform-worker`
+3. `air-jam-platform-worker`
+
+Set `AIRJAM_RELEASES_BROWSER_ACCOUNT_ID` and
+`AIRJAM_RELEASES_BROWSER_API_TOKEN` on both platform services. Use a Browser
+Run-only account token and a separate token for preview. The staging provision
+command reads these credentials from the invoking environment, never command
+arguments or JSON output. Retire the legacy deployed browser service only after
+the reviewed managed-capture replacement passes hosted verification.
 
 The platform and realtime Dockerfiles use the repository's Node 22 runtime
 floor. `apps/platform/railway.worker.json` records the operational worker's
@@ -69,12 +75,14 @@ That means:
 4. The realtime service must also retain
    `AIRJAM_DEPLOYMENT_DEPENDS_ON_PLATFORM` as an ordering-only Railway reference
    to `air-jam-platform`; application code intentionally does not read this
-   variable. The operational worker's four
+   variable. The operational worker's three
    `RAILWAY_SERVICE_AIR_JAM_*_URL` values must be service references to its
-   platform, realtime, self, and browser-worker siblings. Railway uses those
+   platform, realtime, and self siblings. Railway uses those
    references as the PR-environment startup graph: platform migrates the fresh
    database first, realtime activates second, and the operational worker waits
-   transitively for every synthetic target. Do not replace those references
+   transitively for every Railway synthetic target. Managed browser sessions
+   use the environment's separate Browser Run token rather than a sibling
+   service reference. Do not replace those references
    with rendered URLs; doing so removes deployment ordering even when the
    runtime value looks identical.
 5. `resolvePlatformDeploymentConfig` detects `RAILWAY_ENVIRONMENT_NAME != "production"` and forces `githubAuthEnabled = false`. Avoids the GitHub OAuth wildcard-callback problem and keeps preview auth simple.
@@ -124,7 +132,7 @@ pnpm --silent run repo -- platform database migration inspect --railway-environm
 2. whether PR environments are enabled
 3. which environment is primary
 4. which ephemeral environments are currently open
-5. whether platform, server, browser worker, and operational-job worker all have
+5. whether platform, server, and operational-job worker all have
    healthy deploy identity
 
 `platform release-origin inspect` assesses local configuration by default.

@@ -36,7 +36,6 @@ COPY packages/harness/package.json              ./packages/harness/
 COPY packages/devtools-core/package.json        ./packages/devtools-core/
 COPY packages/create-airjam/package.json        ./packages/create-airjam/
 COPY packages/mcp-server/package.json           ./packages/mcp-server/
-COPY packages/release-browser-worker/package.json ./packages/release-browser-worker/
 COPY games/air-capture/package.json             ./games/air-capture/
 COPY games/code-review/package.json             ./games/code-review/
 COPY games/minimal/package.json                 ./games/minimal/

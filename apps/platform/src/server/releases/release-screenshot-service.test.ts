@@ -18,19 +18,19 @@ const mocks = vi.hoisted(() => {
     context,
     browser,
     connect: vi.fn(),
-    launch: vi.fn(),
+    closeSession: vi.fn(),
     putObject: vi.fn(),
   };
 });
-vi.mock("playwright-core", () => ({
-  chromium: { connect: mocks.connect, launch: mocks.launch },
+vi.mock("./cloudflare-browser-session", () => ({
+  openCloudflareBrowserSession: mocks.connect,
 }));
 vi.mock("./release-moderation-config", () => ({
   getReleaseModerationConfig: () => ({
     internalAccessSecret: "private-signing-secret",
-    browserLaunch: {
-      wsEndpoint: "wss://worker.example.test/ws",
-      accessToken: "worker-access-secret",
+    browser: {
+      accountId: "0123456789abcdef0123456789abcdef",
+      apiToken: "provider-access-secret",
       navigationTimeoutMs: 20000,
       waitAfterLoadMs: 1000,
       viewportWidth: 1440,
@@ -50,7 +50,10 @@ import { captureReleaseScreenshot } from "./release-screenshot-service";
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.connect.mockResolvedValue(mocks.browser);
+  mocks.connect.mockResolvedValue({
+    browser: mocks.browser,
+    close: mocks.closeSession,
+  });
   mocks.browser.newContext.mockResolvedValue(mocks.context);
   mocks.context.newPage.mockResolvedValue(mocks.page);
   mocks.page.goto.mockResolvedValue({ ok: () => true, status: () => 200 });
@@ -67,9 +70,10 @@ describe("release screenshot capture", () => {
       generationId: "generation",
       captureId: "capture",
     });
-    expect(mocks.connect).toHaveBeenCalledWith("wss://worker.example.test/ws", {
-      timeout: 20000,
-      headers: { authorization: "Bearer worker-access-secret" },
+    expect(mocks.connect).toHaveBeenCalledWith({
+      accountId: "0123456789abcdef0123456789abcdef",
+      apiToken: "provider-access-secret",
+      timeoutMs: 20000,
     });
     expect(mocks.browser.newContext).toHaveBeenCalledWith({
       serviceWorkers: "block",
@@ -99,10 +103,10 @@ describe("release screenshot capture", () => {
       }),
     );
     expect(mocks.context.close).toHaveBeenCalledOnce();
-    expect(mocks.browser.close).toHaveBeenCalledOnce();
-    expect(mocks.launch).not.toHaveBeenCalled();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
+    expect(mocks.browser.close).not.toHaveBeenCalled();
     expect(mocks.putObject.mock.invocationCallOrder[0]).toBeGreaterThan(
-      mocks.browser.close.mock.invocationCallOrder[0],
+      mocks.closeSession.mock.invocationCallOrder[0],
     );
   });
 
@@ -117,7 +121,7 @@ describe("release screenshot capture", () => {
     ).rejects.toThrow("capture timeout");
     expect(mocks.putObject).not.toHaveBeenCalled();
     expect(mocks.context.close).toHaveBeenCalledOnce();
-    expect(mocks.browser.close).toHaveBeenCalledOnce();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
   });
 
   it("closes unsolicited popup pages without closing the primary page", async () => {
@@ -158,7 +162,7 @@ describe("release screenshot capture", () => {
       expect(mocks.page.screenshot).not.toHaveBeenCalled();
       expect(mocks.putObject).not.toHaveBeenCalled();
       expect(mocks.context.close).toHaveBeenCalledOnce();
-      expect(mocks.browser.close).toHaveBeenCalledOnce();
+      expect(mocks.closeSession).toHaveBeenCalledOnce();
     },
   );
 
@@ -173,7 +177,7 @@ describe("release screenshot capture", () => {
     ).rejects.toThrow("did not return an HTTP response");
     expect(mocks.page.screenshot).not.toHaveBeenCalled();
     expect(mocks.putObject).not.toHaveBeenCalled();
-    expect(mocks.browser.close).toHaveBeenCalledOnce();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
   });
 
   it("rejects oversized output before storage after closing browser resources", async () => {
@@ -187,7 +191,7 @@ describe("release screenshot capture", () => {
     ).rejects.toThrow("16 MiB");
     expect(mocks.putObject).not.toHaveBeenCalled();
     expect(mocks.context.close).toHaveBeenCalledOnce();
-    expect(mocks.browser.close).toHaveBeenCalledOnce();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
   });
 
   it("accepts the exact output-size bound", async () => {
@@ -206,7 +210,11 @@ describe("release screenshot capture", () => {
     mocks.connect.mockImplementation(
       () =>
         new Promise((resolve) =>
-          setTimeout(() => resolve(mocks.browser), 20_000),
+          setTimeout(
+            () =>
+              resolve({ browser: mocks.browser, close: mocks.closeSession }),
+            20_000,
+          ),
         ),
     );
     mocks.page.goto.mockReturnValue(new Promise(() => undefined));
@@ -217,11 +225,11 @@ describe("release screenshot capture", () => {
     });
     const rejected = expect(capture).rejects.toThrow("90-second deadline");
     await vi.advanceTimersByTimeAsync(89_999);
-    expect(mocks.browser.close).not.toHaveBeenCalled();
+    expect(mocks.closeSession).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     await rejected;
     expect(mocks.context.close).toHaveBeenCalledOnce();
-    expect(mocks.browser.close).toHaveBeenCalledOnce();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
     expect(mocks.putObject).not.toHaveBeenCalled();
   });
 
@@ -236,7 +244,7 @@ describe("release screenshot capture", () => {
     const rejected = expect(capture).rejects.toThrow("cleanup timed out");
     await vi.advanceTimersByTimeAsync(5_000);
     await rejected;
-    expect(mocks.browser.close).toHaveBeenCalledOnce();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
     expect(mocks.putObject).not.toHaveBeenCalled();
   });
 
@@ -251,7 +259,35 @@ describe("release screenshot capture", () => {
         generationId: "generation",
       }),
     ).rejects.toThrow("context creation failed");
-    expect(mocks.browser.close).toHaveBeenCalledOnce();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
+    expect(mocks.putObject).not.toHaveBeenCalled();
+  });
+
+  it("does not create a context or store output when session acquisition fails", async () => {
+    mocks.connect.mockRejectedValue(new Error("Provider unavailable."));
+    await expect(
+      captureReleaseScreenshot({
+        gameId: "game",
+        releaseId: "release",
+        generationId: "generation",
+      }),
+    ).rejects.toThrow("Provider unavailable.");
+    expect(mocks.browser.newContext).not.toHaveBeenCalled();
+    expect(mocks.closeSession).not.toHaveBeenCalled();
+    expect(mocks.putObject).not.toHaveBeenCalled();
+  });
+
+  it("does not store output when the provider session cannot be closed", async () => {
+    mocks.closeSession.mockRejectedValue(new Error("Provider cleanup failed."));
+    await expect(
+      captureReleaseScreenshot({
+        gameId: "game",
+        releaseId: "release",
+        generationId: "generation",
+      }),
+    ).rejects.toThrow("Provider cleanup failed.");
+    expect(mocks.context.close).toHaveBeenCalledOnce();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
     expect(mocks.putObject).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,33 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Accepted Managed Capture Integration
+
+- Tim accepted Cloudflare managed browser isolation and authorized reviewed
+  delivery/release when confidence is established. Railway remains the trusted
+  product/job host; private bee capture and an independently enforced browser
+  network firewall are not part of the accepted architecture
+- Integrated the existing screenshot service with owned Cloudflare sessions,
+  account/API-token configuration, bounded cleanup, and unchanged generation
+  asset permissions. Staging now operates three Railway app services, requires
+  a separate Browser Run token and rejects production-token reuse before writes
+- Removed the obsolete custom browser-worker package, lock dependencies,
+  Docker manifest copies and active sibling health check. Git retains the code
+  and the archived investigation. The deployed legacy service was not removed
+- The integrated batch passed full workspace typechecking, lint, canonical
+  guards and tests; the platform suite reported 680 passed and 118
+  environment-dependent skips. Focused capture/synthetic tests passed 62 cases,
+  staging tests passed 24. The authorized GPT-6.1 Sol pre-push source review
+  found no actionable blockers; this is not the final GitHub merge review
+- Read-only provider inspection found only production, with PR deployments
+  disabled and all existing deployments terminal-successful. Migration
+  inspection found five pending online migrations, no unknown hashes or
+  historical gaps. No schema, token, provider configuration or deployment changed
+- Narrow machine-token creation consent, hidden uploaded R2 capture, hosted
+  player/mobile proof and the final reviewed exact rollout remain pending in
+  the [managed capture plan](./plans/release-browser-worker-containment-plan.md).
+  This batch does not close `G5-02`, merge to main or announce Air Jam 1.0
+
 ## 2026-10-04 - Green Reviewed Creator Recovery Revision
 
 - Pushed the reviewed CLI approval, account and analytics recovery through
@@ -130,7 +157,7 @@ The pre-reset overloaded ledger has been preserved at:
   redirects and external assets. The fixture uses mapped numeric IO and scoped
   loopback permission; it does not establish provider network containment. Test
   typechecking and platform lint pass; retained setup corrections and limits in
-  the [containment plan](./plans/release-browser-worker-containment-plan.md#railway-first-provider-investigation)
+  the [historical containment plan](./archive/2026-10-04-self-hosted-release-browser-containment-plan.md#railway-first-provider-investigation)
 - Read-only staging revalidation rejected the old September environment ID.
   The same repo CLI successfully read the Air Jam project and found only
   production, with PR deployments disabled. This is an absent demo target,
@@ -335,7 +362,7 @@ The pre-reset overloaded ledger has been preserved at:
   production credentials. The pre-deploy capture proof failed safely; a bounded
   non-root namespace probe reported `unshare: Permission denied`. The exact
   image/deployments and limitations are retained in the
-  [worker plan](./plans/release-browser-worker-containment-plan.md#railway-amd64-proof--2026-10-03-deployment-blocked).
+  [historical worker plan](./archive/2026-10-04-self-hosted-release-browser-containment-plan.md#railway-amd64-proof--2026-10-03-deployment-blocked).
   Local success is not provider success; supported isolation remains required
 - removed the three owned local Docker test containers, including their
   disposable fixture database/anonymous volume. The fixtures are reproducible;

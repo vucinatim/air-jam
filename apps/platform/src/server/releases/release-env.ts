@@ -101,28 +101,15 @@ const releaseStorageEnvSchema = z
 
 const releaseModerationEnvSchema = z
   .object({
-    AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: requiredEnvValue(
-      "AIRJAM_RELEASES_BROWSER_WS_ENDPOINT",
+    AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: requiredEnvValue(
+      "AIRJAM_RELEASES_BROWSER_ACCOUNT_ID",
     ).pipe(
       z
         .string()
-        .url()
-        .refine((value) => {
-          try {
-            const url = new URL(value);
-            return (
-              (url.protocol === "ws:" || url.protocol === "wss:") &&
-              !url.username &&
-              !url.password &&
-              !url.hash
-            );
-          } catch {
-            return false;
-          }
-        }, "AIRJAM_RELEASES_BROWSER_WS_ENDPOINT must be a ws:// or wss:// URL without user info or a fragment."),
+        .regex(/^[a-f0-9]{32}$/, "A Cloudflare account ID is required."),
     ),
-    AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: requiredEnvValue(
-      "AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN",
+    AIRJAM_RELEASES_BROWSER_API_TOKEN: requiredEnvValue(
+      "AIRJAM_RELEASES_BROWSER_API_TOKEN",
     ),
     AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: requiredEnvValue(
       "AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN",
@@ -171,9 +158,9 @@ const releaseModerationEnvSchema = z
   })
   .transform((value) => ({
     internalAccessSecret: value.AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN,
-    browserLaunch: {
-      wsEndpoint: value.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT,
-      accessToken: value.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN,
+    browser: {
+      accountId: value.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID,
+      apiToken: value.AIRJAM_RELEASES_BROWSER_API_TOKEN,
       navigationTimeoutMs: value.AIRJAM_RELEASES_BROWSER_NAVIGATION_TIMEOUT_MS,
       waitAfterLoadMs: value.AIRJAM_RELEASES_BROWSER_WAIT_AFTER_LOAD_MS,
       viewportWidth: value.AIRJAM_RELEASES_BROWSER_VIEWPORT_WIDTH,
@@ -201,8 +188,8 @@ const releaseModerationEnvSchema = z
   }));
 
 const releaseModerationAvailabilityProbeSchema = z.object({
-  AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: optionalEnvValue,
-  AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: optionalEnvValue,
+  AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: optionalEnvValue,
+  AIRJAM_RELEASES_BROWSER_API_TOKEN: optionalEnvValue,
   AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: optionalEnvValue,
   AIRJAM_RELEASES_IMAGE_MODERATION_MODE: releaseImageModerationModeFromEnv,
   OPENAI_API_KEY: optionalEnvValue,

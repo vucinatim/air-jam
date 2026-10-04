@@ -284,11 +284,26 @@ export const provisionGoldenPathStaging = async ({
   environmentId,
   releaseOrigin,
   r2Bucket,
+  browserAccountId = process.env.AIRJAM_RELEASES_BROWSER_ACCOUNT_ID,
+  browserApiToken = process.env.AIRJAM_RELEASES_BROWSER_API_TOKEN,
   ttlSeconds = 24 * 60 * 60,
   client = createRailwayApiClient({ requestTimeoutMs: 30_000 }),
   now = Date.now(),
   probeR2Isolation = probeTemporaryR2Isolation,
 }) => {
+  const captureAccountId = requiredText(
+    browserAccountId,
+    "Preview browser account ID",
+  );
+  const captureApiToken = requiredText(
+    browserApiToken,
+    "Preview browser API token",
+  );
+  if (!/^[a-f0-9]{32}$/u.test(captureAccountId)) {
+    throw new Error(
+      "Preview browser account ID must be a Cloudflare account ID.",
+    );
+  }
   const {
     environment,
     primaryEnvironment,
@@ -301,13 +316,27 @@ export const provisionGoldenPathStaging = async ({
   });
   assertDormantStagingShell(environment);
 
+  for (const serviceName of ["air-jam-platform", "air-jam-platform-worker"]) {
+    const primaryVariables = await client.getVariables({
+      projectId,
+      environmentId: primaryEnvironmentId,
+      serviceId: serviceByName(primaryEnvironment, serviceName).serviceId,
+    });
+    if (
+      primaryVariables.AIRJAM_RELEASES_BROWSER_API_TOKEN?.trim() ===
+      captureApiToken
+    ) {
+      throw new Error(
+        "Preview browser API token must be distinct from production.",
+      );
+    }
+  }
+
   const platform = serviceByName(environment, "air-jam-platform");
   const worker = serviceByName(environment, "air-jam-platform-worker");
-  const browser = serviceByName(environment, "air-jam-release-browser-worker");
   const server = serviceByName(environment, "air-jam-server");
   const platformOrigin = serviceOrigin(platform);
   const workerOrigin = serviceOrigin(worker);
-  const browserOrigin = serviceOrigin(browser);
   const serverOrigin = serviceOrigin(server);
   const normalizedReleaseOrigin = new URL(
     requiredText(releaseOrigin, "Staging release origin"),
@@ -341,18 +370,16 @@ export const provisionGoldenPathStaging = async ({
 
   const appId = `air-jam-staging-${randomUUID()}`;
   const hostGrantSecret = randomSecret();
-  const browserAccessToken = randomSecret();
   const internalAccessToken = randomSecret();
   const workerControlToken = randomSecret();
   const authSecret = randomSecret();
-  const browserWebSocketUrl = `${browserOrigin.replace(/^https:/u, "wss:")}/ws`;
   const sharedReleaseVariables = {
     AIRJAM_RELEASES_R2_BUCKET: temporaryCredential.bucket,
     AIRJAM_RELEASES_R2_ACCOUNT_ID: accountId,
     ...credentialVariables,
     AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: internalAccessToken,
-    AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: browserAccessToken,
-    AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: browserWebSocketUrl,
+    AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: captureAccountId,
+    AIRJAM_RELEASES_BROWSER_API_TOKEN: captureApiToken,
     AIRJAM_RELEASES_IMAGE_MODERATION_MODE: "disabled",
     AIRJAM_RELEASES_PUBLIC_ORIGIN: normalizedReleaseOrigin,
   };
@@ -383,7 +410,6 @@ export const provisionGoldenPathStaging = async ({
         AIRJAM_PLATFORM_WORKER_BUDGET_REFRESH_MODE: "disabled",
         AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: workerControlToken,
         AIRJAM_SYNTHETIC_APP_ID: appId,
-        AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN: browserOrigin,
         AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL: "",
         AIRJAM_SYNTHETIC_WORKER_ORIGIN: workerOrigin,
         AIR_JAM_SYSTEM_APP_ID: appId,
@@ -400,12 +426,6 @@ export const provisionGoldenPathStaging = async ({
         AIR_JAM_ALLOWED_ORIGINS: platformOrigin,
         AIR_JAM_AUTH_MODE: "required",
         AIR_JAM_HOST_GRANT_SECRET: hostGrantSecret,
-      },
-    },
-    {
-      serviceId: browser.serviceId,
-      variables: {
-        AIRJAM_BROWSER_WORKER_ACCESS_TOKEN: browserAccessToken,
       },
     },
   ];
@@ -636,7 +656,6 @@ export const deployGoldenPathStaging = async ({
 
   const platform = serviceByName(environment, "air-jam-platform");
   const server = serviceByName(environment, "air-jam-server");
-  const browser = serviceByName(environment, "air-jam-release-browser-worker");
   const worker = serviceByName(environment, "air-jam-platform-worker");
 
   const deployAndWait = async (service, sha = normalizedCommitSha) => {
@@ -687,9 +706,7 @@ export const deployGoldenPathStaging = async ({
   const deployments = [];
   deployments.push(await deployAndWait(stagingPostgres, null));
   deployments.push(await deployAndWait(platform));
-  deployments.push(
-    ...(await Promise.all([deployAndWait(server), deployAndWait(browser)])),
-  );
+  deployments.push(await deployAndWait(server));
   deployments.push(await deployAndWait(worker));
 
   const target = await resolveGoldenPathRailwayStagingTarget({

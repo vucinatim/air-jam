@@ -164,7 +164,7 @@ export const registerGoldenPathCommands = (program) => {
   stagingCommand
     .command("provision")
     .description(
-      "Rotate a dormant Railway staging clone onto short-lived non-production authorities",
+      "Rotate a dormant Railway staging clone onto non-production authorities; requires AIRJAM_RELEASES_BROWSER_ACCOUNT_ID and AIRJAM_RELEASES_BROWSER_API_TOKEN in the environment",
     )
     .requiredOption("--railway-project <id>", "Railway project id")
     .requiredOption(

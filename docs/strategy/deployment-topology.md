@@ -111,32 +111,22 @@ Config-as-code path:
 
 1. `/packages/server/railway.json`
 
-### 3. Release Screenshot / Moderation Worker
+### 3. Managed Screenshot Browser
 
-Provider: `Railway`  
-Repo ownership: `packages/release-browser-worker`
+Provider: Cloudflare Browser Run
+Repo ownership: `apps/platform/src/server/releases`
 
-Responsibilities:
+The Railway operational worker acquires a dedicated managed browser session for
+each screenshot job and closes it before persisting the result. Cloudflare owns
+the browser execution environment; Air Jam owns deadlines, generation-scoped
+private asset access, screenshots, and moderation decisions. No browser runs on
+the platform, realtime server, or private bee host.
 
-1. open hosted release URLs in a real browser
-2. capture release screenshots during finalize and publish
-3. support image moderation evaluation
-
-Should not own:
-
-1. websocket gameplay runtime
-2. platform page rendering
-3. release artifact persistence
-
-Worker access is an explicit auth boundary:
-
-1. health and discovery can remain narrow unauthenticated routes
-2. proxied HTTP and WebSocket browser access should require a bearer token
-3. the platform should provide that token through `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN`
-
-Config-as-code path:
-
-1. `/packages/release-browser-worker/railway.json`
+An account-scoped Browser Run token authorizes session acquisition and deletion.
+Production and preview use distinct tokens. Managed provider isolation is the
+accepted boundary, not a claim that Air Jam installs a browser-side network
+firewall. The [capture plan](../plans/release-browser-worker-containment-plan.md)
+records the decision and remaining rollout proof.
 
 ### 4. Platform Release-Job Worker
 
@@ -254,15 +244,12 @@ or a lookalike suffix.
 
 The realtime server should not need the platform's release-storage or moderation env.
 
-### Browser Worker Env
+### Managed Browser Credentials
 
-Worker-specific env should be limited to whatever the browser service needs to run safely, such as:
-
-1. browser process settings
-2. optional access token or shared secret for callers
-3. any worker-level observability config
-
-The worker should not need database or multiplayer env unless a later design explicitly makes that necessary.
+The platform and operational worker share `AIRJAM_RELEASES_BROWSER_ACCOUNT_ID`
+and `AIRJAM_RELEASES_BROWSER_API_TOKEN`. The token grants only Browser Run access
+in the designated account. There is no self-hosted endpoint or local executable
+fallback and no independent Railway browser service to configure.
 
 ### Platform Operational Worker Env
 
@@ -272,8 +259,8 @@ The operational worker owns:
 2. the release-storage variables required by artifact work and cleanup
 3. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`, shared with the platform's private
    generation-serving route
-4. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
-5. `AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN` when the browser worker requires it
+4. `AIRJAM_RELEASES_BROWSER_ACCOUNT_ID`
+5. `AIRJAM_RELEASES_BROWSER_API_TOKEN`
 6. `OPENAI_API_KEY` only when moderation mode enables it
 7. `AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN`
 8. `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, and a sealed,
@@ -329,9 +316,9 @@ For the realtime server:
 
 ### Phase 3. Extract Browser Moderation Into A Real Subsystem
 
-Stand up a dedicated browser runtime and wire:
+Use a dedicated managed browser session for each capture and wire:
 
-1. `AIRJAM_RELEASES_BROWSER_WS_ENDPOINT`
+1. `AIRJAM_RELEASES_BROWSER_ACCOUNT_ID` and `AIRJAM_RELEASES_BROWSER_API_TOKEN`
 2. `AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN`
 3. moderation-specific env
 

@@ -32,7 +32,12 @@ Each boundary owns its own env schema and defaults:
 2. `apps/platform` releases env contract (storage, moderation, and the
    untrusted-content public origin)
 3. `create-airjam` runtime env contract (`dev`, `secure:init`, `topology`)
-4. `@air-jam/release-browser-worker` runtime env contract for the dedicated Playwright moderation worker
+
+Managed screenshot capture uses the platform releases schema:
+`AIRJAM_RELEASES_BROWSER_ACCOUNT_ID` and `AIRJAM_RELEASES_BROWSER_API_TOKEN`
+are required together for moderation. Production and isolated preview share
+the account identity but must use distinct Browser Run tokens. Missing
+credentials disable capture explicitly; a native browser is never a fallback.
 
 The platform's canonical creator-content boundary is
 `AIRJAM_RELEASES_PUBLIC_ORIGIN`. It is intentionally server-owned rather than

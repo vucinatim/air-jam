@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-10-04T01:59:44.957Z",
+  "updatedAt": "2026-10-04T12:24:59.432Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -769,7 +769,7 @@
       "priority": 20,
       "title": "Close launch-critical auth, ownership, privacy, abuse, and privileged-endpoint findings",
       "authority": "autonomous",
-      "status": "blocked",
+      "status": "in_progress",
       "dependsOn": [
         "G1-01",
         "G5-01"
@@ -785,8 +785,8 @@
         "reviewed exact-production proof for the host-authority cutover with ordinary room creation, joining, and reconnection unchanged"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "The managed session owner, hardened private fetch and real offline Pong render are locally proven; the production capture transport remains unchanged. Its final integration depends on the explicit material-risk choice already presented. Independent creator/player work continues; this is not a request for another general go.",
-      "updatedAt": "2026-10-04T00:13:13.679Z",
+      "note": "Managed Cloudflare capture is integrated locally; obsolete browser-worker package and active health target removed. Full batch, 62 focused capture/synthetic tests and 24 staging tests pass; authorized Sol pre-push source review has no actionable blockers. Machine-token creation consent, isolated hidden R2 capture, final green-PR review and exact provider rollout remain pending; production is unchanged.",
+      "updatedAt": "2026-10-04T12:24:59.432Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
         "document:docs/plans/hosted-release-domain-cutover-plan.md",
@@ -849,12 +849,13 @@
         "command:cloudflare-session-16-and-capture-39-tests-pass",
         "command:cloudflare-fresh-pong-render-private-assets-and-session-cleanup",
         "command:cloudflare-owned-public-https-wss-pass",
-        "command:changed-capture-source-and-test-typecheck-lint-pass"
-      ],
-      "blocker": {
-        "type": "human",
-        "summary": "Await the pending maintainer choice: accept Cloudflare managed browser isolation without independently proven private-IP/DNS-rebinding browser-network denial, or retain the custom browser-network firewall requirement. Prior general continuation approval is intact."
-      }
+        "command:changed-capture-source-and-test-typecheck-lint-pass",
+        "decision:tim-accepted-cloudflare-managed-browser-isolation-20261004",
+        "decision:tim-authorized-reviewed-delivery-and-release-if-confident-20261004",
+        "command:pnpm check:batch",
+        "command:node --test scripts/repo/runtime/golden-path-staging-lifecycle.test.mjs scripts/repo/runtime/golden-path-staging-target.test.mjs",
+        "decision:authorized-gpt-6.1-sol-managed-capture-pre-push-review-no-actionable-source-blockers-20261004"
+      ]
     },
     {
       "id": "G5-03",

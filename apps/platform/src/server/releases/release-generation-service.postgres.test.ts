@@ -363,8 +363,11 @@ describeWithPostgres("immutable release generation authority", () => {
       status: "passed",
     });
 
-    vi.stubEnv("AIRJAM_RELEASES_BROWSER_WS_ENDPOINT", "ws://localhost:9222/ws");
-    vi.stubEnv("AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN", "test-browser-token");
+    vi.stubEnv(
+      "AIRJAM_RELEASES_BROWSER_ACCOUNT_ID",
+      "0123456789abcdef0123456789abcdef",
+    );
+    vi.stubEnv("AIRJAM_RELEASES_BROWSER_API_TOKEN", "test-browser-token");
     vi.stubEnv("AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN", "test-secret");
     vi.stubEnv("AIRJAM_RELEASES_IMAGE_MODERATION_MODE", "disabled");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://platform.example");

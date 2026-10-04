@@ -373,9 +373,22 @@ The change is local, not yet published or deployed; `G5-02` remains open.
   evidence; non-root/sandbox/seccomp attestation; token rotation and
   Chromium-aware readiness through the repo CLI.
 
+#### 2026-10-04 managed isolation decision
+
+Tim accepted managed Cloudflare browser isolation instead of the independently
+enforced browser-network firewall described in the original end state above.
+Railway remains the trusted product/job host; untrusted capture does not run
+on the private bee host. Browser private-IP/DNS-rebinding containment is not
+independently established or claimed. Generation-scoped credentials, public-only
+DNS-pinned privileged fetching, capture limits and owned session cleanup remain
+required. The [current capture plan](../../plans/release-browser-worker-containment-plan.md)
+governs this replacement; the original self-hosted design is historical.
+Integration, narrow machine credentials and reviewed hosted/production proof
+remain open, so this decision alone does not close the finding.
+
 #### 2026-09-12 worker containment work in progress
 
-The [bounded containment plan](../../plans/release-browser-worker-containment-plan.md)
+The [historical bounded containment plan](../../archive/2026-10-04-self-hosted-release-browser-containment-plan.md)
 keeps the existing worker/provider, job admission, and moderation ownership.
 Read-only provider state confirms the current deployed worker has a configured
 token of at least 32 characters, but still runs its original root/sandbox-off
@@ -428,7 +441,7 @@ game. The 13 capture-service tests include error-page cleanup/storage regression
 
 **Finding remains open:** the exact Docker image build hit Docker storage
 exhaustion before runtime proof. No unrelated Docker resources or database volumes
-were removed. The [plan checkpoint](../../plans/release-browser-worker-containment-plan.md#implementation-and-proof-checkpoint--2026-09-12)
+were removed. The [historical plan checkpoint](../../archive/2026-10-04-self-hosted-release-browser-containment-plan.md#implementation-and-proof-checkpoint--2026-09-12)
 records the pending scoped cleanup decision, provider mount-policy limitation,
 and remaining exact-image/private-asset/TLS/WS/direct-network/cancellation proof.
 Final integrated batch, canonicality review and reviewed delivery have not run.
