@@ -18,6 +18,34 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Reviewed Intermediate Batch Deployed
+
+- The final green head passed all six CI lanes and every installation-matrix
+  cell. The authorized GPT-6.1 Sol reviewer recorded the single final GitHub
+  review with no source blockers; PR 112 merged normally at `cf0935fe`
+- Created a production backup and immutable migration plan, drained the old
+  operational worker, applied online migrations `0040–0044`, and independently
+  verified the current deployment and identical reviewed Git tree. All three
+  affected Railway services reached literal `SUCCESS`; Postgres was unchanged
+- Platform/server/worker health and readiness pass. The release origin passed
+  20 production checks. The actual retained Pong generation passed cross-origin
+  host/controller play, controller-led match completion, identity-preserving
+  reload and lobby return. Direct `/play/pong` also loaded
+- Latest configured synthetics pass and event delivery has no dead letters.
+  Three observed rollout failures remain in history and rolling availability
+  alerts. No failed deployment, provider bypass or manufactured green state
+  was substituted for the exact successful revision
+- Disconnected the obsolete browser service from automatic deployments but
+  retained its running deployment: production hidden-upload proof still needs
+  an Air Jam CLI login. Existing production image moderation is disabled and
+  GitHub issue projection is not configured; neither was silently enabled
+- Drained and removed the owned disposable Railway rehearsal environment and
+  its two temporary DNS records, preserving all unrelated DNS. Kept shared
+  preview storage and small owned proof artifacts; the gift game
+  remained untouched. See the [production delivery evidence](./audits/v1-security/2026-10-04-intermediate-production-delivery.json)
+- This delivers the reviewed intermediate implementation, not public 1.0.
+  Production capture retirement, phone polish and final release gates stay open
+
 ## 2026-10-04 - Isolated Hosted Managed-Capture Rehearsal Passed
 
 - Preserved Mara and Andrej's private gift deployment; used an owned Pong copy

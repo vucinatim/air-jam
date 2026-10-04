@@ -49,6 +49,7 @@ The bounded browser execution and egress boundary under the same Gate 5 is:
 
 1. [plans/release-browser-worker-containment-plan.md](./plans/release-browser-worker-containment-plan.md)
 2. [audits/v1-security/2026-10-04-hosted-managed-capture-proof.json](./audits/v1-security/2026-10-04-hosted-managed-capture-proof.json)
+3. [audits/v1-security/2026-10-04-intermediate-production-delivery.json](./audits/v1-security/2026-10-04-intermediate-production-delivery.json)
 
 Agents inspect the live execution state through:
 
