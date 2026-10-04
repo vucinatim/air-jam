@@ -374,6 +374,8 @@ export const provisionGoldenPathStaging = async ({
   const workerControlToken = randomSecret();
   const authSecret = randomSecret();
   const sharedReleaseVariables = {
+    AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: "",
+    AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "",
     AIRJAM_RELEASES_R2_BUCKET: temporaryCredential.bucket,
     AIRJAM_RELEASES_R2_ACCOUNT_ID: accountId,
     ...credentialVariables,
@@ -390,6 +392,7 @@ export const provisionGoldenPathStaging = async ({
       variables: {
         ...sharedReleaseVariables,
         AIR_JAM_HOST_GRANT_SECRET: hostGrantSecret,
+        AIR_JAM_MASTER_KEY: "",
         AIR_JAM_SYSTEM_APP_ID: appId,
         BETTER_AUTH_SECRET: authSecret,
         BETTER_AUTH_URL: platformOrigin,
@@ -410,6 +413,7 @@ export const provisionGoldenPathStaging = async ({
         AIRJAM_PLATFORM_WORKER_BUDGET_REFRESH_MODE: "disabled",
         AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: workerControlToken,
         AIRJAM_SYNTHETIC_APP_ID: appId,
+        AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN: "",
         AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL: "",
         AIRJAM_SYNTHETIC_WORKER_ORIGIN: workerOrigin,
         AIR_JAM_SYSTEM_APP_ID: appId,
@@ -426,6 +430,7 @@ export const provisionGoldenPathStaging = async ({
         AIR_JAM_ALLOWED_ORIGINS: platformOrigin,
         AIR_JAM_AUTH_MODE: "required",
         AIR_JAM_HOST_GRANT_SECRET: hostGrantSecret,
+        AIR_JAM_MASTER_KEY: "",
       },
     },
   ];

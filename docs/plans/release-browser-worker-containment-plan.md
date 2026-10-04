@@ -70,6 +70,34 @@ hidden uploaded R2 release or deployed capture service.
 
 ## Delivery proof still required
 
+The current hosted rehearsal uses an owned Pong copy in the disposable
+`staging-managed-capture-20261004` Railway environment. Mara and Andrej has
+hidden game identities, but its personal assets are protected by a separate
+Vercel password gate; unlisted Arcade visibility is not equivalent protection.
+Do not upload that gift as an unprotected hosted fixture.
+
+The staging provisioner clears copied legacy browser endpoint/token variables,
+the obsolete browser synthetic target, and the local-only master key before
+boot. Its regression fixture includes those real production leftovers. The
+fresh storage credential passed preview write and production read/write denial;
+the new game hostname preserves all existing DNS records. These provisioning
+checks do not yet prove hosted capture, play, or production rollout.
+
+Live rehearsal also reproduced Railway selecting the newly attached game
+hostname as `RAILWAY_PUBLIC_DOMAIN`. Preview configuration must not use that
+untrusted origin as its authenticated front door or add it to authentication
+trust. The explicit platform URL owns that case; provider domains continue to
+resolve ordinary previews. Staging attestation prefers the Railway service
+domain rather than the game custom domain. Regression tests preserve the
+existing unknown-host and renamed-environment denial behavior.
+
+The routing/provisioning follow-up passed the full local batch, 69 focused
+platform routing tests and 24 staging tests. Its authorized GPT-6.1 Sol
+canonicality review found no actionable blockers. The first rehearsal deployed
+all four staging services successfully but selected the game hostname in its
+target record; that provider-success result is not authenticated-flow proof.
+Redeploy the corrected revision before creating the hosted fixture.
+
 The session owner and real offline Pong render were already proven. Integration
 must additionally prove the actual screenshot service, a hidden uploaded R2
 release, capture failure and cleanup, and the unchanged player/creator flow.

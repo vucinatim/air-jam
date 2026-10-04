@@ -75,7 +75,9 @@ const createEnvironment = (id) => {
           customDomains:
             production && service.serviceId === "service-platform"
               ? [{ domain: "airjam.io" }]
-              : [],
+              : !production && service.serviceId === "service-platform"
+                ? [{ domain: "games-staging.air-jam.app" }]
+                : [],
           serviceDomains: [
             {
               domain: `${service.serviceName}-${suffix}.up.railway.app`,

@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-10-04T13:10:14.019Z",
+  "updatedAt": "2026-10-04T15:17:33.081Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -785,8 +785,8 @@
         "reviewed exact-production proof for the host-authority cutover with ordinary room creation, joining, and reconnection unchanged"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "Separate Browser Run Read/Write-only account tokens created with maintainer approval; provider policies verified. Private copies outside Git mode 0600; production variables staged on Railway platform/worker with skipDeploys and matching read-back/unchanged deployments. Preview token passed actual session acquisition, remote PNG and cleanup. CI/install matrix pass at 92e5efa9. Hidden R2 capture, fresh isolated target, final GitHub review and guarded exact rollout remain pending.",
-      "updatedAt": "2026-10-04T13:10:14.019Z",
+      "note": "Continuing approved isolated hosted proof; use hidden staging Pong because Mara and Andrej is a password-protected personal gift, not merely unlisted. Production unchanged.",
+      "updatedAt": "2026-10-04T15:17:33.081Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
         "document:docs/plans/hosted-release-domain-cutover-plan.md",
@@ -860,7 +860,8 @@
         "command:restricted-preview-token-managed-session-render-png-and-closure-pass-20261004",
         "command:railway-production-browser-vars-readback-both-services-no-deployment-20261004",
         "url:https://github.com/vucinatim/air-jam/actions/runs/37202101846",
-        "url:https://github.com/vucinatim/air-jam/actions/runs/37202101888"
+        "url:https://github.com/vucinatim/air-jam/actions/runs/37202101888",
+        "decision:use-owned-pong-for-hosted-proof-preserve-gift-privacy-20261004"
       ]
     },
     {

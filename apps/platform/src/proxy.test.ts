@@ -409,6 +409,37 @@ describe("hosted release request routing", () => {
     ).toEqual({ kind: "platform" });
   });
 
+  it("keeps preview API routes off the game hostname when Railway selects it as public", () => {
+    const previewEnv = {
+      NODE_ENV: "production",
+      RAILWAY_ENVIRONMENT_NAME: "staging-capture",
+      RAILWAY_PUBLIC_DOMAIN: "games-preview.air-jam.app",
+      NEXT_PUBLIC_APP_URL: "https://platform-preview.up.railway.app",
+      AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://games-preview.air-jam.app",
+    } as NodeJS.ProcessEnv;
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "https://platform-preview.up.railway.app/api/cli/auth/me",
+        "platform-preview.up.railway.app",
+        previewEnv,
+      ),
+    ).toEqual({ kind: "platform" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "https://games-preview.air-jam.app/api/cli/auth/me",
+        "games-preview.air-jam.app",
+        previewEnv,
+      ),
+    ).toEqual({ kind: "block_release_origin" });
+    expect(
+      resolveHostedReleaseRequestDisposition(
+        "https://games-preview.air-jam.app/releases/example/",
+        "games-preview.air-jam.app",
+        previewEnv,
+      ),
+    ).toEqual({ kind: "serve_release" });
+  });
+
   it("makes a renamed Railway production environment fail closed on the canonical host", () => {
     const renamedProductionEnv = {
       NODE_ENV: "production",

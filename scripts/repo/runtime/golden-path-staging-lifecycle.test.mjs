@@ -103,8 +103,11 @@ const initialVariables = ({ environmentId, serviceName }) => {
       AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "production-internal",
       AIRJAM_RELEASES_BROWSER_API_TOKEN: "production-browser",
       AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: browserCredential.browserAccountId,
+      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: "wss://production-browser.example",
+      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "production-legacy-browser",
       AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://games.air-jam.app",
       AIR_JAM_HOST_GRANT_SECRET: "production-host",
+      AIR_JAM_MASTER_KEY: "production-master",
       AIR_JAM_SYSTEM_APP_ID: "production-app",
       BETTER_AUTH_SECRET: "production-auth",
       BETTER_AUTH_URL: "https://airjam.io",
@@ -129,12 +132,16 @@ const initialVariables = ({ environmentId, serviceName }) => {
       AIRJAM_RELEASES_INTERNAL_ACCESS_TOKEN: "production-internal",
       AIRJAM_RELEASES_BROWSER_API_TOKEN: "production-browser",
       AIRJAM_RELEASES_BROWSER_ACCOUNT_ID: browserCredential.browserAccountId,
+      AIRJAM_RELEASES_BROWSER_WS_ENDPOINT: "wss://production-browser.example",
+      AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN: "production-legacy-browser",
       AIRJAM_RELEASES_PUBLIC_ORIGIN: "https://games.air-jam.app",
       AIRJAM_PLATFORM_WORKER_CONTROL_TOKEN: "production-worker",
       AIRJAM_SYNTHETIC_APP_ID: "production-app",
       AIRJAM_SYNTHETIC_HOSTED_RELEASE_URL:
         "https://games.air-jam.app/releases/example",
       AIRJAM_SYNTHETIC_WORKER_ORIGIN: "https://worker-production.example",
+      AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN:
+        "https://production-browser.example",
       AIR_JAM_SYSTEM_APP_ID: "production-app",
       NEXT_PUBLIC_AIR_JAM_APP_ID: "production-app",
       NEXT_PUBLIC_AIR_JAM_PUBLIC_HOST: "https://airjam.io",
@@ -149,6 +156,7 @@ const initialVariables = ({ environmentId, serviceName }) => {
       AIR_JAM_ALLOWED_ORIGINS: "https://airjam.io",
       AIR_JAM_AUTH_MODE: "required",
       AIR_JAM_HOST_GRANT_SECRET: "production-host",
+      AIR_JAM_MASTER_KEY: "production-master",
     };
   }
   throw new Error(`Unexpected application service: ${serviceName}`);
@@ -360,6 +368,25 @@ test("provision rotates every authority before deployment and proves R2 isolatio
 
   assert.equal(probeCalled, true);
   assert.equal(fixture.writes.length, 3);
+  for (const serviceName of ["air-jam-platform", "air-jam-platform-worker"]) {
+    const variables = fixture.variables.get(
+      `${stagingId}:${serviceName}-service`,
+    );
+    assert.equal(variables.AIRJAM_RELEASES_BROWSER_WS_ENDPOINT, "");
+    assert.equal(variables.AIRJAM_RELEASES_BROWSER_ACCESS_TOKEN, "");
+  }
+  for (const serviceName of ["air-jam-platform", "air-jam-server"]) {
+    assert.equal(
+      fixture.variables.get(`${stagingId}:${serviceName}-service`)
+        .AIR_JAM_MASTER_KEY,
+      "",
+    );
+  }
+  assert.equal(
+    fixture.variables.get(`${stagingId}:air-jam-platform-worker-service`)
+      .AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN,
+    "",
+  );
   assert.equal(result.ok, true);
   assert.equal(result.deploymentStarted, false);
   assert.equal(result.r2.bucket, "air-jam-preview-releases");

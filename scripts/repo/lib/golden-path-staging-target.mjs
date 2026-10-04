@@ -65,8 +65,8 @@ const allowedSharedVariableNames = new Set([
 
 const listRailwayServiceDomains = (instance) =>
   [
-    ...(instance?.domains?.customDomains ?? []).map((entry) => entry.domain),
     ...(instance?.domains?.serviceDomains ?? []).map((entry) => entry.domain),
+    ...(instance?.domains?.customDomains ?? []).map((entry) => entry.domain),
     instance?.latestDeployment?.staticUrl,
     instance?.latestDeployment?.url,
   ].filter((value) => typeof value === "string" && value.trim().length > 0);
