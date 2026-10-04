@@ -1,13 +1,35 @@
 # Managed Release Screenshot Capture
 
 Last updated: 2026-10-04
-Status: active bounded architecture plan
+Status: completed managed capture cutover; historical execution record
 
 Execution authority remains `G5-02` in the release manifest. Tim accepted
 Cloudflare's managed browser isolation on 2026-10-04 and authorized reviewed
 delivery and release when confidence is established. This resolves the provider
-choice. Reviewed integration and isolated hosted proof are now delivered;
-hidden production upload proof and legacy retirement remain open below.
+choice. Reviewed integration, isolated hosted proof, hidden production upload,
+legacy retirement and scoped cleanup are complete. Broader `G5-02` and public
+1.0 release gates remain separate.
+
+## Production completion
+
+The human-approved temporary CLI session submitted an owned hidden Pong release
+on 2026-10-04. The actual production worker completed screenshot capture on its
+first attempt and made the immutable generation ready. Anonymous host,
+controller and manifest requests return 404; the fixture remains hidden and
+unpublished. Existing production image moderation is disabled, so no live
+moderation-service verdict is claimed.
+
+After that proof, the exact obsolete browser deployment reached Railway
+`REMOVED`. Its service and deployment history remain recoverable, with automatic
+deployment source disconnected. Platform, realtime and operational-worker
+readiness remained healthy, and all six latest configured synthetics passed.
+Rolling availability alerts still include the retained rollout failures; no
+history or alert state was cleared. The temporary creator session was revoked.
+Exact job, generation and provider evidence is recorded in the
+[production delivery evidence](../audits/v1-security/2026-10-04-intermediate-production-delivery.json).
+
+The sections below preserve the investigation and delivery sequence rather than
+describe current unfinished work.
 
 ## Product and security boundary
 

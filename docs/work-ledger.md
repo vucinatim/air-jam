@@ -18,6 +18,24 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Production Managed Capture Cutover Closed
+
+- The human-approved temporary CLI session submitted an owned hidden,
+  unpublished production Pong fixture through the normal creator workflow
+- The actual deployed operational worker captured its immutable screenshot on
+  attempt one and completed processing. Anonymous host, controller and manifest
+  reads returned 404. Existing public Pong and the private gift were untouched
+- Removed the exact obsolete browser deployment only after production capture
+  succeeded. Railway reports `REMOVED`; the service and history remain
+  recoverable, with automatic deployment source disconnected
+- Platform, realtime and worker readiness remain healthy; all six latest
+  configured synthetics pass. Retained rollout failures still affect rolling
+  alerts, and production image moderation remains disabled
+- Revoked the temporary creator session, retained the small hidden proof
+  fixture, and archived the [completed capture plan](./archive/2026-10-04-managed-release-screenshot-capture-plan.md).
+  See [production evidence](./audits/v1-security/2026-10-04-intermediate-production-delivery.json).
+  This closes the capture cutover, not the full security gate or public 1.0 launch
+
 ## 2026-10-04 - Reviewed Intermediate Batch Deployed
 
 - The final green head passed all six CI lanes and every installation-matrix
@@ -113,7 +131,7 @@ The pre-reset overloaded ledger has been preserved at:
   historical gaps. No schema, token, provider configuration or deployment changed
 - Narrow machine-token creation consent, hidden uploaded R2 capture, hosted
   player/mobile proof and the final reviewed exact rollout remain pending in
-  the [managed capture plan](./plans/release-browser-worker-containment-plan.md).
+  the [managed capture plan](./archive/2026-10-04-managed-release-screenshot-capture-plan.md).
   This batch does not close `G5-02`, merge to main or announce Air Jam 1.0
 
 ## 2026-10-04 - Green Reviewed Creator Recovery Revision

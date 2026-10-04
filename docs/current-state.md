@@ -66,11 +66,12 @@ Mara and Andrej's private gift remained untouched. The owned Railway rehearsal
 environment and its two temporary DNS records were removed after evidence was
 retained; unrelated DNS and the shared storage bucket were preserved.
 
-Capture cutover is not yet closed: the production Air Jam machine session is
-expired, so a real hidden production test upload still needs a human CLI login.
-The obsolete browser service has been disconnected from automatic deployments
-but its preceding successful deployment is deliberately retained until that
-upload proves the production replacement. Latest production synthetics pass and
+Capture cutover is complete. An owned hidden, unpublished production Pong upload
+passed actual deployed-worker screenshot capture on its first attempt and reached
+ready. Anonymous host, controller and manifest requests return 404. The obsolete
+browser deployment is now `REMOVED`, with its service retained for recovery and
+automatic deployment source disconnected. The temporary creator session was
+revoked after verification. Latest production synthetics pass and
 event delivery has no dead letters; rolling availability alerts retain the
 observed migration/deployment-overlap failures rather than erasing them. Image
 moderation remains disabled in existing production configuration, and GitHub
@@ -78,8 +79,8 @@ issue projection is not configured. Neither is claimed as a live launch proof.
 
 Public package promotion, physical-phone/mobile polish, final external-agent
 rehearsal, demo/article and launch remain separate. `G5-02` stays in progress.
-The [managed capture plan](./plans/release-browser-worker-containment-plan.md)
-owns the remaining production upload, legacy retirement and cleanup. Historical
+The [completed managed capture plan](./archive/2026-10-04-managed-release-screenshot-capture-plan.md)
+retains production upload, legacy retirement and cleanup evidence. Historical
 investigation and integration milestones are in [work-ledger.md](./work-ledger.md),
 not a parallel current-state tracker.
 

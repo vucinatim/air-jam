@@ -1,7 +1,7 @@
 # Release Browser Worker Containment
 
 Last updated: 2026-10-04
-Status: historical self-hosted design and provider investigation; superseded by the accepted Cloudflare architecture in [the current plan](../plans/release-browser-worker-containment-plan.md)
+Status: historical self-hosted design and provider investigation; superseded by the accepted Cloudflare architecture in [the completed capture plan](./2026-10-04-managed-release-screenshot-capture-plan.md)
 
 Finding authority: [AJ-SEC-004](../audits/v1-security/threat-model-audit.md#aj-sec-004--browser-worker-can-fail-open-and-gives-untrusted-pages-privileged-egress).
 Execution authority remains `G5-02` in the release manifest. This is not another

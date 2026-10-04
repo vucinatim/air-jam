@@ -45,9 +45,9 @@ The active Gate 5 production boundary cutover is governed by:
 
 1. [plans/hosted-release-domain-cutover-plan.md](./plans/hosted-release-domain-cutover-plan.md)
 
-The bounded browser execution and egress boundary under the same Gate 5 is:
+The completed managed capture cutover under the same Gate 5 is retained in:
 
-1. [plans/release-browser-worker-containment-plan.md](./plans/release-browser-worker-containment-plan.md)
+1. [archive/2026-10-04-managed-release-screenshot-capture-plan.md](./archive/2026-10-04-managed-release-screenshot-capture-plan.md)
 2. [audits/v1-security/2026-10-04-hosted-managed-capture-proof.json](./audits/v1-security/2026-10-04-hosted-managed-capture-proof.json)
 3. [audits/v1-security/2026-10-04-intermediate-production-delivery.json](./audits/v1-security/2026-10-04-intermediate-production-delivery.json)
 

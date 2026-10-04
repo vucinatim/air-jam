@@ -2,7 +2,7 @@
   "contractVersion": 1,
   "scope": "Reviewed intermediate delivery, not public Air Jam 1.0 launch",
   "recordedOn": "2026-10-04",
-  "status": "deployed-player-path-verified-capture-retirement-pending",
+  "status": "deployed-player-path-and-production-capture-verified",
   "review": {
     "pullRequest": "https://github.com/vucinatim/air-jam/pull/112",
     "head": "ccec45311356c1402e0883bd784dcfc1fd949784",
@@ -27,9 +27,11 @@
     },
     "allAffectedDeploymentsExactMergeAndSuccess": true,
     "unchangedDatabaseDeployment": "f12a0027-b31f-46fe-b4f8-d60a524513c5",
-    "retainedLegacyBrowserDeployment": "91ba15a5-b322-4f5e-af8c-2a7d443cd2fe",
+    "removedLegacyBrowserDeployment": "91ba15a5-b322-4f5e-af8c-2a7d443cd2fe",
     "legacySourceDisconnected": true,
-    "legacyDeploymentRemoved": false
+    "legacyDeploymentRemoved": true,
+    "legacyDeploymentObservedStatus": "REMOVED",
+    "legacyServiceDeleted": false
   },
   "database": {
     "migrationRun": "ac2107ef-35ea-41ba-ac36-cd06e62bd7bd",
@@ -80,8 +82,34 @@
     "physicalPhoneTested": false,
     "ownedBrowserTabsClosed": true
   },
+  "productionCaptureProof": {
+    "gameId": "f69a69c1-558f-4b1c-9fee-e0f265e91ba3",
+    "gameSlug": "pong-production-capture-20261004",
+    "arcadeVisibility": "hidden",
+    "releaseId": "959f4dbc-419d-4eee-91e5-937e3e6ead11",
+    "generationId": "ff99726e-cd20-49f7-a2a4-2e5d21603429",
+    "processingJobId": "e95064dc-21ae-42e3-beac-88d899fbd80b",
+    "browserJobId": "96f35cf4-aeda-47bb-882e-dead816ce153",
+    "browserAttemptId": "6e2402ec-ef59-4bae-8073-2efc4321c2b9",
+    "workerId": "platform-worker:1:007e527e-3a47-4a0f-904e-f86345ee7e11",
+    "status": "ready",
+    "published": false,
+    "attemptCount": 1,
+    "screenshotCheck": "passed",
+    "browserStartedAt": "2026-10-04T17:37:31.509Z",
+    "browserFinishedAt": "2026-10-04T17:37:37.334Z",
+    "bundleBytes": 2317410,
+    "extractedBytes": 3906657,
+    "validatedFiles": 14,
+    "anonymousHostControllerAndManifestStatus": 404,
+    "imageModeration": "disabled; no moderation-service proof claimed",
+    "temporaryCreatorSessionRevoked": true,
+    "fixtureRetainedAsHiddenUnpublishedEvidence": true,
+    "privateGiftModified": false
+  },
   "reliability": {
-    "latestConfiguredChecks": "all-six-passed-after-rollout",
+    "latestConfiguredChecks": "all-six-passed-after-rollout-and-legacy-retirement",
+    "observedAt": "2026-10-04T17:39:21.615Z",
     "deadLetterEvents": 0,
     "retainedRolloutFailures": {
       "roomController": "2ecc0c8c-7a02-4faa-9afe-54eca258825c",
@@ -93,8 +121,6 @@
     "githubIssueProjectionConfigured": false
   },
   "remaining": [
-    "Human Air Jam CLI login for a disposable hidden production Pong upload",
-    "Actual production worker screenshot result before legacy deployment retirement",
     "Production image moderation remains disabled; no moderation-service proof claimed",
     "Public packages, physical-phone polish, external-agent rehearsal and launch gates"
   ],

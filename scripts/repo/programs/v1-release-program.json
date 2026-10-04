@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-10-04T17:10:49.677Z",
+  "updatedAt": "2026-10-04T17:40:55.699Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -785,8 +785,8 @@
         "reviewed exact-production proof for the host-authority cutover with ordinary room creation, joining, and reconnection unchanged"
       ],
       "owner": "/root/g5-security-closure",
-      "note": "PR 112 reviewed, merged and deployed at exact revision; guarded production migration, origin attestation and retained Pong player flow verified. Hidden production upload awaits creator CLI login before legacy retirement; latest synthetics pass with rollout failures retained.",
-      "updatedAt": "2026-10-04T17:10:49.677Z",
+      "note": "PR 112 exact-production rollout verified; owned hidden unpublished production Pong captured by deployed worker on attempt one; legacy deployment REMOVED and temporary session revoked. Managed capture plan archived. Broader security residual-risk, moderation and final launch gates remain separate.",
+      "updatedAt": "2026-10-04T17:40:55.699Z",
       "evidence": [
         "decision:games-air-jam-app-selected-as-production-release-origin",
         "document:docs/plans/hosted-release-domain-cutover-plan.md",
@@ -802,7 +802,7 @@
         "document:docs/audits/v1-security/threat-model-audit.md",
         "command:owned-host-standalone-and-embedded-pong-proof",
         "command:controller-authority-integrated-batch-and-targeted-rechecks",
-        "document:docs/plans/release-browser-worker-containment-plan.md",
+        "document:docs/archive/2026-10-04-managed-release-screenshot-capture-plan.md",
         "command:worker-nonroot-sandbox-namespace-feasibility-20260912",
         "command:release-inspection-real-browser-redirect-confinement",
         "command:worker-public-egress-focused-tests-20260912",
@@ -865,7 +865,8 @@
         "artifact:file:docs/audits/v1-security/2026-10-04-hosted-managed-capture-proof.json",
         "command:isolated-deployed-worker-hidden-pong-capture-and-browser-play-20261004",
         "artifact:file:docs/audits/v1-security/2026-10-04-intermediate-production-delivery.json",
-        "url:https://github.com/vucinatim/air-jam/pull/112#pullrequestreview-5407227969"
+        "url:https://github.com/vucinatim/air-jam/pull/112#pullrequestreview-5407227969",
+        "command:production-hidden-pong-managed-capture-and-legacy-retirement-20261004"
       ]
     },
     {
