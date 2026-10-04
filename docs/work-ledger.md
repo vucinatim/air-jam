@@ -18,6 +18,27 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Draft Integration CI And Authenticated Benchmark Reconnect
+
+- Opened [draft PR 112](https://github.com/vucinatim/air-jam/pull/112) at
+  `5bbc7343`, with auto-merge disabled and production delivery explicitly held.
+  Local work is committed and pushed; the PR does not accept the outstanding
+  Cloudflare isolation tradeoff or authorize a provider switch
+- The first [CI run](https://github.com/vucinatim/air-jam/actions/runs/37166351930)
+  passed static contracts, type safety, tests (including its isolated PostgreSQL
+  lane), workspace build and standalone deployment. Performance smoke failed:
+  the benchmark omitted the new controller resume capability, so the server
+  correctly rejected its public-ID-only reconnects. Retained the failure rather
+  than weakening thresholds or changing server authority
+- The benchmark now uses the canonical `ControllerJoinAck`, requires returned
+  slot authority and carries it across reconnects. The existing server test
+  typecheck now includes the benchmark; its old explicit `.ts` imports were
+  corrected to the repo's `.js` convention. Server typechecking and script lint
+  pass. The exact strict CI performance profile passes locally with database
+  authority disabled: 20 reconnects, zero failures or resume misses, 1.56 ms
+  reconnect p95. The 50 ms lease and all thresholds are unchanged. This is not
+  yet green CI for the corrected commit or production proof
+
 ## 2026-10-04 - Creator Recovery Integration And Demo Target Revalidation
 
 - The integrated `pnpm check:batch` completed with exit code zero: generated

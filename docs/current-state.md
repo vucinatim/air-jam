@@ -103,6 +103,11 @@ fetching and the unwired managed-session candidate are preserved at `cbe41501`.
 The integrated local batch passes, and the authorized Sol review of the new
 delta found no actionable source blockers. Its browser regression coverage gap
 is restored and passes. Local confidence is not hosted or production sign-off.
+The integration is now [draft PR 112](https://github.com/vucinatim/air-jam/pull/112)
+with auto-merge off. Its first CI passed five confidence lanes, including database
+tests, but rejected a stale public-ID-only reconnect benchmark. The benchmark is
+corrected and passes the unchanged strict profile locally; the corrected revision
+still requires fresh CI. No final green-PR review or production cutover occurred.
 
 The validated machine program now reports `80%` estimate-weighted progress and
 `39–77` remaining agent-hours, with 30 of 46 work items complete. These are
