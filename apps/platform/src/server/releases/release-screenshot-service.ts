@@ -3,7 +3,6 @@ import { getReleaseModerationConfig } from "@/server/releases/release-moderation
 import { buildHostedReleaseAssetUrl } from "@/server/releases/release-public-url";
 import { getReleaseStorage } from "@/server/releases/release-storage";
 import { buildReleaseGenerationScreenshotObjectKey } from "@/server/releases/release-storage-keys";
-import type { BrowserContext } from "playwright-core";
 import { openCloudflareBrowserSession } from "./cloudflare-browser-session";
 import { createReleaseInspectionAccessToken } from "./release-inspection-access";
 import { installReleaseInspectionRouting } from "./release-inspection-routing";
@@ -57,12 +56,11 @@ export const captureReleaseScreenshot = async ({
   });
   const { browser } = browserSession;
 
-  let context: BrowserContext | undefined;
   let captureTimer: ReturnType<typeof setTimeout> | undefined;
   let screenshot: Buffer;
   try {
     const capture = async () => {
-      context = await browser.newContext({
+      const context = await browser.newContext({
         serviceWorkers: "block",
         acceptDownloads: false,
         viewport: {
@@ -129,7 +127,7 @@ export const captureReleaseScreenshot = async ({
     try {
       // Closing the connection also cancels any pending page/context operation.
       await Promise.race([
-        Promise.all([context?.close(), browserSession.close()]),
+        browserSession.close(),
         new Promise<never>((_, reject) => {
           cleanupTimer = setTimeout(
             () =>

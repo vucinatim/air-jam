@@ -63,6 +63,23 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("release screenshot capture", () => {
+  it("preserves the capture error when the session owner closes its contexts", async () => {
+    mocks.page.goto.mockResolvedValue({ ok: () => false, status: () => 404 });
+    mocks.context.close.mockRejectedValue(
+      new Error("Target page, context or browser has been closed"),
+    );
+    await expect(
+      captureReleaseScreenshot({
+        gameId: "game",
+        releaseId: "release",
+        generationId: "generation",
+      }),
+    ).rejects.toThrow("Release screenshot host returned HTTP 404.");
+    expect(mocks.context.close).not.toHaveBeenCalled();
+    expect(mocks.closeSession).toHaveBeenCalledOnce();
+    expect(mocks.putObject).not.toHaveBeenCalled();
+  });
+
   it("captures the declared viewport with private routing rather than context-wide credentials", async () => {
     const result = await captureReleaseScreenshot({
       gameId: "game",
@@ -102,7 +119,7 @@ describe("release screenshot capture", () => {
         contentType: "image/png",
       }),
     );
-    expect(mocks.context.close).toHaveBeenCalledOnce();
+    expect(mocks.context.close).not.toHaveBeenCalled();
     expect(mocks.closeSession).toHaveBeenCalledOnce();
     expect(mocks.browser.close).not.toHaveBeenCalled();
     expect(mocks.putObject.mock.invocationCallOrder[0]).toBeGreaterThan(
@@ -120,7 +137,7 @@ describe("release screenshot capture", () => {
       }),
     ).rejects.toThrow("capture timeout");
     expect(mocks.putObject).not.toHaveBeenCalled();
-    expect(mocks.context.close).toHaveBeenCalledOnce();
+    expect(mocks.context.close).not.toHaveBeenCalled();
     expect(mocks.closeSession).toHaveBeenCalledOnce();
   });
 
@@ -161,7 +178,7 @@ describe("release screenshot capture", () => {
       ).rejects.toThrow(`host returned HTTP ${status}`);
       expect(mocks.page.screenshot).not.toHaveBeenCalled();
       expect(mocks.putObject).not.toHaveBeenCalled();
-      expect(mocks.context.close).toHaveBeenCalledOnce();
+      expect(mocks.context.close).not.toHaveBeenCalled();
       expect(mocks.closeSession).toHaveBeenCalledOnce();
     },
   );
@@ -190,7 +207,7 @@ describe("release screenshot capture", () => {
       }),
     ).rejects.toThrow("16 MiB");
     expect(mocks.putObject).not.toHaveBeenCalled();
-    expect(mocks.context.close).toHaveBeenCalledOnce();
+    expect(mocks.context.close).not.toHaveBeenCalled();
     expect(mocks.closeSession).toHaveBeenCalledOnce();
   });
 
@@ -228,14 +245,14 @@ describe("release screenshot capture", () => {
     expect(mocks.closeSession).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     await rejected;
-    expect(mocks.context.close).toHaveBeenCalledOnce();
+    expect(mocks.context.close).not.toHaveBeenCalled();
     expect(mocks.closeSession).toHaveBeenCalledOnce();
     expect(mocks.putObject).not.toHaveBeenCalled();
   });
 
   it("bounds failed cleanup and does not store the capture", async () => {
     vi.useFakeTimers();
-    mocks.context.close.mockReturnValue(new Promise(() => undefined));
+    mocks.closeSession.mockReturnValue(new Promise(() => undefined));
     const capture = captureReleaseScreenshot({
       gameId: "game",
       releaseId: "release",
@@ -286,7 +303,7 @@ describe("release screenshot capture", () => {
         generationId: "generation",
       }),
     ).rejects.toThrow("Provider cleanup failed.");
-    expect(mocks.context.close).toHaveBeenCalledOnce();
+    expect(mocks.context.close).not.toHaveBeenCalled();
     expect(mocks.closeSession).toHaveBeenCalledOnce();
     expect(mocks.putObject).not.toHaveBeenCalled();
   });

@@ -98,6 +98,15 @@ all four staging services successfully but selected the game hostname in its
 target record; that provider-success result is not authenticated-flow proof.
 Redeploy the corrected revision before creating the hosted fixture.
 
+The real missing-generation capture then exposed a cleanup race: closing the
+context alongside the provider-session owner could replace the useful HTTP 404
+with a context-already-closed error. Capture now delegates browser/context
+shutdown to the single session owner. A failing-then-passing regression and all
+32 capture/session tests pass. Repeating the actual service against staging
+preserved HTTP 404, received provider DELETE acknowledgement and left zero
+objects under its owned fixture prefix. This is operator-invoked service proof,
+not yet a successful deployed-worker job or player-flow sign-off.
+
 The session owner and real offline Pong render were already proven. Integration
 must additionally prove the actual screenshot service, a hidden uploaded R2
 release, capture failure and cleanup, and the unchanged player/creator flow.
