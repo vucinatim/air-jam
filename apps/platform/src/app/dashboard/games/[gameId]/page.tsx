@@ -5,6 +5,8 @@ import {
   type GameAnalyticsTotals,
 } from "@/components/game-analytics/game-analytics-panels";
 import { ReleaseStatusBadge } from "@/components/releases/release-status-badge";
+import { RetryNotice } from "@/components/retry-notice";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,8 +40,11 @@ import {
   gameConfigTemplateIdSchema,
 } from "@/lib/games/game-config-contract";
 import { cn } from "@/lib/utils";
+import type { AppRouter } from "@/server/api/root";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import {
   Check,
   ChevronDown,
@@ -82,6 +87,7 @@ const overviewSchema = z.object({
 });
 
 type OverviewForm = z.infer<typeof overviewSchema>;
+type OverviewGame = inferRouterOutputs<AppRouter>["game"]["get"];
 
 type DistributionStep = {
   label: string;
@@ -114,6 +120,19 @@ function formatCompactTimestamp(value?: Date | null): string {
   }).format(value);
 }
 
+function profileValues(
+  game: Pick<OverviewGame, "name" | "slug" | "description" | "url" | "config">,
+): OverviewForm {
+  return {
+    name: game.name,
+    slug: game.slug ?? "",
+    description: game.description ?? "",
+    previewUrl: game.url ?? "",
+    sourceUrl: game.config?.sourceUrl ?? "",
+    templateId: game.config?.templateId ?? "",
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
@@ -121,46 +140,74 @@ function formatCompactTimestamp(value?: Date | null): string {
 export default function GameOverviewPage() {
   const params = useParams();
   const gameId = params.gameId as string;
+  const query = api.game.get.useQuery({ id: gameId });
+  if (query.isLoading)
+    return (
+      <div role="status" aria-label="Loading game overview">
+        <Skeleton className="h-[500px] w-full" />
+      </div>
+    );
+  const readError = query.isError ? (
+    <RetryNotice
+      message="We couldn’t load this game."
+      detail={
+        query.data
+          ? "Previously loaded game details are still shown."
+          : undefined
+      }
+      isRetrying={query.isFetching}
+      onRetry={() => void query.refetch()}
+    />
+  ) : null;
+  if (!query.data) return readError ?? <div role="status">Game not found</div>;
+  return (
+    <>
+      {readError}
+      <GameOverview key={gameId} game={query.data} />
+    </>
+  );
+}
+
+function GameOverview({ game }: { game: OverviewGame }) {
+  const gameId = game.id;
   const [debouncedSlug, setDebouncedSlug] = useState("");
-  const [appIdCopied, setAppIdCopied] = useState(false);
   const [showAppIdKey, setShowAppIdKey] = useState(false);
   const utils = api.useUtils();
 
   /* ---- queries --------------------------------------------------- */
 
-  const { data: game, isLoading } = api.game.get.useQuery({ id: gameId });
-  const { data: appId } = api.game.getAppId.useQuery(
+  const appIdQuery = api.game.getAppId.useQuery(
     { gameId },
     { enabled: !!gameId },
   );
-  const { data: analyticsOverview } = api.analytics.getGameOverview.useQuery(
+  const analyticsQuery = api.analytics.getGameOverview.useQuery(
     { gameId, days: 30 },
     { enabled: !!gameId },
   );
-  const { data: releases } = api.release.listByGame.useQuery(
+  const releasesQuery = api.release.listByGame.useQuery(
     { gameId },
     { enabled: !!gameId },
   );
-  const { data: slugCheck, isFetching: isCheckingSlug } =
-    api.game.checkSlugAvailability.useQuery(
-      { slug: debouncedSlug, excludeGameId: gameId },
-      {
-        enabled: debouncedSlug.length > 0 && /^[a-z0-9-]+$/.test(debouncedSlug),
-      },
-    );
+  const { data: appId } = appIdQuery;
+  const { data: analyticsOverview } = analyticsQuery;
+  const { data: releases } = releasesQuery;
+  const {
+    data: slugCheck,
+    isFetching: isCheckingSlug,
+    isError: isSlugCheckError,
+    refetch: refetchSlug,
+  } = api.game.checkSlugAvailability.useQuery(
+    { slug: debouncedSlug, excludeGameId: gameId },
+    {
+      enabled: debouncedSlug.length > 0 && /^[a-z0-9-]+$/.test(debouncedSlug),
+    },
+  );
 
   /* ---- form ------------------------------------------------------ */
 
   const form = useForm<OverviewForm>({
     resolver: zodResolver(overviewSchema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      description: "",
-      previewUrl: "",
-      sourceUrl: "",
-      templateId: "",
-    },
+    defaultValues: profileValues(game),
   });
 
   const watchedSlug = useWatch({ control: form.control, name: "slug" });
@@ -174,34 +221,36 @@ export default function GameOverviewPage() {
     return () => clearTimeout(timer);
   }, [watchedSlug]);
 
-  useEffect(() => {
-    if (!game) return;
-    form.reset({
-      name: game.name,
-      slug: game.slug || "",
-      description: game.description || "",
-      previewUrl: game.url ?? "",
-      sourceUrl: game.config?.sourceUrl ?? "",
-      templateId: game.config?.templateId ?? "",
-    });
-  }, [form, game]);
-
   /* ---- mutations ------------------------------------------------- */
 
   const updateGameDetails = api.game.update.useMutation({
-    onSuccess: async () => {
-      await Promise.all([
+    retry: false,
+    onSuccess: async (updatedGame, submitted) => {
+      await utils.game.get.cancel({ id: submitted.id });
+      utils.game.get.setData({ id: submitted.id }, (current) =>
+        current
+          ? {
+              ...current,
+              name: updatedGame.name,
+              slug: updatedGame.slug,
+              description: updatedGame.description,
+              url: updatedGame.url,
+              config: updatedGame.config,
+              updatedAt: updatedGame.updatedAt,
+            }
+          : current,
+      );
+      form.reset(profileValues(updatedGame));
+      void Promise.all([
         utils.game.get.invalidate({ id: gameId }),
         utils.game.list.invalidate(),
         utils.game.getAllPublic.invalidate(),
       ]);
     },
-    onError: (error) => {
-      alert(`Error: ${error.message}`);
-    },
   });
 
   const updateArcadeVisibility = api.game.update.useMutation({
+    retry: false,
     onMutate: async (newData) => {
       await utils.game.get.cancel({ id: gameId });
       const previousGame = utils.game.get.getData({ id: gameId });
@@ -214,10 +263,28 @@ export default function GameOverviewPage() {
       });
       return { previousGame };
     },
-    onError: (_err, _newData, context) => {
-      if (context?.previousGame) {
-        utils.game.get.setData({ id: gameId }, context.previousGame);
+    onError: (_error, _newData, context) => {
+      const previousGame = context?.previousGame;
+      if (previousGame) {
+        utils.game.get.setData({ id: gameId }, (current) =>
+          current
+            ? {
+                ...current,
+                arcadeVisibility: previousGame.arcadeVisibility,
+              }
+            : current,
+        );
       }
+    },
+    onSuccess: (updatedGame) => {
+      utils.game.get.setData({ id: gameId }, (current) =>
+        current
+          ? {
+              ...current,
+              arcadeVisibility: updatedGame.arcadeVisibility,
+            }
+          : current,
+      );
     },
     onSettled: () => {
       void Promise.all([
@@ -228,32 +295,27 @@ export default function GameOverviewPage() {
     },
   });
 
+  const isUpdatingGame =
+    updateGameDetails.isPending || updateArcadeVisibility.isPending;
+
   const onSubmit = (data: OverviewForm) => {
-    void updateGameDetails
-      .mutateAsync({
-        id: gameId,
-        name: data.name,
-        slug: data.slug,
-        description: data.description,
-        url: data.previewUrl.trim() ? data.previewUrl.trim() : null,
-        sourceUrl: data.sourceUrl.trim() ? data.sourceUrl.trim() : null,
-        templateId: data.templateId.trim() ? data.templateId.trim() : null,
-      })
-      .then(() => alert("Overview saved successfully."))
-      .catch(() => {});
+    if (isUpdatingGame) return;
+    updateGameDetails.mutate({
+      id: gameId,
+      name: data.name,
+      slug: data.slug,
+      description: data.description,
+      url: data.previewUrl.trim() ? data.previewUrl.trim() : null,
+      sourceUrl: data.sourceUrl.trim() ? data.sourceUrl.trim() : null,
+      templateId: data.templateId.trim() ? data.templateId.trim() : null,
+    });
   };
 
-  const handleCopyAppId = async () => {
-    if (!appId?.key) return;
-    await navigator.clipboard.writeText(appId.key);
-    setAppIdCopied(true);
-    setTimeout(() => setAppIdCopied(false), 2000);
-  };
-
-  /* ---- loading / not-found --------------------------------------- */
-
-  if (isLoading) return <Skeleton className="h-[500px] w-full" />;
-  if (!game) return <div>Game not found</div>;
+  const copyAppId = useMutation({
+    mutationFn: (key: string) => navigator.clipboard.writeText(key),
+    retry: false,
+  });
+  const appIdCopied = copyAppId.isSuccess && copyAppId.variables === appId?.key;
 
   /* ---- derived state --------------------------------------------- */
 
@@ -308,7 +370,9 @@ export default function GameOverviewPage() {
   const showSlugStatus =
     (watchedSlug?.length ?? 0) > 0 &&
     isSlugFormatValid &&
-    debouncedSlug === watchedSlug;
+    debouncedSlug === watchedSlug &&
+    Boolean(slugCheck) &&
+    !isSlugCheckError;
   const isSlugAvailable = slugCheck?.available ?? false;
   const scaffoldCommand = buildCreateAirJamTemplateCommand(watchedTemplateId);
 
@@ -362,7 +426,7 @@ export default function GameOverviewPage() {
                     arcadeVisibility: checked ? "listed" : "hidden",
                   })
                 }
-                disabled={updateArcadeVisibility.isPending}
+                disabled={isUpdatingGame}
                 aria-label={
                   game.arcadeVisibility === "listed"
                     ? "Listed in public Arcade — tap to hide"
@@ -389,6 +453,15 @@ export default function GameOverviewPage() {
           )}
         </div>
       </div>
+
+      {updateArcadeVisibility.error && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Could not change Arcade visibility.{" "}
+            {updateArcadeVisibility.error.message}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* ------------------------------------------------------------ */}
       {/*  Launch Checklist                                              */}
@@ -417,50 +490,72 @@ export default function GameOverviewPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="space-y-4 pt-0">
-              <div className="grid gap-3 md:grid-cols-3">
-                {steps.map((step, i) => (
-                  <div
-                    key={step.label}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg border p-3",
-                      step.complete && "border-emerald-500/30 bg-emerald-500/5",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium",
-                        step.complete
-                          ? "bg-emerald-500 text-white"
-                          : "bg-muted text-muted-foreground",
-                      )}
-                    >
-                      {step.complete ? (
-                        <Check className="h-3.5 w-3.5" />
-                      ) : (
-                        i + 1
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{step.label}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {step.complete ? "Done" : "Pending"}
+              {releasesQuery.isError && (
+                <RetryNotice
+                  message="We couldn’t load your releases."
+                  detail={
+                    releases
+                      ? "Previously loaded releases are still shown."
+                      : undefined
+                  }
+                  isRetrying={releasesQuery.isFetching}
+                  onRetry={() => void releasesQuery.refetch()}
+                />
+              )}
+              {releasesQuery.isLoading && (
+                <p role="status">Loading releases...</p>
+              )}
+              {releases && (
+                <>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {steps.map((step, i) => (
+                      <div
+                        key={step.label}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg border p-3",
+                          step.complete &&
+                            "border-emerald-500/30 bg-emerald-500/5",
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium",
+                            step.complete
+                              ? "bg-emerald-500 text-white"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {step.complete ? (
+                            <Check className="h-3.5 w-3.5" />
+                          ) : (
+                            i + 1
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">
+                            {step.label}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            {step.complete ? "Done" : "Pending"}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              {nextIncompleteStep && (
-                <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
-                  <div>
-                    <div className="text-sm font-medium">Next step</div>
-                    <div className="text-muted-foreground text-sm">
-                      {nextIncompleteStep.label}
+                  {nextIncompleteStep && (
+                    <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
+                      <div>
+                        <div className="text-sm font-medium">Next step</div>
+                        <div className="text-muted-foreground text-sm">
+                          {nextIncompleteStep.label}
+                        </div>
+                      </div>
+                      <Link href={nextIncompleteStep.href}>
+                        <Button size="sm">{nextIncompleteStep.cta}</Button>
+                      </Link>
                     </div>
-                  </div>
-                  <Link href={nextIncompleteStep.href}>
-                    <Button size="sm">{nextIncompleteStep.cta}</Button>
-                  </Link>
-                </div>
+                  )}
+                </>
               )}
             </CardContent>
           </CollapsibleContent>
@@ -489,7 +584,7 @@ export default function GameOverviewPage() {
                       <FormItem>
                         <FormLabel>Game Name</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} disabled={isUpdatingGame} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -501,12 +596,12 @@ export default function GameOverviewPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Shareable Slug</FormLabel>
-                        <FormControl>
-                          <div className="flex">
-                            <span className="bg-muted text-muted-foreground flex items-center rounded-l-md border border-r-0 px-3 text-sm">
-                              /play/
-                            </span>
-                            <div className="relative flex-1">
+                        <div className="flex">
+                          <span className="bg-muted text-muted-foreground flex items-center rounded-l-md border border-r-0 px-3 text-sm">
+                            /play/
+                          </span>
+                          <div className="relative flex-1">
+                            <FormControl>
                               <Input
                                 className={cn(
                                   "rounded-l-none pr-10",
@@ -520,22 +615,25 @@ export default function GameOverviewPage() {
                                     "border-red-500 focus-visible:ring-red-500",
                                 )}
                                 {...field}
+                                disabled={isUpdatingGame}
                               />
-                              {field.value.length > 0 && isSlugFormatValid ? (
-                                <div className="absolute top-1/2 right-3 -translate-y-1/2">
-                                  {isCheckingSlug ||
-                                  debouncedSlug !== field.value ? (
-                                    <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
-                                  ) : isSlugAvailable ? (
-                                    <Check className="h-4 w-4 text-green-500" />
-                                  ) : (
-                                    <X className="h-4 w-4 text-red-500" />
-                                  )}
-                                </div>
-                              ) : null}
-                            </div>
+                            </FormControl>
+                            {field.value.length > 0 &&
+                            isSlugFormatValid &&
+                            !isSlugCheckError ? (
+                              <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                                {isCheckingSlug ||
+                                debouncedSlug !== field.value ? (
+                                  <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                                ) : isSlugAvailable ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <X className="h-4 w-4 text-red-500" />
+                                )}
+                              </div>
+                            ) : null}
                           </div>
-                        </FormControl>
+                        </div>
                         {showSlugStatus &&
                         !isCheckingSlug &&
                         !isSlugAvailable ? (
@@ -544,6 +642,13 @@ export default function GameOverviewPage() {
                           </p>
                         ) : null}
                         <FormMessage />
+                        {isSlugCheckError && debouncedSlug === watchedSlug && (
+                          <RetryNotice
+                            message="We couldn’t check this slug."
+                            isRetrying={isCheckingSlug}
+                            onRetry={() => void refetchSlug()}
+                          />
+                        )}
                       </FormItem>
                     )}
                   />
@@ -558,6 +663,7 @@ export default function GameOverviewPage() {
                       <FormControl>
                         <Textarea
                           {...field}
+                          disabled={isUpdatingGame}
                           rows={3}
                           placeholder="A short public description for the Arcade catalog."
                         />
@@ -577,6 +683,7 @@ export default function GameOverviewPage() {
                         <Input
                           placeholder="http://localhost:5173 or https://your-site.com"
                           {...field}
+                          disabled={isUpdatingGame}
                         />
                       </FormControl>
                       <FormDescription>
@@ -611,6 +718,7 @@ export default function GameOverviewPage() {
                             <Input
                               placeholder="https://github.com/vucinatim/air-jam/tree/main/games/pong"
                               {...field}
+                              disabled={isUpdatingGame}
                             />
                           </FormControl>
                           <FormDescription>
@@ -628,7 +736,11 @@ export default function GameOverviewPage() {
                         <FormItem>
                           <FormLabel>Create-AirJam Template ID</FormLabel>
                           <FormControl>
-                            <Input placeholder="pong" {...field} />
+                            <Input
+                              placeholder="pong"
+                              {...field}
+                              disabled={isUpdatingGame}
+                            />
                           </FormControl>
                           <FormDescription>
                             Shows the code icon and copies the generated npx
@@ -648,12 +760,25 @@ export default function GameOverviewPage() {
                   ) : null}
                 </div>
 
+                {updateGameDetails.error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      Could not save the profile.{" "}
+                      {updateGameDetails.error.message}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {updateGameDetails.isSuccess && !form.formState.isDirty && (
+                  <p role="status" className="text-muted-foreground text-sm">
+                    Profile saved.
+                  </p>
+                )}
                 <div className="flex justify-end pt-2">
                   <Button
                     type="submit"
                     disabled={
-                      updateGameDetails.isPending ||
-                      (slugCheck ? !slugCheck.available : false)
+                      isUpdatingGame ||
+                      (showSlugStatus && !isCheckingSlug && !isSlugAvailable)
                     }
                   >
                     {updateGameDetails.isPending ? (
@@ -681,55 +806,82 @@ export default function GameOverviewPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-4">
-            <div>
-              <div className="bg-muted relative rounded-lg p-3 pr-10 font-mono text-xs break-all">
-                {appId?.key
-                  ? showAppIdKey
-                    ? appId.key
-                    : "\u2022".repeat(Math.min(appId.key.length, 32))
-                  : "No App ID found"}
-                <button
-                  type="button"
-                  onClick={() => setShowAppIdKey((v) => !v)}
-                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 transition-colors"
-                >
-                  {showAppIdKey ? (
-                    <EyeOff className="h-3.5 w-3.5" />
-                  ) : (
-                    <Eye className="h-3.5 w-3.5" />
-                  )}
-                </button>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 w-full"
-                onClick={handleCopyAppId}
-                disabled={!appId?.key}
-              >
-                {appIdCopied ? (
-                  <Check className="mr-2 h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="mr-2 h-3.5 w-3.5" />
-                )}
-                {appIdCopied ? "Copied" : "Copy App ID"}
-              </Button>
-            </div>
+            {appIdQuery.isError && (
+              <RetryNotice
+                message="We couldn’t load your App ID."
+                detail={
+                  appId
+                    ? "Previously loaded identity is still shown."
+                    : undefined
+                }
+                isRetrying={appIdQuery.isFetching}
+                onRetry={() => void appIdQuery.refetch()}
+              />
+            )}
+            {appIdQuery.isLoading && <p role="status">Loading App ID...</p>}
+            {!appId && !appIdQuery.isError && !appIdQuery.isLoading && (
+              <p role="status">No App ID found.</p>
+            )}
+            {appId && (
+              <>
+                <div>
+                  <div className="bg-muted relative rounded-lg p-3 pr-10 font-mono text-xs break-all">
+                    {showAppIdKey
+                      ? appId.key
+                      : "\u2022".repeat(Math.min(appId.key.length, 32))}
+                    <button
+                      type="button"
+                      aria-label={showAppIdKey ? "Hide App ID" : "Show App ID"}
+                      onClick={() => setShowAppIdKey((v) => !v)}
+                      className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 transition-colors"
+                    >
+                      {showAppIdKey ? (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() => copyAppId.mutate(appId.key)}
+                    disabled={copyAppId.isPending}
+                  >
+                    {appIdCopied ? (
+                      <Check className="mr-2 h-3.5 w-3.5" />
+                    ) : (
+                      <Copy className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    {appIdCopied ? "Copied" : "Copy App ID"}
+                  </Button>
+                </div>
 
-            <div className="bg-muted/50 rounded-lg border border-dashed p-3">
-              <div className="text-muted-foreground mb-1.5 text-[10px] font-medium tracking-wider uppercase">
-                Usage
-              </div>
-              <code className="text-[11px] leading-relaxed">
-                <span className="text-muted-foreground">AIR_JAM_APP_ID</span>
-                <span className="text-muted-foreground">=</span>
-                <span className="text-foreground/70">
-                  {appId?.key
-                    ? `"${showAppIdKey ? appId.key : appId.key.slice(0, 8) + "..."}"`
-                    : '"your-app-id"'}
-                </span>
-              </code>
-            </div>
+                {copyAppId.error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      Could not copy the App ID. {copyAppId.error.message}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="bg-muted/50 rounded-lg border border-dashed p-3">
+                  <div className="text-muted-foreground mb-1.5 text-[10px] font-medium tracking-wider uppercase">
+                    Usage
+                  </div>
+                  <code className="text-[11px] leading-relaxed">
+                    <span className="text-muted-foreground">
+                      AIR_JAM_APP_ID
+                    </span>
+                    <span className="text-muted-foreground">=</span>
+                    <span className="text-foreground/70">
+                      {`"${showAppIdKey ? appId.key : appId.key.slice(0, 8) + "..."}"`}
+                    </span>
+                  </code>
+                </div>
+              </>
+            )}
 
             <div className="mt-auto">
               <Link href={`/dashboard/games/${gameId}/security`}>
@@ -769,7 +921,8 @@ export default function GameOverviewPage() {
                     arcadeVisibility: checked ? "listed" : "hidden",
                   })
                 }
-                disabled={updateArcadeVisibility.isPending || !canListInArcade}
+                disabled={isUpdatingGame || !canListInArcade}
+                aria-label="Public Arcade visibility"
               />
             </div>
             <div className="mt-3">
@@ -781,7 +934,11 @@ export default function GameOverviewPage() {
               <div className="text-muted-foreground text-xs">
                 {canListInArcade
                   ? getArcadeVisibilityLabel(game.arcadeVisibility)
-                  : "Needs a live release"}
+                  : releasesQuery.isError
+                    ? "Release status unavailable"
+                    : releasesQuery.isLoading
+                      ? "Loading releases"
+                      : "Needs a live release"}
               </div>
             </div>
           </div>
@@ -807,6 +964,10 @@ export default function GameOverviewPage() {
                         {liveRelease.versionLabel?.trim() || "Live"}
                       </span>
                     </>
+                  ) : releasesQuery.isError ? (
+                    "Unavailable"
+                  ) : releasesQuery.isLoading ? (
+                    "Loading"
                   ) : (
                     "None"
                   )}
@@ -816,7 +977,11 @@ export default function GameOverviewPage() {
                     ? "Hosted release active"
                     : readyRelease
                       ? "Ready release waiting"
-                      : "No release uploaded"}
+                      : releasesQuery.isError
+                        ? "Open Releases to retry"
+                        : releasesQuery.isLoading
+                          ? "Loading releases"
+                          : "No release uploaded"}
                 </div>
               </div>
             </div>
@@ -862,12 +1027,22 @@ export default function GameOverviewPage() {
               </div>
               <div className="mt-3">
                 <div className="text-lg font-semibold">
-                  {appId?.isActive ? "Active" : "Inactive"}
+                  {appId
+                    ? appId.isActive
+                      ? "Active"
+                      : "Inactive"
+                    : appIdQuery.isError
+                      ? "Unavailable"
+                      : appIdQuery.isLoading
+                        ? "Loading"
+                        : "No App ID"}
                 </div>
                 <div className="text-muted-foreground text-xs">
                   {appId?.allowedOrigins?.length
                     ? `${appId.allowedOrigins.length} origin${appId.allowedOrigins.length === 1 ? "" : "s"} allowed`
-                    : "Any origin"}
+                    : appId
+                      ? "Any origin"
+                      : "Open Security Settings"}
                 </div>
               </div>
             </div>
@@ -896,66 +1071,84 @@ export default function GameOverviewPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {hasActivity ? (
-            <div className="space-y-4">
-              <div className="flex items-end gap-1">
-                {dailyAnalytics.map((day) => {
-                  const height = Math.max(
-                    8,
-                    Math.round(
-                      (day.totalEligiblePlaytimeSeconds / peakEligible) * 100,
-                    ),
-                  );
-                  return (
-                    <div
-                      key={day.bucketDate}
-                      className="flex min-w-0 flex-1 flex-col items-center gap-1"
-                    >
-                      <div className="bg-airjam-cyan/15 flex h-16 w-full items-end rounded-sm">
-                        <div
-                          className="bg-airjam-cyan w-full rounded-sm transition-all"
-                          style={{ height: `${height}%` }}
-                        />
-                      </div>
-                      <span className="text-muted-foreground text-[9px]">
-                        {day.bucketDate.slice(8)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-lg border p-3">
-                  <div className="text-muted-foreground text-xs">Sessions</div>
-                  <div className="mt-1 text-lg font-semibold">
-                    {analyticsTotals.sessionCount}
-                  </div>
-                </div>
-                <div className="rounded-lg border p-3">
-                  <div className="text-muted-foreground text-xs">
-                    Active Time
-                  </div>
-                  <div className="mt-1 text-lg font-semibold">
-                    {formatCompactDuration(
-                      analyticsTotals.totalGameActiveSeconds,
-                    )}
-                  </div>
-                </div>
-                <div className="rounded-lg border p-3">
-                  <div className="text-muted-foreground text-xs">
-                    Last Activity
-                  </div>
-                  <div className="mt-1 text-sm font-semibold">
-                    {formatCompactTimestamp(analyticsTotals.lastActivityAt)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-muted-foreground flex h-24 items-center justify-center rounded-lg border border-dashed text-sm">
-              No activity yet. Start a session to see analytics here.
-            </div>
+          {analyticsQuery.isError && (
+            <RetryNotice
+              message="We couldn’t load recent activity."
+              detail={
+                analyticsOverview
+                  ? "Previously loaded activity is still shown."
+                  : undefined
+              }
+              isRetrying={analyticsQuery.isFetching}
+              onRetry={() => void analyticsQuery.refetch()}
+            />
           )}
+          {analyticsQuery.isLoading && (
+            <p role="status">Loading recent activity...</p>
+          )}
+          {analyticsOverview &&
+            (hasActivity ? (
+              <div className="space-y-4">
+                <div className="flex items-end gap-1">
+                  {dailyAnalytics.map((day) => {
+                    const height = Math.max(
+                      8,
+                      Math.round(
+                        (day.totalEligiblePlaytimeSeconds / peakEligible) * 100,
+                      ),
+                    );
+                    return (
+                      <div
+                        key={day.bucketDate}
+                        className="flex min-w-0 flex-1 flex-col items-center gap-1"
+                      >
+                        <div className="bg-airjam-cyan/15 flex h-16 w-full items-end rounded-sm">
+                          <div
+                            className="bg-airjam-cyan w-full rounded-sm transition-all"
+                            style={{ height: `${height}%` }}
+                          />
+                        </div>
+                        <span className="text-muted-foreground text-[9px]">
+                          {day.bucketDate.slice(8)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg border p-3">
+                    <div className="text-muted-foreground text-xs">
+                      Sessions
+                    </div>
+                    <div className="mt-1 text-lg font-semibold">
+                      {analyticsTotals.sessionCount}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-muted-foreground text-xs">
+                      Active Time
+                    </div>
+                    <div className="mt-1 text-lg font-semibold">
+                      {formatCompactDuration(
+                        analyticsTotals.totalGameActiveSeconds,
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-muted-foreground text-xs">
+                      Last Activity
+                    </div>
+                    <div className="mt-1 text-sm font-semibold">
+                      {formatCompactTimestamp(analyticsTotals.lastActivityAt)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-muted-foreground flex h-24 items-center justify-center rounded-lg border border-dashed text-sm">
+                No activity yet. Start a session to see analytics here.
+              </div>
+            ))}
         </CardContent>
       </Card>
     </div>

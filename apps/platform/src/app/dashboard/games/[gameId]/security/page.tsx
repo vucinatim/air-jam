@@ -1,8 +1,9 @@
 "use client";
 
+import { RetryNotice } from "@/components/retry-notice";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -18,8 +19,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
+import { useMutation } from "@tanstack/react-query";
 import {
   Check,
   Copy,
@@ -40,62 +43,80 @@ export default function GameSecurityPage() {
   const [allowedOriginsText, setAllowedOriginsText] = useState<string | null>(
     null,
   );
-  const [copied, setCopied] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
 
-  const { data: appId, isLoading } = api.game.getAppId.useQuery(
-    { gameId },
-    { enabled: !!gameId },
-  );
+  const {
+    data: appId,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = api.game.getAppId.useQuery({ gameId }, { enabled: !!gameId });
 
   const updateAppIdPolicy = api.game.updateAppIdPolicy.useMutation({
-    onSuccess: async () => {
-      await utils.game.getAppId.invalidate({ gameId });
-      alert("Security settings saved successfully.");
-    },
-    onError: (error) => {
-      alert(`Error: ${error.message}`);
+    retry: false,
+    onSuccess: async (updatedAppId) => {
+      await utils.game.getAppId.cancel({ gameId });
+      utils.game.getAppId.setData({ gameId }, updatedAppId);
+      setAllowedOriginsText(null);
+      void utils.game.getAppId.invalidate({ gameId });
     },
   });
 
   const regenerateAppId = api.game.regenerateAppId.useMutation({
-    onSuccess: async () => {
-      await utils.game.getAppId.invalidate({ gameId });
+    retry: false,
+    onSuccess: async (updatedAppId) => {
+      await utils.game.getAppId.cancel({ gameId });
+      utils.game.getAppId.setData({ gameId }, updatedAppId);
       setShowKey(true);
-      setCopied(false);
+      copyAppId.reset();
       setShowRegenerateDialog(false);
+      void utils.game.getAppId.invalidate({ gameId });
     },
   });
 
-  const displayedAllowedOriginsText =
-    allowedOriginsText ?? (appId?.allowedOrigins ?? []).join("\n");
+  const copyAppId = useMutation({
+    mutationFn: (key: string) => navigator.clipboard.writeText(key),
+    retry: false,
+  });
 
-  const handleCopyAppId = async () => {
-    if (!appId?.key) return;
-    await navigator.clipboard.writeText(appId.key);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  if (isLoading) {
+    return <div role="status">Loading security settings...</div>;
+  }
+
+  const isBusy = updateAppIdPolicy.isPending || regenerateAppId.isPending;
+  const readError = isError ? (
+    <RetryNotice
+      message="We couldn’t load your security settings."
+      detail={appId ? "Previously loaded settings are still shown." : undefined}
+      isRetrying={isFetching}
+      disabled={isBusy}
+      onRetry={() => void refetch()}
+    />
+  ) : null;
+
+  if (!appId) {
+    return readError ?? <div role="status">No App ID found.</div>;
+  }
+
+  const displayedAllowedOriginsText =
+    allowedOriginsText ?? (appId.allowedOrigins ?? []).join("\n");
+  const copied = copyAppId.isSuccess && copyAppId.variables === appId.key;
 
   const handleSavePolicy = () => {
-    const allowedOrigins =
-      allowedOriginsText ?? (appId?.allowedOrigins ?? []).join("\n");
+    if (isBusy) return;
 
-    const normalizedAllowedOrigins = allowedOrigins
+    const normalizedAllowedOrigins = displayedAllowedOriginsText
       .split(/[\n,]/)
       .map((value) => value.trim())
       .filter(Boolean);
 
-    void updateAppIdPolicy.mutateAsync({
+    updateAppIdPolicy.mutate({
       gameId,
       allowedOrigins: normalizedAllowedOrigins,
     });
   };
-
-  if (isLoading) {
-    return <div>Loading security settings...</div>;
-  }
 
   return (
     <div className="space-y-6">
@@ -107,6 +128,8 @@ export default function GameSecurityPage() {
           release management.
         </p>
       </div>
+
+      {readError}
 
       <Card>
         <CardHeader>
@@ -128,8 +151,8 @@ export default function GameSecurityPage() {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={handleCopyAppId}
-                disabled={!appId?.key}
+                onClick={() => copyAppId.mutate(appId.key)}
+                disabled={copyAppId.isPending || isBusy}
               >
                 {copied ? (
                   <Check className="mr-2 h-4 w-4" />
@@ -140,7 +163,11 @@ export default function GameSecurityPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowRegenerateDialog(true)}
+                onClick={() => {
+                  regenerateAppId.reset();
+                  setShowRegenerateDialog(true);
+                }}
+                disabled={isBusy}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Regenerate
@@ -148,15 +175,12 @@ export default function GameSecurityPage() {
             </div>
           </div>
           <div className="bg-muted relative rounded-md p-3 pr-10 font-mono text-xs break-all">
-            {appId?.key
-              ? showKey
-                ? appId.key
-                : "•".repeat(Math.min(appId.key.length, 40))
-              : "No App ID found"}
+            {showKey ? appId.key : "•".repeat(Math.min(appId.key.length, 40))}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowKey((value) => !value)}
+              aria-label={showKey ? "Hide App ID" : "Show App ID"}
               className="hover:bg-muted-foreground/10 absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 p-0"
             >
               {showKey ? (
@@ -166,6 +190,13 @@ export default function GameSecurityPage() {
               )}
             </Button>
           </div>
+          {copyAppId.error && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Could not copy the App ID. {copyAppId.error.message}
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
@@ -178,24 +209,40 @@ export default function GameSecurityPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <Label htmlFor="allowed-origins">Allowed origins</Label>
           <Textarea
+            id="allowed-origins"
             placeholder={
               "https://my-game.vercel.app\nhttps://my-game.netlify.app"
             }
             rows={6}
             value={displayedAllowedOriginsText}
-            onChange={(event) => setAllowedOriginsText(event.target.value)}
+            disabled={isBusy}
+            onChange={(event) => {
+              updateAppIdPolicy.reset();
+              setAllowedOriginsText(event.target.value);
+            }}
           />
           <div className="rounded-lg border border-white/10 bg-zinc-900/70 p-3 text-sm text-zinc-300">
             Leave this empty if you want to allow any origin using this App ID.
             Add one origin per line when you want to lock runtime bootstrap down
             to known production hosts.
           </div>
+          {updateAppIdPolicy.error && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Could not save security settings.{" "}
+                {updateAppIdPolicy.error.message}
+              </AlertDescription>
+            </Alert>
+          )}
+          {updateAppIdPolicy.isSuccess && (
+            <p role="status" className="text-muted-foreground text-sm">
+              Security settings saved.
+            </p>
+          )}
           <div className="flex justify-end">
-            <Button
-              onClick={handleSavePolicy}
-              disabled={updateAppIdPolicy.isPending}
-            >
+            <Button onClick={handleSavePolicy} disabled={isBusy}>
               {updateAppIdPolicy.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -209,7 +256,9 @@ export default function GameSecurityPage() {
 
       <AlertDialog
         open={showRegenerateDialog}
-        onOpenChange={setShowRegenerateDialog}
+        onOpenChange={(open) => {
+          if (!regenerateAppId.isPending) setShowRegenerateDialog(open);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -220,12 +269,24 @@ export default function GameSecurityPage() {
               stop working until you update it with the new value.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {regenerateAppId.error && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Could not regenerate the App ID. {regenerateAppId.error.message}
+              </AlertDescription>
+            </Alert>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => regenerateAppId.mutate({ gameId })}
+            <AlertDialogCancel disabled={regenerateAppId.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!regenerateAppId.isPending)
+                  regenerateAppId.mutate({ gameId });
+              }}
               disabled={regenerateAppId.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {regenerateAppId.isPending ? (
                 <>
@@ -238,7 +299,7 @@ export default function GameSecurityPage() {
                   Regenerate
                 </>
               )}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -25,6 +25,7 @@ import {
   MAX_RELEASE_ZIP_BYTES,
 } from "@/lib/releases/release-policy";
 import { api } from "@/trpc/react";
+import { useMutation } from "@tanstack/react-query";
 import {
   AlertCircle,
   Archive,
@@ -80,9 +81,6 @@ export default function GameReleasesPage() {
     title: string;
     description: string;
   } | null>(null);
-  const [uploadingReleaseId, setUploadingReleaseId] = useState<string | null>(
-    null,
-  );
   const [actionReleaseId, setActionReleaseId] = useState<string | null>(null);
   const [exportingGenerationId, setExportingGenerationId] = useState<
     string | null
@@ -126,7 +124,74 @@ export default function GameReleasesPage() {
   const liveRelease =
     releases?.find((release) => release.status === "live") ?? null;
 
-  const handleUploadRelease = async () => {
+  const uploadRelease = useMutation({
+    retry: false,
+    mutationFn: async ({ file, label }: { file: File; label: string }) => {
+      let createdReleaseId: string | null = null;
+
+      try {
+        setFeedback(null);
+        const createdRelease = await createDraft.mutateAsync({
+          gameId,
+          versionLabel: label.trim() || undefined,
+        });
+        createdReleaseId = createdRelease.id;
+
+        const uploadTarget = await requestUploadTarget.mutateAsync({
+          releaseId: createdRelease.id,
+          originalFilename: file.name,
+          sizeBytes: file.size,
+        });
+
+        const uploadResponse = await fetch(uploadTarget.upload.url, {
+          method: uploadTarget.upload.method,
+          headers: uploadTarget.upload.headers,
+          body: file,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(
+            `Release upload failed with status ${uploadResponse.status}. Check the R2 bucket CORS rules and upload credentials.`,
+          );
+        }
+
+        const finalized = await finalizeUpload.mutateAsync({
+          releaseId: createdRelease.id,
+          generationId: uploadTarget.generation.id,
+        });
+
+        setSelectedFile(null);
+        setVersionLabel("");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        setFeedback({
+          variant: "default",
+          title: "Release processing queued",
+          description: `Generation #${finalized.generation.sequence} was uploaded and durable job ${finalized.job.id} will validate and moderate it in the background.`,
+        });
+        await refreshReleaseData();
+      } catch (error) {
+        setFeedback({
+          variant: "destructive",
+          title: "Release upload failed",
+          description:
+            error instanceof Error
+              ? error.message
+              : "The release could not be uploaded or validated.",
+        });
+
+        if (createdReleaseId) {
+          await refreshReleaseData();
+        }
+        throw error;
+      }
+    },
+  });
+
+  const handleUploadRelease = () => {
+    if (uploadRelease.isPending) return;
     if (!selectedFile) {
       setFeedback({
         variant: "destructive",
@@ -146,68 +211,7 @@ export default function GameReleasesPage() {
       return;
     }
 
-    let createdReleaseId: string | null = null;
-
-    try {
-      setFeedback(null);
-      const createdRelease = await createDraft.mutateAsync({
-        gameId,
-        versionLabel: versionLabel.trim() || undefined,
-      });
-      createdReleaseId = createdRelease.id;
-      setUploadingReleaseId(createdRelease.id);
-
-      const uploadTarget = await requestUploadTarget.mutateAsync({
-        releaseId: createdRelease.id,
-        originalFilename: selectedFile.name,
-        sizeBytes: selectedFile.size,
-      });
-
-      const uploadResponse = await fetch(uploadTarget.upload.url, {
-        method: uploadTarget.upload.method,
-        headers: uploadTarget.upload.headers,
-        body: selectedFile,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(
-          `Release upload failed with status ${uploadResponse.status}. Check the R2 bucket CORS rules and upload credentials.`,
-        );
-      }
-
-      const finalized = await finalizeUpload.mutateAsync({
-        releaseId: createdRelease.id,
-        generationId: uploadTarget.generation.id,
-      });
-
-      setSelectedFile(null);
-      setVersionLabel("");
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      setFeedback({
-        variant: "default",
-        title: "Release processing queued",
-        description: `Generation #${finalized.generation.sequence} was uploaded and durable job ${finalized.job.id} will validate and moderate it in the background.`,
-      });
-      await refreshReleaseData();
-    } catch (error) {
-      setFeedback({
-        variant: "destructive",
-        title: "Release upload failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "The release could not be uploaded or validated.",
-      });
-
-      if (createdReleaseId) {
-        await refreshReleaseData();
-      }
-    } finally {
-      setUploadingReleaseId(null);
-    }
+    uploadRelease.mutate({ file: selectedFile, label: versionLabel });
   };
 
   const runReleaseAction = async ({
@@ -282,11 +286,7 @@ export default function GameReleasesPage() {
     }
   };
 
-  const isUploading =
-    createDraft.isPending ||
-    requestUploadTarget.isPending ||
-    finalizeUpload.isPending ||
-    uploadingReleaseId !== null;
+  const isUploading = uploadRelease.isPending;
 
   /* ---- render ---------------------------------------------------- */
 
@@ -358,6 +358,7 @@ export default function GameReleasesPage() {
               </label>
               <Input
                 id="release-version"
+                disabled={isUploading}
                 value={versionLabel}
                 onChange={(e) => setVersionLabel(e.target.value)}
                 placeholder="v1.0.0"
@@ -370,6 +371,7 @@ export default function GameReleasesPage() {
               </label>
               <Input
                 id="release-archive"
+                disabled={isUploading}
                 ref={fileInputRef}
                 type="file"
                 accept=".zip,application/zip"
@@ -378,7 +380,7 @@ export default function GameReleasesPage() {
             </div>
             <div className="flex items-end">
               <Button
-                onClick={() => void handleUploadRelease()}
+                onClick={handleUploadRelease}
                 disabled={!selectedFile || isUploading}
               >
                 {isUploading ? (

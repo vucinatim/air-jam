@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,11 +75,13 @@ const query = { isLoading: false, isError: false, isFetching: false, refetch };
 describe("creator entrypoints", () => {
   let container: HTMLDivElement;
   let root: Root;
+  let queryClient: QueryClient;
   beforeEach(() => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    queryClient = new QueryClient();
     mutate.mockClear();
     refetch.mockClear();
     push.mockClear();
@@ -88,11 +91,20 @@ describe("creator entrypoints", () => {
   });
   afterEach(() => {
     act(() => root.unmount());
+    queryClient.clear();
     container.remove();
     vi.unstubAllGlobals();
   });
   const render = (Page: () => React.ReactNode) =>
-    act(() => root.render(createElement(Page)));
+    act(() =>
+      root.render(
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(Page),
+        ),
+      ),
+    );
   const fill = (selector: string, value: string) => {
     const input = container.querySelector<HTMLInputElement>(selector)!;
     act(() => {
