@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,9 +11,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { platformMachineApiErrorSchema } from "@air-jam/sdk/platform-machine";
+import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 const normalizeUserCode = (value: string): string =>
   value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -28,52 +31,33 @@ const formatUserCode = (value: string): string => {
 
 export default function DashboardCliAuthPage() {
   const searchParams = useSearchParams();
-  const initialUserCode = useMemo(
-    () => formatUserCode(searchParams.get("userCode") ?? ""),
-    [searchParams],
+  const [userCode, setUserCode] = useState(() =>
+    formatUserCode(searchParams.get("userCode") ?? ""),
   );
-  const [userCode, setUserCode] = useState(initialUserCode);
-  const [status, setStatus] = useState<"idle" | "pending" | "done">("idle");
-  const [message, setMessage] = useState<string | null>(null);
+  const approval = useMutation({
+    retry: false,
+    mutationFn: async (code: string) => {
+      const normalized = normalizeUserCode(code);
+      if (!normalized) {
+        throw new Error("Enter the Air Jam CLI approval code first.");
+      }
 
-  const submit = async () => {
-    const normalized = normalizeUserCode(userCode);
-    if (!normalized) {
-      setMessage("Enter the Air Jam CLI approval code first.");
-      return;
-    }
+      const response = await fetch("/api/cli/auth/device/approve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userCode: normalized }),
+      });
 
-    setStatus("pending");
-    setMessage(null);
-
-    const response = await fetch("/api/cli/auth/device/approve", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        userCode: normalized,
-      }),
-    });
-
-    const payload = (await response.json().catch(() => null)) as {
-      message?: string;
-    } | null;
-
-    if (!response.ok) {
-      setStatus("idle");
-      setMessage(payload?.message ?? "Could not approve Air Jam CLI access.");
-      return;
-    }
-
-    setStatus("done");
-    setMessage(
-      "Device approval complete. Return to the CLI window and it will finish login automatically.",
-    );
-  };
+      if (!response.ok) {
+        const payload: unknown = await response.json();
+        throw new Error(platformMachineApiErrorSchema.parse(payload).message);
+      }
+    },
+  });
+  const isLocked = approval.isPending || approval.isSuccess;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Approve CLI Login</h1>
         <p className="text-muted-foreground">
@@ -88,42 +72,51 @@ export default function DashboardCliAuthPage() {
             Paste the approval code shown by <code>airjam auth login</code>.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="user-code">Approval code</Label>
-            <Input
-              id="user-code"
-              autoFocus
-              placeholder="ABCD-EFGH"
-              value={userCode}
-              onChange={(event) =>
-                setUserCode(formatUserCode(event.target.value))
-              }
-              disabled={status === "pending" || status === "done"}
-            />
-          </div>
-
-          {message ? (
-            <p
-              className={
-                status === "done"
-                  ? "text-sm text-emerald-600"
-                  : "text-muted-foreground text-sm"
-              }
-            >
-              {message}
-            </p>
-          ) : null}
-
-          <Button
-            onClick={() => void submit()}
-            disabled={status === "pending" || status === "done"}
+        <CardContent>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!isLocked) approval.mutate(userCode);
+            }}
           >
-            {status === "pending" ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : null}
-            Approve CLI Access
-          </Button>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="user-code">Approval code</Label>
+              <Input
+                id="user-code"
+                autoFocus
+                placeholder="ABCD-EFGH"
+                value={userCode}
+                onChange={(event) =>
+                  setUserCode(formatUserCode(event.target.value))
+                }
+                disabled={isLocked}
+              />
+            </div>
+
+            {approval.isError && (
+              <Alert variant="destructive">
+                <AlertTitle>CLI access was not confirmed</AlertTitle>
+                <AlertDescription>{approval.error.message}</AlertDescription>
+              </Alert>
+            )}
+            {approval.isSuccess && (
+              <Alert role="status">
+                <AlertTitle>Device approval complete</AlertTitle>
+                <AlertDescription>
+                  Return to the CLI window and it will finish login
+                  automatically.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Button type="submit" disabled={isLocked}>
+              {approval.isPending ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : null}
+              Approve CLI Access
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-10-04T01:01:20.294Z",
+  "updatedAt": "2026-10-04T01:27:25.619Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -1347,9 +1347,9 @@
         "release-blocking visual, loading, empty, and error-state defects resolved"
       ],
       "status": "in_progress",
-      "updatedAt": "2026-10-04T01:01:20.294Z",
+      "updatedAt": "2026-10-04T01:27:25.619Z",
       "owner": "/root",
-      "note": "Draft integration PR 112 is open, auto-merge off. First CI passed static/type/tests/standalone/build; performance failed because its benchmark omitted new resume authority. Corrected fixture passes the unchanged strict CI profile locally (20 reconnects, zero failures/misses), script lint and server typecheck. Corrected revision still needs fresh CI; hosted/mobile, managed-isolation choice and final green-PR review remain open.",
+      "note": "Draft PR 112 at ec65ce8c passed all six CI lanes and the Linux/macOS/Windows Node 22/24 install matrix. Later local CLI-approval recovery fixes pass five focused and 42 combined creator tests plus source/test typecheck and lint (scoped gate 4.60s); they are not covered by the earlier GitHub runs. Hosted/mobile proof, managed-isolation choice, final integration and green-PR review remain open.",
       "evidence": [
         "document:docs/audits/v1-public-release/launch-experience-recovery-audit.md",
         "document:docs/audits/v1-public-release/creator-entrypoint-audit.md",
@@ -1381,7 +1381,11 @@
         "command:release-routing-browser-and-session-fetch-43-tests-pass-20261004",
         "url:https://github.com/vucinatim/air-jam/pull/112",
         "url:https://github.com/vucinatim/air-jam/actions/runs/37166351930",
-        "command:perf-ci-profile-authenticated-reconnect-pass-20261004"
+        "command:perf-ci-profile-authenticated-reconnect-pass-20261004",
+        "url:https://github.com/vucinatim/air-jam/actions/runs/37166739710",
+        "url:https://github.com/vucinatim/air-jam/actions/runs/37166739738",
+        "command:cli-approval-recovery-and-42-creator-tests-pass-20261004",
+        "command:cli-approval-source-test-typecheck-lint-pass-20261004"
       ]
     }
   ]

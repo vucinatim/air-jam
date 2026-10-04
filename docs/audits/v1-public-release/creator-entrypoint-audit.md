@@ -261,3 +261,30 @@ authorized GPT-6.1 Sol canonicality review found no actionable source blockers
 in the new delta since `c8b3b676`. Green GitHub review, hosted creator validation
 and coordinated production delivery remain separate requirements. The Cloudflare isolation
 decision is still pending and the production capture transport is unchanged.
+
+## CLI login approval recovery
+
+The 2026-10-04 pass found that a rejected network request left the browser's CLI
+approval page permanently pending. The discarded promise escaped without
+restoring the controls, so a creator could not retry without reloading. The page
+also lacked a native form for keyboard submission.
+
+One TanStack mutation now owns approval state. Failed requests retain the code,
+show inline feedback and unlock explicit retry; automatic retries are disabled.
+Pending or completed requests cannot be submitted again. A native form supports
+Enter, and completion uses an announced status. Error responses use the existing
+SDK machine-API schema. The endpoint, grants, authentication, account access and
+normal code formatting are unchanged. No real device grant was approved.
+
+Five React regressions cover form submission, network failure and explicit
+retry, expired-code replacement, pending duplicate rejection, and empty-code
+validation. They use real TanStack mutation state with mocked HTTP responses.
+The old page failed the native-form prerequisite in all five cases; this is not
+five independently reproduced transport failures. The new suite passed in
+1.08 seconds, and all 42 creator recovery cases passed together in 2.21 seconds.
+Source lint and typechecking passed the scoped changed gate in 4.60 seconds.
+Because the normal platform configuration excludes tests, the new test and its
+imports also passed explicit TypeScript checking with zero diagnostics and
+direct lint. No full batch or new independent review was run for this focused
+page fix. Browser keyboard behavior, a real account login and hosted delivery
+remain unverified by these component tests.

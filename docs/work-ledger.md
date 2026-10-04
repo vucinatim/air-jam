@@ -18,6 +18,27 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Green Integration Checks And CLI Approval Recovery
+
+- All six [CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37166739710)
+  passed at `ec65ce8c`, including isolated database tests and the corrected
+  strict reconnect benchmark. The first failed run remains retained below
+- The [public installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37166739738)
+  passed all six Linux/macOS/Windows and Node 22/24 combinations, plus aggregate
+  candidate consistency. Its commit `d37fd50f` is the verified synthetic merge
+  of production `db85cdea` and PR head `ec65ce8c`; it is not a main merge,
+  package publication or hosted release proof
+- Independently fixed the browser CLI-approval page sticking in pending after
+  a network rejection. One TanStack mutation retains the code and permits
+  explicit retry; native form submission and announced completion improve
+  keyboard/accessibility recovery. No grant or access policy changed
+- Five focused component tests and all 42 creator recovery tests pass. Source
+  and explicit test typechecking/lint pass; the scoped changed gate took 4.60
+  seconds. These later local edits are not covered by the earlier green GitHub revision. The
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#cli-login-approval-recovery)
+  retains their scope. The PR stays draft; managed-isolation acceptance, hosted
+  integration, final GitHub review and production delivery remain open
+
 ## 2026-10-04 - Draft Integration CI And Authenticated Benchmark Reconnect
 
 - Opened [draft PR 112](https://github.com/vucinatim/air-jam/pull/112) at

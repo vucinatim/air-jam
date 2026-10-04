@@ -106,8 +106,14 @@ is restored and passes. Local confidence is not hosted or production sign-off.
 The integration is now [draft PR 112](https://github.com/vucinatim/air-jam/pull/112)
 with auto-merge off. Its first CI passed five confidence lanes, including database
 tests, but rejected a stale public-ID-only reconnect benchmark. The benchmark is
-corrected and passes the unchanged strict profile locally; the corrected revision
-still requires fresh CI. No final green-PR review or production cutover occurred.
+corrected and passes the unchanged strict profile locally. At `ec65ce8c`, all six
+[CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37166739710) and the
+[public installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37166739738)
+passed. The latter tested the same immutable package set on Linux, macOS and
+Windows with Node 22 and 24. Its candidate commit `d37fd50f` is GitHub's test
+merge of production `db85cdea` and PR head `ec65ce8c`, not a production merge.
+Later local CLI-approval recovery edits are not covered by those green runs.
+No final green-PR review or production cutover occurred.
 
 The validated machine program now reports `80%` estimate-weighted progress and
 `39–77` remaining agent-hours, with 30 of 46 work items complete. These are
