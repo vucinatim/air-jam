@@ -110,16 +110,20 @@ export const isArcadeLaunchSessionRequest = (request: NextRequest): boolean => {
   if (
     request.method !== "GET" ||
     (request.nextUrl.pathname !== "/arcade" &&
-      !request.nextUrl.pathname.startsWith("/arcade/"))
+      !request.nextUrl.pathname.startsWith("/arcade/") &&
+      !request.nextUrl.pathname.startsWith("/play/"))
   ) {
     return false;
   }
 
   const destination = request.headers.get("sec-fetch-dest");
   const mode = request.headers.get("sec-fetch-mode");
-  // App Router navigation and prefetch both use RSC fetches, not documents.
-  // Missing Fetch Metadata is supported; an explicit iframe/script is not.
-  if (request.headers.get("rsc") === "1") {
+  const accept = request.headers.get("accept") ?? "";
+  // Next strips its internal RSC headers before proxy invocation.
+  if (
+    request.headers.get("sec-fetch-site") === "same-origin" ||
+    accept.includes("text/x-component")
+  ) {
     return (
       (destination === null || destination === "empty") &&
       (mode === null || mode === "cors" || mode === "same-origin")
@@ -128,7 +132,7 @@ export const isArcadeLaunchSessionRequest = (request: NextRequest): boolean => {
   return (
     (destination === null || destination === "document") &&
     (mode === null || mode === "navigate") &&
-    request.headers.get("accept")?.includes("text/html") === true
+    accept.includes("text/html")
   );
 };
 

@@ -133,6 +133,25 @@ describe("Arcade launch-session navigation", () => {
     }
   });
 
+  it("issues launch identity on a direct public game navigation", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://airjam.io");
+    vi.stubEnv("AIR_JAM_HOST_GRANT_SECRET", "host-grant-test-secret");
+    try {
+      const response = await proxy(
+        new NextRequest("https://airjam.io/play/pong", {
+          headers: navigationHeaders,
+        }),
+        makeEvent(),
+      );
+      expect(
+        response.cookies.get(AIR_JAM_LAUNCH_SESSION_COOKIE_NAME),
+      ).toBeTruthy();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it.each<{ name: string; headers: Record<string, string> }>([
     {
       name: "client navigation",
@@ -151,6 +170,16 @@ describe("Arcade launch-session navigation", () => {
         "next-router-prefetch": "1",
         "sec-fetch-dest": "empty",
         "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+      },
+    },
+    {
+      name: "Next proxy navigation with stripped internal headers",
+      headers: {
+        accept: "*/*",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
       },
     },
     {
@@ -218,6 +247,7 @@ describe("Arcade launch-session navigation", () => {
         accept: "*/*",
         "sec-fetch-dest": "empty",
         "sec-fetch-mode": "cors",
+        "sec-fetch-site": "cross-site",
       },
     },
     { path: "/arcade-other", method: "GET", headers: navigationHeaders },

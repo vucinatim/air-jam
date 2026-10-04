@@ -123,6 +123,14 @@ reported that build/runtime mismatch. The image now supplies the non-secret
 game origin at build time too. Keep the failed jobs as rehearsal evidence and
 replay through the canonical job API only after the corrected image is live.
 
+A clean homepage-to-Arcade visit reproduced a missing launch cookie. Next 16's
+adapter strips internal RSC headers before calling the proxy, so cookie issuance
+now recognizes same-origin browser fetch metadata rather than that header.
+Direct `/play/<game>` navigation receives the same launch identity. Cross-site
+fetches, scripts and iframe navigations remain denied; 44 proxy/host-grant tests,
+source/test typechecking and lint pass. Browser first-visit proof must be rerun
+on the corrected image before delivery sign-off.
+
 The session owner and real offline Pong render were already proven. Integration
 must additionally prove the actual screenshot service, a hidden uploaded R2
 release, capture failure and cleanup, and the unchanged player/creator flow.
