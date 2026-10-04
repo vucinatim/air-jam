@@ -1,5 +1,6 @@
 import type { BrowserContext } from "playwright-core";
 import { RELEASE_INSPECTION_ACCESS_HEADER } from "./release-inspection-access";
+import { createReleaseInspectionFetcher } from "./release-inspection-fetch";
 
 /** Private inspection authority belongs to one generation, not the browser. */
 export const installReleaseInspectionRouting = async (
@@ -12,6 +13,8 @@ export const installReleaseInspectionRouting = async (
 ): Promise<void> => {
   const generation = new URL(generationUrl);
   const assetPrefix = `${generation.pathname.replace(/\/$/, "")}/`;
+  const fetcher = createReleaseInspectionFetcher(requestTimeoutMs);
+  context.on("close", fetcher.close);
 
   await context.route("**/*", async (route) => {
     try {
@@ -32,20 +35,17 @@ export const installReleaseInspectionRouting = async (
         return;
       }
 
-      // continue({ headers }) carries overrides through redirects. Fetch one
-      // response instead; browser-followed redirects cannot inherit this
-      // fetch-only credential. Generation assets use canonical direct URLs.
-      const response = await route.fetch({
-        headers: { ...headers, [RELEASE_INSPECTION_ACCESS_HEADER]: token },
-        maxRedirects: 0,
-        maxRetries: 0,
-        timeout: requestTimeoutMs,
-      });
-      try {
-        await route.fulfill({ response });
-      } finally {
-        await response.dispose();
-      }
+      // Fetch exactly one response through pinned public IO. In particular,
+      // CDP's context.request/route.fetch runs on the privileged caller.
+      const response = await fetcher.fetch(
+        url,
+        {
+          accept: headers.accept ?? "*/*",
+          [RELEASE_INSPECTION_ACCESS_HEADER]: token,
+        },
+        request.method(),
+      );
+      await route.fulfill(response);
     } catch {
       // Do not expose Playwright errors containing private request headers.
       // A closed context may already have disposed this route.
