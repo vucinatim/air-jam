@@ -107,6 +107,14 @@ preserved HTTP 404, received provider DELETE acknowledgement and left zero
 objects under its owned fixture prefix. This is operator-invoked service proof,
 not yet a successful deployed-worker job or player-flow sign-off.
 
+The fresh preview also lacked its configured system App ID in PostgreSQL.
+The existing preview seed now registers one active, origin-scoped Arcade
+identity on its hidden fixture, updating that same identity when a preview key
+rotates. Initialization uses the canonical deployment classifier and refuses
+production before database IO. Source typechecking/lint, three seed regressions
+and 13 configuration regressions pass; the initializer was exercised only
+against the provider-attested isolated preview database.
+
 The session owner and real offline Pong render were already proven. Integration
 must additionally prove the actual screenshot service, a hidden uploaded R2
 release, capture failure and cleanup, and the unchanged player/creator flow.
