@@ -18,6 +18,23 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Account Draft And Analytics Recovery
+
+- Reproduced an account refresh erasing an unsaved creator name. The loaded
+  editor now owns its draft; failed saves retain it, and accepted responses
+  update the canonical query cache before refresh. Removed blocking alerts and
+  the reset-on-refresh effect without changing account access or validation
+- Analytics no longer turns failed reads into zero activity, empty histories
+  or an absent runtime session. Existing data stays visible with one failed-
+  query retry notice; no tracking rule, chart or machine API changed
+- Eight old-source failures are covered by eleven new regressions. All 53
+  creator recovery component tests pass together. Source/test typechecking and
+  lint pass; the scoped gate took 6.34 seconds, above its five-second target.
+  Retained the findings in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#account-draft-and-analytics-read-recovery).
+  These are local edits, not browser, hosted-account or production proof;
+  managed-isolation acceptance and final delivery remain open
+
 ## 2026-10-04 - Green Integration Checks And CLI Approval Recovery
 
 - All six [CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37166739710)

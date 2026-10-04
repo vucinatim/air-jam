@@ -112,7 +112,7 @@ corrected and passes the unchanged strict profile locally. At `ec65ce8c`, all si
 passed. The latter tested the same immutable package set on Linux, macOS and
 Windows with Node 22 and 24. Its candidate commit `d37fd50f` is GitHub's test
 merge of production `db85cdea` and PR head `ec65ce8c`, not a production merge.
-Later local CLI-approval recovery edits are not covered by those green runs.
+Later local creator recovery edits are not covered by those green runs.
 No final green-PR review or production cutover occurred.
 
 The validated machine program now reports `80%` estimate-weighted progress and

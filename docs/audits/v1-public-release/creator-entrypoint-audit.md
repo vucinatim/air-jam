@@ -288,3 +288,34 @@ imports also passed explicit TypeScript checking with zero diagnostics and
 direct lint. No full batch or new independent review was run for this focused
 page fix. Browser keyboard behavior, a real account login and hosted delivery
 remain unverified by these component tests.
+
+## Account draft and analytics read recovery
+
+The next 2026-10-04 pass reproduced account display-name drafts being replaced
+by background reads. The account loader now distinguishes read failure from
+loading and offers retry. Its editor is keyed by account identity and keeps its
+draft until an accepted save or a different account. Save failures stay inline;
+pending inputs are locked. Accepted responses update the existing account query
+cache and form, so a failed refresh does not undo a successful save. The previous
+reset-on-refresh effect and blocking alerts are removed. Account services,
+validation limits and access rules are unchanged.
+
+Analytics previously converted failed reads into fabricated zero totals, empty
+session histories or an absent recorded runtime. It now renders totals only
+from an actual overview, keeps cached results visible during failed refreshes,
+and exposes one retry notice for failed queries. Session history and pipeline
+details distinguish loading and failure from confirmed emptiness. Existing
+charts, calculations, tracking services and machine APIs are unchanged; no
+new telemetry mechanism was introduced.
+
+Five account and six analytics component regressions use real TanStack queries
+and mutations with mocked IO, plus the installed form and disclosure components.
+Eight failed on the old implementations. All eleven pass after the fixes in
+1.28 seconds; all 53 creator recovery cases pass together in 2.86 seconds.
+Source typechecking and lint pass through the scoped changed gate in 6.34
+seconds, above its five-second warm target. Both new test files and their imports
+also pass explicit TypeScript checking with zero diagnostics and direct lint;
+the ordinary platform configuration excludes tests. No full batch or new
+independent review was run for this bounded recovery slice.
+These tests do not prove browser layout, hosted tracking, real account writes
+or production delivery. The broader creator/player release item remains open.
