@@ -347,3 +347,26 @@ the correction, not a second full batch or a second review. This pre-push review
 does not replace the single final GitHub review when the complete PR is green
 and genuinely ready to merge. Hosted/mobile proof, managed-isolation acceptance
 and production delivery remain open.
+
+### GitHub verification of the reviewed recovery revision
+
+The recovery batch and identity correction are pushed at `11a76bf6` on
+[draft PR 112](https://github.com/vucinatim/air-jam/pull/112), with auto-merge
+disabled. All six [CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37169046827)
+and the required `checks` aggregate completed successfully, including isolated
+PostgreSQL tests. No duplicate local full batch or final merge review was run.
+
+The [public installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37169046830)
+also completed successfully. Its downloaded aggregate reports `ok: true` for
+all six Linux/macOS/Windows and Node 22/24 cells, using the same package digests
+from an isolated registry without Air Jam package fallback. Each cell passed
+generated-project typechecking, lint, tests and build and discovered 29 MCP tools.
+The packages remain version `0.9.3`; this is installation evidence, not public
+1.0 publication.
+
+The aggregate's commit `b4389cb82ae44783455e711dd40b7019185c80a2` was independently
+matched to GitHub's temporary merge with parents production `db85cdea` and PR
+head `11a76bf6`. Its candidate digest is
+`bd63f318ea64bc814962827b2ce89ae6c17cae6d86de518130ecb6c6b88e1e84`.
+Hosted/mobile proof, capture integration and the single final green-PR review
+remain outstanding. Neither run merged, deployed or published the candidate.

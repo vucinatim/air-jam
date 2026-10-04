@@ -106,19 +106,20 @@ is restored and passes. Local confidence is not hosted or production sign-off.
 The integration is now [draft PR 112](https://github.com/vucinatim/air-jam/pull/112)
 with auto-merge off. Its first CI passed five confidence lanes, including database
 tests, but rejected a stale public-ID-only reconnect benchmark. The benchmark is
-corrected and passes the unchanged strict profile locally. At `ec65ce8c`, all six
-[CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37166739710) and the
-[public installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37166739738)
-passed. The latter tested the same immutable package set on Linux, macOS and
-Windows with Node 22 and 24. Its candidate commit `d37fd50f` is GitHub's test
-merge of production `db85cdea` and PR head `ec65ce8c`, not a production merge.
-The later CLI approval, account draft and analytics recovery batch passes
-integrated local checks. Its authorized Sol review found one account identity
-race, now corrected with two red/green regressions; all 55 creator recovery
-tests and source/test typechecking/lint pass. See the
+corrected without weakening the strict profile. The CLI approval, account draft
+and analytics recovery batch is now pushed at `11a76bf6`. Its authorized Sol
+review found one account identity race, corrected with two red/green regressions;
+all 55 creator recovery tests and source/test typechecking/lint pass. All six
+[CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37169046827) and the
+[public installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37169046830)
+passed on that revision. The aggregate confirms the same immutable package set
+on Linux, macOS and Windows with Node 22 and 24. Candidate `b4389cb8` is GitHub's
+test merge of production `db85cdea` and PR head `11a76bf6`, not a production
+merge or package publication. See the
 [reviewed creator recovery evidence](./audits/v1-public-release/creator-entrypoint-audit.md#reviewed-account-identity-ownership).
-These additions are not covered by the older green GitHub runs. The PR remains
-draft, and no final green-PR review or production cutover occurred.
+The PR remains draft. Hosted/mobile proof, the pending managed-isolation choice,
+final integration, the single final GitHub review and production cutover remain
+open; no production state changed.
 
 The validated machine program now reports `80%` estimate-weighted progress and
 `39–77` remaining agent-hours, with 30 of 46 work items complete. These are

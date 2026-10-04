@@ -18,6 +18,22 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Green Reviewed Creator Recovery Revision
+
+- Pushed the reviewed CLI approval, account and analytics recovery through
+  `11a76bf6` to [draft PR 112](https://github.com/vucinatim/air-jam/pull/112).
+  All six [CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37169046827)
+  and the required aggregate passed, including isolated PostgreSQL tests
+- All six [installation cells and their aggregate](https://github.com/vucinatim/air-jam/actions/runs/37169046830)
+  passed using one immutable package set, without Air Jam registry fallback.
+  Verified candidate `b4389cb8` is GitHub's test merge of production `db85cdea`
+  and PR head `11a76bf6`, not a main merge. The
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#github-verification-of-the-reviewed-recovery-revision)
+  retains provenance and scope
+- The PR remains draft with auto-merge disabled. No final merge review,
+  provider switch, production deployment or package publication occurred.
+  Managed-isolation acceptance and final hosted/mobile integration remain open
+
 ## 2026-10-04 - Reviewed Creator Recovery Batch
 
 - The integrating batch passed at `8ae5bc8c`: generated sources, full workspace

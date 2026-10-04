@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-10-04T01:46:29.757Z",
+  "updatedAt": "2026-10-04T01:59:44.957Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -1347,9 +1347,9 @@
         "release-blocking visual, loading, empty, and error-state defects resolved"
       ],
       "status": "in_progress",
-      "updatedAt": "2026-10-04T01:46:29.757Z",
+      "updatedAt": "2026-10-04T01:59:44.957Z",
       "owner": "/root",
-      "note": "CLI approval, account drafts and analytics recovery passed the integrating batch at 8ae5bc8c. The authorized Sol review found one account identity race, resolved with two red/green regressions; 55 creator tests and source/test typecheck/lint pass (scoped gate 5.917s, above 5s target). Older ec65ce8c GitHub checks do not cover this batch. Hosted/mobile proof, managed-isolation choice, final integration and green-PR review remain open.",
+      "note": "Reviewed creator recovery and account identity correction are pushed at 11a76bf6 on draft PR 112. All six CI lanes, required checks and the six-cell install matrix completed successfully; downloaded aggregate verified immutable candidate b4389cb8 matches production db85cdea plus PR head 11a76bf6. No final merge review, deployment or publication occurred. Hosted/mobile proof, pending managed-isolation choice and final integration remain open.",
       "evidence": [
         "document:docs/audits/v1-public-release/launch-experience-recovery-audit.md",
         "document:docs/audits/v1-public-release/creator-entrypoint-audit.md",
@@ -1391,7 +1391,10 @@
         "command:creator-recovery-integrating-batch-8ae5bc8c-pass-20261004",
         "command:gpt61-sol-creator-recovery-canonicality-one-finding-resolved-20261004",
         "command:account-identity-red-green-and-55-creator-tests-pass-20261004",
-        "command:account-identity-source-test-typecheck-lint-pass-20261004"
+        "command:account-identity-source-test-typecheck-lint-pass-20261004",
+        "url:https://github.com/vucinatim/air-jam/actions/runs/37169046827",
+        "url:https://github.com/vucinatim/air-jam/actions/runs/37169046830",
+        "command:public-install-matrix-b4389cb8-provenance-and-six-cells-verified-20261004"
       ]
     }
   ]
