@@ -83,8 +83,15 @@ Separate Browser Run-only production/preview tokens are now approved, stored
 privately outside Git and policy-verified. Production variables are staged on
 both Railway platform services without deployment; the preview token passed
 remote rendering, PNG capture and provider cleanup through the actual session
-owner. Actual unpublished R2 capture, isolated hosted proof and final reviewed
-rollout remain pending. The old staging hostname
+owner. The fresh isolated Railway rehearsal now passes actual unpublished,
+hidden R2 capture through the deployed worker, anonymous private-asset denial,
+and listed preview play across separate platform/game origins. A browser
+controller joined, started and finished a match, reconnected after reload, and
+returned to the lobby. Clean homepage navigation and direct game links also
+boot without a prior launch cookie. This is not physical-phone or public 1.0
+sign-off. See the
+[hosted rehearsal evidence](./audits/v1-security/2026-10-04-hosted-managed-capture-proof.json).
+Final reviewed production rollout remains pending. The old staging hostname
 has a TLS mismatch and cannot supply current uploaded-release proof. Fresh built
 Pong and owned HTTPS/WSS probes already pass through the hardened routing owner;
 these establish compatibility, not deployed capture or provider network guarantees.
@@ -93,7 +100,8 @@ See the
 [routing proof](./audits/v1-security/2026-10-03-cloudflare-routing-proof.json),
 [provider proof](./audits/v1-security/2026-10-03-capture-provider-proof.json) and
 [managed capture plan](./plans/release-browser-worker-containment-plan.md).
-No permanent bee service, tunnel, DNS change or production worker switch is live.
+No permanent bee service, tunnel, production DNS change or production worker
+switch is live; the rehearsal owns a separate temporary game hostname.
 Final GitHub review, exact package/artifact compatibility and coordinated live
 cutover remain unproven. Production code and database are unchanged.
 

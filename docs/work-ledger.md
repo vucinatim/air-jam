@@ -18,6 +18,28 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Isolated Hosted Managed-Capture Rehearsal Passed
+
+- Preserved Mara and Andrej's private gift deployment; used an owned Pong copy
+  in a fresh provider-attested Railway environment, with separate PostgreSQL,
+  preview-only storage credential and distinct Browser Run token
+- Real rehearsal found and corrected platform/game origin selection, competing
+  browser cleanup, missing preview system identity, omitted game-origin Docker
+  build input, and Next-stripped navigation headers. Focused regressions and
+  bounded checks protect each correction; the final source revision passed CI
+- The actual deployed worker captured the hidden unpublished R2 generation and
+  completed processing on its first corrected-image attempt. Earlier failed
+  jobs remain durable history; repair used the canonical audited replay command
+- Proved anonymous hidden-release denial before and after publishing. Listed
+  only the disposable preview copy for cross-origin host/controller play,
+  controller-owned match start, completion, reload/reconnect and lobby reset
+- Recorded [scoped hosted evidence](./audits/v1-security/2026-10-04-hosted-managed-capture-proof.json)
+  and local visual artifacts. This was a desktop browser controller, not a
+  physical phone or semantic gameplay test. Preview image moderation was off
+- Production read-only inspection found five pending online migrations with
+  no unknown hashes. No production code, schema, deployment or legacy-service
+  retirement occurred; final GitHub review and guarded rollout remain pending
+
 ## 2026-10-04 - Restricted Browser Credentials Staged
 
 - Tim approved separate Browser Run-only production/preview credentials.

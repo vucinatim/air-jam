@@ -1,6 +1,6 @@
 # Railway Deployment Guide
 
-Last updated: 2026-09-08
+Last updated: 2026-10-04
 Status: active guide
 
 Related docs:
@@ -210,7 +210,9 @@ process, verify:
 5. when the platform is affected, `/api/auth/get-session` returns `200` and
    `/api/airjam/host-grant` works same-origin
 6. when the server is affected, `/health` returns `200`
-7. when the browser worker is affected, `/health` returns `200`
+7. when managed screenshot capture is affected, prove an owned hidden hosted
+   release through the operational worker before retiring the legacy browser
+   service; Cloudflare sessions are not a Railway service health target
 8. when the operational-job worker is affected, `/health` returns `200` and
    `/ready` returns `200` only after PostgreSQL authority is available
 9. when operational reliability changes, the repo-CLI reliability status shows
@@ -243,8 +245,7 @@ Configure these reliability values on the operational worker:
    generation
 2. `AIRJAM_SYNTHETIC_WORKER_ORIGIN` pointing to the operational worker's public
    health origin
-3. `AIRJAM_SYNTHETIC_BROWSER_WORKER_ORIGIN` pointing to the browser worker
-4. `AIRJAM_SYNTHETIC_APP_ID` when the platform app identity is not appropriate
+3. `AIRJAM_SYNTHETIC_APP_ID` when the platform app identity is not appropriate
 
 Do not set `AIRJAM_OPERATIONAL_ENVIRONMENT` on Railway. The provider-owned
 `RAILWAY_ENVIRONMENT_NAME` is authoritative, so production resolves to
@@ -252,8 +253,7 @@ production while every PR environment resolves to preview even when Railway
 clones service variables. In PR environments, operational synthetics use the
 environment-scoped `RAILWAY_SERVICE_AIR_JAM_PLATFORM_URL`,
 `RAILWAY_SERVICE_AIR_JAM_SERVER_URL`,
-`RAILWAY_SERVICE_AIR_JAM_PLATFORM_WORKER_URL`, and
-`RAILWAY_SERVICE_AIR_JAM_RELEASE_BROWSER_WORKER_URL` targets instead of the
+and `RAILWAY_SERVICE_AIR_JAM_PLATFORM_WORKER_URL` targets instead of the
 production-oriented explicit origins above.
 
 The same worker is the sole continuous Railway budget-evidence collector.

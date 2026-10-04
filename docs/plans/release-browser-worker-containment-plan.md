@@ -72,9 +72,9 @@ hidden uploaded R2 release or deployed capture service.
 
 The current hosted rehearsal uses an owned Pong copy in the disposable
 `staging-managed-capture-20261004` Railway environment. Mara and Andrej has
-hidden game identities, but its personal assets are protected by a separate
-Vercel password gate; unlisted Arcade visibility is not equivalent protection.
-Do not upload that gift as an unprotected hosted fixture.
+hidden game identities but no hosted releases; its personal assets are protected
+by a separate Vercel password gate. Preserve that explicit privacy boundary and
+do not upload the gift or change its existing identities for this rehearsal.
 
 The staging provisioner clears copied legacy browser endpoint/token variables,
 the obsolete browser synthetic target, and the local-only master key before
@@ -128,8 +128,22 @@ adapter strips internal RSC headers before calling the proxy, so cookie issuance
 now recognizes same-origin browser fetch metadata rather than that header.
 Direct `/play/<game>` navigation receives the same launch identity. Cross-site
 fetches, scripts and iframe navigations remain denied; 44 proxy/host-grant tests,
-source/test typechecking and lint pass. Browser first-visit proof must be rerun
-on the corrected image before delivery sign-off.
+source/test typechecking and lint pass. The corrected image now passes clean
+homepage-to-Arcade navigation and direct `/play/<game>` entry without a previous
+launch cookie or manual refresh.
+
+The deployed worker captured the actual unpublished, hidden R2 Pong generation
+on its first corrected-image attempt, retained the immutable screenshot check,
+and completed the release pipeline. Image moderation was disabled only in the
+isolated preview. Anonymous host/controller/index requests returned 404 while
+unpublished; publishing while still hidden also returned 404 and exposed no
+machine host/controller URLs. Temporarily listing only that owned preview copy
+proved cross-origin host/controller rendering, controller-owned team join and
+match start, match completion, controller reload/reconnect and return to lobby.
+This is browser-controller proof, not a physical-phone or semantic gameplay
+assertion. The complete scoped evidence is retained in the
+[hosted managed-capture proof](../audits/v1-security/2026-10-04-hosted-managed-capture-proof.json).
+Final GitHub review, production migration/rollout and cleanup remain pending.
 
 The session owner and real offline Pong render were already proven. Integration
 must additionally prove the actual screenshot service, a hidden uploaded R2
