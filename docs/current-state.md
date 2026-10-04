@@ -35,98 +35,54 @@ experience feel finished, communicate it clearly, and launch one exact
 candidate. Mature-company operational completeness is not the pre-adoption
 release bar.
 
-Interactive intermediate delivery resumed on `2026-10-03` after a three-week
-pause. Pending launch work is preserved at `564e7034`, and the host-authority
-branch is integrated locally at `80499490` on `codex/intermediate-delivery`.
-Migration history now preserves the applied host `0040` exactly, removes its
-cross-clock constraint in `0041`, and orders evidence indexes and private report
-changes through `0044`. Both PostgreSQL upgrade paths pass; Drizzle reports no
-schema drift. The built ARM64 browser-worker image passes real isolated capture,
-HTTP/HTTPS and WS/WSS, private-header driver fetch, denied private egress, and
-process cleanup. This is local proof, not reviewed production delivery or 1.0
-release completion. GitHub integration, guarded production migration, exact
-provider rollout and live validation are the current delivery boundary. Public
-package promotion, final phone/demo proof and launch remain separate work.
+The intermediate batch is now merged through
+[PR 112](https://github.com/vucinatim/air-jam/pull/112) at `cf0935fe`. Its exact
+reviewed head passed all CI lanes and the six Linux/macOS/Windows, Node 22/24
+installation cells. The authorized GPT-6.1 Sol reviewer recorded the single
+[final GitHub review](https://github.com/vucinatim/air-jam/pull/112#pullrequestreview-5407227969)
+without source blockers. This is the batch-specific substitution for unavailable
+Claude credits, not an Opus or Canonicalizer verdict.
 
-Reviewed production delivery remains pending. The Canonicalizer attempt
-could not authenticate; no review ran through that tool. Tim subsequently
-authorized a separate GPT-6.1 Sol reviewer because Claude is out of credits;
-independent source review of `36551396` against production `db85cdea` completed
-with no new actionable source defects under the batch-specific
-[review substitution](./working-agreements.md#review-stacks-and-integration).
-This is pre-push source review, not the later green-PR GitHub review or production
-proof. The isolated Railway AMD64 image built, but its pre-deploy capture proof failed. A bounded
-non-root probe confirmed `unshare: unshare failed: Permission denied` in the
-new worker container. Local image success and September's older-container
-feasibility do not establish support for this new deployment. A subsequent owned
-actual-service-runtime deployment, not a pre-deploy job, denied the same
-unchanged non-root namespace probe and ended `FAILED`. Tim approved a disposable
-worker proof on bee. The same reviewed AMD64 worker passed there, including a
-read-only filesystem, real capture/egress/process isolation, service health and
-authentication, public HTTPS capture, and graceful shutdown. No host security
-settings changed, and all owned test containers are removed. See the
-[retained worker evidence](./audits/v1-security/2026-10-03-bee-worker-image-proof.json).
-Tim rejected production capture on the core private bee host. Railway's
-ordinary containers and disposable isolated VM denied the namespaces required
-by the self-hosted browser; the VM and owned trial containers were removed.
-On `2026-10-04`, Tim accepted Cloudflare managed browser isolation and authorized
-reviewed delivery and release when confidence is established. Railway remains
-the product/job host. No independently enforced browser private-IP/DNS firewall
-is claimed. The privileged asset-fetch owner remains public-only and DNS-pinned;
-inspection credentials remain generation-scoped and never enter browser headers.
+Production platform, realtime server and operational worker all report terminal
+Railway `SUCCESS` at that merge. The guarded migration lifecycle created a
+backup, applied online migrations `0040–0044`, and independently verified the
+current production deployment against the reviewed Git tree. Platform readiness,
+worker readiness and realtime health pass. The game origin passed all 20
+production transport/auth-isolation checks. The retained production Pong release
+loads across origins, accepts a browser controller, completes a controller-started
+match, preserves controller identity after reload, and returns to its lobby.
+Direct `/play/pong` entry also loads. See the
+[production delivery evidence](./audits/v1-security/2026-10-04-intermediate-production-delivery.json).
 
-The working branch now wires screenshot capture to dedicated Cloudflare session
-acquisition and cleanup and removes the obsolete custom worker package. Staging
-provisioning uses the same path with distinct production/preview tokens. The
-production legacy service remains untouched until the replacement is verified.
-Separate Browser Run-only production/preview tokens are now approved, stored
-privately outside Git and policy-verified. Production variables are staged on
-both Railway platform services without deployment; the preview token passed
-remote rendering, PNG capture and provider cleanup through the actual session
-owner. The fresh isolated Railway rehearsal now passes actual unpublished,
-hidden R2 capture through the deployed worker, anonymous private-asset denial,
-and listed preview play across separate platform/game origins. A browser
-controller joined, started and finished a match, reconnected after reload, and
-returned to the lobby. Clean homepage navigation and direct game links also
-boot without a prior launch cookie. This is not physical-phone or public 1.0
-sign-off. See the
-[hosted rehearsal evidence](./audits/v1-security/2026-10-04-hosted-managed-capture-proof.json).
-Final reviewed production rollout remains pending. The old staging hostname
-has a TLS mismatch and cannot supply current uploaded-release proof. Fresh built
-Pong and owned HTTPS/WSS probes already pass through the hardened routing owner;
-these establish compatibility, not deployed capture or provider network guarantees.
-See the
-[built-game proof](./audits/v1-security/2026-10-04-cloudflare-game-capture-proof.json),
-[routing proof](./audits/v1-security/2026-10-03-cloudflare-routing-proof.json),
-[provider proof](./audits/v1-security/2026-10-03-capture-provider-proof.json) and
-[managed capture plan](./plans/release-browser-worker-containment-plan.md).
-No permanent bee service, tunnel, production DNS change or production worker
-switch is live; the rehearsal owns a separate temporary game hostname.
-Final GitHub review, exact package/artifact compatibility and coordinated live
-cutover remain unproven. Production code and database are unchanged.
+Railway remains the product/job host; Cloudflare Browser Run owns managed browser
+sessions. Separate restricted production/preview tokens are stored privately and
+on the relevant Railway services. No untrusted capture service runs on private
+bee, and no independently enforced browser private-IP/DNS firewall is claimed.
+Privileged asset fetches remain public-only and DNS-pinned; inspection credentials
+remain generation-scoped and outside browser headers. The fresh isolated hosted
+rehearsal passed hidden unpublished R2 capture through the deployed worker,
+anonymous private-asset denial, controller-led play, reconnect and direct entry.
+Mara and Andrej's private gift remained untouched. The owned Railway rehearsal
+environment and its two temporary DNS records were removed after evidence was
+retained; unrelated DNS and the shared storage bucket were preserved.
 
-The four creator recovery surfaces are preserved at `315a273c`; private asset
-fetching and the unwired managed-session candidate are preserved at `cbe41501`.
-The integrated local batch passes, and the authorized Sol review of the new
-delta found no actionable source blockers. Its browser regression coverage gap
-is restored and passes. Local confidence is not hosted or production sign-off.
-The integration is now [draft PR 112](https://github.com/vucinatim/air-jam/pull/112)
-with auto-merge off. Its first CI passed five confidence lanes, including database
-tests, but rejected a stale public-ID-only reconnect benchmark. The benchmark is
-corrected without weakening the strict profile. The CLI approval, account draft
-and analytics recovery batch is now pushed at `11a76bf6`. Its authorized Sol
-review found one account identity race, corrected with two red/green regressions;
-all 55 creator recovery tests and source/test typechecking/lint pass. All six
-[CI lanes](https://github.com/vucinatim/air-jam/actions/runs/37169046827) and the
-[public installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37169046830)
-passed on that revision. The aggregate confirms the same immutable package set
-on Linux, macOS and Windows with Node 22 and 24. Candidate `b4389cb8` is GitHub's
-test merge of production `db85cdea` and PR head `11a76bf6`, not a production
-merge or package publication. See the
-[reviewed creator recovery evidence](./audits/v1-public-release/creator-entrypoint-audit.md#reviewed-account-identity-ownership).
-The PR remains draft. Hosted/mobile proof, the pending managed-isolation choice,
-final integration, the single final GitHub review and production cutover remain
-open; no production state changed.
+Capture cutover is complete. An owned hidden, unpublished production Pong upload
+passed actual deployed-worker screenshot capture on its first attempt and reached
+ready. Anonymous host, controller and manifest requests return 404. The obsolete
+browser deployment is now `REMOVED`, with its service retained for recovery and
+automatic deployment source disconnected. The temporary creator session was
+revoked after verification. Latest production synthetics pass and
+event delivery has no dead letters; rolling availability alerts retain the
+observed migration/deployment-overlap failures rather than erasing them. Image
+moderation remains disabled in existing production configuration, and GitHub
+issue projection is not configured. Neither is claimed as a live launch proof.
+
+Public package promotion, physical-phone/mobile polish, final external-agent
+rehearsal, demo/article and launch remain separate. `G5-02` stays in progress.
+The [completed managed capture plan](./archive/2026-10-04-managed-release-screenshot-capture-plan.md)
+retains production upload, legacy retirement and cleanup evidence. Historical
+investigation and integration milestones are in [work-ledger.md](./work-ledger.md),
+not a parallel current-state tracker.
 
 The validated machine program now reports `80%` estimate-weighted progress and
 `39–77` remaining agent-hours, with 30 of 46 work items complete. These are

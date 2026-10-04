@@ -125,8 +125,8 @@ the platform, realtime server, or private bee host.
 An account-scoped Browser Run token authorizes session acquisition and deletion.
 Production and preview use distinct tokens. Managed provider isolation is the
 accepted boundary, not a claim that Air Jam installs a browser-side network
-firewall. The [capture plan](../plans/release-browser-worker-containment-plan.md)
-records the decision and remaining rollout proof.
+firewall. The [completed capture plan](../archive/2026-10-04-managed-release-screenshot-capture-plan.md)
+records the decision and production rollout proof.
 
 ### 4. Platform Release-Job Worker
 

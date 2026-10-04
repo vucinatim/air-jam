@@ -1,12 +1,35 @@
 # Managed Release Screenshot Capture
 
 Last updated: 2026-10-04
-Status: active bounded architecture plan
+Status: completed managed capture cutover; historical execution record
 
 Execution authority remains `G5-02` in the release manifest. Tim accepted
 Cloudflare's managed browser isolation on 2026-10-04 and authorized reviewed
 delivery and release when confidence is established. This resolves the provider
-choice, not the remaining integration, hosted proof or release checks.
+choice. Reviewed integration, isolated hosted proof, hidden production upload,
+legacy retirement and scoped cleanup are complete. Broader `G5-02` and public
+1.0 release gates remain separate.
+
+## Production completion
+
+The human-approved temporary CLI session submitted an owned hidden Pong release
+on 2026-10-04. The actual production worker completed screenshot capture on its
+first attempt and made the immutable generation ready. Anonymous host,
+controller and manifest requests return 404; the fixture remains hidden and
+unpublished. Existing production image moderation is disabled, so no live
+moderation-service verdict is claimed.
+
+After that proof, the exact obsolete browser deployment reached Railway
+`REMOVED`. Its service and deployment history remain recoverable, with automatic
+deployment source disconnected. Platform, realtime and operational-worker
+readiness remained healthy, and all six latest configured synthetics passed.
+Rolling availability alerts still include the retained rollout failures; no
+history or alert state was cleared. The temporary creator session was revoked.
+Exact job, generation and provider evidence is recorded in the
+[production delivery evidence](../audits/v1-security/2026-10-04-intermediate-production-delivery.json).
+
+The sections below preserve the investigation and delivery sequence rather than
+describe current unfinished work.
 
 ## Product and security boundary
 
@@ -134,8 +157,10 @@ launch cookie or manual refresh.
 
 The deployed worker captured the actual unpublished, hidden R2 Pong generation
 on its first corrected-image attempt, retained the immutable screenshot check,
-and completed the release pipeline. Image moderation was disabled only in the
-isolated preview. Anonymous host/controller/index requests returned 404 while
+and completed the release pipeline. Image moderation was disabled in the
+isolated preview; production inspection also found its existing moderation
+mode disabled, so no live moderation-service proof is claimed. Anonymous
+host/controller/index requests returned 404 while
 unpublished; publishing while still hidden also returned 404 and exposed no
 machine host/controller URLs. Temporarily listing only that owned preview copy
 proved cross-origin host/controller rendering, controller-owned team join and
@@ -143,7 +168,19 @@ match start, match completion, controller reload/reconnect and return to lobby.
 This is browser-controller proof, not a physical-phone or semantic gameplay
 assertion. The complete scoped evidence is retained in the
 [hosted managed-capture proof](../audits/v1-security/2026-10-04-hosted-managed-capture-proof.json).
-Final GitHub review, production migration/rollout and cleanup remain pending.
+The single final GPT-6.1 Sol GitHub review is clear, PR 112 is merged, the guarded
+production migration is verified, and all three affected services are live at
+the exact merge revision. The retained production Pong generation passes
+host/controller play, match completion, identity-preserving controller reload,
+lobby return and direct entry. The disposable Railway rehearsal environment
+has been removed after its evidence was retained.
+
+One cutover step remains before retiring the legacy browser deployment: the
+production creator CLI session is expired, and an owned hidden production upload
+needs a human login. Its legacy source is disconnected to prevent builds of the
+removed package, but the preceding successful deployment is retained. Do not
+claim production capture from preview proof or bypass creator authentication.
+See the [production delivery evidence](../audits/v1-security/2026-10-04-intermediate-production-delivery.json).
 
 The session owner and real offline Pong render were already proven. Integration
 must additionally prove the actual screenshot service, a hidden uploaded R2
@@ -160,7 +197,8 @@ source review found no actionable blockers. Environment-dependent local tests
 remain skipped; these checks are not hosted or production sign-off. Current-head
 [CI](https://github.com/vucinatim/air-jam/actions/runs/37202101846) and the
 [installation matrix](https://github.com/vucinatim/air-jam/actions/runs/37202101888)
-also passed for `92e5efa9`. No production deployment or schema change occurred.
+also passed for `92e5efa9`. Those were pre-rollout results; final reviewed-head
+CI and installation checks and the actual production rollout are recorded above.
 
 Use one integrating batch and one authorized pre-push review for the coherent
 change. The final green-PR review and exact Railway rollout follow

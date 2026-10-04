@@ -381,10 +381,12 @@ Railway remains the trusted product/job host; untrusted capture does not run
 on the private bee host. Browser private-IP/DNS-rebinding containment is not
 independently established or claimed. Generation-scoped credentials, public-only
 DNS-pinned privileged fetching, capture limits and owned session cleanup remain
-required. The [current capture plan](../../plans/release-browser-worker-containment-plan.md)
-governs this replacement; the original self-hosted design is historical.
-Integration, narrow machine credentials and reviewed hosted/production proof
-remain open, so this decision alone does not close the finding.
+required. The [completed capture plan](../../archive/2026-10-04-managed-release-screenshot-capture-plan.md)
+records this replacement; the original self-hosted design is historical.
+Reviewed integration, narrow machine credentials, actual hosted and production
+capture, and legacy deployment retirement are now proven. The accepted provider
+isolation limitation remains part of the final residual-risk checkpoint;
+this capture closure does not close every finding in `G5-02`.
 
 #### 2026-09-12 worker containment work in progress
 
