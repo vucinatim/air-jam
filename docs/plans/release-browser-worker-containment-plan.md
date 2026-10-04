@@ -115,6 +115,14 @@ production before database IO. Source typechecking/lint, three seed regressions
 and 13 configuration regressions pass; the initializer was exercised only
 against the provider-attested isolated preview database.
 
+The uploaded Pong artifact validated successfully, but browser jobs returned
+404 because the Docker build omitted the public game-origin variable. Railway's
+game hostname was therefore baked as the platform identity even though runtime
+configuration correctly selected the trusted platform; origin inspection
+reported that build/runtime mismatch. The image now supplies the non-secret
+game origin at build time too. Keep the failed jobs as rehearsal evidence and
+replay through the canonical job API only after the corrected image is live.
+
 The session owner and real offline Pong render were already proven. Integration
 must additionally prove the actual screenshot service, a hidden uploaded R2
 release, capture failure and cleanup, and the unchanged player/creator flow.

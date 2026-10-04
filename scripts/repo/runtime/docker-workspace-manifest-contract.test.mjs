@@ -12,6 +12,18 @@ const rootPackageJson = JSON.parse(
   fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
 );
 
+test("platform image resolves game-origin routing at build and runtime", () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, "apps/platform/Dockerfile"),
+    "utf8",
+  );
+  assert.match(source, /^ARG AIRJAM_RELEASES_PUBLIC_ORIGIN$/mu);
+  assert.match(
+    source,
+    /AIRJAM_RELEASES_PUBLIC_ORIGIN=\$AIRJAM_RELEASES_PUBLIC_ORIGIN/u,
+  );
+});
+
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 const listDockerfiles = (rootDir, currentDir = rootDir) => {
