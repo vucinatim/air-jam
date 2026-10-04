@@ -11,9 +11,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AccountPage from "./page";
 
-const { readAccount, saveAccount } = vi.hoisted(() => ({
+const { readAccount, saveAccount, cancelAccountRead } = vi.hoisted(() => ({
   readAccount: vi.fn(),
   saveAccount: vi.fn(),
+  cancelAccountRead: vi.fn(),
 }));
 const account = {
   id: "creator-1",
@@ -30,7 +31,8 @@ vi.mock("@/trpc/react", async () => {
         return {
           user: {
             me: {
-              cancel: () => client.cancelQueries({ queryKey: ["account"] }),
+              cancel: cancelAccountRead,
+              getData: () => client.getQueryData(["account"]),
               invalidate: () =>
                 client.invalidateQueries({ queryKey: ["account"] }),
               setData: (_input: undefined, data: unknown) =>
@@ -76,6 +78,9 @@ describe("creator account recovery", () => {
       },
     });
     client.setQueryData(["account"], account);
+    cancelAccountRead.mockImplementation(() =>
+      client.cancelQueries({ queryKey: ["account"] }),
+    );
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -199,6 +204,61 @@ describe("creator account recovery", () => {
     await flush();
     expect(container.querySelector('[role="status"]')).toBeNull();
   });
+
+  it.each(["before acknowledgement", "during read cancellation"] as const)(
+    "does not restore an old account when identity changes %s",
+    async (switchTiming) => {
+      let acknowledgeSave: (value: typeof account) => void = () => {
+        throw new Error("Save has not started.");
+      };
+      let finishCancellation: () => void = () => {
+        throw new Error("Cancellation has not started.");
+      };
+      saveAccount.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            acknowledgeSave = resolve;
+          }),
+      );
+      if (switchTiming === "during read cancellation") {
+        cancelAccountRead.mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              finishCancellation = resolve;
+            }),
+        );
+      }
+      readAccount.mockRejectedValue(new Error("Refresh unavailable."));
+      render();
+      fill("Accepted name");
+      act(() => button("Save Changes").click());
+      await flush();
+      if (switchTiming === "during read cancellation") {
+        await act(async () =>
+          acknowledgeSave({ ...account, name: "Accepted name" }),
+        );
+        await flush();
+      }
+      const otherAccount = {
+        ...account,
+        id: "creator-2",
+        name: "Other creator",
+      };
+      await act(async () => client.setQueryData(["account"], otherAccount));
+      await flush();
+      if (switchTiming === "before acknowledgement") {
+        await act(async () =>
+          acknowledgeSave({ ...account, name: "Accepted name" }),
+        );
+      } else {
+        await act(async () => finishCancellation());
+      }
+      await flush();
+      expect(client.getQueryData(["account"])).toEqual(otherAccount);
+      expect(input().value).toBe("Other creator");
+      expect(readAccount).not.toHaveBeenCalled();
+    },
+  );
 
   it("resets the editor when a different account is loaded", async () => {
     render();

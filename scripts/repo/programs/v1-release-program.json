@@ -3,7 +3,7 @@
   "id": "air-jam-1.0",
   "title": "Air Jam 1.0 Release Program",
   "status": "active",
-  "updatedAt": "2026-10-04T01:36:26.940Z",
+  "updatedAt": "2026-10-04T01:46:29.757Z",
   "roadmap": "docs/plans/v1-release-roadmap-plan.md",
   "executionPlan": "docs/plans/v1-release-execution-plan.md",
   "estimate": {
@@ -1347,9 +1347,9 @@
         "release-blocking visual, loading, empty, and error-state defects resolved"
       ],
       "status": "in_progress",
-      "updatedAt": "2026-10-04T01:36:26.940Z",
+      "updatedAt": "2026-10-04T01:46:29.757Z",
       "owner": "/root",
-      "note": "Draft PR 112 at ec65ce8c passed all six CI lanes and the six-cell install matrix. Later local CLI approval, account draft and analytics read recovery fixes pass 53 creator tests and source/test typecheck/lint (latest scoped gate 6.34s, above 5s target); they are not covered by those GitHub runs. Hosted/mobile proof, managed-isolation choice, final integration and green-PR review remain open.",
+      "note": "CLI approval, account drafts and analytics recovery passed the integrating batch at 8ae5bc8c. The authorized Sol review found one account identity race, resolved with two red/green regressions; 55 creator tests and source/test typecheck/lint pass (scoped gate 5.917s, above 5s target). Older ec65ce8c GitHub checks do not cover this batch. Hosted/mobile proof, managed-isolation choice, final integration and green-PR review remain open.",
       "evidence": [
         "document:docs/audits/v1-public-release/launch-experience-recovery-audit.md",
         "document:docs/audits/v1-public-release/creator-entrypoint-audit.md",
@@ -1387,7 +1387,11 @@
         "command:cli-approval-recovery-and-42-creator-tests-pass-20261004",
         "command:cli-approval-source-test-typecheck-lint-pass-20261004",
         "command:account-analytics-recovery-11-and-53-creator-tests-pass-20261004",
-        "command:account-analytics-source-test-typecheck-lint-pass-20261004"
+        "command:account-analytics-source-test-typecheck-lint-pass-20261004",
+        "command:creator-recovery-integrating-batch-8ae5bc8c-pass-20261004",
+        "command:gpt61-sol-creator-recovery-canonicality-one-finding-resolved-20261004",
+        "command:account-identity-red-green-and-55-creator-tests-pass-20261004",
+        "command:account-identity-source-test-typecheck-lint-pass-20261004"
       ]
     }
   ]

@@ -319,3 +319,31 @@ the ordinary platform configuration excludes tests. No full batch or new
 independent review was run for this bounded recovery slice.
 These tests do not prove browser layout, hosted tracking, real account writes
 or production delivery. The broader creator/player release item remains open.
+
+### Reviewed account identity ownership
+
+The integrating `pnpm check:batch` passed at `8ae5bc8c`, covering generated
+sources, workspace typechecking, lint, canonical guards and tests. Its platform
+stage reported 676 passing tests and 118 skips; the skipped PostgreSQL and
+opt-in browser/provider cases are not live-service proof.
+
+The authorized GPT-6.1 Sol canonicality review of `ec65ce8c..8ae5bc8c` found
+one account cache race and no additional CLI approval or analytics findings.
+A save started by an old account could finish after another account loaded and
+replace the shared account cache. The mutation now checks the current cached
+identity both before cancelling reads and after that asynchronous cancellation,
+before applying the accepted response. Account permissions and services are
+unchanged.
+
+Two deferred regressions reproduce the identity change before the save
+acknowledgement and during read cancellation. Both fail on the previous source
+and pass with the guards, even when a later read cannot repair the cache. All
+55 creator recovery tests pass together in 2.87 seconds. The corrected source
+and test pass typechecking and lint; the scoped changed gate took 5.917 seconds,
+above its five-second warm target.
+
+The full batch preceded this bounded review correction; affected checks prove
+the correction, not a second full batch or a second review. This pre-push review
+does not replace the single final GitHub review when the complete PR is green
+and genuinely ready to merge. Hosted/mobile proof, managed-isolation acceptance
+and production delivery remain open.

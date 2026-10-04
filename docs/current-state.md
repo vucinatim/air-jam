@@ -112,8 +112,13 @@ corrected and passes the unchanged strict profile locally. At `ec65ce8c`, all si
 passed. The latter tested the same immutable package set on Linux, macOS and
 Windows with Node 22 and 24. Its candidate commit `d37fd50f` is GitHub's test
 merge of production `db85cdea` and PR head `ec65ce8c`, not a production merge.
-Later local creator recovery edits are not covered by those green runs.
-No final green-PR review or production cutover occurred.
+The later CLI approval, account draft and analytics recovery batch passes
+integrated local checks. Its authorized Sol review found one account identity
+race, now corrected with two red/green regressions; all 55 creator recovery
+tests and source/test typechecking/lint pass. See the
+[reviewed creator recovery evidence](./audits/v1-public-release/creator-entrypoint-audit.md#reviewed-account-identity-ownership).
+These additions are not covered by the older green GitHub runs. The PR remains
+draft, and no final green-PR review or production cutover occurred.
 
 The validated machine program now reports `80%` estimate-weighted progress and
 `39–77` remaining agent-hours, with 30 of 46 work items complete. These are

@@ -18,6 +18,27 @@ The pre-reset overloaded ledger has been preserved at:
 
 1. [archive/2026-05-08-work-ledger-pre-os-reset.md](./archive/2026-05-08-work-ledger-pre-os-reset.md)
 
+## 2026-10-04 - Reviewed Creator Recovery Batch
+
+- The integrating batch passed at `8ae5bc8c`: generated sources, full workspace
+  typechecking, lint, canonical guards and tests. The platform stage reported
+  676 passing tests and 118 environment-dependent skips, not live database or
+  provider proof
+- The authorized GPT-6.1 Sol review of `ec65ce8c..8ae5bc8c` found an old
+  account's pending save could overwrite a newly loaded account. Guarded the
+  canonical cache identity before and after read cancellation; no account
+  service, permission or shared API changed
+- Both deferred identity regressions fail before the correction and pass
+  afterward. All 55 creator recovery tests pass, with source/test typechecking
+  and lint. The changed gate took 5.917 seconds, above its five-second target.
+  The full batch preceded the bounded correction; no duplicate full batch or
+  review was run. Evidence is retained in the
+  [creator audit](./audits/v1-public-release/creator-entrypoint-audit.md#reviewed-account-identity-ownership)
+- Prepared CLI approval, account and analytics recovery for one push to
+  [draft PR 112](https://github.com/vucinatim/air-jam/pull/112). The older green
+  GitHub checks do not cover this new batch. Final GitHub review, hosted/mobile
+  proof, managed-isolation acceptance and production delivery remain open
+
 ## 2026-10-04 - Account Draft And Analytics Recovery
 
 - Reproduced an account refresh erasing an unsaved creator name. The loaded

@@ -74,7 +74,9 @@ function AccountProfile({ account }: { account: CreatorAccount }) {
   });
   const updateProfile = api.user.updateProfile.useMutation({
     onSuccess: async (updatedAccount) => {
+      if (utils.user.me.getData()?.id !== updatedAccount.id) return;
       await utils.user.me.cancel();
+      if (utils.user.me.getData()?.id !== updatedAccount.id) return;
       utils.user.me.setData(undefined, updatedAccount);
       form.reset({ displayName: updatedAccount.name });
       void utils.user.me.invalidate();
