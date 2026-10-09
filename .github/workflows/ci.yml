@@ -40,7 +40,9 @@ jobs:
             command: pnpm build
           - name: Standalone packages
             history: 1
-            command: pnpm --silent run repo -- pack verify-local --json
+            command: >-
+              mkdir -p .airjam &&
+              pnpm --silent run repo -- pack verify-local --json > .airjam/foundation-package-proof.json
           - name: Performance smoke
             history: 1
             command: >-
@@ -67,6 +69,21 @@ jobs:
 
       - name: Run ${{ matrix.name }}
         run: ${{ matrix.command }}
+
+      - name: Locate qualified foundation packages
+        if: matrix.name == 'Standalone packages'
+        id: foundation
+        run: jq -r '"path=.airjam/tarballs/sets/\(.setId)"' .airjam/foundation-package-proof.json >> "$GITHUB_OUTPUT"
+
+      - name: Retain qualified foundation packages
+        if: matrix.name == 'Standalone packages'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: foundation-packages
+          path: ${{ steps.foundation.outputs.path }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
 
   checks:
     name: checks

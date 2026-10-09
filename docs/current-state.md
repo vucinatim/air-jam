@@ -50,6 +50,10 @@ and is connected locally. Its `main` contains the reviewed production baseline
 production source transfer, license change or Studio database
 migration has occurred in this separation.
 
+The standalone-package CI lane now retains its exact qualified archive set for
+paired private validation. Artifact upload and the receiving Linux CI run have
+not yet been exercised; this does not publish packages or change runtime hosting.
+
 ## Delivery guard
 
 Do not merge removal of the public product paths while Railway's previous

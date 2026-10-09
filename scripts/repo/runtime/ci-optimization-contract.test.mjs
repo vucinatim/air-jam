@@ -40,10 +40,11 @@ test("CI preserves every confidence lane behind one stable required check", () =
   assert.equal(lanes[1].command, "pnpm typecheck");
   assert.equal(lanes[2].command, "pnpm test");
   assert.equal(lanes[3].command, "pnpm build");
-  assert.equal(
+  assert.match(
     lanes[4].command,
-    "pnpm --silent run repo -- pack verify-local --json",
+    /pnpm --silent run repo -- pack verify-local --json/u,
   );
+  assert.match(lanes[4].command, /> \.airjam\/foundation-package-proof\.json/u);
   assert.match(lanes[5].command, /perf sanity --profile ci/u);
   assert.deepEqual(
     lanes.map((lane) => lane.history),
@@ -57,6 +58,24 @@ test("CI preserves every confidence lane behind one stable required check", () =
   }
   assert.equal(workflow.jobs.checks.name, "checks");
   assert.equal(workflow.jobs.checks.needs, "validate");
+});
+
+test("CI retains only the exact qualified foundation set for paired consumers", () => {
+  const workflow = YAML.parse(
+    fs.readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8"),
+  );
+  const upload = workflow.jobs.validate.steps.find(
+    (step) => step.name === "Retain qualified foundation packages",
+  );
+  const locate = workflow.jobs.validate.steps.find(
+    (step) => step.id === "foundation",
+  );
+  assert.equal(upload.if, "matrix.name == 'Standalone packages'");
+  assert.equal(locate.if, upload.if);
+  assert.match(locate.run, /\.setId/u);
+  assert.equal(upload.with.name, "foundation-packages");
+  assert.equal(upload.with.path, "${{ steps.foundation.outputs.path }}");
+  assert.equal(upload.with["if-no-files-found"], "error");
 });
 
 test("CI runs once at the protected PR boundary and cancels stale revisions", () => {
