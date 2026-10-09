@@ -21,7 +21,7 @@ test("the repo has one discoverable default development front door", () => {
   );
   assert.equal(
     packageJson.scripts.dev,
-    "node scripts/repo/cli.mjs workspace arcade:dev",
+    "node scripts/repo/cli.mjs workspace standalone:dev",
   );
 
   const result = spawnSync("pnpm", ["run", "dev", "--", "--help"], {
@@ -39,7 +39,7 @@ test("the repo has one discoverable default development front door", () => {
     0,
     `pnpm run dev -- --help failed: ${result.stderr || result.stdout}`,
   );
-  assert.match(result.stdout, /Start live Arcade workspace dev/u);
+  assert.match(result.stdout, /Start live standalone workspace dev/u);
 });
 
 test("workspace package bin entrypoints exist before build", () => {

@@ -1,8 +1,11 @@
 {
   "name": "@air-jam/devtools-core",
-  "version": "0.9.0",
+  "version": "0.9.3",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "description": "Shared Air Jam devtools operations for repo CLIs, MCP adapters, and generated projects",
-  "private": true,
+  "private": false,
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -83,7 +86,9 @@
     "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup",
     "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
+    "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
   },
   "dependencies": {
     "@air-jam/harness": "workspace:^",

@@ -47,18 +47,3 @@ export const buildPerfSanityArgs = (options = {}) => {
 
   return args;
 };
-
-export const buildLaunchLoadArgs = (options = {}) => {
-  const args = [
-    "--silent",
-    "--filter",
-    "@air-jam/server",
-    "exec",
-    "tsx",
-    "scripts/launch-load/main.ts",
-    `--profile=${options.profile ?? "smoke"}`,
-  ];
-  if (options.output !== undefined) args.push(`--output=${options.output}`);
-  if (options.json) args.push("--json");
-  return args;
-};

@@ -1,7 +1,7 @@
-import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "@air-jam/sdk";
 import { AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN } from "@air-jam/sdk/arcade/surface";
 import {
   AIRJAM_DEV_LOG_EVENTS,
+  DEFAULT_ROOM_PLATFORM_SETTINGS,
   ErrorCode,
   hostActivateEmbeddedGameSchema,
   hostBootstrapSchema,

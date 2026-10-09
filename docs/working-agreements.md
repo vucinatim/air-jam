@@ -1,6 +1,6 @@
 # Working Agreements
 
-Last updated: 2026-10-03
+Last updated: 2026-10-09
 Status: stable operating rules
 
 This file defines how humans and agents should use the Air Jam repo operating system.
@@ -13,6 +13,11 @@ Its purpose is:
 4. cleaner phase closure
 
 This file should stay stable and low-churn.
+
+This copy governs the public framework repository. Private product plans,
+hosted operations and production deployment procedures have their own owner
+in the private product repository. Keep the same review and effect-authority
+standards across that boundary without copying product implementation here.
 
 ## Read Order
 
@@ -38,7 +43,7 @@ Use this loop unless a task clearly requires something more specific:
    3. `docs/current-state.md`
 2. open only the relevant active plan
 3. inspect the plan's canonical machine execution state when one exists
-4. claim one dependency-ready work item
+4. claim one dependency-ready work item when the active plan defines a machine program
 5. work inside the current ownership boundaries
 6. validate the intended slice and retain evidence
 7. complete or block the claimed item explicitly
@@ -109,9 +114,9 @@ Air Jam separates subjective product authority from implementation assurance:
    canonicality before a substantial push, while the final reviewer inspects
    the complete green pull request on GitHub
 4. the current GitHub policy does not require a routine human approval; this is
-   an explicit maintainer decision recorded in the
-   [production rollout incident audit](./audits/v1-operations/production-rollout-incident-audit.md#review-authority-decision),
-   while CI, review conversations, and branch protection remain mandatory
+   an explicit maintainer decision retained in the private product's production
+   rollout incident audit, while CI, review conversations and branch protection
+   remain mandatory
 
 ## Review Stacks And Integration
 
@@ -182,11 +187,10 @@ Merging production-ready code and announcing Air Jam 1.0 are separate events.
    evidence justifies paying for an always-on staging environment
 8. never describe a queued deployment as deployed; terminal provider success
    and post-deploy health are required evidence
-9. after merge, identify the exact merged commit for every affected deployable
-   service in provider state, wait for literal terminal `SUCCESS`, and complete
-   the canonical
-   [production rollout validation](./guides/railway-deployment-guide.md#production-rollout-validation)
-   before calling the production rollout complete; explicitly classify
+9. after a product-affecting merge, identify the exact merged commit for every
+   affected deployable service in provider state, wait for literal terminal
+   `SUCCESS`, and complete the private product's canonical production rollout
+   validation before calling the rollout complete; explicitly classify
    unaffected services and confirm their preceding successful deployment stays
    live rather than requiring a new deployment for an unchanged artifact
 10. if that exact deployment fails, preserve the failed attempt as incident
@@ -215,15 +219,10 @@ The canonical repo entrypoint is `pnpm run repo -- --help`. Agents should prefer
 repo-owned commands over ad hoc SQL, browser-only operation, or provider-specific
 shell sequences whenever the repo CLI owns the job.
 
-For the active 1.0 program, use:
-
-```bash
-pnpm --silent run repo -- readiness status --json
-pnpm --silent run repo -- readiness next --json
-```
-
-Claim, block, and complete work through `readiness update`. Mutations are
-read-only previews unless `--apply` is explicit.
+The product's 1.0 readiness program and its mutations run in the private
+repository. Public maintainer commands expose framework checks, package
+qualification and release preparation; do not restore product readiness
+dependencies to this workspace.
 
 ### Agent Freedom And Operational Authority
 
@@ -295,9 +294,9 @@ work, Railway, and GitHub. Swarm coordination should begin with claims,
 idempotency, and visible ownership on existing surfaces; add a dedicated
 orchestrator only when observed contention or scheduling needs justify one.
 
-The detailed layers, operating loops, 1.0 boundary, and post-1.0 evolution are
-defined in the
-[Agent Operating Ecosystem Strategy](./strategy/agent-operating-ecosystem-strategy.md).
+The private product owns the detailed operating ecosystem strategy, production
+loops and release program. Public runtime sensors and creator tools remain
+available independently to external agents.
 
 ## Doc Roles
 
@@ -401,7 +400,8 @@ Do not use a vision or strategy doc as a substitute for an executable plan.
 Use:
 
 1. [vision.md](./vision.md) and [discoverability-vision.md](./discoverability-vision.md) for long-horizon direction
-2. `docs/strategy/` for the stable strategy and workflow surface
+2. `docs/strategy/` for framework strategies when an active need justifies one;
+   product business and hosting strategies belong to the private repository
 
 ### Capability And Reference Docs
 
@@ -419,7 +419,7 @@ They should clarify what exists and how it is shaped, not become active trackers
 
 Use:
 
-1. `docs/content/` for the public-facing draft surface
+1. the private product's `docs/content/` for website and launch article drafts
 
 Keep content drafts separate from plans and archive old outlines instead of mixing them into the live writing surface.
 

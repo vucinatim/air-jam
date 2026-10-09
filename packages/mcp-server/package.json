@@ -27,6 +27,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./tool-contract": "./tool-contract.json",
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
@@ -48,7 +49,7 @@
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs",
     "test": "pnpm build && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

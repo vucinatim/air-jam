@@ -23,6 +23,18 @@
     "airjam": "./bin/airjam.mjs"
   },
   "exports": {
+    "./documentation": {
+      "types": "./dist/documentation.d.ts",
+      "import": "./dist/documentation.js"
+    },
+    "./development": {
+      "types": "./dist/development.d.ts",
+      "import": "./dist/development.js"
+    },
+    "./ai-pack": {
+      "types": "./dist/ai-pack.d.ts",
+      "import": "./dist/ai-pack.js"
+    },
     "./scaffold": {
       "types": "./dist/scaffold.d.ts",
       "import": "./dist/scaffold.js"
@@ -47,9 +59,9 @@
     "ai-pack:check": "node scripts/check-ai-pack.mjs",
     "ai-pack:manifest:generate": "node scripts/generate-ai-pack-manifest.mjs",
     "docs-pack:generate": "node scripts/generate-base-docs-pack.mjs",
-    "build": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && pnpm docs-pack:generate && pnpm ai-pack:manifest:generate && tsup && node ../../scripts/build-devtools-helpers.mjs --out-dir dist/tooling",
-    "typecheck": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && tsc --noEmit",
-    "test": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && pnpm build && node --test runtime/*.test.mjs",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/mcp-server && pnpm docs-pack:generate && pnpm ai-pack:manifest:generate && tsup && node ../../scripts/build-devtools-helpers.mjs --out-dir dist/tooling",
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/mcp-server && tsc --noEmit",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/cli && node --test runtime/*.test.mjs",
     "prepublishOnly": "pnpm ai-pack:check && pnpm build",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"

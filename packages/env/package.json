@@ -1,7 +1,10 @@
 {
   "name": "@air-jam/env",
-  "version": "0.9.0",
-  "private": true,
+  "version": "0.9.3",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "private": false,
   "description": "Shared Air Jam environment parsing and validation helpers",
   "type": "module",
   "license": "MIT",
@@ -16,8 +19,7 @@
   },
   "files": [
     "index.mjs",
-    "index.d.mts",
-    "index.test.mjs"
+    "index.d.mts"
   ],
   "main": "./index.mjs",
   "module": "./index.mjs",
@@ -30,7 +32,9 @@
     }
   },
   "scripts": {
-    "test": "node --test index.test.mjs"
+    "test": "node --test index.test.mjs",
+    "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
+    "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
   },
   "dependencies": {
     "zod": "^4.2.1"

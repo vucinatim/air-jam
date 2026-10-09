@@ -1,4 +1,3 @@
-import { REALTIME_ADMISSION_POLICY } from "@air-jam/database-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AirJamServerRuntime } from "../src/index";
 import type { ServerLogger } from "../src/logging/logger";
@@ -20,7 +19,7 @@ describe("server process lifecycle", () => {
     const drain = vi.fn(async () => ({
       completed: false,
       remainingRooms: 2,
-      waitedMs: REALTIME_ADMISSION_POLICY.shutdownDrainTimeoutMs,
+      waitedMs: 25_000,
     }));
     const stop = vi.fn(async () => undefined);
     const runtime = {

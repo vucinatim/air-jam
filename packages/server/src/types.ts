@@ -1,9 +1,9 @@
-import type { RoomPlatformSettingsSnapshot } from "@air-jam/sdk";
 import type {
   AirJamStateSyncPayload,
   ChildHostCapability,
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
+  ControllerRoomSettingsState as RoomPlatformSettingsSnapshot,
   ControllerSource,
   ControllerStateMessage,
   HostResumeCapability,

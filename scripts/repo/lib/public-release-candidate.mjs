@@ -705,6 +705,13 @@ export const createPublicReleaseCandidate = ({
     onProgress("gate:release-publish");
     run("pnpm", ["check:release:publish"]);
     for (const pkg of publicPackages) {
+      const packageManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(repoRoot, pkg.workingDirectory, "package.json"),
+          "utf8",
+        ),
+      );
+      if (!packageManifest.scripts?.build) continue;
       onProgress(`build:${pkg.packageName}`);
       run("pnpm", ["--filter", pkg.packageFilter, "build"]);
     }

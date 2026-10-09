@@ -8,108 +8,53 @@ const canonicalRules = [
     pattern:
       "import\\s*{[^}]*\\bAirJamProvider\\b[^}]*}\\s*from\\s*[\"\\']@air-jam/sdk[\"\\']",
     label: "unscoped AirJamProvider imports in runtime code",
-    paths: [
-      "apps/platform/src/app/arcade",
-      "apps/platform/src/app/controller",
-      "apps/platform/src/app/play",
-      "apps/platform/src/components/arcade",
-      "games/air-capture/src",
-      "games/pong/src",
-    ],
+    paths: ["games/air-capture/src", "games/pong/src"],
   },
   {
     pattern: "\\bstate\\.actions\\.",
     label: "non-canonical state.actions dispatch usage",
-    paths: [
-      "apps/platform/src/app/arcade",
-      "apps/platform/src/app/controller",
-      "apps/platform/src/app/play",
-      "apps/platform/src/components/arcade",
-      "games/air-capture/src",
-      "games/pong/src",
-    ],
+    paths: ["games/air-capture/src", "games/pong/src"],
   },
   {
     pattern: "\\bonChildClose\\s*:",
     label: "deprecated onChildClose host option usage",
-    paths: [
-      "apps/platform/src/app/arcade",
-      "apps/platform/src/app/controller",
-      "apps/platform/src/app/play",
-      "apps/platform/src/components/arcade",
-      "games/air-capture/src",
-      "games/pong/src",
-    ],
+    paths: ["games/air-capture/src", "games/pong/src"],
   },
   {
     pattern: "\\bisChildMode\\b",
     label: "deprecated isChildMode usage",
-    paths: [
-      "apps/platform/src/app/arcade",
-      "apps/platform/src/app/controller",
-      "apps/platform/src/app/play",
-      "apps/platform/src/components/arcade",
-      "games/air-capture/src",
-      "games/pong/src",
-    ],
+    paths: ["games/air-capture/src", "games/pong/src"],
   },
   {
     pattern: "\\bforceConnect\\s*:",
     label: "deprecated forceConnect option usage",
-    paths: [
-      "apps/platform/src/app/arcade",
-      "apps/platform/src/app/controller",
-      "apps/platform/src/app/play",
-      "apps/platform/src/components/arcade",
-      "games/air-capture/src",
-      "games/pong/src",
-    ],
+    paths: ["games/air-capture/src", "games/pong/src"],
   },
   {
     pattern:
       "<HostSessionProvider[^>]*(serverUrl|appId|maxPlayers|publicHost|input)\\s*=",
     label:
       "inline HostSessionProvider runtime config props (use canonical session-config module)",
-    paths: [
-      "apps/platform/src/app/arcade",
-      "apps/platform/src/app/controller",
-      "apps/platform/src/app/play",
-      "apps/platform/src/components/arcade",
-      "games/air-capture/src",
-      "games/pong/src",
-    ],
+    paths: ["games/air-capture/src", "games/pong/src"],
   },
   {
     pattern:
       "<ControllerSessionProvider[^>]*(serverUrl|appId|maxPlayers|publicHost|input)\\s*=",
     label:
       "inline ControllerSessionProvider runtime config props (use canonical session-config module)",
-    paths: [
-      "apps/platform/src/app/arcade",
-      "apps/platform/src/app/controller",
-      "apps/platform/src/app/play",
-      "apps/platform/src/components/arcade",
-      "games/air-capture/src",
-      "games/pong/src",
-    ],
+    paths: ["games/air-capture/src", "games/pong/src"],
   },
   {
     pattern: "postMessage\\([^,]+,\\s*[\"\\']\\*[\"\\']",
     label: "wildcard postMessage targetOrigin usage",
-    paths: ["apps/platform/src/components/arcade", "packages/sdk/src"],
+    paths: ["packages/sdk/src"],
   },
   {
     pattern: "\\bsendInput\\s*\\(",
     label: "raw sendInput usage (use useInputWriter + useControllerTick)",
     paths: [
-      "apps/platform/src/app/arcade",
-      "apps/platform/src/app/controller",
-      "apps/platform/src/app/play",
-      "apps/platform/src/components/arcade",
       "games/air-capture/src",
       "games/pong/src",
-      "apps/platform/src/app/docs",
-      "apps/platform/src/components/docs",
       "games/pong",
       "packages/sdk/README.md",
       "games/pong/README.md",
@@ -122,8 +67,6 @@ const canonicalRules = [
       "legacy API key env names/diagnostics must not appear in canonical code/docs after the appId rename",
     paths: [
       "packages/sdk/src",
-      "apps/platform/src/app/docs",
-      "apps/platform/src/components/docs",
       "games/pong",
       "packages/sdk/README.md",
       "games/pong/README.md",
@@ -135,8 +78,6 @@ const canonicalRules = [
     label: "non-canonical action context key actorRole (use ctx.role)",
     paths: [
       "packages/sdk/src",
-      "apps/platform/src/app/docs",
-      "apps/platform/src/components/docs",
       "games/pong",
       "packages/sdk/README.md",
       "games/pong/README.md",
@@ -147,13 +88,7 @@ const canonicalRules = [
       "actions\\.[A-Za-z0-9_]+\\(\\s*\\{[^)]*\\b(vector|direction|action|ability|timestamp)\\s*:",
     label:
       "input-like payload dispatched through state actions in docs/examples",
-    paths: [
-      "apps/platform/src/app/docs",
-      "apps/platform/src/components/docs",
-      "games/pong",
-      "packages/sdk/README.md",
-      "games/pong/README.md",
-    ],
+    paths: ["games/pong", "packages/sdk/README.md", "games/pong/README.md"],
   },
 ];
 
@@ -180,7 +115,13 @@ const resolveRuleFiles = (root, paths) => {
     { encoding: "utf8" },
   );
 
-  return output.split("\0").filter(Boolean).sort();
+  return output
+    .split("\0")
+    .filter(
+      (relativePath) =>
+        relativePath && existsSync(path.join(root, relativePath)),
+    )
+    .sort();
 };
 
 const lineNumberAt = (source, index) =>

@@ -27,6 +27,7 @@ import { randomUUID } from "node:crypto";
 import { io, type Socket } from "socket.io-client";
 import { detectProjectContext } from "./context.js";
 import { getTopology } from "./dev.js";
+import { inspectGame } from "./games.js";
 import {
   resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
@@ -802,10 +803,10 @@ export const resolveControllerSessionGameRuntime = async ({
   }
 
   const sourceGameId =
-    session.projectMode === "monorepo"
-      ? (localReferenceSourceGameId(parsedSurface.data.gameId) ??
-        parsedSurface.data.gameId)
-      : parsedSurface.data.gameId;
+    session.projectMode === "standalone-game"
+      ? (await inspectGame({ cwd: session.cwd })).id
+      : (localReferenceSourceGameId(parsedSurface.data.gameId) ??
+        parsedSurface.data.gameId);
   session.summary.gameId = sourceGameId;
 
   return {
@@ -1015,13 +1016,14 @@ export const connectController = async ({
       secure,
     }).catch(() => null);
     const resolvedGameId = gameId ?? topology?.gameId ?? null;
-    const resolvedSocketOrigin =
-      (await resolveSocketOriginFromTopology({
-        cwd,
-        gameId: resolvedGameId ?? undefined,
-        mode,
-        secure,
-      })) ?? joinUrl.origin;
+    const resolvedSocketOrigin = controllerJoinUrl
+      ? joinUrl.origin
+      : ((await resolveSocketOriginFromTopology({
+          cwd,
+          gameId: resolvedGameId ?? undefined,
+          mode,
+          secure,
+        })) ?? joinUrl.origin);
     const resolvedCapabilityToken =
       normalizedCapabilityToken ||
       parseJoinCapabilityToken(joinUrl) ||
@@ -1103,7 +1105,7 @@ export const connectController = async ({
       await waitForCondition({
         timeoutMs: Math.min(timeoutMs, 500),
         predicate: () =>
-          internalSession.welcome !== null ||
+          internalSession.welcome !== null &&
           internalSession.controllerState !== null,
       });
       virtualControllerSessions.set(controllerSessionId, internalSession);

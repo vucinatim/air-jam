@@ -5,14 +5,17 @@ Status: current guide
 
 Related docs:
 
-1. [../architecture/hosted-release-pipeline-architecture.md](../architecture/hosted-release-pipeline-architecture.md)
-2. [../architecture/platform-control-plane-architecture.md](../architecture/platform-control-plane-architecture.md)
-3. [../capability-inventory.md](../capability-inventory.md)
+1. [Framework paradigm](../framework-paradigm.md#runtime-and-hosted-policy-boundary)
+2. [Capability inventory](../capability-inventory.md)
 
 ## Purpose
 
 This guide explains the intended happy path for producing and publishing a
 hosted release.
+
+This repository owns the publishing clients and portable validation. The
+managed service, account policy, processing workers and operational runbooks
+belong to the private product. Hosting is optional for local game development.
 
 ## Happy Path
 

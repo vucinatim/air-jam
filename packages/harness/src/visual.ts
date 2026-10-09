@@ -1,4 +1,5 @@
 export * from "./visual/prefab-contract.js";
+export * from "./visual/prefab-runner.js";
 export * from "./visual/runner.js";
 export * from "./visual/scenario-contract.js";
 export * from "./visual/scenario-helpers.js";

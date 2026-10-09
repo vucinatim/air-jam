@@ -3,6 +3,10 @@
 Last updated: 2026-08-26
 Status: stable operating reference
 
+This repository owns public framework memory. The private product retains
+whole-product history and operates the product release program; its readiness
+manifest and provider procedures are not public workspace dependencies.
+
 ## Purpose
 
 This document defines the repo memory model for Air Jam so that:

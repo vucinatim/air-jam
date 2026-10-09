@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "skipLibCheck": true
-  },
-  "include": ["types.test.ts"]
-}

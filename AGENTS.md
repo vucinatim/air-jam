@@ -1,6 +1,11 @@
 # Agent Contract
 
-This file defines general engineering expectations for contributors and coding agents in this repository.
+This repository owns Air Jam's public framework, standalone server, creator tools and reference games. Studio, Arcade, accounts, hosted policy, databases and production operations belong to the private product repository. Develop one framework; the product consumes its supported package exports.
+
+Source separation is still local and unfinished. Do not merge the ownership
+removal while Railway automatically deploys from the old public product paths.
+The private product's separation plan owns the guarded source handover; green
+framework checks do not establish private deployment readiness.
 
 ## Mission
 
@@ -60,26 +65,14 @@ pnpm run repo -- --help
 
 Use that surface to discover and prefer repo-owned operations when they exist.
 
-For active 1.0 release work, the canonical machine execution surface is:
+For exact local package qualification, use:
 
 ```bash
-pnpm run repo -- readiness --help
+pnpm --silent run repo -- pack verify-local --json
 ```
 
-Agents working on the 1.0 program must:
-
-1. inspect `readiness status` and `readiness next` before selecting work
-2. claim one dependency-ready item before editing
-3. continue another independent ready item when one item is blocked
-4. complete work only with typed evidence references
-5. treat human checkpoints and production approvals as explicit work items, not
-   recurring informal validation requests
-6. keep product scope in the 1.0 roadmap and execution state in the canonical
-   manifest rather than inventing parallel trackers
-7. keep routine implementation review agent-owned: the maintainer reviews
-   direction, paradigm, scope, product polish, and material risk decisions, not
-   individual code changes; follow the canonical review-authority split in
-   `docs/working-agreements.md`
+Product release readiness and production tooling run in the private product
+repository. Do not restore those commands or dependencies here.
 
 ## Agent-First Operability Rule
 
@@ -115,33 +108,10 @@ The intended loop-and-swarm environment is described in
 shared memory, focused tools, and effect-level authority rather than a rigid
 central reasoning engine.
 
-For Railway work specifically, prefer the repo-native Railway toolkit over the
-generic Railway CLI:
+## Agent Delegation
 
-```bash
-pnpm run repo -- railway --help
-```
-
-Current Railway helpers include:
-
-1. `whoami`
-2. `doctor`
-3. `project`
-4. `env`
-5. `vars`
-
-## Parallel Work Rule
-
-When work is naturally separable, agents should use parallel execution by default rather than treating it as optional.
-
-Preferred pattern:
-
-1. do shared contract, API, schema, or architecture work centrally first
-2. once the shared boundary is stable, split independent implementation work across parallel agents
-3. use this especially for cross-game refactors, repeated game-by-game improvements, scaffold parity work, and other bounded repo slices with disjoint ownership
-4. finish with one central integration pass for validation, fallout fixes, and final contract cleanup
-
-Do not parallelize prematurely when the shared API or architecture is still moving, because that creates churn instead of speed.
+Launch additional agents only when the maintainer explicitly requests delegation.
+Keep shared contracts and integration centrally owned.
 
 ## Quality Gates
 
@@ -174,16 +144,10 @@ Treat `.airjam/logs/dev-latest.ndjson` as the canonical local debugging stream f
 
 ## Browser Testing Rule
 
-When agents need to open, inspect, click through, or verify local Air Jam
-surfaces, use the in-app browser through the internal `browser-use` feature.
-
-Use that path for:
-
-1. opening local host/controller/dashboard/release URLs
-2. clicking through flows and verifying visible UI behavior
-3. showing the user what is rendering in the actual browser surface
-
-Keep that browser workflow as the canonical path for interactive local UI work in this repo.
+Use real Chrome through Chrome DevTools for local host/controller verification.
+Use separate browser contexts when testing distinct controller identities.
+Preserve unrelated sessions, and use the semantic game-session contract for
+deterministic gameplay assertions.
 
 ## Local Agent Dev Loop Rule
 

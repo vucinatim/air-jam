@@ -1,4 +1,5 @@
 import path from "node:path";
+import { z } from "zod";
 import { runCommandResult } from "./commands.js";
 import {
   getTopology,
@@ -7,14 +8,17 @@ import {
   tryAttachToRunningDev,
 } from "./dev.js";
 import { pathExists, readJsonFile } from "./fs-utils.js";
-import { inspectGame, readVisualCaptureSummary } from "./games.js";
+import { inspectGame } from "./games.js";
 import {
   resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
 } from "./helper-scripts.js";
 import { inspectAirJamAgentConfig } from "./tooling/airjam-agent-inspection.js";
 import type {
+  AirJamSurfaceUrlSummary,
+  AirJamVisualArtifactMode,
   AirJamVisualCaptureInspection,
+  AirJamVisualCaptureSummary,
   AirJamVisualScenarioList,
   AirJamVisualScenarioMetadata,
   CaptureVisualsOptions,
@@ -25,6 +29,24 @@ import type {
 type ResolvedVisualSource = {
   configPath: string;
   scenarioModulePath: string;
+};
+
+const captureUrlsSchema = z.object({
+  appOrigin: z.url(),
+  hostUrl: z.url(),
+  controllerBaseUrl: z.url(),
+  publicHost: z.url(),
+  localBuildUrl: z.url().nullable(),
+  browserBuildUrl: z.url().nullable(),
+});
+
+export type CaptureVisualsAtRuntimeOptions = Pick<
+  CaptureVisualsOptions,
+  "cwd" | "gameId" | "scenarioId" | "secure"
+> & {
+  mode: AirJamVisualArtifactMode;
+  urls: AirJamSurfaceUrlSummary;
+  artifactRoot: string;
 };
 
 const resolveVisualArtifactRoot = (rootDir: string): string =>
@@ -182,6 +204,68 @@ const withVisualSession = async <T>({
   }
 };
 
+const captureGameAtRuntime = async ({
+  game,
+  visualSource,
+  scenarioId,
+  mode,
+  secure,
+  urls,
+  artifactRoot,
+}: Omit<CaptureVisualsAtRuntimeOptions, "cwd" | "gameId"> & {
+  game: Awaited<ReturnType<typeof inspectGame>>;
+  visualSource: ResolvedVisualSource;
+}): Promise<CaptureVisualsResult> => {
+  const resolvedUrls = captureUrlsSchema.parse(urls);
+  runTsxHelper<AirJamVisualCaptureSummary>({
+    helperFile: resolveDevtoolsHelperScript("run-visual-capture.ts"),
+    cwd: game.rootDir,
+    args: [
+      `--game-id=${game.id}`,
+      `--config=${visualSource.configPath}`,
+      `--module-path=${visualSource.scenarioModulePath}`,
+      `--artifact-root=${artifactRoot}`,
+      `--mode=${mode === "arcade-built" ? "arcade-test" : "standalone-dev"}`,
+      `--app-origin=${resolvedUrls.appOrigin}`,
+      `--host-url=${resolvedUrls.hostUrl}`,
+      `--controller-base-url=${resolvedUrls.controllerBaseUrl}`,
+      `--public-host=${resolvedUrls.publicHost}`,
+      ...(resolvedUrls.localBuildUrl
+        ? [`--local-build-url=${resolvedUrls.localBuildUrl}`]
+        : []),
+      ...(resolvedUrls.browserBuildUrl
+        ? [`--browser-build-url=${resolvedUrls.browserBuildUrl}`]
+        : []),
+      ...(scenarioId ? [`--scenario-id=${scenarioId}`] : []),
+      ...(secure ? ["--secure"] : []),
+    ],
+  });
+  const summaryPath = path.join(artifactRoot, game.id, "capture-summary.json");
+  const summary = await readJsonFile<AirJamVisualCaptureSummary>(summaryPath);
+  return {
+    gameId: game.id,
+    artifactRoot,
+    summaryPath,
+    summary,
+    scenarios: await readScenarioMetadata({ artifactRoot, summary }),
+  };
+};
+
+export const captureVisualsAtRuntime = async ({
+  cwd = process.cwd(),
+  gameId,
+  ...runtime
+}: CaptureVisualsAtRuntimeOptions): Promise<CaptureVisualsResult> => {
+  const game = await inspectGame({ cwd, gameId });
+  const visualSource = await resolveVisualSource(game.configPath);
+  if (!visualSource) {
+    throw new Error(
+      `No visual scenarios published for "${game.id}" in ${game.rootDir}.`,
+    );
+  }
+  return captureGameAtRuntime({ game, visualSource, ...runtime });
+};
+
 export const captureVisuals = async ({
   cwd = process.cwd(),
   gameId,
@@ -194,48 +278,16 @@ export const captureVisuals = async ({
     gameId,
     mode,
     secure,
-    run: async ({ game, visualSource, topology }) => {
-      const artifactRoot = resolveVisualArtifactRoot(
-        topology.process?.cwd ?? game.rootDir,
-      );
-
-      runTsxHelper<unknown>({
-        helperFile: resolveDevtoolsHelperScript("run-visual-capture.ts"),
-        cwd: game.rootDir,
-        args: [
-          `--game-id=${game.id}`,
-          `--config=${visualSource.configPath}`,
-          `--module-path=${visualSource.scenarioModulePath}`,
-          `--artifact-root=${artifactRoot}`,
-          `--mode=${mode}`,
-          `--app-origin=${topology.urls.appOrigin}`,
-          `--host-url=${topology.urls.hostUrl}`,
-          `--controller-base-url=${topology.urls.controllerBaseUrl}`,
-          `--public-host=${topology.urls.publicHost}`,
-          ...(topology.urls.localBuildUrl
-            ? [`--local-build-url=${topology.urls.localBuildUrl}`]
-            : []),
-          ...(topology.urls.browserBuildUrl
-            ? [`--browser-build-url=${topology.urls.browserBuildUrl}`]
-            : []),
-          ...(scenarioId ? [`--scenario-id=${scenarioId}`] : []),
-          ...(secure ? ["--secure"] : []),
-        ],
-      });
-
-      const inspection = await readVisualCaptureSummary({
-        cwd,
-        gameId: game.id,
-      });
-      return {
-        gameId: inspection.gameId,
-        artifactRoot,
-        summaryPath: inspection.summaryPath,
-        summary: inspection.summary,
-        scenarios: await readScenarioMetadata({
-          artifactRoot,
-          summary: inspection.summary,
-        }),
-      };
-    },
+    run: ({ game, visualSource, topology }) =>
+      captureGameAtRuntime({
+        game,
+        visualSource,
+        scenarioId,
+        mode: mode === "arcade-test" ? "arcade-built" : "standalone-dev",
+        secure,
+        urls: topology.urls,
+        artifactRoot: resolveVisualArtifactRoot(
+          topology.process?.cwd ?? game.rootDir,
+        ),
+      }),
   });

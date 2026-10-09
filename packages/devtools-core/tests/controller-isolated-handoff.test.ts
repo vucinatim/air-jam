@@ -1,5 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
@@ -314,6 +315,27 @@ describe("isolated runtime controller handoff", () => {
     }
   });
 
+  it.each(["http://localhost:62984", "https://preview.example.com"])(
+    "uses the explicit join origin instead of local inferred topology: %s",
+    async (origin) => {
+      const { connectController, disconnectController } =
+        await import("../src/controller.js");
+      const { startDev } = await import("../src/dev.js");
+      const session = await connectController({
+        cwd: "/tmp/solo",
+        controllerJoinUrl: `${origin}/controller?room=ROOM2&aj_controller_cap=explicit`,
+        timeoutMs: 1_000,
+      });
+      expect(io).toHaveBeenCalledWith(origin, expect.any(Object));
+      expect(session.socketOrigin).toBe(origin);
+      expect(startDev).not.toHaveBeenCalled();
+      expect(spawnedOwners).toHaveLength(0);
+      await disconnectController({
+        controllerSessionId: session.controllerSessionId,
+      });
+    },
+  );
+
   it("keeps an isolated runtime host alive while its controller is connected", async () => {
     const {
       captureControllerSessionVisuals,
@@ -496,7 +518,7 @@ describe("isolated runtime controller handoff", () => {
   );
 
   it.each(["monorepo", "standalone-game"] as const)(
-    "resolves local-reference identity only in the monorepo (%s)",
+    "keeps source project identity separate from Arcade store identity (%s)",
     async (projectMode) => {
       const { detectProjectContext } = await import("../src/context.js");
       const originalContext = await detectProjectContext({ cwd: "/tmp/solo" });
@@ -530,7 +552,7 @@ describe("isolated runtime controller handoff", () => {
           timeoutMs: 1_000,
         });
         expect(runtime).toEqual({
-          gameId: projectMode === "monorepo" ? "pong" : "local-reference-pong",
+          gameId: projectMode === "monorepo" ? "pong" : "solo-fixture",
           defaultStoreDomain: "aj.embedded.game:7:local-reference-pong",
         });
       } finally {

@@ -484,6 +484,9 @@ export const runVisualHarness = async ({
   } else {
     ensureDir(gameArtifactRoot);
   }
+  fs.rmSync(path.join(gameArtifactRoot, "capture-summary.json"), {
+    force: true,
+  });
 
   const stack = await startStack({
     gameId,

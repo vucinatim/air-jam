@@ -24,10 +24,13 @@ const { values } = parseArgs({
 if (!values.game) {
   throw new Error("Missing required --game option.");
 }
+if (values.mode !== "standalone-dev") {
+  throw new Error("Private Arcade capture belongs to the product repository.");
+}
 
 await runVisualCaptureCommand({
   gameId: values.game,
   scenarioId: values.scenario ?? null,
-  mode: values.mode as "standalone-dev" | "arcade-built",
+  mode: values.mode,
   secure: values.secure,
 });

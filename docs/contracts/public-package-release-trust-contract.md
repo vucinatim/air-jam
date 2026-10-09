@@ -1,12 +1,12 @@
 # Public Package Release Trust Contract
 
-Last updated: 2026-09-04
+Last updated: 2026-10-09
 
 Status: canonical 1.0 release contract
 
 ## Purpose
 
-An Air Jam public-package release is one immutable five-package candidate. The
+An Air Jam public-package release is one immutable eight-package candidate. The
 bytes that pass validation are the only bytes npm may receive. A release retry
 may reconcile already-completed external state, but it may not rebuild,
 silently replace, or partially redefine the candidate.
@@ -24,6 +24,9 @@ The release unit is the complete coordinated graph:
 3. `@air-jam/cli`
 4. `@air-jam/server`
 5. `create-airjam`
+6. `@air-jam/env`
+7. `@air-jam/harness`
+8. `@air-jam/devtools-core`
 
 All packages have one version. Partial package selection is not a supported
 release mode because it can expose a graph that Air Jam never validated as a
@@ -40,7 +43,7 @@ The canonical candidate creator must:
 4. pack every public package once
 5. record the exact source commit, toolchain, lockfile digest, public dependency
    graph, filenames, byte sizes, SHA-256 digests, and npm SHA-512 integrity
-6. install the five retained tarballs together in an isolated consumer project
+6. install the eight retained tarballs together in an isolated consumer project
    with lifecycle scripts disabled, then record the exact materialized
    production dependency and license inventory; registry metadata may fill a
    license only when an installed package manifest omits it
@@ -52,7 +55,7 @@ The canonical candidate creator must:
    from wall-clock metadata
 
 The candidate directory contains only the manifest, evidence documents, and
-the five tarballs named by the manifest. Validation rejects missing, extra,
+the eight tarballs named by the manifest. Validation rejects missing, extra,
 traversing, duplicate, or digest-mismatched files.
 
 The vulnerability query follows OSV's documented
@@ -137,9 +140,10 @@ redaction or minimization boundary, retention policy, deletion path, and
 operator projection. A claim with no executable owner is a release finding,
 not documentation completeness.
 
-Reporter contact remains operator-only. Product telemetry must not accept raw
-IP addresses, full user agents, full URLs or query strings, email addresses,
-search terms, free-form metadata, or fingerprinting identifiers.
+Hosted reporter contact, product telemetry and their operator projections are
+private product responsibilities. Moving their implementation does not weaken
+the privacy contract. Public tooling must keep credential and diagnostic
+redaction at its own ingestion and output boundaries.
 
 ## Emergency Release
 
@@ -157,15 +161,16 @@ the replacement candidate follows the normal path.
 ## External Configuration Checkpoint
 
 Before the first 1.0 prerelease, the maintainer must confirm npm trusted
-publishers for all five packages name `publish-packages.yml` exactly. Enabling a
+publishers for all eight packages name `publish-packages.yml` exactly. Enabling a
 GitHub deployment environment is a separate external configuration change and
 must not be added to the workflow until the matching npm trusted-publisher
 configuration exists.
 
 ## Evidence Boundary
 
-Implementation proof belongs in
-`docs/audits/v1-security/supply-chain-release-trust-proof.md`. The final public
-registry rehearsal and promotion remain Gate 7 work; this contract makes that
-rehearsal mechanically capable of proving the exact candidate rather than
-pre-claiming that an unpublished candidate already exists on npm.
+Candidate manifests, installation-matrix artifacts and GitHub release
+attachments retain the exact public-package proof. The private product retains
+earlier whole-product supply-chain audits and the coordinated launch program.
+Registry rehearsal and promotion remain unfinished until the exact candidate
+has passed those operations; local package qualification does not establish
+publication or provenance on npm.

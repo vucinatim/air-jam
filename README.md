@@ -1,11 +1,7 @@
-<p align="center">
-  <img src="./apps/platform/public/images/airjam-logo.png" alt="Air Jam" width="160" />
-</p>
-
 <h1 align="center">Air Jam</h1>
 
 <p align="center">
-  Open source React framework and platform for multiplayer party games with smartphones as controllers.
+  Open source React framework and creator tools for multiplayer party games with smartphones as controllers.
 </p>
 
 <p align="center">
@@ -50,7 +46,12 @@ It is designed for party games, couch multiplayer, installations, classroom game
 - `@air-jam/server` for real-time multiplayer session handling
 - `@air-jam/mcp-server` for agent and tooling integration
 - `create-airjam` for scaffolding new games from production templates
-- `airjam.io` for docs, hosted games, and the Arcade catalog
+- `@air-jam/cli` for project development, inspection and authoring contracts
+- `@air-jam/env`, `@air-jam/harness` and `@air-jam/devtools-core` for reusable creator tooling
+
+[airjam.io](https://airjam.io) is the separately operated product: hosted games,
+Arcade and Studio. Local framework development and self-hosted games do not need
+an Air Jam account, product database or provider credentials.
 
 ## Create A Game
 
@@ -81,97 +82,76 @@ Then open the host locally, scan the QR code with your phone, and start playing.
 
 ## Public Packages
 
-Air Jam’s supported public npm surface is intentionally small:
+The framework package family is:
 
-- [`@air-jam/sdk`](https://www.npmjs.com/package/@air-jam/sdk)
-- [`@air-jam/server`](https://www.npmjs.com/package/@air-jam/server)
-- [`@air-jam/mcp-server`](https://www.npmjs.com/package/@air-jam/mcp-server)
-- [`create-airjam`](https://www.npmjs.com/package/create-airjam)
+- `@air-jam/sdk`
+- `@air-jam/server`
+- `@air-jam/cli`
+- `@air-jam/mcp-server`
+- `@air-jam/env`
+- `@air-jam/harness`
+- `@air-jam/devtools-core`
+- `create-airjam`
 
-Everything else in the monorepo should be treated as internal implementation detail.
+The separation checkout contains unpublished 0.9.3 candidates. Qualification of
+these local packages is not a claim that the same versions are available on npm.
 
 ## Repo Development
-
-If you want to work on Air Jam itself:
 
 ```bash
 git clone https://github.com/vucinatim/air-jam.git
 cd air-jam
-pnpm install
+pnpm install --frozen-lockfile
+pnpm run dev -- --game=pong
 ```
 
-For platform development, start the repo-owned local database:
+The normal command starts the public SDK watcher, standalone room server and
+selected reference game. It does not start the managed product or a database.
+See the [local development guide](./docs/guides/local-development-guide.md)
+for ports, phone access and working alongside the private product.
+
+Useful workflows:
 
 ```bash
-pnpm run repo -- db up
-pnpm --silent run repo -- db url
-```
-
-Set the printed `DATABASE_URL` in the repository-root `.env.local`. The normal
-dev command passes it to both the platform and realtime server, ahead of any
-older service-local settings. Do not reuse production database credentials for
-ordinary development. Keep existing local data; do not use `db reset` to resolve
-a branch/schema mismatch.
-
-For a fresh local database, apply the checked-out migrations explicitly:
-
-```bash
-DATABASE_URL="$(pnpm --silent run repo -- db url)" pnpm --filter platform exec drizzle-kit migrate
-pnpm --silent run repo -- platform database migration inspect --json
-pnpm run dev
-```
-
-Local reference games do not need hosted release storage or
-`AIRJAM_RELEASES_PUBLIC_ORIGIN`. Testing a hosted catalog does require the
-matching isolated database, storage, and game-asset origin; pointing local code
-at an old hosted database is not a substitute for that setup.
-
-Useful top-level workflows:
-
-```bash
-pnpm arcade:dev --game=air-capture
-pnpm standalone:dev --game=pong
-pnpm arcade:test --game=code-review
+pnpm run repo -- --help
+pnpm run status
 pnpm logs --view=signal
-```
-
-For the normal fast development loop:
-
-```bash
 pnpm check:instant
 pnpm check:changed
 ```
 
-Use `pnpm check:batch` once before pushing a substantial change. The exhaustive
-`pnpm check:ci` gate belongs on the pull request rather than between local edits.
+Use `pnpm check:batch` before pushing a substantial change. Pull-request CI
+qualifies types, tests, builds, canonical contracts, installed foundation
+packages and a bounded performance smoke test. The full release gate remains
+`pnpm check:release`.
 
-For the full local release gate:
-
-```bash
-pnpm check:release
-```
-
-For maintainers and agents executing the active 1.0 program:
+Fresh installed-package qualification is available as structured evidence:
 
 ```bash
-pnpm run repo -- readiness --help
-pnpm --silent run repo -- readiness status --json
-pnpm --silent run repo -- readiness next --json
+pnpm --silent run repo -- pack verify-local --json
 ```
+
+It builds one exact local package set, installs it into clean consumers, and
+checks typed exports, agent helper execution and real standalone room traffic.
 
 ## Monorepo Shape
 
 ```text
-apps/
-  platform/        airjam.io platform, docs, dashboard, Arcade
-games/
-  ...              first-party games and scaffold sources
+games/              reference games and scaffold sources
 packages/
-  sdk/             public game framework
-  server/          public realtime server
-  mcp-server/      public MCP surface
-  create-airjam/   public scaffolding CLI
+  sdk/              game framework and runtime contracts
+  server/           standalone realtime server
+  cli/              project CLI, AI pack and development contracts
+  mcp-server/       semantic agent tools
+  env/              environment contracts
+  harness/          game inspection and evaluation
+  devtools-core/    shared creator tools
+  create-airjam/    game scaffolding
+content/docs/       creator documentation source
 ```
+
+Studio, Arcade, hosted policy, accounts and databases do not live in this
+workspace. The private product uses the same framework package exports.
 
 ## Documentation
 

@@ -50,12 +50,7 @@ const KNOWN_LOCAL_DEV_PORTS = [4000, 5173] as const;
 const KNOWN_PORTS_ENV = "AIRJAM_DEVTOOLS_KNOWN_PORTS";
 const DEFAULT_CONTROLLER_PATH = "/controller";
 const MANAGED_PROCESS_STOP_TIMEOUT_MS = 10_000;
-const MONOREPO_RUNTIME_CLI_PATH = path.join(
-  "packages",
-  "devtools-core",
-  "runtime",
-  "workspace-runtime-cli.mjs",
-);
+const MONOREPO_RUNTIME_CLI_PATH = path.join("scripts", "repo", "cli.mjs");
 
 const toTopologyMode = (
   mode: AirJamDevMode,
@@ -155,7 +150,7 @@ const isLikelyAirJamLocalDevCommand = (command: string | null): boolean => {
     return false;
   }
 
-  return /(^|\W)(@air-jam\/server|air-jam-server|airjam|vite|create-airjam|workspace-runtime-cli)(\W|$)/.test(
+  return /(^|\W)(@air-jam\/server|air-jam-server|airjam|vite|create-airjam)(\W|$)/.test(
     command,
   );
 };
@@ -368,13 +363,14 @@ const resolveStartCommand = async ({
 
     const script =
       mode === "arcade-dev"
-        ? "arcade-dev"
+        ? "arcade:dev"
         : mode === "arcade-test"
-          ? "arcade-test"
-          : "standalone-dev";
+          ? "arcade:test"
+          : "standalone:dev";
 
     const args = [
       resolveMonorepoRuntimeCliPath(cwd),
+      "workspace",
       script,
       `--game=${gameId}`,
     ];
@@ -450,6 +446,7 @@ const resolveTopologyCommand = async ({
 
     const args = [
       resolveMonorepoRuntimeCliPath(context.rootDir),
+      "workspace",
       "topology",
       `--game=${gameId}`,
       `--mode=${topologyMode}`,

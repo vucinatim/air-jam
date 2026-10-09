@@ -59,6 +59,57 @@ afterEach(async () => {
 });
 
 describe("visual scenario runner", () => {
+  it("does not leave an earlier successful summary after a scoped capture fails", async () => {
+    const artifactRoot = await mkdtemp(
+      path.join(os.tmpdir(), "airjam-visual-runner-"),
+    );
+    artifactRoots.push(artifactRoot);
+    const shutdown = vi.fn(async () => undefined);
+    const run = vi.fn(async () => undefined);
+    const options = {
+      gameId: "fixture-game",
+      scenarioId: "lobby",
+      artifactRoot,
+      loadScenarioPack: async () => ({
+        agent: {} as never,
+        scenarios: [{ id: "lobby", description: "Lobby proof", run }],
+      }),
+      startStack: async () => ({
+        urls: {
+          appOrigin: "http://127.0.0.1:3000",
+          hostUrl: "http://127.0.0.1:3000",
+          controllerBaseUrl: "http://127.0.0.1:3000/controller",
+          publicHost: "http://127.0.0.1:3000",
+          localBuildUrl: null,
+          browserBuildUrl: null,
+        },
+        shutdown,
+      }),
+    };
+    await runVisualHarness(options);
+    const summaryPath = path.join(
+      artifactRoot,
+      "fixture-game/capture-summary.json",
+    );
+    expect(
+      JSON.parse(await readFile(summaryPath, "utf8")).scenarios[0].status,
+    ).toBe("captured");
+
+    run.mockRejectedValueOnce(new Error("Capture failed"));
+    await expect(runVisualHarness(options)).rejects.toThrow("Capture failed");
+    await expect(readFile(summaryPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    const metadata = JSON.parse(
+      await readFile(
+        path.join(artifactRoot, "fixture-game/lobby/metadata.json"),
+        "utf8",
+      ),
+    );
+    expect(metadata.status).toBe("failed");
+    expect(shutdown).toHaveBeenCalledTimes(2);
+  });
+
   it("captures host and controller proof without a second action bridge", async () => {
     const artifactRoot = await mkdtemp(
       path.join(os.tmpdir(), "airjam-visual-runner-"),

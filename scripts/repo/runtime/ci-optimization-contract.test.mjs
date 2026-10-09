@@ -30,77 +30,31 @@ test("CI preserves every confidence lane behind one stable required check", () =
       "Type safety",
       "Tests",
       "Workspace build",
-      "Standalone deployment",
+      "Standalone packages",
       "Performance smoke",
     ],
   );
-  assert.match(lanes[0].command, /platform generated check/u);
+  assert.match(lanes[0].command, /@air-jam\/cli ai-pack:check/u);
   assert.match(lanes[0].command, /pnpm lint/u);
   assert.match(lanes[0].command, /pnpm guard:canonical/u);
   assert.equal(lanes[1].command, "pnpm typecheck");
-  assert.match(lanes[2].command, /^pnpm test &&/u);
-  assert.match(lanes[2].command, /drizzle-kit migrate/u);
-  assert.match(
-    lanes[2].command,
-    /operational-reliability-service\.postgres\.test\.ts/u,
-  );
-  assert.match(
-    lanes[2].command,
-    /operational-alert-issue-projection-service\.postgres\.test\.ts/u,
-  );
-  assert.match(
-    lanes[2].command,
-    /platform-schema-migration-run-service\.postgres\.test\.ts/u,
-  );
-  assert.match(
-    lanes[2].command,
-    /realtime-admission-migration\.postgres\.test\.ts/u,
-  );
-  assert.match(
-    lanes[2].command,
-    /realtime-admission-inspection-service\.postgres\.test\.ts/u,
-  );
-  assert.match(
-    lanes[2].command,
-    /production-budget-refresh-service\.postgres\.test\.ts/u,
-  );
-  assert.match(
-    lanes[2].command,
-    /operational-event-publisher\.postgres\.test\.ts/u,
-  );
-  assert.match(lanes[2].command, /auth-service\.postgres\.test\.ts/u);
-  assert.match(
-    lanes[2].command,
-    /host-grant-lifecycle\.postgres\.test\.ts/u,
-  );
-  assert.match(
-    lanes[2].command,
-    /realtime-admission-service\.postgres\.test\.ts/u,
-  );
-  assert.equal(lanes[2].postgresImage, "postgres:17-alpine");
-  assert.match(lanes[2].databaseUrl, /^postgresql:\/\//u);
-  assert.deepEqual(
-    lanes.filter((lane) => lane.postgresImage).map((lane) => lane.name),
-    ["Tests"],
-  );
+  assert.equal(lanes[2].command, "pnpm test");
   assert.equal(lanes[3].command, "pnpm build");
-  assert.equal(lanes[4].command, "pnpm check:platform:deploy");
+  assert.equal(
+    lanes[4].command,
+    "pnpm --silent run repo -- pack verify-local --json",
+  );
   assert.match(lanes[5].command, /perf sanity --profile ci/u);
   assert.deepEqual(
     lanes.map((lane) => lane.history),
     [1, 1, 0, 1, 1, 1],
   );
   assert.equal(workflow.jobs.validate.strategy["fail-fast"], false);
-  assert.match(
-    workflow.jobs.validate.services.postgres.image,
-    /matrix\.postgresImage/u,
-  );
-  assert.match(
-    workflow.jobs.validate.env.AIR_JAM_CI_DATABASE_URL,
-    /matrix\.databaseUrl/u,
-  );
-  assert.equal(workflow.jobs.validate.env.AIR_JAM_TEST_DATABASE_URL, undefined);
-  assert.equal(workflow.jobs.validate.env.DATABASE_URL, undefined);
+  assert.equal(workflow.jobs.validate.services, undefined);
+  assert.equal(workflow.jobs.validate.env, undefined);
+  for (const lane of lanes) {
+    assert.doesNotMatch(lane.command, /platform|drizzle|railway|readiness/u);
+  }
   assert.equal(workflow.jobs.checks.name, "checks");
   assert.equal(workflow.jobs.checks.needs, "validate");
 });
@@ -180,6 +134,10 @@ test("the canonical scanner preserves multiline matching and Git ignore boundari
     );
     execFileSync("git", ["init", "--quiet"], { cwd: root });
     execFileSync("git", ["add", ".gitignore", "src"], { cwd: root });
+    fs.renameSync(
+      path.join(root, "src/binary.dat"),
+      path.join(root, "ignored/binary.dat"),
+    );
 
     assert.deepEqual(
       findCanonicalViolations({

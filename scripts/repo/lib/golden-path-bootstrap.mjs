@@ -28,6 +28,11 @@ const rootPackageJson = JSON.parse(
 const candidatePackageNames = new Set(
   resolvePublicPackages().map((entry) => entry.packageName),
 );
+const optionalScaffoldPackageNames = new Set(
+  resolvePublicPackages()
+    .filter((entry) => !entry.scaffoldDependency)
+    .map((entry) => entry.packageName),
+);
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const sha512Integrity = (value) =>
@@ -266,7 +271,11 @@ export const assertInstalledCandidateIntegrity = ({
       importer.devDependencies?.[artifact.name] ??
       importer.optionalDependencies?.[artifact.name];
     const resolvedVersion = importerVersion(dependency)?.split("(", 1)[0];
-    if (resolvedVersion !== artifact.version) {
+    const optionalLibrary = optionalScaffoldPackageNames.has(artifact.name);
+    if (
+      (!optionalLibrary || dependency) &&
+      resolvedVersion !== artifact.version
+    ) {
       throw new Error(
         `Generated lockfile resolved ${artifact.name} as ${resolvedVersion ?? "missing"}; expected ${artifact.version}.`,
       );
@@ -279,6 +288,12 @@ export const assertInstalledCandidateIntegrity = ({
         version: artifact.version,
       }),
     );
+    if (optionalLibrary && !dependency && matchingEntries.length === 0) {
+      const installedOtherVersion = Object.keys(packages).some((key) =>
+        String(key).replace(/^\//u, "").startsWith(`${artifact.name}@`),
+      );
+      if (!installedOtherVersion) continue;
+    }
     if (matchingEntries.length === 0) {
       throw new Error(
         `Generated lockfile has no package entry for ${artifact.name}@${artifact.version}.`,
@@ -507,7 +522,14 @@ export const prepareGoldenPathCandidateRegistry = async ({
     };
   } else {
     version = resolveUnifiedPublicVersion();
-    for (const { packageFilter } of publicPackages) {
+    for (const { packageFilter, workingDirectory } of publicPackages) {
+      const packageManifest = JSON.parse(
+        fs.readFileSync(
+          path.join(repoRoot, workingDirectory, "package.json"),
+          "utf8",
+        ),
+      );
+      if (!packageManifest.scripts?.build) continue;
       run(
         `build:${packageFilter}`,
         "pnpm",

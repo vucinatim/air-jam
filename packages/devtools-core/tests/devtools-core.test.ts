@@ -43,6 +43,7 @@ import {
   startDev,
   stopDev,
 } from "../src/index.js";
+import type { AirJamVisualCaptureSummary } from "../src/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tempRoots: string[] = [];
@@ -234,10 +235,12 @@ console.log(JSON.stringify({
 };
 
 const createControllerSocketFixture = async ({
+  controllerStateDelayMs = 0,
   aliasedAgentImport = false,
   replayStaleDefaultSyncAfterAction = false,
   embeddedArcadeIdentity = null,
 }: {
+  controllerStateDelayMs?: number;
   aliasedAgentImport?: boolean;
   replayStaleDefaultSyncAfterAction?: boolean;
   embeddedArcadeIdentity?: {
@@ -432,14 +435,18 @@ const createControllerSocketFixture = async ({
           },
         ],
       });
-      socket.emit("server:state", {
-        roomId: payload.roomId,
-        state: {
-          orientation: "landscape",
-          runtimeState: "playing",
-          stateVersion: 1,
-        },
-      });
+      const publishState = () =>
+        socket.emit("server:state", {
+          roomId: payload.roomId,
+          state: {
+            orientation: "landscape",
+            runtimeState: "playing",
+            stateVersion: 1,
+          },
+        });
+      if (controllerStateDelayMs > 0)
+        setTimeout(publishState, controllerStateDelayMs);
+      else publishState();
     });
 
     socket.on("controller:input", (payload) => {
@@ -621,7 +628,7 @@ describe("detectProjectContext", () => {
     expect(context.mode).toBe("monorepo");
     expect(context.packageJson?.name).toBe("air-jam");
     expect(context.workspaceRoot).toBe(context.rootDir);
-    expect(context.reasons.join(" ")).toContain("monorepo");
+    expect(context.reasons.join(" ")).toContain("repo CLI");
   });
 
   it("detects the Air Jam monorepo from a nested repo game directory", async () => {
@@ -756,9 +763,49 @@ describe("listGames and inspectGame", () => {
 });
 
 describe("visual capture summaries", () => {
+  const createCaptureFixture = async () => {
+    const root = await createTempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      name: "air-jam-product",
+      dependencies: { "@air-jam/sdk": "0.9.3" },
+    });
+    await writeFile(
+      path.join(root, "pnpm-workspace.yaml"),
+      "packages: [games/*]\n",
+    );
+    await mkdir(path.join(root, "scripts/repo"), { recursive: true });
+    await writeFile(path.join(root, "scripts/repo/cli.mjs"), "export {};\n");
+    await writeJson(path.join(root, "games/pong/package.json"), {
+      name: "pong",
+    });
+    await writeJson(path.join(root, "games/pong/airjam-template.json"), {
+      id: "pong",
+      name: "Pong",
+    });
+    await writeJson(
+      path.join(root, ".airjam/artifacts/visual/pong/capture-summary.json"),
+      {
+        gameId: "pong",
+        mode: "standalone-dev",
+        secure: false,
+        capturedAt: "2026-10-08T00:00:00.000Z",
+        scenarios: [
+          {
+            scenarioId: "fixture",
+            status: "captured",
+            screenshotCount: 1,
+            relativeDir: "fixture",
+          },
+        ],
+      } satisfies AirJamVisualCaptureSummary,
+    );
+    return root;
+  };
+
   it("reads an existing repo visual capture summary", async () => {
+    const root = await createCaptureFixture();
     const capture = await readVisualCaptureSummary({
-      cwd: path.resolve(__dirname, "../../.."),
+      cwd: root,
       gameId: "pong",
     });
 
@@ -767,11 +814,12 @@ describe("visual capture summaries", () => {
   });
 
   it("lists available repo visual capture summaries", async () => {
+    const root = await createCaptureFixture();
     const captures = await listVisualCaptureSummaries({
-      cwd: path.resolve(__dirname, "../../.."),
+      cwd: root,
     });
 
-    expect(captures.map((capture) => capture.gameId)).toContain("pong");
+    expect(captures.map((capture) => capture.gameId)).toEqual(["pong"]);
   });
 });
 
@@ -818,20 +866,85 @@ describe("runCompleteEvaluation", () => {
 });
 
 describe("dev lifecycle and topology", () => {
-  it("resolves monorepo topology through the shared runtime CLI", async () => {
+  it("resolves monorepo topology through the owning repo CLI", async () => {
     const repoRoot = path.resolve(__dirname, "../../..");
 
     const topology = await getTopology({
       cwd: repoRoot,
       gameId: "pong",
-      mode: "arcade-test",
+      mode: "standalone-dev",
     });
 
     expect(topology.projectMode).toBe("monorepo");
     expect(topology.gameId).toBe("pong");
-    expect(topology.topologyMode).toBe("arcade-built");
-    expect(topology.urls.hostUrl).toContain("/arcade/local-pong");
-    expect(topology.urls.localBuildUrl).toContain("/airjam-local-builds/pong");
+    expect(topology.topologyMode).toBe("standalone-dev");
+    if (topology.urls.hostUrl === null)
+      throw new Error("Missing standalone host URL.");
+    const hostUrl = new URL(topology.urls.hostUrl);
+    expect(hostUrl.protocol).toBe("http:");
+    expect(hostUrl.port).toBe("5173");
+    expect(hostUrl.pathname).toBe("/");
+    expect(topology.urls.localBuildUrl).toBeNull();
+  });
+
+  it("starts and inspects a repo workspace without framework source copies", async () => {
+    const root = await createTempRoot();
+    const port = await getAvailablePort();
+    await writeJson(path.join(root, "package.json"), {
+      name: "air-jam-product",
+      type: "module",
+      dependencies: { "@air-jam/sdk": "0.9.3" },
+    });
+    await writeFile(
+      path.join(root, "pnpm-workspace.yaml"),
+      "packages: [games/*]\n",
+    );
+    await writeJson(path.join(root, "games/pong/airjam-template.json"), {
+      id: "pong",
+      name: "Pong",
+    });
+    await writeJson(path.join(root, "games/pong/package.json"), {
+      name: "pong",
+    });
+    await mkdir(path.join(root, "scripts/repo"), { recursive: true });
+    await writeFile(
+      path.join(root, "scripts/repo/cli.mjs"),
+      `import http from "node:http";
+const [family, command, ...args] = process.argv.slice(2);
+if (family !== "workspace" || !args.includes("--game=pong")) throw new Error("Invalid repo command");
+const origin = "http://127.0.0.1:${port}";
+if (command === "topology") {
+  if (!args.includes("--mode=standalone-dev")) throw new Error("Invalid topology mode");
+  console.log(JSON.stringify({ surfaces: {
+    host: { appOrigin: origin, publicHost: origin },
+    controller: { appOrigin: origin, publicHost: origin }
+  }}));
+} else if (command === "standalone:dev") {
+  const server = http.createServer((_request, response) => response.end("ready"));
+  server.listen(${port}, "127.0.0.1");
+  process.on("SIGTERM", () => server.close(() => process.exit(0)));
+} else throw new Error("Unknown repo command");
+`,
+    );
+    const context = await detectProjectContext({ cwd: root });
+    expect(context.mode).toBe("monorepo");
+    expect(context.packageJson?.name).toBe("air-jam-product");
+    const started = await startDev({ cwd: root, gameId: "pong" });
+    try {
+      expect(started.process.args).toEqual([
+        path.join(await realpath(root), "scripts/repo/cli.mjs"),
+        "workspace",
+        "standalone:dev",
+        "--game=pong",
+      ]);
+      expect(started.topology.urls.hostUrl).toBe(`http://127.0.0.1:${port}`);
+      expect(
+        (await getTopology({ cwd: root, gameId: "pong" })).projectMode,
+      ).toBe("monorepo");
+    } finally {
+      await stopDev({ cwd: root, processId: started.process.id });
+    }
+    await waitForHttpClosed(port);
   });
 
   it("starts, reports, and stops a managed standalone dev process", async () => {
@@ -1024,7 +1137,9 @@ describe("visual scenarios", () => {
 
 describe("virtual controller runtime control", () => {
   it("connects a virtual controller, sends input, invokes actions, reads synced runtime state, and disconnects", async () => {
-    const fixture = await createControllerSocketFixture();
+    const fixture = await createControllerSocketFixture({
+      controllerStateDelayMs: 50,
+    });
 
     const connected = await connectController({
       cwd: fixture.root,

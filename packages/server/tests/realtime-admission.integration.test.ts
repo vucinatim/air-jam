@@ -1,4 +1,3 @@
-import { REALTIME_ADMISSION_POLICY } from "@air-jam/database-contract";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   RealtimeAdmissionDecision,
@@ -126,7 +125,6 @@ describe("realtime admission socket boundary", () => {
       pendingReconciliations: 0,
       lastHeartbeatAt: new Date().toISOString(),
       lastError: null,
-      policy: REALTIME_ADMISSION_POLICY,
     }),
     onTerminalAuthorityLoss: () => () => undefined,
   };

@@ -241,7 +241,16 @@ test("candidate validation rejects digest-consistent unsafe audit evidence", () 
 test("public packages are ordered before packages that depend on them", () => {
   assert.deepEqual(
     PUBLIC_PACKAGE_DEFINITIONS.map((entry) => entry.id),
-    ["sdk", "mcp-server", "cli", "server", "create-airjam"],
+    [
+      "sdk",
+      "env",
+      "harness",
+      "devtools-core",
+      "mcp-server",
+      "cli",
+      "server",
+      "create-airjam",
+    ],
   );
 });
 

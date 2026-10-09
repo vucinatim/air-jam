@@ -76,6 +76,10 @@ This layer owns:
 This is how Air Jam’s machine story extends beyond local gameplay into hosted
 product operations.
 
+Public tools own the supported clients and portable release validation. The
+private product owns account admission, persistence, processing and provider
+operations. Local authoring does not require those hosted services.
+
 ## Why This Matters
 
 The agent/tooling architecture is one of the strongest parts of the Air Jam

@@ -57,6 +57,7 @@ import {
   runAiPackStatus,
   runAiPackUpdate,
 } from "./ai-pack";
+import { readDocumentationSnapshot } from "./documentation";
 import { runMcpConfig, runMcpDoctor, runMcpInit } from "./mcp";
 import {
   captureSessionVisuals,
@@ -1123,6 +1124,44 @@ const buildProgram = () => {
     .version(AIR_JAM_CLI_VERSION)
     .action(() => {
       program.outputHelp();
+    });
+
+  const documentationCommand = program
+    .command("docs")
+    .description("Read the installed public creator documentation");
+  documentationCommand
+    .command("list")
+    .option("--json", "Print one machine-readable JSON document", false)
+    .action(async (options: { json: boolean }) => {
+      const snapshot = await readDocumentationSnapshot();
+      const documents = snapshot.documents.map(
+        ({ content: _content, ...document }) => document,
+      );
+      if (options.json)
+        process.stdout.write(
+          `${JSON.stringify({ ...snapshot, documents }, null, 2)}\n`,
+        );
+      else
+        for (const document of documents)
+          console.log(`${document.page.href}: ${document.page.title}`);
+    });
+  documentationCommand
+    .command("read <slug>")
+    .option("--json", "Print one machine-readable JSON document", false)
+    .action(async (slug: string, options: { json: boolean }) => {
+      const snapshot = await readDocumentationSnapshot();
+      const document = snapshot.documents.find(
+        (entry) => entry.page.href === `/docs/${slug}`,
+      );
+      if (!document)
+        throw new Error(
+          `Unknown documentation page: ${slug}. Use "airjam docs list".`,
+        );
+      process.stdout.write(
+        options.json
+          ? `${JSON.stringify({ packageVersion: snapshot.packageVersion, document }, null, 2)}\n`
+          : document.content,
+      );
     });
 
   const aiPackCommand = program

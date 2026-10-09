@@ -52,25 +52,29 @@ describe("server state sync", () => {
     expect(joinAckA.ok).toBe(true);
     expect(joinAckB.ok).toBe(true);
 
+    const payloadAPromise = harness.waitForEvent<{
+      roomId: string;
+      data: Record<string, unknown>;
+      storeDomain: string;
+      revision: number;
+    }>(controllerA, "airjam:state_sync");
+    const payloadBPromise = harness.waitForEvent<{
+      roomId: string;
+      data: Record<string, unknown>;
+      storeDomain: string;
+      revision: number;
+    }>(controllerB, "airjam:state_sync");
+
     host.emit("host:state_sync", {
       roomId,
       data: { phase: "playing", score: 5 },
       storeDomain: "default",
       revision: 0,
     });
-
-    const payloadA = await harness.waitForEvent<{
-      roomId: string;
-      data: Record<string, unknown>;
-      storeDomain: string;
-      revision: number;
-    }>(controllerA, "airjam:state_sync");
-    const payloadB = await harness.waitForEvent<{
-      roomId: string;
-      data: Record<string, unknown>;
-      storeDomain: string;
-      revision: number;
-    }>(controllerB, "airjam:state_sync");
+    const [payloadA, payloadB] = await Promise.all([
+      payloadAPromise,
+      payloadBPromise,
+    ]);
 
     expect(payloadA.roomId).toBe(roomId);
     expect(payloadB.roomId).toBe(roomId);

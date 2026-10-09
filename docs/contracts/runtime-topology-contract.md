@@ -6,7 +6,7 @@ Status: current contract
 Related docs:
 
 1. [../framework-paradigm.md](../framework-paradigm.md)
-2. [../strategy/deployment-topology.md](../strategy/deployment-topology.md)
+2. [Local development guide](../guides/local-development-guide.md)
 3. [../capability-inventory.md](../capability-inventory.md)
 
 ## Purpose
@@ -63,6 +63,10 @@ The topology package is the source of truth for:
 
 SDK, platform, devtools, and machine tooling should consume the contract rather
 than re-deriving it independently.
+
+The public workspace starts standalone games. Live and built Arcade
+orchestration and provider deployment topology belong to the private product,
+which consumes the same public topology contract.
 
 ## Failure Rule
 

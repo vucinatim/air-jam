@@ -1,12 +1,5 @@
-import path from "node:path";
-import { loadEnvFile } from "../../../packages/cli/runtime/dev-utils.mjs";
-import {
-  DEFAULT_GAME_PORT,
-  DEFAULT_PLATFORM_PORT,
-  loadSecureDevState,
-  SECURE_MODE_LOCAL,
-} from "../../../packages/cli/runtime/secure-dev.mjs";
-import { resolveRepoWorkspaceTopologySurfaces } from "../../../packages/devtools-core/runtime/repo-workspace.mjs";
+import { runProjectTopologyCli } from "../../../packages/cli/runtime/topology.mjs";
+import { findRepoGame } from "../lib/repo-games.mjs";
 
 export const runWorkspaceTopologyCommand = async ({
   rootDir = process.cwd(),
@@ -14,38 +7,10 @@ export const runWorkspaceTopologyCommand = async ({
   mode,
   secure = false,
 } = {}) => {
-  loadEnvFile(path.join(rootDir, ".env"));
-  loadEnvFile(path.join(rootDir, ".env.local"));
-
-  const secureState = secure
-    ? loadSecureDevState({
-        cwd: rootDir,
-        mode: SECURE_MODE_LOCAL,
-        env: process.env,
-        gamePort: DEFAULT_GAME_PORT,
-      })
-    : null;
-
-  const surfaces = resolveRepoWorkspaceTopologySurfaces({
-    rootDir,
-    gameId,
-    mode,
-    secure,
-    secureState,
-    gamePort: DEFAULT_GAME_PORT,
-    platformPort: DEFAULT_PLATFORM_PORT,
+  const activeGame = findRepoGame({ rootDir, gameId });
+  if (!activeGame) throw new Error(`Unknown game "${gameId}".`);
+  await runProjectTopologyCli({
+    cwd: activeGame.dir,
+    argv: [`--mode=${mode}`, ...(secure ? ["--secure"] : [])],
   });
-
-  process.stdout.write(
-    `${JSON.stringify(
-      {
-        gameId,
-        mode,
-        secure,
-        surfaces,
-      },
-      null,
-      2,
-    )}\n`,
-  );
 };

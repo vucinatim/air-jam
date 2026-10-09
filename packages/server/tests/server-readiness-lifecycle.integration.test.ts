@@ -1,6 +1,4 @@
-import { REALTIME_ADMISSION_POLICY } from "@air-jam/database-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ServerDatabase } from "../src/db";
 import { loadServerEnv } from "../src/env/server-env";
 import { createAirJamServer, type AirJamServerRuntime } from "../src/index";
 import { createServerLogger } from "../src/logging/logger";
@@ -13,7 +11,7 @@ import type {
 import { getHttpServerLoopbackUrl } from "./helpers/http-server-test-url";
 
 const healthyStatus = (): RealtimeAdmissionStatus => ({
-  contractVersion: REALTIME_ADMISSION_POLICY.contractVersion,
+  contractVersion: 1,
   authority: "database",
   budgetRequirement: "required",
   instanceId: "readiness-test",
@@ -23,7 +21,6 @@ const healthyStatus = (): RealtimeAdmissionStatus => ({
   pendingReconciliations: 0,
   lastHeartbeatAt: new Date().toISOString(),
   lastError: null,
-  policy: REALTIME_ADMISSION_POLICY,
 });
 
 const createAdmissionService = () => {
@@ -102,7 +99,6 @@ describe("server health, readiness, and terminal authority lifecycle", () => {
       lastError: "database unavailable",
     });
     runtime = createAirJamServer({
-      db: null,
       realtimeAdmissionService: admission.service,
       devLogCollector: false,
       envConfig: testEnv,
@@ -161,7 +157,6 @@ describe("server health, readiness, and terminal authority lifecycle", () => {
       publishRuntimeErrorReport: vi.fn(async () => undefined),
     } satisfies ServerOperationalEventPublisher;
     runtime = createAirJamServer({
-      db: null,
       realtimeAdmissionService: admission.service,
       operationalEventPublisher,
       devLogCollector: false,
@@ -202,24 +197,4 @@ describe("server health, readiness, and terminal authority lifecycle", () => {
     });
   });
 
-  it("does not close an externally injected database", async () => {
-    const end = vi.fn(async () => undefined);
-    const injectedDatabase = {
-      $client: { end },
-    } as unknown as ServerDatabase;
-    const admission = createAdmissionService();
-    runtime = createAirJamServer({
-      db: injectedDatabase,
-      realtimeAdmissionService: admission.service,
-      devLogCollector: false,
-      envConfig: testEnv,
-      logger,
-    });
-
-    await runtime.stop();
-    await runtime.stop();
-    runtime = null;
-
-    expect(end).not.toHaveBeenCalled();
-  });
 });

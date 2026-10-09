@@ -179,7 +179,7 @@ const parseManifest = (value: unknown, label: string): AiPackManifest => {
 const readManifest = async (filePath: string, label: string) =>
   parseManifest(await fs.readJson(filePath), label);
 
-const readVerifiedPackagedSnapshot = async () => {
+export const readAiPackSnapshot = async () => {
   const manifest = await readManifest(
     path.join(packagedRoot, manifestRelativePath),
     "Packaged AI pack manifest",
@@ -253,7 +253,7 @@ const compareAgainstPackagedSnapshot = async (
     localManifestPath,
     "Local AI pack manifest",
   );
-  const latest = await readVerifiedPackagedSnapshot();
+  const latest = await readAiPackSnapshot();
   const relation = compareVersions(
     localManifest.packVersion,
     latest.manifest.packVersion,
@@ -446,7 +446,7 @@ const assertTreeHasNoSymlinks = async (root: string) => {
 };
 
 const applyPackagedSnapshot = async (comparison: AiPackComparison) => {
-  const latest = await readVerifiedPackagedSnapshot();
+  const latest = await readAiPackSnapshot();
   const transactionId = randomUUID();
   const stageRoot = path.join(
     comparison.projectDir,

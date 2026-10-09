@@ -11,6 +11,10 @@ import {
   requiredGeneratedDocPaths,
 } from "./ai-pack-contract.mjs";
 import { generateBaseDocsPack } from "./base-docs-pack.mjs";
+import {
+  documentationRoot,
+  generateDocumentationSnapshot,
+} from "./documentation-snapshot.mjs";
 
 const listRelativeFiles = async (rootDir) => {
   const files = [];
@@ -111,12 +115,45 @@ const validateGeneratedDocsFreshness = async () => {
   }
 };
 
+async function validateDocumentationFreshness() {
+  const targetRoot = await fsp.mkdtemp(
+    path.join(os.tmpdir(), "airjam-documentation-check-"),
+  );
+  try {
+    await generateDocumentationSnapshot(targetRoot);
+    const expectedFiles = await listRelativeFiles(targetRoot);
+    const actualFiles = await listRelativeFiles(documentationRoot);
+    const errors = [];
+    if (JSON.stringify(expectedFiles) !== JSON.stringify(actualFiles)) {
+      errors.push(
+        "Packaged documentation file set is stale. Run docs-pack:generate.",
+      );
+    }
+    for (const filename of expectedFiles) {
+      const expected = await fsp.readFile(path.join(targetRoot, filename));
+      const actualPath = path.join(documentationRoot, filename);
+      if (
+        !fs.existsSync(actualPath) ||
+        !expected.equals(await fsp.readFile(actualPath))
+      ) {
+        errors.push(
+          `Packaged documentation is stale for ${filename}. Run docs-pack:generate.`,
+        );
+      }
+    }
+    return errors;
+  } finally {
+    await fsp.rm(targetRoot, { recursive: true, force: true });
+  }
+}
+
 const main = async () => {
   const errors = [
     ...validateRequiredPaths(),
     ...(await validateManifestShape()),
     ...(await validateGeneratedDirectoryShape()),
     ...(await validateGeneratedDocsFreshness()),
+    ...(await validateDocumentationFreshness()),
   ];
 
   if (errors.length > 0) {

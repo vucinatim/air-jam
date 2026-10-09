@@ -1,0 +1,349 @@
+[
+  {
+    "source": "getting-started/introduction/page.mdx",
+    "output": "introduction.md",
+    "page": {
+      "title": "Introduction",
+      "href": "/docs/getting-started/introduction",
+      "description": "Overview of Air Jam and core concepts.",
+      "section": "Getting Started",
+      "icon": "info",
+      "keywords": [
+        "getting started",
+        "overview",
+        "multiplayer",
+        "qr code",
+        "controller"
+      ],
+      "docType": "concept",
+      "order": 0,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "getting-started/quick-start/page.mdx",
+    "output": "quick-start.md",
+    "page": {
+      "title": "Quick Start",
+      "href": "/docs/getting-started/quick-start",
+      "description": "Set up and launch your first host.",
+      "section": "Getting Started",
+      "icon": "rocket",
+      "keywords": ["install", "setup", "host", "provider", "first game"],
+      "docType": "guide",
+      "order": 1,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "getting-started/debugging/page.mdx",
+    "output": "debugging-and-logs.md",
+    "page": {
+      "title": "Debugging and Logs",
+      "href": "/docs/getting-started/debugging",
+      "description": "Where to look when local Air Jam development is not behaving as expected.",
+      "section": "Getting Started",
+      "icon": "zap",
+      "keywords": [
+        "debugging",
+        "logs",
+        "diagnostics",
+        "troubleshooting",
+        "dev"
+      ],
+      "docType": "guide",
+      "order": 2,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "getting-started/dev-logs/page.mdx",
+    "output": "unified-dev-logs.md",
+    "page": {
+      "title": "Unified Dev Logs",
+      "href": "/docs/getting-started/dev-logs",
+      "description": "How to use Air Jam's canonical local observability stream for server, host, controller, and runtime debugging.",
+      "section": "Getting Started",
+      "icon": "network",
+      "keywords": [
+        "dev logs",
+        "observability",
+        "traceId",
+        "debugging",
+        "controller",
+        "host",
+        "server"
+      ],
+      "docType": "guide",
+      "order": 3,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "getting-started/game-ideas/page.mdx",
+    "output": "game-ideas.md",
+    "page": {
+      "title": "Game Ideas",
+      "href": "/docs/getting-started/game-ideas",
+      "description": "Inspiration and patterns for multiplayer game concepts.",
+      "section": "Getting Started",
+      "icon": "lightbulb",
+      "keywords": ["ideas", "examples", "patterns", "game design"],
+      "docType": "guide",
+      "order": 4,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "getting-started/migrating-legacy-games/page.mdx",
+    "output": "migrating-legacy-games.md",
+    "page": {
+      "title": "Migrating Legacy Games",
+      "href": "/docs/getting-started/migrating-legacy-games",
+      "description": "How to move older Air Jam games onto the current v1 app shape cleanly.",
+      "section": "Getting Started",
+      "icon": "layers",
+      "keywords": [
+        "migration",
+        "upgrade",
+        "legacy",
+        "AirJamProvider",
+        "createAirJamApp",
+        "createAirJamStore"
+      ],
+      "docType": "migration",
+      "order": 5,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "how-it-works/architecture/page.mdx",
+    "output": "architecture.md",
+    "page": {
+      "title": "Architecture",
+      "href": "/docs/how-it-works/architecture",
+      "description": "System architecture and service responsibilities.",
+      "section": "How it Works",
+      "icon": "layers",
+      "keywords": ["architecture", "system", "server", "sdk", "platform"],
+      "docType": "concept",
+      "order": 0,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "how-it-works/host-system/page.mdx",
+    "output": "host-system.md",
+    "page": {
+      "title": "Host System",
+      "href": "/docs/how-it-works/host-system",
+      "description": "Lifecycle of host sessions and player connections.",
+      "section": "How it Works",
+      "icon": "cpu",
+      "keywords": ["host", "room", "players", "connection", "session"],
+      "docType": "contract",
+      "order": 1,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "sdk/hooks/page.mdx",
+    "output": "sdk-hooks.md",
+    "page": {
+      "title": "Hooks",
+      "href": "/docs/sdk/hooks",
+      "description": "React hooks API reference for host and controller state.",
+      "section": "SDK",
+      "icon": "code",
+      "keywords": ["hooks", "api", "reference", "react", "host", "controller"],
+      "docType": "reference",
+      "order": 0,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "sdk/ui-components/page.mdx",
+    "output": "ui-components.md",
+    "page": {
+      "title": "UI Components",
+      "href": "/docs/sdk/ui-components",
+      "description": "Canonical reusable UI components from @air-jam/sdk/ui with usage examples.",
+      "section": "SDK",
+      "icon": "code",
+      "keywords": [
+        "ui",
+        "components",
+        "qr code",
+        "avatar",
+        "orientation",
+        "volume",
+        "button",
+        "slider"
+      ],
+      "docType": "reference",
+      "order": 1,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "sdk/input-system/page.mdx",
+    "output": "input-system.md",
+    "page": {
+      "title": "Input System",
+      "href": "/docs/sdk/input-system",
+      "description": "Input behavior modes, vectors, and button event handling.",
+      "section": "SDK",
+      "icon": "zap",
+      "keywords": ["input", "behavior", "vector", "button", "validation"],
+      "docType": "contract",
+      "order": 2,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "sdk/networked-state/page.mdx",
+    "output": "networked-state.md",
+    "page": {
+      "title": "Networked State",
+      "href": "/docs/sdk/networked-state",
+      "description": "Synchronizing shared state between host and controllers.",
+      "section": "SDK",
+      "icon": "network",
+      "keywords": ["networked state", "sync", "zustand", "store", "broadcast"],
+      "docType": "reference",
+      "order": 3,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "for-agents/page.mdx",
+    "output": "for-agents.md",
+    "page": {
+      "title": "For Agents",
+      "href": "/docs/for-agents",
+      "description": "Fast-entry index for LLM agents and automated tooling.",
+      "section": "Agent Docs",
+      "icon": "bot",
+      "keywords": ["llm", "agents", "automation", "index", "machine readable"],
+      "docType": "agent",
+      "order": 0,
+      "stability": "evolving",
+      "audience": "agent",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "for-agents/project-structure/page.mdx",
+    "output": "project-structure.md",
+    "page": {
+      "title": "Project Structure",
+      "href": "/docs/for-agents/project-structure",
+      "description": "Recommended file and boundary model for clean, testable Air Jam games.",
+      "section": "Agent Docs",
+      "icon": "layers",
+      "keywords": [
+        "project structure",
+        "architecture",
+        "host",
+        "controller",
+        "domain",
+        "engine",
+        "adapters"
+      ],
+      "docType": "agent",
+      "order": 1,
+      "stability": "evolving",
+      "audience": "agent",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "for-agents/controller-ui/page.mdx",
+    "output": "controller-ui.md",
+    "page": {
+      "title": "Controller UI",
+      "href": "/docs/for-agents/controller-ui",
+      "description": "Touch-first rules for building controller interfaces that feel like game controls instead of generic web apps.",
+      "section": "Agent Docs",
+      "icon": "zap",
+      "keywords": [
+        "controller ui",
+        "touch",
+        "mobile",
+        "controls",
+        "layout",
+        "gamepad"
+      ],
+      "docType": "agent",
+      "order": 2,
+      "stability": "evolving",
+      "audience": "agent",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
+    "source": "for-agents/state-and-rendering/page.mdx",
+    "output": "state-and-rendering.md",
+    "page": {
+      "title": "State and Rendering",
+      "href": "/docs/for-agents/state-and-rendering",
+      "description": "State ownership and rendering rules for React, Zustand, R3F, and per-frame gameplay code.",
+      "section": "Agent Docs",
+      "icon": "cpu",
+      "keywords": [
+        "state",
+        "rendering",
+        "zustand",
+        "react",
+        "r3f",
+        "refs",
+        "performance"
+      ],
+      "docType": "agent",
+      "order": 3,
+      "stability": "evolving",
+      "audience": "agent",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  }
+]

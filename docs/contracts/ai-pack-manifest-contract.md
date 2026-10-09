@@ -6,10 +6,9 @@ Status: canonical 1.0 contract
 
 Related docs:
 
-1. [../architecture/documentation-and-ai-pack-architecture.md](../architecture/documentation-and-ai-pack-architecture.md)
-2. [../architecture/platform-docs-surface-architecture.md](../architecture/platform-docs-surface-architecture.md)
-3. [../guides/ai-pack-workflow-guide.md](../guides/ai-pack-workflow-guide.md)
-4. [public-package-release-trust-contract.md](./public-package-release-trust-contract.md)
+1. [Creator documentation ownership](../docs-index.md#creator-and-contributor-guides)
+2. [AI pack workflow](../guides/ai-pack-workflow-guide.md)
+3. [Public package release trust](./public-package-release-trust-contract.md)
 
 ## Purpose
 

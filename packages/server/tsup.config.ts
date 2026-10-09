@@ -4,22 +4,14 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     cli: "src/cli.ts",
+    index: "src/index.ts",
   },
   format: ["esm"],
-  dts: false, // Server is a CLI tool, not a library
+  dts: { entry: "src/index.ts", compilerOptions: { composite: false } },
   clean: true,
   sourcemap: true,
   platform: "node",
-  noExternal: [
-    // Published CLI consumers must receive the repository-patched driver too.
-    "postgres",
-    /^drizzle-orm\/postgres-js(?:\/.*)?$/,
-    "@air-jam/database-contract",
-    "@air-jam/devtools-core",
-    "@air-jam/env",
-    "@air-jam/harness",
-    "@air-jam/operations-contract",
-  ],
+  noExternal: ["@air-jam/devtools-core", "@air-jam/env", "@air-jam/harness"],
   // Add shebang only to CLI file after build
   onSuccess: async () => {
     const cliPath = "dist/cli.js";

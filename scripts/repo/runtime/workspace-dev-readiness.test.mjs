@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { startSharedWorkspaceProcesses } from "../../../packages/devtools-core/runtime/workspace-dev-commands.mjs";
-import { createWorkspaceProcessGroup } from "../../../packages/devtools-core/runtime/workspace-stack.mjs";
+import { startSharedWorkspaceProcesses } from "../../workspace/commands/dev.mjs";
+import {
+  assertWorkspacePortsAvailable,
+  createWorkspaceProcessGroup,
+} from "../../workspace/lib/workspace-stack.mjs";
 
 const createTestGroup = (context) => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-readiness-"));
@@ -47,8 +51,8 @@ test("workspace consumers start only after the SDK generation is ready", async (
   const starting = startSharedWorkspaceProcesses({
     processGroup,
     activeGame: { id: "pong", dir: "games/pong" },
-    includePlatform: true,
     gameArgs: ["--web-only"],
+    serverPort: 4311,
   });
   assert.deepEqual(
     calls.map(([name]) => name),
@@ -59,8 +63,9 @@ test("workspace consumers start only after the SDK generation is ready", async (
   await starting;
   assert.deepEqual(
     calls.map(([name]) => name),
-    ["sdk", "server", "platform", "pong"],
+    ["sdk", "server", "pong"],
   );
+  assert.deepEqual(calls[1][3].env, { PORT: "4311" });
 });
 
 test("failed SDK readiness never starts dependent services", async () => {
@@ -74,12 +79,25 @@ test("failed SDK readiness never starts dependent services", async () => {
         },
       },
       activeGame: { id: "pong", dir: "games/pong" },
-      includePlatform: false,
       gameArgs: [],
+      serverPort: 4311,
     }),
     /SDK build failed/,
   );
   assert.deepEqual(calls, ["sdk"]);
+});
+
+test("a conflicting port is rejected without stopping its owner", async (context) => {
+  const server = net.createServer((socket) =>
+    socket.end("owner remains alive"),
+  );
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise((resolve) => server.close(resolve)));
+  await assert.rejects(
+    assertWorkspacePortsAvailable({ ports: [server.address().port] }),
+    /unavailable/,
+  );
+  assert.equal(server.listening, true);
 });
 
 test(

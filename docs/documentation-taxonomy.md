@@ -1,9 +1,15 @@
 # Documentation Taxonomy
 
-Last updated: 2026-08-28
+Last updated: 2026-10-09
 Status: stable reference
 
 This document defines the live documentation categories for Air Jam.
+
+Categories describe roles, not a requirement to create every directory.
+This repository keeps framework and creator references; product plans,
+business strategies, website drafts, operational audits and whole-product
+history belong to the private repository. Creator page source lives separately
+in `content/docs/` and is delivered through the CLI's verified snapshot.
 
 Use it to understand:
 

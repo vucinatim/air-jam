@@ -143,10 +143,6 @@ const readZipEntries = async (
 
 const createMonorepoFixture = async (): Promise<string> => {
   const root = await createTempRoot();
-  await mkdir(path.join(root, "packages", "sdk"), { recursive: true });
-  await mkdir(path.join(root, "packages", "create-airjam"), {
-    recursive: true,
-  });
   await mkdir(path.join(root, "scripts", "repo"), { recursive: true });
 
   await writeFile(
@@ -157,6 +153,7 @@ const createMonorepoFixture = async (): Promise<string> => {
         version: "1.0.0",
         private: true,
         packageManager: "pnpm@10.19.0",
+        devDependencies: { "@air-jam/sdk": "0.9.3" },
         scripts: {
           build: "pnpm -r build",
         },
@@ -167,6 +164,11 @@ const createMonorepoFixture = async (): Promise<string> => {
     "utf8",
   );
   await writeFile(path.join(root, "pnpm-lock.yaml"), "", "utf8");
+  await writeFile(
+    path.join(root, "pnpm-workspace.yaml"),
+    "packages: [games/*]\n",
+    "utf8",
+  );
   await writeFile(path.join(root, "scripts", "repo", "cli.mjs"), "", "utf8");
 
   return root;

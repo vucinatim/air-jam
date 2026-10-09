@@ -44,6 +44,12 @@
   "bin": {
     "air-jam-server": "./bin/air-jam-server.mjs"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
     "bin",
     "dist"
@@ -51,7 +57,6 @@
   "scripts": {
     "dev": "tsx src/main.ts",
     "logs:dev": "tsx scripts/dev-logs.ts",
-    "analytics:rebuild": "tsx scripts/runtime-usage-rebuild.ts",
     "start": "node ./bin/air-jam-server.mjs",
     "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup",
     "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && vitest run --config vitest.config.ts",
@@ -63,14 +68,12 @@
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
   },
   "dependencies": {
-    "@air-jam/database-contract": "workspace:^",
-    "@air-jam/operations-contract": "workspace:^",
     "@air-jam/sdk": "workspace:*",
+    "@types/express": "^5.0.6",
     "color": "^5.0.3",
     "commander": "^14.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "pino": "^10.3.1",
     "socket.io": "^4.8.3",
@@ -82,10 +85,8 @@
     "@air-jam/env": "workspace:^",
     "@air-jam/harness": "workspace:^",
     "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.6",
     "@types/node": "^24.10.1",
     "@types/uuid": "^11.0.0",
-    "postgres": "^3.4.7",
     "socket.io-client": "^4.8.1",
     "tsup": "^8.5.1",
     "tsx": "^4.19.2",

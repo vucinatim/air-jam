@@ -57,6 +57,47 @@ test("candidate provenance requires the exact packed integrity", () => {
   );
 });
 
+test("optional foundation libraries are checked when installed, including transitively", () => {
+  const library = {
+    name: "@air-jam/harness",
+    version: "0.9.3",
+    integrity: candidateIntegrity,
+  };
+  assert.doesNotThrow(() =>
+    assertInstalledCandidateIntegrity({
+      lockSource,
+      packageArtifacts: [library],
+    }),
+  );
+  const withLibrary = `${lockSource}
+  '@air-jam/harness@0.9.3':
+    resolution:
+      integrity: ${candidateIntegrity}
+`;
+  assert.doesNotThrow(() =>
+    assertInstalledCandidateIntegrity({
+      lockSource: withLibrary,
+      packageArtifacts: [library],
+    }),
+  );
+  assert.throws(
+    () =>
+      assertInstalledCandidateIntegrity({
+        lockSource: withLibrary,
+        packageArtifacts: [{ ...library, integrity: "sha512-wrong" }],
+      }),
+    /does not match the packed candidate/u,
+  );
+  assert.throws(
+    () =>
+      assertInstalledCandidateIntegrity({
+        lockSource: withLibrary.replace("harness@0.9.3", "harness@0.9.2"),
+        packageArtifacts: [library],
+      }),
+    /no package entry/u,
+  );
+});
+
 test("golden-path temporary roots prefer explicit and runner-owned paths", () => {
   const fixtureRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "airjam-golden-path-temp-root-test-"),

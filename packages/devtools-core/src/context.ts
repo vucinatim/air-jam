@@ -74,14 +74,13 @@ const isMonorepoRoot = async (
   rootDir: string,
   packageJson: PackageJson | null,
 ): Promise<boolean> => {
-  if (packageJson?.name !== "air-jam") {
+  if (!packageJson || !hasDependency(packageJson, "@air-jam/sdk")) {
     return false;
   }
 
   return (
     (await pathExists(path.join(rootDir, "scripts", "repo", "cli.mjs"))) &&
-    (await pathExists(path.join(rootDir, "packages", "sdk"))) &&
-    (await pathExists(path.join(rootDir, "packages", "create-airjam")))
+    (await pathExists(path.join(rootDir, "pnpm-workspace.yaml")))
   );
 };
 
@@ -131,7 +130,9 @@ export const detectProjectContext = async ({
   if (monorepoRoot && rootDir === monorepoRoot) {
     mode = "monorepo";
     workspaceRoot = rootDir;
-    reasons.push("Detected Air Jam monorepo root package and repo CLI.");
+    reasons.push(
+      "Detected an Air Jam workspace dependency and owning repo CLI.",
+    );
   } else if (await isStandaloneGameRoot(rootDir, packageJson)) {
     mode = "standalone-game";
     reasons.push("Detected Air Jam game package or airjam config.");
