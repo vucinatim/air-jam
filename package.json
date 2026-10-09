@@ -10,7 +10,6 @@
   "scripts": {
     "repo": "node --env-file-if-exists=.env.local scripts/repo/cli.mjs",
     "dev": "node scripts/repo/cli.mjs workspace standalone:dev",
-    "standalone:dev": "node scripts/repo/cli.mjs workspace standalone:dev",
     "topology": "node scripts/repo/cli.mjs workspace topology",
     "status": "node scripts/ensure-workspace-package-build.mjs @air-jam/cli && pnpm exec airjam status --dir .",
     "reset:local": "node scripts/ensure-workspace-package-build.mjs @air-jam/cli && pnpm exec airjam reset local --dir .",

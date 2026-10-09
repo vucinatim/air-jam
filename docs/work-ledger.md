@@ -21,7 +21,17 @@ owners existed. The existing private documentation architecture changes were
 preserved rather than overwritten. Eight mixed root snapshots were retained
 before replacing public orientation with framework-scoped guidance.
 
-The migration remains uncommitted and unpublished. Private documentation
-reference cleanup, full startup/browser verification, deployment images,
-reviewed delivery, production source handover and Studio restoration remain
-separate unfinished requirements.
+This ownership cut was committed in the local extraction branch. Publication,
+deployment images, reviewed delivery, production source handover and Studio
+restoration remain separate unfinished requirements.
+
+## 2026-10-09 Canonicality review follow-ups
+
+The separation review confirmed the package and server-composition boundaries.
+Its actionable follow-ups removed private deployment instructions from public
+contribution guidance, corrected the architecture source and generated creator
+documentation, and consolidated clean package-consumer proofs behind one runner.
+The server and library scenarios both passed against the existing candidate
+archives; the regenerated documentation still needs a newly packed CI candidate.
+Focused contract tests, lint and generated-document freshness passed. No source
+handover or production change occurred.

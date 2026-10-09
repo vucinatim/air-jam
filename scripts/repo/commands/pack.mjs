@@ -1,5 +1,4 @@
-import { verifyFoundationLibraryPackages } from "../lib/foundation-library-package-proof.mjs";
-import { verifyServerPackage } from "../lib/server-package-proof.mjs";
+import { verifyPackageScenario } from "../lib/package-proof.mjs";
 import { runRepoPackLocalCommand } from "./pack-local.mjs";
 
 export const registerPackCommands = (program) => {
@@ -13,8 +12,8 @@ export const registerPackCommands = (program) => {
     .option("--json", "Emit structured package verification evidence", false)
     .action(async (options) => {
       const packed = runRepoPackLocalCommand({ quiet: options.json });
-      const server = await verifyServerPackage(packed.setDir);
-      const libraries = await verifyFoundationLibraryPackages(packed.setDir);
+      const server = await verifyPackageScenario(packed.setDir, "server");
+      const libraries = await verifyPackageScenario(packed.setDir, "libraries");
       const result = { ok: true, setId: packed.setId, server, libraries };
       console.log(
         options.json
@@ -30,7 +29,7 @@ export const registerPackCommands = (program) => {
     )
     .option("--json", "Emit structured package verification evidence", false)
     .action(async (setDir, options) => {
-      const result = await verifyServerPackage(setDir);
+      const result = await verifyPackageScenario(setDir, "server");
       console.log(
         options.json
           ? JSON.stringify(result)
@@ -45,7 +44,7 @@ export const registerPackCommands = (program) => {
     )
     .option("--json", "Emit structured package verification evidence", false)
     .action(async (setDir, options) => {
-      const result = await verifyFoundationLibraryPackages(setDir);
+      const result = await verifyPackageScenario(setDir, "libraries");
       console.log(
         options.json
           ? JSON.stringify(result)

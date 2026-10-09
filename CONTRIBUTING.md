@@ -4,16 +4,18 @@ Thanks for contributing.
 
 ## Prerequisites
 
-1. Node.js 20+
+1. Node.js 22+
 2. pnpm via Corepack (`corepack enable`)
-3. PostgreSQL (for platform/server flows that need DB)
+
+The public framework and local room server do not require PostgreSQL or access
+to the private managed platform.
 
 ## Local Setup
 
 1. Clone the repository.
 2. Install dependencies:
    ```bash
-   pnpm install
+   pnpm install --frozen-lockfile
    ```
 3. Use the fast checks while developing:
    ```bash
@@ -32,12 +34,11 @@ Thanks for contributing.
    local editing loop.
 8. `pnpm run repo -- perf sanity` is the canonical local server perf check.
 9. `pnpm check:release` remains the deeper local prerelease gate with strict
-   perf, browser smoke, and full scaffold tarball smoke.
-10. `pnpm check:platform:deploy` is the hermetic deploy contract for the hosted
-    platform and belongs to CI or deployment-sensitive batch validation.
-11. `pnpm check:release:doctor` is the final local release command because it
-    enforces a clean install, repo contracts, hermetic platform deployment, and
-    the heavy prerelease gate.
+   perf, server lifecycle smoke, and full scaffold tarball smoke.
+10. `pnpm run repo -- pack verify-local --json` validates the exact public package
+    set in clean typed consumers, including live server traffic and agent helpers.
+11. `pnpm check:release:doctor` enforces a clean frozen install and the heavy
+    prerelease gate. Managed platform deployment checks belong to the private repo.
 12. `pnpm check:release:publish` is the GitHub publish-path sanity gate.
 
 ## Development Workflow

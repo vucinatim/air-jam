@@ -23,6 +23,7 @@ test("the repo has one discoverable default development front door", () => {
     packageJson.scripts.dev,
     "node scripts/repo/cli.mjs workspace standalone:dev",
   );
+  assert.equal(packageJson.scripts["standalone:dev"], undefined);
 
   const result = spawnSync("pnpm", ["run", "dev", "--", "--help"], {
     cwd: repoRoot,

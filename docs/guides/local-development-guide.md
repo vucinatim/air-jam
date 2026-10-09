@@ -108,12 +108,10 @@ The private product owns Arcade, Studio, its database and hosted service
 composition. Product-only work uses its pinned public packages and its own
 `pnpm run dev`; public contributors do not need that checkout.
 
-For changes spanning both repositories, the product CLI exposes
-`repo foundation attach <frameworkRoot>`, `repo foundation status --json` and
-`repo foundation detach`. Attachment uses the public packages' built exports,
-not sibling source imports, and leaves manifests and lockfiles unchanged.
-Release qualification uses detached, clean package installs; a working local
-attachment does not prove that published consumers will work.
+For changes spanning both repositories, the private product's
+[local development guide](https://github.com/vucinatim/air-jam-platform/blob/main/docs/guides/local-development-guide.md)
+owns its source-attachment commands and contract. Release qualification still
+requires clean installed packages, not an attached developer checkout.
 
 ## Standalone Server Image
 

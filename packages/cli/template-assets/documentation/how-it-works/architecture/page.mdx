@@ -1,8 +1,8 @@
-
-
 # Architecture
 
-Air Jam consists of four main components in a monorepo structure. This page explains how they work together to enable multiplayer gaming with smartphone controllers.
+Air Jam's open framework has three core components: the room server, game SDK,
+and creator harness. Reference games show how they work together for multiplayer
+gaming with smartphone controllers.
 
 The important current rule is that Air Jam has one framework model, not one model for standalone games and a different model for Arcade.
 
@@ -10,58 +10,36 @@ Arcade is an Air Jam app around another Air Jam app.
 
 ## System Overview
 
-
 <SystemOverviewDiagram />
 
 ## Components
 
-### 1. Platform (`apps/platform`)
+The Arcade and Studio at [airjam.io](https://airjam.io) are a separately operated
+product, not an application in this public repository. Their hosted services
+compose the same open runtime; standalone games need neither that product nor
+its database. The diagrams include hosted surfaces to show how embedding works.
 
-**Role:** Central hub for the Air Jam ecosystem
-
-**Technology:** Next.js 16, TypeScript, tRPC, BetterAuth, PostgreSQL (Drizzle ORM)
-
-**Key Features:**
-
-- **Dashboard and hosted control plane** - Account management, game records, release records, managed media, analytics
-- **Game Catalog** - Submit, manage, and discover Air Jam games
-- **Arcade Mode** - Browse and launch games from a unified interface
-- **Controller Runtime** - Persistent mobile wrapper that loads game controllers
-
-**Arcade Mode Flow:**
-
-```
-1. Player scans QR on arcade screen
-2. Platform loads controller runtime on phone
-3. Player browses games using phone as remote
-4. Game launches → controller switches to game's controller
-5. Game ends → returns to arcade browser
-```
-
-### 2. Server (`packages/server`)
+### 1. Server (`packages/server`)
 
 **Role:** Real-time communication backbone
 
-**Technology:** Node.js, Express, Socket.IO, PostgreSQL
+**Technology:** Node.js, Express, Socket.IO
 
 **Core Services:**
-
 
 <CoreServicesDiagram />
 
 **Socket Events:**
 
-
 <SocketEventsDiagram />
 
-### 3. SDK (`packages/sdk`)
+### 2. SDK (`packages/sdk`)
 
 **Role:** Developer toolkit for building Air Jam games
 
 **Technology:** React, TypeScript, Socket.IO Client, Zustand, Zod
 
 **Architecture:**
-
 
 <SdkArchitectureDiagram />
 
@@ -72,7 +50,14 @@ Arcade is an Air Jam app around another Air Jam app.
 3. **Input Latching** - Ensures rapid button taps are never missed
 4. **Schema Validation** - Type-safe input with runtime validation
 
-### 4. Air Capture (`games/air-capture`)
+### 3. Creator Harness
+
+The public CLI, MCP server and harness packages support project creation,
+development, semantic game sessions, visual inspection and release preparation.
+The same contracts work with external agents and the managed Studio; creator
+tools do not depend on private application source.
+
+### Reference Game: Air Capture (`games/air-capture`)
 
 **Role:** Reference implementation showcasing SDK capabilities
 

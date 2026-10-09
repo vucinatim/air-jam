@@ -57,8 +57,8 @@
     {
       "path": "docs/airjam/generated/architecture.md",
       "kind": "docs-generated",
-      "size": 7230,
-      "sha256": "6f492a36445ea6e84320bc30ca3314a376a83b074a2452243c5a6647f52665ef"
+      "size": 7115,
+      "sha256": "1cbd763c55f77bc4bd0fb00605fd718daa63b8638c17313d12a1468f508fdf73"
     },
     {
       "path": "docs/airjam/generated/controller-ui.md",
@@ -187,5 +187,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "2bb4e09a9731bf00c3cf76c84e7db27e287150396378c3461424530acfb6f9ad"
+  "contentDigest": "40cbccece05cfe33b9bf9e3a9627b8839f14194fd5a0636fee104bdf135a2ae9"
 }

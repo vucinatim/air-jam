@@ -176,8 +176,8 @@
         "sinceVersion": "1.0.0",
         "lastVerifiedVersion": "1.0.0"
       },
-      "size": 7227,
-      "sha256": "f31832d3d3617dc37059c522f90d8df21980cea2e5d556e12f044cec9f86ac60"
+      "size": 7091,
+      "sha256": "61611f99ab95aebdb10f2f7d748c8018e1e42013a3f7b28f9938f718fc53f718"
     },
     {
       "source": "how-it-works/host-system/page.mdx",
