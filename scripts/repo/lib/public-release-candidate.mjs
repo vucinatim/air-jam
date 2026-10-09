@@ -141,7 +141,7 @@ const readPublishedPackage = (name, version) => {
 const isPublicPackageRegistered = (name) => {
   const result = run(
     "npm",
-    ["view", name, "versions", "--json", "--registry", npmRegistry],
+    ["access", "get", "status", name, "--json", "--registry", npmRegistry],
     { allowFailure: true, timeout: 60_000 },
   );
   if (result.status !== 0) {
@@ -150,15 +150,11 @@ const isPublicPackageRegistered = (name) => {
       `Unable to inspect npm package registration for ${name}:\n${result.stderr.trim()}`,
     );
   }
-  const versions = JSON.parse(result.stdout);
-  if (
-    !Array.isArray(versions) ||
-    versions.length === 0 ||
-    versions.some((version) => typeof version !== "string")
-  ) {
+  const visibility = JSON.parse(result.stdout)[name];
+  if (visibility !== "public" && visibility !== "private") {
     throw new Error(`Invalid npm package registration metadata for ${name}.`);
   }
-  return true;
+  return visibility === "public";
 };
 
 const assertPublicPackageVersionsAvailable = (publicPackages) => {

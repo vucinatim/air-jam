@@ -187,9 +187,15 @@ release; do not publish another implementation or advance `latest` to reserve
 a name. Configure and read back each publisher for `vucinatim/air-jam` and
 `publish-packages.yml` before releasing the coordinated candidate.
 
-This checkpoint is still open. CLI login and permission verification are restored;
-existing SDK, server, MCP and scaffolder publishers match the canonical workflow.
-No package name, version, tag or publisher was changed during inspection.
+On October 10, first-name setup staged the reviewed CI-built 0.9.3 archives for
+CLI and devtools, configured and read back their GitHub publishers, then rejected
+both pending uploads. The implementation was not released. npm's generated
+`0.0.0-stage` placeholders retain the names; no existing package tag changed.
+All six publishers now match the canonical workflow. Registration checks use
+`npm access get status`, which supports these public names before an installable
+version exists. Anonymous registration reads succeed; version reads still return
+404 until the normal release. GitHub must publish the coordinated implementation
+and its provenance through the usual exact-candidate workflow.
 
 ## Evidence Boundary
 

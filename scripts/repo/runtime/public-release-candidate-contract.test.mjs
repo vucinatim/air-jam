@@ -64,6 +64,9 @@ test("trusted publication rejects missing package names before any candidate mut
     source.indexOf('onProgress("registry:package-bootstrap")') <
       source.indexOf("onProgress(`publish:${artifact.name}`)"),
   );
+  assert.match(source, /\["access", "get", "status", name,/u);
+  assert.match(source, /return visibility === "public"/u);
+  assert.doesNotMatch(source, /\["view", name, "versions",/u);
 });
 
 test("candidate creation rejects any public version already present on npm", () => {
