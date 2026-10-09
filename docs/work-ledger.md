@@ -35,3 +35,12 @@ The server and library scenarios both passed against the existing candidate
 archives; the regenerated documentation still needs a newly packed CI candidate.
 Focused contract tests, lint and generated-document freshness passed. No source
 handover or production change occurred.
+
+## 2026-10-09 Clean-checkout MCP typecheck dependency corrected
+
+The first Linux PR run exposed MCP consumer tests importing distribution files
+before the package's own build was guaranteed to finish. Typechecking now uses
+the existing locked build helper for the MCP package itself; its build owns its
+devtools prerequisite. The cold package check passed after moving only its
+generated distribution into recoverable temporary storage. All 13 public package
+boundary tests pass. The failed CI run remains evidence, not a delivery pass.

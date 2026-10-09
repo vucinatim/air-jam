@@ -19,6 +19,17 @@ const repoRoot = path.resolve(
 const readJson = (relativePath) =>
   JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), "utf8"));
 
+test("MCP typechecking builds its own distribution before checking consumer tests", () => {
+  const manifest = readJson("packages/mcp-server/package.json");
+  assert.match(
+    manifest.scripts.typecheck,
+    /^node \.\.\/\.\.\/scripts\/ensure-workspace-package-build\.mjs @air-jam\/mcp-server &&/u,
+  );
+  assert.ok(
+    manifest.scripts.typecheck.endsWith("tsc -p tests/tsconfig.json --noEmit"),
+  );
+});
+
 test("the public workspace owns only the framework and reference games", () => {
   for (const relativePath of [
     "apps/platform/package.json",
