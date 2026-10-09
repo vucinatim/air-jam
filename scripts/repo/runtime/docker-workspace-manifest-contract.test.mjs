@@ -13,6 +13,21 @@ const rootPackageJson = JSON.parse(
   fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
 );
 
+test("standalone Railway start uses the actual runtime image entry", () => {
+  const config = JSON.parse(
+    fs.readFileSync(
+      path.join(repoRoot, "packages/server/railway.json"),
+      "utf8",
+    ),
+  );
+  const dockerfile = fs.readFileSync(
+    path.join(repoRoot, "packages/server/Dockerfile"),
+    "utf8",
+  );
+  const command = JSON.parse(/^CMD (.+)$/mu.exec(dockerfile)[1]);
+  assert.equal(config.deploy.startCommand, command.join(" "));
+});
+
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 const listDockerfiles = (rootDir) =>

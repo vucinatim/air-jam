@@ -154,6 +154,9 @@ const createMonorepoFixture = async (): Promise<string> => {
         private: true,
         packageManager: "pnpm@10.19.0",
         devDependencies: { "@air-jam/sdk": "0.9.3" },
+        airjam: {
+          workspace: { cli: "scripts/repo/cli.mjs", modes: ["standalone-dev"] },
+        },
         scripts: {
           build: "pnpm -r build",
         },

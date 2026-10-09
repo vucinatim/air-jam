@@ -1,65 +1,61 @@
 # Current State
 
 Last updated: 2026-10-09
-Status: local framework separation candidate
+Status: reviewed framework separation candidate
 
 The public framework is being separated from the private Air Jam product.
-This checkout is not yet merged, published or handed over to production.
+The separation branches are pushed and under review, but neither is merged.
+Candidate packages are not published and production still serves the previous
+public-repository deployment.
 
-## Established local boundary
+## Framework boundary
 
 The eight-package foundation owns the SDK, standalone server, CLI, MCP,
-environment contracts, harness, creator tooling and scaffolder. Reference
-games remain public. The normal `pnpm run dev` command starts a standalone game
-and server without product accounts, a database or provider credentials.
+environment contracts, harness, creator tooling and scaffolder. Reference games
+remain public. The normal `pnpm run dev` command starts a standalone game and
+server without product accounts, a database or provider credentials.
 
-The private production-baseline checkout consumes exact candidate package
-archives. Explicit local attachment permits framework development without
-changing dependency manifests or lockfiles. It does not introduce a private
-SDK fork.
+The private product consumes exact candidate package archives. Explicit local
+attachment permits framework development without changing dependency manifests
+or lockfiles; it does not introduce a private SDK fork.
 
 Creator documentation has one public source. Its packaged MDX snapshot and AI
 pack serve the private website and external agents. Installed-artifact checks
-cover all 16 creator pages, and the private render checks preserve headings,
-code examples, diagrams and search metadata.
+cover all 16 creator pages. Product plans, operational contracts and product
+history have a private owner; prior public snapshots remain recoverable in Git.
 
-Internal product plans, operational contracts, audits and whole-product history
-now have a private owner. Their removed public copies and the prior root
-snapshots are recoverable from Git and the ignored local migration archive.
+## Reviewed delivery
+
+[The public separation PR](https://github.com/vucinatim/air-jam/pull/114)
+passed CI and the six-cell Node and operating-system installation matrix.
+One independent Opus 5.5 review is recorded on GitHub. Its findings are being
+addressed before requalifying the updated artifacts.
+
+The paired private candidate passed its full CI, including isolated deployment
+image startup, schema readiness and platform, realtime and worker health.
+This proves the candidate services start together, not that production has been
+transferred. The private separation plan owns that delivery evidence.
 
 ## Still required
 
-Reference-game ownership, private documentation and Studio/separation memory are
-reconciled locally. Private startup and the baseline creator/player journey pass
-against installed candidate packages. The final public batch stages pass after
-updating a stale CLI export assertion to include the shared documentation API.
-The initial batch and repaired test-stage logs remain in
-`.airjam/separation-final-batch-20261009.log` and
-`.airjam/separation-final-tests-20261009.log`.
+1. Finish review corrections and qualify the updated public package family.
+2. Validate the private product against those exact artifacts and then the
+   published packages, including its final independent review.
+3. Complete the guarded production source handover with live creator and
+   player validation and a retained rollback path.
+4. Restore the preserved Studio work by ownership and qualify its complete
+   journey before resuming feature development.
 
-1. Build and exercise independent private deployment images against installed
-   packages; the local Docker disk currently fails the capacity preflight.
-2. Complete substantial-batch canonicality review, green paired delivery and
-   guarded production source handover.
-3. Restore the preserved Studio work on a private feature branch and qualify its
-   complete journey before resuming feature development.
-
-The approved private product repository `vucinatim/air-jam-platform` now exists
-and is connected locally. Its `main` contains the reviewed production baseline
-`263f0edf`; neither separation branch has been pushed. No package publication,
-production source transfer, license change or Studio database
-migration has occurred in this separation.
-
-The standalone-package CI lane now retains its exact qualified archive set for
-paired private validation. Artifact upload and the receiving Linux CI run have
-not yet been exercised; this does not publish packages or change runtime hosting.
+The unfinished Studio branch is preserved on the private remote. No package
+publication, production source transfer, license change or Studio database
+migration has occurred during this separation.
 
 ## Delivery guard
 
 Do not merge removal of the public product paths while Railway's previous
-automatic deployment source still points to them. The existing serving
-deployment must remain available while the reviewed private replacement is
-qualified and the source handover is performed.
+automatic deployment source still points to them. Keep the existing serving
+deployment available while the reviewed private replacement is qualified and
+the source handover is performed.
 
 The private product separation plan owns that sequence. Public framework gates
 alone do not establish product or production readiness.

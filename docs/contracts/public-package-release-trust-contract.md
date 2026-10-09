@@ -166,6 +166,28 @@ GitHub deployment environment is a separate external configuration change and
 must not be added to the workflow until the matching npm trusted-publisher
 configuration exists.
 
+### First publication of new package names
+
+Before running the privileged publish job, all eight names must already exist
+and have the matching trusted publisher. npm requires an existing package
+before [`npm trust`](https://docs.npmjs.com/cli/v11/commands/npm-trust/) can
+configure its publisher. Candidate creation may still qualify unpublished
+names locally; the apply-capable publisher checks the complete graph before
+making any registry mutation, so a missing name cannot leave a partial release.
+
+Registry inspection on 2026-10-09 returned 404 for `@air-jam/env`,
+`@air-jam/harness` and `@air-jam/devtools-core`. They are not reserved. First-name
+setup is an external checkpoint, not permission for a branch-based token
+publication. npm's [staged first-publication flow](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/)
+can establish a placeholder name before approval. Use reviewed package bytes
+and explicitly settle that setup flow before invoking the normal trusted
+release; do not publish another implementation or advance `latest` to reserve
+a name. Configure and read back each publisher for `vucinatim/air-jam` and
+`publish-packages.yml` before releasing the coordinated candidate.
+
+This checkpoint is still open. No package name, version, tag or publisher was
+changed during its inspection.
+
 ## Evidence Boundary
 
 Candidate manifests, installation-matrix artifacts and GitHub release

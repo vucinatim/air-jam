@@ -87,6 +87,9 @@ try {
     JSON.stringify({
       name: "air-jam-product",
       dependencies: { "@air-jam/sdk": "0.9.3" },
+      airjam: {
+        workspace: { cli: "scripts/repo/cli.mjs", modes: ["standalone-dev"] },
+      },
     }),
   );
   fs.writeFileSync(

@@ -1,6 +1,7 @@
 import { readDocumentationSnapshot } from "@air-jam/cli/documentation";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -20,6 +21,18 @@ test("the public snapshot owns every creator page without private imports", asyn
     ),
   );
   assert.equal(snapshot.documents.length, 16);
+  assert.deepEqual(
+    snapshot.requiredComponents,
+    JSON.parse(
+      await fs.readFile(
+        new URL(
+          "../../../content/docs/renderer-components.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ),
+  );
   assert.deepEqual(
     snapshot.documents.map((entry) => entry.page),
     catalog.map((entry) => entry.page),
@@ -96,6 +109,17 @@ test("a packaged consumer fails on tampered bytes and unsafe identities", async 
       "template-assets/documentation/manifest.json",
     );
     const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+    const withUnknownComponent = `${first.content}\n<UnregisteredDiagram />\n`;
+    await fs.writeFile(sourcePath, withUnknownComponent);
+    manifest.documents[0].size = Buffer.byteLength(withUnknownComponent);
+    manifest.documents[0].sha256 = createHash("sha256")
+      .update(withUnknownComponent)
+      .digest("hex");
+    await fs.writeFile(manifestPath, JSON.stringify(manifest));
+    await assert.rejects(
+      readSnapshot(),
+      /Undeclared documentation component UnregisteredDiagram/,
+    );
     manifest.documents[0].source = "../../outside/page.mdx";
     await fs.writeFile(manifestPath, JSON.stringify(manifest));
     await assert.rejects(readSnapshot(), /Invalid/);

@@ -628,7 +628,7 @@ describe("detectProjectContext", () => {
     expect(context.mode).toBe("monorepo");
     expect(context.packageJson?.name).toBe("air-jam");
     expect(context.workspaceRoot).toBe(context.rootDir);
-    expect(context.reasons.join(" ")).toContain("repo CLI");
+    expect(context.reasons.join(" ")).toContain("declared workspace CLI");
   });
 
   it("detects the Air Jam monorepo from a nested repo game directory", async () => {
@@ -768,6 +768,9 @@ describe("visual capture summaries", () => {
     await writeJson(path.join(root, "package.json"), {
       name: "air-jam-product",
       dependencies: { "@air-jam/sdk": "0.9.3" },
+      airjam: {
+        workspace: { cli: "scripts/repo/cli.mjs", modes: ["standalone-dev"] },
+      },
     });
     await writeFile(
       path.join(root, "pnpm-workspace.yaml"),
@@ -887,64 +890,132 @@ describe("dev lifecycle and topology", () => {
     expect(topology.urls.localBuildUrl).toBeNull();
   });
 
-  it("starts and inspects a repo workspace without framework source copies", async () => {
-    const root = await createTempRoot();
-    const port = await getAvailablePort();
-    await writeJson(path.join(root, "package.json"), {
-      name: "air-jam-product",
-      type: "module",
-      dependencies: { "@air-jam/sdk": "0.9.3" },
-    });
-    await writeFile(
-      path.join(root, "pnpm-workspace.yaml"),
-      "packages: [games/*]\n",
-    );
-    await writeJson(path.join(root, "games/pong/airjam-template.json"), {
-      id: "pong",
-      name: "Pong",
-    });
-    await writeJson(path.join(root, "games/pong/package.json"), {
-      name: "pong",
-    });
-    await mkdir(path.join(root, "scripts/repo"), { recursive: true });
-    await writeFile(
-      path.join(root, "scripts/repo/cli.mjs"),
-      `import http from "node:http";
+  it.each([
+    ["standalone-dev", "standalone:dev", "standalone-dev"],
+    ["arcade-dev", "arcade:dev", "arcade-live"],
+    ["arcade-test", "arcade:test", "arcade-built"],
+  ] as const)(
+    "starts and inspects a declared %s workspace without framework source copies",
+    async (mode, startCommand, topologyMode) => {
+      const root = await createTempRoot();
+      const port = await getAvailablePort();
+      await writeJson(path.join(root, "package.json"), {
+        name: "air-jam-product",
+        type: "module",
+        dependencies: { "@air-jam/sdk": "0.9.3" },
+        airjam: {
+          workspace: {
+            cli: "workspace.mjs",
+            modes: ["standalone-dev", "arcade-dev", "arcade-test"],
+          },
+        },
+      });
+      await writeFile(
+        path.join(root, "pnpm-workspace.yaml"),
+        "packages: [games/*]\n",
+      );
+      await writeJson(path.join(root, "games/pong/airjam-template.json"), {
+        id: "pong",
+        name: "Pong",
+      });
+      await writeJson(path.join(root, "games/pong/package.json"), {
+        name: "pong",
+      });
+      await writeFile(
+        path.join(root, "workspace.mjs"),
+        `import http from "node:http";
 const [family, command, ...args] = process.argv.slice(2);
 if (family !== "workspace" || !args.includes("--game=pong")) throw new Error("Invalid repo command");
 const origin = "http://127.0.0.1:${port}";
 if (command === "topology") {
-  if (!args.includes("--mode=standalone-dev")) throw new Error("Invalid topology mode");
+  if (!args.includes("--mode=${topologyMode}")) throw new Error("Invalid topology mode");
   console.log(JSON.stringify({ surfaces: {
     host: { appOrigin: origin, publicHost: origin },
-    controller: { appOrigin: origin, publicHost: origin }
+    controller: { appOrigin: origin, publicHost: origin },
+    platformHost: { appOrigin: origin, publicHost: origin },
+    platformController: { appOrigin: origin, publicHost: origin },
+    embeddedHost: { assetBasePath: "/games/pong" }
   }}));
-} else if (command === "standalone:dev") {
+} else if (command === "${startCommand}") {
   const server = http.createServer((_request, response) => response.end("ready"));
   server.listen(${port}, "127.0.0.1");
   process.on("SIGTERM", () => server.close(() => process.exit(0)));
 } else throw new Error("Unknown repo command");
 `,
+      );
+      const context = await detectProjectContext({ cwd: root });
+      expect(context.mode).toBe("monorepo");
+      expect(context.packageJson?.name).toBe("air-jam-product");
+      const started = await startDev({ cwd: root, gameId: "pong", mode });
+      try {
+        expect(started.process.args).toEqual([
+          path.join(await realpath(root), "workspace.mjs"),
+          "workspace",
+          startCommand,
+          "--game=pong",
+        ]);
+        expect(started.topology.topologyMode).toBe(topologyMode);
+        expect(started.topology.urls.hostUrl).toBe(
+          `http://127.0.0.1:${port}${mode === "standalone-dev" ? "" : "/arcade/local-pong"}`,
+        );
+        expect(
+          (await getTopology({ cwd: root, gameId: "pong", mode })).projectMode,
+        ).toBe("monorepo");
+      } finally {
+        await stopDev({ cwd: root, processId: started.process.id });
+      }
+      await waitForHttpClosed(port);
+    },
+  );
+
+  it("rejects undeclared workspace modes before inspecting games or starting a process", async () => {
+    const root = await createTempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      dependencies: { "@air-jam/sdk": "0.9.3" },
+      airjam: {
+        workspace: { cli: "workspace.mjs", modes: ["standalone-dev"] },
+      },
+    });
+    await writeFile(
+      path.join(root, "workspace.mjs"),
+      'throw new Error("must not run");\n',
     );
-    const context = await detectProjectContext({ cwd: root });
-    expect(context.mode).toBe("monorepo");
-    expect(context.packageJson?.name).toBe("air-jam-product");
-    const started = await startDev({ cwd: root, gameId: "pong" });
-    try {
-      expect(started.process.args).toEqual([
-        path.join(await realpath(root), "scripts/repo/cli.mjs"),
-        "workspace",
-        "standalone:dev",
-        "--game=pong",
-      ]);
-      expect(started.topology.urls.hostUrl).toBe(`http://127.0.0.1:${port}`);
-      expect(
-        (await getTopology({ cwd: root, gameId: "pong" })).projectMode,
-      ).toBe("monorepo");
-    } finally {
-      await stopDev({ cwd: root, processId: started.process.id });
+    for (const mode of ["arcade-dev", "arcade-test"] as const) {
+      await expect(startDev({ cwd: root, mode })).rejects.toThrow(
+        `Mode "${mode}" is not supported by this project. Supported modes: standalone-dev.`,
+      );
+      await expect(getTopology({ cwd: root, mode })).rejects.toThrow(
+        `Mode "${mode}" is not supported by this project. Supported modes: standalone-dev.`,
+      );
     }
-    await waitForHttpClosed(port);
+    expect((await getDevStatus({ cwd: root })).processes).toEqual([]);
+  });
+
+  it("does not infer a workspace from an unrelated repo CLI", async () => {
+    const root = await createTempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      dependencies: { "@air-jam/sdk": "0.9.3" },
+    });
+    await mkdir(path.join(root, "scripts/repo"), { recursive: true });
+    await writeFile(path.join(root, "scripts/repo/cli.mjs"), "export {};\n");
+    await writeFile(
+      path.join(root, "pnpm-workspace.yaml"),
+      "packages: [games/*]\n",
+    );
+    expect((await detectProjectContext({ cwd: root })).mode).toBe(
+      "standalone-game",
+    );
+  });
+
+  it("fails clearly when the declared workspace CLI is missing", async () => {
+    const root = await createTempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      dependencies: { "@air-jam/sdk": "0.9.3" },
+      airjam: { workspace: { cli: "missing.mjs", modes: ["standalone-dev"] } },
+    });
+    await expect(detectProjectContext({ cwd: root })).rejects.toThrow(
+      "Declared Air Jam workspace CLI does not exist: missing.mjs",
+    );
   });
 
   it("starts, reports, and stops a managed standalone dev process", async () => {

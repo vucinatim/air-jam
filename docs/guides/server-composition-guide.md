@@ -16,6 +16,14 @@ development defaults to local room/controller admission and disabled identity
 checks. In production, authentication defaults to required and needs an explicit
 adapter; a local master key is not a production authentication backend.
 
+The generic Docker image and its Railway configuration run
+`node ./bin/air-jam-server.mjs`. That command has no hosted authentication
+adapter. An intentionally open self-hosted server must explicitly set
+`AIR_JAM_AUTH_MODE=disabled`; it emits a production warning because any host
+can create rooms. For authenticated production hosting, compose the library
+with your own adapter instead. Do not disable authentication to recover the
+private hosted product; its deployment configuration belongs to that product.
+
 The server does not read a hosted database URL or automatically construct Air
 Jam's managed account, quota or usage services. Those belong to the application
 that operates the hosted service. This changes the previous managed-server env
@@ -46,6 +54,8 @@ database even if one cleanup fails, retaining both errors when necessary.
 `createServerLogging(options, envConfig)` provides the logger and collector for
 composition. Give its logger to hosted adapters and pass the same logger and
 collector to `createAirJamServer`; use `false` when collection is disabled.
+The helper returns that same `false` sentinel, so its result can be spread
+directly into the server options without converting values.
 This keeps adapter and runtime events in the unified local dev stream instead
 of creating disconnected logging paths.
 

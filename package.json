@@ -7,6 +7,14 @@
     "node": ">=22.0.0"
   },
   "type": "module",
+  "airjam": {
+    "workspace": {
+      "cli": "scripts/repo/cli.mjs",
+      "modes": [
+        "standalone-dev"
+      ]
+    }
+  },
   "scripts": {
     "repo": "node --env-file-if-exists=.env.local scripts/repo/cli.mjs",
     "dev": "node scripts/repo/cli.mjs workspace standalone:dev",

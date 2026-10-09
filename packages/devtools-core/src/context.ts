@@ -14,6 +14,7 @@ import type {
   AirJamProjectInspection,
   PackageJson,
 } from "./types.js";
+import { readWorkspaceContract } from "./workspace-contract.js";
 
 const hasDependency = (
   packageJson: PackageJson,
@@ -78,10 +79,14 @@ const isMonorepoRoot = async (
     return false;
   }
 
-  return (
-    (await pathExists(path.join(rootDir, "scripts", "repo", "cli.mjs"))) &&
-    (await pathExists(path.join(rootDir, "pnpm-workspace.yaml")))
-  );
+  const workspace = readWorkspaceContract(packageJson);
+  if (!workspace) return false;
+  if (!(await pathExists(path.resolve(rootDir, workspace.cli)))) {
+    throw new Error(
+      `Declared Air Jam workspace CLI does not exist: ${workspace.cli}`,
+    );
+  }
+  return true;
 };
 
 const isStandaloneGameRoot = async (
@@ -131,7 +136,7 @@ export const detectProjectContext = async ({
     mode = "monorepo";
     workspaceRoot = rootDir;
     reasons.push(
-      "Detected an Air Jam workspace dependency and owning repo CLI.",
+      "Detected an Air Jam workspace dependency and declared workspace CLI.",
     );
   } else if (await isStandaloneGameRoot(rootDir, packageJson)) {
     mode = "standalone-game";

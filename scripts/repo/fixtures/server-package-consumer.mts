@@ -1,5 +1,6 @@
 import {
   createAirJamServer,
+  createServerLogging,
   loadServerEnv,
   type HostBootstrapAuthService,
   type RealtimeAdmissionService,
@@ -9,6 +10,10 @@ const authService: HostBootstrapAuthService = {
   verifyHostBootstrap: async () => ({ isVerified: false }),
 };
 const server = createAirJamServer({
+  ...createServerLogging(
+    { devLogCollector: false },
+    loadServerEnv({ NODE_ENV: "test" }),
+  ),
   authService,
   envConfig: loadServerEnv({ NODE_ENV: "test" }),
 });

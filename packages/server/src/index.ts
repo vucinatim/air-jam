@@ -112,7 +112,9 @@ export const createAirJamServer = (
     (failure: RealtimeAdmissionTerminalFailure) => void
   >();
 
-  const { logger, devLogCollector } = createServerLogging(options, envConfig);
+  const logging = createServerLogging(options, envConfig);
+  const { logger } = logging;
+  const devLogCollector = logging.devLogCollector || null;
   const roomManagerInstance = options.roomManager ?? new RoomManager();
   const rateLimitServiceInstance =
     options.rateLimitService ?? new RateLimitService();
@@ -131,6 +133,25 @@ export const createAirJamServer = (
   const startupConfigurationError =
     authServiceInstance.getStartupConfigurationError?.();
   if (startupConfigurationError) throw new Error(startupConfigurationError);
+  if (!options.authService) {
+    if (envConfig.authMode === "disabled") {
+      logger[envConfig.nodeEnv === "production" ? "warn" : "info"](
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.auth.modeDisabled,
+          authMode: "disabled",
+        },
+        "Host authentication is disabled; any host may create a room.",
+      );
+    } else if (envConfig.masterKey) {
+      logger.info(
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.auth.modeMasterKey,
+          authMode: "required",
+        },
+        "Local master-key host authentication is enabled.",
+      );
+    }
+  }
 
   const defaultPort = envConfig.port;
   const rateLimitWindowMs =
@@ -324,6 +345,7 @@ export const createAirJamServer = (
         event: AIRJAM_DEV_LOG_EVENTS.server.started,
         port: activePort,
         corsOrigin,
+        authMode: envConfig.authMode,
       },
       `Server listening on http://localhost:${activePort}`,
     );

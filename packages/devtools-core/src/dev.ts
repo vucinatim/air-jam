@@ -31,6 +31,10 @@ import type {
   StopDevOptions,
   StopDevResult,
 } from "./types.js";
+import {
+  assertSupportedDevMode,
+  readWorkspaceContract,
+} from "./workspace-contract.js";
 
 type ManagedRegistry = {
   schemaVersion: 1;
@@ -50,7 +54,6 @@ const KNOWN_LOCAL_DEV_PORTS = [4000, 5173] as const;
 const KNOWN_PORTS_ENV = "AIRJAM_DEVTOOLS_KNOWN_PORTS";
 const DEFAULT_CONTROLLER_PATH = "/controller";
 const MANAGED_PROCESS_STOP_TIMEOUT_MS = 10_000;
-const MONOREPO_RUNTIME_CLI_PATH = path.join("scripts", "repo", "cli.mjs");
 
 const toTopologyMode = (
   mode: AirJamDevMode,
@@ -306,8 +309,14 @@ const appendArg = (args: string[], flag: string, value?: string | boolean) => {
   args.push(`${flag}=${value}`);
 };
 
-const resolveMonorepoRuntimeCliPath = (rootDir: string): string =>
-  path.join(rootDir, MONOREPO_RUNTIME_CLI_PATH);
+const resolveWorkspaceCliPath = (context: AirJamProjectContext): string => {
+  const workspace = readWorkspaceContract(context.packageJson);
+  if (!workspace)
+    throw new Error(
+      "Air Jam workspace must declare airjam.workspace in package.json.",
+    );
+  return path.resolve(context.rootDir, workspace.cli);
+};
 
 const resolveRequestedGameId = async ({
   cwd,
@@ -369,7 +378,7 @@ const resolveStartCommand = async ({
           : "standalone:dev";
 
     const args = [
-      resolveMonorepoRuntimeCliPath(cwd),
+      resolveWorkspaceCliPath(context),
       "workspace",
       script,
       `--game=${gameId}`,
@@ -387,12 +396,6 @@ const resolveStartCommand = async ({
   if (context.mode !== "standalone-game") {
     throw new Error(
       "Air Jam dev start is only available in known project modes.",
-    );
-  }
-
-  if (mode !== "standalone-dev") {
-    throw new Error(
-      `Mode "${mode}" is only available in the Air Jam monorepo.`,
     );
   }
 
@@ -445,7 +448,7 @@ const resolveTopologyCommand = async ({
     }
 
     const args = [
-      resolveMonorepoRuntimeCliPath(context.rootDir),
+      resolveWorkspaceCliPath(context),
       "workspace",
       "topology",
       `--game=${gameId}`,
@@ -681,6 +684,7 @@ export const getTopology = async ({
   secure = false,
 }: GetTopologyOptions = {}): Promise<AirJamRuntimeTopology> => {
   const context = await detectProjectContext({ cwd });
+  assertSupportedDevMode(context.packageJson, mode);
   if (!isKnownProjectMode(context.mode)) {
     throw new Error(
       "Air Jam topology is only available in recognized Air Jam projects.",
@@ -752,6 +756,7 @@ export const startDev = async ({
   secure = false,
 }: StartDevOptions = {}): Promise<StartDevResult> => {
   const context = await detectProjectContext({ cwd });
+  assertSupportedDevMode(context.packageJson, mode);
   if (!isKnownProjectMode(context.mode)) {
     throw new Error(
       "Air Jam dev start is only available in recognized Air Jam projects.",

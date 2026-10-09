@@ -64,3 +64,34 @@ library consumers qualify their independent use. All 15 bootstrap/matrix tests
 pass. Controller bridge tests also wait for actual asynchronous effects instead
 of assuming a zero-delay timer delivers MessageChannel traffic; all six pass.
 Neither correction changes player runtime behavior or weakens release gates.
+
+## 2026-10-09 Separation review contracts corrected
+
+The single Opus 5.5 GitHub review of PR #114 identified two workspace seams:
+the generic server image's start command and devtools guessing a private CLI
+layout. The image configuration now uses its actual Node entrypoint. Owning
+workspaces declare one CLI and their supported modes in root package metadata;
+real start, inspect and stop tests cover standalone and both Arcade modes with
+no framework source copies. Unsupported modes fail before starting a process.
+
+Logging composition now preserves the same disabled-collector sentinel across
+its exported helper and server options. Built-in production authentication
+disabled explicitly emits a warning; local master-key startup logs no key, and
+injected adapters retain their own reporting. Packaged documentation declares
+its required renderer components, rejects undeclared tags, and clarifies that
+signed host grants need a verifying backend rather than a standalone env secret.
+Generated guidance was refreshed from the public source. Stale patch guidance,
+state claims and empty Drizzle placeholders were removed or corrected.
+
+The complete test stage passes after updating fixtures to declare their
+workspace. Full typechecking, lint and canonical checks pass; the scoped changed
+gate completes in 3.339 seconds. Both clean package-consumer proofs pass against
+the same packed family: strict library/helper/doc usage and typed server logging
+composition, plus real room/controller traffic, child launch, state sync,
+readiness and drain. The initial library proof exposed another fixture relying
+on implicit workspace detection; its declaration was corrected before the pass.
+
+Registry inspection found the three newly public names absent. The trusted
+publisher now rejects missing names before any registry mutation. First-name
+setup and trusted publisher configuration remain external release prerequisites;
+this work neither publishes packages nor changes production deployment sources.

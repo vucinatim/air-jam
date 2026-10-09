@@ -42,6 +42,7 @@ const documentationManifestSchema = z
   .object({
     schemaVersion: z.literal(1),
     packageVersion: z.string().min(1),
+    requiredComponents: z.array(z.string().regex(/^[A-Z][A-Za-z0-9]*$/)).min(1),
     documents: z
       .array(
         z
@@ -79,11 +80,30 @@ export async function readDocumentationSnapshot() {
     if (content.length !== document.size || digest !== document.sha256) {
       throw new Error(`Documentation integrity failed for ${document.source}.`);
     }
+    let fence: string | null = null;
+    for (const line of content.toString("utf8").split("\n")) {
+      const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+      if (fenceMatch) {
+        if (fence === null) fence = fenceMatch[1][0];
+        else if (fenceMatch[1][0] === fence) fence = null;
+        continue;
+      }
+      if (fence !== null) continue;
+      const prose = line.replace(/(`+)[\s\S]*?\1/g, "");
+      for (const match of prose.matchAll(/<\/?([A-Z][A-Za-z0-9]*)\b/g)) {
+        if (!manifest.requiredComponents.includes(match[1])) {
+          throw new Error(
+            `Undeclared documentation component ${match[1]} in ${document.source}.`,
+          );
+        }
+      }
+    }
     documents.push({ ...document, content: content.toString("utf8") });
   }
   return {
     schemaVersion: manifest.schemaVersion,
     packageVersion: manifest.packageVersion,
+    requiredComponents: manifest.requiredComponents,
     documents,
   };
 }

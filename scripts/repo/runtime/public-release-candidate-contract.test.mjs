@@ -22,6 +22,7 @@ import {
 } from "../../release/public-packages.mjs";
 import {
   assertPublicVersionAvailability,
+  assertRegisteredPublicPackages,
   computeCandidateDigest,
   publicReleaseCandidateContract,
   resolveCandidatePublicationTag,
@@ -40,6 +41,31 @@ const writeJson = (filePath, value) => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 };
+
+test("trusted publication rejects missing package names before any candidate mutation", () => {
+  assert.doesNotThrow(() =>
+    assertRegisteredPublicPackages([
+      { name: "@air-jam/sdk", registered: true },
+    ]),
+  );
+  assert.throws(
+    () =>
+      assertRegisteredPublicPackages([
+        { name: "@air-jam/sdk", registered: true },
+        { name: "@air-jam/env", registered: false },
+        { name: "@air-jam/harness", registered: false },
+      ]),
+    /existing npm packages: @air-jam\/env, @air-jam\/harness/u,
+  );
+  const source = fs.readFileSync(
+    path.join(repoRoot, "scripts/repo/lib/public-release-candidate.mjs"),
+    "utf8",
+  );
+  assert.ok(
+    source.indexOf('onProgress("registry:package-bootstrap")') <
+      source.indexOf("onProgress(`publish:${artifact.name}`)"),
+  );
+});
 
 test("candidate creation rejects any public version already present on npm", () => {
   assert.doesNotThrow(() =>

@@ -213,13 +213,18 @@ If you are self-hosting the client, keep SPA rewrites enabled so `/controller?ro
 
 If you want stricter production ownership guarantees, you can keep the game static and add one small backend or edge endpoint that returns a signed host grant.
 
+This requires a realtime backend that verifies those grants: the hosted Air Jam
+backend or your own server composed with an `authService` adapter. The standalone
+`air-jam-server` command does not read `AIR_JAM_HOST_GRANT_SECRET` and rejects host
+grants by default. Setting the secret alone does not enable grant verification.
+
 Frontend env:
 
 ```bash
 VITE_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
 ```
 
-Server env:
+Grant issuer and verifying backend env (not the standalone server command):
 
 ```bash
 AIR_JAM_HOST_GRANT_SECRET=your_signing_secret

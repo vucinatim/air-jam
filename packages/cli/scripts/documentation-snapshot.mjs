@@ -18,6 +18,12 @@ export async function generateDocumentationSnapshot(
   const { version } = JSON.parse(
     await fs.readFile(path.join(cliRoot, "package.json"), "utf8"),
   );
+  const requiredComponents = JSON.parse(
+    await fs.readFile(
+      path.join(canonicalDocsRoot, "renderer-components.json"),
+      "utf8",
+    ),
+  );
   const documents = [];
   for (const entry of catalog) {
     const content = await fs.readFile(
@@ -35,6 +41,6 @@ export async function generateDocumentationSnapshot(
   }
   await fs.writeFile(
     path.join(targetRoot, "manifest.json"),
-    `${JSON.stringify({ schemaVersion: 1, packageVersion: version, documents }, null, 2)}\n`,
+    `${JSON.stringify({ schemaVersion: 1, packageVersion: version, requiredComponents, documents }, null, 2)}\n`,
   );
 }

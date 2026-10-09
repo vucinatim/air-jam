@@ -2,7 +2,7 @@
 
 This repository owns Air Jam's public framework, standalone server, creator tools and reference games. Studio, Arcade, accounts, hosted policy, databases and production operations belong to the private product repository. Develop one framework; the product consumes its supported package exports.
 
-Source separation is still local and unfinished. Do not merge the ownership
+Source separation is under review and unfinished. Do not merge the ownership
 removal while Railway automatically deploys from the old public product paths.
 The private product's separation plan owns the guarded source handover; green
 framework checks do not establish private deployment readiness.

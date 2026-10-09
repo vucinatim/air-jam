@@ -35,5 +35,8 @@ export const createServerLogging = (
       },
     );
 
-  return { logger, devLogCollector };
+  return {
+    logger,
+    devLogCollector: devLogCollector ?? false,
+  } satisfies ServerLoggingOptions;
 };

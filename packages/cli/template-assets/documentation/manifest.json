@@ -1,6 +1,19 @@
 {
   "schemaVersion": 1,
   "packageVersion": "0.9.3",
+  "requiredComponents": [
+    "ArcadeModeDiagram",
+    "Callout",
+    "CoreServicesDiagram",
+    "FocusSystemDiagram",
+    "HooksComparisonTable",
+    "HowItWorksDiagram",
+    "InputFlowDiagram",
+    "SdkArchitectureDiagram",
+    "SocketEventsDiagram",
+    "StandaloneHostDiagram",
+    "SystemOverviewDiagram"
+  ],
   "documents": [
     {
       "source": "getting-started/introduction/page.mdx",
@@ -49,8 +62,8 @@
         "sinceVersion": "1.0.0",
         "lastVerifiedVersion": "1.0.0"
       },
-      "size": 11920,
-      "sha256": "671c554da0705e9c4b65a5f7ac67acd95c76db9ce113a74500ee5f8bba0a3e0a"
+      "size": 12309,
+      "sha256": "cd105344b5eeb8efd0dc34daebcf4aef00e86012fe1537b63dc054cfac1ba16b"
     },
     {
       "source": "getting-started/debugging/page.mdx",

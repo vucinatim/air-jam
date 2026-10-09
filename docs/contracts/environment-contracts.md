@@ -32,7 +32,13 @@ Each boundary owns its own env schema and defaults:
 2. installed creator runtime contracts (`dev`, `secure:init`, `topology`)
 3. private product-owned schemas for platform, storage and hosted composition
 
-The public standalone server does not own a product database or provider\ncredentials. Hosted authentication, release isolation, Browser Run tokens,\nRailway attestations and remote-database safety rules belong to the private\nproduct's schemas and operator commands. Missing hosted configuration must\nfail explicitly rather than fall back to permissive standalone behavior.\n\nKeep schemas boundary-owned; do not introduce a monorepo-wide mega schema.\n\n
+The public standalone server does not own a product database or provider
+credentials. Hosted authentication, release isolation, Browser Run tokens,
+Railway attestations and remote-database safety rules belong to the private
+product's schemas and operator commands. Missing hosted configuration must
+fail explicitly rather than fall back to permissive standalone behavior.
+
+Keep schemas boundary-owned; do not introduce a monorepo-wide mega schema.
 
 ## Error Contract
 

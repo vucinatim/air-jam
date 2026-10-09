@@ -54,6 +54,17 @@ export const assertPublicVersionAvailability = (observations) => {
   );
 };
 
+export const assertRegisteredPublicPackages = (observations) => {
+  const missing = observations
+    .filter((entry) => !entry.registered)
+    .map((entry) => entry.name);
+  if (missing.length > 0) {
+    throw new Error(
+      `Trusted publication requires existing npm packages: ${missing.join(", ")}. Complete first-publication setup and configure their trusted publishers before releasing any part of the candidate.`,
+    );
+  }
+};
+
 const writeJson = (filePath, value) => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, {
@@ -125,6 +136,29 @@ const readPublishedPackage = (name, version) => {
     integrity: value["dist.integrity"] ?? value.integrity ?? null,
     attestations: value["dist.attestations"] ?? value.attestations ?? null,
   };
+};
+
+const isPublicPackageRegistered = (name) => {
+  const result = run(
+    "npm",
+    ["view", name, "versions", "--json", "--registry", npmRegistry],
+    { allowFailure: true, timeout: 60_000 },
+  );
+  if (result.status !== 0) {
+    if (/E404|is not in this registry/iu.test(result.stderr)) return false;
+    throw new Error(
+      `Unable to inspect npm package registration for ${name}:\n${result.stderr.trim()}`,
+    );
+  }
+  const versions = JSON.parse(result.stdout);
+  if (
+    !Array.isArray(versions) ||
+    versions.length === 0 ||
+    versions.some((version) => typeof version !== "string")
+  ) {
+    throw new Error(`Invalid npm package registration metadata for ${name}.`);
+  }
+  return true;
 };
 
 const assertPublicPackageVersionsAvailable = (publicPackages) => {
@@ -909,6 +943,15 @@ export const publishPublicReleaseCandidate = ({
   const publicationTag = resolveCandidatePublicationTag(
     validated.candidateDigest,
   );
+  if (apply) {
+    onProgress("registry:package-bootstrap");
+    assertRegisteredPublicPackages(
+      validated.manifest.packages.map((artifact) => ({
+        name: artifact.name,
+        registered: isPublicPackageRegistered(artifact.name),
+      })),
+    );
+  }
   const observations = [];
   for (const artifact of validated.manifest.packages) {
     onProgress(`inspect:${artifact.name}`);
