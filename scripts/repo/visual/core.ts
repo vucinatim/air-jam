@@ -1,5 +1,5 @@
 import path from "node:path";
-import { captureVisuals } from "../../../packages/devtools-core/src/visual.js";
+import { captureVisuals } from "../../../packages/devtools/src/visual.js";
 import { startWorkspaceStandaloneLiveStack } from "../../workspace/lib/standalone-live-stack.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 

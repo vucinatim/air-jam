@@ -6,8 +6,6 @@
     "watchPatterns": [
       "/packages/server/**",
       "/packages/sdk/**",
-      "/packages/devtools-core/**",
-      "/packages/harness/**",
       "/packages/env/**",
       "/package.json",
       "/pnpm-lock.yaml",

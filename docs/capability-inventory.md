@@ -77,8 +77,9 @@ product.
 ## Package and verification surfaces
 
 The coordinated foundation contains `@air-jam/sdk`, `@air-jam/server`,
-`@air-jam/cli`, `@air-jam/mcp-server`, `@air-jam/env`, `@air-jam/harness`,
-`@air-jam/devtools-core` and `create-airjam`.
+`@air-jam/cli`, `@air-jam/mcp-server`, `@air-jam/devtools` and `create-airjam`.
+Devtools owns the evaluation harness and shared CLI/MCP implementation.
+Environment validation remains an internal build helper.
 
 Fast changed checks, full batch gates, package archive proofs, server integration
 tests, scaffold smoke and the six-cell installation matrix cover different

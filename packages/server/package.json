@@ -58,11 +58,11 @@
     "dev": "tsx src/main.ts",
     "logs:dev": "tsx scripts/dev-logs.ts",
     "start": "node ./bin/air-jam-server.mjs",
-    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsup",
-    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && vitest run --config vitest.config.ts",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "perf:sanity": "tsx scripts/perf-sanity.ts",
-    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && node ../../scripts/ensure-workspace-package-build.mjs @air-jam/harness && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "prepublishOnly": "pnpm build",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
@@ -81,9 +81,7 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@air-jam/devtools-core": "workspace:^",
     "@air-jam/env": "workspace:^",
-    "@air-jam/harness": "workspace:^",
     "@types/cors": "^2.8.17",
     "@types/node": "^24.10.1",
     "@types/uuid": "^11.0.0",

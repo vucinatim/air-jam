@@ -1,8 +1,8 @@
+import { pathToFileURL } from "node:url";
 import type {
   AnyAirJamAgentContract,
   VisualScenarioPack,
-} from "@air-jam/harness/visual";
-import { pathToFileURL } from "node:url";
+} from "../harness/visual.js";
 import { loadVisualScenarioPackFromConfig } from "./airjam-agent.js";
 
 export const loadVisualScenarioPack = async (

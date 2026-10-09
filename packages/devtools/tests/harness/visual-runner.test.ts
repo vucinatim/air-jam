@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../src/visual/session.js", () => ({
+vi.mock("../../src/harness/visual/session.js", () => ({
   DEFAULT_HOST_VIEWPORT: { width: 1280, height: 720 },
   dismissHarnessControllerFullscreenPrompt: vi.fn(async () => false),
   launchHarnessBrowser: vi.fn(async () => ({ close: mocks.browserClose })),
@@ -47,7 +47,7 @@ vi.mock("../src/visual/session.js", () => ({
   })),
 }));
 
-import { runVisualHarness } from "../src/visual/runner";
+import { runVisualHarness } from "../../src/harness/visual/runner";
 
 const artifactRoots: string[] = [];
 

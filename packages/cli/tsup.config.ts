@@ -15,5 +15,5 @@ export default defineConfig({
   sourcemap: true,
   platform: "node",
   target: "es2022",
-  noExternal: ["@air-jam/devtools-core", "@air-jam/env"],
+  noExternal: ["@air-jam/env"],
 });

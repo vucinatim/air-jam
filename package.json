@@ -39,7 +39,7 @@
     "smoke:server": "pnpm --filter @air-jam/server test -- --run tests/game-lifecycle.integration.test.ts tests/routing-security.integration.test.ts",
     "playwright:install": "playwright install --with-deps chromium",
     "smoke:release": "pnpm smoke:server && pnpm test:scaffold",
-    "test": "pnpm test:repo-contracts && pnpm --filter @air-jam/env test && pnpm --filter @air-jam/harness test && pnpm --filter @air-jam/devtools-core test && pnpm --filter @air-jam/mcp-server test && pnpm --filter @air-jam/cli test && pnpm --filter @air-jam/server test && pnpm --filter @air-jam/sdk test && pnpm --filter create-airjam test && pnpm --workspace-concurrency=2 --filter \"./games/*\" --if-present run test --maxWorkers=2",
+    "test": "pnpm test:repo-contracts && pnpm --filter @air-jam/env test && pnpm --filter @air-jam/devtools test && pnpm --filter @air-jam/mcp-server test && pnpm --filter @air-jam/cli test && pnpm --filter @air-jam/server test && pnpm --filter @air-jam/sdk test && pnpm --filter create-airjam test && pnpm --workspace-concurrency=2 --filter \"./games/*\" --if-present run test --maxWorkers=2",
     "test:repo-contracts": "node scripts/ensure-workspace-package-build.mjs @air-jam/sdk && node --test scripts/repo/runtime/*.test.mjs",
     "test:scaffold": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke",
     "test:scaffold:registry": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:registry",
@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@air-jam/cli": "workspace:^",
-    "@air-jam/harness": "workspace:^",
+    "@air-jam/devtools": "workspace:^",
     "@air-jam/mcp-server": "workspace:^",
     "@air-jam/sdk": "workspace:^",
     "@air-jam/server": "workspace:^",

@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Page } from "playwright-core";
 import { describe, expect, it, vi } from "vitest";
-import { openVisualHarnessHostSession } from "../src/visual/session.js";
+import { openVisualHarnessHostSession } from "../../src/harness/visual/session.js";
 
 describe("visual harness session membership", () => {
   it("opens only the host surface until a controller surface is requested", async () => {

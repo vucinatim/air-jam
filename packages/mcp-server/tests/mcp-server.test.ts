@@ -108,7 +108,16 @@ it("reports the installed MCP package version", () => {
   expect(output.trim()).toBe(packageVersion);
 });
 
-it("ships every devtools helper used by the bundled MCP server", async () => {
+it("uses the installed devtools helpers without shipping duplicate copies", async () => {
+  const devtoolsDistribution = path.dirname(
+    fileURLToPath(
+      execFileSync(
+        process.execPath,
+        ["--input-type=module", "--eval", 'console.log(import.meta.resolve("@air-jam/devtools"))'],
+        { cwd: path.resolve(__dirname, ".."), encoding: "utf8" },
+      ).trim(),
+    ),
+  );
   for (const name of [
     "agent-contract",
     "hold-runtime-host",
@@ -117,8 +126,11 @@ it("ships every devtools helper used by the bundled MCP server", async () => {
     "run-visual-capture",
   ]) {
     await expect(
-      access(path.resolve(__dirname, `../dist/tooling/${name}.js`)),
+      access(path.join(devtoolsDistribution, "tooling", `${name}.js`)),
     ).resolves.toBeUndefined();
+    await expect(
+      access(path.resolve(__dirname, `../dist/tooling/${name}.js`)),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   }
 });
 

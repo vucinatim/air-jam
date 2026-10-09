@@ -13,25 +13,21 @@ import {
 } from "@air-jam/cli/development";
 import { readDocumentationSnapshot } from "@air-jam/cli/documentation";
 import { createAirJamViteConfig } from "@air-jam/cli/vite-config";
-import { inspectProject } from "@air-jam/devtools-core/context";
-import { listGames } from "@air-jam/devtools-core/games";
-import {
-  captureVisualsAtRuntime,
-  listVisualScenarios,
-} from "@air-jam/devtools-core/visual";
-import { EnvValidationError, validateEnv } from "@air-jam/env";
+import { inspectProject } from "@air-jam/devtools/context";
+import { listGames } from "@air-jam/devtools/games";
 import {
   capturePrefabAtRuntime,
   definePrefabCaptureHarness,
   loadPrefabCapture,
-} from "@air-jam/harness/visual";
+} from "@air-jam/devtools/harness/visual";
+import {
+  captureVisualsAtRuntime,
+  listVisualScenarios,
+} from "@air-jam/devtools/visual";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { z } from "zod";
-
-const schema = z.object({ PORT: z.coerce.number().int().positive() });
 const documentation = await readDocumentationSnapshot();
 assert.equal(documentation.documents.length, 16);
 assert.ok(
@@ -53,14 +49,6 @@ assert.equal(
     "/node_modules/zod/index.js",
   ),
   "airjam-sdk",
-);
-assert.deepEqual(
-  validateEnv({ boundary: "consumer", schema, env: { PORT: "3311" } }),
-  { PORT: 3311 },
-);
-assert.throws(
-  () => validateEnv({ boundary: "consumer", schema, env: { PORT: "invalid" } }),
-  EnvValidationError,
 );
 const prefabs = definePrefabCaptureHarness({
   gameId: "consumer",
@@ -189,7 +177,6 @@ const toolContract = JSON.parse(
 assert.ok(toolContract["standalone-game"].includes("airjam.open_game_session"));
 console.log(
   JSON.stringify({
-    environmentValidation: true,
     harnessContract: true,
     gameInspection: true,
     shippedHelperExecution: true,

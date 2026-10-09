@@ -22,7 +22,7 @@ const { build } = await import(
 const toolingRoot = path.join(
   repoRoot,
   "packages",
-  "devtools-core",
+  "devtools",
   "src",
   "tooling",
 );
@@ -48,12 +48,7 @@ await build({
   platform: "node",
   target: "es2022",
   external: ["cross-spawn", "playwright-core"],
-  noExternal: [
-    "@air-jam/devtools-core",
-    "@air-jam/harness",
-    "@air-jam/sdk",
-    "@air-jam/env",
-  ],
+  splitting: true,
 });
 
 for (const name of Object.keys(entries)) {

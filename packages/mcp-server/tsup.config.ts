@@ -8,7 +8,6 @@ export default defineConfig({
     config: "src/config.ts",
     server: "src/server.ts",
     tools: "src/tools.ts",
-    types: "src/types.ts",
   },
   format: ["esm"],
   dts: true,
@@ -18,8 +17,6 @@ export default defineConfig({
   splitting: false,
   target: "es2022",
   platform: "node",
-  external: ["cross-spawn", "socket.io-client", "yauzl", "yazl"],
-  noExternal: ["@air-jam/devtools-core"],
   onSuccess: async () => {
     const cliPath = "dist/cli.js";
     const content = await readFile(cliPath, "utf8");

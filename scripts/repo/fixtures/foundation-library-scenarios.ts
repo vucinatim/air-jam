@@ -1,4 +1,4 @@
-import { defineVisualScenarios } from "@air-jam/harness/visual";
+import { defineVisualScenarios } from "@air-jam/devtools/harness/visual";
 import { agent } from "./airjam.config.js";
 
 export const visualScenarios = defineVisualScenarios({

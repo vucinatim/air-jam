@@ -15,10 +15,6 @@ export default defineConfig({
         find: "@air-jam/sdk",
         replacement: path.resolve(__dirname, "../sdk/src/index.ts"),
       },
-      {
-        find: "@air-jam/harness",
-        replacement: path.resolve(__dirname, "../harness/src/index.ts"),
-      },
     ],
   },
   test: {

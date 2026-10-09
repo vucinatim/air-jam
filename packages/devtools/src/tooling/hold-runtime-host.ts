@@ -1,4 +1,10 @@
 import {
+  AIR_JAM_RUNTIME_INSPECTION_KEY,
+  readRuntimeInspectionContract,
+} from "@air-jam/sdk/runtime-inspection";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import {
   DEFAULT_CONTROLLER_VIEWPORT,
   DEFAULT_HOST_VIEWPORT,
   launchHarnessBrowser,
@@ -6,13 +12,7 @@ import {
   openVisualHarnessHostSession,
   type OpenVisualHarnessControllerSessionResult,
   type VisualHarnessMode,
-} from "@air-jam/harness/visual";
-import {
-  AIR_JAM_RUNTIME_INSPECTION_KEY,
-  readRuntimeInspectionContract,
-} from "@air-jam/sdk/runtime-inspection";
-import { mkdir } from "node:fs/promises";
-import path from "node:path";
+} from "../harness/visual.js";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,

@@ -58,7 +58,7 @@ Use the browser for:
 
 ## Capture Against an Existing Runtime
 
-`captureVisualsAtRuntime` from `@air-jam/devtools-core/visual` runs the same
+`captureVisualsAtRuntime` from `@air-jam/devtools/visual` runs the same
 game-owned scenarios as `captureVisuals`, without starting, attaching to or
 stopping the caller's runtime. Supply the game project `cwd`, its optional
 source `gameId`, resolved runtime `urls`, `mode` (`standalone-dev` or
@@ -74,9 +74,9 @@ that lifecycle.
 
 ## Isolated Prefab Capture
 
-The public `@air-jam/harness/visual` export owns prefab capture. Define
+The public `@air-jam/devtools/harness/visual` export owns prefab capture. Define
 `prefabCaptureHarness` in the game project's `visual/prefabs.ts` or
-`visual/prefabs.mjs`, using `definePrefabCaptureHarness`. Add `@air-jam/harness`
+`visual/prefabs.mjs`, using `definePrefabCaptureHarness`. Add `@air-jam/devtools`
 as a development dependency when the game imports that helper. Each definition chooses
 its capture id, prefab id, viewport, optional ready test id and host URL builder.
 These are trusted game-development modules, not a sandbox for uploaded code.

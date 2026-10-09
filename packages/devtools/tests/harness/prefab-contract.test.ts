@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { definePrefabCaptureHarness } from "../src/visual/prefab-contract";
+import { definePrefabCaptureHarness } from "../../src/harness/visual/prefab-contract";
 
 describe("definePrefabCaptureHarness", () => {
   it("preserves a game-owned prefab capture contract", () => {

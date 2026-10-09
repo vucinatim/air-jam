@@ -52,10 +52,9 @@ test("trusted publication rejects missing package names before any candidate mut
     () =>
       assertRegisteredPublicPackages([
         { name: "@air-jam/sdk", registered: true },
-        { name: "@air-jam/env", registered: false },
-        { name: "@air-jam/harness", registered: false },
+        { name: "@air-jam/devtools", registered: false },
       ]),
-    /existing npm packages: @air-jam\/env, @air-jam\/harness/u,
+    /existing npm packages: @air-jam\/devtools/u,
   );
   const source = fs.readFileSync(
     path.join(repoRoot, "scripts/repo/lib/public-release-candidate.mjs"),
@@ -269,9 +268,7 @@ test("public packages are ordered before packages that depend on them", () => {
     PUBLIC_PACKAGE_DEFINITIONS.map((entry) => entry.id),
     [
       "sdk",
-      "env",
-      "harness",
-      "devtools-core",
+      "devtools",
       "mcp-server",
       "cli",
       "server",

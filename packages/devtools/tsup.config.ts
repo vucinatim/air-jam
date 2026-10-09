@@ -3,6 +3,8 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: [
     "src/index.ts",
+    "src/harness/visual.ts",
+    "src/mcp-config.ts",
     "src/agent.ts",
     "src/context.ts",
     "src/dev.ts",
@@ -22,4 +24,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   target: "es2022",
+  platform: "node",
 });

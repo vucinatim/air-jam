@@ -47,7 +47,7 @@ It is designed for party games, couch multiplayer, installations, classroom game
 - `@air-jam/mcp-server` for agent and tooling integration
 - `create-airjam` for scaffolding new games from production templates
 - `@air-jam/cli` for project development, inspection and authoring contracts
-- `@air-jam/env`, `@air-jam/harness` and `@air-jam/devtools-core` for reusable creator tooling
+- `@air-jam/devtools` for shared authoring, inspection and evaluation tooling
 
 [airjam.io](https://airjam.io) is the separately operated product: hosted games,
 Arcade and Studio. Local framework development and self-hosted games do not need
@@ -88,9 +88,7 @@ The framework package family is:
 - `@air-jam/server`
 - `@air-jam/cli`
 - `@air-jam/mcp-server`
-- `@air-jam/env`
-- `@air-jam/harness`
-- `@air-jam/devtools-core`
+- `@air-jam/devtools`
 - `create-airjam`
 
 The separation checkout contains unpublished 0.9.3 candidates. Qualification of
@@ -143,9 +141,8 @@ packages/
   server/           standalone realtime server
   cli/              project CLI, AI pack and development contracts
   mcp-server/       semantic agent tools
-  env/              environment contracts
-  harness/          game inspection and evaluation
-  devtools-core/    shared creator tools
+  env/              internal environment validation helper
+  devtools/         shared authoring, inspection and evaluation tooling
   create-airjam/    game scaffolding
 content/docs/       creator documentation source
 ```

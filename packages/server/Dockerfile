@@ -12,8 +12,7 @@ COPY packages/cli/package.json ./packages/cli/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/env/package.json ./packages/env/
 COPY packages/server/package.json ./packages/server/
-COPY packages/harness/package.json ./packages/harness/
-COPY packages/devtools-core/package.json ./packages/devtools-core/
+COPY packages/devtools/package.json ./packages/devtools/
 COPY packages/create-airjam/package.json ./packages/create-airjam/
 COPY packages/mcp-server/package.json ./packages/mcp-server/
 COPY games/air-capture/package.json ./games/air-capture/

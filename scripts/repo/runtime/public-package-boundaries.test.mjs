@@ -55,7 +55,11 @@ test("the public workspace owns only the framework and reference games", () => {
     const manifestPath = path.join("packages", directory, "package.json");
     if (!fs.existsSync(path.join(repoRoot, manifestPath))) continue;
     const manifest = readJson(manifestPath);
-    assert.ok(publicPackages.has(manifest.name), manifestPath);
+    assert.ok(
+      publicPackages.has(manifest.name) ||
+        (manifest.name === "@air-jam/env" && manifest.private === true),
+      manifestPath,
+    );
     for (const section of [
       "dependencies",
       "devDependencies",
@@ -63,7 +67,11 @@ test("the public workspace owns only the framework and reference games", () => {
     ]) {
       for (const [name, specifier] of Object.entries(manifest[section] ?? {})) {
         if (specifier.startsWith("workspace:"))
-          assert.ok(publicPackages.has(name), `${manifest.name} -> ${name}`);
+          assert.ok(
+            publicPackages.has(name) ||
+              (name === "@air-jam/env" && section === "devDependencies"),
+            `${manifest.name} -> ${name}`,
+          );
       }
     }
   }
@@ -186,16 +194,27 @@ test("the canonical CLI participates in the public release set", () => {
   assert.match(releaseSource, /packages\/cli/u);
 });
 
-test("public agent hosts share one canonical devtools-helper build", () => {
+test("devtools owns helper builds and agent hosts consume the shared package", () => {
+  const devtools = readJson("packages/devtools/package.json");
+  assert.match(
+    devtools.scripts.build,
+    /scripts\/build-devtools-helpers\.mjs --out-dir dist\/tooling/u,
+  );
   for (const packagePath of [
     "packages/cli/package.json",
     "packages/mcp-server/package.json",
   ]) {
     const manifest = readJson(packagePath);
-    assert.match(
-      manifest.scripts.build,
-      /scripts\/build-devtools-helpers\.mjs --out-dir dist\/tooling/u,
-    );
+    assert.doesNotMatch(manifest.scripts.build, /build-devtools-helpers/u);
+    assert.equal(manifest.dependencies["@air-jam/devtools"], "workspace:*");
+    for (const dependency of [
+      "playwright-core",
+      "socket.io-client",
+      "tsx",
+      "yauzl",
+      "yazl",
+    ])
+      assert.equal(manifest.dependencies[dependency], undefined);
     assert.ok(manifest.files.includes("dist"));
   }
   assert.equal(
@@ -221,13 +240,22 @@ test("optional library packages do not become scaffold root dependencies", () =>
     "@air-jam/server",
     "create-airjam",
   ]);
-  for (const packageDirectory of ["env", "harness", "devtools-core"]) {
-    const manifest = readJson(`packages/${packageDirectory}/package.json`);
-    assert.equal(manifest.private, false);
-    assert.equal(manifest.version, resolvePublicPackages()[0].version);
-    assert.ok(manifest.exports["."]);
-    assert.ok(manifest.scripts.prepack);
-  }
+  const devtools = readJson("packages/devtools/package.json");
+  assert.equal(devtools.private, false);
+  assert.equal(devtools.version, resolvePublicPackages()[0].version);
+  assert.ok(devtools.exports["."]);
+  assert.ok(devtools.scripts.prepack);
+  assert.equal(readJson("packages/env/package.json").private, true);
+  assert.equal(resolvePublicPackages().length, 6);
+  assert.ok(
+    !resolvePublicPackages().some(
+      (entry) => entry.packageName === "@air-jam/env",
+    ),
+  );
+  for (const subpath of ["./harness/visual", "./mcp-config"])
+    assert.ok(devtools.exports[subpath]);
+  assert.equal(devtools.exports["./harness"], undefined);
+  assert.equal(devtools.exports["./mcp-config-types"], undefined);
 });
 
 test("the public server has no hosted product dependency or database implementation", () => {

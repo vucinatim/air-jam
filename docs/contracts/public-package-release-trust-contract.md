@@ -1,12 +1,12 @@
 # Public Package Release Trust Contract
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 Status: canonical 1.0 release contract
 
 ## Purpose
 
-An Air Jam public-package release is one immutable eight-package candidate. The
+An Air Jam public-package release is one immutable six-package candidate. The
 bytes that pass validation are the only bytes npm may receive. A release retry
 may reconcile already-completed external state, but it may not rebuild,
 silently replace, or partially redefine the candidate.
@@ -24,9 +24,10 @@ The release unit is the complete coordinated graph:
 3. `@air-jam/cli`
 4. `@air-jam/server`
 5. `create-airjam`
-6. `@air-jam/env`
-7. `@air-jam/harness`
-8. `@air-jam/devtools-core`
+6. `@air-jam/devtools`
+
+Devtools owns the Node authoring and evaluation harness, shared by CLI and MCP.
+Environment validation is an internal build helper, not a published package.
 
 All packages have one version. Partial package selection is not a supported
 release mode because it can expose a graph that Air Jam never validated as a
@@ -43,7 +44,7 @@ The canonical candidate creator must:
 4. pack every public package once
 5. record the exact source commit, toolchain, lockfile digest, public dependency
    graph, filenames, byte sizes, SHA-256 digests, and npm SHA-512 integrity
-6. install the eight retained tarballs together in an isolated consumer project
+6. install the six retained tarballs together in an isolated consumer project
    with lifecycle scripts disabled, then record the exact materialized
    production dependency and license inventory; registry metadata may fill a
    license only when an installed package manifest omits it
@@ -55,7 +56,7 @@ The canonical candidate creator must:
    from wall-clock metadata
 
 The candidate directory contains only the manifest, evidence documents, and
-the eight tarballs named by the manifest. Validation rejects missing, extra,
+the six tarballs named by the manifest. Validation rejects missing, extra,
 traversing, duplicate, or digest-mismatched files.
 
 The vulnerability query follows OSV's documented
@@ -161,32 +162,34 @@ the replacement candidate follows the normal path.
 ## External Configuration Checkpoint
 
 Before the first 1.0 prerelease, the maintainer must confirm npm trusted
-publishers for all eight packages name `publish-packages.yml` exactly. Enabling a
+publishers for all six packages name `publish-packages.yml` exactly. Enabling a
 GitHub deployment environment is a separate external configuration change and
 must not be added to the workflow until the matching npm trusted-publisher
 configuration exists.
 
 ### First publication of new package names
 
-Before running the privileged publish job, all eight names must already exist
+Before running the privileged publish job, all six names must already exist
 and have the matching trusted publisher. npm requires an existing package
 before [`npm trust`](https://docs.npmjs.com/cli/v11/commands/npm-trust/) can
 configure its publisher. Candidate creation may still qualify unpublished
 names locally; the apply-capable publisher checks the complete graph before
 making any registry mutation, so a missing name cannot leave a partial release.
 
-Registry inspection on 2026-10-09 returned 404 for `@air-jam/env`,
-`@air-jam/harness` and `@air-jam/devtools-core`. They are not reserved. First-name
-setup is an external checkpoint, not permission for a branch-based token
-publication. npm's [staged first-publication flow](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/)
+Registry inspection on October 10 confirms two names still need first-name
+setup: `@air-jam/cli` and the consolidated `@air-jam/devtools`.
+Do not register the superseded env, harness or devtools-core package names.
+First-name setup is an external checkpoint, not permission for a branch-based
+token publication. npm's [staged first-publication flow](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/)
 can establish a placeholder name before approval. Use reviewed package bytes
 and explicitly settle that setup flow before invoking the normal trusted
 release; do not publish another implementation or advance `latest` to reserve
 a name. Configure and read back each publisher for `vucinatim/air-jam` and
 `publish-packages.yml` before releasing the coordinated candidate.
 
-This checkpoint is still open. No package name, version, tag or publisher was
-changed during its inspection.
+This checkpoint is still open. CLI login and permission verification are restored;
+existing SDK, server, MCP and scaffolder publishers match the canonical workflow.
+No package name, version, tag or publisher was changed during inspection.
 
 ## Evidence Boundary
 

@@ -1,12 +1,12 @@
-import { inspectGameAgentContract } from "@air-jam/devtools-core/agent";
-import { inspectProject } from "@air-jam/devtools-core/context";
+import { inspectGameAgentContract } from "@air-jam/devtools/agent";
+import { inspectProject } from "@air-jam/devtools/context";
 import {
   getDevStatus,
   getTopology,
   resetLocalDev,
   startDev,
   stopDev,
-} from "@air-jam/devtools-core/dev";
+} from "@air-jam/devtools/dev";
 import {
   captureGameSessionVisuals,
   closeGameSession,
@@ -14,14 +14,14 @@ import {
   openGameSession,
   readGameSession,
   sendGameSessionInput,
-} from "@air-jam/devtools-core/game-session";
-import { inspectGame, listGames } from "@air-jam/devtools-core/games";
-import { readDevLogs } from "@air-jam/devtools-core/logs";
-import { getPlatformMachineAuthStatus } from "@air-jam/devtools-core/platform-auth";
+} from "@air-jam/devtools/game-session";
+import { inspectGame, listGames } from "@air-jam/devtools/games";
+import { readDevLogs } from "@air-jam/devtools/logs";
+import { getPlatformMachineAuthStatus } from "@air-jam/devtools/platform-auth";
 import {
   runCompleteEvaluation,
   runQualityGate,
-} from "@air-jam/devtools-core/quality";
+} from "@air-jam/devtools/quality";
 import {
   bundleLocalRelease,
   exportPlatformReleaseGeneration,
@@ -34,7 +34,7 @@ import {
   submitPlatformRelease,
   uploadPlatformReleaseGeneration,
   validateLocalRelease,
-} from "@air-jam/devtools-core/release";
+} from "@air-jam/devtools/release";
 import type { ToolExecution } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import toolContract from "../tool-contract.json" with { type: "json" };
@@ -525,7 +525,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.stop_dev": {
       description:
-        "Stop one or more Air Jam dev processes previously started by devtools-core.",
+        "Stop one or more Air Jam dev processes previously started by devtools.",
       inputSchema: STOP_DEV_INPUT_SCHEMA,
       run: async (input: z.infer<typeof STOP_DEV_INPUT_SCHEMA>) =>
         withJsonText(await stopDev(input)),

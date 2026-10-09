@@ -4,7 +4,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "private": false,
+  "private": true,
   "description": "Shared Air Jam environment parsing and validation helpers",
   "type": "module",
   "license": "MIT",

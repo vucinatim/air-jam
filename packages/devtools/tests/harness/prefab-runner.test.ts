@@ -32,14 +32,14 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../src/visual/session.js", () => ({
+vi.mock("../../src/harness/visual/session.js", () => ({
   launchHarnessBrowser: mocks.launch,
 }));
 
 import {
   capturePrefabAtRuntime,
   loadPrefabCapture,
-} from "../src/visual/prefab-runner";
+} from "../../src/harness/visual/prefab-runner";
 
 const roots: string[] = [];
 const fixture = (gameId = "fixture-game", captureId = "arena") => {

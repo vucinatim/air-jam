@@ -1,7 +1,7 @@
 import {
   capturePrefabAtRuntime,
   loadPrefabCapture,
-} from "@air-jam/harness/visual";
+} from "@air-jam/devtools/harness/visual";
 import { findRepoGame } from "../../workspace/lib/repo-games.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 import { startRepoVisualStack, VISUAL_ARTIFACT_ROOT } from "./core.js";

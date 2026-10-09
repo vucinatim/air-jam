@@ -1,10 +1,10 @@
-import type {
-  AnyAirJamAgentContract,
-  VisualScenarioPack,
-} from "@air-jam/harness/visual";
 import type { AirJamAgentContract, AirJamApp } from "@air-jam/sdk";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import type {
+  AnyAirJamAgentContract,
+  VisualScenarioPack,
+} from "../harness/visual.js";
 
 type AirJamConfigModule = {
   airjam?: AirJamApp;

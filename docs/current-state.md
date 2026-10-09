@@ -1,7 +1,7 @@
 # Current State
 
-Last updated: 2026-10-09
-Status: reviewed framework separation candidate
+Last updated: 2026-10-10
+Status: six-package consolidation passes local batch and isolated consumer proof; delivery pending
 
 The public framework is being separated from the private Air Jam product.
 The separation branches are pushed and under review, but neither is merged.
@@ -10,14 +10,27 @@ public-repository deployment.
 
 ## Framework boundary
 
-The eight-package foundation owns the SDK, standalone server, CLI, MCP,
-environment contracts, harness, creator tooling and scaffolder. Reference games
+The six-package foundation owns the SDK, standalone server, CLI, MCP,
+shared devtools and scaffolder. Devtools includes the evaluation harness;
+environment validation remains an internal helper. Reference games
 remain public. The normal `pnpm run dev` command starts a standalone game and
 server without product accounts, a database or provider credentials.
 
 The private product consumes exact candidate package archives. Explicit local
 attachment permits framework development without changing dependency manifests
 or lockfiles; it does not introduce a private SDK fork.
+
+The consolidated family passes `pnpm check:batch` and packed, isolated consumers
+for typed imports, real room/controller/state traffic, MCP discovery and shipped
+helper execution. All six archives install in the private product with exact
+integrity and packaged-content matching. These are local candidate results, not
+published-package or new-head CI evidence.
+
+The final canonicality pass cleared the corrected six-package export surface.
+The regenerated set `local-scaffold-20261009T233400Z-d2ce0d7e` passes isolated
+typed/runtime consumer checks; full typechecking/lint, 134 devtools tests,
+33 package/release/bootstrap contracts, 66 CLI tests and 14 MCP tests pass after
+the corrections. Published MCP configuration exports remain intact.
 
 Creator documentation has one public source. Its packaged MDX snapshot and AI
 pack serve the private website and external agents. Installed-artifact checks
@@ -27,9 +40,10 @@ history have a private owner; prior public snapshots remain recoverable in Git.
 ## Reviewed delivery
 
 [The public separation PR](https://github.com/vucinatim/air-jam/pull/114)
-passed CI and the six-cell Node and operating-system installation matrix.
-One independent Opus 5.5 review is recorded on GitHub. Its findings are being
-addressed before requalifying the updated artifacts.
+passed CI and the six-cell Node and operating-system installation matrix for
+the preceding eight-package candidate.
+One independent Opus 5.5 review is recorded on GitHub. Its code corrections
+were qualified; the new consolidation requires fresh artifact qualification.
 
 The paired private candidate passed its full CI, including isolated deployment
 image startup, schema readiness and platform, realtime and worker health.
@@ -47,8 +61,8 @@ transferred. The private separation plan owns that delivery evidence.
    journey before resuming feature development.
 
 The unfinished Studio branch is preserved on the private remote. No package
-publication, production source transfer, license change or Studio database
-migration has occurred during this separation.
+publication, production source transfer or Studio database migration has occurred
+during this separation. The public MIT license is unchanged.
 
 ## Delivery guard
 

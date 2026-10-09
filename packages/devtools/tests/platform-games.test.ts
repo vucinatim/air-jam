@@ -152,7 +152,10 @@ describe("platform game tooling", () => {
         );
       }
 
-      if (url === "https://platform.airjam.test/api/cli/games" && init?.method === "POST") {
+      if (
+        url === "https://platform.airjam.test/api/cli/games" &&
+        init?.method === "POST"
+      ) {
         expect(JSON.parse(String(init.body))).toMatchObject({
           name: "Minimal",
           slug: "minimal",

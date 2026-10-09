@@ -89,7 +89,7 @@ test("candidate provenance requires the exact packed integrity", () => {
 
 test("optional foundation libraries are checked when installed, including transitively", () => {
   const library = {
-    name: "@air-jam/harness",
+    name: "@air-jam/devtools",
     version: "0.9.3",
     integrity: candidateIntegrity,
   };
@@ -100,7 +100,7 @@ test("optional foundation libraries are checked when installed, including transi
     }),
   );
   const withLibrary = `${lockSource}
-  '@air-jam/harness@0.9.3':
+  '@air-jam/devtools@0.9.3':
     resolution:
       integrity: ${candidateIntegrity}
 `;
@@ -121,7 +121,7 @@ test("optional foundation libraries are checked when installed, including transi
   assert.throws(
     () =>
       assertInstalledCandidateIntegrity({
-        lockSource: withLibrary.replace("harness@0.9.3", "harness@0.9.2"),
+        lockSource: withLibrary.replace("devtools@0.9.3", "devtools@0.9.2"),
         packageArtifacts: [library],
       }),
     /no package entry/u,

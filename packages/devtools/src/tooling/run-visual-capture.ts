@@ -1,17 +1,17 @@
-import type {
-  AnyAirJamAgentContract,
-  VisualHarnessMode,
-  VisualScenarioAgent,
-  VisualScenarioAgentInvocation,
-  VisualScenarioPack,
-} from "@air-jam/harness/visual";
-import { runVisualHarness } from "@air-jam/harness/visual";
 import {
   closeGameSession,
   invokeGameSessionAction,
   openGameSession,
   readGameSession,
 } from "../game-session.js";
+import type {
+  AnyAirJamAgentContract,
+  VisualHarnessMode,
+  VisualScenarioAgent,
+  VisualScenarioAgentInvocation,
+  VisualScenarioPack,
+} from "../harness/visual.js";
+import { runVisualHarness } from "../harness/visual.js";
 import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {

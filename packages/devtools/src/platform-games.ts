@@ -2,23 +2,28 @@ import {
   airJamGameMetadataSchema,
   type AirJamGameMetadata,
 } from "@air-jam/sdk/metadata";
-import { createRequire } from "node:module";
-import { readFile } from "node:fs/promises";
 import {
   platformMachineCreateOwnedGameResultSchema,
   platformMachineGetOwnedGameResultSchema,
   platformMachineListOwnedGamesResultSchema,
   platformMachineUpdateOwnedGameResultSchema,
 } from "@air-jam/sdk/platform-machine";
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { findUp, pathExists, readJsonFile, readPackageJson } from "./fs-utils.js";
+import { runCommandResult } from "./commands.js";
+import {
+  findUp,
+  pathExists,
+  readJsonFile,
+  readPackageJson,
+} from "./fs-utils.js";
 import { inspectGame } from "./games.js";
 import {
   requestPlatformMachineApi,
   resolvePlatformMachineAuth,
 } from "./platform-auth.js";
-import { runCommandResult } from "./commands.js";
 import type {
   AirJamLocalHostedGameDefaults,
   CreatePlatformGameOptions,
@@ -44,7 +49,9 @@ const normalizeGithubRemoteUrl = (value: string): string | null => {
   }
 
   if (trimmed.startsWith("git@github.com:")) {
-    const repoPath = trimmed.slice("git@github.com:".length).replace(/\.git$/, "");
+    const repoPath = trimmed
+      .slice("git@github.com:".length)
+      .replace(/\.git$/, "");
     return repoPath ? `https://github.com/${repoPath}` : null;
   }
 
@@ -179,13 +186,7 @@ const loadGameMetadataFromConfig = async (
 
   const result = runCommandResult({
     command: process.execPath,
-    args: [
-      "--import",
-      tsxLoaderPath,
-      "--input-type=module",
-      "--eval",
-      script,
-    ],
+    args: ["--import", tsxLoaderPath, "--input-type=module", "--eval", script],
     cwd: path.dirname(configPath),
   });
 

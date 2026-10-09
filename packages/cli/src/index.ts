@@ -5,7 +5,7 @@ import {
   resetLocalDev,
   startDev,
   stopDev,
-} from "@air-jam/devtools-core/dev";
+} from "@air-jam/devtools/dev";
 import {
   AirJamPlatformApiError,
   AirJamStoredPlatformSessionError,
@@ -15,20 +15,20 @@ import {
   loginPlatformWithDeviceFlow,
   logoutPlatformMachineSession,
   readStoredPlatformMachineSession,
-} from "@air-jam/devtools-core/platform-auth";
+} from "@air-jam/devtools/platform-auth";
 import {
   archivePlatformGameMediaAsset,
   inspectPlatformGameMedia,
   uploadPlatformGameMediaFile,
-} from "@air-jam/devtools-core/platform-game-media";
+} from "@air-jam/devtools/platform-game-media";
 import {
   createPlatformGame,
   inspectPlatformGame,
   listPlatformGames,
   readLocalHostedGameDefaults,
   updatePlatformGame,
-} from "@air-jam/devtools-core/platform-games";
-import { runCompleteEvaluation } from "@air-jam/devtools-core/quality";
+} from "@air-jam/devtools/platform-games";
+import { runCompleteEvaluation } from "@air-jam/devtools/quality";
 import {
   bundleLocalRelease,
   exportPlatformReleaseGeneration,
@@ -42,9 +42,9 @@ import {
   uploadPlatformReleaseGeneration,
   validateLocalRelease,
   type AirJamLocalReleaseIssue,
-} from "@air-jam/devtools-core/release";
+} from "@air-jam/devtools/release";
 import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
-import { AIRJAM_PROJECT_MCP_FILE } from "@air-jam/mcp-server/config";
+import { AIRJAM_PROJECT_MCP_FILE } from "@air-jam/devtools/mcp-config";
 import { Command, type OptionValues } from "commander";
 import kleur from "kleur";
 import path from "node:path";

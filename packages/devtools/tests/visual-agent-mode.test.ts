@@ -1,6 +1,6 @@
-import type { RunVisualHarnessOptions } from "@air-jam/harness/visual";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { openGameSession } from "../src/game-session.js";
+import type { RunVisualHarnessOptions } from "../src/harness/visual.js";
 
 vi.mock("../src/game-session.js", () => ({
   openGameSession: vi.fn(async () => ({ gameSessionId: "fixture-session" })),
@@ -13,7 +13,7 @@ vi.mock("../src/tooling/visual-pack.js", () => ({
     scenarios: [],
   })),
 }));
-vi.mock("@air-jam/harness/visual", () => ({
+vi.mock("../src/harness/visual.js", () => ({
   runVisualHarness: vi.fn(async (options: RunVisualHarnessOptions) => {
     const session = await options.createAgentSession?.({
       gameId: options.gameId,
@@ -47,7 +47,9 @@ describe("visual helper semantic sessions", () => {
     "uses the capture runtime mode for semantic state (%s)",
     async (mode) => {
       vi.resetModules();
-      const exit = vi.spyOn(process, "exit").mockReturnValue(undefined as never);
+      const exit = vi
+        .spyOn(process, "exit")
+        .mockReturnValue(undefined as never);
       process.argv = [
         process.execPath,
         "run-visual-capture",

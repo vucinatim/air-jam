@@ -1,10 +1,10 @@
-import type { VisualHarnessPageSurface } from "@air-jam/harness/visual";
 import type { AirJamActionInvocationResult } from "@air-jam/sdk";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
   type HostRuntimeActionRequest,
   type HostRuntimeControl,
 } from "@air-jam/sdk/runtime-control";
+import type { VisualHarnessPageSurface } from "../harness/visual.js";
 
 /** Execute only in the game realm held by this browser owner, never its shell. */
 export const invokeOwnedHostAction = async (

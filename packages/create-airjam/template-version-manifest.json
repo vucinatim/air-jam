@@ -2,9 +2,7 @@
   "packageManager": "pnpm@9.9.0",
   "packages": {
     "@air-jam/sdk": "0.9.3",
-    "@air-jam/env": "0.9.3",
-    "@air-jam/harness": "0.9.3",
-    "@air-jam/devtools-core": "0.9.3",
+    "@air-jam/devtools": "0.9.3",
     "@air-jam/mcp-server": "0.9.3",
     "@air-jam/cli": "0.9.3",
     "@air-jam/server": "0.9.3",

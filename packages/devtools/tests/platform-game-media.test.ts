@@ -120,7 +120,10 @@ describe("platform game media tooling", () => {
         );
       }
 
-      if (url === "https://uploads.airjam.test/asset_1" && init?.method === "PUT") {
+      if (
+        url === "https://uploads.airjam.test/asset_1" &&
+        init?.method === "PUT"
+      ) {
         expect(init.body).toBeTruthy();
         return new Response(null, { status: 200 });
       }
@@ -165,7 +168,8 @@ describe("platform game media tooling", () => {
               updatedAt: "2026-05-03T12:12:00.000Z",
               activeAssetId: null,
               isActive: false,
-              publicUrl: "https://platform.airjam.test/media/g/game_1/thumbnail",
+              publicUrl:
+                "https://platform.airjam.test/media/g/game_1/thumbnail",
             },
           }),
           { status: 200 },
@@ -212,7 +216,8 @@ describe("platform game media tooling", () => {
               updatedAt: "2026-05-03T12:13:00.000Z",
               activeAssetId: "asset_1",
               isActive: true,
-              publicUrl: "https://platform.airjam.test/media/g/game_1/thumbnail",
+              publicUrl:
+                "https://platform.airjam.test/media/g/game_1/thumbnail",
             },
           }),
           { status: 200 },
@@ -259,7 +264,8 @@ describe("platform game media tooling", () => {
               updatedAt: "2026-05-03T12:14:00.000Z",
               activeAssetId: null,
               isActive: false,
-              publicUrl: "https://platform.airjam.test/media/g/game_1/thumbnail",
+              publicUrl:
+                "https://platform.airjam.test/media/g/game_1/thumbnail",
             },
           }),
           { status: 200 },

@@ -1,9 +1,9 @@
-import type { VisualHarnessPageSurface } from "@air-jam/harness/visual";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
   type HostRuntimeActionRequest,
 } from "@air-jam/sdk/runtime-control";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { VisualHarnessPageSurface } from "../src/harness/visual.js";
 import { invokeOwnedHostAction } from "../src/tooling/runtime-owner-actions.js";
 
 const request: HostRuntimeActionRequest = {

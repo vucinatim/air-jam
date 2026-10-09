@@ -44,7 +44,7 @@
     "tool-contract.json"
   ],
   "scripts": {
-    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools-core && tsup && node ../../scripts/build-devtools-helpers.mjs --out-dir dist/tooling",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools && tsup",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs",
     "test": "pnpm build && vitest run --config vitest.config.ts",
@@ -52,16 +52,11 @@
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/mcp-server && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@air-jam/devtools": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.1",
-    "cross-spawn": "^7.0.6",
-    "socket.io-client": "^4.8.3",
-    "tsx": "^4.20.6",
-    "yauzl": "^3.2.1",
-    "yazl": "^3.3.1",
     "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@air-jam/devtools-core": "workspace:^",
     "@types/node": "^24.10.1",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",

@@ -1,4 +1,4 @@
-import { detectProjectContext } from "@air-jam/devtools-core/context";
+import { detectProjectContext } from "@air-jam/devtools/context";
 import type {
   CreateTaskRequestHandlerExtra,
   TaskRequestHandlerExtra,
