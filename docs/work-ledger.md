@@ -44,3 +44,11 @@ the existing locked build helper for the MCP package itself; its build owns its
 devtools prerequisite. The cold package check passed after moving only its
 generated distribution into recoverable temporary storage. All 13 public package
 boundary tests pass. The failed CI run remains evidence, not a delivery pass.
+
+## 2026-10-09 Release candidate dependency audit correction
+
+The immutable candidate audit rejected pinned MCP SDK 1.30.0 for
+[GHSA-6qxp-vccf-f47h](https://github.com/advisories/GHSA-6qxp-vccf-f47h).
+The MCP dependency now pins patched 1.32.1 through pnpm's normal update, including
+the regenerated lock. All 14 MCP tests and its typecheck pass; release candidate
+auditing still needs its corrected CI run. No audit exception was introduced.

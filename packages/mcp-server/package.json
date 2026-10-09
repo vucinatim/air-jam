@@ -52,7 +52,7 @@
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/mcp-server && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "cross-spawn": "^7.0.6",
     "socket.io-client": "^4.8.3",
     "tsx": "^4.20.6",
