@@ -44,8 +44,11 @@ The initial batch and repaired test-stage logs remain in
 3. Restore the preserved Studio work on a private feature branch and qualify its
    complete journey before resuming feature development.
 
-No private GitHub repository, package publication, production source transfer,
-license change or Studio database migration has occurred in this separation.
+The approved private product repository `vucinatim/air-jam-platform` now exists
+and is connected locally. Its `main` contains the reviewed production baseline
+`263f0edf`; neither separation branch has been pushed. No package publication,
+production source transfer, license change or Studio database
+migration has occurred in this separation.
 
 ## Delivery guard
 
