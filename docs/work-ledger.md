@@ -52,3 +52,15 @@ The immutable candidate audit rejected pinned MCP SDK 1.30.0 for
 The MCP dependency now pins patched 1.32.1 through pnpm's normal update, including
 the regenerated lock. All 14 MCP tests and its typecheck pass; release candidate
 auditing still needs its corrected CI run. No audit exception was introduced.
+
+## 2026-10-09 Installation evidence corrected for optional libraries
+
+Cross-platform scaffolding passed discovery, development lifecycle and all
+quality checks, then failed its version inventory by requiring optional framework
+libraries at the project root. The inventory now derives its required set from
+the existing package ownership metadata. Required tools still fail when missing;
+optional-library candidate integrities remain checked when installed, and clean
+library consumers qualify their independent use. All 15 bootstrap/matrix tests
+pass. Controller bridge tests also wait for actual asynchronous effects instead
+of assuming a zero-delay timer delivers MessageChannel traffic; all six pass.
+Neither correction changes player runtime behavior or weakens release gates.

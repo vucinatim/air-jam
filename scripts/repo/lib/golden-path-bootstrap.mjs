@@ -474,10 +474,14 @@ const assertRegistrySafeProject = ({
   return packageJson;
 };
 
-const inspectInstalledAirJamVersions = (projectDir) => {
+export const inspectInstalledAirJamVersions = (projectDir) => {
   const versions = {};
   for (const packageName of candidatePackageNames) {
-    if (packageName === "create-airjam") continue;
+    if (
+      packageName === "create-airjam" ||
+      optionalScaffoldPackageNames.has(packageName)
+    )
+      continue;
     const packagePath = path.join(
       projectDir,
       "node_modules",
