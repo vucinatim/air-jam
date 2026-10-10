@@ -10,6 +10,7 @@ import {
   writeJsonAtomically,
 } from "../lib/public-install-matrix.mjs";
 import {
+  checkPublicReleaseVersionAvailability,
   createPublicReleaseCandidate,
   parsePublicReleaseRunId,
   publishPublicReleaseCandidate,
@@ -172,6 +173,20 @@ export const registerReleaseCommands = (program) => {
   const candidateCommand = releaseCommand
     .command("candidate")
     .description("Create and verify one immutable public package candidate");
+
+  candidateCommand
+    .command("check-versions")
+    .description(
+      "Require unpublished coordinated versions before a fresh release",
+    )
+    .option("--json", "Print stable JSON")
+    .action((options) => {
+      const result = checkPublicReleaseVersionAvailability();
+      if (options.json)
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else
+        console.log("Coordinated public versions are available for release.");
+    });
 
   candidateCommand
     .command("create")

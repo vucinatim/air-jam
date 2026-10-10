@@ -131,7 +131,7 @@ test("trusted publication rejects missing package names before any candidate mut
   assert.doesNotMatch(source, /\["view", name, "versions",/u);
 });
 
-test("candidate creation rejects any public version already present on npm", () => {
+test("fresh release eligibility rejects any public version already present on npm", () => {
   assert.doesNotThrow(() =>
     assertPublicVersionAvailability([
       { name: "@air-jam/sdk", version: "0.9.3", published: null },
@@ -151,18 +151,45 @@ test("candidate creation rejects any public version already present on npm", () 
   );
 });
 
-test("candidate creation checks registry availability before expensive gates", () => {
+test("fresh publication checks availability without blocking package qualification", () => {
+  const publication = parseYaml(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/publish-packages.yml"),
+      "utf8",
+    ),
+  );
+  const installation = parseYaml(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/public-install-matrix.yml"),
+      "utf8",
+    ),
+  );
+  const steps = publication.jobs.candidate.steps;
+  const availability = steps.findIndex((step) =>
+    step.run?.includes("candidate check-versions"),
+  );
+  const creation = steps.findIndex((step) =>
+    step.run?.includes("candidate create"),
+  );
+  assert.ok(availability >= 0 && availability < creation);
+  assert.equal(steps[availability].if, "inputs.candidate_run_id == ''");
+  assert.ok(
+    !installation.jobs.candidate.steps.some((step) =>
+      step.run?.includes("check-versions"),
+    ),
+  );
+  assert.equal(
+    installation.env.AIRJAM_RELEASE_NPM_VERSION,
+    publication.env.AIRJAM_RELEASE_NPM_VERSION,
+  );
   const source = fs.readFileSync(
     path.join(repoRoot, "scripts/repo/lib/public-release-candidate.mjs"),
     "utf8",
   );
-  const availabilityIndex = source.indexOf(
-    'onProgress("registry:version-availability")',
+  assert.doesNotMatch(
+    source.slice(source.indexOf("export const createPublicReleaseCandidate")),
+    /assertPublicPackageVersionsAvailable|registry:version-availability/u,
   );
-  const releaseGateIndex = source.indexOf('onProgress("gate:release-publish")');
-  assert.ok(availabilityIndex >= 0);
-  assert.ok(releaseGateIndex >= 0);
-  assert.ok(availabilityIndex < releaseGateIndex);
 });
 
 const createCandidateFixture = () => {

@@ -77,6 +77,10 @@ jobs:
       - name: Install repository dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Require unpublished versions for a new release
+        if: inputs.candidate_run_id == ''
+        run: pnpm --silent run repo -- release candidate check-versions --json
+
       - name: Create exact public release candidate
         if: inputs.candidate_run_id == ''
         run: >-

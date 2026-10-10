@@ -115,6 +115,13 @@ Registry ingestion may lag a successful upload; verification waits within one
 bounded ten-minute window after publishing the missing packages, without changing
 channel tags until the entire graph is visible with exact integrity and provenance.
 
+Candidate construction also serves installation qualification, including changes
+after a version has already been released. Only a fresh publication runs
+`repo release candidate check-versions` before construction; installation tests
+must not require unpublished versions. Both candidate-building workflows pin
+the same npm metadata contract. Publication still rejects any existing version
+whose bytes do not match its retained candidate.
+
 When the publisher itself needs repair, recover through the same workflow with
 `pnpm run repo -- release trigger --channel next --candidate-run-id <original-run>`.
 Recovery accepts only a completed failed main run of this first-party workflow

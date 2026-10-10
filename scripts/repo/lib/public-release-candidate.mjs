@@ -229,14 +229,17 @@ const isPublicPackageRegistered = (name) => {
   return visibility === "public";
 };
 
-const assertPublicPackageVersionsAvailable = (publicPackages) => {
-  assertPublicVersionAvailability(
-    publicPackages.map((pkg) => ({
-      name: pkg.packageName,
-      version: pkg.version,
-      published: readPublishedPackage(pkg.packageName, pkg.version),
-    })),
-  );
+export const checkPublicReleaseVersionAvailability = () => {
+  const observations = resolvePublicPackages().map((pkg) => ({
+    name: pkg.packageName,
+    version: pkg.version,
+    published: readPublishedPackage(pkg.packageName, pkg.version),
+  }));
+  assertPublicVersionAvailability(observations);
+  return {
+    ok: true,
+    packages: observations.map(({ name, version }) => ({ name, version })),
+  };
 };
 
 const resolveCleanCommit = () => {
@@ -792,8 +795,6 @@ export const createPublicReleaseCandidate = ({
 
   const commit = resolveCleanCommit();
   const publicPackages = resolvePublicPackages();
-  onProgress("registry:version-availability");
-  assertPublicPackageVersionsAvailable(publicPackages);
   const parent = path.dirname(output);
   fs.mkdirSync(parent, { recursive: true });
   const staging = path.join(
