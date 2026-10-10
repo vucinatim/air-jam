@@ -185,7 +185,7 @@ jobs:
       contents: read
       actions: read
     steps:
-      - name: Checkout exact candidate source
+      - name: Checkout exact verifier
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ github.sha }}
@@ -236,6 +236,9 @@ jobs:
   publish:
     name: Trusted publish exact bytes
     needs: [candidate, aggregate]
+    if: >-
+      !cancelled() && needs.candidate.result == 'success' &&
+      needs.aggregate.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -288,6 +291,9 @@ jobs:
   finalize:
     name: Tag and document verified release
     needs: [candidate, aggregate, publish]
+    if: >-
+      !cancelled() && needs.candidate.result == 'success' &&
+      needs.aggregate.result == 'success' && needs.publish.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

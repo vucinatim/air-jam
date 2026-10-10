@@ -172,7 +172,9 @@ export const recoverPublicReleaseCandidate = ({ runId, outputDirectory }) => {
 export const readNpmViewValue = (source) => {
   const documents = JSON.parse(source);
   if (!Array.isArray(documents) || documents.length !== 1) {
-    throw new Error("npm view must return exactly one JSON result.");
+    throw new Error(
+      "npm 12 view must return exactly one JSON result. Run release commands with npm 12.2.0.",
+    );
   }
   return documents[0];
 };

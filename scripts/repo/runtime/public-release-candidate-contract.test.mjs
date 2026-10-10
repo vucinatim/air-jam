@@ -465,6 +465,19 @@ test("publish workflow validates one candidate before privileged publication", (
   );
   assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
   assert.deepEqual(workflow.jobs.publish.needs, ["candidate", "aggregate"]);
+  assert.equal(
+    workflow.jobs.publish.if.replace(/\s+/gu, " ").trim(),
+    "!cancelled() && needs.candidate.result == 'success' && needs.aggregate.result == 'success'",
+  );
+  assert.deepEqual(workflow.jobs.finalize.needs, [
+    "candidate",
+    "aggregate",
+    "publish",
+  ]);
+  assert.equal(
+    workflow.jobs.finalize.if.replace(/\s+/gu, " ").trim(),
+    "!cancelled() && needs.candidate.result == 'success' && needs.aggregate.result == 'success' && needs.publish.result == 'success'",
+  );
   assert.equal(workflow.jobs.publish.permissions["id-token"], "write");
   assert.equal(workflow.jobs.publish.permissions.contents, "read");
   assert.equal(workflow.jobs.finalize.permissions.contents, "write");
