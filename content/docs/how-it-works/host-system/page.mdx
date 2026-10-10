@@ -1,6 +1,4 @@
-import { metadata } from "./page.docs";
 
-export { metadata };
 
 # Host System
 
@@ -12,7 +10,6 @@ The Air Jam host system manages game sessions and input routing. This page expla
 
 The simplest mode—your game connects directly to the Air Jam server.
 
-import { StandaloneHostDiagram } from "@/components/docs/figures/standalone-host-diagram";
 
 <StandaloneHostDiagram />
 
@@ -56,7 +53,6 @@ The important rule is:
 2. your game owns gameplay state
 3. the server owns room membership, focus routing, and runtime invariants
 
-import { ArcadeModeDiagram } from "@/components/docs/figures/arcade-mode-diagram";
 
 <ArcadeModeDiagram />
 
@@ -64,7 +60,6 @@ import { ArcadeModeDiagram } from "@/components/docs/figures/arcade-mode-diagram
 
 The server maintains authoritative control over which host receives controller inputs through a **focus** state:
 
-import { FocusSystemDiagram } from "@/components/docs/figures/focus-system-diagram";
 
 <FocusSystemDiagram />
 

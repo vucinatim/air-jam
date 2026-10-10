@@ -6,8 +6,8 @@ Status: current guide
 Related docs:
 
 1. [../contracts/ai-pack-manifest-contract.md](../contracts/ai-pack-manifest-contract.md)
-2. [../architecture/documentation-and-ai-pack-architecture.md](../architecture/documentation-and-ai-pack-architecture.md)
-3. [../architecture/platform-docs-surface-architecture.md](../architecture/platform-docs-surface-architecture.md)
+2. [Creator documentation ownership](../docs-index.md#creator-and-contributor-guides)
+3. [Public package release trust](../contracts/public-package-release-trust-contract.md)
 
 ## Purpose
 

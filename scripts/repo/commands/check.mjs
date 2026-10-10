@@ -18,10 +18,14 @@ const nullSeparated = (value) => value.split("\0").filter(Boolean);
 const collectChangedFiles = (base) => {
   const mergeBase = gitOutput(["merge-base", base, "HEAD"]);
   const groups = [
-    nullSeparated(gitOutput(["diff", "--name-only", "-z", `${mergeBase}..HEAD`])),
+    nullSeparated(
+      gitOutput(["diff", "--name-only", "-z", `${mergeBase}..HEAD`]),
+    ),
     nullSeparated(gitOutput(["diff", "--name-only", "-z"])),
     nullSeparated(gitOutput(["diff", "--cached", "--name-only", "-z"])),
-    nullSeparated(gitOutput(["ls-files", "--others", "--exclude-standard", "-z"])),
+    nullSeparated(
+      gitOutput(["ls-files", "--others", "--exclude-standard", "-z"]),
+    ),
   ];
 
   return {
@@ -46,7 +50,10 @@ const runInstant = async (plan, mergeBase) => {
 
   const syntaxResults = await Promise.all(
     plan.instant.nodeSyntaxFiles.map((file) =>
-      runCommandCaptured(process.execPath, ["--check", path.join(repoRoot, file)]),
+      runCommandCaptured(process.execPath, [
+        "--check",
+        path.join(repoRoot, file),
+      ]),
     ),
   );
 
@@ -56,42 +63,17 @@ const runInstant = async (plan, mergeBase) => {
   };
 };
 
-const lintTasks = (files) => {
-  const executable = path.join(repoRoot, "node_modules/.bin/eslint");
-  const platformPrefix = "apps/platform/";
-  const platformFiles = files
-    .filter((file) => file.startsWith(platformPrefix))
-    .map((file) => file.slice(platformPrefix.length));
-  const rootFiles = files.filter((file) => !file.startsWith(platformPrefix));
-  const tasks = [];
-
-  if (rootFiles.length > 0) {
-    tasks.push(
-      runCommandCaptured(executable, [
-        ...rootFiles,
-        "--cache",
-        "--cache-location",
-        path.join(cacheRoot, "eslint-root"),
-      ]),
-    );
-  }
-  if (platformFiles.length > 0) {
-    tasks.push(
-      runCommandCaptured(
-        executable,
-        [
-          ...platformFiles,
+const lintTasks = (files) =>
+  files.length === 0
+    ? []
+    : [
+        runCommandCaptured(path.join(repoRoot, "node_modules/.bin/eslint"), [
+          ...files,
           "--cache",
           "--cache-location",
-          path.join(cacheRoot, "eslint-platform"),
-        ],
-        { cwd: path.join(repoRoot, "apps/platform") },
-      ),
-    );
-  }
-
-  return tasks;
-};
+          path.join(cacheRoot, "eslint-root"),
+        ]),
+      ];
 
 const typecheckTasks = (projects) => {
   const executable = path.join(repoRoot, "node_modules/.bin/tsc");
@@ -126,7 +108,9 @@ const emitResult = (result, json) => {
 
 const emitPlan = (plan, json) => {
   if (json) {
-    process.stdout.write(`${JSON.stringify({ tier: "plan", ...plan }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ tier: "plan", ...plan }, null, 2)}\n`,
+    );
     return;
   }
 
@@ -156,7 +140,9 @@ const normalizeSelectedFiles = (files) =>
       try {
         gitOutput(["ls-files", "--error-unmatch", "--", repositoryPath]);
       } catch {
-        throw new Error(`--files path does not exist or belong to Git: ${file}`);
+        throw new Error(
+          `--files path does not exist or belong to Git: ${file}`,
+        );
       }
     }
     return repositoryPath;
@@ -176,7 +162,9 @@ const preparePlan = (base, selectedFiles) => {
   return {
     base,
     mergeBase: changed.mergeBase,
-    ...buildChangedCheckPlan(normalizeSelectedFiles(selectedFiles) ?? changed.files),
+    ...buildChangedCheckPlan(
+      normalizeSelectedFiles(selectedFiles) ?? changed.files,
+    ),
   };
 };
 
@@ -237,7 +225,7 @@ const runChangedCommand = async (options) => {
 
 const runBatch = () => {
   const stages = [
-    ["pnpm", ["--silent", "run", "repo", "--", "platform", "generated", "check"]],
+    ["pnpm", ["--filter", "@air-jam/cli", "ai-pack:check"]],
     ["pnpm", ["typecheck"]],
     ["pnpm", ["lint"]],
     ["pnpm", ["guard:canonical"]],
@@ -256,29 +244,58 @@ export const registerCheckCommands = (program) => {
   checkCommand
     .command("plan")
     .description("Inspect the changed-file check plan without running it")
-    .option("--base <ref>", "Git ref used to find committed branch changes", "origin/main")
-    .option("--files <paths...>", "Limit an in-between check to explicit repository files")
+    .option(
+      "--base <ref>",
+      "Git ref used to find committed branch changes",
+      "origin/main",
+    )
+    .option(
+      "--files <paths...>",
+      "Limit an in-between check to explicit repository files",
+    )
     .option("--json", "Print stdout-only JSON")
-    .action((options) => emitPlan(preparePlan(options.base, options.files), options.json));
+    .action((options) =>
+      emitPlan(preparePlan(options.base, options.files), options.json),
+    );
 
   checkCommand
     .command("instant")
-    .description("Run diff, JSON, and JavaScript syntax checks; warm target <=1s")
-    .option("--base <ref>", "Git ref used to find committed branch changes", "origin/main")
-    .option("--files <paths...>", "Limit an in-between check to explicit repository files")
+    .description(
+      "Run diff, JSON, and JavaScript syntax checks; warm target <=1s",
+    )
+    .option(
+      "--base <ref>",
+      "Git ref used to find committed branch changes",
+      "origin/main",
+    )
+    .option(
+      "--files <paths...>",
+      "Limit an in-between check to explicit repository files",
+    )
     .option("--json", "Print stdout-only JSON")
     .action(handleAsyncAction(runInstantCommand));
 
   checkCommand
     .command("changed")
-    .description("Run cached lint and affected TypeScript checks; warm target <=5s")
-    .option("--base <ref>", "Git ref used to find committed branch changes", "origin/main")
-    .option("--files <paths...>", "Limit an in-between check to explicit repository files")
+    .description(
+      "Run cached lint and affected TypeScript checks; warm target <=5s",
+    )
+    .option(
+      "--base <ref>",
+      "Git ref used to find committed branch changes",
+      "origin/main",
+    )
+    .option(
+      "--files <paths...>",
+      "Limit an in-between check to explicit repository files",
+    )
     .option("--json", "Print stdout-only JSON")
     .action(handleAsyncAction(runChangedCommand));
 
   checkCommand
     .command("batch")
-    .description("Run the slower type, lint, guard, and test gate for substantial batches")
+    .description(
+      "Run the slower type, lint, guard, and test gate for substantial batches",
+    )
     .action(runBatch);
 };

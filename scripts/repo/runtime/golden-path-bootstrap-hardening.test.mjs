@@ -8,6 +8,7 @@ import { acquireWorkspaceBuildLock } from "../../ensure-workspace-package-build.
 import { verifyMcpStdioHandshake } from "../../lib/mcp-stdio-handshake.mjs";
 import {
   assertInstalledCandidateIntegrity,
+  inspectInstalledAirJamVersions,
   resolveGoldenPathTemporaryRoot,
   warmCandidateRegistryDependencies,
 } from "../lib/golden-path-bootstrap.mjs";
@@ -26,6 +27,35 @@ packages:
     resolution:
       integrity: ${candidateIntegrity}
 `;
+
+test("scaffold version inspection requires direct tools, not optional library root links", (context) => {
+  const projectRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "airjam-scaffold-versions-"),
+  );
+  context.after(() => fs.rmSync(projectRoot, { recursive: true, force: true }));
+  const names = [
+    "@air-jam/sdk",
+    "@air-jam/mcp-server",
+    "@air-jam/cli",
+    "@air-jam/server",
+  ];
+  for (const name of names) {
+    const directory = path.join(projectRoot, "node_modules", name);
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(
+      path.join(directory, "package.json"),
+      JSON.stringify({ name, version: "0.9.3" }),
+    );
+  }
+  assert.deepEqual(
+    inspectInstalledAirJamVersions(projectRoot),
+    Object.fromEntries(names.map((name) => [name, "0.9.3"])),
+  );
+  fs.unlinkSync(
+    path.join(projectRoot, "node_modules/@air-jam/mcp-server/package.json"),
+  );
+  assert.throws(() => inspectInstalledAirJamVersions(projectRoot), /ENOENT/u);
+});
 
 test("candidate provenance requires the exact packed integrity", () => {
   assert.doesNotThrow(() =>
@@ -54,6 +84,47 @@ test("candidate provenance requires the exact packed integrity", () => {
         ],
       }),
     /does not match the packed candidate/u,
+  );
+});
+
+test("optional foundation libraries are checked when installed, including transitively", () => {
+  const library = {
+    name: "@air-jam/devtools",
+    version: "0.9.3",
+    integrity: candidateIntegrity,
+  };
+  assert.doesNotThrow(() =>
+    assertInstalledCandidateIntegrity({
+      lockSource,
+      packageArtifacts: [library],
+    }),
+  );
+  const withLibrary = `${lockSource}
+  '@air-jam/devtools@0.9.3':
+    resolution:
+      integrity: ${candidateIntegrity}
+`;
+  assert.doesNotThrow(() =>
+    assertInstalledCandidateIntegrity({
+      lockSource: withLibrary,
+      packageArtifacts: [library],
+    }),
+  );
+  assert.throws(
+    () =>
+      assertInstalledCandidateIntegrity({
+        lockSource: withLibrary,
+        packageArtifacts: [{ ...library, integrity: "sha512-wrong" }],
+      }),
+    /does not match the packed candidate/u,
+  );
+  assert.throws(
+    () =>
+      assertInstalledCandidateIntegrity({
+        lockSource: withLibrary.replace("devtools@0.9.3", "devtools@0.9.2"),
+        packageArtifacts: [library],
+      }),
+    /no package entry/u,
   );
 });
 

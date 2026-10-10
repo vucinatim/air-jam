@@ -1,7 +1,7 @@
 import {
   AIRJAM_PROJECT_MCP_FILE,
   createProjectLocalMcpConfig,
-} from "@air-jam/mcp-server/config";
+} from "@air-jam/devtools/mcp-config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 

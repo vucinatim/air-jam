@@ -1,4 +1,4 @@
-import { buildLaunchLoadArgs, buildPerfSanityArgs } from "../lib/perf-plan.mjs";
+import { buildPerfSanityArgs } from "../lib/perf-plan.mjs";
 import { runCommand } from "../lib/shell.mjs";
 
 export const registerPerfCommands = (program) => {
@@ -23,32 +23,6 @@ export const registerPerfCommands = (program) => {
     .option("--strict", "Fail on threshold violations")
     .action((options) => {
       runCommand("pnpm", buildPerfSanityArgs(options));
-    });
-
-  perfCommand
-    .command("launch-load")
-    .description(
-      "Rehearse launch load against an isolated local runtime and database",
-    )
-    .option(
-      "--profile <profile>",
-      "Rehearsal profile: smoke or release",
-      "smoke",
-    )
-    .option(
-      "--output <path>",
-      "Evidence output path (default: new .airjam/launch-load run directory)",
-    )
-    .option(
-      "--json",
-      "Print only the final machine-readable document to stdout",
-    )
-    .addHelpText(
-      "after",
-      "\nCreates and disposes a new loopback database from AIR_JAM_TEST_DATABASE_URL. Never uses a production target.",
-    )
-    .action((options) => {
-      runCommand("pnpm", buildLaunchLoadArgs(options));
     });
 
   return perfCommand;

@@ -10,45 +10,26 @@ let workspaceRuntimePromise;
 const loadWorkspaceRuntime = () => {
   workspaceRuntimePromise ??= (async () => {
     await ensureWorkspacePackageBuild("@air-jam/sdk");
-
-    const [arcadeTest, dev, secureInit, topology] = await Promise.all([
-      import("../../workspace/commands/arcade-test.mjs"),
+    const [dev, secureInit, topology] = await Promise.all([
       import("../../workspace/commands/dev.mjs"),
       import("../../workspace/commands/secure-init.mjs"),
       import("../../workspace/commands/topology.mjs"),
     ]);
-
-    return {
-      runWorkspaceArcadeTestCommand: arcadeTest.runWorkspaceArcadeTestCommand,
-      runWorkspaceArcadeDevCommand: dev.runWorkspaceArcadeDevCommand,
-      runWorkspaceStandaloneDevCommand: dev.runWorkspaceStandaloneDevCommand,
-      runWorkspaceSecureInitCommand: secureInit.runWorkspaceSecureInitCommand,
-      runWorkspaceTopologyCommand: topology.runWorkspaceTopologyCommand,
-    };
+    return { ...dev, ...secureInit, ...topology };
   })();
-
   return workspaceRuntimePromise;
-};
-
-const formatAvailableGames = () => {
-  const lines = loadRepoGames().map((game) => `  - ${game.id}`);
-  return ["", "Available games:", ...lines].join("\n");
 };
 
 export const registerWorkspaceCommands = (program) => {
   const workspaceCommand = program
     .command("workspace")
-    .description("Monorepo runtime and orchestration commands");
+    .description("Standalone framework development and inspection");
 
   workspaceCommand
     .command("standalone:dev")
     .description("Start live standalone workspace dev for one repo game")
     .option("--game <id>", "Repo game to launch", defaultWorkspaceGameId)
-    .option(
-      "--secure",
-      "Run standalone live dev over trusted local HTTPS",
-      false,
-    )
+    .option("--secure", "Use trusted local HTTPS", false)
     .action(async (options) => {
       const { runWorkspaceStandaloneDevCommand } = await loadWorkspaceRuntime();
       await runWorkspaceStandaloneDevCommand({
@@ -58,60 +39,14 @@ export const registerWorkspaceCommands = (program) => {
     });
 
   workspaceCommand
-    .command("arcade:dev")
-    .description("Start live Arcade workspace dev for one repo game")
-    .option(
-      "--game <id>",
-      "Repo game to launch in Arcade",
-      defaultWorkspaceGameId,
-    )
-    .option("--secure", "Run live Arcade dev over trusted local HTTPS", false)
-    .option(
-      "--db-studio",
-      "Also start Drizzle Studio for the platform database",
-      false,
-    )
-    .action(async (options) => {
-      const { runWorkspaceArcadeDevCommand } = await loadWorkspaceRuntime();
-      await runWorkspaceArcadeDevCommand({
-        gameId: options.game,
-        secure: options.secure,
-        startDbStudio: options.dbStudio,
-      });
-    });
-
-  workspaceCommand
-    .command("arcade:test")
-    .description(
-      "Run the stable built local Arcade integration stack for one repo game",
-    )
-    .option(
-      "--game <id>",
-      "Repo game to validate in Arcade",
-      defaultWorkspaceGameId,
-    )
-    .option(
-      "--secure",
-      "Run the Arcade integration stack over trusted local HTTPS",
-      false,
-    )
-    .action(async (options) => {
-      const { runWorkspaceArcadeTestCommand } = await loadWorkspaceRuntime();
-      await runWorkspaceArcadeTestCommand({
-        gameId: options.game,
-        secure: options.secure,
-      });
-    });
-
-  workspaceCommand
     .command("topology")
-    .description("Print the resolved runtime topology for a repo game mode")
+    .description("Print the resolved public game runtime topology")
     .option("--game <id>", "Repo game to inspect", defaultWorkspaceGameId)
     .requiredOption(
       "--mode <mode>",
-      "Topology mode to inspect (standalone-dev, arcade-live, arcade-built)",
+      "standalone-dev, self-hosted-production or hosted-release",
     )
-    .option("--secure", "Resolve the topology using trusted local HTTPS", false)
+    .option("--secure", "Resolve trusted local HTTPS", false)
     .action(async (options) => {
       const { runWorkspaceTopologyCommand } = await loadWorkspaceRuntime();
       await runWorkspaceTopologyCommand({
@@ -123,51 +58,33 @@ export const registerWorkspaceCommands = (program) => {
 
   workspaceCommand
     .command("secure:init")
-    .description(
-      "Initialize trusted local HTTPS for secure Arcade and standalone game testing",
-    )
+    .description("Initialize trusted local HTTPS for game testing")
     .option("--mode <mode>", "Secure mode to configure (local or tunnel)")
     .option("--hostname <hostname>", "Tunnel hostname for secure tunnel mode")
     .option("--tunnel <name>", "Cloudflare tunnel name for secure tunnel mode")
     .action(async (options) => {
       const { runWorkspaceSecureInitCommand } = await loadWorkspaceRuntime();
-      const argv = [];
-      if (options.mode) {
-        argv.push("--mode", options.mode);
-      }
-      if (options.hostname) {
-        argv.push("--hostname", options.hostname);
-      }
-      if (options.tunnel) {
-        argv.push("--tunnel", options.tunnel);
-      }
+      const argv = ["mode", "hostname", "tunnel"].flatMap((name) =>
+        options[name] ? [`--${name}`, options[name]] : [],
+      );
       await runWorkspaceSecureInitCommand({ argv });
     });
 
   workspaceCommand
     .command("service <target>")
-    .description("Run a single workspace service directly")
-    .addHelpText("after", "\nTargets:\n  - server\n  - platform")
+    .description("Run the standalone room server directly")
     .action((target) => {
-      if (target === "server") {
-        runCommand("pnpm", ["--filter", "server", "dev"]);
-        return;
-      }
-
-      if (target === "platform") {
-        runCommand("pnpm", ["--filter", "platform", "dev"]);
-        return;
-      }
-
-      throw new Error(`Unknown service target "${target}".`);
+      if (target !== "server")
+        throw new Error(`Unknown service target "${target}".`);
+      runCommand("pnpm", ["--filter", "@air-jam/server", "dev"]);
     });
 
   workspaceCommand
     .command("logs")
-    .description("Stream the Air Jam server development logs")
+    .description("Stream unified game and server development logs")
     .allowUnknownOption(true)
     .allowExcessArguments(true)
-    .argument("[logArgs...]", "Arguments to forward to air-jam-server logs")
+    .argument("[logArgs...]", "Arguments forwarded to air-jam-server logs")
     .action((logArgs = []) => {
       runCommand("pnpm", [
         "--filter",
@@ -180,21 +97,11 @@ export const registerWorkspaceCommands = (program) => {
       ]);
     });
 
-  const analyticsCommand = workspaceCommand
-    .command("analytics")
-    .description("Workspace analytics maintenance");
-
-  analyticsCommand
-    .command("rebuild")
-    .description("Rebuild analytics state for the Air Jam server")
-    .action(() => {
-      runCommand("pnpm", ["--filter", "@air-jam/server", "analytics:rebuild"]);
-    });
-
-  workspaceCommand.addHelpText?.(
+  workspaceCommand.addHelpText(
     "afterAll",
-    `\nNotes:\n  - Use \`pnpm standalone:dev --game=<id>\` for live standalone workspace dev.\n  - Use \`pnpm arcade:dev --game=<id>\` for live Arcade workspace dev.\n  - Use \`pnpm arcade:test --game=<id>\` for built local Arcade validation.\n  - Use \`pnpm arcade:test --game=<id> --secure\` for secure built Arcade validation.\n  - Use \`pnpm topology --game=<id> --mode=<mode>\` to inspect resolved repo topologies.\n  - Use \`pnpm logs --view=signal\` for the canonical repo log reader.\n  - Use \`cd games/<id> && pnpm dev -- --secure\` for standalone secure game dev in scaffolded or game-local projects.\n${formatAvailableGames()}`,
+    `\nUse pnpm run dev -- --game=<id> for standalone game development.\nAvailable games:\n${loadRepoGames()
+      .map((game) => `  - ${game.id}`)
+      .join("\n")}`,
   );
-
   return workspaceCommand;
 };

@@ -21,13 +21,13 @@ test("the fast check contract keeps explicit warm latency budgets", () => {
 });
 
 test("a focused source edit selects lint and only its TypeScript project", () => {
-  const plan = buildChangedCheckPlan(["packages/database-contract/src/index.ts"], {
-    projects: ["apps/platform", "packages/database-contract"],
+  const plan = buildChangedCheckPlan(["packages/env/src/index.ts"], {
+    projects: ["packages/env"],
     fileExists: () => true,
   });
 
-  assert.deepEqual(plan.changed.lintFiles, ["packages/database-contract/src/index.ts"]);
-  assert.deepEqual(plan.changed.typecheckProjects, ["packages/database-contract"]);
+  assert.deepEqual(plan.changed.lintFiles, ["packages/env/src/index.ts"]);
+  assert.deepEqual(plan.changed.typecheckProjects, ["packages/env"]);
   assert.equal(plan.batchRequired, false);
 });
 
@@ -53,10 +53,13 @@ test("a project tsconfig change selects that project typecheck", () => {
 });
 
 test("a test edit selects the nearest test-owned TypeScript project", () => {
-  const plan = buildChangedCheckPlan(["packages/sdk/tests/agent-contract.test.ts"], {
-    projects: ["packages/sdk/tests", "packages/sdk"],
-    fileExists: () => true,
-  });
+  const plan = buildChangedCheckPlan(
+    ["packages/sdk/tests/agent-contract.test.ts"],
+    {
+      projects: ["packages/sdk/tests", "packages/sdk"],
+      fileExists: () => true,
+    },
+  );
 
   assert.deepEqual(plan.changed.typecheckProjects, ["packages/sdk/tests"]);
   assert.equal(plan.batchRequired, false);
@@ -84,7 +87,13 @@ test("public SDK source changes escalate to consumer-compatible batch proof", ()
 test("explicit unknown files fail without a raw stack trace", () => {
   const result = spawnSync(
     process.execPath,
-    ["scripts/repo/cli.mjs", "check", "changed", "--files", "not-a-real-file.ts"],
+    [
+      "scripts/repo/cli.mjs",
+      "check",
+      "changed",
+      "--files",
+      "not-a-real-file.ts",
+    ],
     { encoding: "utf8" },
   );
 

@@ -57,8 +57,8 @@
     {
       "path": "docs/airjam/generated/architecture.md",
       "kind": "docs-generated",
-      "size": 7230,
-      "sha256": "6f492a36445ea6e84320bc30ca3314a376a83b074a2452243c5a6647f52665ef"
+      "size": 7115,
+      "sha256": "1cbd763c55f77bc4bd0fb00605fd718daa63b8638c17313d12a1468f508fdf73"
     },
     {
       "path": "docs/airjam/generated/controller-ui.md",
@@ -79,6 +79,12 @@
       "sha256": "fca62f1760b114bc62c6afa981da0107abafce7ce251adc3e38ae4d35b68432e"
     },
     {
+      "path": "docs/airjam/generated/game-ideas.md",
+      "kind": "docs-generated",
+      "size": 3034,
+      "sha256": "e7ac9abc839ab21544e0cfa0075d353591cb277d5dbd65b121010c965e90f62e"
+    },
+    {
       "path": "docs/airjam/generated/host-system.md",
       "kind": "docs-generated",
       "size": 9618,
@@ -97,6 +103,12 @@
       "sha256": "f6b2220d39b2a72e736f0f757ba01c948f09ae9063c98c202ec5bbe9ec749d58"
     },
     {
+      "path": "docs/airjam/generated/migrating-legacy-games.md",
+      "kind": "docs-generated",
+      "size": 11763,
+      "sha256": "dadd93324cd6a1543f4d86124b44f6c7eb84333ae476a1d2026318e19ebeacdf"
+    },
+    {
       "path": "docs/airjam/generated/networked-state.md",
       "kind": "docs-generated",
       "size": 7057,
@@ -111,8 +123,8 @@
     {
       "path": "docs/airjam/generated/quick-start.md",
       "kind": "docs-generated",
-      "size": 12077,
-      "sha256": "796c23803757ecd526472b2c2a892e1f0d4e0763a270dd83a9d41064a80b851d"
+      "size": 12468,
+      "sha256": "52b9bdf13249976162d266ed895a606e4ff5df34749cf97c51357f9efdb52d08"
     },
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
@@ -125,6 +137,12 @@
       "kind": "docs-generated",
       "size": 3176,
       "sha256": "c9e52a44c5f865db217a5bb538d0ee64b82ef342c78bc85acc830c488e3c8198"
+    },
+    {
+      "path": "docs/airjam/generated/ui-components.md",
+      "kind": "docs-generated",
+      "size": 5410,
+      "sha256": "4f01e900e2a2abdded844b3ba71ff872a277aeff3a425b359496a65bddd1301f"
     },
     {
       "path": "docs/airjam/generated/unified-dev-logs.md",
@@ -169,5 +187,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "770132004bf5c171bdfb855f2bd47d6b22cf113a98507d2437d46e5c7e33be1e"
+  "contentDigest": "d5e870a50333e7ce47e53aad9348a78c0e9bf5a7337ca0287991778cb704c835"
 }

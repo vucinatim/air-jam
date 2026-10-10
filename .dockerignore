@@ -1,6 +1,6 @@
 # Keep the Docker build context small. Everything in here is excluded
 # before the build daemon sees the repo. Without this, the root
-# node_modules alone is ~1.7 GB and every Railway build re-uploads it.
+# node_modules alone is large and would be uploaded on every image build.
 
 # Dependencies (re-installed inside the image)
 **/node_modules
@@ -49,8 +49,7 @@ backups
 **/.env.local
 
 # Repo governance files that no build step reads.
-# (Do NOT add *.md here — docs/*.md feeds the platform's AI pack
-# generator and content/**/*.mdx feeds the docs/blog routes.)
+# Package Markdown can be part of a published package; do not exclude *.md.
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 SECURITY.md

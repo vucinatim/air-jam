@@ -6,8 +6,6 @@
     "watchPatterns": [
       "/packages/server/**",
       "/packages/sdk/**",
-      "/packages/devtools-core/**",
-      "/packages/harness/**",
       "/packages/env/**",
       "/package.json",
       "/pnpm-lock.yaml",
@@ -16,7 +14,6 @@
     ]
   },
   "deploy": {
-    "startCommand": "pnpm --filter @air-jam/server start",
     "healthcheckPath": "/ready",
     "healthcheckTimeout": 120,
     "overlapSeconds": 0,

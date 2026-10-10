@@ -16,86 +16,15 @@ export const outputDocsRoot = path.join(
   "generated",
 );
 
-export const exportedDocs = [
-  {
-    slug: "for-agents",
-    source: "for-agents/page.mdx",
-    output: "for-agents.md",
-    title: "For Agents",
-  },
-  {
-    slug: "for-agents/project-structure",
-    source: "for-agents/project-structure/page.mdx",
-    output: "project-structure.md",
-    title: "Project Structure",
-  },
-  {
-    slug: "for-agents/controller-ui",
-    source: "for-agents/controller-ui/page.mdx",
-    output: "controller-ui.md",
-    title: "Controller UI",
-  },
-  {
-    slug: "for-agents/state-and-rendering",
-    source: "for-agents/state-and-rendering/page.mdx",
-    output: "state-and-rendering.md",
-    title: "State and Rendering",
-  },
-  {
-    slug: "getting-started/introduction",
-    source: "getting-started/introduction/page.mdx",
-    output: "introduction.md",
-    title: "Introduction",
-  },
-  {
-    slug: "getting-started/quick-start",
-    source: "getting-started/quick-start/page.mdx",
-    output: "quick-start.md",
-    title: "Quick Start",
-  },
-  {
-    slug: "getting-started/debugging",
-    source: "getting-started/debugging/page.mdx",
-    output: "debugging-and-logs.md",
-    title: "Debugging and Logs",
-  },
-  {
-    slug: "getting-started/dev-logs",
-    source: "getting-started/dev-logs/page.mdx",
-    output: "unified-dev-logs.md",
-    title: "Unified Dev Logs",
-  },
-  {
-    slug: "how-it-works/architecture",
-    source: "how-it-works/architecture/page.mdx",
-    output: "architecture.md",
-    title: "Architecture",
-  },
-  {
-    slug: "how-it-works/host-system",
-    source: "how-it-works/host-system/page.mdx",
-    output: "host-system.md",
-    title: "Host System",
-  },
-  {
-    slug: "sdk/hooks",
-    source: "sdk/hooks/page.mdx",
-    output: "sdk-hooks.md",
-    title: "SDK Hooks",
-  },
-  {
-    slug: "sdk/input-system",
-    source: "sdk/input-system/page.mdx",
-    output: "input-system.md",
-    title: "Input System",
-  },
-  {
-    slug: "sdk/networked-state",
-    source: "sdk/networked-state/page.mdx",
-    output: "networked-state.md",
-    title: "Networked State",
-  },
-];
+const catalog = JSON.parse(
+  await fs.readFile(path.join(canonicalDocsRoot, "catalog.json"), "utf8"),
+);
+export const exportedDocs = catalog.map(({ source, output, page }) => ({
+  slug: page.href.replace(/^\/docs\//, ""),
+  source,
+  output,
+  title: page.title,
+}));
 
 const localDocPathBySlug = new Map(
   exportedDocs.map((entry) => [entry.slug, entry.output]),

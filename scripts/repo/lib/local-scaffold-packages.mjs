@@ -1,59 +1,31 @@
 import fs from "node:fs";
 import path from "node:path";
+import { PUBLIC_PACKAGE_DEFINITIONS } from "../../release/public-packages.mjs";
 import {
   createTarballSetDir,
   packWorkspacePackage,
   writeTarballSetManifest,
 } from "./packaging.mjs";
 import { repoRoot } from "./paths.mjs";
-import { runCommand, runCommandResult } from "./shell.mjs";
+import { runCommand } from "./shell.mjs";
 
-const repoPackageDir = (...segments) => path.join(repoRoot, ...segments);
 const dependencySections = [
   "dependencies",
   "devDependencies",
   "optionalDependencies",
 ];
 
-export const localScaffoldPackages = [
-  {
-    packageName: "@air-jam/sdk",
-    packageDir: repoPackageDir("packages", "sdk"),
-    directDependency: true,
-  },
-  {
-    packageName: "@air-jam/server",
-    packageDir: repoPackageDir("packages", "server"),
-    directDependency: true,
-  },
-  {
-    packageName: "@air-jam/mcp-server",
-    packageDir: repoPackageDir("packages", "mcp-server"),
-    directDependency: true,
-  },
-  {
-    packageName: "@air-jam/cli",
-    packageDir: repoPackageDir("packages", "cli"),
-    directDependency: true,
-  },
-  {
-    packageName: "create-airjam",
-    packageDir: repoPackageDir("packages", "create-airjam"),
-    directDependency: true,
-  },
-];
+export const localScaffoldPackages = PUBLIC_PACKAGE_DEFINITIONS.map(
+  (entry) => ({
+    packageName: entry.packageName,
+    packageDir: path.join(repoRoot, entry.workingDirectory),
+    directDependency: entry.scaffoldDependency,
+  }),
+);
 
 const localScaffoldPackageByName = new Map(
   localScaffoldPackages.map((entry) => [entry.packageName, entry]),
 );
-
-const localScaffoldBuildFilters = [
-  "@air-jam/sdk",
-  "@air-jam/mcp-server",
-  "@air-jam/cli",
-  "create-airjam",
-  "server",
-];
 
 const exactVersion = (value) =>
   typeof value === "string" ? value.replace(/^[~^]/, "") : null;
@@ -112,59 +84,25 @@ export const ensureLocalScaffoldWorkspaceInstall = () => {
     return;
   }
 
-  console.log("");
-  console.log(
-    "Refreshing workspace install for local scaffold packaging because some workspace dependency links are missing:",
+  throw new Error(
+    `Missing workspace dependency links:\n${missingLinks.join("\n")}\nRun pnpm install --frozen-lockfile before packaging.`,
   );
-  for (const pair of missingLinks) {
-    console.log(`- ${pair}`);
-  }
-
-  const frozenInstall = runCommandResult(
-    "pnpm",
-    ["install", "--frozen-lockfile"],
-    {
-      stdio: "pipe",
-    },
-  );
-
-  if (!frozenInstall.status || frozenInstall.status !== 0) {
-    const installOutput = `${frozenInstall.stdout ?? ""}\n${frozenInstall.stderr ?? ""}`;
-    if (installOutput.includes("ERR_PNPM_OUTDATED_LOCKFILE")) {
-      console.log("");
-      console.log(
-        "Workspace install refresh detected an outdated pnpm lockfile. Running a normal install to restore local scaffold packaging state.",
-      );
-      runCommand("pnpm", ["install", "--no-frozen-lockfile"]);
-    } else {
-      throw new Error(
-        `Workspace install refresh failed.\n${installOutput.trim()}`,
-      );
-    }
-  }
-
-  const remainingMissingLinks = localScaffoldPackages.flatMap((entry) =>
-    listMissingInstalledWorkspaceLinks(entry.packageDir).map(
-      (dependencyName) => `${entry.packageName} -> ${dependencyName}`,
-    ),
-  );
-
-  if (remainingMissingLinks.length > 0) {
-    throw new Error(
-      `Workspace install refresh did not restore all local scaffold package links:\n${remainingMissingLinks.join("\n")}`,
-    );
-  }
 };
 
-export const buildLocalScaffoldPackageSet = () => {
+export const buildLocalScaffoldPackageSet = ({ stdio = "inherit" } = {}) => {
   ensureLocalScaffoldWorkspaceInstall();
 
-  for (const filter of localScaffoldBuildFilters) {
-    runCommand("pnpm", ["--filter", filter, "build"]);
+  for (const entry of PUBLIC_PACKAGE_DEFINITIONS) {
+    if (
+      readPackageJson(path.join(repoRoot, entry.workingDirectory)).scripts
+        ?.build
+    ) {
+      runCommand("pnpm", ["--filter", entry.packageFilter, "build"], { stdio });
+    }
   }
 };
 
-export const packLocalScaffoldPackageSet = () => {
+export const packLocalScaffoldPackageSet = ({ stdio = "inherit" } = {}) => {
   const { setDir, setId } = createTarballSetDir({
     prefix: "local-scaffold",
   });
@@ -173,7 +111,7 @@ export const packLocalScaffoldPackageSet = () => {
   for (const entry of localScaffoldPackages) {
     tarballs.set(
       entry.packageName,
-      packWorkspacePackage(entry.packageDir, { outDir: setDir }),
+      packWorkspacePackage(entry.packageDir, { outDir: setDir, stdio }),
     );
   }
 

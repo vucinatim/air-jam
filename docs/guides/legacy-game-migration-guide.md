@@ -6,9 +6,10 @@ Status: current guide
 Related docs:
 
 1. [Framework Paradigm](../framework-paradigm.md)
-2. [V1 Closeout Plan (Archived)](../archive/2026-03-31-v1-closeout-plan.md)
-3. [Monorepo Operating System](../monorepo-operating-system.md)
-4. [Legacy Game Migration Working Notes](../archive/2026-03-29-legacy-game-migration-working-notes.md)
+2. [Monorepo Operating System](../monorepo-operating-system.md)
+
+Earlier whole-product closeout plans and migration working notes remain in
+the private product archive and this repository's Git history.
 
 ## Purpose
 
@@ -42,8 +43,8 @@ Air Jam v1 should be trusted because older real games work against packaged depe
 
 The canonical target is the current Air Jam app pattern used by:
 
-1. [Pong template](/Users/timvucina/Desktop/MyProjects/air-jam/games/pong)
-2. [air-capture](/Users/timvucina/Desktop/MyProjects/air-jam/games/air-capture)
+1. [Pong template](../../games/pong)
+2. [air-capture](../../games/air-capture)
 
 The most important traits are:
 

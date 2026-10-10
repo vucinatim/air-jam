@@ -22,6 +22,7 @@ import {
 } from "../../release/public-packages.mjs";
 import {
   assertPublicVersionAvailability,
+  assertRegisteredPublicPackages,
   computeCandidateDigest,
   publicReleaseCandidateContract,
   resolveCandidatePublicationTag,
@@ -40,6 +41,33 @@ const writeJson = (filePath, value) => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 };
+
+test("trusted publication rejects missing package names before any candidate mutation", () => {
+  assert.doesNotThrow(() =>
+    assertRegisteredPublicPackages([
+      { name: "@air-jam/sdk", registered: true },
+    ]),
+  );
+  assert.throws(
+    () =>
+      assertRegisteredPublicPackages([
+        { name: "@air-jam/sdk", registered: true },
+        { name: "@air-jam/devtools", registered: false },
+      ]),
+    /existing npm packages: @air-jam\/devtools/u,
+  );
+  const source = fs.readFileSync(
+    path.join(repoRoot, "scripts/repo/lib/public-release-candidate.mjs"),
+    "utf8",
+  );
+  assert.ok(
+    source.indexOf('onProgress("registry:package-bootstrap")') <
+      source.indexOf("onProgress(`publish:${artifact.name}`)"),
+  );
+  assert.match(source, /\["access", "get", "status", name,/u);
+  assert.match(source, /return visibility === "public"/u);
+  assert.doesNotMatch(source, /\["view", name, "versions",/u);
+});
 
 test("candidate creation rejects any public version already present on npm", () => {
   assert.doesNotThrow(() =>
@@ -241,7 +269,14 @@ test("candidate validation rejects digest-consistent unsafe audit evidence", () 
 test("public packages are ordered before packages that depend on them", () => {
   assert.deepEqual(
     PUBLIC_PACKAGE_DEFINITIONS.map((entry) => entry.id),
-    ["sdk", "mcp-server", "cli", "server", "create-airjam"],
+    [
+      "sdk",
+      "devtools",
+      "mcp-server",
+      "cli",
+      "server",
+      "create-airjam",
+    ],
   );
 });
 

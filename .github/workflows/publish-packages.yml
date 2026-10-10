@@ -297,7 +297,7 @@ jobs:
           PACKAGES_FILE="$RUNNER_TEMP/public-release-packages.tsv"
           node scripts/release/public-packages.mjs resolve |
             jq -r '.[] | [.packageName, .tag, .releaseName] | @tsv' > "$PACKAGES_FILE"
-          test "$(wc -l < "$PACKAGES_FILE" | tr -d ' ')" -eq 5
+          test "$(wc -l < "$PACKAGES_FILE" | tr -d ' ')" -eq "$(node scripts/release/public-packages.mjs resolve | jq 'length')"
 
           while IFS=$'\t' read -r PACKAGE_NAME TAG RELEASE_NAME; do
             test -n "$PACKAGE_NAME"

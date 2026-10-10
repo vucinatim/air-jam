@@ -116,9 +116,7 @@ describe("embedded controller bridge runtime", () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(client.connected).toBe(true);
+    await vi.waitFor(() => expect(client.connected).toBe(true));
     expect(connectSpy).toHaveBeenCalledTimes(1);
     expect(runtimeEvents.events).toEqual(
       expect.arrayContaining([
@@ -144,20 +142,20 @@ describe("embedded controller bridge runtime", () => {
       command: "pause",
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(parentMessages).toContainEqual({
-      type: "AIRJAM_CONTROLLER_BRIDGE_EMIT",
-      payload: {
-        event: "controller:system",
-        args: [
-          {
-            roomId: "ROOM1",
-            command: "pause",
-          },
-        ],
-      },
-    });
+    await vi.waitFor(() =>
+      expect(parentMessages).toContainEqual({
+        type: "AIRJAM_CONTROLLER_BRIDGE_EMIT",
+        payload: {
+          event: "controller:system",
+          args: [
+            {
+              roomId: "ROOM1",
+              command: "pause",
+            },
+          ],
+        },
+      }),
+    );
 
     runtimeEvents.cleanup();
   });
@@ -201,9 +199,7 @@ describe("embedded controller bridge runtime", () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(client.connected).toBe(true);
+    await vi.waitFor(() => expect(client.connected).toBe(true));
     expect(connectSpy).toHaveBeenCalledTimes(1);
     expect(welcomeSpy).toHaveBeenCalledWith({
       controllerId: "ctrl_1",
@@ -295,15 +291,15 @@ describe("embedded controller bridge runtime", () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(stateSpy).toHaveBeenCalledWith({
-      roomId: "ROOM1",
-      state: {
-        runtimeState: "playing",
-        orientation: "landscape",
-      },
-    });
+    await vi.waitFor(() =>
+      expect(stateSpy).toHaveBeenCalledWith({
+        roomId: "ROOM1",
+        state: {
+          runtimeState: "playing",
+          orientation: "landscape",
+        },
+      }),
+    );
   });
 
   it("rejects attach with a lower arcade surface epoch than a previous attach", async () => {
@@ -343,8 +339,7 @@ describe("embedded controller bridge runtime", () => {
       payload: attachPayload,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(client.connected).toBe(true);
+    await vi.waitFor(() => expect(client.connected).toBe(true));
 
     parentPort!.postMessage({
       type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
@@ -357,10 +352,10 @@ describe("embedded controller bridge runtime", () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(disconnectSpy).toHaveBeenCalledWith(
-      "Embedded controller bridge attach rejected: stale arcade surface epoch.",
+    await vi.waitFor(() =>
+      expect(disconnectSpy).toHaveBeenCalledWith(
+        "Embedded controller bridge attach rejected: stale arcade surface epoch.",
+      ),
     );
     expect(runtimeEvents.events).toEqual(
       expect.arrayContaining([

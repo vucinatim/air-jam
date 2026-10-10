@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { generatePlatformAiPackArtifacts } from "../../platform/lib/platform-ai-pack-artifacts.mjs";
 import { resolvePublicPackages } from "../../release/public-packages.mjs";
 import { listLocalScaffoldDirectDependencyNames } from "../lib/local-scaffold-packages.mjs";
 
@@ -18,6 +16,49 @@ const repoRoot = path.resolve(
 const readJson = (relativePath) =>
   JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), "utf8"));
 
+test("the public workspace owns only the framework and reference games", () => {
+  const publicPackages = new Set(
+    resolvePublicPackages().map((entry) => entry.packageName),
+  );
+  for (const directory of fs.readdirSync(path.join(repoRoot, "packages"))) {
+    const manifestPath = path.join("packages", directory, "package.json");
+    if (!fs.existsSync(path.join(repoRoot, manifestPath))) continue;
+    const manifest = readJson(manifestPath);
+    assert.ok(
+      publicPackages.has(manifest.name) ||
+        (manifest.name === "@air-jam/env" && manifest.private === true),
+      manifestPath,
+    );
+    for (const section of [
+      "dependencies",
+      "devDependencies",
+      "optionalDependencies",
+    ]) {
+      for (const [name, specifier] of Object.entries(manifest[section] ?? {})) {
+        if (specifier.startsWith("workspace:"))
+          assert.ok(
+            publicPackages.has(name) ||
+              (name === "@air-jam/env" && section === "devDependencies"),
+            `${manifest.name} -> ${name}`,
+          );
+      }
+    }
+  }
+});
+
+test("local package qualification is discoverable with structured evidence", () => {
+  const help = execFileSync(
+    process.execPath,
+    ["scripts/repo/cli.mjs", "pack", "verify-local", "--help"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  assert.match(help, /--json/u);
+  assert.match(help, /exact local foundation package set/u);
+});
+
 test("public package ownership has one canonical project CLI", () => {
   const cli = readJson("packages/cli/package.json");
   const createAirJam = readJson("packages/create-airjam/package.json");
@@ -25,6 +66,9 @@ test("public package ownership has one canonical project CLI", () => {
 
   assert.deepEqual(cli.bin, { airjam: "./bin/airjam.mjs" });
   assert.deepEqual(Object.keys(cli.exports).sort(), [
+    "./ai-pack",
+    "./development",
+    "./documentation",
     "./scaffold",
     "./vite-config",
   ]);
@@ -41,7 +85,9 @@ test("public package ownership has one canonical project CLI", () => {
   assert.deepEqual(server.bin, {
     "air-jam-server": "./bin/air-jam-server.mjs",
   });
-  assert.equal(server.exports, undefined);
+  assert.deepEqual(server.exports, {
+    ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+  });
   assert.equal(server.main, undefined);
   assert.equal(server.module, undefined);
 });
@@ -54,7 +100,10 @@ test("shipped CLI runtime modules close over shipped relative imports", () => {
   );
 
   for (const entry of runtimeEntries) {
-    const source = fs.readFileSync(path.join(repoRoot, "packages/cli", entry), "utf8");
+    const source = fs.readFileSync(
+      path.join(repoRoot, "packages/cli", entry),
+      "utf8",
+    );
     for (const match of source.matchAll(/\bfrom\s+["'](\.\/[^"']+)["']/gu)) {
       const importedPath = path.posix.normalize(
         path.posix.join(path.posix.dirname(entry), match[1]),
@@ -64,23 +113,6 @@ test("shipped CLI runtime modules close over shipped relative imports", () => {
         `${entry} imports ${importedPath}, but the CLI package does not ship it`,
       );
     }
-  }
-});
-
-test("obsolete project CLI implementations are fully removed", () => {
-  for (const relativePath of [
-    "packages/create-airjam/template-assets",
-    "packages/server/src/project-cli",
-    "packages/create-airjam/runtime/game-dev.mjs",
-    "packages/create-airjam/runtime/runtime-env.mjs",
-    "packages/create-airjam/runtime/topology.mjs",
-    "packages/create-airjam/runtime/vite-config.mjs",
-  ]) {
-    assert.equal(
-      fs.existsSync(path.join(repoRoot, relativePath)),
-      false,
-      `${relativePath} must not survive the ownership cut`,
-    );
   }
 });
 
@@ -98,89 +130,70 @@ test("raw SDK runtimes are isolated behind explicit expert subpaths", () => {
   assert.doesNotMatch(rootSource, /runtime-inspection/u);
 });
 
-test("the canonical CLI participates in the public release set", () => {
-  const releaseSource = fs.readFileSync(
-    path.join(repoRoot, "scripts/release/public-packages.mjs"),
-    "utf8",
-  );
-  assert.match(releaseSource, /packages\/cli/u);
-});
-
-test("public agent hosts share one canonical devtools-helper build", () => {
+test("agent hosts consume the version-matched toolchain", () => {
   for (const packagePath of [
     "packages/cli/package.json",
     "packages/mcp-server/package.json",
   ]) {
     const manifest = readJson(packagePath);
-    assert.match(
-      manifest.scripts.build,
-      /scripts\/build-devtools-helpers\.mjs --out-dir dist\/tooling/u,
-    );
+    assert.equal(manifest.dependencies["@air-jam/devtools"], "workspace:*");
+    for (const dependency of [
+      "playwright-core",
+      "socket.io-client",
+      "tsx",
+      "yauzl",
+      "yazl",
+    ])
+      assert.equal(manifest.dependencies[dependency], undefined);
     assert.ok(manifest.files.includes("dist"));
   }
-  assert.equal(
-    fs.existsSync(path.join(repoRoot, "packages/cli/tsup.tooling.config.ts")),
-    false,
-  );
 });
 
-test("the local candidate package set matches the public release graph", () => {
-  assert.deepEqual(
-    listLocalScaffoldDirectDependencyNames().sort(),
-    resolvePublicPackages()
-      .map((entry) => entry.packageName)
-      .sort(),
+test("optional library packages do not become scaffold root dependencies", () => {
+  assert.deepEqual(listLocalScaffoldDirectDependencyNames().sort(), [
+    "@air-jam/cli",
+    "@air-jam/mcp-server",
+    "@air-jam/sdk",
+    "@air-jam/server",
+    "create-airjam",
+  ]);
+  const devtools = readJson("packages/devtools/package.json");
+  assert.equal(devtools.private, false);
+  assert.equal(devtools.version, resolvePublicPackages()[0].version);
+  assert.ok(devtools.scripts.prepack);
+  assert.equal(readJson("packages/env/package.json").private, true);
+  assert.equal(resolvePublicPackages().length, 6);
+  assert.ok(
+    !resolvePublicPackages().some(
+      (entry) => entry.packageName === "@air-jam/env",
+    ),
   );
+  for (const subpath of ["./controller", "./harness/visual", "./mcp-config"])
+    assert.ok(devtools.exports[subpath]);
 });
 
-test("the public server bundles private workspace runtime dependencies", () => {
+test("the public server has no hosted product dependency or database implementation", () => {
   const server = readJson("packages/server/package.json");
-  const privateWorkspaceDependencies = Object.entries(server.dependencies ?? {})
-    .filter(([, specifier]) => specifier.startsWith("workspace:"))
-    .map(([dependencyName]) => dependencyName)
-    .filter((dependencyName) => {
-      const packageDirectory = dependencyName.replace("@air-jam/", "");
-      const dependencyManifest = readJson(
-        `packages/${packageDirectory}/package.json`,
-      );
-      return dependencyManifest.private === true;
-    });
-  const buildConfig = fs.readFileSync(
-    path.join(repoRoot, "packages/server/tsup.config.ts"),
-    "utf8",
-  );
-
-  assert.deepEqual(privateWorkspaceDependencies.sort(), [
+  for (const dependency of [
     "@air-jam/database-contract",
     "@air-jam/operations-contract",
-  ]);
-  for (const dependencyName of privateWorkspaceDependencies) {
-    assert.match(
-      buildConfig,
-      new RegExp(`noExternal:[\\s\\S]*["']${dependencyName}["']`, "u"),
-      `${dependencyName} must be bundled because publish preparation removes private workspace dependencies`,
+    "postgres",
+    "drizzle-orm",
+  ]) {
+    assert.equal(server.dependencies?.[dependency], undefined);
+    assert.equal(server.devDependencies?.[dependency], undefined);
+  }
+  const sourceRoot = path.join(repoRoot, "packages/server/src");
+  const files = fs.readdirSync(sourceRoot, { recursive: true });
+  for (const file of files.filter((file) => file.endsWith(".ts"))) {
+    const source = fs.readFileSync(path.join(sourceRoot, file), "utf8");
+    assert.doesNotMatch(
+      source,
+      /@air-jam\/(?:database|operations)-contract|from ["'](?:postgres|drizzle-orm)/u,
+      file,
     );
   }
-});
-
-test("the published server bundles its repaired PostgreSQL driver", () => {
-  const server = readJson("packages/server/package.json");
-  const buildConfig = fs.readFileSync(
-    path.join(repoRoot, "packages/server/tsup.config.ts"),
-    "utf8",
-  );
-  assert.match(buildConfig, /noExternal:\s*\[[^\]]*["']postgres["']/u);
-  assert.ok(
-    buildConfig.includes("/^drizzle-orm\\/postgres-js(?:\\/.*)?$/"),
-    "the adapter must not import a second unpatched runtime driver",
-  );
-  assert.equal(server.dependencies.postgres, undefined);
-  assert.equal(server.devDependencies.postgres, "^3.4.7");
-  const patches = readJson("package.json").pnpm?.patchedDependencies ?? {};
-  assert.ok(
-    patches["postgres@3.4.7"],
-    "published server must build from the patched driver",
-  );
+  assert.equal(fs.existsSync(path.join(sourceRoot, "db.ts")), false);
 });
 
 test("the canonical AI pack manifest is committed with the CLI assets", () => {
@@ -206,37 +219,4 @@ test("the canonical AI pack manifest is committed with the CLI assets", () => {
   assert.equal(manifest.update, undefined);
   assert.ok(manifest.managedFiles.length > 0);
   assert.match(manifest.contentDigest, /^[a-f0-9]{64}$/u);
-});
-
-test("the hosted AI pack is an exact read-only mirror, not a second manifest model", async () => {
-  const targetRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), "airjam-hosted-ai-pack-"),
-  );
-  try {
-    const result = await generatePlatformAiPackArtifacts({ targetRoot });
-    const packagedManifest = readJson(
-      "packages/cli/template-assets/managed/.airjam/ai-pack.json",
-    );
-    const hostedManifest = JSON.parse(
-      fs.readFileSync(path.join(targetRoot, "manifest.json"), "utf8"),
-    );
-    assert.deepEqual(hostedManifest, packagedManifest);
-    assert.equal(result.contentDigest, packagedManifest.contentDigest);
-    assert.equal(fs.existsSync(path.join(targetRoot, "stable")), false);
-    for (const file of packagedManifest.managedFiles) {
-      assert.equal(
-        fs.readFileSync(path.join(targetRoot, "files", file.path), "utf8"),
-        fs.readFileSync(
-          path.join(
-            repoRoot,
-            "packages/cli/template-assets/managed",
-            file.path,
-          ),
-          "utf8",
-        ),
-      );
-    }
-  } finally {
-    fs.rmSync(targetRoot, { recursive: true, force: true });
-  }
 });

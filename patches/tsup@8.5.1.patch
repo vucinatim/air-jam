@@ -1,0 +1,17 @@
+diff --git a/dist/index.js b/dist/index.js
+index eff27819d14d659a39c50e6cf51516e11648d20b..8d8f1f4ae235161de2aadc1923599832a0266e53 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1666,10 +1666,10 @@ async function build(_options) {
+                 "CLI",
+                 `Ignoring changes in ${ignored.map((v) => `"${v}"`).join(" | ")}`
+               );
+-              const watcher = watch(await _tinyglobby.glob.call(void 0, watchPaths), {
++              const watcher = watch(await _tinyglobby.glob.call(void 0, watchPaths, { onlyFiles: false, expandDirectories: false }), {
+                 ignoreInitial: true,
+                 ignorePermissionErrors: true,
+-                ignored: (p) => _tinyglobby.globSync.call(void 0, p, { ignore: ignored }).length === 0
++                ignored: (p) => _tinyglobby.globSync.call(void 0, p, { ignore: ignored, onlyFiles: false, expandDirectories: false }).length === 0
+               });
+               watcher.on("all", async (type, file) => {
+                 file = _chunkTWFEYLU4js.slash.call(void 0, file);

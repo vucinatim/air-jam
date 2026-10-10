@@ -6,7 +6,7 @@ const packageJson = JSON.parse(
   readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
 ) as { version: string };
 
-export default defineConfig({
+export default defineConfig((options) => ({
   entry: [
     "src/index.ts",
     "src/arcade.ts",
@@ -32,7 +32,7 @@ export default defineConfig({
   ],
   format: ["cjs", "esm"],
   dts: true, // Generate declaration files
-  clean: true,
+  clean: !options.watch,
   sourcemap: true,
   external: ["react", "react-dom"],
   // Workspace consumers must not import a partially written bundle generation.
@@ -47,4 +47,4 @@ export default defineConfig({
   loader: {
     ".css": "copy",
   },
-});
+}));

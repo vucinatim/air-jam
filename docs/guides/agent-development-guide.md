@@ -1,6 +1,7 @@
 # Agent Development Guide
 
-Last updated: 2026-05-08  
+Last updated: 2026-10-09
+
 Status: current guide
 
 Related docs:
@@ -54,6 +55,49 @@ Use the browser for:
 2. visual regressions
 3. public-surface trust checks
 4. click-through and presentation verification
+
+## Capture Against an Existing Runtime
+
+`captureVisualsAtRuntime` from `@air-jam/devtools/visual` runs the same
+game-owned scenarios as `captureVisuals`, without starting, attaching to or
+stopping the caller's runtime. Supply the game project `cwd`, its optional
+source `gameId`, resolved runtime `urls`, `mode` (`standalone-dev` or
+`arcade-built`) and an absolute `artifactRoot`. The source game id identifies
+the project, not a launcher catalog alias. The result contains the capture
+summary and scenario metadata at the caller's artifact root.
+
+The game's config must explicitly publish `visualScenariosModule`; arbitrary
+files are not discovered as a fallback. The runtime owner remains responsible
+for startup, readiness and shutdown on success or failure. Normal standalone
+agents should continue using `captureVisuals` when they want the tool to manage
+that lifecycle.
+
+## Isolated Prefab Capture
+
+The public `@air-jam/devtools/harness/visual` export owns prefab capture. Define
+`prefabCaptureHarness` in the game project's `visual/prefabs.ts` or
+`visual/prefabs.mjs`, using `definePrefabCaptureHarness`. Add `@air-jam/devtools`
+as a development dependency when the game imports that helper. Each definition chooses
+its capture id, prefab id, viewport, optional ready test id and host URL builder.
+These are trusted game-development modules, not a sandbox for uploaded code.
+
+Call `loadPrefabCapture` with `gameDirectory`, source `gameId`, `prefabId`, optional
+repeatable `variantPairs` (`key=value`), `mode` and `secure`. It resolves and checks
+the contract before the caller starts a runtime. TypeScript modules require a
+TypeScript-capable caller such as `tsx`, as used by the maintainer CLI.
+Then pass the returned `capture`, the running `hostUrl` and an absolute
+`artifactRoot` to `capturePrefabAtRuntime`. The harness owns its browser and
+capture files; the caller owns runtime startup and shutdown. The result contains
+the artifact directory, metadata path and metadata. Built Arcade readiness
+checks target the embedded game, not the surrounding launcher.
+
+Artifacts live under `<artifactRoot>/<encodedSourceGameId>/prefabs/<capture-and-variants>`.
+Source ids are URL-encoded as a single directory segment, so scoped npm project
+names retain their identity without becoming nested paths.
+Each capture replaces only its own artifact directory. A failed replacement
+cannot leave an earlier successful metadata file behind. In this public
+workspace, discover the wrapper through `pnpm run repo -- visual prefab-capture --help`.
+Other launchers can use the same installed API without this repository.
 
 ## Design Rule
 

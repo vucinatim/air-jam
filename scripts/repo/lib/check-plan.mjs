@@ -38,23 +38,29 @@ const listOneLevelProjects = (rootName) => {
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => `${rootName}/${entry.name}`)
-    .filter((directory) => existsSync(path.join(repoRoot, directory, "tsconfig.json")));
+    .filter((directory) =>
+      existsSync(path.join(repoRoot, directory, "tsconfig.json")),
+    );
 };
 
 export const discoverTypecheckProjects = () =>
   [
-    ...listOneLevelProjects("apps"),
     ...listOneLevelProjects("games"),
     ...listOneLevelProjects("packages"),
-    "content",
     "scripts/repo/visual",
   ]
     .flatMap((directory) => [directory, `${directory}/tests`])
-    .filter((directory) => existsSync(path.join(repoRoot, directory, "tsconfig.json")))
-    .sort((left, right) => right.length - left.length || left.localeCompare(right));
+    .filter((directory) =>
+      existsSync(path.join(repoRoot, directory, "tsconfig.json")),
+    )
+    .sort(
+      (left, right) => right.length - left.length || left.localeCompare(right),
+    );
 
 const findProject = (file, projects) =>
-  projects.find((project) => file === project || file.startsWith(`${project}/`));
+  projects.find(
+    (project) => file === project || file.startsWith(`${project}/`),
+  );
 
 const affectsProjectTypes = (file) => {
   const extension = path.extname(file);
@@ -71,12 +77,18 @@ export const buildChangedCheckPlan = (
   { projects = discoverTypecheckProjects(), fileExists = existsSync } = {},
 ) => {
   const files = [...new Set(changedFiles.map(normalizePath))].sort();
-  const existingFiles = files.filter((file) => fileExists(path.join(repoRoot, file)));
-  const lintFiles = existingFiles.filter((file) => lintExtensions.has(path.extname(file)));
+  const existingFiles = files.filter((file) =>
+    fileExists(path.join(repoRoot, file)),
+  );
+  const lintFiles = existingFiles.filter((file) =>
+    lintExtensions.has(path.extname(file)),
+  );
   const nodeSyntaxFiles = existingFiles.filter((file) =>
     nodeSyntaxExtensions.has(path.extname(file)),
   );
-  const jsonFiles = existingFiles.filter((file) => path.extname(file) === ".json");
+  const jsonFiles = existingFiles.filter(
+    (file) => path.extname(file) === ".json",
+  );
   const typedFiles = files.filter(affectsProjectTypes);
   const typecheckProjects = [
     ...new Set(
@@ -97,22 +109,15 @@ export const buildChangedCheckPlan = (
     );
   }
 
-  if (files.some((file) => file.startsWith("packages/sdk/src/") && affectsProjectTypes(file))) {
+  if (
+    files.some(
+      (file) =>
+        file.startsWith("packages/sdk/src/") && affectsProjectTypes(file),
+    )
+  ) {
     batchReasons.push(
       "public SDK source changed; consumer compatibility belongs to the batch gate",
     );
-  }
-
-  for (const file of existingFiles) {
-    if (
-      file.startsWith("apps/platform/") &&
-      /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file) &&
-      findProject(file, projects) === "apps/platform"
-    ) {
-      batchReasons.push(
-        `no fast TypeScript project includes the platform test file: ${file}`,
-      );
-    }
   }
 
   return {

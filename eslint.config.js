@@ -29,7 +29,6 @@ export default defineConfig([
     "build",
     "build/**",
     "**/build/**",
-    "apps/platform/**",
     "packages/create-airjam/scaffold-sources/**",
     "packages/bot-lab/**",
     "**/*.json",
@@ -67,11 +66,7 @@ export default defineConfig([
     },
   },
   {
-    files: [
-      "apps/**/*.{ts,tsx}",
-      "games/**/*.{ts,tsx}",
-      "packages/sdk/**/*.{ts,tsx}",
-    ],
+    files: ["games/**/*.{ts,tsx}", "packages/sdk/**/*.{ts,tsx}"],
     ignores: ["**/dist/**"],
     languageOptions: {
       ecmaVersion: 2022,

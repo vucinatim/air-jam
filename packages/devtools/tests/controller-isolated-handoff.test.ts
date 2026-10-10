@@ -1,0 +1,565 @@
+import type { ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { io } from "socket.io-client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
+  AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
+  type AirJamRuntimeOwnerActionRequest,
+  type AirJamRuntimeOwnerCaptureRequest,
+} from "../src/runtime-owner-protocol.js";
+
+const joinAttempts: string[] = [];
+const spawnedOwners: FakeChildProcess[] = [];
+let arcadeSurface: Record<string, unknown> | null = null;
+let actionResponse: "accept" | "reject" | "exit" | "timeout" = "accept";
+const ownedActions: AirJamRuntimeOwnerActionRequest[] = [];
+
+class MockSocket {
+  public connected = false;
+  private readonly events = new EventEmitter();
+
+  on(event: string, listener: (...args: unknown[]) => void): this {
+    this.events.on(event, listener);
+    return this;
+  }
+
+  once(event: string, listener: (...args: unknown[]) => void): this {
+    this.events.once(event, listener);
+    return this;
+  }
+
+  off(event: string, listener: (...args: unknown[]) => void): this {
+    this.events.off(event, listener);
+    return this;
+  }
+
+  emit(event: string, ...args: unknown[]): boolean {
+    if (event === "controller:state_sync_request" && arcadeSurface) {
+      const payload = args[0] as {
+        roomId: string;
+        storeDomain: string;
+        requestId: string;
+      };
+      this.serverEmit("airjam:state_sync", {
+        ...payload,
+        revision: 1,
+        data: arcadeSurface,
+      });
+      return true;
+    }
+    if (event === "controller:join") {
+      const payload = args[0] as { roomId: string; controllerId: string };
+      const callback = args[1] as
+        | ((ack: {
+            ok: boolean;
+            roomId?: string;
+            controllerId?: string;
+            message?: string;
+            resumeCapabilityToken?: string;
+          }) => void)
+        | undefined;
+      joinAttempts.push(payload.roomId);
+      if (payload.roomId === "ROOM2") {
+        callback?.({
+          ok: true,
+          roomId: payload.roomId,
+          controllerId: payload.controllerId,
+          resumeCapabilityToken: "private-controller-resume-token",
+        });
+        queueMicrotask(() => {
+          this.serverEmit("server:welcome", {
+            controllerId: payload.controllerId,
+            roomId: payload.roomId,
+            player: {
+              id: payload.controllerId,
+              label: payload.controllerId,
+            },
+            players: [
+              {
+                id: payload.controllerId,
+                label: payload.controllerId,
+              },
+            ],
+          });
+          this.serverEmit("server:state", {
+            roomId: payload.roomId,
+            state: {
+              runtimeState: "playing",
+            },
+          });
+        });
+        return true;
+      }
+
+      callback?.({
+        ok: false,
+        message: "Room not found",
+      });
+      return true;
+    }
+
+    if (event === "controller:leave") {
+      const payload = args[0] as { controllerId: string };
+      const callback = args[1] as ((ack: { ok: boolean }) => void) | undefined;
+      this.serverEmit("server:controllerLeft", {
+        controllerId: payload.controllerId,
+      });
+      callback?.({ ok: true });
+      return true;
+    }
+
+    return true;
+  }
+
+  disconnect(): void {
+    this.connected = false;
+    this.serverEmit("disconnect", "io client disconnect");
+  }
+
+  serverEmit(event: string, ...args: unknown[]): void {
+    this.events.emit(event, ...args);
+  }
+}
+
+class FakeChildProcess extends EventEmitter {
+  public readonly stdout = new EventEmitter();
+  public readonly stderr = new EventEmitter();
+  public connected = true;
+  public killed = false;
+  public exitCode: number | null = null;
+
+  send(
+    message: AirJamRuntimeOwnerActionRequest | AirJamRuntimeOwnerCaptureRequest,
+    callback?: (error: Error | null) => void,
+  ): boolean {
+    callback?.(null);
+    if (message.type === AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST) {
+      ownedActions.push(message);
+      queueMicrotask(() => {
+        // An unrelated response must never settle this invocation.
+        this.emit("message", {
+          type: AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
+          requestId: "unrelated",
+          acknowledgement: {
+            ok: true,
+            status: "accepted",
+            source: "host",
+            result: "wrong",
+          },
+        });
+        if (actionResponse === "exit") this.kill();
+        else if (actionResponse !== "timeout")
+          this.emit("message", {
+            type: AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
+            requestId: message.requestId,
+            acknowledgement:
+              actionResponse === "accept"
+                ? {
+                    ok: true,
+                    status: "accepted",
+                    source: "host",
+                    result: { changed: true },
+                  }
+                : {
+                    ok: false,
+                    status: "rejected",
+                    source: "host",
+                    reason: "not_ready",
+                  },
+          });
+      });
+      return true;
+    }
+    queueMicrotask(() => {
+      this.emit("message", {
+        type: "air-jam-runtime-owner.capture-visuals-result/v1",
+        requestId: message.requestId,
+        ok: true,
+        capturedAt: "2026-09-09T00:00:00.000Z",
+        screenshots: [
+          {
+            surface: "host",
+            width: 1440,
+            height: 1024,
+            relativePath: `${message.relativeDir}/host-desktop.png`,
+          },
+          {
+            surface: "controller",
+            width: 390,
+            height: 844,
+            relativePath: `${message.relativeDir}/controller-phone.png`,
+          },
+        ],
+        error: null,
+      });
+    });
+    return true;
+  }
+
+  kill(): boolean {
+    this.killed = true;
+    this.exitCode = 0;
+    this.emit("exit", 0, null);
+    return true;
+  }
+}
+
+vi.mock("../src/context.js", () => ({
+  detectProjectContext: vi.fn(async () => ({
+    rootDir: "/tmp/solo",
+    mode: "standalone-game",
+    workspaceRoot: null,
+    packageJsonPath: "/tmp/solo/package.json",
+    packageJson: { name: "solo-fixture" },
+    packageManager: "pnpm",
+    reasons: ["fixture"],
+  })),
+}));
+
+vi.mock("../src/dev.js", () => ({
+  startDev: vi.fn(async () => {
+    throw new Error("An explicit room must not start development processes");
+  }),
+  stopDev: vi.fn(),
+  getTopology: vi.fn(async () => ({
+    projectMode: "standalone-game",
+    mode: "standalone-dev",
+    topologyMode: "standalone-dev",
+    gameId: "solo-fixture",
+    secure: false,
+    surfaces: {
+      controller: {
+        appOrigin: "http://127.0.0.1:7777",
+      },
+    },
+    urls: {
+      appOrigin: "http://127.0.0.1:7777",
+      hostUrl: "http://127.0.0.1:7777",
+      controllerBaseUrl: "http://127.0.0.1:7777/controller",
+      publicHost: "http://127.0.0.1:7777",
+      localBuildUrl: null,
+      browserBuildUrl: null,
+    },
+    process: null,
+  })),
+}));
+
+vi.mock("node:child_process", async () => {
+  const actual =
+    await vi.importActual<typeof import("node:child_process")>(
+      "node:child_process",
+    );
+
+  return {
+    ...actual,
+    spawn: vi.fn(() => {
+      const child = new FakeChildProcess();
+      spawnedOwners.push(child);
+      queueMicrotask(() => {
+        child.stdout.emit(
+          "data",
+          JSON.stringify(
+            {
+              roomId: "ROOM2",
+              controllerJoinUrl:
+                "http://127.0.0.1:7777/controller?room=ROOM2&aj_controller_cap=held",
+              inspection: {
+                role: "host",
+                roomId: "ROOM2",
+                joinUrl:
+                  "http://127.0.0.1:7777/controller?room=ROOM2&aj_controller_cap=held",
+                joinUrlStatus: "ready",
+                connectionStatus: "connected",
+                players: [],
+                mode: "standalone",
+                runtimeState: "playing",
+              },
+            },
+            null,
+            2,
+          ),
+        );
+      });
+      return child as unknown as ChildProcess;
+    }),
+  };
+});
+
+vi.mock("socket.io-client", () => ({
+  io: vi.fn(() => {
+    const socket = new MockSocket();
+    queueMicrotask(() => {
+      socket.connected = true;
+      socket.serverEmit("connect");
+    });
+    return socket;
+  }),
+}));
+
+describe("isolated runtime controller handoff", () => {
+  beforeEach(() => {
+    joinAttempts.length = 0;
+    spawnedOwners.length = 0;
+    arcadeSurface = null;
+    actionResponse = "accept";
+    ownedActions.length = 0;
+  });
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    for (const owner of spawnedOwners.splice(0)) {
+      if (!owner.killed) {
+        owner.kill();
+      }
+    }
+  });
+
+  it.each(["http://localhost:62984", "https://preview.example.com"])(
+    "uses the explicit join origin instead of local inferred topology: %s",
+    async (origin) => {
+      const { connectController, disconnectController } =
+        await import("../src/controller.js");
+      const { startDev } = await import("../src/dev.js");
+      const session = await connectController({
+        cwd: "/tmp/solo",
+        controllerJoinUrl: `${origin}/controller?room=ROOM2&aj_controller_cap=explicit`,
+        timeoutMs: 1_000,
+      });
+      expect(io).toHaveBeenCalledWith(origin, expect.any(Object));
+      expect(session.socketOrigin).toBe(origin);
+      expect(startDev).not.toHaveBeenCalled();
+      expect(spawnedOwners).toHaveLength(0);
+      await disconnectController({
+        controllerSessionId: session.controllerSessionId,
+      });
+    },
+  );
+
+  it("keeps an isolated runtime host alive while its controller is connected", async () => {
+    const {
+      captureControllerSessionVisuals,
+      connectController,
+      disconnectController,
+    } = await import("../src/controller.js");
+
+    const session = await connectController({
+      cwd: "/tmp/solo",
+      timeoutMs: 1_000,
+    });
+
+    expect(joinAttempts).toEqual(["ROOM2"]);
+    expect(session.roomId).toBe("ROOM2");
+    expect(session.controllerJoinUrl).toContain("room=ROOM2");
+    expect(JSON.stringify(session)).not.toContain(
+      "private-controller-resume-token",
+    );
+    expect(spawnedOwners).toHaveLength(1);
+
+    const capture = await captureControllerSessionVisuals({
+      controllerSessionId: session.controllerSessionId,
+      relativeDir: ".airjam/artifacts/session-visuals/capture-1",
+    });
+    expect(capture.screenshots).toEqual([
+      expect.objectContaining({
+        surface: "host",
+        relativePath:
+          ".airjam/artifacts/session-visuals/capture-1/host-desktop.png",
+      }),
+      expect.objectContaining({
+        surface: "controller",
+        relativePath:
+          ".airjam/artifacts/session-visuals/capture-1/controller-phone.png",
+      }),
+    ]);
+
+    await disconnectController({
+      controllerSessionId: session.controllerSessionId,
+    });
+
+    expect(spawnedOwners[0]?.killed).toBe(true);
+  });
+
+  it.each([
+    { roomId: "ROOM1" },
+    {
+      controllerJoinUrl:
+        "http://127.0.0.1:7777/controller?room=ROOM1&aj_controller_cap=dead",
+    },
+  ])(
+    "rejects a missing explicit target without creating another host: %j",
+    async (target) => {
+      const { openGameSession } = await import("../src/game-session.js");
+      const { startDev, stopDev } = await import("../src/dev.js");
+
+      await expect(
+        openGameSession({
+          cwd: "/tmp/solo",
+          ...target,
+          gameId: "solo-fixture",
+          timeoutMs: 1_000,
+        }),
+      ).rejects.toThrow("Room not found");
+
+      expect(joinAttempts).toEqual(["ROOM1"]);
+      expect(spawnedOwners).toHaveLength(0);
+      expect(startDev).not.toHaveBeenCalled();
+      expect(stopDev).not.toHaveBeenCalled();
+    },
+  );
+
+  it("attaches a controller to an existing room without acquiring host ownership", async () => {
+    const { connectController, disconnectController, invokeHostAction } =
+      await import("../src/controller.js");
+    const session = await connectController({
+      cwd: "/tmp/solo",
+      roomId: "ROOM2",
+      timeoutMs: 1_000,
+    });
+
+    expect(session.roomId).toBe("ROOM2");
+    expect(joinAttempts).toEqual(["ROOM2"]);
+    expect(spawnedOwners).toHaveLength(0);
+
+    const invocation = await invokeHostAction({
+      controllerSessionId: session.controllerSessionId,
+      actionName: "finishMatch",
+      storeDomain: "default",
+    });
+    expect(invocation.acknowledgement).toMatchObject({
+      ok: false,
+      reason: "host_runtime_not_owned",
+    });
+    expect(ownedActions).toHaveLength(0);
+
+    await disconnectController({
+      controllerSessionId: session.controllerSessionId,
+    });
+
+    expect(spawnedOwners).toHaveLength(0);
+  });
+
+  it.each(["standalone-dev", "arcade-dev"] as const)(
+    "invokes the actual owned host through correlated IPC (%s)",
+    async (mode) => {
+      const { connectController, disconnectController, invokeHostAction } =
+        await import("../src/controller.js");
+      const session = await connectController({
+        cwd: "/tmp/solo",
+        gameId: "solo-fixture",
+        mode,
+        timeoutMs: 1000,
+      });
+      try {
+        const storeDomain =
+          mode === "arcade-dev" ? "aj.embedded.game:7:solo-fixture" : "default";
+        const invocation = await invokeHostAction({
+          controllerSessionId: session.controllerSessionId,
+          actionName: "finishMatch",
+          storeDomain,
+          payload: { score: 2 },
+          timeoutMs: 100,
+        });
+        expect(invocation.acknowledgement).toEqual({
+          ok: true,
+          status: "accepted",
+          source: "host",
+          result: { changed: true },
+        });
+        expect(ownedActions).toHaveLength(1);
+        expect(ownedActions[0]?.action).toEqual({
+          roomId: "ROOM2",
+          storeDomain,
+          actionName: "finishMatch",
+          payload: { score: 2 },
+        });
+        expect(spawnedOwners[0]?.listenerCount("message")).toBe(0);
+      } finally {
+        await disconnectController({
+          controllerSessionId: session.controllerSessionId,
+        });
+      }
+    },
+  );
+
+  it.each(["reject", "exit", "timeout"] as const)(
+    "settles owned host %s and removes pending IPC listeners",
+    async (response) => {
+      actionResponse = response;
+      const { connectController, disconnectController, invokeHostAction } =
+        await import("../src/controller.js");
+      const session = await connectController({
+        cwd: "/tmp/solo",
+        timeoutMs: 1000,
+      });
+      try {
+        const invocation = await invokeHostAction({
+          controllerSessionId: session.controllerSessionId,
+          actionName: "finishMatch",
+          storeDomain: "default",
+          timeoutMs: 20,
+        });
+        expect(invocation.acknowledgement).toMatchObject({
+          ok: false,
+          reason:
+            response === "reject"
+              ? "not_ready"
+              : response === "exit"
+                ? "host_ack_missing"
+                : "host_ack_timeout",
+        });
+        expect(spawnedOwners[0]?.listenerCount("message")).toBe(0);
+      } finally {
+        await disconnectController({
+          controllerSessionId: session.controllerSessionId,
+        });
+      }
+    },
+  );
+
+  it.each(["monorepo", "standalone-game"] as const)(
+    "keeps source project identity separate from Arcade store identity (%s)",
+    async (projectMode) => {
+      const { detectProjectContext } = await import("../src/context.js");
+      const originalContext = await detectProjectContext({ cwd: "/tmp/solo" });
+      vi.mocked(detectProjectContext).mockResolvedValueOnce({
+        ...originalContext,
+        mode: projectMode,
+      });
+      arcadeSurface = {
+        epoch: 7,
+        kind: "game",
+        gameId: "local-reference-pong",
+        controllerUrl: "http://localhost:5173/controller",
+        orientation: "landscape",
+        overlay: "hidden",
+      };
+      const {
+        connectController,
+        resolveControllerSessionGameRuntime,
+        disconnectController,
+      } = await import("../src/controller.js");
+      const session = await connectController({
+        cwd: "/tmp/solo",
+        roomId: "ROOM2",
+        gameId: "wrong-requested-game",
+        mode: "arcade-dev",
+        timeoutMs: 1_000,
+      });
+      try {
+        const runtime = await resolveControllerSessionGameRuntime({
+          controllerSessionId: session.controllerSessionId,
+          timeoutMs: 1_000,
+        });
+        expect(runtime).toEqual({
+          gameId: projectMode === "monorepo" ? "pong" : "solo-fixture",
+          defaultStoreDomain: "aj.embedded.game:7:local-reference-pong",
+        });
+      } finally {
+        await disconnectController({
+          controllerSessionId: session.controllerSessionId,
+        });
+      }
+    },
+  );
+});

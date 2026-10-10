@@ -1,4 +1,3 @@
-import { REALTIME_ADMISSION_POLICY } from "@air-jam/database-contract";
 import {
   AIRJAM_DEV_LOG_EVENTS,
   type ClientToServerEvents,
@@ -10,21 +9,22 @@ import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
-import { createDatabaseRuntimeUsageLedgerPublisher } from "./analytics/runtime-usage-ledger.js";
-import { type RuntimeUsagePublisher } from "./analytics/runtime-usage.js";
-import { createOwnedServerDatabase, type ServerDatabase } from "./db.js";
-import { REMOTE_DATABASE_BLOCKED_MESSAGE } from "./env/database-url-policy.js";
+import {
+  createNoopRuntimeUsagePublisher,
+  type RuntimeUsagePublisher,
+} from "./analytics/runtime-usage.js";
 import { loadServerEnv, type ServerEnvConfig } from "./env/server-env.js";
 import { registerSocketHandlers } from "./gateway/register-socket-handlers.js";
-import {
-  DevLogCollector,
-  type BrowserLogBatchPayload,
-  type BrowserLogUnloadPayload,
+import type {
+  BrowserLogBatchPayload,
+  BrowserLogUnloadPayload,
 } from "./logging/dev-log-collector.js";
-import { resolveDefaultDevLogDir } from "./logging/log-paths.js";
-import { createServerLogger, type ServerLogger } from "./logging/logger.js";
 import {
-  createDatabaseServerOperationalEventPublisher,
+  createServerLogging,
+  type ServerLoggingOptions,
+} from "./logging/server-logging.js";
+import {
+  createNoopServerOperationalEventPublisher,
   publishServerOperationalFailureSafely,
   type ServerOperationalEventPublisher,
 } from "./operations/operational-event-publisher.js";
@@ -36,8 +36,6 @@ import {
 import { RateLimitService } from "./services/rate-limit-service.js";
 import {
   createLocalRealtimeAdmissionService,
-  createUnavailableRealtimeAdmissionService,
-  DatabaseRealtimeAdmissionService,
   type RealtimeAdmissionService,
   type RealtimeAdmissionStatus,
   type RealtimeAdmissionTerminalFailure,
@@ -65,25 +63,22 @@ const projectPublicRealtimeAdmissionStatus = (
   hasError: status.lastError !== null,
 });
 
-export interface CreateAirJamServerOptions {
+export interface CreateAirJamServerOptions extends ServerLoggingOptions {
   port?: number;
   rateLimitWindowMs?: number;
   hostRegistrationRateLimitMax?: number;
   controllerJoinRateLimitMax?: number;
   staticAppRateLimitMax?: number;
   runtimeErrorReportRateLimitMax?: number;
+  drainTimeoutMs?: number;
   allowedOrigins?: AllowedOrigins;
-  logger?: ServerLogger;
   authService?: HostBootstrapAuthService;
   runtimeUsagePublisher?: RuntimeUsagePublisher;
   operationalEventPublisher?: ServerOperationalEventPublisher;
   rateLimitService?: RateLimitService;
   roomManager?: RoomManager;
-  db?: ServerDatabase | null;
   realtimeAdmissionService?: RealtimeAdmissionService;
   proxyHeaderTrustMode?: ServerEnvConfig["proxyHeaderTrustMode"];
-  devLogCollector?: DevLogCollector | false;
-  devLogDir?: string;
   envConfig?: ServerEnvConfig;
 }
 
@@ -105,8 +100,6 @@ export interface AirJamServerRuntime {
   ) => () => void;
 }
 
-let hasWarnedAboutBlockedRemoteDatabase = false;
-
 export const createAirJamServer = (
   options: CreateAirJamServerOptions = {},
 ): AirJamServerRuntime => {
@@ -119,100 +112,45 @@ export const createAirJamServer = (
     (failure: RealtimeAdmissionTerminalFailure) => void
   >();
 
-  const devLogCollector =
-    options.devLogCollector === false
-      ? null
-      : (options.devLogCollector ??
-        new DevLogCollector({
-          enabled: envConfig.devLogCollectorEnabled,
-          logDir:
-            options.devLogDir ??
-            envConfig.devLogDir ??
-            resolveDefaultDevLogDir(),
-        }));
-  const logger =
-    options.logger ??
-    createServerLogger(
-      { service: "air-jam-server" },
-      undefined,
-      devLogCollector,
-      { level: envConfig.logLevel },
-    );
-  if (envConfig.remoteDatabaseBlocked && !hasWarnedAboutBlockedRemoteDatabase) {
-    hasWarnedAboutBlockedRemoteDatabase = true;
-    logger.warn(
-      { component: "env", nodeEnv: envConfig.nodeEnv },
-      REMOTE_DATABASE_BLOCKED_MESSAGE,
-    );
-  }
+  const logging = createServerLogging(options, envConfig);
+  const { logger } = logging;
+  const devLogCollector = logging.devLogCollector || null;
   const roomManagerInstance = options.roomManager ?? new RoomManager();
   const rateLimitServiceInstance =
     options.rateLimitService ?? new RateLimitService();
-  const ownedDatabase =
-    options.db === undefined
-      ? createOwnedServerDatabase(envConfig.databaseUrl)
-      : null;
-  const db =
-    options.db === undefined ? (ownedDatabase?.database ?? null) : options.db;
   const realtimeAdmissionService =
-    options.realtimeAdmissionService ??
-    (db
-      ? new DatabaseRealtimeAdmissionService({
-          database: db,
-          logger: logger.child({ component: "realtime-admission" }),
-          instanceId: [
-            process.env.RAILWAY_REPLICA_ID?.trim() || "realtime",
-            crypto.randomUUID(),
-          ].join(":"),
-          budgetRequirement: envConfig.operationalBudgetRequirement,
-        })
-      : envConfig.operationalEnvironment === "production" ||
-          envConfig.operationalEnvironment === "preview"
-        ? createUnavailableRealtimeAdmissionService({
-            reason:
-              "DATABASE_URL is required for hosted realtime admission authority.",
-            budgetRequirement: envConfig.operationalBudgetRequirement,
-          })
-        : createLocalRealtimeAdmissionService());
+    options.realtimeAdmissionService ?? createLocalRealtimeAdmissionService();
   const operationalEventPublisher =
     options.operationalEventPublisher ??
-    createDatabaseServerOperationalEventPublisher({
-      database: db,
-      environment: envConfig.operationalEnvironment,
-      instanceId: process.env.RAILWAY_REPLICA_ID?.trim() || undefined,
-    });
+    createNoopServerOperationalEventPublisher();
   const authServiceInstance =
     options.authService ??
     new AuthService({
-      logger: logger.child({ component: "auth" }),
-      env: {
-        authMode: envConfig.authMode,
-        masterKey: envConfig.masterKey,
-        hostGrantSecret: envConfig.hostGrantSecret,
-        databaseUrl: envConfig.databaseUrl,
-      },
-      db,
-      operationalEventPublisher,
+      env: { authMode: envConfig.authMode, masterKey: envConfig.masterKey },
     });
   const runtimeUsagePublisher =
-    options.runtimeUsagePublisher ??
-    createDatabaseRuntimeUsageLedgerPublisher(
-      logger.child({ component: "analytics" }),
-      db,
-      operationalEventPublisher,
-    );
+    options.runtimeUsagePublisher ?? createNoopRuntimeUsagePublisher();
   const startupConfigurationError =
-    typeof authServiceInstance.getStartupConfigurationError === "function"
-      ? authServiceInstance.getStartupConfigurationError()
-      : null;
-  if (startupConfigurationError) {
-    void ownedDatabase?.close().catch((error) => {
-      logger.error(
-        { err: error },
-        "Could not close PostgreSQL after startup validation failed",
+    authServiceInstance.getStartupConfigurationError?.();
+  if (startupConfigurationError) throw new Error(startupConfigurationError);
+  if (!options.authService) {
+    if (envConfig.authMode === "disabled") {
+      logger[envConfig.nodeEnv === "production" ? "warn" : "info"](
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.auth.modeDisabled,
+          authMode: "disabled",
+        },
+        "Host authentication is disabled; any host may create a room.",
       );
-    });
-    throw new Error(startupConfigurationError);
+    } else if (envConfig.masterKey) {
+      logger.info(
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.auth.modeMasterKey,
+          authMode: "required",
+        },
+        "Local master-key host authentication is enabled.",
+      );
+    }
   }
 
   const defaultPort = envConfig.port;
@@ -407,6 +345,7 @@ export const createAirJamServer = (
         event: AIRJAM_DEV_LOG_EVENTS.server.started,
         port: activePort,
         corsOrigin,
+        authMode: envConfig.authMode,
       },
       `Server listening on http://localhost:${activePort}`,
     );
@@ -414,7 +353,7 @@ export const createAirJamServer = (
   };
 
   const drain = async (
-    timeoutMs: number = REALTIME_ADMISSION_POLICY.shutdownDrainTimeoutMs,
+    timeoutMs: number = options.drainTimeoutMs ?? 25_000,
   ): Promise<{
     completed: boolean;
     remainingRooms: number;
@@ -475,7 +414,6 @@ export const createAirJamServer = (
       }
       await attempt(async () => devLogCollector?.flush());
       unsubscribeAdmissionFailure();
-      await attempt(async () => ownedDatabase?.close());
 
       if (cleanupErrors.length > 0) {
         throw new AggregateError(
@@ -547,3 +485,41 @@ export const createAirJamServer = (
     onTerminalFailure,
   };
 };
+
+export {
+  createRuntimeUsageEvent,
+  type RuntimeUsageEvent,
+  type RuntimeUsagePublisher,
+} from "./analytics/runtime-usage.js";
+export { loadWorkspaceEnv } from "./env/load-workspace-env.js";
+export { loadServerEnv, type ServerEnvConfig } from "./env/server-env.js";
+export { createServerLogger, type ServerLogger } from "./logging/logger.js";
+export { createServerLogging } from "./logging/server-logging.js";
+export {
+  publishServerOperationalFailureSafely,
+  type ServerOperationalEventPublisher,
+} from "./operations/operational-event-publisher.js";
+export type { ServerOperationalFailureInput } from "./operations/operational-event-publisher.js";
+export { installServerProcessSignalHandlers } from "./process-lifecycle.js";
+export type {
+  HostBootstrapAuthService,
+  HostBootstrapVerificationResult,
+  VerificationResult,
+  VerifyAppIdContext,
+  VerifyHostBootstrapInput,
+} from "./services/auth-service.js";
+export { RateLimitService } from "./services/rate-limit-service.js";
+export {
+  createLocalRealtimeAdmissionService,
+  type RealtimeAdmissionDenial,
+  type RealtimeAdmissionService,
+  type RealtimeAdmissionStatus,
+  type RealtimeAdmissionTerminalFailure,
+  type RealtimeControllerLease,
+  type RealtimeRoomLease,
+} from "./services/realtime-admission-service.js";
+export type {
+  RealtimeAdmissionDecision,
+  RealtimeAdmissionDenialReason,
+} from "./services/realtime-admission-service.js";
+export { RoomManager } from "./services/room-manager.js";

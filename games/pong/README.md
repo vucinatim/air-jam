@@ -383,11 +383,16 @@ Frontend env:
 VITE_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
 ```
 
-Server env:
+Signing endpoint env:
 
 ```bash
 AIR_JAM_HOST_GRANT_SECRET=your_signing_secret
 ```
+
+The backend must also verify grants through the authentication adapter supplied
+to `createAirJamServer`. The standalone server does not read this secret or
+automatically enable grant verification. See the
+[server composition guide](../../docs/guides/server-composition-guide.md).
 
 Minimal endpoint shape:
 

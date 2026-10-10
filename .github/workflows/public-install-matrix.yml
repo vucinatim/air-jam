@@ -11,9 +11,13 @@ on:
       - "pnpm-workspace.yaml"
       - "packages/cli/**"
       - "packages/create-airjam/**"
+      - "packages/devtools/**"
+      - "packages/env/**"
       - "packages/mcp-server/**"
       - "packages/sdk/**"
       - "packages/server/**"
+      - "games/**"
+      - "content/docs/**"
       - "scripts/lib/**"
       - "scripts/release/**"
       - "scripts/repo/commands/release.mjs"
@@ -41,7 +45,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          # Candidate creation validates durable readiness evidence commits.
+          # Candidate provenance inspects source history.
           fetch-depth: 0
 
       - name: Setup Node.js

@@ -7,6 +7,5 @@ export const runWorkspaceSecureInitCommand = async ({
   runSecureInitCli({
     cwd: rootDir,
     argv,
-    nextStepMessage:
-      "pnpm arcade:dev --game=<id> --secure  # or pnpm standalone:dev --game=<id> --secure",
+    nextStepMessage: "pnpm run dev -- --game=<id> --secure",
   });

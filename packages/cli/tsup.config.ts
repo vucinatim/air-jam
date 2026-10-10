@@ -1,7 +1,13 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/scaffold.ts"],
+  entry: [
+    "src/index.ts",
+    "src/scaffold.ts",
+    "src/ai-pack.ts",
+    "src/development.ts",
+    "src/documentation.ts",
+  ],
   format: ["esm"],
   dts: true,
   clean: true,
@@ -9,5 +15,5 @@ export default defineConfig({
   sourcemap: true,
   platform: "node",
   target: "es2022",
-  noExternal: ["@air-jam/devtools-core", "@air-jam/env"],
+  noExternal: ["@air-jam/env"],
 });

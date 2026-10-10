@@ -38,6 +38,7 @@
     "@air-jam/cli",
     "@air-jam/mcp-server",
     "@air-jam/server",
+    "@air-jam/devtools",
     "create-airjam"
   ],
   "scaffold": {
@@ -60,9 +61,10 @@
       "@air-jam/cli": 1048576,
       "@air-jam/mcp-server": 1048576,
       "@air-jam/server": 524288,
+      "@air-jam/devtools": 1048576,
       "create-airjam": 104857600
     },
-    "totalTarballBytes": 110100480,
+    "totalTarballBytes": 111689728,
     "scaffoldInstallMs": 600000,
     "cellTotalMs": 1800000
   }

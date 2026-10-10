@@ -54,7 +54,7 @@ export const writeTarballSetManifest = ({ setDir, setId, tarballs }) => {
 
 export const packWorkspacePackage = (
   packageDir,
-  { outDir = tarballDir } = {},
+  { outDir = tarballDir, stdio = "inherit" } = {},
 ) => {
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -71,6 +71,7 @@ export const packWorkspacePackage = (
 
   runCommand("pnpm", ["pack", "--pack-destination", outDir], {
     cwd: packageDir,
+    stdio,
   });
 
   if (!fs.existsSync(tarballPath)) {

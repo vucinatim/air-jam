@@ -1,4 +1,4 @@
-import { inspectProject } from "@air-jam/devtools-core/context";
+import { inspectProject } from "@air-jam/devtools/context";
 import {
   readGameSessionBrokerState,
   requestGameSessionBroker,
@@ -7,7 +7,7 @@ import {
   type AirJamGameSessionBrokerHealth,
   type AirJamGameSessionBrokerOperation,
   type AirJamGameSessionBrokerState,
-} from "@air-jam/devtools-core/game-session-broker";
+} from "@air-jam/devtools/game-session-broker";
 import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync } from "node:fs";
 import { unlink } from "node:fs/promises";

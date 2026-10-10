@@ -3,6 +3,8 @@ import type { RoomPlatformSettingsSnapshot } from "../settings/platform-settings
 import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
 
+export { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../settings/platform-settings";
+
 export const controllerInputSchema = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(3),

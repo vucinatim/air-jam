@@ -14,6 +14,15 @@ export const PUBLIC_PACKAGE_DEFINITIONS = [
     packageFilter: "@air-jam/sdk",
     workingDirectory: "packages/sdk",
     tagPrefix: "sdk",
+    scaffoldDependency: true,
+  },
+  {
+    id: "devtools",
+    packageName: "@air-jam/devtools",
+    packageFilter: "@air-jam/devtools",
+    workingDirectory: "packages/devtools",
+    tagPrefix: "devtools",
+    scaffoldDependency: false,
   },
   {
     id: "mcp-server",
@@ -21,6 +30,7 @@ export const PUBLIC_PACKAGE_DEFINITIONS = [
     packageFilter: "@air-jam/mcp-server",
     workingDirectory: "packages/mcp-server",
     tagPrefix: "mcp-server",
+    scaffoldDependency: true,
   },
   {
     id: "cli",
@@ -28,6 +38,7 @@ export const PUBLIC_PACKAGE_DEFINITIONS = [
     packageFilter: "@air-jam/cli",
     workingDirectory: "packages/cli",
     tagPrefix: "cli",
+    scaffoldDependency: true,
   },
   {
     id: "server",
@@ -35,6 +46,7 @@ export const PUBLIC_PACKAGE_DEFINITIONS = [
     packageFilter: "@air-jam/server",
     workingDirectory: "packages/server",
     tagPrefix: "server",
+    scaffoldDependency: true,
   },
   {
     id: "create-airjam",
@@ -42,6 +54,7 @@ export const PUBLIC_PACKAGE_DEFINITIONS = [
     packageFilter: "create-airjam",
     workingDirectory: "packages/create-airjam",
     tagPrefix: "create-airjam",
+    scaffoldDependency: true,
   },
 ];
 

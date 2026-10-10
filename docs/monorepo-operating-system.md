@@ -1,7 +1,11 @@
 # Air Jam Monorepo Operating System
 
-Last updated: 2026-08-26
+Last updated: 2026-10-10
 Status: stable operating reference
+
+This repository owns public framework memory. The private product retains
+whole-product history and operates the product release program; its readiness
+manifest and provider procedures are not public workspace dependencies.
 
 ## Purpose
 
@@ -14,6 +18,18 @@ This document defines the repo memory model for Air Jam so that:
 5. humans and agents use the same repo operating system surfaces
 
 This document is about repo memory and execution surfaces.
+
+## Workspace runtime declaration
+
+Workspace discovery, launch and topology follow the
+[workspace runtime contract](./contracts/workspace-runtime-contract.md).
+Runtime metadata belongs to that contract; this document owns repository memory
+and navigation.
+
+Packaged creator docs similarly declare their required MDX components in
+`readDocumentationSnapshot().requiredComponents`. The public source is
+`content/docs/renderer-components.json`; renderers must provide those names,
+and undeclared component tags fail the packaged documentation check.
 
 Engineering rules, validation discipline, and implementation behavior still live primarily in [../AGENTS.md](../AGENTS.md).
 

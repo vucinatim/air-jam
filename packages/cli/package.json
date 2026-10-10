@@ -23,6 +23,18 @@
     "airjam": "./bin/airjam.mjs"
   },
   "exports": {
+    "./documentation": {
+      "types": "./dist/documentation.d.ts",
+      "import": "./dist/documentation.js"
+    },
+    "./development": {
+      "types": "./dist/development.d.ts",
+      "import": "./dist/development.js"
+    },
+    "./ai-pack": {
+      "types": "./dist/ai-pack.d.ts",
+      "import": "./dist/ai-pack.js"
+    },
     "./scaffold": {
       "types": "./dist/scaffold.d.ts",
       "import": "./dist/scaffold.js"
@@ -47,32 +59,27 @@
     "ai-pack:check": "node scripts/check-ai-pack.mjs",
     "ai-pack:manifest:generate": "node scripts/generate-ai-pack-manifest.mjs",
     "docs-pack:generate": "node scripts/generate-base-docs-pack.mjs",
-    "build": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && pnpm docs-pack:generate && pnpm ai-pack:manifest:generate && tsup && node ../../scripts/build-devtools-helpers.mjs --out-dir dist/tooling",
-    "typecheck": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && tsc --noEmit",
-    "test": "pnpm --filter @air-jam/devtools-core build && pnpm --filter @air-jam/mcp-server build && pnpm build && node --test runtime/*.test.mjs",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools && pnpm docs-pack:generate && pnpm ai-pack:manifest:generate && tsup",
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools && tsc --noEmit",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/cli && node --test runtime/*.test.mjs",
     "prepublishOnly": "pnpm ai-pack:check && pnpm build",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
   },
   "dependencies": {
-    "@air-jam/mcp-server": "workspace:^",
+    "@air-jam/devtools": "workspace:*",
     "@air-jam/sdk": "workspace:^",
     "commander": "^14.0.0",
     "cross-spawn": "^7.0.6",
     "fs-extra": "^11.3.0",
     "kleur": "^4.1.5",
-    "playwright-core": "^1.58.2",
-    "socket.io-client": "^4.8.3",
-    "tsx": "^4.20.6",
-    "yauzl": "^3.2.1",
-    "yazl": "^3.3.1",
     "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@air-jam/devtools-core": "workspace:^",
     "@air-jam/env": "workspace:^",
     "@types/fs-extra": "^11.0.4",
     "tsup": "^8.5.1",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.3"
   }
 }

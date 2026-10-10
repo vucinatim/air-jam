@@ -26,7 +26,7 @@ jobs:
           - name: Static contracts
             history: 1
             command: >-
-              pnpm --silent run repo -- platform generated check &&
+              pnpm --filter @air-jam/cli ai-pack:check &&
               pnpm lint &&
               pnpm guard:canonical
           - name: Type safety
@@ -34,46 +34,25 @@ jobs:
             command: pnpm typecheck
           - name: Tests
             history: 0
-            command: >-
-              pnpm test &&
-              env DATABASE_URL="$AIR_JAM_CI_DATABASE_URL" pnpm --filter platform exec drizzle-kit migrate &&
-              env AIR_JAM_TEST_DATABASE_URL="$AIR_JAM_CI_DATABASE_URL" node --test scripts/repo/runtime/operational-reliability-cli-contract.test.mjs &&
-              env AIR_JAM_TEST_DATABASE_URL="$AIR_JAM_CI_DATABASE_URL" pnpm --filter platform test -- src/server/operations/operational-reliability-service.postgres.test.ts src/server/operations/operational-alert-issue-projection-service.postgres.test.ts src/server/operations/platform-schema-migration-run-service.postgres.test.ts src/server/operations/realtime-admission-migration.postgres.test.ts src/server/operations/realtime-admission-inspection-service.postgres.test.ts src/server/operations/production-budget-refresh-service.postgres.test.ts src/server/operations/host-grant-migration.postgres.test.ts src/server/releases/release-report-intake.postgres.test.ts src/server/releases/release-report-operations.postgres.test.ts src/server/operations/emergency-pause-service.postgres.test.ts src/server/operations/operational-evidence-retention-service.postgres.test.ts &&
-              env AIR_JAM_TEST_DATABASE_URL="$AIR_JAM_CI_DATABASE_URL" pnpm --filter server test -- --run tests/operational-event-publisher.postgres.test.ts tests/auth-service.postgres.test.ts tests/host-grant-lifecycle.postgres.test.ts tests/realtime-admission-service.postgres.test.ts
-            postgresImage: postgres:17-alpine
-            databaseUrl: postgresql://postgres:postgres@localhost:5432/airjam_test
+            command: pnpm test
           - name: Workspace build
             history: 1
             command: pnpm build
-          - name: Standalone deployment
+          - name: Standalone packages
             history: 1
-            command: pnpm check:platform:deploy
+            command: >-
+              mkdir -p .airjam &&
+              pnpm --silent run repo -- pack verify-local --json > .airjam/foundation-package-proof.json
           - name: Performance smoke
             history: 1
             command: >-
               pnpm --filter server... build &&
               pnpm run repo -- perf sanity --profile ci
-    services:
-      postgres:
-        image: ${{ matrix.postgresImage || '' }}
-        env:
-          POSTGRES_DB: airjam_test
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d airjam_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      AIR_JAM_CI_DATABASE_URL: ${{ matrix.databaseUrl || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          # Only the test lane resolves immutable readiness evidence.
+          # Tests inspect source history; other lanes need only this revision.
           fetch-depth: ${{ matrix.history }}
 
       - name: Setup Node.js
@@ -90,6 +69,21 @@ jobs:
 
       - name: Run ${{ matrix.name }}
         run: ${{ matrix.command }}
+
+      - name: Locate qualified foundation packages
+        if: matrix.name == 'Standalone packages'
+        id: foundation
+        run: jq -r '"path=.airjam/tarballs/sets/\(.setId)"' .airjam/foundation-package-proof.json >> "$GITHUB_OUTPUT"
+
+      - name: Retain qualified foundation packages
+        if: matrix.name == 'Standalone packages'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: foundation-packages
+          path: ${{ steps.foundation.outputs.path }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
 
   checks:
     name: checks

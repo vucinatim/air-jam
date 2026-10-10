@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -12,34 +13,20 @@ const rootPackageJson = JSON.parse(
   fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
 );
 
-test("platform image resolves game-origin routing at build and runtime", () => {
-  const source = fs.readFileSync(
-    path.join(repoRoot, "apps/platform/Dockerfile"),
-    "utf8",
-  );
-  assert.match(source, /^ARG AIRJAM_RELEASES_PUBLIC_ORIGIN$/mu);
-  assert.match(
-    source,
-    /AIRJAM_RELEASES_PUBLIC_ORIGIN=\$AIRJAM_RELEASES_PUBLIC_ORIGIN/u,
-  );
-});
-
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
-const listDockerfiles = (rootDir, currentDir = rootDir) => {
-  const files = [];
-  for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
-    const absolutePath = path.join(currentDir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listDockerfiles(rootDir, absolutePath));
-    } else if (entry.isFile() && entry.name === "Dockerfile") {
-      files.push(
-        path.relative(rootDir, absolutePath).replaceAll(path.sep, "/"),
-      );
-    }
-  }
-  return files.sort();
-};
+const listDockerfiles = (rootDir) =>
+  execFileSync(
+    "git",
+    ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+    { cwd: rootDir, encoding: "utf8" },
+  )
+    .split("\0")
+    .filter(
+      (file) =>
+        file.endsWith("Dockerfile") && fs.existsSync(path.join(rootDir, file)),
+    )
+    .sort();
 
 const readManifestInstallStage = (dockerfile) => {
   const stages = dockerfile.split(/(?=^FROM\s)/mu).filter(Boolean);
@@ -199,7 +186,7 @@ test("workspace manifest copies after install do not satisfy the dependency cont
     "FROM node AS deps",
     "COPY packages/sdk/package.json ./packages/sdk/",
     "RUN pnpm install --frozen-lockfile",
-    "COPY packages/database-contract/package.json ./packages/database-contract/",
+    "COPY packages/env/package.json ./packages/env/",
     "FROM node AS runtime",
     "COPY --from=deps /app /app",
   ].join("\n");
@@ -208,8 +195,8 @@ test("workspace manifest copies after install do not satisfy the dependency cont
   assert.deepEqual(
     findMissingDependencyStageManifests(dependencyStage, [
       "packages/sdk/package.json",
-      "packages/database-contract/package.json",
+      "packages/env/package.json",
     ]),
-    ["packages/database-contract/package.json"],
+    ["packages/env/package.json"],
   );
 });

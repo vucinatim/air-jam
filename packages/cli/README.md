@@ -14,6 +14,7 @@ pnpm exec airjam --help
 pnpm exec airjam session --help
 pnpm exec airjam mcp --help
 pnpm exec airjam release --help
+pnpm exec airjam docs --help
 ```
 
 ## Machine-first local lifecycle
@@ -109,6 +110,37 @@ project-owned agent instructions or skills.
 
 ## Programmatic assets
 
+The installed package includes all public creator pages and their portable
+metadata. Read them without an account, network request or source checkout:
+
+```bash
+pnpm exec airjam docs list --json
+pnpm exec airjam docs read sdk/ui-components --json
+```
+
+`readDocumentationSnapshot()` from `@air-jam/cli/documentation` returns the
+package version and verified MDX content, page identities and navigation
+metadata. Content and metadata originate in the public repository's
+`content/docs/` catalog. The private website supplies rendering components and
+generates its build inputs from this snapshot; it does not maintain a second
+authored copy. MDX component names are presentation slots, not imports of private
+application code. Only trusted package documentation is compiled this way,
+never creator-uploaded MDX. The API reads do not write project files.
+
 Scaffolding code can resolve the two explicit asset roots and portable MCP
 declaration through `@air-jam/cli/scaffold`. Vite projects use
 `@air-jam/cli/vite-config`.
+
+Repository-owned development orchestration can use the typed
+`@air-jam/cli/development` entrypoint for local network discovery, environment
+loading, runtime topology construction and secure-development state. It shares
+the CLI implementation; consumers do not import files inside its source tree.
+Reading state or constructing a topology does not initialize certificates or
+change tunnel configuration. `runSecureInitCli()` is the explicit setup action,
+with the same arguments and effects as `airjam secure:init`.
+
+`readAiPackSnapshot()` from `@air-jam/cli/ai-pack` returns the verified
+packaged manifest and a `Map<string, Buffer>` of managed file contents. Consumers
+can serve that exact snapshot without a CLI source checkout, network request or
+second pack generator. Invalid manifests, paths or content hashes fail the read;
+it does not modify the package or a creator's project.

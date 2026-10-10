@@ -7,7 +7,7 @@ const importedEnvironment = loadServerEnv();
 
 describe("server test environment isolation", () => {
   it("removes default database and dev-log authority before test imports", () => {
-    expect(importedEnvironment.databaseUrl).toBeUndefined();
+    expect(importedEnvironment).not.toHaveProperty("databaseUrl");
     expect(importedEnvironment.devLogCollectorEnabled).toBe(false);
     expect(importedEnvironment.devLogDir).toBeUndefined();
   });
