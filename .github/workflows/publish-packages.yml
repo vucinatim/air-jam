@@ -15,13 +15,17 @@ on:
         description: "Optional incident reason; urgency never bypasses release proof"
         required: false
         type: string
+      candidate_run_id:
+        description: "Optional prior failed release run: reuse its exact archives, never rebuild"
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  AIRJAM_RELEASE_NPM_VERSION: "12.0.2"
+  AIRJAM_RELEASE_NPM_VERSION: "12.2.0"
 
 concurrency:
   group: publish-packages
@@ -32,6 +36,9 @@ jobs:
     name: Build immutable candidate
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
     outputs:
       commit: ${{ steps.identity.outputs.commit }}
       digest: ${{ steps.identity.outputs.digest }}
@@ -70,9 +77,25 @@ jobs:
       - name: Install repository dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Require unpublished versions for a new release
+        if: inputs.candidate_run_id == ''
+        run: pnpm --silent run repo -- release candidate check-versions --json
+
       - name: Create exact public release candidate
+        if: inputs.candidate_run_id == ''
         run: >-
           pnpm --silent run repo -- release candidate create
+          --output "$RUNNER_TEMP/public-release-candidate"
+          --json
+
+      - name: Recover retained candidate
+        if: inputs.candidate_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+        run: >-
+          pnpm --silent run repo -- release candidate recover
+          --run "$CANDIDATE_RUN_ID"
           --output "$RUNNER_TEMP/public-release-candidate"
           --json
 
@@ -93,6 +116,7 @@ jobs:
 
   verify:
     name: ${{ matrix.system.id }} / Node ${{ matrix.node }}
+    if: inputs.candidate_run_id == ''
     needs: candidate
     runs-on: ${{ matrix.system.runner }}
     timeout-minutes: 35
@@ -151,13 +175,20 @@ jobs:
   aggregate:
     name: Aggregate exact candidate proof
     needs: [candidate, verify]
+    if: >-
+      always() && needs.candidate.result == 'success' &&
+      (needs.verify.result == 'success' ||
+      (inputs.candidate_run_id != '' && needs.verify.result == 'skipped'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
     steps:
-      - name: Checkout exact candidate source
+      - name: Checkout exact verifier
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: ${{ needs.candidate.outputs.commit }}
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -174,9 +205,11 @@ jobs:
       - name: Download cell evidence
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          pattern: publish-install-*
+          pattern: publish-install-*-node-*
           path: artifacts/cells
           merge-multiple: true
+          run-id: ${{ inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Aggregate matrix
         run: >-
@@ -187,7 +220,10 @@ jobs:
       - name: Match candidate identity
         env:
           EXPECTED_DIGEST: ${{ needs.candidate.outputs.digest }}
-        run: test "$(jq -r .candidateDigest artifacts/public-install-matrix.json)" = "$EXPECTED_DIGEST"
+          EXPECTED_COMMIT: ${{ needs.candidate.outputs.commit }}
+        run: |
+          test "$(jq -r .candidateDigest artifacts/public-install-matrix.json)" = "$EXPECTED_DIGEST"
+          test "$(jq -r .commit artifacts/public-install-matrix.json)" = "$EXPECTED_COMMIT"
 
       - name: Upload aggregate evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -200,8 +236,11 @@ jobs:
   publish:
     name: Trusted publish exact bytes
     needs: [candidate, aggregate]
+    if: >-
+      !cancelled() && needs.candidate.result == 'success' &&
+      needs.aggregate.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: read
       id-token: write
@@ -209,14 +248,13 @@ jobs:
       - name: Checkout exact verifier
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: ${{ needs.candidate.outputs.commit }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
       - name: Pin trusted-publishing npm CLI
@@ -253,6 +291,9 @@ jobs:
   finalize:
     name: Tag and document verified release
     needs: [candidate, aggregate, publish]
+    if: >-
+      !cancelled() && needs.candidate.result == 'success' &&
+      needs.aggregate.result == 'success' && needs.publish.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

@@ -22,9 +22,12 @@ import {
 } from "../../release/public-packages.mjs";
 import {
   assertPublicVersionAvailability,
+  assertRecoverablePublicReleaseRun,
   assertRegisteredPublicPackages,
   computeCandidateDigest,
+  parsePublicReleaseRunId,
   publicReleaseCandidateContract,
+  readNpmViewValue,
   resolveCandidatePublicationTag,
   validatePublicReleaseCandidate,
 } from "../lib/public-release-candidate.mjs";
@@ -41,6 +44,65 @@ const writeJson = (filePath, value) => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 };
+
+test("npm 12 view unwraps exactly one result, including scalar license metadata", () => {
+  assert.deepEqual(readNpmViewValue('[{"dist.integrity":"sha512-exact"}]'), {
+    "dist.integrity": "sha512-exact",
+  });
+  assert.deepEqual(readNpmViewValue('[{"next":"0.9.3"}]'), { next: "0.9.3" });
+  assert.equal(readNpmViewValue('["MIT"]'), "MIT");
+  for (const source of ["[]", "[{},{}]", "{}"]) {
+    assert.throws(() => readNpmViewValue(source), /exactly one JSON result/u);
+  }
+});
+
+test("recovery accepts only a failed first-party main release run", () => {
+  assert.equal(parsePublicReleaseRunId("42"), 42);
+  for (const value of [
+    "0",
+    "-1",
+    "1.2",
+    "01",
+    "abc",
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    assert.throws(
+      () => parsePublicReleaseRunId(value),
+      /positive safe integer/u,
+    );
+  }
+  const run = {
+    id: 42,
+    repository: { full_name: "vucinatim/air-jam" },
+    head_repository: { full_name: "vucinatim/air-jam" },
+    path: ".github/workflows/publish-packages.yml",
+    event: "workflow_dispatch",
+    head_branch: "main",
+    head_sha: "a".repeat(40),
+    status: "completed",
+    conclusion: "failure",
+  };
+  assert.doesNotThrow(() => assertRecoverablePublicReleaseRun(42, run));
+  for (const changed of [
+    { id: 43 },
+    { repository: { full_name: "someone/fork" } },
+    { head_repository: { full_name: "someone/fork" } },
+    { path: ".github/workflows/ci.yml" },
+    { event: "pull_request" },
+    { head_branch: "feature" },
+    { head_sha: "not-a-sha" },
+    { status: "in_progress" },
+    { conclusion: "success" },
+  ]) {
+    assert.throws(
+      () => assertRecoverablePublicReleaseRun(42, { ...run, ...changed }),
+      /failed first-party main release run/u,
+    );
+  }
+  assert.throws(() =>
+    assertRecoverablePublicReleaseRun(Number.MAX_SAFE_INTEGER + 1, run),
+  );
+});
 
 test("trusted publication rejects missing package names before any candidate mutation", () => {
   assert.doesNotThrow(() =>
@@ -69,7 +131,7 @@ test("trusted publication rejects missing package names before any candidate mut
   assert.doesNotMatch(source, /\["view", name, "versions",/u);
 });
 
-test("candidate creation rejects any public version already present on npm", () => {
+test("fresh release eligibility rejects any public version already present on npm", () => {
   assert.doesNotThrow(() =>
     assertPublicVersionAvailability([
       { name: "@air-jam/sdk", version: "0.9.3", published: null },
@@ -89,18 +151,45 @@ test("candidate creation rejects any public version already present on npm", () 
   );
 });
 
-test("candidate creation checks registry availability before expensive gates", () => {
+test("fresh publication checks availability without blocking package qualification", () => {
+  const publication = parseYaml(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/publish-packages.yml"),
+      "utf8",
+    ),
+  );
+  const installation = parseYaml(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/public-install-matrix.yml"),
+      "utf8",
+    ),
+  );
+  const steps = publication.jobs.candidate.steps;
+  const availability = steps.findIndex((step) =>
+    step.run?.includes("candidate check-versions"),
+  );
+  const creation = steps.findIndex((step) =>
+    step.run?.includes("candidate create"),
+  );
+  assert.ok(availability >= 0 && availability < creation);
+  assert.equal(steps[availability].if, "inputs.candidate_run_id == ''");
+  assert.ok(
+    !installation.jobs.candidate.steps.some((step) =>
+      step.run?.includes("check-versions"),
+    ),
+  );
+  assert.equal(
+    installation.env.AIRJAM_RELEASE_NPM_VERSION,
+    publication.env.AIRJAM_RELEASE_NPM_VERSION,
+  );
   const source = fs.readFileSync(
     path.join(repoRoot, "scripts/repo/lib/public-release-candidate.mjs"),
     "utf8",
   );
-  const availabilityIndex = source.indexOf(
-    'onProgress("registry:version-availability")',
+  assert.doesNotMatch(
+    source.slice(source.indexOf("export const createPublicReleaseCandidate")),
+    /assertPublicPackageVersionsAvailable|registry:version-availability/u,
   );
-  const releaseGateIndex = source.indexOf('onProgress("gate:release-publish")');
-  assert.ok(availabilityIndex >= 0);
-  assert.ok(releaseGateIndex >= 0);
-  assert.ok(availabilityIndex < releaseGateIndex);
 });
 
 const createCandidateFixture = () => {
@@ -269,14 +358,7 @@ test("candidate validation rejects digest-consistent unsafe audit evidence", () 
 test("public packages are ordered before packages that depend on them", () => {
   assert.deepEqual(
     PUBLIC_PACKAGE_DEFINITIONS.map((entry) => entry.id),
-    [
-      "sdk",
-      "devtools",
-      "mcp-server",
-      "cli",
-      "server",
-      "create-airjam",
-    ],
+    ["sdk", "devtools", "mcp-server", "cli", "server", "create-airjam"],
   );
 });
 
@@ -383,12 +465,49 @@ test("publish workflow validates one candidate before privileged publication", (
   );
   assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
   assert.deepEqual(workflow.jobs.publish.needs, ["candidate", "aggregate"]);
+  assert.equal(
+    workflow.jobs.publish.if.replace(/\s+/gu, " ").trim(),
+    "!cancelled() && needs.candidate.result == 'success' && needs.aggregate.result == 'success'",
+  );
+  assert.deepEqual(workflow.jobs.finalize.needs, [
+    "candidate",
+    "aggregate",
+    "publish",
+  ]);
+  assert.equal(
+    workflow.jobs.finalize.if.replace(/\s+/gu, " ").trim(),
+    "!cancelled() && needs.candidate.result == 'success' && needs.aggregate.result == 'success' && needs.publish.result == 'success'",
+  );
   assert.equal(workflow.jobs.publish.permissions["id-token"], "write");
   assert.equal(workflow.jobs.publish.permissions.contents, "read");
   assert.equal(workflow.jobs.finalize.permissions.contents, "write");
-  assert.equal(workflow.jobs.candidate.permissions, undefined);
+  assert.deepEqual(workflow.jobs.candidate.permissions, {
+    contents: "read",
+    actions: "read",
+  });
   assert.equal(workflow.jobs.verify.permissions, undefined);
-  assert.equal(workflow.jobs.aggregate.permissions, undefined);
+  assert.deepEqual(workflow.jobs.aggregate.permissions, {
+    contents: "read",
+    actions: "read",
+  });
+  assert.equal(workflow.env.AIRJAM_RELEASE_NPM_VERSION, "12.2.0");
+  assert.equal(
+    workflow.jobs.publish.steps.find(
+      (entry) => entry.name === "Checkout exact verifier",
+    ).with.ref,
+    "${{ github.sha }}",
+  );
+  assert.equal(workflow.jobs.verify.if, "inputs.candidate_run_id == ''");
+  assert.equal(
+    workflow.jobs.aggregate.steps.find(
+      (entry) => entry.name === "Download cell evidence",
+    ).with.pattern,
+    "publish-install-*-node-*",
+  );
+  assert.match(
+    workflow.jobs.aggregate.if,
+    /needs\.verify\.result == 'skipped'/u,
+  );
   assert.equal(JSON.stringify(workflow).includes("NPM_TOKEN"), false);
   assert.equal(
     workflow.jobs.publish.steps.some(

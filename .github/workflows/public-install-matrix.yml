@@ -31,6 +31,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AIRJAM_RELEASE_NPM_VERSION: "12.2.0"
 
 concurrency:
   group: public-install-matrix-${{ github.event.pull_request.number || github.ref }}
@@ -53,6 +54,9 @@ jobs:
         with:
           node-version: "24"
           package-manager-cache: false
+
+      - name: Pin candidate metadata npm CLI
+        run: npm install --global "npm@$AIRJAM_RELEASE_NPM_VERSION"
 
       - name: Enable corepack
         run: corepack enable

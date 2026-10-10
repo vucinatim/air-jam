@@ -24,6 +24,7 @@ const evidenceFiles = Object.freeze({
 });
 const commandMaxBuffer = 64 * 1024 * 1024;
 const npmRegistry = "https://registry.npmjs.org";
+export const publicReleaseRepository = "vucinatim/air-jam";
 
 const compareStrings = (left, right) => left.localeCompare(right);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -50,7 +51,7 @@ export const assertPublicVersionAvailability = (observations) => {
     .map((entry) => `${entry.name}@${entry.version}`)
     .join(", ");
   throw new Error(
-    `Public package version is already present on npm: ${versions}. Bump the coordinated public version before creating a new candidate. To recover a partially completed publication, rerun the failed jobs in the original workflow so they reuse its retained candidate.`,
+    `Public package version is already present on npm: ${versions}. Bump the coordinated public version before creating a new candidate. To recover a partially completed publication, use release trigger --candidate-run-id with its original failed run so the current verifier reuses its retained candidate.`,
   );
 };
 
@@ -109,6 +110,75 @@ const run = (
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8"));
 
+export const parsePublicReleaseRunId = (value) => {
+  const runId = Number(value);
+  if (!/^[1-9]\d*$/u.test(String(value)) || !Number.isSafeInteger(runId)) {
+    throw new Error("Candidate run ID must be a positive safe integer.");
+  }
+  return runId;
+};
+
+export const assertRecoverablePublicReleaseRun = (runId, run) => {
+  parsePublicReleaseRunId(runId);
+  if (
+    run.id !== runId ||
+    run.repository?.full_name !== publicReleaseRepository ||
+    run.head_repository?.full_name !== publicReleaseRepository ||
+    run.path !== ".github/workflows/publish-packages.yml" ||
+    run.event !== "workflow_dispatch" ||
+    run.head_branch !== "main" ||
+    run.status !== "completed" ||
+    run.conclusion !== "failure" ||
+    !/^[a-f0-9]{40}$/u.test(run.head_sha ?? "")
+  ) {
+    throw new Error(
+      "Recovery requires a completed failed first-party main release run.",
+    );
+  }
+};
+
+export const recoverPublicReleaseCandidate = ({ runId, outputDirectory }) => {
+  const parsedRunId = parsePublicReleaseRunId(runId);
+  const releaseRun = JSON.parse(
+    run("gh", [
+      "api",
+      `repos/${publicReleaseRepository}/actions/runs/${parsedRunId}`,
+    ]).stdout,
+  );
+  assertRecoverablePublicReleaseRun(parsedRunId, releaseRun);
+  run("git", ["merge-base", "--is-ancestor", releaseRun.head_sha, "HEAD"]);
+  run("gh", [
+    "run",
+    "download",
+    String(parsedRunId),
+    "--repo",
+    publicReleaseRepository,
+    "--name",
+    "public-release-candidate",
+    "--dir",
+    outputDirectory,
+  ]);
+  const candidate = validatePublicReleaseCandidate(outputDirectory, {
+    expectedCommit: releaseRun.head_sha,
+  });
+  return {
+    ok: true,
+    recoveredRunId: parsedRunId,
+    commit: releaseRun.head_sha,
+    candidateDigest: candidate.candidateDigest,
+  };
+};
+
+export const readNpmViewValue = (source) => {
+  const documents = JSON.parse(source);
+  if (!Array.isArray(documents) || documents.length !== 1) {
+    throw new Error(
+      "npm 12 view must return exactly one JSON result. Run release commands with npm 12.2.0.",
+    );
+  }
+  return documents[0];
+};
+
 const readPublishedPackage = (name, version) => {
   const result = run(
     "npm",
@@ -118,6 +188,7 @@ const readPublishedPackage = (name, version) => {
       "dist.integrity",
       "dist.attestations",
       "--json",
+      "--prefer-online",
       "--registry",
       npmRegistry,
     ],
@@ -131,7 +202,10 @@ const readPublishedPackage = (name, version) => {
       `Unable to inspect ${name}@${version} on npm:\n${result.stderr.trim()}`,
     );
   }
-  const value = JSON.parse(result.stdout);
+  const value = readNpmViewValue(result.stdout);
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid npm version metadata for ${name}@${version}.`);
+  }
   return {
     integrity: value["dist.integrity"] ?? value.integrity ?? null,
     attestations: value["dist.attestations"] ?? value.attestations ?? null,
@@ -157,14 +231,17 @@ const isPublicPackageRegistered = (name) => {
   return visibility === "public";
 };
 
-const assertPublicPackageVersionsAvailable = (publicPackages) => {
-  assertPublicVersionAvailability(
-    publicPackages.map((pkg) => ({
-      name: pkg.packageName,
-      version: pkg.version,
-      published: readPublishedPackage(pkg.packageName, pkg.version),
-    })),
-  );
+export const checkPublicReleaseVersionAvailability = () => {
+  const observations = resolvePublicPackages().map((pkg) => ({
+    name: pkg.packageName,
+    version: pkg.version,
+    published: readPublishedPackage(pkg.packageName, pkg.version),
+  }));
+  assertPublicVersionAvailability(observations);
+  return {
+    ok: true,
+    packages: observations.map(({ name, version }) => ({ name, version })),
+  };
 };
 
 const resolveCleanCommit = () => {
@@ -318,7 +395,7 @@ const collectLicenseInventory = (dependencyInventory, installedPackages) => {
       ["view", key, "license", "--json", "--registry", npmRegistry],
       { timeout: 30_000 },
     ).stdout;
-    const license = JSON.parse(output);
+    const license = readNpmViewValue(output);
     if (typeof license !== "string" || !license.trim()) continue;
     packages.set(key, {
       name: entry.name,
@@ -565,7 +642,8 @@ export const validatePublicReleaseCandidate = (
     );
   }
   if (
-    manifest.source?.repository !== "https://github.com/vucinatim/air-jam" ||
+    manifest.source?.repository !==
+      `https://github.com/${publicReleaseRepository}` ||
     typeof manifest.createdAt !== "string" ||
     !Number.isFinite(Date.parse(manifest.createdAt))
   ) {
@@ -719,8 +797,6 @@ export const createPublicReleaseCandidate = ({
 
   const commit = resolveCleanCommit();
   const publicPackages = resolvePublicPackages();
-  onProgress("registry:version-availability");
-  assertPublicPackageVersionsAvailable(publicPackages);
   const parent = path.dirname(output);
   fs.mkdirSync(parent, { recursive: true });
   const staging = path.join(
@@ -837,7 +913,7 @@ export const createPublicReleaseCandidate = ({
       contract: publicReleaseCandidateContract,
       createdAt: new Date().toISOString(),
       source: {
-        repository: "https://github.com/vucinatim/air-jam",
+        repository: `https://github.com/${publicReleaseRepository}`,
         commit,
       },
       version: resolveUnifiedPublicVersion(),
@@ -888,8 +964,9 @@ const assertPublishedPackage = ({ artifact, published }) => {
   }
 };
 
-const waitForVerifiedPublishedPackage = (artifact) => {
-  for (let attempt = 1; attempt <= 12; attempt += 1) {
+const waitForVerifiedPublishedPackage = (artifact, deadline) => {
+  let delay = 1_000;
+  while (true) {
     const published = readPublishedPackage(artifact.name, artifact.version);
     if (published?.integrity && published.integrity !== artifact.integrity) {
       assertPublishedPackage({ artifact, published });
@@ -902,20 +979,36 @@ const waitForVerifiedPublishedPackage = (artifact) => {
       assertPublishedPackage({ artifact, published });
       return published;
     }
-    if (attempt < 12) {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1_000);
-    }
+    if (Date.now() >= deadline) return null;
+    Atomics.wait(
+      new Int32Array(new SharedArrayBuffer(4)),
+      0,
+      0,
+      Math.min(delay, Math.max(0, deadline - Date.now())),
+    );
+    delay = Math.min(delay * 2, 15_000);
   }
-  return null;
 };
 
 const readDistTags = (name) => {
   const result = run(
     "npm",
-    ["view", name, "dist-tags", "--json", "--registry", npmRegistry],
+    [
+      "view",
+      name,
+      "dist-tags",
+      "--json",
+      "--prefer-online",
+      "--registry",
+      npmRegistry,
+    ],
     { timeout: 60_000 },
   );
-  return JSON.parse(result.stdout);
+  const tags = readNpmViewValue(result.stdout);
+  if (!tags || typeof tags !== "object" || Array.isArray(tags)) {
+    throw new Error(`Invalid npm distribution tags for ${name}.`);
+  }
+  return tags;
 };
 
 export const publishPublicReleaseCandidate = ({
@@ -967,7 +1060,7 @@ export const publishPublicReleaseCandidate = ({
       if (observation.published) continue;
       const { artifact } = observation;
       onProgress(`publish:${artifact.name}`);
-      run(
+      const publication = run(
         "npm",
         [
           "publish",
@@ -983,10 +1076,22 @@ export const publishPublicReleaseCandidate = ({
         ],
         { timeout: 5 * 60 * 1_000 },
       );
-      const published = waitForVerifiedPublishedPackage(artifact);
+      onProgress(
+        [publication.stdout, publication.stderr]
+          .filter(Boolean)
+          .join("\n")
+          .trim(),
+      );
+      observation.status = "published";
+    }
+    const deadline = Date.now() + 10 * 60 * 1_000;
+    for (const observation of observations) {
+      if (observation.published) continue;
+      const { artifact } = observation;
+      onProgress(`verify:${artifact.name}`);
+      const published = waitForVerifiedPublishedPackage(artifact, deadline);
       assertPublishedPackage({ artifact, published });
       observation.published = published;
-      observation.status = "published";
     }
   }
 
