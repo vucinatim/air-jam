@@ -89,8 +89,8 @@ digest, and package digests.
 The privileged npm job:
 
 1. starts only after the candidate gate and all matrix cells pass
-2. checks out the exact candidate commit only to obtain the independently
-   validated publisher and installs no repository dependencies
+2. checks out the reviewed workflow commit to obtain the publisher and installs
+   no repository dependencies; retained candidates keep their original source identity
 3. downloads and validates the immutable candidate artifact
 4. publishes the tarball paths with npm trusted publishing and provenance under
    a candidate-specific temporary tag
@@ -106,6 +106,24 @@ The privileged npm job:
 The npm publishing job has `id-token: write` and no long-lived npm token. Source
 tag and GitHub-release mutation is isolated in a later job with `contents:
 write`; the npm job itself does not receive that permission.
+
+The publishing toolchain pins npm 12.2.0, including its array-shaped `view --json`
+contract and OIDC distribution-tag support. Every package's trusted publisher must
+allow both direct publication and distribution-tag management. These are separate
+permissions in [npm's configuration](https://docs.npmjs.com/trusted-publishers/).
+Registry ingestion may lag a successful upload; verification waits within one
+bounded ten-minute window after publishing the missing packages, without changing
+channel tags until the entire graph is visible with exact integrity and provenance.
+
+When the publisher itself needs repair, recover through the same workflow with
+`pnpm run repo -- release trigger --channel next --candidate-run-id <original-run>`.
+Recovery accepts only a completed failed main run of this first-party workflow
+whose source is an ancestor of the current reviewed checkout. It downloads and
+validates that run's original candidate and re-aggregates all six retained cell
+proofs. It neither rebuilds tarballs nor repeats their installation matrix.
+The current package graph must still match the candidate, and source tags remain
+bound to its original commit. Ordinary failed-job retries remain sufficient when
+no verifier/toolchain change is needed.
 
 ## Workflow Integrity
 

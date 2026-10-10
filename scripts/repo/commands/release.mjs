@@ -11,7 +11,9 @@ import {
 } from "../lib/public-install-matrix.mjs";
 import {
   createPublicReleaseCandidate,
+  parsePublicReleaseRunId,
   publishPublicReleaseCandidate,
+  recoverPublicReleaseCandidate,
   validatePublicReleaseCandidate,
 } from "../lib/public-release-candidate.mjs";
 
@@ -44,7 +46,11 @@ const normalizeEmergencyReason = (reason) => {
   return normalized;
 };
 
-const runRepoReleaseTriggerCommand = ({ channel, emergencyReason }) => {
+const runRepoReleaseTriggerCommand = ({
+  channel,
+  emergencyReason,
+  candidateRunId,
+}) => {
   assertChannel(channel);
   const normalizedEmergencyReason = normalizeEmergencyReason(emergencyReason);
   const args = [
@@ -58,6 +64,12 @@ const runRepoReleaseTriggerCommand = ({ channel, emergencyReason }) => {
   ];
   if (normalizedEmergencyReason) {
     args.push("-f", `emergency_reason=${normalizedEmergencyReason}`);
+  }
+  if (candidateRunId) {
+    args.push(
+      "-f",
+      `candidate_run_id=${parsePublicReleaseRunId(candidateRunId)}`,
+    );
   }
   runCommand("gh", args);
 };
@@ -227,6 +239,27 @@ export const registerReleaseCommands = (program) => {
         );
     });
 
+  candidateCommand
+    .command("recover")
+    .description(
+      "Recover exact archives from a failed first-party main release",
+    )
+    .requiredOption("--run <id>", "Original failed release run")
+    .requiredOption("--output <path>", "New candidate directory")
+    .option("--json", "Print stable JSON")
+    .action((options) => {
+      const result = recoverPublicReleaseCandidate({
+        runId: options.run,
+        outputDirectory: options.output,
+      });
+      if (options.json)
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else
+        console.log(
+          `Recovered public release candidate ${result.candidateDigest}.`,
+        );
+    });
+
   candidateCommand.action(() => candidateCommand.outputHelp());
 
   releaseCommand
@@ -266,6 +299,10 @@ export const registerReleaseCommands = (program) => {
     )
     .option("--channel <channel>", "npm dist-tag to publish under", "latest")
     .option(
+      "--candidate-run-id <id>",
+      "Recover exact archives from a failed main release",
+    )
+    .option(
       "--emergency-reason <reason>",
       "Retain an incident reason without bypassing release proof",
     )
@@ -273,6 +310,7 @@ export const registerReleaseCommands = (program) => {
       runRepoReleaseTriggerCommand({
         channel: options.channel,
         emergencyReason: options.emergencyReason,
+        candidateRunId: options.candidateRunId,
       });
     });
 
