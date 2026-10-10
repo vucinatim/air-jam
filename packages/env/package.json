@@ -17,10 +17,6 @@
   "bugs": {
     "url": "https://github.com/vucinatim/air-jam/issues"
   },
-  "files": [
-    "index.mjs",
-    "index.d.mts"
-  ],
   "main": "./index.mjs",
   "module": "./index.mjs",
   "types": "./index.d.mts",
@@ -32,9 +28,7 @@
     }
   },
   "scripts": {
-    "test": "node --test index.test.mjs",
-    "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
-    "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
+    "test": "node --test index.test.mjs"
   },
   "dependencies": {
     "zod": "^4.2.1"

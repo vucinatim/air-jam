@@ -26,6 +26,17 @@ import type {
   ListVisualScenariosOptions,
 } from "./types.js";
 
+export type {
+  AirJamVisualArtifactMode,
+  AirJamVisualCaptureInspection,
+  AirJamVisualCaptureSummary,
+  AirJamVisualScenarioList,
+  AirJamVisualScenarioMetadata,
+  CaptureVisualsOptions,
+  CaptureVisualsResult,
+  ListVisualScenariosOptions,
+} from "./types.js";
+
 type ResolvedVisualSource = {
   configPath: string;
   scenarioModulePath: string;

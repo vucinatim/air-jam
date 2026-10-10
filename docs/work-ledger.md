@@ -1,6 +1,6 @@
 # Air Jam Framework Work Ledger
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 Status: historical framework memory
 
 This ledger records public framework milestones after ownership separation.
@@ -95,3 +95,53 @@ Registry inspection found the three newly public names absent. The trusted
 publisher now rejects missing names before any registry mutation. First-name
 setup and trusted publisher configuration remain external release prerequisites;
 this work neither publishes packages nor changes production deployment sources.
+
+## 2026-10-10 Six-package structural review and cleanup
+
+The green six-package revision `f429228e` passed CI and the complete public
+installation matrix. Tim authorized an updated Opus 5.5 high-effort
+[review of PR #114](https://github.com/vucinatim/air-jam/pull/114#pullrequestreview-5478936724).
+It found no code merge blocker and confirmed the simpler package graph, with
+eight inline cleanup findings. Private integration inspection is not the
+private product's final review. Existing tarballs contain the MIT license;
+an initial unsupported license-omission claim was removed before submission.
+
+The approved response removes the unused devtools root barrel, adds an explicit
+controller entry, and exports public types beside their owning operation.
+One package tsup configuration builds modules and all six executable helpers.
+Workspace declarations work without root SDK dependencies; real launch, topology
+and stop tests cover all three modes and name-ordered default selection.
+Historical-path and script-spelling tests, the separate helper builder, dead
+visual shims, duplicate standalone start configuration and internal env pack
+hooks are gone. Actual ownership, dependency, installed-runtime and containment
+checks remain.
+
+Creator MDX copies are now ignored build outputs rather than tracked source;
+the authored pages and catalog are unchanged, and packages still include the
+complete verified snapshot. The workspace protocol has its own contract,
+devtools has a package guide, and stale current-state/release-trust text and
+Pong's host-grant caveat are corrected. The Pong scaffold archive was regenerated.
+
+Full typechecking, lint and canonical stages pass. All test-stage components
+pass, including 134 devtools, 14 MCP, 66 CLI, 131 server and 313 SDK tests,
+scaffold extraction checks and all reference-game suites. The initial batch
+caught a test referencing the removed root; focused correction retained its
+built game-session smoke. Scaffold freshness then caught the changed Pong
+README; regeneration and its affected tests passed. No gate was weakened.
+
+`repo pack verify-local --json` qualifies exact local set
+`local-scaffold-20261010T125053Z-1b2f10df`: typed isolated consumers, shipped
+helpers, workspace discovery without source copies, all 16 documentation pages,
+real room/controller and child-state traffic, readiness and drain. Fresh pushed
+CI and matrix proof remain distinct from this local evidence.
+
+The one final Canonicalizer pass returned `ready` in session
+`f96c56a3-7484-41d1-817b-24d4628a81ef`, with no required implementation round.
+It confirmed module/build/documentation ownership and the retained substantive
+test boundaries. Harmless helper declaration outputs and possible future
+type-definition relocation are not delivery work.
+
+npm registration and trusted publishers are configured for all six names.
+CLI and devtools retain npm-generated first-name placeholders; no 0.9.3
+implementation is published. Publication, private qualification, guarded
+Railway handover and Studio restoration remain separate delivery requirements.

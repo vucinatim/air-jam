@@ -36,6 +36,22 @@ import {
   readWorkspaceContract,
 } from "./workspace-contract.js";
 
+export type {
+  AirJamDevMode,
+  AirJamDevStatus,
+  AirJamManagedDevProcess,
+  AirJamRuntimeTopology,
+  AirJamSurfaceUrlSummary,
+  GetDevStatusOptions,
+  GetTopologyOptions,
+  ResetLocalDevOptions,
+  ResetLocalDevResult,
+  StartDevOptions,
+  StartDevResult,
+  StopDevOptions,
+  StopDevResult,
+} from "./types.js";
+
 type ManagedRegistry = {
   schemaVersion: 1;
   processes: AirJamManagedDevProcess[];
@@ -340,10 +356,6 @@ const resolveRequestedGameId = async ({
   }
 
   const games = await listGames({ cwd });
-  if (games.some((game) => game.id === "air-capture")) {
-    return "air-capture";
-  }
-
   return games[0]?.id ?? null;
 };
 

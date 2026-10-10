@@ -18,6 +18,13 @@ import type {
   JsonObject,
 } from "./types.js";
 
+export type {
+  AirJamGameInspection,
+  AirJamGameSummary,
+  AirJamVisualCaptureInspection,
+  AirJamVisualCaptureSummary,
+} from "./types.js";
+
 const REPO_GAME_MANIFEST = "airjam-template.json";
 
 const toStringOrNull = (value: unknown): string | null =>

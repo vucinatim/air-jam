@@ -14,7 +14,6 @@
     ]
   },
   "deploy": {
-    "startCommand": "node ./bin/air-jam-server.mjs",
     "healthcheckPath": "/ready",
     "healthcheckTimeout": 120,
     "overlapSeconds": 0,

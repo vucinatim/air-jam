@@ -68,7 +68,25 @@ import type {
   ValidateLocalReleaseOptions,
 } from "./types.js";
 
-export type { AirJamLocalReleaseIssue } from "./types.js";
+export type {
+  AirJamLocalReleaseDoctor,
+  AirJamLocalReleaseIssue,
+  AirJamLocalReleaseValidation,
+  BundleLocalReleaseOptions,
+  BundleLocalReleaseResult,
+  ExportPlatformReleaseGenerationOptions,
+  ExportPlatformReleaseGenerationResult,
+  FinalizePlatformReleaseGenerationOptions,
+  InspectLocalReleaseOptions,
+  InspectPlatformReleaseOptions,
+  ListPlatformReleaseTargetsOptions,
+  ListPlatformReleasesOptions,
+  PublishPlatformReleaseOptions,
+  SubmitPlatformReleaseOptions,
+  SubmitPlatformReleaseResult,
+  UploadPlatformReleaseGenerationOptions,
+  ValidateLocalReleaseOptions,
+} from "./types.js";
 
 const IGNORED_ARCHIVE_PATHS = ["__MACOSX/", ".DS_Store"] as const;
 const VENDORED_FONT_ASSET_DIR = "assets/airjam-vendored/fonts";

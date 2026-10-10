@@ -14,36 +14,45 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Server as SocketIoServer } from "socket.io";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  AIR_JAM_COMPLETE_EVALUATION_GATES,
-  closeGameSession,
+  inspectGameAgentContract,
+  invokeGameAction,
+  readGameSnapshot,
+} from "../src/agent.js";
+import { detectProjectContext, inspectProject } from "../src/context.js";
+import {
   connectController,
-  detectProjectContext,
   disconnectController,
+  invokeControllerAction,
+  readRuntimeSnapshot,
+  sendControllerInput,
+} from "../src/controller.js";
+import {
   getDevStatus,
   getTopology,
-  inspectGame,
-  inspectGameAgentContract,
-  inspectProject,
-  invokeControllerAction,
-  invokeGameAction,
-  invokeGameSessionAction,
-  listGames,
-  listVisualCaptureSummaries,
-  listVisualScenarios,
-  openGameSession,
-  readGameSession,
-  readGameSnapshot,
-  readRuntimeSnapshot,
-  readVisualCaptureSummary,
   resetLocalDev,
-  runCompleteEvaluation,
-  runQualityGate,
-  sendControllerInput,
-  sendGameSessionInput,
   startDev,
   stopDev,
-} from "../src/index.js";
+} from "../src/dev.js";
+import {
+  closeGameSession,
+  invokeGameSessionAction,
+  openGameSession,
+  readGameSession,
+  sendGameSessionInput,
+} from "../src/game-session.js";
+import {
+  inspectGame,
+  listGames,
+  listVisualCaptureSummaries,
+  readVisualCaptureSummary,
+} from "../src/games.js";
+import {
+  AIR_JAM_COMPLETE_EVALUATION_GATES,
+  runCompleteEvaluation,
+  runQualityGate,
+} from "../src/quality.js";
 import type { AirJamVisualCaptureSummary } from "../src/types.js";
+import { listVisualScenarios } from "../src/visual.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tempRoots: string[] = [];
@@ -628,7 +637,9 @@ describe("detectProjectContext", () => {
     expect(context.mode).toBe("monorepo");
     expect(context.packageJson?.name).toBe("air-jam");
     expect(context.workspaceRoot).toBe(context.rootDir);
-    expect(context.reasons.join(" ")).toContain("declared workspace CLI");
+    expect(context.reasons.join(" ")).toContain(
+      "declared Air Jam workspace CLI",
+    );
   });
 
   it("detects the Air Jam monorepo from a nested repo game directory", async () => {
@@ -895,14 +906,13 @@ describe("dev lifecycle and topology", () => {
     ["arcade-dev", "arcade:dev", "arcade-live"],
     ["arcade-test", "arcade:test", "arcade-built"],
   ] as const)(
-    "starts and inspects a declared %s workspace without framework source copies",
+    "starts and inspects a declared %s workspace without root SDK dependencies",
     async (mode, startCommand, topologyMode) => {
       const root = await createTempRoot();
       const port = await getAvailablePort();
       await writeJson(path.join(root, "package.json"), {
         name: "air-jam-product",
         type: "module",
-        dependencies: { "@air-jam/sdk": "0.9.3" },
         airjam: {
           workspace: {
             cli: "workspace.mjs",
@@ -921,6 +931,13 @@ describe("dev lifecycle and topology", () => {
       await writeJson(path.join(root, "games/pong/package.json"), {
         name: "pong",
       });
+      await writeJson(
+        path.join(root, "games/air-capture/airjam-template.json"),
+        {
+          id: "air-capture",
+          name: "Zebra reference game",
+        },
+      );
       await writeFile(
         path.join(root, "workspace.mjs"),
         `import http from "node:http";
@@ -943,10 +960,12 @@ if (command === "topology") {
 } else throw new Error("Unknown repo command");
 `,
       );
-      const context = await detectProjectContext({ cwd: root });
+      const context = await detectProjectContext({
+        cwd: path.join(root, "games/pong"),
+      });
       expect(context.mode).toBe("monorepo");
       expect(context.packageJson?.name).toBe("air-jam-product");
-      const started = await startDev({ cwd: root, gameId: "pong", mode });
+      const started = await startDev({ cwd: root, mode });
       try {
         expect(started.process.args).toEqual([
           path.join(await realpath(root), "workspace.mjs"),
@@ -1010,7 +1029,6 @@ if (command === "topology") {
   it("fails clearly when the declared workspace CLI is missing", async () => {
     const root = await createTempRoot();
     await writeJson(path.join(root, "package.json"), {
-      dependencies: { "@air-jam/sdk": "0.9.3" },
       airjam: { workspace: { cli: "missing.mjs", modes: ["standalone-dev"] } },
     });
     await expect(detectProjectContext({ cwd: root })).rejects.toThrow(
@@ -1497,7 +1515,7 @@ describe("game sessions", () => {
   it("opens a semantic game session through the built package entry", async () => {
     const fixture = await createControllerSocketFixture();
     const builtModule = await import(
-      `${pathToFileURL(path.join(__dirname, "../dist/index.js")).href}?built-session-smoke`
+      `${pathToFileURL(path.join(__dirname, "../dist/game-session.js")).href}?built-session-smoke`
     );
 
     const session = await builtModule.openGameSession({

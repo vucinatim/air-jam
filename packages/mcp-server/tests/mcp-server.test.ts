@@ -113,7 +113,11 @@ it("uses the installed devtools helpers without shipping duplicate copies", asyn
     fileURLToPath(
       execFileSync(
         process.execPath,
-        ["--input-type=module", "--eval", 'console.log(import.meta.resolve("@air-jam/devtools"))'],
+        [
+          "--input-type=module",
+          "--eval",
+          'console.log(import.meta.resolve("@air-jam/devtools/mcp-config"))',
+        ],
         { cwd: path.resolve(__dirname, ".."), encoding: "utf8" },
       ).trim(),
     ),
@@ -123,6 +127,7 @@ it("uses the installed devtools helpers without shipping duplicate copies", asyn
     "hold-runtime-host",
     "inspect-airjam-agent",
     "list-visual-scenarios",
+    "managed-dev-supervisor",
     "run-visual-capture",
   ]) {
     await expect(

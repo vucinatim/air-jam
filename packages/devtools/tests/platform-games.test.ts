@@ -9,7 +9,7 @@ import {
   listPlatformGames,
   readLocalHostedGameDefaults,
   updatePlatformGame,
-} from "../src/index.js";
+} from "../src/platform-games.js";
 
 const tempRoots: string[] = [];
 

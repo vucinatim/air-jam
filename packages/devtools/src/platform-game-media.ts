@@ -16,6 +16,13 @@ import type {
   UploadPlatformGameMediaFileOptions,
 } from "./types.js";
 
+export type {
+  InspectPlatformGameMediaOptions,
+  MutatePlatformGameMediaAssetOptions,
+  RequestPlatformGameMediaUploadTargetOptions,
+  UploadPlatformGameMediaFileOptions,
+} from "./types.js";
+
 const MEDIA_FILE_CONTENT_TYPES: Record<
   "thumbnail" | "cover" | "preview_video",
   Record<string, string>

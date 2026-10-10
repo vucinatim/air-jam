@@ -8,6 +8,14 @@ import type {
   RunQualityGateOptions,
 } from "./types.js";
 
+export type {
+  AirJamCompleteEvaluationResult,
+  AirJamQualityGate,
+  CommandResult,
+  RunCompleteEvaluationOptions,
+  RunQualityGateOptions,
+} from "./types.js";
+
 export const AIR_JAM_COMPLETE_EVALUATION_GATES = [
   "typecheck",
   "lint",

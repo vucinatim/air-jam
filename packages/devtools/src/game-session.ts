@@ -38,6 +38,22 @@ import type {
   SendGameSessionInputResult,
 } from "./types.js";
 
+export type {
+  AirJamGameSessionActionDescriptor,
+  AirJamGameSessionInspection,
+  AirJamGameSessionSummary,
+  AirJamGameSessionVisualCaptureResult,
+  CaptureGameSessionVisualsOptions,
+  CloseGameSessionOptions,
+  CloseGameSessionResult,
+  InvokeGameSessionActionOptions,
+  InvokeGameSessionActionResult,
+  OpenGameSessionOptions,
+  ReadGameSessionOptions,
+  SendGameSessionInputOptions,
+  SendGameSessionInputResult,
+} from "./types.js";
+
 type SessionAction =
   | {
       lane: "player";

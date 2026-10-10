@@ -1,6 +1,6 @@
 # Air Jam Framework Docs Index
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 Status: public framework navigation
 
 This repository owns the open SDK, runtime, standalone server, creator tools,
@@ -32,6 +32,7 @@ acting as another task tracker.
 ## Runtime and authoring contracts
 
 - [Runtime topology](./contracts/runtime-topology-contract.md)
+- [Workspace discovery and lifecycle](./contracts/workspace-runtime-contract.md)
 - [Environment contracts](./contracts/environment-contracts.md)
 - [Semantic agent sessions](./contracts/agent-session-contract.md)
 - [Runtime inspection](./contracts/runtime-inspection-contract.md)
@@ -48,6 +49,7 @@ public; the first-party Arcade implementation is not required to run a game.
 - [Local development](./guides/local-development-guide.md)
 - [Standalone server composition](./guides/server-composition-guide.md)
 - [Agent development](./guides/agent-development-guide.md)
+- [Devtools library](../packages/devtools/README.md)
 - [AI pack workflow](./guides/ai-pack-workflow-guide.md)
 - [Hosted publishing client](./guides/hosted-release-guide.md)
 - [Legacy game migration](./guides/legacy-game-migration-guide.md)

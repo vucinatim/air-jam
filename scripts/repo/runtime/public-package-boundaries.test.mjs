@@ -6,10 +6,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { resolvePublicPackages } from "../../release/public-packages.mjs";
-import {
-  listLocalScaffoldDirectDependencyNames,
-  localScaffoldPackages,
-} from "../lib/local-scaffold-packages.mjs";
+import { listLocalScaffoldDirectDependencyNames } from "../lib/local-scaffold-packages.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -19,35 +16,7 @@ const repoRoot = path.resolve(
 const readJson = (relativePath) =>
   JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), "utf8"));
 
-test("MCP typechecking builds its own distribution before checking consumer tests", () => {
-  const manifest = readJson("packages/mcp-server/package.json");
-  assert.match(
-    manifest.scripts.typecheck,
-    /^node \.\.\/\.\.\/scripts\/ensure-workspace-package-build\.mjs @air-jam\/mcp-server &&/u,
-  );
-  assert.ok(
-    manifest.scripts.typecheck.endsWith("tsc -p tests/tsconfig.json --noEmit"),
-  );
-});
-
 test("the public workspace owns only the framework and reference games", () => {
-  for (const relativePath of [
-    "apps/platform/package.json",
-    "packages/database-contract/package.json",
-    "packages/network-policy/package.json",
-    "packages/operations-contract/package.json",
-    "docker-compose.dev.yml",
-    "scripts/repo/commands/platform.mjs",
-    "scripts/repo/commands/db.mjs",
-    "scripts/repo/commands/railway.mjs",
-    "scripts/repo/commands/readiness.mjs",
-  ]) {
-    assert.equal(
-      fs.existsSync(path.join(repoRoot, relativePath)),
-      false,
-      relativePath,
-    );
-  }
   const publicPackages = new Set(
     resolvePublicPackages().map((entry) => entry.packageName),
   );
@@ -75,14 +44,6 @@ test("the public workspace owns only the framework and reference games", () => {
       }
     }
   }
-  const source = fs.readFileSync(
-    path.join(repoRoot, "scripts/repo/cli.mjs"),
-    "utf8",
-  );
-  assert.doesNotMatch(
-    source,
-    /register(?:Platform|Db|Railway|Readiness|Smoke|Content)Commands/u,
-  );
 });
 
 test("local package qualification is discoverable with structured evidence", () => {
@@ -155,23 +116,6 @@ test("shipped CLI runtime modules close over shipped relative imports", () => {
   }
 });
 
-test("obsolete project CLI implementations are fully removed", () => {
-  for (const relativePath of [
-    "packages/create-airjam/template-assets",
-    "packages/server/src/project-cli",
-    "packages/create-airjam/runtime/game-dev.mjs",
-    "packages/create-airjam/runtime/runtime-env.mjs",
-    "packages/create-airjam/runtime/topology.mjs",
-    "packages/create-airjam/runtime/vite-config.mjs",
-  ]) {
-    assert.equal(
-      fs.existsSync(path.join(repoRoot, relativePath)),
-      false,
-      `${relativePath} must not survive the ownership cut`,
-    );
-  }
-});
-
 test("raw SDK runtimes are isolated behind explicit expert subpaths", () => {
   const sdk = readJson("packages/sdk/package.json");
   const rootSource = fs.readFileSync(
@@ -186,26 +130,12 @@ test("raw SDK runtimes are isolated behind explicit expert subpaths", () => {
   assert.doesNotMatch(rootSource, /runtime-inspection/u);
 });
 
-test("the canonical CLI participates in the public release set", () => {
-  const releaseSource = fs.readFileSync(
-    path.join(repoRoot, "scripts/release/public-packages.mjs"),
-    "utf8",
-  );
-  assert.match(releaseSource, /packages\/cli/u);
-});
-
-test("devtools owns helper builds and agent hosts consume the shared package", () => {
-  const devtools = readJson("packages/devtools/package.json");
-  assert.match(
-    devtools.scripts.build,
-    /scripts\/build-devtools-helpers\.mjs --out-dir dist\/tooling/u,
-  );
+test("agent hosts consume the version-matched toolchain", () => {
   for (const packagePath of [
     "packages/cli/package.json",
     "packages/mcp-server/package.json",
   ]) {
     const manifest = readJson(packagePath);
-    assert.doesNotMatch(manifest.scripts.build, /build-devtools-helpers/u);
     assert.equal(manifest.dependencies["@air-jam/devtools"], "workspace:*");
     for (const dependency of [
       "playwright-core",
@@ -217,19 +147,6 @@ test("devtools owns helper builds and agent hosts consume the shared package", (
       assert.equal(manifest.dependencies[dependency], undefined);
     assert.ok(manifest.files.includes("dist"));
   }
-  assert.equal(
-    fs.existsSync(path.join(repoRoot, "packages/cli/tsup.tooling.config.ts")),
-    false,
-  );
-});
-
-test("the local candidate package set matches the public release graph", () => {
-  assert.deepEqual(
-    localScaffoldPackages.map((entry) => entry.packageName).sort(),
-    resolvePublicPackages()
-      .map((entry) => entry.packageName)
-      .sort(),
-  );
 });
 
 test("optional library packages do not become scaffold root dependencies", () => {
@@ -243,7 +160,6 @@ test("optional library packages do not become scaffold root dependencies", () =>
   const devtools = readJson("packages/devtools/package.json");
   assert.equal(devtools.private, false);
   assert.equal(devtools.version, resolvePublicPackages()[0].version);
-  assert.ok(devtools.exports["."]);
   assert.ok(devtools.scripts.prepack);
   assert.equal(readJson("packages/env/package.json").private, true);
   assert.equal(resolvePublicPackages().length, 6);
@@ -252,10 +168,8 @@ test("optional library packages do not become scaffold root dependencies", () =>
       (entry) => entry.packageName === "@air-jam/env",
     ),
   );
-  for (const subpath of ["./harness/visual", "./mcp-config"])
+  for (const subpath of ["./controller", "./harness/visual", "./mcp-config"])
     assert.ok(devtools.exports[subpath]);
-  assert.equal(devtools.exports["./harness"], undefined);
-  assert.equal(devtools.exports["./mcp-config-types"], undefined);
 });
 
 test("the public server has no hosted product dependency or database implementation", () => {

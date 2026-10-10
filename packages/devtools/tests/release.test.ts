@@ -18,7 +18,7 @@ import {
   listPlatformReleaseTargets,
   submitPlatformRelease,
   validateLocalRelease,
-} from "../src/index.js";
+} from "../src/release.js";
 
 const tempRoots: string[] = [];
 const repoRoot = path.resolve(

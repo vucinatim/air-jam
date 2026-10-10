@@ -1,6 +1,6 @@
 # Air Jam Monorepo Operating System
 
-Last updated: 2026-08-26
+Last updated: 2026-10-10
 Status: stable operating reference
 
 This repository owns public framework memory. The private product retains
@@ -21,30 +21,10 @@ This document is about repo memory and execution surfaces.
 
 ## Workspace runtime declaration
 
-An owning workspace declares its runtime entrypoint and supported development
-modes once in root `package.json`:
-
-```json
-{
-  "airjam": {
-    "workspace": {
-      "cli": "scripts/repo/cli.mjs",
-      "modes": ["standalone-dev"]
-    }
-  }
-}
-```
-
-The CLI path is relative to the workspace root. It implements `workspace
-standalone:dev --game=<id>` and `workspace topology --game=<id>
---mode=standalone-dev`, with optional `--secure`. Workspaces that declare
-`arcade-dev` or `arcade-test` also implement `arcade:dev` or `arcade:test` and
-their `arcade-live` or `arcade-built` topology modes.
-
-The public workspace declares only standalone development. The private product
-declares all three modes. Public devtools use this contract rather than guessing
-a product directory layout, and reject undeclared modes before launching a
-process. Ordinary standalone game projects need no workspace declaration.
+Workspace discovery, launch and topology follow the
+[workspace runtime contract](./contracts/workspace-runtime-contract.md).
+Runtime metadata belongs to that contract; this document owns repository memory
+and navigation.
 
 Packaged creator docs similarly declare their required MDX components in
 `readDocumentationSnapshot().requiredComponents`. The public source is

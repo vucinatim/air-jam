@@ -25,6 +25,7 @@ dist-ssr
 *.sw?
 
 # Local package artifacts and disposable validation copies
+packages/cli/template-assets/documentation/
 .airjam/
 !packages/cli/template-assets/managed/.airjam/
 !packages/cli/template-assets/managed/.airjam/ai-pack.json

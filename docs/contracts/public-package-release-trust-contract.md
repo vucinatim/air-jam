@@ -19,12 +19,15 @@ the CLI.
 
 The release unit is the complete coordinated graph:
 
-1. `@air-jam/sdk`
-2. `@air-jam/mcp-server`
-3. `@air-jam/cli`
-4. `@air-jam/server`
-5. `create-airjam`
-6. `@air-jam/devtools`
+- `@air-jam/sdk`
+- `@air-jam/devtools`
+- `@air-jam/mcp-server`
+- `@air-jam/cli`
+- `@air-jam/server`
+- `create-airjam`
+
+This inventory is not a publication sequence. Publication order is owned by
+`scripts/release/public-packages.mjs` and checked against package dependencies.
 
 Devtools owns the Node authoring and evaluation harness, shared by CLI and MCP.
 Environment validation is an internal build helper, not a published package.
@@ -176,26 +179,19 @@ configure its publisher. Candidate creation may still qualify unpublished
 names locally; the apply-capable publisher checks the complete graph before
 making any registry mutation, so a missing name cannot leave a partial release.
 
-Registry inspection on October 10 confirms two names still need first-name
-setup: `@air-jam/cli` and the consolidated `@air-jam/devtools`.
-Do not register the superseded env, harness or devtools-core package names.
-First-name setup is an external checkpoint, not permission for a branch-based
+First-name setup is an external checkpoint, not permission for branch-based
 token publication. npm's [staged first-publication flow](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/)
-can establish a placeholder name before approval. Use reviewed package bytes
-and explicitly settle that setup flow before invoking the normal trusted
-release; do not publish another implementation or advance `latest` to reserve
-a name. Configure and read back each publisher for `vucinatim/air-jam` and
-`publish-packages.yml` before releasing the coordinated candidate.
+can establish a placeholder name before approval. Use reviewed package bytes,
+settle that staged upload without releasing an implementation, then configure
+and read back the canonical GitHub publisher. Do not register superseded
+package names or advance release tags to reserve a name.
 
-On October 10, first-name setup staged the reviewed CI-built 0.9.3 archives for
-CLI and devtools, configured and read back their GitHub publishers, then rejected
-both pending uploads. The implementation was not released. npm's generated
-`0.0.0-stage` placeholders retain the names; no existing package tag changed.
-All six publishers now match the canonical workflow. Registration checks use
-`npm access get status`, which supports these public names before an installable
-version exists. Anonymous registration reads succeed; version reads still return
-404 until the normal release. GitHub must publish the coordinated implementation
-and its provenance through the usual exact-candidate workflow.
+Registration checks use `npm access get status`, which supports public names
+before an installable version exists. A version lookup may return 404 for a
+registered placeholder; that is not evidence of missing registration. The
+coordinated implementation and its provenance must still be published by the
+normal exact-candidate workflow. Actual setup history belongs in the delivery
+ledger, not in this stable contract.
 
 ## Evidence Boundary
 

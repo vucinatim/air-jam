@@ -57,6 +57,21 @@ import type {
   SendControllerInputResult,
 } from "./types.js";
 
+export type {
+  AirJamRuntimeSnapshotInspection,
+  AirJamRuntimeStoreSnapshot,
+  AirJamVirtualControllerSession,
+  AirJamVirtualControllerSessionSummary,
+  ConnectControllerOptions,
+  DisconnectControllerOptions,
+  DisconnectControllerResult,
+  InvokeControllerActionOptions,
+  InvokeControllerActionResult,
+  ReadRuntimeSnapshotOptions,
+  SendControllerInputOptions,
+  SendControllerInputResult,
+} from "./types.js";
+
 type ControllerSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 type PendingStateSyncWaiter = {

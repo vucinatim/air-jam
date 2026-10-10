@@ -26,9 +26,9 @@
       "types": "./dist/mcp-config.d.ts",
       "import": "./dist/mcp-config.js"
     },
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+    "./controller": {
+      "types": "./dist/controller.d.ts",
+      "import": "./dist/controller.js"
     },
     "./agent": {
       "types": "./dist/agent.d.ts",
@@ -83,15 +83,12 @@
       "import": "./dist/visual.js"
     }
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "files": [
     "dist",
     "src"
   ],
   "scripts": {
-    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup && node ../../scripts/build-devtools-helpers.mjs --out-dir dist/tooling",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup",
     "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",

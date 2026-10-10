@@ -24,9 +24,13 @@ The public package graph may not contain `workspace:`, `link:`, `file:`, a
 private monorepo path, or a dependency on an unpublished Air Jam package after
 packing.
 
-Devtools publishes one visual harness entry, `@air-jam/devtools/harness/visual`,
-and one MCP project-configuration entry, `@air-jam/devtools/mcp-config`, including
-its types. MCP retains its already-published `./config` export and root exports
+Devtools exposes explicit operation modules, documented in its
+[package guide](../../packages/devtools/README.md). Functions and public
+option/result types share the owning import; controller operations use
+`@air-jam/devtools/controller`. There is no catch-all devtools root export.
+Visual harnesses use `@air-jam/devtools/harness/visual`; project MCP
+configuration uses `@air-jam/devtools/mcp-config`. MCP retains its
+already-published `./config` export and root exports
 from 0.9.2 as a thin contract adapter to that single implementation. Removing
 those existing public contracts requires a separate maintainer decision; new
 consumers use devtools directly.
@@ -34,6 +38,11 @@ consumers use devtools directly.
 CLI and MCP pin devtools to the coordinated version (`workspace:*` before
 packing). This keeps their executable helper contracts on the exact family
 qualified together rather than allowing an independently resolved toolchain.
+
+Creator MDX is authored only in `content/docs`. The CLI build generates its
+packaged documentation snapshot; generated copies are not tracked source.
+Installed-artifact tests verify page contents, the renderer contract and
+integrity checks against the authored catalog.
 
 ## Certified Runtime Matrix
 

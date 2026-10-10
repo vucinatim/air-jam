@@ -25,6 +25,15 @@ import type {
   ReadGameSnapshotOptions,
 } from "./types.js";
 
+export type {
+  AirJamAgentContractInspection,
+  AirJamGameSnapshotInspection,
+  InspectGameAgentContractOptions,
+  InvokeGameActionOptions,
+  InvokeGameActionResult,
+  ReadGameSnapshotOptions,
+} from "./types.js";
+
 const DEFAULT_TIMEOUT_MS = 5_000;
 
 const parseHelperJson = <T>(output: string): T => {

@@ -29,6 +29,16 @@ import type {
   StartPlatformDeviceAuthorizationOptions,
 } from "./types.js";
 
+export type {
+  AirJamPlatformAuthStatus,
+  AirJamPlatformMachineSessionStore,
+  GetPlatformMachineProfileOptions,
+  LoginPlatformWithDeviceFlowOptions,
+  LogoutPlatformMachineSessionOptions,
+  PollPlatformDeviceAuthorizationOptions,
+  StartPlatformDeviceAuthorizationOptions,
+} from "./types.js";
+
 const LOCAL_PLATFORM_FALLBACK = "http://localhost:3000";
 
 export const resolveAirJamStateDirectory = (): string => {

@@ -32,6 +32,14 @@ import type {
   UpdatePlatformGameOptions,
 } from "./types.js";
 
+export type {
+  AirJamLocalHostedGameDefaults,
+  CreatePlatformGameOptions,
+  InspectPlatformGameOptions,
+  ListPlatformGamesOptions,
+  UpdatePlatformGameOptions,
+} from "./types.js";
+
 const require = createRequire(import.meta.url);
 
 const resolveTsxLoaderPath = (): string | null => {

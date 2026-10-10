@@ -2,6 +2,8 @@ import { runCommandResult } from "./commands.js";
 import { detectProjectContext } from "./context.js";
 import type { CommandResult, ReadDevLogsOptions } from "./types.js";
 
+export type { CommandResult, ReadDevLogsOptions } from "./types.js";
+
 const pushOption = (
   args: string[],
   name: string,

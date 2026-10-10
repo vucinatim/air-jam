@@ -6,7 +6,7 @@ import {
   archivePlatformGameMediaAsset,
   inspectPlatformGameMedia,
   uploadPlatformGameMediaFile,
-} from "../src/index.js";
+} from "../src/platform-game-media.js";
 
 const tempRoots: string[] = [];
 

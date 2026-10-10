@@ -14,6 +14,11 @@ import {
 import { readDocumentationSnapshot } from "@air-jam/cli/documentation";
 import { createAirJamViteConfig } from "@air-jam/cli/vite-config";
 import { inspectProject } from "@air-jam/devtools/context";
+import {
+  connectController,
+  type ConnectControllerOptions,
+} from "@air-jam/devtools/controller";
+import { startDev, type StartDevOptions } from "@air-jam/devtools/dev";
 import { listGames } from "@air-jam/devtools/games";
 import {
   capturePrefabAtRuntime,
@@ -29,6 +34,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 const documentation = await readDocumentationSnapshot();
+const controllerOptions: ConnectControllerOptions = { cwd: process.cwd() };
+const developmentOptions: StartDevOptions = {
+  cwd: process.cwd(),
+  mode: "standalone-dev",
+};
+assert.equal(typeof connectController, "function");
+assert.equal(typeof startDev, "function");
+assert.equal(controllerOptions.cwd, developmentOptions.cwd);
 assert.equal(documentation.documents.length, 16);
 assert.ok(
   documentation.documents.some(
@@ -74,7 +87,6 @@ try {
     path.join(developmentRoot, "package.json"),
     JSON.stringify({
       name: "air-jam-product",
-      dependencies: { "@air-jam/sdk": "0.9.3" },
       airjam: {
         workspace: { cli: "scripts/repo/cli.mjs", modes: ["standalone-dev"] },
       },

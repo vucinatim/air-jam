@@ -16,6 +16,13 @@ import type {
 } from "./types.js";
 import { readWorkspaceContract } from "./workspace-contract.js";
 
+export type {
+  AirJamCapabilityGroup,
+  AirJamPackageManager,
+  AirJamProjectContext,
+  AirJamProjectInspection,
+} from "./types.js";
+
 const hasDependency = (
   packageJson: PackageJson,
   packageName: string,
@@ -75,7 +82,7 @@ const isMonorepoRoot = async (
   rootDir: string,
   packageJson: PackageJson | null,
 ): Promise<boolean> => {
-  if (!packageJson || !hasDependency(packageJson, "@air-jam/sdk")) {
+  if (!packageJson) {
     return false;
   }
 
@@ -135,9 +142,7 @@ export const detectProjectContext = async ({
   if (monorepoRoot && rootDir === monorepoRoot) {
     mode = "monorepo";
     workspaceRoot = rootDir;
-    reasons.push(
-      "Detected an Air Jam workspace dependency and declared workspace CLI.",
-    );
+    reasons.push("Detected a declared Air Jam workspace CLI.");
   } else if (await isStandaloneGameRoot(rootDir, packageJson)) {
     mode = "standalone-game";
     reasons.push("Detected Air Jam game package or airjam config.");
