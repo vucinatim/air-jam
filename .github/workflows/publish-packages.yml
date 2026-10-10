@@ -1,328 +1,48 @@
-name: Publish Packages
+name: Diagnose npm publisher identity
 
 on:
   workflow_dispatch:
-    inputs:
-      channel:
-        description: "npm dist-tag to publish under"
-        required: true
-        default: "next"
-        type: choice
-        options:
-          - next
-          - latest
-      emergency_reason:
-        description: "Optional incident reason; urgency never bypasses release proof"
-        required: false
-        type: string
 
 permissions:
   contents: read
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  AIRJAM_RELEASE_NPM_VERSION: "12.0.2"
-
-concurrency:
-  group: publish-packages
-  cancel-in-progress: false
+  id-token: write
 
 jobs:
-  candidate:
-    name: Build immutable candidate
+  diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    outputs:
-      commit: ${{ steps.identity.outputs.commit }}
-      digest: ${{ steps.identity.outputs.digest }}
-      version: ${{ steps.identity.outputs.version }}
+    timeout-minutes: 5
     steps:
-      - name: Require the production branch
+      - name: Refuse the production branch
         env:
-          RELEASE_REF: ${{ github.ref }}
-          EMERGENCY_REASON: ${{ inputs.emergency_reason }}
-        run: |
-          test "$RELEASE_REF" = "refs/heads/main"
-          if [ -n "$EMERGENCY_REASON" ] && [ "${#EMERGENCY_REASON}" -lt 12 ]; then
-            echo "Emergency reason must contain at least 12 characters." >&2
-            exit 1
-          fi
-
-      - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          # Candidate creation validates durable readiness evidence commits.
-          fetch-depth: 0
+          DIAGNOSTIC_REF: ${{ github.ref }}
+        run: test "$DIAGNOSTIC_REF" = "refs/heads/codex/npm-publisher-diagnosis"
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
-
-      - name: Pin trusted-publishing npm CLI
-        run: npm install --global "npm@$AIRJAM_RELEASE_NPM_VERSION"
-
-      - name: Enable corepack
-        run: corepack enable
-
-      - name: Install repository dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Create exact public release candidate
-        run: >-
-          pnpm --silent run repo -- release candidate create
-          --output "$RUNNER_TEMP/public-release-candidate"
-          --json
-
-      - name: Resolve candidate identity
-        id: identity
-        run: |
-          echo "commit=$(jq -r .source.commit "$RUNNER_TEMP/public-release-candidate/manifest.json")" >> "$GITHUB_OUTPUT"
-          echo "digest=$(jq -r .candidateDigest "$RUNNER_TEMP/public-release-candidate/manifest.json")" >> "$GITHUB_OUTPUT"
-          echo "version=$(jq -r .version "$RUNNER_TEMP/public-release-candidate/manifest.json")" >> "$GITHUB_OUTPUT"
-
-      - name: Upload immutable candidate
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: public-release-candidate
-          path: ${{ runner.temp }}/public-release-candidate
-          if-no-files-found: error
-          retention-days: 90
-
-  verify:
-    name: ${{ matrix.system.id }} / Node ${{ matrix.node }}
-    needs: candidate
-    runs-on: ${{ matrix.system.runner }}
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        system:
-          - id: linux
-            runner: ubuntu-latest
-          - id: macos
-            runner: macos-latest
-          - id: windows
-            runner: windows-latest
-        node: [22, 24]
-    steps:
-      - name: Checkout exact candidate source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          ref: ${{ needs.candidate.outputs.commit }}
-          fetch-depth: 1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: ${{ matrix.node }}
-          package-manager-cache: false
-
-      - name: Enable corepack
-        run: corepack enable
-
-      - name: Install repository dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Download immutable candidate
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: public-release-candidate
-          path: artifacts/public-release-candidate
-
-      - name: Verify exact candidate installation
-        run: >-
-          pnpm --silent run repo -- release install-matrix verify
-          --candidate artifacts/public-release-candidate
-          --expected-os ${{ matrix.system.id }}
-          --expected-node ${{ matrix.node }}
-          --output artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
-
-      - name: Upload cell evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: publish-install-${{ matrix.system.id }}-node-${{ matrix.node }}
-          path: artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
-          if-no-files-found: error
-          retention-days: 90
-
-  aggregate:
-    name: Aggregate exact candidate proof
-    needs: [candidate, verify]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout exact candidate source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          ref: ${{ needs.candidate.outputs.commit }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: "24"
           package-manager-cache: false
 
-      - name: Enable corepack
-        run: corepack enable
-
-      - name: Install repository dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Download cell evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          pattern: publish-install-*
-          path: artifacts/cells
-          merge-multiple: true
-
-      - name: Aggregate matrix
-        run: >-
-          pnpm --silent run repo -- release install-matrix aggregate
-          --evidence-root artifacts/cells
-          --output artifacts/public-install-matrix.json
-
-      - name: Match candidate identity
-        env:
-          EXPECTED_DIGEST: ${{ needs.candidate.outputs.digest }}
-        run: test "$(jq -r .candidateDigest artifacts/public-install-matrix.json)" = "$EXPECTED_DIGEST"
-
-      - name: Upload aggregate evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: publish-install-matrix
-          path: artifacts/public-install-matrix.json
-          if-no-files-found: error
-          retention-days: 90
-
-  publish:
-    name: Trusted publish exact bytes
-    needs: [candidate, aggregate]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout exact verifier
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          ref: ${{ needs.candidate.outputs.commit }}
-          fetch-depth: 1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
-
-      - name: Pin trusted-publishing npm CLI
-        run: npm install --global "npm@$AIRJAM_RELEASE_NPM_VERSION"
-
-      - name: Download immutable candidate
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: public-release-candidate
-          path: artifacts/public-release-candidate
-
-      - name: Publish and verify exact tarballs
-        env:
-          RELEASE_CHANNEL: ${{ inputs.channel }}
-          EMERGENCY_REASON: ${{ inputs.emergency_reason }}
-          EXPECTED_COMMIT: ${{ needs.candidate.outputs.commit }}
-        run: >-
-          node scripts/release/publish-public-candidate.mjs
-          --candidate artifacts/public-release-candidate
-          --channel "$RELEASE_CHANNEL"
-          --expected-commit "$EXPECTED_COMMIT"
-          --emergency-reason "$EMERGENCY_REASON"
-          --output artifacts/public-release-publication.json
-          --apply
-
-      - name: Upload publication evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: public-release-publication
-          path: artifacts/public-release-publication.json
-          if-no-files-found: error
-          retention-days: 90
-
-  finalize:
-    name: Tag and document verified release
-    needs: [candidate, aggregate, publish]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout exact candidate source
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          ref: ${{ needs.candidate.outputs.commit }}
-          fetch-depth: 0
-
-      - name: Download immutable candidate
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: public-release-candidate
-          path: artifacts/public-release-candidate
-
-      - name: Download matrix evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: publish-install-matrix
-          path: artifacts/release-evidence
-
-      - name: Download publication evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: public-release-publication
-          path: artifacts/release-evidence
-
-      - name: Configure Git
+      - name: Inspect identity exchange without publishing
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Reconcile package tags and releases
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_COMMIT: ${{ needs.candidate.outputs.commit }}
-          CANDIDATE_DIGEST: ${{ needs.candidate.outputs.digest }}
-        run: |
-          set -euo pipefail
-          PACKAGES_FILE="$RUNNER_TEMP/public-release-packages.tsv"
-          node scripts/release/public-packages.mjs resolve |
-            jq -r '.[] | [.packageName, .tag, .releaseName] | @tsv' > "$PACKAGES_FILE"
-          test "$(wc -l < "$PACKAGES_FILE" | tr -d ' ')" -eq "$(node scripts/release/public-packages.mjs resolve | jq 'length')"
-
-          while IFS=$'\t' read -r PACKAGE_NAME TAG RELEASE_NAME; do
-            test -n "$PACKAGE_NAME"
-            test -n "$TAG"
-            test -n "$RELEASE_NAME"
-            if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
-              test "$(git rev-list -n 1 "$TAG")" = "$EXPECTED_COMMIT"
-            else
-              git tag "$TAG" "$EXPECTED_COMMIT"
-              git push origin "refs/tags/$TAG"
-            fi
-
-            if gh release view "$TAG" >/dev/null 2>&1; then
-              gh release upload "$TAG" \
-                artifacts/public-release-candidate/manifest.json \
-                artifacts/release-evidence/public-install-matrix.json \
-                artifacts/release-evidence/public-release-publication.json \
-                --clobber
-            else
-              gh release create "$TAG" \
-                --target "$EXPECTED_COMMIT" \
-                --title "$RELEASE_NAME" \
-                --notes "Immutable Air Jam candidate: $CANDIDATE_DIGEST" \
-                artifacts/public-release-candidate/manifest.json \
-                artifacts/release-evidence/public-install-matrix.json \
-                artifacts/release-evidence/public-release-publication.json
-            fi
-          done < "$PACKAGES_FILE"
+          node --input-type=module <<'NODE'
+          const identityUrl = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
+          identityUrl.searchParams.set("audience", "npm:registry.npmjs.org");
+          const identityResponse = await fetch(identityUrl, {
+            headers: { Authorization: `Bearer ${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}` },
+          });
+          if (!identityResponse.ok) throw new Error(`GitHub identity request: ${identityResponse.status}`);
+          const { value: identityToken } = await identityResponse.json();
+          if (!identityToken) throw new Error("GitHub identity token missing");
+          const claims = JSON.parse(Buffer.from(identityToken.split(".")[1], "base64url"));
+          console.log(JSON.stringify({ repository: claims.repository, workflow_ref: claims.workflow_ref, ref: claims.ref, subject: claims.sub, audience: claims.aud }));
+          for (const name of ["@air-jam/sdk", "@air-jam/devtools", "@air-jam/mcp-server", "@air-jam/cli", "@air-jam/server", "create-airjam"]) {
+            const response = await fetch(`https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/${encodeURIComponent(name)}`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${identityToken}`, Accept: "application/json" },
+            });
+            const result = await response.json();
+            const message = response.ok ? undefined : String(result.message ?? result.error ?? "No error message").replace(/eyJ[\w.-]+/g, "[redacted]").slice(0, 1000);
+            console.log(JSON.stringify({ name, status: response.status, tokenReceived: Boolean(result.token), message }));
+          }
+          NODE
