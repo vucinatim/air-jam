@@ -118,6 +118,16 @@ Tag inspection and mutation both use `npm dist-tag`, which reads the dedicated
 tag endpoint. Do not verify tag writes through `npm view`: its package metadata
 can lag behind a successful tag change and falsely fail publication or cleanup.
 
+GitHub finalization verifies each package tag against the candidate commit, then
+creates its release with `gh release create --verify-tag`. Do not also supply
+`--target`: GitHub checks that redundant target's workflow permissions even when
+the existing tag already determines the source. Recovery of an older commit
+across workflow changes may require creating the exact missing package tags with
+the maintainer's existing authenticated GitHub CLI before retrying finalization.
+Validate publication evidence and candidate identity first; never retarget an
+existing tag, add a permanent privileged workflow token, or rebuild the archives.
+See [GitHub's release permission rules](https://docs.github.com/en/rest/releases/releases#create-a-release).
+
 Candidate construction also serves installation qualification, including changes
 after a version has already been released. Only a fresh publication runs
 `repo release candidate check-versions` before construction; installation tests

@@ -359,7 +359,7 @@ jobs:
                 --clobber
             else
               gh release create "$TAG" \
-                --target "$EXPECTED_COMMIT" \
+                --verify-tag \
                 --title "$RELEASE_NAME" \
                 --notes "Immutable Air Jam candidate: $CANDIDATE_DIGEST" \
                 artifacts/public-release-candidate/manifest.json \

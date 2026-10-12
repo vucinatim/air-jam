@@ -559,4 +559,7 @@ test("publish workflow validates one candidate before privileged publication", (
   assert.doesNotMatch(finalizeRun, /done\s*<\s*<\(/u);
   assert.match(finalizeRun, /test "\$\(wc -l < "\$PACKAGES_FILE"/u);
   assert.match(finalizeRun, /done < "\$PACKAGES_FILE"/u);
+  assert.match(finalizeRun, /git rev-list -n 1 "\$TAG"/u);
+  assert.match(finalizeRun, /--verify-tag/u);
+  assert.doesNotMatch(finalizeRun, /--target/u);
 });
