@@ -990,25 +990,25 @@ const waitForVerifiedPublishedPackage = (artifact, deadline) => {
   }
 };
 
+export const parseNpmDistTags = (source) => {
+  const tags = {};
+  for (const line of source.trim().split(/\r?\n/u)) {
+    const match = /^([^\s:]+): (\S+)$/u.exec(line);
+    if (!match || Object.hasOwn(tags, match[1])) {
+      throw new Error("Invalid npm dist-tag list output.");
+    }
+    tags[match[1]] = match[2];
+  }
+  return tags;
+};
+
 const readDistTags = (name) => {
   const result = run(
     "npm",
-    [
-      "view",
-      name,
-      "dist-tags",
-      "--json",
-      "--prefer-online",
-      "--registry",
-      npmRegistry,
-    ],
+    ["dist-tag", "ls", name, "--registry", npmRegistry],
     { timeout: 60_000 },
   );
-  const tags = readNpmViewValue(result.stdout);
-  if (!tags || typeof tags !== "object" || Array.isArray(tags)) {
-    throw new Error(`Invalid npm distribution tags for ${name}.`);
-  }
-  return tags;
+  return parseNpmDistTags(result.stdout);
 };
 
 export const publishPublicReleaseCandidate = ({
