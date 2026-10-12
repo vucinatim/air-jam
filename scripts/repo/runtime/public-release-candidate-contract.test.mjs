@@ -25,6 +25,7 @@ import {
   assertRecoverablePublicReleaseRun,
   assertRegisteredPublicPackages,
   computeCandidateDigest,
+  parseNpmDistTags,
   parsePublicReleaseRunId,
   publicReleaseCandidateContract,
   readNpmViewValue,
@@ -54,6 +55,31 @@ test("npm 12 view unwraps exactly one result, including scalar license metadata"
   for (const source of ["[]", "[{},{}]", "{}"]) {
     assert.throws(() => readNpmViewValue(source), /exactly one JSON result/u);
   }
+});
+
+test("tag reads use npm's dedicated tag endpoint rather than cached package metadata", () => {
+  assert.deepEqual(
+    parseNpmDistTags(
+      "airjam-candidate-exact: 0.9.3\r\nlatest: 0.9.2\r\nnext: 0.9.3\r\n",
+    ),
+    { "airjam-candidate-exact": "0.9.3", latest: "0.9.2", next: "0.9.3" },
+  );
+  assert.deepEqual(parseNpmDistTags("latest: 0.0.0-stage"), {
+    latest: "0.0.0-stage",
+  });
+  for (const source of ["", "{}", "next:", "next: 0.9.3\nnext: 0.9.2"]) {
+    assert.throws(() => parseNpmDistTags(source), /Invalid npm dist-tag list/u);
+  }
+  const source = fs.readFileSync(
+    path.join(repoRoot, "scripts/repo/lib/public-release-candidate.mjs"),
+    "utf8",
+  );
+  const tagReader = source.slice(
+    source.indexOf("const readDistTags ="),
+    source.indexOf("export const publishPublicReleaseCandidate"),
+  );
+  assert.match(tagReader, /"dist-tag",\s*"ls",\s*name/u);
+  assert.doesNotMatch(tagReader, /"view"|readNpmViewValue/u);
 });
 
 test("recovery accepts only a failed first-party main release run", () => {

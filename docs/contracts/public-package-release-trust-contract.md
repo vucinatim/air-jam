@@ -114,6 +114,9 @@ permissions in [npm's configuration](https://docs.npmjs.com/trusted-publishers/)
 Registry ingestion may lag a successful upload; verification waits within one
 bounded ten-minute window after publishing the missing packages, without changing
 channel tags until the entire graph is visible with exact integrity and provenance.
+Tag inspection and mutation both use `npm dist-tag`, which reads the dedicated
+tag endpoint. Do not verify tag writes through `npm view`: its package metadata
+can lag behind a successful tag change and falsely fail publication or cleanup.
 
 Candidate construction also serves installation qualification, including changes
 after a version has already been released. Only a fresh publication runs
