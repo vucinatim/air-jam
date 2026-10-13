@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/assets/airjam-logo.png" alt="Air Jam" width="160" />
+</p>
+
 <h1 align="center">Air Jam</h1>
 
 <p align="center">
