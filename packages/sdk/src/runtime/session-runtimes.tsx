@@ -19,6 +19,7 @@ import {
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
 } from "./contracts/inspection";
+import { publishEmbeddedHostPreview } from "./preview-inspection-bridge";
 import {
   controllerRuntimeContext,
   hostRuntimeContext,
@@ -44,7 +45,9 @@ const HostRuntimeInspectionPublisher = (): null => {
     }
 
     publishRuntimeInspectionContract(window, inspection);
+    const stopPublishing = publishEmbeddedHostPreview(inspection);
     return () => {
+      stopPublishing();
       if (readRuntimeInspectionContract(window)?.role === "host") {
         publishRuntimeInspectionContract(window, null);
       }

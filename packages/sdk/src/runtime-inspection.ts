@@ -12,3 +12,8 @@ export {
   type HostRuntimeInspectionContract,
   type RuntimeInspectionContract,
 } from "./runtime/contracts/inspection";
+export {
+  readHostPreviewSnapshot,
+  requestHostPreviewSnapshot,
+  type HostPreviewSnapshot,
+} from "./runtime/preview-inspection-bridge";

@@ -8,7 +8,9 @@ export type HostPreviewControllerWorkspaceEnabled = boolean | "auto";
 
 export interface ResolveHostPreviewControllerWorkspaceEnabledOptions {
   enabled?: HostPreviewControllerWorkspaceEnabled;
-  topology?: Pick<ResolvedAirJamRuntimeTopology, "runtimeMode">;
+  topology?: Pick<ResolvedAirJamRuntimeTopology, "runtimeMode"> &
+    Partial<Pick<ResolvedAirJamRuntimeTopology, "embedded">>;
+  isEmbeddedRuntime?: boolean;
   isDevelopmentRuntime?: boolean;
   searchParams?: URLSearchParams | string;
 }
@@ -62,6 +64,7 @@ export const isEmbeddedArcadeRuntimeSearchParams = (
 export const resolveHostPreviewControllerWorkspaceEnabled = ({
   enabled = "auto",
   topology,
+  isEmbeddedRuntime = typeof window !== "undefined" && window.parent !== window,
   isDevelopmentRuntime = readDevelopmentRuntime(),
   searchParams,
 }: ResolveHostPreviewControllerWorkspaceEnabledOptions = {}): boolean => {
@@ -76,6 +79,8 @@ export const resolveHostPreviewControllerWorkspaceEnabled = ({
 
   return (
     localDevControlSurfacesEnabled &&
+    !topology?.embedded &&
+    !isEmbeddedRuntime &&
     !isEmbeddedArcadeRuntimeSearchParams(searchParams)
   );
 };

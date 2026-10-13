@@ -39,6 +39,28 @@ describe("host preview controller ownership", () => {
     ).toBe(false);
   });
 
+  it("leaves controller placement to an embedded workspace", () => {
+    expect(
+      resolveHostPreviewControllerWorkspaceEnabled({
+        topology: { runtimeMode: "standalone-dev", embedded: true },
+        isEmbeddedRuntime: false,
+      }),
+    ).toBe(false);
+    expect(
+      resolveHostPreviewControllerWorkspaceEnabled({
+        topology: { runtimeMode: "standalone-dev" },
+        isEmbeddedRuntime: true,
+      }),
+    ).toBe(false);
+    expect(
+      resolveHostPreviewControllerWorkspaceEnabled({
+        enabled: true,
+        topology: { runtimeMode: "standalone-dev", embedded: true },
+        isEmbeddedRuntime: true,
+      }),
+    ).toBe(true);
+  });
+
   it("keeps explicit enabled overrides authoritative", () => {
     const embeddedSearchParams =
       "aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong";
