@@ -79,90 +79,97 @@ export const LobbyScreen = () => {
 
   return (
     <div
-      className="pong-app-shell flex h-full min-h-0 w-full items-center justify-center px-4 py-6 text-white sm:px-6 sm:py-8"
+      className="pong-app-shell w-full text-white"
       data-testid="pong-host-lobby-screen"
     >
-      <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <section className="pong-panel-strong flex flex-col rounded-[34px] px-6 py-6 sm:px-8 sm:py-7">
-          <div className="flex items-center justify-between gap-6">
-            <div className="pong-caption">Lobby</div>
-            <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 uppercase">
-              {readinessText}
-            </div>
-          </div>
-
-          <div className="mt-6 grid flex-1 gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-            <TeamCard
-              team="team1"
-              players={team1Players}
-              botCount={botCounts.team1}
-            />
-            <div className="hidden items-center justify-center px-1 lg:flex">
-              <div className="rounded-full text-2xl font-black text-white/30 uppercase">
-                VS
-              </div>
-            </div>
-            <TeamCard
-              team="team2"
-              players={team2Players}
-              botCount={botCounts.team2}
-            />
-          </div>
-
-          <div className="mt-5 flex flex-wrap items-center gap-3 pt-2">
-            <div className="text-sm font-semibold tracking-[0.16em] text-slate-300 uppercase">
-              First to {pointsToWin}
-            </div>
-            {waitingPlayers.length > 0 ? (
-              <>
-                <div className="h-1 w-1 rounded-full bg-white/24" />
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-semibold tracking-[0.16em] text-zinc-500 uppercase">
-                    Waiting
-                  </div>
-                  {waitingPlayers.map((player) => (
-                    <PlayerAvatar
-                      key={player.id}
-                      player={player}
-                      size="sm"
-                      className="h-7 w-7 border-2"
-                    />
-                  ))}
+      {/* The host may get only part of a window (Studio, a docked controller,
+          a small TV area). Layout follows this container, not the viewport,
+          and short areas scroll instead of clipping a centered lobby. */}
+      <div className="@container absolute inset-0 overflow-y-auto">
+        <div className="flex min-h-full items-center justify-center px-4 py-6 @3xl:px-6 @3xl:py-8">
+          <div className="grid w-full max-w-6xl gap-6 @4xl:grid-cols-[1.2fr_0.8fr]">
+            <section className="pong-panel-strong @container/teams flex flex-col rounded-[34px] px-6 py-6 @3xl:px-8 @3xl:py-7">
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+                <div className="pong-caption">Lobby</div>
+                <div className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 uppercase">
+                  {readinessText}
                 </div>
-              </>
-            ) : null}
-          </div>
-        </section>
+              </div>
 
-        <section className="pong-panel flex flex-col items-center justify-center rounded-[34px] px-6 py-7 text-center sm:px-8">
-          <div className="pong-caption">Join On Phone</div>
-          <div
-            className="mt-2 text-4xl font-black tracking-[0.22em] text-white uppercase"
-            data-testid="pong-host-room-code"
-          >
-            {host.roomId ?? "----"}
+              <div className="mt-6 grid flex-1 gap-4 @xl/teams:grid-cols-[1fr_auto_1fr] @xl/teams:items-center">
+                <TeamCard
+                  team="team1"
+                  players={team1Players}
+                  botCount={botCounts.team1}
+                />
+                <div className="hidden items-center justify-center px-1 @xl/teams:flex">
+                  <div className="rounded-full text-2xl font-black text-white/30 uppercase">
+                    VS
+                  </div>
+                </div>
+                <TeamCard
+                  team="team2"
+                  players={team2Players}
+                  botCount={botCounts.team2}
+                />
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-3 pt-2">
+                <div className="text-sm font-semibold tracking-[0.16em] text-slate-300 uppercase">
+                  First to {pointsToWin}
+                </div>
+                {waitingPlayers.length > 0 ? (
+                  <>
+                    <div className="h-1 w-1 rounded-full bg-white/24" />
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] font-semibold tracking-[0.16em] text-zinc-500 uppercase">
+                        Waiting
+                      </div>
+                      {waitingPlayers.map((player) => (
+                        <PlayerAvatar
+                          key={player.id}
+                          player={player}
+                          size="sm"
+                          className="h-7 w-7 border-2"
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="pong-panel flex flex-col items-center justify-center rounded-[34px] px-6 py-7 text-center @3xl:px-8">
+              <div className="pong-caption">Join On Phone</div>
+              <div
+                className="mt-2 text-4xl font-black tracking-[0.22em] text-white uppercase"
+                data-testid="pong-host-room-code"
+              >
+                {host.roomId ?? "----"}
+              </div>
+              <JoinUrlControls
+                value={joinControls.joinUrlValue}
+                label="Controller link"
+                copied={joinControls.copied}
+                onCopy={joinControls.handleCopy}
+                onOpen={joinControls.handleOpen}
+                qrVisible={joinControls.joinQrVisible}
+                onToggleQr={joinControls.toggleJoinQr}
+                className="mt-4 w-full text-left"
+                inputClassName="border-white/15 bg-black/40 text-white"
+                buttonClassName="border-white/15 bg-white/5 text-white hover:bg-white/10"
+              />
+              <LifecycleActionGroup
+                phase="lobby"
+                canInteract={joinControls.canStartMatch}
+                onStart={joinControls.handleStart}
+                startLabel="Play"
+                className="mt-4"
+                buttonClassName="border-white/15 bg-white px-5 text-black hover:bg-white/90"
+              />
+            </section>
           </div>
-          <JoinUrlControls
-            value={joinControls.joinUrlValue}
-            label="Controller link"
-            copied={joinControls.copied}
-            onCopy={joinControls.handleCopy}
-            onOpen={joinControls.handleOpen}
-            qrVisible={joinControls.joinQrVisible}
-            onToggleQr={joinControls.toggleJoinQr}
-            className="mt-4 w-full text-left"
-            inputClassName="border-white/15 bg-black/40 text-white"
-            buttonClassName="border-white/15 bg-white/5 text-white hover:bg-white/10"
-          />
-          <LifecycleActionGroup
-            phase="lobby"
-            canInteract={joinControls.canStartMatch}
-            onStart={joinControls.handleStart}
-            startLabel="Play"
-            className="mt-4"
-            buttonClassName="border-white/15 bg-white px-5 text-black hover:bg-white/90"
-          />
-        </section>
+        </div>
       </div>
       <JoinQrOverlay
         open={joinControls.joinQrVisible}

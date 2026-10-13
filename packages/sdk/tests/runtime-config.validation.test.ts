@@ -1,6 +1,7 @@
 import {
   AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY,
   resolveRuntimeTopology,
+  runtimeTopologyToQueryParams,
 } from "@air-jam/sdk/runtime-topology";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -162,5 +163,80 @@ describe("runtime config validation", () => {
         proxyStrategy: "none",
       }),
     );
+  });
+
+  it("uses complete development surface topology over baked Vite defaults for host and controller", () => {
+    const defaults = resolveRuntimeTopology({
+      runtimeMode: "standalone-dev",
+      surfaceRole: "host",
+      appOrigin: "http://human.localhost:8791",
+      backendOrigin: "http://127.0.0.1:4000",
+      proxyStrategy: "dev-proxy",
+    });
+    const contained = resolveRuntimeTopology({
+      ...defaults,
+      appOrigin: "http://127.0.0.1:5173",
+      socketOrigin: "http://127.0.0.1:5173",
+      publicHost: "http://127.0.0.1:5173",
+    });
+    globalThis.window = {
+      location: {
+        origin: contained.appOrigin,
+        search: `?${new URLSearchParams(runtimeTopologyToQueryParams(contained))}`,
+      },
+    } as unknown as Window & typeof globalThis;
+    const runtime = env.vite({
+      DEV: true,
+      VITE_AIR_JAM_RUNTIME_TOPOLOGY: JSON.stringify(defaults),
+    });
+    expect(resolveAirJamConfig(runtime).topology).toEqual(contained);
+    expect(
+      resolveAirJamConfig({ ...runtime, surfaceRole: "controller" }).topology,
+    ).toEqual({ ...contained, surfaceRole: "controller" });
+    expect(resolveAirJamConfig({ topology: defaults }).topology).toEqual(
+      defaults,
+    );
+    process.env.AIR_JAM_RUNTIME_TOPOLOGY = JSON.stringify(defaults);
+    expect(resolveAirJamConfig({}).topology).toEqual(contained);
+  });
+
+  it("keeps production defaults authoritative over URL topology and rejects incomplete development overrides", () => {
+    const defaults = resolveRuntimeTopology({
+      runtimeMode: "self-hosted-production",
+      surfaceRole: "host",
+      appOrigin: "https://game.example.com",
+      backendOrigin: "https://backend.example.com",
+    });
+    globalThis.window = {
+      location: {
+        origin: defaults.appOrigin,
+        search: "?aj_topology_app_origin=http://127.0.0.1:5173",
+      },
+    } as unknown as Window & typeof globalThis;
+    expect(
+      env.vite({
+        DEV: false,
+        VITE_AIR_JAM_RUNTIME_TOPOLOGY: JSON.stringify(defaults),
+      }).topology,
+    ).toEqual(defaults);
+    expect(() =>
+      env.vite({
+        DEV: true,
+        VITE_AIR_JAM_RUNTIME_TOPOLOGY: JSON.stringify({
+          ...defaults,
+          runtimeMode: "standalone-dev",
+        }),
+      }),
+    ).toThrow("search params are incomplete");
+    globalThis.window.location.search = `?${new URLSearchParams(runtimeTopologyToQueryParams(defaults))}`;
+    expect(() =>
+      env.vite({
+        DEV: true,
+        VITE_AIR_JAM_RUNTIME_TOPOLOGY: JSON.stringify({
+          ...defaults,
+          runtimeMode: "standalone-dev",
+        }),
+      }),
+    ).toThrow("must use a local development mode");
   });
 });

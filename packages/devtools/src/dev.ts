@@ -1,3 +1,7 @@
+import {
+  parseRuntimeTopology,
+  runtimeTopologyToQueryParams,
+} from "@air-jam/sdk/runtime-topology";
 import crossSpawn from "cross-spawn";
 import { randomUUID } from "node:crypto";
 import { closeSync, openSync } from "node:fs";
@@ -514,6 +518,20 @@ const joinUrl = (origin: string | null, pathname: string): string | null => {
   return new URL(pathname, origin).toString();
 };
 
+const topologySurfaceUrl = (
+  origin: string,
+  pathname: string,
+  surface: JsonObject,
+): string => {
+  const url = new URL(pathname, origin);
+  const topology = parseRuntimeTopology(JSON.stringify(surface));
+  for (const [key, value] of Object.entries(
+    runtimeTopologyToQueryParams(topology),
+  ))
+    url.searchParams.set(key, value);
+  return url.toString();
+};
+
 const buildUrlSummary = ({
   mode,
   gameId,
@@ -538,8 +556,16 @@ const buildUrlSummary = ({
 
     return {
       appOrigin: hostOrigin,
-      hostUrl: hostOrigin,
-      controllerBaseUrl: joinUrl(controllerOrigin, controllerPath),
+      hostUrl: hostOrigin
+        ? topologySurfaceUrl(hostOrigin, "/", hostSurface)
+        : null,
+      controllerBaseUrl: controllerOrigin
+        ? topologySurfaceUrl(
+            controllerOrigin,
+            controllerPath,
+            controllerSurface,
+          )
+        : null,
       publicHost,
       localBuildUrl: null,
       browserBuildUrl: null,

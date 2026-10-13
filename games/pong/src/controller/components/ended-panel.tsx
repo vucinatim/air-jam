@@ -19,7 +19,7 @@ export const EndedPanel = () => {
   const winnerColor = winner ? getTeamColor(winner) : "#ffffff";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-4 sm:pt-5">
+    <div className="pong-scroll-hidden flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pt-4 pb-4 sm:pt-5">
       <div className="pong-panel mx-auto w-full max-w-md rounded-[28px] px-4 py-5 text-center sm:px-5 sm:py-6">
         <div className="pong-caption">Match Ended</div>
         <div

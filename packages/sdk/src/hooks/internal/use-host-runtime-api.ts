@@ -40,6 +40,10 @@ import {
 } from "../../protocol";
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import {
+  runtimeTopologyToQueryParams,
+  serializeRuntimeTopology,
+} from "../../runtime-topology";
+import {
   resolveAdmissionRetry,
   type AdmissionRetryDecision,
 } from "../../runtime/admission-retry";
@@ -142,9 +146,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   const joinUrlBuildKey = useMemo(
     () =>
       parsedRoomId
-        ? `${parsedRoomId}\0${config.topology.publicHost}\0${controllerCapability?.token ?? ""}`
+        ? `${parsedRoomId}\0${serializeRuntimeTopology(config.topology)}\0${controllerCapability?.token ?? ""}`
         : null,
-    [config.topology.publicHost, controllerCapability?.token, parsedRoomId],
+    [config.topology, controllerCapability?.token, parsedRoomId],
   );
   const [computedJoinUrl, setComputedJoinUrl] = useState<{
     key: string | null;
@@ -539,14 +543,27 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
     void (async () => {
       try {
-        const url = await urlBuilder.buildControllerUrl(parsedRoomId, {
-          host: config.topology.publicHost,
-          capabilityToken: controllerCapability?.token,
-        });
+        const controllerUrl = new URL(
+          await urlBuilder.buildControllerUrl(parsedRoomId, {
+            host: config.topology.publicHost,
+            capabilityToken: controllerCapability?.token,
+          }),
+        );
+        if (
+          config.topology.runtimeMode === "standalone-dev" ||
+          config.topology.runtimeMode === "standalone-secure"
+        )
+          for (const [key, value] of Object.entries(
+            runtimeTopologyToQueryParams({
+              ...config.topology,
+              surfaceRole: "controller",
+            }),
+          ))
+            controllerUrl.searchParams.set(key, value);
         if (!cancelled) {
           setComputedJoinUrl({
             key: joinUrlBuildKey,
-            url,
+            url: controllerUrl.toString(),
             error: false,
           });
         }
@@ -567,7 +584,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   }, [
     parsedRoomId,
     embeddedHost?.joinUrl,
-    config.topology.publicHost,
+    config.topology,
     controllerCapability?.token,
     joinUrlBuildKey,
   ]);

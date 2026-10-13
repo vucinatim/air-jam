@@ -2,6 +2,7 @@ import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
 } from "@air-jam/sdk/runtime-inspection";
+import { AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX } from "@air-jam/sdk/runtime-topology";
 import {
   chromium,
   type Browser,
@@ -182,6 +183,9 @@ const resolveControllerJoinUrl = async ({
   const controllerUrl = new URL(controllerBaseUrl);
   joinUrl.protocol = controllerUrl.protocol;
   joinUrl.host = controllerUrl.host;
+  for (const [key, value] of controllerUrl.searchParams)
+    if (key.startsWith(AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX))
+      joinUrl.searchParams.set(key, value);
   return joinUrl.toString();
 };
 

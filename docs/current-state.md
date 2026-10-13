@@ -1,7 +1,28 @@
 # Current State
 
-Last updated: 2026-10-10
-Status: six-package separation reviewed; review cleanup locally qualified, delivery pending
+Last updated: 2026-10-13
+Status: Studio foundation continuation qualified locally; earlier separation checkpoint retained below
+
+## Studio foundation continuation
+
+`codex/studio-preview-inspection` supports isolated Studio development through
+the public package boundary. Complete canonical local URL topology distinguishes
+human preview addresses from contained harness addresses on one dev server,
+independent of startup order. Explicit authored topology and production defaults
+remain fixed. Host-issued controller joins and harness joins preserve local
+topology, room and capability. The runtime topology contract documents precedence.
+
+Pong's portable starter now fits compact host/controller areas, keeps text readable
+and allocates score and pause content separately. Its canvas context follows the
+actual DOM attachment; rendered court sizing derives from the field ratio rather
+than independently constraining fixed dimensions. Real contained actions/state
+and Mac Chrome verify separate agent/human rooms, controller-started play, live
+rendering, reload outcomes and short-screen reachability. Opus owns the interface
+and accepts the final screenshots. Exact local package consumers and frozen
+private installation pass; no package release or main change is part of this work.
+
+The private product owns current deployment and full Studio acceptance. The
+following separation notes retain this branch's earlier delivery checkpoint.
 
 The public framework is being separated from the private Air Jam product.
 The separation branches are pushed and under review, but neither is merged.

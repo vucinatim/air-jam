@@ -6,9 +6,14 @@ import { type AirJamProviderProps } from "../context/session-providers";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import type { AirJamGameMetadata } from "../metadata/manifest";
-import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
-import { resolveProjectRuntimeTopology } from "../runtime-topology";
-import { type ResolveAirJamConfigInput } from "./air-jam-config";
+import {
+  parseRuntimeTopology,
+  resolveProjectRuntimeTopology,
+} from "../runtime-topology";
+import {
+  resolveEnvironmentRuntimeTopology,
+  type ResolveAirJamConfigInput,
+} from "./air-jam-config";
 import {
   AirJamErrorBoundary,
   type AirJamErrorBoundaryProps,
@@ -127,9 +132,7 @@ export const env = {
   vite: (viteEnvInput?: ViteEnvSource): ResolveAirJamConfigInput => {
     const viteEnv = toViteEnvLike(viteEnvInput) ?? readViteEnv();
     const explicitTopology = viteEnv?.VITE_AIR_JAM_RUNTIME_TOPOLOGY
-      ? (JSON.parse(
-          viteEnv.VITE_AIR_JAM_RUNTIME_TOPOLOGY,
-        ) as ResolvedAirJamRuntimeTopology)
+      ? parseRuntimeTopology(viteEnv.VITE_AIR_JAM_RUNTIME_TOPOLOGY)
       : null;
     const projectTopology =
       !explicitTopology && viteEnv?.VITE_AIR_JAM_PUBLIC_HOST
@@ -149,13 +152,15 @@ export const env = {
               viteEnv.VITE_AIR_JAM_PUBLIC_HOST.startsWith("https://"),
           })
         : null;
+    const topology = resolveEnvironmentRuntimeTopology(
+      explicitTopology ?? projectTopology,
+      viteEnv?.DEV === true,
+    );
     return {
-      ...(explicitTopology || projectTopology
-        ? { topology: explicitTopology ?? projectTopology ?? undefined }
-        : {}),
+      ...(topology ? { topology } : {}),
       appId: viteEnv?.VITE_AIR_JAM_APP_ID,
       hostGrantEndpoint: viteEnv?.VITE_AIR_JAM_HOST_GRANT_ENDPOINT,
-      resolveEnv: explicitTopology || projectTopology ? false : true,
+      resolveEnv: topology ? false : true,
     };
   },
   next: (): ResolveAirJamConfigInput => ({

@@ -5,6 +5,7 @@ import {
 } from "../diagnostics";
 import type { HostSessionKind } from "../protocol/host";
 import {
+  isLocalDevControlSurfaceTopology,
   parseRuntimeTopologyFromSearchParams,
   readRuntimeTopologyFromEnv,
   readRuntimeTopologyFromWindow,
@@ -173,6 +174,26 @@ const readRuntimeTopologyFromWindowSearchParams =
     );
   };
 
+export const resolveEnvironmentRuntimeTopology = (
+  defaults: ResolvedAirJamRuntimeTopology | null,
+  development: boolean,
+): ResolvedAirJamRuntimeTopology | null => {
+  const bootstrap = readRuntimeTopologyFromWindow();
+  if (bootstrap) return bootstrap;
+  if (
+    development &&
+    (!defaults || isLocalDevControlSurfaceTopology(defaults))
+  ) {
+    const surface = readRuntimeTopologyFromWindowSearchParams();
+    if (surface && !isLocalDevControlSurfaceTopology(surface))
+      throw new Error(
+        "Development surface topology must use a local development mode.",
+      );
+    if (surface) return surface;
+  }
+  return defaults;
+};
+
 const applySurfaceRoleOverride = (
   topology: ResolvedAirJamRuntimeTopology | null,
   surfaceRole?: SurfaceRole,
@@ -236,11 +257,12 @@ export const resolveAirJamConfig = ({
     ? applySurfaceRoleOverride(resolveRuntimeTopology(topology), surfaceRole)
     : resolveEnv
       ? applySurfaceRoleOverride(
-          readRuntimeTopologyFromViteEnv() ??
-            readRuntimeTopologyFromEnv(getNodeEnv()) ??
-            readRuntimeTopologyFromWindow(window as unknown as object) ??
-            readRuntimeTopologyFromWindowSearchParams() ??
-            resolveProjectTopologyFromEnv(surfaceRole),
+          resolveEnvironmentRuntimeTopology(
+            readRuntimeTopologyFromViteEnv() ??
+              readRuntimeTopologyFromEnv(getNodeEnv()) ??
+              resolveProjectTopologyFromEnv(surfaceRole),
+            isDevelopmentRuntime(),
+          ),
           surfaceRole,
         )
       : null;

@@ -1,38 +1,27 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 
 interface UsePongCanvasOptions {
   width: number;
   height: number;
-  resetKey: unknown;
 }
 
-export const usePongCanvas = ({
-  width,
-  height,
-  resetKey,
-}: UsePongCanvasOptions) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export const usePongCanvas = ({ width, height }: UsePongCanvasOptions) => {
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    contextRef.current = ctx;
-
-    return () => {
+  const canvasRef = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
       contextRef.current = null;
-    };
-  }, [height, resetKey, width]);
+      if (!canvas) return;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Pong requires a 2D canvas context.");
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      canvas.width = width * devicePixelRatio;
+      canvas.height = height * devicePixelRatio;
+      context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      contextRef.current = context;
+    },
+    [height, width],
+  );
 
   const getContext = useCallback(() => contextRef.current, []);
 

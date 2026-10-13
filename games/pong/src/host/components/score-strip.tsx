@@ -18,11 +18,11 @@ export const ScoreStrip = () => {
 
   return (
     <div
-      className="pong-panel mx-auto mt-4 flex w-full max-w-5xl items-center gap-3 rounded-[28px] px-4 py-3 sm:mt-6 sm:px-5"
+      className="pong-panel mx-auto mt-4 flex w-full max-w-5xl items-center gap-3 rounded-[28px] px-4 py-3 @3xl:mt-6 @3xl:px-5"
       data-testid="pong-host-score-strip"
     >
       <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-        <div className="hidden text-right sm:block">
+        <div className="hidden text-right @xl:block">
           <div className="pong-caption">
             <TeamName team="team1" uppercase={false} />
           </div>
@@ -54,7 +54,7 @@ export const ScoreStrip = () => {
         <div className="pong-caption">First to {pointsToWin}</div>
         <MatchScoreDisplay
           scores={scores}
-          className="flex items-center gap-2 text-3xl font-black tracking-[0.08em] sm:text-4xl"
+          className="flex items-center gap-2 text-3xl font-black tracking-[0.08em] @3xl:text-4xl"
           scoreClassName=""
           separator="-"
           separatorClassName="text-white/72"
@@ -79,7 +79,7 @@ export const ScoreStrip = () => {
             className="h-7 w-7 border-2"
           />
         ))}
-        <div className="hidden sm:block">
+        <div className="hidden @xl:block">
           <div className="pong-caption">
             <TeamName team="team2" uppercase={false} />
           </div>

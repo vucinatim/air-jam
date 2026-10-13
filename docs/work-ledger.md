@@ -145,3 +145,28 @@ npm registration and trusted publishers are configured for all six names.
 CLI and devtools retain npm-generated first-name placeholders; no 0.9.3
 implementation is published. Publication, private qualification, guarded
 Railway handover and Studio restoration remain separate delivery requirements.
+
+## 2026-10-13 - Isolated Studio Surfaces and Portable Pong Fit
+
+Local feature work on `codex/studio-preview-inspection` gives each development
+surface its complete canonical topology while sharing one normal dev server.
+Environment defaults accept complete local URL topology; authored topology and
+production defaults remain fixed. Host-issued controller joins and harness joins
+retain topology with room/capability. SDK configuration and join behavior tests,
+devtools tests, full batch and exact package consumer proofs pass.
+
+Real contained GPT-6.1-Sol work edited a private qualification game and verified
+its three-point default in an owned room. Mac Chrome joined the human proxy after
+agent-first startup. With Studio source stable, a separate semantic match ended
+without changing the human room/controller/paused score. A trial overlapping
+Studio hot refresh was invalidated and is not isolation evidence.
+
+Opus 5.5 owns Pong's responsive lobby/playing/ended layouts and text scale floor.
+Score and pause content share an explicit allocated layout. Canvas backing-store
+ownership follows actual attachment, while the court derives its fit from the
+field ratio. Actual Tailwind compilation verifies size-container syntax. Pong's
+26 tests, typecheck/lint and browser drawing/reload checks pass; Opus accepts the
+final compact screenshots. Host reload retains supported room/controller/score
+state but may restart countdown/ball. Source/template artifacts stay public;
+private product acceptance, durable turn attachments and remaining journey work
+stay private. No main, npm publication or production deployment was changed.

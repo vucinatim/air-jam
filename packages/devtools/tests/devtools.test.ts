@@ -208,12 +208,14 @@ console.log(JSON.stringify({
       runtimeMode: "standalone-dev",
       surfaceRole: "host",
       appOrigin: \`http://127.0.0.1:\${port}\`,
+      backendOrigin: \`http://127.0.0.1:\${port}\`,
       publicHost: \`http://127.0.0.1:\${port}\`
     },
     controller: {
       runtimeMode: "standalone-dev",
       surfaceRole: "controller",
       appOrigin: \`http://127.0.0.1:\${port}\`,
+      backendOrigin: \`http://127.0.0.1:\${port}\`,
       publicHost: \`http://127.0.0.1:\${port}\`
     }
   }
@@ -567,12 +569,14 @@ console.log(JSON.stringify({
       runtimeMode: "standalone-dev",
       surfaceRole: "host",
       appOrigin: \`http://127.0.0.1:\${port}\`,
+      backendOrigin: \`http://127.0.0.1:\${port}\`,
       publicHost: \`http://127.0.0.1:\${port}\`
     },
     controller: {
       runtimeMode: "standalone-dev",
       surfaceRole: "controller",
       appOrigin: \`http://127.0.0.1:\${port}\`,
+      backendOrigin: \`http://127.0.0.1:\${port}\`,
       publicHost: \`http://127.0.0.1:\${port}\`
     }
   }
@@ -947,8 +951,8 @@ const origin = "http://127.0.0.1:${port}";
 if (command === "topology") {
   if (!args.includes("--mode=${topologyMode}")) throw new Error("Invalid topology mode");
   console.log(JSON.stringify({ surfaces: {
-    host: { appOrigin: origin, publicHost: origin },
-    controller: { appOrigin: origin, publicHost: origin },
+    host: { runtimeMode: "standalone-dev", surfaceRole: "host", appOrigin: origin, backendOrigin: origin, publicHost: origin },
+    controller: { runtimeMode: "standalone-dev", surfaceRole: "controller", appOrigin: origin, backendOrigin: origin, publicHost: origin },
     platformHost: { appOrigin: origin, publicHost: origin },
     platformController: { appOrigin: origin, publicHost: origin },
     embeddedHost: { assetBasePath: "/games/pong" }
@@ -974,8 +978,13 @@ if (command === "topology") {
           "--game=pong",
         ]);
         expect(started.topology.topologyMode).toBe(topologyMode);
-        expect(started.topology.urls.hostUrl).toBe(
-          `http://127.0.0.1:${port}${mode === "standalone-dev" ? "" : "/arcade/local-pong"}`,
+        if (!started.topology.urls.hostUrl)
+          throw new Error("Missing host surface URL.");
+        expect(new URL(started.topology.urls.hostUrl).origin).toBe(
+          `http://127.0.0.1:${port}`,
+        );
+        expect(new URL(started.topology.urls.hostUrl).pathname).toBe(
+          mode === "standalone-dev" ? "/" : "/arcade/local-pong",
         );
         expect(
           (await getTopology({ cwd: root, gameId: "pong", mode })).projectMode,
@@ -1042,12 +1051,24 @@ if (command === "topology") {
     const started = await startDev({ cwd: root });
 
     try {
+      if (
+        !started.topology.urls.hostUrl ||
+        !started.topology.urls.controllerBaseUrl
+      )
+        throw new Error("Missing standalone surface URLs.");
       expect(started.reusedExistingProcess).toBe(false);
       expect(started.process.mode).toBe("standalone-dev");
-      expect(started.topology.urls.hostUrl).toBe(`http://127.0.0.1:${port}`);
-      expect(started.topology.urls.controllerBaseUrl).toBe(
-        `http://127.0.0.1:${port}/controller`,
+      expect(new URL(started.topology.urls.hostUrl).origin).toBe(
+        `http://127.0.0.1:${port}`,
       );
+      expect(new URL(started.topology.urls.controllerBaseUrl).pathname).toBe(
+        "/controller",
+      );
+      expect(
+        new URL(started.topology.urls.controllerBaseUrl).searchParams.get(
+          "aj_topology_surface_role",
+        ),
+      ).toBe("controller");
 
       const status = await getDevStatus({ cwd: root });
       expect(status.processes).toHaveLength(1);
@@ -1057,7 +1078,10 @@ if (command === "topology") {
 
       const topology = await getTopology({ cwd: root });
       expect(topology.process?.id).toBe(started.process.id);
-      expect(topology.urls.hostUrl).toBe(`http://127.0.0.1:${port}`);
+      if (!topology.urls.hostUrl) throw new Error("Missing host surface URL.");
+      expect(new URL(topology.urls.hostUrl).origin).toBe(
+        `http://127.0.0.1:${port}`,
+      );
     } finally {
       await stopDev({ cwd: root, processId: started.process.id });
     }

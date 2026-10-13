@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 
-import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
+import {
+  parseRuntimeTopologyFromSearchParams,
+  resolveRuntimeTopology,
+} from "@air-jam/sdk/runtime-topology";
 import {
   fireEvent,
   render,
@@ -160,6 +163,39 @@ describe("host join url behavior", () => {
     expect(result.current.joinUrl).toBe(
       "https://platform.example/controller?room=ROOM1",
     );
+  });
+
+  it("carries the development host's transport into controller admission without changing its room or capability", async () => {
+    const topology = resolveRuntimeTopology({
+      runtimeMode: "standalone-dev",
+      surfaceRole: "host",
+      appOrigin: "http://human.localhost:8791",
+      backendOrigin: "http://human.localhost:8791",
+    });
+    mocked.store?.getState().setRoomId("ROOM1");
+    mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    (mocked.hostSocket as { connected: boolean }).connected = false;
+    mocked.useAirJamContext.mockReturnValue({
+      config: resolveAirJamConfig({ topology }),
+      store: mocked.store,
+      getSocket: () => mocked.hostSocket,
+      disconnectSocket: vi.fn(),
+      inputManager: null,
+    });
+    vi.spyOn(urlBuilder, "buildControllerUrl").mockResolvedValue(
+      "http://human.localhost:8791/controller?room=ROOM1&aj_controller_cap=retained",
+    );
+    const { result } = renderHook(() => useAirJamHost(), {
+      wrapper: HostRuntimeWrapper,
+    });
+    await waitFor(() => expect(result.current.joinUrlStatus).toBe("ready"));
+    const url = new URL(result.current.joinUrl);
+    expect(url.searchParams.get("room")).toBe("ROOM1");
+    expect(url.searchParams.get("aj_controller_cap")).toBe("retained");
+    expect(parseRuntimeTopologyFromSearchParams(url.searchParams)).toEqual({
+      ...topology,
+      surfaceRole: "controller",
+    });
   });
 
   it("shows a loading state while the QR image is being generated", () => {

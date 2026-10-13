@@ -55,7 +55,6 @@ function PongHost() {
   const { canvasRef, getContext } = usePongCanvas({
     width: FIELD_WIDTH,
     height: FIELD_HEIGHT,
-    resetKey: matchPhase,
   });
   const hostRuntime = usePongHostRuntimeState({
     matchPhase,
@@ -111,7 +110,10 @@ function PongHost() {
 
   return (
     <>
-      <SurfaceViewport className="bg-[#02030a]">
+      {/* Host tokens scale to a 1600×900 reference; in a small embedded host
+          (e.g. 715×626) that made body text ~6px. A floor keeps scores and
+          captions readable; the screens scroll or stack when content grows. */}
+      <SurfaceViewport className="bg-[#02030a]" minScale={0.8}>
         {matchPhase === "lobby" ? (
           <LobbyScreen />
         ) : matchPhase === "ended" ? (

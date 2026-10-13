@@ -1,6 +1,6 @@
 # Runtime Topology Contract
 
-Last updated: 2026-05-08  
+Last updated: 2026-10-13
 Status: current contract
 
 Related docs:
@@ -67,6 +67,25 @@ than re-deriving it independently.
 The public workspace starts standalone games. Live and built Arcade
 orchestration and provider deployment topology belong to the private product,
 which consumes the same public topology contract.
+
+## Development Surface Addressing
+
+An explicitly authored provider topology stays fixed. For environment defaults,
+the SDK resolves the trusted window bootstrap first, then a complete local
+development URL topology, then the baked environment topology or normal
+environment inference. Production defaults do not accept URL overrides; a
+local override must be complete and remain a local development mode.
+
+The standalone dev front door includes the canonical topology in host and
+controller URLs. Host-issued local controller joins propagate that topology
+while retaining the room and controller capability. Harness joins also preserve
+it when attaching to an owned room. Arcade and production admission keep their
+existing contracts.
+
+This lets an external preview and a contained browser share one dev server with
+different surface addresses. Each supplies its complete topology; neither needs
+to restart the server merely because the other started it first. Separate
+browser contexts and owned rooms remain required for isolated agent playtests.
 
 ## Failure Rule
 
