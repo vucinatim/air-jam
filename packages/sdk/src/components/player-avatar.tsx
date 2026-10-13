@@ -1,5 +1,5 @@
-import { Bot } from "lucide-react";
-import type { JSX } from "react";
+import { Bot, UserRound } from "lucide-react";
+import { useState, type JSX } from "react";
 import type { PlayerProfile } from "../protocol";
 import { cn } from "../utils/cn";
 import { getPlayerAvatarImageUrl } from "../utils/player-avatar-url";
@@ -27,6 +27,7 @@ export const PlayerAvatar = ({
   size = "md",
   className = "",
 }: PlayerAvatarProps): JSX.Element => {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const accentColor = player.color || "hsl(var(--border))";
   const sizeClasses = {
     sm: "h-9 w-9 border-2",
@@ -78,10 +79,40 @@ export const PlayerAvatar = ({
     );
   }
 
+  const src = getPlayerAvatarImageUrl(player);
+  // Artwork can fail to load (offline, or egress-restricted sandboxes); the
+  // same shell then shows the player's own initials instead of broken alt text.
+  if (failedSrc === src) {
+    const initials = playerInitials(player.label);
+    return (
+      <div
+        role="img"
+        aria-label={player.label}
+        className={cn(
+          "bg-secondary/40 flex items-center justify-center font-semibold uppercase",
+          initialsSizeClasses[size],
+          shellClassName,
+        )}
+        style={{
+          borderColor: accentColor,
+          color: accentColor,
+          boxShadow: shadowStyles[size],
+        }}
+      >
+        {initials ? (
+          <span aria-hidden="true">{initials}</span>
+        ) : (
+          <UserRound aria-hidden="true" className={iconSizeClasses[size]} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <img
-      src={getPlayerAvatarImageUrl(player)}
+      src={src}
       alt={player.label}
+      onError={() => setFailedSrc(src)}
       className={cn("bg-secondary/30", shellClassName)}
       style={{
         borderColor: accentColor,
@@ -90,3 +121,19 @@ export const PlayerAvatar = ({
     />
   );
 };
+
+const initialsSizeClasses = {
+  sm: "text-xs",
+  md: "text-sm",
+  lg: "text-base",
+};
+
+/** Up to two initials from the player's actual label. */
+const playerInitials = (label: string): string =>
+  label
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => Array.from(word)[0] ?? "")
+    .join("");

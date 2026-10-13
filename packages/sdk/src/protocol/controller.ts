@@ -112,13 +112,13 @@ export const controllerSystemSchema = z.object({
 
 export type ControllerSystemPayload = z.infer<typeof controllerSystemSchema>;
 
-export interface PlayerProfile {
-  id: string;
-  label: string;
-  color?: string;
-  /** Preset avatar id chosen by the player (platform resolves to artwork). */
-  avatarId?: string;
-}
+export const playerProfileSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  color: z.string().optional(),
+  avatarId: z.string().optional(),
+});
+export type PlayerProfile = z.infer<typeof playerProfileSchema>;
 
 export const playerProfilePatchSchema = z
   .object({

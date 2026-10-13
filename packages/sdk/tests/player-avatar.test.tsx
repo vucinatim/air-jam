@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PlayerAvatar } from "../src/components/player-avatar";
 
@@ -18,6 +18,30 @@ describe("PlayerAvatar", () => {
 
     expect(avatar.tagName).toBe("IMG");
     expect((avatar as HTMLImageElement).src).toContain("dicebear.com");
+  });
+
+  it("falls back to the player's own initials when artwork cannot load", () => {
+    render(<PlayerAvatar player={{ ...player, label: "Fidelity actor" }} />);
+
+    fireEvent.error(screen.getByRole("img", { name: "Fidelity actor" }));
+
+    const avatar = screen.getByRole("img", { name: "Fidelity actor" });
+    expect(avatar.tagName).toBe("DIV");
+    expect(avatar.textContent).toBe("Fa");
+    expect(avatar.className).toContain("h-12 w-12");
+    expect((avatar as HTMLDivElement).style.borderColor).toBe(
+      "rgb(34, 211, 238)",
+    );
+  });
+
+  it("shows a neutral icon, not invented text, for a blank label", () => {
+    render(<PlayerAvatar player={{ ...player, label: " " }} size="sm" />);
+
+    fireEvent.error(screen.getByRole("img"));
+
+    const avatar = screen.getByRole("img");
+    expect(avatar.textContent).toBe("");
+    expect(avatar.querySelector("svg")).not.toBeNull();
   });
 
   it("renders the shared bot avatar shell when requested", () => {

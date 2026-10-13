@@ -1,24 +1,27 @@
+import { parseControllerBridgeEmitMessage } from "@air-jam/sdk/controller-bridge";
+import { controllerStateSyncRequestSchema } from "@air-jam/sdk/protocol";
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
 } from "@air-jam/sdk/runtime-inspection";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
 import {
   DEFAULT_CONTROLLER_VIEWPORT,
   DEFAULT_HOST_VIEWPORT,
   launchHarnessBrowser,
-  openVisualHarnessControllerSession,
   openVisualHarnessHostSession,
-  type OpenVisualHarnessControllerSessionResult,
   type VisualHarnessMode,
 } from "../harness/visual.js";
+import { openControllerObservation } from "../harness/visual/controller-observation.js";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
   isRuntimeOwnerActionRequest,
   isRuntimeOwnerCaptureRequest,
   resolveProjectRelativeRuntimeCaptureDir,
+  runtimeOwnerCaptureEventSchema,
   type AirJamRuntimeOwnerCaptureResult,
 } from "../runtime-owner-protocol.js";
 import { invokeOwnedHostAction } from "./runtime-owner-actions.js";
@@ -61,7 +64,13 @@ const session = await openVisualHarnessHostSession({
     browserBuildUrl,
   },
 });
-let controllerSession: OpenVisualHarnessControllerSessionResult | null = null;
+let controllerSession: Awaited<
+  ReturnType<typeof openControllerObservation>
+> | null = null;
+let captureRequestId: string | null = null;
+let pendingCaptureEvents: z.infer<typeof runtimeOwnerCaptureEventSchema>[] = [];
+let captureDelivery = Promise.resolve();
+let captureDeliveryError: unknown = null;
 
 const shutdown = async (exitCode = 0) => {
   await Promise.allSettled([
@@ -73,6 +82,23 @@ const shutdown = async (exitCode = 0) => {
 };
 
 process.on("message", (message: unknown) => {
+  const captureEvent = runtimeOwnerCaptureEventSchema.safeParse(message);
+  if (
+    captureEvent.success &&
+    captureEvent.data.requestId === captureRequestId
+  ) {
+    if (controllerSession) {
+      const observation = controllerSession;
+      captureDelivery = captureDelivery
+        .then(() =>
+          observation.deliver(captureEvent.data.event, captureEvent.data.args),
+        )
+        .catch((error) => {
+          captureDeliveryError = error;
+        });
+    } else pendingCaptureEvents.push(captureEvent.data);
+    return;
+  }
   if (isRuntimeOwnerActionRequest(message)) {
     void (async () => {
       const acknowledgement = await invokeOwnedHostAction(
@@ -88,6 +114,18 @@ process.on("message", (message: unknown) => {
     return;
   }
   if (!isRuntimeOwnerCaptureRequest(message)) return;
+  if (captureRequestId) {
+    process.send?.({
+      type: AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
+      requestId: message.requestId,
+      ok: false,
+      capturedAt: new Date().toISOString(),
+      screenshots: [],
+      error: "A runtime visual capture is already active.",
+    });
+    return;
+  }
+  captureRequestId = message.requestId;
   void (async () => {
     const capturedAt = new Date().toISOString();
     const response: AirJamRuntimeOwnerCaptureResult = {
@@ -103,18 +141,40 @@ process.on("message", (message: unknown) => {
         projectDir: process.cwd(),
         relativeDir: message.relativeDir,
       });
-      controllerSession ??= await openVisualHarnessControllerSession({
+      if (!("harnessSessionId" in message.snapshot))
+        throw new Error("Capture requires a harness controller context.");
+      const inspection = await readInspection();
+      if (
+        inspection?.role !== "host" ||
+        inspection.roomId !== message.snapshot.roomId
+      )
+        throw new Error("Capture belongs to another host room.");
+      controllerSession = await openControllerObservation({
         browser,
-        urls: {
-          appOrigin,
-          hostUrl,
-          controllerBaseUrl,
-          publicHost,
-          localBuildUrl,
-          browserBuildUrl,
+        controllerJoinUrl: inspection.joinUrl,
+        snapshot: message.snapshot,
+        stores: message.stores,
+        onMessage(value) {
+          const emitted = parseControllerBridgeEmitMessage(value);
+          if (!emitted) return;
+          if (emitted.payload.event !== "controller:state_sync_request")
+            throw new Error("Capture controller mutation denied.");
+          const payload = controllerStateSyncRequestSchema.parse(
+            emitted.payload.args[0],
+          );
+          if (payload.roomId !== message.snapshot.roomId)
+            throw new Error("Capture read belongs to another room.");
+          process.send?.({
+            type: "air-jam-runtime-owner.capture-read/v1",
+            captureRequestId: message.requestId,
+            payload,
+          });
         },
-        host: session.host,
       });
+      for (const event of pendingCaptureEvents.splice(0))
+        await controllerSession.deliver(event.event, event.args);
+      await captureDelivery;
+      if (captureDeliveryError) throw captureDeliveryError;
       await mkdir(captureDir, { recursive: true });
       const captures = [
         {
@@ -127,7 +187,7 @@ process.on("message", (message: unknown) => {
           surface: "controller" as const,
           fileName: "controller-phone.png",
           viewport: DEFAULT_CONTROLLER_VIEWPORT,
-          page: controllerSession.controller.page,
+          page: controllerSession.page,
         },
       ];
       for (const capture of captures) {
@@ -144,6 +204,32 @@ process.on("message", (message: unknown) => {
       response.ok = true;
     } catch (error) {
       response.error = error instanceof Error ? error.message : String(error);
+    } finally {
+      const closing = controllerSession;
+      controllerSession = null;
+      captureRequestId = null;
+      pendingCaptureEvents = [];
+      await captureDelivery;
+      if (captureDeliveryError) {
+        response.ok = false;
+        response.error =
+          captureDeliveryError instanceof Error
+            ? captureDeliveryError.message
+            : String(captureDeliveryError);
+      }
+      try {
+        await closing?.close();
+      } catch (error) {
+        response.ok = false;
+        response.error = [
+          response.error,
+          error instanceof Error ? error.message : String(error),
+        ]
+          .filter(Boolean)
+          .join("; ");
+      }
+      captureDelivery = Promise.resolve();
+      captureDeliveryError = null;
     }
     process.send?.(response);
   })();

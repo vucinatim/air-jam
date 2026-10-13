@@ -18,6 +18,17 @@ const ownedActions: AirJamRuntimeOwnerActionRequest[] = [];
 class MockSocket {
   public connected = false;
   private readonly events = new EventEmitter();
+  private readonly anyListeners = new Set<
+    (event: string, ...args: unknown[]) => void
+  >();
+  onAny(listener: (event: string, ...args: unknown[]) => void): this {
+    this.anyListeners.add(listener);
+    return this;
+  }
+  offAny(listener: (event: string, ...args: unknown[]) => void): this {
+    this.anyListeners.delete(listener);
+    return this;
+  }
 
   on(event: string, listener: (...args: unknown[]) => void): this {
     this.events.on(event, listener);
@@ -119,6 +130,9 @@ class MockSocket {
 
   serverEmit(event: string, ...args: unknown[]): void {
     this.events.emit(event, ...args);
+    if (event !== "connect" && event !== "disconnect") {
+      for (const listener of this.anyListeners) listener(event, ...args);
+    }
   }
 }
 

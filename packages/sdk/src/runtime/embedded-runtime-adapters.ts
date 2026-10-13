@@ -1,7 +1,11 @@
-import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import type { RoomCode } from "../protocol";
 import { roomCodeSchema } from "../protocol";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
+import {
+  controllerBridgeContext,
+  type ControllerBridgeContext,
+} from "./controller-bridge-context";
 import {
   readChildHostRuntimeParams,
   readEmbeddedControllerRuntimeParams,
@@ -21,11 +25,10 @@ export type EmbeddedHostChildSession = {
 /**
  * Embedded controller session for the secondary controller iframe (`aj_room`, `aj_controller_id`, …).
  */
-export type EmbeddedControllerChildSession = {
+export type EmbeddedControllerChildSession = ControllerBridgeContext & {
   roomId: RoomCode;
   controllerId: string;
   topology: ResolvedAirJamRuntimeTopology;
-  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
   playerProfile?: {
     label?: string;
     avatarId?: string;
@@ -62,7 +65,7 @@ export const readEmbeddedControllerChildSession =
       roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
       controllerId: raw.controllerId,
       topology: raw.topology,
-      arcadeSurface: raw.arcadeSurface,
+      ...controllerBridgeContext(raw),
       ...(raw.playerProfile ? { playerProfile: raw.playerProfile } : {}),
     };
   };

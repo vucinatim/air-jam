@@ -458,3 +458,109 @@ describe("embedded controller bridge runtime", () => {
     expect(connectSpy).toHaveBeenCalledTimes(2);
   });
 });
+
+it("renders the acting controller through a read-only harness bridge without requesting a socket", async () => {
+  const harnessSessionId = "b3ac882e-e3da-41d3-b3ec-2b065755eb31";
+  const topology = resolveRuntimeTopology({
+    runtimeMode: "standalone-dev",
+    surfaceRole: "controller",
+    appOrigin: window.location.origin,
+    backendOrigin: window.location.origin,
+    socketOrigin: window.location.origin,
+    publicHost: window.location.origin,
+    assetBasePath: "/",
+    secureTransport: false,
+    embedded: true,
+    embedParentOrigin: window.location.origin,
+    proxyStrategy: "none",
+  });
+  const params = new URLSearchParams({
+    aj_room: "ROOM1",
+    aj_controller_id: "acting_controller",
+    aj_harness_session: harnessSessionId,
+    ...runtimeTopologyToQueryParams(topology),
+  });
+  window.history.replaceState({}, "", `/controller?${params}`);
+  const post = vi.spyOn(window.parent, "postMessage");
+  const socket = vi.fn(() => {
+    throw new Error("Observation must not join a new controller.");
+  });
+  const client = getControllerRealtimeClient(socket);
+  const welcome = vi.fn();
+  client.on("server:welcome", welcome);
+  client.connect();
+  const call = post.mock.calls.at(-1);
+  const ports = call?.[2] as MessagePort[] | undefined;
+  const port = ports?.[0];
+  if (!port) throw new Error("Missing observation bridge.");
+  const messages: unknown[] = [];
+  port.onmessage = (event) => messages.push(event.data);
+  port.start();
+  port.postMessage({
+    type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+    payload: {
+      handshake: {
+        protocolVersion: "2",
+        sdkVersion: "0.9.3",
+        runtimeKind: "standalone-controller",
+        capabilityFlags: { controllerBridge: true },
+      },
+      snapshot: {
+        harnessSessionId,
+        roomId: "ROOM1",
+        controllerId: "acting_controller",
+        connected: true,
+        player: { id: "acting_controller", label: "Acting player" },
+        players: [{ id: "acting_controller", label: "Acting player" }],
+      },
+    },
+  });
+  await vi.waitFor(() => expect(client.connected).toBe(true));
+  expect(welcome).toHaveBeenCalledWith(
+    expect.objectContaining({
+      player: { id: "acting_controller", label: "Acting player" },
+    }),
+  );
+  expect(socket).not.toHaveBeenCalled();
+  expect(() =>
+    client.emit("controller:input", {
+      roomId: "ROOM1",
+      controllerId: "acting_controller",
+      input: { move: 1 },
+    }),
+  ).toThrow(/read-only/);
+  await expect(
+    client.emitWithAck("controller:updatePlayerProfile", {
+      roomId: "ROOM1",
+      patch: { label: "Other" },
+    }),
+  ).rejects.toThrow(/read-only/);
+  client.emit("controller:state_sync_request", {
+    roomId: "ROOM1",
+    storeDomain: "pong",
+  });
+  await vi.waitFor(() =>
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          event: "controller:state_sync_request",
+        }),
+      }),
+    ),
+  );
+  client.disconnect();
+  await vi.waitFor(() =>
+    expect(messages).toContainEqual(
+      expect.objectContaining({ type: "AIRJAM_CONTROLLER_BRIDGE_CLOSE" }),
+    ),
+  );
+  expect(messages).not.toContainEqual(
+    expect.objectContaining({
+      payload: expect.objectContaining({ event: "controller:leave" }),
+    }),
+  );
+  port.close();
+  resetControllerRealtimeClientForTests();
+  window.history.replaceState({}, "", "/");
+  vi.restoreAllMocks();
+});

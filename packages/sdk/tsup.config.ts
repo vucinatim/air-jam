@@ -29,6 +29,7 @@ export default defineConfig((options) => ({
     "src/runtime-topology.ts",
     "src/runtime-inspection.ts",
     "src/runtime-control.ts",
+    "src/controller-bridge.ts",
   ],
   format: ["cjs", "esm"],
   dts: true, // Generate declaration files

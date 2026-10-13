@@ -13,6 +13,7 @@ import {
   type ControllerBridgeServerEventArgs,
   type ControllerBridgeServerEventName,
 } from "./controller-bridge";
+import { controllerBridgeContext } from "./controller-bridge-context";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import type {
   AirJamRealtimeClient,
@@ -155,7 +156,7 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       createControllerBridgeRequestMessage({
         roomId: runtimeParams.room as RoomCode,
         controllerId: runtimeParams.controllerId,
-        arcadeSurface: runtimeParams.arcadeSurface,
+        ...controllerBridgeContext(runtimeParams),
       }),
       "*",
       [channel.port2],
@@ -167,8 +168,12 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       "info",
       runtimeParams,
       {
-        gameId: runtimeParams.arcadeSurface.gameId,
-        surfaceKind: runtimeParams.arcadeSurface.kind,
+        ...("arcadeSurface" in runtimeParams
+          ? {
+              gameId: runtimeParams.arcadeSurface.gameId,
+              surfaceKind: runtimeParams.arcadeSurface.kind,
+            }
+          : { harnessSessionId: runtimeParams.harnessSessionId }),
       },
     );
 
@@ -213,6 +218,7 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
   }
 
   emit(event: string, ...args: unknown[]): this {
+    this.assertCaptureRead(event);
     if (!this.port || !this.connected) {
       return this;
     }
@@ -228,6 +234,11 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
   }
 
   emitWithAck<TAck>(event: string, ...args: unknown[]): Promise<TAck> {
+    try {
+      this.assertCaptureRead(event);
+    } catch (error) {
+      return Promise.reject(error);
+    }
     if (!this.port || !this.connected) {
       return Promise.reject(
         new Error(
@@ -283,9 +294,11 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
 
     const attachMessage = parseControllerBridgeAttachMessage(message);
     if (attachMessage) {
+      const runtimeParams = readEmbeddedControllerRuntimeParams();
+      const harness = runtimeParams && "harnessSessionId" in runtimeParams;
       if (
         attachMessage.payload.handshake.runtimeKind !==
-          "arcade-controller-runtime" ||
+          (harness ? "standalone-controller" : "arcade-controller-runtime") ||
         attachMessage.payload.handshake.capabilityFlags.controllerBridge !==
           true
       ) {
@@ -297,25 +310,41 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       }
 
       const snapshot = attachMessage.payload.snapshot;
-      const epochResult = validateArcadeBridgeAttachEpoch(
-        this.lastAttachedArcadeEpoch,
-        snapshot.arcadeSurface,
-      );
-      if (!epochResult.ok) {
-        this.fail(
-          "Embedded controller bridge attach rejected: stale arcade surface epoch.",
-          {
-            reason: "stale_arcade_surface_epoch",
-            runtimeParams: readEmbeddedControllerRuntimeParams(),
-            data: {
-              attachedEpoch: snapshot.arcadeSurface.epoch,
-              previousEpoch: this.lastAttachedArcadeEpoch,
-            },
-          },
-        );
+      if (
+        !runtimeParams ||
+        (harness &&
+          (snapshot.roomId !== runtimeParams.room ||
+            snapshot.controllerId !== runtimeParams.controllerId ||
+            !("harnessSessionId" in snapshot) ||
+            snapshot.harnessSessionId !== runtimeParams.harnessSessionId))
+      ) {
+        this.fail("Embedded controller bridge identity mismatch.", {
+          reason: "identity_mismatch",
+          runtimeParams,
+        });
         return;
       }
-      this.lastAttachedArcadeEpoch = epochResult.nextLast;
+      if ("arcadeSurface" in snapshot) {
+        const epochResult = validateArcadeBridgeAttachEpoch(
+          this.lastAttachedArcadeEpoch,
+          snapshot.arcadeSurface,
+        );
+        if (!epochResult.ok) {
+          this.fail(
+            "Embedded controller bridge attach rejected: stale arcade surface epoch.",
+            {
+              reason: "stale_arcade_surface_epoch",
+              runtimeParams: readEmbeddedControllerRuntimeParams(),
+              data: {
+                attachedEpoch: snapshot.arcadeSurface.epoch,
+                previousEpoch: this.lastAttachedArcadeEpoch,
+              },
+            },
+          );
+          return;
+        }
+        this.lastAttachedArcadeEpoch = epochResult.nextLast;
+      }
 
       this.emitRuntimeEvent(
         AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeAttached,
@@ -494,10 +523,24 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       role: "controller",
       roomId: runtimeParams?.room,
       controllerId: runtimeParams?.controllerId,
-      runtimeEpoch: runtimeParams?.arcadeSurface.epoch,
+      runtimeEpoch:
+        runtimeParams && "arcadeSurface" in runtimeParams
+          ? runtimeParams.arcadeSurface.epoch
+          : undefined,
       runtimeKind: CONTROLLER_BRIDGE_RUNTIME_KIND,
       data,
     });
+  }
+
+  private assertCaptureRead(event: string): void {
+    const context = readEmbeddedControllerRuntimeParams();
+    if (
+      context &&
+      "harnessSessionId" in context &&
+      event !== "controller:state_sync_request"
+    ) {
+      throw new Error(`Capture controller is read-only: ${event} is denied.`);
+    }
   }
 
   private notify<TEvent extends ControllerBridgeServerEventName>(

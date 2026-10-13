@@ -1,6 +1,15 @@
 import type { AirJamActionInvocationResult } from "@air-jam/sdk";
+import {
+  controllerBridgeServerEvents,
+  controllerBridgeSnapshotSchema,
+} from "@air-jam/sdk/controller-bridge";
+import {
+  controllerStateSyncRequestSchema,
+  hostStateSyncSchema,
+} from "@air-jam/sdk/protocol";
 import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
 import path from "node:path";
+import { z } from "zod";
 
 export const AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST =
   "air-jam-runtime-owner.invoke-action/v1" as const;
@@ -46,11 +55,27 @@ export const AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST =
 export const AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT =
   "air-jam-runtime-owner.capture-visuals-result/v1" as const;
 
-export type AirJamRuntimeOwnerCaptureRequest = {
-  type: typeof AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST;
-  requestId: string;
-  relativeDir: string;
-};
+const runtimeOwnerCaptureSchema = z.object({
+  type: z.literal(AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST),
+  requestId: z.uuid(),
+  relativeDir: z.string().min(1),
+  snapshot: controllerBridgeSnapshotSchema,
+  stores: z.array(hostStateSyncSchema),
+});
+export type AirJamRuntimeOwnerCaptureRequest = z.infer<
+  typeof runtimeOwnerCaptureSchema
+>;
+export const runtimeOwnerCaptureReadSchema = z.object({
+  type: z.literal("air-jam-runtime-owner.capture-read/v1"),
+  captureRequestId: z.uuid(),
+  payload: controllerStateSyncRequestSchema,
+});
+export const runtimeOwnerCaptureEventSchema = z.object({
+  type: z.literal("air-jam-runtime-owner.capture-event/v1"),
+  requestId: z.uuid(),
+  event: z.enum(controllerBridgeServerEvents),
+  args: z.array(z.unknown()),
+});
 
 export type AirJamRuntimeOwnerScreenshot = {
   surface: "host" | "controller";
@@ -88,12 +113,7 @@ const isRuntimeOwnerScreenshot = (
 export const isRuntimeOwnerCaptureRequest = (
   value: unknown,
 ): value is AirJamRuntimeOwnerCaptureRequest =>
-  isRecord(value) &&
-  value.type === AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST &&
-  typeof value.requestId === "string" &&
-  value.requestId.length > 0 &&
-  typeof value.relativeDir === "string" &&
-  value.relativeDir.length > 0;
+  runtimeOwnerCaptureSchema.safeParse(value).success;
 
 export const isRuntimeOwnerCaptureResult = (
   value: unknown,

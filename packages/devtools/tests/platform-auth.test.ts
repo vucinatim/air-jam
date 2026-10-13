@@ -395,3 +395,38 @@ describe("platform auth client", () => {
     );
   });
 });
+
+it("preserves the platform's structured recovery details on a failed request", async () => {
+  const { requestPlatformMachineApi, AirJamPlatformApiError } =
+    await import("../src/platform-auth.js");
+  const details = {
+    studioSavedCopy: {
+      projectId: "saved-project",
+      revisionId: "saved-version",
+      stage: "opening_copy",
+    },
+  };
+  globalThis.fetch = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "conflict",
+          message: "Copy saved; opening failed.",
+          details,
+        }),
+        { status: 409, headers: { "content-type": "application/json" } },
+      ),
+    );
+  try {
+    await requestPlatformMachineApi({
+      baseUrl: "http://localhost:3000",
+      pathname: "/api/cli/studio",
+      schema: { parse: (value) => value },
+    });
+    throw new Error("Expected failed opening.");
+  } catch (error) {
+    expect(error).toBeInstanceOf(AirJamPlatformApiError);
+    expect(error).toMatchObject({ status: 409, details });
+  }
+});

@@ -5,6 +5,10 @@ import {
   embeddedReplicatedStoreDomainFromArcadeIdentity,
   localReferenceSourceGameId,
 } from "@air-jam/sdk/arcade/surface";
+import {
+  controllerBridgeServerEvents,
+  controllerBridgeSnapshotSchema,
+} from "@air-jam/sdk/controller-bridge";
 import type {
   AirJamStateSyncPayload,
   ClientToServerEvents,
@@ -18,6 +22,10 @@ import type {
   ServerErrorPayload,
   ServerToClientEvents,
   SignalPayload,
+} from "@air-jam/sdk/protocol";
+import {
+  controllerStateSchema,
+  playerProfileSchema,
 } from "@air-jam/sdk/protocol";
 import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
 import type { HostRuntimeInspectionContract } from "@air-jam/sdk/runtime-inspection";
@@ -37,6 +45,7 @@ import {
   AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
   isRuntimeOwnerActionResult,
   isRuntimeOwnerCaptureResult,
+  runtimeOwnerCaptureReadSchema,
   type AirJamRuntimeOwnerCaptureResult,
 } from "./runtime-owner-protocol.js";
 import type {
@@ -636,6 +645,31 @@ export const captureControllerSessionVisuals = async ({
   }
 
   const requestId = randomUUID();
+  const snapshot = controllerBridgeSnapshotSchema.parse({
+    harnessSessionId: controllerSessionId,
+    roomId: session.summary.roomId,
+    controllerId: session.summary.controllerId,
+    connected: session.summary.connected,
+    socketId: session.socket.id,
+    player: playerProfileSchema.parse(
+      session.players.find(
+        (player) => player.id === session.summary.controllerId,
+      ),
+    ),
+    players: session.players.map((player) => playerProfileSchema.parse(player)),
+    state: controllerStateSchema.shape.state.parse(session.controllerState),
+  });
+  const allowedEvents = new Set<string>(controllerBridgeServerEvents);
+  const forwardEvent = (event: string, ...args: unknown[]) => {
+    if (allowedEvents.has(event))
+      owner.send({
+        type: "air-jam-runtime-owner.capture-event/v1",
+        requestId,
+        event,
+        args,
+      });
+  };
+  session.socket.onAny(forwardEvent);
   const result = await new Promise<AirJamRuntimeOwnerCaptureResult>(
     (resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -644,11 +678,25 @@ export const captureControllerSessionVisuals = async ({
       }, timeoutMs);
       const cleanup = () => {
         clearTimeout(timeout);
+        session.socket.offAny(forwardEvent);
         owner.off("message", onMessage);
         owner.off("error", onError);
         owner.off("exit", onExit);
       };
       const onMessage = (message: unknown) => {
+        const read = runtimeOwnerCaptureReadSchema.safeParse(message);
+        if (read.success && read.data.captureRequestId === requestId) {
+          if (read.data.payload.roomId !== session.summary.roomId) {
+            cleanup();
+            reject(new Error("Capture read belongs to another room."));
+            return;
+          }
+          session.socket.emit(
+            "controller:state_sync_request",
+            read.data.payload,
+          );
+          return;
+        }
         if (
           !isRuntimeOwnerCaptureResult(message) ||
           message.requestId !== requestId
@@ -683,6 +731,13 @@ export const captureControllerSessionVisuals = async ({
           type: AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
           requestId,
           relativeDir,
+          snapshot,
+          stores: Array.from(session.storeSnapshots.values(), (store) => ({
+            roomId: session.summary.roomId,
+            storeDomain: store.storeDomain,
+            data: store.data,
+            revision: store.revision,
+          })),
         },
         (error) => {
           if (error) onError(error);

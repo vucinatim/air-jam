@@ -2,6 +2,8 @@ import { z } from "zod";
 import { v2HandshakeSchema, type V2Handshake } from "../contracts/v2";
 import {
   controllerOrientationSchema,
+  controllerStateSchema,
+  playerProfileSchema,
   type AirJamStateSyncPayload,
   type AirJamStateSyncRequestPayload,
   type ControllerActionRpcPayload,
@@ -22,11 +24,12 @@ import {
   type ServerErrorPayload,
   type SignalPayload,
 } from "../protocol";
-import {
-  arcadeSurfaceRuntimeIdentitySchema,
-  type ArcadeSurfaceRuntimeIdentity,
-} from "./arcade-surface-identity";
 import { splitBridgeEnvelopeArgs } from "./bridge-envelope-args";
+import {
+  controllerBridgeContext,
+  withControllerBridgeContext,
+  type ControllerBridgeContext,
+} from "./controller-bridge-context";
 import { createBridgeHandshake } from "./iframe-bridge";
 import { AIR_JAM_SDK_VERSION } from "./sdk-version";
 
@@ -103,7 +106,7 @@ export type ControllerBridgeServerEventArgs = {
   "airjam:state_sync": [payload: AirJamStateSyncPayload];
 };
 
-export interface ControllerBridgeSnapshot {
+export type ControllerBridgeSnapshot = ControllerBridgeContext & {
   roomId: RoomCode;
   controllerId: string;
   connected: boolean;
@@ -111,17 +114,23 @@ export interface ControllerBridgeSnapshot {
   player?: PlayerProfile;
   players?: PlayerProfile[];
   state?: ControllerStateMessage["state"];
-  /** The platform shell's active game surface identity for this embedded controller runtime. */
-  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
-}
+};
+export const controllerBridgeSnapshotSchema = withControllerBridgeContext({
+  roomId: z.string().min(1),
+  controllerId: z.string().min(1),
+  connected: z.boolean(),
+  socketId: z.string().optional(),
+  player: playerProfileSchema.optional(),
+  players: z.array(playerProfileSchema).optional(),
+  state: controllerStateSchema.shape.state.optional(),
+});
 
 export interface ControllerBridgeRequestMessage {
   type: typeof AIRJAM_CONTROLLER_BRIDGE_REQUEST;
-  payload: {
+  payload: ControllerBridgeContext & {
     handshake: V2Handshake;
     roomId: RoomCode;
     controllerId: string;
-    arcadeSurface: ArcadeSurfaceRuntimeIdentity;
   };
 }
 
@@ -168,9 +177,8 @@ export interface ControllerBridgeCloseMessage {
 
 export interface ControllerPresentationSyncMessage {
   type: typeof AIRJAM_CONTROLLER_PRESENTATION_SYNC;
-  payload: {
+  payload: ControllerBridgeContext & {
     orientation: ControllerOrientation;
-    arcadeSurface: ArcadeSurfaceRuntimeIdentity;
   };
 }
 
@@ -184,14 +192,11 @@ export type ControllerBridgePortMessage =
 const bridgeRequestSchema = z
   .object({
     type: z.literal(AIRJAM_CONTROLLER_BRIDGE_REQUEST),
-    payload: z
-      .object({
-        handshake: v2HandshakeSchema,
-        roomId: z.string().min(1),
-        controllerId: z.string().min(1),
-        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
-      })
-      .strict(),
+    payload: withControllerBridgeContext({
+      handshake: v2HandshakeSchema,
+      roomId: z.string().min(1),
+      controllerId: z.string().min(1),
+    }),
   })
   .strict();
 
@@ -201,18 +206,7 @@ const bridgeAttachSchema = z
     payload: z
       .object({
         handshake: v2HandshakeSchema,
-        snapshot: z
-          .object({
-            roomId: z.string().min(1),
-            controllerId: z.string().min(1),
-            connected: z.boolean(),
-            socketId: z.string().optional(),
-            player: z.unknown().optional(),
-            players: z.array(z.unknown()).optional(),
-            state: z.unknown().optional(),
-            arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
-          })
-          .strict(),
+        snapshot: controllerBridgeSnapshotSchema,
       })
       .strict(),
   })
@@ -270,43 +264,49 @@ const bridgeCloseSchema = z
 const presentationSyncSchema = z
   .object({
     type: z.literal(AIRJAM_CONTROLLER_PRESENTATION_SYNC),
-    payload: z
-      .object({
-        orientation: controllerOrientationSchema,
-        arcadeSurface: arcadeSurfaceRuntimeIdentitySchema,
-      })
-      .strict(),
+    payload: withControllerBridgeContext({
+      orientation: controllerOrientationSchema,
+    }),
   })
   .strict();
 
-export const createControllerBridgeRequestMessage = (payload: {
-  roomId: RoomCode;
-  controllerId: string;
-  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
-}): ControllerBridgeRequestMessage => ({
+export const createControllerBridgeRequestMessage = (
+  payload: ControllerBridgeContext & {
+    roomId: RoomCode;
+    controllerId: string;
+  },
+): ControllerBridgeRequestMessage => ({
   type: AIRJAM_CONTROLLER_BRIDGE_REQUEST,
   payload: {
     handshake: createBridgeHandshake({
       sdkVersion: AIR_JAM_SDK_VERSION,
-      runtimeKind: "arcade-controller-iframe",
+      runtimeKind:
+        "harnessSessionId" in payload
+          ? "standalone-controller"
+          : "arcade-controller-iframe",
       capabilityFlags: {
         controllerBridge: true,
       },
     }),
     roomId: payload.roomId,
     controllerId: payload.controllerId,
-    arcadeSurface: payload.arcadeSurface,
+    ...controllerBridgeContext(payload),
   },
 });
 
-export const createControllerBridgeAttachMessage = (
-  snapshot: ControllerBridgeSnapshot,
-): ControllerBridgeAttachMessage => ({
+export const createControllerBridgeAttachMessage = <
+  Snapshot extends ControllerBridgeSnapshot,
+>(
+  snapshot: Snapshot,
+) => ({
   type: AIRJAM_CONTROLLER_BRIDGE_ATTACH,
   payload: {
     handshake: createBridgeHandshake({
       sdkVersion: AIR_JAM_SDK_VERSION,
-      runtimeKind: "arcade-controller-runtime",
+      runtimeKind:
+        "harnessSessionId" in snapshot
+          ? "standalone-controller"
+          : "arcade-controller-runtime",
       capabilityFlags: {
         controllerBridge: true,
       },
@@ -375,10 +375,13 @@ export const createControllerBridgeCloseMessage = (
   },
 });
 
-export const createControllerPresentationSyncMessage = (payload: {
-  orientation: ControllerOrientation;
-  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
-}): ControllerPresentationSyncMessage => ({
+export const createControllerPresentationSyncMessage = <
+  Context extends ControllerBridgeContext,
+>(
+  payload: Context & {
+    orientation: ControllerOrientation;
+  },
+) => ({
   type: AIRJAM_CONTROLLER_PRESENTATION_SYNC,
   payload,
 });

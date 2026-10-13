@@ -1,5 +1,6 @@
 import type { ControllerOrientation } from "../protocol";
 import { createControllerPresentationSyncMessage } from "./controller-bridge";
+import { controllerBridgeContext } from "./controller-bridge-context";
 import { readEmbeddedControllerRuntimeParams } from "./runtime-session-params";
 
 export const publishEmbeddedControllerPresentation = (
@@ -17,7 +18,7 @@ export const publishEmbeddedControllerPresentation = (
   window.parent.postMessage(
     createControllerPresentationSyncMessage({
       orientation,
-      arcadeSurface: runtimeParams.arcadeSurface,
+      ...controllerBridgeContext(runtimeParams),
     }),
     runtimeParams.topology.embedParentOrigin ?? "*",
   );

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
   AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
+  AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
   isRuntimeOwnerActionRequest,
   isRuntimeOwnerActionResult,
+  isRuntimeOwnerCaptureRequest,
   isRuntimeOwnerCaptureResult,
   resolveProjectRelativeRuntimeCaptureDir,
 } from "../src/runtime-owner-protocol.js";
@@ -71,6 +73,44 @@ describe("runtime owner visual capture paths", () => {
 });
 
 describe("runtime owner visual capture messages", () => {
+  it("requires the acting controller snapshot and actual store revisions for capture", () => {
+    const request = {
+      type: AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
+      requestId: "ffbabd80-9635-4b56-b914-4a1eb2c80db2",
+      relativeDir: ".airjam/artifacts/session-visuals/capture",
+      snapshot: {
+        harnessSessionId: "493ac595-ac37-41f1-8a49-620e716be238",
+        roomId: "ROOM",
+        controllerId: "acting-controller",
+        connected: true,
+        player: { id: "acting-controller", label: "Acting player" },
+      },
+      stores: [
+        {
+          roomId: "ROOM",
+          storeDomain: "pong",
+          revision: 4,
+          data: { score: 2 },
+        },
+      ],
+    };
+    expect(isRuntimeOwnerCaptureRequest(request)).toBe(true);
+    expect(
+      isRuntimeOwnerCaptureRequest({ ...request, snapshot: undefined }),
+    ).toBe(false);
+    expect(
+      isRuntimeOwnerCaptureRequest({
+        ...request,
+        stores: [{ ...request.stores[0], revision: -1 }],
+      }),
+    ).toBe(false);
+    expect(
+      isRuntimeOwnerCaptureRequest({
+        ...request,
+        snapshot: { ...request.snapshot, harnessSessionId: "invalid" },
+      }),
+    ).toBe(false);
+  });
   it("accepts complete screenshot metadata and rejects malformed IPC data", () => {
     const result = {
       type: AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,

@@ -79,20 +79,28 @@ const storedPlatformSessionSchema = z.object({
 export class AirJamPlatformApiError extends Error {
   readonly code: PlatformMachineErrorCode;
   readonly status: number;
+  readonly details: Record<string, unknown> | undefined;
+  readonly retryAfterSeconds: number | null;
 
   constructor({
     code,
     message,
     status,
+    details,
+    retryAfterSeconds = null,
   }: {
     code: PlatformMachineErrorCode;
     message: string;
     status: number;
+    details?: Record<string, unknown>;
+    retryAfterSeconds?: number | null;
   }) {
     super(message);
     this.name = "AirJamPlatformApiError";
     this.code = code;
     this.status = status;
+    this.details = details;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -205,6 +213,8 @@ export const requestPlatformMachineApi = async <T>({
         code: parsedError.data.error,
         message: parsedError.data.message,
         status: response.status,
+        details: parsedError.data.details,
+        retryAfterSeconds: parsedError.data.retryAfterSeconds,
       });
     }
 

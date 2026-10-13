@@ -4,6 +4,10 @@ import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import { parseRuntimeTopologyFromSearchParams } from "../runtime-topology";
 import { parseOptionalArcadeSurfaceFromSearchParams } from "./arcade-runtime-url";
 import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
+import {
+  controllerBridgeContextSchema,
+  type ControllerBridgeContext,
+} from "./controller-bridge-context";
 
 export interface ChildHostRuntimeParams {
   room: string;
@@ -14,16 +18,15 @@ export interface ChildHostRuntimeParams {
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }
 
-export interface EmbeddedControllerRuntimeParams {
+export type EmbeddedControllerRuntimeParams = ControllerBridgeContext & {
   room: string;
   controllerId: string;
   topology: ResolvedAirJamRuntimeTopology;
-  arcadeSurface: ArcadeSurfaceRuntimeIdentity;
   playerProfile?: {
     label?: PlayerProfile["label"];
     avatarId?: PlayerProfile["avatarId"];
   };
-}
+};
 
 export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
   if (typeof window === "undefined") {
@@ -84,8 +87,17 @@ export const readEmbeddedControllerRuntimeParams =
       return null;
     }
 
-    const arcadeSurface = parseOptionalArcadeSurfaceFromSearchParams(params);
-    if (!arcadeSurface) {
+    const harnessContext = params.has("aj_harness_session")
+      ? controllerBridgeContextSchema.parse({
+          harnessSessionId: params.get("aj_harness_session"),
+        })
+      : null;
+    const context = controllerBridgeContextSchema.safeParse(
+      harnessContext
+        ? harnessContext
+        : { arcadeSurface: parseOptionalArcadeSurfaceFromSearchParams(params) },
+    );
+    if (!context.success) {
       return null;
     }
 
@@ -103,7 +115,7 @@ export const readEmbeddedControllerRuntimeParams =
       room,
       controllerId,
       topology,
-      arcadeSurface,
+      ...context.data,
       ...(playerProfile ? { playerProfile } : {}),
     };
   };

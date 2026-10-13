@@ -1,6 +1,6 @@
 # Agent Session Contract
 
-Last updated: 2026-09-12
+Last updated: 2026-10-14
 Status: current contract
 
 Related docs:
@@ -36,6 +36,7 @@ The session contract should support:
 3. session read
 4. action invoke
 5. session close
+6. owned host/controller visual capture
 
 ## What This Contract Is For
 
@@ -115,3 +116,20 @@ They should be able to reason in terms of:
 If a future tool surface makes agent control depend more on browser event
 synthesis than on semantic session operations, that is a regression in the Air
 Jam control model.
+
+## Owned visual capture
+
+`captureGameSessionVisuals` / `airjam.capture_game_session_visuals` capture the
+owned host and the acting controller's real rendered interface. The controller
+view observes the existing transport through `@air-jam/sdk/controller-bridge`;
+it has no separate room join or network participant. Its harness context is
+bound to the owning controller session, room and controller ID. Only state-sync
+reads cross back to that connection; input, profile changes and other mutations
+are rejected. Detaching the capture view leaves the controller connected.
+The existing Arcade bridge continues to use its active surface identity and epoch.
+
+Captures report immutable project-relative PNG paths and dimensions. Retaining
+those files outside the runtime is the consuming tool host's responsibility.
+Game source exports do not automatically include runtime capture directories.
+Player avatars show accessible initials when artwork cannot load, including in
+contained environments with restricted egress; no broader network access is needed.

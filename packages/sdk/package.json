@@ -157,7 +157,12 @@
       "import": "./dist/runtime-inspection.js",
       "require": "./dist/runtime-inspection.cjs"
     },
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./controller-bridge": {
+      "types": "./dist/controller-bridge.d.ts",
+      "import": "./dist/controller-bridge.js",
+      "require": "./dist/controller-bridge.cjs"
+    }
   },
   "files": [
     "dist",
@@ -224,6 +229,9 @@
       ],
       "preview": [
         "dist/preview.d.ts"
+      ],
+      "controller-bridge": [
+        "dist/controller-bridge.d.ts"
       ]
     }
   },
