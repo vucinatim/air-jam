@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import { z } from "zod";
 import { roomCodeSchema } from "../../protocol/core";
 import type { AirJamActionInvocationResult } from "../../protocol/sync";
@@ -26,6 +27,9 @@ export interface HostRuntimeControl {
 }
 
 type ActionStore = {
+  roomId: string;
+  storeDomain: string;
+  stateEpoch: string;
   invoke: (
     request: HostRuntimeActionRequest,
   ) => Promise<AirJamActionInvocationResult>;
@@ -36,8 +40,25 @@ const controls = new WeakMap<
   {
     stores: Map<string, Set<ActionStore>>;
     control: HostRuntimeControl;
+    listeners: Set<() => void>;
   }
 >();
+
+export const hostStateEpochSchema = z.object({
+  storeDomain: z.string().min(1).max(128),
+  epoch: z.string().min(1).max(128),
+});
+
+const documentIds = new WeakMap<object, string>();
+
+export function hostRuntimeDocumentId(target: object) {
+  let id = documentIds.get(target);
+  if (!id) {
+    id = nanoid();
+    documentIds.set(target, id);
+  }
+  return id;
+}
 
 const reject = (
   reason: string,
@@ -53,11 +74,7 @@ const reject = (
 const storeKey = (roomId: string, storeDomain: string): string =>
   JSON.stringify([roomId, storeDomain]);
 
-/** Register one live host store; cleanup cannot remove another binding. */
-export const registerHostRuntimeActionStore = (
-  target: object,
-  binding: ActionStore & { roomId: string; storeDomain: string },
-): (() => void) => {
+function controlEntry(target: object) {
   let entry = controls.get(target);
   if (!entry) {
     const stores = new Map<string, Set<ActionStore>>();
@@ -91,26 +108,67 @@ export const registerHostRuntimeActionStore = (
         return store.invoke(parsed.data);
       },
     };
-    entry = { stores, control };
+    entry = { stores, control, listeners: new Set<() => void>() };
     controls.set(target, entry);
-    Reflect.set(target, AIR_JAM_RUNTIME_CONTROL_KEY, control);
   }
+  return entry;
+}
+
+function discardUnusedEntry(
+  target: object,
+  entry: ReturnType<typeof controlEntry>,
+) {
+  if (entry.stores.size) return;
+  if (Reflect.get(target, AIR_JAM_RUNTIME_CONTROL_KEY) === entry.control)
+    Reflect.deleteProperty(target, AIR_JAM_RUNTIME_CONTROL_KEY);
+  if (!entry.listeners.size && controls.get(target) === entry)
+    controls.delete(target);
+}
+
+export function readHostStateEpochs(target: object, roomId: string) {
+  const epochs: z.infer<typeof hostStateEpochSchema>[] = [];
+  for (const stores of controls.get(target)?.stores.values() ?? []) {
+    const latest = [...stores].at(-1);
+    if (latest?.roomId === roomId)
+      epochs.push({
+        storeDomain: latest.storeDomain,
+        epoch: latest.stateEpoch,
+      });
+  }
+  return epochs.sort((first, second) =>
+    first.storeDomain.localeCompare(second.storeDomain),
+  );
+}
+
+export function subscribeHostStateOwners(target: object, listener: () => void) {
+  const entry = controlEntry(target);
+  entry.listeners.add(listener);
+  return () => {
+    entry.listeners.delete(listener);
+    discardUnusedEntry(target, entry);
+  };
+}
+
+/** Register one live host store; cleanup cannot remove another binding. */
+export const registerHostRuntimeActionStore = (
+  target: object,
+  binding: ActionStore,
+): (() => void) => {
+  const entry = controlEntry(target);
   const key = storeKey(binding.roomId, binding.storeDomain);
   const stores = entry.stores.get(key) ?? new Set<ActionStore>();
-  const registration = { invoke: binding.invoke };
+  const registration = { ...binding };
   stores.add(registration);
   entry.stores.set(key, stores);
+  Reflect.set(target, AIR_JAM_RUNTIME_CONTROL_KEY, entry.control);
+  for (const listener of entry.listeners) listener();
   let registered = true;
   return () => {
     if (!registered) return;
     registered = false;
     stores.delete(registration);
     if (!stores.size) entry.stores.delete(key);
-    if (!entry.stores.size) {
-      if (Reflect.get(target, AIR_JAM_RUNTIME_CONTROL_KEY) === entry.control) {
-        Reflect.deleteProperty(target, AIR_JAM_RUNTIME_CONTROL_KEY);
-      }
-      if (controls.get(target) === entry) controls.delete(target);
-    }
+    for (const listener of entry.listeners) listener();
+    discardUnusedEntry(target, entry);
   };
 };

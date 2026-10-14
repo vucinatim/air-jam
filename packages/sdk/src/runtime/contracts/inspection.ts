@@ -12,6 +12,7 @@ import type {
   RunMode,
   RuntimeState,
 } from "../../protocol";
+import { hostRuntimeDocumentId, readHostStateEpochs } from "./control";
 
 type HostInspectionApi = Pick<
   AirJamHostApi,
@@ -41,6 +42,8 @@ type ControllerInspectionApi = Pick<
 >;
 
 export interface HostRuntimeInspectionContract {
+  documentId?: string;
+  stateEpochs?: ReturnType<typeof readHostStateEpochs>;
   role: "host";
   roomId: RoomCode;
   joinUrl: string;
@@ -76,6 +79,16 @@ export const AIR_JAM_RUNTIME_INSPECTION_KEY = "__airJamRuntimeInspection";
 export const createHostRuntimeInspectionContract = (
   api: HostInspectionApi,
 ): HostRuntimeInspectionContract => ({
+  get documentId() {
+    return typeof window === "undefined"
+      ? undefined
+      : hostRuntimeDocumentId(window);
+  },
+  get stateEpochs() {
+    return typeof window === "undefined"
+      ? undefined
+      : readHostStateEpochs(window, api.roomId);
+  },
   role: "host",
   roomId: api.roomId,
   joinUrl: api.joinUrl,

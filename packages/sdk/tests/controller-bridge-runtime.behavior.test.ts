@@ -460,6 +460,12 @@ describe("embedded controller bridge runtime", () => {
 });
 
 it("renders the acting controller through a read-only harness bridge without requesting a socket", async () => {
+  const runtimeEvents: AirJamDevRuntimeEventDetail[] = [];
+  const recordRuntimeEvent = (event: Event) =>
+    runtimeEvents.push(
+      (event as CustomEvent<AirJamDevRuntimeEventDetail>).detail,
+    );
+  window.addEventListener(AIRJAM_DEV_RUNTIME_EVENT, recordRuntimeEvent);
   const harnessSessionId = "b3ac882e-e3da-41d3-b3ec-2b065755eb31";
   const topology = resolveRuntimeTopology({
     runtimeMode: "standalone-dev",
@@ -481,7 +487,15 @@ it("renders the acting controller through a read-only harness bridge without req
     ...runtimeTopologyToQueryParams(topology),
   });
   window.history.replaceState({}, "", `/controller?${params}`);
-  const post = vi.spyOn(window.parent, "postMessage");
+  const post =
+    vi.fn<
+      (
+        message: unknown,
+        targetOrigin?: string | WindowPostMessageOptions,
+        transfer?: Transferable[],
+      ) => void
+    >();
+  vi.spyOn(window.parent, "postMessage").mockImplementation(post);
   const socket = vi.fn(() => {
     throw new Error("Observation must not join a new controller.");
   });
@@ -489,6 +503,11 @@ it("renders the acting controller through a read-only harness bridge without req
   const welcome = vi.fn();
   client.on("server:welcome", welcome);
   client.connect();
+  expect(runtimeEvents).toContainEqual(
+    expect.objectContaining({
+      runtimeKind: "standalone-controller",
+    }),
+  );
   const call = post.mock.calls.at(-1);
   const ports = call?.[2] as MessagePort[] | undefined;
   const port = ports?.[0];
@@ -561,6 +580,7 @@ it("renders the acting controller through a read-only harness bridge without req
   );
   port.close();
   resetControllerRealtimeClientForTests();
+  window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, recordRuntimeEvent);
   window.history.replaceState({}, "", "/");
   vi.restoreAllMocks();
 });

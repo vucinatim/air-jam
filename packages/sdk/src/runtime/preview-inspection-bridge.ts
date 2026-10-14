@@ -1,10 +1,25 @@
 import { z } from "zod";
+import {
+  hostStateEpochSchema,
+  subscribeHostStateOwners,
+} from "./contracts/control";
 import type { HostRuntimeInspectionContract } from "./contracts/inspection";
 
 const snapshotType = "AIRJAM_HOST_PREVIEW_SNAPSHOT";
 const requestType = "AIRJAM_HOST_PREVIEW_INSPECT";
 
 const snapshotSchema = z.object({
+  documentId: z.string().min(1).max(128).optional(),
+  stateEpochs: z
+    .array(hostStateEpochSchema)
+    .max(64)
+    .refine(
+      (epochs) =>
+        new Set(epochs.map((entry) => entry.storeDomain)).size ===
+        epochs.length,
+      "State domains must have one reported owner.",
+    )
+    .optional(),
   roomId: z.string().max(8),
   joinUrl: z.string().max(4096),
   joinUrlStatus: z.enum(["loading", "ready", "unavailable"]),
@@ -75,18 +90,23 @@ export function publishEmbeddedHostPreview(
   )
     return () => {};
   const parentOrigin = new URL(document.referrer).origin;
-  const snapshot: HostPreviewSnapshot = {
-    roomId: inspection.roomId,
-    joinUrl: inspection.joinUrl,
-    joinUrlStatus: inspection.joinUrlStatus,
-    connectionStatus: inspection.connectionStatus,
-    controllers: inspection.controllers.map(({ controllerId, connected }) => ({
-      controllerId,
-      connected,
-    })),
-  };
-  const publish = () =>
+  const publish = () => {
+    const snapshot: HostPreviewSnapshot = {
+      documentId: inspection.documentId,
+      stateEpochs: inspection.stateEpochs,
+      roomId: inspection.roomId,
+      joinUrl: inspection.joinUrl,
+      joinUrlStatus: inspection.joinUrlStatus,
+      connectionStatus: inspection.connectionStatus,
+      controllers: inspection.controllers.map(
+        ({ controllerId, connected }) => ({
+          controllerId,
+          connected,
+        }),
+      ),
+    };
     window.parent.postMessage({ type: snapshotType, snapshot }, parentOrigin);
+  };
   const inspect = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent || event.origin !== parentOrigin) return;
     if (
@@ -98,6 +118,10 @@ export function publishEmbeddedHostPreview(
       publish();
   };
   window.addEventListener("message", inspect);
+  const unsubscribe = subscribeHostStateOwners(window, publish);
   publish();
-  return () => window.removeEventListener("message", inspect);
+  return () => {
+    unsubscribe();
+    window.removeEventListener("message", inspect);
+  };
 }

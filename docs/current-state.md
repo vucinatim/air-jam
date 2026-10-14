@@ -1,9 +1,23 @@
 # Current State
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 Status: Studio foundation continuation qualified locally; earlier separation checkpoint retained below
 
 ## Studio foundation continuation
+
+Host inspection now exposes optional document and per-domain store-instance
+identities through the existing validated preview bridge. Registry ownership
+changes publish immediately; ordinary actions keep the identity. Replacing a
+store factory at the same React hook position rebinds its dispatch/listeners,
+and host replication revisions remain ordered across replacement for the same
+connection, room and domain. This reports state initialization without promising
+gameplay-state migration. Capture rejects a disconnected acting controller,
+including disconnect during rendering, rather than returning a stale success.
+
+The October 14 exact local candidate and fresh Mac Chrome trial qualify the
+initializer change, same room/controller identities, new replicated state on
+both controllers and controller-started play. The private product owns notices,
+conversation, checkpoints and full creator acceptance; no release is implied.
 
 `codex/studio-preview-inspection` supports isolated Studio development through
 the public package boundary. Complete canonical local URL topology distinguishes

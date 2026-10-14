@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { create, type StateCreator } from "zustand";
 import type { StoreApi } from "zustand/vanilla";
@@ -23,6 +24,10 @@ import {
 
 const INTERNAL_ACTION_PREFIX = "_";
 const UNRESOLVED_ACTOR_ID = "unknown";
+const hostStateRevisions = new WeakMap<
+  AirJamRealtimeClient,
+  Map<string, { value: number }>
+>();
 
 export interface CreateAirJamStoreOptions {
   storeDomain?: string;
@@ -358,6 +363,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
   options?: CreateAirJamStoreOptions,
 ): AirJamSyncedStoreHook<T> {
   const store = create<T>((set, get, api) => initializer(set, get, api));
+  const stateEpoch = nanoid();
   const runtimeSnapshotRef: { current: StoreRuntimeSnapshot } = {
     current: {
       socket: null,
@@ -377,6 +383,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
   >();
 
   const createDispatchedActions = (
+    ownerStore: typeof store,
     mode:
       | {
           kind: "default";
@@ -386,7 +393,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           controllerId: string;
         },
   ): AirJamActionDispatchMap<T["actions"]> => {
-    const sourceActions = store.getState().actions;
+    const sourceActions = ownerStore.getState().actions;
     const actionDispatch = {} as AirJamActionDispatchMap<T["actions"]>;
 
     for (const actionName of Object.keys(sourceActions)) {
@@ -678,7 +685,24 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     if (role === "host") {
       let syncedStateData = stripActionsFromState(store.getState());
       let syncedStateSignature = JSON.stringify(syncedStateData);
-      let syncRevision = runtimeSnapshotRef.current.hostStateRevisionFloor;
+      let revisions = hostStateRevisions.get(socket);
+      if (!revisions) {
+        revisions = new Map();
+        hostStateRevisions.set(socket, revisions);
+      }
+      const revisionKey = JSON.stringify([roomId, resolvedStoreDomain]);
+      let syncRevision = revisions.get(revisionKey);
+      if (syncRevision) {
+        syncRevision.value = Math.max(
+          syncRevision.value + 1,
+          runtimeSnapshotRef.current.hostStateRevisionFloor,
+        );
+      } else {
+        syncRevision = {
+          value: runtimeSnapshotRef.current.hostStateRevisionFloor,
+        };
+        revisions.set(revisionKey, syncRevision);
+      }
 
       const emitHostStateSync = (requestId?: string): void => {
         const runtime = runtimeSnapshotRef.current;
@@ -692,13 +716,16 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           return;
         }
 
-        syncRevision = Math.max(syncRevision, runtime.hostStateRevisionFloor);
+        syncRevision.value = Math.max(
+          syncRevision.value,
+          runtime.hostStateRevisionFloor,
+        );
 
         runtime.socket.emit("host:state_sync", {
           roomId,
           data: syncedStateData,
           storeDomain: resolvedStoreDomain,
-          revision: syncRevision,
+          revision: syncRevision.value,
           ...(requestId ? { requestId } : {}),
         });
       };
@@ -729,8 +756,11 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
 
         syncedStateData = stateData;
         syncedStateSignature = nextSignature;
-        syncRevision = Math.max(syncRevision, runtime.hostStateRevisionFloor);
-        syncRevision += 1;
+        syncRevision.value = Math.max(
+          syncRevision.value,
+          runtime.hostStateRevisionFloor,
+        );
+        syncRevision.value += 1;
         if (runtime.canBroadcastHostState && runtime.socket) {
           emitHostStateSync();
         }
@@ -832,7 +862,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         if (runtimeSnapshotRef.current.hostStateSyncBlocked) {
           return;
         }
-        if (payload.revision < syncRevision) {
+        if (payload.revision < syncRevision.value) {
           return;
         }
 
@@ -841,7 +871,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         const currentSignature = JSON.stringify(
           stripActionsFromState(store.getState()),
         );
-        syncRevision = payload.revision;
+        syncRevision.value = payload.revision;
         syncedStateData = nextStateData;
         syncedStateSignature = nextSignature;
 
@@ -863,6 +893,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           : registerHostRuntimeActionStore(window, {
               roomId,
               storeDomain: resolvedStoreDomain,
+              stateEpoch,
               invoke: async ({ actionName, payload }) => {
                 const runtime = runtimeSnapshotRef.current;
                 if (
@@ -877,7 +908,9 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
                     "The owning host runtime is not ready for actions.",
                   );
                 }
-                const actions = createDispatchedActions({ kind: "default" });
+                const actions = createDispatchedActions(store, {
+                  kind: "default",
+                });
                 if (!Object.hasOwn(actions, actionName)) {
                   return createClientRejectedActionResult(
                     "action_not_found",
@@ -939,7 +972,9 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
   const useSyncedStore = <U>(
     selector: (state: T) => U = (state) => state as unknown as U,
   ): U => {
-    const slice = store(selector);
+    // A replaced factory can reuse React hook slots with a different store.
+    const storeInstance = store;
+    const slice = storeInstance(selector);
 
     const explicitDomain = options?.storeDomain;
     let resolvedStoreDomain: string;
@@ -1049,6 +1084,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       };
     }, [
       runtimeBindingKey,
+      storeInstance,
       socket,
       role,
       roomId,
@@ -1095,14 +1131,15 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       resolvedStoreDomain,
       canBroadcastHostState,
       runtimeBindingKey,
+      storeInstance,
     ]);
 
     const dispatchedActions = useMemo<AirJamActionDispatchMap<T["actions"]>>(
-      () => createDispatchedActions({ kind: "default" }),
-      [],
+      () => createDispatchedActions(storeInstance, { kind: "default" }),
+      [storeInstance],
     );
 
-    const stateActions = store.getState().actions;
+    const stateActions = storeInstance.getState().actions;
 
     if (slice === stateActions) {
       return dispatchedActions as U;
@@ -1131,7 +1168,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
   const asPlayer = (
     controllerId: string,
   ): AirJamActionDispatchMap<T["actions"]> =>
-    createDispatchedActions({
+    createDispatchedActions(store, {
       kind: "player",
       controllerId,
     });
@@ -1157,6 +1194,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     listener: AirJamHostActionListener<T["actions"]>,
     options?: AirJamHostActionSubscriptionOptions<T["actions"]>,
   ): void => {
+    const storeInstance = store;
     const listenerRef = useRef(listener);
     useEffect(() => {
       listenerRef.current = listener;
@@ -1169,7 +1207,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       return subscribeHostActions((event) => {
         listenerRef.current(event);
       }, options);
-    }, [actionNamesKey, includeRejected, options]);
+    }, [actionNamesKey, includeRejected, options, storeInstance]);
   };
   const useLiveStateRef = (): MutableRefObject<T> => {
     const latestState = useSyncedStore((state) => state);

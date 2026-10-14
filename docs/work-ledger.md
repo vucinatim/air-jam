@@ -170,3 +170,21 @@ final compact screenshots. Host reload retains supported room/controller/score
 state but may restart countdown/ball. Source/template artifacts stay public;
 private product acceptance, durable turn attachments and remaining journey work
 stay private. No main, npm publication or production deployment was changed.
+
+## 2026-10-14 - Store Replacement and Truthful Preview Inspection
+
+Optional document/per-domain store identities derive from the existing host
+registry and publish through the preview bridge on ownership changes. Observation
+alone grants no action control. Same-position React factory replacement now
+rebinds dispatch/listeners; connection/room/domain revisions continue across
+replacement so controllers accept the new state. Both failures were reproduced
+before their regression fixes. Capture rejects controller disconnect during
+rendering and cleans up its owned runtime.
+
+The full SDK suite, devtools capture tests, typed checks and exact packed consumer
+qualification pass. A fresh isolated starter in Mac Chrome changes its default
+from five to seven, reports initialization, retains room/controller identities,
+updates both controllers and starts a real match. Actions keep the store identity.
+Actual document reload changes its identity and uses the distinct reload path.
+Saved dependency archives and previous candidates remain intact; npm, main and
+production are unchanged.

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHostRuntimeInspectionContract } from "../src/runtime-inspection";
+import { registerHostRuntimeActionStore } from "../src/runtime/contracts/control";
 import {
   publishEmbeddedHostPreview,
   readHostPreviewSnapshot,
@@ -20,6 +21,60 @@ afterEach(() => {
 });
 
 describe("embedded host presentation inspection", () => {
+  it("pushes store replacements without a room change or parent request", () => {
+    const parent = { postMessage: vi.fn() } as unknown as Window;
+    Object.defineProperty(window, "parent", {
+      configurable: true,
+      value: parent,
+    });
+    Object.defineProperty(document, "referrer", {
+      configurable: true,
+      value: "https://studio.example/studio",
+    });
+    const inspection = createHostRuntimeInspectionContract({
+      roomId: "ROOM",
+      joinUrl: "https://game.example/controller?room=ROOM",
+      joinUrlStatus: "ready",
+      connectionStatus: "connected",
+      players: [],
+      controllers: [],
+      mode: "standalone",
+      runtimeState: "playing",
+    });
+    const cleanup = publishEmbeddedHostPreview(inspection);
+    const binding = { roomId: "ROOM", storeDomain: "game", invoke: vi.fn() };
+    const closeFirst = registerHostRuntimeActionStore(window, {
+      ...binding,
+      stateEpoch: "first",
+    });
+    const first = vi.mocked(parent.postMessage).mock.calls.at(-1)?.[0];
+    const closeReplacement = registerHostRuntimeActionStore(window, {
+      ...binding,
+      stateEpoch: "replacement",
+    });
+    const replacement = vi.mocked(parent.postMessage).mock.calls.at(-1)?.[0];
+    expect(replacement.snapshot.documentId).toBe(first.snapshot.documentId);
+    expect(replacement.snapshot.roomId).toBe(first.snapshot.roomId);
+    expect(replacement.snapshot.stateEpochs).toEqual([
+      { storeDomain: "game", epoch: "replacement" },
+    ]);
+    closeFirst();
+    expect(
+      vi.mocked(parent.postMessage).mock.calls.at(-1)?.[0].snapshot.stateEpochs,
+    ).toEqual(replacement.snapshot.stateEpochs);
+    closeReplacement();
+    expect(
+      vi.mocked(parent.postMessage).mock.calls.at(-1)?.[0].snapshot.stateEpochs,
+    ).toEqual([]);
+    cleanup();
+    const count = vi.mocked(parent.postMessage).mock.calls.length;
+    const closeLater = registerHostRuntimeActionStore(window, {
+      ...binding,
+      stateEpoch: "later",
+    });
+    expect(parent.postMessage).toHaveBeenCalledTimes(count);
+    closeLater();
+  });
   it("publishes the canonical host snapshot and replies only to its embedding parent", () => {
     const parent = { postMessage: vi.fn() } as unknown as Window;
     Object.defineProperty(window, "parent", {
@@ -95,6 +150,35 @@ describe("embedded host presentation inspection", () => {
         "https://game.example",
       );
     expect(read(snapshot)).not.toBeNull();
+    expect(
+      read({
+        ...snapshot,
+        stateEpochs: [{ storeDomain: "game", epoch: "one" }],
+        documentId: "document-one",
+      }),
+    ).not.toBeNull();
+    expect(
+      read({
+        ...snapshot,
+        stateEpochs: Array.from({ length: 65 }, () => ({
+          storeDomain: "game",
+          epoch: "one",
+        })),
+      }),
+    ).toBeNull();
+    expect(read({ ...snapshot, documentId: "x".repeat(129) })).toBeNull();
+    expect(
+      read({
+        ...snapshot,
+        stateEpochs: [
+          { storeDomain: "game", epoch: "one" },
+          { storeDomain: "game", epoch: "two" },
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      read({ ...snapshot, stateEpochs: [{ storeDomain: "game", epoch: "" }] }),
+    ).toBeNull();
     expect(
       read({
         ...snapshot,

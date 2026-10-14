@@ -7,10 +7,12 @@ import {
   resetAirJamDiagnosticsForTests,
   setAirJamDiagnosticsEnabled,
 } from "../src/diagnostics";
+import { hostStateSyncSchema } from "../src/protocol";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
   type HostRuntimeControl,
 } from "../src/runtime-control";
+import { readHostStateEpochs } from "../src/runtime/contracts/control";
 import type { HostArcadeRestoreState } from "../src/state/connection-store";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
@@ -288,6 +290,83 @@ describe("createAirJamStore networked behavior", () => {
       }),
     ).toMatchObject({ reason: "host_store_unavailable" });
     expect(useStore.getState().phase).toBe("playing");
+  });
+
+  it("keeps the constructor epoch through actions and remounts but changes it for a fresh store", async () => {
+    mockedContext.state.role = "host";
+    const useStore = createTestStore();
+    const first = renderHook(() => useStore());
+    const epochs = readHostStateEpochs(window, "ROOM1");
+    expect(epochs).toHaveLength(1);
+    const control: HostRuntimeControl = Reflect.get(
+      window,
+      AIR_JAM_RUNTIME_CONTROL_KEY,
+    );
+    await act(async () => {
+      await control.invoke({
+        roomId: "ROOM1",
+        storeDomain: "default",
+        actionName: "setPhase",
+        payload: { phase: "playing" },
+      });
+    });
+    expect(readHostStateEpochs(window, "ROOM1")).toEqual(epochs);
+    first.unmount();
+    const rebound = renderHook(() => useStore());
+    expect(readHostStateEpochs(window, "ROOM1")).toEqual(epochs);
+    rebound.unmount();
+    const useReplacement = createTestStore();
+    const replacement = renderHook(() => useReplacement());
+    expect(readHostStateEpochs(window, "ROOM1")).not.toEqual(epochs);
+    expect(useReplacement.getState().phase).toBe("lobby");
+    replacement.unmount();
+  });
+
+  it("rebinds a replacement factory in the same hook position and dispatches only into its store", async () => {
+    mockedContext.state.role = "host";
+    const useFirst = createTestStore();
+    const useReplacement = createTestStore();
+    const listener = vi.fn();
+    const rendered = renderHook(
+      ({ useStore }) => {
+        useStore.useHostActionListener(listener);
+        return useStore.useActions();
+      },
+      { initialProps: { useStore: useFirst } },
+    );
+    await act(async () => {
+      await rendered.result.current.setPhase({ phase: "old" });
+    });
+    const before = readHostStateEpochs(window, "ROOM1");
+    const previousUpdate = hostSocket.emitted
+      .filter((call) => call.event === "host:state_sync")
+      .at(-1);
+    if (!previousUpdate) throw new Error("Missing original state update.");
+    const previousRevision = hostStateSyncSchema.parse(
+      previousUpdate.args[0],
+    ).revision;
+    rendered.rerender({ useStore: useReplacement });
+    expect(readHostStateEpochs(window, "ROOM1")).not.toEqual(before);
+    const replacementUpdate = hostSocket.emitted
+      .filter((call) => call.event === "host:state_sync")
+      .at(-1);
+    if (!replacementUpdate)
+      throw new Error("Missing replacement state update.");
+    const replacementState = hostStateSyncSchema.parse(
+      replacementUpdate.args[0],
+    );
+    expect(replacementState.revision).toBeGreaterThan(previousRevision);
+    expect(replacementState.data.phase).toBe("lobby");
+    await act(async () => {
+      await rendered.result.current.setPhase({ phase: "new" });
+    });
+    expect(useFirst.getState().phase).toBe("old");
+    expect(useReplacement.getState().phase).toBe("new");
+    expect(listener.mock.calls.at(-1)?.[0]).toMatchObject({
+      actionName: "setPhase",
+      payload: { phase: "new" },
+    });
+    rendered.unmount();
   });
 
   it("never publishes host control from a controller store", () => {

@@ -14,6 +14,7 @@ const spawnedOwners: FakeChildProcess[] = [];
 let arcadeSurface: Record<string, unknown> | null = null;
 let actionResponse: "accept" | "reject" | "exit" | "timeout" = "accept";
 const ownedActions: AirJamRuntimeOwnerActionRequest[] = [];
+let disconnectDuringCapture = false;
 
 class MockSocket {
   public connected = false;
@@ -185,6 +186,13 @@ class FakeChildProcess extends EventEmitter {
       });
       return true;
     }
+    if (disconnectDuringCapture) {
+      const socket = vi.mocked(io).mock.results.at(-1)
+        ?.value as unknown as MockSocket;
+      if (!socket) throw new Error("Missing capture controller.");
+      socket.disconnect();
+      return true;
+    }
     queueMicrotask(() => {
       this.emit("message", {
         type: "air-jam-runtime-owner.capture-visuals-result/v1",
@@ -213,6 +221,10 @@ class FakeChildProcess extends EventEmitter {
 
   kill(): boolean {
     this.killed = true;
+    if (disconnectDuringCapture) {
+      queueMicrotask(() => this.emit("exit", 0, null));
+      return true;
+    }
     this.exitCode = 0;
     this.emit("exit", 0, null);
     return true;
@@ -317,6 +329,7 @@ describe("isolated runtime controller handoff", () => {
     spawnedOwners.length = 0;
     arcadeSurface = null;
     actionResponse = "accept";
+    disconnectDuringCapture = false;
     ownedActions.length = 0;
   });
 
@@ -392,6 +405,33 @@ describe("isolated runtime controller handoff", () => {
     });
 
     expect(spawnedOwners[0]?.killed).toBe(true);
+  });
+
+  it("fails capture when its acting controller disconnects instead of returning stale images", async () => {
+    const {
+      captureControllerSessionVisuals,
+      connectController,
+      disconnectController,
+    } = await import("../src/controller.js");
+    const session = await connectController({
+      cwd: "/tmp/solo",
+      gameId: "solo-fixture",
+      timeoutMs: 1000,
+    });
+    disconnectDuringCapture = true;
+    await expect(
+      captureControllerSessionVisuals({
+        controllerSessionId: session.controllerSessionId,
+        relativeDir: ".airjam/artifacts/disconnected-capture",
+        timeoutMs: 1000,
+      }),
+    ).rejects.toThrow(
+      "Acting controller disconnected before visual capture completed",
+    );
+    expect(spawnedOwners[0]?.killed).toBe(true);
+    await disconnectController({
+      controllerSessionId: session.controllerSessionId,
+    });
   });
 
   it.each([

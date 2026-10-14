@@ -638,6 +638,10 @@ export const captureControllerSessionVisuals = async ({
 }) => {
   const session = getRequiredSession(controllerSessionId);
   const owner = session.isolatedRuntimeOwner;
+  if (!session.summary.connected)
+    throw new Error(
+      "The acting controller must be connected for visual capture.",
+    );
   if (!owner?.connected) {
     throw new Error(
       `Air Jam controller session "${controllerSessionId}" does not own a capturable host runtime. Capture from the first game session opened for the room.`,
@@ -679,6 +683,7 @@ export const captureControllerSessionVisuals = async ({
       const cleanup = () => {
         clearTimeout(timeout);
         session.socket.offAny(forwardEvent);
+        session.socket.off("disconnect", onDisconnect);
         owner.off("message", onMessage);
         owner.off("error", onError);
         owner.off("exit", onExit);
@@ -714,6 +719,14 @@ export const captureControllerSessionVisuals = async ({
         cleanup();
         reject(error);
       };
+      const onDisconnect = () => {
+        cleanup();
+        reject(
+          new Error(
+            "Acting controller disconnected before visual capture completed.",
+          ),
+        );
+      };
       const onExit = (code: number | null) => {
         cleanup();
         reject(
@@ -726,6 +739,7 @@ export const captureControllerSessionVisuals = async ({
       owner.on("message", onMessage);
       owner.once("error", onError);
       owner.once("exit", onExit);
+      session.socket.once("disconnect", onDisconnect);
       owner.send(
         {
           type: AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,

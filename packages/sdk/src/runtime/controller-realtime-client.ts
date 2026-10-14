@@ -25,7 +25,6 @@ import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach
 
 const BRIDGE_HANDSHAKE_TIMEOUT_MS = 2000;
 const BRIDGE_ACK_TIMEOUT_MS = 5_000;
-const CONTROLLER_BRIDGE_RUNTIME_KIND = "arcade-controller-runtime";
 const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set(["game_unloaded", "replaced"]);
 const BRIDGE_TRANSIENT_FAILURE_REASONS = new Set(["handshake_timeout"]);
 
@@ -527,7 +526,10 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
         runtimeParams && "arcadeSurface" in runtimeParams
           ? runtimeParams.arcadeSurface.epoch
           : undefined,
-      runtimeKind: CONTROLLER_BRIDGE_RUNTIME_KIND,
+      runtimeKind:
+        runtimeParams && "harnessSessionId" in runtimeParams
+          ? "standalone-controller"
+          : "arcade-controller-runtime",
       data,
     });
   }

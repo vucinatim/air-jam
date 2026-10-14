@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
+  hostRuntimeDocumentId,
+  readHostStateEpochs,
   registerHostRuntimeActionStore,
+  subscribeHostStateOwners,
   type HostRuntimeControl,
 } from "../src/runtime/contracts/control";
 
@@ -11,12 +14,57 @@ const readControl = (target: object): HostRuntimeControl =>
   Reflect.get(target, AIR_JAM_RUNTIME_CONTROL_KEY);
 
 describe("owned browser host action control", () => {
+  it("observes latest per-domain owners without granting control and survives binding cleanup", () => {
+    const target = {};
+    const documentId = hostRuntimeDocumentId(target);
+    const changes: unknown[] = [];
+    const unsubscribe = subscribeHostStateOwners(target, () =>
+      changes.push(readHostStateEpochs(target, request.roomId)),
+    );
+    expect(readControl(target)).toBeUndefined();
+    const invoke = vi.fn().mockResolvedValue(accepted);
+    const first = registerHostRuntimeActionStore(target, {
+      ...request,
+      invoke,
+      stateEpoch: "first",
+    });
+    const replacement = registerHostRuntimeActionStore(target, {
+      ...request,
+      invoke,
+      stateEpoch: "replacement",
+    });
+    expect(readHostStateEpochs(target, request.roomId)).toEqual([
+      { storeDomain: "game", epoch: "replacement" },
+    ]);
+    first();
+    expect(readHostStateEpochs(target, request.roomId)).toEqual([
+      { storeDomain: "game", epoch: "replacement" },
+    ]);
+    replacement();
+    expect(readControl(target)).toBeUndefined();
+    expect(hostRuntimeDocumentId(target)).toBe(documentId);
+    const rebound = registerHostRuntimeActionStore(target, {
+      ...request,
+      invoke,
+      stateEpoch: "replacement",
+    });
+    expect(changes.at(-1)).toEqual([
+      { storeDomain: "game", epoch: "replacement" },
+    ]);
+    expect(readHostStateEpochs(target, "OTHER")).toEqual([]);
+    rebound();
+    unsubscribe();
+    expect(hostRuntimeDocumentId(target)).toBe(documentId);
+    expect(hostRuntimeDocumentId({})).not.toBe(documentId);
+    expect(changes).toHaveLength(6);
+  });
   it("routes exact room/domain and cleans up by binding identity", async () => {
     const target = {};
     const invoke = vi.fn().mockResolvedValue(accepted);
     const close = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      stateEpoch: "fixture-epoch",
     });
     const control = readControl(target);
     expect(await control.invoke(request)).toEqual(accepted);
@@ -32,6 +80,7 @@ describe("owned browser host action control", () => {
     const newer = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      stateEpoch: "fixture-epoch",
     });
     close();
     expect(await readControl(target).invoke(request)).toEqual(accepted);
@@ -47,10 +96,12 @@ describe("owned browser host action control", () => {
     const closeFirst = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      stateEpoch: "fixture-epoch",
     });
     const closeSecond = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      stateEpoch: "fixture-epoch",
     });
     expect(await readControl(target).invoke(request)).toMatchObject({
       reason: "host_store_ambiguous",
@@ -69,6 +120,7 @@ describe("owned browser host action control", () => {
     const close = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      stateEpoch: "fixture-epoch",
     });
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;
