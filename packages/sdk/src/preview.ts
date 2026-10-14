@@ -40,3 +40,5 @@ export {
   PreviewControllerWorkspace,
   type PreviewControllerWorkspaceProps,
 } from "./preview/workspace";
+export { getPreviewControllerViewportSize } from "./preview/layout";
+export type { ControllerOrientation } from "./protocol/controller";

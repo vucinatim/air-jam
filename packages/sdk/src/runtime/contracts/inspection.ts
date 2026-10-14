@@ -25,7 +25,7 @@ type HostInspectionApi = Pick<
   | "lastError"
   | "mode"
   | "runtimeState"
->;
+> & { controllerOrientation?: ControllerOrientation };
 
 type ControllerInspectionApi = Pick<
   AirJamControllerApi,
@@ -51,6 +51,7 @@ export interface HostRuntimeInspectionContract {
   connectionStatus: ConnectionStatus;
   players: readonly PlayerProfile[];
   controllers: readonly ControllerPresenceNotice[];
+  controllerOrientation?: ControllerOrientation;
   lastError?: string;
   mode: RunMode;
   runtimeState: RuntimeState;
@@ -96,6 +97,7 @@ export const createHostRuntimeInspectionContract = (
   connectionStatus: api.connectionStatus,
   players: api.players,
   controllers: api.controllers,
+  controllerOrientation: api.controllerOrientation,
   lastError: api.lastError,
   mode: api.mode,
   runtimeState: api.runtimeState,

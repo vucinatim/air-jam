@@ -35,8 +35,13 @@ export async function openControllerObservation({
     const controllerUrl = new URL(controllerJoinUrl);
     const parentUrl = new URL(
       `/__airjam/controller-observation/${snapshot.harnessSessionId}`,
-      controllerUrl,
+      "http://airjam-controller-observation.localhost",
     );
+    // Fulfilled documents have no network address space. Give only this
+    // trusted capture shell permission to load the local game controller.
+    await context.grantPermissions(["local-network-access"], {
+      origin: parentUrl.origin,
+    });
     const topology = parseRuntimeTopologyFromSearchParams(
       controllerUrl.searchParams,
     );
@@ -133,18 +138,21 @@ export async function openControllerObservation({
         initialEvents,
       },
     );
-    await page.waitForFunction(
+    const frameElement = await page.locator("iframe").elementHandle();
+    if (!frameElement)
+      throw new Error("Controller observation frame is missing.");
+    const controllerFrame = await frameElement.contentFrame();
+    if (!controllerFrame)
+      throw new Error("Controller observation document is unavailable.");
+    await controllerFrame.waitForFunction(
       ({ key, roomId, controllerId }) => {
-        const target = document.querySelector("iframe")?.contentWindow;
-        const inspection = target
-          ? (Reflect.get(target, key) as
-              | {
-                  roomId?: string;
-                  controllerId?: string;
-                  connectionStatus?: string;
-                }
-              | undefined)
-          : undefined;
+        const inspection = Reflect.get(window, key) as
+          | {
+              roomId?: string;
+              controllerId?: string;
+              connectionStatus?: string;
+            }
+          | undefined;
         return (
           inspection?.roomId === roomId &&
           inspection.controllerId === controllerId &&

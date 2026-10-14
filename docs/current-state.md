@@ -5,6 +5,20 @@ Status: Studio foundation continuation qualified locally; earlier separation che
 
 ## Studio foundation continuation
 
+The embedded host preview also reports the game's declared controller orientation
+from its canonical connection store. The bounded, origin-validated snapshot keeps
+this field optional for saved consumers that predate it. Public preview exports
+now expose the existing logical phone viewport calculation, so product clients
+scale the same device dimensions rather than maintaining a second phone model.
+The bridge validates orientation and packed typed/runtime consumers pass; Studio
+owns its controller panel and the complete editor-shell acceptance.
+
+Read-only controller capture uses a dedicated synthetic localhost shell and an
+origin-scoped local-network permission in its short-lived browser context. This
+avoids Chrome treating intercepted HTML as a public page that cannot embed the
+contained game's local address. Readiness is inspected in the controller frame's
+own realm, including across origins; no global browser or host-network setting changes.
+
 Host inspection now exposes optional document and per-domain store-instance
 identities through the existing validated preview bridge. Registry ownership
 changes publish immediately; ordinary actions keep the identity. Replacing a

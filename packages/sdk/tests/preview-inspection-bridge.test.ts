@@ -94,6 +94,7 @@ describe("embedded host presentation inspection", () => {
       controllers: [],
       mode: "standalone",
       runtimeState: "paused",
+      controllerOrientation: "landscape",
     });
     const cleanup = publishEmbeddedHostPreview(inspection);
     const send = (source: Window, origin: string) =>
@@ -121,7 +122,11 @@ describe("embedded host presentation inspection", () => {
         window,
         "https://game.example",
       ),
-    ).toMatchObject({ roomId: "ROOM", connectionStatus: "connected" });
+    ).toMatchObject({
+      roomId: "ROOM",
+      connectionStatus: "connected",
+      controllerOrientation: "landscape",
+    });
     cleanup();
     send(parent, "https://studio.example");
     expect(parent.postMessage).toHaveBeenCalledTimes(2);
@@ -150,6 +155,10 @@ describe("embedded host presentation inspection", () => {
         "https://game.example",
       );
     expect(read(snapshot)).not.toBeNull();
+    expect(
+      read({ ...snapshot, controllerOrientation: "landscape" }),
+    ).not.toBeNull();
+    expect(read({ ...snapshot, controllerOrientation: "sideways" })).toBeNull();
     expect(
       read({
         ...snapshot,

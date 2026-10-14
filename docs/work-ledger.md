@@ -1,12 +1,30 @@
 # Air Jam Framework Work Ledger
 
-Last updated: 2026-10-10
+Last updated: 2026-10-14
 Status: historical framework memory
 
 This ledger records public framework milestones after ownership separation.
 Earlier whole-product history remains preserved in the private product ledger
 and this repository's Git history. Its local pre-separation snapshot is also
 retained in the ignored migration recovery archive.
+
+## 2026-10-14 Embedded phone presentation contract
+
+The validated embedded host snapshot now carries optional controller orientation
+from the same connection store used by controller-state broadcasts. The existing
+SDK logical viewport calculation is publicly exported for editor phone scaling.
+Focused bridge validation, SDK typecheck and exact six-package packed consumer
+qualification pass. Prior saved dependencies remain untouched; no npm release or
+main change is implied. The private Studio shell owns lease selection, controller
+presentation and browser acceptance.
+
+Contained qualification also exposed Chrome blocking the intercepted controller
+observation document's local iframe. The capture shell now has a dedicated synthetic
+localhost origin with [origin-scoped browser permission](https://playwright.dev/docs/api/class-browsercontext#browser-context-grant-permissions)
+and reads readiness in the controller frame's own realm. The complete contained
+starter proof passes with real controller actions and both PNGs; no extra acting
+controller or host-network permission is introduced. Exact candidate
+`local-scaffold-20261014T145504Z-9d099378` matches all 685 installed private files.
 
 ## 2026-10-09 Framework documentation ownership separated locally
 

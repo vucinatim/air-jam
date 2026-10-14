@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { controllerOrientationSchema } from "../protocol/controller";
 import {
   hostStateEpochSchema,
   subscribeHostStateOwners,
@@ -9,6 +10,7 @@ const snapshotType = "AIRJAM_HOST_PREVIEW_SNAPSHOT";
 const requestType = "AIRJAM_HOST_PREVIEW_INSPECT";
 
 const snapshotSchema = z.object({
+  controllerOrientation: controllerOrientationSchema.optional(),
   documentId: z.string().min(1).max(128).optional(),
   stateEpochs: z
     .array(hostStateEpochSchema)
@@ -92,6 +94,7 @@ export function publishEmbeddedHostPreview(
   const parentOrigin = new URL(document.referrer).origin;
   const publish = () => {
     const snapshot: HostPreviewSnapshot = {
+      controllerOrientation: inspection.controllerOrientation,
       documentId: inspection.documentId,
       stateEpochs: inspection.stateEpochs,
       roomId: inspection.roomId,
