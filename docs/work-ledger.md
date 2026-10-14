@@ -10,6 +10,12 @@ retained in the ignored migration recovery archive.
 
 ## 2026-10-14 Embedded phone presentation contract
 
+The preview entrypoint also exports `getPreviewHostViewportSize`, derived from
+the SDK's existing host surface reference dimensions. Studio uses this to fit a
+complete logical screen rather than giving the game a narrow scrolling viewport.
+The six-package candidate passes packed consumer qualification; no saved game
+dependencies or public release versions are changed.
+
 The validated embedded host snapshot now carries optional controller orientation
 from the same connection store used by controller-state broadcasts. The existing
 SDK logical viewport calculation is publicly exported for editor phone scaling.

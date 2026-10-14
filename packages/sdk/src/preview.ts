@@ -13,6 +13,10 @@ export {
   type PreviewControllerIdentity,
 } from "./preview/identity";
 export {
+  getPreviewControllerViewportSize,
+  getPreviewHostViewportSize,
+} from "./preview/layout";
+export {
   usePreviewControllerManager,
   type PreviewControllerSession,
   type PreviewControllerSurfaceState,
@@ -40,5 +44,4 @@ export {
   PreviewControllerWorkspace,
   type PreviewControllerWorkspaceProps,
 } from "./preview/workspace";
-export { getPreviewControllerViewportSize } from "./preview/layout";
 export type { ControllerOrientation } from "./protocol/controller";

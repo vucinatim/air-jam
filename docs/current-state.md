@@ -5,6 +5,12 @@ Status: Studio foundation continuation qualified locally; earlier separation che
 
 ## Studio foundation continuation
 
+`getPreviewHostViewportSize` exposes the canonical landscape host reference
+dimensions alongside the existing phone viewport calculation. Embedded editors
+can render a stable logical game screen and scale it to the available panel,
+without forcing narrow responsive layouts inside the game document. The private
+Studio owns fitting, panels and browser acceptance; saved game source is unchanged.
+
 The embedded host preview also reports the game's declared controller orientation
 from its canonical connection store. The bounded, origin-validated snapshot keeps
 this field optional for saved consumers that predate it. Public preview exports

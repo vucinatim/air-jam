@@ -1,4 +1,8 @@
+import { SURFACE_VIEWPORT_REFERENCE_SIZES } from "../components/surface-viewport-layout";
 import type { ControllerOrientation } from "../protocol/controller";
+
+export const getPreviewHostViewportSize = () =>
+  SURFACE_VIEWPORT_REFERENCE_SIZES.host.landscape;
 
 export const PREVIEW_WORKSPACE_Z_INDEX = 2_147_483_000;
 export const PREVIEW_WINDOW_TITLEBAR_HEIGHT = 38;
