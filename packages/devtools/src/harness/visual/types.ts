@@ -71,8 +71,7 @@ export type VisualScenarioAgentInvocation<TSnapshot = Record<string, unknown>> =
     snapshotBefore: TSnapshot | null;
     snapshotAfter: TSnapshot | null;
     snapshotAfterStatus:
-      | "committed-update-observed"
-      | "no-new-commit-before-timeout"
+      | import("../../types.js").InvokeGameActionResult["snapshotAfterStatus"]
       | null;
   };
 

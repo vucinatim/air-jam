@@ -13,11 +13,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Server as SocketIoServer } from "socket.io";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  inspectGameAgentContract,
-  invokeGameAction,
-  readGameSnapshot,
-} from "../src/agent.js";
+import { inspectGameAgentContract } from "../src/agent.js";
 import { detectProjectContext, inspectProject } from "../src/context.js";
 import {
   connectController,
@@ -67,6 +63,12 @@ const createTempRoot = async (): Promise<string> => {
 };
 
 const writeJson = async (filePath: string, value: unknown): Promise<void> => {
+  if (
+    path.basename(filePath) === "package.json" &&
+    value &&
+    typeof value === "object"
+  )
+    value = { packageManager: "pnpm@9.9.0", ...value };
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 };
@@ -1440,63 +1442,17 @@ describe("agent contracts", () => {
   });
 
   it.each([false, true])(
-    "projects and invokes game actions with project-local aliases: %s",
+    "inspects source contracts with project-local aliases: %s",
     async (aliasedAgentImport) => {
       const fixture = await createControllerSocketFixture({
         aliasedAgentImport,
       });
-
-      const connected = await connectController({
-        cwd: fixture.root,
-        gameId: "socket-fixture",
-        controllerJoinUrl: fixture.joinUrl,
-        nickname: "AgentCtrl",
-      });
-
-      const projected = await readGameSnapshot({
-        controllerSessionId: connected.controllerSessionId,
-        requestSync: true,
-        timeoutMs: 1_000,
-      });
-      expect(projected.snapshotStoreDomains).toEqual(["default"]);
-      expect(projected.snapshot).toMatchObject({
-        phase: "lobby",
-        score: 3,
-        controllerId: connected.controllerId,
-      });
-
-      const invoked = await invokeGameAction({
-        controllerSessionId: connected.controllerSessionId,
-        actionId: "set_score",
-        payload: 7,
-      });
-      await new Promise((resolve) => setTimeout(resolve, 25));
-
-      expect(invoked.actionId).toBe("set_score");
-      expect(invoked.actionName).toBe("setScore");
-      expect(invoked.storeDomain).toBe("default");
-      expect(invoked.acknowledgement).toEqual({
-        ok: true,
-        status: "accepted",
-        source: "host",
-      });
-      expect(fixture.receivedActions).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            actionName: "setScore",
-            storeDomain: "default",
-            payload: {
-              score: 7,
-            },
-          }),
-        ]),
-      );
-
-      await disconnectController({
-        controllerSessionId: connected.controllerSessionId,
-      });
+      const contract = await inspectGameAgentContract({ cwd: fixture.root });
+      expect(contract.source).toBe("source-declaration");
+      expect(
+        contract.actions.some((action) => action.actionId === "set_score"),
+      ).toBe(true);
     },
-    20_000,
   );
 
   it("does not infer an agent contract from a file that config does not publish", async () => {
@@ -1535,292 +1491,58 @@ describe("agent contracts", () => {
   });
 });
 
-describe("game sessions", () => {
-  it("opens a semantic game session through the built package entry", async () => {
+describe("attached game sessions", () => {
+  it("retains participant input but refuses semantic interpretation of local source", async () => {
     const fixture = await createControllerSocketFixture();
-    const builtModule = await import(
+    const session = await openGameSession({
+      cwd: fixture.root,
+      controllerJoinUrl: fixture.joinUrl,
+    });
+    expect(session.hasAgentContract).toBe(false);
+    expect(session.actions).toEqual([]);
+    await sendGameSessionInput({
+      gameSessionId: session.gameSessionId,
+      input: { moveX: 1 },
+    });
+    await expect(
+      readGameSession({ gameSessionId: session.gameSessionId }),
+    ).rejects.toThrow("contract_runtime_not_owned");
+    await expect(
+      invokeGameSessionAction({
+        gameSessionId: session.gameSessionId,
+        actionId: "player:set_score",
+        payload: 9,
+      }),
+    ).rejects.toThrow("contract_runtime_not_owned");
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(fixture.receivedInputs).toHaveLength(1);
+    expect(fixture.receivedActions).toHaveLength(0);
+    await closeGameSession({ gameSessionId: session.gameSessionId });
+  });
+  it("keeps built-package attachments participant-only", async () => {
+    const fixture = await createControllerSocketFixture();
+    const built = await import(
       `${pathToFileURL(path.join(__dirname, "../dist/game-session.js")).href}?built-session-smoke`
     );
-
-    const session = await builtModule.openGameSession({
+    const session = await built.openGameSession({
       cwd: fixture.root,
-      gameId: "socket-fixture",
       controllerJoinUrl: fixture.joinUrl,
-      nickname: "BuiltCtrl",
     });
-
-    expect(session.gameId).toBe("socket-fixture");
-    expect(session.hasAgentContract).toBe(true);
-    expect(session.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionId: "player:set_score",
-          lane: "player",
-        }),
-      ]),
-    );
-
-    await builtModule.closeGameSession({
-      gameSessionId: session.gameSessionId,
-    });
+    expect(session.hasAgentContract).toBe(false);
+    expect(session.actions).toEqual([]);
+    await built.closeGameSession({ gameSessionId: session.gameSessionId });
   });
-
-  it("infers the standalone game id when opening a semantic session without an explicit gameId", async () => {
+  it("does not accept a stale Arcade game identity", async () => {
     const fixture = await createControllerSocketFixture();
-
-    const session = await openGameSession({
-      cwd: fixture.root,
-      controllerJoinUrl: fixture.joinUrl,
-      nickname: "ImplicitGameCtrl",
-    });
-
-    expect(session.gameId).toBe("socket-fixture");
-    expect(session.hasAgentContract).toBe(true);
-    expect(session.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionId: "player:set_score",
-          lane: "player",
-        }),
-      ]),
-    );
-
-    await closeGameSession({
-      gameSessionId: session.gameSessionId,
-    });
-  });
-
-  it("opens a semantic game session and routes game actions through one high-level handle", async () => {
-    const fixture = await createControllerSocketFixture();
-
-    const session = await openGameSession({
-      cwd: fixture.root,
-      gameId: "socket-fixture",
-      controllerJoinUrl: fixture.joinUrl,
-      nickname: "AgentCtrl",
-    });
-
-    expect(session.gameId).toBe("socket-fixture");
-    expect(session.hasAgentContract).toBe(true);
-    expect(session.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionId: "player:set_score",
-          lane: "player",
-        }),
-      ]),
-    );
-
-    const inspection = await readGameSession({
-      gameSessionId: session.gameSessionId,
-      requestSync: true,
-      timeoutMs: 1_000,
-    });
-    expect(inspection.gameSnapshot?.snapshot).toMatchObject({
-      phase: "lobby",
-      score: 3,
-    });
-
-    const inputResult = await sendGameSessionInput({
-      gameSessionId: session.gameSessionId,
-      input: {
-        moveX: 1,
-      },
-    });
-    await new Promise((resolve) => setTimeout(resolve, 25));
-    expect(inputResult.input).toMatchObject({ moveX: 1 });
-    expect(fixture.receivedInputs).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          input: {
-            moveX: 1,
-          },
-        }),
-      ]),
-    );
-
-    const invocation = await invokeGameSessionAction({
-      gameSessionId: session.gameSessionId,
-      actionId: "player:set_score",
-      payload: 9,
-    });
-    await new Promise((resolve) => setTimeout(resolve, 25));
-
-    expect(invocation.actionId).toBe("player:set_score");
-    expect(invocation.lane).toBe("player");
-    expect(fixture.receivedActions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionName: "setScore",
-          storeDomain: "default",
-          payload: {
-            score: 9,
-          },
-        }),
-      ]),
-    );
-
-    const closed = await closeGameSession({
-      gameSessionId: session.gameSessionId,
-    });
-    expect(closed.closed).toBe(true);
-    expect(closed.session.connected).toBe(false);
-  });
-
-  it("discovers the active Arcade game and maps its logical default store to the embedded runtime domain", async () => {
-    const embeddedStoreDomain = "aj.embedded.game:7:socket-fixture";
-    const fixture = await createControllerSocketFixture({
-      embeddedArcadeIdentity: {
-        epoch: 7,
-        gameId: "socket-fixture",
-      },
-    });
-
-    const session = await openGameSession({
-      cwd: fixture.root,
-      gameId: "stale-topology-game",
-      mode: "arcade-dev",
-      controllerJoinUrl: fixture.joinUrl,
-      nickname: "ArcadeAgentCtrl",
-      timeoutMs: 1_000,
-    });
-
-    expect(session.gameId).toBe("socket-fixture");
-
-    const inspection = await readGameSession({
-      gameSessionId: session.gameSessionId,
-      requestSync: true,
-      timeoutMs: 1_000,
-    });
-    expect(inspection.gameSnapshot).toMatchObject({
-      gameId: "socket-fixture",
-      snapshotStoreDomains: ["default"],
-      runtimeStoreDomains: [embeddedStoreDomain],
-      storeDomainBindings: [
-        {
-          contractStoreDomain: "default",
-          runtimeStoreDomain: embeddedStoreDomain,
-        },
-      ],
-      snapshot: {
-        phase: "lobby",
-        score: 3,
-      },
-    });
-
-    await invokeGameSessionAction({
-      gameSessionId: session.gameSessionId,
-      actionId: "player:set_score",
-      payload: 9,
-      timeoutMs: 1_000,
-    });
-    expect(fixture.receivedActions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          actionName: "setScore",
-          storeDomain: embeddedStoreDomain,
-        }),
-      ]),
-    );
-
-    const hostInvocation = await invokeGameSessionAction({
-      gameSessionId: session.gameSessionId,
-      actionId: "host:finish_match",
-      timeoutMs: 1_000,
-    });
-    expect(hostInvocation.invocation.acknowledgement).toMatchObject({
-      ok: false,
-      reason: "host_runtime_not_owned",
-    });
-
-    await closeGameSession({
-      gameSessionId: session.gameSessionId,
-    });
-  });
-
-  it("rejects Arcade semantic sessions that do not expose an active surface instead of using a stale game ID", async () => {
-    const fixture = await createControllerSocketFixture();
-
     await expect(
       openGameSession({
         cwd: fixture.root,
-        gameId: "stale-topology-game",
+        gameId: "stale",
         mode: "arcade-dev",
         controllerJoinUrl: fixture.joinUrl,
-        nickname: "ArcadeAgentCtrl",
         timeoutMs: 50,
       }),
     ).rejects.toThrow('did not expose a valid "arcade.surface" snapshot');
     expect(fixture.receivedLeaves).toHaveLength(1);
-  });
-
-  it("keeps host actions unavailable when only attached by join URL", async () => {
-    const fixture = await createControllerSocketFixture();
-    const session = await openGameSession({
-      cwd: fixture.root,
-      gameId: "socket-fixture",
-      controllerJoinUrl: fixture.joinUrl,
-    });
-    expect(
-      session.actions.find((action) => action.actionId === "host:finish_match")
-        ?.availability,
-    ).toContain("host_runtime_not_owned");
-    const invocation = await invokeGameSessionAction({
-      gameSessionId: session.gameSessionId,
-      actionId: "host:finish_match",
-      timeoutMs: 1000,
-    });
-    expect(invocation.invocation.acknowledgement).toMatchObject({
-      ok: false,
-      status: "rejected",
-      reason: "host_runtime_not_owned",
-    });
-    expect(invocation.invocation.observedStateChange).toBe(false);
-    await closeGameSession({ gameSessionId: session.gameSessionId });
-  });
-
-  it("keeps request-synced game reads fresh even if an older state sync arrives later", async () => {
-    const fixture = await createControllerSocketFixture({
-      replayStaleDefaultSyncAfterAction: true,
-    });
-
-    const session = await openGameSession({
-      cwd: fixture.root,
-      gameId: "socket-fixture",
-      controllerJoinUrl: fixture.joinUrl,
-      nickname: "FreshnessCtrl",
-    });
-
-    const invocation = await invokeGameSessionAction({
-      gameSessionId: session.gameSessionId,
-      actionId: "player:set_score",
-      payload: 9,
-      timeoutMs: 5_000,
-    });
-
-    expect(invocation.invocation.snapshotAfter).not.toBeNull();
-    expect(invocation.invocation.snapshotAfter?.snapshot).toEqual(
-      expect.objectContaining({
-        score: 9,
-      }),
-    );
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    const inspection = await readGameSession({
-      gameSessionId: session.gameSessionId,
-      requestSync: true,
-      timeoutMs: 5_000,
-    });
-
-    expect(inspection.gameSnapshot?.snapshot).toEqual(
-      expect.objectContaining({
-        score: 9,
-      }),
-    );
-
-    await closeGameSession({
-      gameSessionId: session.gameSessionId,
-    });
   });
 });

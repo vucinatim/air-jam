@@ -1,8 +1,18 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import type { AnyAirJamAgentContract } from "../../agent/agent-contract";
+import {
+  agentJson,
+  createAirJamAgentEvaluator,
+} from "../../agent/agent-evaluator";
 import { roomCodeSchema } from "../../protocol/core";
 import type { AirJamActionInvocationResult } from "../../protocol/sync";
 import { isRpcSerializable } from "../../utils/is-rpc-serializable";
+import {
+  hostAgentRequestSchema,
+  type HostAgentRequest,
+  type HostAgentResponse,
+} from "./agent-control";
 
 /** Callable only inside the owning browser realm; never a network endpoint. */
 export const AIR_JAM_RUNTIME_CONTROL_KEY = "__AIR_JAM_RUNTIME_CONTROL__";
@@ -21,6 +31,7 @@ export type HostRuntimeActionRequest = z.infer<
 >;
 
 export interface HostRuntimeControl {
+  agent(request: HostAgentRequest): Promise<HostAgentResponse>;
   invoke(
     request: HostRuntimeActionRequest,
   ): Promise<AirJamActionInvocationResult>;
@@ -30,6 +41,8 @@ type ActionStore = {
   roomId: string;
   storeDomain: string;
   stateEpoch: string;
+  contractStoreDomain: string;
+  read: () => { data: Record<string, unknown>; revision: number };
   invoke: (
     request: HostRuntimeActionRequest,
   ) => Promise<AirJamActionInvocationResult>;
@@ -39,6 +52,12 @@ const controls = new WeakMap<
   object,
   {
     stores: Map<string, Set<ActionStore>>;
+    contracts: Set<{
+      id: string;
+      roomId: string;
+      gameId: string;
+      evaluator: ReturnType<typeof createAirJamAgentEvaluator>;
+    }>;
     control: HostRuntimeControl;
     listeners: Set<() => void>;
   }
@@ -78,7 +97,144 @@ function controlEntry(target: object) {
   let entry = controls.get(target);
   if (!entry) {
     const stores = new Map<string, Set<ActionStore>>();
+    const contracts: NonNullable<ReturnType<typeof controls.get>>["contracts"] =
+      new Set();
     const control: HostRuntimeControl = {
+      async agent(input) {
+        const request = hostAgentRequestSchema.parse(input);
+        const active = [...contracts].filter(
+          (binding) => binding.roomId === request.roomId,
+        );
+        if (active.length > 1)
+          throw new Error(
+            "contract_runtime_ambiguous: More than one contract owns this room.",
+          );
+        const binding = active[0];
+        if (!binding) {
+          if (request.operation === "read")
+            return { operation: "read", snapshot: null };
+          throw new Error(
+            "contract_runtime_unavailable: No live game contract is registered.",
+          );
+        }
+        const description = binding.evaluator.describe();
+        const selected = description.snapshotStoreDomains.map((domain) => {
+          const matches = [...stores.values()]
+            .flatMap((value) => [...value])
+            .filter(
+              (store) =>
+                store.roomId === request.roomId &&
+                store.contractStoreDomain === domain,
+            );
+          if (matches.length !== 1)
+            throw new Error(
+              matches.length
+                ? "host_store_ambiguous"
+                : "host_store_unavailable",
+            );
+          return { domain, store: matches[0] };
+        });
+        const runtimeId = JSON.stringify([
+          hostRuntimeDocumentId(target),
+          request.roomId,
+          selected.map(({ domain, store }) => [domain, store.stateEpoch]),
+        ]);
+        if (request.operation !== "read") {
+          if (request.contractId !== binding.id)
+            throw new Error(
+              "contract_changed: Read the current contract before invoking an action.",
+            );
+          if (request.runtimeId !== runtimeId)
+            throw new Error(
+              "runtime_replaced: The game's store runtime was replaced.",
+            );
+          const resolved = binding.evaluator.resolve(
+            request.actionId,
+            request.payload,
+            binding.gameId,
+          );
+          const store = selected.find(
+            (item) => item.domain === resolved.target.storeDomain,
+          )?.store;
+          if (!store)
+            throw new Error(
+              "host_store_unavailable: Action targets an undeclared store.",
+            );
+          const result = {
+            operation: request.operation,
+            target: { ...resolved.target, storeDomain: store.storeDomain },
+            payload: resolved.payload,
+          };
+          if (
+            request.operation === "invoke-host" &&
+            resolved.target.kind !== "host"
+          )
+            throw new Error(
+              "invalid_action_lane: Host invocation requires a host action.",
+            );
+          return request.operation === "invoke-host"
+            ? {
+                ...result,
+                acknowledgement: agentJson(
+                  await control.invoke({
+                    roomId: request.roomId,
+                    storeDomain: store.storeDomain,
+                    actionName: resolved.target.actionName,
+                    payload: resolved.payload,
+                  }),
+                ),
+              }
+            : result;
+        }
+        const rawStores = selected.map(({ store }) => ({
+          storeDomain: store.storeDomain,
+          ...agentJson(store.read()),
+          updatedAt: new Date().toISOString(),
+        }));
+        const snapshot = await binding.evaluator.project({
+          controllerId: request.controllerId,
+          stores: Object.fromEntries(
+            selected.map(({ domain }, index) => [
+              domain,
+              rawStores[index].data,
+            ]),
+          ),
+        });
+        if (
+          !contracts.has(binding) ||
+          [...contracts].filter(
+            (candidate) => candidate.roomId === request.roomId,
+          ).length !== 1
+        )
+          throw new Error(
+            "contract_changed: Contract changed while projecting state.",
+          );
+        if (
+          !selected.every(
+            ({ store }) =>
+              stores.get(storeKey(store.roomId, store.storeDomain))?.size ===
+                1 &&
+              stores.get(storeKey(store.roomId, store.storeDomain))?.has(store),
+          )
+        )
+          throw new Error(
+            "runtime_replaced: Store changed while projecting state.",
+          );
+        return {
+          operation: "read",
+          snapshot: {
+            ...description,
+            contractId: binding.id,
+            runtimeId,
+            snapshot,
+            rawStores,
+            storeDomainBindings: selected.map(({ domain, store }) => ({
+              contractStoreDomain: domain,
+              runtimeStoreDomain: store.storeDomain,
+            })),
+          },
+        };
+      },
       async invoke(request) {
         const parsed = hostRuntimeActionRequestSchema.safeParse(request);
         if (
@@ -108,7 +264,7 @@ function controlEntry(target: object) {
         return store.invoke(parsed.data);
       },
     };
-    entry = { stores, control, listeners: new Set<() => void>() };
+    entry = { stores, contracts, control, listeners: new Set<() => void>() };
     controls.set(target, entry);
   }
   return entry;
@@ -118,7 +274,7 @@ function discardUnusedEntry(
   target: object,
   entry: ReturnType<typeof controlEntry>,
 ) {
-  if (entry.stores.size) return;
+  if (entry.stores.size || entry.contracts.size) return;
   if (Reflect.get(target, AIR_JAM_RUNTIME_CONTROL_KEY) === entry.control)
     Reflect.deleteProperty(target, AIR_JAM_RUNTIME_CONTROL_KEY);
   if (!entry.listeners.size && controls.get(target) === entry)
@@ -172,3 +328,22 @@ export const registerHostRuntimeActionStore = (
     discardUnusedEntry(target, entry);
   };
 };
+
+export function registerHostAgentContract(
+  target: object,
+  binding: { roomId: string; gameId: string; contract: AnyAirJamAgentContract },
+) {
+  const entry = controlEntry(target);
+  const registration = {
+    id: nanoid(),
+    roomId: binding.roomId,
+    gameId: binding.gameId,
+    evaluator: createAirJamAgentEvaluator(binding.contract),
+  };
+  entry.contracts.add(registration);
+  Reflect.set(target, AIR_JAM_RUNTIME_CONTROL_KEY, entry.control);
+  return () => {
+    entry.contracts.delete(registration);
+    discardUnusedEntry(target, entry);
+  };
+}

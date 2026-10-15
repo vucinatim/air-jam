@@ -1,6 +1,7 @@
 import type { JSX, ReactNode } from "react";
 import { useEffect } from "react";
 import type { z } from "zod";
+import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import {
   ControllerSessionProvider,
   HostSessionProvider,
@@ -15,6 +16,7 @@ import {
   useHostRuntimeInspectionContract,
 } from "../runtime-inspection";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
+import { registerHostAgentContract } from "./contracts/control";
 import {
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
@@ -29,6 +31,8 @@ export type AirJamHostRuntimeProps<TSchema extends z.ZodSchema = z.ZodSchema> =
   AirJamProviderProps<TSchema> &
     AirJamHostOptions & {
       children: ReactNode;
+      agent?: AnyAirJamAgentContract;
+      gameId?: string;
     };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
@@ -81,9 +85,11 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   roomId,
   onPlayerJoin,
   onPlayerLeave,
+  agent,
+  gameId,
 }: Pick<
   AirJamHostRuntimeProps<TSchema>,
-  "children" | "roomId" | "onPlayerJoin" | "onPlayerLeave"
+  "children" | "roomId" | "onPlayerJoin" | "onPlayerLeave" | "agent" | "gameId"
 >): JSX.Element => {
   const runtime = useHostRuntimeApi<TSchema>(
     {
@@ -93,6 +99,15 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
     },
     "AirJamHostRuntime",
   );
+
+  useEffect(() => {
+    if (!agent || !runtime.roomId) return;
+    return registerHostAgentContract(window, {
+      roomId: runtime.roomId,
+      gameId: gameId ?? "game",
+      contract: agent,
+    });
+  }, [agent, gameId, runtime.roomId]);
 
   return (
     <hostRuntimeContext.Provider value={runtime}>
@@ -145,6 +160,8 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
   roomId,
   onPlayerJoin,
   onPlayerLeave,
+  agent,
+  gameId,
   ...providerProps
 }: AirJamHostRuntimeProps<TSchema>): JSX.Element => {
   return (
@@ -154,6 +171,8 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
           roomId={roomId}
           onPlayerJoin={onPlayerJoin}
           onPlayerLeave={onPlayerLeave}
+          agent={agent}
+          gameId={gameId}
         >
           {children}
         </HostRuntimeOwner>

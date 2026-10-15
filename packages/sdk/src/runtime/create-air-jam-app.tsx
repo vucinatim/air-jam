@@ -212,7 +212,12 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
         renderFallback={hostErrorBoundary?.renderFallback}
         onError={hostErrorBoundary?.onError}
       >
-        <AirJamHostRuntime<TSchema> {...hostSession} {...runtimeOptions}>
+        <AirJamHostRuntime<TSchema>
+          {...hostSession}
+          {...runtimeOptions}
+          agent={agent}
+          gameId={metadata?.slug}
+        >
           <ConnectedRuntimeErrorBoundary
             role="host"
             roomId={runtimeOptions.roomId}

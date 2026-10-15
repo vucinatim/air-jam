@@ -894,6 +894,21 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
               roomId,
               storeDomain: resolvedStoreDomain,
               stateEpoch,
+              contractStoreDomain: options?.storeDomain?.trim() || "default",
+              read: () => {
+                const runtime = runtimeSnapshotRef.current;
+                if (
+                  runtime.role !== "host" ||
+                  runtime.roomId !== roomId ||
+                  runtime.socket !== socket ||
+                  !runtime.canBroadcastHostState
+                )
+                  throw new Error("host_runtime_not_ready");
+                return {
+                  data: stripActionsFromState(store.getState()),
+                  revision: syncRevision.value,
+                };
+              },
               invoke: async ({ actionName, payload }) => {
                 const runtime = runtimeSnapshotRef.current;
                 if (

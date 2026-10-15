@@ -6,6 +6,7 @@ import {
   startDev,
   stopDev,
 } from "@air-jam/devtools/dev";
+import { AIRJAM_PROJECT_MCP_FILE } from "@air-jam/devtools/mcp-config";
 import {
   AirJamPlatformApiError,
   AirJamStoredPlatformSessionError,
@@ -44,7 +45,6 @@ import {
   type AirJamLocalReleaseIssue,
 } from "@air-jam/devtools/release";
 import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
-import { AIRJAM_PROJECT_MCP_FILE } from "@air-jam/devtools/mcp-config";
 import { Command, type OptionValues } from "commander";
 import kleur from "kleur";
 import path from "node:path";
@@ -1839,18 +1839,15 @@ const buildProgram = () => {
     .description("Read runtime and semantic state from a persistent session")
     .argument("<session-id>", "Game session ID")
     .option("--dir <path>", "Project directory")
-    .option("--no-sync", "Read without requesting a fresh semantic snapshot")
     .option("--timeout-ms <ms>", "Snapshot timeout in milliseconds", Number)
     .action(async (sessionId: string, options: unknown) => {
       const input = resolveActionOptions<{
         dir?: string;
-        sync?: boolean;
         timeoutMs?: number;
       }>(options);
       const result = await readSession({
         dir: input.dir,
         gameSessionId: sessionId,
-        requestSync: input.sync,
         timeoutMs: input.timeoutMs,
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

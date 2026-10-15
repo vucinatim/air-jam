@@ -1,6 +1,6 @@
 # Agent Session Contract
 
-Last updated: 2026-10-14
+Last updated: 2026-10-16
 Status: current contract
 
 Related docs:
@@ -67,10 +67,13 @@ Browser surfaces still matter for:
 ### Player participation and host ownership
 
 A room code or controller join URL grants participation, not ownership of the
-host. Explicit attachments retain player inputs, player semantic actions,
-state inspection, and ordinary cooperative game controls. They must not invoke
-an action under a fabricated host identity. Session action discovery reports
-`host_runtime_not_owned` for host-only actions when no owning runtime exists.
+host. Explicit attachments retain ordinary player inputs and raw controller
+state/action tools. Semantic interpretation requires an owned host; it never
+loads local source to interpret another browser's deployment. Session open
+reports `semanticAccess: participant-only`, no semantic actions; semantic reads
+and invocations reject with `contract_runtime_not_owned`. Omit the explicit room
+or join URL to open a separate owned test host. No action uses a fabricated host
+identity.
 
 An implicit game session acquires a browser host it actually owns rather than
 assuming a discovered local room belongs to it. Host actions travel through
@@ -133,3 +136,48 @@ those files outside the runtime is the consuming tool host's responsibility.
 Game source exports do not automatically include runtime capture directories.
 Player avatars show accessible initials when artwork cannot load, including in
 contained environments with restricted egress; no broader network access is needed.
+
+## Live contract evaluation
+
+The app's Host registers its agent contract while mounted. One SDK evaluator
+owns descriptions, input validation/transformation and state projection; static
+source inspection uses that same evaluator in a bounded asynchronous helper.
+Live sessions never spawn that helper or import authored source into their broker.
+
+The existing realm-local runtime control exposes `agent` read, resolve and
+invoke-host operations. Reads use the owning game's authoritative store bindings,
+excluding actions and preserving concrete embedded domains. Participant payloads
+travel through the normal controller socket. Host semantic resolution and local
+dispatch happen together against the expected contract/store identity. This adds
+no network endpoint, guest capability or arbitrary evaluation interface.
+
+Each contract registration has an instance ID; document/room/store epochs identify
+the live runtime. Requests validate those identities before dispatch. Before and
+after observations with different identities report `contract_changed` or
+`runtime_replaced`, not a gameplay diff. Contract failures propagate. Registration
+cleanup removes only its own binding; ambiguous owners reject.
+
+Session operations are serialized with bounded deadlines. Separate sessions can
+run concurrently. Close cancels active channel waits and rejects queued work.
+A timed-out operation makes the session unusable until closed; a mutation is never
+automatically retried because it may already have executed in the game. The owned
+browser/process is disposed by the existing controller lifecycle.
+
+## Unreleased tooling behavior changes
+
+`@air-jam/devtools/agent` now exports only static `inspectGameAgentContract` and
+its types. Removed `readGameSnapshot`, `invokeGameAction` and
+`resolveGameActionPayload` are replaced by owned `game-session` read/invoke.
+Static inspection reports `source: source-declaration` and is not live truth.
+The semantic read's `requestSync` option and CLI `session read --no-sync` option
+are removed: semantic state always comes directly from the owned host. Raw
+controller snapshot synchronization is unchanged. Consumers must use a matching
+candidate SDK/devtools pair; no old-source interpretation fallback remains.
+These changes are unpublished and require release notes when the package
+candidate is eventually promoted.
+
+The in-process visual harness supplies its already-owned game page as the second
+library argument to `openGameSession`. It uses the same evaluator and observations,
+without launching another host or interpreting source. The harness retains page
+lifetime ownership; session close releases its controller. This page reference is
+an in-process capability, never an option accepted over CLI, MCP or broker JSON.

@@ -1,5 +1,6 @@
 import { parseControllerBridgeEmitMessage } from "@air-jam/sdk/controller-bridge";
 import { controllerStateSyncRequestSchema } from "@air-jam/sdk/protocol";
+
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
@@ -21,10 +22,14 @@ import {
   isRuntimeOwnerActionRequest,
   isRuntimeOwnerCaptureRequest,
   resolveProjectRelativeRuntimeCaptureDir,
+  runtimeOwnerAgentRequestSchema,
   runtimeOwnerCaptureEventSchema,
   type AirJamRuntimeOwnerCaptureResult,
 } from "../runtime-owner-protocol.js";
-import { invokeOwnedHostAction } from "./runtime-owner-actions.js";
+import {
+  evaluateOwnedGameContract,
+  invokeOwnedHostAction,
+} from "./runtime-owner-actions.js";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
@@ -82,6 +87,29 @@ const shutdown = async (exitCode = 0) => {
 };
 
 process.on("message", (message: unknown) => {
+  const agentRequest = runtimeOwnerAgentRequestSchema.safeParse(message);
+  if (agentRequest.success) {
+    const { requestId, request } = agentRequest.data;
+    void (async () => {
+      try {
+        const result = await evaluateOwnedGameContract(session.host, request);
+        process.send?.({
+          type: "air-jam-runtime-owner.agent-result/v1",
+          requestId,
+          ok: true,
+          result,
+        });
+      } catch (error) {
+        process.send?.({
+          type: "air-jam-runtime-owner.agent-result/v1",
+          requestId,
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    })();
+    return;
+  }
   const captureEvent = runtimeOwnerCaptureEventSchema.safeParse(message);
   if (
     captureEvent.success &&

@@ -1,7 +1,19 @@
 # Current State
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 Status: Studio foundation continuation qualified locally; earlier separation checkpoint retained below
+
+## Owned live semantic evaluation
+
+The SDK evaluates agent contracts in the owning game's host realm, using live
+contract registration IDs and authoritative store reads. Devtools sessions use
+one serialized before/resolve/transport/after pipeline; they no longer reload
+source through synchronous helpers for each action. Explicit room attachments
+retain participant transport but require an owned test host for semantics.
+Static source inspection is separate, asynchronous and bounded. Unreleased
+removals and identity/failure rules are recorded in the
+[session contract](./contracts/agent-session-contract.md). Qualification is in
+progress in the paired private workspace; this is not an npm release.
 
 ## Multiple preview controller recovery
 

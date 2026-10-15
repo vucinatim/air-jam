@@ -250,7 +250,6 @@ export const buildToolDefinitions = ({
     input: z.record(z.string(), z.unknown()),
   });
   const readGameSessionInputSchema = gameSessionInputSchema.extend({
-    requestSync: z.boolean().optional(),
     timeoutMs: z.number().int().positive().optional(),
   });
   const invokeGameSessionActionInputSchema = gameSessionInputSchema.extend({
@@ -287,7 +286,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.inspect_game_agent_contract": {
       description:
-        "Inspect one game's agent contract, including game-specific snapshot description and semantic controller action metadata.",
+        "Inspect the source declaration of a game's agent contract without starting it. This does not describe the code currently running in a room; read an owned game session for live semantics.",
       inputSchema: inspectGameAgentContractInputSchema,
       run: async ({ cwd, gameId }: { cwd?: string; gameId?: string }) =>
         withJsonText(await inspectGameAgentContract({ cwd, gameId })),
@@ -557,7 +556,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.open_game_session": {
       description:
-        "Open one high-level Air Jam game session by connecting a virtual controller and discovering published semantic game actions for the same room.",
+        "Open a separate owned test host with a virtual controller and live semantic actions. Omit roomId/controllerJoinUrl for semantic testing. Explicit room attachments are participant-only: inputs and raw controller tools, no semantic source interpretation or host actions.",
       inputSchema: openGameSessionInputSchema,
       run: async (input: z.infer<typeof openGameSessionInputSchema>) =>
         withJsonText(await openGameSession(input)),
@@ -571,7 +570,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.read_game_session": {
       description:
-        "Read one high-level Air Jam game session, including runtime controller state plus any available semantic game snapshot.",
+        "Read authoritative live state and current semantic actions from an owned game host. Requires semanticAccess=owned-host; never interprets local source for someone else's room.",
       inputSchema: readGameSessionInputSchema,
       run: async (input: z.infer<typeof readGameSessionInputSchema>) =>
         withJsonText(await readGameSession(input)),

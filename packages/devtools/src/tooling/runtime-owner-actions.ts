@@ -1,6 +1,8 @@
 import type { AirJamActionInvocationResult } from "@air-jam/sdk";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
+  hostAgentResponseSchema,
+  type HostAgentRequest,
   type HostRuntimeActionRequest,
   type HostRuntimeControl,
 } from "@air-jam/sdk/runtime-control";
@@ -40,3 +42,23 @@ export const invokeOwnedHostAction = async (
     };
   }
 };
+
+export async function evaluateOwnedGameContract(
+  host: VisualHarnessPageSurface,
+  request: HostAgentRequest,
+) {
+  const result = await host.game.locator("body").evaluate(
+    async (_, { key, request }) => {
+      const control = (
+        window as unknown as Record<string, HostRuntimeControl | undefined>
+      )[key];
+      if (!control)
+        throw new Error(
+          "contract_runtime_unavailable: Owned game control is not mounted.",
+        );
+      return control.agent(request);
+    },
+    { key: AIR_JAM_RUNTIME_CONTROL_KEY, request },
+  );
+  return hostAgentResponseSchema.parse(result);
+}

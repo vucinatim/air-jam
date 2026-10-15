@@ -4,10 +4,15 @@ import {
   controllerBridgeSnapshotSchema,
 } from "@air-jam/sdk/controller-bridge";
 import {
+  airJamActionInvocationResultSchema,
   controllerStateSyncRequestSchema,
   hostStateSyncSchema,
 } from "@air-jam/sdk/protocol";
 import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
+import {
+  hostAgentRequestSchema,
+  hostAgentResponseSchema,
+} from "@air-jam/sdk/runtime-control";
 import path from "node:path";
 import { z } from "zod";
 
@@ -39,16 +44,15 @@ export const isRuntimeOwnerActionRequest = (
   typeof value.action.actionName === "string" &&
   (value.action.payload === undefined || isRecord(value.action.payload));
 
+const runtimeOwnerActionResultSchema = z.object({
+  type: z.literal(AIR_JAM_RUNTIME_OWNER_ACTION_RESULT),
+  requestId: z.string().min(1),
+  acknowledgement: airJamActionInvocationResultSchema,
+});
 export const isRuntimeOwnerActionResult = (
   value: unknown,
 ): value is AirJamRuntimeOwnerActionResult =>
-  isRecord(value) &&
-  value.type === AIR_JAM_RUNTIME_OWNER_ACTION_RESULT &&
-  typeof value.requestId === "string" &&
-  isRecord(value.acknowledgement) &&
-  typeof value.acknowledgement.ok === "boolean" &&
-  ["accepted", "rejected"].includes(String(value.acknowledgement.status)) &&
-  ["client", "server", "host"].includes(String(value.acknowledgement.source));
+  runtimeOwnerActionResultSchema.safeParse(value).success;
 
 export const AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST =
   "air-jam-runtime-owner.capture-visuals/v1" as const;
@@ -148,3 +152,25 @@ export const resolveProjectRelativeRuntimeCaptureDir = ({
   }
   return resolved;
 };
+
+export const runtimeOwnerAgentRequestSchema = z
+  .object({
+    type: z.literal("air-jam-runtime-owner.agent/v1"),
+    requestId: z.string().uuid(),
+    request: hostAgentRequestSchema,
+  })
+  .strict();
+export const runtimeOwnerAgentResultSchema = z.discriminatedUnion("ok", [
+  z.object({
+    type: z.literal("air-jam-runtime-owner.agent-result/v1"),
+    requestId: z.string().uuid(),
+    ok: z.literal(true),
+    result: hostAgentResponseSchema,
+  }),
+  z.object({
+    type: z.literal("air-jam-runtime-owner.agent-result/v1"),
+    requestId: z.string().uuid(),
+    ok: z.literal(false),
+    error: z.string(),
+  }),
+]);

@@ -181,6 +181,7 @@ class FakeChildProcess extends EventEmitter {
                     status: "rejected",
                     source: "host",
                     reason: "not_ready",
+                    message: "The fixture host is not ready.",
                   },
           });
       });

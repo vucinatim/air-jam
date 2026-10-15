@@ -1,6 +1,6 @@
 # Agent And Tooling Architecture
 
-Last updated: 2026-08-28
+Last updated: 2026-10-16
 Status: implemented architecture
 
 Related docs:
@@ -51,7 +51,19 @@ This layer owns:
 4. invoking game or host actions
 5. closing sessions
 
-This is the preferred machine-control surface for gameplay truth.
+This is the preferred machine-control surface for gameplay truth. The session
+owns a bounded operation queue and the existing private channel to its browser
+host. The SDK evaluates the already-loaded contract in that game's realm and
+reads the authoritative store registry. Player writes use real controller
+transport; host writes use normal owned local dispatch. Contract and runtime
+instance identities prevent comparing state across hot replacement. There is no
+Node-side live-contract cache or per-action TypeScript helper.
+
+Explicit room attachments remain participant transport, with raw input/state;
+semantic testing requires a separately owned host. Static source inspection is
+separately labeled and never supplies a running session's semantics. See the
+[session contract](../contracts/agent-session-contract.md) for the unreleased
+export/option removals and failure semantics.
 
 ### 3. Runtime Inspection Contracts
 

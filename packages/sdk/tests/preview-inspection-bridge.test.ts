@@ -45,11 +45,15 @@ describe("embedded host presentation inspection", () => {
     const binding = { roomId: "ROOM", storeDomain: "game", invoke: vi.fn() };
     const closeFirst = registerHostRuntimeActionStore(window, {
       ...binding,
+      contractStoreDomain: "default",
+      read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "first",
     });
     const first = vi.mocked(parent.postMessage).mock.calls.at(-1)?.[0];
     const closeReplacement = registerHostRuntimeActionStore(window, {
       ...binding,
+      contractStoreDomain: "default",
+      read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "replacement",
     });
     const replacement = vi.mocked(parent.postMessage).mock.calls.at(-1)?.[0];
@@ -70,6 +74,8 @@ describe("embedded host presentation inspection", () => {
     const count = vi.mocked(parent.postMessage).mock.calls.length;
     const closeLater = registerHostRuntimeActionStore(window, {
       ...binding,
+      contractStoreDomain: "default",
+      read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "later",
     });
     expect(parent.postMessage).toHaveBeenCalledTimes(count);

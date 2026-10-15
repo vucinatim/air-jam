@@ -13,6 +13,7 @@ import type {
   VisualCaptureScenarioMetadata,
   VisualCaptureSummary,
   VisualHarnessMode,
+  VisualHarnessPageSurface,
   VisualHarnessUrls,
   VisualScenario,
   VisualScenarioAgent,
@@ -21,6 +22,15 @@ import type {
   VisualScreenshotRecord,
   VisualViewport,
 } from "./types.js";
+
+type VisualAgentSessionOptions = {
+  gameId: string;
+  scenarioId: string;
+  host: VisualHarnessPageSurface;
+  urls: VisualHarnessUrls;
+  mode: VisualHarnessMode;
+  secure: boolean;
+};
 
 const ensureDir = (dir: string): void => {
   fs.mkdirSync(dir, { recursive: true });
@@ -161,13 +171,9 @@ const createScenarioRunContext = async <TAgent extends AnyAirJamAgentContract>({
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
   mode: VisualHarnessMode;
   secure: boolean;
-  createAgentSession?: (options: {
-    gameId: string;
-    scenarioId: string;
-    urls: VisualHarnessUrls;
-    mode: VisualHarnessMode;
-    secure: boolean;
-  }) => Promise<VisualScenarioAgent<InferVisualScenarioSnapshot<TAgent>>>;
+  createAgentSession?: (
+    options: VisualAgentSessionOptions,
+  ) => Promise<VisualScenarioAgent<InferVisualScenarioSnapshot<TAgent>>>;
 }): Promise<VisualScenarioContext<TAgent>> => {
   const session = await openVisualHarnessSession({
     browser,
@@ -224,6 +230,7 @@ const createScenarioRunContext = async <TAgent extends AnyAirJamAgentContract>({
           createAgentSession({
             gameId,
             scenarioId: scenario.id,
+            host: session.host,
             urls: session.urls,
             mode,
             secure,
@@ -321,13 +328,9 @@ const runScenarioCapture = async <TAgent extends AnyAirJamAgentContract>({
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
   mode: VisualHarnessMode;
   secure: boolean;
-  createAgentSession?: (options: {
-    gameId: string;
-    scenarioId: string;
-    urls: VisualHarnessUrls;
-    mode: VisualHarnessMode;
-    secure: boolean;
-  }) => Promise<VisualScenarioAgent<InferVisualScenarioSnapshot<TAgent>>>;
+  createAgentSession?: (
+    options: VisualAgentSessionOptions,
+  ) => Promise<VisualScenarioAgent<InferVisualScenarioSnapshot<TAgent>>>;
 }): Promise<VisualCaptureScenarioMetadata> => {
   const scenarioDir = path.join(artifactRoot, gameId, scenario.id);
   resetDir(scenarioDir);
@@ -432,13 +435,9 @@ export type RunVisualHarnessOptions = {
     mode: VisualHarnessMode;
     secure: boolean;
   }) => Promise<VisualHarnessStackHandle>;
-  createAgentSession?: (options: {
-    gameId: string;
-    scenarioId: string;
-    urls: VisualHarnessUrls;
-    mode: VisualHarnessMode;
-    secure: boolean;
-  }) => Promise<VisualScenarioAgent<Record<string, unknown>>>;
+  createAgentSession?: (
+    options: VisualAgentSessionOptions,
+  ) => Promise<VisualScenarioAgent<Record<string, unknown>>>;
   onScenarioStart?: (scenario: VisualScenario<AnyAirJamAgentContract>) => void;
   onCaptureStart?: (info: {
     gameId: string;

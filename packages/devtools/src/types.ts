@@ -547,24 +547,12 @@ export type AirJamVisualScenarioSummary = {
   supportedModes: AirJamVisualCaptureMode[];
 };
 
-export type AirJamGameAgentActionDescriptor = {
-  actionId: string;
-  target: {
-    kind: "participant" | "host";
-    actionName: string;
-    storeDomain: string;
-  };
-  description: string | null;
-  availability: string | null;
-  payload: {
-    kind: "none" | "boolean" | "number" | "string" | "enum" | "json";
-    description: string | null;
-    allowedValues?: string[];
-  };
-  resultDescription: string | null;
-};
+export type AirJamGameAgentActionDescriptor = import("zod").z.infer<
+  typeof import("@air-jam/sdk/agent-tooling").agentActionDescriptorSchema
+>;
 
 export type AirJamAgentContractInspection = {
+  source: "source-declaration";
   gameId: string;
   rootDir: string;
   hasContract: boolean;
@@ -578,13 +566,9 @@ export type InspectGameAgentContractOptions = {
   gameId?: string;
 };
 
-export type ReadGameSnapshotOptions = {
-  controllerSessionId: string;
-  requestSync?: boolean;
-  timeoutMs?: number;
-};
-
 export type AirJamGameSnapshotInspection = {
+  contractId: string;
+  runtimeId: string;
   controllerSessionId: string;
   gameId: string;
   /** Logical store names declared by the game contract. */
@@ -601,18 +585,13 @@ export type AirJamGameSnapshotInspection = {
   rawStores: AirJamRuntimeStoreSnapshot[];
 };
 
-export type InvokeGameActionOptions = {
-  controllerSessionId: string;
-  actionId: string;
-  payload?: unknown;
-  timeoutMs?: number;
-};
-
 export type AirJamGameActionAcknowledgementObservation =
   | "host-acknowledged"
   | "host-acknowledgement-not-observed";
 
 export type AirJamGameActionOutcome =
+  | "contract_changed"
+  | "runtime_replaced"
   | "accepted"
   | "rejected"
   | "acknowledgement-not-observed-state-changed"
@@ -632,7 +611,9 @@ export type InvokeGameActionResult = AirJamVirtualControllerSessionSummary & {
   snapshotAfter: AirJamGameSnapshotInspection;
   snapshotAfterStatus:
     | "committed-update-observed"
-    | "no-new-commit-before-timeout";
+    | "no-new-commit-before-timeout"
+    | "contract_changed"
+    | "runtime_replaced";
   observedStateChange: boolean;
 };
 
@@ -721,6 +702,7 @@ export type SendControllerInputOptions = {
 };
 
 export type InvokeControllerActionOptions = {
+  timeoutMs?: number;
   controllerSessionId: string;
   actionName: string;
   storeDomain: string;
@@ -802,7 +784,6 @@ export type OpenGameSessionOptions = ConnectControllerOptions;
 
 export type ReadGameSessionOptions = {
   gameSessionId: string;
-  requestSync?: boolean;
   timeoutMs?: number;
 };
 
@@ -828,6 +809,7 @@ export type CloseGameSessionOptions = {
 };
 
 export type AirJamGameSessionSummary = {
+  semanticAccess: "owned-host" | "participant-only";
   gameSessionId: string;
   cwd: string;
   gameId: string | null;

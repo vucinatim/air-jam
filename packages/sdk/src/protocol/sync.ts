@@ -29,21 +29,29 @@ export type AirJamActionPayload = Record<string, unknown>;
 
 export const airJamActionPayloadSchema = z.record(z.string(), z.unknown());
 
-export interface AirJamActionAccepted<TResult = unknown> {
-  ok: true;
-  status: "accepted";
-  source: "client" | "host";
-  result?: TResult;
-}
-
-export interface AirJamActionRejected {
-  ok: false;
-  status: "rejected";
-  source: "client" | "server" | "host";
-  reason: string;
-  message: string;
-  details?: AirJamActionPayload;
-}
+export const airJamActionAcceptedSchema = z.object({
+  ok: z.literal(true),
+  status: z.literal("accepted"),
+  source: z.enum(["client", "host"]),
+  result: z.unknown().optional(),
+});
+export const airJamActionRejectedSchema = z.object({
+  ok: z.literal(false),
+  status: z.literal("rejected"),
+  source: z.enum(["client", "server", "host"]),
+  reason: z.string(),
+  message: z.string(),
+  details: airJamActionPayloadSchema.optional(),
+});
+export const airJamActionInvocationResultSchema = z.discriminatedUnion(
+  "status",
+  [airJamActionAcceptedSchema, airJamActionRejectedSchema],
+);
+export type AirJamActionAccepted<TResult = unknown> = Omit<
+  z.infer<typeof airJamActionAcceptedSchema>,
+  "result"
+> & { result?: TResult };
+export type AirJamActionRejected = z.infer<typeof airJamActionRejectedSchema>;
 
 export type AirJamActionInvocationResult<TResult = unknown> =
   | AirJamActionAccepted<TResult>

@@ -38,7 +38,7 @@ it("waits for the correct controller and origin to acknowledge its leave", async
   );
   for (const [origin, sender] of [
     ["https://other.test", source],
-    ["https://game.test", dom.window],
+    ["https://game.test", window],
   ] as const) {
     dom.window.dispatchEvent(
       new dom.window.MessageEvent("message", {

@@ -4,7 +4,10 @@ import {
 } from "@air-jam/sdk/runtime-control";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { VisualHarnessPageSurface } from "../src/harness/visual.js";
-import { invokeOwnedHostAction } from "../src/tooling/runtime-owner-actions.js";
+import {
+  evaluateOwnedGameContract,
+  invokeOwnedHostAction,
+} from "../src/tooling/runtime-owner-actions.js";
 
 const request: HostRuntimeActionRequest = {
   roomId: "ROOM",
@@ -93,5 +96,43 @@ describe("owned host game realm control", () => {
       reason: "host_ack_missing",
     });
     expect(JSON.stringify(result)).not.toContain("private browser details");
+  });
+});
+
+describe("owned contract page channel", () => {
+  it.each([false, true])(
+    "evaluates only the owned game frame (embedded=%s)",
+    async (embedded) => {
+      const fixture = hostFixture(embedded);
+      const agent = vi.fn(async () => ({ operation: "read", snapshot: null }));
+      vi.stubGlobal("window", { [AIR_JAM_RUNTIME_CONTROL_KEY]: { agent } });
+      const request = {
+        operation: "read" as const,
+        roomId: "ROOM",
+        controllerId: "player",
+      };
+      expect(await evaluateOwnedGameContract(fixture.host, request)).toEqual({
+        operation: "read",
+        snapshot: null,
+      });
+      expect(agent).toHaveBeenCalledExactlyOnceWith(request);
+      if (embedded) expect(fixture.page.locator).not.toHaveBeenCalled();
+    },
+  );
+  it("propagates authored failures without falling back to source evaluation", async () => {
+    vi.stubGlobal("window", {
+      [AIR_JAM_RUNTIME_CONTROL_KEY]: {
+        agent: async () => {
+          throw Error("authored failure");
+        },
+      },
+    });
+    await expect(
+      evaluateOwnedGameContract(hostFixture(true).host, {
+        operation: "read",
+        roomId: "ROOM",
+        controllerId: "player",
+      }),
+    ).rejects.toThrow("authored failure");
   });
 });

@@ -9,6 +9,8 @@ import type { AirJamGameSnapshotInspection } from "../src/types.js";
 const createSnapshot = (
   overrides?: Partial<AirJamGameSnapshotInspection>,
 ): AirJamGameSnapshotInspection => ({
+  contractId: "contract-one",
+  runtimeId: "runtime-one",
   controllerSessionId: "controller-session-1",
   gameId: "fixture-game",
   snapshotStoreDomains: ["default"],

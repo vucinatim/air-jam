@@ -7,6 +7,7 @@ import {
 import type {
   AnyAirJamAgentContract,
   VisualHarnessMode,
+  VisualHarnessPageSurface,
   VisualScenarioAgent,
   VisualScenarioAgentInvocation,
   VisualScenarioPack,
@@ -67,28 +68,32 @@ const asSnapshotRecord = (snapshot: unknown): Record<string, unknown> | null =>
 const createScenarioAgentSession = async ({
   gameId,
   urls,
+  host,
   mode,
   secure,
 }: {
   gameId: string;
+  host: VisualHarnessPageSurface;
   mode: VisualHarnessMode;
   secure: boolean;
   urls: {
     controllerJoinUrl: string;
   };
 }): Promise<VisualScenarioAgent> => {
-  const opened = await openGameSession({
-    cwd: process.cwd(),
-    gameId,
-    mode: mode === "arcade-built" ? "arcade-test" : "standalone-dev",
-    secure,
-    controllerJoinUrl: urls.controllerJoinUrl,
-  });
+  const opened = await openGameSession(
+    {
+      cwd: process.cwd(),
+      gameId,
+      mode: mode === "arcade-built" ? "arcade-test" : "standalone-dev",
+      secure,
+      controllerJoinUrl: urls.controllerJoinUrl,
+    },
+    host,
+  );
 
   const read = async (): Promise<Record<string, unknown>> => {
     const inspection = await readGameSession({
       gameSessionId: opened.gameSessionId,
-      requestSync: true,
     });
     if (!inspection.gameSnapshot?.snapshot) {
       throw new Error(
@@ -104,7 +109,6 @@ const createScenarioAgentSession = async ({
     listActions: async () => {
       const inspection = await readGameSession({
         gameSessionId: opened.gameSessionId,
-        requestSync: true,
       });
       return inspection.actions;
     },
@@ -187,9 +191,16 @@ try {
     secure,
     artifactRoot,
     loadScenarioPack: async () => scenarioPack,
-    createAgentSession: async ({ gameId: activeGameId, urls, mode, secure }) =>
+    createAgentSession: async ({
+      gameId: activeGameId,
+      urls,
+      host,
+      mode,
+      secure,
+    }) =>
       createScenarioAgentSession({
         gameId: activeGameId,
+        host,
         urls,
         mode,
         secure,

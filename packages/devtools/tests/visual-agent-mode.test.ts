@@ -18,6 +18,7 @@ vi.mock("../src/harness/visual.js", () => ({
     const session = await options.createAgentSession?.({
       gameId: options.gameId,
       scenarioId: "lobby",
+      host: {} as import("../src/harness/visual.js").VisualHarnessPageSurface,
       mode: options.mode ?? "standalone-dev",
       secure: options.secure ?? false,
       urls: {
@@ -65,13 +66,16 @@ describe("visual helper semantic sessions", () => {
       ];
       await import("../src/tooling/run-visual-capture.js");
       expect(exit).toHaveBeenCalledExactlyOnceWith(0);
-      expect(openGameSession).toHaveBeenCalledWith({
-        cwd: process.cwd(),
-        gameId: "pong",
-        mode,
-        secure: true,
-        controllerJoinUrl: "http://localhost:4510/controller?room=ROOM1",
-      });
+      expect(openGameSession).toHaveBeenCalledWith(
+        {
+          cwd: process.cwd(),
+          gameId: "pong",
+          mode,
+          secure: true,
+          controllerJoinUrl: "http://localhost:4510/controller?room=ROOM1",
+        },
+        {},
+      );
     },
   );
 });

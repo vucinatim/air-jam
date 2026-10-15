@@ -41,9 +41,19 @@ export const computeGameSnapshotObservation = ({
 }): {
   snapshotAfterStatus:
     | "committed-update-observed"
-    | "no-new-commit-before-timeout";
+    | "no-new-commit-before-timeout"
+    | "contract_changed"
+    | "runtime_replaced";
   observedStateChange: boolean;
 } => {
+  const replaced =
+    snapshotBefore.runtimeId !== snapshotAfter.runtimeId
+      ? "runtime_replaced"
+      : snapshotBefore.contractId !== snapshotAfter.contractId
+        ? "contract_changed"
+        : null;
+  if (replaced)
+    return { snapshotAfterStatus: replaced, observedStateChange: false };
   const fingerprintBefore = stableStoreSnapshotFingerprint(snapshotBefore);
   const fingerprintAfter = stableStoreSnapshotFingerprint(snapshotAfter);
   const dataFingerprintBefore =

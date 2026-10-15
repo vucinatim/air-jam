@@ -27,7 +27,11 @@ import {
   controllerStateSchema,
   playerProfileSchema,
 } from "@air-jam/sdk/protocol";
-import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
+import type {
+  HostAgentRequest,
+  HostAgentResponse,
+  HostRuntimeActionRequest,
+} from "@air-jam/sdk/runtime-control";
 import type { HostRuntimeInspectionContract } from "@air-jam/sdk/runtime-inspection";
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
@@ -45,6 +49,7 @@ import {
   AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
   isRuntimeOwnerActionResult,
   isRuntimeOwnerCaptureResult,
+  runtimeOwnerAgentResultSchema,
   runtimeOwnerCaptureReadSchema,
   type AirJamRuntimeOwnerCaptureResult,
 } from "./runtime-owner-protocol.js";
@@ -1274,6 +1279,7 @@ export const invokeControllerAction = async ({
   actionName,
   storeDomain,
   payload,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 }: InvokeControllerActionOptions): Promise<InvokeControllerActionResult> => {
   const session = getRequiredSession(controllerSessionId);
   if (!session.summary.connected) {
@@ -1291,7 +1297,7 @@ export const invokeControllerAction = async ({
       payload: normalizedPayload,
       storeDomain,
     },
-    timeoutMs: DEFAULT_TIMEOUT_MS,
+    timeoutMs,
   });
 
   return {
@@ -1443,3 +1449,87 @@ export const disconnectController = async ({
     session: buildSessionSummary(session),
   };
 };
+
+export async function requestControllerHostAgent(
+  controllerSessionId: string,
+  request: HostAgentRequest,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<HostAgentResponse> {
+  const owner = getRequiredSession(controllerSessionId).isolatedRuntimeOwner;
+  if (!owner || !ownsControllerSessionHost(controllerSessionId))
+    throw new Error(
+      "contract_runtime_not_owned: Semantic testing requires an owned host. Open a game session without an explicit room or join URL.",
+    );
+  return new Promise((resolve, reject) => {
+    const requestId = randomUUID();
+    let settled = false;
+    const finish = (error?: Error, result?: HostAgentResponse) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      owner.off("message", onMessage);
+      owner.off("error", onError);
+      owner.off("exit", onExit);
+      owner.off("disconnect", onExit);
+      signal?.removeEventListener("abort", onAbort);
+      if (error) reject(error);
+      else if (result) resolve(result);
+    };
+    const onMessage = (message: unknown) => {
+      if (
+        !message ||
+        typeof message !== "object" ||
+        !("type" in message) ||
+        message.type !== "air-jam-runtime-owner.agent-result/v1" ||
+        !("requestId" in message) ||
+        message.requestId !== requestId
+      )
+        return;
+      const parsed = runtimeOwnerAgentResultSchema.safeParse(message);
+      if (!parsed.success) {
+        finish(
+          new Error(
+            "invalid_runtime_response: Owned host returned an invalid agent response.",
+          ),
+        );
+        return;
+      }
+      if (parsed.data.ok) finish(undefined, parsed.data.result);
+      else finish(new Error(parsed.data.error));
+    };
+    const onError = (error: Error) => finish(error);
+    const onExit = () =>
+      finish(
+        new Error("runtime_disconnected: Owned host exited during evaluation."),
+      );
+    const onAbort = () =>
+      finish(new Error("session_closed: Evaluation was cancelled."));
+    const timer = setTimeout(
+      () =>
+        finish(
+          new Error("evaluation_timeout: Owned game evaluation timed out."),
+        ),
+      timeoutMs,
+    );
+    owner.on("message", onMessage);
+    owner.once("error", onError);
+    owner.once("exit", onExit);
+    owner.once("disconnect", onExit);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    try {
+      owner.send(
+        { type: "air-jam-runtime-owner.agent/v1", requestId, request },
+        (error) => {
+          if (error) onError(error);
+        },
+      );
+    } catch (error) {
+      onError(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}

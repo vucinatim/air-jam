@@ -163,19 +163,17 @@ export const openSession = async ({
 export const readSession = async ({
   dir,
   gameSessionId,
-  requestSync = true,
   timeoutMs,
 }: {
   dir?: string;
   gameSessionId: string;
-  requestSync?: boolean;
   timeoutMs?: number;
 }): Promise<unknown> =>
   request({
     dir,
     operation: {
       operation: "read",
-      input: { gameSessionId, requestSync, timeoutMs },
+      input: { gameSessionId, timeoutMs },
     },
   });
 
