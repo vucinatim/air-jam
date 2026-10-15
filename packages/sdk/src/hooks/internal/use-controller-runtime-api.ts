@@ -322,7 +322,7 @@ export const useControllerRuntimeApi = (
 
     const applyLocalLeaveState = () => {
       if (parsedRoomId) {
-        clearControllerRoomBinding(parsedRoomId);
+        clearControllerRoomBinding(parsedRoomId, activeControllerId);
       }
       const latestState = store.getState();
       latestState.removePlayer(activeControllerId);
@@ -524,7 +524,7 @@ export const useControllerRuntimeApi = (
       const resumeBinding =
         resumeBindingRef.current?.roomId === parsedRoomId
           ? resumeBindingRef.current.binding
-          : readControllerRoomBinding(parsedRoomId);
+          : readControllerRoomBinding(parsedRoomId, controllerId);
       const payload = controllerJoinSchema.parse({
         roomId: parsedRoomId,
         controllerId,

@@ -83,7 +83,80 @@ describe("controller identity helpers", () => {
       JSON.parse(storage.getItem("airjam_controller_room_bindings")!),
     ).toEqual({
       NEW: { controllerId: "ctrl_new", resumeCapabilityToken: "new-proof" },
+      "NEW/ctrl_new": {
+        controllerId: "ctrl_new",
+        resumeCapabilityToken: "new-proof",
+      },
     });
+  });
+
+  it("retains each phone's authority when multiple controllers share a room", () => {
+    const first = {
+      controllerId: "ctrl_first",
+      resumeCapabilityToken: "first-proof",
+    };
+    const second = {
+      controllerId: "ctrl_second",
+      resumeCapabilityToken: "second-proof",
+    };
+    writeControllerRoomBindingToStorage(storage, "ROOM", first);
+    writeControllerRoomBindingToStorage(storage, "ROOM", second);
+    expect(
+      readControllerRoomBindingFromStorage(storage, "room", first.controllerId),
+    ).toEqual(first);
+    expect(
+      readControllerRoomBindingFromStorage(
+        storage,
+        "ROOM",
+        second.controllerId,
+      ),
+    ).toEqual(second);
+    expect(readControllerRoomBindingFromStorage(storage, "ROOM")).toEqual(
+      second,
+    );
+    expect(
+      readControllerRoomBindingFromStorage(storage, "ROOM", "ctrl_unknown"),
+    ).toBeNull();
+    clearControllerRoomBindingFromStorage(storage, "room", first.controllerId);
+    expect(
+      readControllerRoomBindingFromStorage(storage, "ROOM", first.controllerId),
+    ).toBeNull();
+    expect(
+      readControllerRoomBindingFromStorage(
+        storage,
+        "ROOM",
+        second.controllerId,
+      ),
+    ).toEqual(second);
+    clearControllerRoomBindingFromStorage(storage, "room");
+    expect(
+      readControllerRoomBindingFromStorage(
+        storage,
+        "ROOM",
+        second.controllerId,
+      ),
+    ).toBeNull();
+  });
+
+  it("can resume an existing room binding only for its matching controller", () => {
+    const binding = {
+      controllerId: "ctrl_existing",
+      resumeCapabilityToken: "existing-proof",
+    };
+    storage.setItem(
+      "airjam_controller_room_bindings",
+      JSON.stringify({ ROOM: binding }),
+    );
+    expect(
+      readControllerRoomBindingFromStorage(
+        storage,
+        "room",
+        binding.controllerId,
+      ),
+    ).toEqual(binding);
+    expect(
+      readControllerRoomBindingFromStorage(storage, "room", "ctrl_other"),
+    ).toBeNull();
   });
 
   it("does not fail joining when storage reads or writes are denied", () => {

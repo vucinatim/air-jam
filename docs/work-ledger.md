@@ -8,6 +8,16 @@ Earlier whole-product history remains preserved in the private product ledger
 and this repository's Git history. Its local pre-separation snapshot is also
 retained in the ignored migration recovery archive.
 
+## 2026-10-15 Preview phone recovery identities
+
+Multiple preview phones in one room previously overwrote a single stored resume
+binding. Retain each controller's authority and narrow resume/leave by controller
+identity. Ordinary phone selection continues to use the last room binding, and
+previously stored bindings remain usable. This supports the private Studio's
+same-origin phone window without weakening server resume authority. Focused
+regressions cover independent resume, selective leave, unknown identities and
+existing storage.
+
 ## 2026-10-15 Controller-only guest ingress
 
 Added an optional gateway key and room scope to the existing public realtime

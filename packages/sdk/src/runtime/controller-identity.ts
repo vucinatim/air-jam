@@ -109,17 +109,25 @@ const writeRoomBindings = (
 
 export const readControllerRoomBinding = (
   roomId: string,
+  controllerId?: string,
 ): ControllerRoomBinding | null => {
-  return readControllerRoomBindingFromStorage(getLocalStorage(), roomId);
+  return readControllerRoomBindingFromStorage(
+    getLocalStorage(),
+    roomId,
+    controllerId,
+  );
 };
 
 export const readControllerRoomBindingFromStorage = (
   storage: Storage | null,
   roomId: string,
+  controllerId?: string,
 ): ControllerRoomBinding | null => {
   const bindings = readRoomBindings(storage);
-  const binding = bindings[roomId.toUpperCase()];
-  return binding ?? null;
+  const room = roomId.toUpperCase();
+  if (!controllerId) return bindings[room] ?? null;
+  const binding = bindings[`${room}/${controllerId}`] ?? bindings[room];
+  return binding?.controllerId === controllerId ? binding : null;
 };
 
 export const writeControllerRoomBinding = (
@@ -138,23 +146,34 @@ export const writeControllerRoomBindingToStorage = (
     return;
   }
   const bindings = readRoomBindings(storage);
-  bindings[roomId.toUpperCase()] = binding;
+  const room = roomId.toUpperCase();
+  bindings[room] = binding;
+  bindings[`${room}/${binding.controllerId}`] = binding;
   writeRoomBindings(storage, bindings);
 };
 
-export const clearControllerRoomBinding = (roomId: string): void => {
-  clearControllerRoomBindingFromStorage(getLocalStorage(), roomId);
+export const clearControllerRoomBinding = (
+  roomId: string,
+  controllerId?: string,
+): void => {
+  clearControllerRoomBindingFromStorage(
+    getLocalStorage(),
+    roomId,
+    controllerId,
+  );
 };
 
 export const clearControllerRoomBindingFromStorage = (
   storage: Storage | null,
   roomId: string,
+  controllerId?: string,
 ): void => {
   const normalized = roomId.toUpperCase();
   const bindings = readRoomBindings(storage);
-  if (!(normalized in bindings)) {
-    return;
+  for (const key of Object.keys(bindings)) {
+    if (key !== normalized && !key.startsWith(`${normalized}/`)) continue;
+    if (!controllerId || bindings[key]?.controllerId === controllerId)
+      delete bindings[key];
   }
-  delete bindings[normalized];
   writeRoomBindings(storage, bindings);
 };

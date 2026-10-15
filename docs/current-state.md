@@ -3,6 +3,18 @@
 Last updated: 2026-10-15
 Status: Studio foundation continuation qualified locally; earlier separation checkpoint retained below
 
+## Multiple preview controller recovery
+
+Controller storage retains private resume authority for each controller within a
+room, alongside the ordinary last-used phone binding. Explicit preview identities
+resume only their matching binding; leaving one phone no longer clears another
+phone's authority. Existing stored bindings remain readable without changing
+server admission or exposing resume credentials through inspection. The full
+public batch passes with pinned pnpm 9.9.0; native Mac Chrome verifies the same
+player and room after moving a phone into a Studio window and reloading it.
+The private development branch consumes exact unpublished candidate
+`local-scaffold-20261015T095927Z-538456c0`; earlier candidates remain preserved.
+
 ## Live Studio guest foundation
 
 The server now exposes optional controller-only gateway admission, with a
