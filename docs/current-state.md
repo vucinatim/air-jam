@@ -12,8 +12,12 @@ source through synchronous helpers for each action. Explicit room attachments
 retain participant transport but require an owned test host for semantics.
 Static source inspection is separate, asynchronous and bounded. Unreleased
 removals and identity/failure rules are recorded in the
-[session contract](./contracts/agent-session-contract.md). Qualification is in
-progress in the paired private workspace; this is not an npm release.
+[session contract](./contracts/agent-session-contract.md). The full private
+creator lifecycle passes under one CPU / three GiB, including actual hot reload,
+replacement during projection, source/chat/history recovery, repeated Mac Chrome
+restart and public guest interaction. Exact unpublished candidate
+`local-scaffold-20261015T230249Z-890b5606` passes package consumers. Public batch
+and focused SDK/devtools regressions pass; this is not an npm release.
 
 ## Multiple preview controller recovery
 

@@ -1,12 +1,30 @@
 # Air Jam Framework Work Ledger
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 Status: historical framework memory
 
 This ledger records public framework milestones after ownership separation.
 Earlier whole-product history remains preserved in the private product ledger
 and this repository's Git history. Its local pre-separation snapshot is also
 retained in the ignored migration recovery archive.
+
+## 2026-10-16 Owned live semantic evaluation
+
+The SDK owns one evaluator and live contract/store registration identities in the
+host realm. Devtools owns bounded serialized operations, one semantic observation
+pipeline and the existing private runtime-owner channel. Static source inspection
+is asynchronous and separate; local-source snapshot/action exports, helper
+operations and semantic sync options are removed. Room-only attachments retain
+participant transport but cannot impersonate owned-host semantic authority.
+
+Regressions cover serialization (including shared JSON references versus cycles),
+ownership, replacement, timeouts, close and visual-owner reuse. Exact package
+consumers, full public batch and the private constrained creator journey pass.
+Real HMR changes contract identity without restarting the runtime; replacement
+during projection is refused explicitly. Private Mac Chrome qualification covers
+source/chat/history recovery and public guest play. Representative action median
+fell from 8.19 seconds to 0.201 in the controlled local comparison. This is an
+unpublished six-package development candidate; main and npm remain unchanged.
 
 ## 2026-10-15 Preview phone recovery identities
 
