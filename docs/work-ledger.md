@@ -10,6 +10,12 @@ retained in the ignored migration recovery archive.
 
 ## 2026-10-15 Preview phone recovery identities
 
+The preview entrypoint now exposes the existing controller-close handshake for
+editor reuse. Framework preview removal and product controllers share one
+implementation; a matching source/origin acknowledgement is required to report a
+successful leave. Focused tests cover forged acknowledgements, refusal, timeout
+and unavailable frames. This is an unpublished development candidate addition.
+
 Multiple preview phones in one room previously overwrote a single stored resume
 binding. Retain each controller's authority and narrow resume/leave by controller
 identity. Ordinary phone selection continues to use the last room binding, and

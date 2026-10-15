@@ -45,3 +45,5 @@ export {
   type PreviewControllerWorkspaceProps,
 } from "./preview/workspace";
 export type { ControllerOrientation } from "./protocol/controller";
+
+export { requestPreviewControllerClose } from "./preview/messages";

@@ -20,63 +20,9 @@ import {
   type PreviewControllerResizeHandle,
 } from "./layout";
 import type { PreviewControllerSession } from "./manager";
-import {
-  AIR_JAM_PREVIEW_CLOSE_REQUEST,
-  isPreviewCloseResultMessage,
-} from "./messages";
+import { requestPreviewControllerClose } from "./messages";
 
 const PREVIEW_WINDOW_SETTINGS_SHELF_HEIGHT = 52;
-const PREVIEW_CLOSE_TIMEOUT_MS = 1_000;
-
-const requestPreviewControllerClose = async (
-  iframe: HTMLIFrameElement | null,
-  sessionUrl: string,
-): Promise<void> => {
-  const frameWindow = iframe?.contentWindow;
-  if (!frameWindow) {
-    return;
-  }
-
-  const targetOrigin = new URL(sessionUrl).origin;
-
-  await new Promise<void>((resolve) => {
-    let settled = false;
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      resolve();
-    }, PREVIEW_CLOSE_TIMEOUT_MS);
-
-    const handleMessage = (event: MessageEvent) => {
-      if (event.source !== frameWindow || event.origin !== targetOrigin) {
-        return;
-      }
-
-      if (!isPreviewCloseResultMessage(event.data)) {
-        return;
-      }
-
-      cleanup();
-      resolve();
-    };
-
-    const cleanup = () => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      window.clearTimeout(timeout);
-      window.removeEventListener("message", handleMessage);
-    };
-
-    window.addEventListener("message", handleMessage);
-    frameWindow.postMessage(
-      {
-        type: AIR_JAM_PREVIEW_CLOSE_REQUEST,
-      },
-      targetOrigin,
-    );
-  });
-};
 
 export const previewControllerWindowStateLabel: Record<
   PreviewControllerSession["surfaceState"],

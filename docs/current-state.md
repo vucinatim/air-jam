@@ -5,6 +5,11 @@ Status: Studio foundation continuation qualified locally; earlier separation che
 
 ## Multiple preview controller recovery
 
+The supported preview export also exposes `requestPreviewControllerClose` for
+editors removing a controller. It reuses the framework preview's guarded leave
+handshake and reports acknowledgement separately from timeout/refusal; moving a
+phone between surfaces keeps its recovery authority instead of leaving the room.
+
 Controller storage retains private resume authority for each controller within a
 room, alongside the ordinary last-used phone binding. Explicit preview identities
 resume only their matching binding; leaving one phone no longer clears another
@@ -13,7 +18,7 @@ server admission or exposing resume credentials through inspection. The full
 public batch passes with pinned pnpm 9.9.0; native Mac Chrome verifies the same
 player and room after moving a phone into a Studio window and reloading it.
 The private development branch consumes exact unpublished candidate
-`local-scaffold-20261015T095927Z-538456c0`; earlier candidates remain preserved.
+`local-scaffold-20261015T104553Z-03d10991`; earlier candidates remain preserved.
 
 ## Live Studio guest foundation
 
