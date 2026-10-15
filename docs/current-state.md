@@ -1,7 +1,22 @@
 # Current State
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 Status: Studio foundation continuation qualified locally; earlier separation checkpoint retained below
+
+## Live Studio guest foundation
+
+The server now exposes optional controller-only gateway admission, with a
+per-server key and enforced room scope on every polling request/upgrade. Scoped
+clients cannot bootstrap hosts or switch rooms; ordinary connections retain the
+existing standalone path. Health advertises support explicitly. The CLI accepts
+`AIR_JAM_BUILD_BASE` for immutable built-asset generations. Product invitations,
+HTTPS ingress and expiry remain private product responsibilities.
+
+Focused real Socket.IO integration tests, the full public batch and exact
+six-package candidate qualification pass. Candidate
+`local-scaffold-20261015T080805Z-3b9e8ff8` is installed by the private development
+branch. This is an unpublished branch candidate, not a replacement npm 0.9.3
+release. Main and existing saved-game dependency locks remain unchanged.
 
 ## Studio foundation continuation
 

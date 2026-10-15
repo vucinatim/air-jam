@@ -111,8 +111,13 @@ export const createAirJamViteConfig = ({
   }
 
   const build = resolveBuildConfig(profile);
+  const base = env.AIR_JAM_BUILD_BASE || "/";
+  if (!/^\/(?:[a-zA-Z0-9_-]+\/)*$/.test(base)) {
+    throw new Error("AIR_JAM_BUILD_BASE must be an absolute directory path.");
+  }
 
   return {
+    base,
     build,
     server: {
       ...createSharedDevServerConfig({ env, port }),

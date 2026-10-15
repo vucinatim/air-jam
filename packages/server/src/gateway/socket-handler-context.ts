@@ -12,6 +12,7 @@ import type { RoomManager } from "../services/room-manager.js";
 import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
 
 export interface SocketHandlerContext {
+  controllerRoomId?: string;
   io: AirJamIoServer;
   socket: AirJamSocket;
   logger: ServerLogger;

@@ -22,7 +22,10 @@ interface HarnessOptions {
 }
 
 export interface ServerTestHarness {
-  connectSocket: (options?: { origin?: string }) => Promise<GenericSocket>;
+  connectSocket: (options?: {
+    origin?: string;
+    headers?: Record<string, string>;
+  }) => Promise<GenericSocket>;
   bootstrapHost: (
     socket: GenericSocket,
     appId?: string,
@@ -108,16 +111,16 @@ export const setupServerTestHarness = (
 
   const connectSocket = async (options?: {
     origin?: string;
+    headers?: Record<string, string>;
   }): Promise<GenericSocket> => {
     const nextSocket = io(baseUrl, {
       transports: ["websocket"],
       forceNew: true,
       reconnection: false,
-      extraHeaders: options?.origin
-        ? {
-            origin: options.origin,
-          }
-        : undefined,
+      extraHeaders: {
+        ...options?.headers,
+        ...(options?.origin ? { origin: options.origin } : {}),
+      },
     });
 
     await waitForSocketConnect(nextSocket as GenericSocket);

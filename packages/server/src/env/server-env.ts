@@ -78,6 +78,7 @@ const normalizeAllowedOrigins = (
 };
 
 const rawServerEnvSchema = z.object({
+  AIR_JAM_CONTROLLER_GATEWAY_KEY: z.string().min(32).optional(),
   NODE_ENV: optionalEnvString,
   PORT: createPositiveIntegerSchema("PORT", 4000),
   AIR_JAM_RATE_LIMIT_WINDOW_MS: createPositiveIntegerSchema(
@@ -139,6 +140,9 @@ export const loadServerEnv = (
   const proxyHeaderTrustMode: ProxyHeaderTrustMode =
     parsed.AIR_JAM_TRUST_PROXY_HEADERS ?? "auto";
   return {
+    ...(parsed.AIR_JAM_CONTROLLER_GATEWAY_KEY
+      ? { controllerGatewayKey: parsed.AIR_JAM_CONTROLLER_GATEWAY_KEY }
+      : {}),
     nodeEnv,
     port: parsed.PORT,
     rateLimitWindowMs: parsed.AIR_JAM_RATE_LIMIT_WINDOW_MS,

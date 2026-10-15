@@ -12,6 +12,7 @@ test("createAirJamViteConfig default profile keeps Air Jam dev contract minimal"
   });
 
   assert.equal(config.server.host, true);
+  assert.equal(config.base, "/");
   assert.equal(config.server.allowedHosts, true);
   assert.equal(config.server.port, 5173);
   assert.deepEqual(config.server.headers, AIR_JAM_IFRAME_HEADERS);
@@ -21,6 +22,23 @@ test("createAirJamViteConfig default profile keeps Air Jam dev contract minimal"
     "http://127.0.0.1:4000",
   );
   assert.equal(config.build.chunkSizeWarningLimit, 1000);
+});
+
+test("builds can use an isolated version directory without changing dev routing", () => {
+  const config = createAirJamViteConfig({
+    env: { AIR_JAM_BUILD_BASE: "/v/revision-1/" },
+  });
+  assert.equal(config.base, "/v/revision-1/");
+  for (const base of [
+    "https://other.test/",
+    "//other.test/",
+    "/../",
+    "/v/?token=x",
+  ])
+    assert.throws(
+      () => createAirJamViteConfig({ env: { AIR_JAM_BUILD_BASE: base } }),
+      /absolute directory path/,
+    );
 });
 
 test("createAirJamViteConfig three profile keeps core runtime buckets stable", () => {

@@ -24,6 +24,7 @@ import type { SocketHandlerContext } from "./socket-handler-context.js";
 import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
 
 export interface RegisterSocketHandlersOptions {
+  controllerRoomId?: string;
   io: AirJamIoServer;
   socket: AirJamSocket;
   logger: ServerLogger;
@@ -45,6 +46,7 @@ export interface RegisterSocketHandlersOptions {
 export const registerSocketHandlers = ({
   io,
   socket,
+  controllerRoomId,
   logger,
   roomManager,
   realtimeAdmissionService,
@@ -96,6 +98,7 @@ export const registerSocketHandlers = ({
   };
 
   const context: SocketHandlerContext = {
+    controllerRoomId,
     io,
     socket,
     logger: socketLogger,
@@ -122,7 +125,7 @@ export const registerSocketHandlers = ({
     "Socket connected",
   );
 
-  registerHostLifecycleHandlers(context);
+  if (controllerRoomId === undefined) registerHostLifecycleHandlers(context);
   registerControllerHandlers(context);
   registerRealtimeHandlers(context);
   registerDisconnectHandler(context);

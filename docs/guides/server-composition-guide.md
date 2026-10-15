@@ -59,6 +59,28 @@ directly into the server options without converting values.
 This keeps adapter and runtime events in the unified local dev stream instead
 of creating disconnected logging paths.
 
+## Controller-only gateways
+
+A trusted gateway can admit controllers to one existing room without granting
+host registration. Set `AIR_JAM_CONTROLLER_GATEWAY_KEY` (at least 32 characters)
+or pass `controllerGatewayKey` to `createAirJamServer`. `/health` then reports
+`controllerIngressVersion: 1`. Without that configuration the capability is
+unavailable and ordinary standalone connections keep their existing behavior.
+
+The gateway supplies SDK protocol headers `CONTROLLER_INGRESS_KEY_HEADER`
+(`x-airjam-controller-key`) and `CONTROLLER_INGRESS_ROOM_HEADER`
+(`x-airjam-controller-room`) on every Engine.IO polling request and WebSocket
+upgrade. It must overwrite client-supplied values and keep the key private.
+Partial, forged or changing scope is denied, including attempts to reuse a
+polling session under another room. Scoped sockets can join only their bound
+room and cannot register hosts or create rooms. Existing controller capabilities,
+input authority, origin validation and rate limits still apply.
+
+The integrating product owns guest invitations, HTTPS delivery, expiry and
+connection revocation. Serve validated built controller assets rather than
+exposing a game's development server. Studio's implementation and operations
+belong to the private product repository.
+
 ## Package qualification
 
 Pack a candidate with `pnpm run repo -- pack local`. Then run:

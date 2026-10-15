@@ -75,6 +75,9 @@ export type ControllerStatePayload = z.infer<
 >["state"];
 export type ControllerRoomSettingsState = RoomPlatformSettingsSnapshot;
 
+export const CONTROLLER_INGRESS_KEY_HEADER = "x-airjam-controller-key";
+export const CONTROLLER_INGRESS_ROOM_HEADER = "x-airjam-controller-room";
+
 export const controllerJoinSchema = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(3),

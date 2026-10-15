@@ -131,6 +131,11 @@ Scaffolding code can resolve the two explicit asset roots and portable MCP
 declaration through `@air-jam/cli/scaffold`. Vite projects use
 `@air-jam/cli/vite-config`.
 
+`AIR_JAM_BUILD_BASE` optionally sets the Vite build base for immutable hosted
+artifacts, for example `/v/<generation>/`. It defaults to `/` and must be an
+absolute directory path ending in `/`. The embedding application supplies the
+matching public runtime topology; ordinary local development is unchanged.
+
 Repository-owned development orchestration can use the typed
 `@air-jam/cli/development` entrypoint for local network discovery, environment
 loading, runtime topology construction and secure-development state. It shares

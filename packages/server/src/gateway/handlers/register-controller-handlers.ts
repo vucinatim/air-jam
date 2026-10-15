@@ -238,6 +238,17 @@ export const registerControllerHandlers = (
         capabilityToken,
         resumeCapabilityToken,
       } = parsed.data;
+      if (
+        context.controllerRoomId !== undefined &&
+        context.controllerRoomId !== roomId
+      ) {
+        callback({
+          ok: false,
+          message: "This connection belongs to another playtest room.",
+          code: ErrorCode.UNAUTHORIZED,
+        });
+        return;
+      }
       const deviceId = rawDeviceId ?? controllerId;
       const session = roomManager.getRoom(roomId);
       if (!session) {

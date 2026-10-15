@@ -28,6 +28,7 @@ type AirJamViteServerConfig = {
 export declare function createAirJamViteConfig(
   options?: CreateAirJamViteConfigOptions,
 ): {
+  base: string;
   build: {
     chunkSizeWarningLimit: number;
     rollupOptions?: {

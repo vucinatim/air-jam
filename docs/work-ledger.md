@@ -1,12 +1,28 @@
 # Air Jam Framework Work Ledger
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 Status: historical framework memory
 
 This ledger records public framework milestones after ownership separation.
 Earlier whole-product history remains preserved in the private product ledger
 and this repository's Git history. Its local pre-separation snapshot is also
 retained in the ignored migration recovery archive.
+
+## 2026-10-15 Controller-only guest ingress
+
+Added an optional gateway key and room scope to the existing public realtime
+server. Engine.IO enforces scope for polling sessions and WebSocket upgrades;
+controller handlers reuse the normal protocol while host lifecycle handlers are
+absent on scoped sockets. Integration tests exercise guest join, host denial,
+forged authority and polling-session scope changes. Normal standalone behavior
+and required hosted adapters remain unchanged.
+
+The public Vite helper accepts a validated build base for immutable controller
+artifacts. Full batch and fresh six-package packed consumers pass with pinned
+pnpm 9.9.0. Private development consumes exact candidate
+`local-scaffold-20261015T080805Z-3b9e8ff8`. No npm publication or main change;
+saved projects retain their explicit package archives. Guest product, browser
+acceptance, Cloudflare ingress and recovery evidence live in the private repo.
 
 ## 2026-10-14 Embedded phone presentation contract
 

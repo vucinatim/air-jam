@@ -29,6 +29,7 @@ import {
   type ServerOperationalEventPublisher,
 } from "./operations/operational-event-publisher.js";
 import { resolveCorsOrigin, type AllowedOrigins } from "./origin-policy.js";
+import { controllerIngressRoom } from "./policies/controller-ingress.js";
 import {
   AuthService,
   type HostBootstrapAuthService,
@@ -64,6 +65,7 @@ const projectPublicRealtimeAdmissionStatus = (
 });
 
 export interface CreateAirJamServerOptions extends ServerLoggingOptions {
+  controllerGatewayKey?: string;
   port?: number;
   rateLimitWindowMs?: number;
   hostRegistrationRateLimitMax?: number;
@@ -104,6 +106,12 @@ export const createAirJamServer = (
   options: CreateAirJamServerOptions = {},
 ): AirJamServerRuntime => {
   const envConfig = options.envConfig ?? loadServerEnv();
+  const controllerGatewayKey =
+    options.controllerGatewayKey ?? envConfig.controllerGatewayKey;
+  if (controllerGatewayKey !== undefined && controllerGatewayKey.length < 32)
+    throw new Error(
+      "Controller gateway keys must contain at least 32 characters.",
+    );
   let activePort: number | null = null;
   let admissionStarted = false;
   let stopPromise: Promise<void> | null = null;
@@ -185,6 +193,7 @@ export const createAirJamServer = (
       realtimeAdmissionService.getStatus(),
     );
     res.json({
+      controllerIngressVersion: controllerGatewayKey ? 1 : null,
       ok: true,
       uptime: Math.floor(process.uptime()),
       rooms: rooms.size,
@@ -295,10 +304,60 @@ export const createAirJamServer = (
     pingTimeout: 45_000,
   });
 
+  const transportRooms = new Map<string, string | undefined>();
+  io.engine.use(
+    (
+      request: import("node:http").IncomingMessage,
+      _response: unknown,
+      next: (error?: Error) => void,
+    ) => {
+      try {
+        const room = controllerIngressRoom(
+          request.headers,
+          controllerGatewayKey,
+        );
+        const sessionId = new URL(
+          request.url ?? "/",
+          "http://server",
+        ).searchParams.get("sid");
+        if (
+          sessionId &&
+          transportRooms.has(sessionId) &&
+          transportRooms.get(sessionId) !== room
+        )
+          throw new Error("Controller admission changed.");
+        next();
+      } catch {
+        next(new Error("Controller admission denied."));
+      }
+    },
+  );
+  io.engine.on("connection", (transport) => {
+    transportRooms.set(
+      transport.id,
+      controllerIngressRoom(transport.request.headers, controllerGatewayKey),
+    );
+    transport.on("close", () => transportRooms.delete(transport.id));
+  });
+  const controllerRooms = new WeakMap<object, string>();
+  io.use((socket, next) => {
+    try {
+      const room = controllerIngressRoom(
+        socket.handshake.headers,
+        controllerGatewayKey,
+      );
+      if (room) controllerRooms.set(socket, room);
+      next();
+    } catch {
+      next(new Error("Controller admission denied."));
+    }
+  });
+
   io.on("connection", (socket) => {
     registerSocketHandlers({
       io,
       socket,
+      controllerRoomId: controllerRooms.get(socket),
       logger,
       roomManager: roomManagerInstance,
       realtimeAdmissionService,
