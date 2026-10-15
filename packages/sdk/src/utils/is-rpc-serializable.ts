@@ -33,24 +33,16 @@ export const isRpcSerializable = (
   }
   seen.add(objectValue);
 
-  if (objectValue instanceof Date) {
-    return true;
+  try {
+    if (objectValue instanceof Date) return true;
+    if (Array.isArray(objectValue))
+      return objectValue.every((entry) => isRpcSerializable(entry, seen));
+    const prototype = Object.getPrototypeOf(objectValue);
+    if (prototype !== Object.prototype && prototype !== null) return false;
+    return Object.values(objectValue as Record<string, unknown>).every(
+      (entry) => isRpcSerializable(entry, seen),
+    );
+  } finally {
+    seen.delete(objectValue);
   }
-
-  if (Array.isArray(objectValue)) {
-    return objectValue.every((entry) => isRpcSerializable(entry, seen));
-  }
-
-  const prototype = Object.getPrototypeOf(objectValue);
-  if (prototype !== Object.prototype && prototype !== null) {
-    return false;
-  }
-
-  for (const entry of Object.values(objectValue as Record<string, unknown>)) {
-    if (!isRpcSerializable(entry, seen)) {
-      return false;
-    }
-  }
-
-  return true;
 };

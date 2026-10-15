@@ -887,6 +887,17 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       socket.on("airjam:state_sync_request", handleStateSyncRequest);
       socket.on("airjam:action_rpc", handleAction);
 
+      const canUseHostControl = () => {
+        const runtime = runtimeSnapshotRef.current;
+        return (
+          runtime.role === "host" &&
+          runtime.roomId === roomId &&
+          runtime.resolvedStoreDomain === resolvedStoreDomain &&
+          runtime.socket === socket &&
+          runtime.canBroadcastHostState
+        );
+      };
+
       const unregisterControl =
         typeof window === "undefined"
           ? undefined
@@ -896,13 +907,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
               stateEpoch,
               contractStoreDomain: options?.storeDomain?.trim() || "default",
               read: () => {
-                const runtime = runtimeSnapshotRef.current;
-                if (
-                  runtime.role !== "host" ||
-                  runtime.roomId !== roomId ||
-                  runtime.socket !== socket ||
-                  !runtime.canBroadcastHostState
-                )
+                if (!canUseHostControl())
                   throw new Error("host_runtime_not_ready");
                 return {
                   data: stripActionsFromState(store.getState()),
@@ -910,14 +915,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
                 };
               },
               invoke: async ({ actionName, payload }) => {
-                const runtime = runtimeSnapshotRef.current;
-                if (
-                  runtime.role !== "host" ||
-                  runtime.roomId !== roomId ||
-                  runtime.resolvedStoreDomain !== resolvedStoreDomain ||
-                  runtime.socket !== socket ||
-                  !runtime.canBroadcastHostState
-                ) {
+                if (!canUseHostControl()) {
                   return createClientRejectedActionResult(
                     "host_runtime_not_ready",
                     "The owning host runtime is not ready for actions.",
