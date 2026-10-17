@@ -24,26 +24,43 @@ import type {
   SignalPayload,
 } from "@air-jam/sdk/protocol";
 import {
+  controllerLeasedControlAckSchema,
+  controllerLeasedControlSchema,
   controllerStateSchema,
   playerProfileSchema,
+  type ControllerLeasedControl,
+  type ControllerLeasedControlAck,
 } from "@air-jam/sdk/protocol";
 import type {
   HostAgentRequest,
   HostAgentResponse,
   HostRuntimeActionRequest,
 } from "@air-jam/sdk/runtime-control";
-import type { HostRuntimeInspectionContract } from "@air-jam/sdk/runtime-inspection";
+import {
+  AIR_JAM_RUNTIME_INSPECTION_KEY,
+  readRuntimeInspectionContract,
+  type HostRuntimeInspectionContract,
+} from "@air-jam/sdk/runtime-inspection";
+import { parseRuntimeTopologyFromSearchParams } from "@air-jam/sdk/runtime-topology";
 import type { ChildProcess } from "node:child_process";
-import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { io, type Socket } from "socket.io-client";
+import { z } from "zod";
 import { detectProjectContext } from "./context.js";
 import { getTopology } from "./dev.js";
+import type { PinnedGameBuild } from "./game-build-protocol.js";
+import type { GameSurfaceWatchEvent } from "./game-run-watch.js";
 import { inspectGame } from "./games.js";
 import {
   resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
+  resolveProjectDevtoolsHelperScript,
 } from "./helper-scripts.js";
+import {
+  closeScopedProcess,
+  spawnScopedProcess,
+  type ProcessScopeObserver,
+} from "./managed-process-scope.js";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
@@ -51,6 +68,7 @@ import {
   isRuntimeOwnerCaptureResult,
   runtimeOwnerAgentResultSchema,
   runtimeOwnerCaptureReadSchema,
+  runtimeOwnerWatchEventSchema,
   type AirJamRuntimeOwnerCaptureResult,
 } from "./runtime-owner-protocol.js";
 import type {
@@ -108,6 +126,9 @@ type InternalControllerSession = {
   lastError: JsonObject | null;
   isolatedRuntimeOwner: ChildProcess | null;
   resumeCapabilityToken: string | null;
+  participantLeaseId: string | null;
+  participantLastCommand: ControllerLeasedControl | null;
+  participantControlPending: boolean;
 };
 
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -375,38 +396,7 @@ const parseJoinControllerId = (joinUrl: URL): string | null =>
   joinUrl.searchParams.get("aj_controller_id")?.trim() ||
   null;
 
-const parseHelperJson = <T>(output: string): T => {
-  const startIndex = output.indexOf("{");
-  const endIndex = output.lastIndexOf("}");
-  if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
-    throw new Error(`Expected JSON helper output but received:\n${output}`);
-  }
-
-  return JSON.parse(output.slice(startIndex, endIndex + 1)) as T;
-};
-
-const terminateIsolatedRuntimeOwner = async (
-  process: ChildProcess | null,
-): Promise<void> => {
-  if (!process || process.killed || process.exitCode !== null) {
-    return;
-  }
-
-  await new Promise<void>((resolve) => {
-    const onExit = () => {
-      process.off("exit", onExit);
-      resolve();
-    };
-
-    process.once("exit", onExit);
-    process.kill("SIGTERM");
-
-    setTimeout(() => {
-      process.off("exit", onExit);
-      resolve();
-    }, 1_000).unref();
-  });
-};
+const terminateIsolatedRuntimeOwner = closeScopedProcess;
 
 const resolveSocketOriginFromTopology = async (
   options: GetTopologyOptions,
@@ -486,8 +476,12 @@ const startIsolatedRuntimeOwner = async ({
   mode,
   secure,
   timeoutMs,
+  build,
+  onScope,
 }: {
   cwd: string;
+  onScope?: ProcessScopeObserver;
+  build?: PinnedGameBuild;
   gameId?: string;
   mode: NonNullable<ConnectControllerOptions["mode"]>;
   secure: boolean;
@@ -498,52 +492,53 @@ const startIsolatedRuntimeOwner = async ({
   controllerJoinUrl: string | null;
   inspection: HostRuntimeInspectionContract | null;
 }> => {
-  const topology = await getTopology({
-    cwd,
-    gameId,
-    mode,
-    secure,
-  });
+  const topology = build
+    ? null
+    : await getTopology({
+        cwd,
+        gameId,
+        mode,
+        secure,
+      });
 
-  const appOrigin = topology.urls.appOrigin;
-  const hostUrl = topology.urls.hostUrl;
-  const controllerBaseUrl = topology.urls.controllerBaseUrl;
-  const publicHost = topology.urls.publicHost;
-  if (!appOrigin || !hostUrl || !controllerBaseUrl || !publicHost) {
+  const appOrigin = topology?.urls.appOrigin;
+  const hostUrl = topology?.urls.hostUrl;
+  const controllerBaseUrl = topology?.urls.controllerBaseUrl;
+  const publicHost = topology?.urls.publicHost;
+  if (!build && (!appOrigin || !hostUrl || !controllerBaseUrl || !publicHost)) {
     throw new Error(
       "Unable to start an isolated runtime owner because the resolved topology is incomplete.",
     );
   }
 
-  const helperFile = resolveDevtoolsHelperScript("hold-runtime-host.ts");
+  const helperFile = build
+    ? resolveProjectDevtoolsHelperScript(build.rootDir, "hold-runtime-host.ts")
+    : resolveDevtoolsHelperScript("hold-runtime-host.ts");
   const args = [
     ...resolveDevtoolsHelperArgs(helperFile),
-    "--app-origin",
-    appOrigin,
-    "--host-url",
-    hostUrl,
-    "--controller-base-url",
-    controllerBaseUrl,
-    "--public-host",
-    publicHost,
     "--mode",
     mode,
     "--timeout-ms",
     String(timeoutMs),
   ];
-  if (topology.urls.localBuildUrl) {
-    args.push("--local-build-url", topology.urls.localBuildUrl);
+  if (build) args.push("--pinned-build", build.manifestPath);
+  else {
+    for (const [flag, value] of [
+      ["--app-origin", appOrigin],
+      ["--host-url", hostUrl],
+      ["--controller-base-url", controllerBaseUrl],
+      ["--public-host", publicHost],
+      ["--local-build-url", topology?.urls.localBuildUrl],
+      ["--browser-build-url", topology?.urls.browserBuildUrl],
+    ] as const)
+      if (value) args.push(flag, value);
   }
-  if (topology.urls.browserBuildUrl) {
-    args.push("--browser-build-url", topology.urls.browserBuildUrl);
-  }
-  const helperProcess = spawn(process.execPath, args, {
+  const helperProcess = await spawnScopedProcess(args, {
     cwd,
-    stdio: ["ignore", "pipe", "pipe", "ipc"],
+    onScope,
   });
 
   return await new Promise((resolve, reject) => {
-    let stdoutBuffer = "";
     let stderrBuffer = "";
     let settled = false;
     const timeout = setTimeout(() => {
@@ -564,39 +559,50 @@ const startIsolatedRuntimeOwner = async ({
 
     const cleanup = () => {
       clearTimeout(timeout);
-      helperProcess.stdout?.off("data", onStdout);
+      helperProcess.off("message", onReady);
       helperProcess.stderr?.off("data", onStderr);
       helperProcess.off("exit", onExit);
       helperProcess.off("error", onError);
     };
 
-    const maybeResolve = () => {
-      try {
-        const payload = parseHelperJson<{
-          roomId: string | null;
-          controllerJoinUrl: string | null;
-          inspection: HostRuntimeInspectionContract | null;
-        }>(stdoutBuffer);
-        settled = true;
+    const onReady = (message: unknown) => {
+      const result = z
+        .object({
+          type: z.literal("air-jam-runtime-owner.ready/v1"),
+          roomId: z.string().nullable(),
+          controllerJoinUrl: z.string().nullable(),
+          inspection: z.unknown(),
+        })
+        .safeParse(message);
+      if (!result.success) return;
+      const inspection = readRuntimeInspectionContract({
+        [AIR_JAM_RUNTIME_INSPECTION_KEY]: result.data.inspection,
+      });
+      if (inspection?.role !== "host") {
         cleanup();
-        resolve({
-          process: helperProcess,
-          roomId: payload.roomId,
-          controllerJoinUrl: payload.controllerJoinUrl,
-          inspection: payload.inspection,
-        });
-      } catch {
-        // Wait for the full JSON payload.
+        void terminateIsolatedRuntimeOwner(helperProcess).then(
+          () =>
+            reject(
+              new Error(
+                "Isolated runtime owner returned an invalid host inspection.",
+              ),
+            ),
+          reject,
+        );
+        return;
       }
-    };
-
-    const onStdout = (chunk: Buffer | string) => {
-      stdoutBuffer += chunk.toString();
-      maybeResolve();
+      settled = true;
+      cleanup();
+      resolve({
+        process: helperProcess,
+        roomId: result.data.roomId,
+        controllerJoinUrl: result.data.controllerJoinUrl,
+        inspection,
+      });
     };
 
     const onStderr = (chunk: Buffer | string) => {
-      stderrBuffer += chunk.toString();
+      stderrBuffer = (stderrBuffer + chunk.toString()).slice(-262144);
     };
 
     const onError = (error: Error) => {
@@ -625,12 +631,89 @@ const startIsolatedRuntimeOwner = async ({
       );
     };
 
-    helperProcess.stdout?.on("data", onStdout);
+    helperProcess.stdout?.resume();
+    helperProcess.on("message", onReady);
     helperProcess.stderr?.on("data", onStderr);
     helperProcess.once("error", onError);
     helperProcess.once("exit", onExit);
   });
 };
+
+function relayControllerObservation(
+  session: InternalControllerSession,
+  owner: ChildProcess,
+  requestId: string,
+  onError: (error: Error) => void,
+) {
+  const snapshot = controllerBridgeSnapshotSchema.parse({
+    harnessSessionId: session.summary.controllerSessionId,
+    roomId: session.summary.roomId,
+    controllerId: session.summary.controllerId,
+    connected: session.summary.connected,
+    socketId: session.socket.id,
+    player: playerProfileSchema.parse(
+      session.players.find(
+        (player) => player.id === session.summary.controllerId,
+      ),
+    ),
+    players: session.players.map((player) => playerProfileSchema.parse(player)),
+    state: controllerStateSchema.shape.state.parse(session.controllerState),
+  });
+  const allowedEvents = new Set<string>(controllerBridgeServerEvents);
+  const forwardEvent = (event: string, ...args: unknown[]) => {
+    if (allowedEvents.has(event))
+      owner.send(
+        {
+          type: "air-jam-runtime-owner.capture-event/v1",
+          requestId,
+          event,
+          args,
+        },
+        (error) => {
+          if (error) onError(error);
+        },
+      );
+  };
+  const readRequest = (message: unknown) => {
+    const read = runtimeOwnerCaptureReadSchema.safeParse(message);
+    if (!read.success || read.data.captureRequestId !== requestId) return;
+    if (read.data.payload.roomId !== session.summary.roomId) {
+      onError(new Error("Observation read belongs to another room."));
+      return;
+    }
+    const store = session.storeSnapshots.get(read.data.payload.storeDomain);
+    if (!store) {
+      onError(
+        new Error(
+          `Observation state is not available for ${read.data.payload.storeDomain}.`,
+        ),
+      );
+      return;
+    }
+    forwardEvent("airjam:state_sync", {
+      roomId: session.summary.roomId,
+      storeDomain: store.storeDomain,
+      requestId: read.data.payload.requestId,
+      revision: store.revision,
+      data: store.data,
+    });
+  };
+  session.socket.onAny(forwardEvent);
+  owner.on("message", readRequest);
+  return {
+    snapshot,
+    stores: Array.from(session.storeSnapshots.values(), (store) => ({
+      roomId: session.summary.roomId,
+      storeDomain: store.storeDomain,
+      data: store.data,
+      revision: store.revision,
+    })),
+    close() {
+      session.socket.offAny(forwardEvent);
+      owner.off("message", readRequest);
+    },
+  };
+}
 
 export const captureControllerSessionVisuals = async ({
   controllerSessionId,
@@ -654,31 +737,6 @@ export const captureControllerSessionVisuals = async ({
   }
 
   const requestId = randomUUID();
-  const snapshot = controllerBridgeSnapshotSchema.parse({
-    harnessSessionId: controllerSessionId,
-    roomId: session.summary.roomId,
-    controllerId: session.summary.controllerId,
-    connected: session.summary.connected,
-    socketId: session.socket.id,
-    player: playerProfileSchema.parse(
-      session.players.find(
-        (player) => player.id === session.summary.controllerId,
-      ),
-    ),
-    players: session.players.map((player) => playerProfileSchema.parse(player)),
-    state: controllerStateSchema.shape.state.parse(session.controllerState),
-  });
-  const allowedEvents = new Set<string>(controllerBridgeServerEvents);
-  const forwardEvent = (event: string, ...args: unknown[]) => {
-    if (allowedEvents.has(event))
-      owner.send({
-        type: "air-jam-runtime-owner.capture-event/v1",
-        requestId,
-        event,
-        args,
-      });
-  };
-  session.socket.onAny(forwardEvent);
   const result = await new Promise<AirJamRuntimeOwnerCaptureResult>(
     (resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -687,26 +745,13 @@ export const captureControllerSessionVisuals = async ({
       }, timeoutMs);
       const cleanup = () => {
         clearTimeout(timeout);
-        session.socket.offAny(forwardEvent);
+        relay.close();
         session.socket.off("disconnect", onDisconnect);
         owner.off("message", onMessage);
         owner.off("error", onError);
         owner.off("exit", onExit);
       };
       const onMessage = (message: unknown) => {
-        const read = runtimeOwnerCaptureReadSchema.safeParse(message);
-        if (read.success && read.data.captureRequestId === requestId) {
-          if (read.data.payload.roomId !== session.summary.roomId) {
-            cleanup();
-            reject(new Error("Capture read belongs to another room."));
-            return;
-          }
-          session.socket.emit(
-            "controller:state_sync_request",
-            read.data.payload,
-          );
-          return;
-        }
         if (
           !isRuntimeOwnerCaptureResult(message) ||
           message.requestId !== requestId
@@ -741,6 +786,12 @@ export const captureControllerSessionVisuals = async ({
         );
       };
 
+      const relay = relayControllerObservation(
+        session,
+        owner,
+        requestId,
+        onError,
+      );
       owner.on("message", onMessage);
       owner.once("error", onError);
       owner.once("exit", onExit);
@@ -750,13 +801,8 @@ export const captureControllerSessionVisuals = async ({
           type: AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
           requestId,
           relativeDir,
-          snapshot,
-          stores: Array.from(session.storeSnapshots.values(), (store) => ({
-            roomId: session.summary.roomId,
-            storeDomain: store.storeDomain,
-            data: store.data,
-            revision: store.revision,
-          })),
+          snapshot: relay.snapshot,
+          stores: relay.stores,
         },
         (error) => {
           if (error) onError(error);
@@ -1040,10 +1086,11 @@ const attachSocketListeners = (session: InternalControllerSession): void => {
     session.summary.connected = false;
     session.summary.disconnectedAt = nowIso();
     session.summary.disconnectReason = reason ?? "unknown";
-    void terminateIsolatedRuntimeOwner(session.isolatedRuntimeOwner).finally(
+    void terminateIsolatedRuntimeOwner(session.isolatedRuntimeOwner).then(
       () => {
         session.isolatedRuntimeOwner = null;
       },
+      (error) => console.error(error),
     );
     for (const waiters of session.pendingSyncWaiters.values()) {
       for (const waiter of waiters) {
@@ -1054,20 +1101,26 @@ const attachSocketListeners = (session: InternalControllerSession): void => {
   });
 };
 
-export const connectController = async ({
-  cwd = process.cwd(),
-  gameId,
-  mode = "standalone-dev",
-  secure = false,
-  roomId,
-  controllerJoinUrl,
-  controllerId,
-  deviceId,
-  nickname,
-  avatarId,
-  capabilityToken,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
-}: ConnectControllerOptions = {}): Promise<AirJamVirtualControllerSession> => {
+export const connectController = async (
+  {
+    cwd = process.cwd(),
+    gameId,
+    mode = "standalone-dev",
+    secure = false,
+    roomId,
+    controllerJoinUrl,
+    controllerId,
+    deviceId,
+    nickname,
+    avatarId,
+    capabilityToken,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  }: ConnectControllerOptions = {},
+  {
+    build,
+    onScope,
+  }: { build?: PinnedGameBuild; onScope?: ProcessScopeObserver } = {},
+): Promise<AirJamVirtualControllerSession> => {
   const context = await detectProjectContext({ cwd });
   const normalizedRequestedRoomId = roomId?.trim().toUpperCase() || undefined;
   const normalizedCapabilityToken = capabilityToken?.trim() || undefined;
@@ -1105,14 +1158,17 @@ export const connectController = async ({
       secure,
     }).catch(() => null);
     const resolvedGameId = gameId ?? topology?.gameId ?? null;
-    const resolvedSocketOrigin = controllerJoinUrl
-      ? joinUrl.origin
-      : ((await resolveSocketOriginFromTopology({
-          cwd,
-          gameId: resolvedGameId ?? undefined,
-          mode,
-          secure,
-        })) ?? joinUrl.origin);
+    const resolvedSocketOrigin =
+      parseRuntimeTopologyFromSearchParams(joinUrl.searchParams)
+        ?.socketOrigin ??
+      (controllerJoinUrl
+        ? joinUrl.origin
+        : ((await resolveSocketOriginFromTopology({
+            cwd,
+            gameId: resolvedGameId ?? undefined,
+            mode,
+            secure,
+          })) ?? joinUrl.origin));
     const resolvedCapabilityToken =
       normalizedCapabilityToken ||
       parseJoinCapabilityToken(joinUrl) ||
@@ -1132,7 +1188,9 @@ export const connectController = async ({
         gameId: resolvedGameId,
         projectMode: context.mode,
         mode,
-        topologyMode: topology?.topologyMode ?? null,
+        topologyMode: build
+          ? "self-hosted-production"
+          : (topology?.topologyMode ?? null),
         secure,
         process: topology?.process ?? null,
         roomId: resolvedRoomId,
@@ -1156,6 +1214,9 @@ export const connectController = async ({
       lastError: null,
       isolatedRuntimeOwner: ownedRuntimeProcess,
       resumeCapabilityToken: null,
+      participantLeaseId: null,
+      participantLastCommand: null,
+      participantControlPending: false,
     };
 
     attachSocketListeners(internalSession);
@@ -1206,16 +1267,17 @@ export const connectController = async ({
     }
   };
 
-  const resolvedJoinUrl =
-    controllerJoinUrl ??
-    (await resolveControllerJoinUrlFromTopology({
-      cwd,
-      gameId,
-      mode,
-      secure,
-      roomId: normalizedRequestedRoomId,
-      capabilityToken: normalizedCapabilityToken,
-    }));
+  const resolvedJoinUrl = build
+    ? null
+    : (controllerJoinUrl ??
+      (await resolveControllerJoinUrlFromTopology({
+        cwd,
+        gameId,
+        mode,
+        secure,
+        roomId: normalizedRequestedRoomId,
+        capabilityToken: normalizedCapabilityToken,
+      })));
   if (!resolvedJoinUrl) {
     if (!canUseIsolatedOwner) {
       throw new Error(
@@ -1229,6 +1291,8 @@ export const connectController = async ({
       mode,
       secure,
       timeoutMs,
+      build,
+      onScope,
     });
     if (!owner.controllerJoinUrl) {
       await terminateIsolatedRuntimeOwner(owner.process);
@@ -1260,6 +1324,10 @@ export const sendControllerInput = async ({
     );
   }
 
+  if (session.participantLeaseId)
+    throw new Error(
+      "participant_control_leased: Use the leased control path for this player.",
+    );
   const payload = { ...input };
   session.socket.emit("controller:input", {
     roomId: session.summary.roomId,
@@ -1273,6 +1341,61 @@ export const sendControllerInput = async ({
     sentAt: nowIso(),
   };
 };
+
+export async function controlControllerParticipant({
+  controllerSessionId,
+  ...input
+}: {
+  controllerSessionId: string;
+} & Omit<
+  ControllerLeasedControl,
+  "roomId" | "controllerId"
+>): Promise<ControllerLeasedControlAck> {
+  const session = getRequiredSession(controllerSessionId);
+  const request = controllerLeasedControlSchema.parse({
+    ...input,
+    roomId: session.summary.roomId,
+    controllerId: session.summary.controllerId,
+  });
+  if (!session.summary.connected)
+    return { status: "rejected", reason: "unauthorized" };
+  if (
+    session.participantLeaseId &&
+    session.participantLeaseId !== request.lease.id
+  )
+    return { status: "rejected", reason: "lease_conflict" };
+  if (session.participantControlPending)
+    return { status: "rejected", reason: "busy" };
+  session.participantLeaseId = request.lease.id;
+  session.participantControlPending = true;
+  if (
+    !session.participantLastCommand ||
+    request.lease.sequence > session.participantLastCommand.lease.sequence
+  )
+    session.participantLastCommand = request;
+  try {
+    let acknowledgement: unknown;
+    try {
+      acknowledgement = await session.socket
+        .timeout(2000)
+        .emitWithAck("controller:leasedControl", request);
+    } catch {
+      return { status: "unconfirmed", reason: "transport_ack_unavailable" };
+    }
+    const parsed = controllerLeasedControlAckSchema.safeParse(acknowledgement);
+    if (
+      !parsed.success ||
+      (parsed.data.status === "applied" &&
+        (parsed.data.leaseId !== request.lease.id ||
+          parsed.data.sequence !== request.lease.sequence ||
+          parsed.data.operation.kind !== request.operation.kind))
+    )
+      return { status: "unconfirmed", reason: "invalid_acknowledgement" };
+    return parsed.data;
+  } finally {
+    session.participantControlPending = false;
+  }
+}
 
 export const invokeControllerAction = async ({
   controllerSessionId,
@@ -1288,6 +1411,10 @@ export const invokeControllerAction = async ({
     );
   }
 
+  if (session.participantLeaseId)
+    throw new Error(
+      "participant_control_leased: Use the leased control path for this player.",
+    );
   const normalizedPayload = payload ? { ...payload } : undefined;
   const acknowledgement = await emitControllerActionWithAck({
     socket: session.socket,
@@ -1411,13 +1538,53 @@ export const readRuntimeSnapshot = async ({
   });
 };
 
+async function disposeControllerSession(session: InternalControllerSession) {
+  const owner = session.isolatedRuntimeOwner;
+  session.socket.disconnect();
+  session.summary.connected = false;
+  session.summary.disconnectedAt ??= nowIso();
+  session.summary.disconnectReason ??= "manual_disconnect";
+  await terminateIsolatedRuntimeOwner(owner);
+  session.isolatedRuntimeOwner = null;
+  virtualControllerSessions.delete(session.summary.controllerSessionId);
+}
+
+export async function forceDisconnectController({
+  controllerSessionId,
+}: DisconnectControllerOptions): Promise<DisconnectControllerResult> {
+  const session = getRequiredSession(controllerSessionId);
+  await disposeControllerSession(session);
+  return {
+    disconnected: true,
+    release: { status: "unconfirmed", reason: "runtime_unavailable" },
+    leave: {
+      status: "unconfirmed",
+      message:
+        "Forced local transport/runtime teardown; server leave was not confirmed.",
+    },
+    session: buildSessionSummary(session),
+  };
+}
+
 export const disconnectController = async ({
   controllerSessionId,
 }: DisconnectControllerOptions): Promise<DisconnectControllerResult> => {
   const session = getRequiredSession(controllerSessionId);
+  const last = session.participantLastCommand;
+  const release: DisconnectControllerResult["release"] = last
+    ? last.lease.sequence === Number.MAX_SAFE_INTEGER
+      ? { status: "rejected", reason: "invalid_request" }
+      : await controlControllerParticipant({
+          controllerSessionId,
+          expected: last.expected,
+          lease: { id: last.lease.id, sequence: last.lease.sequence + 1 },
+          operation: { kind: "release" },
+        })
+    : { status: "not-leased" };
+  let leave: DisconnectControllerResult["leave"] = { status: "not-connected" };
   if (session.summary.connected) {
     try {
-      const ack = await emitLeaveWithAck({
+      const raw = await emitLeaveWithAck({
         socket: session.socket,
         payload: {
           roomId: session.summary.roomId,
@@ -1425,27 +1592,37 @@ export const disconnectController = async ({
         },
         timeoutMs: DEFAULT_TIMEOUT_MS,
       });
-      if (!ack.ok) {
-        throw new Error(
-          ack.message ?? "Controller leave request was rejected by the server.",
-        );
-      }
-    } catch {
-      // Fall back to socket disconnect. Manual devtools teardown should not hang
-      // forever when the room is already gone or the socket is mid-teardown.
+      const parsed = z
+        .object({
+          ok: z.boolean(),
+          message: z.string().optional(),
+          code: z.string().optional(),
+        })
+        .safeParse(raw);
+      leave = parsed.success
+        ? parsed.data.ok
+          ? { status: "acknowledged" }
+          : {
+              status: "rejected",
+              message: parsed.data.message ?? "Controller leave was rejected.",
+            }
+        : {
+            status: "unconfirmed",
+            message: "Invalid controller leave acknowledgement.",
+          };
+    } catch (error) {
+      leave = {
+        status: "unconfirmed",
+        message: error instanceof Error ? error.message : String(error),
+      };
     }
   }
-  session.socket.disconnect();
-  session.summary.connected = false;
-  session.summary.disconnectedAt = session.summary.disconnectedAt ?? nowIso();
-  session.summary.disconnectReason =
-    session.summary.disconnectReason ?? "manual_disconnect";
-  await terminateIsolatedRuntimeOwner(session.isolatedRuntimeOwner);
-  session.isolatedRuntimeOwner = null;
-  virtualControllerSessions.delete(controllerSessionId);
+  await disposeControllerSession(session);
 
   return {
     disconnected: true,
+    leave,
+    release,
     session: buildSessionSummary(session),
   };
 };
@@ -1531,5 +1708,121 @@ export async function requestControllerHostAgent(
     } catch (error) {
       onError(error instanceof Error ? error : new Error(String(error)));
     }
+  });
+}
+
+export async function watchControllerSessionVisuals({
+  ownerControllerSessionId,
+  controllerSessionId,
+  onEvent,
+  signal,
+}: {
+  ownerControllerSessionId: string;
+  controllerSessionId?: string;
+  onEvent: (event: GameSurfaceWatchEvent) => void;
+  signal: AbortSignal;
+}): Promise<void> {
+  signal.throwIfAborted();
+  const session = getRequiredSession(ownerControllerSessionId);
+  const owner = session.isolatedRuntimeOwner;
+  if (!owner?.connected)
+    throw new Error("Run watch requires its owned host runtime.");
+  const target = controllerSessionId
+    ? getRequiredSession(controllerSessionId)
+    : undefined;
+  if (
+    target &&
+    (!target.summary.connected ||
+      target.summary.roomId !== session.summary.roomId)
+  )
+    throw new Error("Run watch controller is not connected to the owned room.");
+  const watchId = randomUUID();
+  await new Promise<void>((resolve, reject) => {
+    let stopping = false;
+    let failed: Error | undefined;
+    const cleanup = () => {
+      clearTimeout(timeout);
+      owner.off("message", message);
+      owner.off("error", error);
+      owner.off("exit", exit);
+      signal.removeEventListener("abort", stop);
+      relay?.close();
+    };
+    const settle = (failure?: Error) => {
+      cleanup();
+      if (failure) reject(failure);
+      else resolve();
+    };
+    let timeout = setTimeout(
+      () => error(new Error("Timed out starting the game watch.")),
+      DEFAULT_VISUAL_CAPTURE_TIMEOUT_MS,
+    );
+    const stop = () => {
+      if (stopping) return;
+      stopping = true;
+      clearTimeout(timeout);
+      timeout = setTimeout(
+        () => settle(new Error("Timed out closing the game watch.")),
+        DEFAULT_VISUAL_CAPTURE_TIMEOUT_MS,
+      );
+      owner.send(
+        { type: "air-jam-runtime-owner.watch-stop/v1", watchId },
+        (failure) => {
+          if (failure) settle(failure);
+        },
+      );
+    };
+    const error = (failure: Error) => {
+      failed ??= failure;
+      stop();
+    };
+    const exit = () =>
+      settle(new Error("Game watch owner exited before its stream closed."));
+    const message = (value: unknown) => {
+      const parsed = runtimeOwnerWatchEventSchema.safeParse(value);
+      if (!parsed.success || parsed.data.watchId !== watchId) return;
+      const event = parsed.data.event;
+      if (event.type === "closed") {
+        settle(failed);
+        return;
+      }
+      if (event.type === "error") {
+        if (stopping) {
+          settle(new Error(event.message));
+          return;
+        }
+        error(new Error(event.message));
+        return;
+      }
+      if (stopping) return;
+      if (event.type === "ready") clearTimeout(timeout);
+      try {
+        onEvent(event);
+      } catch (failure) {
+        error(failure instanceof Error ? failure : new Error(String(failure)));
+      }
+    };
+    const relay = target
+      ? relayControllerObservation(target, owner, watchId, error)
+      : undefined;
+    owner.on("message", message);
+    owner.once("error", error);
+    owner.once("exit", exit);
+    signal.addEventListener("abort", stop, { once: true });
+    if (signal.aborted) {
+      stop();
+      return;
+    }
+    owner.send(
+      {
+        type: "air-jam-runtime-owner.watch/v1",
+        watchId,
+        surface: target ? "controller" : "host",
+        ...(relay ? { snapshot: relay.snapshot, stores: relay.stores } : {}),
+      },
+      (failure) => {
+        if (failure) error(failure);
+      },
+    );
   });
 }

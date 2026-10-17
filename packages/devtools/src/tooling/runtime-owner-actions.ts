@@ -3,6 +3,7 @@ import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
   hostAgentResponseSchema,
   type HostAgentRequest,
+  type HostAgentResponse,
   type HostRuntimeActionRequest,
   type HostRuntimeControl,
 } from "@air-jam/sdk/runtime-control";
@@ -46,7 +47,7 @@ export const invokeOwnedHostAction = async (
 export async function evaluateOwnedGameContract(
   host: VisualHarnessPageSurface,
   request: HostAgentRequest,
-) {
+): Promise<HostAgentResponse> {
   const result = await host.game.locator("body").evaluate(
     async (_, { key, request }) => {
       const control = (

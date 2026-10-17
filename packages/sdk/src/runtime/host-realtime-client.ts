@@ -6,6 +6,7 @@ import {
   createHostBridgeEmitMessage,
   createHostBridgeRequestMessage,
   createHostBridgeResponseMessage,
+  hostBridgeAcknowledgedServerEvents,
   parseHostBridgeAttachMessage,
   parseHostBridgeCloseMessage,
   parseHostBridgeEventMessage,
@@ -366,15 +367,23 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
         this.connected = false;
       }
 
-      if (event === "airjam:action_rpc" && requestId && this.port) {
-        const [payload] = args as [
-          HostBridgeServerEventArgs["airjam:action_rpc"][0],
-        ];
-        this.notify(event, payload, (ack: unknown) => {
+      if (
+        hostBridgeAcknowledgedServerEvents.has(event) &&
+        requestId &&
+        this.port
+      ) {
+        const acknowledge = (ack: unknown) => {
           this.port?.postMessage(
             createHostBridgeResponseMessage(requestId, ack),
           );
-        });
+        };
+        this.notify(
+          event,
+          ...([
+            args[0],
+            acknowledge,
+          ] as HostBridgeServerEventArgs[typeof event]),
+        );
         return;
       }
 

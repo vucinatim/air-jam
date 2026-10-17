@@ -140,6 +140,35 @@ it("uses the installed devtools helpers without shipping duplicate copies", asyn
 });
 
 describe("createAirJamMcpServer", () => {
+  it("lets an embedding application own run start/stop while keeping run inspection", async () => {
+    const root = await createStandaloneGameRoot();
+    const server = await createAirJamMcpServer({
+      cwd: root,
+      externalRunControl: true,
+    });
+    const client = new Client({ name: "test-client", version: "1" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+    try {
+      const tools = (await client.listTools()).tools.map((tool) => tool.name);
+      expect(tools).not.toContain("airjam.start_game_run");
+      expect(tools).not.toContain("airjam.stop_game_run");
+      expect(tools).toEqual(
+        expect.arrayContaining([
+          "airjam.read_game_run",
+          "airjam.wait_game_run",
+          "airjam.list_game_runs",
+        ]),
+      );
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
   it("registers the core Air Jam tools", async () => {
     const server = await createAirJamMcpServer({
       cwd: path.resolve(__dirname, "../../.."),
@@ -182,9 +211,17 @@ describe("createAirJamMcpServer", () => {
       "airjam.status",
       "airjam.reset_local",
       "airjam.topology",
+      "airjam.list_game_test_profiles",
+      "airjam.start_game_run",
+      "airjam.read_game_run",
+      "airjam.wait_game_run",
+      "airjam.stop_game_run",
+      "airjam.list_game_runs",
       "airjam.open_game_session",
+      "airjam.control_game_session_participant",
       "airjam.send_game_session_input",
       "airjam.read_game_session",
+      "airjam.observe_game_session",
       "airjam.invoke_game_session_action",
       "airjam.capture_game_session_visuals",
       "airjam.close_game_session",
@@ -242,10 +279,16 @@ describe("createAirJamMcpServer", () => {
       "airjam.open_game_session",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.control_game_session_participant",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.send_game_session_input",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.read_game_session",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.observe_game_session",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.invoke_game_session_action",

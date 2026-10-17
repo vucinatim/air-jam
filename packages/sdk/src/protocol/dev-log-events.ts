@@ -171,6 +171,7 @@ export const AIRJAM_DEV_LOG_EVENTS = {
     leaveAccepted: "controller.leave.accepted",
     leaveRejected: "controller.leave.rejected",
     inputSummary: "controller.input.summary",
+    leasedControlSummary: "controller.leased_control.summary",
     inputDroppedSummary: "controller.input_dropped.summary",
     inputRejected: "controller.input.rejected",
     systemAccepted: "controller.system.accepted",

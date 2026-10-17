@@ -26,6 +26,7 @@ describe("owned browser host action control", () => {
     const first = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "first",
@@ -33,6 +34,7 @@ describe("owned browser host action control", () => {
     const replacement = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "replacement",
@@ -50,6 +52,7 @@ describe("owned browser host action control", () => {
     const rebound = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "replacement",
@@ -70,6 +73,7 @@ describe("owned browser host action control", () => {
     const close = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "fixture-epoch",
@@ -88,6 +92,7 @@ describe("owned browser host action control", () => {
     const newer = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "fixture-epoch",
@@ -106,6 +111,7 @@ describe("owned browser host action control", () => {
     const closeFirst = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "fixture-epoch",
@@ -113,6 +119,7 @@ describe("owned browser host action control", () => {
     const closeSecond = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "fixture-epoch",
@@ -134,6 +141,7 @@ describe("owned browser host action control", () => {
     const close = registerHostRuntimeActionStore(target, {
       ...request,
       invoke,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "fixture-epoch",

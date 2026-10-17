@@ -6,6 +6,22 @@ import {
   startDev,
   stopDev,
 } from "@air-jam/devtools/dev";
+import {
+  GameRunWatchWriter,
+  currentRoomAttachmentSchema,
+  parseGameRunWatchSurface,
+} from "@air-jam/devtools/game-runs";
+import {
+  cancelGameRun,
+  listGameRuns,
+  listGameTestProfiles,
+  readGameRun,
+  startGameRun,
+  stopAllGameRuns,
+  stopGameRun,
+  waitGameRun,
+  watchGameRun,
+} from "@air-jam/devtools/game-session";
 import { AIRJAM_PROJECT_MCP_FILE } from "@air-jam/devtools/mcp-config";
 import {
   AirJamPlatformApiError,
@@ -62,12 +78,12 @@ import { runMcpConfig, runMcpDoctor, runMcpInit } from "./mcp";
 import {
   captureSessionVisuals,
   closeSession,
+  controlSessionParticipant,
   invokeSessionAction,
   openSession,
   parseJsonObject,
   parseJsonValue,
   readSession,
-  runSessionBrokerProcess,
   runSessionBrokerStatus,
   runSessionBrokerStop,
   sendSessionInput,
@@ -1799,6 +1815,188 @@ const buildProgram = () => {
       "Operate persistent semantic game sessions through stable JSON contracts",
     );
 
+  const runCommand = sessionCommand
+    .command("run")
+    .description("Discover, start, inspect and stop bounded agent play runs");
+  runCommand
+    .command("profiles")
+    .option("--dir <path>", "Project directory")
+    .option("--game <id>", "Game ID in a monorepo")
+    .action(async (options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string; game?: string }>(
+        options,
+      );
+      process.stdout.write(
+        `${JSON.stringify(await listGameTestProfiles({ cwd: input.dir, gameId: input.game }), null, 2)}\n`,
+      );
+    });
+  runCommand
+    .command("start")
+    .description(
+      "Start a fresh owned test room; repeat the same run ID to retry admission",
+    )
+    .requiredOption("--run-id <uuid>", "Stable caller-generated operation UUID")
+    .requiredOption("--profile <id>", "Authored scenario ID")
+    .requiredOption("--policy <id>", "Scenario policy ID")
+    .option(
+      "--current",
+      "Join the delegated current room; receive its private attachment through stdin",
+    )
+    .option("--dir <path>", "Project directory")
+    .option("--game <id>", "Game ID in a monorepo")
+    .option(
+      "--duration-ms <ms>",
+      "Maximum lifetime including startup",
+      Number,
+      30_000,
+    )
+    .option("--steps <count>", "Maximum policy decisions", Number, 3000)
+    .option(
+      "--seed <number>",
+      "Policy random seed (does not seed game physics)",
+      Number,
+      0,
+    )
+    .action(async (options: unknown) => {
+      const input = resolveActionOptions<{
+        runId: string;
+        profile: string;
+        policy: string;
+        dir?: string;
+        game?: string;
+        durationMs: number;
+        steps: number;
+        seed: number;
+        current?: boolean;
+      }>(options);
+      let attachment;
+      if (input.current) {
+        if (process.stdin.isTTY)
+          throw new Error(
+            "Current-room play requires a private stdin attachment.",
+          );
+        const chunks: Buffer[] = [];
+        let bytes = 0;
+        for await (const chunk of process.stdin) {
+          const buffer = Buffer.from(chunk);
+          bytes += buffer.byteLength;
+          if (bytes > 16_384)
+            throw new Error(
+              "Current-room attachment exceeds its transfer allowance.",
+            );
+          chunks.push(buffer);
+        }
+        try {
+          attachment = currentRoomAttachmentSchema.parse(
+            JSON.parse(Buffer.concat(chunks).toString("utf8")),
+          );
+        } catch {
+          throw new Error("Current-room attachment failed validation.");
+        }
+      }
+      const result = await startGameRun(
+        {
+          cwd: input.dir,
+          runId: input.runId,
+          gameId: input.game,
+          target: { kind: input.current ? "current" : "owned" },
+          profileId: input.profile,
+          policyId: input.policy,
+          seed: input.seed,
+          budget: { durationMs: input.durationMs, steps: input.steps },
+        },
+        attachment,
+      );
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    });
+  for (const [name, operation] of [
+    ["read", readGameRun],
+    ["stop", stopGameRun],
+    ["cancel", cancelGameRun],
+  ] as const) {
+    runCommand
+      .command(`${name} <run-id>`)
+      .option("--dir <path>", "Project directory")
+      .action(async (runId: string, options: unknown) => {
+        const input = resolveActionOptions<{ dir?: string }>(options);
+        process.stdout.write(
+          `${JSON.stringify(await operation({ cwd: input.dir, runId }), null, 2)}\n`,
+        );
+      });
+  }
+  runCommand
+    .command("watch <run-id>")
+    .description(
+      "Stream live JPEG frames and producer heartbeats as NDJSON; disconnecting never stops the run",
+    )
+    .option("--dir <path>", "Project directory")
+    .option("--surface <surface>", "host or controller:<seat-id>", "host")
+    .action(async (runId: string, options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string; surface: string }>(
+        options,
+      );
+      const surface = parseGameRunWatchSurface(input.surface);
+      const cancellation = new AbortController();
+      const writer = new GameRunWatchWriter(process.stdout);
+      const stop = () => {
+        writer.close();
+        cancellation.abort();
+      };
+      process.once("SIGTERM", stop);
+      process.once("SIGINT", stop);
+      process.stdout.on("error", stop);
+      try {
+        await watchGameRun(
+          { cwd: input.dir, runId, surface },
+          (event) => writer.send(event),
+          cancellation.signal,
+        );
+      } catch (error) {
+        if (!cancellation.signal.aborted) throw error;
+      } finally {
+        writer.close();
+        process.off("SIGTERM", stop);
+        process.off("SIGINT", stop);
+        process.stdout.off("error", stop);
+      }
+    });
+  runCommand
+    .command("wait <run-id>")
+    .description(
+      "Wait for completion or a bounded timeout; disconnecting never stops the run",
+    )
+    .option("--dir <path>", "Project directory")
+    .option("--timeout-ms <ms>", "Wait at most 30000 ms", Number, 25_000)
+    .action(async (runId: string, options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string; timeoutMs: number }>(
+        options,
+      );
+      process.stdout.write(
+        `${JSON.stringify(await waitGameRun({ cwd: input.dir, runId, timeoutMs: input.timeoutMs }), null, 2)}\n`,
+      );
+    });
+  runCommand
+    .command("stop-all")
+    .description(
+      "Stop every active run in this project without starting an owner",
+    )
+    .option("--dir <path>", "Project directory")
+    .action(async (options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string }>(options);
+      process.stdout.write(
+        `${JSON.stringify(await stopAllGameRuns({ cwd: input.dir }), null, 2)}\n`,
+      );
+    });
+  runCommand
+    .command("list")
+    .option("--dir <path>", "Project directory")
+    .action(async (options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string }>(options);
+      process.stdout.write(
+        `${JSON.stringify(await listGameRuns({ cwd: input.dir }), null, 2)}\n`,
+      );
+    });
+
   sessionCommand
     .command("open")
     .description("Open a persistent semantic game session")
@@ -1849,6 +2047,29 @@ const buildProgram = () => {
         dir: input.dir,
         gameSessionId: sessionId,
         timeoutMs: input.timeoutMs,
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    });
+
+  sessionCommand
+    .command("control")
+    .description(
+      "Send a fenced participant operation with an explicit lease and receipt",
+    )
+    .argument("<session-id>", "Game session ID")
+    .requiredOption(
+      "--command <json>",
+      "JSON containing expected identity, lease and operation (input/action/release)",
+    )
+    .option("--dir <path>", "Project directory")
+    .action(async (sessionId: string, options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string; command: string }>(
+        options,
+      );
+      const result = await controlSessionParticipant({
+        dir: input.dir,
+        gameSessionId: sessionId,
+        command: parseJsonObject(input.command),
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     });
@@ -1959,14 +2180,6 @@ const buildProgram = () => {
     });
 
   sessionCommand.action(() => sessionCommand.outputHelp());
-
-  program
-    .command("__session-broker", { hidden: true })
-    .requiredOption("--dir <path>", "Project directory")
-    .action(async (options: unknown) => {
-      const input = resolveActionOptions<{ dir: string }>(options);
-      await runSessionBrokerProcess(input.dir);
-    });
 
   program
     .command("status")

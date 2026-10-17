@@ -171,6 +171,8 @@ describe("host join url behavior", () => {
       surfaceRole: "host",
       appOrigin: "http://human.localhost:8791",
       backendOrigin: "http://human.localhost:8791",
+      embedded: true,
+      embedParentOrigin: "http://studio.localhost:3000",
     });
     mocked.store?.getState().setRoomId("ROOM1");
     mocked.store?.getState().setRegisteredRoomId("ROOM1");
@@ -192,10 +194,17 @@ describe("host join url behavior", () => {
     const url = new URL(result.current.joinUrl);
     expect(url.searchParams.get("room")).toBe("ROOM1");
     expect(url.searchParams.get("aj_controller_cap")).toBe("retained");
-    expect(parseRuntimeTopologyFromSearchParams(url.searchParams)).toEqual({
-      ...topology,
-      surfaceRole: "controller",
-    });
+    expect(parseRuntimeTopologyFromSearchParams(url.searchParams)).toEqual(
+      resolveRuntimeTopology({
+        ...topology,
+        surfaceRole: "controller",
+        embedded: false,
+        embedParentOrigin: undefined,
+      }),
+    );
+    expect(
+      parseRuntimeTopologyFromSearchParams(url.searchParams),
+    ).not.toHaveProperty("embedParentOrigin");
   });
 
   it("shows a loading state while the QR image is being generated", () => {

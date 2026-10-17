@@ -2,15 +2,19 @@ import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
 } from "@air-jam/sdk/runtime-inspection";
-import { AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX } from "@air-jam/sdk/runtime-topology";
 import {
-  chromium,
+  AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX,
+  resolveRuntimeTopology,
+  type ResolvedAirJamRuntimeTopology,
+} from "@air-jam/sdk/runtime-topology";
+import {
   type Browser,
   type BrowserContext,
   type Frame,
   type FrameLocator,
   type Page,
 } from "playwright-core";
+import { installHarnessRuntimeTopology } from "./browser.js";
 import type {
   VisualHarnessMode,
   VisualHarnessPageSurface,
@@ -133,6 +137,20 @@ const readHostRuntimeInspection = async ({
   return inspection?.role === "host" ? inspection : null;
 };
 
+export function bindHarnessControllerUrl(
+  resolvedJoinUrl: string,
+  controllerBaseUrl: string,
+) {
+  const joinUrl = new URL(resolvedJoinUrl);
+  const controllerUrl = new URL(controllerBaseUrl);
+  joinUrl.protocol = controllerUrl.protocol;
+  joinUrl.host = controllerUrl.host;
+  for (const [key, value] of controllerUrl.searchParams)
+    if (key.startsWith(AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX))
+      joinUrl.searchParams.set(key, value);
+  return joinUrl.toString();
+}
+
 const resolveControllerJoinUrl = async ({
   hostPage,
   hostGame,
@@ -179,18 +197,13 @@ const resolveControllerJoinUrl = async ({
     );
   }
 
-  const joinUrl = new URL(resolvedJoinUrl);
-  const controllerUrl = new URL(controllerBaseUrl);
-  joinUrl.protocol = controllerUrl.protocol;
-  joinUrl.host = controllerUrl.host;
-  for (const [key, value] of controllerUrl.searchParams)
-    if (key.startsWith(AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX))
-      joinUrl.searchParams.set(key, value);
-  return joinUrl.toString();
+  return bindHarnessControllerUrl(resolvedJoinUrl, controllerBaseUrl);
 };
 
 export type OpenVisualHarnessSessionOptions = {
   browser: Browser;
+  runtimeTopology?: ResolvedAirJamRuntimeTopology;
+  onDiagnostic?: (message: string) => void;
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
   mode: VisualHarnessMode;
 };
@@ -222,6 +235,8 @@ export type OpenVisualHarnessSessionResult = {
 
 export const openVisualHarnessHostSession = async ({
   browser,
+  runtimeTopology,
+  onDiagnostic,
   urls,
   mode,
 }: OpenVisualHarnessSessionOptions): Promise<OpenVisualHarnessHostSessionResult> => {
@@ -231,7 +246,24 @@ export const openVisualHarnessHostSession = async ({
   });
 
   try {
+    if (runtimeTopology)
+      await installHarnessRuntimeTopology(hostContext, runtimeTopology);
     const hostPage = await hostContext.newPage();
+    if (onDiagnostic) {
+      hostPage.on("pageerror", (error) =>
+        onDiagnostic(`Page error: ${error.message}`),
+      );
+      hostPage.on("console", (message) => {
+        if (message.type() === "error")
+          onDiagnostic(`Browser error: ${message.text()}`);
+      });
+      hostPage.on("requestfailed", (request) => {
+        const url = new URL(request.url());
+        onDiagnostic(
+          `Request failed: ${url.origin}${url.pathname}: ${request.failure()?.errorText}`,
+        );
+      });
+    }
     await hostPage.goto(urls.hostUrl, { waitUntil: "domcontentloaded" });
     const hostGame: VisualQuerySurface = embedded
       ? await waitForFrameToLoad({
@@ -257,6 +289,7 @@ export const openVisualHarnessHostSession = async ({
 
 export const openVisualHarnessControllerSession = async ({
   browser,
+  runtimeTopology,
   urls,
   host,
 }: Omit<OpenVisualHarnessSessionOptions, "mode"> & {
@@ -267,6 +300,14 @@ export const openVisualHarnessControllerSession = async ({
   });
 
   try {
+    if (runtimeTopology)
+      await installHarnessRuntimeTopology(
+        controllerContext,
+        resolveRuntimeTopology({
+          ...runtimeTopology,
+          surfaceRole: "controller",
+        }),
+      );
     const controllerJoinUrl = await resolveControllerJoinUrl({
       hostPage: host.page,
       hostGame: host.game,
@@ -304,11 +345,15 @@ export const openVisualHarnessControllerSession = async ({
 
 export const openVisualHarnessSession = async ({
   browser,
+  runtimeTopology,
+  onDiagnostic,
   urls,
   mode,
 }: OpenVisualHarnessSessionOptions): Promise<OpenVisualHarnessSessionResult> => {
   const hostSession = await openVisualHarnessHostSession({
     browser,
+    runtimeTopology,
+    onDiagnostic,
     urls,
     mode,
   });
@@ -316,6 +361,7 @@ export const openVisualHarnessSession = async ({
   try {
     const controllerSession = await openVisualHarnessControllerSession({
       browser,
+      runtimeTopology,
       urls,
       host: hostSession.host,
     });
@@ -337,37 +383,4 @@ export const openVisualHarnessSession = async ({
   }
 };
 
-export const launchHarnessBrowser = async (): Promise<Browser> => {
-  const options = {
-    headless: true,
-    args: [
-      "--enable-webgl",
-      "--ignore-gpu-blocklist",
-      "--use-angle=swiftshader",
-    ],
-  };
-
-  if (process.env.AIRJAM_BROWSER_EXECUTABLE_PATH) {
-    return chromium.launch({
-      ...options,
-      executablePath: process.env.AIRJAM_BROWSER_EXECUTABLE_PATH,
-    });
-  }
-
-  try {
-    return await chromium.launch(options);
-  } catch (bundledBrowserError) {
-    try {
-      return await chromium.launch({ ...options, channel: "chrome" });
-    } catch (systemBrowserError) {
-      throw new Error(
-        [
-          "Air Jam could not launch a browser runtime for semantic sessions.",
-          "Install Playwright Chromium or set AIRJAM_BROWSER_EXECUTABLE_PATH to a Chromium-compatible browser.",
-          `Bundled browser: ${bundledBrowserError instanceof Error ? bundledBrowserError.message : String(bundledBrowserError)}`,
-          `System Chrome: ${systemBrowserError instanceof Error ? systemBrowserError.message : String(systemBrowserError)}`,
-        ].join("\n\n"),
-      );
-    }
-  }
-};
+export { launchHarnessBrowser } from "./browser.js";

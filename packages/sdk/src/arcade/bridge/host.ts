@@ -4,6 +4,7 @@ export {
   createHostBridgeAttachMessage,
   createHostBridgeCloseMessage,
   createHostBridgeResponseMessage,
+  hostBridgeAcknowledgedServerEvents,
   parseHostBridgeEmitMessage,
   parseHostBridgeRequestMessage,
   parseHostBridgeResponseMessage,

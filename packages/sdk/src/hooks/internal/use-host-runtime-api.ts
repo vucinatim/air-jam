@@ -38,6 +38,10 @@ import {
   hostResetRoomSchema,
   roomCodeSchema,
 } from "../../protocol";
+import {
+  controllerLeasedControlSchema,
+  type ControllerLeasedControlAck,
+} from "../../protocol/leased-control";
 import type { PlayerUpdatedNotice } from "../../protocol/notices";
 import {
   runtimeTopologyToQueryParams,
@@ -47,6 +51,12 @@ import {
   resolveAdmissionRetry,
   type AdmissionRetryDecision,
 } from "../../runtime/admission-retry";
+import {
+  applyHostRuntimeLeasedControl,
+  clearHostRuntimeParticipant,
+  hostRuntimeDocumentId,
+  registerHostRuntimeParticipantReceiver,
+} from "../../runtime/contracts/control";
 import { emitAirJamDevRuntimeEvent } from "../../runtime/dev-runtime-events";
 import { readEmbeddedHostChildSession } from "../../runtime/embedded-runtime-adapters";
 import { getHostRealtimeClient } from "../../runtime/host-realtime-client";
@@ -557,6 +567,8 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
             runtimeTopologyToQueryParams({
               ...config.topology,
               surfaceRole: "controller",
+              embedded: false,
+              embedParentOrigin: undefined,
             }),
           ))
             controllerUrl.searchParams.set(key, value);
@@ -1095,6 +1107,13 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     };
 
     const handleLeave = (payload: { controllerId: string }): void => {
+      inputManager?.clearInput(payload.controllerId);
+      if (parsedRoomIdRef.current)
+        clearHostRuntimeParticipant(
+          window,
+          parsedRoomIdRef.current,
+          payload.controllerId,
+        );
       const latestState = store.getState();
       latestState.removePlayer(payload.controllerId);
       latestState.removeControllerSession(payload.controllerId);
@@ -1276,6 +1295,67 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
     emitInvariantOnce,
     hydrateHostRoster,
   ]);
+
+  useEffect(() => {
+    if (!socket || !parsedRoomId) return;
+    const unregister = registerHostRuntimeParticipantReceiver(
+      window,
+      parsedRoomId,
+      {
+        input: inputManager ?? undefined,
+        readState: () => {
+          const state = store.getState();
+          return {
+            runtimeState: state.runtimeState,
+            connectionStatus: state.connectionStatus,
+          };
+        },
+        isParticipant: (controllerId) =>
+          store
+            .getState()
+            .controllerSessions.some(
+              (controller) =>
+                controller.controllerId === controllerId &&
+                controller.connected,
+            ),
+      },
+    );
+    const handleLeasedControl = (
+      payload: unknown,
+      acknowledge?: (ack: ControllerLeasedControlAck) => void,
+    ) => {
+      if (typeof acknowledge !== "function") return;
+      const parsed = controllerLeasedControlSchema.safeParse(payload);
+      if (!parsed.success) {
+        acknowledge({ status: "rejected", reason: "invalid_request" });
+        return;
+      }
+      if (
+        parsed.data.roomId !== parsedRoomId ||
+        parsed.data.expected.documentId !== hostRuntimeDocumentId(window)
+      )
+        return;
+      try {
+        acknowledge(applyHostRuntimeLeasedControl(window, parsed.data));
+      } catch (error) {
+        acknowledge({ status: "unconfirmed", reason: "runtime_unavailable" });
+        emitAirJamDiagnostic({
+          code: "AJ_PARTICIPANT_CONTROL_RUNTIME_UNAVAILABLE",
+          severity: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Participant control runtime is unavailable.",
+          details: { roomId: parsedRoomId },
+        });
+      }
+    };
+    socket.on("server:leasedControl", handleLeasedControl);
+    return () => {
+      socket.off("server:leasedControl", handleLeasedControl);
+      unregister();
+    };
+  }, [socket, inputManager, parsedRoomId, store]);
 
   const getInput = useCallback(
     (controllerId: string): z.infer<TSchema> | undefined => {

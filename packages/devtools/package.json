@@ -18,6 +18,14 @@
     "url": "https://github.com/vucinatim/air-jam/issues"
   },
   "exports": {
+    "./game-runs": {
+      "types": "./dist/game-runs.d.ts",
+      "import": "./dist/game-runs.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    },
     "./harness/visual": {
       "types": "./dist/harness/visual.d.ts",
       "import": "./dist/harness/visual.js"
@@ -81,6 +89,19 @@
     "./visual": {
       "types": "./dist/visual.d.ts",
       "import": "./dist/visual.js"
+    },
+    "./source-tree": {
+      "types": "./dist/source-tree-contract.d.ts",
+      "import": "./dist/source-tree-contract.js"
+    },
+    "./dependencies": {
+      "types": "./dist/dependencies.d.ts",
+      "import": "./dist/dependencies.js"
+    },
+    "./package.json": "./package.json",
+    "./game-builds": {
+      "types": "./dist/game-builds.d.ts",
+      "import": "./dist/game-builds.js"
     }
   },
   "files": [
@@ -88,10 +109,10 @@
     "src"
   ],
   "scripts": {
-    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup",
-    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && vitest run --config vitest.config.ts",
+    "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/server && tsup",
+    "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/server && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/server && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
   },
@@ -103,7 +124,8 @@
     "tsx": "^4.20.6",
     "yauzl": "^3.2.1",
     "yazl": "^3.3.1",
-    "zod": "^4.2.1"
+    "zod": "^4.2.1",
+    "@air-jam/server": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

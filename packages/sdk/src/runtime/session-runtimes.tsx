@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from "react";
 import { useEffect } from "react";
 import type { z } from "zod";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
+import { useAirJamConfig } from "../context/air-jam-context";
 import {
   ControllerSessionProvider,
   HostSessionProvider,
@@ -21,6 +22,7 @@ import {
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
 } from "./contracts/inspection";
+import { publishEmbeddedHostObservation } from "./host-observation-bridge";
 import { publishEmbeddedHostPreview } from "./preview-inspection-bridge";
 import {
   controllerRuntimeContext,
@@ -42,6 +44,7 @@ export type AirJamControllerRuntimeProps = AirJamProviderProps &
 
 const HostRuntimeInspectionPublisher = (): null => {
   const inspection = useHostRuntimeInspectionContract();
+  const { topology } = useAirJamConfig();
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -49,14 +52,20 @@ const HostRuntimeInspectionPublisher = (): null => {
     }
 
     publishRuntimeInspectionContract(window, inspection);
-    const stopPublishing = publishEmbeddedHostPreview(inspection);
+    const stopObserving = publishEmbeddedHostObservation(inspection, topology);
+    const stopPublishing = publishEmbeddedHostPreview(
+      inspection,
+      topology,
+      stopObserving.supported,
+    );
     return () => {
       stopPublishing();
+      stopObserving.close();
       if (readRuntimeInspectionContract(window)?.role === "host") {
         publishRuntimeInspectionContract(window, null);
       }
     };
-  }, [inspection]);
+  }, [inspection, topology]);
 
   return null;
 };

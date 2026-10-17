@@ -36,6 +36,7 @@ export const airjam = createAirJamApp({
   metadata: gameMetadata,
   controllerPath: "/controller",
   agent: agentContract,
+  testing: "./testing/profiles.ts",
   input: {
     schema: gameInputSchema,
   },

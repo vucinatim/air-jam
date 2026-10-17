@@ -5,6 +5,7 @@ export * from "./protocol/dev-log-events";
 export * from "./protocol/errors";
 export * from "./protocol/host";
 export * from "./protocol/host-grant";
+export * from "./protocol/leased-control";
 export * from "./protocol/notices";
 export * from "./protocol/runtime-reporting";
 export * from "./protocol/signals";

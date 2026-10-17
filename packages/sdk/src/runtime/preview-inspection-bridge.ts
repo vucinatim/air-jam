@@ -1,15 +1,18 @@
 import { z } from "zod";
 import { controllerOrientationSchema } from "../protocol/controller";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import {
   hostStateEpochSchema,
   subscribeHostStateOwners,
 } from "./contracts/control";
 import type { HostRuntimeInspectionContract } from "./contracts/inspection";
+import { embeddedRuntimeParent } from "./embedded-parent";
 
 const snapshotType = "AIRJAM_HOST_PREVIEW_SNAPSHOT";
 const requestType = "AIRJAM_HOST_PREVIEW_INSPECT";
 
 const snapshotSchema = z.object({
+  observationSupported: z.boolean().optional(),
   controllerOrientation: controllerOrientationSchema.optional(),
   documentId: z.string().min(1).max(128).optional(),
   stateEpochs: z
@@ -84,16 +87,14 @@ export function requestHostPreviewSnapshot(target: Window, origin: string) {
 // Presentation inspection only: no callable host actions or game state cross this bridge.
 export function publishEmbeddedHostPreview(
   inspection: HostRuntimeInspectionContract,
+  topology: ResolvedAirJamRuntimeTopology,
+  observationSupported = false,
 ) {
-  if (
-    typeof window === "undefined" ||
-    window.parent === window ||
-    !document.referrer
-  )
-    return () => {};
-  const parentOrigin = new URL(document.referrer).origin;
+  const parent = embeddedRuntimeParent(topology);
+  if (!parent) return () => {};
   const publish = () => {
     const snapshot: HostPreviewSnapshot = {
+      observationSupported,
       controllerOrientation: inspection.controllerOrientation,
       documentId: inspection.documentId,
       stateEpochs: inspection.stateEpochs,
@@ -108,10 +109,11 @@ export function publishEmbeddedHostPreview(
         }),
       ),
     };
-    window.parent.postMessage({ type: snapshotType, snapshot }, parentOrigin);
+    parent.window.postMessage({ type: snapshotType, snapshot }, parent.origin);
   };
   const inspect = (event: MessageEvent<unknown>) => {
-    if (event.source !== window.parent || event.origin !== parentOrigin) return;
+    if (event.source !== parent.window || event.origin !== parent.origin)
+      return;
     if (
       z
         .object({ type: z.literal(requestType) })

@@ -158,6 +158,50 @@ describe("embedded host bridge runtime", () => {
       });
     });
 
+    const receipt = {
+      status: "applied" as const,
+      leaseId: "223e4567-e89b-42d3-a456-426614174000",
+      sequence: 1,
+      replayed: false,
+      operation: { kind: "release" as const },
+    };
+    const controlRequest = {
+      roomId: "ROOM1",
+      controllerId: "player",
+      lease: { id: receipt.leaseId, sequence: 1 },
+      expected: {
+        documentId: "document",
+        contractId: "contract",
+        runtimeId: "runtime",
+        roomId: "ROOM1",
+        surfaceId: null,
+        participantId: null,
+      },
+      operation: { kind: "release" as const },
+    };
+    const received = vi.fn();
+    client.on("server:leasedControl", (request, acknowledge) => {
+      received(request);
+      if (typeof acknowledge !== "function")
+        throw new Error("Missing host receipt callback.");
+      acknowledge(receipt);
+    });
+    parentPort!.postMessage({
+      type: "AIRJAM_HOST_BRIDGE_EVENT",
+      payload: {
+        event: "server:leasedControl",
+        args: [controlRequest],
+        requestId: "control-one",
+      },
+    });
+    await vi.waitFor(() =>
+      expect(parentMessages).toContainEqual({
+        type: "AIRJAM_HOST_BRIDGE_RESPONSE",
+        payload: { requestId: "control-one", ack: receipt },
+      }),
+    );
+    expect(received).toHaveBeenCalledExactlyOnceWith(controlRequest);
+
     runtimeEvents.cleanup();
   });
 

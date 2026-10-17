@@ -8,6 +8,7 @@ Official Air Jam MCP server
 Options:
   -h, --help       Show this help text
   -V, --version    Show the installed package version
+  --external-run-control  Read runs while the embedding application owns start/stop
 `;
 
 const argv = process.argv.slice(2);
@@ -23,7 +24,9 @@ if (argv.includes("--version") || argv.includes("-V")) {
 }
 
 const { createAirJamMcpServer } = await import("./server.js");
-const server = await createAirJamMcpServer();
+const server = await createAirJamMcpServer({
+  externalRunControl: argv.includes("--external-run-control"),
+});
 const transport = new StdioServerTransport();
 
 await server.connect(transport);

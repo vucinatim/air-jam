@@ -53,6 +53,8 @@ export interface CreateAirJamAppOptions<
    * Optional semantic agent contract published by the app.
    */
   agent?: AirJamAgentContract;
+  /** Project-relative devtools test profiles module. Never imported by the game runtime. */
+  testing?: string;
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -73,6 +75,7 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   metadata?: AirJamGameMetadata;
   controllerPath: string;
   agent?: AirJamAgentContract;
+  testing?: string;
 }
 
 const resolveControllerPath = (controllerPath?: string): string => {
@@ -179,6 +182,7 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   metadata,
   controllerPath: requestedControllerPath,
   agent,
+  testing,
   input,
   errorBoundary,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
@@ -274,5 +278,6 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     metadata,
     controllerPath,
     agent,
+    testing,
   };
 };

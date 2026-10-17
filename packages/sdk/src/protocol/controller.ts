@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { RoomPlatformSettingsSnapshot } from "../settings/platform-settings";
-import { roomCodeSchema, type RoomCode } from "./core";
+import { roomCodeSchema, runtimeStateSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
 
 export { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../settings/platform-settings";
@@ -63,7 +63,7 @@ export const controllerStateSchema = z.object({
         }),
       })
       .optional(),
-    runtimeState: z.enum(["paused", "playing"]).optional(),
+    runtimeState: runtimeStateSchema.optional(),
     stateVersion: z.number().int().nonnegative().optional(),
   }),
 });

@@ -1,94 +1,50 @@
 import { inspectProject } from "@air-jam/devtools/context";
 import {
-  readGameSessionBrokerState,
-  requestGameSessionBroker,
-  resolveGameSessionBrokerStatePath,
-  runGameSessionBroker,
-  type AirJamGameSessionBrokerHealth,
+  captureGameSessionVisuals,
+  closeGameSession,
+  controlGameSessionParticipant,
+  gameSessionOperationSchemas,
+  invokeGameSessionAction,
+  observeGameSession,
+  openGameSession,
+  readGameSession,
+  sendGameSessionInput,
+} from "@air-jam/devtools/game-session";
+import {
+  getGameSessionBrokerStatus,
+  stopGameSessionBroker,
   type AirJamGameSessionBrokerOperation,
-  type AirJamGameSessionBrokerState,
 } from "@air-jam/devtools/game-session-broker";
-import { spawn } from "node:child_process";
-import { closeSync, mkdirSync, openSync } from "node:fs";
-import { unlink } from "node:fs/promises";
-import path from "node:path";
 
-const BROKER_START_TIMEOUT_MS = 10_000;
-
-const resolveProjectDir = async (dir?: string): Promise<string> => {
-  const project = await inspectProject({ cwd: dir });
-  return project.context.rootDir;
-};
-
-const readHealth = async (
-  state: AirJamGameSessionBrokerState,
-): Promise<AirJamGameSessionBrokerHealth | null> =>
-  requestGameSessionBroker<AirJamGameSessionBrokerHealth>({
-    state,
-    request: { operation: "health" },
-  }).catch(() => null);
-
-const ensureBroker = async (
-  projectDir: string,
-): Promise<AirJamGameSessionBrokerState> => {
-  const existing = await readGameSessionBrokerState(projectDir);
-  if (existing && (await readHealth(existing))) {
-    return existing;
-  }
-
-  await unlink(resolveGameSessionBrokerStatePath(projectDir)).catch(
-    () => undefined,
-  );
-  const entryPath = process.argv[1];
-  if (!entryPath) {
-    throw new Error("Cannot resolve the current airjam CLI entrypoint.");
-  }
-  const logDir = path.join(projectDir, ".airjam", "logs");
-  mkdirSync(logDir, { recursive: true });
-  const logFd = openSync(
-    path.join(logDir, "game-session-broker.log"),
-    "a",
-    0o600,
-  );
-  try {
-    const child = spawn(
-      process.execPath,
-      [entryPath, "__session-broker", "--dir", projectDir],
-      {
-        cwd: projectDir,
-        detached: true,
-        stdio: ["ignore", logFd, logFd],
-      },
-    );
-    child.unref();
-  } finally {
-    closeSync(logFd);
-  }
-
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < BROKER_START_TIMEOUT_MS) {
-    const state = await readGameSessionBrokerState(projectDir);
-    if (state && (await readHealth(state))) {
-      return state;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-
-  throw new Error(
-    `Air Jam game session broker did not start. Inspect ${path.join(logDir, "game-session-broker.log")}.`,
-  );
-};
-
-const request = async <TResult>({
+const resolveProjectDir = async (dir?: string) =>
+  (await inspectProject({ cwd: dir })).context.rootDir;
+const request = async ({
   dir,
   operation,
 }: {
   dir?: string;
   operation: AirJamGameSessionBrokerOperation;
-}): Promise<TResult> => {
-  const projectDir = await resolveProjectDir(dir);
-  const state = await ensureBroker(projectDir);
-  return requestGameSessionBroker<TResult>({ state, request: operation });
+}): Promise<unknown> => {
+  switch (operation.operation) {
+    case "open":
+      return openGameSession({ ...operation.input, cwd: dir });
+    case "read":
+      return readGameSession({ ...operation.input, cwd: dir });
+    case "observe":
+      return observeGameSession({ ...operation.input, cwd: dir });
+    case "control":
+      return controlGameSessionParticipant({ ...operation.input, cwd: dir });
+    case "input":
+      return sendGameSessionInput({ ...operation.input, cwd: dir });
+    case "invoke":
+      return invokeGameSessionAction({ ...operation.input, cwd: dir });
+    case "capture":
+      return captureGameSessionVisuals({ ...operation.input, cwd: dir });
+    case "close":
+      return closeGameSession({ ...operation.input, cwd: dir });
+    default:
+      throw new Error("Unsupported session operation.");
+  }
 };
 
 export const parseJsonValue = (value: string): unknown => {
@@ -107,44 +63,19 @@ export const parseJsonObject = (value: string): Record<string, unknown> => {
   return parsed as Record<string, unknown>;
 };
 
-export const runSessionBrokerProcess = async (dir: string): Promise<void> => {
-  await runGameSessionBroker({ projectDir: path.resolve(dir) });
-};
-
 export const runSessionBrokerStatus = async ({
   dir,
 }: {
   dir?: string;
 }): Promise<unknown> => {
-  const projectDir = await resolveProjectDir(dir);
-  const state = await readGameSessionBrokerState(projectDir);
-  if (!state) {
-    return { running: false, projectDir };
-  }
-  const health = await readHealth(state);
-  return health
-    ? { running: true, ...health }
-    : { running: false, projectDir, staleState: true, pid: state.pid };
+  return getGameSessionBrokerStatus(await resolveProjectDir(dir));
 };
 
 export const runSessionBrokerStop = async ({
   dir,
 }: {
   dir?: string;
-}): Promise<unknown> => {
-  const projectDir = await resolveProjectDir(dir);
-  const state = await readGameSessionBrokerState(projectDir);
-  if (!state || !(await readHealth(state))) {
-    await unlink(resolveGameSessionBrokerStatePath(projectDir)).catch(
-      () => undefined,
-    );
-    return { stopped: false, running: false, projectDir };
-  }
-  return requestGameSessionBroker({
-    state,
-    request: { operation: "shutdown" },
-  });
-};
+}): Promise<unknown> => stopGameSessionBroker(await resolveProjectDir(dir));
 
 export const openSession = async ({
   dir,
@@ -188,7 +119,10 @@ export const sendSessionInput = async ({
 }): Promise<unknown> =>
   request({
     dir,
-    operation: { operation: "input", input: { gameSessionId, input } },
+    operation: {
+      operation: "input",
+      input: gameSessionOperationSchemas.input.parse({ gameSessionId, input }),
+    },
   });
 
 export const invokeSessionAction = async ({
@@ -208,7 +142,12 @@ export const invokeSessionAction = async ({
     dir,
     operation: {
       operation: "invoke",
-      input: { gameSessionId, actionId, payload, timeoutMs },
+      input: gameSessionOperationSchemas.invoke.parse({
+        gameSessionId,
+        actionId,
+        payload,
+        timeoutMs,
+      }),
     },
   });
 
@@ -239,4 +178,24 @@ export const closeSession = async ({
   request({
     dir,
     operation: { operation: "close", input: { gameSessionId } },
+  });
+
+export const controlSessionParticipant = async ({
+  dir,
+  gameSessionId,
+  command,
+}: {
+  dir?: string;
+  gameSessionId: string;
+  command: Record<string, unknown>;
+}): Promise<unknown> =>
+  request({
+    dir,
+    operation: {
+      operation: "control",
+      input: gameSessionOperationSchemas.control.parse({
+        ...command,
+        gameSessionId,
+      }),
+    },
   });

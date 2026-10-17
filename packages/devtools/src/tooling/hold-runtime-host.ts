@@ -1,21 +1,21 @@
-import { parseControllerBridgeEmitMessage } from "@air-jam/sdk/controller-bridge";
-import { controllerStateSyncRequestSchema } from "@air-jam/sdk/protocol";
-
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
 } from "@air-jam/sdk/runtime-inspection";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { z } from "zod";
+import { startBuiltGameRuntime } from "../built-game-runtime.js";
+import type { GameRunWatchEvent } from "../game-run-watch.js";
 import {
   DEFAULT_CONTROLLER_VIEWPORT,
   DEFAULT_HOST_VIEWPORT,
-  launchHarnessBrowser,
   openVisualHarnessHostSession,
   type VisualHarnessMode,
 } from "../harness/visual.js";
-import { openControllerObservation } from "../harness/visual/controller-observation.js";
+import { launchScopedHarnessBrowser } from "../harness/visual/browser.js";
+import { RuntimeControllerObservations } from "../harness/visual/runtime-controller-observations.js";
+import { startGameScreencast } from "../harness/visual/screencast.js";
+import { bindHarnessControllerUrl } from "../harness/visual/session.js";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT,
@@ -24,6 +24,8 @@ import {
   resolveProjectRelativeRuntimeCaptureDir,
   runtimeOwnerAgentRequestSchema,
   runtimeOwnerCaptureEventSchema,
+  runtimeOwnerWatchRequestSchema,
+  runtimeOwnerWatchStopSchema,
   type AirJamRuntimeOwnerCaptureResult,
 } from "../runtime-owner-protocol.js";
 import {
@@ -41,10 +43,15 @@ const getFlagValue = (flag: string): string | null => {
   return index === -1 ? null : (process.argv[index + 1] ?? null);
 };
 
-const appOrigin = getFlagValue("--app-origin");
-const hostUrl = getFlagValue("--host-url");
-const controllerBaseUrl = getFlagValue("--controller-base-url");
-const publicHost = getFlagValue("--public-host");
+const pinnedManifest = getFlagValue("--pinned-build");
+const built = pinnedManifest
+  ? await startBuiltGameRuntime(pinnedManifest)
+  : null;
+const appOrigin = built?.urls.appOrigin ?? getFlagValue("--app-origin");
+const hostUrl = built?.urls.hostUrl ?? getFlagValue("--host-url");
+const controllerBaseUrl =
+  built?.urls.controllerBaseUrl ?? getFlagValue("--controller-base-url");
+const publicHost = built?.urls.publicHost ?? getFlagValue("--public-host");
 const localBuildUrl = getFlagValue("--local-build-url");
 const browserBuildUrl = getFlagValue("--browser-build-url");
 const requestedMode = getFlagValue("--mode") ?? "standalone-dev";
@@ -56,9 +63,15 @@ if (!appOrigin || !hostUrl || !controllerBaseUrl || !publicHost) {
   );
 }
 
-const browser = await launchHarnessBrowser();
+const runtimeBrowser = await launchScopedHarnessBrowser();
+const { browser } = runtimeBrowser;
+let startupDiagnostics = true;
 const session = await openVisualHarnessHostSession({
   browser,
+  runtimeTopology: built?.topology,
+  onDiagnostic: (message) => {
+    if (startupDiagnostics) console.error(message.slice(0, 4000));
+  },
   mode: requestedMode as VisualHarnessMode,
   urls: {
     appOrigin,
@@ -69,19 +82,56 @@ const session = await openVisualHarnessHostSession({
     browserBuildUrl,
   },
 });
-let controllerSession: Awaited<
-  ReturnType<typeof openControllerObservation>
-> | null = null;
 let captureRequestId: string | null = null;
-let pendingCaptureEvents: z.infer<typeof runtimeOwnerCaptureEventSchema>[] = [];
-let captureDelivery = Promise.resolve();
-let captureDeliveryError: unknown = null;
-
+const observations = new RuntimeControllerObservations({
+  browser,
+  readInspection: () => readInspection(),
+  send: (message) => {
+    process.send?.(message as Parameters<NonNullable<typeof process.send>>[0]);
+  },
+});
+type RuntimeWatch = {
+  opening: Promise<void>;
+  stopping: boolean;
+  cast?: Awaited<ReturnType<typeof startGameScreencast>>;
+  closing?: Promise<void>;
+};
+const watches = new Map<string, RuntimeWatch>();
+const stopWatch = (watchId: string) => {
+  const watch = watches.get(watchId);
+  if (!watch) return Promise.resolve();
+  watch.stopping = true;
+  return (watch.closing ??= (async () => {
+    const results = await Promise.allSettled([
+      observations.close(watchId),
+      (async () => {
+        await watch.opening.catch(() => undefined);
+        await watch.cast?.close();
+      })(),
+    ]);
+    const failures = results.filter((result) => result.status === "rejected");
+    watches.delete(watchId);
+    if (failures.length)
+      throw new AggregateError(
+        failures.map((result) => result.reason),
+        [
+          "Run watch cleanup failed.",
+          ...failures.map(({ reason }) =>
+            reason instanceof Error ? reason.message : String(reason),
+          ),
+        ]
+          .join(" ")
+          .slice(0, 4000),
+      );
+  })());
+};
 const shutdown = async (exitCode = 0) => {
   await Promise.allSettled([
-    controllerSession?.close(),
+    ...[...watches.keys()].map(stopWatch),
+    observations.closeAll(),
     session.close(),
-    browser.close(),
+    runtimeBrowser.close(),
+    built?.close(),
   ]);
   process.exit(exitCode);
 };
@@ -111,20 +161,75 @@ process.on("message", (message: unknown) => {
     return;
   }
   const captureEvent = runtimeOwnerCaptureEventSchema.safeParse(message);
-  if (
-    captureEvent.success &&
-    captureEvent.data.requestId === captureRequestId
-  ) {
-    if (controllerSession) {
-      const observation = controllerSession;
-      captureDelivery = captureDelivery
-        .then(() =>
-          observation.deliver(captureEvent.data.event, captureEvent.data.args),
-        )
-        .catch((error) => {
-          captureDeliveryError = error;
+  if (captureEvent.success) {
+    observations.deliver(captureEvent.data);
+    return;
+  }
+  const watchStop = runtimeOwnerWatchStopSchema.safeParse(message);
+  if (watchStop.success) {
+    void stopWatch(watchStop.data.watchId)
+      .then(() => {
+        process.send?.({
+          type: "air-jam-runtime-owner.watch-event/v1",
+          watchId: watchStop.data.watchId,
+          event: { type: "closed" },
         });
-    } else pendingCaptureEvents.push(captureEvent.data);
+      })
+      .catch((error: unknown) => {
+        process.send?.({
+          type: "air-jam-runtime-owner.watch-event/v1",
+          watchId: watchStop.data.watchId,
+          event: { type: "error", message: String(error).slice(0, 4000) },
+        });
+      });
+    return;
+  }
+  const watchRequest = runtimeOwnerWatchRequestSchema.safeParse(message);
+  if (watchRequest.success) {
+    const request = watchRequest.data;
+    if (watches.has(request.watchId)) return;
+    const send = (
+      event:
+        | GameRunWatchEvent
+        | { type: "ready"; width: number; height: number },
+      sent?: (error: Error | null) => void,
+    ) => {
+      const message = {
+        type: "air-jam-runtime-owner.watch-event/v1",
+        watchId: request.watchId,
+        event,
+      };
+      if (sent) process.send?.(message, undefined, undefined, sent);
+      else process.send?.(message);
+    };
+    const fail = (error: Error) => {
+      if (watches.get(request.watchId)?.stopping) return;
+      send({ type: "error", message: error.message.slice(0, 4000) });
+      void stopWatch(request.watchId).catch((cleanupError: unknown) =>
+        console.error("Run watch cleanup failed:", cleanupError),
+      );
+    };
+    if (watches.size >= 2) {
+      send({ type: "error", message: "Run watch producer limit reached." });
+      return;
+    }
+    const watch: RuntimeWatch = { opening: Promise.resolve(), stopping: false };
+    watches.set(request.watchId, watch);
+    watch.opening = (async () => {
+      const page =
+        request.surface === "host"
+          ? session.host.page
+          : (await observations.open(request.watchId, request, fail)).page;
+      watch.cast = await startGameScreencast({
+        page,
+        send,
+        onError: fail,
+        onReady: (dimensions) => send({ type: "ready", ...dimensions }),
+      });
+    })();
+    void watch.opening.catch((error: unknown) =>
+      fail(error instanceof Error ? error : new Error(String(error))),
+    );
     return;
   }
   if (isRuntimeOwnerActionRequest(message)) {
@@ -164,45 +269,20 @@ process.on("message", (message: unknown) => {
       screenshots: [],
       error: null,
     };
+    let observationError: Error | undefined;
     try {
       const captureDir = resolveProjectRelativeRuntimeCaptureDir({
         projectDir: process.cwd(),
         relativeDir: message.relativeDir,
       });
-      if (!("harnessSessionId" in message.snapshot))
-        throw new Error("Capture requires a harness controller context.");
-      const inspection = await readInspection();
-      if (
-        inspection?.role !== "host" ||
-        inspection.roomId !== message.snapshot.roomId
-      )
-        throw new Error("Capture belongs to another host room.");
-      controllerSession = await openControllerObservation({
-        browser,
-        controllerJoinUrl: inspection.joinUrl,
-        snapshot: message.snapshot,
-        stores: message.stores,
-        onMessage(value) {
-          const emitted = parseControllerBridgeEmitMessage(value);
-          if (!emitted) return;
-          if (emitted.payload.event !== "controller:state_sync_request")
-            throw new Error("Capture controller mutation denied.");
-          const payload = controllerStateSyncRequestSchema.parse(
-            emitted.payload.args[0],
-          );
-          if (payload.roomId !== message.snapshot.roomId)
-            throw new Error("Capture read belongs to another room.");
-          process.send?.({
-            type: "air-jam-runtime-owner.capture-read/v1",
-            captureRequestId: message.requestId,
-            payload,
-          });
+      const controllerSession = await observations.open(
+        message.requestId,
+        message,
+        (error) => {
+          observationError = error;
         },
-      });
-      for (const event of pendingCaptureEvents.splice(0))
-        await controllerSession.deliver(event.event, event.args);
-      await captureDelivery;
-      if (captureDeliveryError) throw captureDeliveryError;
+      );
+      if (observationError) throw observationError;
       await mkdir(captureDir, { recursive: true });
       const captures = [
         {
@@ -233,20 +313,13 @@ process.on("message", (message: unknown) => {
     } catch (error) {
       response.error = error instanceof Error ? error.message : String(error);
     } finally {
-      const closing = controllerSession;
-      controllerSession = null;
       captureRequestId = null;
-      pendingCaptureEvents = [];
-      await captureDelivery;
-      if (captureDeliveryError) {
+      if (observationError) {
         response.ok = false;
-        response.error =
-          captureDeliveryError instanceof Error
-            ? captureDeliveryError.message
-            : String(captureDeliveryError);
+        response.error = observationError.message;
       }
       try {
-        await closing?.close();
+        await observations.close(message.requestId);
       } catch (error) {
         response.ok = false;
         response.error = [
@@ -256,8 +329,6 @@ process.on("message", (message: unknown) => {
           .filter(Boolean)
           .join("; ");
       }
-      captureDelivery = Promise.resolve();
-      captureDeliveryError = null;
     }
     process.send?.(response);
   })();
@@ -289,9 +360,20 @@ const readInspection = async () => {
         AIR_JAM_RUNTIME_INSPECTION_KEY,
       );
 
-  return readRuntimeInspectionContract({
+  const inspection = readRuntimeInspectionContract({
     [AIR_JAM_RUNTIME_INSPECTION_KEY]: rawValue,
   });
+  return built &&
+    inspection?.role === "host" &&
+    inspection.joinUrlStatus === "ready"
+    ? {
+        ...inspection,
+        joinUrl: bindHarnessControllerUrl(
+          inspection.joinUrl,
+          built.urls.controllerBaseUrl,
+        ),
+      }
+    : inspection;
 };
 
 try {
@@ -317,17 +399,27 @@ try {
     );
   }
 
-  process.stdout.write(
-    `${JSON.stringify(
-      {
-        roomId: inspection.roomId,
-        controllerJoinUrl: inspection.joinUrl,
-        inspection,
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  if (built) {
+    const origin = new URL(session.host.page.url()).origin;
+    if (
+      origin !== appOrigin ||
+      (await session.host.page.evaluate(() =>
+        performance
+          .getEntriesByType("resource")
+          .some((entry) => new URL(entry.name).pathname === "/@vite/client"),
+      ))
+    )
+      throw new Error(
+        "build_runtime_invalid: The owned browser is not running the pinned production origin.",
+      );
+  }
+  startupDiagnostics = false;
+  process.send?.({
+    type: "air-jam-runtime-owner.ready/v1",
+    roomId: inspection.roomId,
+    controllerJoinUrl: inspection.joinUrl,
+    inspection,
+  });
 
   await new Promise(() => {
     // Keep the hidden host runtime alive until the parent process disconnects it.

@@ -8,12 +8,27 @@ import {
   stopDev,
 } from "@air-jam/devtools/dev";
 import {
+  gameRunAddressSchema,
+  gameRunDiscoverySchema,
+  gameRunWaitSchema,
+  startGameRunSchema,
+} from "@air-jam/devtools/game-runs";
+import {
   captureGameSessionVisuals,
   closeGameSession,
+  controlGameSessionParticipant,
+  gameSessionOperationSchemas,
   invokeGameSessionAction,
+  listGameRuns,
+  listGameTestProfiles,
+  observeGameSession,
   openGameSession,
+  readGameRun,
   readGameSession,
   sendGameSessionInput,
+  startGameRun,
+  stopGameRun,
+  waitGameRun,
 } from "@air-jam/devtools/game-session";
 import { inspectGame, listGames } from "@air-jam/devtools/games";
 import { readDevLogs } from "@air-jam/devtools/logs";
@@ -35,7 +50,10 @@ import {
   uploadPlatformReleaseGeneration,
   validateLocalRelease,
 } from "@air-jam/devtools/release";
-import type { ToolExecution } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolResult,
+  ToolExecution,
+} from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import toolContract from "../tool-contract.json" with { type: "json" };
 
@@ -52,12 +70,7 @@ type AirJamQualityGate =
 export type AirJamMcpToolDefinition = {
   description: string;
   inputSchema: z.ZodTypeAny;
-  run: (args: never) => Promise<{
-    content: Array<{
-      type: "text";
-      text: string;
-    }>;
-  }>;
+  run: (args: never) => Promise<Pick<CallToolResult, "content">>;
   execution?: ToolExecution;
 };
 
@@ -210,22 +223,6 @@ export const STOP_DEV_INPUT_SCHEMA = z.object({
   mode: z.enum(["standalone-dev", "arcade-dev", "arcade-test"]).optional(),
 });
 
-const buildConnectControllerSchema = (projectMode: AirJamProjectMode) =>
-  z.object({
-    cwd: z.string().optional(),
-    gameId: z.string().optional(),
-    mode: buildGameSessionModeSchema(projectMode),
-    secure: z.boolean().optional(),
-    roomId: z.string().min(1).optional(),
-    controllerJoinUrl: z.string().url().optional(),
-    controllerId: z.string().min(3).optional(),
-    deviceId: z.string().min(8).optional(),
-    nickname: z.string().min(1).optional(),
-    avatarId: z.string().min(1).optional(),
-    capabilityToken: z.string().min(1).optional(),
-    timeoutMs: z.number().int().positive().optional(),
-  });
-
 export const buildToolDefinitions = ({
   projectMode,
 }: {
@@ -238,25 +235,15 @@ export const buildToolDefinitions = ({
     cwd: z.string().optional(),
     gameId: z.string().optional(),
   });
-  const openGameSessionInputSchema = buildConnectControllerSchema(projectMode);
-  const captureGameSessionInputSchema = z.object({
-    gameSessionId: z.string().uuid(),
-    timeoutMs: z.number().int().positive().optional(),
+  const openGameSessionInputSchema = gameSessionOperationSchemas.open.extend({
+    mode: buildGameSessionModeSchema(projectMode),
   });
-  const gameSessionInputSchema = z.object({
-    gameSessionId: z.string().min(1),
-  });
-  const sendGameSessionInputSchema = gameSessionInputSchema.extend({
-    input: z.record(z.string(), z.unknown()),
-  });
-  const readGameSessionInputSchema = gameSessionInputSchema.extend({
-    timeoutMs: z.number().int().positive().optional(),
-  });
-  const invokeGameSessionActionInputSchema = gameSessionInputSchema.extend({
-    actionId: z.string().min(1),
-    payload: z.unknown().optional(),
-    timeoutMs: z.number().int().positive().optional(),
-  });
+  const captureGameSessionInputSchema = gameSessionOperationSchemas.capture;
+  const gameSessionInputSchema = gameSessionOperationSchemas.close;
+  const sendGameSessionInputSchema = gameSessionOperationSchemas.input;
+  const readGameSessionInputSchema = gameSessionOperationSchemas.read;
+  const observeGameSessionInputSchema = gameSessionOperationSchemas.observe;
+  const invokeGameSessionActionInputSchema = gameSessionOperationSchemas.invoke;
 
   return {
     "airjam.inspect_project": {
@@ -554,12 +541,55 @@ export const buildToolDefinitions = ({
       run: async (input: z.infer<typeof topologyInputSchema>) =>
         withJsonText(await getTopology(input)),
     },
+    "airjam.list_game_test_profiles": {
+      description:
+        "Discover authored game scenarios and their code, random or model policies. Runs own bounded participant lifetimes, with actual host observations and retained receipts.",
+      inputSchema: gameRunDiscoverySchema,
+      run: async (input) => withJsonText(await listGameTestProfiles(input)),
+    },
+    "airjam.start_game_run": {
+      description:
+        "Start a bounded policy run in its own fresh game room. Supply a stable UUID runId; retries return the same admission. Never uses the creator's live room. Read or stop by runId.",
+      inputSchema: startGameRunSchema,
+      run: async (input) => withJsonText(await startGameRun(input)),
+    },
+    "airjam.read_game_run": {
+      description:
+        "Read a run's actual state, controller ownership, counters, terminal reason and cleanup/evidence receipts.",
+      inputSchema: gameRunAddressSchema,
+      run: async (input) => withJsonText(await readGameRun(input)),
+    },
+    "airjam.wait_game_run": {
+      description:
+        "Wait for a terminal run or a bounded timeout. Returns the actual record; a timeout or disconnected client never stops the run.",
+      inputSchema: gameRunWaitSchema,
+      run: async (input) => withJsonText(await waitGameRun(input)),
+    },
+    "airjam.stop_game_run": {
+      description:
+        "Stop a policy run, release its inputs, retain a final actual observation, and disconnect its owned controllers/host. Idempotent.",
+      inputSchema: gameRunAddressSchema,
+      run: async (input) => withJsonText(await stopGameRun(input)),
+    },
+    "airjam.list_game_runs": {
+      description:
+        "List activities admitted by this project's current session owner.",
+      inputSchema: gameRunDiscoverySchema.pick({ cwd: true }),
+      run: async (input) => withJsonText(await listGameRuns(input)),
+    },
     "airjam.open_game_session": {
       description:
         "Open a separate owned test host with a virtual controller and live semantic actions. Omit roomId/controllerJoinUrl for semantic testing. Explicit room attachments are participant-only: inputs and raw controller tools, no semantic source interpretation or host actions.",
       inputSchema: openGameSessionInputSchema,
       run: async (input: z.infer<typeof openGameSessionInputSchema>) =>
         withJsonText(await openGameSession(input)),
+    },
+    "airjam.control_game_session_participant": {
+      description:
+        "Send a bounded agent participant input, semantic action or release through the actual room. Requires a fresh observed runtime identity and explicit controller-lifetime lease/sequence. Never grants host actions. Retry an unconfirmed command with the identical lease, sequence and envelope; never invent a new sequence to repeat an uncertain action.",
+      inputSchema: gameSessionOperationSchemas.control,
+      run: async (input: z.infer<typeof gameSessionOperationSchemas.control>) =>
+        withJsonText(await controlGameSessionParticipant(input)),
     },
     "airjam.send_game_session_input": {
       description:
@@ -574,6 +604,26 @@ export const buildToolDefinitions = ({
       inputSchema: readGameSessionInputSchema,
       run: async (input: z.infer<typeof readGameSessionInputSchema>) =>
         withJsonText(await readGameSession(input)),
+    },
+    "airjam.observe_game_session": {
+      description:
+        "Observe fresh live semantic and host-local state from an owned game, with a bounded real render image when supported. Returns runtime identity, sample interval and surface coverage. Does not join a player or invoke actions; unsupported images are explicit.",
+      inputSchema: observeGameSessionInputSchema,
+      run: async (input: z.infer<typeof observeGameSessionInputSchema>) => {
+        const observation = await observeGameSession(input);
+        const { visual, ...metadata } = observation;
+        if (visual.status !== "captured") return withJsonText(observation);
+        const { data, ...image } = visual.image;
+        return {
+          content: [
+            ...withJsonText({
+              ...metadata,
+              visual: { status: "captured", image },
+            }).content,
+            { type: "image" as const, mimeType: image.mimeType, data },
+          ],
+        };
+      },
     },
     "airjam.invoke_game_session_action": {
       description:
@@ -593,8 +643,8 @@ export const buildToolDefinitions = ({
       description:
         "Close one previously opened Air Jam game session and disconnect its virtual controller.",
       inputSchema: gameSessionInputSchema,
-      run: async ({ gameSessionId }: { gameSessionId: string }) =>
-        withJsonText(await closeGameSession({ gameSessionId })),
+      run: async (input: z.infer<typeof gameSessionInputSchema>) =>
+        withJsonText(await closeGameSession(input)),
     },
   } as const;
 };

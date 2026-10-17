@@ -2,6 +2,11 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { agentActionInput } from "../src/agent/agent-action";
+import {
+  agentAction,
+  defineAirJamAgentContract,
+} from "../src/agent/agent-contract";
 import {
   onAirJamDiagnostic,
   resetAirJamDiagnosticsForTests,
@@ -12,7 +17,12 @@ import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
   type HostRuntimeControl,
 } from "../src/runtime-control";
-import { readHostStateEpochs } from "../src/runtime/contracts/control";
+import {
+  applyHostRuntimeLeasedControl,
+  readHostStateEpochs,
+  registerHostAgentContract,
+  registerHostRuntimeParticipantReceiver,
+} from "../src/runtime/contracts/control";
 import type { HostArcadeRestoreState } from "../src/state/connection-store";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
@@ -1381,6 +1391,107 @@ describe("createAirJamStore networked behavior", () => {
 
     unsubscribe();
     storeHook.unmount();
+  });
+
+  it("routes fenced semantic actions through the same participant dispatcher and listeners", async () => {
+    mockedContext.state.role = "host";
+    const useStore = createTestStore();
+    const events: unknown[] = [];
+    const unsubscribe = useStore.subscribeHostActions((event) =>
+      events.push(event),
+    );
+    const storeHook = renderHook(() => useStore());
+    const close = registerHostAgentContract(window, {
+      roomId: "ROOM1",
+      gameId: "fixture",
+      contract: defineAirJamAgentContract({
+        stores: { default: {} },
+        actions: {
+          finish: agentAction.participant(
+            { actionName: "setPhase" },
+            {
+              input: agentActionInput.none(),
+              toPayload: () => ({ phase: "ended" }),
+            },
+          ),
+        },
+        projectSnapshot: () => ({}),
+      }),
+    });
+    const unregister = registerHostRuntimeParticipantReceiver(window, "ROOM1", {
+      readState: () => ({
+        runtimeState: "playing",
+        connectionStatus: "connected",
+      }),
+      isParticipant: (id) => ["ctrl_1", "ctrl_2"].includes(id),
+    });
+    try {
+      const control: HostRuntimeControl = Reflect.get(
+        window,
+        AIR_JAM_RUNTIME_CONTROL_KEY,
+      );
+      const observed = await control.agent({
+        operation: "observe",
+        roomId: "ROOM1",
+        controllerId: "ctrl_2",
+        scope: "player",
+        includeImage: false,
+      });
+      if (observed.operation !== "observe")
+        throw new Error("Missing observation.");
+      const command = {
+        roomId: "ROOM1",
+        controllerId: "ctrl_2",
+        expected: observed.observation.identity,
+        lease: { id: "223e4567-e89b-42d3-a456-426614174000", sequence: 1 },
+        operation: {
+          kind: "action" as const,
+          deadlineMs: performance.now() + 2000,
+          actionId: "finish",
+        },
+      };
+      act(() => {
+        expect(applyHostRuntimeLeasedControl(window, command)).toMatchObject({
+          status: "applied",
+          operation: { kind: "action", result: { ok: true } },
+        });
+        expect(applyHostRuntimeLeasedControl(window, command)).toMatchObject({
+          status: "applied",
+          replayed: true,
+        });
+      });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        context: { actorId: "ctrl_2", role: "controller" },
+        payload: { phase: "ended" },
+        invocationKind: "rpc",
+      });
+      let legacyAck: unknown;
+      act(() =>
+        hostSocket.trigger(
+          "airjam:action_rpc",
+          {
+            actionName: "setPhase",
+            payload: { phase: "lobby" },
+            actor: { id: "ctrl_2", role: "controller" },
+            storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+          },
+          (ack: unknown) => {
+            legacyAck = ack;
+          },
+        ),
+      );
+      expect(legacyAck).toMatchObject({
+        status: "rejected",
+        reason: "participant_control_leased",
+      });
+      expect(events).toHaveLength(1);
+    } finally {
+      unregister();
+      close();
+      unsubscribe();
+      storeHook.unmount();
+    }
   });
 
   it("filters rejected host actions unless the listener opts in", async () => {

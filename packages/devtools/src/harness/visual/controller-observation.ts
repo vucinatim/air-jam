@@ -1,6 +1,5 @@
 import {
   createControllerBridgeAttachMessage,
-  createControllerBridgeCloseMessage,
   createControllerBridgeEventMessage,
   type ControllerBridgeServerEventName,
   type ControllerBridgeSnapshot,
@@ -13,6 +12,7 @@ import {
   runtimeTopologyToQueryParams,
 } from "@air-jam/sdk/runtime-topology";
 import type { Browser } from "playwright-core";
+import { installHarnessRuntimeTopology } from "./browser.js";
 import { DEFAULT_CONTROLLER_VIEWPORT } from "./session.js";
 
 export async function openControllerObservation({
@@ -21,17 +21,30 @@ export async function openControllerObservation({
   snapshot,
   stores,
   onMessage,
+  signal,
 }: {
   browser: Browser;
   controllerJoinUrl: string;
   snapshot: ControllerBridgeSnapshot & { harnessSessionId: string };
   stores: HostStateSyncPayload[];
   onMessage: (message: unknown) => void;
+  signal?: AbortSignal;
 }) {
   const context = await browser.newContext({
     viewport: DEFAULT_CONTROLLER_VIEWPORT,
   });
+  let closing: Promise<void> | undefined;
+  const close = () => {
+    signal?.removeEventListener("abort", aborted);
+    return (closing ??= context.close());
+  };
+  const aborted = () => {
+    // The lifecycle awaits this same close promise, including its failure.
+    void close().catch(() => undefined);
+  };
+  signal?.addEventListener("abort", aborted, { once: true });
   try {
+    signal?.throwIfAborted();
     const controllerUrl = new URL(controllerJoinUrl);
     const parentUrl = new URL(
       `/__airjam/controller-observation/${snapshot.harnessSessionId}`,
@@ -49,14 +62,14 @@ export async function openControllerObservation({
       throw new Error(
         "Controller observation requires complete runtime topology.",
       );
+    const observationTopology = resolveRuntimeTopology({
+      ...topology,
+      embedded: true,
+      embedParentOrigin: parentUrl.origin,
+    });
+    await installHarnessRuntimeTopology(context, observationTopology);
     for (const [name, value] of Object.entries(
-      runtimeTopologyToQueryParams(
-        resolveRuntimeTopology({
-          ...topology,
-          embedded: true,
-          embedParentOrigin: parentUrl.origin,
-        }),
-      ),
+      runtimeTopologyToQueryParams(observationTopology),
     ))
       controllerUrl.searchParams.set(name, value);
     controllerUrl.searchParams.set("aj_room", snapshot.roomId);
@@ -165,6 +178,14 @@ export async function openControllerObservation({
         controllerId: snapshot.controllerId,
       },
     );
+    // Inspection updates in an effect; allow its rendered controller state to reach the compositor.
+    await controllerFrame.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    signal?.throwIfAborted();
     return {
       page,
       async deliver(event: ControllerBridgeServerEventName, args: unknown[]) {
@@ -178,18 +199,10 @@ export async function openControllerObservation({
           { type: "AIRJAM_CONTROLLER_BRIDGE_EVENT", payload: { event, args } },
         );
       },
-      async close() {
-        await page.evaluate((message) => {
-          const deliver = Reflect.get(window, "airJamObservationDeliver") as (
-            value: unknown,
-          ) => void;
-          deliver(message);
-        }, createControllerBridgeCloseMessage("capture_complete"));
-        await context.close();
-      },
+      close,
     };
   } catch (error) {
-    await context.close();
+    await close();
     throw error;
   }
 }

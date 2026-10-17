@@ -3,7 +3,6 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 export const resolveDevtoolsHelperScript = (fileName: string): string => {
@@ -38,6 +37,7 @@ const projectTypescriptLoaderHelpers = new Set([
   "inspect-airjam-agent",
   "list-visual-scenarios",
   "run-visual-capture",
+  "run-test-profile",
 ]);
 
 export const resolveDevtoolsHelperArgs = (helperPath: string): string[] =>
@@ -45,5 +45,23 @@ export const resolveDevtoolsHelperArgs = (helperPath: string): string[] =>
   projectTypescriptLoaderHelpers.has(
     path.basename(helperPath, path.extname(helperPath)),
   )
-    ? ["--import", require.resolve("tsx"), helperPath]
+    ? ["--import", createRequire(helperPath).resolve("tsx"), helperPath]
     : [helperPath];
+
+export function resolveProjectDevtoolsHelperScript(
+  projectDir: string,
+  fileName: string,
+) {
+  const projectRequire = createRequire(path.join(projectDir, "package.json"));
+  const manifest = projectRequire.resolve("@air-jam/devtools/package.json");
+  const helper = path.join(
+    path.dirname(manifest),
+    "dist/tooling",
+    fileName.replace(/\.ts$/, ".js"),
+  );
+  if (!existsSync(helper))
+    throw new Error(
+      `The pinned dependency graph is missing its runtime helper: ${fileName}`,
+    );
+  return helper;
+}

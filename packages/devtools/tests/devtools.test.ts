@@ -17,6 +17,7 @@ import { inspectGameAgentContract } from "../src/agent.js";
 import { detectProjectContext, inspectProject } from "../src/context.js";
 import {
   connectController,
+  controlControllerParticipant,
   disconnectController,
   invokeControllerAction,
   readRuntimeSnapshot,
@@ -29,13 +30,7 @@ import {
   startDev,
   stopDev,
 } from "../src/dev.js";
-import {
-  closeGameSession,
-  invokeGameSessionAction,
-  openGameSession,
-  readGameSession,
-  sendGameSessionInput,
-} from "../src/game-session.js";
+import { createGameSessionRuntime } from "../src/game-session-runtime.js";
 import {
   inspectGame,
   listGames,
@@ -49,6 +44,13 @@ import {
 } from "../src/quality.js";
 import type { AirJamVisualCaptureSummary } from "../src/types.js";
 import { listVisualScenarios } from "../src/visual.js";
+const {
+  closeGameSession,
+  invokeGameSessionAction,
+  openGameSession,
+  readGameSession,
+  sendGameSessionInput,
+} = createGameSessionRuntime();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tempRoots: string[] = [];
@@ -249,11 +251,13 @@ console.log(JSON.stringify({
 
 const createControllerSocketFixture = async ({
   controllerStateDelayMs = 0,
+  rejectLeave = false,
   aliasedAgentImport = false,
   replayStaleDefaultSyncAfterAction = false,
   embeddedArcadeIdentity = null,
 }: {
   controllerStateDelayMs?: number;
+  rejectLeave?: boolean;
   aliasedAgentImport?: boolean;
   replayStaleDefaultSyncAfterAction?: boolean;
   embeddedArcadeIdentity?: {
@@ -462,6 +466,22 @@ const createControllerSocketFixture = async ({
       else publishState();
     });
 
+    socket.on("controller:leasedControl", (request, acknowledge) => {
+      acknowledge({
+        status: "applied",
+        leaseId: request.lease.id,
+        sequence: request.lease.sequence,
+        replayed: false,
+        operation:
+          request.operation.kind === "action"
+            ? {
+                kind: "action",
+                result: { ok: true, status: "accepted", source: "host" },
+              }
+            : { kind: request.operation.kind },
+      });
+    });
+
     socket.on("controller:input", (payload) => {
       receivedInputs.push(payload);
     });
@@ -535,12 +555,16 @@ const createControllerSocketFixture = async ({
           event: string,
           listener: (
             payload: { roomId: string; controllerId: string },
-            callback: (ack: { ok: true }) => void,
+            callback: (ack: { ok: boolean; message?: string }) => void,
           ) => void,
         ) => void;
       }
     ).on("controller:leave", (payload, callback) => {
       receivedLeaves.push(payload);
+      if (rejectLeave) {
+        callback({ ok: false, message: "The fixture refused removal." });
+        return;
+      }
       socket.emit("server:controllerLeft", {
         controllerId: payload.controllerId,
       });
@@ -1102,8 +1126,9 @@ if (command === "topology") {
     );
 
     const startedAt = Date.now();
+    // pnpm can normalize the script's exit code; the supervisor reports its managed command.
     await expect(startDev({ cwd: root })).rejects.toThrow(
-      /Managed dev supervisor exited with code 7[\s\S]*fixture managed runtime failed/,
+      /Managed dev supervisor exited with code [1-9]\d*[\s\S]*fixture managed runtime failed/,
     );
     expect(Date.now() - startedAt).toBeLessThan(10_000);
 
@@ -1251,6 +1276,99 @@ describe("visual scenarios", () => {
 });
 
 describe("virtual controller runtime control", () => {
+  it("keeps leased player ownership separate from ordinary controller writes", async () => {
+    const fixture = await createControllerSocketFixture();
+    const connected = await connectController({
+      cwd: fixture.root,
+      controllerJoinUrl: fixture.joinUrl,
+    });
+    const command = {
+      controllerSessionId: connected.controllerSessionId,
+      expected: {
+        documentId: "document",
+        roomId: "ROOM1",
+        contractId: "contract",
+        runtimeId: "runtime",
+        surfaceId: null,
+        participantId: null,
+      },
+      lease: { id: "223e4567-e89b-42d3-a456-426614174000", sequence: 1 },
+      operation: { kind: "release" as const },
+    };
+    try {
+      expect(await controlControllerParticipant(command)).toMatchObject({
+        status: "applied",
+        operation: { kind: "release" },
+      });
+      await expect(
+        sendControllerInput({
+          controllerSessionId: connected.controllerSessionId,
+          input: {},
+        }),
+      ).rejects.toThrow("participant_control_leased");
+      await expect(
+        invokeControllerAction({
+          controllerSessionId: connected.controllerSessionId,
+          actionName: "tap",
+          storeDomain: "default",
+        }),
+      ).rejects.toThrow("participant_control_leased");
+      expect(
+        await controlControllerParticipant({
+          ...command,
+          lease: {
+            ...command.lease,
+            id: "223e4567-e89b-42d3-a456-426614174001",
+          },
+        }),
+      ).toEqual({ status: "rejected", reason: "lease_conflict" });
+      expect(
+        await controlControllerParticipant({
+          ...command,
+          lease: { ...command.lease, sequence: 2 },
+          operation: {
+            kind: "action",
+            deadlineMs: performance.now() + 2000,
+            actionId: "tap",
+          },
+        }),
+      ).toMatchObject({
+        status: "applied",
+        operation: { kind: "action", result: { ok: true } },
+      });
+      expect(fixture.receivedInputs).toEqual([]);
+      expect(fixture.receivedActions).toEqual([]);
+    } finally {
+      const stopped = await disconnectController({
+        controllerSessionId: connected.controllerSessionId,
+      });
+      expect(stopped.release).toMatchObject({
+        status: "applied",
+        sequence: 3,
+        operation: { kind: "release" },
+      });
+      expect(stopped.leave).toEqual({ status: "acknowledged" });
+    }
+  });
+
+  it("reports an unremoved player honestly while still disconnecting its socket", async () => {
+    const fixture = await createControllerSocketFixture({ rejectLeave: true });
+    const connected = await connectController({
+      cwd: fixture.root,
+      controllerJoinUrl: fixture.joinUrl,
+    });
+    const stopped = await disconnectController({
+      controllerSessionId: connected.controllerSessionId,
+    });
+    expect(stopped.disconnected).toBe(true);
+    expect(stopped.release).toEqual({ status: "not-leased" });
+    expect(stopped.leave).toEqual({
+      status: "rejected",
+      message: "The fixture refused removal.",
+    });
+    expect(stopped.session.connected).toBe(false);
+  });
+
   it("connects a virtual controller, sends input, invokes actions, reads synced runtime state, and disconnects", async () => {
     const fixture = await createControllerSocketFixture({
       controllerStateDelayMs: 50,
@@ -1374,6 +1492,7 @@ describe("virtual controller runtime control", () => {
       controllerSessionId: connected.controllerSessionId,
     });
     expect(disconnected.disconnected).toBe(true);
+    expect(disconnected.leave).toEqual({ status: "acknowledged" });
     expect(disconnected.session.connected).toBe(false);
     expect(fixture.receivedLeaves).toEqual([
       expect.objectContaining({
@@ -1530,7 +1649,13 @@ describe("attached game sessions", () => {
     });
     expect(session.hasAgentContract).toBe(false);
     expect(session.actions).toEqual([]);
-    await built.closeGameSession({ gameSessionId: session.gameSessionId });
+    await built.closeGameSession({
+      cwd: fixture.root,
+      gameSessionId: session.gameSessionId,
+    });
+    const { stopGameSessionBroker } =
+      await import("../src/game-session-broker.js");
+    await stopGameSessionBroker(fixture.root);
   });
   it("does not accept a stale Arcade game identity", async () => {
     const fixture = await createControllerSocketFixture();

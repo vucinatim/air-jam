@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { openGameSession } from "../src/game-session.js";
 import type { RunVisualHarnessOptions } from "../src/harness/visual.js";
-
-vi.mock("../src/game-session.js", () => ({
+const { openGameSession } = vi.hoisted(() => ({
   openGameSession: vi.fn(async () => ({ gameSessionId: "fixture-session" })),
-  closeGameSession: vi.fn(async () => undefined),
-  readGameSession: vi.fn(),
-  invokeGameSessionAction: vi.fn(),
+}));
+vi.mock("../src/game-session-runtime.js", () => ({
+  createGameSessionRuntime: () => ({
+    openGameSession,
+    closeGameSession: vi.fn(async () => undefined),
+    readGameSession: vi.fn(),
+    invokeGameSessionAction: vi.fn(),
+  }),
 }));
 vi.mock("../src/tooling/visual-pack.js", () => ({
   loadVisualScenarioPackFromModuleOrConfig: vi.fn(async () => ({

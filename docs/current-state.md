@@ -1,7 +1,27 @@
 # Current State
 
-Last updated: 2026-10-16
+Last updated: 2026-10-18
 Status: Studio foundation continuation qualified locally; earlier separation checkpoint retained below
+
+## Native observation and isolated playtesting
+
+The public SDK exposes current-host observations and fenced participant controls.
+Devtools owns detached sessions, immutable source/build runs, authored two-seat
+policies and evaluators, original evidence and read-only live host/controller
+watching. CLI and MCP consume these same services. The
+[agent session contract](./contracts/agent-session-contract.md) and
+[devtools reference](../packages/devtools/README.md) own their supported surfaces.
+
+Independent frozen installs, process ownership, source hashes and cleanup receipts
+separate a repeatable test from a creator's live room. Optional model policies use
+owner-verified read-only artifacts and bounded asynchronous initialization; the
+framework does not download models or require a model provider.
+
+Exact unpublished package consumers and Linux native tests pass on minimal and
+Pong. Actual Mac Studio watching preserves a simultaneous human match and also
+works without starting a creator preview. A contained Laya counter comparison
+passes under one CPU / 3 GiB; its Pong comparison remains in progress. Actual
+Windows qualification remains open. Main and npm releases remain unchanged.
 
 ## Owned live semantic evaluation
 

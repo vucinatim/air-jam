@@ -9,8 +9,10 @@
  *
  * @internal This class is not exported publicly. Use hooks to access input.
  */
-import type { z } from "zod";
+import { z } from "zod";
 import type { ControllerInputEvent } from "../protocol";
+import { participantInputSchemaDescriptionSchema } from "../protocol/leased-control";
+import { isRpcSerializable } from "../utils/is-rpc-serializable";
 
 type InputFieldBehavior = "pulse" | "hold" | "latest";
 
@@ -102,7 +104,7 @@ interface ControllerBehaviorState {
 /**
  * Internal class that manages input buffering, validation, and behavior semantics.
  *
- * **Single input lane:** one `InputManager` per `HostSessionProvider`, fed only by `server:input`.
+ * **Single input lane:** one `InputManager` per `HostSessionProvider`, fed by ordinary input and fenced participant control.
  * Multiple `createAirJamStore` domains in the same room (e.g. `arcade.surface` + embedded game)
  * do not duplicate or fork input — gameplay still reads controller input through this manager only.
  *
@@ -134,10 +136,14 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
   private inputBuffer = new Map<string, Record<string, unknown>>();
   private behaviorState = new Map<string, ControllerBehaviorState>();
   private behaviorOverrides = new Map<string, InputFieldBehavior>();
-  private config: InputConfig<TSchema>;
+  private readonly schema: TSchema | undefined;
+  private inputDescription:
+    | z.infer<typeof participantInputSchemaDescriptionSchema>
+    | undefined;
+  private leases = new Map<string, { deadline: number; released: boolean }>();
 
   constructor(config: InputConfig<TSchema> = {}) {
-    this.config = config;
+    this.schema = config.schema;
     this.behaviorOverrides = this.createBehaviorOverrides(config.behavior);
   }
 
@@ -146,6 +152,7 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
    * Should be called when 'server:input' event is received.
    */
   handleInput(payload: ControllerInputEvent): void {
+    if (this.leases.has(payload.controllerId)) return;
     // The server already routes by room; keep host runtime hot path minimal.
     this.inputBuffer.set(payload.controllerId, payload.input);
     this.captureTransientBehaviors(payload.controllerId, payload.input);
@@ -157,6 +164,12 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
    * Applies configured input behavior semantics.
    */
   getInput(controllerId: string): z.infer<TSchema> | undefined {
+    const lease = this.leases.get(controllerId);
+    if (lease && (lease.released || performance.now() >= lease.deadline)) {
+      this.clearBufferedInput(controllerId);
+      lease.released = true;
+      return undefined;
+    }
     const rawInput = this.inputBuffer.get(controllerId);
 
     if (!rawInput) {
@@ -165,8 +178,8 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
 
     // Validate with schema if provided
     let validatedInput: Record<string, unknown> = rawInput;
-    if (this.config.schema) {
-      const result = this.config.schema.safeParse(rawInput);
+    if (this.schema && !lease) {
+      const result = this.schema.safeParse(rawInput);
       if (!result.success) {
         // Validation failed - log error and return undefined
         console.warn(
@@ -188,8 +201,90 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
    * Clears input state for a controller (e.g., when player leaves).
    */
   clearInput(controllerId: string): void {
+    this.clearBufferedInput(controllerId);
+    this.leases.delete(controllerId);
+  }
+
+  private clearBufferedInput(controllerId: string) {
     this.inputBuffer.delete(controllerId);
     this.behaviorState.delete(controllerId);
+  }
+
+  clearLeasedInputs() {
+    for (const controllerId of this.leases.keys())
+      this.releaseLeasedInput(controllerId);
+  }
+
+  describeInputSchema() {
+    if (this.inputDescription) return this.inputDescription;
+    if (!this.schema)
+      return (this.inputDescription = {
+        status: "unavailable",
+        reason: "not-configured",
+      });
+    try {
+      this.inputDescription = participantInputSchemaDescriptionSchema.parse({
+        status: "available",
+        // Zod attaches a non-enumerable Standard Schema validator; it is not wire data.
+        schema: structuredClone(z.toJSONSchema(this.schema, { io: "input" })),
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !error.message.endsWith("cannot be represented in JSON Schema")
+      )
+        throw error;
+      this.inputDescription = {
+        status: "unavailable",
+        reason: "not-representable",
+      };
+    }
+    return this.inputDescription;
+  }
+
+  get supportsLeasedInput() {
+    return this.schema !== undefined;
+  }
+
+  setLeasedInput(
+    controllerId: string,
+    value: Record<string, unknown>,
+    ttlMs: number,
+  ) {
+    if (!this.schema) return false;
+    const parsed = this.schema.safeParse(value);
+    if (
+      !parsed.success ||
+      !parsed.data ||
+      typeof parsed.data !== "object" ||
+      Array.isArray(parsed.data) ||
+      !isRpcSerializable(parsed.data)
+    )
+      return false;
+    const input = parsed.data as Record<string, unknown>;
+    const previous = this.leases.get(controllerId);
+    if (
+      !previous ||
+      previous.released ||
+      performance.now() >= previous.deadline
+    )
+      this.clearBufferedInput(controllerId);
+    this.leases.set(controllerId, {
+      deadline: performance.now() + ttlMs,
+      released: false,
+    });
+    this.inputBuffer.set(controllerId, input);
+    this.captureTransientBehaviors(controllerId, input);
+    return true;
+  }
+
+  claimLeasedInput(controllerId: string) {
+    if (!this.leases.has(controllerId)) this.releaseLeasedInput(controllerId);
+  }
+
+  releaseLeasedInput(controllerId: string) {
+    this.clearBufferedInput(controllerId);
+    this.leases.set(controllerId, { deadline: 0, released: true });
   }
 
   private getBehaviorState(controllerId: string): ControllerBehaviorState {
