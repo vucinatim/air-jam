@@ -26,6 +26,7 @@ describe("devtools helper execution", () => {
 
       expect(args[0]).toBe("--import");
       expect(args[1]).toMatch(/tsx/);
+      expect(new URL(args[1]).protocol).toBe("file:");
       expect(args[2]).toBe(helperPath);
       expect(args).not.toContain("cli.mjs");
     }
@@ -38,6 +39,7 @@ describe("devtools helper execution", () => {
 
     expect(args[0]).toBe("--import");
     expect(args[1]).toMatch(/tsx/);
+    expect(new URL(args[1]).protocol).toBe("file:");
     expect(args[2]).toBe(path.join(candidate, "src/tooling/helper.ts"));
     expect(args).not.toContain("cli.mjs");
   });

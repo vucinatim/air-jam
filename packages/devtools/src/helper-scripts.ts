@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -45,7 +45,11 @@ export const resolveDevtoolsHelperArgs = (helperPath: string): string[] =>
   projectTypescriptLoaderHelpers.has(
     path.basename(helperPath, path.extname(helperPath)),
   )
-    ? ["--import", createRequire(helperPath).resolve("tsx"), helperPath]
+    ? [
+        "--import",
+        pathToFileURL(createRequire(helperPath).resolve("tsx")).href,
+        helperPath,
+      ]
     : [helperPath];
 
 export function resolveProjectDevtoolsHelperScript(
