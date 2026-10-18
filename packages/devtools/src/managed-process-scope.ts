@@ -27,6 +27,25 @@ export function assertProcessScopesConfirmed() {
   if (processScopeFault) throw processScopeFault;
 }
 
+export function processGuardEnvironment() {
+  return Object.fromEntries(
+    [
+      "PATH",
+      "SystemRoot",
+      "WINDIR",
+      "HOME",
+      "TMPDIR",
+      "TEMP",
+      "TMP",
+      "LANG",
+      "LC_ALL",
+      "NODE_DEBUG",
+    ].flatMap((key) =>
+      process.env[key] === undefined ? [] : [[key, process.env[key]]],
+    ),
+  );
+}
+
 class ProcessGuard {
   private readonly child: ChildProcess;
   private failure: Error | null = null;
@@ -60,22 +79,7 @@ class ProcessGuard {
       {
         detached: true,
         stdio: ["ignore", "ignore", "inherit", "ipc"],
-        env: Object.fromEntries(
-          [
-            "PATH",
-            "SystemRoot",
-            "WINDIR",
-            "HOME",
-            "TMPDIR",
-            "TEMP",
-            "TMP",
-            "LANG",
-            "LC_ALL",
-            "NODE_DEBUG",
-          ].flatMap((key) =>
-            process.env[key] === undefined ? [] : [[key, process.env[key]]],
-          ),
-        ),
+        env: processGuardEnvironment(),
       },
     );
     this.child.unref();

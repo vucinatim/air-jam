@@ -125,6 +125,10 @@ jobs:
           NODE_DEBUG: airjam-process-scope
         run: pnpm --filter @air-jam/devtools test -- tests/windows-process-scopes.test.ts tests/managed-process-scope.test.ts tests/process-scope.test.ts tests/test-profile-process.test.ts
 
+      - name: Diagnose Windows guardian initialization after failure
+        if: failure() && matrix.system.id == 'windows'
+        run: pnpm --filter @air-jam/devtools exec tsx tests/fixtures/windows-guardian-diagnostic.ts
+
       - name: Verify public installation cell
         run: >-
           pnpm --silent run repo -- release install-matrix verify

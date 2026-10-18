@@ -20,7 +20,9 @@ framework does not download models or require a model provider.
 Exact unpublished package consumers and Linux native tests pass on minimal and
 Pong. Actual Mac Studio watching preserves a simultaneous human match and also
 works without starting a creator preview. A contained Laya counter comparison
-passes under one CPU / 3 GiB; its Pong comparison remains in progress. Actual
+passes under one CPU / 3 GiB. Both Pong baselines pass, but Laya produces no timely
+gameplay decisions and fails qualification; its deliberate loader fault stops
+explicitly without fallback. It remains an opt-in experiment fixture. Actual
 Windows qualification remains open. Main and npm releases remain unchanged.
 
 ## Owned live semantic evaluation
