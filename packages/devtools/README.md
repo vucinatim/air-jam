@@ -58,9 +58,11 @@ Owned runtimes and policy/evaluator helpers enter a process scope before loading
 game profiles or opening browser pages. One guardian per tool process owns their
 cleanup. POSIX uses marked process groups, inherited ownership and creation
 identities; its recovery records live under `.airjam/devtools/process-scopes`.
-Windows uses verified kernel jobs with kill-on-close and no breakaway. Windows
-PowerShell must permit the packaged job helper; blocked initialization fails
-admission without weakening the machine's policy.
+Windows uses verified kernel jobs with kill-on-close and no breakaway. It requires
+PowerShell 7.4+ (`pwsh`), which most Windows desktops do not include by default;
+install it with `winget install Microsoft.PowerShell`. Its packaged job helper
+compiles in memory. Blocked initialization fails admission without weakening the
+machine's policy; unrelated commands do not require the guardian.
 Set `NODE_DEBUG=airjam-process-scope` to inspect Windows guardian startup phases.
 Failures include bounded startup diagnostics without requiring debug logging.
 

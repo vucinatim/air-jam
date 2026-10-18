@@ -5,6 +5,7 @@ import { debuglog } from "node:util";
 import { resolveDevtoolsHelperScript } from "./helper-scripts.js";
 import {
   processGuardResponseSchema,
+  processGuardStartupTimeoutMs,
   type ProcessGuardResponse,
 } from "./process-scope-protocol.js";
 import { processScopeReceiptSchema } from "./process-scope.js";
@@ -35,7 +36,7 @@ export class WindowsProcessScopes {
         `${message} Elapsed ${Math.round(performance.now() - started)} ms; stdout prefix ${firstOutput.toString("hex") || "none"}; diagnostics: ${diagnosticTail || "none"}`,
       );
     this.child = spawn(
-      "powershell.exe",
+      "pwsh.exe",
       [
         "-NoProfile",
         "-NonInteractive",
@@ -60,7 +61,7 @@ export class WindowsProcessScopes {
           "process_scope_unavailable: Windows job guardian startup timed out.",
         );
         abort(error);
-      }, 10000);
+      }, processGuardStartupTimeoutMs - 2500);
       const abort = (error: Error) => {
         clearTimeout(timer);
         reject(error);
@@ -93,6 +94,7 @@ export class WindowsProcessScopes {
             resolve();
             return;
           }
+          if (result.kind === "startup-error") throw new Error(result.message);
           const request = this.pending.get(result.id);
           if (!request) throw new Error("Unknown Windows job acknowledgement.");
           this.pending.delete(result.id);
@@ -107,7 +109,13 @@ export class WindowsProcessScopes {
           abort(invalid);
         }
       });
-      this.child.once("error", abort);
+      this.child.once("error", (error) =>
+        abort(
+          failure(
+            `process_scope_unavailable: Windows process scopes require PowerShell 7.4+ (pwsh). Install: winget install Microsoft.PowerShell. ${error.message}`,
+          ),
+        ),
+      );
       this.child.once("exit", (code, signal) => {
         const error = failure(
           `process_scope_unavailable: Windows job guardian exited (code ${code}, signal ${signal}).`,

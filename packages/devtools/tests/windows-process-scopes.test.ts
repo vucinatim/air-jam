@@ -2,6 +2,7 @@ import { ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { afterEach, expect, it, vi } from "vitest";
+import { spawnScopedProcess } from "../src/managed-process-scope.js";
 import { WindowsProcessScopes } from "../src/windows-process-scopes.js";
 
 vi.mock("node:child_process", async (importOriginal) => ({
@@ -13,6 +14,7 @@ const streams: PassThrough[] = [];
 afterEach(() => {
   for (const stream of streams.splice(0)) stream.destroy();
   vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 function guardian() {
@@ -55,4 +57,23 @@ it("fails closed when an established guardian breaks its protocol", async () => 
     "Invalid Windows guardian response",
   );
   expect(process.kill).toHaveBeenCalledTimes(1);
+});
+
+it("explains the Windows prerequisite when pwsh is missing", async () => {
+  const process = guardian();
+  const opening = WindowsProcessScopes.open();
+  process.child.emit("error", new Error("spawn pwsh.exe ENOENT"));
+  await expect(opening).rejects.toThrow("winget install Microsoft.PowerShell");
+  expect(vi.mocked(spawn).mock.calls.at(-1)?.[0]).toBe("pwsh.exe");
+});
+
+it("propagates startup failure before admitting any authored helper", async () => {
+  const process = guardian();
+  const opening = spawnScopedProcess(["unused.mjs"], { cwd: "." });
+  process.child.emit("message", {
+    kind: "startup-error",
+    message: "fixture prerequisite is missing",
+  });
+  await expect(opening).rejects.toThrow("fixture prerequisite is missing");
+  expect(spawn).toHaveBeenCalledTimes(1);
 });

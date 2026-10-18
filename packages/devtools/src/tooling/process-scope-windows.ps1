@@ -1,4 +1,7 @@
 $ErrorActionPreference = 'Stop'
+if ($PSVersionTable.PSVersion -lt [Version]'7.4') {
+    throw 'Windows process scopes require PowerShell 7.4+ (pwsh). Install: winget install Microsoft.PowerShell.'
+}
 $guardianClock = [Diagnostics.Stopwatch]::StartNew()
 [Console]::Error.WriteLine("Air Jam job guardian starting: PowerShell $($PSVersionTable.PSVersion), input $([Console]::InputEncoding.CodePage), output $([Console]::OutputEncoding.CodePage)")
 [Console]::Error.WriteLine("Air Jam job guardian compiling at $($guardianClock.ElapsedMilliseconds) ms")

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { processScopeReceiptSchema } from "./process-scope.js";
 
+export const processGuardStartupTimeoutMs = 10000;
+
 export const processGuardRequestSchema = z.discriminatedUnion("kind", [
   z
     .object({
@@ -26,6 +28,7 @@ export const processGuardRequestSchema = z.discriminatedUnion("kind", [
 export type ProcessGuardRequest = z.infer<typeof processGuardRequestSchema>;
 export const processGuardResponseSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("ready") }).strict(),
+  z.object({ kind: z.literal("startup-error"), message: z.string() }).strict(),
   z
     .object({
       kind: z.literal("result"),

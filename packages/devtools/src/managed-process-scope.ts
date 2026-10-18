@@ -8,6 +8,7 @@ import {
 } from "./helper-scripts.js";
 import {
   processGuardResponseSchema,
+  processGuardStartupTimeoutMs,
   processScopeAdmissionSchema,
   type ProcessGuardRequest,
   type ProcessGuardResponse,
@@ -84,20 +85,27 @@ class ProcessGuard {
     );
     this.child.unref();
     this.ready = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const error = new Error(
-          "process_scope_unavailable: Guardian startup timed out.",
-        );
+      const timer = setTimeout(
+        () =>
+          abort(
+            new Error("process_scope_unavailable: Guardian startup timed out."),
+          ),
+        processGuardStartupTimeoutMs,
+      );
+      const abort = (error: Error) => {
+        clearTimeout(timer);
         reject(error);
         this.fail(error);
-      }, 10000);
+      };
       this.child.on("message", (value: unknown) => {
         const message = processGuardResponseSchema.safeParse(value);
         if (!message.success)
-          return this.fail(
+          return abort(
             new Error("process_scope_unavailable: Invalid guardian response."),
           );
         const result = message.data;
+        if (result.kind === "startup-error")
+          return abort(new Error(result.message));
         if (result.kind === "ready") {
           clearTimeout(timer);
           this.child.channel?.unref();
@@ -106,7 +114,7 @@ class ProcessGuard {
         }
         const request = this.pending.get(result.id);
         if (!request)
-          return this.fail(
+          return abort(
             new Error("process_scope_unavailable: Unknown guardian response."),
           );
         this.pending.delete(result.id);
@@ -122,15 +130,11 @@ class ProcessGuard {
           this.child.channel?.unref();
       });
       this.child.once("error", (error) => {
-        clearTimeout(timer);
-        reject(error);
-        this.fail(error);
+        abort(error);
       });
       this.child.once("exit", () => {
         const error = new Error("process_scope_unavailable: Guardian exited.");
-        clearTimeout(timer);
-        reject(error);
-        this.fail(error);
+        abort(error);
       });
     });
   }

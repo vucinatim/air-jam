@@ -25,8 +25,26 @@ import { WindowsProcessScopes } from "../windows-process-scopes.js";
 const scopes = new Map<string, { scope: ProcessScope; filename: string }>();
 const recovered = new Set<string>();
 let poisoned = false;
-const windows =
-  process.platform === "win32" ? await WindowsProcessScopes.open() : null;
+let windows: WindowsProcessScopes | null = null;
+try {
+  if (process.platform === "win32") windows = await WindowsProcessScopes.open();
+} catch (error) {
+  if (process.send && process.connected) {
+    const transmit = process.send.bind(process);
+    await new Promise<void>((resolve, reject) =>
+      transmit(
+        {
+          kind: "startup-error",
+          message: error instanceof Error ? error.message : String(error),
+        } satisfies ProcessGuardResponse,
+        undefined,
+        undefined,
+        (failure) => (failure ? reject(failure) : resolve()),
+      ),
+    );
+  }
+  throw error;
+}
 const guardian = windows ? null : processIdentity(process.pid);
 if (!windows && !guardian)
   throw new Error("process_scope_unavailable: Guardian identity unavailable.");
