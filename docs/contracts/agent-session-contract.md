@@ -283,8 +283,37 @@ code/random policies need no model runtime. The harness does not select a hosted
 provider, download weights or silently change billing. A manifest's provenance
 records operator-supplied source and licensing information, not a legal verdict.
 
+### Decision-model players
+
+A policy may return a question instead of a control: `{ ask: { state, question,
+options } }`. Each option carries the plain condition under which it is correct
+and an ordinary play control (an input, an action, or a release), so a model can
+only choose among controls the game already accepts. The trusted run owner puts
+the question to the run's typed decision model and plays the chosen option's
+control through the same seat, lease and deadlines as any other decision. The
+question shares the policy's `decisionMs` budget. A late, failed or undeclared
+answer is a missed decision and releases the seat; a run whose policy asks
+without a configured model ends as an error. There is no fallback policy.
+
+Games describe how they are played with a player contract, written alongside
+their profiles by whoever writes the game:
+`defineAirJamPlayerContract({ brief, turn })`. The brief explains the game to a
+reader who has never seen it. `turn({ observation, seatId })` describes the
+current state in words and offers that turn's options, or returns `null` when the
+seat has nothing to decide. `createAirJamPlayerPolicy(contract)` turns a contract
+into an ordinary profile policy. Describe what a player perceives, not the
+answer: a turn computed from hidden state the player cannot see measures the
+contract, not the model.
+
+The model is configured only for the run owner, through
+`AIRJAM_DECISIONS_ENDPOINT`, `AIRJAM_DECISIONS_MODEL` and optional
+`AIRJAM_DECISIONS_TOKEN`, using the Decisions API shape that typed decision
+models share (OpenRouter's, which serves Jev). Policy and evaluator processes
+never receive the endpoint or its credential. The trace records each answer's
+choice, confidence and duration alongside the decision.
+
 Each scenario also declares one synchronous evaluator and its named numeric metrics.
-Policies return controls only; a policy cannot declare a verdict. The evaluator
+Policies return controls or questions, never a verdict. The evaluator
 runs in a separate child through the same bounded, correlated profile IPC
 transport. A stalled actor cannot block judging or final evaluation. Stdout is
 bounded diagnostic output. Provider/native inference credentials are excluded
@@ -456,6 +485,12 @@ automatically retried because it may already have executed in the game. The owne
 browser/process is disposed by the existing controller lifecycle.
 
 ## Unreleased tooling behavior changes
+
+`AirJamPolicyDecision` gained an `ask` variant for decision-model players, and
+`@air-jam/devtools/testing` exports `defineAirJamPlayerContract` and
+`createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a
+question. Pong and the minimal starter declare player contracts and offer a
+`model` policy; Pong also gains a `match` profile against its own bot.
 
 `@air-jam/devtools/agent` now exports only static `inspectGameAgentContract` and
 its types. Removed `readGameSnapshot`, `invokeGameAction` and

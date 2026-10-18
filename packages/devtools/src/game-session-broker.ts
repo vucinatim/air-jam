@@ -10,6 +10,7 @@ import {
 import path from "node:path";
 import { z } from "zod";
 import { currentRoomObserver } from "./current-room-observation.js";
+import { createDecisionProviderFromEnvironment } from "./decision-provider.js";
 import { GameRunOwner } from "./game-run-owner.js";
 import {
   GAME_RUN_PROTOCOL_VERSION,
@@ -323,6 +324,7 @@ export async function runGameSessionBroker({
   const runs = new GameRunOwner({
     projectDir: resolvedProjectDir,
     ownerInstanceId: instanceId,
+    decisions: createDecisionProviderFromEnvironment(),
     async openSession({ runId, gameId, nickname, attachment, build, onScope }) {
       const pending = (async () => {
         const session = await runtime

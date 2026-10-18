@@ -12,6 +12,10 @@ import { mkdir, open, readFile, rename } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { ControllerDisconnection } from "./controller-protocol.js";
+import type {
+  AirJamDecisionAnswer,
+  AirJamDecisionProvider,
+} from "./decision-provider.js";
 import {
   gameBuildIdentitySchema,
   type PinnedGameBuild,
@@ -43,6 +47,7 @@ import {
 import { verifyPolicyArtifacts } from "./policy-artifacts.js";
 import { startTestProfileProcess } from "./test-profile-process.js";
 import type {
+  AirJamDecisionQuestion,
   AirJamPolicyDecision,
   AirJamRunReceipt,
   AirJamScenarioVerdict,
@@ -54,6 +59,10 @@ import type {
 } from "./types.js";
 
 type HostObservationIdentity = HostObservation["identity"];
+type PlayDecisionControl = Extract<
+  AirJamPolicyDecision,
+  { control: unknown }
+>["control"];
 
 type EndReason = NonNullable<AirJamGameRunRecord["end"]>["reason"];
 function agentNickname(index: number) {
@@ -162,6 +171,7 @@ export class GameRunOwner {
         onScope: ProcessScopeObserver;
       }) => Promise<GameRunSession>;
       sessionClosed: (gameSessionId: string) => void;
+      decisions?: AirJamDecisionProvider;
     },
   ) {
     this.directory = path.join(
@@ -947,6 +957,57 @@ export class GameRunOwner {
       Math.max(0, run.deadline - performance.now())
     );
   }
+  /**
+   * Put a policy's question to the run's decision model and map its choice back
+   * to the option's own control. It shares the policy's decision deadline, and
+   * a late, failed or undeclared answer is a missed decision, never a fallback.
+   */
+  private async answer(
+    run: Run,
+    question: AirJamDecisionQuestion,
+    deadline: number,
+  ) {
+    const ask = this.options.decisions;
+    if (!ask)
+      throw new Error(
+        "decision_provider_unavailable: This run's policy asks a decision model, but none is configured.",
+      );
+    const remaining = deadline - performance.now();
+    if (remaining <= 0)
+      throw new Error("policy_timeout: Decision exceeded its deadline.");
+    const started = performance.now();
+    const timeout = AbortSignal.timeout(Math.ceil(remaining));
+    let answered: AirJamDecisionAnswer;
+    try {
+      answered = await ask(
+        question,
+        AbortSignal.any([run.abort.signal, timeout]),
+      );
+    } catch (error) {
+      if (timeout.aborted)
+        throw new Error(
+          "policy_timeout: Decision model exceeded its deadline.",
+        );
+      if (
+        error instanceof Error &&
+        error.message.startsWith("decision_failed:")
+      )
+        throw error;
+      throw new Error(
+        `decision_failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    const option = question.options[answered.choice];
+    if (!option)
+      throw new Error(
+        "decision_failed: Decision model chose an option the policy did not offer.",
+      );
+    return {
+      ...answered,
+      control: option.control,
+      durationMs: performance.now() - started,
+    };
+  }
   private deadline(observation: HostObservation) {
     if (!observation.clock)
       throw new Error("Host does not advertise command admission deadlines.");
@@ -1226,7 +1287,7 @@ export class GameRunOwner {
           );
         const step = ++run.record.counters.steps;
         const counters = this.seatRecord(run, seat).counters;
-        let decision: AirJamPolicyDecision;
+        let control: PlayDecisionControl;
         try {
           if (policy.busy()) {
             counters.blocked++;
@@ -1240,7 +1301,13 @@ export class GameRunOwner {
           seat.policyCursor = seat.sequence;
           counters.decisions++;
           const decisionStarted = performance.now();
-          decision = await policy.decide(
+          const decisionDeadline =
+            decisionStarted +
+            Math.min(
+              profile.timing.decisionMs,
+              Math.max(1, run.deadline - decisionStarted),
+            );
+          const decision = await policy.decide(
             {
               observation,
               seatId: seat.id,
@@ -1248,11 +1315,14 @@ export class GameRunOwner {
               elapsedMs: this.elapsed(run),
               receipts,
             },
-            Math.min(
-              profile.timing.decisionMs,
-              Math.max(1, run.deadline - performance.now()),
-            ),
+            decisionDeadline - decisionStarted,
           );
+          let answer: Awaited<ReturnType<GameRunOwner["answer"]>> | undefined;
+          if ("ask" in decision) {
+            answer = await this.answer(run, decision.ask, decisionDeadline);
+            control = answer.control;
+          } else control = decision.control;
+          if (run.abort.signal.aborted) return;
           await this.trace(run, {
             kind: "policy_decision",
             seatId: seat.id,
@@ -1261,13 +1331,22 @@ export class GameRunOwner {
             ...(decision.diagnostics
               ? { diagnostics: decision.diagnostics }
               : {}),
+            ...(answer
+              ? {
+                  answer: {
+                    choice: answer.choice,
+                    confidence: answer.confidence,
+                    durationMs: answer.durationMs,
+                  },
+                }
+              : {}),
           });
           this.pruneReceipts(run);
         } catch (error) {
           if (run.abort.signal.aborted) return;
           if (
             !(error instanceof Error) ||
-            !/^policy_(timeout|busy):/.test(error.message)
+            !/^(policy_(timeout|busy)|decision_failed):/.test(error.message)
           )
             throw error;
           if (error.message.startsWith("policy_timeout:")) counters.timeout++;
@@ -1290,15 +1369,15 @@ export class GameRunOwner {
         if (run.abort.signal.aborted) return;
         seat.misses = 0;
         const operation: ControllerLeasedControl["operation"] =
-          decision.control.kind === "release"
+          control.kind === "release"
             ? { kind: "release" }
-            : decision.control.kind === "input"
+            : control.kind === "input"
               ? {
-                  ...decision.control,
+                  ...control,
                   ttlMs: profile.timing.inputTtlMs,
                   deadlineMs: this.deadline(observation),
                 }
-              : { ...decision.control, deadlineMs: this.deadline(observation) };
+              : { ...control, deadlineMs: this.deadline(observation) };
         if (
           operation.kind === "action" &&
           !profile.actions.includes(operation.actionId)

@@ -1,4 +1,5 @@
 import {
+  createAirJamPlayerPolicy,
   defineAirJamTestProfiles,
   type AirJamTestPolicy,
 } from "@air-jam/devtools/testing";
@@ -10,6 +11,7 @@ import {
   PADDLE_HEIGHT,
   PADDLE_SPEED,
 } from "../game/engine/constants";
+import { pongPlayer } from "./player";
 
 const teamSchema = z.enum(["team1", "team2"]);
 const scoresSchema = z.object({
@@ -148,7 +150,76 @@ function cooperativePaddlePolicy(randomized: boolean): AirJamTestPolicy {
     }),
   };
 }
+const matchSnapshotSchema = z.object({
+  matchPhase: z.string(),
+  scores: scoresSchema,
+});
 export const testProfiles = defineAirJamTestProfiles({
+  match: {
+    label: "Play a short match against the game's bot",
+    targets: ["owned"],
+    seats: [{ id: "player", label: "Orange paddle" }],
+    setup: [
+      {
+        lane: "participant",
+        seatId: "player",
+        actionId: "join_team",
+        input: "team1",
+      },
+      {
+        lane: "participant",
+        seatId: "player",
+        actionId: "set_bot_count",
+        input: { team: "team1", count: 0 },
+      },
+      {
+        lane: "participant",
+        seatId: "player",
+        actionId: "set_bot_count",
+        input: { team: "team2", count: 1 },
+      },
+      {
+        lane: "participant",
+        seatId: "player",
+        actionId: "set_points_to_win",
+        input: 3,
+      },
+      { lane: "participant", seatId: "player", actionId: "start_match" },
+    ],
+    actions: [],
+    scope: "player",
+    includeImage: false,
+    timing: { intervalMs: 100, decisionMs: 1200, inputTtlMs: 1500 },
+    metrics: [
+      { id: "player_points", label: "Points won" },
+      { id: "bot_points", label: "Points conceded" },
+    ],
+    policies: {
+      code: cooperativePaddlePolicy(false),
+      random: cooperativePaddlePolicy(true),
+      model: createAirJamPlayerPolicy(pongPlayer),
+    },
+    evaluator: {
+      create: () => ({
+        evaluate: ({ observation }) => {
+          const { matchPhase, scores } = matchSnapshotSchema.parse(
+            observation.snapshot,
+          );
+          const metrics = {
+            player_points: scores.team1,
+            bot_points: scores.team2,
+          };
+          return matchPhase === "ended"
+            ? {
+                status: "passed",
+                message: `The match finished ${scores.team1}-${scores.team2} against the bot.`,
+                metrics,
+              }
+            : { status: "pending", metrics };
+        },
+      }),
+    },
+  },
   cooperative: {
     label: "Play a paddle alongside the creator",
     targets: ["current"],
@@ -157,11 +228,12 @@ export const testProfiles = defineAirJamTestProfiles({
     actions: ["join_team"],
     scope: "player",
     includeImage: false,
-    timing: { intervalMs: 150, decisionMs: 300, inputTtlMs: 750 },
+    timing: { intervalMs: 150, decisionMs: 1200, inputTtlMs: 1500 },
     metrics: [],
     policies: {
       code: cooperativePaddlePolicy(false),
       random: cooperativePaddlePolicy(true),
+      model: createAirJamPlayerPolicy(pongPlayer),
     },
     evaluator: {
       create: () => ({

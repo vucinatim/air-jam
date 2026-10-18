@@ -1,8 +1,10 @@
 import {
+  createAirJamPlayerPolicy,
   defineAirJamTestProfiles,
   type AirJamTestPolicy,
 } from "@air-jam/devtools/testing";
 import { z } from "zod";
+import { minimalPlayer } from "./player";
 
 const snapshotSchema = z.object({
   totalCount: z.number().int().nonnegative(),
@@ -47,9 +49,13 @@ export const testProfiles = defineAirJamTestProfiles({
     actions: ["tap"],
     scope: "player",
     includeImage: false,
-    timing: { intervalMs: 500, decisionMs: 300, inputTtlMs: 750 },
+    timing: { intervalMs: 500, decisionMs: 1200, inputTtlMs: 750 },
     metrics: [{ id: "agent_taps", label: "Agent taps" }],
-    policies: { code: tapPolicy(false), random: tapPolicy(true) },
+    policies: {
+      code: tapPolicy(false),
+      random: tapPolicy(true),
+      model: createAirJamPlayerPolicy(minimalPlayer),
+    },
     evaluator: {
       create: () => ({
         evaluate: ({ observation, seats }) => ({
@@ -79,12 +85,16 @@ export const testProfiles = defineAirJamTestProfiles({
     actions: ["tap"],
     scope: "diagnostic",
     includeImage: false,
-    timing: { intervalMs: 100, decisionMs: 300, inputTtlMs: 500 },
+    timing: { intervalMs: 100, decisionMs: 1200, inputTtlMs: 500 },
     metrics: [
       { id: "first_taps", label: "First player taps" },
       { id: "second_taps", label: "Second player taps" },
     ],
-    policies: { code: tapPolicy(false), random: tapPolicy(true) },
+    policies: {
+      code: tapPolicy(false),
+      random: tapPolicy(true),
+      model: createAirJamPlayerPolicy(minimalPlayer),
+    },
     evaluator: {
       create: ({ seats: seatIds }) => {
         const taps = new Map(seatIds.map((id) => [id, 0]));
