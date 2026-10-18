@@ -1,3 +1,4 @@
+import { copyFile } from "node:fs/promises";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
@@ -18,12 +19,21 @@ export default defineConfig({
     quality: "src/quality.ts",
     release: "src/release.ts",
     visual: "src/visual.ts",
+    testing: "src/testing.ts",
+    dependencies: "src/dependencies.ts",
+    "game-runs": "src/game-run-protocol.ts",
+    "game-builds": "src/game-build-protocol.ts",
+    "source-tree-contract": "src/source-tree-contract.ts",
     "tooling/agent-contract": "src/tooling/agent-contract.ts",
     "tooling/hold-runtime-host": "src/tooling/hold-runtime-host.ts",
     "tooling/inspect-airjam-agent": "src/tooling/inspect-airjam-agent.ts",
     "tooling/list-visual-scenarios": "src/tooling/list-visual-scenarios.ts",
     "tooling/managed-dev-supervisor": "src/tooling/managed-dev-supervisor.ts",
+    "tooling/game-session-broker": "src/tooling/game-session-broker.ts",
     "tooling/run-visual-capture": "src/tooling/run-visual-capture.ts",
+    "tooling/run-test-profile": "src/tooling/run-test-profile.ts",
+    "tooling/process-scope-guard": "src/tooling/process-scope-guard.ts",
+    "tooling/seal-game-build": "src/tooling/seal-game-build.ts",
   },
   format: ["esm"],
   dts: true,
@@ -31,4 +41,14 @@ export default defineConfig({
   clean: true,
   target: "es2022",
   platform: "node",
+  onSuccess: async () => {
+    await copyFile(
+      "src/tooling/process-scope-windows.ps1",
+      "dist/tooling/process-scope-windows.ps1",
+    );
+    await copyFile(
+      "src/tooling/process-scope-bootstrap.mjs",
+      "dist/tooling/process-scope-bootstrap.mjs",
+    );
+  },
 });

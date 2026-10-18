@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHostRuntimeInspectionContract } from "../src/runtime-inspection";
+import { resolveProjectRuntimeTopology } from "../src/runtime-topology";
 import { registerHostRuntimeActionStore } from "../src/runtime/contracts/control";
 import {
   publishEmbeddedHostPreview,
@@ -8,6 +9,13 @@ import {
   requestHostPreviewSnapshot,
 } from "../src/runtime/preview-inspection-bridge";
 
+const topology = resolveProjectRuntimeTopology({
+  runtimeMode: "standalone-dev",
+  surfaceRole: "host",
+  appOrigin: "https://game.example",
+  embedded: true,
+  embedParentOrigin: "https://studio.example",
+});
 const originalParent = window.parent;
 afterEach(() => {
   Object.defineProperty(window, "parent", {
@@ -21,6 +29,53 @@ afterEach(() => {
 });
 
 describe("embedded host presentation inspection", () => {
+  it.each(["", "https://game.example/after-reload"])(
+    "uses the declared parent when the current referrer is %s",
+    (referrer) => {
+      const parent = { postMessage: vi.fn() } as unknown as Window;
+      Object.defineProperty(window, "parent", {
+        configurable: true,
+        value: parent,
+      });
+      Object.defineProperty(document, "referrer", {
+        configurable: true,
+        value: referrer,
+      });
+      const inspection = createHostRuntimeInspectionContract({
+        roomId: "ROOM",
+        joinUrl: "https://game.example/controller?room=ROOM",
+        joinUrlStatus: "ready",
+        connectionStatus: "connected",
+        players: [],
+        controllers: [],
+        mode: "standalone",
+        runtimeState: "playing",
+      });
+      const close = publishEmbeddedHostPreview(inspection, topology);
+      expect(parent.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "AIRJAM_HOST_PREVIEW_SNAPSHOT" }),
+        "https://studio.example",
+      );
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          source: parent,
+          origin: "https://game.example",
+          data: { type: "AIRJAM_HOST_PREVIEW_INSPECT" },
+        }),
+      );
+      expect(parent.postMessage).toHaveBeenCalledTimes(1);
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          source: parent,
+          origin: "https://studio.example",
+          data: { type: "AIRJAM_HOST_PREVIEW_INSPECT" },
+        }),
+      );
+      expect(parent.postMessage).toHaveBeenCalledTimes(2);
+      close();
+    },
+  );
+
   it("pushes store replacements without a room change or parent request", () => {
     const parent = { postMessage: vi.fn() } as unknown as Window;
     Object.defineProperty(window, "parent", {
@@ -41,10 +96,11 @@ describe("embedded host presentation inspection", () => {
       mode: "standalone",
       runtimeState: "playing",
     });
-    const cleanup = publishEmbeddedHostPreview(inspection);
+    const cleanup = publishEmbeddedHostPreview(inspection, topology);
     const binding = { roomId: "ROOM", storeDomain: "game", invoke: vi.fn() };
     const closeFirst = registerHostRuntimeActionStore(window, {
       ...binding,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "first",
@@ -52,6 +108,7 @@ describe("embedded host presentation inspection", () => {
     const first = vi.mocked(parent.postMessage).mock.calls.at(-1)?.[0];
     const closeReplacement = registerHostRuntimeActionStore(window, {
       ...binding,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "replacement",
@@ -74,6 +131,7 @@ describe("embedded host presentation inspection", () => {
     const count = vi.mocked(parent.postMessage).mock.calls.length;
     const closeLater = registerHostRuntimeActionStore(window, {
       ...binding,
+      dispatchParticipant: vi.fn(),
       contractStoreDomain: "default",
       read: () => ({ data: {}, revision: 0 }),
       stateEpoch: "later",
@@ -102,7 +160,7 @@ describe("embedded host presentation inspection", () => {
       runtimeState: "paused",
       controllerOrientation: "landscape",
     });
-    const cleanup = publishEmbeddedHostPreview(inspection);
+    const cleanup = publishEmbeddedHostPreview(inspection, topology);
     const send = (source: Window, origin: string) =>
       window.dispatchEvent(
         new MessageEvent("message", {

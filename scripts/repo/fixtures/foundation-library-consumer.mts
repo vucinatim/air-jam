@@ -19,12 +19,20 @@ import {
   type ConnectControllerOptions,
 } from "@air-jam/devtools/controller";
 import { startDev, type StartDevOptions } from "@air-jam/devtools/dev";
+import { gameRunRecordSchema } from "@air-jam/devtools/game-runs";
+import {
+  listGameTestProfiles,
+  readGameRun,
+  startGameRun,
+  stopGameRun,
+} from "@air-jam/devtools/game-session";
 import { listGames } from "@air-jam/devtools/games";
 import {
   capturePrefabAtRuntime,
   definePrefabCaptureHarness,
   loadPrefabCapture,
 } from "@air-jam/devtools/harness/visual";
+import { defineAirJamTestProfiles } from "@air-jam/devtools/testing";
 import {
   captureVisualsAtRuntime,
   listVisualScenarios,
@@ -41,6 +49,41 @@ const developmentOptions: StartDevOptions = {
 };
 assert.equal(typeof connectController, "function");
 assert.equal(typeof startDev, "function");
+for (const operation of [
+  startGameRun,
+  readGameRun,
+  stopGameRun,
+  listGameTestProfiles,
+])
+  assert.equal(typeof operation, "function");
+assert.equal(
+  gameRunRecordSchema.safeParse({ state: "playing" }).success,
+  false,
+);
+const testProfiles = defineAirJamTestProfiles({
+  sample: {
+    label: "Installed profile API",
+    targets: ["owned"],
+    seats: [{ id: "player", label: "Player" }],
+    setup: [],
+    actions: ["counter:tap"],
+    scope: "diagnostic",
+    includeImage: false,
+    timing: { intervalMs: 100, decisionMs: 200, inputTtlMs: 250 },
+    metrics: [],
+    evaluator: { create: () => ({ evaluate: () => ({ status: "pending" }) }) },
+    policies: {
+      code: {
+        label: "Code",
+        create: () => ({ decide: () => ({ control: { kind: "release" } }) }),
+      },
+    },
+  },
+});
+assert.equal(
+  testProfiles.sample.policies.code.create().decide().control.kind,
+  "release",
+);
 assert.equal(controllerOptions.cwd, developmentOptions.cwd);
 assert.equal(documentation.documents.length, 16);
 assert.ok(

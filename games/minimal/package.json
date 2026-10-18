@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@air-jam/cli": "workspace:*",
+    "@air-jam/devtools": "workspace:^",
     "@air-jam/server": "workspace:*",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.0.0",

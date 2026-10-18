@@ -45,6 +45,11 @@ function fixture(domain = "default") {
       contractStoreDomain: "default",
       stateEpoch: String(Math.random()),
       read: () => ({ data: { score }, revision }),
+      dispatchParticipant: () => ({
+        ok: true,
+        status: "accepted",
+        source: "host",
+      }),
       invoke: async () => {
         score = 10;
         revision++;

@@ -3,6 +3,10 @@ import { agentContractDescriptionSchema } from "../../agent/agent-evaluator";
 import { roomCodeSchema } from "../../protocol/core";
 import { airJamActionInvocationResultSchema } from "../../protocol/sync";
 import { isRpcSerializable } from "../../utils/is-rpc-serializable";
+import {
+  hostObservationRequestSchema,
+  hostObservationSchema,
+} from "./observation";
 
 const identity = z.object({
   roomId: roomCodeSchema,
@@ -21,7 +25,15 @@ const actionRequest = identity.extend({
     .optional(),
 });
 export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
-  identity.extend({ operation: z.literal("read") }).strict(),
+  hostObservationRequestSchema
+    .extend({ operation: z.literal("observe") })
+    .strict(),
+  identity
+    .extend({
+      operation: z.literal("read"),
+      controllerId: z.string().min(1).nullable(),
+    })
+    .strict(),
   actionRequest.extend({ operation: z.literal("resolve") }).strict(),
   actionRequest.extend({ operation: z.literal("invoke-host") }).strict(),
 ]);
@@ -47,6 +59,10 @@ export const hostAgentSnapshotSchema = agentContractDescriptionSchema.extend({
 });
 
 export const hostAgentResponseSchema = z.discriminatedUnion("operation", [
+  z.object({
+    operation: z.literal("observe"),
+    observation: hostObservationSchema,
+  }),
   z.object({
     operation: z.literal("read"),
     snapshot: hostAgentSnapshotSchema.nullable(),

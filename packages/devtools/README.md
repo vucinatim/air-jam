@@ -51,3 +51,24 @@ together; documented module exports and their types follow the
 [public support contract](../../docs/contracts/public-package-support-contract.md).
 Hosted clients are optional: local development, inspection and evaluation do
 not require an Air Jam platform account.
+
+## Owned process lifetime
+
+Owned runtimes and policy/evaluator helpers enter a process scope before loading
+game profiles or opening browser pages. One guardian per tool process owns their
+cleanup. POSIX uses marked process groups, inherited ownership and creation
+identities; its recovery records live under `.airjam/devtools/process-scopes`.
+Windows uses verified kernel jobs with kill-on-close and no breakaway. It requires
+PowerShell 7.4+ (`pwsh`), which most Windows desktops do not include by default;
+install it with `winget install Microsoft.PowerShell`. Its packaged job helper
+compiles in memory. Blocked initialization fails admission without weakening the
+machine's policy; unrelated commands do not require the guardian.
+Set `NODE_DEBUG=airjam-process-scope` to inspect Windows guardian startup phases.
+Failures include bounded startup diagnostics without requiring debug logging.
+
+Closing a direct child is insufficient. Stop and unexpected root exit close the
+scope and require a bounded cleanup receipt. A lost broker triggers the same
+cleanup through the guardian. Unconfirmed cleanup refuses further admission;
+Studio can preserve the draft and recycle game compute. Other scopes remain
+independent. These mechanisms manage trusted process lifetimes; the container or
+VM remains the boundary for hostile game code and filesystem access.

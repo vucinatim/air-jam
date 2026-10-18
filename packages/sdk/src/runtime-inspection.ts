@@ -13,6 +13,10 @@ export {
   type RuntimeInspectionContract,
 } from "./runtime/contracts/inspection";
 export {
+  readHostObservation,
+  requestHostObservation,
+} from "./runtime/host-observation-bridge";
+export {
   readHostPreviewSnapshot,
   requestHostPreviewSnapshot,
   type HostPreviewSnapshot,

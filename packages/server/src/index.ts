@@ -66,6 +66,7 @@ const projectPublicRealtimeAdmissionStatus = (
 
 export interface CreateAirJamServerOptions extends ServerLoggingOptions {
   controllerGatewayKey?: string;
+  host?: string;
   port?: number;
   rateLimitWindowMs?: number;
   hostRegistrationRateLimitMax?: number;
@@ -384,10 +385,13 @@ export const createAirJamServer = (
     const resolvedPort = portOverride ?? options.port ?? defaultPort;
     await new Promise<void>((resolve, reject) => {
       httpServer.once("error", reject);
-      httpServer.listen(resolvedPort, () => {
-        httpServer.off("error", reject);
-        resolve();
-      });
+      httpServer.listen(
+        { port: resolvedPort, ...(options.host ? { host: options.host } : {}) },
+        () => {
+          httpServer.off("error", reject);
+          resolve();
+        },
+      );
     });
 
     await realtimeAdmissionService.start();

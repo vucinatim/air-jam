@@ -4,16 +4,19 @@ export type RoomCode = string;
 
 export type ConnectionRole = "host" | "controller";
 
-export type ConnectionStatus =
-  | "idle"
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "reconnecting";
+export const connectionStatusSchema = z.enum([
+  "idle",
+  "connecting",
+  "connected",
+  "disconnected",
+  "reconnecting",
+]);
+export type ConnectionStatus = z.infer<typeof connectionStatusSchema>;
 
 export type RunMode = "standalone" | "platform";
 
-export type RuntimeState = "paused" | "playing";
+export const runtimeStateSchema = z.enum(["paused", "playing"]);
+export type RuntimeState = z.infer<typeof runtimeStateSchema>;
 
 export const roomCodeSchema = z
   .string()
