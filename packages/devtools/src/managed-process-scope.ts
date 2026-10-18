@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { debuglog } from "node:util";
 import {
   resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
@@ -20,6 +21,7 @@ import {
 } from "./process-scope.js";
 
 let processScopeFault: Error | undefined;
+const debug = debuglog("airjam-process-scope");
 function recordProcessScopeFault(error: unknown) {
   processScopeFault ??=
     error instanceof Error ? error : new Error(String(error));
@@ -72,11 +74,17 @@ class ProcessGuard {
   >();
   readonly ready: Promise<void>;
   constructor() {
+    const started = performance.now();
+    const startupDeadline =
+      process.hrtime.bigint() + BigInt(processGuardStartupTimeoutMs) * 1000000n;
     this.child = spawn(
       process.execPath,
-      resolveDevtoolsHelperArgs(
-        resolveDevtoolsHelperScript("process-scope-guard.ts"),
-      ),
+      [
+        ...resolveDevtoolsHelperArgs(
+          resolveDevtoolsHelperScript("process-scope-guard.ts"),
+        ),
+        startupDeadline.toString(),
+      ],
       {
         detached: true,
         stdio: ["ignore", "ignore", "inherit", "ipc"],
@@ -90,7 +98,10 @@ class ProcessGuard {
           abort(
             new Error("process_scope_unavailable: Guardian startup timed out."),
           ),
-        processGuardStartupTimeoutMs,
+        Math.max(
+          1,
+          Number(startupDeadline - process.hrtime.bigint()) / 1000000,
+        ),
       );
       const abort = (error: Error) => {
         clearTimeout(timer);
@@ -108,6 +119,10 @@ class ProcessGuard {
           return abort(new Error(result.message));
         if (result.kind === "ready") {
           clearTimeout(timer);
+          debug("%j", {
+            event: "process-scope-prepared",
+            durationMs: performance.now() - started,
+          });
           this.child.channel?.unref();
           resolve();
           return;
@@ -187,6 +202,31 @@ class ProcessGuard {
   }
 }
 let guard: ProcessGuard | undefined;
+export async function prepareProcessScopes(startupSignal?: AbortSignal) {
+  assertProcessScopesConfirmed();
+  startupSignal?.throwIfAborted();
+  const manager = (guard ??= new ProcessGuard());
+  if (!startupSignal) await manager.ready;
+  else
+    await new Promise<void>((resolve, reject) => {
+      const aborted = () => {
+        startupSignal.removeEventListener("abort", aborted);
+        reject(startupSignal.reason);
+      };
+      startupSignal.addEventListener("abort", aborted, { once: true });
+      void manager.ready.then(
+        () => {
+          startupSignal.removeEventListener("abort", aborted);
+          resolve();
+        },
+        (error: unknown) => {
+          startupSignal.removeEventListener("abort", aborted);
+          reject(error);
+        },
+      );
+    });
+  return manager;
+}
 const processScopes = new WeakMap<ChildProcess, () => Promise<void>>();
 
 async function stopUnadmittedRoot(child: ChildProcess) {
@@ -242,6 +282,7 @@ export async function spawnScopedProcess(
     cwd: string;
     env?: NodeJS.ProcessEnv;
     onScope?: ProcessScopeObserver;
+    startupSignal?: AbortSignal;
   },
 ) {
   assertProcessScopesConfirmed();
@@ -250,7 +291,8 @@ export async function spawnScopedProcess(
   if (!entry || entry.startsWith("-"))
     throw new Error("A scoped process requires a helper module.");
   const argumentsList = args.slice(registerTypescript ? 3 : 1);
-  const manager = (guard ??= new ProcessGuard());
+  const manager = await prepareProcessScopes(options.startupSignal);
+  options.startupSignal?.throwIfAborted();
   const token = randomUUID();
   await manager.request({
     kind: "open",
@@ -258,7 +300,7 @@ export async function spawnScopedProcess(
     token,
     rootDir: options.cwd,
   });
-  const { onScope, ...processOptions } = options;
+  const { onScope, startupSignal, ...processOptions } = options;
   const child = spawn(
     process.execPath,
     [
@@ -282,8 +324,16 @@ export async function spawnScopedProcess(
   let hello = false;
   let gateOpened = false;
   const openGate = () => {
-    if (hello && admitted && !gateOpened && !closing && child.connected) {
+    if (
+      hello &&
+      admitted &&
+      !gateOpened &&
+      !closing &&
+      !startupSignal?.aborted &&
+      child.connected
+    ) {
       gateOpened = true;
+      startupSignal?.removeEventListener("abort", abortAdmission);
       child.send(1);
     }
   };
@@ -317,10 +367,16 @@ export async function spawnScopedProcess(
         });
       });
       unwatch();
+      startupSignal?.removeEventListener("abort", abortAdmission);
     })().catch((error) => {
       recordProcessScopeFault(error);
       throw error;
     }));
+  const abortAdmission = () => {
+    void close().catch((error) => console.error(error));
+  };
+  startupSignal?.addEventListener("abort", abortAdmission, { once: true });
+  if (startupSignal?.aborted) abortAdmission();
   unwatch = manager.watchFailure(() => {
     void (async () => {
       if (process.platform === "win32") {

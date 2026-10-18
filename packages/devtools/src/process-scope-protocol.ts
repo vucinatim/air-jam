@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { processScopeReceiptSchema } from "./process-scope.js";
 
-export const processGuardStartupTimeoutMs = 10000;
+// Windows includes first-use PowerShell compilation, before admitting authored code.
+export const processGuardStartupTimeoutMs =
+  process.platform === "win32" ? 30000 : 10000;
+export const processGuardStartupDeadlineSchema = z.coerce.bigint().positive();
 
 export const processGuardRequestSchema = z.discriminatedUnion("kind", [
   z

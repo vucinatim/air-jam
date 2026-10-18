@@ -66,6 +66,21 @@ machine's policy; unrelated commands do not require the guardian.
 Set `NODE_DEBUG=airjam-process-scope` to inspect Windows guardian startup phases.
 Failures include bounded startup diagnostics without requiring debug logging.
 
+Guardian preparation has a separate ceiling: 30 seconds on Windows, 10 seconds
+on POSIX. Four fresh Windows runner measurements took 3.65–4.38 seconds; an
+earlier cold compilation was cut off at 7.5 seconds, so its full duration is
+unknown. The Windows ceiling leaves room for first-use compilation rather than
+changing gameplay or input deadlines. Run cancellation interrupts its wait;
+preparation remains part of end-to-end operation time. One monotonic deadline
+owns readiness across the broker and helper, with a margin for reporting errors.
+`NODE_DEBUG=airjam-process-scope` records preparation duration and helper stages.
+
+Maintainers can measure first-use startup on fresh Windows runners with
+`gh workflow run public-install-matrix.yml --ref <branch> -f windows_startup_diagnostics=true`.
+That diagnostic uses a 120-second measurement ceiling, then checks normal process
+ownership and policy deadlines. The measured probe alone does not qualify normal
+admission; the full package matrix remains the delivery gate.
+
 Closing a direct child is insufficient. Stop and unexpected root exit close the
 scope and require a bounded cleanup receipt. A lost broker triggers the same
 cleanup through the guardian. Unconfirmed cleanup refuses further admission;

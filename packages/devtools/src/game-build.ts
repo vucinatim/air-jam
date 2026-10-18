@@ -373,7 +373,11 @@ export async function sealGameBuild(options: {
           configRelative: options.configRelative,
         }),
       ],
-      { cwd: options.projectDir, onScope: options.onScope },
+      {
+        cwd: options.projectDir,
+        onScope: options.onScope,
+        startupSignal: options.signal,
+      },
     );
     const ownedChild = child;
     const build = await new Promise<PinnedGameBuild>((resolve, reject) => {

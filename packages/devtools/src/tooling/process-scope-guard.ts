@@ -9,6 +9,7 @@ import {
 import path from "node:path";
 import {
   processGuardRequestSchema,
+  processGuardStartupDeadlineSchema,
   type ProcessGuardResponse,
 } from "../process-scope-protocol.js";
 import {
@@ -27,7 +28,16 @@ const recovered = new Set<string>();
 let poisoned = false;
 let windows: WindowsProcessScopes | null = null;
 try {
-  if (process.platform === "win32") windows = await WindowsProcessScopes.open();
+  const deadline = processGuardStartupDeadlineSchema.parse(process.argv[2]);
+  if (process.platform === "win32") {
+    const remainingMs =
+      Number(deadline - process.hrtime.bigint()) / 1000000 - 250;
+    if (remainingMs <= 0)
+      throw new Error(
+        "process_scope_unavailable: Guardian preparation deadline elapsed before Windows startup.",
+      );
+    windows = await WindowsProcessScopes.open(remainingMs);
+  }
 } catch (error) {
   if (process.send && process.connected) {
     const transmit = process.send.bind(process);

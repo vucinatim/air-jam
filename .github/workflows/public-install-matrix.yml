@@ -69,6 +69,10 @@ jobs:
         env:
           NODE_DEBUG: airjam-process-scope
         run: pnpm --silent --filter @air-jam/devtools exec tsx tests/fixtures/windows-guardian-diagnostic.ts --measure-cold
+      - name: Verify process ownership and policy deadlines
+        env:
+          NODE_DEBUG: airjam-process-scope
+        run: pnpm --filter @air-jam/devtools test -- tests/windows-process-scopes.test.ts tests/managed-process-preparation.test.ts tests/managed-process-scope.test.ts tests/process-scope.test.ts tests/test-profile-process.test.ts
 
   candidate:
     if: ${{ !inputs.windows_startup_diagnostics }}
@@ -156,7 +160,7 @@ jobs:
       - name: Verify process ownership on this operating system
         env:
           NODE_DEBUG: airjam-process-scope
-        run: pnpm --filter @air-jam/devtools test -- tests/windows-process-scopes.test.ts tests/managed-process-scope.test.ts tests/process-scope.test.ts tests/test-profile-process.test.ts
+        run: pnpm --filter @air-jam/devtools test -- tests/windows-process-scopes.test.ts tests/managed-process-preparation.test.ts tests/managed-process-scope.test.ts tests/process-scope.test.ts tests/test-profile-process.test.ts
 
       - name: Verify Windows guardian readiness with its restricted environment
         if: (success() || failure()) && matrix.system.id == 'windows'

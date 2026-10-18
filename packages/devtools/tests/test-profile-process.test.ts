@@ -3,10 +3,15 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeAll, expect, it } from "vitest";
+import { prepareProcessScopes } from "../src/managed-process-scope.js";
+import { processGuardStartupTimeoutMs } from "../src/process-scope-protocol.js";
 import { startTestProfileProcess } from "../src/test-profile-process.js";
 
 const cleanups: Array<() => Promise<void>> = [];
+beforeAll(async () => {
+  await prepareProcessScopes();
+}, processGuardStartupTimeoutMs + 1000);
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });

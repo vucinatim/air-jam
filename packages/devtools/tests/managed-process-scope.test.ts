@@ -10,6 +10,7 @@ import {
   closeScopedProcess,
   spawnScopedProcess,
 } from "../src/managed-process-scope.js";
+import { processGuardStartupTimeoutMs } from "../src/process-scope-protocol.js";
 import { processScopeJournalSchema } from "../src/process-scope.js";
 
 const loader = pathToFileURL(
@@ -118,24 +119,30 @@ async function running(processId: number) {
   }
 }
 
-it("confirms cleanup after the root dies while its child holds stdout, preserving another scope", async () => {
-  const first = await fixture();
-  const second = await fixture();
-  let firstClosed = false;
-  first.child.once("close", () => {
-    firstClosed = true;
-  });
-  first.child.kill("SIGKILL");
-  await closeScopedProcess(first.child);
-  expect(firstClosed).toBe(true);
-  await expect
-    .poll(() => running(first.metadata.descendantProcessId), { timeout: 4000 })
-    .toBe(false);
-  const reply = message(second.child, "pong");
-  second.child.send("ping");
-  expect(await reply).toEqual({ type: "pong" });
-  expect(await running(second.metadata.descendantProcessId)).toBe(true);
-}, 15000);
+it(
+  "confirms cleanup after the root dies while its child holds stdout, preserving another scope",
+  async () => {
+    const first = await fixture();
+    const second = await fixture();
+    let firstClosed = false;
+    first.child.once("close", () => {
+      firstClosed = true;
+    });
+    first.child.kill("SIGKILL");
+    await closeScopedProcess(first.child);
+    expect(firstClosed).toBe(true);
+    await expect
+      .poll(() => running(first.metadata.descendantProcessId), {
+        timeout: 4000,
+      })
+      .toBe(false);
+    const reply = message(second.child, "pong");
+    second.child.send("ping");
+    expect(await reply).toEqual({ type: "pong" });
+    expect(await running(second.metadata.descendantProcessId)).toBe(true);
+  },
+  processGuardStartupTimeoutMs + 15000,
+);
 
 async function independentBroker() {
   const root = await directory();

@@ -102,6 +102,7 @@ export async function startTestProfileProcess({
   const child = await spawnScopedProcess(resolveDevtoolsHelperArgs(helper), {
     cwd: rootDir,
     onScope,
+    startupSignal,
     env: Object.fromEntries(
       environmentKeys.flatMap((key) =>
         process.env[key] === undefined ? [] : [[key, process.env[key]]],
@@ -109,6 +110,8 @@ export async function startTestProfileProcess({
     ),
   }).catch((error) => {
     closeSync(logDescriptor);
+    if (startupSignal?.aborted)
+      throw new Error("policy_stopped", { cause: error });
     throw error;
   });
   let failure: Error | undefined;
