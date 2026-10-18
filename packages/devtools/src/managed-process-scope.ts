@@ -275,6 +275,9 @@ export async function spawnScopedProcess(
       stdio: ["ignore", "pipe", "pipe", "ipc"],
     },
   );
+  const rootClosed = new Promise<void>((resolve) =>
+    child.once("close", () => resolve()),
+  );
   let admitted = false;
   let hello = false;
   let gateOpened = false;
@@ -298,6 +301,21 @@ export async function spawnScopedProcess(
         throw new Error(
           `process_tree_unconfirmed: ${JSON.stringify(result.receipt)}`,
         );
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                "process_tree_unconfirmed: Scoped root streams did not close.",
+              ),
+            ),
+          2000,
+        );
+        void rootClosed.then(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
       unwatch();
     })().catch((error) => {
       recordProcessScopeFault(error);

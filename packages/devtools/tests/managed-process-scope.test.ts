@@ -3,6 +3,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, expect, it } from "vitest";
 import { z } from "zod";
 import {
@@ -11,7 +12,9 @@ import {
 } from "../src/managed-process-scope.js";
 import { processScopeJournalSchema } from "../src/process-scope.js";
 
-const loader = createRequire(import.meta.url).resolve("tsx");
+const loader = pathToFileURL(
+  createRequire(import.meta.url).resolve("tsx"),
+).href;
 const manager = new URL("../src/managed-process-scope.ts", import.meta.url)
   .href;
 const resources: Array<() => Promise<unknown>> = [];
@@ -34,7 +37,9 @@ const metadataSchema = z.object({
 });
 async function directory() {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-scoped-process-"));
-  resources.push(() => rm(root, { recursive: true, force: true }));
+  resources.push(() =>
+    rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }),
+  );
   return root;
 }
 function message(child: ChildProcess, type: string) {
@@ -86,7 +91,7 @@ async function fixture(detached = false) {
     cwd: root,
   });
   child.stdout?.resume();
-  child.stderr?.on("data", () => {});
+  child.stderr?.pipe(process.stderr);
   resources.push(() => closeScopedProcess(child));
   return {
     child,
@@ -116,8 +121,13 @@ async function running(processId: number) {
 it("confirms cleanup after the root dies while its child holds stdout, preserving another scope", async () => {
   const first = await fixture();
   const second = await fixture();
+  let firstClosed = false;
+  first.child.once("close", () => {
+    firstClosed = true;
+  });
   first.child.kill("SIGKILL");
   await closeScopedProcess(first.child);
+  expect(firstClosed).toBe(true);
   await expect
     .poll(() => running(first.metadata.descendantProcessId), { timeout: 4000 })
     .toBe(false);
@@ -146,10 +156,14 @@ setInterval(()=>{},1000);
     cwd: root,
     stdio: ["ignore", "ignore", "pipe", "ipc"],
   });
-  broker.stderr?.on("data", () => {});
+  broker.stderr?.pipe(process.stderr);
+  const brokerClosed = new Promise<void>((resolve) =>
+    broker.once("close", () => resolve()),
+  );
   resources.push(async () => {
     if (broker.exitCode === null && broker.signalCode === null)
       broker.kill("SIGKILL");
+    await brokerClosed;
   });
   const owned = metadataSchema.parse(await message(broker, "fixture-ready"));
   return { root, broker, owned };
