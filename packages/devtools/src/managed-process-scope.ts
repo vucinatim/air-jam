@@ -52,6 +52,7 @@ export function processGuardEnvironment() {
 class ProcessGuard {
   private readonly child: ChildProcess;
   private failure: Error | null = null;
+  private readyConfirmed = false;
   private readonly failureListeners = new Set<() => void>();
   get processId() {
     return this.child.pid;
@@ -118,6 +119,7 @@ class ProcessGuard {
         if (result.kind === "startup-error")
           return abort(new Error(result.message));
         if (result.kind === "ready") {
+          this.readyConfirmed = true;
           clearTimeout(timer);
           debug("%j", {
             event: "process-scope-prepared",
@@ -154,7 +156,7 @@ class ProcessGuard {
     });
   }
   private fail(error: Error) {
-    recordProcessScopeFault(error);
+    if (this.readyConfirmed) recordProcessScopeFault(error);
     const first = this.failure === null;
     this.failure ??= error;
     for (const request of this.pending.values()) {

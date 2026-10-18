@@ -593,7 +593,7 @@ export async function runGameSessionBroker({
       lease.expiresAt = Math.min(Date.now() + SESSION_IDLE_MS, lease.maximumAt);
       if (
         lease.runId &&
-        ["input", "invoke", "control"].includes(operation.operation)
+        ["input", "invoke", "control", "close"].includes(operation.operation)
       )
         throw new Error(
           "session_owned_by_run: Interactive writes are refused; use run.stop to end this activity.",

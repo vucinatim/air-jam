@@ -211,8 +211,9 @@ execution, filesystem or browser-owner code. Runtime operations remain in
 and `stop_game_run` operations share the existing project broker. The initial
 owned-run target opens its own fresh dedicated session. It never converts a
 manual session or attaches to the creator's room. Read/observe remain available;
-interactive input/action/control against its session are refused with
-`session_owned_by_run`. Closing the session invokes the run's same Stop path.
+interactive input/action/control and generic session closure are refused with
+`session_owned_by_run`. Only explicit run control or internal lease cleanup can
+end its session; a read-only embedding cannot bypass run authority by closing it.
 
 `wait` returns when final evidence and cleanup finish, or after its bounded
 timeout (default 25 seconds, maximum 30 seconds). A timeout returns the current

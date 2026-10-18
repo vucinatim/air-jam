@@ -2,7 +2,10 @@ import { ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { afterEach, expect, it, vi } from "vitest";
-import { spawnScopedProcess } from "../src/managed-process-scope.js";
+import {
+  assertProcessScopesConfirmed,
+  spawnScopedProcess,
+} from "../src/managed-process-scope.js";
 import { WindowsProcessScopes } from "../src/windows-process-scopes.js";
 
 vi.mock("node:child_process", async (importOriginal) => ({
@@ -76,6 +79,10 @@ it("propagates startup failure before admitting any authored helper", async () =
     message: "fixture prerequisite is missing",
   });
   await expect(opening).rejects.toThrow("fixture prerequisite is missing");
+  expect(assertProcessScopesConfirmed).not.toThrow();
+  await expect(
+    spawnScopedProcess(["unused.mjs"], { cwd: "." }),
+  ).rejects.toThrow("fixture prerequisite is missing");
   expect(spawn).toHaveBeenCalledTimes(1);
 });
 
