@@ -1,11 +1,16 @@
 import { z } from "zod";
+import { readBoundedText } from "./bounded-response.js";
 import type { AirJamDecisionQuestion } from "./testing.js";
 
 export type DecisionAnswer = { choice: string; confidence: number };
-export type DecisionProvider = (
-  question: AirJamDecisionQuestion,
-  signal: AbortSignal,
-) => Promise<DecisionAnswer>;
+/** The run's decision model, named so every answer can be tied to it. */
+export type DecisionProvider = {
+  model: string;
+  ask: (
+    question: AirJamDecisionQuestion,
+    signal: AbortSignal,
+  ) => Promise<DecisionAnswer>;
+};
 
 const MAX_RESPONSE_BYTES = 262_144;
 const responseSchema = z.object({
@@ -16,28 +21,6 @@ const responseSchema = z.object({
     }),
   }),
 });
-
-async function readBounded(response: Response) {
-  const reader = response.body?.getReader();
-  if (!reader) return "";
-  const chunks: Uint8Array[] = [];
-  let bytes = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      if (bytes > MAX_RESPONSE_BYTES) {
-        await reader.cancel();
-        throw new Error("Decision response is too large.");
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
 
 /**
  * A typed decision model reached through the Decisions API shape these models
@@ -57,7 +40,7 @@ export function createDecisionProviderFromEnvironment(
     );
   const url = new URL(endpoint);
   const token = environment.AIRJAM_DECISIONS_TOKEN?.trim();
-  return async (question, signal) => {
+  const ask: DecisionProvider["ask"] = async (question, signal) => {
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -88,7 +71,11 @@ export function createDecisionProviderFromEnvironment(
       throw new Error(`Decision model returned HTTP ${response.status}.`);
     }
     const parsed = responseSchema.safeParse(
-      JSON.parse(await readBounded(response)),
+      JSON.parse(
+        response.body
+          ? await readBoundedText(response.body, MAX_RESPONSE_BYTES)
+          : "null",
+      ),
     );
     if (!parsed.success) throw new Error("Decision model returned no choice.");
     return {
@@ -96,4 +83,5 @@ export function createDecisionProviderFromEnvironment(
       confidence: parsed.data.answers.decision.confidence,
     };
   };
+  return { model, ask };
 }

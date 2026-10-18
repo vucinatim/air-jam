@@ -964,8 +964,8 @@ export class GameRunOwner {
     question: AirJamDecisionQuestion,
     deadline: number,
   ): Promise<AnsweredDecision> {
-    const ask = this.options.decisions;
-    if (!ask)
+    const decisions = this.options.decisions;
+    if (!decisions)
       throw new Error(
         "decision_provider_unavailable: This run's policy asks a decision model, but none is configured.",
       );
@@ -976,7 +976,7 @@ export class GameRunOwner {
     const timeout = AbortSignal.timeout(Math.ceil(remaining));
     let answered: DecisionAnswer;
     try {
-      answered = await ask(
+      answered = await decisions.ask(
         question,
         AbortSignal.any([run.abort.signal, timeout]),
       );
@@ -989,6 +989,7 @@ export class GameRunOwner {
         `decision_failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+    run.record.decisionModel ??= decisions.model;
     const option = question.options[answered.choice];
     if (!option)
       throw new Error(

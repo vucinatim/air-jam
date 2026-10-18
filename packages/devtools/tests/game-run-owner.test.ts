@@ -147,7 +147,9 @@ afterEach(async () => {
   }
 });
 
-async function fixture({ decisions }: { decisions?: DecisionProvider } = {}) {
+async function fixture({
+  decisions,
+}: { decisions?: DecisionProvider["ask"] } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-run-"));
   const events: string[] = [];
   const session: GameRunSession = {
@@ -262,7 +264,7 @@ async function fixture({ decisions }: { decisions?: DecisionProvider } = {}) {
     ownerInstanceId: randomUUID(),
     openSession,
     sessionClosed,
-    decisions,
+    decisions: decisions && { model: "test-model", ask: decisions },
   });
   fixtures.push({ owner, root });
   const request: StartGameRunOptions = {
@@ -1723,7 +1725,7 @@ const tapOrWait = {
 } satisfies AirJamPolicyDecision;
 
 it("plays a decision model's choice as the option's own control and traces the answer", async () => {
-  const decisions = vi.fn<DecisionProvider>(async () => ({
+  const decisions = vi.fn<DecisionProvider["ask"]>(async () => ({
     choice: "tap",
     confidence: 0.93,
   }));
@@ -1733,6 +1735,7 @@ it("plays a decision model's choice as the option's own control and traces the a
   await f.owner.start(f.request);
   const record = await f.ended();
   expect(record.end?.reason).toBe("completed");
+  expect(record.decisionModel).toBe("test-model");
   expect(decisions).toHaveBeenCalledWith(
     tapOrWait.ask,
     expect.any(AbortSignal),

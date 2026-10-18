@@ -3,6 +3,7 @@ import {
   type HostObservation,
   type HostObservationRequest,
 } from "@air-jam/sdk/runtime-control";
+import { BodyLimitError, readBoundedText } from "./bounded-response.js";
 import {
   currentRoomObservationRequestSchema,
   type CurrentRoomAttachment,
@@ -51,36 +52,18 @@ export function currentRoomObserver(
       throw new Error(
         "current_observation_invalid: Empty observation response.",
       );
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let bytes = 0;
-    let exceeded = false;
+    let source: string;
     try {
-      while (true) {
-        const next = await reader.read();
-        if (next.done) break;
-        bytes += next.value.byteLength;
-        if (bytes > MAXIMUM_OBSERVATION_BYTES) {
-          exceeded = true;
-          throw new Error(
-            "current_observation_limit: The delegated frame exceeded its transfer budget.",
-          );
-        }
-        chunks.push(next.value);
-      }
-    } catch {
-      await reader.cancel().catch(() => undefined);
+      source = await readBoundedText(response.body, MAXIMUM_OBSERVATION_BYTES);
+    } catch (error) {
       throw new Error(
-        exceeded
+        error instanceof BodyLimitError
           ? "current_observation_limit: The delegated frame exceeded its transfer budget."
           : "current_observation_unavailable: Observation transfer failed.",
       );
-    } finally {
-      reader.releaseLock();
     }
     let result;
     try {
-      const source = Buffer.concat(chunks, bytes).toString("utf8");
       result = hostObservationResponseMessageSchema.shape.result.parse(
         JSON.parse(source),
       );

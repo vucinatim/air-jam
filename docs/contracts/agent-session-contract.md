@@ -311,7 +311,8 @@ The model is configured only for the run owner, through
 `AIRJAM_DECISIONS_TOKEN`, using the Decisions API shape that typed decision
 models share (OpenRouter's, which serves Jev). Policy and evaluator processes
 never receive the endpoint or its credential. The trace records each answer's
-choice, confidence and duration alongside the decision.
+choice, confidence and duration alongside the decision, and the run record names
+the `decisionModel` that answered.
 
 Each scenario also declares one synchronous evaluator and its named numeric metrics.
 Policies return controls or questions, never a verdict. The evaluator

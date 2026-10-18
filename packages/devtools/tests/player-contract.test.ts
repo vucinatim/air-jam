@@ -166,6 +166,12 @@ describe("decision provider", () => {
 
   it("is absent until an endpoint is configured, and requires a model with it", () => {
     expect(createDecisionProviderFromEnvironment({})).toBeUndefined();
+    expect(
+      configured({
+        AIRJAM_DECISIONS_ENDPOINT: "http://127.0.0.1/decisions",
+        AIRJAM_DECISIONS_MODEL: "typesafe/jev-1.13",
+      }).model,
+    ).toBe("typesafe/jev-1.13");
     expect(() =>
       createDecisionProviderFromEnvironment({
         AIRJAM_DECISIONS_ENDPOINT: "http://127.0.0.1/decisions",
@@ -184,12 +190,14 @@ describe("decision provider", () => {
         { answers: { decision: { choice: "tap", confidence: 0.9 } } },
       ];
     });
-    const ask = configured({
+    const provider = configured({
       AIRJAM_DECISIONS_ENDPOINT: endpoint,
       AIRJAM_DECISIONS_MODEL: "typesafe/jev-1.13",
       AIRJAM_DECISIONS_TOKEN: "local-token",
     });
-    await expect(ask(question, new AbortController().signal)).resolves.toEqual({
+    await expect(
+      provider.ask(question, new AbortController().signal),
+    ).resolves.toEqual({
       choice: "tap",
       confidence: 0.9,
     });
@@ -214,13 +222,13 @@ describe("decision provider", () => {
     const failing = await serve(() => [503, { error: "busy" }]);
     const empty = await serve(() => [200, { answers: {} }]);
     for (const endpoint of [failing, empty]) {
-      const ask = configured({
+      const provider = configured({
         AIRJAM_DECISIONS_ENDPOINT: endpoint,
         AIRJAM_DECISIONS_MODEL: "model",
       });
-      await expect(ask(question, new AbortController().signal)).rejects.toThrow(
-        /HTTP 503|no choice/,
-      );
+      await expect(
+        provider.ask(question, new AbortController().signal),
+      ).rejects.toThrow(/HTTP 503|no choice/);
     }
   });
 });
