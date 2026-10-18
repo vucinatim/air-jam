@@ -61,6 +61,8 @@ identities; its recovery records live under `.airjam/devtools/process-scopes`.
 Windows uses verified kernel jobs with kill-on-close and no breakaway. Windows
 PowerShell must permit the packaged job helper; blocked initialization fails
 admission without weakening the machine's policy.
+Set `NODE_DEBUG=airjam-process-scope` to inspect Windows guardian startup phases.
+Failures include bounded startup diagnostics without requiring debug logging.
 
 Closing a direct child is insufficient. Stop and unexpected root exit close the
 scope and require a bounded cleanup receipt. A lost broker triggers the same

@@ -1,4 +1,7 @@
 $ErrorActionPreference = 'Stop'
+$guardianClock = [Diagnostics.Stopwatch]::StartNew()
+[Console]::Error.WriteLine("Air Jam job guardian starting: PowerShell $($PSVersionTable.PSVersion), input $([Console]::InputEncoding.CodePage), output $([Console]::OutputEncoding.CodePage)")
+[Console]::Error.WriteLine("Air Jam job guardian compiling at $($guardianClock.ElapsedMilliseconds) ms")
 Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
@@ -112,9 +115,11 @@ public sealed class AirJamProcessJobs : IDisposable {
     }
 }
 '@
+[Console]::Error.WriteLine("Air Jam job guardian compiled at $($guardianClock.ElapsedMilliseconds) ms")
 $jobs = New-Object AirJamProcessJobs
 try {
     [Console]::Out.WriteLine('{"kind":"ready"}')
+    [Console]::Error.WriteLine("Air Jam job guardian ready at $($guardianClock.ElapsedMilliseconds) ms")
     while ($null -ne ($line = [Console]::In.ReadLine())) {
         $request = $line | ConvertFrom-Json
         try {
@@ -134,7 +139,7 @@ try {
             if($null -ne $receipt) { $result.receipt = $receipt }
             [Console]::Out.WriteLine(($result | ConvertTo-Json -Compress -Depth 8))
         } catch {
-            [Console]::Out.WriteLine((@{kind='error';id=$request.id;message=$_.Exception.Message} | ConvertTo-Json -Compress))
+            [Console]::Out.WriteLine((@{kind='error';id=$request.id;message=$_.Exception.Message;scopeUnconfirmed=($request.kind -eq 'close')} | ConvertTo-Json -Compress))
         }
     }
 } finally { $jobs.Dispose() }

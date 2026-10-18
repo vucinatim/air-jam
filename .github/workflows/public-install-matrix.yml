@@ -121,7 +121,9 @@ jobs:
           path: artifacts/public-release-candidate
 
       - name: Verify process ownership on this operating system
-        run: pnpm --filter @air-jam/devtools test -- tests/managed-process-scope.test.ts tests/process-scope.test.ts tests/test-profile-process.test.ts
+        env:
+          NODE_DEBUG: airjam-process-scope
+        run: pnpm --filter @air-jam/devtools test -- tests/windows-process-scopes.test.ts tests/managed-process-scope.test.ts tests/process-scope.test.ts tests/test-profile-process.test.ts
 
       - name: Verify public installation cell
         run: >-

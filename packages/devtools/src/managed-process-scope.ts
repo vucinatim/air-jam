@@ -71,6 +71,7 @@ class ProcessGuard {
             "TMP",
             "LANG",
             "LC_ALL",
+            "NODE_DEBUG",
           ].flatMap((key) =>
             process.env[key] === undefined ? [] : [[key, process.env[key]]],
           ),

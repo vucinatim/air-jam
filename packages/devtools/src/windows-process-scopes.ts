@@ -1,12 +1,15 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
+import { debuglog } from "node:util";
 import { resolveDevtoolsHelperScript } from "./helper-scripts.js";
 import {
   processGuardResponseSchema,
   type ProcessGuardResponse,
 } from "./process-scope-protocol.js";
 import { processScopeReceiptSchema } from "./process-scope.js";
+
+const debug = debuglog("airjam-process-scope");
 
 /** Kernel job handles remain in this guardian; EOF or guardian death kills every member. */
 export class WindowsProcessScopes {
@@ -24,6 +27,13 @@ export class WindowsProcessScopes {
   private failure: Error | null = null;
   private readonly ready: Promise<void>;
   private constructor() {
+    const started = performance.now();
+    let firstOutput = Buffer.alloc(0);
+    let diagnosticTail = "";
+    const failure = (message: string) =>
+      new Error(
+        `${message} Elapsed ${Math.round(performance.now() - started)} ms; stdout prefix ${firstOutput.toString("hex") || "none"}; diagnostics: ${diagnosticTail || "none"}`,
+      );
     this.child = spawn(
       "powershell.exe",
       [
@@ -32,19 +42,48 @@ export class WindowsProcessScopes {
         "-Command",
         `& ([scriptblock]::Create([IO.File]::ReadAllText('${resolveDevtoolsHelperScript("process-scope-windows.ps1").replaceAll("'", "''")}')))`,
       ],
-      { stdio: ["pipe", "pipe", "inherit"], windowsHide: true },
+      { stdio: ["pipe", "pipe", "pipe"], windowsHide: true },
     );
+    this.child.once("spawn", () =>
+      debug(
+        "PowerShell spawned in %d ms",
+        Math.round(performance.now() - started),
+      ),
+    );
+    this.child.stderr?.on("data", (chunk: Buffer) => {
+      diagnosticTail = (diagnosticTail + chunk.toString()).slice(-4096);
+      debug("%s", chunk.toString().trim());
+    });
     this.ready = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
-        const error = new Error(
+        const error = failure(
           "process_scope_unavailable: Windows job guardian startup timed out.",
         );
+        abort(error);
+      }, 10000);
+      const abort = (error: Error) => {
+        clearTimeout(timer);
         reject(error);
         this.fail(error);
-        this.child.kill();
-      }, 10000);
+      };
       const output = this.child.stdout;
       if (!output) throw new Error("Windows guardian output is unavailable.");
+      output.on("error", abort);
+      this.child.stdin?.on("error", abort);
+      this.child.stderr?.on("error", abort);
+      output.on("data", (chunk: Buffer) => {
+        if (firstOutput.length === 0)
+          debug(
+            "First PowerShell output at %d ms: %s",
+            Math.round(performance.now() - started),
+            chunk.subarray(0, 64).toString("hex"),
+          );
+        if (firstOutput.length < 64)
+          firstOutput = Buffer.concat([
+            firstOutput,
+            chunk.subarray(0, 64 - firstOutput.length),
+          ]);
+      });
       const lines = createInterface({ input: output });
       lines.on("line", (line) => {
         try {
@@ -62,21 +101,18 @@ export class WindowsProcessScopes {
             request.reject(new Error(result.message));
           else request.resolve(result);
         } catch (error) {
-          this.fail(error instanceof Error ? error : new Error(String(error)));
+          const invalid = failure(
+            `process_scope_unavailable: Invalid Windows guardian response ${JSON.stringify(line.slice(0, 256))}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          abort(invalid);
         }
       });
-      this.child.once("error", (error) => {
-        clearTimeout(timer);
-        reject(error);
-        this.fail(error);
-      });
-      this.child.once("exit", () => {
-        clearTimeout(timer);
-        const error = new Error(
-          "process_scope_unavailable: Windows job guardian exited.",
+      this.child.once("error", abort);
+      this.child.once("exit", (code, signal) => {
+        const error = failure(
+          `process_scope_unavailable: Windows job guardian exited (code ${code}, signal ${signal}).`,
         );
-        reject(error);
-        this.fail(error);
+        abort(error);
       });
     });
   }
@@ -86,12 +122,14 @@ export class WindowsProcessScopes {
     return owner;
   }
   private fail(error: Error) {
+    const first = this.failure === null;
     this.failure ??= error;
     for (const request of this.pending.values()) {
       clearTimeout(request.timer);
       request.reject(error);
     }
     this.pending.clear();
+    if (first) this.child.kill();
   }
   private async request(input: Record<string, unknown>) {
     await this.ready;
@@ -105,7 +143,6 @@ export class WindowsProcessScopes {
               "process_scope_unavailable: Windows job request timed out.",
             ),
           );
-          this.child.kill();
         }, 5000);
         this.pending.set(id, { resolve, reject, timer });
         this.child.stdin?.write(
