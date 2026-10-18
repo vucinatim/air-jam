@@ -22,8 +22,10 @@ Pong. Actual Mac Studio watching preserves a simultaneous human match and also
 works without starting a creator preview. A contained Laya counter comparison
 passes under one CPU / 3 GiB. Both Pong baselines pass, but Laya produces no timely
 gameplay decisions and fails qualification; its deliberate loader fault stops
-explicitly without fallback. It remains an opt-in experiment fixture. Actual
-Windows qualification remains open. Main and npm releases remain unchanged.
+explicitly without fallback. It remains an opt-in experiment fixture. Windows
+job ownership requires PowerShell 7.4+; the Public Install Matrix owns actual
+cross-platform process-lifetime and installation qualification. Main and npm
+releases remain unchanged.
 
 ## Owned live semantic evaluation
 
