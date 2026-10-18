@@ -27,6 +27,10 @@ import type {
   SystemLaunchGamePayload,
 } from "./host";
 import type {
+  ControllerLeasedControl,
+  ControllerLeasedControlAck,
+} from "./leased-control";
+import type {
   ControllerJoinedNotice,
   ControllerLeftNotice,
   ControllerWelcomePayload,
@@ -105,6 +109,10 @@ export interface ClientToServerEvents {
     callback: (ack: ControllerLeaveAck) => void,
   ) => void;
   "controller:input": (payload: ControllerInputEvent) => void;
+  "controller:leasedControl": (
+    payload: ControllerLeasedControl,
+    callback: (ack: ControllerLeasedControlAck) => void,
+  ) => void;
   "controller:system": (payload: ControllerSystemPayload) => void;
   "host:system": (payload: ControllerSystemPayload) => void;
   "host:signal": (payload: SignalPayload) => void;
@@ -126,6 +134,10 @@ export interface ServerToClientEvents {
   "server:controllerLeft": (payload: ControllerLeftNotice) => void;
   "server:playerUpdated": (payload: PlayerUpdatedNotice) => void;
   "server:input": (payload: ControllerInputEvent) => void;
+  "server:leasedControl": (
+    payload: ControllerLeasedControl,
+    callback: (ack: ControllerLeasedControlAck) => void,
+  ) => void;
   "server:error": (payload: ServerErrorPayload) => void;
   "server:state": (payload: ControllerStateMessage) => void;
   "server:welcome": (payload: ControllerWelcomePayload) => void;

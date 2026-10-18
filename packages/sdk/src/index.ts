@@ -59,6 +59,7 @@ export {
   type AirJamDiagnosticSeverity,
 } from "./diagnostics";
 
+export { captureAgentCanvas } from "./agent/capture-canvas";
 export {
   useAirJamController,
   type AirJamControllerApi,
@@ -84,6 +85,7 @@ export {
   type UseControllerToastsOptions,
 } from "./hooks/use-controller-toasts";
 export { useGetInput } from "./hooks/use-get-input";
+export { useHostAgentObservation } from "./hooks/use-host-agent-observation";
 export {
   useHostAudioMutePreference,
   type HostAudioMutePreference,

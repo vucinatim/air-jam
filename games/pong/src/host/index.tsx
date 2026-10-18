@@ -6,14 +6,18 @@
  */
 import {
   AudioRuntime,
+  captureAgentCanvas,
   useAirJamHost,
   useGetInput,
+  useHostAgentObservation,
   useHostTick,
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
+import { useRef } from "react";
 import { gameInputSchema } from "../game/contracts/input";
 import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
+import type { TeamId } from "../game/domain/team";
 import {
   captureRuntimeStateStep,
   drawFrame,
@@ -62,12 +66,42 @@ function PongHost() {
     runtimeState,
   });
 
+  const tick = useRef(0);
+  const serve = useRef(0);
+  const awaitingServe = useRef(false);
+  const goals = useRef<
+    Array<{
+      sequence: number;
+      serve: number;
+      tick: number;
+      ballX: number;
+      team: TeamId;
+      before: Record<TeamId, number>;
+      after: Record<TeamId, number>;
+    }>
+  >([]);
+  useHostAgentObservation({
+    read: () => ({
+      ...(matchPhase === "lobby" ? {} : { tick: tick.current }),
+      state: {
+        field: { width: FIELD_WIDTH, height: FIELD_HEIGHT },
+        simulation: { ...hostRuntime.runtimeBuffersRef.current.current },
+        countdown: hostRuntime.countdownValue,
+        goals: goals.current,
+      },
+    }),
+    capture: () => captureAgentCanvas(getContext()?.canvas ?? null),
+  });
+
   useHostTick({
     enabled: matchPhase !== "lobby",
     mode: "fixed",
     intervalMs: PONG_SIMULATION_STEP_MS,
     onTick: ({ deltaSeconds }) => {
+      tick.current += 1;
       const buffers = hostRuntime.runtimeBuffersRef.current;
+      if (awaitingServe.current && !buffers.current.awaitingServe)
+        serve.current += 1;
       captureRuntimeStateStep(buffers);
 
       stepGame({
@@ -84,9 +118,24 @@ function PongHost() {
         },
         onScore: (team) => {
           triggerScoreFeedback();
+          const before = { ...usePongStore.getState().scores };
           actions.scorePoint({ team });
+          const previous = goals.current.at(-1)?.sequence ?? 0;
+          goals.current = [
+            ...goals.current.slice(-15),
+            {
+              sequence: previous + 1,
+              serve: serve.current,
+              tick: tick.current,
+              ballX: buffers.current.ballX,
+              team,
+              before,
+              after: { ...usePongStore.getState().scores },
+            },
+          ];
         },
       });
+      awaitingServe.current = buffers.current.awaitingServe;
     },
     onFrame: ({ fixedStepAlpha }) => {
       const ctx = getContext();

@@ -1,9 +1,4 @@
-import {
-  closeGameSession,
-  invokeGameSessionAction,
-  openGameSession,
-  readGameSession,
-} from "../game-session.js";
+import { createGameSessionRuntime } from "../game-session-runtime.js";
 import type {
   AnyAirJamAgentContract,
   VisualHarnessMode,
@@ -57,6 +52,12 @@ const scenarioPack = (await loadVisualScenarioPackFromModuleOrConfig({
   modulePath,
   configPath,
 })) as VisualScenarioPack<AnyAirJamAgentContract>;
+const {
+  closeGameSession,
+  invokeGameSessionAction,
+  openGameSession,
+  readGameSession,
+} = createGameSessionRuntime();
 const mode =
   requestedMode === "arcade-test" ? "arcade-built" : "standalone-dev";
 

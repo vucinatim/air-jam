@@ -10,6 +10,7 @@ import {
   FIELD_HEIGHT,
   FIELD_WIDTH,
 } from "../../../src/game/engine/constants";
+import { createRuntimeState as createInitialRuntimeState } from "../../../src/game/engine/runtime-state";
 import type { RuntimeState } from "../../../src/game/engine/types";
 
 const TEST_STEP_SECONDS = 1 / 60;
@@ -17,6 +18,7 @@ const TEST_STEP_SECONDS = 1 / 60;
 const createRuntimeState = (
   overrides: Partial<RuntimeState> = {},
 ): RuntimeState => ({
+  ...createInitialRuntimeState(),
   paddle1FrontY: 0,
   paddle1BackY: 0,
   paddle2FrontY: 0,

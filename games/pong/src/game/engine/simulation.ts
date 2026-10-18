@@ -47,6 +47,7 @@ export const stepGame = ({
     deltaSeconds,
   );
   applyBotPaddleInput(state, teamAssignments, botCounts, deltaSeconds);
+  if (state.awaitingServe) return;
   advanceBall(state, countdown, deltaSeconds);
   reflectBallOffWalls(state);
 
@@ -130,6 +131,7 @@ export const stepGame = ({
 
   const scoringTeam = getScoringTeam(state, countdown);
   if (scoringTeam) {
+    state.awaitingServe = true;
     onScore(scoringTeam);
   }
 };

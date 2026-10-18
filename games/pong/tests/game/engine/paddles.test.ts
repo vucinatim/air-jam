@@ -7,11 +7,13 @@ import {
   applyBotPaddleInput,
   getTeamPaddleState,
 } from "../../../src/game/engine/paddles";
+import { createRuntimeState as createInitialRuntimeState } from "../../../src/game/engine/runtime-state";
 import type { RuntimeState } from "../../../src/game/engine/types";
 
 const createRuntimeState = (
   overrides: Partial<RuntimeState> = {},
 ): RuntimeState => ({
+  ...createInitialRuntimeState(),
   paddle1FrontY: 100,
   paddle1BackY: 100,
   paddle2FrontY: 100,

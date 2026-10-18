@@ -419,6 +419,9 @@ importers:
       '@air-jam/cli':
         specifier: workspace:*
         version: link:../../packages/cli
+      '@air-jam/devtools':
+        specifier: workspace:^
+        version: link:../../packages/devtools
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -498,6 +501,9 @@ importers:
       '@air-jam/cli':
         specifier: workspace:*
         version: link:../../packages/cli
+      '@air-jam/devtools':
+        specifier: workspace:^
+        version: link:../../packages/devtools
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -747,6 +753,9 @@ importers:
       '@air-jam/sdk':
         specifier: workspace:^
         version: link:../sdk
+      '@air-jam/server':
+        specifier: workspace:^
+        version: link:../server
       cross-spawn:
         specifier: ^7.0.6
         version: 7.0.6

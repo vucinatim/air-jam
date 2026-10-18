@@ -19,6 +19,7 @@ import type {
   PlatformMachineUpdateOwnedGameInput,
   PlatformMachineUpdateOwnedGameResult,
 } from "@air-jam/sdk/platform-machine";
+import type { ControllerDisconnection } from "./controller-protocol.js";
 import type { AirJamRuntimeOwnerScreenshot } from "./runtime-owner-protocol.js";
 
 export type AirJamProjectMode = "monorepo" | "standalone-game" | "unknown";
@@ -517,6 +518,11 @@ export type GetDevStatusOptions = {
 };
 
 export type AirJamDevStatus = {
+  gameSessionBroker: Awaited<
+    ReturnType<
+      typeof import("./game-session-broker.js").getGameSessionBrokerStatus
+    >
+  >;
   processes: AirJamManagedDevProcess[];
   unmanagedProcesses: AirJamUnmanagedDevProcess[];
   knownPorts: number[];
@@ -527,6 +533,9 @@ export type ResetLocalDevOptions = {
 };
 
 export type ResetLocalDevResult = {
+  gameSessionBroker: Awaited<
+    ReturnType<typeof import("./game-session-broker.js").stopGameSessionBroker>
+  >;
   stoppedManaged: AirJamManagedDevProcess[];
   stoppedUnmanaged: AirJamUnmanagedDevProcess[];
   remainingUnmanaged: AirJamUnmanagedDevProcess[];
@@ -732,7 +741,12 @@ export type AirJamVirtualControllerSessionSummary = {
   gameId: string | null;
   projectMode: AirJamProjectMode;
   mode: AirJamDevMode | null;
-  topologyMode: "standalone-dev" | "arcade-live" | "arcade-built" | null;
+  topologyMode:
+    | "standalone-dev"
+    | "arcade-live"
+    | "arcade-built"
+    | "self-hosted-production"
+    | null;
   secure: boolean;
   process: AirJamManagedDevProcess | null;
   roomId: string;
@@ -773,7 +787,7 @@ export type InvokeControllerActionResult =
     acknowledgement: AirJamActionInvocationResult;
   };
 
-export type DisconnectControllerResult = {
+export type DisconnectControllerResult = ControllerDisconnection & {
   disconnected: boolean;
   session: AirJamVirtualControllerSessionSummary;
 };
@@ -783,16 +797,19 @@ export type AirJamRuntimeSnapshotInspection = AirJamVirtualControllerSession;
 export type OpenGameSessionOptions = ConnectControllerOptions;
 
 export type ReadGameSessionOptions = {
+  cwd?: string;
   gameSessionId: string;
   timeoutMs?: number;
 };
 
 export type SendGameSessionInputOptions = {
+  cwd?: string;
   gameSessionId: string;
   input: JsonObject;
 };
 
 export type InvokeGameSessionActionOptions = {
+  cwd?: string;
   gameSessionId: string;
   actionId: string;
   payload?: unknown;
@@ -800,15 +817,18 @@ export type InvokeGameSessionActionOptions = {
 };
 
 export type CaptureGameSessionVisualsOptions = {
+  cwd?: string;
   gameSessionId: string;
   timeoutMs?: number;
 };
 
 export type CloseGameSessionOptions = {
+  cwd?: string;
   gameSessionId: string;
 };
 
 export type AirJamGameSessionSummary = {
+  ownerInstanceId: string;
   semanticAccess: "owned-host" | "participant-only";
   gameSessionId: string;
   cwd: string;
@@ -816,7 +836,12 @@ export type AirJamGameSessionSummary = {
   controllerSessionId: string;
   projectMode: AirJamProjectMode;
   mode: AirJamDevMode | null;
-  topologyMode: "standalone-dev" | "arcade-live" | "arcade-built" | null;
+  topologyMode:
+    | "standalone-dev"
+    | "arcade-live"
+    | "arcade-built"
+    | "self-hosted-production"
+    | null;
   secure: boolean;
   process: AirJamManagedDevProcess | null;
   roomId: string;
@@ -857,6 +882,7 @@ export type AirJamGameSessionVisualCaptureResult = AirJamGameSessionSummary & {
 
 export type CloseGameSessionResult = {
   closed: boolean;
+  disconnection: Pick<DisconnectControllerResult, "release" | "leave">;
   session: AirJamGameSessionSummary;
 };
 

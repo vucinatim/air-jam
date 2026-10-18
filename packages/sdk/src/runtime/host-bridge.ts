@@ -5,6 +5,7 @@ import type {
   AirJamStateSyncRequestPayload,
   ControllerInputEvent,
   ControllerJoinedNotice,
+  ControllerLeasedControl,
   ControllerLeftNotice,
   ControllerStateMessage,
   ControllerSystemPayload,
@@ -49,6 +50,7 @@ export const hostBridgeServerEvents = [
   "server:controllerLeft",
   "server:playerUpdated",
   "server:input",
+  "server:leasedControl",
   "server:error",
   "server:state",
   "server:hostLeft",
@@ -59,6 +61,8 @@ export const hostBridgeServerEvents = [
 
 export type HostBridgeClientEventName = (typeof hostBridgeClientEvents)[number];
 export type HostBridgeServerEventName = (typeof hostBridgeServerEvents)[number];
+export const hostBridgeAcknowledgedServerEvents: ReadonlySet<HostBridgeServerEventName> =
+  new Set(["airjam:action_rpc", "server:leasedControl"]);
 
 const HOST_BRIDGE_ZERO_REQUIRED_ARGS_EVENTS =
   new Set<HostBridgeServerEventName>([
@@ -83,6 +87,10 @@ export type HostBridgeServerEventArgs = {
   "server:controllerLeft": [payload: ControllerLeftNotice];
   "server:playerUpdated": [payload: PlayerUpdatedNotice];
   "server:input": [payload: ControllerInputEvent];
+  "server:leasedControl": [
+    payload: ControllerLeasedControl,
+    callback?: (ack: unknown) => void,
+  ];
   "server:error": [payload: ServerErrorPayload];
   "server:state": [payload: ControllerStateMessage];
   "server:hostLeft": [payload: HostLeftNotice];

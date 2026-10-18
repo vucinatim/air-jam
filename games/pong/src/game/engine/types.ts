@@ -24,6 +24,7 @@ export interface RuntimeState {
   ballVX: number;
   ballVY: number;
   lastTouchedTeam: TeamId | null;
+  awaitingServe: boolean;
 }
 
 export interface StepGameOptions {

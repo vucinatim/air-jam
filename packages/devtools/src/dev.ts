@@ -706,7 +706,10 @@ export const getDevStatus = async ({
   const context = await detectProjectContext({ cwd });
   const managedProcesses = await listManagedProcessesForRoot(context.rootDir);
   const managedPids = new Set(managedProcesses.map((entry) => entry.pid));
+  const { getGameSessionBrokerStatus } =
+    await import("./game-session-broker.js");
   return {
+    gameSessionBroker: await getGameSessionBrokerStatus(context.rootDir),
     processes: managedProcesses,
     unmanagedProcesses: listKnownPortListeners().filter(
       (entry) => !managedPids.has(entry.pid),
@@ -986,6 +989,8 @@ export const resetLocalDev = async ({
   cwd = process.cwd(),
 }: ResetLocalDevOptions = {}): Promise<ResetLocalDevResult> => {
   const context = await detectProjectContext({ cwd });
+  const { stopGameSessionBroker } = await import("./game-session-broker.js");
+  const gameSessionBroker = await stopGameSessionBroker(context.rootDir);
   const stoppedManaged = (await stopDev({ cwd: context.rootDir })).stopped;
   const managedPids = new Set(stoppedManaged.map((entry) => entry.pid));
   const unmanaged = listKnownPortListeners().filter(
@@ -1017,6 +1022,7 @@ export const resetLocalDev = async ({
   );
 
   return {
+    gameSessionBroker,
     stoppedManaged,
     stoppedUnmanaged,
     remainingUnmanaged,

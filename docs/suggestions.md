@@ -42,6 +42,9 @@ This is not an active separation or release tracker.
 34. **Reconnect seam narrowing:** Revisit `hostArcadeRestore` and move it behind a host-only adapter if we can do so cleanly, so `AirJamStore` stays room/session shaped instead of carrying host-shell restore state forever.
 35. **Protocol change recipe:** Funnel schema/protocol changes through `packages/sdk/src/protocol` more deliberately and document the change path in `docs/monorepo-operating-system.md` so transport updates stop fanning out loosely.
 36. **Embedded crash-exit contract:** Add a first-class parent/child bridge contract for "exit embedded game after runtime crash" so iframe error fallback can request a clean Arcade return path without relying on manual host overlay exit.
+37. **Dependency-hook supervision:** Extend process ownership to ordinary workspace dependency preparation before promising prompt cancellation of a lifecycle script that outlives pnpm and retains its pipes. Sealed test builds already supervise the entire tree; the unguarded installer path needs the same guarantee. Retained from the [native-playtesting review](https://github.com/vucinatim/air-jam/pull/121#discussion_r4305189364).
+38. **Preparation evidence:** Record the one-time process-guardian preparation duration in its triggering run's evidence, beyond the existing end-to-end timing and structured debug event. This is useful for phase attribution; current resource observations are not a billing ledger.
+39. **Stale leased-control acknowledgement:** Audit the host listener/receiver ownership before replacing silent wrong-room/document drops with definitive stale-identity acknowledgements. Preserve the guarantee that an unrelated listener cannot reject a valid receiver's request. Current drops conservatively become unconfirmed effects; the [review](https://github.com/vucinatim/air-jam/pull/121#pullrequestreview-5560855346) records the diagnostic limitation.
 
 ## Framework Boundary Follow-Ups
 

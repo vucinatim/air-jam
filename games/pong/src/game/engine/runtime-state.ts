@@ -16,6 +16,7 @@ export const createRuntimeState = (): RuntimeState => ({
   ballVX: BALL_SPEED,
   ballVY: BALL_SPEED,
   lastTouchedTeam: null,
+  awaitingServe: false,
 });
 
 export const resetBall = (state: RuntimeState): void => {
@@ -24,6 +25,7 @@ export const resetBall = (state: RuntimeState): void => {
   state.ballVX = BALL_SPEED * (Math.random() > 0.5 ? 1 : -1);
   state.ballVY = BALL_SPEED * (Math.random() > 0.5 ? 1 : -1);
   state.lastTouchedTeam = null;
+  state.awaitingServe = false;
 };
 
 export const copyRuntimeState = (
@@ -108,6 +110,7 @@ export const interpolateRuntimeState = ({
   target.ballVX = current.ballVX;
   target.ballVY = current.ballVY;
   target.lastTouchedTeam = current.lastTouchedTeam;
+  target.awaitingServe = current.awaitingServe;
 };
 
 export const updateRuntimeRenderState = (

@@ -12,7 +12,10 @@ import type {
   AirJamStateSyncPayload,
 } from "../protocol";
 import { resolveImplicitReplicatedStoreDomainFromWindow } from "../runtime/arcade-runtime-url";
-import { registerHostRuntimeActionStore } from "../runtime/contracts/control";
+import {
+  isHostRuntimeParticipantLeased,
+  registerHostRuntimeActionStore,
+} from "../runtime/contracts/control";
 import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import { getHostRealtimeClient } from "../runtime/host-realtime-client";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
@@ -766,32 +769,28 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         }
       });
 
-      const handleAction = (
+      const dispatchActionRpc = (
         payload: AirJamActionRpcPayload,
-        callback?: (ack: AirJamActionInvocationResult) => void,
-      ) => {
-        if (payload.storeDomain !== resolvedStoreDomain) {
-          return;
-        }
+      ): AirJamActionInvocationResult => {
         const { actionName } = payload;
         if (isInternalActionName(actionName)) {
-          return;
+          return createServerRejectedActionResult(
+            "internal_action",
+            "Internal store actions cannot be invoked by controllers.",
+          );
         }
 
         const runtime = runtimeSnapshotRef.current;
         const actionFn = store.getState().actions[actionName];
         if (typeof actionFn !== "function") {
-          callback?.(
-            createServerRejectedActionResult(
-              "action_not_found",
-              `Store action "${actionName}" is not registered on the host.`,
-              {
-                actionName,
-                storeDomain: resolvedStoreDomain,
-              },
-            ),
+          return createServerRejectedActionResult(
+            "action_not_found",
+            `Store action "${actionName}" is not registered on the host.`,
+            {
+              actionName,
+              storeDomain: resolvedStoreDomain,
+            },
           );
-          return;
         }
 
         try {
@@ -813,7 +812,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
             roomId,
             storeDomain: resolvedStoreDomain,
           } as AirJamHostActionEvent<T["actions"], typeof actionName>);
-          callback?.(acknowledgement);
+          return acknowledgement;
         } catch (error) {
           const acknowledgement = {
             ok: false,
@@ -834,8 +833,30 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
             roomId,
             storeDomain: resolvedStoreDomain,
           } as AirJamHostActionEvent<T["actions"], typeof actionName>);
-          callback?.(acknowledgement);
+          return acknowledgement;
         }
+      };
+
+      const handleAction = (
+        payload: AirJamActionRpcPayload,
+        callback?: (ack: AirJamActionInvocationResult) => void,
+      ) => {
+        if (payload.storeDomain !== resolvedStoreDomain) return;
+        if (
+          typeof window !== "undefined" &&
+          payload.actor.role === "controller" &&
+          isHostRuntimeParticipantLeased(window, roomId, payload.actor.id)
+        ) {
+          callback?.(
+            createServerRejectedActionResult(
+              "participant_control_leased",
+              "This controller is owned by a participant-control lease.",
+            ),
+          );
+          return;
+        }
+        const acknowledgement = dispatchActionRpc(payload);
+        callback?.(acknowledgement);
       };
 
       const handleStateSyncRequest = (payload: {
@@ -913,6 +934,19 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
                   data: stripActionsFromState(store.getState()),
                   revision: syncRevision.value,
                 };
+              },
+              dispatchParticipant: ({ controllerId, actionName, payload }) => {
+                if (!canUseHostControl())
+                  return createClientRejectedActionResult(
+                    "host_runtime_not_ready",
+                    "The owning host runtime is not ready for actions.",
+                  );
+                return dispatchActionRpc({
+                  actionName,
+                  payload,
+                  storeDomain: resolvedStoreDomain,
+                  actor: { id: controllerId, role: "controller" },
+                });
               },
               invoke: async ({ actionName, payload }) => {
                 if (!canUseHostControl()) {

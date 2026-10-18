@@ -35,6 +35,7 @@ import type {
   RealtimeControllerLease,
 } from "../../services/realtime-admission-service.js";
 import type { SocketHandlerContext } from "../socket-handler-context.js";
+import { registerControllerLeasedControl } from "./register-controller-leased-control.js";
 
 const PLAYER_COLORS = [
   "#38bdf8",
@@ -62,6 +63,7 @@ const PLAYER_COLORS = [
 export const registerControllerHandlers = (
   context: SocketHandlerContext,
 ): void => {
+  registerControllerLeasedControl(context);
   const {
     io,
     socket,

@@ -1,7 +1,10 @@
+import { runtimeTopologyToQueryParams } from "@air-jam/sdk/runtime-topology";
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { closeScopedProcess } from "../src/managed-process-scope.js";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
   AIR_JAM_RUNTIME_OWNER_ACTION_RESULT,
@@ -15,6 +18,9 @@ let arcadeSurface: Record<string, unknown> | null = null;
 let actionResponse: "accept" | "reject" | "exit" | "timeout" = "accept";
 const ownedActions: AirJamRuntimeOwnerActionRequest[] = [];
 let disconnectDuringCapture = false;
+const defaultOwnedJoinUrl =
+  "http://127.0.0.1:7777/controller?room=ROOM2&aj_controller_cap=held";
+let ownedJoinUrl = defaultOwnedJoinUrl;
 
 class MockSocket {
   public connected = false;
@@ -138,7 +144,7 @@ class MockSocket {
 }
 
 class FakeChildProcess extends EventEmitter {
-  public readonly stdout = new EventEmitter();
+  public readonly stdout = new PassThrough();
   public readonly stderr = new EventEmitter();
   public connected = true;
   public killed = false;
@@ -272,46 +278,34 @@ vi.mock("../src/dev.js", () => ({
   })),
 }));
 
-vi.mock("node:child_process", async () => {
-  const actual =
-    await vi.importActual<typeof import("node:child_process")>(
-      "node:child_process",
-    );
-
-  return {
-    ...actual,
-    spawn: vi.fn(() => {
-      const child = new FakeChildProcess();
-      spawnedOwners.push(child);
-      queueMicrotask(() => {
-        child.stdout.emit(
-          "data",
-          JSON.stringify(
-            {
-              roomId: "ROOM2",
-              controllerJoinUrl:
-                "http://127.0.0.1:7777/controller?room=ROOM2&aj_controller_cap=held",
-              inspection: {
-                role: "host",
-                roomId: "ROOM2",
-                joinUrl:
-                  "http://127.0.0.1:7777/controller?room=ROOM2&aj_controller_cap=held",
-                joinUrlStatus: "ready",
-                connectionStatus: "connected",
-                players: [],
-                mode: "standalone",
-                runtimeState: "playing",
-              },
-            },
-            null,
-            2,
-          ),
-        );
+vi.mock("../src/managed-process-scope.js", () => ({
+  closeScopedProcess: vi.fn(async (child: ChildProcess | null) => {
+    child?.kill();
+  }),
+  spawnScopedProcess: vi.fn(async () => {
+    const child = new FakeChildProcess();
+    spawnedOwners.push(child);
+    setTimeout(() => {
+      child.emit("message", {
+        type: "air-jam-runtime-owner.ready/v1",
+        roomId: "ROOM2",
+        controllerJoinUrl: ownedJoinUrl,
+        inspection: {
+          role: "host",
+          roomId: "ROOM2",
+          joinUrl: ownedJoinUrl,
+          joinUrlStatus: "ready",
+          connectionStatus: "connected",
+          players: [],
+          controllers: [],
+          mode: "standalone",
+          runtimeState: "playing",
+        },
       });
-      return child as unknown as ChildProcess;
-    }),
-  };
-});
+    }, 0);
+    return child as unknown as ChildProcess;
+  }),
+}));
 
 vi.mock("socket.io-client", () => ({
   io: vi.fn(() => {
@@ -331,6 +325,10 @@ describe("isolated runtime controller handoff", () => {
     arcadeSurface = null;
     actionResponse = "accept";
     disconnectDuringCapture = false;
+    ownedJoinUrl = defaultOwnedJoinUrl;
+    vi.mocked(closeScopedProcess).mockImplementation(async (child) => {
+      child?.kill();
+    });
     ownedActions.length = 0;
   });
 
@@ -408,6 +406,36 @@ describe("isolated runtime controller handoff", () => {
     expect(spawnedOwners[0]?.killed).toBe(true);
   });
 
+  it("waits for the scope cleanup receipt even when its root has already exited", async () => {
+    const { connectController, disconnectController } =
+      await import("../src/controller.js");
+    const session = await connectController({
+      cwd: "/tmp/solo",
+      timeoutMs: 1000,
+    });
+    let confirm: () => void = () => {
+      throw new Error("Cleanup confirmation is not pending.");
+    };
+    const confirmation = new Promise<void>((resolve) => {
+      confirm = resolve;
+    });
+    vi.mocked(closeScopedProcess).mockImplementation(async () => {
+      await confirmation;
+    });
+    spawnedOwners[0]?.kill();
+    let finished = false;
+    const pending = disconnectController({
+      controllerSessionId: session.controllerSessionId,
+    }).then(() => {
+      finished = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(finished).toBe(false);
+    confirm();
+    await pending;
+    expect(closeScopedProcess).toHaveBeenCalledWith(spawnedOwners[0]);
+  });
+
   it("fails capture when its acting controller disconnects instead of returning stale images", async () => {
     const {
       captureControllerSessionVisuals,
@@ -444,7 +472,9 @@ describe("isolated runtime controller handoff", () => {
   ])(
     "rejects a missing explicit target without creating another host: %j",
     async (target) => {
-      const { openGameSession } = await import("../src/game-session.js");
+      const { createGameSessionRuntime } =
+        await import("../src/game-session-runtime.js");
+      const { openGameSession } = createGameSessionRuntime();
       const { startDev, stopDev } = await import("../src/dev.js");
 
       await expect(
@@ -617,4 +647,33 @@ describe("isolated runtime controller handoff", () => {
       }
     },
   );
+  it("connects to the actual owned relay even when inferred local development topology differs", async () => {
+    const origin = "http://127.0.0.1:46127";
+    const url = new URL(
+      "/controller?room=ROOM2&aj_controller_cap=held",
+      origin,
+    );
+    for (const [key, value] of Object.entries(
+      runtimeTopologyToQueryParams({
+        runtimeMode: "self-hosted-production",
+        surfaceRole: "controller",
+        appOrigin: origin,
+        backendOrigin: origin,
+        publicHost: origin,
+      }),
+    ))
+      url.searchParams.set(key, value);
+    ownedJoinUrl = url.toString();
+    const { connectController, disconnectController } =
+      await import("../src/controller.js");
+    const session = await connectController({
+      cwd: "/tmp/solo",
+      timeoutMs: 1000,
+    });
+    expect(session.socketOrigin).toBe(origin);
+    expect(io).toHaveBeenCalledWith(origin, expect.any(Object));
+    await disconnectController({
+      controllerSessionId: session.controllerSessionId,
+    });
+  });
 });

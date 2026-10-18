@@ -1,12 +1,14 @@
 import type { HostAgentRequest } from "@air-jam/sdk/runtime-control";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
+import { createGameSessionRuntime } from "../src/game-session-runtime.js";
+const {
   closeGameSession,
   invokeGameSessionAction,
+  observeGameSession,
   openGameSession,
   readGameSession,
-} from "../src/game-session.js";
+} = createGameSessionRuntime();
 const io = vi.hoisted(() => ({
   request: vi.fn(),
   invoke: vi.fn(),
@@ -80,6 +82,31 @@ function fixture() {
   ];
   io.request.mockImplementation(
     async (_id: string, request: HostAgentRequest) => {
+      if (request.operation === "observe")
+        return {
+          operation: "observe",
+          observation: {
+            version: 1,
+            id: "observation-one",
+            identity: {
+              documentId: "document",
+              roomId: "ROOM",
+              contractId,
+              runtimeId: "runtime",
+              surfaceId: "surface",
+            },
+            sequence: 1,
+            scope: request.scope,
+            controllerId: request.controllerId,
+            capturedAt: new Date().toISOString(),
+            durationMs: 1,
+            snapshot: { score },
+            runtime: { ball: { x: 50 } },
+            ticks: { before: 1, after: 1 },
+            stores: { before: [], after: [] },
+            visual: { status: "unavailable", reason: "unsupported" },
+          },
+        };
       if (request.operation === "read")
         return {
           operation: "read",
@@ -139,6 +166,25 @@ const open = () =>
     controllerJoinUrl: "http://localhost/controller?room=ROOM",
   });
 describe("live semantic session", () => {
+  it("observes the already owned runtime without adding a player or invoking a game action", async () => {
+    fixture();
+    const session = await open();
+    const observation = await observeGameSession({
+      gameSessionId: session.gameSessionId,
+    });
+    expect(observation).toMatchObject({
+      identity: { roomId: "ROOM", contractId: "one" },
+      runtime: { ball: { x: 50 } },
+      snapshot: { score: 0 },
+    });
+    expect(io.request.mock.calls.at(-1)?.[1]).toMatchObject({
+      operation: "observe",
+      controllerId: "player",
+      includeImage: true,
+    });
+    expect(io.invoke).not.toHaveBeenCalled();
+    await closeGameSession({ gameSessionId: session.gameSessionId });
+  });
   it("uses one evaluation path and observes both real transport lanes", async () => {
     fixture();
     const session = await open();

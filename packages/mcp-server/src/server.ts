@@ -42,8 +42,10 @@ const createToolErrorResult = (error: unknown): CallToolResult => ({
 
 export const createAirJamMcpServer = async ({
   cwd = process.cwd(),
+  externalRunControl = false,
 }: {
   cwd?: string;
+  externalRunControl?: boolean;
 } = {}): Promise<McpServer> => {
   const context = await detectProjectContext({ cwd });
   const toolDefinitions = buildToolDefinitions({
@@ -77,6 +79,12 @@ export const createAirJamMcpServer = async ({
   );
 
   for (const toolName of registeredToolNames) {
+    if (
+      externalRunControl &&
+      (toolName === "airjam.start_game_run" ||
+        toolName === "airjam.stop_game_run")
+    )
+      continue;
     const tool = toolDefinitions[toolName];
     const description = describeToolForRegistration({
       description: tool.description,

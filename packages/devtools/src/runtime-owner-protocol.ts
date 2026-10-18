@@ -15,6 +15,7 @@ import {
 } from "@air-jam/sdk/runtime-control";
 import path from "node:path";
 import { z } from "zod";
+import { gameSurfaceWatchEventSchema } from "./game-run-watch.js";
 
 export const AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST =
   "air-jam-runtime-owner.invoke-action/v1" as const;
@@ -174,3 +175,38 @@ export const runtimeOwnerAgentResultSchema = z.discriminatedUnion("ok", [
     error: z.string(),
   }),
 ]);
+
+export const runtimeOwnerWatchRequestSchema = z.discriminatedUnion("surface", [
+  z
+    .object({
+      type: z.literal("air-jam-runtime-owner.watch/v1"),
+      watchId: z.uuid(),
+      surface: z.literal("host"),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("air-jam-runtime-owner.watch/v1"),
+      watchId: z.uuid(),
+      surface: z.literal("controller"),
+      snapshot: controllerBridgeSnapshotSchema,
+      stores: z.array(hostStateSyncSchema),
+    })
+    .strict(),
+]);
+export const runtimeOwnerWatchStopSchema = z
+  .object({
+    type: z.literal("air-jam-runtime-owner.watch-stop/v1"),
+    watchId: z.uuid(),
+  })
+  .strict();
+export const runtimeOwnerWatchEventSchema = z
+  .object({
+    type: z.literal("air-jam-runtime-owner.watch-event/v1"),
+    watchId: z.uuid(),
+    event: z.union([
+      gameSurfaceWatchEventSchema,
+      z.object({ type: z.literal("closed") }).strict(),
+    ]),
+  })
+  .strict();
