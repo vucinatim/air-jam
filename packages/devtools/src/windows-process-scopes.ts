@@ -27,7 +27,7 @@ export class WindowsProcessScopes {
   >();
   private failure: Error | null = null;
   private readonly ready: Promise<void>;
-  private constructor() {
+  private constructor(startupTimeoutMs: number) {
     const started = performance.now();
     let firstOutput = Buffer.alloc(0);
     let diagnosticTail = "";
@@ -61,7 +61,7 @@ export class WindowsProcessScopes {
           "process_scope_unavailable: Windows job guardian startup timed out.",
         );
         abort(error);
-      }, processGuardStartupTimeoutMs - 2500);
+      }, startupTimeoutMs);
       const abort = (error: Error) => {
         clearTimeout(timer);
         reject(error);
@@ -124,8 +124,8 @@ export class WindowsProcessScopes {
       });
     });
   }
-  static async open() {
-    const owner = new WindowsProcessScopes();
+  static async open(startupTimeoutMs = processGuardStartupTimeoutMs - 2500) {
+    const owner = new WindowsProcessScopes(startupTimeoutMs);
     await owner.ready;
     return owner;
   }

@@ -15,6 +15,7 @@ afterEach(() => {
   for (const stream of streams.splice(0)) stream.destroy();
   vi.restoreAllMocks();
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 function guardian() {
@@ -76,4 +77,16 @@ it("propagates startup failure before admitting any authored helper", async () =
   });
   await expect(opening).rejects.toThrow("fixture prerequisite is missing");
   expect(spawn).toHaveBeenCalledTimes(1);
+});
+
+it("terminates a Windows helper that never becomes ready", async () => {
+  vi.useFakeTimers();
+  const process = guardian();
+  const opening = WindowsProcessScopes.open(50);
+  const rejected = expect(opening).rejects.toThrow(
+    "Windows job guardian startup timed out",
+  );
+  await vi.advanceTimersByTimeAsync(50);
+  await rejected;
+  expect(process.kill).toHaveBeenCalledTimes(1);
 });
