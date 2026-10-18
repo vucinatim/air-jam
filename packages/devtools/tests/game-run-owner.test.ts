@@ -12,7 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { AirJamDecisionProvider } from "../src/decision-provider.js";
+import type { DecisionProvider } from "../src/decision-provider.js";
 import { GameRunOwner, type GameRunSession } from "../src/game-run-owner.js";
 import {
   MAXIMUM_GAME_RUN_TRACE_BYTES,
@@ -147,9 +147,7 @@ afterEach(async () => {
   }
 });
 
-async function fixture({
-  decisions,
-}: { decisions?: AirJamDecisionProvider } = {}) {
+async function fixture({ decisions }: { decisions?: DecisionProvider } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-run-"));
   const events: string[] = [];
   const session: GameRunSession = {
@@ -1725,7 +1723,7 @@ const tapOrWait = {
 } satisfies AirJamPolicyDecision;
 
 it("plays a decision model's choice as the option's own control and traces the answer", async () => {
-  const decisions = vi.fn<AirJamDecisionProvider>(async () => ({
+  const decisions = vi.fn<DecisionProvider>(async () => ({
     choice: "tap",
     confidence: 0.93,
   }));
@@ -1793,4 +1791,17 @@ it("bounds the decision model by the policy's own decision deadline", async () =
   expect(record.end?.reason).toBe("policy_unresponsive");
   expect(record.seats[0]?.counters.timeout).toBe(3);
   expect(f.events).not.toContain("action");
+});
+
+it("counts a failing decision model as a missed decision", async () => {
+  const f = await fixture({
+    decisions: async () => {
+      throw new Error("Decision model returned HTTP 503.");
+    },
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.counters).toMatchObject({ missed: 3 });
 });

@@ -24,11 +24,18 @@ const observe = (
     },
   }) as unknown as HostObservation;
 const teams = [
-  { id: "team1", totalCount: 1 },
-  { id: "team2", totalCount: 0 },
+  {
+    id: "team1",
+    botCount: 0,
+    totalCount: 1,
+    players: [{ playerId: "human", position: "front" }],
+  },
+  { id: "team2", botCount: 0, totalCount: 0, players: [] },
 ];
+const scores = { team1: 0, team2: 0 };
 const playing = {
   matchPhase: "playing",
+  scores,
   myAssignment: { team: "team1", position: "front" },
   teams,
 };
@@ -66,7 +73,7 @@ describe("Pong player contract", () => {
   it("asks which team to join from the lobby, as join actions", () => {
     const turn = pongPlayer.turn({
       observation: observe(
-        { matchPhase: "lobby", myAssignment: null, teams },
+        { matchPhase: "lobby", scores, myAssignment: null, teams },
         {},
       ),
       seatId: "player",

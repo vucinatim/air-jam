@@ -4,7 +4,7 @@ import {
   type AirJamTestPolicy,
 } from "@air-jam/devtools/testing";
 import { z } from "zod";
-import { minimalPlayer } from "./player";
+import { minimalPlayer, TARGET_TAPS } from "./player";
 
 const snapshotSchema = z.object({
   totalCount: z.number().int().nonnegative(),
@@ -12,7 +12,7 @@ const snapshotSchema = z.object({
 });
 function tapPolicy(randomized: boolean): AirJamTestPolicy {
   return {
-    label: randomized ? "Random taps" : "Six taps each",
+    label: randomized ? "Random taps" : `${TARGET_TAPS} taps each`,
     create: ({ random }) => {
       let taps = 0;
       return {
@@ -31,7 +31,7 @@ function tapPolicy(randomized: boolean): AirJamTestPolicy {
           }
           return {
             control:
-              taps >= 6 || (randomized && random() < 0.35)
+              taps >= TARGET_TAPS || (randomized && random() < 0.35)
                 ? { kind: "release" }
                 : { kind: "action", actionId: "tap" },
           };
@@ -143,7 +143,7 @@ export const testProfiles = defineAirJamTestProfiles({
               seatIds.map((id) => [`${id}_taps`, taps.get(id) ?? 0]),
             );
             return {
-              status: [...taps.values()].every((count) => count >= 6)
+              status: [...taps.values()].every((count) => count >= TARGET_TAPS)
                 ? "passed"
                 : "pending",
               message:

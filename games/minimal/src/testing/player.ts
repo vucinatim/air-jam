@@ -1,14 +1,15 @@
-import { defineAirJamPlayerContract } from "@air-jam/devtools/testing";
+import type { AirJamPlayerContract } from "@air-jam/devtools/testing";
 import { z } from "zod";
 
-const TARGET_TAPS = 6;
+/** How many taps each player aims for in the starter's test scenarios. */
+export const TARGET_TAPS = 6;
 
 const snapshotSchema = z.object({
   perPlayerCounts: z.record(z.string(), z.number().int().nonnegative()),
 });
 
 /** The starter counter as a person would be told it. */
-export const minimalPlayer = defineAirJamPlayerContract({
+export const minimalPlayer = {
   brief: [
     "This is a shared tap counter on a shared screen.",
     "Every player has a phone with one Tap button, and each tap adds one to that player's own count and to the shared total.",
@@ -34,4 +35,4 @@ export const minimalPlayer = defineAirJamPlayerContract({
       },
     };
   },
-});
+} satisfies AirJamPlayerContract;

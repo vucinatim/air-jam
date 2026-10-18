@@ -88,6 +88,7 @@ const playControlSchema = z.discriminatedUnion("kind", [
   participantInputOperationSchema.omit({ deadlineMs: true, ttlMs: true }),
   participantActionOperationSchema.omit({ deadlineMs: true }),
 ]);
+export type AirJamPlayControl = z.infer<typeof playControlSchema>;
 
 /**
  * A choice handed to the run's decision model. Every option is an ordinary
@@ -289,22 +290,18 @@ export type AirJamPlayerContract = {
   }) => AirJamDecisionQuestion | null;
 };
 
-export function defineAirJamPlayerContract(
-  contract: AirJamPlayerContract,
-): AirJamPlayerContract {
-  z.string().trim().min(1).max(8000).parse(contract.brief);
-  if (typeof contract.turn !== "function")
-    throw new Error("A player contract must describe each turn.");
-  return contract;
-}
-
-/** A test policy that plays every seat through the run's decision model. */
+/**
+ * A test policy that plays every seat through the run's decision model. The
+ * brief leads every question, so a turn may describe at most 31 state lines.
+ */
 export function createAirJamPlayerPolicy(
   contract: AirJamPlayerContract,
-  label = "Decision model",
 ): AirJamTestPolicy {
+  airJamDecisionQuestionSchema.shape.state.element.parse(contract.brief);
+  if (typeof contract.turn !== "function")
+    throw new Error("A player contract must describe each turn.");
   return {
-    label,
+    label: "Decision model",
     create: () => ({
       decide: ({ observation, seatId }) => {
         const turn = contract.turn({ observation, seatId });

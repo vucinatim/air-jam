@@ -297,11 +297,12 @@ without a configured model ends as an error. There is no fallback policy.
 
 Games describe how they are played with a player contract, written alongside
 their profiles by whoever writes the game:
-`defineAirJamPlayerContract({ brief, turn })`. The brief explains the game to a
+an `AirJamPlayerContract` of `{ brief, turn }`. The brief explains the game to a
 reader who has never seen it. `turn({ observation, seatId })` describes the
 current state in words and offers that turn's options, or returns `null` when the
-seat has nothing to decide. `createAirJamPlayerPolicy(contract)` turns a contract
-into an ordinary profile policy. Describe what a player perceives, not the
+seat has nothing to decide. `createAirJamPlayerPolicy(contract)` validates a
+contract and turns it into an ordinary profile policy; the brief leads every
+question, so a turn describes at most 31 state lines. Describe what a player perceives, not the
 answer: a turn computed from hidden state the player cannot see measures the
 contract, not the model.
 
@@ -487,8 +488,8 @@ browser/process is disposed by the existing controller lifecycle.
 ## Unreleased tooling behavior changes
 
 `AirJamPolicyDecision` gained an `ask` variant for decision-model players, and
-`@air-jam/devtools/testing` exports `defineAirJamPlayerContract` and
-`createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a
+`@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`
+and `createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a
 question. Pong and the minimal starter declare player contracts and offer a
 `model` policy; Pong also gains a `match` profile against its own bot.
 

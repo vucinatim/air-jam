@@ -11,43 +11,14 @@ import {
   PADDLE_HEIGHT,
   PADDLE_SPEED,
 } from "../game/engine/constants";
+import {
+  paddleTop,
+  runtimeSchema,
+  simulationOf,
+  snapshotSchema,
+} from "./observation";
 import { pongPlayer } from "./player";
 
-const teamSchema = z.enum(["team1", "team2"]);
-const scoresSchema = z.object({
-  team1: z.number().int().nonnegative(),
-  team2: z.number().int().nonnegative(),
-});
-const snapshotSchema = z.object({
-  scores: scoresSchema,
-  teams: z.array(
-    z.object({
-      id: teamSchema,
-      botCount: z.number().int().nonnegative(),
-      players: z.array(
-        z.object({ playerId: z.string(), position: z.string() }),
-      ),
-    }),
-  ),
-});
-const runtimeSchema = z.object({
-  simulation: z.object({
-    ballY: z.number(),
-    paddle1FrontY: z.number(),
-    paddle2FrontY: z.number(),
-    awaitingServe: z.boolean(),
-  }),
-  goals: z.array(
-    z.object({
-      sequence: z.number().int().positive(),
-      serve: z.number().int().nonnegative(),
-      ballX: z.number(),
-      team: teamSchema,
-      before: scoresSchema,
-      after: scoresSchema,
-    }),
-  ),
-});
 function rallyPolicy(randomized: boolean): AirJamTestPolicy {
   return {
     label: randomized ? "Random paddles" : "Track and concede",
@@ -78,22 +49,12 @@ function rallyPolicy(randomized: boolean): AirJamTestPolicy {
     }),
   };
 }
-const cooperativeSnapshotSchema = snapshotSchema.extend({
-  matchPhase: z.string(),
-  myAssignment: z
-    .object({ team: teamSchema, position: z.enum(["front", "back"]) })
-    .nullable(),
-});
-const cooperativeSimulationSchema = runtimeSchema.shape.simulation.extend({
-  paddle1BackY: z.number(),
-  paddle2BackY: z.number(),
-});
 function cooperativePaddlePolicy(randomized: boolean): AirJamTestPolicy {
   return {
     label: randomized ? "Random paddle" : "Track the ball",
     create: ({ random }) => ({
       decide: ({ observation }) => {
-        const snapshot = cooperativeSnapshotSchema.parse(observation.snapshot);
+        const snapshot = snapshotSchema.parse(observation.snapshot);
         if (!snapshot.myAssignment) {
           const available = snapshot.teams
             .filter(
@@ -117,18 +78,8 @@ function cooperativePaddlePolicy(randomized: boolean): AirJamTestPolicy {
                 : { kind: "release" },
           };
         }
-        const simulation = z
-          .object({ simulation: cooperativeSimulationSchema })
-          .parse(observation.runtime).simulation;
-        const assignment = snapshot.myAssignment;
-        const paddleY =
-          assignment.team === "team1"
-            ? assignment.position === "front"
-              ? simulation.paddle1FrontY
-              : simulation.paddle1BackY
-            : assignment.position === "front"
-              ? simulation.paddle2FrontY
-              : simulation.paddle2BackY;
+        const simulation = simulationOf(observation.runtime);
+        const paddleY = paddleTop(snapshot.myAssignment, simulation);
         return {
           control: {
             kind: "input",
@@ -150,10 +101,6 @@ function cooperativePaddlePolicy(randomized: boolean): AirJamTestPolicy {
     }),
   };
 }
-const matchSnapshotSchema = z.object({
-  matchPhase: z.string(),
-  scores: scoresSchema,
-});
 export const testProfiles = defineAirJamTestProfiles({
   match: {
     label: "Play a short match against the game's bot",
@@ -202,7 +149,7 @@ export const testProfiles = defineAirJamTestProfiles({
     evaluator: {
       create: () => ({
         evaluate: ({ observation }) => {
-          const { matchPhase, scores } = matchSnapshotSchema.parse(
+          const { matchPhase, scores } = snapshotSchema.parse(
             observation.snapshot,
           );
           const metrics = {

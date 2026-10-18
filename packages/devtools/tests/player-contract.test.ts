@@ -6,7 +6,7 @@ import { createDecisionProviderFromEnvironment } from "../src/decision-provider.
 import {
   airJamPolicyDecisionSchema,
   createAirJamPlayerPolicy,
-  defineAirJamPlayerContract,
+  type AirJamPlayerContract,
 } from "../src/testing.js";
 
 const observation = { snapshot: { count: 2 } } as unknown as HostObservation;
@@ -15,7 +15,7 @@ const configured = (environment: NodeJS.ProcessEnv) => {
   if (!provider) throw new Error("Expected a configured decision provider.");
   return provider;
 };
-const counter = defineAirJamPlayerContract({
+const counter = {
   brief:
     "A shared counter. Each player taps until their own count reaches six.",
   turn: ({ observation }) => {
@@ -36,7 +36,7 @@ const counter = defineAirJamPlayerContract({
       },
     };
   },
-});
+} satisfies AirJamPlayerContract;
 
 describe("player contract", () => {
   it("asks with the brief ahead of the described state, as a valid decision", async () => {
@@ -80,7 +80,7 @@ describe("player contract", () => {
 
   it("refuses an empty brief and questions that offer one option or mix control with asking", () => {
     expect(() =>
-      defineAirJamPlayerContract({ brief: "  ", turn: () => null }),
+      createAirJamPlayerPolicy({ brief: "", turn: () => null }),
     ).toThrow();
     const single = {
       ask: {
@@ -210,7 +210,7 @@ describe("decision provider", () => {
     });
   });
 
-  it("reports a failed or choiceless answer as a failed decision", async () => {
+  it("rejects a failed or choiceless answer for the run owner to classify", async () => {
     const failing = await serve(() => [503, { error: "busy" }]);
     const empty = await serve(() => [200, { answers: {} }]);
     for (const endpoint of [failing, empty]) {
@@ -219,7 +219,7 @@ describe("decision provider", () => {
         AIRJAM_DECISIONS_MODEL: "model",
       });
       await expect(ask(question, new AbortController().signal)).rejects.toThrow(
-        /^decision_failed:/,
+        /HTTP 503|no choice/,
       );
     }
   });

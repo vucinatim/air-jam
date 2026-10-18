@@ -1,11 +1,11 @@
 import { z } from "zod";
 import type { AirJamDecisionQuestion } from "./testing.js";
 
-export type AirJamDecisionAnswer = { choice: string; confidence: number };
-export type AirJamDecisionProvider = (
+export type DecisionAnswer = { choice: string; confidence: number };
+export type DecisionProvider = (
   question: AirJamDecisionQuestion,
   signal: AbortSignal,
-) => Promise<AirJamDecisionAnswer>;
+) => Promise<DecisionAnswer>;
 
 const MAX_RESPONSE_BYTES = 262_144;
 const responseSchema = z.object({
@@ -27,8 +27,10 @@ async function readBounded(response: Response) {
       const { done, value } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
-      if (bytes > MAX_RESPONSE_BYTES)
-        throw new Error("decision_failed: Decision response is too large.");
+      if (bytes > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new Error("Decision response is too large.");
+      }
       chunks.push(value);
     }
   } finally {
@@ -45,7 +47,7 @@ async function readBounded(response: Response) {
  */
 export function createDecisionProviderFromEnvironment(
   environment: NodeJS.ProcessEnv = process.env,
-): AirJamDecisionProvider | undefined {
+): DecisionProvider | undefined {
   const endpoint = environment.AIRJAM_DECISIONS_ENDPOINT?.trim();
   if (!endpoint) return undefined;
   const model = environment.AIRJAM_DECISIONS_MODEL?.trim();
@@ -81,14 +83,14 @@ export function createDecisionProviderFromEnvironment(
       signal,
       redirect: "error",
     });
-    const body = await readBounded(response);
-    if (!response.ok)
-      throw new Error(
-        `decision_failed: Decision model returned HTTP ${response.status}.`,
-      );
-    const parsed = responseSchema.safeParse(JSON.parse(body));
-    if (!parsed.success)
-      throw new Error("decision_failed: Decision model returned no choice.");
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error(`Decision model returned HTTP ${response.status}.`);
+    }
+    const parsed = responseSchema.safeParse(
+      JSON.parse(await readBounded(response)),
+    );
+    if (!parsed.success) throw new Error("Decision model returned no choice.");
     return {
       choice: parsed.data.answers.decision.choice,
       confidence: parsed.data.answers.decision.confidence,

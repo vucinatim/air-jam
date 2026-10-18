@@ -12,10 +12,7 @@ import { mkdir, open, readFile, rename } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { ControllerDisconnection } from "./controller-protocol.js";
-import type {
-  AirJamDecisionAnswer,
-  AirJamDecisionProvider,
-} from "./decision-provider.js";
+import type { DecisionAnswer, DecisionProvider } from "./decision-provider.js";
 import {
   gameBuildIdentitySchema,
   type PinnedGameBuild,
@@ -48,7 +45,7 @@ import { verifyPolicyArtifacts } from "./policy-artifacts.js";
 import { startTestProfileProcess } from "./test-profile-process.js";
 import type {
   AirJamDecisionQuestion,
-  AirJamPolicyDecision,
+  AirJamPlayControl,
   AirJamRunReceipt,
   AirJamScenarioVerdict,
   AirJamTestProfileDescription,
@@ -59,10 +56,10 @@ import type {
 } from "./types.js";
 
 type HostObservationIdentity = HostObservation["identity"];
-type PlayDecisionControl = Extract<
-  AirJamPolicyDecision,
-  { control: unknown }
->["control"];
+type AnsweredDecision = DecisionAnswer & {
+  control: AirJamPlayControl;
+  durationMs: number;
+};
 
 type EndReason = NonNullable<AirJamGameRunRecord["end"]>["reason"];
 function agentNickname(index: number) {
@@ -171,7 +168,7 @@ export class GameRunOwner {
         onScope: ProcessScopeObserver;
       }) => Promise<GameRunSession>;
       sessionClosed: (gameSessionId: string) => void;
-      decisions?: AirJamDecisionProvider;
+      decisions?: DecisionProvider;
     },
   ) {
     this.directory = path.join(
@@ -966,7 +963,7 @@ export class GameRunOwner {
     run: Run,
     question: AirJamDecisionQuestion,
     deadline: number,
-  ) {
+  ): Promise<AnsweredDecision> {
     const ask = this.options.decisions;
     if (!ask)
       throw new Error(
@@ -977,7 +974,7 @@ export class GameRunOwner {
       throw new Error("policy_timeout: Decision exceeded its deadline.");
     const started = performance.now();
     const timeout = AbortSignal.timeout(Math.ceil(remaining));
-    let answered: AirJamDecisionAnswer;
+    let answered: DecisionAnswer;
     try {
       answered = await ask(
         question,
@@ -988,11 +985,6 @@ export class GameRunOwner {
         throw new Error(
           "policy_timeout: Decision model exceeded its deadline.",
         );
-      if (
-        error instanceof Error &&
-        error.message.startsWith("decision_failed:")
-      )
-        throw error;
       throw new Error(
         `decision_failed: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -1287,7 +1279,7 @@ export class GameRunOwner {
           );
         const step = ++run.record.counters.steps;
         const counters = this.seatRecord(run, seat).counters;
-        let control: PlayDecisionControl;
+        let control: AirJamPlayControl;
         try {
           if (policy.busy()) {
             counters.blocked++;
@@ -1317,7 +1309,7 @@ export class GameRunOwner {
             },
             decisionDeadline - decisionStarted,
           );
-          let answer: Awaited<ReturnType<GameRunOwner["answer"]>> | undefined;
+          let answer: AnsweredDecision | undefined;
           if ("ask" in decision) {
             answer = await this.answer(run, decision.ask, decisionDeadline);
             control = answer.control;
