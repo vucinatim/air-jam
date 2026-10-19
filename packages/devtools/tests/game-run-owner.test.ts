@@ -23,6 +23,7 @@ import type {
   AirJamPolicyDecision,
   AirJamTestProfileDescription,
 } from "../src/testing.js";
+import { createAirJamPlayerPolicy } from "../src/testing.js";
 import type { CloseGameSessionResult } from "../src/types.js";
 
 const io = vi.hoisted(() => ({
@@ -1772,6 +1773,30 @@ it("hands the seat's policy the model's latest answer on its next step", async (
   );
 });
 
+it("ends a run whose model stops answering, even when the contract acts between questions", async () => {
+  let answered = 0;
+  const f = await fixture({
+    decisions: async () => {
+      if (answered++ === 0) return { choice: "tap", confidence: 0.9 };
+      throw new Error("decision_failed: Decision model returned HTTP 500.");
+    },
+  });
+  const decider = await createAirJamPlayerPolicy({
+    brief: "A shared counter.",
+    turn: () => tapOrWait.ask,
+    act: {
+      rethinkMs: 50,
+      create: () => ({ control: () => ({ kind: "action", actionId: "tap" }) }),
+    },
+  }).create({ seatId: "player", random: Math.random });
+  io.decide.mockImplementation((step) => decider.decide(step));
+  io.evaluate.mockResolvedValue({ status: "pending" });
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.end?.message).toContain("HTTP 500");
+});
+
 it("fails a run that asks a decision model when none is configured", async () => {
   const f = await fixture();
   io.decide.mockResolvedValue(tapOrWait);
@@ -1905,6 +1930,17 @@ it("gives each seat its starting intent and lets a steer change only what it rea
   await expect(
     f.owner.steer({ runId: f.request.runId, seatId: "player", intent: null }),
   ).rejects.toThrow("run_not_active");
+});
+
+it("tells a caller steering before the seats exist to use starting intents", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "release" } });
+  const started = await f.owner.start(f.request);
+  expect(started.seats).toEqual([]);
+  await expect(
+    f.owner.steer({ runId: f.request.runId, seatId: "player", intent: "x" }),
+  ).rejects.toThrow("Seats are not ready yet");
+  await f.owner.stop(f.request.runId);
 });
 
 it("refuses intents and steering for seats the profile does not have", async () => {

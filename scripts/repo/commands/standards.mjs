@@ -169,33 +169,37 @@ export const findGamesWithoutPlayerContracts = ({
   root = repoRoot,
   pending = PLAYER_CONTRACTS_PENDING,
 } = {}) =>
-  loadRepoGames({ rootDir: root })
-    .filter((game) => !Object.hasOwn(pending, game.id))
-    .flatMap((game) => {
-      const config = path.join(game.dir, "src/airjam.config.ts");
-      const profiles = path.join(game.dir, "src/testing/profiles.ts");
-      if (
-        !existsSync(config) ||
-        !readFileSync(config, "utf8").includes(
-          'testing: "./testing/profiles.ts"',
-        )
-      )
-        return [{ game: game.id, problem: "declares no test profiles" }];
-      if (
-        !existsSync(profiles) ||
-        !readFileSync(profiles, "utf8").includes("createAirJamPlayerPolicy(")
-      )
-        return [
-          { game: game.id, problem: "offers no decision-model player policy" },
-        ];
-      return [];
-    });
+  loadRepoGames({ rootDir: root }).flatMap((game) => {
+    const config = path.join(game.dir, "src/airjam.config.ts");
+    const profiles = path.join(game.dir, "src/testing/profiles.ts");
+    const problem =
+      !existsSync(config) ||
+      !readFileSync(config, "utf8").includes('testing: "./testing/profiles.ts"')
+        ? "declares no test profiles"
+        : !existsSync(profiles) ||
+            !readFileSync(profiles, "utf8").includes(
+              "createAirJamPlayerPolicy(",
+            )
+          ? "offers no decision-model player policy"
+          : null;
+    if (Object.hasOwn(pending, game.id))
+      return problem
+        ? []
+        : [
+            {
+              game: game.id,
+              problem:
+                "already offers a decision-model player; remove it from the pending list",
+            },
+          ];
+    return problem ? [{ game: game.id, problem }] : [];
+  });
 
 const runCanonicalGuard = () => {
   const violations = findCanonicalViolations();
   const contractless = findGamesWithoutPlayerContracts();
   for (const { game, problem } of contractless)
-    console.log(`First-party game ${game} ${problem}; add a player contract.`);
+    console.log(`First-party game ${game} ${problem}.`);
 
   for (const violation of violations) {
     console.log(`Forbidden pattern detected: ${violation.label}`);

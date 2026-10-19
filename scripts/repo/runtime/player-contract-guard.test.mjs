@@ -32,10 +32,19 @@ test("every first-party game offers a decision-model player unless explicitly pe
     game("untested", "agent: agentContract,");
     game("codeonly", declared, "code: policy");
     game("waiting", "agent: agentContract,");
+    game("stale", declared, "createAirJamPlayerPolicy(player)");
     assert.deepEqual(
-      findGamesWithoutPlayerContracts({ root, pending: { waiting: "reason" } }),
+      findGamesWithoutPlayerContracts({
+        root,
+        pending: { waiting: "reason", stale: "reason" },
+      }),
       [
         { game: "codeonly", problem: "offers no decision-model player policy" },
+        {
+          game: "stale",
+          problem:
+            "already offers a decision-model player; remove it from the pending list",
+        },
         { game: "untested", problem: "declares no test profiles" },
       ],
     );

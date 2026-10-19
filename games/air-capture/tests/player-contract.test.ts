@@ -124,7 +124,8 @@ describe("Air Capture player contract", () => {
   });
 
   it("keeps flying the chosen strategy between questions", () => {
-    const control = airCapturePlayer.act.control({
+    const seat = airCapturePlayer.act.create();
+    const control = seat.control({
       observation: observe(world()),
       seatId: "player",
       choice: "capture",
@@ -134,7 +135,7 @@ describe("Air Capture player contract", () => {
       input: { action: expect.any(Boolean) },
     });
     expect(
-      airCapturePlayer.act.control({
+      seat.control({
         observation: observe(world()),
         seatId: "player",
         choice: "solaris",

@@ -90,6 +90,10 @@ const playControlSchema = z.discriminatedUnion("kind", [
 ]);
 export type AirJamPlayControl = z.infer<typeof playControlSchema>;
 
+const QUESTION_STATE_LINES = 32;
+/** A turn's own lines, leaving room for the brief and a goal line. */
+const TURN_STATE_LINES = QUESTION_STATE_LINES - 2;
+
 /**
  * A choice handed to the run's decision model. Every option is an ordinary
  * play control (an input, an action, or doing nothing), so the model can only
@@ -98,7 +102,10 @@ export type AirJamPlayControl = z.infer<typeof playControlSchema>;
  */
 export const airJamDecisionQuestionSchema = z
   .object({
-    state: z.array(z.string().min(1).max(8000)).min(1).max(32),
+    state: z
+      .array(z.string().min(1).max(8000))
+      .min(1)
+      .max(QUESTION_STATE_LINES),
     question: z.string().min(1).max(1000),
     options: z
       .record(
@@ -295,16 +302,19 @@ export type AirJamPlayerContract = {
   /**
    * For games that need control faster than a model answers. Between
    * questions the seat keeps acting on the model's last choice at the run's
-   * step rate, and is asked again after `rethinkMs`, when its goal changes or
-   * when that choice is no longer offered. Without it every step asks.
+   * step rate, for `rethinkMs` after the answer arrives, and is asked again
+   * sooner when its goal changes or that choice is no longer offered.
+   * `create` runs once per seat, so a seat can keep state such as a pilot.
    */
   act?: {
     rethinkMs: number;
-    control: (context: {
-      observation: HostObservation;
-      seatId: string;
-      choice: string;
-    }) => AirJamPlayControl | null;
+    create: () => {
+      control: (context: {
+        observation: HostObservation;
+        seatId: string;
+        choice: string;
+      }) => AirJamPlayControl | null;
+    };
   };
 };
 
@@ -324,35 +334,43 @@ export function createAirJamPlayerPolicy(
     act &&
     (!Number.isInteger(act.rethinkMs) ||
       act.rethinkMs < 1 ||
-      typeof act.control !== "function")
+      typeof act.create !== "function")
   )
     throw new Error(
-      "A player contract's act needs a positive whole rethinkMs and a control.",
+      "A player contract's act needs a positive whole rethinkMs and create.",
     );
   return {
     label: "Decision model",
     create: () => {
-      let asked: { atMs: number; intent: string | null } | undefined;
+      const actor = act?.create();
+      let asked: { intent: string | null; answeredAtMs?: number } | undefined;
       return {
         decide: ({ observation, seatId, intent, answer, elapsedMs }) => {
           const turn = contract.turn({ observation, seatId });
           if (!turn) return { control: { kind: "release" } };
+          if (turn.state.length > TURN_STATE_LINES)
+            throw new Error(
+              `A player contract turn may describe at most ${TURN_STATE_LINES} state lines, so it still fits once the seat is given a goal.`,
+            );
           if (
             act &&
+            actor &&
             asked &&
             answer &&
             Object.hasOwn(turn.options, answer.choice) &&
-            asked.intent === intent &&
-            elapsedMs - asked.atMs < act.rethinkMs
-          )
-            return {
-              control: act.control({
-                observation,
-                seatId,
-                choice: answer.choice,
-              }) ?? { kind: "release" },
-            };
-          asked = { atMs: elapsedMs, intent };
+            asked.intent === intent
+          ) {
+            asked.answeredAtMs ??= elapsedMs;
+            if (elapsedMs - asked.answeredAtMs < act.rethinkMs)
+              return {
+                control: actor.control({
+                  observation,
+                  seatId,
+                  choice: answer.choice,
+                }) ?? { kind: "release" },
+              };
+          }
+          asked = { intent };
           return {
             ask: {
               ...turn,

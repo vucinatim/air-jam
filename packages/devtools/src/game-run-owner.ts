@@ -552,6 +552,10 @@ export class GameRunOwner {
       run.record.state === "stopping"
     )
       throw new Error("run_not_active: Only an active test can be steered.");
+    if (!run.record.seats.length)
+      throw new Error(
+        "run_not_active: Seats are not ready yet; give starting goals as intents.",
+      );
     const seat = run.record.seats.find(
       (candidate) => candidate.seatId === seatId,
     );
@@ -1403,6 +1407,8 @@ export class GameRunOwner {
           );
           let answer: AnsweredDecision | undefined;
           if ("ask" in decision) {
+            // A missed answer must not leave the previous choice to act on.
+            seat.lastAnswer = null;
             answer = await this.answerFor(
               run,
               seat,
