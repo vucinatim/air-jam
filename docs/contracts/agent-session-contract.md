@@ -531,8 +531,11 @@ change a seat's intent during play.
 `@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`,
 `AirJamDecisionQuestion`, `airJamDecisionQuestionSchema` and
 `createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a
-question. Pong and the minimal starter declare player contracts and offer a
-`model` policy; Pong also gains a `match` profile against its own bot.
+question. Pong, the minimal starter, Code Review and The Office declare player
+contracts and offer a `model` policy beside their code policies. Pong gains a
+`match` profile against its own bot; Code Review and The Office gain their first
+test profiles (`round` against the game's bot, and a solo `shift`) and host
+observation surfaces for state that lives only in the host simulation.
 
 `@air-jam/devtools/agent` now exports only static `inspectGameAgentContract` and
 its types. Removed `readGameSnapshot`, `invokeGameAction` and
