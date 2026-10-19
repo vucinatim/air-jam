@@ -54,18 +54,20 @@ function brawlerPolicy(randomized: boolean): AirJamTestPolicy {
   };
 }
 
+const join = (seatId: string, team: "team1" | "team2") => ({
+  lane: "participant" as const,
+  seatId,
+  actionId: "join_team",
+  input: team,
+});
+
 export const testProfiles = defineAirJamTestProfiles({
   round: {
     label: "Fight one round against the game's bot",
     targets: ["owned"],
     seats: [{ id: "player", label: "Coder fighter" }],
     setup: [
-      {
-        lane: "participant",
-        seatId: "player",
-        actionId: "join_team",
-        input: "team1",
-      },
+      join("player", "team1"),
       {
         lane: "participant",
         seatId: "player",
@@ -125,6 +127,66 @@ export const testProfiles = defineAirJamTestProfiles({
           },
         };
       },
+    },
+  },
+  brawl: {
+    label: "Four agent fighters, two a side, for one round",
+    targets: ["owned"],
+    seats: [
+      { id: "coder1", label: "Coder one" },
+      { id: "coder2", label: "Coder two" },
+      { id: "reviewer1", label: "Reviewer one" },
+      { id: "reviewer2", label: "Reviewer two" },
+    ],
+    setup: [
+      join("coder1", "team1"),
+      join("coder2", "team1"),
+      join("reviewer1", "team2"),
+      join("reviewer2", "team2"),
+      {
+        lane: "participant",
+        seatId: "coder1",
+        actionId: "set_bot_count",
+        input: { team: "team1", count: 0 },
+      },
+      {
+        lane: "participant",
+        seatId: "coder1",
+        actionId: "set_bot_count",
+        input: { team: "team2", count: 0 },
+      },
+      { lane: "participant", seatId: "coder1", actionId: "start_match" },
+    ],
+    actions: [],
+    scope: "player",
+    includeImage: false,
+    timing: { intervalMs: 100, decisionMs: 1500, inputTtlMs: 1800 },
+    metrics: [
+      { id: "coder_rounds", label: "Rounds won by the Coders" },
+      { id: "reviewer_rounds", label: "Rounds won by the Reviewers" },
+    ],
+    policies: {
+      code: brawlerPolicy(false),
+      random: brawlerPolicy(true),
+      model: createAirJamPlayerPolicy(codeReviewPlayer),
+    },
+    evaluator: {
+      create: () => ({
+        evaluate: ({ observation }) => {
+          const { scores } = snapshotSchema.parse(observation.snapshot);
+          const metrics = {
+            coder_rounds: scores.team1,
+            reviewer_rounds: scores.team2,
+          };
+          return scores.team1 + scores.team2 > 0
+            ? {
+                status: "passed",
+                message: `The first round went to the ${scores.team1 > 0 ? "Coders" : "Reviewers"}.`,
+                metrics,
+              }
+            : { status: "pending", metrics };
+        },
+      }),
     },
   },
 });

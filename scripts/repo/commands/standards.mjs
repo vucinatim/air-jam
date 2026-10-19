@@ -162,7 +162,7 @@ export const findCanonicalViolations = ({
  */
 const PLAYER_CONTRACTS_PENDING = {
   "last-band-standing":
-    "its agent snapshot exposes the answer and its stimulus is audio (docs/suggestions.md, item 40)",
+    "its stimulus is audio, which a text model cannot hear (docs/suggestions.md, item 40)",
 };
 
 export const findGamesWithoutPlayerContracts = ({
