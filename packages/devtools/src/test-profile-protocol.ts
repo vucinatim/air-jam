@@ -15,6 +15,10 @@ const step = z
     observation: hostObservationSchema,
     seatId: z.string(),
     intent: seatIntentSchema.nullable(),
+    answer: z
+      .object({ choice: z.string(), confidence: z.number() })
+      .strict()
+      .nullable(),
     step: z.number().int().nonnegative(),
     elapsedMs: z.number().nonnegative(),
     receipts: z.array(airJamRunReceiptSchema).max(128),

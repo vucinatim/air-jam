@@ -1,7 +1,12 @@
-import { useAirJamHost, type PlayerProfile } from "@air-jam/sdk";
+import {
+  useAirJamHost,
+  useHostAgentObservation,
+  type PlayerProfile,
+} from "@air-jam/sdk";
 import { useHostJoinControls } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBotManager } from "../../game/bot-system/bot-manager";
+import { readBotWorld } from "../../game/bot-system/bot-world";
 import { TEAM_IDS, type TeamId } from "../../game/domain/team";
 import { useMatchCountdown } from "../../game/hooks/use-match-countdown";
 import { useCaptureTheFlagStore } from "../../game/stores/match/capture-the-flag-store";
@@ -21,6 +26,17 @@ export function useAirCaptureHostRuntime({
   const connectionStatus = useAirJamHost((state) => state.connectionStatus);
   const runtimeState = useAirJamHost((state) => state.runtimeState);
   const lastError = useAirJamHost((state) => state.lastError);
+
+  // The arena lives in host stores and ship refs; agents read the same
+  // snapshot the game's bots fly by.
+  useHostAgentObservation({
+    read: () => ({
+      state: {
+        ...readBotWorld(),
+        scores: { ...useCaptureTheFlagStore.getState().scores },
+      },
+    }),
+  });
 
   const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
   const pointsToWin = usePrototypeMatchStore((state) => state.pointsToWin);

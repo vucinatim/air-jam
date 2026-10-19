@@ -305,7 +305,14 @@ contract and turns it into an ordinary profile policy; the brief leads every
 question, so a turn describes at most 30 state lines, leaving room for a goal
 line once the seat is steered. Describe what a player perceives, not the
 answer: a turn computed from hidden state the player cannot see measures the
-contract, not the model. Decision models choose the option whose `when` matches
+contract, not the model. A game that needs control faster than a model answers
+(steering a ship, for example) adds `act: { rethinkMs, create }`. `create` runs
+once per seat and returns its `control`; between questions the seat keeps acting
+on the model's last choice at the run's step rate for `rethinkMs` after the answer
+arrives, and is asked again sooner when its goal changes or that choice is no
+longer offered. A missed answer leaves nothing to act on, so the seat asks again. Every policy step carries the seat's latest model
+`answer` for this purpose. `pnpm guard:canonical` requires every first-party game to offer
+a decision-model player this way; Last Band Standing is pending until a text model can receive its audio clue. Decision models choose the option whose `when` matches
 the state, so write each `when` against what the seat is aiming for ("the height
 I am aiming for is above my paddle") and let the brief name the default aim
 ("unless you have been given another goal, aim at the ball"). A `when` that
@@ -531,9 +538,13 @@ change a seat's intent during play.
 `AirJamPolicyDecision` gained an `ask` variant for decision-model players, and
 `@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`,
 `AirJamDecisionQuestion`, `airJamDecisionQuestionSchema` and
-`createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a
-question. Pong and the minimal starter declare player contracts and offer a
-`model` policy; Pong also gains a `match` profile against its own bot.
+`createAirJamPlayerPolicy`. Player contracts may declare `act`, and
+`AirJamPolicyStep` carries `answer`. Code that reads `decision.control` must handle a
+question. Pong, the minimal starter, Code Review and The Office declare player
+contracts and offer a `model` policy beside their code policies. Pong gains a
+`match` profile against its own bot; Code Review and The Office gain their first
+test profiles (`round` against the game's bot, and a solo `shift`) and host
+observation surfaces for state that lives only in the host simulation.
 
 `@air-jam/devtools/agent` now exports only static `inspectGameAgentContract` and
 its types. Removed `readGameSnapshot`, `invokeGameAction` and

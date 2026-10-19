@@ -1,20 +1,16 @@
 import { Vector3 } from "three";
 import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
 import { TEAM_IDS, type TeamId } from "../domain/team";
-import { shipPositions, shipRotations } from "../engine/ships/runtime";
 import {
   AIR_CAPTURE_ARENA_JUMP_PADS,
   AIR_CAPTURE_ARENA_OBSTACLES,
   type ObstacleData,
 } from "../prefabs/arena/layout";
-import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
-import { useGameStore } from "../stores/players/game-store";
-import { useHealthStore } from "../stores/players/health-store";
-import {
-  useCollectiblesStore,
-  type CollectibleData,
-} from "../stores/world/collectibles-store";
+import type { CollectibleData } from "../stores/world/collectibles-store";
+import type { BotWorld, FlagInfo, ShipInfo } from "./bot-world";
 import type { JumpPadInfo } from "./reachability-checker";
+
+export type { FlagInfo };
 
 export interface BotSelf {
   controllerId: string;
@@ -22,6 +18,7 @@ export interface BotSelf {
   rotation: { x: number; y: number; z: number; w: number };
   health: number;
   teamId: TeamId;
+  queuedAbility: string | null;
 }
 
 export interface PlayerInfo {
@@ -33,50 +30,31 @@ export interface PlayerInfo {
   isEnemy: boolean;
 }
 
-export interface FlagInfo {
-  teamId: TeamId;
-  status: "atBase" | "carried" | "dropped";
-  position: [number, number, number];
-  carrierId?: string;
-}
-
 /**
- * GameContext provides a standardized, read-only view of the game world for bots.
- * This abstraction avoids messy imports and direct store access in bot logic.
+ * A read-only view of one arena snapshot for bot logic, in the vector types
+ * the pilot works with. It reads nothing live, so the same logic runs on the
+ * host and in test players.
  */
 export class GameContext {
+  constructor(private readonly world: BotWorld) {}
+
+  private ship(controllerId: string): ShipInfo | undefined {
+    return this.world.ships.find((ship) => ship.controllerId === controllerId);
+  }
+
   /**
    * Get the bot's own state (position, health, team, etc.)
    */
   getSelf(botId: string): BotSelf | null {
-    const position = shipPositions.get(botId);
-    const rotation = shipRotations.get(botId);
-
-    if (!position || !rotation) {
-      return null;
-    }
-
-    const gameStore = useGameStore.getState();
-    const player = gameStore.players.find((p) => p.controllerId === botId);
-    if (!player) {
-      return null;
-    }
-
-    const ctfStore = useCaptureTheFlagStore.getState();
-    const teamId = ctfStore.getPlayerTeam(botId) ?? player.teamId;
-    const health = useHealthStore.getState().getHealth(botId);
-
+    const ship = this.ship(botId);
+    if (!ship) return null;
     return {
       controllerId: botId,
-      position: position.clone(),
-      rotation: {
-        x: rotation.x,
-        y: rotation.y,
-        z: rotation.z,
-        w: rotation.w,
-      },
-      health,
-      teamId,
+      position: new Vector3(...ship.position),
+      rotation: { ...ship.rotation },
+      health: ship.health,
+      teamId: ship.teamId,
+      queuedAbility: ship.queuedAbility,
     };
   }
 
@@ -91,62 +69,34 @@ export class GameContext {
    * Get all active collectibles
    */
   getCollectibles(): CollectibleData[] {
-    return useCollectiblesStore.getState().collectibles;
+    return this.world.collectibles;
   }
 
   /**
    * Get all players (enemies and allies) with their positions
    */
   getPlayers(botId: string): PlayerInfo[] {
-    const gameStore = useGameStore.getState();
-    const ctfStore = useCaptureTheFlagStore.getState();
-    const healthStore = useHealthStore.getState();
-
-    const botTeam = ctfStore.getPlayerTeam(botId);
-    if (!botTeam) {
-      return [];
-    }
-
-    return gameStore.players
-      .filter((player) => player.controllerId !== botId) // Exclude self
-      .map((player) => {
-        const position = shipPositions.get(player.controllerId);
-        const rotation = shipRotations.get(player.controllerId);
-        const playerTeam =
-          ctfStore.getPlayerTeam(player.controllerId) ?? player.teamId;
-        const health = healthStore.getHealth(player.controllerId);
-
-        if (!position || !rotation) {
-          return null;
-        }
-
-        return {
-          controllerId: player.controllerId,
-          position: position.clone(),
-          rotation: {
-            x: rotation.x,
-            y: rotation.y,
-            z: rotation.z,
-            w: rotation.w,
-          },
-          health,
-          teamId: playerTeam,
-          isEnemy: playerTeam !== botTeam,
-        };
-      })
-      .filter((p): p is PlayerInfo => p !== null);
+    const botTeam = this.ship(botId)?.teamId;
+    if (!botTeam) return [];
+    return this.world.ships
+      .filter((ship) => ship.controllerId !== botId)
+      .map((ship) => ({
+        controllerId: ship.controllerId,
+        position: new Vector3(...ship.position),
+        rotation: { ...ship.rotation },
+        health: ship.health,
+        teamId: ship.teamId,
+        isEnemy: ship.teamId !== botTeam,
+      }));
   }
 
   /**
    * Get state of all flags
    */
   getFlags(): FlagInfo[] {
-    const ctfStore = useCaptureTheFlagStore.getState();
-    return Object.values(ctfStore.flags).map((flag) => ({
-      teamId: flag.teamId,
-      status: flag.status,
-      position: [...flag.position] as [number, number, number],
-      carrierId: flag.carrierId,
+    return this.world.flags.map((flag) => ({
+      ...flag,
+      position: [...flag.position],
     }));
   }
 
@@ -154,8 +104,7 @@ export class GameContext {
    * Get the base position for a team
    */
   getBasePosition(teamId: TeamId): Vector3 {
-    const ctfStore = useCaptureTheFlagStore.getState();
-    return new Vector3(...ctfStore.basePositions[teamId]);
+    return new Vector3(...this.world.basePositions[teamId]);
   }
 
   /**

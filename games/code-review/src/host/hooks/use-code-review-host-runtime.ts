@@ -1,6 +1,8 @@
 import {
+  captureAgentCanvas,
   useAirJamHost,
   useGetInput,
+  useHostAgentObservation,
   useHostTick,
   useSendSignal,
 } from "@air-jam/sdk";
@@ -14,7 +16,15 @@ import {
 import { gameInputSchema } from "../../game/contracts/input";
 import type { CodeReviewSfxId } from "../../game/contracts/sounds";
 import { MATCH_POINTS_TO_WIN } from "../../game/domain/match-rules";
-import { MAX_HP } from "../../game/engine/constants";
+import {
+  HITBOX_CENTER,
+  MAX_HP,
+  PUNCH_REACH,
+  RING_MAX_X,
+  RING_MAX_Y,
+  RING_MIN_X,
+  RING_MIN_Y,
+} from "../../game/engine/constants";
 import { drawFrame } from "../../game/engine/render";
 import {
   createHpState,
@@ -85,6 +95,45 @@ export const useCodeReviewHostRuntime = ({
     hpSnapshotRef.current = { ...nextHp };
     setHpDisplay({ ...nextHp });
   }, []);
+
+  // Fight state lives only in these refs; agents read it from here.
+  useHostAgentObservation({
+    read: () => {
+      const now = Date.now();
+      return {
+        state: {
+          ring: {
+            minX: RING_MIN_X + HITBOX_CENTER,
+            maxX: RING_MAX_X + HITBOX_CENTER,
+            minY: RING_MIN_Y + HITBOX_CENTER,
+            maxY: RING_MAX_Y + HITBOX_CENTER,
+          },
+          punchReach: PUNCH_REACH,
+          hp: { ...hpRef.current },
+          knockout: {
+            active: koRef.current.active,
+            winner: koRef.current.winner,
+          },
+          fighters: slotParticipants.map((participant) => {
+            const fighter = gameStateRef.current[participant.slotKey];
+            return {
+              playerId: participant.id,
+              team: participant.team,
+              position: participant.position,
+              isBot: participant.isBot,
+              x: Math.round(fighter.x + HITBOX_CENTER),
+              y: Math.round(fighter.y + HITBOX_CENTER),
+              punching: fighter.punchingLeft || fighter.punchingRight,
+              defending: fighter.defending,
+              stunned: fighter.knockbackFrames > 0,
+              empowered: fighter.empoweredUntil > now,
+            };
+          }),
+        },
+      };
+    },
+    capture: () => captureAgentCanvas(getContext()?.canvas ?? null),
+  });
 
   useHostTick({
     enabled: true,
