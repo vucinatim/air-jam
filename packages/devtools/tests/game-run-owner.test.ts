@@ -1756,6 +1756,22 @@ it("plays a decision model's choice as the option's own control and traces the a
   );
 });
 
+it("hands the seat's policy the model's latest answer on its next step", async () => {
+  const f = await fixture({
+    decisions: async () => ({ choice: "tap", confidence: 0.93 }),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  io.evaluate.mockImplementation(async () => ({
+    status: io.decide.mock.calls.length >= 2 ? "passed" : "pending",
+    message: "Asked twice.",
+  }));
+  await f.owner.start(f.request);
+  await f.ended();
+  expect(io.decide.mock.calls.map(([step]) => step.answer).slice(0, 2)).toEqual(
+    [null, { choice: "tap", confidence: 0.93 }],
+  );
+});
+
 it("fails a run that asks a decision model when none is configured", async () => {
   const f = await fixture();
   io.decide.mockResolvedValue(tapOrWait);

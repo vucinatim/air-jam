@@ -124,6 +124,8 @@ type RunSeat = {
   misses: number;
   staleDecisions: number;
   lowConfidenceStreak: number;
+  /** The model's answer to this seat's latest question, for its policy. */
+  lastAnswer: { choice: string; confidence: number } | null;
 };
 type Run = {
   record: AirJamGameRunRecord;
@@ -806,6 +808,7 @@ export class GameRunOwner {
         misses: 0,
         staleDecisions: 0,
         lowConfidenceStreak: 0,
+        lastAnswer: null,
       });
       run.record.seats.push({
         seatId: description.id,
@@ -1391,6 +1394,7 @@ export class GameRunOwner {
               observation,
               seatId: seat.id,
               intent: this.seatRecord(run, seat).intent,
+              answer: seat.lastAnswer,
               step,
               elapsedMs: this.elapsed(run),
               receipts,
@@ -1406,6 +1410,10 @@ export class GameRunOwner {
               decisionDeadline,
             );
             control = answer.control;
+            seat.lastAnswer = {
+              choice: answer.choice,
+              confidence: answer.confidence,
+            };
           } else control = decision.control;
           if (run.abort.signal.aborted) return;
           await this.trace(run, {

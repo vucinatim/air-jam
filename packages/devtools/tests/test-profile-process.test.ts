@@ -83,6 +83,7 @@ async function fixture(
     observation,
     seatId: "player",
     intent: null,
+    answer: null,
     step: 1,
     elapsedMs: 0,
     receipts: [],

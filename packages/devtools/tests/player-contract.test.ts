@@ -49,6 +49,7 @@ describe("player contract", () => {
         observation,
         seatId: "first",
         intent: null,
+        answer: null,
         step: 1,
         elapsedMs: 0,
         receipts: [],
@@ -72,6 +73,7 @@ describe("player contract", () => {
       observation,
       seatId: "first",
       intent: "Stop at four taps.",
+      answer: null,
       step: 1,
       elapsedMs: 0,
       receipts: [],
@@ -93,11 +95,61 @@ describe("player contract", () => {
         observation: { snapshot: { count: 12 } } as unknown as HostObservation,
         seatId: "first",
         intent: null,
+        answer: null,
         step: 1,
         elapsedMs: 0,
         receipts: [],
       }),
     ).toEqual({ control: { kind: "release" } });
+  });
+
+  it("keeps acting on the last choice between questions when the contract acts", async () => {
+    const acted: string[] = [];
+    const decider = await createAirJamPlayerPolicy({
+      ...counter,
+      act: {
+        rethinkMs: 1000,
+        control: ({ choice }) => {
+          acted.push(choice);
+          return { kind: "action", actionId: choice };
+        },
+      },
+    }).create({ seatId: "first", random: Math.random });
+    const step = (
+      elapsedMs: number,
+      answer: { choice: string; confidence: number } | null,
+      intent: string | null = null,
+    ) =>
+      decider.decide({
+        observation,
+        seatId: "first",
+        intent,
+        answer,
+        step: 1,
+        elapsedMs,
+        receipts: [],
+      });
+    const tap = { choice: "tap", confidence: 0.9 };
+    expect(await step(0, null)).toHaveProperty("ask");
+    expect(await step(200, tap)).toEqual({
+      control: { kind: "action", actionId: "tap" },
+    });
+    expect(await step(400, { choice: "jump", confidence: 1 })).toHaveProperty(
+      "ask",
+    );
+    expect(await step(600, tap)).toHaveProperty("control");
+    expect(await step(800, tap, "Stop at four taps.")).toHaveProperty("ask");
+    expect(await step(1000, tap, "Stop at four taps.")).toHaveProperty(
+      "control",
+    );
+    expect(await step(1800, tap, "Stop at four taps.")).toHaveProperty("ask");
+    expect(acted).toEqual(["tap", "tap", "tap"]);
+    expect(() =>
+      createAirJamPlayerPolicy({
+        ...counter,
+        act: { rethinkMs: 0, control: () => null },
+      }),
+    ).toThrow();
   });
 
   it("refuses an empty brief and questions that offer one option or mix control with asking", () => {

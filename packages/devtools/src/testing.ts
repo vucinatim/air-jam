@@ -178,6 +178,8 @@ export type AirJamPolicyStep = {
   seatId: string;
   /** What this seat is currently trying to do, if anyone has said. */
   intent: string | null;
+  /** The decision model's answer to this seat's latest question, if any. */
+  answer: { choice: string; confidence: number } | null;
   step: number;
   elapsedMs: number;
   receipts: AirJamRunReceipt[];
@@ -290,6 +292,20 @@ export type AirJamPlayerContract = {
     observation: HostObservation;
     seatId: string;
   }) => AirJamDecisionQuestion | null;
+  /**
+   * For games that need control faster than a model answers. Between
+   * questions the seat keeps acting on the model's last choice at the run's
+   * step rate, and is asked again after `rethinkMs`, when its goal changes or
+   * when that choice is no longer offered. Without it every step asks.
+   */
+  act?: {
+    rethinkMs: number;
+    control: (context: {
+      observation: HostObservation;
+      seatId: string;
+      choice: string;
+    }) => AirJamPlayControl | null;
+  };
 };
 
 /**
@@ -303,23 +319,52 @@ export function createAirJamPlayerPolicy(
   airJamDecisionQuestionSchema.shape.state.element.parse(contract.brief);
   if (typeof contract.turn !== "function")
     throw new Error("A player contract must describe each turn.");
+  const act = contract.act;
+  if (
+    act &&
+    (!Number.isInteger(act.rethinkMs) ||
+      act.rethinkMs < 1 ||
+      typeof act.control !== "function")
+  )
+    throw new Error(
+      "A player contract's act needs a positive whole rethinkMs and a control.",
+    );
   return {
     label: "Decision model",
-    create: () => ({
-      decide: ({ observation, seatId, intent }) => {
-        const turn = contract.turn({ observation, seatId });
-        if (!turn) return { control: { kind: "release" } };
-        return {
-          ask: {
-            ...turn,
-            state: [
-              contract.brief,
-              ...(intent ? [`My goal right now: ${intent}`] : []),
-              ...turn.state,
-            ],
-          },
-        };
-      },
-    }),
+    create: () => {
+      let asked: { atMs: number; intent: string | null } | undefined;
+      return {
+        decide: ({ observation, seatId, intent, answer, elapsedMs }) => {
+          const turn = contract.turn({ observation, seatId });
+          if (!turn) return { control: { kind: "release" } };
+          if (
+            act &&
+            asked &&
+            answer &&
+            Object.hasOwn(turn.options, answer.choice) &&
+            asked.intent === intent &&
+            elapsedMs - asked.atMs < act.rethinkMs
+          )
+            return {
+              control: act.control({
+                observation,
+                seatId,
+                choice: answer.choice,
+              }) ?? { kind: "release" },
+            };
+          asked = { atMs: elapsedMs, intent };
+          return {
+            ask: {
+              ...turn,
+              state: [
+                contract.brief,
+                ...(intent ? [`My goal right now: ${intent}`] : []),
+                ...turn.state,
+              ],
+            },
+          };
+        },
+      };
+    },
   };
 }
