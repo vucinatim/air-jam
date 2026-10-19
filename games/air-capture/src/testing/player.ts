@@ -29,8 +29,6 @@ const AIMS: Record<BotStrategy, string> = {
 const RETHINK_MS = 2000;
 
 const seconds = () => performance.now() / 1000;
-/** One persistent pilot per ship, so jump-pad routes survive between steps. */
-const pilots = new Map<string, BotController>();
 const isStrategy = (choice: string): choice is BotStrategy =>
   (BOT_STRATEGIES as readonly string[]).includes(choice);
 /** The arena as the game's own bots see it, and the score. */
@@ -155,15 +153,17 @@ export const airCapturePlayer = {
   },
   act: {
     rethinkMs: RETHINK_MS,
-    control: ({ observation, choice }) => {
-      const controllerId = observation.controllerId;
-      if (!controllerId || !isStrategy(choice)) return null;
-      let pilot = pilots.get(controllerId);
-      if (!pilot) {
-        pilot = new BotController(controllerId);
-        pilots.set(controllerId, pilot);
-      }
-      return fly(pilot, arenaOf(observation.runtime).world, choice);
+    // One persistent pilot per seat, so jump-pad routes survive between steps.
+    create: () => {
+      let pilot: BotController | undefined;
+      return {
+        control: ({ observation, choice }) => {
+          const controllerId = observation.controllerId;
+          if (!controllerId || !isStrategy(choice)) return null;
+          pilot ??= new BotController(controllerId);
+          return fly(pilot, arenaOf(observation.runtime).world, choice);
+        },
+      };
     },
   },
 } satisfies AirJamPlayerContract;
