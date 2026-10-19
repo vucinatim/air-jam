@@ -142,8 +142,24 @@ export async function verifyPinnedGameBuild(build: PinnedGameBuild) {
     );
 }
 
+/**
+ * Large static assets (models, audio, video, images, fonts) are recorded in
+ * source evidence by size and digest only, so asset-heavy games fit the
+ * evidence limit. The archive carries the full source tree manifest, whose
+ * per-file digests reproduce the source hash, so every omitted asset stays
+ * pinned to the exact revision.
+ */
+const DIGEST_ONLY_ASSET =
+  /\.(glb|gltf|bin|fbx|obj|png|jpe?g|webp|gif|avif|ktx2|basis|hdr|exr|mp3|ogg|wav|m4a|aac|flac|mp4|webm|woff2?|ttf|otf)$/i;
+const DIGEST_ONLY_MIN_BYTES = 256 * 1024;
+export const SOURCE_ARCHIVE_MANIFEST = ".airjam-source.json";
+
 async function archiveSource(rootDir: string, target: string) {
   const source = await readSourceTree(rootDir);
+  if (source.entries.some((entry) => entry.path === SOURCE_ARCHIVE_MANIFEST))
+    throw new Error(
+      `build_source_invalid: ${SOURCE_ARCHIVE_MANIFEST} is reserved for source evidence.`,
+    );
   const archive = new ZipFile();
   const writing = pipeline(
     archive.outputStream,
@@ -161,12 +177,23 @@ async function archiveSource(rootDir: string, target: string) {
         mode: 0o120000 | entry.mode,
         mtime,
       });
-    else
+    else if (
+      !DIGEST_ONLY_ASSET.test(entry.path) ||
+      entry.size < DIGEST_ONLY_MIN_BYTES
+    )
       archive.addFile(path.join(rootDir, entry.path), entry.path, {
         mode: 0o100000 | entry.mode,
         mtime,
       });
   }
+  archive.addBuffer(
+    Buffer.from(JSON.stringify(source)),
+    SOURCE_ARCHIVE_MANIFEST,
+    {
+      mode: 0o100600,
+      mtime,
+    },
+  );
   archive.end();
   await writing;
   const content = await readFile(target);
