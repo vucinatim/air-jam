@@ -60,6 +60,10 @@ export const currentRoomObservationRequestSchema = z
   })
   .strict();
 
+/** What a seat is trying to do, in words its decision model reads. */
+export const seatIntentSchema = z.string().trim().min(1).max(500);
+export const steeringSourceSchema = z.enum(["creator", "agent", "operator"]);
+
 export const startGameRunSchema = z
   .object({
     cwd: z.string().min(1).optional(),
@@ -78,12 +82,21 @@ export const startGameRunSchema = z
         steps: z.number().int().min(1).max(10_000),
       })
       .strict(),
+    intents: z.record(z.string().min(1).max(64), seatIntentSchema).optional(),
   })
   .strict();
 export type StartGameRunOptions = z.input<typeof startGameRunSchema>;
 export const gameRunAddressSchema = z
   .object({ cwd: z.string().min(1).optional(), runId: z.uuid() })
   .strict();
+export const gameRunSteerSchema = gameRunAddressSchema
+  .extend({
+    seatId: z.string().min(1).max(64),
+    intent: seatIntentSchema.nullable(),
+    source: steeringSourceSchema.default("operator"),
+  })
+  .strict();
+export type GameRunSteerOptions = z.input<typeof gameRunSteerSchema>;
 export const gameRunWaitSchema = gameRunAddressSchema.extend({
   timeoutMs: z.number().int().min(1).max(30_000).default(25_000),
 });
@@ -158,11 +171,36 @@ export const gameRunRecordSchema = z
                 effects: z.number().int().nonnegative(),
               })
               .strict(),
+            intent: seatIntentSchema.nullable().default(null),
+            answers: z
+              .object({
+                asked: z.number().int().nonnegative(),
+                answered: z.number().int().nonnegative(),
+                missed: z.number().int().nonnegative(),
+                lowConfidence: z.number().int().nonnegative(),
+                lowConfidenceStretches: z.number().int().nonnegative(),
+                choices: z.record(z.string(), z.number().int().nonnegative()),
+              })
+              .strict()
+              .optional(),
           })
           .strict(),
       )
       .max(8)
       .default([]),
+    steering: z
+      .array(
+        z
+          .object({
+            at: z.iso.datetime(),
+            seatId: z.string(),
+            intent: seatIntentSchema.nullable(),
+            source: steeringSourceSchema,
+          })
+          .strict(),
+      )
+      .max(64)
+      .optional(),
     evaluation: z
       .object({
         play: airJamScenarioVerdictSchema.optional(),

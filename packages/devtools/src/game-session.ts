@@ -3,6 +3,7 @@ import { inspectProject } from "./context.js";
 import type { AirJamGameRunRecord } from "./game-run-owner.js";
 import type {
   CurrentRoomAttachment,
+  GameRunSteerOptions,
   StartGameRunOptions,
 } from "./game-run-protocol.js";
 import {
@@ -56,7 +57,12 @@ export type {
   SendGameSessionInputResult,
 } from "./types.js";
 export { gameSessionOperationSchemas };
-export type { AirJamGameRunRecord, CurrentRoomAttachment, StartGameRunOptions };
+export type {
+  AirJamGameRunRecord,
+  CurrentRoomAttachment,
+  GameRunSteerOptions,
+  StartGameRunOptions,
+};
 export type ControlGameSessionParticipantOptions = Parameters<
   ReturnType<typeof createGameSessionRuntime>["controlGameSessionParticipant"]
 >[0];
@@ -141,6 +147,8 @@ export const waitGameRun = (input: z.input<typeof gameRunWaitSchema>) =>
   request<AirJamGameRunRecord>("run.wait", input, input.cwd);
 export const stopGameRun = (input: z.infer<typeof gameRunAddressSchema>) =>
   request<AirJamGameRunRecord>("run.stop", input, input.cwd);
+export const steerGameRun = (input: GameRunSteerOptions) =>
+  request<AirJamGameRunRecord>("run.steer", input, input.cwd);
 export const cancelGameRun = (input: z.infer<typeof gameRunAddressSchema>) =>
   request<z.infer<typeof gameRunCancellationSchema>>(
     "run.cancel",

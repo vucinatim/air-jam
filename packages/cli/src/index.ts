@@ -17,6 +17,7 @@ import {
   listGameTestProfiles,
   readGameRun,
   startGameRun,
+  steerGameRun,
   stopAllGameRuns,
   stopGameRun,
   waitGameRun,
@@ -1857,6 +1858,11 @@ const buildProgram = () => {
       Number,
       0,
     )
+    .option(
+      "--intent <seat=text>",
+      "What a seat starts out trying to do; repeat for each seat",
+      (value: string, previous: string[] = []) => [...previous, value],
+    )
     .action(async (options: unknown) => {
       const input = resolveActionOptions<{
         runId: string;
@@ -1868,7 +1874,18 @@ const buildProgram = () => {
         steps: number;
         seed: number;
         current?: boolean;
+        intent?: string[];
       }>(options);
+      const intents = input.intent?.length
+        ? Object.fromEntries(
+            input.intent.map((entry) => {
+              const separator = entry.indexOf("=");
+              if (separator < 1)
+                throw new Error("Write each intent as <seat-id>=<text>.");
+              return [entry.slice(0, separator), entry.slice(separator + 1)];
+            }),
+          )
+        : undefined;
       let attachment;
       if (input.current) {
         if (process.stdin.isTTY)
@@ -1904,6 +1921,7 @@ const buildProgram = () => {
           policyId: input.policy,
           seed: input.seed,
           budget: { durationMs: input.durationMs, steps: input.steps },
+          ...(intents ? { intents } : {}),
         },
         attachment,
       );
@@ -1924,6 +1942,40 @@ const buildProgram = () => {
         );
       });
   }
+  runCommand
+    .command("steer <run-id>")
+    .description(
+      "Change what one seat of an active run is trying to do; never sends a control",
+    )
+    .requiredOption("--seat <id>", "Seat to steer")
+    .option("--intent <text>", "The seat's new goal in plain words")
+    .option("--clear", "Remove the seat's goal")
+    .option("--source <source>", "creator, agent or operator", "operator")
+    .option("--dir <path>", "Project directory")
+    .action(async (runId: string, options: unknown) => {
+      const input = resolveActionOptions<{
+        seat: string;
+        intent?: string;
+        clear?: boolean;
+        source: "creator" | "agent" | "operator";
+        dir?: string;
+      }>(options);
+      if (Boolean(input.clear) === (input.intent !== undefined))
+        throw new Error("Give either --intent <text> or --clear.");
+      process.stdout.write(
+        `${JSON.stringify(
+          await steerGameRun({
+            cwd: input.dir,
+            runId,
+            seatId: input.seat,
+            intent: input.clear ? null : (input.intent ?? null),
+            source: input.source,
+          }),
+          null,
+          2,
+        )}\n`,
+      );
+    });
   runCommand
     .command("watch <run-id>")
     .description(

@@ -5,6 +5,7 @@ import {
   currentRoomAttachmentSchema,
   gameRunAddressSchema,
   gameRunDiscoverySchema,
+  gameRunSteerSchema,
   gameRunWaitSchema,
   startGameRunSchema,
 } from "./game-run-protocol.js";
@@ -71,6 +72,9 @@ export const gameSessionBrokerRequestSchema = z.discriminatedUnion(
       .strict(),
     z
       .object({ operation: z.literal("run.stop"), input: gameRunAddressSchema })
+      .strict(),
+    z
+      .object({ operation: z.literal("run.steer"), input: gameRunSteerSchema })
       .strict(),
     z
       .object({

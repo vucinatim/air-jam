@@ -318,6 +318,27 @@ executes game code. The run record names the `decisionModel` a run asked. The
 trace records each answer's choice, confidence and duration, and each missed
 decision's reason; a run ended by repeated misses names the last reason.
 
+### Seat intent and steering
+
+A run may start with an intent per seat (`intents: { [seatId]: text }`, CLI
+`--intent <seat=text>`): plain words a decision-model policy reads right after
+the brief, such as "play cautiously" or "try to break the scoring". Policies
+receive the seat's current intent in every step. `airjam session run steer
+<run-id> --seat <id> --intent <text>|--clear` and MCP `airjam.steer_game_run`
+change it while the run is active. Steering never sends a control: the policy
+still decides, through the same seat, lease and deadlines. Every change is
+recorded on the run's `steering` log with its time and source (`creator`,
+`agent` or `operator`), at most 64 per run, and in the trace. Under
+`--external-run-control` steering belongs to the embedding application, like
+start and stop.
+
+Each seat's record also summarizes how a decision model played it: questions
+asked, answered and missed, the choices it made, answers below 0.6 confidence,
+and stretches of three or more such answers in a row. Reading a run while it
+plays returns the latest persisted summary; the final record is the digest.
+Sustained low confidence is a signal that the brief or the game may be unclear
+to a newcomer, not a measure of fun.
+
 Each scenario also declares one synchronous evaluator and its named numeric metrics.
 Policies return controls or questions, never a verdict. The evaluator
 runs in a separate child through the same bounded, correlated profile IPC
@@ -493,6 +514,11 @@ browser/process is disposed by the existing controller lifecycle.
 ## Unreleased tooling behavior changes
 
 `AirJamPolicyDecision` gained an `ask` variant for decision-model players, and
+Runs accept per-seat `intents`, records carry each seat's `intent`, `answers`
+summary and a run `steering` log, `AirJamPolicyStep` carries `intent`, and
+`run.steer` / `steerGameRun` / `airjam.steer_game_run` / `session run steer`
+change a seat's intent during play.
+
 `@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`,
 `AirJamDecisionQuestion`, `airJamDecisionQuestionSchema` and
 `createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a

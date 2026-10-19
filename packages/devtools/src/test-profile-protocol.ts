@@ -13,6 +13,7 @@ const step = z
   .object({
     observation: hostObservationSchema,
     seatId: z.string(),
+    intent: z.string().nullable(),
     step: z.number().int().nonnegative(),
     elapsedMs: z.number().nonnegative(),
     receipts: z.array(airJamRunReceiptSchema).max(128),

@@ -176,6 +176,8 @@ export type AirJamScenarioSample = {
 export type AirJamPolicyStep = {
   observation: HostObservation;
   seatId: string;
+  /** What this seat is currently trying to do, if anyone has said. */
+  intent: string | null;
   step: number;
   elapsedMs: number;
   receipts: AirJamRunReceipt[];
@@ -292,7 +294,8 @@ export type AirJamPlayerContract = {
 
 /**
  * A test policy that plays every seat through the run's decision model. The
- * brief leads every question, so a turn may describe at most 31 state lines.
+ * brief and any seat intent lead every question, so a turn may describe at
+ * most 30 state lines.
  */
 export function createAirJamPlayerPolicy(
   contract: AirJamPlayerContract,
@@ -303,11 +306,18 @@ export function createAirJamPlayerPolicy(
   return {
     label: "Decision model",
     create: () => ({
-      decide: ({ observation, seatId }) => {
+      decide: ({ observation, seatId, intent }) => {
         const turn = contract.turn({ observation, seatId });
         if (!turn) return { control: { kind: "release" } };
         return {
-          ask: { ...turn, state: [contract.brief, ...turn.state] },
+          ask: {
+            ...turn,
+            state: [
+              contract.brief,
+              ...(intent ? [`My goal right now: ${intent}`] : []),
+              ...turn.state,
+            ],
+          },
         };
       },
     }),

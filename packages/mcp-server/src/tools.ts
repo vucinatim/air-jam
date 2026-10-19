@@ -10,6 +10,7 @@ import {
 import {
   gameRunAddressSchema,
   gameRunDiscoverySchema,
+  gameRunSteerSchema,
   gameRunWaitSchema,
   startGameRunSchema,
 } from "@air-jam/devtools/game-runs";
@@ -27,6 +28,7 @@ import {
   readGameSession,
   sendGameSessionInput,
   startGameRun,
+  steerGameRun,
   stopGameRun,
   waitGameRun,
 } from "@air-jam/devtools/game-session";
@@ -570,6 +572,12 @@ export const buildToolDefinitions = ({
         "Stop a policy run, release its inputs, retain a final actual observation, and disconnect its owned controllers/host. Idempotent.",
       inputSchema: gameRunAddressSchema,
       run: async (input) => withJsonText(await stopGameRun(input)),
+    },
+    "airjam.steer_game_run": {
+      description:
+        "Change what one seat of an active run is trying to do, in words its decision-model policy reads, or clear it with null. Never sends a control; the policy still decides. Each change is recorded on the run with its time and source.",
+      inputSchema: gameRunSteerSchema,
+      run: async (input) => withJsonText(await steerGameRun(input)),
     },
     "airjam.list_game_runs": {
       description:

@@ -541,6 +541,11 @@ export async function runGameSessionBroker({
             ok: true,
             result: await runs.stop(operation.input.runId),
           });
+        case "run.steer":
+          return writeJson(response, 200, {
+            ok: true,
+            result: await runs.steer(operation.input),
+          });
         case "run.list":
           return writeJson(response, 200, { ok: true, result: runs.list() });
         case "run.stop-all":

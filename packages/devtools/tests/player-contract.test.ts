@@ -48,6 +48,7 @@ describe("player contract", () => {
       await decider.decide({
         observation,
         seatId: "first",
+        intent: null,
         step: 1,
         elapsedMs: 0,
         receipts: [],
@@ -62,6 +63,26 @@ describe("player contract", () => {
     });
   });
 
+  it("puts the seat's current goal right after the brief", async () => {
+    const decider = await createAirJamPlayerPolicy(counter).create({
+      seatId: "first",
+      random: Math.random,
+    });
+    const decision = await decider.decide({
+      observation,
+      seatId: "first",
+      intent: "Stop at four taps.",
+      step: 1,
+      elapsedMs: 0,
+      receipts: [],
+    });
+    expect("ask" in decision && decision.ask.state).toEqual([
+      counter.brief,
+      "My goal right now: Stop at four taps.",
+      "My count is 2.",
+    ]);
+  });
+
   it("releases a seat with nothing to decide", async () => {
     const decider = await createAirJamPlayerPolicy(counter).create({
       seatId: "first",
@@ -71,6 +92,7 @@ describe("player contract", () => {
       await decider.decide({
         observation: { snapshot: { count: 12 } } as unknown as HostObservation,
         seatId: "first",
+        intent: null,
         step: 1,
         elapsedMs: 0,
         receipts: [],

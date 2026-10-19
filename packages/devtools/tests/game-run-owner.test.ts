@@ -1843,3 +1843,71 @@ it("records the model it asked and why each decision was missed, even when none 
   expect(trace).toContain('"kind":"decision_missed"');
   expect(trace).toContain("HTTP 401");
 });
+
+it("gives each seat its starting intent and lets a steer change only what it reads", async () => {
+  const f = await fixture({
+    decisions: async () => ({ choice: "tap", confidence: 0.4 }),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  f.request.intents = { player: "Play cautiously." };
+  await f.owner.start(f.request);
+  await vi.waitFor(() =>
+    expect(io.decide).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: "Play cautiously." }),
+      expect.any(Number),
+    ),
+  );
+  const steered = await f.owner.steer({
+    runId: f.request.runId,
+    seatId: "player",
+    intent: "Try to break the scoring.",
+    source: "creator",
+  });
+  expect(steered.seats[0]?.intent).toBe("Try to break the scoring.");
+  expect(steered.steering).toEqual([
+    expect.objectContaining({
+      seatId: "player",
+      intent: "Try to break the scoring.",
+      source: "creator",
+    }),
+  ]);
+  await vi.waitFor(() =>
+    expect(io.decide).toHaveBeenLastCalledWith(
+      expect.objectContaining({ intent: "Try to break the scoring." }),
+      expect.any(Number),
+    ),
+  );
+  const record = await f.owner.stop(f.request.runId);
+  const answers = record.seats[0]?.answers;
+  expect(answers?.answered).toBeGreaterThanOrEqual(3);
+  expect(answers?.choices.tap).toBe(answers?.answered);
+  expect(answers?.lowConfidence).toBe(answers?.answered);
+  expect(answers?.lowConfidenceStretches).toBe(1);
+  expect(JSON.stringify(vi.mocked(f.session.control).mock.calls)).not.toContain(
+    "break the scoring",
+  );
+  await expect(
+    f.owner.steer({ runId: f.request.runId, seatId: "player", intent: null }),
+  ).rejects.toThrow("run_not_active");
+});
+
+it("refuses intents and steering for seats the profile does not have", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "release" } });
+  f.request.intents = { goalkeeper: "Defend." };
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.message).toContain("run_intent_invalid");
+  const g = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "release" } });
+  await g.owner.start(g.request);
+  await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
+  await expect(
+    g.owner.steer({
+      runId: g.request.runId,
+      seatId: "goalkeeper",
+      intent: "x",
+    }),
+  ).rejects.toThrow("run_seat_unknown");
+  await g.owner.stop(g.request.runId);
+});

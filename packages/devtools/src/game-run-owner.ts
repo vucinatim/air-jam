@@ -23,11 +23,13 @@ import {
   gameRunAddressSchema,
   gameRunRecordSchema,
   gameRunSessionIdentitySchema,
+  gameRunSteerSchema,
   MAXIMUM_GAME_RUN_TRACE_BYTES,
   startGameRunSchema,
   type AirJamGameRunCancellation,
   type AirJamGameRunRecord,
   type CurrentRoomAttachment,
+  type GameRunSteerOptions,
   type StartGameRunOptions,
 } from "./game-run-protocol.js";
 import { readGameRunArtifact } from "./game-run-record.js";
@@ -62,6 +64,10 @@ type AnsweredDecision = DecisionAnswer & {
 };
 
 type EndReason = NonNullable<AirJamGameRunRecord["end"]>["reason"];
+/** Answers below this confidence count as unsure; this many in a row is a stretch. */
+const LOW_CONFIDENCE = 0.6;
+const LOW_CONFIDENCE_STRETCH = 3;
+const MAXIMUM_STEERING_CHANGES = 64;
 function agentNickname(index: number) {
   return `Agent ${index + 1}`;
 }
@@ -117,6 +123,7 @@ type RunSeat = {
   policyCursor: number;
   misses: number;
   staleDecisions: number;
+  lowConfidenceStreak: number;
 };
 type Run = {
   record: AirJamGameRunRecord;
@@ -528,6 +535,37 @@ export class GameRunOwner {
     );
     return this.copy(run.record);
   }
+  /**
+   * Change what one seat is trying to do while its run is active. Steering only
+   * changes the intent its policy reads; controls still come from the policy.
+   * Each change is recorded with its time and source.
+   */
+  async steer(input: GameRunSteerOptions): Promise<AirJamGameRunRecord> {
+    const { runId, seatId, intent, source } = gameRunSteerSchema.parse(input);
+    const run = this.runs.get(runId);
+    if (
+      !run ||
+      run.abort.signal.aborted ||
+      run.record.state === "ended" ||
+      run.record.state === "stopping"
+    )
+      throw new Error("run_not_active: Only an active test can be steered.");
+    const seat = run.record.seats.find(
+      (candidate) => candidate.seatId === seatId,
+    );
+    if (!seat)
+      throw new Error(`run_seat_unknown: Run ${runId} has no seat ${seatId}.`);
+    const steering = (run.record.steering ??= []);
+    if (steering.length >= MAXIMUM_STEERING_CHANGES)
+      throw new Error(
+        `steering_limit: A run records at most ${MAXIMUM_STEERING_CHANGES} steering changes.`,
+      );
+    seat.intent = intent;
+    steering.push({ at: new Date().toISOString(), seatId, intent, source });
+    await this.trace(run, { kind: "steer", seatId, intent, source });
+    await this.persist(run);
+    return this.copy(run.record);
+  }
   stopAll(): Promise<AirJamGameRunRecord[]> {
     return (this.stoppingAll ??= (async () => {
       await Promise.allSettled(this.admissions);
@@ -687,6 +725,13 @@ export class GameRunOwner {
       throw new Error(
         "current_profile_invalid: Current-room play requires one player and no host setup.",
       );
+    const unknownIntent = Object.keys(run.record.request.intents ?? {}).find(
+      (seatId) => !profile.seats.some((seat) => seat.id === seatId),
+    );
+    if (unknownIntent)
+      throw new Error(
+        `run_intent_invalid: Profile ${profile.id} has no seat ${unknownIntent}.`,
+      );
     run.record.profile = profile;
     const policy = profile.policies.find(
       (candidate) => candidate.id === run.record.request.policyId,
@@ -760,10 +805,12 @@ export class GameRunOwner {
         policyCursor: 0,
         misses: 0,
         staleDecisions: 0,
+        lowConfidenceStreak: 0,
       });
       run.record.seats.push({
         seatId: description.id,
         controllerId,
+        intent: run.record.request.intents?.[description.id] ?? null,
         counters: {
           decisions: 0,
           applied: 0,
@@ -953,6 +1000,43 @@ export class GameRunOwner {
       run.record.request.budget.durationMs -
       Math.max(0, run.deadline - performance.now())
     );
+  }
+  /**
+   * Answer a seat's question and keep that seat's running summary of how the
+   * model played it: what it chose, what it missed, and stretches where it
+   * stayed unsure, which often means the brief or the game was unclear.
+   */
+  private async answerFor(
+    run: Run,
+    seat: RunSeat,
+    question: AirJamDecisionQuestion,
+    deadline: number,
+  ) {
+    const record = this.seatRecord(run, seat);
+    const answers = (record.answers ??= {
+      asked: 0,
+      answered: 0,
+      missed: 0,
+      lowConfidence: 0,
+      lowConfidenceStretches: 0,
+      choices: {},
+    });
+    answers.asked++;
+    let answer: AnsweredDecision;
+    try {
+      answer = await this.answer(run, question, deadline);
+    } catch (error) {
+      answers.missed++;
+      throw error;
+    }
+    answers.answered++;
+    answers.choices[answer.choice] = (answers.choices[answer.choice] ?? 0) + 1;
+    if (answer.confidence < LOW_CONFIDENCE) {
+      answers.lowConfidence++;
+      if (++seat.lowConfidenceStreak === LOW_CONFIDENCE_STRETCH)
+        answers.lowConfidenceStretches++;
+    } else seat.lowConfidenceStreak = 0;
+    return answer;
   }
   /**
    * Put a policy's question to the run's decision model and map its choice back
@@ -1306,6 +1390,7 @@ export class GameRunOwner {
             {
               observation,
               seatId: seat.id,
+              intent: this.seatRecord(run, seat).intent,
               step,
               elapsedMs: this.elapsed(run),
               receipts,
@@ -1314,7 +1399,12 @@ export class GameRunOwner {
           );
           let answer: AnsweredDecision | undefined;
           if ("ask" in decision) {
-            answer = await this.answer(run, decision.ask, decisionDeadline);
+            answer = await this.answerFor(
+              run,
+              seat,
+              decision.ask,
+              decisionDeadline,
+            );
             control = answer.control;
           } else control = decision.control;
           if (run.abort.signal.aborted) return;
