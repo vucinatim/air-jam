@@ -27,6 +27,14 @@ export const BREAKS = {
     effect: `+${STAT_CONSTANTS.FIFA_BOREDOM_RESTORE} fun`,
   },
 } as const;
+/** Where a choice leads: a task's location, a break spot, or nowhere. */
+function destinationOf(choice: string) {
+  if (choice.startsWith("do-")) return choice.slice(3);
+  return Object.hasOwn(BREAKS, choice)
+    ? BREAKS[choice as keyof typeof BREAKS].locationId
+    : null;
+}
+
 /** Open tasks offered per turn, nearest first. */
 const OFFERED_TASKS = 6;
 
@@ -122,5 +130,25 @@ export const officePlayer = {
     const self = selfOf(observation.controllerId ?? null, snapshot, runtime);
     if (!self || !self.alive || self.doingTask || self.onBreakAt) return null;
     return shift(self, runtime, snapshot.scoreboard.finalTotalMoney);
+  },
+  act: {
+    // The model chooses where to go; walking re-routes at every step, so a
+    // direction is never held longer than the run's step interval.
+    rethinkMs: 3000,
+    create: () => ({
+      control: ({ observation, choice }) => {
+        const snapshot = snapshotSchema.parse(observation.snapshot);
+        const runtime = runtimeSchema.parse(observation.runtime);
+        const self = selfOf(
+          observation.controllerId ?? null,
+          snapshot,
+          runtime,
+        );
+        const destination = destinationOf(choice);
+        if (!self || !destination) return null;
+        const route = routeTo(self, destination);
+        return route ? goControl(self, route) : null;
+      },
+    }),
   },
 } satisfies AirJamPlayerContract;

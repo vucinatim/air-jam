@@ -85,7 +85,17 @@ function aimHeight(aim: Aim, assignment: PaddleAssignment, ball: Simulation) {
   return ballArrival(assignment, ball)?.y ?? HEIGHTS.middle;
 }
 
-/** Steer the paddle smoothly towards a height, as the game's own bot does. */
+/**
+ * The time one steering input is held: the match profile's step interval.
+ * Steering covers the whole gap in one step, so it settles without overshoot.
+ */
+const STEER_STEP_SECONDS = 0.1;
+
+/**
+ * Steer the paddle smoothly towards a height, as the game's own bot does.
+ * Fractional input is legal game input a phone's -1/0/1 buttons cannot send;
+ * on-off steering at this step rate would overshoot by 72 px a step.
+ */
 function steerTo(
   target: number,
   assignment: PaddleAssignment,
@@ -99,7 +109,10 @@ function steerTo(
       direction:
         Math.abs(gap) <= LINED_UP_PIXELS
           ? 0
-          : Math.max(-1, Math.min(1, gap / (PADDLE_SPEED * 0.1))),
+          : Math.max(
+              -1,
+              Math.min(1, gap / (PADDLE_SPEED * STEER_STEP_SECONDS)),
+            ),
     },
   };
 }
@@ -122,12 +135,14 @@ function movePaddle(
   const centre = Math.round(top + PADDLE_HEIGHT / 2);
   const towardsMe = left ? ball.ballVX < 0 : ball.ballVX > 0;
   const arrival = ballArrival(assignment, ball);
-  const options: AirJamDecisionQuestion["options"] = {};
-  if (arrival)
-    options.meet = {
-      when: `I am aiming to meet the ball where it will reach my paddle, at about y=${arrival.y}.`,
-      control: steerTo(arrival.y, assignment, ball),
-    };
+  const options: AirJamDecisionQuestion["options"] = {
+    meet: {
+      when: arrival
+        ? `I am aiming to meet the ball where it will reach my paddle, at about y=${arrival.y}.`
+        : `I am aiming to meet the ball when it comes back, waiting in the middle (y=${HEIGHTS.middle}) meanwhile.`,
+      control: steerTo(aimHeight("meet", assignment, ball), assignment, ball),
+    },
+  };
   for (const [aim, height] of Object.entries(HEIGHTS))
     options[aim] = {
       when: `The height I am aiming for is about y=${height}.`,
@@ -158,8 +173,8 @@ export const pongPlayer = {
     "Each player moves one paddle straight up or down along their own side.",
     "The ball bounces off the top and bottom edges and off paddles, and a team scores when the ball gets past the other team's paddle.",
     `Paddles are ${PADDLE_HEIGHT} pixels tall. To return the ball, have your paddle's centre level with the ball when it reaches your paddle; within ${LINED_UP_PIXELS} pixels counts as lined up.`,
-    "My paddle moves itself towards whatever height I aim for; I choose the aim.",
-    `Unless you have been given another goal, aim to meet the ball where it will reach your paddle, and while it moves away, aim at the middle (y=${FIELD_HEIGHT / 2}).`,
+    "Your paddle moves itself towards whatever height you aim for; you choose the aim.",
+    `Unless you have been given another goal, aim to meet the ball where it will reach your paddle; while it moves away, that means waiting in the middle (y=${FIELD_HEIGHT / 2}).`,
   ].join(" "),
   turn: ({ observation }) => {
     const snapshot = snapshotSchema.parse(observation.snapshot);

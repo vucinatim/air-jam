@@ -11,6 +11,7 @@ import {
 } from "../src/game/engine/office-layout";
 import { ALL_LOCATIONS, routeTo } from "../src/testing/navigation";
 import { officePlayer } from "../src/testing/player";
+import { testProfiles } from "../src/testing/profiles";
 
 const snapshot = (
   phase: string,
@@ -82,10 +83,14 @@ function walk(
   return false;
 }
 
+const stepTicks = Math.round(
+  testProfiles.shift.timing.intervalMs / (1000 / 60),
+);
+
 describe("The Office navigation", () => {
   it("actually walks every route under the game's movement, holding each step for a whole decision", () => {
-    // From everywhere a coworker can stand, a decision every 200 ms at 60
-    // simulation steps a second reaches every location within 30 s.
+    // From everywhere a coworker can stand, re-routing at the shift profile's
+    // step interval (act) reaches every location within 30 s.
     const starts = [];
     for (let x = 30; x < FIELD_WIDTH; x += 50)
       for (let y = 30; y < FIELD_HEIGHT; y += 50)
@@ -99,7 +104,7 @@ describe("The Office navigation", () => {
     for (const start of starts)
       for (const location of ALL_LOCATIONS)
         expect(
-          walk(start, location.id, 12, 1800),
+          walk(start, location.id, stepTicks, 1800),
           `${JSON.stringify(start)} to ${location.id}`,
         ).toBe(true);
   });
@@ -160,6 +165,24 @@ describe("The Office player contract", () => {
     expect(held?.options["do-meeting-table"]?.control).toMatchObject({
       input: { action: false },
     });
+  });
+
+  it("keeps walking towards the chosen destination between questions", () => {
+    const seat = officePlayer.act.create();
+    expect(
+      seat.control({
+        observation: observe("playing"),
+        seatId: "player",
+        choice: "do-meeting-table",
+      }),
+    ).toMatchObject({ kind: "input", input: { action: false } });
+    expect(
+      seat.control({
+        observation: observe("playing"),
+        seatId: "player",
+        choice: "wait",
+      }),
+    ).toBeNull();
   });
 
   it("has nothing to decide while busy, out, or outside a shift", () => {
