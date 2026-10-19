@@ -406,16 +406,18 @@ it("preserves the platform's structured recovery details on a failed request", a
       stage: "opening_copy",
     },
   };
-  globalThis.fetch = vi.fn().mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        error: "conflict",
-        message: "Copy saved; opening failed.",
-        details,
-      }),
-      { status: 409, headers: { "content-type": "application/json" } },
-    ),
-  );
+  globalThis.fetch = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "conflict",
+          message: "Copy saved; opening failed.",
+          details,
+        }),
+        { status: 409, headers: { "content-type": "application/json" } },
+      ),
+    );
   try {
     await requestPlatformMachineApi({
       baseUrl: "http://localhost:3000",
