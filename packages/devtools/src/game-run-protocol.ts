@@ -23,6 +23,7 @@ export const gameRunBuildLogSchema = z.object({
 export type AirJamGameRunBuildLog = z.infer<typeof gameRunBuildLogSchema>;
 export const MAXIMUM_GAME_RUN_MS = 600_000;
 export const MAXIMUM_GAME_RUN_TRACE_BYTES = 16 * 1024 * 1024;
+export const MAXIMUM_GAME_RUN_STEERING_CHANGES = 64;
 export const GAME_SESSION_BROKER_STATE_FILE =
   ".airjam/devtools/game-session-broker.json";
 const attachmentUrlSchema = z
@@ -199,7 +200,7 @@ export const gameRunRecordSchema = z
           })
           .strict(),
       )
-      .max(64)
+      .max(MAXIMUM_GAME_RUN_STEERING_CHANGES)
       .optional(),
     evaluation: z
       .object({

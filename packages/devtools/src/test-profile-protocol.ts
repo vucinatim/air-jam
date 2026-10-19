@@ -1,5 +1,6 @@
 import { hostObservationSchema } from "@air-jam/sdk/runtime-control";
 import { z } from "zod";
+import { seatIntentSchema } from "./game-run-protocol.js";
 import { policyArtifactReceiptSchema } from "./policy-artifact-contract.js";
 import {
   airJamPolicyDecisionSchema,
@@ -13,7 +14,7 @@ const step = z
   .object({
     observation: hostObservationSchema,
     seatId: z.string(),
-    intent: z.string().nullable(),
+    intent: seatIntentSchema.nullable(),
     step: z.number().int().nonnegative(),
     elapsedMs: z.number().nonnegative(),
     receipts: z.array(airJamRunReceiptSchema).max(128),

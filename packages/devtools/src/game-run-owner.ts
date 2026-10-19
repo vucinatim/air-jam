@@ -24,6 +24,7 @@ import {
   gameRunRecordSchema,
   gameRunSessionIdentitySchema,
   gameRunSteerSchema,
+  MAXIMUM_GAME_RUN_STEERING_CHANGES,
   MAXIMUM_GAME_RUN_TRACE_BYTES,
   startGameRunSchema,
   type AirJamGameRunCancellation,
@@ -67,7 +68,6 @@ type EndReason = NonNullable<AirJamGameRunRecord["end"]>["reason"];
 /** Answers below this confidence count as unsure; this many in a row is a stretch. */
 const LOW_CONFIDENCE = 0.6;
 const LOW_CONFIDENCE_STRETCH = 3;
-const MAXIMUM_STEERING_CHANGES = 64;
 function agentNickname(index: number) {
   return `Agent ${index + 1}`;
 }
@@ -556,9 +556,9 @@ export class GameRunOwner {
     if (!seat)
       throw new Error(`run_seat_unknown: Run ${runId} has no seat ${seatId}.`);
     const steering = (run.record.steering ??= []);
-    if (steering.length >= MAXIMUM_STEERING_CHANGES)
+    if (steering.length >= MAXIMUM_GAME_RUN_STEERING_CHANGES)
       throw new Error(
-        `steering_limit: A run records at most ${MAXIMUM_STEERING_CHANGES} steering changes.`,
+        `steering_limit: A run records at most ${MAXIMUM_GAME_RUN_STEERING_CHANGES} steering changes.`,
       );
     seat.intent = intent;
     steering.push({ at: new Date().toISOString(), seatId, intent, source });
