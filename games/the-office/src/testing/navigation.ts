@@ -22,8 +22,8 @@ const CELL = 10;
 const COLUMNS = Math.floor(FIELD_WIDTH / CELL);
 const ROWS = Math.floor(FIELD_HEIGHT / CELL);
 const SIMULATION_STEPS_PER_SECOND = 60;
-/** Steer at a cell a few steps ahead so movement cuts corners smoothly. */
-const LOOK_AHEAD = 3;
+/** Spacing of the collision samples along a straight walk. */
+const SAMPLE_STEP = 4;
 
 export const ALL_LOCATIONS: Location[] = [...LOCATIONS, ...BREAKROOM_LOCATIONS];
 
@@ -55,6 +55,24 @@ function nearestWalkable(x: number, y: number) {
   return best;
 }
 
+/** Whether a coworker can walk straight from one point to another. */
+function clear(from: { x: number; y: number }, to: { x: number; y: number }) {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  const samples = Math.max(1, Math.ceil(length / SAMPLE_STEP));
+  for (let sample = 1; sample <= samples; sample++) {
+    const share = sample / samples;
+    if (
+      !isValidPosition(
+        from.x + (to.x - from.x) * share,
+        from.y + (to.y - from.y) * share,
+        PLAYER_RADIUS,
+      )
+    )
+      return false;
+  }
+  return true;
+}
+
 export type Route = {
   /** Already close enough to use the location. */
   arrived: boolean;
@@ -84,7 +102,14 @@ export function routeTo(
     if (isNearLocation(point.x, point.y, locationId, ALL_LOCATIONS)) {
       const path = [cell];
       while (previous[path[0]] >= 0) path.unshift(previous[path[0]]);
-      const aim = centre(path[Math.min(LOOK_AHEAD, path.length - 1)]);
+      // Head for the farthest point of the path reachable in a straight line,
+      // so a direction held for a whole decision never cuts into a wall.
+      let aim = centre(path[0]);
+      for (let index = path.length - 1; index > 0; index--)
+        if (clear(from, centre(path[index]))) {
+          aim = centre(path[index]);
+          break;
+        }
       const dx = aim.x - from.x;
       const dy = aim.y - from.y;
       const length = Math.hypot(dx, dy) || 1;

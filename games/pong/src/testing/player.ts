@@ -3,9 +3,12 @@ import type {
   AirJamPlayerContract,
 } from "@air-jam/devtools/testing";
 import {
+  BALL_SIZE,
   FIELD_HEIGHT,
   FIELD_WIDTH,
   PADDLE_HEIGHT,
+  PADDLE_WIDTH,
+  PADDLE_X,
 } from "../game/engine/constants";
 import {
   paddleTop,
@@ -41,6 +44,26 @@ function chooseTeam(teams: Snapshot["teams"]): AirJamDecisionQuestion {
   };
 }
 
+/**
+ * Where and when the ball's centre will reach this paddle's face, following its
+ * straight path and its bounces off the top and bottom walls, as a player
+ * reading the ball would. Null while it is served or moving away.
+ */
+export function ballArrival(assignment: PaddleAssignment, ball: Simulation) {
+  if (ball.awaitingServe) return null;
+  const left = assignment.team === "team1";
+  const paddleX = PADDLE_X[assignment.team][assignment.position];
+  const faceX = left ? paddleX + PADDLE_WIDTH : paddleX - BALL_SIZE;
+  const seconds = (faceX - ball.ballX) / ball.ballVX;
+  if (!(seconds > 0)) return null;
+  const travel = FIELD_HEIGHT - BALL_SIZE;
+  const unfolded =
+    (((ball.ballY + ball.ballVY * seconds) % (2 * travel)) + 2 * travel) %
+    (2 * travel);
+  const top = unfolded <= travel ? unfolded : 2 * travel - unfolded;
+  return { y: Math.round(top + BALL_SIZE / 2), seconds };
+}
+
 function movePaddle(
   assignment: PaddleAssignment,
   ball: Simulation,
@@ -49,12 +72,18 @@ function movePaddle(
   const top = paddleTop(assignment, ball);
   const centre = Math.round(top + PADDLE_HEIGHT / 2);
   const towardsMe = left ? ball.ballVX < 0 : ball.ballVX > 0;
+  const arrival = ballArrival(assignment, ball);
   return {
     state: [
       `I control the ${left ? "left" : "right"} paddle. Its top edge is at y=${Math.round(top)}, so its centre is at y=${centre}.`,
       ball.awaitingServe
         ? `The ball is waiting to be served at y=${Math.round(ball.ballY)}.`
         : `The ball is at x=${Math.round(ball.ballX)}, y=${Math.round(ball.ballY)}, moving ${towardsMe ? "towards" : "away from"} my side and ${ball.ballVY < 0 ? "upwards" : "downwards"}.`,
+      ...(arrival
+        ? [
+            `It will reach my paddle's line at about y=${arrival.y} in ${arrival.seconds.toFixed(1)} s.`,
+          ]
+        : []),
     ],
     question: "Which way should I move my paddle right now?",
     options: {
@@ -81,8 +110,8 @@ export const pongPlayer = {
     "Positions are measured from the top-left corner: x grows to the right and y grows downwards, so y=0 is the top edge.",
     "Each player moves one paddle straight up or down along their own side.",
     "The ball bounces off the top and bottom edges and off paddles, and a team scores when the ball gets past the other team's paddle.",
-    `Paddles are ${PADDLE_HEIGHT} pixels tall. To return the ball, keep your paddle's centre level with the ball's height; within ${LINED_UP_PIXELS} pixels counts as lined up.`,
-    "Unless you have been given another goal, the height you aim your paddle's centre at is the ball's height.",
+    `Paddles are ${PADDLE_HEIGHT} pixels tall. To return the ball, have your paddle's centre level with the ball when it reaches your paddle; within ${LINED_UP_PIXELS} pixels counts as lined up.`,
+    `Unless you have been given another goal, aim your paddle's centre at the height where the ball will reach your paddle, and while it moves away, at the middle (y=${FIELD_HEIGHT / 2}).`,
   ].join(" "),
   turn: ({ observation }) => {
     const snapshot = snapshotSchema.parse(observation.snapshot);
