@@ -72,7 +72,7 @@ function shift(
   });
   const options: AirJamDecisionQuestion["options"] = {};
   for (const { task, route } of tasks)
-    options[`task:${task.locationId}`] = {
+    options[`do-${task.locationId}`] = {
       when: `I am aiming to do "${task.name}" at ${label(task.locationId)} next.`,
       control: goControl(self, route),
     };

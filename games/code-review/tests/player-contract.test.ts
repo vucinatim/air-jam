@@ -1,3 +1,4 @@
+import { airJamDecisionQuestionSchema } from "@air-jam/devtools/testing";
 import type { HostObservation } from "@air-jam/sdk/runtime-control";
 import { describe, expect, it } from "vitest";
 import { codeReviewPlayer } from "../src/testing/player";
@@ -54,6 +55,7 @@ describe("Code Review player contract", () => {
       observation: observe(playing, [me, fighter({ punching: true })]),
       seatId: "player",
     });
+    airJamDecisionQuestionSchema.parse(turn);
     expect(turn?.state).toEqual([
       "My fighter is at x=200, y=360.",
       "The nearest opponent is at x=400, y=360, 200 pixels away, punching.",
