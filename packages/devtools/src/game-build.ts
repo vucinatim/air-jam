@@ -5,8 +5,8 @@ import {
   copyFile,
   lstat,
   mkdir,
-  readFile,
   readdir,
+  readFile,
   rename,
   rm,
   stat,
@@ -37,6 +37,10 @@ import {
   spawnScopedProcess,
   type ProcessScopeObserver,
 } from "./managed-process-scope.js";
+import {
+  isDigestOnlySourceFile,
+  SOURCE_ARCHIVE_MANIFEST,
+} from "./source-tree-contract.js";
 import { copySourceTree, readSourceTree } from "./source-tree.js";
 
 const digest = (value: string | Buffer) =>
@@ -142,8 +146,12 @@ export async function verifyPinnedGameBuild(build: PinnedGameBuild) {
     );
 }
 
-async function archiveSource(rootDir: string, target: string) {
-  const source = await readSourceTree(rootDir);
+/** Archives the pinned tree itself, so its manifest reproduces the run's source hash by construction. */
+async function archiveSource(
+  rootDir: string,
+  source: Awaited<ReturnType<typeof readSourceTree>>,
+  target: string,
+) {
   const archive = new ZipFile();
   const writing = pipeline(
     archive.outputStream,
@@ -161,12 +169,20 @@ async function archiveSource(rootDir: string, target: string) {
         mode: 0o120000 | entry.mode,
         mtime,
       });
-    else
+    else if (!isDigestOnlySourceFile(entry))
       archive.addFile(path.join(rootDir, entry.path), entry.path, {
         mode: 0o100000 | entry.mode,
         mtime,
       });
   }
+  archive.addBuffer(
+    Buffer.from(JSON.stringify(source)),
+    SOURCE_ARCHIVE_MANIFEST,
+    {
+      mode: 0o100600,
+      mtime,
+    },
+  );
   archive.end();
   await writing;
   const content = await readFile(target);
@@ -224,6 +240,10 @@ export async function materializeGameBuild(options: {
   try {
     let rootDir = path.join(temporary, "source");
     const source = await copySourceTree(options.projectDir, rootDir);
+    if (source.entries.some((entry) => entry.path === SOURCE_ARCHIVE_MANIFEST))
+      throw new Error(
+        `build_source_invalid: ${SOURCE_ARCHIVE_MANIFEST} is reserved for source evidence.`,
+      );
     const lockfileHash = digest(
       await readFile(path.join(rootDir, "pnpm-lock.yaml")),
     );
@@ -310,6 +330,7 @@ export async function materializeGameBuild(options: {
       files,
       sourceArchive: await archiveSource(
         rootDir,
+        source,
         path.join(directory, "source.zip"),
       ),
     });

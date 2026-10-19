@@ -266,8 +266,13 @@ The frozen dependency installer uses independent copies and records PNPM's actua
 import method. Source, installed graph, distribution and toolchain identities
 are verified on cache reuse. The local cache retains at most three builds and
 2 GiB of logical file bytes, evicting oldest entries. Each run retains its
-original source archive and build receipt. This is a verified project-local
-cache, not cross-tenant storage or protection from hostile code in the same
+original source archive (at most 16 MiB compressed) and build receipt. The
+archive carries `.airjam-source.json`, the full source tree manifest whose
+per-file digests reproduce the source hash; large static assets (models, audio,
+video, images and fonts of 256 KiB or more) are recorded there by size and
+digest instead of being copied, so asset-heavy games fit while staying pinned.
+The archive is therefore evidence, not a full backup: omitted assets are
+restored from the source revision. This is a verified project-local cache, not cross-tenant storage or protection from hostile code in the same
 container.
 
 A policy can declare an `artifacts` manifest path within pinned source. The
