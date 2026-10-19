@@ -269,9 +269,10 @@ are verified on cache reuse. The local cache retains at most three builds and
 original source archive (at most 16 MiB compressed) and build receipt. The
 archive carries `.airjam-source.json`, the full source tree manifest whose
 per-file digests reproduce the source hash; large static assets (models, audio,
-video, images and fonts of 256 KiB or more) are recorded there by size and digest
-instead of being copied, so asset-heavy games fit while staying pinned. This is a verified project-local
-cache, not cross-tenant storage or protection from hostile code in the same
+video, images and fonts of 256 KiB or more) are recorded there by size and
+digest instead of being copied, so asset-heavy games fit while staying pinned.
+The archive is therefore evidence, not a full backup: omitted assets are
+restored from the source revision. This is a verified project-local cache, not cross-tenant storage or protection from hostile code in the same
 container.
 
 A policy can declare an `artifacts` manifest path within pinned source. The
