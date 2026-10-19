@@ -1,3 +1,4 @@
+import { airJamDecisionQuestionSchema } from "@air-jam/devtools/testing";
 import type { HostObservation } from "@air-jam/sdk/runtime-control";
 import { describe, expect, it } from "vitest";
 import { SPAWN_POSITIONS } from "../src/game/engine/office-layout";
@@ -63,6 +64,7 @@ describe("The Office player contract", () => {
       observation: observe("playing"),
       seatId: "player",
     });
+    airJamDecisionQuestionSchema.parse(turn);
     expect(turn?.state[0]).toBe(
       "About 120 seconds of the workday are left and the team has earned 800.",
     );
@@ -70,13 +72,13 @@ describe("The Office player contract", () => {
       /^Task "Maili" at Meeting Table pays 200, expires in 30 s, takes me 4 s and is \d+ s away\.$/,
     );
     expect(Object.keys(turn?.options ?? {})).toEqual([
-      "task:meeting-table",
+      "do-meeting-table",
       "coffee",
       "lunch",
       "fifa",
       "wait",
     ]);
-    expect(turn?.options["task:meeting-table"]?.control).toMatchObject({
+    expect(turn?.options["do-meeting-table"]?.control).toMatchObject({
       kind: "input",
       input: { action: false },
     });
@@ -94,7 +96,7 @@ describe("The Office player contract", () => {
       observation: observe("playing", beside),
       seatId: "player",
     });
-    expect(pressing?.options["task:meeting-table"]?.control).toEqual({
+    expect(pressing?.options["do-meeting-table"]?.control).toEqual({
       kind: "input",
       input: { movementX: 0, movementY: 0, action: true },
     });
@@ -102,7 +104,7 @@ describe("The Office player contract", () => {
       observation: observe("playing", { ...beside, holdingAction: true }),
       seatId: "player",
     });
-    expect(held?.options["task:meeting-table"]?.control).toMatchObject({
+    expect(held?.options["do-meeting-table"]?.control).toMatchObject({
       input: { action: false },
     });
   });
