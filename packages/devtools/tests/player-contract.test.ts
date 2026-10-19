@@ -83,6 +83,26 @@ describe("player contract", () => {
     ]);
   });
 
+  it("refuses a turn too long to take a goal line, even before any steering", async () => {
+    const decider = await createAirJamPlayerPolicy({
+      ...counter,
+      turn: () => ({
+        ...counter.turn({ observation }),
+        state: Array.from({ length: 31 }, (_, index) => `Line ${index}.`),
+      }),
+    }).create({ seatId: "first", random: Math.random });
+    expect(() =>
+      decider.decide({
+        observation,
+        seatId: "first",
+        intent: null,
+        step: 1,
+        elapsedMs: 0,
+        receipts: [],
+      }),
+    ).toThrow("at most 30 state lines");
+  });
+
   it("releases a seat with nothing to decide", async () => {
     const decider = await createAirJamPlayerPolicy(counter).create({
       seatId: "first",

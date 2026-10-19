@@ -8,7 +8,7 @@ Official Air Jam MCP server
 Options:
   -h, --help       Show this help text
   -V, --version    Show the installed package version
-  --external-run-control  Read runs while the embedding application owns start/stop
+  --external-run-control  Read runs while the embedding application owns start, stop and steering
 `;
 
 const argv = process.argv.slice(2);
