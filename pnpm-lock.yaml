@@ -146,6 +146,9 @@ importers:
       '@air-jam/cli':
         specifier: workspace:*
         version: link:../../packages/cli
+      '@air-jam/devtools':
+        specifier: workspace:^
+        version: link:../../packages/devtools
       '@air-jam/server':
         specifier: workspace:*
         version: link:../../packages/server

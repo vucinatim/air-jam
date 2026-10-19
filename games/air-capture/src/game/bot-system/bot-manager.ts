@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { GameLoopInput } from "../contracts/input";
 import { useGameStore } from "../stores/players/game-store";
 import { BotController } from "./bot-controller";
+import { readBotWorld } from "./bot-world";
 
 interface BotManagerState {
   bots: Map<string, BotController>;
@@ -45,7 +46,7 @@ export const useBotManager = create<BotManagerState>((set, get) => ({
   getBotInput: (controllerId, _delta, time) => {
     const bot = get().bots.get(controllerId);
     if (!bot) return undefined;
-    return bot.update(time);
+    return bot.update(time, readBotWorld());
   },
 
   removeBot: (controllerId) => {
