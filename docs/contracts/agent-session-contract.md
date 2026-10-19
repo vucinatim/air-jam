@@ -352,7 +352,11 @@ usually means the goal was too vague.
 Each seat's record also summarizes how a decision model played it: questions
 asked, answered and missed, the choices it made, answers below 0.6 confidence,
 and stretches of three or more such answers in a row. Reading a run while it
-plays returns the live summary; the final record is the digest.
+plays returns the live summary; the final record is the digest. Records also carry
+`hostPace`: the host's frames per second and simulation speed during play (1 =
+real time), from the slowest fixed-step loop on the page. A host that cannot keep
+up runs the game in slow motion, which makes a test easier than real play, so a
+speed well below 1 means the run does not reflect real timing.
 Sustained low confidence is a signal that the brief or the game may be unclear
 to a newcomer, not a measure of fun.
 
