@@ -102,6 +102,7 @@ describe("player contract", () => {
         observation,
         seatId: "first",
         intent: null,
+        answer: null,
         step: 1,
         elapsedMs: 0,
         receipts: [],
