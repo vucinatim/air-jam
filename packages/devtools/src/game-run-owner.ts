@@ -129,6 +129,8 @@ type RunSeat = {
 };
 type Run = {
   record: AirJamGameRunRecord;
+  /** The host's simulation pace when play began, to measure play against. */
+  paceStart?: NonNullable<HostObservation["pace"]>;
   attachment?: CurrentRoomAttachment;
   directory: string;
   abort: AbortController;
@@ -1125,7 +1127,32 @@ export class GameRunOwner {
       throw new Error(
         "seat_replaced: Observation belongs to a different player.",
       );
+    this.trackPace(run, observation);
     return observation;
+  }
+  /**
+   * How fast the host's simulation ran during play, against real time. A
+   * starved host plays in slow motion, which quietly makes tests easier, so
+   * the record says so.
+   */
+  private trackPace(run: Run, observation: HostObservation) {
+    const pace = observation.pace;
+    if (run.record.state !== "playing" || !pace) return;
+    if (!run.paceStart || pace.wallMs < run.paceStart.wallMs) {
+      run.paceStart = pace;
+      return;
+    }
+    const wallMs = pace.wallMs - run.paceStart.wallMs;
+    if (wallMs < 1000) return;
+    run.record.hostPace = {
+      framesPerSecond:
+        Math.round(((pace.frames - run.paceStart.frames) / wallMs) * 10_000) /
+        10,
+      simulationSpeed:
+        Math.round(
+          ((pace.simulatedMs - run.paceStart.simulatedMs) / wallMs) * 100,
+        ) / 100,
+    };
   }
   private pruneReceipts(run: Run) {
     run.receipts = run.receipts.filter(
