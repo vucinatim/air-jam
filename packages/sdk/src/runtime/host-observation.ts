@@ -17,6 +17,7 @@ import {
   sameHostRuntimeIdentity,
   type HostObservationIdentity,
 } from "./contracts/runtime-identity";
+import { readHostPace } from "./host-pace";
 
 const surfaces = new WeakMap<
   object,
@@ -173,6 +174,7 @@ export async function observeHostRuntime(
     actions: before.actions,
     capturedAt,
     clock: { startedAtMs: startedAt, finishedAtMs: performance.now() },
+    pace: readHostPace(),
     durationMs: performance.now() - startedAt,
     snapshot: before.snapshot,
     runtime: runtime?.state ?? null,
