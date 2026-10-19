@@ -107,6 +107,15 @@ export const hostObservationSchema = z.object({
     .optional(),
   capturedAt: z.iso.datetime(),
   clock: hostObservationClockSchema.optional(),
+  /** The page's slowest fixed-step simulation against real time, since it started. */
+  pace: z
+    .object({
+      frames: z.number().int().nonnegative(),
+      wallMs: z.number().nonnegative(),
+      simulatedMs: z.number().nonnegative(),
+    })
+    .strict()
+    .optional(),
   durationMs: z.number().nonnegative(),
   snapshot: jsonObject,
   runtime: jsonObject.nullable(),

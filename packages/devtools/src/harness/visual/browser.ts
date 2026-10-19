@@ -33,6 +33,10 @@ const launchHarnessBrowserOptions = () => {
   return {
     headless: true,
     args: [
+      // Without a GPU, compositing through SwiftShader took about three
+      // quarters of a one-CPU project and ran games at a quarter speed;
+      // software compositing reaches 60 fps there, and WebGL keeps SwiftShader.
+      "--disable-gpu-compositing",
       "--enable-webgl",
       "--ignore-gpu-blocklist",
       "--use-angle=swiftshader",

@@ -4,6 +4,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useControllerTick } from "../src/hooks/use-controller-tick";
 import { useHostTick } from "../src/hooks/use-host-tick";
+import { readHostPace } from "../src/runtime/host-pace";
 
 const mockedScope = vi.hoisted(() => ({
   useAssertSessionScope: vi.fn(),
@@ -171,6 +172,39 @@ describe("tick hooks", () => {
     });
 
     expect(calls).toHaveLength(callsBeforeUnmount);
+  });
+
+  it("reports how far a slow host falls behind real time", () => {
+    let rafId = 0;
+    const rafTimers = new Map<number, ReturnType<typeof setTimeout>>();
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      rafId += 1;
+      const id = rafId;
+      rafTimers.set(
+        id,
+        setTimeout(() => cb(performance.now()), 300),
+      );
+      return id;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      clearTimeout(rafTimers.get(id));
+      rafTimers.delete(id);
+    });
+    const { unmount } = renderHook(() =>
+      useHostTick({ onTick: () => {}, mode: "fixed", intervalMs: 10 }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+
+    expect(readHostPace()).toEqual({
+      frames: 3,
+      wallMs: 900,
+      simulatedMs: 150,
+    });
+    unmount();
+    expect(readHostPace()).toBeUndefined();
   });
 
   it("runs useHostTick fixed render frames on every RAF", () => {

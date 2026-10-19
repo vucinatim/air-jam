@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAssertSessionScope } from "../context/session-scope";
+import { trackHostSimulation } from "../runtime/host-pace";
 
 export interface HostTickInfo {
   now: number;
@@ -99,12 +100,11 @@ export const useHostTick = (options: HostTickOptions): void => {
 
     if (mode === "fixed") {
       let accumulatorMs = 0;
+      const tracked = trackHostSimulation();
 
       const frame = (now: number) => {
-        const frameDeltaMs = Math.max(
-          0,
-          Math.min(now - lastTime, frameDeltaCapMs),
-        );
+        const elapsedMs = Math.max(0, now - lastTime);
+        const frameDeltaMs = Math.min(elapsedMs, frameDeltaCapMs);
         frameCount += 1;
         lastTime = now;
         accumulatorMs += frameDeltaMs;
@@ -128,6 +128,9 @@ export const useHostTick = (options: HostTickOptions): void => {
         if (stepsThisFrame === frameStepCap) {
           accumulatorMs = 0;
         }
+        tracked.pace.frames += 1;
+        tracked.pace.wallMs += elapsedMs;
+        tracked.pace.simulatedMs += stepsThisFrame * tickIntervalMs;
 
         onFrameRef.current?.({
           now,
@@ -144,6 +147,7 @@ export const useHostTick = (options: HostTickOptions): void => {
 
       return () => {
         window.cancelAnimationFrame(rafId);
+        tracked.release();
       };
     }
 

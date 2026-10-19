@@ -214,6 +214,12 @@ async function fixture({
         snapshot: { totalCount: 0 },
         runtime: null,
         ticks: { before: events.length, after: events.length },
+        // A host that renders ten frames and simulates a quarter second per real second.
+        pace: {
+          frames: events.length * 10,
+          wallMs: events.length * 1000,
+          simulatedMs: events.length * 250,
+        },
         stores: { before: [], after: [] },
         visual: { status: "unavailable", reason: "unsupported" },
       } satisfies HostObservation;
@@ -1795,6 +1801,21 @@ it("ends a run whose model stops answering, even when the contract acts between 
   const record = await f.ended();
   expect(record.end?.reason).toBe("policy_unresponsive");
   expect(record.end?.message).toContain("HTTP 500");
+});
+
+it("records how fast the host simulated during play", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "release" } });
+  io.evaluate.mockImplementation(async () => ({
+    status: io.decide.mock.calls.length >= 3 ? "passed" : "pending",
+    message: "Played a while.",
+  }));
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.hostPace).toEqual({
+    framesPerSecond: 10,
+    simulationSpeed: 0.25,
+  });
 });
 
 it("fails a run that asks a decision model when none is configured", async () => {

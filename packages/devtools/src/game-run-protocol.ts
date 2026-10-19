@@ -189,6 +189,14 @@ export const gameRunRecordSchema = z
       )
       .max(8)
       .default([]),
+    /** The host's frame rate and simulation speed during play (1 = real time). */
+    hostPace: z
+      .object({
+        framesPerSecond: z.number().nonnegative(),
+        simulationSpeed: z.number().nonnegative(),
+      })
+      .strict()
+      .optional(),
     steering: z
       .array(
         z
