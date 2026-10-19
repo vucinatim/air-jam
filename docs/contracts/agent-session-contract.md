@@ -304,7 +304,12 @@ seat has nothing to decide. `createAirJamPlayerPolicy(contract)` validates a
 contract and turns it into an ordinary profile policy; the brief leads every
 question, so a turn describes at most 31 state lines. Describe what a player perceives, not the
 answer: a turn computed from hidden state the player cannot see measures the
-contract, not the model.
+contract, not the model. Decision models choose the option whose `when` matches
+the state, so write each `when` against what the seat is aiming for ("the height
+I am aiming for is above my paddle") and let the brief name the default aim
+("unless you have been given another goal, aim at the ball"). A `when` that
+computes the answer from the state alone leaves a seat's intent nothing to
+change.
 
 The model is configured only for the run owner, through
 `AIRJAM_DECISIONS_ENDPOINT`, `AIRJAM_DECISIONS_MODEL` and optional
@@ -330,7 +335,11 @@ still decides, through the same seat, lease and deadlines. Every change is
 recorded on the run's `steering` log with its time and source (`creator`,
 `agent` or `operator`), at most 64 per run, and in the trace. Under
 `--external-run-control` steering belongs to the embedding application, like
-start and stop.
+start and stop. Write an intent in the terms the game's turns already use: a fast decision
+model follows "aim your paddle's centre at y=60" but cannot reliably turn "stay
+near the top" into a height. Translating strategy into such goals is the
+steering reasoner's job, and a run of low-confidence answers after a change
+usually means the goal was too vague.
 
 Each seat's record also summarizes how a decision model played it: questions
 asked, answered and missed, the choices it made, answers below 0.6 confidence,
