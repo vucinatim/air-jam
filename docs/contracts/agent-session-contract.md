@@ -225,7 +225,7 @@ cannot be interpreted as a completed trial while its owner is unavailable.
 `airjam session run stop-all` stops active runs in the project and confirms their
 cleanup without stopping unrelated manual sessions or starting an absent broker.
 An embedding application can use `airjam-mcp --external-run-control` (or the
-matching server option) to leave run start/stop out of MCP while retaining reads,
+matching server option) to leave run start, stop and steering out of MCP while retaining reads,
 waits and discovery. Studio uses its own durable admission for those effects;
 direct CLI experiments remain local scratch and are stopped at source boundaries.
 
@@ -302,9 +302,22 @@ reader who has never seen it. `turn({ observation, seatId })` describes the
 current state in words and offers that turn's options, or returns `null` when the
 seat has nothing to decide. `createAirJamPlayerPolicy(contract)` validates a
 contract and turns it into an ordinary profile policy; the brief leads every
-question, so a turn describes at most 31 state lines. Describe what a player perceives, not the
+question, so a turn describes at most 30 state lines, leaving room for a goal
+line once the seat is steered. Describe what a player perceives, not the
 answer: a turn computed from hidden state the player cannot see measures the
-contract, not the model.
+contract, not the model. A game that needs control faster than a model answers
+(steering a ship, for example) adds `act: { rethinkMs, create }`. `create` runs
+once per seat and returns its `control`; between questions the seat keeps acting
+on the model's last choice at the run's step rate for `rethinkMs` after the answer
+arrives, and is asked again sooner when its goal changes or that choice is no
+longer offered. A missed answer leaves nothing to act on, so the seat asks again. Every policy step carries the seat's latest model
+`answer` for this purpose. `pnpm guard:canonical` requires every first-party game to offer
+a decision-model player this way; Last Band Standing is pending until a text model can receive its audio clue. Decision models choose the option whose `when` matches
+the state, so write each `when` against what the seat is aiming for ("the height
+I am aiming for is above my paddle") and let the brief name the default aim
+("unless you have been given another goal, aim at the ball"). A `when` that
+computes the answer from the state alone leaves a seat's intent nothing to
+change.
 
 The model is configured only for the run owner, through
 `AIRJAM_DECISIONS_ENDPOINT`, `AIRJAM_DECISIONS_MODEL` and optional
@@ -317,6 +330,31 @@ owner, never in a shell that also runs `pnpm run dev`, because the dev server
 executes game code. The run record names the `decisionModel` a run asked. The
 trace records each answer's choice, confidence and duration, and each missed
 decision's reason; a run ended by repeated misses names the last reason.
+
+### Seat intent and steering
+
+A run may start with an intent per seat (`intents: { [seatId]: text }`, CLI
+`--intent <seat=text>`): plain words a decision-model policy reads right after
+the brief, such as "play cautiously" or "try to break the scoring". Policies
+receive the seat's current intent in every step. `airjam session run steer
+<run-id> --seat <id> --intent <text>|--clear` and MCP `airjam.steer_game_run`
+change it while the run is active. Steering never sends a control: the policy
+still decides, through the same seat, lease and deadlines. Every change is
+recorded on the run's `steering` log with its time and source (`creator`,
+`agent` or `operator`), at most 64 per run, and in the trace. Under
+`--external-run-control` steering belongs to the embedding application, like
+start and stop. Write an intent in the terms the game's turns already use: a fast decision
+model follows "aim your paddle's centre at y=60" but cannot reliably turn "stay
+near the top" into a height. Translating strategy into such goals is the
+steering reasoner's job, and a run of low-confidence answers after a change
+usually means the goal was too vague.
+
+Each seat's record also summarizes how a decision model played it: questions
+asked, answered and missed, the choices it made, answers below 0.6 confidence,
+and stretches of three or more such answers in a row. Reading a run while it
+plays returns the live summary; the final record is the digest.
+Sustained low confidence is a signal that the brief or the game may be unclear
+to a newcomer, not a measure of fun.
 
 Each scenario also declares one synchronous evaluator and its named numeric metrics.
 Policies return controls or questions, never a verdict. The evaluator
@@ -492,12 +530,21 @@ browser/process is disposed by the existing controller lifecycle.
 
 ## Unreleased tooling behavior changes
 
+Runs accept per-seat `intents`, records carry each seat's `intent`, `answers`
+summary and a run `steering` log, `AirJamPolicyStep` carries `intent`, and
+`run.steer` / `steerGameRun` / `airjam.steer_game_run` / `session run steer`
+change a seat's intent during play.
+
 `AirJamPolicyDecision` gained an `ask` variant for decision-model players, and
 `@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`,
 `AirJamDecisionQuestion`, `airJamDecisionQuestionSchema` and
-`createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a
-question. Pong and the minimal starter declare player contracts and offer a
-`model` policy; Pong also gains a `match` profile against its own bot.
+`createAirJamPlayerPolicy`. Player contracts may declare `act`, and
+`AirJamPolicyStep` carries `answer`. Code that reads `decision.control` must handle a
+question. Pong, the minimal starter, Code Review and The Office declare player
+contracts and offer a `model` policy beside their code policies. Pong gains a
+`match` profile against its own bot; Code Review and The Office gain their first
+test profiles (`round` against the game's bot, and a solo `shift`) and host
+observation surfaces for state that lives only in the host simulation.
 
 `@air-jam/devtools/agent` now exports only static `inspectGameAgentContract` and
 its types. Removed `readGameSnapshot`, `invokeGameAction` and

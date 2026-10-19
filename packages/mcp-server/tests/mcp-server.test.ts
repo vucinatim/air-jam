@@ -157,6 +157,7 @@ describe("createAirJamMcpServer", () => {
       const tools = (await client.listTools()).tools.map((tool) => tool.name);
       expect(tools).not.toContain("airjam.start_game_run");
       expect(tools).not.toContain("airjam.stop_game_run");
+      expect(tools).not.toContain("airjam.steer_game_run");
       expect(tools).toEqual(
         expect.arrayContaining([
           "airjam.read_game_run",
@@ -216,6 +217,7 @@ describe("createAirJamMcpServer", () => {
       "airjam.read_game_run",
       "airjam.wait_game_run",
       "airjam.stop_game_run",
+      "airjam.steer_game_run",
       "airjam.list_game_runs",
       "airjam.open_game_session",
       "airjam.control_game_session_participant",

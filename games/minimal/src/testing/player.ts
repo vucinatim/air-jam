@@ -13,7 +13,7 @@ export const minimalPlayer = {
   brief: [
     "This is a shared tap counter on a shared screen.",
     "Every player has a phone with one Tap button, and each tap adds one to that player's own count and to the shared total.",
-    `Each player's goal is to tap until their own count reaches exactly ${TARGET_TAPS}, then stop tapping.`,
+    `Unless you have been given another goal, aim for your own count to reach exactly ${TARGET_TAPS}, then stop tapping.`,
   ].join(" "),
   turn: ({ observation }) => {
     const { perPlayerCounts } = snapshotSchema.parse(observation.snapshot);
@@ -25,11 +25,11 @@ export const minimalPlayer = {
       question: "Should I tap now?",
       options: {
         tap: {
-          when: `My own count is below ${TARGET_TAPS}.`,
+          when: "My own count is below the count I am aiming for.",
           control: { kind: "action", actionId: "tap" },
         },
         wait: {
-          when: `My own count has already reached ${TARGET_TAPS}.`,
+          when: "My own count has already reached the count I am aiming for.",
           control: { kind: "release" },
         },
       },

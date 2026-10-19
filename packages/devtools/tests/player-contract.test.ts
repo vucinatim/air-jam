@@ -48,6 +48,8 @@ describe("player contract", () => {
       await decider.decide({
         observation,
         seatId: "first",
+        intent: null,
+        answer: null,
         step: 1,
         elapsedMs: 0,
         receipts: [],
@@ -62,6 +64,52 @@ describe("player contract", () => {
     });
   });
 
+  it("puts the seat's current goal right after the brief", async () => {
+    const decider = await createAirJamPlayerPolicy(counter).create({
+      seatId: "first",
+      random: Math.random,
+    });
+    const decision = await decider.decide({
+      observation,
+      seatId: "first",
+      intent: "Stop at four taps.",
+      answer: null,
+      step: 1,
+      elapsedMs: 0,
+      receipts: [],
+    });
+    expect("ask" in decision && decision.ask.state).toEqual([
+      counter.brief,
+      "My goal right now: Stop at four taps.",
+      "My count is 2.",
+    ]);
+  });
+
+  it("refuses a turn too long to take a goal line, even before any steering", async () => {
+    const decider = await createAirJamPlayerPolicy({
+      ...counter,
+      turn: () => ({
+        state: Array.from({ length: 31 }, (_, index) => `Line ${index}.`),
+        question: "Should I tap now?",
+        options: {
+          tap: { when: "Always.", control: { kind: "release" } },
+          wait: { when: "Never.", control: { kind: "release" } },
+        },
+      }),
+    }).create({ seatId: "first", random: Math.random });
+    expect(() =>
+      decider.decide({
+        observation,
+        seatId: "first",
+        intent: null,
+        answer: null,
+        step: 1,
+        elapsedMs: 0,
+        receipts: [],
+      }),
+    ).toThrow("at most 30 state lines");
+  });
+
   it("releases a seat with nothing to decide", async () => {
     const decider = await createAirJamPlayerPolicy(counter).create({
       seatId: "first",
@@ -71,11 +119,70 @@ describe("player contract", () => {
       await decider.decide({
         observation: { snapshot: { count: 12 } } as unknown as HostObservation,
         seatId: "first",
+        intent: null,
+        answer: null,
         step: 1,
         elapsedMs: 0,
         receipts: [],
       }),
     ).toEqual({ control: { kind: "release" } });
+  });
+
+  it("keeps acting on the last choice between questions when the contract acts", async () => {
+    const acted: string[] = [];
+    let seats = 0;
+    const decider = await createAirJamPlayerPolicy({
+      ...counter,
+      act: {
+        rethinkMs: 1000,
+        create: () => {
+          seats++;
+          return {
+            control: ({ choice }) => {
+              acted.push(choice);
+              return { kind: "action", actionId: choice };
+            },
+          };
+        },
+      },
+    }).create({ seatId: "first", random: Math.random });
+    const step = (
+      elapsedMs: number,
+      answer: { choice: string; confidence: number } | null,
+      intent: string | null = null,
+    ) =>
+      decider.decide({
+        observation,
+        seatId: "first",
+        intent,
+        answer,
+        step: 1,
+        elapsedMs,
+        receipts: [],
+      });
+    const tap = { choice: "tap", confidence: 0.9 };
+    expect(seats).toBe(1);
+    expect(await step(0, null)).toHaveProperty("ask");
+    // A missed answer leaves nothing to act on, so the seat asks again.
+    expect(await step(300, null)).toHaveProperty("ask");
+    expect(await step(600, tap)).toEqual({
+      control: { kind: "action", actionId: "tap" },
+    });
+    // The window runs from when the answer arrived, not when it was asked.
+    expect(await step(1500, tap)).toHaveProperty("control");
+    expect(await step(1600, tap)).toHaveProperty("ask");
+    expect(await step(1900, { choice: "jump", confidence: 1 })).toHaveProperty(
+      "ask",
+    );
+    expect(await step(2200, tap)).toHaveProperty("control");
+    expect(await step(2300, tap, "Stop at four taps.")).toHaveProperty("ask");
+    expect(acted).toEqual(["tap", "tap", "tap"]);
+    expect(() =>
+      createAirJamPlayerPolicy({
+        ...counter,
+        act: { rethinkMs: 0, create: () => ({ control: () => null }) },
+      }),
+    ).toThrow();
   });
 
   it("refuses an empty brief and questions that offer one option or mix control with asking", () => {

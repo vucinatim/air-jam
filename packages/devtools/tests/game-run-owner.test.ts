@@ -23,6 +23,7 @@ import type {
   AirJamPolicyDecision,
   AirJamTestProfileDescription,
 } from "../src/testing.js";
+import { createAirJamPlayerPolicy } from "../src/testing.js";
 import type { CloseGameSessionResult } from "../src/types.js";
 
 const io = vi.hoisted(() => ({
@@ -1756,6 +1757,46 @@ it("plays a decision model's choice as the option's own control and traces the a
   );
 });
 
+it("hands the seat's policy the model's latest answer on its next step", async () => {
+  const f = await fixture({
+    decisions: async () => ({ choice: "tap", confidence: 0.93 }),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  io.evaluate.mockImplementation(async () => ({
+    status: io.decide.mock.calls.length >= 2 ? "passed" : "pending",
+    message: "Asked twice.",
+  }));
+  await f.owner.start(f.request);
+  await f.ended();
+  expect(io.decide.mock.calls.map(([step]) => step.answer).slice(0, 2)).toEqual(
+    [null, { choice: "tap", confidence: 0.93 }],
+  );
+});
+
+it("ends a run whose model stops answering, even when the contract acts between questions", async () => {
+  let answered = 0;
+  const f = await fixture({
+    decisions: async () => {
+      if (answered++ === 0) return { choice: "tap", confidence: 0.9 };
+      throw new Error("decision_failed: Decision model returned HTTP 500.");
+    },
+  });
+  const decider = await createAirJamPlayerPolicy({
+    brief: "A shared counter.",
+    turn: () => tapOrWait.ask,
+    act: {
+      rethinkMs: 50,
+      create: () => ({ control: () => ({ kind: "action", actionId: "tap" }) }),
+    },
+  }).create({ seatId: "player", random: Math.random });
+  io.decide.mockImplementation((step) => decider.decide(step));
+  io.evaluate.mockResolvedValue({ status: "pending" });
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.end?.message).toContain("HTTP 500");
+});
+
 it("fails a run that asks a decision model when none is configured", async () => {
   const f = await fixture();
   io.decide.mockResolvedValue(tapOrWait);
@@ -1842,4 +1883,83 @@ it("records the model it asked and why each decision was missed, even when none 
   );
   expect(trace).toContain('"kind":"decision_missed"');
   expect(trace).toContain("HTTP 401");
+});
+
+it("gives each seat its starting intent and lets a steer change only what it reads", async () => {
+  const f = await fixture({
+    decisions: async () => ({ choice: "tap", confidence: 0.4 }),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  f.request.intents = { player: "Play cautiously." };
+  await f.owner.start(f.request);
+  await vi.waitFor(() =>
+    expect(io.decide).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: "Play cautiously." }),
+      expect.any(Number),
+    ),
+  );
+  const steered = await f.owner.steer({
+    runId: f.request.runId,
+    seatId: "player",
+    intent: "Try to break the scoring.",
+    source: "creator",
+  });
+  expect(steered.seats[0]?.intent).toBe("Try to break the scoring.");
+  expect(steered.steering).toEqual([
+    expect.objectContaining({
+      seatId: "player",
+      intent: "Try to break the scoring.",
+      source: "creator",
+    }),
+  ]);
+  await vi.waitFor(() =>
+    expect(io.decide).toHaveBeenLastCalledWith(
+      expect.objectContaining({ intent: "Try to break the scoring." }),
+      expect.any(Number),
+    ),
+  );
+  const record = await f.owner.stop(f.request.runId);
+  const answers = record.seats[0]?.answers;
+  expect(answers?.answered).toBeGreaterThanOrEqual(3);
+  expect(answers?.choices.tap).toBe(answers?.answered);
+  expect(answers?.lowConfidence).toBe(answers?.answered);
+  expect(answers?.lowConfidenceStretches).toBe(1);
+  expect(JSON.stringify(vi.mocked(f.session.control).mock.calls)).not.toContain(
+    "break the scoring",
+  );
+  await expect(
+    f.owner.steer({ runId: f.request.runId, seatId: "player", intent: null }),
+  ).rejects.toThrow("run_not_active");
+});
+
+it("tells a caller steering before the seats exist to use starting intents", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "release" } });
+  const started = await f.owner.start(f.request);
+  expect(started.seats).toEqual([]);
+  await expect(
+    f.owner.steer({ runId: f.request.runId, seatId: "player", intent: "x" }),
+  ).rejects.toThrow("Seats are not ready yet");
+  await f.owner.stop(f.request.runId);
+});
+
+it("refuses intents and steering for seats the profile does not have", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "release" } });
+  f.request.intents = { goalkeeper: "Defend." };
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.message).toContain("run_intent_invalid");
+  const g = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "release" } });
+  await g.owner.start(g.request);
+  await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
+  await expect(
+    g.owner.steer({
+      runId: g.request.runId,
+      seatId: "goalkeeper",
+      intent: "x",
+    }),
+  ).rejects.toThrow("run_seat_unknown");
+  await g.owner.stop(g.request.runId);
 });

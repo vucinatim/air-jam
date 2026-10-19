@@ -82,6 +82,8 @@ async function fixture(
   const step = {
     observation,
     seatId: "player",
+    intent: null,
+    answer: null,
     step: 1,
     elapsedMs: 0,
     receipts: [],

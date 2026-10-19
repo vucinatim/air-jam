@@ -1,8 +1,14 @@
-import { useGetInput, useHostTick } from "@air-jam/sdk";
+import {
+  useGetInput,
+  useHostAgentObservation,
+  useHostTick,
+} from "@air-jam/sdk";
 import { useCallback, useEffect, useRef } from "react";
 import { gameInputSchema } from "../../game/contracts/input";
+import { STAT_CONSTANTS } from "../../game/domain/task-manager";
 import {
   useOfficeFinalTotalMoney,
+  useOfficeGameDurationMs,
   useOfficeGameOver,
   useOfficeMatchPhase,
 } from "../../game/stores";
@@ -34,6 +40,7 @@ export function OfficeHostGameplaySurface({
   const matchPhase = useOfficeMatchPhase();
   const gameOver = useOfficeGameOver();
   const finalTotalMoney = useOfficeFinalTotalMoney();
+  const gameDurationMs = useOfficeGameDurationMs();
   const {
     gameStateRef,
     taskManagerRef,
@@ -49,6 +56,40 @@ export function OfficeHostGameplaySurface({
     connectedPlayerIds: session.playerIds,
   });
   const pendingTasks = useOfficePendingTasks(pendingTasksRef);
+  // Positions, tasks and breaks live only in these refs; agents read them here.
+  useHostAgentObservation({
+    read: () => {
+      const elapsedMs = matchClock.elapsedMsRef.current;
+      return {
+        state: {
+          timeLeftMs: Math.max(0, Math.round(gameDurationMs - elapsedMs)),
+          coworkers: Object.entries(gameStateRef.current.positions).map(
+            ([playerId, position]) => ({
+              playerId,
+              x: Math.round(position.x),
+              y: Math.round(position.y),
+              doingTask: taskManagerRef.current.isDoingTask(playerId),
+              holdingAction: gameStateRef.current.lastAction[playerId] ?? false,
+              onBreakAt:
+                breakroomActivitiesRef.current[playerId]?.locationId ?? null,
+            }),
+          ),
+          tasks: taskManagerRef.current.getTasks().map((task) => ({
+            taskId: task.taskDefId,
+            name: task.name,
+            reward: task.reward,
+            locationId: task.locationId,
+            expiresInMs: Math.max(
+              0,
+              Math.round(
+                task.spawnTime + STAT_CONSTANTS.TASK_EXPIRY_MS - elapsedMs,
+              ),
+            ),
+          })),
+        },
+      };
+    },
+  });
   const imagesPreloadedRef = useRef(false);
   const renderFrameRef = useRef<(() => void) | null>(null);
 

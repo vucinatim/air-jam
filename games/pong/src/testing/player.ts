@@ -59,15 +59,15 @@ function movePaddle(
     question: "Which way should I move my paddle right now?",
     options: {
       up: {
-        when: `The ball is above my paddle's centre by more than ${LINED_UP_PIXELS} pixels.`,
+        when: `The height I am aiming for is above my paddle's centre by more than ${LINED_UP_PIXELS} pixels.`,
         control: { kind: "input", input: { direction: -1 } },
       },
       still: {
-        when: `My paddle's centre is already within ${LINED_UP_PIXELS} pixels of the ball's height.`,
+        when: `My paddle's centre is already within ${LINED_UP_PIXELS} pixels of the height I am aiming for.`,
         control: { kind: "input", input: { direction: 0 } },
       },
       down: {
-        when: `The ball is below my paddle's centre by more than ${LINED_UP_PIXELS} pixels.`,
+        when: `The height I am aiming for is below my paddle's centre by more than ${LINED_UP_PIXELS} pixels.`,
         control: { kind: "input", input: { direction: 1 } },
       },
     },
@@ -82,6 +82,7 @@ export const pongPlayer = {
     "Each player moves one paddle straight up or down along their own side.",
     "The ball bounces off the top and bottom edges and off paddles, and a team scores when the ball gets past the other team's paddle.",
     `Paddles are ${PADDLE_HEIGHT} pixels tall. To return the ball, keep your paddle's centre level with the ball's height; within ${LINED_UP_PIXELS} pixels counts as lined up.`,
+    "Unless you have been given another goal, the height you aim your paddle's centre at is the ball's height.",
   ].join(" "),
   turn: ({ observation }) => {
     const snapshot = snapshotSchema.parse(observation.snapshot);

@@ -82,7 +82,8 @@ export const createAirJamMcpServer = async ({
     if (
       externalRunControl &&
       (toolName === "airjam.start_game_run" ||
-        toolName === "airjam.stop_game_run")
+        toolName === "airjam.stop_game_run" ||
+        toolName === "airjam.steer_game_run")
     )
       continue;
     const tool = toolDefinitions[toolName];

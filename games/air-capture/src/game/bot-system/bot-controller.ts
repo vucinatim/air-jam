@@ -1,9 +1,9 @@
 import { Quaternion, Vector3 } from "three";
-import { useAbilitiesStore } from "../abilities-store";
 import { ARENA_RADIUS, JUMP_PAD_RADIUS } from "../constants";
 import type { GameLoopInput } from "../contracts/input";
 import { botDebugLog } from "../debug-logging";
-import { GameContext } from "./game-context";
+import type { BotWorld } from "./bot-world";
+import { GameContext, type BotSelf } from "./game-context";
 import { ReachabilityChecker, type JumpPadInfo } from "./reachability-checker";
 
 /**
@@ -20,10 +20,151 @@ export enum BotState {
 }
 
 /**
+ * What a pilot can pursue. Without a chosen strategy the brain takes the first
+ * that applies in this order, and otherwise wanders; a player can choose one,
+ * such as a decision model flying with the game's own pilot.
+ */
+export const BOT_STRATEGIES = [
+  "heal",
+  "return",
+  "defend",
+  "retrieve",
+  "capture",
+  "attack",
+  "gather",
+] as const;
+export type BotStrategy = (typeof BOT_STRATEGIES)[number];
+type BotPlan = {
+  state: BotState;
+  target: Vector3;
+  targetPlayerId: string | null;
+};
+
+function nearest<T>(
+  position: Vector3,
+  items: T[],
+  positionOf: (item: T) => Vector3,
+  maxDistance: number,
+) {
+  let found: T | null = null;
+  let foundDistance = maxDistance;
+  for (const item of items) {
+    const distance = position.distanceTo(positionOf(item));
+    if (distance < foundDistance) {
+      found = item;
+      foundDistance = distance;
+    }
+  }
+  return found;
+}
+
+/**
+ * Where a strategy would take a ship right now, or null when it does not
+ * apply. The default brain keeps its distance limits; a chosen strategy
+ * pursues its target wherever it is. Pure, so players can ask it too.
+ */
+export function botStrategyDestination(
+  strategy: BotStrategy,
+  botId: string,
+  context: GameContext,
+  self: BotSelf,
+  chosen: boolean,
+): {
+  state: BotState;
+  position: Vector3;
+  targetPlayerId: string | null;
+  /** Static targets are routed by jump pad; moving ships are chased directly. */
+  routed: boolean;
+} | null {
+  const enemyTeam = context.getEnemyTeam(botId);
+  const flags = context.getFlags();
+  const enemyFlag = flags.find((flag) => flag.teamId === enemyTeam);
+  const ownFlag = flags.find((flag) => flag.teamId === self.teamId);
+  const place = (state: BotState, position: Vector3) => ({
+    state,
+    position,
+    targetPlayerId: null,
+    routed: true,
+  });
+  switch (strategy) {
+    case "heal": {
+      const healthPack = context
+        .getCollectibles()
+        .find((collectible) => collectible.abilityId === "health_pack");
+      return healthPack && (chosen || self.health < 30)
+        ? place(BotState.GATHER, new Vector3(...healthPack.position))
+        : null;
+    }
+    case "return":
+      return enemyFlag?.status === "carried" && enemyFlag.carrierId === botId
+        ? {
+            state: BotState.RETURN,
+            position: context.getBasePosition(self.teamId),
+            targetPlayerId: null,
+            routed: false,
+          }
+        : null;
+    case "defend": {
+      const carrier =
+        ownFlag?.status === "carried"
+          ? context
+              .getEnemies(botId)
+              .find((enemy) => enemy.controllerId === ownFlag.carrierId)
+          : undefined;
+      return carrier
+        ? {
+            state: BotState.DEFEND,
+            position: carrier.position.clone(),
+            targetPlayerId: carrier.controllerId,
+            routed: false,
+          }
+        : null;
+    }
+    case "retrieve":
+      return ownFlag?.status === "dropped"
+        ? place(BotState.RETRIEVE, new Vector3(...ownFlag.position))
+        : null;
+    case "capture":
+      return enemyFlag &&
+        (enemyFlag.status === "atBase" || enemyFlag.status === "dropped")
+        ? place(BotState.CAPTURE, new Vector3(...enemyFlag.position))
+        : null;
+    case "attack": {
+      const enemy = nearest(
+        self.position,
+        context.getEnemies(botId),
+        (candidate) => candidate.position,
+        chosen ? Infinity : 50,
+      );
+      return enemy
+        ? {
+            state: BotState.ATTACK,
+            position: enemy.position.clone(),
+            targetPlayerId: enemy.controllerId,
+            routed: false,
+          }
+        : null;
+    }
+    case "gather": {
+      const collectible = nearest(
+        self.position,
+        context.getCollectibles(),
+        (candidate) => new Vector3(...candidate.position),
+        chosen ? Infinity : 30,
+      );
+      return collectible
+        ? place(BotState.GATHER, new Vector3(...collectible.position))
+        : null;
+    }
+  }
+}
+
+/**
  * Bot Brain - High-level decision making (FSM)
  */
 class BotBrain {
   private state: BotState = BotState.SEARCH;
+  private strategy: BotStrategy | undefined;
   private targetPosition: Vector3 | null = null;
   private targetPlayerId: string | null = null;
   private lastStateChangeTime = 0;
@@ -48,6 +189,7 @@ class BotBrain {
     botId: string,
     context: GameContext,
     time: number,
+    strategy?: BotStrategy,
   ): {
     state: BotState;
     target: Vector3 | null;
@@ -99,171 +241,33 @@ class BotBrain {
       }
     }
 
-    // Don't change state too frequently
-    if (time - this.lastStateChangeTime < this.stateChangeCooldown) {
-      return {
-        state: this.state,
-        target: this.targetPosition,
-        targetPlayerId: this.targetPlayerId,
-      };
-    }
-
-    const flags = context.getFlags();
-    const collectibles = context.getCollectibles();
-    const enemies = context.getEnemies(botId);
-    const enemyTeam = context.getEnemyTeam(botId);
-
-    // Priority 1: Self Preservation - Health < 30% -> Find Health Pack
-    if (self.health < 30) {
-      const healthPack = collectibles.find(
-        (c) => c.abilityId === "health_pack",
-      );
-      if (healthPack) {
-        this.setState(BotState.GATHER, time);
-        const healthPackPos = new Vector3(...healthPack.position);
-        const target = this.checkReachabilityAndPlanPath(
-          self.position,
-          healthPackPos,
-          context,
-        );
-        this.targetPosition = target;
-        this.targetPlayerId = null;
-        if (time - this.lastLogTime > this.logInterval) {
-          botDebugLog(
-            `  → GATHER: Health pack at (${healthPackPos.x.toFixed(
-              1,
-            )}, ${healthPackPos.y.toFixed(1)}, ${healthPackPos.z.toFixed(1)})`,
-          );
-          if (this.usingJumpPad) {
-            botDebugLog(`    Using jump pad to reach health pack`);
-          }
-        }
-        return {
-          state: this.state,
-          target: this.targetPosition,
-          targetPlayerId: null,
-        };
-      }
-    }
-
-    // Priority 2: Objective - Scoring - Carrying Enemy Flag -> Go to Base
-    const enemyFlag = flags.find((f) => f.teamId === enemyTeam);
-    if (enemyFlag?.status === "carried" && enemyFlag.carrierId === botId) {
-      this.setState(BotState.RETURN, time);
-      this.targetPosition = context.getBasePosition(self.teamId);
-      this.targetPlayerId = null;
-      return {
-        state: this.state,
-        target: this.targetPosition,
-        targetPlayerId: null,
-      };
-    }
-
-    // Priority 3: Objective - Defense - Enemy has Our Flag -> Chase Enemy Carrier
-    const ownFlag = flags.find((f) => f.teamId === self.teamId);
-    if (ownFlag?.status === "carried" && ownFlag.carrierId) {
-      const carrier = enemies.find((e) => e.controllerId === ownFlag.carrierId);
-      if (carrier) {
-        this.setState(BotState.DEFEND, time);
-        this.targetPosition = carrier.position.clone();
-        this.targetPlayerId = carrier.controllerId;
-        return {
-          state: this.state,
-          target: this.targetPosition,
-          targetPlayerId: this.targetPlayerId,
-        };
-      }
-    }
-
-    // Priority 4: Objective - Recovery - Our Flag Dropped -> Go to Flag
-    if (ownFlag?.status === "dropped") {
-      this.setState(BotState.RETRIEVE, time);
-      const flagPos = new Vector3(...ownFlag.position);
-      const target = this.checkReachabilityAndPlanPath(
-        self.position,
-        flagPos,
-        context,
-      );
-      this.targetPosition = target;
-      this.targetPlayerId = null;
-      if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
-        botDebugLog(`  → RETRIEVE: Using jump pad to reach dropped flag`);
-      }
-      return {
-        state: this.state,
-        target: this.targetPosition,
-        targetPlayerId: null,
-      };
-    }
-
-    // Priority 5: Objective - Offense - Enemy Flag at Base or Dropped -> Go to Enemy Flag
     if (
-      enemyFlag &&
-      (enemyFlag.status === "atBase" || enemyFlag.status === "dropped")
+      time - this.lastStateChangeTime < this.stateChangeCooldown &&
+      strategy === this.strategy
     ) {
-      this.setState(BotState.CAPTURE, time);
-      const flagPos = new Vector3(...enemyFlag.position);
-      const target = this.checkReachabilityAndPlanPath(
-        self.position,
-        flagPos,
-        context,
-      );
-      this.targetPosition = target;
-      this.targetPlayerId = null;
-      if (time - this.lastLogTime > this.logInterval) {
-        const status = enemyFlag.status === "dropped" ? "dropped" : "at base";
-        botDebugLog(
-          `  → CAPTURE: Enemy flag ${status} at (${flagPos.x.toFixed(
-            1,
-          )}, ${flagPos.y.toFixed(1)}, ${flagPos.z.toFixed(1)})`,
-        );
-        if (this.usingJumpPad) {
-          botDebugLog(`    Using jump pad to reach enemy flag`);
-        }
-      }
-      return {
-        state: this.state,
-        target: this.targetPosition,
-        targetPlayerId: null,
-      };
-    }
-
-    // Priority 6: Combat - Enemy nearby -> ATTACK
-    const nearbyEnemy = this.findNearestEnemy(self.position, enemies, 50);
-    if (nearbyEnemy) {
-      this.setState(BotState.ATTACK, time);
-      this.targetPosition = nearbyEnemy.position.clone();
-      this.targetPlayerId = nearbyEnemy.controllerId;
       return {
         state: this.state,
         target: this.targetPosition,
         targetPlayerId: this.targetPlayerId,
       };
     }
+    this.strategy = strategy;
 
-    // Priority 7: Idle - SEARCH / GATHER random items
-    const nearbyCollectible = this.findNearestCollectible(
-      self.position,
-      collectibles,
-      30,
-    );
-    if (nearbyCollectible) {
-      this.setState(BotState.GATHER, time);
-      const collectiblePos = new Vector3(...nearbyCollectible.position);
-      const target = this.checkReachabilityAndPlanPath(
-        self.position,
-        collectiblePos,
-        context,
+    const plan =
+      (strategy && this.plan(strategy, botId, context, self, true)) ||
+      BOT_STRATEGIES.reduce<BotPlan | null>(
+        (chosen, candidate) =>
+          chosen ?? this.plan(candidate, botId, context, self, false),
+        null,
       );
-      this.targetPosition = target;
-      this.targetPlayerId = null;
-      if (time - this.lastLogTime > this.logInterval && this.usingJumpPad) {
-        botDebugLog(`  → GATHER: Using jump pad to reach collectible`);
-      }
+    if (plan) {
+      this.setState(plan.state, time);
+      this.targetPosition = plan.target;
+      this.targetPlayerId = plan.targetPlayerId;
       return {
         state: this.state,
-        target: this.targetPosition,
-        targetPlayerId: null,
+        target: plan.target,
+        targetPlayerId: plan.targetPlayerId,
       };
     }
 
@@ -271,9 +275,7 @@ class BotBrain {
     if (this.state !== BotState.SEARCH || !this.targetPosition) {
       this.setState(BotState.SEARCH, time);
       this.targetPosition = this.generateWanderTarget(self.position);
-      if (time - this.lastLogTime > this.logInterval) {
-        botDebugLog(`  → SEARCH: New wander target`);
-      }
+      this.targetPlayerId = null;
     }
 
     // Check if we've reached the target (within 5 units) and need a new one
@@ -282,15 +284,41 @@ class BotBrain {
       self.position.distanceTo(this.targetPosition) < 5
     ) {
       this.targetPosition = this.generateWanderTarget(self.position);
-      if (time - this.lastLogTime > this.logInterval) {
-        botDebugLog(`  → Target reached, generating new wander target`);
-      }
     }
 
     return {
       state: this.state,
       target: this.targetPosition,
       targetPlayerId: this.targetPlayerId,
+    };
+  }
+
+  /** A strategy's target right now, routed by jump pad when needed. */
+  private plan(
+    strategy: BotStrategy,
+    botId: string,
+    context: GameContext,
+    self: BotSelf,
+    chosen: boolean,
+  ): BotPlan | null {
+    const destination = botStrategyDestination(
+      strategy,
+      botId,
+      context,
+      self,
+      chosen,
+    );
+    if (!destination) return null;
+    return {
+      state: destination.state,
+      target: destination.routed
+        ? this.checkReachabilityAndPlanPath(
+            self.position,
+            destination.position,
+            context,
+          )
+        : destination.position,
+      targetPlayerId: destination.targetPlayerId,
     };
   }
 
@@ -308,44 +336,6 @@ class BotBrain {
     this.targetPosition = this.generateWanderTarget(currentPos);
     this.lastStateChangeTime = 0; // Allow immediate state change
     this.state = BotState.SEARCH; // Reset to search state
-  }
-
-  private findNearestEnemy(
-    position: Vector3,
-    enemies: ReturnType<GameContext["getEnemies"]>,
-    maxDistance: number,
-  ) {
-    let nearest: ReturnType<GameContext["getEnemies"]>[0] | null = null;
-    let nearestDist = maxDistance;
-
-    for (const enemy of enemies) {
-      const dist = position.distanceTo(enemy.position);
-      if (dist < nearestDist) {
-        nearest = enemy;
-        nearestDist = dist;
-      }
-    }
-
-    return nearest;
-  }
-
-  private findNearestCollectible(
-    position: Vector3,
-    collectibles: ReturnType<GameContext["getCollectibles"]>,
-    maxDistance: number,
-  ) {
-    let nearest: ReturnType<GameContext["getCollectibles"]>[0] | null = null;
-    let nearestDist = maxDistance;
-
-    for (const collectible of collectibles) {
-      const dist = position.distanceTo(new Vector3(...collectible.position));
-      if (dist < nearestDist) {
-        nearest = collectible;
-        nearestDist = dist;
-      }
-    }
-
-    return nearest;
   }
 
   private generateWanderTarget(currentPos: Vector3): Vector3 {
@@ -821,7 +811,6 @@ export class BotController {
   private controllerId: string;
   private brain: BotBrain;
   private body: BotBody;
-  private context: GameContext;
   private lastAbilityCheckTime = 0;
   private lastInputHistory: Array<{ x: number; time: number }> = [];
   private stuckTurnDetectionTime = 0;
@@ -830,21 +819,23 @@ export class BotController {
     this.controllerId = controllerId;
     this.brain = new BotBrain();
     this.body = new BotBody();
-    this.context = new GameContext();
   }
 
-  update(time: number): GameLoopInput {
+  /** Fly one step over this arena snapshot, optionally pursuing a chosen strategy. */
+  update(time: number, world: BotWorld, strategy?: BotStrategy): GameLoopInput {
+    const context = new GameContext(world);
     // Update brain (decision making)
     const { state, target } = this.brain.update(
       this.controllerId,
-      this.context,
+      context,
       time,
+      strategy,
     );
 
     // Update body (movement)
     const { vector, shouldShoot } = this.body.calculateSteering(
       this.controllerId,
-      this.context,
+      context,
       target,
     );
 
@@ -873,7 +864,7 @@ export class BotController {
           );
           this.stuckTurnDetectionTime = time;
           // Force brain to generate new target
-          const self = this.context.getSelf(this.controllerId);
+          const self = context.getSelf(this.controllerId);
           if (self) {
             this.brain.forceNewTarget(self.position);
           }
@@ -886,7 +877,11 @@ export class BotController {
     }
 
     // Ability logic
-    const ability = this.shouldUseAbility(state, time);
+    const ability = this.shouldUseAbility(
+      state,
+      time,
+      context.getSelf(this.controllerId),
+    );
 
     // Shooting logic - hold down button when enemy is in sights
     // The ship component handles the shooting interval automatically
@@ -901,11 +896,13 @@ export class BotController {
     };
   }
 
-  private shouldUseAbility(state: BotState, time: number): boolean {
-    const abilitiesStore = useAbilitiesStore.getState();
-    const queuedAbility = abilitiesStore.getQueuedAbility(this.controllerId);
-
-    if (!queuedAbility) {
+  private shouldUseAbility(
+    state: BotState,
+    time: number,
+    self: ReturnType<GameContext["getSelf"]>,
+  ): boolean {
+    const queuedAbility = self?.queuedAbility;
+    if (!self || !queuedAbility) {
       return false;
     }
 
@@ -915,26 +912,21 @@ export class BotController {
     }
     this.lastAbilityCheckTime = time;
 
-    const self = this.context.getSelf(this.controllerId);
-    if (!self) {
-      return false;
-    }
-
     // Health Pack: Use immediately if Health < 100
-    if (queuedAbility.id === "health_pack" && self.health < 100) {
+    if (queuedAbility === "health_pack" && self.health < 100) {
       return true;
     }
 
     // Speed Boost: Use if RETURNing flag or DEFENDing (chasing carrier)
     if (
-      queuedAbility.id === "speed_boost" &&
+      queuedAbility === "speed_boost" &&
       (state === BotState.RETURN || state === BotState.DEFEND)
     ) {
       return true;
     }
 
     // Rocket: Use if ATTACKing (the body will check if target is in sights)
-    if (queuedAbility.id === "rocket" && state === BotState.ATTACK) {
+    if (queuedAbility === "rocket" && state === BotState.ATTACK) {
       return true;
     }
 
