@@ -1,3 +1,4 @@
+import { airJamDecisionQuestionSchema } from "@air-jam/devtools/testing";
 import type { HostObservation } from "@air-jam/sdk/runtime-control";
 import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
@@ -104,6 +105,7 @@ describe("Air Capture player contract", () => {
       observation: observe(world()),
       seatId: "player",
     });
+    airJamDecisionQuestionSchema.parse(turn);
     expect(Object.keys(turn?.options ?? {})).toEqual(["capture", "attack"]);
     expect(turn?.options.capture?.control).toMatchObject({ kind: "input" });
     expect(turn?.state[0]).toBe("The score is Solaris (my team) 0, Nebulon 0.");
