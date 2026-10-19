@@ -87,8 +87,12 @@ describe("player contract", () => {
     const decider = await createAirJamPlayerPolicy({
       ...counter,
       turn: () => ({
-        ...counter.turn({ observation }),
         state: Array.from({ length: 31 }, (_, index) => `Line ${index}.`),
+        question: "Should I tap now?",
+        options: {
+          tap: { when: "Always.", control: { kind: "release" } },
+          wait: { when: "Never.", control: { kind: "release" } },
+        },
       }),
     }).create({ seatId: "first", random: Math.random });
     expect(() =>
