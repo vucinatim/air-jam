@@ -9,6 +9,8 @@ import { runtimeSchema, selfOf, snapshotSchema } from "./observation";
 import { BREAKS, goControl, officePlayer } from "./player";
 
 const LOW_STAT = 25;
+/** Game time each shift test covers; contained hosts may run slower than real time. */
+const SHIFT_SPAN_MS = 120_000;
 
 /** Breaks when a stat runs low, else the reachable task that finishes soonest. */
 const workdayPolicy: AirJamTestPolicy = {
@@ -50,7 +52,7 @@ const workdayPolicy: AirJamTestPolicy = {
 
 export const testProfiles = defineAirJamTestProfiles({
   shift: {
-    label: "Work one shift alone",
+    label: "Work the first two minutes of a shift alone",
     targets: ["owned"],
     seats: [{ id: "player", label: "Špela" }],
     setup: [
@@ -77,28 +79,36 @@ export const testProfiles = defineAirJamTestProfiles({
       model: createAirJamPlayerPolicy(officePlayer),
     },
     evaluator: {
-      create: () => ({
-        evaluate: ({ observation, seats }) => {
-          const snapshot = snapshotSchema.parse(observation.snapshot);
-          const me = snapshot.lobby.availablePlayers.find(
-            (player) =>
-              player.selectedByControllerId === seats[0]?.controllerId,
-          );
-          const metrics = {
-            earned: snapshot.scoreboard.totalMoney,
-            penalties: snapshot.scoreboard.totalMoneyPenalty,
-            final: snapshot.scoreboard.finalTotalMoney,
-            survived: me?.stats?.alive ? 1 : 0,
-          };
-          return snapshot.phase === "ended"
-            ? {
-                status: "passed",
-                message: `The workday ended with ${metrics.final} (earned ${metrics.earned}, penalties ${metrics.penalties}).`,
-                metrics,
-              }
-            : { status: "pending", metrics };
-        },
-      }),
+      create: () => {
+        let startLeftMs: number | undefined;
+        return {
+          evaluate: ({ observation, seats }) => {
+            const snapshot = snapshotSchema.parse(observation.snapshot);
+            const { timeLeftMs } = runtimeSchema.parse(observation.runtime);
+            if (snapshot.phase === "playing") startLeftMs ??= timeLeftMs;
+            const me = snapshot.lobby.availablePlayers.find(
+              (player) =>
+                player.selectedByControllerId === seats[0]?.controllerId,
+            );
+            const metrics = {
+              earned: snapshot.scoreboard.totalMoney,
+              penalties: snapshot.scoreboard.totalMoneyPenalty,
+              final: snapshot.scoreboard.finalTotalMoney,
+              survived: me?.stats?.alive ? 1 : 0,
+            };
+            const worked =
+              startLeftMs !== undefined &&
+              startLeftMs - timeLeftMs >= SHIFT_SPAN_MS;
+            return snapshot.phase === "ended" || worked
+              ? {
+                  status: "passed",
+                  message: `${worked ? "Two minutes of the shift" : "The workday"} ended with ${metrics.final} (earned ${metrics.earned}, penalties ${metrics.penalties}).`,
+                  metrics,
+                }
+              : { status: "pending", metrics };
+          },
+        };
+      },
     },
   },
 });
