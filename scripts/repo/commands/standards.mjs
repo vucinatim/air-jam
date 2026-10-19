@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { loadRepoGames } from "../../workspace/lib/repo-games.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 
 const canonicalRules = [
@@ -155,8 +156,46 @@ export const findCanonicalViolations = ({
     });
   });
 
+/**
+ * First-party games still waiting for a player contract, each with the reason.
+ * Every other game must declare test profiles with a decision-model policy.
+ */
+const PLAYER_CONTRACTS_PENDING = {
+  "last-band-standing":
+    "its agent snapshot exposes the answer and its stimulus is audio (docs/suggestions.md, item 40)",
+};
+
+export const findGamesWithoutPlayerContracts = ({
+  root = repoRoot,
+  pending = PLAYER_CONTRACTS_PENDING,
+} = {}) =>
+  loadRepoGames({ rootDir: root })
+    .filter((game) => !Object.hasOwn(pending, game.id))
+    .flatMap((game) => {
+      const config = path.join(game.dir, "src/airjam.config.ts");
+      const profiles = path.join(game.dir, "src/testing/profiles.ts");
+      if (
+        !existsSync(config) ||
+        !readFileSync(config, "utf8").includes(
+          'testing: "./testing/profiles.ts"',
+        )
+      )
+        return [{ game: game.id, problem: "declares no test profiles" }];
+      if (
+        !existsSync(profiles) ||
+        !readFileSync(profiles, "utf8").includes("createAirJamPlayerPolicy(")
+      )
+        return [
+          { game: game.id, problem: "offers no decision-model player policy" },
+        ];
+      return [];
+    });
+
 const runCanonicalGuard = () => {
   const violations = findCanonicalViolations();
+  const contractless = findGamesWithoutPlayerContracts();
+  for (const { game, problem } of contractless)
+    console.log(`First-party game ${game} ${problem}; add a player contract.`);
 
   for (const violation of violations) {
     console.log(`Forbidden pattern detected: ${violation.label}`);
@@ -164,7 +203,7 @@ const runCanonicalGuard = () => {
     console.log("");
   }
 
-  if (violations.length > 0) {
+  if (violations.length > 0 || contractless.length > 0) {
     throw new Error("Canonical guard failed.");
   }
 

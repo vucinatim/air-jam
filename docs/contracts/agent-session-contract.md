@@ -309,7 +309,9 @@ contract, not the model. A game that needs control faster than a model answers
 questions the seat keeps acting on the model's last choice at the run's step
 rate, and is asked again after `rethinkMs`, when its goal changes, or when that
 choice is no longer offered. Every policy step carries the seat's latest model
-`answer` for this purpose. Decision models choose the option whose `when` matches
+`answer` for this purpose. `pnpm guard:canonical` requires every first-party game to offer
+a decision-model player this way; Last Band Standing is pending until its agent
+snapshot stops exposing the answer. Decision models choose the option whose `when` matches
 the state, so write each `when` against what the seat is aiming for ("the height
 I am aiming for is above my paddle") and let the brief name the default aim
 ("unless you have been given another goal, aim at the ball"). A `when` that
