@@ -225,7 +225,7 @@ cannot be interpreted as a completed trial while its owner is unavailable.
 `airjam session run stop-all` stops active runs in the project and confirms their
 cleanup without stopping unrelated manual sessions or starting an absent broker.
 An embedding application can use `airjam-mcp --external-run-control` (or the
-matching server option) to leave run start/stop out of MCP while retaining reads,
+matching server option) to leave run start, stop and steering out of MCP while retaining reads,
 waits and discovery. Studio uses its own durable admission for those effects;
 direct CLI experiments remain local scratch and are stopped at source boundaries.
 
@@ -302,7 +302,8 @@ reader who has never seen it. `turn({ observation, seatId })` describes the
 current state in words and offers that turn's options, or returns `null` when the
 seat has nothing to decide. `createAirJamPlayerPolicy(contract)` validates a
 contract and turns it into an ordinary profile policy; the brief leads every
-question, so a turn describes at most 31 state lines. Describe what a player perceives, not the
+question, so a turn describes at most 30 state lines, leaving room for a goal
+line once the seat is steered. Describe what a player perceives, not the
 answer: a turn computed from hidden state the player cannot see measures the
 contract, not the model. Decision models choose the option whose `when` matches
 the state, so write each `when` against what the seat is aiming for ("the height
@@ -344,7 +345,7 @@ usually means the goal was too vague.
 Each seat's record also summarizes how a decision model played it: questions
 asked, answered and missed, the choices it made, answers below 0.6 confidence,
 and stretches of three or more such answers in a row. Reading a run while it
-plays returns the latest persisted summary; the final record is the digest.
+plays returns the live summary; the final record is the digest.
 Sustained low confidence is a signal that the brief or the game may be unclear
 to a newcomer, not a measure of fun.
 
@@ -522,12 +523,12 @@ browser/process is disposed by the existing controller lifecycle.
 
 ## Unreleased tooling behavior changes
 
-`AirJamPolicyDecision` gained an `ask` variant for decision-model players, and
 Runs accept per-seat `intents`, records carry each seat's `intent`, `answers`
 summary and a run `steering` log, `AirJamPolicyStep` carries `intent`, and
 `run.steer` / `steerGameRun` / `airjam.steer_game_run` / `session run steer`
 change a seat's intent during play.
 
+`AirJamPolicyDecision` gained an `ask` variant for decision-model players, and
 `@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`,
 `AirJamDecisionQuestion`, `airJamDecisionQuestionSchema` and
 `createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a

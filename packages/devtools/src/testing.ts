@@ -90,6 +90,10 @@ const playControlSchema = z.discriminatedUnion("kind", [
 ]);
 export type AirJamPlayControl = z.infer<typeof playControlSchema>;
 
+const QUESTION_STATE_LINES = 32;
+/** A turn's own lines, leaving room for the brief and a goal line. */
+const TURN_STATE_LINES = QUESTION_STATE_LINES - 2;
+
 /**
  * A choice handed to the run's decision model. Every option is an ordinary
  * play control (an input, an action, or doing nothing), so the model can only
@@ -98,7 +102,10 @@ export type AirJamPlayControl = z.infer<typeof playControlSchema>;
  */
 export const airJamDecisionQuestionSchema = z
   .object({
-    state: z.array(z.string().min(1).max(8000)).min(1).max(32),
+    state: z
+      .array(z.string().min(1).max(8000))
+      .min(1)
+      .max(QUESTION_STATE_LINES),
     question: z.string().min(1).max(1000),
     options: z
       .record(
@@ -309,6 +316,10 @@ export function createAirJamPlayerPolicy(
       decide: ({ observation, seatId, intent }) => {
         const turn = contract.turn({ observation, seatId });
         if (!turn) return { control: { kind: "release" } };
+        if (turn.state.length > TURN_STATE_LINES)
+          throw new Error(
+            `A player contract turn may describe at most ${TURN_STATE_LINES} state lines, so it still fits once the seat is given a goal.`,
+          );
         return {
           ask: {
             ...turn,

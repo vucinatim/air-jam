@@ -1891,6 +1891,17 @@ it("gives each seat its starting intent and lets a steer change only what it rea
   ).rejects.toThrow("run_not_active");
 });
 
+it("tells a caller steering before the seats exist to use starting intents", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "release" } });
+  const started = await f.owner.start(f.request);
+  expect(started.seats).toEqual([]);
+  await expect(
+    f.owner.steer({ runId: f.request.runId, seatId: "player", intent: "x" }),
+  ).rejects.toThrow("Seats are not ready yet");
+  await f.owner.stop(f.request.runId);
+});
+
 it("refuses intents and steering for seats the profile does not have", async () => {
   const f = await fixture();
   io.decide.mockResolvedValue({ control: { kind: "release" } });
