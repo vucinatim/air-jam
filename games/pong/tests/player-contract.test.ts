@@ -1,3 +1,4 @@
+import { airJamDecisionQuestionSchema } from "@air-jam/devtools/testing";
 import type { HostObservation } from "@air-jam/sdk/runtime-control";
 import { describe, expect, it } from "vitest";
 import { BALL_SIZE, FIELD_HEIGHT } from "../src/game/engine/constants";
@@ -53,11 +54,35 @@ describe("Pong player contract", () => {
       "The ball is at x=400, y=120, moving towards my side and downwards.",
       "It will reach my paddle's line at about y=216 in 1.0 s.",
     ]);
-    expect(turn?.options.up?.control).toEqual({
+    airJamDecisionQuestionSchema.parse(turn);
+    expect(Object.keys(turn?.options ?? {})).toEqual([
+      "meet",
+      "top",
+      "upper",
+      "middle",
+      "lower",
+      "bottom",
+    ]);
+    // Meeting the ball at y=216 from a centre at 250 eases the paddle upwards.
+    expect(turn?.options.meet?.control).toEqual({
       kind: "input",
-      input: { direction: -1 },
+      input: { direction: -34 / 72 },
     });
-    expect(Object.keys(turn?.options ?? {})).toEqual(["up", "still", "down"]);
+    const seat = pongPlayer.act.create();
+    expect(
+      seat.control({
+        observation: observe(playing, {}),
+        seatId: "player",
+        choice: "top",
+      }),
+    ).toEqual({ kind: "input", input: { direction: -1 } });
+    expect(
+      seat.control({
+        observation: observe(playing, { paddle1FrontY: 166 }),
+        seatId: "player",
+        choice: "meet",
+      }),
+    ).toEqual({ kind: "input", input: { direction: 0 } });
   });
 
   it("predicts where a ball bouncing off a wall will reach the paddle", () => {
