@@ -23,6 +23,7 @@ import type {
   AirJamPolicyDecision,
   AirJamTestProfileDescription,
 } from "../src/testing.js";
+import { createAirJamPlayerPolicy } from "../src/testing.js";
 import type { CloseGameSessionResult } from "../src/types.js";
 
 const io = vi.hoisted(() => ({
@@ -1754,6 +1755,46 @@ it("plays a decision model's choice as the option's own control and traces the a
   expect(JSON.stringify(vi.mocked(f.session.control).mock.calls)).not.toContain(
     "confidence",
   );
+});
+
+it("hands the seat's policy the model's latest answer on its next step", async () => {
+  const f = await fixture({
+    decisions: async () => ({ choice: "tap", confidence: 0.93 }),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  io.evaluate.mockImplementation(async () => ({
+    status: io.decide.mock.calls.length >= 2 ? "passed" : "pending",
+    message: "Asked twice.",
+  }));
+  await f.owner.start(f.request);
+  await f.ended();
+  expect(io.decide.mock.calls.map(([step]) => step.answer).slice(0, 2)).toEqual(
+    [null, { choice: "tap", confidence: 0.93 }],
+  );
+});
+
+it("ends a run whose model stops answering, even when the contract acts between questions", async () => {
+  let answered = 0;
+  const f = await fixture({
+    decisions: async () => {
+      if (answered++ === 0) return { choice: "tap", confidence: 0.9 };
+      throw new Error("decision_failed: Decision model returned HTTP 500.");
+    },
+  });
+  const decider = await createAirJamPlayerPolicy({
+    brief: "A shared counter.",
+    turn: () => tapOrWait.ask,
+    act: {
+      rethinkMs: 50,
+      create: () => ({ control: () => ({ kind: "action", actionId: "tap" }) }),
+    },
+  }).create({ seatId: "player", random: Math.random });
+  io.decide.mockImplementation((step) => decider.decide(step));
+  io.evaluate.mockResolvedValue({ status: "pending" });
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.end?.message).toContain("HTTP 500");
 });
 
 it("fails a run that asks a decision model when none is configured", async () => {

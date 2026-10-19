@@ -174,7 +174,6 @@ export const agentContract = defineAirJamAgentContract({
               roundNumber: state.currentRound.roundNumber,
               guessKind: state.currentRound.guessKind,
               prompt: getRoundPrompt(state.currentRound.guessKind),
-              songId: state.currentRound.songId,
               quizCategoryId: currentSong?.quizCategoryId ?? null,
               difficulty: currentSong?.difficulty ?? null,
               expectedPlayerIds: [...state.currentRound.expectedPlayerIds],

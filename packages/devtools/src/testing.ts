@@ -185,6 +185,8 @@ export type AirJamPolicyStep = {
   seatId: string;
   /** What this seat is currently trying to do, if anyone has said. */
   intent: string | null;
+  /** The decision model's answer to this seat's latest question, if any. */
+  answer: { choice: string; confidence: number } | null;
   step: number;
   elapsedMs: number;
   receipts: AirJamRunReceipt[];
@@ -297,6 +299,23 @@ export type AirJamPlayerContract = {
     observation: HostObservation;
     seatId: string;
   }) => AirJamDecisionQuestion | null;
+  /**
+   * For games that need control faster than a model answers. Between
+   * questions the seat keeps acting on the model's last choice at the run's
+   * step rate, for `rethinkMs` after the answer arrives, and is asked again
+   * sooner when its goal changes or that choice is no longer offered.
+   * `create` runs once per seat, so a seat can keep state such as a pilot.
+   */
+  act?: {
+    rethinkMs: number;
+    create: () => {
+      control: (context: {
+        observation: HostObservation;
+        seatId: string;
+        choice: string;
+      }) => AirJamPlayControl | null;
+    };
+  };
 };
 
 /**
@@ -310,27 +329,60 @@ export function createAirJamPlayerPolicy(
   airJamDecisionQuestionSchema.shape.state.element.parse(contract.brief);
   if (typeof contract.turn !== "function")
     throw new Error("A player contract must describe each turn.");
+  const act = contract.act;
+  if (
+    act &&
+    (!Number.isInteger(act.rethinkMs) ||
+      act.rethinkMs < 1 ||
+      typeof act.create !== "function")
+  )
+    throw new Error(
+      "A player contract's act needs a positive whole rethinkMs and create.",
+    );
   return {
     label: "Decision model",
-    create: () => ({
-      decide: ({ observation, seatId, intent }) => {
-        const turn = contract.turn({ observation, seatId });
-        if (!turn) return { control: { kind: "release" } };
-        if (turn.state.length > TURN_STATE_LINES)
-          throw new Error(
-            `A player contract turn may describe at most ${TURN_STATE_LINES} state lines, so it still fits once the seat is given a goal.`,
-          );
-        return {
-          ask: {
-            ...turn,
-            state: [
-              contract.brief,
-              ...(intent ? [`My goal right now: ${intent}`] : []),
-              ...turn.state,
-            ],
-          },
-        };
-      },
-    }),
+    create: () => {
+      const actor = act?.create();
+      let asked: { intent: string | null; answeredAtMs?: number } | undefined;
+      return {
+        decide: ({ observation, seatId, intent, answer, elapsedMs }) => {
+          const turn = contract.turn({ observation, seatId });
+          if (!turn) return { control: { kind: "release" } };
+          if (turn.state.length > TURN_STATE_LINES)
+            throw new Error(
+              `A player contract turn may describe at most ${TURN_STATE_LINES} state lines, so it still fits once the seat is given a goal.`,
+            );
+          if (
+            act &&
+            actor &&
+            asked &&
+            answer &&
+            Object.hasOwn(turn.options, answer.choice) &&
+            asked.intent === intent
+          ) {
+            asked.answeredAtMs ??= elapsedMs;
+            if (elapsedMs - asked.answeredAtMs < act.rethinkMs)
+              return {
+                control: actor.control({
+                  observation,
+                  seatId,
+                  choice: answer.choice,
+                }) ?? { kind: "release" },
+              };
+          }
+          asked = { intent };
+          return {
+            ask: {
+              ...turn,
+              state: [
+                contract.brief,
+                ...(intent ? [`My goal right now: ${intent}`] : []),
+                ...turn.state,
+              ],
+            },
+          };
+        },
+      };
+    },
   };
 }
