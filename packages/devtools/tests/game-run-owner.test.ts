@@ -12,6 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { DecisionProvider } from "../src/decision-provider.js";
 import { GameRunOwner, type GameRunSession } from "../src/game-run-owner.js";
 import {
   MAXIMUM_GAME_RUN_TRACE_BYTES,
@@ -146,7 +147,9 @@ afterEach(async () => {
   }
 });
 
-async function fixture() {
+async function fixture({
+  decisions,
+}: { decisions?: DecisionProvider["ask"] } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-run-"));
   const events: string[] = [];
   const session: GameRunSession = {
@@ -261,6 +264,7 @@ async function fixture() {
     ownerInstanceId: randomUUID(),
     openSession,
     sessionClosed,
+    decisions: decisions && { model: "test-model", ask: decisions },
   });
   fixtures.push({ owner, root });
   const request: StartGameRunOptions = {
@@ -1701,4 +1705,141 @@ it("a failed viewer does not change a passing gameplay verdict when process clea
       "utf8",
     ),
   ).toContain('"kind":"watch_failed"');
+});
+
+const tapOrWait = {
+  ask: {
+    state: ["A shared counter. Tap until it reaches six."],
+    question: "Should I tap now?",
+    options: {
+      tap: {
+        when: "The count is below six.",
+        control: { kind: "action", actionId: "tap" },
+      },
+      wait: {
+        when: "The count has reached six.",
+        control: { kind: "input", input: { direction: 0 } },
+      },
+    },
+  },
+} satisfies AirJamPolicyDecision;
+
+it("plays a decision model's choice as the option's own control and traces the answer", async () => {
+  const decisions = vi.fn<DecisionProvider["ask"]>(async () => ({
+    choice: "tap",
+    confidence: 0.93,
+  }));
+  const f = await fixture({ decisions });
+  io.decide.mockResolvedValue(tapOrWait);
+  passAfterEffect("Tapped.");
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("completed");
+  expect(record.decisionModel).toBe("test-model");
+  expect(decisions).toHaveBeenCalledWith(
+    tapOrWait.ask,
+    expect.any(AbortSignal),
+  );
+  expect(f.events).toContain("action");
+  const trace = await readFile(
+    path.join(
+      f.root,
+      ".airjam/artifacts/runs",
+      f.request.runId,
+      "trace.ndjson",
+    ),
+    "utf8",
+  );
+  expect(trace).toContain('"answer":{"choice":"tap","confidence":0.93');
+  expect(JSON.stringify(vi.mocked(f.session.control).mock.calls)).not.toContain(
+    "confidence",
+  );
+});
+
+it("fails a run that asks a decision model when none is configured", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end).toMatchObject({
+    reason: "error",
+    outcome: "inconclusive",
+    message: expect.stringContaining("decision_provider_unavailable"),
+  });
+  expect(f.events).not.toContain("action");
+});
+
+it("treats an undeclared choice as a missed decision, never a fallback", async () => {
+  const f = await fixture({
+    decisions: async () => ({ choice: "reset_counter", confidence: 1 }),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.counters).toMatchObject({ missed: 3 });
+  expect(f.events).not.toContain("action");
+});
+
+it("bounds the decision model by the policy's own decision deadline", async () => {
+  const f = await fixture({
+    decisions: (_question, signal) =>
+      new Promise((_resolve, reject) =>
+        signal.addEventListener("abort", () => reject(signal.reason)),
+      ),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.seats[0]?.counters.timeout).toBe(3);
+  expect(f.events).not.toContain("action");
+});
+
+it("counts a failing decision model as a missed decision", async () => {
+  const f = await fixture({
+    decisions: async () => {
+      throw new Error("Decision model returned HTTP 503.");
+    },
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.counters).toMatchObject({ missed: 3 });
+});
+
+it("treats an inherited property name as an undeclared choice, not a crash", async () => {
+  const f = await fixture({
+    decisions: async () => ({ choice: "constructor", confidence: 1 }),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.end?.message).toContain("did not offer");
+});
+
+it("records the model it asked and why each decision was missed, even when none succeed", async () => {
+  const f = await fixture({
+    decisions: async () => {
+      throw new Error("Decision model returned HTTP 401.");
+    },
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.decisionModel).toBe("test-model");
+  expect(record.end?.message).toContain("HTTP 401");
+  const trace = await readFile(
+    path.join(
+      f.root,
+      ".airjam/artifacts/runs",
+      f.request.runId,
+      "trace.ndjson",
+    ),
+    "utf8",
+  );
+  expect(trace).toContain('"kind":"decision_missed"');
+  expect(trace).toContain("HTTP 401");
 });

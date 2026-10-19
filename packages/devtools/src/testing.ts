@@ -75,32 +75,73 @@ export type AirJamTestProfileDescription = z.infer<
   typeof airJamTestProfileDescriptionSchema
 >;
 
-export const airJamPolicyDecisionSchema = z
+const byteLength = (value: unknown) =>
+  new TextEncoder().encode(JSON.stringify(value)).byteLength;
+const policyDiagnosticsSchema = z
+  .record(id, z.union([z.string().max(160), z.number().finite(), z.boolean()]))
+  .refine(
+    (value) => Object.keys(value).length <= 16 && byteLength(value) <= 1024,
+    "Policy diagnostics exceed 1 KiB or 16 entries.",
+  );
+const playControlSchema = z.discriminatedUnion("kind", [
+  participantReleaseOperationSchema,
+  participantInputOperationSchema.omit({ deadlineMs: true, ttlMs: true }),
+  participantActionOperationSchema.omit({ deadlineMs: true }),
+]);
+export type AirJamPlayControl = z.infer<typeof playControlSchema>;
+
+/**
+ * A choice handed to the run's decision model. Every option is an ordinary
+ * play control (an input, an action, or doing nothing), so the model can only
+ * ever pick among controls the game already accepts. The size bound keeps the
+ * question inside the fast context of current typed decision models.
+ */
+export const airJamDecisionQuestionSchema = z
   .object({
-    diagnostics: z
+    state: z.array(z.string().min(1).max(8000)).min(1).max(32),
+    question: z.string().min(1).max(1000),
+    options: z
       .record(
         id,
-        z.union([z.string().max(160), z.number().finite(), z.boolean()]),
+        z
+          .object({
+            when: z.string().min(1).max(500),
+            control: playControlSchema,
+          })
+          .strict(),
       )
-      .refine(
-        (value) =>
-          Object.keys(value).length <= 16 &&
-          new TextEncoder().encode(JSON.stringify(value)).byteLength <= 1024,
-        "Policy diagnostics exceed 1 KiB or 16 entries.",
-      )
-      .optional(),
-    control: z.discriminatedUnion("kind", [
-      participantReleaseOperationSchema,
-      participantInputOperationSchema.omit({ deadlineMs: true, ttlMs: true }),
-      participantActionOperationSchema.omit({ deadlineMs: true }),
-    ]),
+      .refine((options) => {
+        const count = Object.keys(options).length;
+        return count >= 2 && count <= 16;
+      }, "A decision offers between 2 and 16 options."),
   })
-  .strict()
-  .refine(
-    (value) =>
-      new TextEncoder().encode(JSON.stringify(value)).byteLength <= 16_000,
-    "Policy decision exceeds 16 KB.",
-  );
+  .strict();
+export type AirJamDecisionQuestion = z.infer<
+  typeof airJamDecisionQuestionSchema
+>;
+
+export const airJamPolicyDecisionSchema = z.union([
+  z
+    .object({
+      diagnostics: policyDiagnosticsSchema.optional(),
+      control: playControlSchema,
+    })
+    .strict()
+    .refine(
+      (value) => byteLength(value) <= 16_000,
+      "Policy decision exceeds 16 KB.",
+    ),
+  z
+    .object({
+      diagnostics: policyDiagnosticsSchema.optional(),
+      ask: airJamDecisionQuestionSchema,
+    })
+    .strict()
+    .refine(
+      (value) => byteLength(value) <= 32_000,
+      "Decision question exceeds 32 KB.",
+    ),
+]);
 export type AirJamPolicyDecision = z.infer<typeof airJamPolicyDecisionSchema>;
 
 export const airJamRunReceiptSchema = z
@@ -233,4 +274,42 @@ export function defineAirJamTestProfiles<
 >(profiles: T): T {
   describeAirJamTestProfiles(profiles);
   return profiles;
+}
+
+/**
+ * How a game is played by a typed decision model, written by whoever writes the
+ * game. The brief explains the game to a reader who has never seen it; each
+ * turn describes the current state in words and offers choices that resolve to
+ * the game's own inputs or actions. A seat with nothing to decide returns null.
+ */
+export type AirJamPlayerContract = {
+  brief: string;
+  turn: (context: {
+    observation: HostObservation;
+    seatId: string;
+  }) => AirJamDecisionQuestion | null;
+};
+
+/**
+ * A test policy that plays every seat through the run's decision model. The
+ * brief leads every question, so a turn may describe at most 31 state lines.
+ */
+export function createAirJamPlayerPolicy(
+  contract: AirJamPlayerContract,
+): AirJamTestPolicy {
+  airJamDecisionQuestionSchema.shape.state.element.parse(contract.brief);
+  if (typeof contract.turn !== "function")
+    throw new Error("A player contract must describe each turn.");
+  return {
+    label: "Decision model",
+    create: () => ({
+      decide: ({ observation, seatId }) => {
+        const turn = contract.turn({ observation, seatId });
+        if (!turn) return { control: { kind: "release" } };
+        return {
+          ask: { ...turn, state: [contract.brief, ...turn.state] },
+        };
+      },
+    }),
+  };
 }

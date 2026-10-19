@@ -134,6 +134,7 @@ export const gameRunRecordSchema = z
     policyPreparation: policyPreparationSchema.optional(),
     policyInitializationMs: z.number().finite().nonnegative().optional(),
     policyArtifacts: policyArtifactReceiptSchema.optional(),
+    decisionModel: z.string().min(1).max(200).optional(),
     build: gameBuildIdentitySchema
       .extend({ integrity: z.enum(["sealed", "verified", "changed"]) })
       .optional(),
