@@ -309,10 +309,14 @@ contract, not the model.
 The model is configured only for the run owner, through
 `AIRJAM_DECISIONS_ENDPOINT`, `AIRJAM_DECISIONS_MODEL` and optional
 `AIRJAM_DECISIONS_TOKEN`, using the Decisions API shape that typed decision
-models share (OpenRouter's, which serves Jev). Policy and evaluator processes
-never receive the endpoint or its credential. The trace records each answer's
-choice, confidence and duration alongside the decision, and the run record names
-the `decisionModel` that answered.
+models share (OpenRouter's, which serves Jev). The run owner removes these
+variables from its own environment when it starts, so policy and evaluator
+processes, game builds and every other process it spawns never receive the
+endpoint or its credential. Set them only for the process that starts the run
+owner, never in a shell that also runs `pnpm run dev`, because the dev server
+executes game code. The run record names the `decisionModel` a run asked. The
+trace records each answer's choice, confidence and duration, and each missed
+decision's reason; a run ended by repeated misses names the last reason.
 
 Each scenario also declares one synchronous evaluator and its named numeric metrics.
 Policies return controls or questions, never a verdict. The evaluator
@@ -489,8 +493,9 @@ browser/process is disposed by the existing controller lifecycle.
 ## Unreleased tooling behavior changes
 
 `AirJamPolicyDecision` gained an `ask` variant for decision-model players, and
-`@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`
-and `createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a
+`@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`,
+`AirJamDecisionQuestion`, `airJamDecisionQuestionSchema` and
+`createAirJamPlayerPolicy`. Code that reads `decision.control` must handle a
 question. Pong and the minimal starter declare player contracts and offer a
 `model` policy; Pong also gains a `match` profile against its own bot.
 

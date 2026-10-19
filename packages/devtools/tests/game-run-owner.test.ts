@@ -1808,3 +1808,38 @@ it("counts a failing decision model as a missed decision", async () => {
   expect(record.end?.reason).toBe("policy_unresponsive");
   expect(record.counters).toMatchObject({ missed: 3 });
 });
+
+it("treats an inherited property name as an undeclared choice, not a crash", async () => {
+  const f = await fixture({
+    decisions: async () => ({ choice: "constructor", confidence: 1 }),
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("policy_unresponsive");
+  expect(record.end?.message).toContain("did not offer");
+});
+
+it("records the model it asked and why each decision was missed, even when none succeed", async () => {
+  const f = await fixture({
+    decisions: async () => {
+      throw new Error("Decision model returned HTTP 401.");
+    },
+  });
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.decisionModel).toBe("test-model");
+  expect(record.end?.message).toContain("HTTP 401");
+  const trace = await readFile(
+    path.join(
+      f.root,
+      ".airjam/artifacts/runs",
+      f.request.runId,
+      "trace.ndjson",
+    ),
+    "utf8",
+  );
+  expect(trace).toContain('"kind":"decision_missed"');
+  expect(trace).toContain("HTTP 401");
+});

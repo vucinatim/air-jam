@@ -22,24 +22,33 @@ const responseSchema = z.object({
   }),
 });
 
+const DECISION_VARIABLES = [
+  "AIRJAM_DECISIONS_ENDPOINT",
+  "AIRJAM_DECISIONS_MODEL",
+  "AIRJAM_DECISIONS_TOKEN",
+] as const;
+
 /**
  * A typed decision model reached through the Decisions API shape these models
- * share (OpenRouter's, which Jev serves). It is configured only for the run
- * owner, so game code and policy processes never see its credential; Studio
- * points it at a gateway that adds the credential itself.
+ * share (OpenRouter's, which Jev serves). The run owner takes its settings out
+ * of its own environment before starting anything, so no build, game or policy
+ * process it spawns can read the credential; Studio instead points the endpoint
+ * at a gateway that adds the credential itself.
  */
-export function createDecisionProviderFromEnvironment(
+export function takeDecisionProviderFromEnvironment(
   environment: NodeJS.ProcessEnv = process.env,
 ): DecisionProvider | undefined {
-  const endpoint = environment.AIRJAM_DECISIONS_ENDPOINT?.trim();
+  const [endpoint, model, token] = DECISION_VARIABLES.map((name) => {
+    const value = environment[name]?.trim();
+    delete environment[name];
+    return value;
+  });
   if (!endpoint) return undefined;
-  const model = environment.AIRJAM_DECISIONS_MODEL?.trim();
   if (!model)
     throw new Error(
       "Configure AIRJAM_DECISIONS_MODEL alongside AIRJAM_DECISIONS_ENDPOINT.",
     );
   const url = new URL(endpoint);
-  const token = environment.AIRJAM_DECISIONS_TOKEN?.trim();
   const ask: DecisionProvider["ask"] = async (question, signal) => {
     const response = await fetch(url, {
       method: "POST",

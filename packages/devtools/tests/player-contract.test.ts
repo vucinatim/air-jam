@@ -2,7 +2,7 @@ import type { HostObservation } from "@air-jam/sdk/runtime-control";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { createDecisionProviderFromEnvironment } from "../src/decision-provider.js";
+import { takeDecisionProviderFromEnvironment } from "../src/decision-provider.js";
 import {
   airJamPolicyDecisionSchema,
   createAirJamPlayerPolicy,
@@ -11,7 +11,7 @@ import {
 
 const observation = { snapshot: { count: 2 } } as unknown as HostObservation;
 const configured = (environment: NodeJS.ProcessEnv) => {
-  const provider = createDecisionProviderFromEnvironment(environment);
+  const provider = takeDecisionProviderFromEnvironment(environment);
   if (!provider) throw new Error("Expected a configured decision provider.");
   return provider;
 };
@@ -165,7 +165,16 @@ describe("decision provider", () => {
   };
 
   it("is absent until an endpoint is configured, and requires a model with it", () => {
-    expect(createDecisionProviderFromEnvironment({})).toBeUndefined();
+    expect(takeDecisionProviderFromEnvironment({})).toBeUndefined();
+    const environment: NodeJS.ProcessEnv = {
+      AIRJAM_DECISIONS_ENDPOINT: "http://127.0.0.1/decisions",
+      AIRJAM_DECISIONS_MODEL: "typesafe/jev-1.13",
+      AIRJAM_DECISIONS_TOKEN: "secret-token",
+      PATH: "/usr/bin",
+    };
+    takeDecisionProviderFromEnvironment(environment);
+    // Nothing the run owner spawns afterwards can inherit the credential.
+    expect(environment).toEqual({ PATH: "/usr/bin" });
     expect(
       configured({
         AIRJAM_DECISIONS_ENDPOINT: "http://127.0.0.1/decisions",
@@ -173,7 +182,7 @@ describe("decision provider", () => {
       }).model,
     ).toBe("typesafe/jev-1.13");
     expect(() =>
-      createDecisionProviderFromEnvironment({
+      takeDecisionProviderFromEnvironment({
         AIRJAM_DECISIONS_ENDPOINT: "http://127.0.0.1/decisions",
       }),
     ).toThrow("AIRJAM_DECISIONS_MODEL");

@@ -972,6 +972,7 @@ export class GameRunOwner {
     const remaining = deadline - performance.now();
     if (remaining <= 0)
       throw new Error("policy_timeout: Decision exceeded its deadline.");
+    run.record.decisionModel ??= decisions.model;
     const started = performance.now();
     const timeout = AbortSignal.timeout(Math.ceil(remaining));
     let answered: DecisionAnswer;
@@ -989,8 +990,9 @@ export class GameRunOwner {
         `decision_failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-    run.record.decisionModel ??= decisions.model;
-    const option = question.options[answered.choice];
+    const option = Object.hasOwn(question.options, answered.choice)
+      ? question.options[answered.choice]
+      : undefined;
     if (!option)
       throw new Error(
         "decision_failed: Decision model chose an option the policy did not offer.",
@@ -1344,6 +1346,13 @@ export class GameRunOwner {
             throw error;
           if (error.message.startsWith("policy_timeout:")) counters.timeout++;
           run.record.counters.missed++;
+          const reason = error.message.slice(0, 300);
+          await this.trace(run, {
+            kind: "decision_missed",
+            seatId: seat.id,
+            step,
+            reason,
+          });
           await this.control(
             run,
             seat,
@@ -1355,7 +1364,7 @@ export class GameRunOwner {
             return this.terminate(
               run,
               "policy_unresponsive",
-              `Seat ${seat.id} missed three consecutive decision opportunities.`,
+              `Seat ${seat.id} missed three consecutive decision opportunities. Last: ${reason}`,
             );
           continue;
         }
