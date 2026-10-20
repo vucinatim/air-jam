@@ -421,6 +421,69 @@ describe("createAirJamStore networked behavior", () => {
     unmount();
   });
 
+  it("delivers an action called while the controller session is connecting", async () => {
+    mockedContext.state.roomId = null as unknown as string;
+    const useStore = createTestStore();
+    const { result, rerender, unmount } = renderHook(() =>
+      useStore.useActions(),
+    );
+    const pending = result.current.joinTeam({ team: "red" });
+    expect(
+      controllerSocket.emitted.some(
+        (call) => call.event === "controller:action_rpc",
+      ),
+    ).toBe(false);
+    mockedContext.state.roomId = "ROOM1";
+    act(() => rerender());
+    await expect(pending).resolves.toMatchObject({ ok: true });
+    expect(
+      controllerSocket.emitted.find(
+        (call) => call.event === "controller:action_rpc",
+      )?.args[0],
+    ).toMatchObject({ roomId: "ROOM1", actionName: "joinTeam" });
+    unmount();
+  });
+
+  it("applies a host action called before the host role is assigned", async () => {
+    mockedContext.state.role = null as unknown as Role;
+    const useStore = createTestStore();
+    const { result, rerender, unmount } = renderHook(() => ({
+      actions: useStore.useActions(),
+      phase: useStore((state) => state.phase),
+    }));
+    const pending = result.current.actions.setPhase({ phase: "playing" });
+    mockedContext.state.role = "host";
+    act(() => rerender());
+    await expect(pending).resolves.toMatchObject({ ok: true });
+    expect(useStore.getState().phase).toBe("playing");
+    unmount();
+  });
+
+  it("rejects loudly when the session never becomes ready", async () => {
+    vi.useFakeTimers();
+    mockedContext.state.roomId = null as unknown as string;
+    const diagnostics: string[] = [];
+    const unsubscribe = onAirJamDiagnostic((diagnostic) => {
+      if (diagnostic.code === "AJ_STORE_ACTION_SESSION_NOT_READY")
+        diagnostics.push(diagnostic.severity);
+    });
+    const useStore = createTestStore();
+    const { result, unmount } = renderHook(() => useStore.useActions());
+    try {
+      const pending = result.current.joinTeam({ team: "red" });
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(pending).resolves.toMatchObject({
+        ok: false,
+        reason: "session_not_ready",
+      });
+      expect(diagnostics).toEqual(["error"]);
+    } finally {
+      unsubscribe();
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("exposes imperative getState and subscribe on the synced store hook", () => {
     const useStore = createCounterStore();
     const observedCounts: number[] = [];
