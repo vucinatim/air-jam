@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { agentActionInput } from "../src/agent/agent-action";
+import { agentAction } from "../src/agent/agent-contract";
 import { resolveProjectRuntimeTopology } from "../src/runtime-topology";
+import type { HostAgentRequest } from "../src/runtime/contracts/agent-control";
 import { createHostRuntimeInspectionContract } from "../src/runtime/contracts/inspection";
 import {
-  publishEmbeddedHostObservation,
-  readHostObservation,
-  requestHostObservation,
-} from "../src/runtime/host-observation-bridge";
+  publishEmbeddedHostAgent,
+  readHostAgentResult,
+  requestHostAgent,
+} from "../src/runtime/host-agent-bridge";
 import { observationFixture } from "./fixtures/host-observation";
 
 const originalParent = window.parent;
@@ -31,7 +34,17 @@ function bridgeFixture() {
     configurable: true,
     value: "https://studio.example/studio",
   });
-  const game = observationFixture(window);
+  const game = observationFixture(window, {
+    finishMatch: agentAction.host(
+      { actionName: "finishMatch", storeDomain: "default" },
+      {
+        input: agentActionInput.none(),
+        description: "Finish the match.",
+        resultDescription: "The match ends.",
+      },
+    ),
+  });
+  const observe: HostAgentRequest = { operation: "observe", ...game.request };
   const topology = resolveProjectRuntimeTopology({
     runtimeMode: "standalone-dev",
     surfaceRole: "host",
@@ -52,23 +65,23 @@ function bridgeFixture() {
   const send = (
     source = parent,
     origin = "https://studio.example",
-    request = game.request,
+    request: unknown = observe,
   ) =>
     window.dispatchEvent(
       new MessageEvent("message", {
         source,
         origin,
         data: {
-          type: "AIRJAM_HOST_OBSERVE",
+          type: "AIRJAM_HOST_AGENT",
           requestId: "capture-one",
           request,
         },
       }),
     );
-  return { ...game, parent, topology, inspection, send };
+  return { ...game, observe, parent, topology, inspection, send };
 }
 
-describe("delegated read-only host observation", () => {
+describe("delegated host agent requests", () => {
   it.each(["", "https://game.example/after-reload"])(
     "keeps the explicit observer boundary after referrer becomes %s",
     async (referrer) => {
@@ -77,10 +90,7 @@ describe("delegated read-only host observation", () => {
         configurable: true,
         value: referrer,
       });
-      const stop = publishEmbeddedHostObservation(
-        game.inspection,
-        game.topology,
-      );
+      const stop = publishEmbeddedHostAgent(game.inspection, game.topology);
       expect(stop.supported).toBe(true);
       game.send(game.parent, "https://game.example");
       expect(game.parent.postMessage).not.toHaveBeenCalled();
@@ -90,7 +100,7 @@ describe("delegated read-only host observation", () => {
       );
       expect(game.parent.postMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "AIRJAM_HOST_OBSERVATION",
+          type: "AIRJAM_HOST_AGENT_RESULT",
           result: expect.objectContaining({ ok: true }),
         }),
         "https://studio.example",
@@ -100,9 +110,9 @@ describe("delegated read-only host observation", () => {
     },
   );
 
-  it("binds both message directions to exact origins/windows and exposes no host-control operation", async () => {
+  it("binds both message directions to exact origins and windows", async () => {
     const game = bridgeFixture();
-    const stop = publishEmbeddedHostObservation(game.inspection, game.topology);
+    const stop = publishEmbeddedHostAgent(game.inspection, game.topology);
     game.send(window);
     game.send(game.parent, "https://attacker.example");
     expect(game.parent.postMessage).not.toHaveBeenCalled();
@@ -118,21 +128,68 @@ describe("delegated read-only host observation", () => {
       data,
     });
     expect(
-      readHostObservation(event, window, "https://game.example")?.result,
-    ).toMatchObject({ ok: true, observation: { snapshot: { score: 2 } } });
+      readHostAgentResult(event, window, "https://game.example")?.result,
+    ).toMatchObject({
+      ok: true,
+      response: {
+        operation: "observe",
+        observation: { snapshot: { score: 2 } },
+      },
+    });
     expect(
-      readHostObservation(event, game.parent, "https://game.example"),
+      readHostAgentResult(event, game.parent, "https://game.example"),
     ).toBeNull();
     expect(
-      readHostObservation(event, window, "https://attacker.example"),
+      readHostAgentResult(event, window, "https://attacker.example"),
     ).toBeNull();
+    stop.close();
+    game.close();
+  });
+
+  it("reads live state and runs the game's own host action for its parent", async () => {
+    const game = bridgeFixture();
+    const stop = publishEmbeddedHostAgent(game.inspection, game.topology);
     game.send(game.parent, "https://studio.example", {
-      ...game.request,
+      operation: "read",
+      roomId: "ROOM",
+      controllerId: null,
+    });
+    await vi.waitFor(() =>
+      expect(game.parent.postMessage).toHaveBeenCalledTimes(1),
+    );
+    const read = vi.mocked(game.parent.postMessage).mock.calls[0][0];
+    expect(read).toMatchObject({
+      result: { ok: true, response: { operation: "read" } },
+    });
+    const snapshot = read.result.response.snapshot;
+    game.invoke.mockResolvedValue({
+      ok: true,
+      status: "accepted",
+      source: "host",
+    });
+    game.send(game.parent, "https://studio.example", {
       operation: "invoke-host",
-    } as typeof game.request);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(game.parent.postMessage).toHaveBeenCalledTimes(1);
-    expect(game.invoke).not.toHaveBeenCalled();
+      roomId: "ROOM",
+      controllerId: "host",
+      contractId: snapshot.contractId,
+      runtimeId: snapshot.runtimeId,
+      actionId: "finishMatch",
+    });
+    await vi.waitFor(() =>
+      expect(game.parent.postMessage).toHaveBeenCalledTimes(2),
+    );
+    expect(game.invoke).toHaveBeenCalledWith(
+      expect.objectContaining({ roomId: "ROOM", actionName: "finishMatch" }),
+    );
+    expect(vi.mocked(game.parent.postMessage).mock.calls[1][0]).toMatchObject({
+      result: {
+        ok: true,
+        response: {
+          operation: "invoke-host",
+          acknowledgement: { ok: true, status: "accepted" },
+        },
+      },
+    });
     stop.close();
     game.close();
   });
@@ -144,7 +201,7 @@ describe("delegated read-only host observation", () => {
       { ...game.topology, embedParentOrigin: "https://attacker.example" },
       { ...game.topology, runtimeMode: "hosted-release" as const },
     ]) {
-      const stop = publishEmbeddedHostObservation(game.inspection, topology);
+      const stop = publishEmbeddedHostAgent(game.inspection, topology);
       game.send();
       stop.close();
     }
@@ -155,15 +212,15 @@ describe("delegated read-only host observation", () => {
 
   it("rejects the wrong room and suppresses an async response after unmount", async () => {
     const game = bridgeFixture();
-    const stop = publishEmbeddedHostObservation(game.inspection, game.topology);
+    const stop = publishEmbeddedHostAgent(game.inspection, game.topology);
     game.send(game.parent, "https://studio.example", {
-      ...game.request,
+      ...game.observe,
       roomId: "OTHER",
     });
     expect(vi.mocked(game.parent.postMessage).mock.calls[0][0]).toMatchObject({
       result: {
         ok: false,
-        error: expect.stringContaining("observation_replaced"),
+        error: expect.stringContaining("runtime_replaced"),
       },
     });
     game.send();
@@ -173,19 +230,19 @@ describe("delegated read-only host observation", () => {
     game.close();
   });
 
-  it("sends only a validated bounded read request to the supplied game origin", () => {
+  it("sends only a validated request to the supplied game origin", () => {
     const game = bridgeFixture();
-    requestHostObservation(
+    requestHostAgent(
       game.parent,
       "https://game.example",
       "capture-one",
-      game.request,
+      game.observe,
     );
     expect(game.parent.postMessage).toHaveBeenCalledWith(
       {
-        type: "AIRJAM_HOST_OBSERVE",
+        type: "AIRJAM_HOST_AGENT",
         requestId: "capture-one",
-        request: game.request,
+        request: game.observe,
       },
       "https://game.example",
     );

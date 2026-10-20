@@ -4,41 +4,47 @@ import {
   type ResolvedAirJamRuntimeTopology,
 } from "../runtime-topology";
 import {
+  hostAgentRequestMessageSchema as requestSchema,
+  hostAgentResultMessageSchema as resultSchema,
+  type HostAgentRequest,
+} from "./contracts/agent-control";
+import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
   type HostRuntimeControl,
 } from "./contracts/control";
 import type { HostRuntimeInspectionContract } from "./contracts/inspection";
-import {
-  hostObservationRequestMessageSchema as requestSchema,
-  hostObservationResponseMessageSchema as responseSchema,
-  type HostObservationRequest,
-} from "./contracts/observation";
 import { embeddedRuntimeParent } from "./embedded-parent";
 
-export function requestHostObservation(
+export function requestHostAgent(
   target: Window,
   origin: string,
   requestId: string,
-  request: HostObservationRequest,
+  request: HostAgentRequest,
 ) {
   target.postMessage(
-    requestSchema.parse({ type: "AIRJAM_HOST_OBSERVE", requestId, request }),
+    requestSchema.parse({ type: "AIRJAM_HOST_AGENT", requestId, request }),
     origin,
   );
 }
 
-export function readHostObservation(
+export function readHostAgentResult(
   event: MessageEvent<unknown>,
   expectedWindow: Window,
   expectedOrigin: string,
 ) {
   if (event.source !== expectedWindow || event.origin !== expectedOrigin)
     return null;
-  const response = responseSchema.safeParse(event.data);
-  return response.success ? response.data : null;
+  const result = resultSchema.safeParse(event.data);
+  return result.success ? result.data : null;
 }
 
-export function publishEmbeddedHostObservation(
+/**
+ * Answers the development editor that embeds this host: observations, live
+ * state reads and the game's own semantic actions, for this document's room
+ * only. The editor decides who may ask; this document only checks that the
+ * request comes from its configured parent.
+ */
+export function publishEmbeddedHostAgent(
   inspection: HostRuntimeInspectionContract,
   topology: ResolvedAirJamRuntimeTopology,
 ) {
@@ -51,11 +57,11 @@ export function publishEmbeddedHostObservation(
   let busy = false;
   const respond = (
     requestId: string,
-    result: z.infer<typeof responseSchema>["result"],
+    result: z.infer<typeof resultSchema>["result"],
   ) => {
     if (!closed)
       parent.postMessage(
-        { type: "AIRJAM_HOST_OBSERVATION", requestId, result },
+        { type: "AIRJAM_HOST_AGENT_RESULT", requestId, result },
         parentOrigin,
       );
   };
@@ -67,14 +73,14 @@ export function publishEmbeddedHostObservation(
     if (busy) {
       respond(requestId, {
         ok: false,
-        error: "observation_busy: One observation is already in progress.",
+        error: "host_agent_busy: One host request is already in progress.",
       });
       return;
     }
     if (request.roomId !== inspection.roomId) {
       respond(requestId, {
         ok: false,
-        error: "observation_replaced: This document owns another room.",
+        error: "runtime_replaced: This document owns another room.",
       });
       return;
     }
@@ -92,13 +98,10 @@ export function publishEmbeddedHostObservation(
     busy = true;
     void (async () => {
       try {
-        const result = await control.agent({
-          operation: "observe",
-          ...request,
-        });
-        if (result.operation !== "observe")
-          throw new Error("Invalid host observation response.");
-        respond(requestId, { ok: true, observation: result.observation });
+        const response = await control.agent(request);
+        if (response.operation !== request.operation)
+          throw new Error("Invalid host agent response.");
+        respond(requestId, { ok: true, response });
       } catch (error) {
         respond(requestId, {
           ok: false,
@@ -106,7 +109,7 @@ export function publishEmbeddedHostObservation(
             String(error instanceof Error ? error.message : error).slice(
               0,
               1024,
-            ) || "Observation failed.",
+            ) || "Host request failed.",
         });
       } finally {
         busy = false;

@@ -104,9 +104,10 @@ function cooperativePaddlePolicy(randomized: boolean): AirJamTestPolicy {
 export const testProfiles = defineAirJamTestProfiles({
   match: {
     label: "Play a short match against the game's bot",
-    targets: ["owned"],
     seats: [{ id: "player", label: "Orange paddle" }],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
       {
         lane: "participant",
         seatId: "player",
@@ -169,7 +170,6 @@ export const testProfiles = defineAirJamTestProfiles({
   },
   cooperative: {
     label: "Play a paddle alongside the creator",
-    targets: ["current"],
     seats: [{ id: "player", label: "Agent paddle" }],
     setup: [],
     actions: ["join_team"],
@@ -194,12 +194,13 @@ export const testProfiles = defineAirJamTestProfiles({
   },
   scoring: {
     label: "Two-player input and physical scoring",
-    targets: ["owned"],
     seats: [
       { id: "left", label: "Orange paddle" },
       { id: "right", label: "Blue paddle" },
     ],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "left", actionId: "return_to_lobby" },
       {
         lane: "participant",
         seatId: "left",
@@ -224,6 +225,12 @@ export const testProfiles = defineAirJamTestProfiles({
         actionId: "set_bot_count",
         input: { team: "team2", count: 0 },
       },
+      {
+        lane: "participant",
+        seatId: "left",
+        actionId: "set_points_to_win",
+        input: 5,
+      },
       { lane: "participant", seatId: "left", actionId: "start_match" },
     ],
     actions: [],
@@ -245,6 +252,8 @@ export const testProfiles = defineAirJamTestProfiles({
         let score = { team1: 0, team2: 0 };
         let lastGoal = 0;
         let lastServe = -1;
+        // Goals scored in the room before this trial stay in the host's log.
+        let earlierGoals = 0;
         return {
           evaluate: ({ observation, seats, receipts }) => {
             const snapshot = snapshotSchema.parse(observation.snapshot);
@@ -267,15 +276,16 @@ export const testProfiles = defineAirJamTestProfiles({
                 };
             }
             if (!baseline) {
-              if (
-                snapshot.scores.team1 !== 0 ||
-                snapshot.scores.team2 !== 0 ||
-                runtime.goals.length !== 0
-              )
+              if (snapshot.scores.team1 !== 0 || snapshot.scores.team2 !== 0)
                 return {
                   status: "failed",
                   message: "Scoring trial did not begin at an empty match.",
                 };
+              for (const goal of runtime.goals) {
+                lastGoal = Math.max(lastGoal, goal.sequence);
+                lastServe = Math.max(lastServe, goal.serve);
+              }
+              earlierGoals = lastGoal;
               baseline = true;
             }
             for (const receipt of receipts) {
@@ -350,13 +360,15 @@ export const testProfiles = defineAirJamTestProfiles({
                 message: "Score changed without a corresponding physical goal.",
               };
             const metrics = {
-              goals: lastGoal,
+              goals: lastGoal - earlierGoals,
               left_movement: movement.left,
               right_movement: movement.right,
             };
             return {
               status:
-                lastGoal > 0 && movement.left > 1 && movement.right > 1
+                lastGoal > earlierGoals &&
+                movement.left > 1 &&
+                movement.right > 1
                   ? "passed"
                   : "pending",
               message:

@@ -35,9 +35,10 @@ const botPolicy: AirJamTestPolicy = {
 export const testProfiles = defineAirJamTestProfiles({
   capture: {
     label: "Race the game's bot to one capture",
-    targets: ["owned"],
     seats: [{ id: "player", label: "Solaris ship" }],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
       {
         lane: "participant",
         seatId: "player",

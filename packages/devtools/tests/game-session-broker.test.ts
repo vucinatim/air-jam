@@ -277,7 +277,7 @@ it("streams a watched surface and closes only that producer when its viewer disc
     ).toMatchObject({
       activeSessionCount: 0,
       draining: false,
-      gameRunProtocolVersion: 4,
+      gameRunProtocolVersion: 5,
     });
   } finally {
     watching.mockRestore();

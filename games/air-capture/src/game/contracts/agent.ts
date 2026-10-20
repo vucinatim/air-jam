@@ -202,7 +202,7 @@ export const agentContract = defineAirJamAgentContract({
       {
         input: agentActionInput.none(),
         description: "Return the Air Capture match to the lobby.",
-        availability: "Playing or ended phases.",
+        availability: "Any phase.",
         resultDescription:
           "The match returns to the lobby with score state cleared.",
       },

@@ -5,8 +5,10 @@ export {
 } from "./runtime/contracts/control";
 
 export {
+  hostAgentRequestMessageSchema,
   hostAgentRequestSchema,
   hostAgentResponseSchema,
+  hostAgentResultMessageSchema,
   hostAgentSnapshotSchema,
   type HostAgentRequest,
   type HostAgentResponse,
@@ -17,9 +19,7 @@ export {
   hostObservationClockSchema,
   hostObservationIdentitySchema,
   hostObservationImageSchema,
-  hostObservationRequestMessageSchema,
   hostObservationRequestSchema,
-  hostObservationResponseMessageSchema,
   hostObservationSchema,
   type HostObservation,
   type HostObservationContext,

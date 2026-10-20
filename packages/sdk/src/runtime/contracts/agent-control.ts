@@ -80,3 +80,23 @@ export const hostAgentResponseSchema = z.discriminatedUnion("operation", [
 ]);
 export type HostAgentRequest = z.infer<typeof hostAgentRequestSchema>;
 export type HostAgentResponse = z.infer<typeof hostAgentResponseSchema>;
+
+/** A request from the embedding Studio editor to its mounted host document. */
+export const hostAgentRequestMessageSchema = z
+  .object({
+    type: z.literal("AIRJAM_HOST_AGENT"),
+    requestId: z.string().min(1).max(128),
+    request: hostAgentRequestSchema,
+  })
+  .strict();
+
+export const hostAgentResultMessageSchema = z
+  .object({
+    type: z.literal("AIRJAM_HOST_AGENT_RESULT"),
+    requestId: hostAgentRequestMessageSchema.shape.requestId,
+    result: z.discriminatedUnion("ok", [
+      z.object({ ok: z.literal(true), response: hostAgentResponseSchema }),
+      z.object({ ok: z.literal(false), error: z.string().min(1).max(1024) }),
+    ]),
+  })
+  .strict();

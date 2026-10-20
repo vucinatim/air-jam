@@ -8,6 +8,7 @@ import type {
   VisualScenarioPack,
 } from "../harness/visual.js";
 import { runVisualHarness } from "../harness/visual.js";
+import { evaluateOwnedGameContract } from "./runtime-owner-actions.js";
 import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {
@@ -89,7 +90,10 @@ const createScenarioAgentSession = async ({
       secure,
       controllerJoinUrl: urls.controllerJoinUrl,
     },
-    host,
+    {
+      access: "owned-host",
+      request: (request) => evaluateOwnedGameContract(host, request),
+    },
   );
 
   const read = async (): Promise<Record<string, unknown>> => {

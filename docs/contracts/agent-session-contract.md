@@ -224,10 +224,13 @@ cannot be interpreted as a completed trial while its owner is unavailable.
 
 `airjam session run stop-all` stops active runs in the project and confirms their
 cleanup without stopping unrelated manual sessions or starting an absent broker.
-An embedding application can use `airjam-mcp --external-run-control` (or the
-matching server option) to leave run start, stop and steering out of MCP while retaining reads,
-waits and discovery. Studio uses its own durable admission for those effects;
-direct CLI experiments remain local scratch and are stopped at source boundaries.
+An embedding application that owns the game room can use
+`airjam-mcp --embedded-room` (or the matching server option). MCP then omits
+every tool that would start a development server, game host, session or run of
+its own, including run start, stop and steering, while retaining inspection,
+logs, profile discovery, run reads and waits. The embedding application admits
+runs into its room; direct CLI experiments remain local scratch and are stopped
+at source boundaries.
 
 `airjam session run cancel <run-id>` fences an uncertain admission. If the run
 exists it follows normal Stop; otherwise it reserves that ID without starting a
@@ -347,8 +350,8 @@ change it while the run is active. Steering never sends a control: the policy
 still decides, through the same seat, lease and deadlines. Every change is
 recorded on the run's `steering` log with its time and source (`creator`,
 `agent` or `operator`), at most 64 per run, and in the trace. Under
-`--external-run-control` steering belongs to the embedding application, like
-start and stop. Write an intent in the terms the game's turns already use: a fast decision
+`--embedded-room` steering belongs to the embedding application, like start
+and stop. Write an intent in the terms the game's turns already use: a fast decision
 model follows "aim your paddle's centre at y=60" but cannot reliably turn "stay
 near the top" into a height. Translating strategy into such goals is the
 steering reasoner's job, and a run of low-confidence answers after a change
@@ -413,11 +416,19 @@ describe actual runtime evidence; authored assertions are not an independent
 anti-cheat oracle. Multi-seat ownership, current-room delegation, pinned-build
 formal testing and live watch share this owner.
 
+A `current` run plays in a room another editor hosts. Its attachment carries
+one controller identity per seat, issued by that editor, and an endpoint that
+forwards host agent requests to its host. The run reads state, runs host setup
+and observes through that endpoint, and its seats join as ordinary controllers
+beside any people already playing. A profile needing more seats than the
+attachment issued is refused. Profiles do not declare targets: whether a test
+may use someone's room is that room owner's decision, not the game's.
+
 ## Live owned-run viewing
 
 `watchGameRun(request, onEvent, signal)` and
 `airjam session run watch <run-id> --surface host|controller:<seat-id>` expose
-protocol-4 live viewing. The CLI writes bounded NDJSON. `ready` identifies the
+protocol-5 live viewing. The CLI writes bounded NDJSON. `ready` identifies the
 run, exact surface and JPEG dimensions; `frame` carries an increasing sequence,
 producer capture timestamp and base64 JPEG; `heartbeat` carries producer time
 and its latest capture sequence, including when the screen is static. A failed
@@ -487,11 +498,12 @@ local source is never substituted for another document's schema. Replacing a
 receiver invalidates pending controls even if the semantic contract, store epoch
 and renderer remain mounted.
 
-The browser preview can delegate this read-only operation to an explicitly
-configured development embedding parent. Both parent window and exact origin
-must match; hosted production topology does not enable it. The separate message
-protocol accepts observation only, with one bounded outstanding read. It exposes
-neither action invocation nor arbitrary evaluation. A room code or ordinary
+The browser preview answers host agent requests (observe, read, resolve and
+host action invocation) from an explicitly configured development embedding
+parent. Both parent window and exact origin must match; hosted production
+topology does not enable it. One request is outstanding at a time and each
+must name the document's own room. It exposes no arbitrary evaluation. The
+embedding editor decides which requests to forward; a room code or ordinary
 participant attachment does not acquire this delegation.
 
 ### Rendered host and controller interfaces

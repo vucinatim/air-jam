@@ -140,11 +140,11 @@ it("uses the installed devtools helpers without shipping duplicate copies", asyn
 });
 
 describe("createAirJamMcpServer", () => {
-  it("lets an embedding application own run start/stop while keeping run inspection", async () => {
+  it("leaves the game room to an embedding application while keeping inspection", async () => {
     const root = await createStandaloneGameRoot();
     const server = await createAirJamMcpServer({
       cwd: root,
-      externalRunControl: true,
+      embeddedRoom: true,
     });
     const client = new Client({ name: "test-client", version: "1" });
     const [clientTransport, serverTransport] =
@@ -155,11 +155,19 @@ describe("createAirJamMcpServer", () => {
     ]);
     try {
       const tools = (await client.listTools()).tools.map((tool) => tool.name);
-      expect(tools).not.toContain("airjam.start_game_run");
-      expect(tools).not.toContain("airjam.stop_game_run");
-      expect(tools).not.toContain("airjam.steer_game_run");
+      for (const omitted of [
+        "airjam.start_dev",
+        "airjam.start_game_run",
+        "airjam.steer_game_run",
+        "airjam.open_game_session",
+        "airjam.capture_game_session_visuals",
+      ])
+        expect(tools).not.toContain(omitted);
       expect(tools).toEqual(
         expect.arrayContaining([
+          "airjam.inspect_game_agent_contract",
+          "airjam.read_logs",
+          "airjam.list_game_test_profiles",
           "airjam.read_game_run",
           "airjam.wait_game_run",
           "airjam.list_game_runs",

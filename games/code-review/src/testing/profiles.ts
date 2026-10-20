@@ -64,9 +64,10 @@ const join = (seatId: string, team: "team1" | "team2") => ({
 export const testProfiles = defineAirJamTestProfiles({
   round: {
     label: "Fight one round against the game's bot",
-    targets: ["owned"],
     seats: [{ id: "player", label: "Coder fighter" }],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
       join("player", "team1"),
       {
         lane: "participant",
@@ -131,7 +132,6 @@ export const testProfiles = defineAirJamTestProfiles({
   },
   brawl: {
     label: "Four agent fighters, two a side, for one round",
-    targets: ["owned"],
     seats: [
       { id: "coder1", label: "Coder one" },
       { id: "coder2", label: "Coder two" },
@@ -139,6 +139,8 @@ export const testProfiles = defineAirJamTestProfiles({
       { id: "reviewer2", label: "Reviewer two" },
     ],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "coder1", actionId: "return_to_lobby" },
       join("coder1", "team1"),
       join("coder2", "team1"),
       join("reviewer1", "team2"),

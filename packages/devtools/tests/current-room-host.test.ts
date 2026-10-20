@@ -1,18 +1,19 @@
 import type {
+  HostAgentRequest,
   HostObservation,
-  HostObservationRequest,
 } from "@air-jam/sdk/runtime-control";
 import { randomUUID } from "node:crypto";
 import { createServer, type ServerResponse } from "node:http";
 import { afterEach, expect, it } from "vitest";
-import { currentRoomObserver } from "../src/current-room-observation.js";
+import { currentRoomHost } from "../src/current-room-host.js";
 import { currentRoomAttachmentSchema } from "../src/game-run-protocol.js";
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
   for (const close of cleanups.splice(0)) await close();
 });
-const request: HostObservationRequest = {
+const request: Extract<HostAgentRequest, { operation: "observe" }> = {
+  operation: "observe",
   roomId: "ROOM",
   controllerId: "agent",
   scope: "player",
@@ -64,26 +65,34 @@ async function fixture(reply: (response: ServerResponse) => void) {
   const attachment = currentRoomAttachmentSchema.parse({
     controllerJoinUrl:
       "http://localhost/controller?room=ROOM&aj_controller_cap=private-room-secret",
-    controllerId: "agent",
-    observation: {
+    controllerIds: ["agent"],
+    host: {
       endpoint: `http://127.0.0.1:${address.port}/private-target`,
       targetId: "target-secret",
     },
   });
   const ownerInstanceId = randomUUID();
   return {
-    read: currentRoomObserver(attachment, ownerInstanceId),
+    read: currentRoomHost(attachment, ownerInstanceId),
     messages,
     attachment,
     ownerInstanceId,
   };
 }
-it("uses the standard observation protocol and binds the original broker owner", async () => {
+it("uses the standard host agent protocol and binds the original broker owner", async () => {
   const frame = observation();
   const f = await fixture((response) =>
-    response.end(JSON.stringify({ ok: true, observation: frame })),
+    response.end(
+      JSON.stringify({
+        ok: true,
+        response: { operation: "observe", observation: frame },
+      }),
+    ),
   );
-  expect(await f.read(request, new AbortController().signal)).toEqual(frame);
+  expect(await f.read(request, 5000)).toEqual({
+    operation: "observe",
+    observation: frame,
+  });
   expect(f.messages).toEqual([
     { targetId: "target-secret", ownerInstanceId: f.ownerInstanceId, request },
   ]);
@@ -99,11 +108,16 @@ it.each(["room", "player", "scope", "generation"])(
     const expected = { ...observation().identity };
     if (field === "generation") frame.identity.documentId = "replacement";
     const f = await fixture((response) =>
-      response.end(JSON.stringify({ ok: true, observation: frame })),
+      response.end(
+        JSON.stringify({
+          ok: true,
+          response: { operation: "observe", observation: frame },
+        }),
+      ),
     );
-    await expect(
-      f.read({ ...request, expected }, new AbortController().signal),
-    ).rejects.toThrow("runtime_replaced");
+    await expect(f.read({ ...request, expected }, 5000)).rejects.toThrow(
+      "runtime_replaced",
+    );
   },
 );
 it.each([401, 403, 409, 500])(
@@ -114,14 +128,14 @@ it.each([401, 403, 409, 500])(
       response.end("private-room-secret target-secret");
     });
     try {
-      await f.read(request, new AbortController().signal);
+      await f.read(request, 5000);
       throw new Error("Expected rejection");
     } catch (error) {
       expect(String(error)).not.toMatch(
         /private-room-secret|target-secret|private-target/,
       );
       expect(String(error)).toMatch(
-        status === 500 ? /current_observation_unavailable/ : /runtime_replaced/,
+        status === 500 ? /current_host_unavailable/ : /runtime_replaced/,
       );
     }
   },
@@ -131,21 +145,33 @@ it("rejects redirects and oversized observations", async () => {
     response.writeHead(302, { location: "http://127.0.0.1/secret" });
     response.end();
   });
-  await expect(
-    redirect.read(request, new AbortController().signal),
-  ).rejects.toThrow("current_observation_unavailable");
+  await expect(redirect.read(request, 5000)).rejects.toThrow(
+    "current_host_unavailable",
+  );
   const large = await fixture((response) =>
     response.end("x".repeat(2 * 1024 * 1024 + 1)),
   );
-  await expect(
-    large.read(request, new AbortController().signal),
-  ).rejects.toThrow("current_observation_limit");
+  await expect(large.read(request, 5000)).rejects.toThrow("current_host_limit");
 });
-it("does not expose a provider refusal message", async () => {
-  const f = await fixture((response) =>
-    response.end(JSON.stringify({ ok: false, error: "private-room-secret" })),
+it("reports the host's own refusal and rejects an answer to another request", async () => {
+  const refused = await fixture((response) =>
+    response.end(
+      JSON.stringify({
+        ok: false,
+        error: "contract_changed: Read the current contract first.",
+      }),
+    ),
   );
-  await expect(f.read(request, new AbortController().signal)).rejects.toThrow(
-    "runtime_replaced: The delegated editor refused",
+  await expect(refused.read(request, 5000)).rejects.toThrow("contract_changed");
+  const other = await fixture((response) =>
+    response.end(
+      JSON.stringify({
+        ok: true,
+        response: { operation: "read", snapshot: null },
+      }),
+    ),
+  );
+  await expect(other.read(request, 5000)).rejects.toThrow(
+    "current_host_invalid",
   );
 });

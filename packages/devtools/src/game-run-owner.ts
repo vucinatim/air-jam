@@ -722,16 +722,13 @@ export class GameRunOwner {
     const profile = run.evaluator.profiles.find(
       (candidate) => candidate.id === run.record.request.profileId,
     );
-    if (!profile?.targets.includes(run.record.request.target.kind))
-      throw new Error("Profile does not support this run target.");
+    if (!profile) throw new Error("Unknown test profile.");
     if (
       run.attachment &&
-      (profile.seats.length !== 1 ||
-        profile.scope !== "player" ||
-        profile.setup.some((step) => step.lane === "host"))
+      profile.seats.length > run.attachment.controllerIds.length
     )
       throw new Error(
-        "current_profile_invalid: Current-room play requires one player and no host setup.",
+        `current_profile_invalid: Profile ${profile.id} needs ${profile.seats.length} seats; the creator's room issued ${run.attachment.controllerIds.length}.`,
       );
     const unknownIntent = Object.keys(run.record.request.intents ?? {}).find(
       (seatId) => !profile.seats.some((seat) => seat.id === seatId),
@@ -787,8 +784,8 @@ export class GameRunOwner {
     );
     if (
       run.attachment &&
-      (run.session.summary.controllerId !== run.attachment.controllerId ||
-        run.session.summary.semanticAccess !== "participant-only" ||
+      (run.session.summary.controllerId !== run.attachment.controllerIds[0] ||
+        run.session.summary.semanticAccess !== "delegated-host" ||
         run.session.summary.roomId !==
           new URL(run.attachment.controllerJoinUrl).searchParams.get("room"))
     )
@@ -1109,10 +1106,7 @@ export class GameRunOwner {
   ) {
     if (!run.record.profile) throw new Error("Run profile is not initialized.");
     const observation = await seat.participant.observe({
-      scope:
-        diagnostic && run.record.request.target.kind === "owned"
-          ? "diagnostic"
-          : run.record.profile.scope,
+      scope: diagnostic ? "diagnostic" : run.record.profile.scope,
       includeImage,
       expected: seat.expected,
     });

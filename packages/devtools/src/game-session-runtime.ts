@@ -2,10 +2,8 @@ import { playerProfileSchema } from "@air-jam/sdk/protocol";
 import type {
   HostAgentRequest,
   HostAgentResponse,
-  HostObservation,
   HostObservationRequest,
 } from "@air-jam/sdk/runtime-control";
-import { hostObservationRequestSchema } from "@air-jam/sdk/runtime-control";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { z } from "zod";
@@ -32,9 +30,7 @@ import type { PinnedGameBuild } from "./game-build-protocol.js";
 import type { GameRunParticipant, GameRunSession } from "./game-run-owner.js";
 import { GameSessionOperations } from "./game-session-operations.js";
 import { gameSessionOperationSchemas } from "./game-session-protocol.js";
-import type { VisualHarnessPageSurface } from "./harness/visual.js";
 import type { ProcessScopeObserver } from "./managed-process-scope.js";
-import { evaluateOwnedGameContract } from "./tooling/runtime-owner-actions.js";
 import type {
   AirJamGameAgentActionDescriptor,
   AirJamGameSessionActionDescriptor,
@@ -68,16 +64,19 @@ export type {
   SendGameSessionInputResult,
 } from "./types.js";
 
+/** Sends one semantic request to the game's host realm. */
+export type HostRequester = (
+  request: HostAgentRequest,
+  timeoutMs: number,
+  signal?: AbortSignal,
+) => Promise<HostAgentResponse>;
+
 type InternalGameSession = {
   summary: AirJamGameSessionSummary;
   operations: GameSessionOperations;
   devProcessId: string | null;
   disconnection?: Awaited<ReturnType<typeof disconnectController>>;
-  requestHost: (
-    request: HostAgentRequest,
-    timeoutMs: number,
-    signal?: AbortSignal,
-  ) => Promise<HostAgentResponse>;
+  requestHost: HostRequester;
 };
 
 export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
@@ -184,7 +183,8 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
 
   const openGameSession = async (
     options: OpenGameSessionOptions = {},
-    ownedHost?: VisualHarnessPageSurface,
+    /** A host realm this session reaches directly rather than through its controller. */
+    host?: { access: "owned-host" | "delegated-host"; request: HostRequester },
     build?: PinnedGameBuild,
     onScope?: ProcessScopeObserver,
   ): Promise<AirJamGameSessionSummary> => {
@@ -211,22 +211,17 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       const gameId =
         runtime.gameId ?? controllerSession.gameId ?? options.gameId ?? null;
       const ownsHost =
-        !!ownedHost ||
+        !!host ||
         ownsControllerSessionHost(controllerSession.controllerSessionId);
-      const requestHost = ownedHost
-        ? (request: HostAgentRequest) =>
-            evaluateOwnedGameContract(ownedHost, request)
-        : (
-            request: HostAgentRequest,
-            timeoutMs: number,
-            signal?: AbortSignal,
-          ) =>
-            requestControllerHostAgent(
-              controllerSession.controllerSessionId,
-              request,
-              timeoutMs,
-              signal,
-            );
+      const requestHost: HostRequester =
+        host?.request ??
+        ((request, timeoutMs, signal) =>
+          requestControllerHostAgent(
+            controllerSession.controllerSessionId,
+            request,
+            timeoutMs,
+            signal,
+          ));
       const live = ownsHost
         ? await operations.run(timeoutMs, (signal) =>
             requestHost(
@@ -243,7 +238,8 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       const contract = live?.operation === "read" ? live.snapshot : null;
       const gameActions = contract?.actions ?? [];
       const summary: AirJamGameSessionSummary = {
-        semanticAccess: ownsHost ? "owned-host" : "participant-only",
+        semanticAccess:
+          host?.access ?? (ownsHost ? "owned-host" : "participant-only"),
         ownerInstanceId,
         gameSessionId: randomUUID(),
         cwd: options.cwd ?? process.cwd(),
@@ -581,19 +577,23 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
     async openRunSession(
       options: OpenGameSessionOptions,
       {
-        delegatedObservation,
+        delegation,
         build,
         onScope,
       }: {
-        delegatedObservation?: (
-          request: HostObservationRequest,
-          signal: AbortSignal,
-        ) => Promise<HostObservation>;
+        /** The creator's host and the further seat identities its editor issued. */
+        delegation?: { host: HostRequester; seatControllerIds: string[] };
         build?: PinnedGameBuild;
         onScope?: ProcessScopeObserver;
       } = {},
     ): Promise<GameRunSession> {
-      const summary = await openGameSession(options, undefined, build, onScope);
+      const summary = await openGameSession(
+        options,
+        delegation && { access: "delegated-host", request: delegation.host },
+        build,
+        onScope,
+      );
+      const seatControllerIds = [...(delegation?.seatControllerIds ?? [])];
       const gameSessionId = summary.gameSessionId;
       const session = getRequiredGameSession(gameSessionId);
       const checkParticipant = async (
@@ -617,18 +617,6 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
         (input) =>
           session.operations.run(DEFAULT_TIMEOUT_MS, async (signal) => {
             await checkParticipant(controllerSessionId, controllerId);
-            if (delegatedObservation) {
-              const observation = await delegatedObservation(
-                hostObservationRequestSchema.parse({
-                  roomId: summary.roomId,
-                  controllerId,
-                  ...input,
-                }),
-                signal,
-              );
-              await checkParticipant(controllerSessionId, controllerId);
-              return observation;
-            }
             const result = await session.requestHost(
               {
                 operation: "observe",
@@ -688,15 +676,17 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
         control: (input) =>
           controlGameSessionParticipant({ ...input, gameSessionId }),
         async addParticipant(nickname) {
-          if (delegatedObservation)
+          const delegatedId = delegation ? seatControllerIds.shift() : null;
+          if (delegation && !delegatedId)
             throw new Error(
-              "current_room_scope: Delegated play owns one participant.",
+              "current_room_scope: The creator's room issued no further seat.",
             );
           const controller = await connectController({
             cwd: summary.cwd,
             gameId: summary.gameId ?? undefined,
             controllerJoinUrl: summary.controllerJoinUrl,
-            controllerId: `ctrl_agent_${randomUUID().replaceAll("-", "")}`,
+            controllerId:
+              delegatedId ?? `ctrl_agent_${randomUUID().replaceAll("-", "")}`,
             deviceId: `airjam-agent-${randomUUID()}`,
             nickname,
           });
@@ -733,10 +723,6 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
           } satisfies GameRunParticipant;
         },
         invokeHost: async (actionId, payload) => {
-          if (delegatedObservation)
-            throw new Error(
-              "current_room_scope: Delegated play cannot invoke host setup.",
-            );
           const result = await invokeGameSessionAction({
             gameSessionId,
             actionId: `host:${actionId}`,

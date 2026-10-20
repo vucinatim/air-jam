@@ -64,7 +64,6 @@ const fixtures: Array<{
 const profile: AirJamTestProfileDescription = {
   id: "counter",
   label: "Counter",
-  targets: ["owned"],
   seats: [{ id: "player", label: "Player" }],
   setup: [],
   actions: ["tap"],
@@ -299,11 +298,20 @@ async function fixture({
   };
 }
 
-it("joins only its delegated player alongside humans and keeps access out of records and traces", async () => {
+const attachment = (controllerIds = ["player"]) => ({
+  controllerJoinUrl:
+    "http://localhost/controller?room=ROOM&aj_controller_cap=never-persist-this",
+  controllerIds,
+  host: {
+    endpoint: "https://private-host.invalid/request",
+    targetId: "ephemeral-target",
+  },
+});
+
+it("joins the creator's room alongside humans and keeps access out of records and traces", async () => {
   const f = await fixture();
   const currentProfile: AirJamTestProfileDescription = {
     ...profile,
-    targets: ["current"],
     scope: "player",
   };
   io.startPolicy.mockImplementation(async (options) => ({
@@ -314,21 +322,13 @@ it("joins only its delegated player alongside humans and keeps access out of rec
     stop: options.role === "evaluator" ? io.stopEvaluator : io.stopPolicy,
   }));
   f.request.target = { kind: "current" };
-  f.session.summary.semanticAccess = "participant-only";
+  f.session.summary.semanticAccess = "delegated-host";
   vi.mocked(f.session.readParticipants).mockResolvedValue({
     roomId: "ROOM",
     controllerIds: ["human", "player"],
   });
-  const attachment = {
-    controllerJoinUrl:
-      "http://localhost/controller?room=ROOM&aj_controller_cap=never-persist-this",
-    controllerId: "player",
-    observation: {
-      endpoint: "https://private-observation.invalid/read",
-      targetId: "ephemeral-target",
-    },
-  };
-  await f.owner.start(f.request, attachment);
+  const granted = attachment();
+  await f.owner.start(f.request, granted);
   await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
   await expect(
     f.owner.watch(
@@ -337,29 +337,20 @@ it("joins only its delegated player alongside humans and keeps access out of rec
       new AbortController().signal,
     ),
   ).rejects.toThrow("active owned");
-  const retry = await f.owner.start(f.request, {
-    ...attachment,
-    controllerId: "another-player",
-  });
+  const retry = await f.owner.start(f.request, attachment(["another"]));
   expect(retry.state).not.toBe("ended");
   expect(f.openSession).toHaveBeenCalledOnce();
   expect(f.openSession).toHaveBeenCalledWith({
     runId: f.request.runId,
     gameId: undefined,
     nickname: "Agent 1",
-    attachment,
+    attachment: granted,
     build: undefined,
     onScope: expect.any(Function),
   });
   const record = await f.owner.stop(f.request.runId);
   expect(record.cleanup?.participantsClosed).toBe(true);
   expect(f.session.addParticipant).not.toHaveBeenCalled();
-  expect(f.session.invokeHost).not.toHaveBeenCalled();
-  expect(
-    vi
-      .mocked(f.session.observe)
-      .mock.calls.every(([input]) => input.scope === "player"),
-  ).toBe(true);
   const directory = path.join(
     f.root,
     ".airjam",
@@ -370,7 +361,7 @@ it("joins only its delegated player alongside humans and keeps access out of rec
   for (const name of ["record.json", "trace.ndjson"]) {
     const content = await readFile(path.join(directory, name), "utf8");
     expect(content).not.toMatch(
-      /never-persist-this|ephemeral-target|private-observation/,
+      /never-persist-this|ephemeral-target|private-host/,
     );
   }
 });
@@ -380,40 +371,56 @@ it("refuses current-room admission without delegated access and refuses access o
   await expect(
     f.owner.start({ ...f.request, target: { kind: "current" } }),
   ).rejects.toThrow("current_attachment_required");
-  await expect(
-    f.owner.start(f.request, {
-      controllerJoinUrl: "http://localhost/controller?room=ROOM",
-      controllerId: "player",
-      observation: {
-        endpoint: "https://private.invalid/read",
-        targetId: "target",
-      },
-    }),
-  ).rejects.toThrow("unexpected_attachment");
+  await expect(f.owner.start(f.request, attachment())).rejects.toThrow(
+    "unexpected_attachment",
+  );
   expect(f.openSession).not.toHaveBeenCalled();
 });
 
-it("refuses a diagnostic profile before attaching to a human room", async () => {
-  const f = await fixture();
+it("refuses a profile that needs more seats than the creator's room issued", async () => {
+  const f = await twoSeatFixture();
+  f.request.target = { kind: "current" };
+  await f.owner.start(f.request, attachment());
+  const record = await f.ended();
+  expect(record.end?.message).toContain("current_profile_invalid");
+  expect(f.openSession).not.toHaveBeenCalled();
+});
+
+it("seats several agents in the creator's room and runs host setup through it", async () => {
+  const f = await twoSeatFixture();
   io.startPolicy.mockImplementation(async (options) => ({
-    profiles: [{ ...profile, targets: ["current"] }],
+    profiles: [
+      {
+        ...structuredClone(profile),
+        seats: [
+          { id: "left", label: "Left" },
+          { id: "right", label: "Right" },
+        ],
+        setup: [{ lane: "host", actionId: "start_round" }],
+      },
+    ],
     decide: io.decide,
     evaluate: io.evaluate,
     busy: () => false,
     stop: options.role === "evaluator" ? io.stopEvaluator : io.stopPolicy,
   }));
   f.request.target = { kind: "current" };
-  await f.owner.start(f.request, {
-    controllerJoinUrl: "http://localhost/controller?room=ROOM",
-    controllerId: "player",
-    observation: {
-      endpoint: "https://private.invalid/read",
-      targetId: "target",
-    },
-  });
+  f.session.summary.semanticAccess = "delegated-host";
+  f.session.readParticipants = vi.fn(async () => ({
+    roomId: "ROOM",
+    controllerIds: ["human", "player", "second"],
+  }));
+  io.decide.mockResolvedValue({ control: { kind: "action", actionId: "tap" } });
+  passAfterEffect("Both seats played.");
+  await f.owner.start(f.request, attachment(["player", "second"]));
   const record = await f.ended();
-  expect(record.end?.message).toContain("current_profile_invalid");
-  expect(f.openSession).not.toHaveBeenCalled();
+  expect(record.end?.outcome).toBe("passed");
+  expect(f.session.addParticipant).toHaveBeenCalledOnce();
+  expect(f.session.invokeHost).toHaveBeenCalledWith("start_round", undefined);
+  expect(record.seats.map((seat) => seat.controllerId)).toEqual([
+    "player",
+    "second",
+  ]);
 });
 
 async function twoSeatFixture() {

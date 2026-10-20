@@ -22,7 +22,7 @@ import {
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
 } from "./contracts/inspection";
-import { publishEmbeddedHostObservation } from "./host-observation-bridge";
+import { publishEmbeddedHostAgent } from "./host-agent-bridge";
 import { publishEmbeddedHostPreview } from "./preview-inspection-bridge";
 import {
   controllerRuntimeContext,
@@ -52,15 +52,15 @@ const HostRuntimeInspectionPublisher = (): null => {
     }
 
     publishRuntimeInspectionContract(window, inspection);
-    const stopObserving = publishEmbeddedHostObservation(inspection, topology);
+    const hostAgent = publishEmbeddedHostAgent(inspection, topology);
     const stopPublishing = publishEmbeddedHostPreview(
       inspection,
       topology,
-      stopObserving.supported,
+      hostAgent.supported,
     );
     return () => {
       stopPublishing();
-      stopObserving.close();
+      hostAgent.close();
       if (readRuntimeInspectionContract(window)?.role === "host") {
         publishRuntimeInspectionContract(window, null);
       }

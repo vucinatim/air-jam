@@ -15,10 +15,6 @@ export const airJamTestProfileDescriptionSchema = z
   .object({
     id,
     label: z.string().min(1).max(120),
-    targets: z
-      .array(z.enum(["owned", "current"]))
-      .min(1)
-      .max(2),
     seats: z
       .array(z.object({ id, label: z.string().min(1).max(80) }).strict())
       .min(1)
@@ -265,16 +261,6 @@ export function describeAirJamTestProfiles(
     for (const setup of description.setup) {
       if (setup.lane === "participant" && !seats.has(setup.seatId))
         throw new Error(`Unknown setup seat ${setup.seatId}.`);
-    }
-    if (
-      description.targets.includes("current") &&
-      (description.seats.length !== 1 ||
-        description.scope !== "player" ||
-        description.setup.some((setup) => setup.lane === "host"))
-    ) {
-      throw new Error(
-        "Current-room profiles require one seat, player observations and participant-only setup.",
-      );
     }
     return description;
   });
