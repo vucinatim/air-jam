@@ -348,6 +348,9 @@ const toActionContext = (
   connectedPlayerIds,
 });
 
+/** How long an action called before its session connects waits for it. */
+const AIR_JAM_ACTION_SESSION_WAIT_MS = 10_000;
+
 /**
  * Creates a networked Zustand store that syncs state from host to controllers.
  *
@@ -381,6 +384,23 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     },
   };
   const runtimeBindings = new Map<string, StoreRuntimeBinding>();
+  // Actions called while the session is still connecting (for example from
+  // a component that mounts before its room exists) wait for it instead of
+  // being dropped.
+  const sessionWaiters = new Set<() => void>();
+  const sessionReady = (runtime: StoreRuntimeSnapshot) =>
+    runtime.role === "host" ||
+    (runtime.role === "controller" && Boolean(runtime.roomId));
+  const waitForSession = () =>
+    new Promise<StoreRuntimeSnapshot>((resolve) => {
+      const finish = () => {
+        clearTimeout(timeout);
+        sessionWaiters.delete(finish);
+        resolve(runtimeSnapshotRef.current);
+      };
+      const timeout = setTimeout(finish, AIR_JAM_ACTION_SESSION_WAIT_MS);
+      sessionWaiters.add(finish);
+    });
   const hostActionListeners = new Set<
     HostActionListenerRegistration<T["actions"]>
   >();
@@ -427,7 +447,9 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           });
         }
 
-        const runtime = runtimeSnapshotRef.current;
+        const runtime = sessionReady(runtimeSnapshotRef.current)
+          ? runtimeSnapshotRef.current
+          : await waitForSession();
 
         if (mode.kind === "player" && runtime.role !== "host") {
           emitAirJamDiagnostic({
@@ -557,8 +579,8 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         if (runtime.role !== "controller" || !runtime.roomId) {
           emitAirJamDiagnostic({
             code: "AJ_STORE_ACTION_SESSION_NOT_READY",
-            severity: "warn",
-            message: `[AirJamStore] Action "${actionName}" blocked: session role not ready.`,
+            severity: "error",
+            message: `[AirJamStore] Action "${actionName}" dropped: the session was not ready within ${AIR_JAM_ACTION_SESSION_WAIT_MS / 1000} s.`,
             details: {
               actionName,
               role: runtime.role,
@@ -1085,6 +1107,8 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       hostStateRevisionFloor,
       connectedPlayerIds,
     };
+    if (sessionReady(runtimeSnapshotRef.current))
+      for (const release of [...sessionWaiters]) release();
 
     const runtimeBindingKey =
       socket && roomId && role
