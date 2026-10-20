@@ -224,10 +224,13 @@ cannot be interpreted as a completed trial while its owner is unavailable.
 
 `airjam session run stop-all` stops active runs in the project and confirms their
 cleanup without stopping unrelated manual sessions or starting an absent broker.
-An embedding application can use `airjam-mcp --external-run-control` (or the
-matching server option) to leave run start, stop and steering out of MCP while retaining reads,
-waits and discovery. Studio uses its own durable admission for those effects;
-direct CLI experiments remain local scratch and are stopped at source boundaries.
+An embedding application that owns the game room can use
+`airjam-mcp --embedded-room` (or the matching server option). MCP then omits
+every tool that would start a development server, game host, session or run of
+its own, including run start, stop and steering, while retaining inspection,
+logs, profile discovery, run reads and waits. The embedding application admits
+runs into its room; direct CLI experiments remain local scratch and are stopped
+at source boundaries.
 
 `airjam session run cancel <run-id>` fences an uncertain admission. If the run
 exists it follows normal Stop; otherwise it reserves that ID without starting a
@@ -347,8 +350,8 @@ change it while the run is active. Steering never sends a control: the policy
 still decides, through the same seat, lease and deadlines. Every change is
 recorded on the run's `steering` log with its time and source (`creator`,
 `agent` or `operator`), at most 64 per run, and in the trace. Under
-`--external-run-control` steering belongs to the embedding application, like
-start and stop. Write an intent in the terms the game's turns already use: a fast decision
+`--embedded-room` steering belongs to the embedding application, like start
+and stop. Write an intent in the terms the game's turns already use: a fast decision
 model follows "aim your paddle's centre at y=60" but cannot reliably turn "stay
 near the top" into a height. Translating strategy into such goals is the
 steering reasoner's job, and a run of low-confidence answers after a change

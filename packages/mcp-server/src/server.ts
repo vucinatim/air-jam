@@ -40,12 +40,34 @@ const createToolErrorResult = (error: unknown): CallToolResult => ({
   isError: true,
 });
 
+/**
+ * Tools an embedding application replaces when it owns the game room: it runs
+ * the development server, hosts the game and admits test runs into that room,
+ * so agents never start another host, dev server or run of their own.
+ */
+const EMBEDDED_ROOM_OMITTED_TOOLS = new Set([
+  "airjam.start_dev",
+  "airjam.stop_dev",
+  "airjam.reset_local",
+  "airjam.start_game_run",
+  "airjam.stop_game_run",
+  "airjam.steer_game_run",
+  "airjam.open_game_session",
+  "airjam.control_game_session_participant",
+  "airjam.send_game_session_input",
+  "airjam.read_game_session",
+  "airjam.observe_game_session",
+  "airjam.invoke_game_session_action",
+  "airjam.capture_game_session_visuals",
+  "airjam.close_game_session",
+]);
+
 export const createAirJamMcpServer = async ({
   cwd = process.cwd(),
-  externalRunControl = false,
+  embeddedRoom = false,
 }: {
   cwd?: string;
-  externalRunControl?: boolean;
+  embeddedRoom?: boolean;
 } = {}): Promise<McpServer> => {
   const context = await detectProjectContext({ cwd });
   const toolDefinitions = buildToolDefinitions({
@@ -79,13 +101,7 @@ export const createAirJamMcpServer = async ({
   );
 
   for (const toolName of registeredToolNames) {
-    if (
-      externalRunControl &&
-      (toolName === "airjam.start_game_run" ||
-        toolName === "airjam.stop_game_run" ||
-        toolName === "airjam.steer_game_run")
-    )
-      continue;
+    if (embeddedRoom && EMBEDDED_ROOM_OMITTED_TOOLS.has(toolName)) continue;
     const tool = toolDefinitions[toolName];
     const description = describeToolForRegistration({
       description: tool.description,
