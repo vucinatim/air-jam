@@ -134,8 +134,12 @@ Incremental production deployment applies to fixes that land on `main`, not to
 1. cut each roadmap item's branch from the current `release/1.0` tip and open
    its pull request into `release/1.0`; merge it only with a successful
    canonical `checks` job, the single final GitHub review clear or its
-   conversations resolved, and no planned edits remaining. `release/1.0` has
-   no branch protection yet, so agents enforce these gates before each merge
+   conversations resolved, and no planned edits remaining. On 2026-10-21 Tim
+   decided that public `release/1.0` carries the same branch protection as
+   public `main`: the strict, up-to-date `checks` job and resolved
+   conversations, enforced for admins too. Private `release/1.0` cannot be
+   protected on the current GitHub plan, so agents enforce these gates there
+   under that repository's agent-enforced merge-gate exception
 2. update the item's readiness status in the private release program in the
    same change: in the private pull request itself, or in a paired private
    pull request for public work
