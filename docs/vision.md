@@ -66,6 +66,20 @@ is recommended by templates and agent guidance because it makes those tests
 easier to write. Air Capture is the reference case: a physics-heavy 3D game
 whose logic still runs from its per-frame render hook.
 
+The same clock gives replays. A match recorded as its seed and controller
+inputs plays back exactly: watched again at any speed, scrubbed, or seen from
+any seat, by a person or an agent. Replays are a consequence of render-free
+logic, not a separate recorder bolted onto each game.
+
+## Live game settings
+
+Roadmap direction, not started. A game declares the settings worth tuning,
+such as ball speed, gravity or points to win, with a type, range, default and
+whether a change applies live or at the next round, the way it declares test
+profiles. Tools build controls from that declaration, and agents read and set
+the same values through the same contract. Trying a value is then not a code
+change; keeping it writes it into the source.
+
 ## Open foundation and private product
 
 The foundation owns the SDK, runtime, standalone server, CLI, MCP, reusable
