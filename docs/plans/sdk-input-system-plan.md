@@ -1,7 +1,7 @@
 # SDK Input System Plan
 
 Last updated: 2026-10-20
-Status: direction agreed with Tim, not started; follows the core layering plan's game clock
+Status: direction agreed with Tim, not started; follows the core layering plan's game clock; phases 1 and 2 are 1.0 scope
 
 This plan owns how players' input gets from any device into a game: one
 declaration of what a game reads, one set of meanings for buttons and sticks,
@@ -107,8 +107,8 @@ step: (sim, { input }) => {
 ## Delivery sequence
 
 Each phase is production-valid on its own. Phases 1 and 2 change the public
-API; under the 1.0 roadmap's rule that API-shaping phases land before 1.0,
-they are 1.0 scope once Tim confirms. Phases 3 and 4 only add.
+API and land before 1.0, as the 1.0 roadmap records; phases 3 and 4 only add
+and may follow it.
 
 ### 1. Declared controls on the clock
 
