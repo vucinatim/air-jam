@@ -33,7 +33,8 @@ acting as another task tracker.
 
 - [SDK core layering](./plans/sdk-core-layering-plan.md): a framework-free core
   with React as its binding, an SDK-owned clock for headless and replayable
-  play, and a written protocol for other engines
+  play, a written protocol for other engines, and agent lanes that keep
+  agent-written games on the supported path
 
 ## Runtime and authoring contracts
 

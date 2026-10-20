@@ -9,7 +9,10 @@ The [core layering plan](./plans/sdk-core-layering-plan.md) moves the runtime
 out of React hooks into a framework-free `@air-jam/sdk/core` with React as its
 binding, gives the SDK the game clock so logic runs headless and faster than
 real time, ports Air Capture to it and writes down the protocol for other
-engines. The SDK stays one package.
+engines. The SDK stays one package. Its agent-lanes phase gives games one
+declaration, an architecture gate in `airjam evaluate`, exemplary templates and
+one short rules file that updates with Air Jam; changes before 1.0 are clean
+breaks with migration notes, not deprecations.
 
 ## Native observation and isolated playtesting
 

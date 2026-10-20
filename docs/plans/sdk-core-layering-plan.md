@@ -5,7 +5,9 @@ Status: direction agreed with Tim, not started
 
 This plan owns giving the SDK a small framework-free core with React as a thin
 binding over it, an SDK-owned clock that lets game logic run without drawing,
-and a written protocol other engines can implement. The
+a written protocol other engines can implement, and agent lanes: a game
+declaration, checks and templates that keep agent-written games on the
+supported path. The
 [vision](../vision.md) owns why: gameplay testing without drawing, replays and
 live game settings all depend on it. The
 [framework paradigm](../framework-paradigm.md) owns the three runtime lanes and
@@ -39,6 +41,16 @@ deterministic; the wrapper is what ties physics to drawing. Pong, Code Review
 and The Office already use the SDK clock; Last Band Standing and
 Minimal are driven by actions alone.
 
+Nearly every Air Jam game will be written by agents with no person reading the
+code, so what agents copy and what the tools reject decides game quality more
+than any guidance. Today new projects get about 2,000 lines of mostly advisory
+guidance (an instructions file, ten skills and fifteen reference docs), while
+the Air Capture template demonstrates the pattern that guidance warns against.
+The project's instructions file and skills belong to the project once created
+and are never updated, so every game keeps the guidance it was born with.
+Studio's worker has to be told that project guidance mentioning local session
+and dev-server tools does not apply there.
+
 ## Decision
 
 1. **A framework-free core.** A plain runtime object per surface, host and
@@ -65,6 +77,10 @@ Minimal are driven by actions alone.
    sync, actions, signals, commands and the agent contract are written down
    with a conformance suite. The TypeScript core is its first implementation;
    a Unity or Godot host would be another.
+7. **Agents stay in lanes by construction.** What matters to tools is declared
+   in one place, wrong paths fail checks whose errors name the fix, every
+   template is exemplary, and the remaining guidance is short, the same in
+   Studio and standalone, and updated with Air Jam.
 
 ## Delivery sequence
 
@@ -125,6 +141,66 @@ fails on a deliberately broken host.
 Done when each export has one documented purpose and the docs show the core
 and the React binding as one system.
 
+### 6. Agent lanes
+
+1. **One game declaration.** `airjam.config.ts` becomes the single place a
+   game declares what tools rely on: state and actions, the step function,
+   settings with their ranges, assets, theme tokens, test profiles and the
+   player contract for agents. Tools read only what is declared, so the
+   declared path is the one that gets live settings, headless tests, replays
+   and Studio panels.
+2. **Architecture checks.** `airjam evaluate` and its MCP tool gain an
+   architecture gate beside typecheck, lint, tests and build. It fails on
+   outcome logic advanced from render hooks, physics owned by rendering
+   components, undeclared settings or assets, a missing headless test, or a
+   missing player contract. Each failure states what is wrong and the exact
+   change that fixes it. Studio runs it after every worker turn.
+3. **Exemplary templates.** Every template passes the architecture gate and
+   demonstrates the declared path; a template that cannot is not offered.
+4. **One short rules file.** The rules move into the Air Jam-managed pack,
+   which updates with the CLI. A project's own instructions file shrinks to a
+   pointer to those rules plus that project's notes. Skills consolidate into
+   the few workflows that need them.
+5. **Environment from the tools.** Guidance says to use what the Air Jam tools
+   offer; the MCP and CLI advertise which tools exist in the current
+   environment, so Studio's embedded room and local development need no
+   contradicting instructions.
+
+Done when a fresh agent, given only "make a game like X" in a new project and
+in Studio, produces a game that passes the architecture gate with declared
+settings and a headless test, and Studio's worker instructions no longer
+override project guidance.
+
+## Releases and removals
+
+The SDK is at 0.9 and semantic versioning starts at 1.0, so these changes are
+clean breaks, not deprecations. No deprecated aliases or parallel old paths
+ship. Each break comes with:
+
+1. an architecture-gate or type error that names the replacement
+2. a section in the migration guide
+3. first-party games and templates already migrated in the same change
+
+Removed along the way:
+
+1. the runtime-owning hook internals, replaced by the core; public hooks keep
+   their names only where they remain the right binding
+2. root and subpath exports the surface audit finds unused or duplicated
+3. logic advanced from render hooks and physics owned by rendering components
+   in first-party games and templates, starting with Air Capture
+4. the full rulebook in project-owned instructions files and the ten
+   project-owned skills, replaced by the managed rules and a pointer; an
+   `airjam ai-pack` migration shows the change and keeps the project's own
+   notes
+5. Studio's worker instructions that override project guidance
+6. advisory guidance made redundant by a check
+
+Breaking public exports after 1.0 needs a major release. Phases 1, 5 and the
+declaration surface of phase 6 shape the public API, so they belong before 1.0;
+the clock, Air Capture, the protocol suite and the checks extend it and can
+follow. Whether 1.0 waits for them is Tim's release-scope decision in the
+private 1.0 roadmap.
+
 ## What it unlocks
 
 1. fast gameplay tests without drawing, locally and in Studio
@@ -134,6 +210,8 @@ and the React binding as one system.
 4. Studio test seats and agent tools using the same core as games instead of
    their own clients
 5. hosts in other engines through the protocol
+6. agent-written games that land on the supported path without a person
+   reviewing them
 
 ## Stop rules
 
@@ -142,3 +220,5 @@ and the React binding as one system.
 3. stop before requiring any code structure beyond outcome logic on the clock
 4. stop before splitting the SDK into multiple packages
 5. stop before building another engine's host before the protocol suite exists
+6. stop before keeping a deprecated path alongside its replacement
+7. stop before a rule that exists only as guidance when a check can enforce it
