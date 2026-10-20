@@ -8,6 +8,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createConnectionStore } from "../src/core/connection-store";
 import { onAirJamDiagnostic } from "../src/diagnostics";
 import { useAirJamController } from "../src/hooks/use-air-jam-controller";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
@@ -22,7 +23,6 @@ import {
   AirJamControllerRuntime,
   AirJamHostRuntime,
 } from "../src/runtime/session-runtimes";
-import { createConnectionStore } from "../src/core/connection-store";
 
 interface MockSocket {
   connected: boolean;

@@ -15,11 +15,11 @@ import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JoinQrOverlay } from "../src/components/join-qr-overlay";
 import { RoomQrCode } from "../src/components/room-qr-code";
+import { createConnectionStore } from "../src/core/connection-store";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
 import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
 import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
-import { createConnectionStore } from "../src/core/connection-store";
 import { urlBuilder } from "../src/utils/url-builder";
 
 const mocked = vi.hoisted(() => ({
