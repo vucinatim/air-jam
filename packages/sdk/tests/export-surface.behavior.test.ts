@@ -81,9 +81,10 @@ describe("sdk export surface", () => {
     expect("useAudioSettings" in sdk).toBe(false);
   });
 
-  it("exposes canonical host loop primitives on root export", () => {
-    expect("useHostTick" in sdk).toBe(true);
+  it("exposes the controller loop and leaves host loops to the simulation", () => {
     expect("useControllerTick" in sdk).toBe(true);
+    expect("useHostTick" in sdk).toBe(false);
+    expect("useSimulationFrame" in sdk).toBe(true);
   });
 
   it("keeps duplicate session/state hook aliases off the root export", () => {

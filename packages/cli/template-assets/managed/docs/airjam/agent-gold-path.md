@@ -48,7 +48,7 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 7. If a store action needs a host-only local side effect like audio, sim refs, or one-shot UI effects, use `useHostActionListener(gameStore, ...)` instead of replicated queue-and-drain state.
 8. `resultDescription` is documentation for agents and humans about the expected semantic effect. It does not automatically become runtime result data.
 9. If an action must return actual runtime result data, return `acceptAirJamAction(result)` from the store action and read the acknowledgement/result separately.
-10. For host gameplay loops, prefer `useHostTick(...)` over hand-rolled `requestAnimationFrame` or `setInterval` loops unless you have a documented reason not to.
+10. Put per-step gameplay in a declared simulation (`defineAirJamSimulation`, declared with `createAirJamApp({ simulation })`): step it with game time and `random` from its context, declare what agents see with `observe`, and draw it with `useSimulationFrame`. Never hand-roll `requestAnimationFrame` or `setInterval` gameplay loops.
 
 ## Import Rules
 

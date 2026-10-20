@@ -1,6 +1,6 @@
 import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
-import { useEffect, useMemo } from "react";
-import { FIGHTER_SLOTS } from "../../game/engine/constants";
+import { useMemo } from "react";
+import { resolveSlotParticipants } from "../../game/engine/slot-participants";
 import type { PlayerKey, SlotParticipant } from "../../game/engine/types";
 import { gameStore } from "../../game/stores";
 
@@ -13,67 +13,14 @@ export const useCodeReviewHostTeams = () => {
   );
   const botCounts = useAirJamStore(gameStore, (state) => state.botCounts);
   const matchPhase = useAirJamStore(gameStore, (state) => state.matchPhase);
-  const actions = gameStore.actions;
-
-  const connectedPlayerIds = useMemo(
-    () => players.map((player) => player.id),
-    [players],
-  );
   const assignedHumanPlayers = useMemo(
     () => players.filter((player) => teamAssignments[player.id]),
     [players, teamAssignments],
   );
-  const humanBySlotKey = useMemo(() => {
-    const bySlot = new Map<PlayerKey, { id: string; label: string }>();
-
-    assignedHumanPlayers.forEach((player) => {
-      const assignment = teamAssignments[player.id];
-      if (!assignment) {
-        return;
-      }
-
-      const slotKey =
-        `${assignment.team === "team1" ? "player1" : "player2"}${assignment.position === "front" ? "Front" : "Back"}` as PlayerKey;
-      bySlot.set(slotKey, { id: player.id, label: player.label });
-    });
-
-    return bySlot;
-  }, [assignedHumanPlayers, teamAssignments]);
-  const slotParticipants = useMemo<SlotParticipant[]>(() => {
-    const remainingBots = { ...botCounts };
-    const participants: SlotParticipant[] = [];
-
-    FIGHTER_SLOTS.forEach((slot) => {
-      const human = humanBySlotKey.get(slot.slotKey);
-      if (human) {
-        participants.push({
-          id: human.id,
-          label: human.label,
-          slotKey: slot.slotKey,
-          team: slot.team,
-          position: slot.position,
-          isBot: false,
-        });
-        return;
-      }
-
-      if (remainingBots[slot.team] <= 0) {
-        return;
-      }
-
-      remainingBots[slot.team] -= 1;
-      participants.push({
-        id: slot.botId,
-        label: slot.botLabel,
-        slotKey: slot.slotKey,
-        team: slot.team,
-        position: slot.position,
-        isBot: true,
-      });
-    });
-
-    return participants;
-  }, [botCounts, humanBySlotKey]);
+  const slotParticipants = useMemo<SlotParticipant[]>(
+    () => resolveSlotParticipants(players, teamAssignments, botCounts),
+    [botCounts, players, teamAssignments],
+  );
   const participantBySlot = useMemo(
     () =>
       Object.fromEntries(
@@ -129,10 +76,6 @@ export const useCodeReviewHostTeams = () => {
       team2Occupancy,
     ],
   );
-
-  useEffect(() => {
-    actions.syncConnectedPlayers({ connectedPlayerIds });
-  }, [actions, connectedPlayerIds]);
 
   return {
     assignedHumanPlayers,

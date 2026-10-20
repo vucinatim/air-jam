@@ -570,7 +570,7 @@ const host = useAirJamHost();
 1. Define one `airjam` app config with `createAirJamApp`.
 2. On controllers, publish input with `useControllerTick` + `useInputWriter`.
 3. On hosts, read input with `getInput` / `useGetInput`.
-4. For host gameplay loops, prefer `useHostTick(...)` over hand-rolled `requestAnimationFrame` or `setInterval` loops.
+4. Put per-step gameplay in a declared simulation (`defineAirJamSimulation` from `@air-jam/sdk/core`, declared with `createAirJamApp({ simulation })`); draw it with `useSimulationFrame` instead of hand-rolled `requestAnimationFrame` or `setInterval` loops.
 5. Keep replicated gameplay state in `createAirJamStore` and declare it in `createAirJamApp({ stores })`.
 6. Dispatch all store actions through `store.actions` zero-arg or payload-object calls and check the returned acknowledgement when outcome matters.
 

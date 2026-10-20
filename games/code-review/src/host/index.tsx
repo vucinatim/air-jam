@@ -1,6 +1,7 @@
 /**
- * Host surface for Code Review. The host owns the authoritative simulation,
- * canvas renderer, and host-only preview controls.
+ * Host surface for Code Review. The declared simulation
+ * (`game/engine/code-review-simulation.ts`) plays the fight; this surface
+ * draws it, plays its sounds and hosts the preview controls.
  * Runtime details live in host hooks so this route stays a small composition
  * hub instead of a mixed engine/UI file.
  */
@@ -24,8 +25,8 @@ import { PausedOverlay } from "./components/paused-overlay";
 import { PlayingScreen } from "./components/playing-screen";
 import { useCodeReviewAudio } from "./hooks/use-code-review-audio";
 import { useCodeReviewCanvas } from "./hooks/use-code-review-canvas";
-import { useCodeReviewHostRuntime } from "./hooks/use-code-review-host-runtime";
 import { useCodeReviewHostTeams } from "./hooks/use-code-review-host-teams";
+import { useCodeReviewMatchView } from "./hooks/use-code-review-match-view";
 import { useCodeReviewSprites } from "./hooks/use-code-review-sprites";
 
 export function HostView() {
@@ -45,10 +46,8 @@ function CodeReviewHost() {
   const sprites = useCodeReviewSprites();
   const teams = useCodeReviewHostTeams();
   const audio = useCodeReviewAudio(matchPhase);
-  const runtime = useCodeReviewHostRuntime({
-    matchPhase,
+  const runtime = useCodeReviewMatchView({
     participantBySlot: teams.participantBySlot,
-    slotParticipants: teams.slotParticipants,
     spritesRef: sprites.spritesRef,
     getContext: canvas.getContext,
     getArenaColors: canvas.getArenaColors,

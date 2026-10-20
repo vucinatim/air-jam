@@ -332,7 +332,7 @@ export class TaskManager {
   private taskIdCounter = 0;
   private playerTasks: PlayerTask[] = [];
 
-  update(currentTime: number): ActiveTask[] {
+  update(currentTime: number, random: () => number): ActiveTask[] {
     // Find expired tasks before filtering them out
     const expiredTasks = this.tasks.filter(
       (t) => currentTime - t.spawnTime >= STAT_CONSTANTS.TASK_EXPIRY_MS,
@@ -344,28 +344,28 @@ export class TaskManager {
     );
 
     if (currentTime - this.lastSpawnTime > this.spawnInterval) {
-      this.spawnTask(currentTime);
+      this.spawnTask(currentTime, random);
       this.lastSpawnTime = currentTime;
     }
 
     return expiredTasks;
   }
 
-  spawnTask(currentTime: number) {
+  spawnTask(currentTime: number, random: () => number) {
     const availableLocations = LOCATIONS.filter(
       (loc) => !this.tasks.some((t) => t.locationId === loc.id),
     );
     if (availableLocations.length === 0) return;
 
     const location =
-      availableLocations[Math.floor(Math.random() * availableLocations.length)];
+      availableLocations[Math.floor(random() * availableLocations.length)];
     const availableTasks = TASK_DEFINITIONS.filter((t) =>
       location.taskTypes.includes(t.type),
     );
     if (availableTasks.length === 0) return;
 
     const taskDef =
-      availableTasks[Math.floor(Math.random() * availableTasks.length)];
+      availableTasks[Math.floor(random() * availableTasks.length)];
 
     const task: ActiveTask = {
       id: `task-${++this.taskIdCounter}`,

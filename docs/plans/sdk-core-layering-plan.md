@@ -321,6 +321,12 @@ selector)`; dispatch is `store.actions`. Reading an undeclared store throws
    owner plays on a run clock: wall time for a live room, game time for a
    headless one, where waiting advances the simulation. Pong's scoring profile
    passes in a devtools test in about 4 seconds end to end.
+6. The Office and Code Review play their whole matches in declared
+   simulations, on game time with seeded randomness, and emit events the host
+   turns into toasts, sounds and haptics. Their agent views moved into
+   `observe`. `useHostTick` is removed. All three of their authored profiles
+   pass headless: The Office's two-minute shift in about 17 seconds, Code
+   Review's bot round in about 4 and its four-fighter brawl in about 7.
 
 Decisions made while building:
 
@@ -345,9 +351,8 @@ example observing every seat in one request, would raise it.
 
 Next:
 
-1. Move The Office's and Code Review's outcome logic from `useHostTick` into
-   simulations, then port Air Capture (phase 3). Their agent views then move
-   into `observe`, and `useHostTick` and `useHostAgentObservation` are removed.
+1. Port Air Capture's physics into a simulation (phase 3); its agent view then
+   moves into `observe` and `useHostAgentObservation` is removed.
 2. Store actions still read wall time (`Date.now()` for match timing); replays
    need them on game time.
 3. Owned runs still refuse monorepo games (they need a standalone game with its

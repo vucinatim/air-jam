@@ -9,6 +9,7 @@ import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
 import { gameInputSchema } from "./game/contracts/input";
+import { officeSimulation } from "./game/engine/office-simulation";
 import { spaceStore } from "./game/stores/space-store";
 
 export const gameMetadata = defineAirJamGameMetadata({
@@ -31,6 +32,7 @@ export const airjam = createAirJamApp({
   metadata: gameMetadata,
   controllerPath: "/controller",
   stores: [spaceStore],
+  simulation: officeSimulation,
   agent: agentContract,
   testing: "./testing/profiles.ts",
   input: {

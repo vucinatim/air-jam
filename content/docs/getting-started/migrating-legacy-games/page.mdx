@@ -283,13 +283,14 @@ The migration guide is about boundaries, not folder cosplay.
 
 ### Branch C: Host-Simulation-Heavy App
 
-If most of the game logic lives in a host-side hook or engine module, keep that boundary explicit:
+If most of the game logic lives in a host-side hook or `useHostTick` loop, move it into a declared simulation (`defineAirJamSimulation`, declared with `createAirJamApp({ simulation })`). `useHostTick` is removed.
 
 1. replicated store state owns shared, synchronized state
-2. host-local hook/engine owns timers, refs, physics, media loading, and simulation details
-3. only the minimum necessary state should cross between them
+2. the simulation owns timers, positions, physics and outcomes; it reads input from its step context, uses the step's `random` and game time instead of `Math.random()` and `Date.now()`, and dispatches store actions for outcomes such as scores
+3. the host view draws with `useSimulationFrame`, plays sounds and toasts from `useSimulationEvents`, and keeps media loading and draw caches
+4. what agents see moves from `useHostAgentObservation` into the simulation's `observe`
 
-This is usually cleaner than trying to stuff the whole game loop into the replicated store.
+This is usually cleaner than trying to stuff the whole game loop into the replicated store, and it lets the game's tests run headless.
 
 ## Step 6: Migrate Input Based On Input Type
 

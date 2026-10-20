@@ -48,7 +48,7 @@ controllers sync only declared stores. Components read it with
 
 ### Host-Only Runtime Lane
 
-Use host refs, local runtime state, `gameStore.getState()`, `useHostTick(...)`, and `useHostActionListener(gameStore, ...)` for local host concerns such as:
+Use the declared simulation, `gameStore.getState()` and `useHostActionListener(gameStore, ...)` for host concerns such as:
 
 1. physics world refs
 2. particle systems
@@ -58,25 +58,18 @@ Use host refs, local runtime state, `gameStore.getState()`, `useHostTick(...)`, 
 
 These are often derived from replicated state or semantic actions, but they are not themselves the shared truth.
 
-```tsx
-const worldRef = useRef(createPhysicsWorld());
-
-useHostActionListener(gameStore, (event) => {
-  if (event.actionName !== "fire") {
-    return;
-  }
-
-  worldRef.current.spawnProjectile(event.payload);
-});
-
-useHostTick({
-  mode: "fixed",
-  intervalMs: 16,
-  onTick: ({ deltaSeconds }) => {
-    worldRef.current.step(deltaSeconds, gameStore.getState().playersAlive);
+```ts
+export const simulation = defineAirJamSimulation<World, GameInput>({
+  stepMs: 1000 / 60,
+  create: ({ random }) => createPhysicsWorld(random),
+  step: (world, { dtSeconds }) => {
+    world.step(dtSeconds, gameStore.getState().playersAlive);
   },
 });
 ```
+
+The host draws the world with `useSimulationFrame` and reacts to host-applied
+actions with `useHostActionListener(gameStore, ...)`.
 
 ### Signal And Result Lane
 

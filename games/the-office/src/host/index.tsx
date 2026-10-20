@@ -4,8 +4,8 @@
  * Office-themed co-op: each controller adopts a "player" persona with its
  * own capabilities, and they cooperate on pending tasks that appear in
  * `TaskSidebar`. `GameCanvas` renders the 2D office floor; the rest of the
- * host is just chrome over the networked `spaceStore` state plus the
- * match-clock / pending-task hooks in `./hooks/use-office-game-runtime`.
+ * host is chrome over the networked `spaceStore` state and the declared
+ * simulation (`game/engine/office-simulation.ts`), which plays the match.
  */
 import { AudioRuntime, useHostAudioMutePreference } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
@@ -15,8 +15,8 @@ import { OfficeHostGameplaySurface } from "./components/host-gameplay-surface";
 import { OfficeHostOverlays } from "./components/host-overlays";
 import { OfficeHostPlayerStrip } from "./components/host-player-strip";
 import { OfficeHostTopHud } from "./components/host-top-hud";
-import { useOfficeActiveMatchClock } from "./hooks/use-office-game-runtime";
 import { useOfficeHostSession } from "./hooks/use-office-host-session";
+import { useOfficeTimeRemainingMs } from "./hooks/use-office-match-view";
 
 export function HostView() {
   return (
@@ -29,17 +29,16 @@ export function HostView() {
 function OfficeHostScreen() {
   const session = useOfficeHostSession();
   const audioPreference = useHostAudioMutePreference("the-office");
-  const matchClock = useOfficeActiveMatchClock();
+  const timeRemainingMs = useOfficeTimeRemainingMs();
 
   return (
     <>
       <SurfaceViewport className="bg-[#fdf6e3]">
         <div className="relative flex h-full w-full flex-col overflow-hidden p-2">
-          <OfficeHostTopHud timeRemainingMs={matchClock.timeRemainingMs} />
+          <OfficeHostTopHud timeRemainingMs={timeRemainingMs} />
           <OfficeHostGameplaySurface
             muted={audioPreference.muted}
             session={session}
-            matchClock={matchClock}
           />
           <OfficeHostPlayerStrip />
           <OfficeHostOverlays session={session} />
