@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveControllerJoinSource } from "../src/hooks/internal/use-controller-runtime-api";
+import { resolveControllerJoinSource } from "../src/core/controller-runtime";
 
 describe("resolveControllerJoinSource", () => {
   it("prefers embedded room ids over other sources", () => {

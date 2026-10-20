@@ -9,59 +9,21 @@ import {
 import { InputManager } from "../src/internal/input-manager";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
+import { createMemorySocket } from "./fixtures/memory-socket";
 
-type Listener = (...args: unknown[]) => void;
-
-const createServerSocket = () => {
-  const listeners = new Map<string, Set<Listener>>();
-  const fire = (event: string, ...args: unknown[]) => {
-    for (const listener of listeners.get(event) ?? []) listener(...args);
-  };
-  const socket = {
-    connected: false,
-    id: "host-socket",
-    on: (event: string, listener: Listener) => {
-      listeners.set(event, (listeners.get(event) ?? new Set()).add(listener));
-      return socket;
-    },
-    off: (event: string, listener?: Listener) => {
-      if (listener) listeners.get(event)?.delete(listener);
-      else listeners.delete(event);
-      return socket;
-    },
-    connect: () => {
-      socket.connected = true;
-      fire("connect");
-      return socket;
-    },
-    disconnect: () => {
-      socket.connected = false;
-      fire("disconnect", "io client disconnect");
-      return socket;
-    },
-    emit: vi.fn((event: string, ...args: unknown[]) => {
-      const acknowledge = args.at(-1);
-      if (event === "host:createRoom" && typeof acknowledge === "function")
-        acknowledge({
-          ok: true,
-          roomId: "ROOM1",
-          players: [],
-          controllers: [],
-          hostResumeCapability: { token: "resume-token" },
-        });
-      return socket;
-    }),
-    emitWithAck: async <TAck>(event: string): Promise<TAck> => {
-      if (event === "host:bootstrap")
-        return { ok: true, traceId: "trace-1" } as TAck;
-      throw new Error(`Unexpected ${event}`);
-    },
-    fire,
-    listenerCount: () =>
-      [...listeners.values()].reduce((total, set) => total + set.size, 0),
-  };
-  return socket;
-};
+const createServerSocket = () =>
+  createMemorySocket((event) => {
+    if (event === "host:bootstrap") return { ok: true, traceId: "trace-1" };
+    if (event === "host:createRoom")
+      return {
+        ok: true,
+        roomId: "ROOM1",
+        players: [],
+        controllers: [],
+        hostResumeCapability: { token: "resume-token" },
+      };
+    throw new Error(`Unexpected ${event}`);
+  });
 
 const createMemoryEnvironment = (
   socket: ReturnType<typeof createServerSocket>,

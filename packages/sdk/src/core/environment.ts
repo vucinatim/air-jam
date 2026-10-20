@@ -12,7 +12,14 @@ export interface AirJamHostResume {
 export interface AirJamDevLogContext {
   role?: "host" | "controller";
   roomId?: string;
+  controllerId?: string;
   traceId?: string;
+}
+
+/** What lets a controller rejoin its seat after a reload. */
+export interface ControllerRoomBinding {
+  controllerId: string;
+  resumeCapabilityToken: string;
 }
 
 /**
@@ -38,6 +45,42 @@ export interface AirJamHostEnvironment {
     capabilityToken: string | undefined,
   ): Promise<string>;
   transport(getSocket: (role: "host") => AirJamSocket): AirJamRealtimeClient;
+  emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
+  setDevLogContext(context: AirJamDevLogContext): void;
+}
+
+/**
+ * Everything a controller runtime needs from the platform it runs on: who the
+ * page says it is, where it may remember its seat, and how it vibrates.
+ */
+export interface AirJamControllerEnvironment {
+  /** Set when an embedding shell admitted this controller already. */
+  readonly embedded: {
+    roomId: RoomCode;
+    controllerId: string;
+    playerProfile?: { label?: string; avatarId?: string };
+  } | null;
+  /** A room the surrounding page asked for, such as `?room=`. */
+  readonly requestedRoomId: string | null;
+  /** A controller id the surrounding page asked for. */
+  readonly requestedControllerId: string | null;
+  /** A privileged controller capability carried by the join link. */
+  readonly capabilityToken: string | null;
+  /** This device's stable id; null when an embedding shell owns identity. */
+  readonly deviceId: string | null;
+  /** Preview controllers leave their room when their runtime stops. */
+  readonly leaveOnStop: boolean;
+  readonly runMode: RunMode;
+  readBinding(
+    roomId: string,
+    controllerId?: string,
+  ): ControllerRoomBinding | null;
+  writeBinding(roomId: string, binding: ControllerRoomBinding): void;
+  clearBinding(roomId: string, controllerId?: string): void;
+  vibrate(pattern: number | number[]): void;
+  transport(
+    getSocket: (role: "controller") => AirJamSocket,
+  ): AirJamRealtimeClient;
   emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
   setDevLogContext(context: AirJamDevLogContext): void;
 }
