@@ -1,6 +1,6 @@
 # Air Jam Framework Vision
 
-Last updated: 2026-10-09
+Last updated: 2026-10-20
 Status: guiding vision
 
 Air Jam's open foundation lets people and agents create, run, inspect, test,
@@ -34,6 +34,37 @@ The intended harness combines:
 Semantic state proves what happened; visual feedback proves how it felt and
 rendered. Neither should replace the other. Creator-owned declarations must
 remain portable rather than become editor-owned database records.
+
+## Gameplay testing without drawing
+
+Roadmap direction, not started. Agents should be able to write fast, repeatable
+tests of a game's rules and physics, such as "a ship at full thrust crosses the
+arena in under four seconds", and run many of them in seconds on a modest
+machine. That needs a game that can advance without drawing, and faster than
+real time.
+
+Drawing pixels is the expensive part, not the rules or the physics. If the SDK
+owns the game clock, logic advances in fixed steps with seeded randomness,
+physics steps with the same clock, and the screen only reads state and draws
+when someone watches or asks for an image. The same game then runs headless,
+fast-forwarded for tests, or normally for play, without being rewritten.
+
+Doing this properly means:
+
+1. one clock owned by the SDK; its tick is the supported way to advance game
+   logic, and rendering never advances state
+2. physics engines step from that clock
+3. one test interface, shared by local tools and Studio, that seats players,
+   sends input, advances time, reads the store and checks expectations
+4. visual checks stay a separate, explicit request for a drawn frame
+
+Games are not forced into a code structure. What the runtime relies on is that
+input arrives through controllers, the facts that matter live in the networked
+store, and the SDK owns the clock and when frames are drawn. Keeping rules in
+plain functions, as Air Capture already does for flight, weapons and respawn,
+is recommended by templates and agent guidance because it makes those tests
+easier to write. Air Capture is the reference case: a physics-heavy 3D game
+whose logic still runs from its per-frame render hook.
 
 ## Open foundation and private product
 
