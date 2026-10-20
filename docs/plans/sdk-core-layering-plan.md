@@ -1,7 +1,7 @@
 # SDK Core Layering Plan
 
 Last updated: 2026-10-20
-Status: direction agreed with Tim, not started
+Status: direction agreed with Tim, not started; phases 1, 5 and the game declaration are 1.0 scope
 
 This plan owns giving the SDK a small framework-free core with React as a thin
 binding over it, an SDK-owned clock that lets game logic run without drawing,
@@ -195,11 +195,12 @@ Removed along the way:
 5. Studio's worker instructions that override project guidance
 6. advisory guidance made redundant by a check
 
-Breaking public exports after 1.0 needs a major release. Phases 1, 5 and the
-declaration surface of phase 6 shape the public API, so they belong before 1.0;
-the clock, Air Capture, the protocol suite and the checks extend it and can
-follow. Whether 1.0 waits for them is Tim's release-scope decision in the
-private 1.0 roadmap.
+Breaking public exports after 1.0 needs a major release, so on 2026-10-20 Tim
+put the API-shaping work in 1.0 scope: phase 1, phase 5 and the declaration
+surface of phase 6 are 1.0 readiness items G6-08, G6-09 and G6-10 in the
+private release program, and the 1.0 candidate waits for them. The clock, Air
+Capture, the protocol suite and the architecture gate extend that API and may
+follow 1.0.
 
 ## What it unlocks
 
