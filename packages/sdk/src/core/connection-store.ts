@@ -25,7 +25,7 @@ export type HostArcadeRestoreState =
 /** Whether a host's controller join link can be shown yet. */
 export type JoinUrlStatus = "loading" | "ready" | "unavailable";
 
-export interface AirJamStore {
+export interface AirJamConnectionState {
   role: ConnectionRole | null;
   roomId: string | null;
   controllerId: string | null;
@@ -74,11 +74,11 @@ export interface AirJamStore {
 }
 
 /**
- * Factory function to create a new AirJamStore instance.
+ * Factory function to create a new AirJamConnectionState instance.
  * Each AirJamProvider creates its own store for multi-instance support.
  */
-export const createConnectionStore = (): StoreApi<AirJamStore> =>
-  createStore<AirJamStore>((set) => ({
+export const createConnectionStore = (): StoreApi<AirJamConnectionState> =>
+  createStore<AirJamConnectionState>((set) => ({
     role: null,
     roomId: null,
     controllerId: null,

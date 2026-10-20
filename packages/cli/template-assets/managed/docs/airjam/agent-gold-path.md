@@ -43,9 +43,9 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 2. `host:*` actions are deterministic semantic host actions. Define them with `agentAction.host(...)` when the game needs precise host staging or reset verbs for testing, visual proof, or controlled setup.
 3. Store action dispatch returns an acknowledgement. Check it when outcome matters.
 4. For `airjam.invoke_game_session_action`, prefer the returned normalized `outcome` over guessing from the raw acknowledgement alone. A missing host acknowledgement with observed committed state change is still a meaningful success signal, not an automatic rejection.
-5. `ctx.actorId` always means the dispatcher. If host code dispatches with `useStore.useActions()`, then `ctx.actorId` is the host.
-6. If host code intentionally needs to run the same semantic player action as controller `X`, use `useStore.asPlayer("X")` explicitly.
-7. If a store action needs a host-only local side effect like audio, sim refs, or one-shot UI effects, use `useStore.useHostActionListener(...)` instead of replicated queue-and-drain state.
+5. `ctx.actorId` always means the dispatcher. If host code dispatches with `gameStore.actions`, then `ctx.actorId` is the host.
+6. If host code intentionally needs to run the same semantic player action as controller `X`, use `gameStore.asPlayer("X")` explicitly.
+7. If a store action needs a host-only local side effect like audio, sim refs, or one-shot UI effects, use `useHostActionListener(gameStore, ...)` instead of replicated queue-and-drain state.
 8. `resultDescription` is documentation for agents and humans about the expected semantic effect. It does not automatically become runtime result data.
 9. If an action must return actual runtime result data, return `acceptAirJamAction(result)` from the store action and read the acknowledgement/result separately.
 10. For host gameplay loops, prefer `useHostTick(...)` over hand-rolled `requestAnimationFrame` or `setInterval` loops unless you have a documented reason not to.
@@ -53,7 +53,7 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 ## Import Rules
 
 1. Browser/runtime code imports runtime symbols from the normal Air Jam packages used by the template.
-2. If you need imperative live replicated state in React-owned agent code, use `useStore.useLiveStateRef()`.
+2. Read live replicated state outside rendering with `gameStore.getState()`.
 
 ## Browser + MCP Pairing
 

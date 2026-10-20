@@ -1,4 +1,4 @@
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   PlayerAvatar,
@@ -7,7 +7,7 @@ import {
   useControllerLifecyclePermissions,
   useControllerShellStatus,
 } from "@air-jam/sdk/ui";
-import { useGameStore } from "../../game/stores";
+import { gameStore } from "../../game/stores";
 import { useCodeReviewControllerTeams } from "../hooks/use-code-review-controller-teams";
 
 export const ControllerHeader = () => {
@@ -17,8 +17,8 @@ export const ControllerHeader = () => {
     (state) => state.connectionStatus,
   );
   const runtimeState = useAirJamController((state) => state.runtimeState);
-  const matchPhase = useGameStore((state) => state.matchPhase);
-  const actions = useGameStore.useActions();
+  const matchPhase = useAirJamStore(gameStore, (state) => state.matchPhase);
+  const actions = gameStore.actions;
   const teams = useCodeReviewControllerTeams();
   const shellStatus = useControllerShellStatus({
     roomId,

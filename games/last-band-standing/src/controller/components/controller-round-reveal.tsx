@@ -7,17 +7,21 @@ import {
 } from "@/game/domain/player-utils";
 import { rankPlayers } from "@/game/domain/round-engine";
 import { useNowTick } from "@/game/hooks/use-now-tick";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 
 export const ControllerRoundReveal = () => {
   const nowMs = useNowTick(NOW_TICK_MS);
   const controllerId = useAirJamController((state) => state.controllerId);
-  const roundReveal = useGameStore((state) => state.roundReveal);
-  const playerLabelById = useGameStore((state) => state.playerLabelById);
-  const scoreboardByPlayerId = useGameStore(
+  const roundReveal = useAirJamStore(gameStore, (state) => state.roundReveal);
+  const playerLabelById = useAirJamStore(
+    gameStore,
+    (state) => state.playerLabelById,
+  );
+  const scoreboardByPlayerId = useAirJamStore(
+    gameStore,
     (state) => state.scoreboardByPlayerId,
   );
   const myRoundResult =

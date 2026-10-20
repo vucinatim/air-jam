@@ -15,8 +15,8 @@
     {
       "path": "docs/airjam/agent-gold-path.md",
       "kind": "docs-local",
-      "size": 5018,
-      "sha256": "8419951ad3a1e92fed5b7c3714b0908c6e6bed3d661041d5692ee38337888dcd"
+      "size": 4985,
+      "sha256": "986fcae1e606e08f84488f36fcfab59a3e8cc51371317780f2261e583be8dbab"
     },
     {
       "path": "docs/airjam/agent-mcp.md",
@@ -93,26 +93,26 @@
     {
       "path": "docs/airjam/generated/input-system.md",
       "kind": "docs-generated",
-      "size": 6024,
-      "sha256": "86395f226fc78c13eee4632998f60911d487739a027f82858371c8d233d4932f"
+      "size": 6027,
+      "sha256": "0a8c6078655ecc419443f83f315ae17875f349bac8754307329034c8d6acf7bc"
     },
     {
       "path": "docs/airjam/generated/introduction.md",
       "kind": "docs-generated",
-      "size": 5194,
-      "sha256": "f6b2220d39b2a72e736f0f757ba01c948f09ae9063c98c202ec5bbe9ec749d58"
+      "size": 5202,
+      "sha256": "3c9d6ebfaee01e0a3ca54c96859b9bea359e6a1df078336fea6cb9c59d4fa760"
     },
     {
       "path": "docs/airjam/generated/migrating-legacy-games.md",
       "kind": "docs-generated",
-      "size": 11763,
-      "sha256": "dadd93324cd6a1543f4d86124b44f6c7eb84333ae476a1d2026318e19ebeacdf"
+      "size": 11739,
+      "sha256": "7be2eaf9d44021cc3f4dba94a8a13fcd7f5901d5b39dcb0071484512e6965e07"
     },
     {
       "path": "docs/airjam/generated/networked-state.md",
       "kind": "docs-generated",
-      "size": 7695,
-      "sha256": "570c1d6df457e521cd9d44953353e4ed83e7ab1c52a7a4f1cc955e28b1eabebe"
+      "size": 8177,
+      "sha256": "d308134b81b2310be2cc93619c13da812a5df9642ec1a6f38e7eb01d94920772"
     },
     {
       "path": "docs/airjam/generated/project-structure.md",
@@ -177,8 +177,8 @@
     {
       "path": "docs/airjam/state-lanes-cookbook.md",
       "kind": "docs-local",
-      "size": 3333,
-      "sha256": "2a688339f9f91464dd1a4726d83ef032aa6db394cb865f3b4bf4ea9b94e7e82d"
+      "size": 3418,
+      "sha256": "cfdfacfd29f2fa0a7051b1da7375e60cf4f9a78c3fbe5da6ba0d14dd6d352ea2"
     },
     {
       "path": "docs/airjam/visual-system.md",
@@ -187,5 +187,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "6bf8c0116c545f143762fb67ddc45a29601805f3a295fd2e374d4e57aad97155"
+  "contentDigest": "fe569cefad355e76a986cd39c7dfe70b28e2f76138396a75946799b8b3d20937"
 }

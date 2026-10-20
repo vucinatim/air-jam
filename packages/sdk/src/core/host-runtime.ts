@@ -50,7 +50,7 @@ import {
 } from "../runtime/contracts/control";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import type { AirJamConfig } from "./config";
-import type { AirJamStore } from "./connection-store";
+import type { AirJamConnectionState } from "./connection-store";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type { AirJamHostEnvironment } from "./environment";
 import type { AttachableStore } from "./replicated-store";
@@ -72,7 +72,7 @@ export interface HostRuntimeDependencies<
   TSchema extends z.ZodSchema = z.ZodSchema,
 > {
   config: AirJamConfig;
-  store: StoreApi<AirJamStore>;
+  store: StoreApi<AirJamConnectionState>;
   getSocket: (role: "host") => AirJamSocket;
   disconnectSocket: (role: "host") => void;
   inputManager: InputManager<TSchema> | null;
@@ -95,7 +95,7 @@ interface PendingHostReset {
  */
 export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   readonly socket: AirJamRealtimeClient;
-  readonly store: StoreApi<AirJamStore>;
+  readonly store: StoreApi<AirJamConnectionState>;
   readonly inputManager: InputManager<TSchema> | null;
   private readonly config: AirJamConfig;
   private readonly environment: AirJamHostEnvironment;

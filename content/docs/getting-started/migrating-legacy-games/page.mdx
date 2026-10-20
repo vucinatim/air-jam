@@ -209,10 +209,8 @@ actions: {
 Controller-side dispatch should always look like:
 
 ```tsx filename="src/routes/controller-view.tsx"
-const actions = useGameStore.useActions();
-
-actions.joinTeam({ team: "team1" });
-actions.setReady({ ready: true });
+gameStore.actions.joinTeam({ team: "team1" });
+gameStore.actions.setReady({ ready: true });
 ```
 
 Do not keep trailing `playerId` arguments around.

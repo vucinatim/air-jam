@@ -1,5 +1,5 @@
 import { agentContract } from "@/game/contracts/agent";
-import { useGameStore } from "@/game/stores/create-store";
+import { gameStore } from "@/game/stores/create-store";
 import { describe, expect, it } from "vitest";
 
 describe("Last Band Standing agent snapshot", () => {
@@ -10,7 +10,7 @@ describe("Last Band Standing agent snapshot", () => {
       role: "host" as const,
       connectedPlayerIds: playerIds,
     };
-    const { actions } = useGameStore.getState();
+    const { actions } = gameStore.getState();
     actions.resetLobby(host, undefined);
     actions.setPlayers(host, {
       players: playerIds.map((id) => ({ id, label: id })),
@@ -25,13 +25,13 @@ describe("Last Band Standing agent snapshot", () => {
         { ready: true },
       );
     actions.startMatch(host, undefined);
-    const round = useGameStore.getState().currentRound;
+    const round = gameStore.getState().currentRound;
     if (!round) throw new Error("Expected round one.");
     actions.completeMatchCountdown(host, { nowMs: round.startedAtMs });
 
     const snapshot = await agentContract.projectSnapshot({
       controllerId: "player-01",
-      stores: { default: useGameStore.getState() },
+      stores: { default: gameStore.getState() },
     });
     const live = JSON.stringify((snapshot as { round: unknown }).round);
     expect(live).toContain(round.songId);

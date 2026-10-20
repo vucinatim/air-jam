@@ -3,10 +3,14 @@
  * runtime; the private controller child renders the phone UI beneath that
  * provider. Game panels read SDK/session and replicated store state directly.
  */
-import { AudioRuntime, useControllerToasts } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  useAirJamStore,
+  useControllerToasts,
+} from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
-import { usePongStore } from "../game/stores";
+import { pongStore } from "../game/stores";
 import { ControllerHeader } from "./components/controller-header";
 import { EndedPanel } from "./components/ended-panel";
 import { LobbyPanel } from "./components/lobby-panel";
@@ -23,7 +27,7 @@ export function ControllerView() {
 }
 
 function PongController() {
-  const matchPhase = usePongStore((state) => state.matchPhase);
+  const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
   const { latestToast } = useControllerToasts();
   const { controlsDisabled, connectionNotice } =
     useControllerConnectionNotice();

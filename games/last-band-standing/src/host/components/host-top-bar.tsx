@@ -1,17 +1,21 @@
 import { NOW_TICK_MS } from "@/game/constants";
 import { useNowTick } from "@/game/hooks/use-now-tick";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";
 import { FullLogo } from "@/game/ui/full-logo";
 import { getRoundPrompt } from "@/game/ui/round-prompt";
+import { useAirJamStore } from "@air-jam/sdk";
 
 export const HostTopBar = () => {
   const nowMs = useNowTick(NOW_TICK_MS);
-  const phase = useGameStore((state) => state.phase);
-  const totalRounds = useGameStore((state) => state.totalRounds);
-  const currentRound = useGameStore((state) => state.currentRound);
-  const answersByPlayerId = useGameStore((state) => state.answersByPlayerId);
-  const roundReveal = useGameStore((state) => state.roundReveal);
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const totalRounds = useAirJamStore(gameStore, (state) => state.totalRounds);
+  const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
+  const answersByPlayerId = useAirJamStore(
+    gameStore,
+    (state) => state.answersByPlayerId,
+  );
+  const roundReveal = useAirJamStore(gameStore, (state) => state.roundReveal);
   const isPlaying =
     phase === "match-countdown" ||
     phase === "round-active" ||

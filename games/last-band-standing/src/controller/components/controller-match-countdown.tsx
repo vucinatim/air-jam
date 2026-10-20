@@ -1,12 +1,13 @@
 import { NOW_TICK_MS } from "@/game/constants";
 import { useNowTick } from "@/game/hooks/use-now-tick";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
 import { getRoundPrompt } from "@/game/ui/round-prompt";
+import { useAirJamStore } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 
 export const ControllerMatchCountdown = () => {
   const nowMs = useNowTick(NOW_TICK_MS);
-  const currentRound = useGameStore((state) => state.currentRound);
+  const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
   const countdownSeconds = currentRound
     ? Math.max(0, Math.ceil((currentRound.startedAtMs - nowMs) / 1000))
     : 0;

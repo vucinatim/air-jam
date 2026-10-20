@@ -5,7 +5,7 @@ import {
 import type { TeamId } from "../../game/domain/team";
 import { getTeamColor } from "../../game/domain/team";
 import { buildTeamSlots, MAX_TEAM_SLOTS } from "../../game/domain/team-slots";
-import { usePongStore } from "../../game/stores";
+import { pongStore } from "../../game/stores";
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { useControllerConnectionNotice } from "../hooks/use-controller-connection-notice";
@@ -15,7 +15,7 @@ import { PRESS_FEEL_CLASS } from "./classes";
 const POINTS_TO_WIN_OPTIONS = [3, 5, 7, 11] as const;
 
 export const LobbyPanel = () => {
-  const actions = usePongStore.useActions();
+  const actions = pongStore.actions;
   const {
     myTeam,
     teamCounts,

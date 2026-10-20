@@ -9,7 +9,7 @@ import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
 import { gameInputSchema } from "./game/contracts/input";
-import { useSpaceStore } from "./game/stores/space-store";
+import { spaceStore } from "./game/stores/space-store";
 
 export const gameMetadata = defineAirJamGameMetadata({
   slug: "the-office",
@@ -30,7 +30,7 @@ export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   metadata: gameMetadata,
   controllerPath: "/controller",
-  stores: [useSpaceStore],
+  stores: [spaceStore],
   agent: agentContract,
   testing: "./testing/profiles.ts",
   input: {

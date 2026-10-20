@@ -1,11 +1,12 @@
 import { NOW_TICK_MS } from "@/game/constants";
 import { useNowTick } from "@/game/hooks/use-now-tick";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
+import { useAirJamStore } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 
 export const HostTimerBar = () => {
   const nowMs = useNowTick(NOW_TICK_MS);
-  const currentRound = useGameStore((state) => state.currentRound);
+  const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
   const countdownFraction = currentRound
     ? Math.max(
         0,

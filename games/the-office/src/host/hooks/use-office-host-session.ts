@@ -3,9 +3,9 @@ import { useHostJoinControls } from "@air-jam/sdk/ui";
 import { useCallback, useMemo } from "react";
 import { gameInputSchema } from "../../game/contracts/input";
 import {
+  spaceStore,
   useOfficeMatchPhase,
   useOfficeSelectedPlayerCount,
-  useSpaceStore,
 } from "../../game/stores";
 
 export type OfficeHostApi = AirJamHostApi<typeof gameInputSchema>;
@@ -23,7 +23,7 @@ export interface OfficeHostSession {
   joinControls: ReturnType<typeof useHostJoinControls>;
   startMatch: () => void;
   returnToLobby: () => void;
-  storeActions: ReturnType<typeof useSpaceStore.useActions>;
+  storeActions: typeof spaceStore.actions;
 }
 
 export function useOfficeHostSession(): OfficeHostSession {
@@ -33,7 +33,7 @@ export function useOfficeHostSession(): OfficeHostSession {
   const connectionStatus = useAirJamHost((state) => state.connectionStatus);
   const runtimeState = useAirJamHost((state) => state.runtimeState);
   const matchPhase = useOfficeMatchPhase();
-  const storeActions = useSpaceStore.useActions();
+  const storeActions = spaceStore.actions;
 
   const playerIds = useMemo(
     () => players.map((player) => player.id),

@@ -8,6 +8,7 @@ import {
   AudioRuntime,
   captureAgentCanvas,
   useAirJamHost,
+  useAirJamStore,
   useGetInput,
   useHostAgentObservation,
   useHostTick,
@@ -26,7 +27,7 @@ import {
   stepGame,
   updateRuntimeRenderState,
 } from "../game/engine";
-import { usePongStore } from "../game/stores";
+import { pongStore } from "../game/stores";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
 import { PlayingScreen } from "./components/playing-screen";
@@ -49,11 +50,14 @@ function PongHost() {
   const runtimeState = useAirJamHost((state) => state.runtimeState);
   const getInput = useGetInput<typeof gameInputSchema>();
 
-  const matchPhase = usePongStore((state) => state.matchPhase);
-  const scores = usePongStore((state) => state.scores);
-  const teamAssignments = usePongStore((state) => state.teamAssignments);
-  const botCounts = usePongStore((state) => state.botCounts);
-  const actions = usePongStore.useActions();
+  const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
+  const scores = useAirJamStore(pongStore, (state) => state.scores);
+  const teamAssignments = useAirJamStore(
+    pongStore,
+    (state) => state.teamAssignments,
+  );
+  const botCounts = useAirJamStore(pongStore, (state) => state.botCounts);
+  const actions = pongStore.actions;
 
   const { triggerPaddleHitFeedback, triggerScoreFeedback } = usePongFeedback();
   const { canvasRef, getContext } = usePongCanvas({
@@ -118,7 +122,7 @@ function PongHost() {
         },
         onScore: (team) => {
           triggerScoreFeedback();
-          const before = { ...usePongStore.getState().scores };
+          const before = { ...pongStore.getState().scores };
           actions.scorePoint({ team });
           const previous = goals.current.at(-1)?.sequence ?? 0;
           goals.current = [
@@ -130,7 +134,7 @@ function PongHost() {
               ballX: buffers.current.ballX,
               team,
               before,
-              after: { ...usePongStore.getState().scores },
+              after: { ...pongStore.getState().scores },
             },
           ];
         },

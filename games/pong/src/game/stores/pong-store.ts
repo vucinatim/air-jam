@@ -10,7 +10,7 @@
  * The reducers themselves are pure functions in `./pong-store-state` so they
  * can be unit-tested without a running session.
  */
-import { createAirJamStore } from "@air-jam/sdk";
+import { createAirJamStore } from "@air-jam/sdk/core";
 import {
   createInitialPongState,
   reduceJoinTeam,
@@ -23,7 +23,7 @@ import {
 } from "./pong-store-state";
 import type { PongState } from "./pong-store-types";
 
-export const usePongStore = createAirJamStore<PongState>((set) => ({
+export const pongStore = createAirJamStore<PongState>((set) => ({
   ...createInitialPongState(),
 
   actions: {

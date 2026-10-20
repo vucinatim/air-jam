@@ -32,7 +32,7 @@ import {
 } from "../runtime/admission-retry";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { generateControllerId } from "../utils/ids";
-import type { AirJamStore } from "./connection-store";
+import type { AirJamConnectionState } from "./connection-store";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type {
   AirJamControllerEnvironment,
@@ -50,7 +50,7 @@ export interface ControllerRuntimeIdentityOptions {
 }
 
 export interface ControllerRuntimeDependencies {
-  store: StoreApi<AirJamStore>;
+  store: StoreApi<AirJamConnectionState>;
   getSocket: (role: "controller") => AirJamSocket;
   disconnectSocket: (role: "controller") => void;
   environment: AirJamControllerEnvironment;
@@ -89,7 +89,7 @@ const HAPTIC_PATTERNS = {
  * system commands. It owns no rendering; bindings subscribe to its store.
  */
 export class ControllerRuntime {
-  readonly store: StoreApi<AirJamStore>;
+  readonly store: StoreApi<AirJamConnectionState>;
   /** The room this controller joins, or null when none was given. */
   readonly roomId: RoomCode | null;
   readonly controllerId: string;

@@ -55,7 +55,7 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import {
   createConnectionStore,
-  type AirJamStore,
+  type AirJamConnectionState,
 } from "../core/connection-store";
 import { ensureDevBrowserLogSink } from "../dev/browser-log-sink";
 import { createAirJamDiagnosticError } from "../diagnostics";
@@ -505,7 +505,9 @@ export const useAirJamConfig = (): AirJamConfig => {
  * }));
  * ```
  */
-export const useAirJamState = <T,>(selector: (state: AirJamStore) => T): T => {
+export const useAirJamState = <T,>(
+  selector: (state: AirJamConnectionState) => T,
+): T => {
   const { store } = useAirJamContext();
   return useStore(store, useShallow(selector));
 };

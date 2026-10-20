@@ -8,6 +8,7 @@ import {
   HostSessionProvider,
   type AirJamProviderProps,
 } from "../context/session-providers";
+import type { AttachableStore } from "../core/replicated-store";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
 import { useHostRuntimeApi } from "../hooks/internal/use-host-runtime-api";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
@@ -17,7 +18,6 @@ import {
   useHostRuntimeInspectionContract,
 } from "../runtime-inspection";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
-import type { AirJamStoreDeclaration } from "../store/create-air-jam-store";
 import { registerHostAgentContract } from "./contracts/control";
 import {
   publishRuntimeInspectionContract,
@@ -38,24 +38,17 @@ export type AirJamHostRuntimeProps<TSchema extends z.ZodSchema = z.ZodSchema> =
       agent?: AnyAirJamAgentContract;
       gameId?: string;
       /** Replicated stores this host owns; they sync while it runs. */
-      stores?: readonly AirJamStoreDeclaration[];
+      stores?: readonly AttachableStore[];
     };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
   AirJamControllerOptions & {
     children: ReactNode;
     /** Replicated stores this controller mirrors while it runs. */
-    stores?: readonly AirJamStoreDeclaration[];
+    stores?: readonly AttachableStore[];
   };
 
-const NO_STORES: readonly AirJamStoreDeclaration[] = [];
-
-/** The core stores behind declared store hooks, stable while the declarations are. */
-const useDeclaredStores = (declarations: readonly AirJamStoreDeclaration[]) =>
-  useMemo(
-    () => declarations.map((declaration) => declaration.store),
-    [declarations],
-  );
+const NO_STORES: readonly AttachableStore[] = [];
 
 const HostRuntimeInspectionPublisher = (): null => {
   const inspection = useHostRuntimeInspectionContract();
@@ -122,8 +115,7 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   | "gameId"
   | "stores"
 >): JSX.Element => {
-  const declaredStores = useDeclaredStores(stores);
-  const declared = useMemo(() => new Set(declaredStores), [declaredStores]);
+  const declared = useMemo(() => new Set(stores), [stores]);
   const runtime = useHostRuntimeApi<TSchema>(
     {
       roomId,
@@ -131,7 +123,7 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
       onPlayerLeave,
     },
     "AirJamHostRuntime",
-    declaredStores,
+    stores,
   );
 
   useEffect(() => {
@@ -173,8 +165,7 @@ const ControllerRuntimeOwner = ({
   | "onState"
   | "stores"
 >): JSX.Element => {
-  const declaredStores = useDeclaredStores(stores);
-  const declared = useMemo(() => new Set(declaredStores), [declaredStores]);
+  const declared = useMemo(() => new Set(stores), [stores]);
   const runtime = useControllerRuntimeApi(
     {
       roomId,
@@ -185,7 +176,7 @@ const ControllerRuntimeOwner = ({
       onState,
     },
     "AirJamControllerRuntime",
-    declaredStores,
+    stores,
   );
 
   return (

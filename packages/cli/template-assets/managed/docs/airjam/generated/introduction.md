@@ -156,7 +156,7 @@ const ControllerView = () => {
 Use one lane per concern:
 
 1. **Input lane**: `useControllerTick` + `useInputWriter` (controller), `getInput` / `useGetInput` (host).
-2. **State lane**: `createAirJamStore` with host-owned actions and `useActions()` dispatch.
+2. **State lane**: `createAirJamStore` with host-owned actions, dispatched through `store.actions`.
 3. **Signal lane**: `sendSignal` / system commands for out-of-band UX and runtime commands.
 
 Arcade does not replace this model. Arcade is an Air Jam app around another

@@ -6,7 +6,7 @@ import {
   MAX_TEAM_SLOTS,
   type TeamId,
 } from "../../game/domain/team-slots";
-import { useGameStore } from "../../game/stores";
+import { gameStore } from "../../game/stores";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { useCodeReviewControllerTeams } from "../hooks/use-code-review-controller-teams";
 import { PRESS_FEEL_CLASS } from "./classes";
@@ -31,7 +31,7 @@ export const LobbyPanel = () => {
   const connectionStatus = useAirJamController(
     (state) => state.connectionStatus,
   );
-  const actions = useGameStore.useActions();
+  const actions = gameStore.actions;
   const teams = useCodeReviewControllerTeams();
   const controlsDisabled = connectionStatus !== "connected";
   const canStartMatch =

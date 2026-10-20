@@ -1,7 +1,8 @@
+import { useAirJamStore } from "@air-jam/sdk";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar } from "@air-jam/sdk/ui";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
-import { usePongStore } from "../../game/stores";
+import { pongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
 import { usePongHostTeams } from "../hooks/use-pong-host-teams";
 
@@ -12,7 +13,7 @@ const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
 });
 
 export const ScoreStrip = () => {
-  const scores = usePongStore((state) => state.scores);
+  const scores = useAirJamStore(pongStore, (state) => state.scores);
   const { botCounts, pointsToWin, team1Players, team2Players } =
     usePongHostTeams();
 

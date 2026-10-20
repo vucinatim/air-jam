@@ -1,49 +1,51 @@
-import { useSpaceStore } from "./space-store";
+import { useAirJamStore } from "@air-jam/sdk";
+import { spaceStore } from "./space-store";
 import type { PlayerStats } from "./types";
 
 export const useOfficeMatchPhase = () =>
-  useSpaceStore((state) => state.matchPhase);
+  useAirJamStore(spaceStore, (state) => state.matchPhase);
 
-export const useOfficeGameOver = () => useSpaceStore((state) => state.gameOver);
+export const useOfficeGameOver = () =>
+  useAirJamStore(spaceStore, (state) => state.gameOver);
 
 export const useOfficeGameDurationMs = () =>
-  useSpaceStore((state) => state.gameDurationMs);
+  useAirJamStore(spaceStore, (state) => state.gameDurationMs);
 
 export const useOfficeLifecycleVersion = () =>
-  useSpaceStore((state) => state.lifecycleVersion);
+  useAirJamStore(spaceStore, (state) => state.lifecycleVersion);
 
 export const useOfficePlayerAssignment = (
   controllerId: string | null | undefined,
 ) =>
-  useSpaceStore((state) =>
+  useAirJamStore(spaceStore, (state) =>
     controllerId ? (state.playerAssignments[controllerId] ?? null) : null,
   );
 
 export const useOfficePlayerBusyTask = (
   controllerId: string | null | undefined,
 ) =>
-  useSpaceStore((state) =>
+  useAirJamStore(spaceStore, (state) =>
     controllerId ? (state.busyPlayers[controllerId] ?? null) : null,
   );
 
 export const useOfficePlayerTaskProgress = (
   controllerId: string | null | undefined,
 ) =>
-  useSpaceStore((state) =>
+  useAirJamStore(spaceStore, (state) =>
     controllerId ? (state.taskProgress[controllerId] ?? 0) : 0,
   );
 
 export const useOfficePlayerStats = (
   controllerId: string | null | undefined,
 ): PlayerStats | null =>
-  useSpaceStore((state) =>
+  useAirJamStore(spaceStore, (state) =>
     controllerId ? (state.playerStats[controllerId] ?? null) : null,
   );
 
 export const useOfficeSelectedPlayerCount = (
   controllerIds: readonly string[],
 ) =>
-  useSpaceStore((state) =>
+  useAirJamStore(spaceStore, (state) =>
     controllerIds.reduce(
       (count, controllerId) =>
         count + (state.playerAssignments[controllerId] ? 1 : 0),
@@ -52,12 +54,12 @@ export const useOfficeSelectedPlayerCount = (
   );
 
 export const useOfficeTotalMoney = () =>
-  useSpaceStore((state) =>
+  useAirJamStore(spaceStore, (state) =>
     Object.values(state.money).reduce((sum, amount) => sum + amount, 0),
   );
 
 export const useOfficeFinalTotalMoney = () =>
-  useSpaceStore((state) => {
+  useAirJamStore(spaceStore, (state) => {
     const totalMoney = Object.values(state.money).reduce(
       (sum, amount) => sum + amount,
       0,

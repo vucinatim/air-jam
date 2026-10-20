@@ -1,3 +1,4 @@
+import { useAirJamStore } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -25,11 +26,11 @@ import {
   SPAWN_POSITIONS,
 } from "../../game/engine/office-layout";
 import {
+  spaceStore,
   useOfficeGameDurationMs,
   useOfficeGameOver,
   useOfficeLifecycleVersion,
   useOfficeMatchPhase,
-  useSpaceStore,
   type PlayerStats,
 } from "../../game/stores";
 import { mergePlayerStatUpdates } from "../../game/stores/space-store-helpers";
@@ -77,13 +78,16 @@ export function useOfficeGameRuntime({
   muted = false,
   connectedPlayerIds = [],
 }: UseOfficeGameRuntimeOptions = {}): UseOfficeGameRuntimeReturn {
-  const playerAssignments = useSpaceStore((state) => state.playerAssignments);
-  const playerStats = useSpaceStore((state) => state.playerStats);
+  const playerAssignments = useAirJamStore(
+    spaceStore,
+    (state) => state.playerAssignments,
+  );
+  const playerStats = useAirJamStore(spaceStore, (state) => state.playerStats);
   const gameOver = useOfficeGameOver();
   const gameDurationMs = useOfficeGameDurationMs();
   const matchPhase = useOfficeMatchPhase();
   const lifecycleVersion = useOfficeLifecycleVersion();
-  const actions = useSpaceStore.useActions();
+  const actions = spaceStore.actions;
 
   const {
     playTaskStart,

@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type { AirJamAgentContract } from "../agent/agent-contract";
 import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
+import type { AttachableStore } from "../core/replicated-store";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import type { AirJamGameMetadata } from "../metadata/manifest";
@@ -10,7 +11,6 @@ import {
   parseRuntimeTopology,
   resolveProjectRuntimeTopology,
 } from "../runtime-topology";
-import type { AirJamStoreDeclaration } from "../store/create-air-jam-store";
 import {
   resolveEnvironmentRuntimeTopology,
   type ResolveAirJamConfigInput,
@@ -57,7 +57,7 @@ export interface CreateAirJamAppOptions<
   /** Project-relative devtools test profiles module. Never imported by the game runtime. */
   testing?: string;
   /** The game's networked stores; host and controller sync them while they run. */
-  stores?: readonly AirJamStoreDeclaration[];
+  stores?: readonly AttachableStore[];
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -79,10 +79,10 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   controllerPath: string;
   agent?: AirJamAgentContract;
   testing?: string;
-  stores: readonly AirJamStoreDeclaration[];
+  stores: readonly AttachableStore[];
 }
 
-const NO_STORES: readonly AirJamStoreDeclaration[] = [];
+const NO_STORES: readonly AttachableStore[] = [];
 
 const resolveControllerPath = (controllerPath?: string): string => {
   const normalized = controllerPath ?? CONTROLLER_PATH;

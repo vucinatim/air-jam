@@ -9,8 +9,8 @@ import {
 } from "@/game/content/song-bank";
 import { isMatchReadyToStart } from "@/game/domain/match-readiness";
 import { normalizePlayerName } from "@/game/domain/player-utils";
-import { useGameStore } from "@/game/stores";
-import { useAirJamController } from "@air-jam/sdk";
+import { gameStore } from "@/game/stores";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { playControllerHaptic } from "../haptics";
 
@@ -23,14 +23,18 @@ export const useControllerLobbyState = () => {
   const connectionStatus = useAirJamController(
     (state) => state.connectionStatus,
   );
-  const phase = useGameStore((state) => state.phase);
-  const playerOrder = useGameStore((state) => state.playerOrder);
-  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
-  const totalRounds = useGameStore((state) => state.totalRounds);
-  const selectedSongBucketIds = useGameStore(
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const playerOrder = useAirJamStore(gameStore, (state) => state.playerOrder);
+  const readyByPlayerId = useAirJamStore(
+    gameStore,
+    (state) => state.readyByPlayerId,
+  );
+  const totalRounds = useAirJamStore(gameStore, (state) => state.totalRounds);
+  const selectedSongBucketIds = useAirJamStore(
+    gameStore,
     (state) => state.selectedSongBucketIds,
   );
-  const actions = useGameStore.useActions();
+  const actions = gameStore.actions;
   const [nameDraft, setNameDraft] = useState("");
   const [editingName, setEditingName] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

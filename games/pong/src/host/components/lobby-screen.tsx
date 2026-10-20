@@ -10,7 +10,7 @@ import {
 import { gameInputSchema } from "../../game/contracts/input";
 import { type TeamId } from "../../game/domain/team";
 import { buildTeamSlots } from "../../game/domain/team-slots";
-import { usePongStore } from "../../game/stores";
+import { pongStore } from "../../game/stores";
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { usePongHostTeams } from "../hooks/use-pong-host-teams";
@@ -55,7 +55,7 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
 
 export const LobbyScreen = () => {
   const host = useAirJamHost<typeof gameInputSchema>();
-  const actions = usePongStore.useActions();
+  const actions = pongStore.actions;
   const {
     botCounts,
     pointsToWin,

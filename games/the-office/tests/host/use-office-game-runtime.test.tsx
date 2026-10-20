@@ -33,12 +33,15 @@ const fixture = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("@air-jam/sdk", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@air-jam/sdk")>()),
+  useAirJamStore: (
+    _store: unknown,
+    selector: (state: typeof fixture.state) => unknown,
+  ) => selector(fixture.state),
+}));
 vi.mock("../../src/game/stores", () => ({
-  useSpaceStore: Object.assign(
-    (selector: (state: typeof fixture.state) => unknown) =>
-      selector(fixture.state),
-    { useActions: () => fixture.actions },
-  ),
+  spaceStore: { actions: fixture.actions },
   useOfficeGameDurationMs: () => 300_000,
   useOfficeGameOver: () => false,
   useOfficeLifecycleVersion: () => 1,

@@ -18,7 +18,7 @@ import {
   AIR_JAM_DEFAULT_STORE_DOMAIN,
 } from "../store/air-jam-store-domain-constants";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
-import type { AirJamStore } from "./connection-store";
+import type { AirJamConnectionState } from "./connection-store";
 
 const INTERNAL_ACTION_PREFIX = "_";
 const UNRESOLVED_ACTOR_ID = "unknown";
@@ -215,9 +215,9 @@ interface HostActionListenerRegistration<TActions extends AirJamActionMap> {
 }
 
 /** The room connection a replicated store syncs through while attached. */
-export interface ReplicatedStoreSession {
+export interface AirJamStoreSession {
   socket: AirJamRealtimeClient;
-  connection: StoreApi<AirJamStore>;
+  connection: StoreApi<AirJamConnectionState>;
   /** The store domain used when a store declares none. */
   defaultStoreDomain: string;
   /** Host only: where agent tools and devtools find this store's control. */
@@ -226,16 +226,16 @@ export interface ReplicatedStoreSession {
 
 /** What a runtime needs from a store it attaches, whatever the store holds. */
 export interface AttachableStore {
-  attach: (session: ReplicatedStoreSession) => () => void;
+  attach: (session: AirJamStoreSession) => () => void;
   readonly attached: boolean;
 }
 
 /**
  * A store whose state the host owns and controllers mirror. Its actions run
- * on the host; controllers invoke them over the room. It syncs only while a
- * runtime has attached it to a session.
+ * on the host; controllers invoke them over the room. It syncs while a runtime
+ * that declares it runs; React reads it with `useAirJamStore`.
  */
-export interface ReplicatedStore<
+export interface AirJamStore<
   T extends AirJamNetworkedState,
 > extends AttachableStore {
   readonly api: StoreApi<T>;
@@ -377,10 +377,22 @@ const AIR_JAM_ACTION_SESSION_WAIT_MS = 10_000;
  * (e.g. arcade shell vs running game). When omitted, resolves from the runtime URL: explicit
  * `aj_store_domain`, else embedded Arcade identity (`aj_arcade_*`), else the default domain.
  */
-export function createReplicatedStore<T extends AirJamNetworkedState>(
-  initializer: StateCreator<T>,
+/**
+ * Creates a networked store. The host is the source of truth: it applies
+ * actions and broadcasts state; controllers invoke actions through RPC and
+ * mirror the state. Declare the store in the game so its runtimes sync it.
+ *
+ * `storeDomain` isolates sync and action RPC so several stores can share a
+ * room (e.g. an Arcade shell and its game). When omitted, it follows the
+ * runtime's environment: an explicit `aj_store_domain`, else the embedded
+ * Arcade identity, else the default domain.
+ */
+export function createAirJamStore<T extends AirJamNetworkedState>(
+  initializer: InvalidActionPayloadKeys<T["actions"]> extends never
+    ? StateCreator<T>
+    : StateCreator<T> & AirJamInvalidActionPayloadDiagnostic<T["actions"]>,
   options?: CreateAirJamStoreOptions,
-): ReplicatedStore<T> {
+): AirJamStore<T> {
   const store = createStore<T>((set, get, api) => initializer(set, get, api));
   const stateEpoch = nanoid();
   const runtimeSnapshotRef: { current: StoreRuntimeSnapshot } = {
@@ -454,7 +466,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
           emitAirJamDiagnostic({
             code: "AJ_STORE_ACTION_EVENT_PAYLOAD_DROPPED",
             severity: "warn",
-            message: `[AirJamStore] Action "${actionName}" received an event-like payload. Dropping payload and continuing.`,
+            message: `[AirJamConnectionState] Action "${actionName}" received an event-like payload. Dropping payload and continuing.`,
             details: { actionName },
           });
         }
@@ -467,7 +479,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
           emitAirJamDiagnostic({
             code: "AJ_STORE_PLAYER_ACTIONS_HOST_ONLY",
             severity: "warn",
-            message: `[AirJamStore] Player impersonation for action "${actionName}" is host-only.`,
+            message: `[AirJamConnectionState] Player impersonation for action "${actionName}" is host-only.`,
             details: {
               actionName,
               role: runtime.role,
@@ -491,7 +503,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
             emitAirJamDiagnostic({
               code: "AJ_STORE_PLAYER_ACTIONS_INVALID_ACTOR_ID",
               severity: "warn",
-              message: `[AirJamStore] Player impersonation for action "${actionName}" requires a non-empty controller id.`,
+              message: `[AirJamConnectionState] Player impersonation for action "${actionName}" requires a non-empty controller id.`,
               details: {
                 actionName,
               },
@@ -509,7 +521,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
             emitAirJamDiagnostic({
               code: "AJ_STORE_PLAYER_ACTIONS_PLAYER_NOT_CONNECTED",
               severity: "warn",
-              message: `[AirJamStore] Player impersonation for action "${actionName}" requires a currently connected controller.`,
+              message: `[AirJamConnectionState] Player impersonation for action "${actionName}" requires a currently connected controller.`,
               details: {
                 actionName,
                 controllerId: normalizedControllerId,
@@ -592,7 +604,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
           emitAirJamDiagnostic({
             code: "AJ_STORE_ACTION_SESSION_NOT_READY",
             severity: "error",
-            message: `[AirJamStore] Action "${actionName}" dropped: the session was not ready within ${AIR_JAM_ACTION_SESSION_WAIT_MS / 1000} s.`,
+            message: `[AirJamConnectionState] Action "${actionName}" dropped: the session was not ready within ${AIR_JAM_ACTION_SESSION_WAIT_MS / 1000} s.`,
             details: {
               actionName,
               role: runtime.role,
@@ -615,7 +627,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
           emitAirJamDiagnostic({
             code: "AJ_STORE_ACTION_SOCKET_DISCONNECTED",
             severity: "warn",
-            message: `[AirJamStore] Action "${actionName}" blocked: Socket disconnected.`,
+            message: `[AirJamConnectionState] Action "${actionName}" blocked: Socket disconnected.`,
             details: { actionName },
           });
           return createClientRejectedActionResult(
@@ -631,7 +643,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
           emitAirJamDiagnostic({
             code: "AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE",
             severity: "warn",
-            message: `[AirJamStore] Action "${actionName}" blocked: payload must be RPC-serializable.`,
+            message: `[AirJamConnectionState] Action "${actionName}" blocked: payload must be RPC-serializable.`,
             details: { actionName },
           });
           return createClientRejectedActionResult(
@@ -650,7 +662,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
           emitAirJamDiagnostic({
             code: "AJ_STORE_ACTION_PAYLOAD_INVALID_SHAPE",
             severity: "warn",
-            message: `[AirJamStore] Action "${actionName}" blocked: payload must be omitted or a plain object.`,
+            message: `[AirJamConnectionState] Action "${actionName}" blocked: payload must be omitted or a plain object.`,
             details: { actionName },
           });
           return createClientRejectedActionResult(
@@ -701,7 +713,7 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
         registration.listener(event);
       } catch (error) {
         console.error(
-          `[AirJamStore] Host action listener for "${event.actionName}" threw.`,
+          `[AirJamConnectionState] Host action listener for "${event.actionName}" threw.`,
           error,
         );
       }
@@ -1059,9 +1071,9 @@ export function createReplicatedStore<T extends AirJamNetworkedState>(
     return explicit.length > 128 ? explicit.slice(0, 128) : explicit;
   };
 
-  let attachedSession: ReplicatedStoreSession | null = null;
+  let attachedSession: AirJamStoreSession | null = null;
 
-  const attach = (session: ReplicatedStoreSession): (() => void) => {
+  const attach = (session: AirJamStoreSession): (() => void) => {
     if (attachedSession)
       throw new Error(
         "This Air Jam store is already attached to a running session.",

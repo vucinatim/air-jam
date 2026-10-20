@@ -1,4 +1,4 @@
-import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk";
+import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk/core";
 import type { TeamCounts } from "../../domain/match-readiness";
 import type { TeamId } from "../../domain/team";
 import {
@@ -54,7 +54,7 @@ interface PrototypeMatchState {
   };
 }
 
-export const usePrototypeMatchStore = createAirJamStore<PrototypeMatchState>(
+export const prototypeMatchStore = createAirJamStore<PrototypeMatchState>(
   (set) => ({
     ...createInitialMatchState(),
 

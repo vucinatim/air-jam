@@ -2,8 +2,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
+  createAirJamStore,
   createConnectionStore,
-  createReplicatedStore,
   HostRuntime,
   type AirJamActionContext,
   type AirJamHostEnvironment,
@@ -66,7 +66,7 @@ const config = resolveAirJamConfig({
 const inputSchema = z.object({ direction: z.number() });
 
 const createScoreStore = () =>
-  createReplicatedStore<{
+  createAirJamStore<{
     score: number;
     actions: {
       score: (ctx: AirJamActionContext, payload: { by: number }) => void;

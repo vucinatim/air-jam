@@ -22,7 +22,10 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
-import type { AirJamStore, JoinUrlStatus } from "../core/connection-store";
+import type {
+  AirJamConnectionState,
+  JoinUrlStatus,
+} from "../core/connection-store";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
@@ -204,7 +207,7 @@ export type AirJamHostRuntimeControls<
   | "getInput"
 >;
 
-const toHostState = (state: AirJamStore): AirJamHostState => ({
+const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
   roomId: state.roomId,
   connectionStatus: state.connectionStatus,
   players: state.players,

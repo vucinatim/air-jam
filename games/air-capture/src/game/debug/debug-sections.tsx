@@ -1,4 +1,4 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import { useEffect, useMemo, useState } from "react";
 import {
   getAbilityIconPath,
@@ -9,7 +9,7 @@ import { getTeamCounts, type TeamCounts } from "../domain/match-readiness";
 import { TEAM_CONFIG, TEAM_IDS } from "../domain/team";
 import { useDebugStore } from "../stores/debug/debug-store";
 import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
-import { usePrototypeMatchStore } from "../stores/match/match-store";
+import { prototypeMatchStore } from "../stores/match/match-store";
 import { useGameStore } from "../stores/players/game-store";
 import { useHealthStore } from "../stores/players/health-store";
 import { useLasersStore } from "../stores/projectiles/lasers-store";
@@ -25,11 +25,15 @@ const MAX_TEAM_SIZE = 2;
 
 export function BotsSection() {
   const connectedPlayers = useAirJamHost((state) => state.players);
-  const botCounts = usePrototypeMatchStore((state) => state.botCounts);
-  const teamAssignments = usePrototypeMatchStore(
+  const botCounts = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.botCounts,
+  );
+  const teamAssignments = useAirJamStore(
+    prototypeMatchStore,
     (state) => state.teamAssignments,
   );
-  const matchActions = usePrototypeMatchStore.useActions();
+  const matchActions = prototypeMatchStore.actions;
 
   const humanTeamCounts = useMemo(() => {
     const connectedIds = new Set(connectedPlayers.map((player) => player.id));

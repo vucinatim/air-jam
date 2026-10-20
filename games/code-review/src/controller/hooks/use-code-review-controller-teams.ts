@@ -1,10 +1,10 @@
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import { useMemo } from "react";
 import {
   getLobbyReadinessText,
   getMatchReadiness,
 } from "../../game/domain/match-readiness";
-import { useGameStore } from "../../game/stores";
+import { gameStore } from "../../game/stores";
 
 const TEAM1_COLOR = "#dc2626";
 const TEAM2_COLOR = "#2563eb";
@@ -12,8 +12,11 @@ const TEAM2_COLOR = "#2563eb";
 export const useCodeReviewControllerTeams = () => {
   const controllerId = useAirJamController((state) => state.controllerId);
   const players = useAirJamController((state) => state.players);
-  const teamAssignments = useGameStore((state) => state.teamAssignments);
-  const botCounts = useGameStore((state) => state.botCounts);
+  const teamAssignments = useAirJamStore(
+    gameStore,
+    (state) => state.teamAssignments,
+  );
+  const botCounts = useAirJamStore(gameStore, (state) => state.botCounts);
 
   const myAssignment = controllerId ? teamAssignments[controllerId] : null;
   const myProfile = controllerId

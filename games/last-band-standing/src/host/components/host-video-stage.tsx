@@ -3,11 +3,11 @@ import {
   formatResponseTime,
   getLabelForPlayer,
 } from "@/game/domain/player-utils";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";
 import { PlayerAvatarWithFire } from "@/game/ui/player-avatar-with-fire";
 import { getRoundPrompt } from "@/game/ui/round-prompt";
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 import { HostPlayerStrip } from "./host-player-strip";
 
@@ -31,11 +31,15 @@ export const HostVideoStage = ({
   onIframeLoad,
 }: HostVideoStageProps) => {
   const players = useAirJamHost((state) => state.players);
-  const phase = useGameStore((state) => state.phase);
-  const currentRound = useGameStore((state) => state.currentRound);
-  const roundReveal = useGameStore((state) => state.roundReveal);
-  const playerLabelById = useGameStore((state) => state.playerLabelById);
-  const scoreboardByPlayerId = useGameStore(
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
+  const roundReveal = useAirJamStore(gameStore, (state) => state.roundReveal);
+  const playerLabelById = useAirJamStore(
+    gameStore,
+    (state) => state.playerLabelById,
+  );
+  const scoreboardByPlayerId = useAirJamStore(
+    gameStore,
     (state) => state.scoreboardByPlayerId,
   );
   const isBlurred = phase === "round-active";

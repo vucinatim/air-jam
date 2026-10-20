@@ -1,6 +1,6 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import { useMemo } from "react";
-import { useOfficeFinalTotalMoney, useSpaceStore } from "../../game/stores";
+import { spaceStore, useOfficeFinalTotalMoney } from "../../game/stores";
 
 export function OfficeHostEndedOverlay({
   onReturnToLobby,
@@ -8,7 +8,7 @@ export function OfficeHostEndedOverlay({
   onReturnToLobby: () => void;
 }) {
   const players = useAirJamHost((state) => state.players);
-  const money = useSpaceStore((state) => state.money);
+  const money = useAirJamStore(spaceStore, (state) => state.money);
   const finalTotalMoney = useOfficeFinalTotalMoney();
 
   const finalEarnings = useMemo(

@@ -3,7 +3,7 @@
  *
  * This host drives a round-based music quiz: a YouTube clip plays on the
  * main screen, controllers buzz in, and the host advances the round
- * lifecycle through the networked `useGameStore`. The YouTube player
+ * lifecycle through the networked `gameStore`. The YouTube player
  * wrapper in `./youtube` handles cued playback without exposing
  * the iframe API directly to the rest of the code.
  */

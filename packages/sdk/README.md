@@ -38,7 +38,7 @@ metadata unless they intentionally pin tighter.
 1. `Input lane` (high frequency, transient):
    `useControllerTick` + `useInputWriter` on controller, `host.getInput` / `useGetInput` on host.
 2. `State lane` (replicated, host-authoritative):
-   `createAirJamStore` + `useActions` with `(ctx, payload)` action handlers.
+   `createAirJamStore` from `@air-jam/sdk/core`, dispatched through `store.actions`, with `(ctx, payload)` action handlers.
 3. `Signal lane` (out-of-band UX/system):
    `sendSignal` / `sendSystemCommand` for haptics, toasts, room-level commands, and remote audio cues.
 
@@ -46,7 +46,7 @@ Do not mix lanes:
 
 1. Do not send per-frame stick/button input through store actions.
 2. Do not mutate authoritative game state via signals.
-3. Do not dispatch state actions via `state.actions.*`; use `useStore.useActions()`.
+3. Do not dispatch state actions via `store.getState().actions.*`; use `store.actions`.
 
 ## Installation
 
@@ -452,43 +452,42 @@ These components are lifecycle-free: they do not create sockets or own host/cont
 
 ## Networked State (Host Source of Truth)
 
-Use `createAirJamStore` for shared game state synced from host to controllers.
+Use `createAirJamStore` from `@air-jam/sdk/core` for shared game state synced
+from host to controllers, declare it in `createAirJamApp({ stores })`, and read
+it in components with `useAirJamStore`.
 
 ```tsx
-import { createAirJamStore } from "@air-jam/sdk";
+import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk/core";
 
-interface RuntimeState {
+interface GameState {
   phase: "lobby" | "playing";
   actions: {
     setPhase: (
-      ctx: {
-        actorId: string;
-        role: "controller" | "host";
-        connectedPlayerIds: string[];
-      },
+      ctx: AirJamActionContext,
       payload: { phase: "lobby" | "playing" },
     ) => void;
   };
 }
 
-export const useGameStore = createAirJamStore<RuntimeState>((set) => ({
+export const gameStore = createAirJamStore<GameState>((set) => ({
   phase: "lobby",
   actions: {
     setPhase: (_ctx, { phase }) => set({ phase }),
   },
 }));
 
-const actions = useGameStore.useActions();
-actions.setPhase({ phase: "playing" });
+// In a component:
+const phase = useAirJamStore(gameStore, (state) => state.phase);
+gameStore.actions.setPhase({ phase: "playing" });
 ```
 
-Use `useGameStore.useActions()` for action dispatch. On controllers, action calls are proxied to the host automatically and actor identity is attached by the server.
+Dispatch through `gameStore.actions`. On controllers, action calls are proxied to the host automatically and actor identity is attached by the server. A declared store syncs while its host or controller runs, whether or not a component reads it; reading an undeclared store throws `AJ_STORE_NOT_DECLARED`.
 
 Important identity rule:
 
 1. `ctx.actorId` is always the identity of the dispatcher
-2. if host code calls `useActions()`, then `ctx.actorId === "host"`
-3. if host code intentionally wants to run the same semantic action as controller `X`, use `useGameStore.asPlayer("X")` instead of smuggling `controllerId` through an unrelated payload
+2. if host code dispatches through `gameStore.actions`, then `ctx.actorId === "host"`
+3. if host code intentionally wants to run the same semantic action as controller `X`, use `gameStore.asPlayer("X")` instead of smuggling `controllerId` through an unrelated payload
 
 Every action dispatch now resolves to an acknowledgement:
 
@@ -504,10 +503,10 @@ Networked action contract:
 
 Action context includes `connectedPlayerIds`, so host actions can prune stale assignments without custom presence-sync actions.
 
-For host-only local side effects such as sounds, local sim refs, or one-shot animations, use the store's host action listener seam instead of queueing ephemeral commands through replicated state:
+For host-only local side effects such as sounds, local sim refs, or one-shot animations, listen to host-applied actions instead of queueing ephemeral commands through replicated state:
 
 ```tsx
-useGameStore.useHostActionListener((event) => {
+useHostActionListener(gameStore, (event) => {
   if (event.actionName !== "fireProjectile") {
     return;
   }
@@ -519,7 +518,7 @@ useGameStore.useHostActionListener((event) => {
 For explicit host-side player impersonation, use the host-only player-action lane:
 
 ```tsx
-const playerActions = useGameStore.asPlayer("ctrl_2");
+const playerActions = gameStore.asPlayer("ctrl_2");
 
 await playerActions.joinTeam({ team: "red" });
 ```
@@ -532,19 +531,16 @@ import {
   acceptAirJamAction,
   createAirJamStore,
   rejectAirJamAction,
-} from "@air-jam/sdk";
+} from "@air-jam/sdk/core";
 
-export const useGameStore = createAirJamStore((set) => ({
+export const gameStore = createAirJamStore((set, get) => ({
   aliveByPlayerId: {} as Record<string, boolean>,
   actions: {
-    fire: ({ actorId }) =>
-      set((state) => {
-        if (!actorId || state.aliveByPlayerId[actorId] === false) {
-          return rejectAirJamAction("player_dead", "Dead players cannot fire.");
-        }
-
-        return acceptAirJamAction({ cooldownMs: 4500 });
-      }),
+    fire: ({ actorId }) => {
+      if (!actorId || get().aliveByPlayerId[actorId] === false)
+        return rejectAirJamAction("player_dead", "Dead players cannot fire.");
+      return acceptAirJamAction({ cooldownMs: 4500 });
+    },
   },
 }));
 ```
@@ -575,8 +571,8 @@ const host = useAirJamHost();
 2. On controllers, publish input with `useControllerTick` + `useInputWriter`.
 3. On hosts, read input with `getInput` / `useGetInput`.
 4. For host gameplay loops, prefer `useHostTick(...)` over hand-rolled `requestAnimationFrame` or `setInterval` loops.
-5. Keep replicated gameplay state in `createAirJamStore`.
-6. Dispatch all store actions through `useActions()` zero-arg or payload-object calls and check the returned acknowledgement when outcome matters.
+5. Keep replicated gameplay state in `createAirJamStore` and declare it in `createAirJamApp({ stores })`.
+6. Dispatch all store actions through `store.actions` zero-arg or payload-object calls and check the returned acknowledgement when outcome matters.
 
 ## Canonical `airjam.config.ts`
 
@@ -584,11 +580,13 @@ Keep one runtime/session declaration and use role wrappers directly in routes.
 
 ```tsx
 import { createAirJamApp, env } from "@air-jam/sdk";
+import { gameStore } from "./game/stores/game-store";
 import { gameInputSchema } from "./types";
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   controllerPath: "/controller",
+  stores: [gameStore],
   // Optional agent-facing contracts belong here too.
   // agent: agentContract,
   input: {

@@ -7,7 +7,7 @@
  * reducers can tell which controller initiated the action without trusting
  * client-supplied identity.
  */
-import type { AirJamActionContext } from "@air-jam/sdk";
+import type { AirJamActionContext } from "@air-jam/sdk/core";
 import type { TeamId } from "../domain/team";
 import type { BotCounts } from "../domain/team-slots";
 

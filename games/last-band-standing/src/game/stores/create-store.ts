@@ -11,7 +11,7 @@ import {
 } from "@/game/content/song-bank";
 import { isMatchReadyToStart } from "@/game/domain/match-readiness";
 import { rankPlayers } from "@/game/domain/round-engine";
-import { createAirJamStore } from "@air-jam/sdk";
+import { createAirJamStore } from "@air-jam/sdk/core";
 import { buildPlayerLabelMap, filterRecordByPlayerIds } from "./player-helpers";
 import {
   appendPlayedSongKeys,
@@ -24,7 +24,7 @@ import {
 } from "./round-helpers";
 import { type QuizState } from "./types";
 
-export const useGameStore = createAirJamStore<QuizState>((set) => ({
+export const gameStore = createAirJamStore<QuizState>((set) => ({
   phase: "lobby",
   playerOrder: [],
   playerLabelById: {},

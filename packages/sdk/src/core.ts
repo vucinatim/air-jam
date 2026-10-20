@@ -1,7 +1,7 @@
 export type { AirJamConfig } from "./core/config";
 export {
   createConnectionStore,
-  type AirJamStore,
+  type AirJamConnectionState,
   type JoinUrlStatus,
 } from "./core/connection-store";
 export {
@@ -29,7 +29,7 @@ export {
 } from "./core/host-runtime";
 export {
   acceptAirJamAction,
-  createReplicatedStore,
+  createAirJamStore,
   isInternalActionName,
   rejectAirJamAction,
   type AirJamActionAcceptance,
@@ -40,8 +40,8 @@ export {
   type AirJamHostActionListener,
   type AirJamHostActionSubscriptionOptions,
   type AirJamNetworkedState,
+  type AirJamStore,
+  type AirJamStoreSession,
   type AttachableStore,
   type CreateAirJamStoreOptions,
-  type ReplicatedStore,
-  type ReplicatedStoreSession,
 } from "./core/replicated-store";

@@ -18,7 +18,7 @@
  * The reducers live here as pure functions (no SDK imports, no React) so
  * they can be unit-tested without a running session.
  */
-import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk";
+import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk/core";
 
 export interface MinimalState {
   /** Shared running total of taps across all connected controllers. */
@@ -57,7 +57,7 @@ export const reduceTap = (
 /** Clear all counts back to zero. */
 export const reduceReset = (): MinimalStateData => createInitialMinimalState();
 
-export const useMinimalStore = createAirJamStore<MinimalState>((set) => ({
+export const minimalStore = createAirJamStore<MinimalState>((set) => ({
   ...createInitialMinimalState(),
 
   actions: {

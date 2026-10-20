@@ -4,7 +4,7 @@
  * Office-themed co-op: each controller adopts a "player" persona with its
  * own capabilities, and they cooperate on pending tasks that appear in
  * `TaskSidebar`. `GameCanvas` renders the 2D office floor; the rest of the
- * host is just chrome over the networked `useSpaceStore` state plus the
+ * host is just chrome over the networked `spaceStore` state plus the
  * match-clock / pending-task hooks in `./hooks/use-office-game-runtime`.
  */
 import { AudioRuntime, useHostAudioMutePreference } from "@air-jam/sdk";

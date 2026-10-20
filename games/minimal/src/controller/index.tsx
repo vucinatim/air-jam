@@ -4,25 +4,25 @@
  * Flow:
  *  1. `useAirJamController()` gives us the session identity and connection
  *     status.
- *  2. `useMinimalStore` reads the replicated game state. `actions.tap()` is
+ *  2. `minimalStore` reads the replicated game state. `actions.tap()` is
  *     the star of the show — calling it on the controller RPCs the action to
  *     the host, which runs the reducer and broadcasts the new state back.
  * No input writer, no tick loop — taps are discrete events, not per-frame
  * intent. See `pong` for the input-lane pattern.
  */
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
-import { useMinimalStore } from "../game/store";
+import { minimalStore } from "../game/store";
 
 export function ControllerView() {
   const controller = useAirJamController();
-  const actions = useMinimalStore.useActions();
+  const actions = minimalStore.actions;
 
   const myControllerId = controller.controllerId;
-  const myCount = useMinimalStore((state) =>
+  const myCount = useAirJamStore(minimalStore, (state) =>
     myControllerId ? (state.perPlayerCounts[myControllerId] ?? 0) : 0,
   );
-  const totalCount = useMinimalStore((state) => state.totalCount);
+  const totalCount = useAirJamStore(minimalStore, (state) => state.totalCount);
 
   const canTap = controller.connectionStatus === "connected";
 

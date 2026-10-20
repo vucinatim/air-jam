@@ -1,6 +1,7 @@
 import {
   captureAgentCanvas,
   useAirJamHost,
+  useAirJamStore,
   useGetInput,
   useHostAgentObservation,
   useHostTick,
@@ -39,7 +40,7 @@ import type {
   SlotParticipant,
   SpriteKey,
 } from "../../game/engine/types";
-import { useGameStore } from "../../game/stores";
+import { gameStore } from "../../game/stores";
 import type { CodeReviewMatchPhase } from "../../game/stores/code-review-store-types";
 
 const CODE_REVIEW_SIMULATION_STEP_MS = 1000 / 60;
@@ -72,8 +73,8 @@ export const useCodeReviewHostRuntime = ({
   const runtimeState = useAirJamHost((state) => state.runtimeState);
   const getInput = useGetInput<typeof gameInputSchema>();
   const sendSignal = useSendSignal();
-  const actions = useGameStore.useActions();
-  const scores = useGameStore((state) => state.scores);
+  const actions = gameStore.actions;
+  const scores = useAirJamStore(gameStore, (state) => state.scores);
   const gameStateRef = useRef(createRuntimePlayerState());
   const hpRef = useRef<HpState>(createHpState());
   const koRef = useRef(createKoState());

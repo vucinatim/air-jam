@@ -1,7 +1,8 @@
 import {
-  useAirJamHost,
-  useHostAgentObservation,
   type PlayerProfile,
+  useAirJamHost,
+  useAirJamStore,
+  useHostAgentObservation,
 } from "@air-jam/sdk";
 import { useHostJoinControls } from "@air-jam/sdk/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -10,7 +11,7 @@ import { readBotWorld } from "../../game/bot-system/bot-world";
 import { TEAM_IDS, type TeamId } from "../../game/domain/team";
 import { useMatchCountdown } from "../../game/hooks/use-match-countdown";
 import { useCaptureTheFlagStore } from "../../game/stores/match/capture-the-flag-store";
-import { usePrototypeMatchStore } from "../../game/stores/match/match-store";
+import { prototypeMatchStore } from "../../game/stores/match/match-store";
 import { useGameStore } from "../../game/stores/players/game-store";
 
 interface UseAirCaptureHostRuntimeOptions {
@@ -38,17 +39,31 @@ export function useAirCaptureHostRuntime({
     }),
   });
 
-  const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
-  const pointsToWin = usePrototypeMatchStore((state) => state.pointsToWin);
-  const botCounts = usePrototypeMatchStore((state) => state.botCounts);
-  const teamAssignments = usePrototypeMatchStore(
+  const matchPhase = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.matchPhase,
+  );
+  const pointsToWin = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.pointsToWin,
+  );
+  const botCounts = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.botCounts,
+  );
+  const teamAssignments = useAirJamStore(
+    prototypeMatchStore,
     (state) => state.teamAssignments,
   );
-  const matchSummary = usePrototypeMatchStore((state) => state.matchSummary);
-  const countdownEndsAtMs = usePrototypeMatchStore(
+  const matchSummary = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.matchSummary,
+  );
+  const countdownEndsAtMs = useAirJamStore(
+    prototypeMatchStore,
     (state) => state.countdownEndsAtMs,
   );
-  const matchActions = usePrototypeMatchStore.useActions();
+  const matchActions = prototypeMatchStore.actions;
   const countdownRemainingSeconds = useMatchCountdown(countdownEndsAtMs);
   const ctfScores = useCaptureTheFlagStore((state) => state.scores);
   const resetMatch = useCaptureTheFlagStore((state) => state.resetMatch);

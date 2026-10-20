@@ -1,16 +1,19 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import { useEffect, useMemo } from "react";
 import { FIGHTER_SLOTS } from "../../game/engine/constants";
 import type { PlayerKey, SlotParticipant } from "../../game/engine/types";
-import { useGameStore } from "../../game/stores";
+import { gameStore } from "../../game/stores";
 
 export const useCodeReviewHostTeams = () => {
   const players = useAirJamHost((state) => state.players);
   const connectionStatus = useAirJamHost((state) => state.connectionStatus);
-  const teamAssignments = useGameStore((state) => state.teamAssignments);
-  const botCounts = useGameStore((state) => state.botCounts);
-  const matchPhase = useGameStore((state) => state.matchPhase);
-  const actions = useGameStore.useActions();
+  const teamAssignments = useAirJamStore(
+    gameStore,
+    (state) => state.teamAssignments,
+  );
+  const botCounts = useAirJamStore(gameStore, (state) => state.botCounts);
+  const matchPhase = useAirJamStore(gameStore, (state) => state.matchPhase);
+  const actions = gameStore.actions;
 
   const connectedPlayerIds = useMemo(
     () => players.map((player) => player.id),

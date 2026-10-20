@@ -5,7 +5,7 @@ import {
   type RoundPlayerResult,
 } from "@/game/domain/round-engine";
 import { type GamePhase, type RoundGuessKind } from "@/game/domain/types";
-import { type AirJamActionContext } from "@air-jam/sdk";
+import { type AirJamActionContext } from "@air-jam/sdk/core";
 
 export type { PlayerScore };
 

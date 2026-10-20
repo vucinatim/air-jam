@@ -4,9 +4,9 @@
  * The controller shows the assigned player's stats, the current busy task
  * (if any), and a d-pad + primary action. It publishes direction + action
  * intent to the host via `useInputWriter`. Phase switches (lobby / playing
- * / ended) come from the networked `useSpaceStore`.
+ * / ended) come from the networked `spaceStore`.
  */
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import {
   ControllerPrimaryAction,
   LifecycleActionGroup,
@@ -30,6 +30,7 @@ import {
   PLAYERS,
 } from "../game/content/players";
 import {
+  spaceStore,
   useOfficeFinalTotalMoney,
   useOfficeGameOver,
   useOfficeLifecycleVersion,
@@ -39,7 +40,6 @@ import {
   useOfficePlayerStats,
   useOfficeSelectedPlayerCount,
   useOfficeTotalMoney,
-  useSpaceStore,
 } from "../game/stores";
 import { useOfficeControllerInput } from "./use-office-controller-input";
 
@@ -72,7 +72,7 @@ export function ControllerView() {
     selectedPlayerCount > 0 &&
     selectedPlayerCount === connectedPlayerCount;
 
-  const actions = useSpaceStore.useActions();
+  const actions = spaceStore.actions;
   const shellStatus = useControllerShellStatus({
     roomId,
     connectionStatus,
@@ -208,8 +208,11 @@ function OfficeControllerLobbyView({
   hasCharacterSelection: boolean;
   lobbyPrimaryHelper: string;
 }) {
-  const playerAssignments = useSpaceStore((state) => state.playerAssignments);
-  const actions = useSpaceStore.useActions();
+  const playerAssignments = useAirJamStore(
+    spaceStore,
+    (state) => state.playerAssignments,
+  );
+  const actions = spaceStore.actions;
   const myPlayerId = controllerId
     ? (playerAssignments[controllerId] ?? null)
     : null;

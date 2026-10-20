@@ -23,7 +23,7 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
-import type { AirJamStore } from "../core/connection-store";
+import type { AirJamConnectionState } from "../core/connection-store";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
@@ -179,7 +179,9 @@ export type AirJamControllerRuntimeControls = Pick<
   | "socket"
 >;
 
-const toControllerState = (state: AirJamStore): AirJamControllerState => {
+const toControllerState = (
+  state: AirJamConnectionState,
+): AirJamControllerState => {
   const selfPlayer = state.controllerId
     ? (state.players.find((player) => player.id === state.controllerId) ?? null)
     : null;

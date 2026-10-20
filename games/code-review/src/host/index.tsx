@@ -4,7 +4,12 @@
  * Runtime details live in host hooks so this route stays a small composition
  * hub instead of a mixed engine/UI file.
  */
-import { AudioRuntime, MusicPlaylist, useAirJamHost } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  MusicPlaylist,
+  useAirJamHost,
+  useAirJamStore,
+} from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { gameInputSchema } from "../game/contracts/input";
@@ -12,7 +17,7 @@ import {
   CODE_REVIEW_MUSIC_TRACKS,
   CODE_REVIEW_SOUND_MANIFEST,
 } from "../game/contracts/sounds";
-import { useGameStore } from "../game/stores";
+import { gameStore } from "../game/stores";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
 import { PausedOverlay } from "./components/paused-overlay";
@@ -33,8 +38,8 @@ export function HostView() {
 
 function CodeReviewHost() {
   const host = useAirJamHost<typeof gameInputSchema>();
-  const matchPhase = useGameStore((state) => state.matchPhase);
-  const actions = useGameStore.useActions();
+  const matchPhase = useAirJamStore(gameStore, (state) => state.matchPhase);
+  const actions = gameStore.actions;
 
   const canvas = useCodeReviewCanvas();
   const sprites = useCodeReviewSprites();

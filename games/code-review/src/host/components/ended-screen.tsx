@@ -1,9 +1,10 @@
-import { useGameStore } from "../../game/stores";
+import { useAirJamStore } from "@air-jam/sdk";
+import { gameStore } from "../../game/stores";
 
 export const EndedScreen = () => {
-  const matchSummary = useGameStore((state) => state.matchSummary);
-  const scores = useGameStore((state) => state.scores);
-  const actions = useGameStore.useActions();
+  const matchSummary = useAirJamStore(gameStore, (state) => state.matchSummary);
+  const scores = useAirJamStore(gameStore, (state) => state.scores);
+  const actions = gameStore.actions;
 
   return (
     <div className="absolute inset-0 z-50 overflow-y-auto bg-black/65 p-3 sm:p-4">

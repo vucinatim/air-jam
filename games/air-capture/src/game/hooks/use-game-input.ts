@@ -1,16 +1,19 @@
-import { useGetInput, useRoom } from "@air-jam/sdk";
+import { useAirJamStore, useGetInput, useRoom } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import { useBotManager } from "../bot-system/bot-manager";
 import { type GameLoopInput, gameInputSchema } from "../contracts/input";
-import { usePrototypeMatchStore } from "../stores/match/match-store";
+import { prototypeMatchStore } from "../stores/match/match-store";
 
 export const useGameInput = () => {
   // Get getInput without subscribing to connection state
   const getInputFromHost = useGetInput<typeof gameInputSchema>();
   const botManager = useBotManager.getState();
   const { runtimeState } = useRoom();
-  const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
+  const matchPhase = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.matchPhase,
+  );
 
   // We need time for bot updates
   const timeRef = useRef(0);

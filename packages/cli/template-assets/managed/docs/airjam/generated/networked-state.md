@@ -11,6 +11,9 @@
 
 Use this lane for replicated game state, not per-frame input.
 
+A store is a plain object from `@air-jam/sdk/core`, so game logic can use it
+without React. Components read it with `useAirJamStore`.
+
 ## Canonical Action Model
 
 Actions always use this shape on the host:
@@ -18,10 +21,10 @@ Actions always use this shape on the host:
 1. First argument: `ctx` (identity and role)
 2. Second argument: `payload` (either `undefined` or one typed plain-object payload)
 
-Controller-side dispatch always uses:
+Dispatch always goes through the store's `actions`:
 
-1. `const actions = useGameStore.useActions()`
-2. `actions.someAction()` or `actions.someAction({ ...payload })`
+1. `gameStore.actions.someAction()`
+2. `gameStore.actions.someAction({ ...payload })`
 
 No trailing `controllerId` arguments and no multi-argument action payloads.
 No primitive, array, or event-like root payloads.
@@ -32,7 +35,7 @@ This example uses a starter-friendly `stores/` folder shape.
 The important contract is the action model and ownership boundary, not the exact filename.
 
 ```tsx filename="src/game/stores/game-store.ts"
-import { createAirJamStore } from "@air-jam/sdk";
+import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk/core";
 
 type Team = "team1" | "team2";
 
@@ -41,22 +44,16 @@ interface GameState {
   teamAssignments: Record<string, Team>;
   scores: { team1: number; team2: number };
   actions: {
-    joinTeam: (
-      ctx: { actorId: string; role: "controller" | "host" },
-      payload: { team: Team },
-    ) => void;
-    scorePoint: (
-      _ctx: { actorId: string; role: "controller" | "host" },
-      payload: { team: Team },
-    ) => void;
+    joinTeam: (ctx: AirJamActionContext, payload: { team: Team }) => void;
+    scorePoint: (ctx: AirJamActionContext, payload: { team: Team }) => void;
     setPhase: (
-      _ctx: { actorId: string; role: "controller" | "host" },
+      ctx: AirJamActionContext,
       payload: { phase: "lobby" | "playing" },
     ) => void;
   };
 }
 
-export const useGameStore = createAirJamStore<GameState>((set) => ({
+export const gameStore = createAirJamStore<GameState>((set) => ({
   phase: "lobby",
   teamAssignments: {},
   scores: { team1: 0, team2: 0 },
@@ -86,17 +83,17 @@ The host and controllers sync a store only when the app declares it:
 
 ```ts filename="src/airjam.config.ts"
 import { createAirJamApp, env } from "@air-jam/sdk";
-import { useGameStore } from "./game/stores/game-store";
+import { gameStore } from "./game/stores/game-store";
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   controllerPath: "/controller",
-  stores: [useGameStore],
+  stores: [gameStore],
 });
 ```
 
 A declared store syncs for as long as the host or controller runs, whether or
-not any component is reading it. Rendering a store the app does not declare
+not any component is reading it. Reading a store the app does not declare
 throws `AJ_STORE_NOT_DECLARED`.
 
 ## Use on Controller
@@ -105,13 +102,15 @@ This controller example matches the starter template surface layout.
 It assumes your app has already mounted `airjam.Controller`.
 
 ```tsx filename="src/controller/index.tsx"
-import { useAirJamController } from "@air-jam/sdk";
-import { useGameStore } from "../game/stores/game-store";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
+import { gameStore } from "../game/stores/game-store";
 
 export const ControllerView = () => {
   const controller = useAirJamController();
-  const actions = useGameStore.useActions();
-  const teamAssignments = useGameStore((state) => state.teamAssignments);
+  const teamAssignments = useAirJamStore(
+    gameStore,
+    (state) => state.teamAssignments,
+  );
 
   const myTeam = controller.controllerId
     ? teamAssignments[controller.controllerId]
@@ -120,7 +119,7 @@ export const ControllerView = () => {
   return (
     <div>
       <p>My team: {myTeam ?? "unassigned"}</p>
-      <button onClick={() => actions.joinTeam({ team: "team1" })}>
+      <button onClick={() => gameStore.actions.joinTeam({ team: "team1" })}>
         Join Team 1
       </button>
     </div>
@@ -134,12 +133,12 @@ This host example also matches the starter template surface layout.
 It assumes your app has already mounted `airjam.Host`.
 
 ```tsx filename="src/host/index.tsx"
-import { useGameStore } from "../game/stores/game-store";
+import { useAirJamStore } from "@air-jam/sdk";
+import { gameStore } from "../game/stores/game-store";
 
 export const HostView = () => {
-  const phase = useGameStore((state) => state.phase);
-  const scores = useGameStore((state) => state.scores);
-  const actions = useGameStore.useActions();
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const scores = useAirJamStore(gameStore, (state) => state.scores);
 
   return (
     <div>
@@ -147,10 +146,10 @@ export const HostView = () => {
       <p>
         {scores.team1} - {scores.team2}
       </p>
-      <button onClick={() => actions.setPhase({ phase: "playing" })}>
+      <button onClick={() => gameStore.actions.setPhase({ phase: "playing" })}>
         Start
       </button>
-      <button onClick={() => actions.scorePoint({ team: "team1" })}>
+      <button onClick={() => gameStore.actions.scorePoint({ team: "team1" })}>
         Team 1 +1
       </button>
     </div>
@@ -170,15 +169,16 @@ export const HostView = () => {
 ## Rules
 
 1. Keep all networked mutations inside `actions`.
-2. Always dispatch via `useActions()`; do not call `state.actions.*` directly.
+2. Always dispatch via `store.actions`; do not call `store.getState().actions.*` directly.
 3. Use one payload object per action for stable evolution.
 4. Root payloads must be omitted or plain objects.
 5. `T | undefined` payload unions are not valid roots. If an action has no payload, omit it entirely.
 6. Nested values must stay RPC-serializable.
 7. Use `ctx.actorId` for identity-aware actions (team join, ownership, etc.).
-8. `ctx.actorId` is always the dispatcher identity. If host code dispatches through `useActions()`, then `ctx.actorId` is the host.
-9. If the host intentionally needs to run the same semantic player action as controller `X`, use `useStore.asPlayer("X")` instead of inventing a target payload for an actor-owned action.
+8. `ctx.actorId` is always the dispatcher identity. If host code dispatches through `store.actions`, then `ctx.actorId` is the host.
+9. If the host intentionally needs to run the same semantic player action as controller `X`, use `store.asPlayer("X")` instead of inventing a target payload for an actor-owned action.
 10. Keep per-frame gameplay input in `useInputWriter` / `host.getInput`, not in this store.
+11. For a host-only side effect of an action, such as a sound, use `useHostActionListener(store, listener)`.
 
 ## Accept And Reject Examples
 
@@ -191,21 +191,24 @@ import {
   acceptAirJamAction,
   createAirJamStore,
   rejectAirJamAction,
-} from "@air-jam/sdk";
+} from "@air-jam/sdk/core";
 
-export const useGameStore = createAirJamStore((set) => ({
+export const gameStore = createAirJamStore((set, get) => ({
   aliveByPlayerId: {} as Record<string, boolean>,
   cooldownMsByPlayerId: {} as Record<string, number>,
   actions: {
-    fire: ({ actorId }) =>
-      set((state) => {
-        if (!actorId || state.aliveByPlayerId[actorId] === false) {
-          return rejectAirJamAction("player_dead", "Dead players cannot fire.");
-        }
-
-        const cooldownMs = 4500;
-        return acceptAirJamAction({ cooldownMs });
-      }),
+    fire: ({ actorId }) => {
+      if (!actorId || get().aliveByPlayerId[actorId] === false)
+        return rejectAirJamAction("player_dead", "Dead players cannot fire.");
+      const cooldownMs = 4500;
+      set((state) => ({
+        cooldownMsByPlayerId: {
+          ...state.cooldownMsByPlayerId,
+          [actorId]: cooldownMs,
+        },
+      }));
+      return acceptAirJamAction({ cooldownMs });
+    },
   },
 }));
 ```
@@ -224,11 +227,14 @@ The SDK/runtime automatically resolves the correct replicated store domain from 
 
 ## API Summary
 
-`createAirJamStore<T>(initializer)` returns a hook to declare in
-`createAirJamApp({ stores })`. It provides:
+`createAirJamStore<T>(initializer)` from `@air-jam/sdk/core` returns a store to
+declare in `createAirJamApp({ stores })`. It provides:
 
-1. Zustand-compatible hook for selectors.
-2. `useActions()` dispatch map with `() => void` or `(payloadObject) => void` signatures.
-3. `asPlayer(controllerId)` host-only dispatch map for explicit player impersonation of semantic actions.
+1. `actions`, dispatching with `() => Promise` or `(payloadObject) => Promise` signatures.
+2. `getState()` and `subscribe()` for logic outside React.
+3. `asPlayer(controllerId)`, a host-only dispatch map for explicit player impersonation of semantic actions.
+
+React reads it with `useAirJamStore(store, selector)` and listens to host-applied
+actions with `useHostActionListener(store, listener)`.
 
 `T` must include an `actions` object with host handlers `(ctx, payload) => void`, where `payload` is `undefined` or a plain object.

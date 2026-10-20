@@ -179,18 +179,9 @@ export {
   type InferAirJamAgentStores,
 } from "./agent/agent-contract";
 export {
-  acceptAirJamAction,
-  createAirJamStore,
-  rejectAirJamAction,
-  type AirJamActionAcceptance,
-  type AirJamActionContext,
-  type AirJamActionRejection,
-  type AirJamHostActionEvent,
-  type AirJamHostActionListener,
-  type AirJamHostActionSubscriptionOptions,
-  type AirJamSyncedStoreHook,
-  type CreateAirJamStoreOptions,
-} from "./store/create-air-jam-store";
+  useAirJamStore,
+  useHostActionListener,
+} from "./store/use-air-jam-store";
 
 export type {
   DocumentWithFullscreen,
