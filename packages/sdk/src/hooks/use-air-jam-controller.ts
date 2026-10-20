@@ -38,7 +38,7 @@ import type {
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
-import type { AirJamStore } from "../state/connection-store";
+import type { AirJamStore } from "../core/connection-store";
 
 /**
  * Options for configuring the controller runtime boundary.

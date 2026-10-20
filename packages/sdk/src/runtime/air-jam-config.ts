@@ -11,23 +11,14 @@ import {
   readRuntimeTopologyFromWindow,
   resolveProjectRuntimeTopology,
   resolveRuntimeTopology,
-  type ProxyStrategy,
   type ResolvedAirJamRuntimeTopology,
   type RuntimeTopologyInput,
   type SurfaceRole,
 } from "../runtime-topology";
 
-export interface AirJamConfig {
-  topology: ResolvedAirJamRuntimeTopology;
-  appId?: string;
-  hostGrantEndpoint?: string;
-  maxPlayers: number;
-  hostSessionKind: HostSessionKind;
-  backendOrigin: string;
-  socketOrigin: string;
-  appOrigin: string;
-  proxyStrategy: ProxyStrategy;
-}
+import type { AirJamConfig } from "../core/config";
+
+export type { AirJamConfig };
 
 export interface ResolveAirJamConfigInput {
   topology?: RuntimeTopologyInput | ResolvedAirJamRuntimeTopology;

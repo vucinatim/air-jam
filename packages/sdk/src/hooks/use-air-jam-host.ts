@@ -38,9 +38,10 @@ import type {
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
-import type { AirJamStore } from "../state/connection-store";
+import type { AirJamStore, JoinUrlStatus } from "../core/connection-store";
 
-export type JoinUrlStatus = "loading" | "ready" | "unavailable";
+export type { JoinUrlStatus };
+
 
 /**
  * Options for configuring the host runtime boundary.

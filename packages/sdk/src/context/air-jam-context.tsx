@@ -71,7 +71,7 @@ import {
   AIRJAM_DEV_PROVIDER_MOUNTED,
   emitAirJamDevRuntimeEvent,
 } from "../runtime/dev-runtime-events";
-import { createAirJamStore, type AirJamStore } from "../state/connection-store";
+import { createConnectionStore, type AirJamStore } from "../core/connection-store";
 import { SocketManager, type AirJamSocket } from "./socket-manager";
 
 // ============================================================================
@@ -175,7 +175,7 @@ export interface AirJamContextValue {
   /** Resolved configuration with env fallbacks */
   config: AirJamConfig;
   /** Context-bound Zustand store */
-  store: ReturnType<typeof createAirJamStore>;
+  store: ReturnType<typeof createConnectionStore>;
   /** Socket manager for this provider instance */
   socketManager: SocketManager;
   /** Get socket for a specific role */
@@ -299,7 +299,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   }, [input]);
 
   // Create context-bound store (once per provider)
-  const store = useMemo(() => createAirJamStore(), []);
+  const store = useMemo(() => createConnectionStore(), []);
 
   // Create socket manager (once per provider)
   const socketManager = useMemo(

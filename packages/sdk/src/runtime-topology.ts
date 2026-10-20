@@ -427,7 +427,7 @@ export const parseRuntimeTopology = (
 };
 
 export const readRuntimeTopologyFromEnv = (
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> | undefined,
 ): ResolvedAirJamRuntimeTopology | null => {
   for (const key of AIR_JAM_RUNTIME_TOPOLOGY_ENV_KEYS) {
     const candidate = env?.[key];

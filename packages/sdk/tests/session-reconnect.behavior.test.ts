@@ -22,7 +22,7 @@ import {
   AirJamControllerRuntime,
   AirJamHostRuntime,
 } from "../src/runtime/session-runtimes";
-import { createAirJamStore } from "../src/state/connection-store";
+import { createConnectionStore } from "../src/core/connection-store";
 
 interface MockSocket {
   connected: boolean;
@@ -67,7 +67,7 @@ const mocked = vi.hoisted(() => ({
 
     return socket;
   },
-  store: null as ReturnType<typeof createAirJamStore> | null,
+  store: null as ReturnType<typeof createConnectionStore> | null,
   controllerSocket: null as unknown as MockSocket,
   hostSocket: null as unknown as MockSocket,
   useAirJamContext: vi.fn(),
@@ -177,7 +177,7 @@ describe("session reconnect behavior", () => {
     window.history.replaceState({}, "", "/");
     localStorage.clear();
     sessionStorage.clear();
-    mocked.store = createAirJamStore();
+    mocked.store = createConnectionStore();
     mocked.controllerSocket = mocked.createMockSocket();
     mocked.hostSocket = mocked.createMockSocket();
     vi.stubGlobal("fetch", vi.fn());

@@ -23,7 +23,7 @@ import {
   registerHostAgentContract,
   registerHostRuntimeParticipantReceiver,
 } from "../src/runtime/contracts/control";
-import type { HostArcadeRestoreState } from "../src/state/connection-store";
+import type { HostArcadeRestoreState } from "../src/core/connection-store";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   AIR_JAM_DEFAULT_STORE_DOMAIN,

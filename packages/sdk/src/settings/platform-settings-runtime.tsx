@@ -13,15 +13,60 @@ import {
   DEFAULT_PLATFORM_SETTINGS,
   getEffectiveAudioVolume,
   mergePlatformSettings,
-  persistPlatformSettings,
+  normalizePlatformSettings,
   PLATFORM_SETTINGS_STORAGE_KEY,
-  readPersistedPlatformSettings,
   type PartialPlatformSettings,
   type PlatformAudioSettings,
   type PlatformSettingsPersistence,
   type PlatformSettingsSnapshot,
 } from "./platform-settings";
 import { initializeInheritedPlatformSettingsBridge } from "./platform-settings-bridge";
+
+const tryParseJson = (raw: string | null): unknown => {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+};
+
+const readPersistedPlatformSettings = (): PlatformSettingsSnapshot => {
+  if (typeof window === "undefined") {
+    return DEFAULT_PLATFORM_SETTINGS;
+  }
+
+  try {
+    const current = tryParseJson(
+      window.localStorage.getItem(PLATFORM_SETTINGS_STORAGE_KEY),
+    );
+    if (current) {
+      return normalizePlatformSettings(current);
+    }
+  } catch {
+    // Browser policy may deny storage entirely; settings remain usable in memory.
+  }
+
+  return DEFAULT_PLATFORM_SETTINGS;
+};
+
+const persistPlatformSettings = (snapshot: PlatformSettingsSnapshot): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      PLATFORM_SETTINGS_STORAGE_KEY,
+      JSON.stringify(snapshot),
+    );
+  } catch {
+    // Ignore storage failures.
+  }
+};
 
 type PlatformSettingsMode = "owner" | "inherited" | "default";
 export type PlatformSettingsRuntimeStatus = "ready" | "waiting";

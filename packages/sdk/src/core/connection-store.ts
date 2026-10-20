@@ -1,17 +1,17 @@
-import { create, type StoreApi } from "zustand";
-import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../settings/platform-settings";
+import { createStore, type StoreApi } from "zustand/vanilla";
 import type {
   ConnectionRole,
   ConnectionStatus,
   ControllerOrientation,
   ControllerPresenceNotice,
   ControllerRoomSettingsState,
-  HostArcadeSurfaceCheckpoint,
   HostArcadeSessionSnapshot,
+  HostArcadeSurfaceCheckpoint,
   PlayerProfile,
   RunMode,
   RuntimeState,
 } from "../protocol";
+import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../settings/platform-settings";
 
 export type HostArcadeRestoreState =
   | { phase: "idle"; session: null; surfaceCheckpoint: null }
@@ -21,6 +21,9 @@ export type HostArcadeRestoreState =
       session: HostArcadeSessionSnapshot | null;
       surfaceCheckpoint: HostArcadeSurfaceCheckpoint;
     };
+
+/** Whether a host's controller join link can be shown yet. */
+export type JoinUrlStatus = "loading" | "ready" | "unavailable";
 
 export interface AirJamStore {
   role: ConnectionRole | null;
@@ -36,6 +39,9 @@ export interface AirJamStore {
   controllerSessions: ControllerPresenceNotice[];
   lastError?: string;
   registeredRoomId: string | null;
+  /** Host only: the link phones open to join this room. */
+  joinUrl: string;
+  joinUrlStatus: JoinUrlStatus;
   /**
    * Host-only reconnect restore seam used during `host:reconnect`.
    * - `awaiting_ack`: reconnect ack is in flight, so arcade shell broadcast must stay suppressed
@@ -64,14 +70,15 @@ export interface AirJamStore {
   resetControllerSessions: () => void;
   resetRuntimeState: () => void;
   setRegisteredRoomId: (roomId: string | null) => void;
+  setJoinUrl: (joinUrl: string, joinUrlStatus: JoinUrlStatus) => void;
 }
 
 /**
  * Factory function to create a new AirJamStore instance.
  * Each AirJamProvider creates its own store for multi-instance support.
  */
-export const createAirJamStore = (): StoreApi<AirJamStore> =>
-  create<AirJamStore>((set) => ({
+export const createConnectionStore = (): StoreApi<AirJamStore> =>
+  createStore<AirJamStore>((set) => ({
     role: null,
     roomId: null,
     controllerId: null,
@@ -85,6 +92,8 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
     controllerSessions: [],
     lastError: undefined,
     registeredRoomId: null,
+    joinUrl: "",
+    joinUrlStatus: "loading",
     hostArcadeRestore: {
       phase: "idle",
       session: null,
@@ -156,4 +165,5 @@ export const createAirJamStore = (): StoreApi<AirJamStore> =>
         roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
       }),
     setRegisteredRoomId: (roomId) => set({ registeredRoomId: roomId }),
+    setJoinUrl: (joinUrl, joinUrlStatus) => set({ joinUrl, joinUrlStatus }),
   }));

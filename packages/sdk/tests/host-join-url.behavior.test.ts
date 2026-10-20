@@ -19,7 +19,7 @@ import { useAirJamHost } from "../src/hooks/use-air-jam-host";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
 import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
 import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
-import { createAirJamStore } from "../src/state/connection-store";
+import { createConnectionStore } from "../src/core/connection-store";
 import { urlBuilder } from "../src/utils/url-builder";
 
 const mocked = vi.hoisted(() => ({
@@ -56,7 +56,7 @@ const mocked = vi.hoisted(() => ({
 
     return socket;
   },
-  store: null as ReturnType<typeof createAirJamStore> | null,
+  store: null as ReturnType<typeof createConnectionStore> | null,
   hostSocket: null as unknown,
   useAirJamContext: vi.fn(),
   useAssertSessionScope: vi.fn(),
@@ -110,7 +110,7 @@ const HostRuntimeWrapper = ({ children }: { children: ReactNode }) =>
 describe("host join url behavior", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
-    mocked.store = createAirJamStore();
+    mocked.store = createConnectionStore();
     mocked.hostSocket = mocked.createMockSocket();
 
     mocked.useAirJamContext.mockReturnValue({
