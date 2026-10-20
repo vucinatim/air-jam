@@ -12,7 +12,7 @@ const snapshotType = "AIRJAM_HOST_PREVIEW_SNAPSHOT";
 const requestType = "AIRJAM_HOST_PREVIEW_INSPECT";
 
 const snapshotSchema = z.object({
-  observationSupported: z.boolean().optional(),
+  hostAgentSupported: z.boolean().optional(),
   controllerOrientation: controllerOrientationSchema.optional(),
   documentId: z.string().min(1).max(128).optional(),
   stateEpochs: z
@@ -88,13 +88,13 @@ export function requestHostPreviewSnapshot(target: Window, origin: string) {
 export function publishEmbeddedHostPreview(
   inspection: HostRuntimeInspectionContract,
   topology: ResolvedAirJamRuntimeTopology,
-  observationSupported = false,
+  hostAgentSupported = false,
 ) {
   const parent = embeddedRuntimeParent(topology);
   if (!parent) return () => {};
   const publish = () => {
     const snapshot: HostPreviewSnapshot = {
-      observationSupported,
+      hostAgentSupported,
       controllerOrientation: inspection.controllerOrientation,
       documentId: inspection.documentId,
       stateEpochs: inspection.stateEpochs,

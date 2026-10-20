@@ -413,11 +413,19 @@ describe actual runtime evidence; authored assertions are not an independent
 anti-cheat oracle. Multi-seat ownership, current-room delegation, pinned-build
 formal testing and live watch share this owner.
 
+A `current` run plays in a room another editor hosts. Its attachment carries
+one controller identity per seat, issued by that editor, and an endpoint that
+forwards host agent requests to its host. The run reads state, runs host setup
+and observes through that endpoint, and its seats join as ordinary controllers
+beside any people already playing. A profile needing more seats than the
+attachment issued is refused. Profiles do not declare targets: whether a test
+may use someone's room is that room owner's decision, not the game's.
+
 ## Live owned-run viewing
 
 `watchGameRun(request, onEvent, signal)` and
 `airjam session run watch <run-id> --surface host|controller:<seat-id>` expose
-protocol-4 live viewing. The CLI writes bounded NDJSON. `ready` identifies the
+protocol-5 live viewing. The CLI writes bounded NDJSON. `ready` identifies the
 run, exact surface and JPEG dimensions; `frame` carries an increasing sequence,
 producer capture timestamp and base64 JPEG; `heartbeat` carries producer time
 and its latest capture sequence, including when the screen is static. A failed
@@ -487,11 +495,12 @@ local source is never substituted for another document's schema. Replacing a
 receiver invalidates pending controls even if the semantic contract, store epoch
 and renderer remain mounted.
 
-The browser preview can delegate this read-only operation to an explicitly
-configured development embedding parent. Both parent window and exact origin
-must match; hosted production topology does not enable it. The separate message
-protocol accepts observation only, with one bounded outstanding read. It exposes
-neither action invocation nor arbitrary evaluation. A room code or ordinary
+The browser preview answers host agent requests (observe, read, resolve and
+host action invocation) from an explicitly configured development embedding
+parent. Both parent window and exact origin must match; hosted production
+topology does not enable it. One request is outstanding at a time and each
+must name the document's own room. It exposes no arbitrary evaluation. The
+embedding editor decides which requests to forward; a room code or ordinary
 participant attachment does not acquire this delegation.
 
 ### Rendered host and controller interfaces

@@ -53,7 +53,6 @@ const workdayPolicy: AirJamTestPolicy = {
 export const testProfiles = defineAirJamTestProfiles({
   shift: {
     label: "Work the first two minutes of a shift alone",
-    targets: ["owned"],
     seats: [{ id: "player", label: "Špela" }],
     setup: [
       {

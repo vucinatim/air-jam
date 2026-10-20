@@ -36,7 +36,7 @@ async function fixture(
     path.join(root, "profiles.mjs"),
     `export const testProfiles = {
     counter: {
-      label: "Counter", targets: ["owned"], seats: [{id:"player",label:"Player"}],
+      label: "Counter", seats: [{id:"player",label:"Player"}],
       setup: [], actions: ["tap"], scope: "diagnostic", includeImage: false,
       timing: { intervalMs: 20, decisionMs: 50, inputTtlMs: 100 },
       metrics: [], evaluator:{create:${options.evaluatorCreate ?? `()=>({evaluate:${options.evaluate ?? '()=>({status:"pending"})'}})`}},

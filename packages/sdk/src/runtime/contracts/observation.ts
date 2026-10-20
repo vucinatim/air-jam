@@ -139,25 +139,6 @@ export const hostObservationSchema = z.object({
   ]),
 });
 
-export const hostObservationRequestMessageSchema = z
-  .object({
-    type: z.literal("AIRJAM_HOST_OBSERVE"),
-    requestId: z.string().min(1).max(128),
-    request: hostObservationRequestSchema,
-  })
-  .strict();
-
-export const hostObservationResponseMessageSchema = z
-  .object({
-    type: z.literal("AIRJAM_HOST_OBSERVATION"),
-    requestId: hostObservationRequestMessageSchema.shape.requestId,
-    result: z.discriminatedUnion("ok", [
-      z.object({ ok: z.literal(true), observation: hostObservationSchema }),
-      z.object({ ok: z.literal(false), error: z.string().min(1).max(1024) }),
-    ]),
-  })
-  .strict();
-
 export type HostObservation = z.infer<typeof hostObservationSchema>;
 export type HostObservationRequest = z.infer<
   typeof hostObservationRequestSchema

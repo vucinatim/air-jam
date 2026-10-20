@@ -829,7 +829,7 @@ export type CloseGameSessionOptions = {
 
 export type AirJamGameSessionSummary = {
   ownerInstanceId: string;
-  semanticAccess: "owned-host" | "participant-only";
+  semanticAccess: "owned-host" | "delegated-host" | "participant-only";
   gameSessionId: string;
   cwd: string;
   gameId: string | null;

@@ -43,7 +43,6 @@ function tapPolicy(randomized: boolean): AirJamTestPolicy {
 export const testProfiles = defineAirJamTestProfiles({
   cooperative: {
     label: "Tap alongside the creator",
-    targets: ["current"],
     seats: [{ id: "player", label: "Agent" }],
     setup: [],
     actions: ["tap"],
@@ -74,7 +73,6 @@ export const testProfiles = defineAirJamTestProfiles({
   },
   counter: {
     label: "Shared counter and two-player attribution",
-    targets: ["owned"],
     seats: [
       { id: "first", label: "First counter player" },
       { id: "second", label: "Second counter player" },

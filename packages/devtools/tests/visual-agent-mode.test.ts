@@ -77,7 +77,7 @@ describe("visual helper semantic sessions", () => {
           secure: true,
           controllerJoinUrl: "http://localhost:4510/controller?room=ROOM1",
         },
-        {},
+        { access: "owned-host", request: expect.any(Function) },
       );
     },
   );

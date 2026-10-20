@@ -1,7 +1,7 @@
 import { controllerLeasedControlAckSchema } from "@air-jam/sdk/protocol";
 import {
+  hostAgentRequestSchema,
   hostObservationIdentitySchema,
-  hostObservationRequestSchema,
 } from "@air-jam/sdk/runtime-control";
 import { z } from "zod";
 import { controllerDisconnectionSchema } from "./controller-protocol.js";
@@ -12,7 +12,7 @@ import {
   airJamTestProfileDescriptionSchema,
   policyPreparationSchema,
 } from "./testing.js";
-export const GAME_RUN_PROTOCOL_VERSION = 4;
+export const GAME_RUN_PROTOCOL_VERSION = 5;
 export const MAXIMUM_GAME_RUN_BUILD_LOG_BYTES = 1_048_576;
 export const gameRunBuildLogSchema = z.object({
   path: z.string().min(1),
@@ -37,14 +37,24 @@ const attachmentUrlSchema = z
       !url.password
     );
   }, "An attachment requires an HTTP(S) URL without embedded credentials.");
+/** The most players one run can seat in a creator's room. */
+export const MAXIMUM_CURRENT_ROOM_SEATS = 8;
 export const currentRoomAttachmentSchema = z
   .object({
     controllerJoinUrl: attachmentUrlSchema.refine(
       (value) => Boolean(new URL(value).searchParams.get("room")),
       "A controller attachment requires a room.",
     ),
-    controllerId: z.string().min(3).max(64),
-    observation: z
+    /** One controller identity per seat, issued by the room's editor. */
+    controllerIds: z
+      .array(z.string().min(3).max(64))
+      .min(1)
+      .max(MAXIMUM_CURRENT_ROOM_SEATS)
+      .refine(
+        (ids) => new Set(ids).size === ids.length,
+        "Seat controller identities must be distinct.",
+      ),
+    host: z
       .object({
         endpoint: attachmentUrlSchema,
         targetId: z.string().min(1).max(128),
@@ -53,11 +63,12 @@ export const currentRoomAttachmentSchema = z
   })
   .strict();
 export type CurrentRoomAttachment = z.infer<typeof currentRoomAttachmentSchema>;
-export const currentRoomObservationRequestSchema = z
+/** A request to the creator's host, answered through the editor that granted the room. */
+export const currentRoomHostRequestSchema = z
   .object({
-    targetId: currentRoomAttachmentSchema.shape.observation.shape.targetId,
+    targetId: currentRoomAttachmentSchema.shape.host.shape.targetId,
     ownerInstanceId: z.uuid(),
-    request: hostObservationRequestSchema,
+    request: hostAgentRequestSchema,
   })
   .strict();
 
@@ -131,7 +142,7 @@ export const gameRunSessionIdentitySchema = z.object({
   gameId: z.string().nullable(),
   roomId: z.string().min(1),
   controllerId: z.string().min(1),
-  semanticAccess: z.enum(["owned-host", "participant-only"]),
+  semanticAccess: z.enum(["owned-host", "delegated-host", "participant-only"]),
   connected: z.boolean(),
 });
 export const gameRunRecordSchema = z

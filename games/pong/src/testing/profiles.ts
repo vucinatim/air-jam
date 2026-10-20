@@ -104,7 +104,6 @@ function cooperativePaddlePolicy(randomized: boolean): AirJamTestPolicy {
 export const testProfiles = defineAirJamTestProfiles({
   match: {
     label: "Play a short match against the game's bot",
-    targets: ["owned"],
     seats: [{ id: "player", label: "Orange paddle" }],
     setup: [
       {
@@ -169,7 +168,6 @@ export const testProfiles = defineAirJamTestProfiles({
   },
   cooperative: {
     label: "Play a paddle alongside the creator",
-    targets: ["current"],
     seats: [{ id: "player", label: "Agent paddle" }],
     setup: [],
     actions: ["join_team"],
@@ -194,7 +192,6 @@ export const testProfiles = defineAirJamTestProfiles({
   },
   scoring: {
     label: "Two-player input and physical scoring",
-    targets: ["owned"],
     seats: [
       { id: "left", label: "Orange paddle" },
       { id: "right", label: "Blue paddle" },
