@@ -118,6 +118,22 @@ Air Jam separates subjective product authority from implementation assurance:
    rollout incident audit, while CI, review conversations and branch protection
    remain mandatory
 
+## Release Line
+
+Until the 1.0 launch, `release/1.0` is the one integration branch in each
+repository, agreed with Tim on 2026-10-20. `main` stays the reviewed production
+baseline and takes `release/1.0` only at launch.
+
+1. cut each roadmap item's branch from the current `release/1.0` tip and open
+   its pull request into `release/1.0`; it merges under the same CI and single
+   final-review gates as `main`, with the item's readiness status updated in
+   the same pull request
+2. start the next item from the new tip; run items in parallel only when they
+   touch independent files
+3. merge any fix that has to land on `main` forward into `release/1.0`
+4. open no other long-lived parent branch; older feature branches stay as
+   history
+
 ## Review Stacks And Integration
 
 For the `2026-10-03` intermediate-delivery batch, Tim explicitly authorized a
