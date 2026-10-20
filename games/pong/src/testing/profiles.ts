@@ -225,6 +225,12 @@ export const testProfiles = defineAirJamTestProfiles({
         actionId: "set_bot_count",
         input: { team: "team2", count: 0 },
       },
+      {
+        lane: "participant",
+        seatId: "left",
+        actionId: "set_points_to_win",
+        input: 5,
+      },
       { lane: "participant", seatId: "left", actionId: "start_match" },
     ],
     actions: [],
@@ -246,6 +252,8 @@ export const testProfiles = defineAirJamTestProfiles({
         let score = { team1: 0, team2: 0 };
         let lastGoal = 0;
         let lastServe = -1;
+        // Goals scored in the room before this trial stay in the host's log.
+        let earlierGoals = 0;
         return {
           evaluate: ({ observation, seats, receipts }) => {
             const snapshot = snapshotSchema.parse(observation.snapshot);
@@ -268,15 +276,16 @@ export const testProfiles = defineAirJamTestProfiles({
                 };
             }
             if (!baseline) {
-              if (
-                snapshot.scores.team1 !== 0 ||
-                snapshot.scores.team2 !== 0 ||
-                runtime.goals.length !== 0
-              )
+              if (snapshot.scores.team1 !== 0 || snapshot.scores.team2 !== 0)
                 return {
                   status: "failed",
                   message: "Scoring trial did not begin at an empty match.",
                 };
+              for (const goal of runtime.goals) {
+                lastGoal = Math.max(lastGoal, goal.sequence);
+                lastServe = Math.max(lastServe, goal.serve);
+              }
+              earlierGoals = lastGoal;
               baseline = true;
             }
             for (const receipt of receipts) {
@@ -351,13 +360,15 @@ export const testProfiles = defineAirJamTestProfiles({
                 message: "Score changed without a corresponding physical goal.",
               };
             const metrics = {
-              goals: lastGoal,
+              goals: lastGoal - earlierGoals,
               left_movement: movement.left,
               right_movement: movement.right,
             };
             return {
               status:
-                lastGoal > 0 && movement.left > 1 && movement.right > 1
+                lastGoal > earlierGoals &&
+                movement.left > 1 &&
+                movement.right > 1
                   ? "passed"
                   : "pending",
               message:
