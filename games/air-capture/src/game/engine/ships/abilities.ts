@@ -1,4 +1,4 @@
-import type { AbilityData, AbilityId } from "../../abilities-store";
+import type { AbilityData, AbilityId } from "../../abilities/definitions";
 
 export interface ShipAbilityFeedback {
   sound: "speed_boost" | "health_pack" | "rocket_launch";

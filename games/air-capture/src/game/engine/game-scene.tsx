@@ -1,9 +1,8 @@
 import { PerspectiveCamera } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Physics } from "@react-three/rapier";
 import { useEffect, useRef } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
-import { CollectibleSpawner } from "../components/entities/collectible-spawner";
+import { SimulationEffects } from "../components/effects/simulation-effects";
 import { Decals } from "../components/entities/decals";
 import { Lasers } from "../components/entities/lasers";
 import { Rockets } from "../components/entities/rockets";
@@ -11,8 +10,7 @@ import { AirCaptureArena } from "../prefabs/arena";
 import { Collectibles } from "../scene-population/collectibles";
 import { Ships } from "../scene-population/ships";
 import { useDebugStore } from "../stores/debug/debug-store";
-import { useGameStore } from "../stores/players/game-store";
-import { ArenaBounds } from "./arena-bounds";
+import { SimulationArenaView } from "../view/arena-view";
 import { FreeFlyCamera } from "./free-fly-camera";
 import { useCameraFollow } from "./use-camera-follow";
 import { useCameraViewports } from "./use-camera-viewports";
@@ -56,7 +54,6 @@ function MultiCameraController({
     }>,
   ) => void;
 }) {
-  const cameraMode = useGameStore((state) => state.cameraMode);
   const freeFlyMode = useDebugStore((state) => state.freeFlyMode);
   const cameraRef1 = useRef<ThreePerspectiveCamera>(null);
   const cameraRef2 = useRef<ThreePerspectiveCamera>(null);
@@ -67,7 +64,7 @@ function MultiCameraController({
 
   // Always call hooks (React rules), but they check freeFlyMode internally
   useMultiViewportRenderer(activeCamerasRef);
-  useCameraFollow(cameraRefs, activeCamerasRef, cameraMode);
+  useCameraFollow(cameraRefs, activeCamerasRef);
   const camerasWithViewports = useCameraViewports(activeCamerasRef);
 
   useEffect(() => {
@@ -129,7 +126,6 @@ export function GameScene({
   onCamerasReady,
   onCanvasReady,
   mode = "match",
-  paused = false,
 }: {
   onCamerasReady?: (
     cameras: Array<{
@@ -139,10 +135,7 @@ export function GameScene({
   ) => void;
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
   mode?: "match" | "spectator";
-  paused?: boolean;
 }) {
-  const isDebugPanelOpen = useDebugStore((state) => state.isOpen);
-
   return (
     <Canvas
       shadows
@@ -151,21 +144,14 @@ export function GameScene({
         onCanvasReady?.(gl.domElement);
       }}
     >
-      <Physics
-        paused={paused}
-        gravity={[0, 0, 0]}
-        interpolate={true}
-        timeStep="vary"
-        debug={mode === "match" ? isDebugPanelOpen : false}
-      >
+      <SimulationArenaView>
         <AirCaptureArena />
         <Ships />
         <Lasers />
         <Rockets />
         <Decals />
-        <ArenaBounds />
         <Collectibles />
-        <CollectibleSpawner />
+        <SimulationEffects />
         {mode === "spectator" ? (
           <SpectatorCamera />
         ) : (
@@ -173,7 +159,7 @@ export function GameScene({
             onCamerasReady={onCamerasReady || (() => {})}
           />
         )}
-      </Physics>
+      </SimulationArenaView>
     </Canvas>
   );
 }

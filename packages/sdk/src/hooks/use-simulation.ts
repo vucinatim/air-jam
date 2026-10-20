@@ -1,4 +1,10 @@
-import { useContext, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import type { SimulationClock, SimulationFrame } from "../core/simulation";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
@@ -45,4 +51,29 @@ export const useSimulationEvents = <TEvent>(
     () => clock.onEvent((event) => listenerRef.current(event)),
     [clock],
   );
+};
+
+/**
+ * A value read from the simulation that re-renders only when it changes, for
+ * UI such as a health bar or a list of entities. Pass `isEqual` (for example
+ * zustand's `shallow`) when the selector builds a new object or array.
+ */
+export const useSimulationSelector = <TSim, TSelected>(
+  selector: (sim: TSim) => TSelected,
+  isEqual: (previous: TSelected, next: TSelected) => boolean = Object.is,
+): TSelected => {
+  const clock = useSimulation<TSim>();
+  const selectedRef = useRef<{ value: TSelected } | null>(null);
+  const subscribe = useCallback(
+    (onChange: () => void) => clock.onFrame(onChange),
+    [clock],
+  );
+  const read = useCallback((): TSelected => {
+    const next = selector(clock.sim);
+    const previous = selectedRef.current;
+    if (previous && isEqual(previous.value, next)) return previous.value;
+    selectedRef.current = { value: next };
+    return next;
+  }, [clock, selector, isEqual]);
+  return useSyncExternalStore(subscribe, read, read);
 };

@@ -48,6 +48,8 @@ describe("Pong player contract", () => {
     const turn = pongPlayer.turn({
       observation: observe(playing, {}),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     expect(turn?.state).toEqual([
       "I control the left paddle. Its top edge is at y=200, so its centre is at y=250.",
@@ -73,6 +75,7 @@ describe("Pong player contract", () => {
       seat.control({
         observation: observe(playing, {}),
         seatId: "player",
+        elapsedMs: 0,
         choice: "top",
       }),
     ).toEqual({ kind: "input", input: { direction: -1 } });
@@ -80,6 +83,7 @@ describe("Pong player contract", () => {
       seat.control({
         observation: observe(playing, { paddle1FrontY: 166 }),
         seatId: "player",
+        elapsedMs: 0,
         choice: "meet",
       }),
     ).toEqual({ kind: "input", input: { direction: 0 } });
@@ -109,6 +113,8 @@ describe("Pong player contract", () => {
         {},
       ),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     expect(turn?.state[0]).toContain("right paddle");
     expect(turn?.state[0]).toContain("top edge is at y=150");
@@ -122,6 +128,8 @@ describe("Pong player contract", () => {
         {},
       ),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     expect(turn?.state[0]).toContain("orange (left) team has 1 players");
     expect(turn?.options.team2?.control).toEqual({
@@ -140,6 +148,8 @@ describe("Pong player contract", () => {
         pongPlayer.turn({
           observation: observe(snapshot, {}),
           seatId: "player",
+          random: () => 0.5,
+          elapsedMs: 0,
         }),
       ).toBeNull();
   });

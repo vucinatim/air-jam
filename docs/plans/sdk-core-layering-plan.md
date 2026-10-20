@@ -327,6 +327,17 @@ selector)`; dispatch is `store.actions`. Reading an undeclared store throws
    `observe`. `useHostTick` is removed. All three of their authored profiles
    pass headless: The Office's two-minute shift in about 17 seconds, Code
    Review's bot round in about 4 and its four-fighter brawl in about 7.
+7. Air Capture (phase 3) plays its whole match in a declared simulation that
+   owns a Rapier world built from the arena layout: flight, lasers and rockets
+   ray-cast against physics shapes rather than drawn meshes, pickups, jump
+   pads, flags and bases as overlap checks, bots, abilities and the countdown
+   on game time. The scene, HUD and debug panel read it through
+   `useSimulationSelector`; prefabs read a small arena view, so the prefab
+   preview still draws them. The game declares the simulation as a loader
+   (`simulation: () => import(...)`), so phones never download Rapier.
+   `useHostAgentObservation` and `@react-three/rapier` are gone. Its capture
+   profile passes headless in about 13 seconds, and the same seed and inputs
+   replay the same match.
 
 Decisions made while building:
 
@@ -351,8 +362,7 @@ example observing every seat in one request, would raise it.
 
 Next:
 
-1. Port Air Capture's physics into a simulation (phase 3); its agent view then
-   moves into `observe` and `useHostAgentObservation` is removed.
+1. Export tidy (G6-09): one documented purpose per export.
 2. Store actions still read wall time (`Date.now()` for match timing); replays
    need them on game time.
 3. Owned runs still refuse monorepo games (they need a standalone game with its

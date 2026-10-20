@@ -4,17 +4,16 @@
  * Flow:
  *  1. `HostAudioProvider` + `HostView` mount the audio runtime and delegate
  *     to `HostScreen`.
- *  2. `HostScreen` pulls the three networked stores (match, capture-the-flag
- *     state, player/roster) and wires them to: the 3D `GameScene`, the bot
- *     manager, and the lobby / countdown / ended overlays picked by
- *     `matchPhase`.
- *  3. Local phase transition effects reset the match runtime. `useMatchCountdown`
- *     owns the countdown lifecycle.
- *  4. `useBotManager` runs the bot AI loop on the host against the same
- *     runtime the `GameScene` renders from.
+ *  2. The declared simulation (`game/simulation/air-capture-simulation.ts`)
+ *     plays the whole match on the SDK clock: physics, ships, bots, pickups,
+ *     flags, the countdown and scoring.
+ *  3. `HostScreen` draws it: the 3D `GameScene` reads the simulation, and the
+ *     lobby / countdown / ended overlays follow the networked match store.
+ *     `useAirCaptureFeedback` plays its sounds and phone haptics.
  *
- * Heaviest piece: the 3D scene under `../game/engine/game-scene`. It's lazy-
- * loaded so the lobby surface renders before Rapier initialises.
+ * Heaviest piece: the 3D scene under `../game/engine/game-scene`, lazy-loaded
+ * so the lobby renders before three.js is ready. Rapier loads with the
+ * simulation, on the host only.
  */
 import {
   useAudioRuntimeControls,
@@ -27,14 +26,12 @@ import type { JSX } from "react";
 import { Suspense, lazy, memo, useState } from "react";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import { HostAudioProvider } from "../game/audio/host-audio";
-import { useHostAudio } from "../game/audio/use-host-audio";
 import {
   BotsSection,
   CTFDebugSection,
   PlayersSection,
   SceneInfoSection,
 } from "../game/debug/debug-sections";
-import { preloadRapier } from "../game/rapier-preload";
 import { PlayerHUDOverlay } from "../game/ui/player-hud-overlay";
 import { HostLiveChrome } from "./components/host-live-chrome";
 import {
@@ -47,10 +44,10 @@ import {
   StageBackdrop,
   type HostConnectionStatus,
 } from "./components/host-overlays";
+import { useAirCaptureFeedback } from "./hooks/use-air-capture-feedback";
 import { useAirCaptureHostRuntime } from "./hooks/use-air-capture-host-runtime";
 
 const GameScene = lazy(async () => {
-  await preloadRapier();
   const module = await import("../game/engine/game-scene");
   return { default: module.GameScene };
 });
@@ -67,7 +64,6 @@ const DebugOverlay = lazy(async () => {
 
 const GameplayStage = memo(function GameplayStage({
   sceneMode,
-  scenePaused,
   showPausedOverlay,
   roomId,
   joinQrValue,
@@ -78,7 +74,6 @@ const GameplayStage = memo(function GameplayStage({
   hidden = false,
 }: {
   sceneMode: "match" | "spectator";
-  scenePaused: boolean;
   showPausedOverlay: boolean;
   roomId: string | null;
   joinQrValue: string;
@@ -108,7 +103,6 @@ const GameplayStage = memo(function GameplayStage({
       <Suspense fallback={<GameplayFallback />}>
         <GameScene
           mode={sceneMode}
-          paused={scenePaused}
           onCamerasReady={setCameras}
           onCanvasReady={setCanvasElement}
         />
@@ -138,12 +132,10 @@ const HostViewContent = ({
   audioMuted: boolean;
   toggleAudioMuted: () => void;
 }): JSX.Element => {
-  const audio = useHostAudio();
   const audioRuntimeStatus = useAudioRuntimeStatus();
   const audioRuntimeControls = useAudioRuntimeControls();
-  const hostRuntime = useAirCaptureHostRuntime({
-    playAudio: (soundId) => audio.play(soundId),
-  });
+  const hostRuntime = useAirCaptureHostRuntime();
+  useAirCaptureFeedback();
 
   return (
     <>
@@ -152,7 +144,6 @@ const HostViewContent = ({
           {hostRuntime.shouldRenderGameplayStage ? (
             <GameplayStage
               sceneMode={hostRuntime.sceneMode}
-              scenePaused={hostRuntime.scenePaused}
               showPausedOverlay={hostRuntime.showPausedOverlay}
               roomId={hostRuntime.roomId}
               joinQrValue={hostRuntime.joinControls.joinUrlValue}

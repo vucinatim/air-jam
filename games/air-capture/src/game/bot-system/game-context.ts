@@ -6,8 +6,12 @@ import {
   AIR_CAPTURE_ARENA_OBSTACLES,
   type ObstacleData,
 } from "../prefabs/arena/layout";
-import type { CollectibleData } from "../stores/world/collectibles-store";
-import type { BotWorld, FlagInfo, ShipInfo } from "./bot-world";
+import type {
+  BotWorld,
+  CollectibleInfo,
+  FlagInfo,
+  ShipInfo,
+} from "./bot-world";
 import type { JumpPadInfo } from "./reachability-checker";
 
 export type { FlagInfo };
@@ -68,7 +72,7 @@ export class GameContext {
   /**
    * Get all active collectibles
    */
-  getCollectibles(): CollectibleData[] {
+  getCollectibles(): CollectibleInfo[] {
     return this.world.collectibles;
   }
 

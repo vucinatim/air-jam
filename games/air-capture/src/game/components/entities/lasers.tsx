@@ -1,19 +1,16 @@
-import { useLasersStore } from "../../stores/projectiles/lasers-store";
+import { useSimulationSelector } from "@air-jam/sdk";
+import { shallow } from "zustand/shallow";
+import type { AirCaptureSim } from "../../simulation/state";
 import { Laser } from "./laser";
 
-export function Lasers() {
-  const lasers = useLasersStore((state) => state.lasers);
+const lasersOf = (sim: AirCaptureSim) => [...sim.lasers.values()];
 
+export function Lasers() {
+  const lasers = useSimulationSelector(lasersOf, shallow);
   return (
     <>
       {lasers.map((laser) => (
-        <Laser
-          key={laser.id}
-          id={laser.id}
-          position={laser.position}
-          direction={laser.direction}
-          controllerId={laser.controllerId}
-        />
+        <Laser key={laser.id} laser={laser} />
       ))}
     </>
   );

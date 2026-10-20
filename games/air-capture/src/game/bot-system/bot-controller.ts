@@ -178,7 +178,7 @@ class BotBrain {
   private originalTarget: Vector3 | null = null; // Target we're trying to reach after jump
   private reachabilityChecker: ReachabilityChecker;
 
-  constructor() {
+  constructor(private readonly random: () => number) {
     this.reachabilityChecker = new ReachabilityChecker();
   }
 
@@ -343,11 +343,11 @@ class BotBrain {
     // If bot is in the air, keep target at similar height
     const isInAir = currentPos.y > 5.5; // HOVER_HEIGHT + AIR_MODE_THRESHOLD
     const targetY = isInAir
-      ? Math.max(5, Math.min(30, currentPos.y + (Math.random() - 0.5) * 10)) // Stay near current height when in air
-      : 10 + Math.random() * 20; // Normal height when on ground
+      ? Math.max(5, Math.min(30, currentPos.y + (this.random() - 0.5) * 10)) // Stay near current height when in air
+      : 10 + this.random() * 20; // Normal height when on ground
 
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 30 + Math.random() * (ARENA_RADIUS * 0.6);
+    const angle = this.random() * Math.PI * 2;
+    const distance = 30 + this.random() * (ARENA_RADIUS * 0.6);
     const x = currentPos.x + Math.cos(angle) * distance;
     const z = currentPos.z + Math.sin(angle) * distance;
 
@@ -815,9 +815,9 @@ export class BotController {
   private lastInputHistory: Array<{ x: number; time: number }> = [];
   private stuckTurnDetectionTime = 0;
 
-  constructor(controllerId: string) {
+  constructor(controllerId: string, random: () => number) {
     this.controllerId = controllerId;
-    this.brain = new BotBrain();
+    this.brain = new BotBrain(random);
     this.body = new BotBody();
   }
 

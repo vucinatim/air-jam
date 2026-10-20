@@ -1,23 +1,34 @@
-import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
+import {
+  useAirJamHost,
+  useAirJamStore,
+  useSimulation,
+  useSimulationSelector,
+} from "@air-jam/sdk";
 import { useEffect, useMemo, useState } from "react";
+import { shallow } from "zustand/shallow";
 import {
   getAbilityIconPath,
   getAllAbilityDefinitions,
-  useAbilitiesStore,
-} from "../abilities-store";
+  type AbilityId,
+} from "../abilities/definitions";
 import { getTeamCounts, type TeamCounts } from "../domain/match-readiness";
-import { TEAM_CONFIG, TEAM_IDS } from "../domain/team";
+import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../domain/team";
+import {
+  debugAwardPoint,
+  debugClearAbility,
+  debugGiveAbility,
+  debugSetHealth,
+} from "../simulation/debug";
+import type { AirCaptureSim } from "../simulation/state";
 import { useDebugStore } from "../stores/debug/debug-store";
-import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
 import { prototypeMatchStore } from "../stores/match/match-store";
-import { useGameStore } from "../stores/players/game-store";
-import { useHealthStore } from "../stores/players/health-store";
-import { useLasersStore } from "../stores/projectiles/lasers-store";
 import { useDecalsStore } from "../stores/world/decals-store";
 import { DebugSection } from "./debug-section";
 import { TeamBotControls } from "./team-bot-controls";
 import { Button } from "./ui/button";
 import { cn } from "./ui/utils";
+
+const shipsOf = (sim: AirCaptureSim) => [...sim.ships.values()];
 
 const OBSTACLE_COUNT = 18; // From Obstacles.tsx
 
@@ -82,37 +93,26 @@ export function BotsSection() {
 }
 
 export function PlayersSection() {
-  const players = useGameStore((state) => state.players);
-  const health = useHealthStore((state) => state.health);
-  const setHealth = useHealthStore((state) => state.setHealth);
-  const abilityStates = useAbilitiesStore((state) => state.abilities);
-  const collectAbility = useAbilitiesStore((state) => state.collectAbility);
-  const resetAbility = useAbilitiesStore((state) => state.resetAbility);
+  const clock = useSimulation<AirCaptureSim>();
+  const players = useSimulationSelector(shipsOf, shallow);
   const allAbilities = getAllAbilityDefinitions();
+  // Ship fields change every step; the panel refreshes a few times a second.
   const [, setClockTick] = useState(0);
-
   useEffect(() => {
-    const hasActiveAbility = Object.values(abilityStates).some(
-      (state) => state?.activeAbility?.startTime !== null,
-    );
-    if (!hasActiveAbility) {
-      return;
-    }
-
     const interval = window.setInterval(() => {
       setClockTick((value) => value + 1);
     }, 200);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [abilityStates]);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const adjustHealth = (controllerId: string, delta: number) => {
-    const currentHealth = health[controllerId] ?? 100;
-    const newHealth = Math.max(0, Math.min(100, currentHealth + delta));
-    setHealth(controllerId, newHealth);
+    const ship = clock.sim.ships.get(controllerId);
+    if (ship) debugSetHealth(clock.sim, controllerId, ship.health + delta);
   };
+  const collectAbility = (controllerId: string, abilityId: AbilityId) =>
+    debugGiveAbility(clock.sim, controllerId, abilityId);
+  const resetAbility = (controllerId: string) =>
+    debugClearAbility(clock.sim, controllerId);
 
   if (players.length === 0) {
     return (
@@ -126,18 +126,16 @@ export function PlayersSection() {
     <DebugSection title="Players">
       <div className="space-y-3">
         {players.map((player) => {
-          const playerHealth = health[player.controllerId] ?? 100;
+          const playerHealth = player.health;
           const healthPercentage = (playerHealth / 100) * 100;
-          const playerAbilityState = abilityStates[player.controllerId] ?? null;
-          const activeAbility = playerAbilityState?.activeAbility ?? null;
-          const currentAbility =
-            activeAbility ?? playerAbilityState?.queuedAbility ?? null;
+          const activeAbility = player.activeAbility;
+          const currentAbility = activeAbility ?? player.queuedAbility;
           const remainingDuration =
-            activeAbility?.startTime !== null && activeAbility !== null
+            activeAbility && activeAbility.startTime !== null
               ? Math.max(
                   0,
                   activeAbility.duration -
-                    (Date.now() - activeAbility.startTime) / 1000,
+                    (clock.sim.time - activeAbility.startTime),
                 )
               : 0;
           const abilityActive = remainingDuration > 0;
@@ -154,7 +152,7 @@ export function PlayersSection() {
                     style={{ backgroundColor: player.color }}
                   />
                   <span className="text-foreground text-sm font-medium">
-                    {player.profile.label ||
+                    {player.label ||
                       `Player ${player.controllerId.slice(0, 8)}`}
                   </span>
                 </div>
@@ -309,15 +307,19 @@ export function PlayersSection() {
 }
 
 export function SceneInfoSection() {
-  const players = useGameStore((state) => state.players);
-  const lasers = useLasersStore((state) => state.lasers);
+  const shipCount = useSimulationSelector(
+    (sim: AirCaptureSim) => sim.ships.size,
+  );
+  const laserCount = useSimulationSelector(
+    (sim: AirCaptureSim) => sim.lasers.size,
+  );
   const decals = useDecalsStore((state) => state.decals);
   const freeFlyMode = useDebugStore((state) => state.freeFlyMode);
   const toggleFreeFly = useDebugStore((state) => state.toggleFreeFly);
 
   const stats = [
-    { label: "Players", value: players.length, color: "text-blue-500" },
-    { label: "Lasers", value: lasers.length, color: "text-red-500" },
+    { label: "Players", value: shipCount, color: "text-blue-500" },
+    { label: "Lasers", value: laserCount, color: "text-red-500" },
     { label: "Decals", value: decals.length, color: "text-purple-500" },
     { label: "Obstacles", value: OBSTACLE_COUNT, color: "text-gray-500" },
   ];
@@ -358,9 +360,12 @@ export function SceneInfoSection() {
 }
 
 export function CTFDebugSection() {
-  const scores = useCaptureTheFlagStore((state) => state.scores);
-  const basePositions = useCaptureTheFlagStore((state) => state.basePositions);
-  const manualScore = useCaptureTheFlagStore((state) => state.manualScore);
+  const clock = useSimulation<AirCaptureSim>();
+  const scores = useSimulationSelector((sim: AirCaptureSim) => sim.ctf.scores);
+  const basePositions = useSimulationSelector(
+    (sim: AirCaptureSim) => sim.ctf.basePositions,
+  );
+  const manualScore = (teamId: TeamId) => debugAwardPoint(clock.sim, teamId);
 
   return (
     <DebugSection title="Capture The Flag">

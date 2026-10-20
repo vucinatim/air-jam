@@ -482,9 +482,9 @@ projects the same live semantic contract used by reads. A game declares what
 agents see of its simulation with the simulation's `observe(sim, context)`,
 which receives the requested player/diagnostic scope and controller identity;
 the host runtime publishes it with the clock's tick, with or without a page.
-A host view adds an image with `useHostAgentCapture(capture)`. Games without a
-simulation still register host-local state through
-`useHostAgentObservation({ read, capture })`. This is a declared view of game-authored data, not an adversarial
+A host view adds an image with `useHostAgentCapture(capture)`. A game without a
+simulation has no host-local state to show beyond its stores, which the
+contract's snapshot already projects. This is a declared view of game-authored data, not an adversarial
 guarantee of human-equivalent information. Raw stores and callable host actions
 are not returned by observation.
 

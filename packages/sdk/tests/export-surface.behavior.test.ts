@@ -84,6 +84,7 @@ describe("sdk export surface", () => {
   it("exposes the controller loop and leaves host loops to the simulation", () => {
     expect("useControllerTick" in sdk).toBe(true);
     expect("useHostTick" in sdk).toBe(false);
+    expect("useHostAgentObservation" in sdk).toBe(false);
     expect("useSimulationFrame" in sdk).toBe(true);
   });
 

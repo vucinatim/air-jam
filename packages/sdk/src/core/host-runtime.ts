@@ -59,7 +59,11 @@ import type { AirJamConnectionState } from "./connection-store";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type { AirJamHostEnvironment } from "./environment";
 import type { AttachableStore } from "./replicated-store";
-import { SimulationClock, type AirJamSimulation } from "./simulation";
+import {
+  SimulationClock,
+  type AirJamSimulation,
+  type AirJamSimulationDeclaration,
+} from "./simulation";
 
 const HOST_BOOTSTRAP_TIMEOUT_MESSAGE =
   "Host bootstrap timed out. The deployed Air Jam server may be out of sync with this client.";
@@ -89,7 +93,7 @@ export interface HostRuntimeDependencies<
   /** The game's replicated stores; they sync while the runtime runs. */
   stores: readonly AttachableStore[];
   /** The game's simulation, advanced on the SDK clock while the runtime runs. */
-  simulation?: AirJamSimulation<unknown, unknown, unknown>;
+  simulation?: AirJamSimulationDeclaration<unknown, unknown, unknown>;
   /** The game's agent contract, published for its room while the runtime runs. */
   agent?: { contract: AnyAirJamAgentContract; gameId: string };
 }
@@ -112,19 +116,24 @@ interface PendingHostReset {
  */
 export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   readonly socket: AirJamRealtimeClient;
-  /** The game's simulation clock, or null when the game declares none. */
-  readonly simulation: SimulationClock<unknown, unknown, unknown> | null;
+  /**
+   * Settles once the declared simulation is loaded, at once when it needs no
+   * loading, and rejects if loading fails.
+   */
+  readonly ready: Promise<void>;
   readonly store: StoreApi<AirJamConnectionState>;
   readonly inputManager: InputManager<TSchema> | null;
   private readonly config: AirJamConfig;
   private readonly environment: AirJamHostEnvironment;
   private readonly disconnectSocket: (role: "host") => void;
   private readonly stores: readonly AttachableStore[];
-  private readonly simulationDeclaration: AirJamSimulation<
+  private simulationDeclaration: AirJamSimulation<
     unknown,
     unknown,
     unknown
-  > | null;
+  > | null = null;
+  private clock: SimulationClock<unknown, unknown, unknown> | null = null;
+  private stopFrames: (() => void) | null = null;
   private readonly agent: HostRuntimeDependencies["agent"];
   private capture: HostObservationCapture | null = null;
   private options: HostRuntimeOptions;
@@ -154,21 +163,42 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     this.environment = dependencies.environment;
     this.disconnectSocket = dependencies.disconnectSocket;
     this.stores = dependencies.stores;
-    this.simulationDeclaration = dependencies.simulation ?? null;
     this.agent = dependencies.agent;
     this.options = options;
     this.socket = dependencies.environment.transport(dependencies.getSocket);
-    this.simulation = dependencies.simulation
-      ? new SimulationClock<unknown, unknown, unknown>(
-          dependencies.simulation,
-          {
-            input: (controllerId): unknown => this.getInput(controllerId),
-            players: () => this.store.getState().players,
-            runtimeState: () => this.store.getState().runtimeState,
-          },
-          options.seed ?? dependencies.environment.seed(),
-        )
-      : null;
+    const seed = options.seed ?? dependencies.environment.seed();
+    const install = (
+      simulation: AirJamSimulation<unknown, unknown, unknown>,
+    ): void => {
+      this.simulationDeclaration = simulation;
+      this.clock = new SimulationClock<unknown, unknown, unknown>(
+        simulation,
+        {
+          input: (controllerId): unknown => this.getInput(controllerId),
+          players: () => this.store.getState().players,
+          runtimeState: () => this.store.getState().runtimeState,
+        },
+        seed,
+      );
+    };
+    const declared = dependencies.simulation;
+    if (typeof declared === "function")
+      this.ready = declared().then((simulation) => {
+        install(simulation);
+        if (!this.running) return;
+        this.stopFrames = this.startFrames();
+        const roomId = this.roomId;
+        if (roomId) this.bindObservation(roomId);
+      });
+    else {
+      if (declared) install(declared);
+      this.ready = Promise.resolve();
+    }
+  }
+
+  /** The game's simulation clock; null while it loads or when the game declares none. */
+  get simulation(): SimulationClock<unknown, unknown, unknown> | null {
+    return this.clock;
   }
 
   /** The room this host is in or asking for, if any. */
@@ -210,9 +240,10 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     this.bindRoomControl();
     this.refreshJoinUrl();
     const unsubscribe = this.store.subscribe(() => this.handleRoomChange());
-    const stopFrames = this.startFrames();
+    this.stopFrames = this.startFrames();
     return () => {
-      stopFrames();
+      this.stopFrames?.();
+      this.stopFrames = null;
       unsubscribe();
       this.releaseSession?.();
       this.releaseSession = null;

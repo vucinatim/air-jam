@@ -127,6 +127,7 @@ async function openRoom(configPath: string, seed: number) {
     await server.stop();
   };
   try {
+    await runtime.ready;
     const joined = await new Promise<{ roomId: string; joinUrl: string }>(
       (resolve, reject) => {
         const timer = setTimeout(

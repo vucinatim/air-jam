@@ -9,7 +9,7 @@ import {
   type AirJamProviderProps,
 } from "../context/session-providers";
 import type { AttachableStore } from "../core/replicated-store";
-import type { AirJamSimulation } from "../core/simulation";
+import type { AirJamSimulationDeclaration } from "../core/simulation";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
 import { useHostRuntimeApi } from "../hooks/internal/use-host-runtime-api";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
@@ -40,7 +40,7 @@ export type AirJamHostRuntimeProps<TSchema extends z.ZodSchema = z.ZodSchema> =
       /** Replicated stores this host owns; they sync while it runs. */
       stores?: readonly AttachableStore[];
       /** The game's simulation, advanced on the SDK clock while the host runs. */
-      simulation?: AirJamSimulation<unknown, unknown, unknown>;
+      simulation?: AirJamSimulationDeclaration;
     };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
@@ -142,7 +142,8 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
     <hostRuntimeContext.Provider value={runtime}>
       <declaredStoresContext.Provider value={declared}>
         <HostRuntimeInspectionPublisher />
-        {children}
+        {/* The game draws once its declared simulation has loaded. */}
+        {simulation && !runtime.simulation ? null : children}
       </declaredStoresContext.Provider>
     </hostRuntimeContext.Provider>
   );

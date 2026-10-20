@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { z } from "zod";
 import { useStore } from "zustand";
 import { useAirJamContext } from "../../context/air-jam-context";
@@ -71,6 +71,22 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
 
   useEffect(() => runtime.start(), [runtime]);
 
+  // A loaded simulation appears on the runtime; render again to hand it out.
+  const [, setLoaded] = useState<HostRuntime<TSchema> | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  useEffect(() => {
+    let current = true;
+    runtime.ready.then(
+      () => current && setLoaded(runtime),
+      (error: unknown) => current && setLoadError(error),
+    );
+    return () => {
+      current = false;
+    };
+  }, [runtime]);
+  if (loadError) throw loadError;
+  const clock = runtime.simulation;
+
   const roomId = useStore(store, () => runtime.roomId);
   const joinUrl = useStore(store, (state) => state.joinUrl);
   const joinUrlStatus = useStore(store, (state) => state.joinUrlStatus);
@@ -90,9 +106,9 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       resetRoom: runtime.resetRoom,
       socket: runtime.socket,
       getInput: runtime.getInput,
-      simulation: runtime.simulation,
+      simulation: clock,
       setObservationCapture: runtime.setObservationCapture,
     }),
-    [runtime, roomId, joinUrl, joinUrlStatus],
+    [runtime, roomId, joinUrl, joinUrlStatus, clock],
   );
 };

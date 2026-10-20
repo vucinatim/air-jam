@@ -9,7 +9,7 @@ import {
   type HostRuntimeOptions,
 } from "../core/host-runtime";
 import type { AttachableStore } from "../core/replicated-store";
-import type { AirJamSimulation } from "../core/simulation";
+import type { AirJamSimulationDeclaration } from "../core/simulation";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import type { AirJamGameMetadata } from "../metadata/manifest";
@@ -64,8 +64,12 @@ export interface CreateAirJamAppOptions<
   testing?: string;
   /** The game's networked stores; host and controller sync them while they run. */
   stores?: readonly AttachableStore[];
-  /** The game's simulation, advanced on the SDK clock while the host runs. */
-  simulation?: AirJamSimulation<unknown, unknown, unknown>;
+  /**
+   * The game's simulation, advanced on the SDK clock while the host runs.
+   * Pass a loader (`() => import(...)`) when its code is heavy, such as a
+   * physics engine, so controllers never download it.
+   */
+  simulation?: AirJamSimulationDeclaration;
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -88,7 +92,7 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   agent?: AirJamAgentContract;
   testing?: string;
   stores: readonly AttachableStore[];
-  simulation?: AirJamSimulation<unknown, unknown, unknown>;
+  simulation?: AirJamSimulationDeclaration;
   /**
    * Builds this game's host core without React or a page, such as for a
    * headless room. It comes from the game's own SDK, so the game's stores

@@ -1,5 +1,15 @@
 import { create } from "zustand";
-import type { PhysicsFrame } from "../../debug/physics-recorder";
+
+export interface PhysicsFrame {
+  timestamp: number;
+  input: { x: number; y: number };
+  position: { x: number; y: number; z: number };
+  velocity: { x: number; y: number; z: number };
+  angularVelocity: { x: number; y: number; z: number };
+  smoothedInput: { x: number; y: number };
+  velocityChange: { x: number; y: number; z: number }; // Velocity delta per frame (velocity-based system)
+  angularVelocityChange: { x: number; y: number; z: number }; // Angular velocity delta per frame
+}
 
 interface PhysicsStore {
   isRecording: boolean;

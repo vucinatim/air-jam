@@ -1,5 +1,4 @@
 import { useFrame } from "@react-three/fiber";
-import { RigidBody, type CollisionPayload } from "@react-three/rapier";
 import { useMemo, useRef } from "react";
 import {
   AdditiveBlending,
@@ -9,16 +8,14 @@ import {
   RingGeometry,
   type Mesh,
 } from "three";
-import { useHostAudio } from "../../audio/use-host-audio";
-import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../../constants";
-import { shipPositions } from "../../engine/ships/runtime";
+import { JUMP_PAD_RADIUS } from "../../constants";
+import { useArenaEvents } from "../../view/arena-view-context";
 
 interface JumpPadProps {
   position: [number, number, number];
   id: string;
 }
 const JUMP_PAD_HEIGHT = 6; // Height of the barrel (much taller)
-const COLLISION_HEIGHT = 8; // Height of the collision cylinder (must be taller than ship hover height of 5)
 const BARREL_BAND_COUNT = 3; // Number of metal bands around the barrel
 const GRADIENT_EXTEND_BELOW = 2; // How far below ground the gradient extends
 
@@ -47,11 +44,6 @@ const gradientCylinderFragment = `
 `;
 
 export function JumpPad({ position, id }: JumpPadProps) {
-  const activatedRef = useRef(false);
-  const activationTimeRef = useRef(0);
-  const COOLDOWN_TIME = 0.5; // Cooldown before can activate again (seconds)
-  const audio = useHostAudio();
-
   // Visual geometry and materials
   const gradientGeometry = useMemo(
     () =>
@@ -229,116 +221,29 @@ export function JumpPad({ position, id }: JumpPadProps) {
       material.emissiveIntensity = 2 * opacity;
       mesh.visible = true;
     });
-
-    // Reset activation after cooldown
-    if (activatedRef.current) {
-      const elapsed = time - activationTimeRef.current;
-      if (elapsed > COOLDOWN_TIME) {
-        activatedRef.current = false;
-      }
-    }
   });
 
-  const handleIntersection = (payload: CollisionPayload) => {
-    // Check if cooldown has passed
-    const currentTime = performance.now() / 1000;
-    if (activatedRef.current) {
-      const elapsed = currentTime - activationTimeRef.current;
-      if (elapsed < COOLDOWN_TIME) {
-        return; // Still in cooldown
-      }
-    }
-
-    const userData = payload.other.rigidBody?.userData as
-      | { controllerId?: string }
-      | undefined;
-
-    if (userData?.controllerId) {
-      const controllerId = userData.controllerId;
-      const shipPosition = shipPositions.get(controllerId);
-
-      if (shipPosition && payload.other.rigidBody) {
-        // Get current velocity
-        const currentVel = payload.other.rigidBody.linvel();
-
-        // Apply upward force (set Y velocity directly for consistent jump height)
-        const newVelocity = {
-          x: currentVel.x,
-          y: JUMP_FORCE, // Set upward velocity (don't add, to ensure consistent jump)
-          z: currentVel.z,
-        };
-
-        payload.other.rigidBody.setLinvel(newVelocity, true);
-
-        // Play jump pad sound on host
-        audio.play("jump_pad");
-
-        // Activate cooldown
-        activatedRef.current = true;
-        activationTimeRef.current = currentTime;
-
-        // Visual feedback - bright flash
-        if (baseRef.current) {
-          const material = baseRef.current.material as MeshStandardMaterial;
-          material.emissiveIntensity = 2.0;
-          // Reset flash after a short time
-          if (flashTimeoutRef.current) {
-            clearTimeout(flashTimeoutRef.current);
-          }
-          flashTimeoutRef.current = window.setTimeout(() => {
-            if (baseRef.current) {
-              const mat = baseRef.current.material as MeshStandardMaterial;
-              mat.emissiveIntensity = 0.5;
-            }
-          }, 200);
-        }
-        if (ringRef.current) {
-          const material = ringRef.current.material as MeshStandardMaterial;
-          material.emissiveIntensity = 2.5;
-          // Reset flash after a short time
-          if (flashTimeoutRef.current) {
-            clearTimeout(flashTimeoutRef.current);
-          }
-          flashTimeoutRef.current = window.setTimeout(() => {
-            if (ringRef.current) {
-              const mat = ringRef.current.material as MeshStandardMaterial;
-              mat.emissiveIntensity = 1.0;
-            }
-          }, 200);
-        }
-      }
-    }
-  };
-
-  // Collision geometry - tall cylinder that extends up to catch ships
-  // Uses the same radius as the barrel for consistent collision
-  const collisionGeometry = useMemo(
-    () =>
-      new CylinderGeometry(
-        JUMP_PAD_RADIUS,
-        JUMP_PAD_RADIUS,
-        COLLISION_HEIGHT,
-        32,
-      ),
-    [],
-  );
+  useArenaEvents((event) => {
+    if (event.type !== "jump-pad" || event.padId !== id) return;
+    const flashes: Array<[Mesh | null, number, number]> = [
+      [baseRef.current, 2.0, 0.5],
+      [ringRef.current, 2.5, 1.0],
+    ];
+    for (const [mesh, peak] of flashes)
+      if (mesh)
+        (mesh.material as MeshStandardMaterial).emissiveIntensity = peak;
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    flashTimeoutRef.current = window.setTimeout(() => {
+      for (const [mesh, , rest] of flashes)
+        if (mesh)
+          (mesh.material as MeshStandardMaterial).emissiveIntensity = rest;
+    }, 200);
+  });
 
   return (
-    <RigidBody
-      type="fixed"
-      position={[position[0], position[1] + COLLISION_HEIGHT / 2, position[2]]}
-      colliders="hull" // Create collider from mesh geometry
-      sensor // Sensor means it doesn't block movement, just detects collisions
-      onIntersectionEnter={handleIntersection}
-      userData={{ type: "jumpPad", id }}
-    >
-      {/* Invisible collision cylinder - tall enough to catch ships at hover height */}
-      {/* This mesh is used for collision detection */}
-      <mesh geometry={collisionGeometry} visible={false}>
-        <meshStandardMaterial visible={false} />
-      </mesh>
+    <group position={position}>
       {/* Visual elements positioned at ground level */}
-      <group position={[0, -COLLISION_HEIGHT / 2, 0]}>
+      <group>
         {/* Gradient effect cylinder - full opacity at bottom, transparent at top */}
         {/* Positioned to extend below ground by GRADIENT_EXTEND_BELOW */}
         <mesh position={[0, (JUMP_PAD_HEIGHT - GRADIENT_EXTEND_BELOW) / 2, 0]}>
@@ -398,6 +303,6 @@ export function JumpPad({ position, id }: JumpPadProps) {
           />
         ))}
       </group>
-    </RigidBody>
+    </group>
   );
 }

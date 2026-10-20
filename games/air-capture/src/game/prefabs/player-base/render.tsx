@@ -1,19 +1,15 @@
 import { useFrame } from "@react-three/fiber";
-import {
-  RigidBody,
-  type CollisionPayload,
-  type RapierRigidBody,
-} from "@react-three/rapier";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { AdditiveBlending, Color, CylinderGeometry, DoubleSide } from "three";
-import { useHostAudio } from "../../audio/use-host-audio";
 import { TEAM_CONFIG } from "../../domain/team";
-import { useCaptureTheFlagStore } from "../../stores/match/capture-the-flag-store";
+import {
+  useArenaView,
+  useArenaViewReader,
+} from "../../view/arena-view-context";
 import type { AirCapturePlayerBasePrefabProps } from "./schema";
 
 const BASE_RADIUS = 10;
 const BASE_HEIGHT = 8;
-const COLLISION_HEIGHT = 10;
 const GRADIENT_EXTEND_BELOW = 2;
 
 const baseVertex = `
@@ -39,17 +35,9 @@ const baseFragment = `
 export function AirCapturePlayerBase({
   teamId,
 }: AirCapturePlayerBasePrefabProps) {
-  const handleBaseEntry = useCaptureTheFlagStore(
-    (state) => state.handleBaseEntry,
-  );
-  const basePosition = useCaptureTheFlagStore(
-    (state) => state.basePositions[teamId],
-  );
+  const basePosition = useArenaView((view) => view.basePositions[teamId]);
+  const readArena = useArenaViewReader();
   const team = TEAM_CONFIG[teamId];
-  const audio = useHostAudio();
-
-  const playersInsideRef = useRef<Set<string>>(new Set());
-  const rigidBodyRef = useRef<RapierRigidBody>(null);
   const uniformsRef = useRef({
     baseColor: { value: new Color(team.color) },
     whiteAmount: { value: 0 },
@@ -68,87 +56,26 @@ export function AirCapturePlayerBase({
     [],
   );
 
-  const collisionGeometry = useMemo(
-    () => new CylinderGeometry(BASE_RADIUS, BASE_RADIUS, COLLISION_HEIGHT, 32),
-    [],
-  );
-
-  useEffect(() => {
-    if (rigidBodyRef.current && basePosition) {
-      const [x, , z] = basePosition;
-      rigidBodyRef.current.setTranslation(
-        { x, y: COLLISION_HEIGHT / 2, z },
-        true,
-      );
-    }
-  }, [basePosition]);
-
   useFrame(() => {
-    uniformsRef.current.whiteAmount.value =
-      playersInsideRef.current.size > 0 ? 1.0 : 0.0;
+    uniformsRef.current.whiteAmount.value = readArena().baseOccupied(teamId)
+      ? 1.0
+      : 0.0;
   });
 
-  const handleIntersectionEnter = (payload: CollisionPayload) => {
-    const userData = payload.other.rigidBody?.userData as
-      | { controllerId?: string }
-      | undefined;
-    if (!userData?.controllerId) return;
-
-    if (playersInsideRef.current.has(userData.controllerId)) {
-      return;
-    }
-
-    playersInsideRef.current.add(userData.controllerId);
-    audio.play("touch_base");
-    const outcome = handleBaseEntry(userData.controllerId, teamId);
-    if (outcome === "scoredPoint") {
-      audio.play("score_point");
-    } else if (outcome === "returnedFriendlyFlag") {
-      audio.play("success");
-    } else if (outcome === "pickedUpEnemyFlag") {
-      audio.play("pickup_flag");
-    }
-  };
-
-  const handleIntersectionExit = (payload: CollisionPayload) => {
-    const userData = payload.other.rigidBody?.userData as
-      | { controllerId?: string }
-      | undefined;
-    if (!userData?.controllerId) return;
-
-    playersInsideRef.current.delete(userData.controllerId);
-  };
-
   return (
-    <group>
-      <RigidBody
-        ref={rigidBodyRef}
-        type="fixed"
-        position={[basePosition[0], COLLISION_HEIGHT / 2, basePosition[2]]}
-        sensor
-        colliders="hull"
-        onIntersectionEnter={handleIntersectionEnter}
-        onIntersectionExit={handleIntersectionExit}
-      >
-        <mesh geometry={collisionGeometry} visible={false}>
-          <meshStandardMaterial visible={false} />
-        </mesh>
-
-        <group position={[0, -COLLISION_HEIGHT / 2, 0]}>
-          <mesh position={[0, (BASE_HEIGHT - GRADIENT_EXTEND_BELOW) / 2, 0]}>
-            <primitive object={gradientGeometry} attach="geometry" />
-            <shaderMaterial
-              vertexShader={baseVertex}
-              fragmentShader={baseFragment}
-              transparent
-              blending={AdditiveBlending}
-              depthWrite={false}
-              side={DoubleSide}
-              uniforms={uniformsRef.current}
-            />
-          </mesh>
-        </group>
-      </RigidBody>
+    <group position={[basePosition[0], 0, basePosition[2]]}>
+      <mesh position={[0, (BASE_HEIGHT - GRADIENT_EXTEND_BELOW) / 2, 0]}>
+        <primitive object={gradientGeometry} attach="geometry" />
+        <shaderMaterial
+          vertexShader={baseVertex}
+          fragmentShader={baseFragment}
+          transparent
+          blending={AdditiveBlending}
+          depthWrite={false}
+          side={DoubleSide}
+          uniforms={uniformsRef.current}
+        />
+      </mesh>
     </group>
   );
 }

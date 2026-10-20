@@ -52,6 +52,7 @@ export {
   createSeededRandom,
   defineAirJamSimulation,
   type AirJamSimulation,
+  type AirJamSimulationDeclaration,
   type AirJamStepContext,
   type SimulationFrame,
   type SimulationPace,

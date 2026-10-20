@@ -34,6 +34,19 @@ export interface AirJamSimulation<TSim, TInput = unknown, TEvent = never> {
   observe?(sim: TSim, context: HostObservationContext): Record<string, unknown>;
 }
 
+/**
+ * A simulation, or a loader for one. A loader keeps the simulation's code,
+ * such as a physics engine, out of the controller: only the host loads it,
+ * before the first step.
+ */
+export type AirJamSimulationDeclaration<
+  TSim = unknown,
+  TInput = unknown,
+  TEvent = unknown,
+> =
+  | AirJamSimulation<TSim, TInput, TEvent>
+  | (() => Promise<AirJamSimulation<TSim, TInput, TEvent>>);
+
 export const defineAirJamSimulation = <TSim, TInput = unknown, TEvent = never>(
   simulation: AirJamSimulation<TSim, TInput, TEvent>,
 ): AirJamSimulation<TSim, TInput, TEvent> => simulation;

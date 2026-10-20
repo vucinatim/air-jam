@@ -248,4 +248,66 @@ describe("core host runtime", () => {
       }),
     ).rejects.toThrow();
   });
+
+  it("loads a simulation declared as a loader before stepping it", async () => {
+    const socket = createServerSocket();
+    const { environment } = createMemoryEnvironment(socket);
+    let release: () => void = () => {};
+    const loaded = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const walker = defineAirJamSimulation<{ x: number }>({
+      stepMs: 10,
+      create: () => ({ x: 0 }),
+      step: (sim) => {
+        sim.x += 1;
+      },
+      observe: (sim) => ({ x: sim.x }),
+    });
+    const runtime = new HostRuntime({
+      config,
+      store: createConnectionStore(),
+      getSocket: () => {
+        throw new Error("The memory transport needs no socket.");
+      },
+      disconnectSocket: () => {},
+      environment,
+      stores: [createScoreStore()],
+      simulation: () => loaded.then(() => walker),
+      agent: {
+        gameId: "walker",
+        contract: defineAirJamAgentContract({
+          stores: defineAirJamAgentStores({
+            default: agentStore<{ score: number }>(),
+          }),
+          projectSnapshot: () => ({}),
+          actions: {},
+        }),
+      },
+    });
+    const stop = runtime.start();
+    await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+    expect(runtime.simulation).toBeNull();
+
+    release();
+    await runtime.ready;
+    runtime.simulation?.advance(30);
+    const control = Reflect.get(
+      environment.controlTarget,
+      AIR_JAM_RUNTIME_CONTROL_KEY,
+    ) as HostRuntimeControl;
+    const response = await control.agent({
+      operation: "observe",
+      roomId: "ROOM1",
+      controllerId: null,
+      scope: "diagnostic",
+      includeImage: false,
+    });
+    if (response.operation !== "observe") throw new Error("Expected observe.");
+    expect(response.observation).toMatchObject({
+      runtime: { x: 3 },
+      ticks: { after: 3 },
+    });
+    stop();
+  });
 });

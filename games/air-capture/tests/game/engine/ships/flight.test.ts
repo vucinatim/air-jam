@@ -1,5 +1,6 @@
 import { Euler, Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
+import type { PlayerFlightState } from "../../../../src/game/engine/ships/flight";
 import {
   SHIP_ENGINE_CONFIG,
   advanceShipRotation,
@@ -12,7 +13,6 @@ import {
   smoothShipInput,
   stepAirControlEnergy,
 } from "../../../../src/game/engine/ships/flight";
-import type { PlayerFlightState } from "../../../../src/game/stores/players/flight-state-store";
 
 const AIRBORNE_FLIGHT_STATE: PlayerFlightState = {
   mode: "airborne",

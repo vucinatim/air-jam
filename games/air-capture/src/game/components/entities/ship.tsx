@@ -1,148 +1,119 @@
-import {
-  CapsuleCollider,
-  RigidBody,
-  type RapierRigidBody,
-} from "@react-three/rapier";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useSimulationFrame, useSimulationSelector } from "@air-jam/sdk";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { MeshBasicMaterial, SphereGeometry, type Group } from "three";
-
-import { getAbilityVisual, useAbilitiesStore } from "../../abilities-store";
-import { setShipPhysicsActive } from "../../engine/ships/runtime";
-import { useShipRuntime } from "../../engine/ships/use-ship-runtime";
+import { useHostAudio } from "../../audio/use-host-audio";
+import {
+  executeShipEngineAudioTransition,
+  resolveShipEngineAudioTransition,
+  stopShipEngineAudio,
+  type ShipEngineAudioState,
+} from "../../engine/ships/audio";
 import { AirCaptureShipVisual } from "../../prefabs/ship";
+import { isMatchActive } from "../../simulation/match";
+import { SHIP_COLLIDER_CENTER_Y } from "../../simulation/physics";
+import type { AirCaptureSim } from "../../simulation/state";
 import { useDebugStore } from "../../stores/debug/debug-store";
-import { useGameStore } from "../../stores/players/game-store";
-import { useHealthStore } from "../../stores/players/health-store";
-import { ShipExplosion } from "../effects/ship-explosion";
-
-interface ShipProps {
-  controllerId: string;
-  position: [number, number, number];
-}
+import { AbilityVisual } from "./ability-visual";
 
 const SHIP_GAMEPLAY_HITBOX_RADIUS = 3.8;
-const SHIP_PHYSICS_COLLIDER_HALF_HEIGHT = 1.5;
-const SHIP_PHYSICS_COLLIDER_RADIUS = 1.8;
-const SHIP_COLLIDER_CENTER_OFFSET: [number, number, number] = [0, 1.8, 0];
 
-function ShipComponent({ controllerId, position: initialPosition }: ShipProps) {
-  const rigidBodyRef = useRef<RapierRigidBody>(null);
+/** Draws one ship where the simulation flies it, with its engine sound. */
+function ShipComponent({ controllerId }: { controllerId: string }) {
+  const groupRef = useRef<Group>(null);
   const planeGroupRef = useRef<Group>(null);
-  const currentThrustRef = useRef(0);
-  const thrustInputRef = useRef(0);
-  const [explosionPosition, setExplosionPosition] = useState<
-    [number, number, number] | null
-  >(null);
+  const thrustRef = useRef(0);
+  const engineRef = useRef<ShipEngineAudioState>({
+    idleSoundId: null,
+    thrustSoundId: null,
+  });
+  const audio = useHostAudio();
+  const driver = useMemo(
+    () => ({
+      play: (sound: "engine_idle" | "engine_thrust") => audio.play(sound),
+      stop: (sound: "engine_idle" | "engine_thrust", soundId: number) =>
+        audio.stop(sound, soundId),
+    }),
+    [audio],
+  );
 
-  const currentAbility = useAbilitiesStore(
-    (state) =>
-      state.getActiveAbility(controllerId) ??
-      state.getQueuedAbility(controllerId),
+  const color = useSimulationSelector(
+    (sim: AirCaptureSim) => sim.ships.get(controllerId)?.color ?? "#ff4444",
   );
-  const isAbilityActive = useAbilitiesStore((state) =>
-    state.isAbilityActive(controllerId),
+  const dead = useSimulationSelector(
+    (sim: AirCaptureSim) => sim.ships.get(controllerId)?.dead ?? true,
   );
-  const abilityVisual =
-    currentAbility && !isAbilityActive
-      ? getAbilityVisual(currentAbility.id, controllerId)
+  // An equipped ability shows on the hull until it is used.
+  const equippedAbility = useSimulationSelector((sim: AirCaptureSim) => {
+    const ship = sim.ships.get(controllerId);
+    return ship && !ship.activeAbility
+      ? (ship.queuedAbility?.id ?? null)
       : null;
-
-  const playerColor =
-    useGameStore(
-      (state) =>
-        state.players.find((p) => p.controllerId === controllerId)?.color,
-    ) || "#ff4444";
+  });
   const debugHitboxesVisible = useDebugStore((state) => state.isOpen);
-
-  const isDead = useHealthStore((state) => state.getIsDead(controllerId));
-  const gameplayHitboxGeometry = useMemo(
+  const hitboxGeometry = useMemo(
     () => new SphereGeometry(SHIP_GAMEPLAY_HITBOX_RADIUS, 18, 18),
     [],
   );
-  const gameplayHitboxMaterial = useMemo(
+  const hitboxMaterial = useMemo(
     () =>
       new MeshBasicMaterial({
-        color: playerColor,
+        color,
         transparent: true,
         opacity: debugHitboxesVisible ? 0.22 : 0,
         wireframe: debugHitboxesVisible,
         depthWrite: false,
       }),
-    [debugHitboxesVisible, playerColor],
+    [debugHitboxesVisible, color],
   );
 
-  useShipRuntime({
-    controllerId,
-    rigidBodyRef,
-    planeGroupRef,
-    thrustRef: currentThrustRef,
-    thrustInputRef,
-    setExplosionPosition,
+  useSimulationFrame<AirCaptureSim>(({ sim, alpha }) => {
+    const ship = sim.ships.get(controllerId);
+    const group = groupRef.current;
+    if (!ship || !group) return;
+    group.position.lerpVectors(ship.previousPosition, ship.position, alpha);
+    group.quaternion.slerpQuaternions(
+      ship.previousRotation,
+      ship.rotation,
+      alpha,
+    );
+    if (planeGroupRef.current) planeGroupRef.current.rotation.z = ship.wingRoll;
+    thrustRef.current = ship.thrustVisual;
+    engineRef.current = executeShipEngineAudioTransition(
+      resolveShipEngineAudioTransition({
+        audioState: engineRef.current,
+        isThrusting: ship.thrusting,
+        // Engines go quiet between matches as well as when a ship is down.
+        isDead: ship.dead || !isMatchActive(sim.matchPhase),
+      }),
+      driver,
+    );
   });
 
-  useEffect(() => {
-    const rigidBody = rigidBodyRef.current;
-    if (!rigidBody) {
-      return;
-    }
-
-    setShipPhysicsActive(rigidBody, !isDead);
-  }, [isDead]);
+  useEffect(
+    () => () => {
+      engineRef.current = stopShipEngineAudio(engineRef.current, driver);
+    },
+    [driver],
+  );
 
   return (
-    <>
-      <RigidBody
-        ref={rigidBodyRef}
-        type="dynamic"
-        position={initialPosition}
-        lockRotations
-        linearDamping={0.5}
-        colliders={false}
-        userData={{ controllerId, active: !isDead }}
-      >
-        <CapsuleCollider
-          args={[
-            SHIP_PHYSICS_COLLIDER_HALF_HEIGHT,
-            SHIP_PHYSICS_COLLIDER_RADIUS,
-          ]}
-          position={SHIP_COLLIDER_CENTER_OFFSET}
-        />
-        <group visible={!isDead}>
-          <mesh
-            geometry={gameplayHitboxGeometry}
-            material={gameplayHitboxMaterial}
-            position={SHIP_COLLIDER_CENTER_OFFSET}
-            userData={{
-              controllerId,
-              active: !isDead,
-              gameplayHitbox: true,
-              type: "ship-hitbox",
-            }}
-            renderOrder={debugHitboxesVisible ? 20 : 0}
-          />
-          <AirCaptureShipVisual
-            playerColor={playerColor}
-            thrustRef={currentThrustRef}
-            abilityVisual={abilityVisual}
-            planeGroupRef={planeGroupRef}
-          />
-        </group>
-      </RigidBody>
-      {explosionPosition && (
-        <ShipExplosion
-          position={explosionPosition}
-          onComplete={() => {
-            setExplosionPosition(null);
-          }}
-        />
-      )}
-    </>
+    <group ref={groupRef} visible={!dead}>
+      <mesh
+        geometry={hitboxGeometry}
+        material={hitboxMaterial}
+        position={[0, SHIP_COLLIDER_CENTER_Y, 0]}
+        renderOrder={debugHitboxesVisible ? 20 : 0}
+      />
+      <AirCaptureShipVisual
+        playerColor={color}
+        thrustRef={thrustRef}
+        abilityVisual={
+          equippedAbility ? <AbilityVisual abilityId={equippedAbility} /> : null
+        }
+        planeGroupRef={planeGroupRef}
+      />
+    </group>
   );
 }
 
-export const Ship = memo(ShipComponent, (prev, next) => {
-  return (
-    prev.controllerId === next.controllerId &&
-    prev.position.every((v, i) => v === next.position[i])
-  );
-});
+export const Ship = memo(ShipComponent);

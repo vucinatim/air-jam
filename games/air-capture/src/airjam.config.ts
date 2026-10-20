@@ -33,6 +33,11 @@ export const airjam = createAirJamApp({
   metadata: gameMetadata,
   controllerPath: "/controller",
   stores: [prototypeMatchStore],
+  // Loaded on the host only: it brings the Rapier physics engine.
+  simulation: () =>
+    import("./game/simulation/air-capture-simulation").then(
+      (module) => module.airCaptureSimulation,
+    ),
   agent: agentContract,
   testing: "./testing/profiles.ts",
   input: {

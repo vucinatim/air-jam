@@ -1,19 +1,16 @@
-import { useRocketsStore } from "../../stores/projectiles/rockets-store";
+import { useSimulationSelector } from "@air-jam/sdk";
+import { shallow } from "zustand/shallow";
+import type { AirCaptureSim } from "../../simulation/state";
 import { RocketEntity } from "./rocket";
 
-export function Rockets() {
-  const rockets = useRocketsStore((state) => state.rockets);
+const rocketsOf = (sim: AirCaptureSim) => [...sim.rockets.values()];
 
+export function Rockets() {
+  const rockets = useSimulationSelector(rocketsOf, shallow);
   return (
     <>
       {rockets.map((rocket) => (
-        <RocketEntity
-          key={rocket.id}
-          id={rocket.id}
-          position={rocket.position}
-          direction={rocket.direction}
-          controllerId={rocket.controllerId}
-        />
+        <RocketEntity key={rocket.id} rocket={rocket} />
       ))}
     </>
   );
