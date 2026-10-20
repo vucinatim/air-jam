@@ -47,7 +47,9 @@ export const useControllerLobbyState = () => {
     (playerId) => readyByPlayerId[playerId],
   ).length;
   const profileName = normalizePlayerName(selfPlayer?.label ?? "");
-  const activeName = normalizePlayerName(nameDraft || profileName);
+  // The draft is the player's own text only while they edit; otherwise the profile name.
+  const draft = editingName ? nameDraft : profileName;
+  const activeName = normalizePlayerName(draft || profileName);
   const canReady = Boolean(isConnected && controllerId && phase === "lobby");
   const canReadyToggle = Boolean(
     canReady && (isReady || activeName.length >= PLAYER_NAME_MIN_LENGTH),
@@ -64,14 +66,6 @@ export const useControllerLobbyState = () => {
   const startMatchHelper = hasEnoughSongs
     ? "Everyone is ready."
     : `Host needs ${totalRounds - uniqueSongCount} more unique songs.`;
-
-  useEffect(() => {
-    if (editingName) {
-      return;
-    }
-
-    setNameDraft(profileName);
-  }, [editingName, profileName]);
 
   useEffect(
     () => () => {
@@ -133,15 +127,13 @@ export const useControllerLobbyState = () => {
 
   const commitPlayerName = useCallback((): boolean => {
     clearPendingNamePush();
-    return pushPlayerName(nameDraft);
-  }, [clearPendingNamePush, nameDraft, pushPlayerName]);
+    return pushPlayerName(draft);
+  }, [clearPendingNamePush, draft, pushPlayerName]);
 
   const blurNameInput = useCallback(() => {
     setEditingName(false);
-    if (!commitPlayerName()) {
-      setNameDraft(profileName);
-    }
-  }, [commitPlayerName, profileName]);
+    commitPlayerName();
+  }, [commitPlayerName]);
 
   const toggleReady = () => {
     if (!canReadyToggle) return;
@@ -179,8 +171,11 @@ export const useControllerLobbyState = () => {
     hasEnoughSongs,
     isReady,
     blurNameInput,
-    focusNameInput: () => setEditingName(true),
-    nameDraft,
+    focusNameInput: () => {
+      setNameDraft(profileName);
+      setEditingName(true);
+    },
+    nameDraft: draft,
     playerCount: playerOrder.length,
     readyCount,
     selectedBucketCount,

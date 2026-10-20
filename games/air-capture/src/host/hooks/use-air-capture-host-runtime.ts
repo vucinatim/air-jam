@@ -264,12 +264,8 @@ export function useAirCaptureHostRuntime({
   const activeScenePhase =
     matchPhase === "countdown" || matchPhase === "playing";
   const [sceneHasMounted, setSceneHasMounted] = useState(activeScenePhase);
-
-  useEffect(() => {
-    if (activeScenePhase) {
-      setSceneHasMounted(true);
-    }
-  }, [activeScenePhase]);
+  // Latches during render: once the scene has been active it stays mounted.
+  if (activeScenePhase && !sceneHasMounted) setSceneHasMounted(true);
 
   return {
     host,
