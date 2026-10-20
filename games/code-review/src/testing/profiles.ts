@@ -66,6 +66,8 @@ export const testProfiles = defineAirJamTestProfiles({
     label: "Fight one round against the game's bot",
     seats: [{ id: "player", label: "Coder fighter" }],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
       join("player", "team1"),
       {
         lane: "participant",
@@ -137,6 +139,8 @@ export const testProfiles = defineAirJamTestProfiles({
       { id: "reviewer2", label: "Reviewer two" },
     ],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "coder1", actionId: "return_to_lobby" },
       join("coder1", "team1"),
       join("coder2", "team1"),
       join("reviewer1", "team2"),

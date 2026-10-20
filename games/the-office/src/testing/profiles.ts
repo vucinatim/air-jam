@@ -55,6 +55,8 @@ export const testProfiles = defineAirJamTestProfiles({
     label: "Work the first two minutes of a shift alone",
     seats: [{ id: "player", label: "Špela" }],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
       {
         lane: "participant",
         seatId: "player",

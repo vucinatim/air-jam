@@ -106,6 +106,8 @@ export const testProfiles = defineAirJamTestProfiles({
     label: "Play a short match against the game's bot",
     seats: [{ id: "player", label: "Orange paddle" }],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
       {
         lane: "participant",
         seatId: "player",
@@ -197,6 +199,8 @@ export const testProfiles = defineAirJamTestProfiles({
       { id: "right", label: "Blue paddle" },
     ],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "left", actionId: "return_to_lobby" },
       {
         lane: "participant",
         seatId: "left",

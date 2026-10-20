@@ -37,6 +37,8 @@ export const testProfiles = defineAirJamTestProfiles({
     label: "Race the game's bot to one capture",
     seats: [{ id: "player", label: "Solaris ship" }],
     setup: [
+      // The room may hold an earlier match; every run starts from the lobby.
+      { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
       {
         lane: "participant",
         seatId: "player",

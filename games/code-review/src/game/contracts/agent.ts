@@ -198,7 +198,7 @@ export const agentContract = defineAirJamAgentContract({
       {
         input: agentActionInput.none(),
         description: "Return the Code Review match to the lobby.",
-        availability: "Playing or ended phases.",
+        availability: "Any phase.",
         resultDescription:
           "The game returns to the lobby and clears the live score state.",
       },

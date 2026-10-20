@@ -170,7 +170,7 @@ export const agentContract = defineAirJamAgentContract({
       {
         input: agentActionInput.none(),
         description: "Return the Office match to the lobby.",
-        availability: "Playing or ended phases.",
+        availability: "Any phase.",
         resultDescription:
           "The game returns to the lobby and clears live match state.",
       },
