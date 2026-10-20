@@ -3,6 +3,11 @@ import type { z } from "zod";
 import type { AirJamAgentContract } from "../agent/agent-contract";
 import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
+import {
+  HostRuntime,
+  type HostRuntimeDependencies,
+  type HostRuntimeOptions,
+} from "../core/host-runtime";
 import type { AttachableStore } from "../core/replicated-store";
 import type { AirJamSimulation } from "../core/simulation";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
@@ -84,6 +89,18 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   testing?: string;
   stores: readonly AttachableStore[];
   simulation?: AirJamSimulation<unknown, unknown, unknown>;
+  /**
+   * Builds this game's host core without React or a page, such as for a
+   * headless room. It comes from the game's own SDK, so the game's stores
+   * and its host share one runtime.
+   */
+  createHostRuntime: (
+    dependencies: Omit<
+      HostRuntimeDependencies<TSchema>,
+      "stores" | "simulation" | "agent" | "input"
+    >,
+    options?: HostRuntimeOptions,
+  ) => HostRuntime<TSchema>;
 }
 
 const NO_STORES: readonly AttachableStore[] = [];
@@ -299,5 +316,19 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     testing,
     stores,
     simulation,
+    createHostRuntime: (dependencies, options) =>
+      new HostRuntime<TSchema>(
+        {
+          ...dependencies,
+          stores,
+          simulation,
+          input,
+          agent: agent && {
+            contract: agent,
+            gameId: metadata?.slug ?? "game",
+          },
+        },
+        options,
+      ),
   };
 };

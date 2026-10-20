@@ -32,6 +32,7 @@ export default defineConfig({
     "tooling/game-session-broker": "src/tooling/game-session-broker.ts",
     "tooling/run-visual-capture": "src/tooling/run-visual-capture.ts",
     "tooling/run-test-profile": "src/tooling/run-test-profile.ts",
+    "tooling/run-headless-room": "src/tooling/run-headless-room.ts",
     "tooling/process-scope-guard": "src/tooling/process-scope-guard.ts",
     "tooling/seal-game-build": "src/tooling/seal-game-build.ts",
   },

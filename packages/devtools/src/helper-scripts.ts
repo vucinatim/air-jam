@@ -38,6 +38,7 @@ const projectTypescriptLoaderHelpers = new Set([
   "list-visual-scenarios",
   "run-visual-capture",
   "run-test-profile",
+  "run-headless-room",
 ]);
 
 export const resolveDevtoolsHelperArgs = (helperPath: string): string[] =>

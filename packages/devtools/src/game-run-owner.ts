@@ -8,7 +8,13 @@ import {
   type HostObservation,
 } from "@air-jam/sdk/runtime-control";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename } from "node:fs/promises";
+import {
+  mkdir,
+  open,
+  readFile,
+  rename,
+  type FileHandle,
+} from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { ControllerDisconnection } from "./controller-protocol.js";
@@ -40,6 +46,7 @@ import {
   type GameSurfaceWatcher,
 } from "./game-run-watch.js";
 import { listGames } from "./games.js";
+import { startHeadlessRoom, type HeadlessRoom } from "./headless-room.js";
 import {
   assertProcessScopesConfirmed,
   type ProcessScopeObserver,
@@ -97,11 +104,24 @@ export type GameRunParticipant = {
   close: () => Promise<ControllerDisconnection>;
   forceClose: () => Promise<ControllerDisconnection>;
 };
+/**
+ * The time a run plays on. A live room plays on the wall clock; a headless
+ * room's clock is game time, which moves only while the run waits on it.
+ */
+export type GameRunClock = {
+  now: () => number;
+  wait: (ms: number, signal?: AbortSignal) => Promise<void>;
+};
+export const wallClock: GameRunClock = {
+  now: () => performance.now(),
+  wait: (ms, signal) => delay(ms, undefined, { signal }),
+};
 export type GameRunSession = Omit<
   GameRunParticipant,
   "controllerId" | "close" | "forceClose"
 > & {
   summary: AirJamGameSessionSummary;
+  clock: GameRunClock;
   watchHost: GameSurfaceWatcher;
   readParticipants: () => Promise<{ roomId: string; controllerIds: string[] }>;
   addParticipant: (nickname: string) => Promise<GameRunParticipant>;
@@ -132,6 +152,10 @@ type Run = {
   /** The host's simulation pace when play began, to measure play against. */
   paceStart?: NonNullable<HostObservation["pace"]>;
   attachment?: CurrentRoomAttachment;
+  /** The room a headless run plays in, owned by this run. */
+  room?: HeadlessRoom;
+  /** The session clock's reading when play began. */
+  playStartedAt?: number;
   directory: string;
   abort: AbortController;
   session?: GameRunSession;
@@ -151,6 +175,8 @@ type Run = {
   admission?: Promise<void>;
   persistence: Promise<void>;
   tracing: Promise<void>;
+  /** Open while the run writes its trace; null once the trace is sealed. */
+  traceFile?: FileHandle | null;
   traceBytes: number;
   traceTruncated: boolean;
   termination?: Promise<void>;
@@ -176,6 +202,7 @@ export class GameRunOwner {
         nickname: string;
         attachment?: CurrentRoomAttachment;
         build?: PinnedGameBuild;
+        room?: HeadlessRoom;
         onScope: ProcessScopeObserver;
       }) => Promise<GameRunSession>;
       sessionClosed: (gameSessionId: string) => void;
@@ -220,17 +247,15 @@ export class GameRunOwner {
         if (run.abort.signal.aborted) return;
         throw new Error("trace_budget: Run trace reached its byte allowance.");
       }
-      const file = await open(
+      if (run.traceFile === null)
+        throw new Error("trace_closed: The run trace is already sealed.");
+      run.traceFile ??= await open(
         path.join(run.directory, "trace.ndjson"),
         "a",
         0o600,
       );
-      try {
-        await file.writeFile(bytes);
-        run.traceBytes += bytes.byteLength;
-      } finally {
-        await file.close();
-      }
+      await run.traceFile.writeFile(bytes);
+      run.traceBytes += bytes.byteLength;
     });
     // The caller receives failures; the journal must still accept teardown events.
     run.tracing = writing.catch(() => undefined);
@@ -329,9 +354,9 @@ export class GameRunOwner {
       throw new Error(
         "current_attachment_required: Current-room play requires a delegated editor.",
       );
-    if (request.target.kind === "owned" && attachment)
+    if (request.target.kind !== "current" && attachment)
       throw new Error(
-        "unexpected_attachment: Owned tests do not accept current-room access.",
+        "unexpected_attachment: Owned and headless tests do not accept current-room access.",
       );
     const current = attachment
       ? currentRoomAttachmentSchema.parse(attachment)
@@ -713,6 +738,19 @@ export class GameRunOwner {
       onScope: this.observeScopes(run),
       startupSignal: run.abort.signal,
     };
+    // The room starts alongside the profile processes; it needs only the game.
+    const room =
+      run.record.request.target.kind === "headless"
+        ? startHeadlessRoom({
+            rootDir: common.rootDir,
+            configPath: common.configPath,
+            seed: run.record.request.seed,
+            logPath: path.join(run.directory, "room.log"),
+            onScope: common.onScope,
+            startupSignal: run.abort.signal,
+          })
+        : undefined;
+    room?.catch(() => undefined);
     run.evaluator = await startTestProfileProcess({
       ...common,
       role: "evaluator",
@@ -771,12 +809,17 @@ export class GameRunOwner {
       ...(artifacts ? { artifacts: artifacts.receipt } : {}),
     });
     if (run.abort.signal.aborted) return;
+    if (room) {
+      run.room = await room;
+      if (run.abort.signal.aborted) return;
+    }
     run.session = await this.options.openSession({
       runId: run.record.runId,
       gameId: run.record.request.gameId,
       nickname: agentNickname(0),
       attachment: run.attachment,
       build: run.build,
+      room: run.room,
       onScope: this.observeScopes(run),
     });
     run.record.session = gameRunSessionIdentitySchema.parse(
@@ -861,7 +904,7 @@ export class GameRunOwner {
     if (run.abort.signal.aborted) return;
     if (
       participants.roomId !== run.session.summary.roomId ||
-      (run.record.request.target.kind === "owned" &&
+      (run.record.request.target.kind !== "current" &&
         participants.controllerIds.length !== expectedParticipants.length)
     )
       throw new Error(
@@ -1002,10 +1045,9 @@ export class GameRunOwner {
     return record;
   }
   private elapsed(run: Run) {
-    return (
-      run.record.request.budget.durationMs -
-      Math.max(0, run.deadline - performance.now())
-    );
+    if (!run.session || run.playStartedAt === undefined)
+      throw new Error("Run play has not started.");
+    return run.session.clock.now() - run.playStartedAt;
   }
   /**
    * Answer a seat's question and keep that seat's running summary of how the
@@ -1312,14 +1354,18 @@ export class GameRunOwner {
     const primary = run.seats[0];
     if (!profile || !policy || !primary)
       throw new Error("Run policy is not initialized.");
+    const session = run.session;
+    if (!session) throw new Error("Run session is not open.");
+    const clock = session.clock;
     run.record.state = "playing";
     await this.persist(run);
+    run.playStartedAt = clock.now();
     let lastTick: number | null = null;
-    let progressedAt = performance.now();
+    let progressedAt = clock.now();
     while (!run.abort.signal.aborted) {
-      const roundStarted = performance.now();
+      const roundStarted = clock.now();
       if (
-        roundStarted >= run.deadline ||
+        this.elapsed(run) >= run.record.request.budget.durationMs ||
         run.record.counters.steps >= run.record.request.budget.steps
       )
         return this.terminate(
@@ -1380,12 +1426,12 @@ export class GameRunOwner {
         const tick = observation.ticks.after;
         if (tick !== lastTick) {
           lastTick = tick;
-          progressedAt = performance.now();
+          progressedAt = clock.now();
         }
         if (
           observation.host?.after?.connectionStatus !== "connected" ||
           observation.host.after.runtimeState !== "playing" ||
-          (tick !== null && performance.now() - progressedAt > 5000)
+          (tick !== null && clock.now() - progressedAt > 5000)
         )
           return this.terminate(
             run,
@@ -1554,16 +1600,14 @@ export class GameRunOwner {
           durationMs: performance.now() - started,
         });
       }
-      await delay(
-        Math.max(
-          0,
-          profile.timing.intervalMs - (performance.now() - roundStarted),
-        ),
-        undefined,
-        { signal: run.abort.signal },
-      ).catch((error) => {
-        if (!run.abort.signal.aborted) throw error;
-      });
+      await clock
+        .wait(
+          Math.max(0, profile.timing.intervalMs - (clock.now() - roundStarted)),
+          run.abort.signal,
+        )
+        .catch((error) => {
+          if (!run.abort.signal.aborted) throw error;
+        });
     }
   }
   private failed(run: Run, error: unknown) {
@@ -1635,15 +1679,15 @@ export class GameRunOwner {
           if (!primary || !run.record.profile)
             throw new Error("Run has no initialized observation seat.");
           const before = await this.evaluationObservation(run, false);
-          const settleUntil = performance.now() + 2000;
+          const settleUntil = session.clock.now() + 2000;
           let settled: HostObservation;
           do {
-            await delay(run.record.profile.timing.intervalMs);
+            await session.clock.wait(run.record.profile.timing.intervalMs);
             settled = await this.evaluationObservation(run, false);
           } while (
             before.ticks.after !== null &&
             settled.ticks.after === before.ticks.after &&
-            performance.now() < settleUntil
+            session.clock.now() < settleUntil
           );
           if (
             before.ticks.after !== null &&
@@ -1810,6 +1854,12 @@ export class GameRunOwner {
       await attempt(() =>
         this.trace(run, { kind: "ended", end: run.record.end, cleanup }),
       );
+      await attempt(async () => {
+        await run.tracing;
+        const file = run.traceFile;
+        run.traceFile = null;
+        await file?.close();
+      });
       await attempt(async () => {
         const bytes = await readGameRunArtifact(
           this.options.projectDir,

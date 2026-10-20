@@ -1,4 +1,3 @@
-import { DEFAULT_MAX_PLAYERS } from "../constants";
 import {
   createAirJamDiagnosticError,
   emitAirJamDiagnostic,
@@ -16,7 +15,7 @@ import {
   type SurfaceRole,
 } from "../runtime-topology";
 
-import type { AirJamConfig } from "../core/config";
+import { createAirJamConfig, type AirJamConfig } from "../core/config";
 
 export type { AirJamConfig };
 
@@ -240,8 +239,8 @@ export const resolveAirJamConfig = ({
   surfaceRole,
   appId,
   hostGrantEndpoint,
-  maxPlayers = DEFAULT_MAX_PLAYERS,
-  hostSessionKind = "game",
+  maxPlayers,
+  hostSessionKind,
   resolveEnv = true,
 }: ResolveAirJamConfigInput): AirJamConfig => {
   const resolvedTopology = topology
@@ -276,15 +275,11 @@ export const resolveAirJamConfig = ({
     });
   }
 
-  return {
+  return createAirJamConfig({
     topology: resolvedTopology,
     appId: resolvedAppId,
     hostGrantEndpoint: hostGrantEndpoint ?? getEnvHostGrantEndpoint(),
     maxPlayers,
     hostSessionKind,
-    backendOrigin: resolvedTopology.backendOrigin,
-    socketOrigin: resolvedTopology.socketOrigin,
-    appOrigin: resolvedTopology.appOrigin,
-    proxyStrategy: resolvedTopology.proxyStrategy,
-  };
+  });
 };

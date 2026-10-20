@@ -100,6 +100,7 @@ export const createBrowserHostEnvironment = (
     emitDevEvent: emitAirJamDevRuntimeEvent,
     setDevLogContext: updateDevBrowserLogContext,
     seed: () => crypto.getRandomValues(new Uint32Array(1))[0],
+    now: () => performance.now(),
     frames: (onFrame) => {
       let frame = requestAnimationFrame(function next(now) {
         onFrame(now);

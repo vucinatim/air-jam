@@ -69,6 +69,8 @@ type ActionStore = {
 };
 
 type ParticipantReceiver = {
+  /** The host clock that command deadlines and input leases run on. */
+  now: () => number;
   readState: () => NonNullable<NonNullable<HostObservation["host"]>["before"]>;
   isParticipant: (controllerId: string) => boolean;
   input?: Pick<
@@ -203,6 +205,7 @@ function controlEntry(target: object) {
                 const input = receiver?.input;
                 return {
                   identity: readHostRuntimeIdentity(target, request.roomId),
+                  now: receiver?.now ?? null,
                   host: receiver?.readState() ?? null,
                   capabilities: {
                     participantControl: {
@@ -447,6 +450,14 @@ function participantControl(target: object, roomId: string) {
   if (!participant) {
     participant = new ParticipantControl({
       identity: () => readHostRuntimeIdentity(target, roomId),
+      now: () => {
+        const receiver = entry.receivers.get(roomId);
+        if (!receiver)
+          throw new Error(
+            "host_participant_unavailable: No host owns this room.",
+          );
+        return receiver.now();
+      },
       input: () => entry.receivers.get(roomId)?.input,
       isParticipant: (controllerId) =>
         entry.receivers.get(roomId)?.isParticipant(controllerId) ?? false,

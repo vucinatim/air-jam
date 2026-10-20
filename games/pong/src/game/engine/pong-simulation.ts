@@ -8,6 +8,7 @@ import { defineAirJamSimulation } from "@air-jam/sdk/core";
 import type { GameInput } from "../contracts/input";
 import type { TeamId } from "../domain/team";
 import { pongStore, type PongState } from "../stores";
+import { FIELD_HEIGHT, FIELD_WIDTH } from "./constants";
 import {
   captureRuntimeStateStep,
   createRuntimeStateBuffers,
@@ -173,4 +174,10 @@ export const pongSimulation = defineAirJamSimulation<
     });
     sim.awaitingServe = sim.buffers.current.awaitingServe;
   },
+  observe: (sim) => ({
+    field: { width: FIELD_WIDTH, height: FIELD_HEIGHT },
+    simulation: { ...sim.buffers.current },
+    countdown: sim.countdown,
+    goals: sim.goals,
+  }),
 });

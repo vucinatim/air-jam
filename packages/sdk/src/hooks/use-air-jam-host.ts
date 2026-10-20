@@ -26,6 +26,7 @@ import type {
   AirJamConnectionState,
   JoinUrlStatus,
 } from "../core/connection-store";
+import type { HostRuntime } from "../core/host-runtime";
 import type { SimulationClock } from "../core/simulation";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
@@ -209,7 +210,9 @@ export type AirJamHostRuntimeControls<
   | "socket"
   | "getInput"
   | "simulation"
->;
+> & {
+  setObservationCapture: HostRuntime["setObservationCapture"];
+};
 
 const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
   roomId: state.roomId,

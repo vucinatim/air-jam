@@ -1,8 +1,9 @@
 import type { z } from "zod";
 import type { StoreApi } from "zustand/vanilla";
+import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import type { AirJamSocket } from "../context/socket-manager";
 import { emitAirJamDiagnostic } from "../diagnostics";
-import type { InputManager } from "../internal/input-manager";
+import { InputManager, type InputConfig } from "../internal/input-manager";
 import type {
   ControllerInputEvent,
   ControllerJoinedNotice,
@@ -46,8 +47,11 @@ import {
   applyHostRuntimeLeasedControl,
   clearHostRuntimeParticipant,
   hostRuntimeDocumentId,
+  registerHostAgentContract,
   registerHostRuntimeParticipantReceiver,
 } from "../runtime/contracts/control";
+import type { HostObservationSurface } from "../runtime/contracts/observation";
+import { registerHostObservationSurface } from "../runtime/host-observation";
 import { trackHostSimulation } from "../runtime/host-pace";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import type { AirJamConfig } from "./config";
@@ -79,13 +83,20 @@ export interface HostRuntimeDependencies<
   store: StoreApi<AirJamConnectionState>;
   getSocket: (role: "host") => AirJamSocket;
   disconnectSocket: (role: "host") => void;
-  inputManager: InputManager<TSchema> | null;
+  /** The game's input schema and behavior; absent when the game reads no input. */
+  input?: InputConfig<TSchema>;
   environment: AirJamHostEnvironment;
   /** The game's replicated stores; they sync while the runtime runs. */
   stores: readonly AttachableStore[];
   /** The game's simulation, advanced on the SDK clock while the runtime runs. */
   simulation?: AirJamSimulation<unknown, unknown, unknown>;
+  /** The game's agent contract, published for its room while the runtime runs. */
+  agent?: { contract: AnyAirJamAgentContract; gameId: string };
 }
+
+export type HostObservationCapture = NonNullable<
+  HostObservationSurface["capture"]
+>;
 
 interface PendingHostReset {
   roomId: RoomCode;
@@ -109,6 +120,13 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   private readonly environment: AirJamHostEnvironment;
   private readonly disconnectSocket: (role: "host") => void;
   private readonly stores: readonly AttachableStore[];
+  private readonly simulationDeclaration: AirJamSimulation<
+    unknown,
+    unknown,
+    unknown
+  > | null;
+  private readonly agent: HostRuntimeDependencies["agent"];
+  private capture: HostObservationCapture | null = null;
   private options: HostRuntimeOptions;
   private controllerCapability: ControllerPrivilegedCapability | null = null;
   private pendingReset: PendingHostReset | null = null;
@@ -121,6 +139,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   private watchedRoomId: RoomCode | null = null;
   private joinUrlKey: string | null = null;
   private releaseRoomControl: (() => void) | null = null;
+  private releaseObservation: (() => void) | null = null;
   private releaseSession: (() => void) | null = null;
 
   constructor(
@@ -129,10 +148,14 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   ) {
     this.config = dependencies.config;
     this.store = dependencies.store;
-    this.inputManager = dependencies.inputManager;
+    this.inputManager = dependencies.input
+      ? new InputManager(dependencies.input, () => this.environment.now())
+      : null;
     this.environment = dependencies.environment;
     this.disconnectSocket = dependencies.disconnectSocket;
     this.stores = dependencies.stores;
+    this.simulationDeclaration = dependencies.simulation ?? null;
+    this.agent = dependencies.agent;
     this.options = options;
     this.socket = dependencies.environment.transport(dependencies.getSocket);
     this.simulation = dependencies.simulation
@@ -206,6 +229,22 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
       this.running = false;
     };
   }
+
+  /**
+   * Lets agents receive an image of what the host draws. Pass null when the
+   * drawing surface goes away.
+   */
+  readonly setObservationCapture = (
+    capture: HostObservationCapture | null,
+  ): void => {
+    if (Boolean(capture) === Boolean(this.capture)) {
+      this.capture = capture;
+      return;
+    }
+    this.capture = capture;
+    const roomId = this.roomId;
+    if (this.running && roomId) this.bindObservation(roomId);
+  };
 
   readonly getInput = (controllerId: string): z.infer<TSchema> | undefined =>
     this.inputManager?.getInput(controllerId) as z.infer<TSchema> | undefined;
@@ -538,7 +577,16 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     const roomId = this.roomId;
     if (!roomId) return;
     const target = this.environment.controlTarget;
+    const unregisterContract = this.agent
+      ? registerHostAgentContract(target, {
+          roomId,
+          gameId: this.agent.gameId,
+          contract: this.agent.contract,
+        })
+      : null;
+    this.bindObservation(roomId);
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
+      now: () => this.environment.now(),
       input: this.inputManager ?? undefined,
       readState: () => {
         const state = this.store.getState();
@@ -589,7 +637,34 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     this.releaseRoomControl = () => {
       this.socket.off("server:leasedControl", handleLeasedControl);
       unregister();
+      this.releaseObservation?.();
+      this.releaseObservation = null;
+      unregisterContract?.();
     };
+  }
+
+  /** Publishes what the simulation declares agents see, and the host's image. */
+  private bindObservation(roomId: RoomCode): void {
+    this.releaseObservation?.();
+    this.releaseObservation = null;
+    const simulation = this.simulationDeclaration;
+    const clock = this.simulation;
+    const observes = Boolean(simulation?.observe && clock);
+    if (!observes && !this.capture) return;
+    this.releaseObservation = registerHostObservationSurface(
+      this.environment.controlTarget,
+      roomId,
+      {
+        read: (context) =>
+          simulation?.observe && clock
+            ? {
+                state: simulation.observe(clock.sim, context),
+                tick: clock.ticks,
+              }
+            : { state: {} },
+        ...(this.capture ? { capture: () => this.capture?.() ?? null } : {}),
+      },
+    );
   }
 
   private failAdmission(message: string): void {

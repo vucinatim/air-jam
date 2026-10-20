@@ -52,6 +52,11 @@ export interface AirJamHostEnvironment {
   /** A fresh seed for a game's simulation randomness. */
   seed(): number;
   /**
+   * The host's clock in milliseconds. Input leases and agent command
+   * deadlines run on it, so a headless room keeps them on game time.
+   */
+  now(): number;
+  /**
    * Calls `onFrame` with a timestamp once per display frame until the
    * returned stop is called. Absent where nothing draws: the owner then
    * advances the simulation itself.

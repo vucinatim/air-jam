@@ -85,6 +85,7 @@ export {
   type UseControllerToastsOptions,
 } from "./hooks/use-controller-toasts";
 export { useGetInput } from "./hooks/use-get-input";
+export { useHostAgentCapture } from "./hooks/use-host-agent-capture";
 export { useHostAgentObservation } from "./hooks/use-host-agent-observation";
 export {
   useHostAudioMutePreference,

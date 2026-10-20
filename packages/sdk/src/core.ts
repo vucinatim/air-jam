@@ -1,4 +1,4 @@
-export type { AirJamConfig } from "./core/config";
+export { createAirJamConfig, type AirJamConfig } from "./core/config";
 export {
   createConnectionStore,
   type AirJamConnectionState,
@@ -15,6 +15,7 @@ export type {
   AirJamDevRuntimeEventDetail,
   AirJamDevRuntimeLogLevel,
 } from "./core/dev-events";
+export { DirectRealtimeClient } from "./core/direct-realtime-client";
 export type {
   AirJamControllerEnvironment,
   AirJamDevLogContext,
@@ -24,6 +25,7 @@ export type {
 } from "./core/environment";
 export {
   HostRuntime,
+  type HostObservationCapture,
   type HostRuntimeDependencies,
   type HostRuntimeOptions,
 } from "./core/host-runtime";

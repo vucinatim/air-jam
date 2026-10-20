@@ -191,7 +191,7 @@ describe("session reconnect behavior", () => {
       getSocket: (role: "host" | "controller") =>
         role === "controller" ? mocked.controllerSocket : mocked.hostSocket,
       disconnectSocket: vi.fn(),
-      inputManager: null,
+      input: undefined,
     });
   });
 
@@ -1135,7 +1135,7 @@ describe("session reconnect behavior", () => {
       getSocket: (role: "host" | "controller") =>
         role === "controller" ? mocked.controllerSocket : mocked.hostSocket,
       disconnectSocket: vi.fn(),
-      inputManager: null,
+      input: undefined,
     });
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ hostGrant: "signed_host_grant" }), {

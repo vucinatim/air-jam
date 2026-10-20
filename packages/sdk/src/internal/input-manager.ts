@@ -142,7 +142,11 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
     | undefined;
   private leases = new Map<string, { deadline: number; released: boolean }>();
 
-  constructor(config: InputConfig<TSchema> = {}) {
+  constructor(
+    config: InputConfig<TSchema> = {},
+    /** The host clock input leases expire on. */
+    private readonly now: () => number = () => performance.now(),
+  ) {
     this.schema = config.schema;
     this.behaviorOverrides = this.createBehaviorOverrides(config.behavior);
   }
@@ -165,7 +169,7 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
    */
   getInput(controllerId: string): z.infer<TSchema> | undefined {
     const lease = this.leases.get(controllerId);
-    if (lease && (lease.released || performance.now() >= lease.deadline)) {
+    if (lease && (lease.released || this.now() >= lease.deadline)) {
       this.clearBufferedInput(controllerId);
       lease.released = true;
       return undefined;
@@ -263,14 +267,10 @@ export class InputManager<TSchema extends z.ZodSchema = z.ZodSchema> {
       return false;
     const input = parsed.data as Record<string, unknown>;
     const previous = this.leases.get(controllerId);
-    if (
-      !previous ||
-      previous.released ||
-      performance.now() >= previous.deadline
-    )
+    if (!previous || previous.released || this.now() >= previous.deadline)
       this.clearBufferedInput(controllerId);
     this.leases.set(controllerId, {
-      deadline: performance.now() + ttlMs,
+      deadline: this.now() + ttlMs,
       released: false,
     });
     this.inputBuffer.set(controllerId, input);

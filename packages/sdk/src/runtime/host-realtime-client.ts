@@ -1,4 +1,5 @@
 import type { AirJamSocket } from "../context/socket-manager";
+import { DirectRealtimeClient } from "../core/direct-realtime-client";
 import { AIRJAM_DEV_LOG_EVENTS, type RoomCode } from "../protocol";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import {
@@ -29,77 +30,6 @@ const BRIDGE_ACK_TIMEOUT_MS = 5_000;
 const HOST_BRIDGE_RUNTIME_KIND = "arcade-host-runtime";
 const BRIDGE_TRANSIENT_CLOSE_REASONS = new Set(["game_unloaded", "replaced"]);
 const BRIDGE_TRANSIENT_FAILURE_REASONS = new Set(["handshake_timeout"]);
-
-class DirectHostRealtimeClient implements AirJamRealtimeClient {
-  constructor(private readonly socket: AirJamSocket) {}
-
-  get connected(): boolean {
-    return this.socket.connected;
-  }
-
-  get id(): string | undefined {
-    return this.socket.id;
-  }
-
-  connect(): this {
-    this.socket.connect();
-    return this;
-  }
-
-  disconnect(): this {
-    this.socket.disconnect();
-    return this;
-  }
-
-  on(event: string, listener: BridgeListener): this {
-    this.socket.on(event as never, listener as never);
-    return this;
-  }
-
-  off(event: string, listener?: BridgeListener): this {
-    if (!listener) {
-      this.socket.off(event as never);
-      return this;
-    }
-
-    this.socket.off(event as never, listener as never);
-    return this;
-  }
-
-  emit(event: string, ...args: unknown[]): this {
-    (
-      this.socket.emit as unknown as (
-        this: AirJamSocket,
-        event: string,
-        ...args: unknown[]
-      ) => void
-    ).call(this.socket, event, ...args);
-    return this;
-  }
-
-  emitWithAck<TAck>(event: string, ...args: unknown[]): Promise<TAck> {
-    return new Promise<TAck>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(
-          new Error(
-            `Timed out waiting for acknowledgement for realtime event "${event}".`,
-          ),
-        );
-      }, BRIDGE_ACK_TIMEOUT_MS);
-
-      (
-        this.socket.emit as unknown as (
-          this: AirJamSocket,
-          event: string,
-          ...args: unknown[]
-        ) => void
-      ).call(this.socket, event, ...args, (ack: TAck) => {
-        clearTimeout(timeoutId);
-        resolve(ack);
-      });
-    });
-  }
-}
 
 class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
   public connected = false;
@@ -526,7 +456,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
 }
 
 let embeddedHostClient: EmbeddedHostBridgeClient | null = null;
-const directHostClients = new WeakMap<AirJamSocket, DirectHostRealtimeClient>();
+const directHostClients = new WeakMap<AirJamSocket, DirectRealtimeClient>();
 
 export const isEmbeddedHostRuntime = (): boolean =>
   readChildHostRuntimeParams() !== null;
@@ -541,7 +471,7 @@ export const getHostRealtimeClient = (
       return existing;
     }
 
-    const client = new DirectHostRealtimeClient(socket);
+    const client = new DirectRealtimeClient(socket);
     directHostClients.set(socket, client);
     return client;
   }

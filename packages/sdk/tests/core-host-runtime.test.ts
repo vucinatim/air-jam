@@ -2,15 +2,24 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
+  agentStore,
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
+} from "../src/agent/agent-contract";
+import {
   createAirJamStore,
   createConnectionStore,
+  defineAirJamSimulation,
   HostRuntime,
   type AirJamActionContext,
   type AirJamHostEnvironment,
 } from "../src/core";
-import { InputManager } from "../src/internal/input-manager";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
+import {
+  AIR_JAM_RUNTIME_CONTROL_KEY,
+  type HostRuntimeControl,
+} from "../src/runtime/contracts/control";
 import { createMemorySocket } from "./fixtures/memory-socket";
 
 const createServerSocket = () =>
@@ -48,6 +57,7 @@ const createMemoryEnvironment = (
     emitDevEvent: () => {},
     setDevLogContext: () => {},
     seed: () => 1,
+    now: () => performance.now(),
   };
   return { environment, readStoredResume: () => resume };
 };
@@ -97,7 +107,7 @@ describe("core host runtime", () => {
           throw new Error("The memory transport needs no socket.");
         },
         disconnectSocket: () => {},
-        inputManager: new InputManager({ schema: inputSchema }),
+        input: { schema: inputSchema },
         environment,
         stores: [scores],
       },
@@ -154,5 +164,88 @@ describe("core host runtime", () => {
     stop();
     expect(scores.attached).toBe(false);
     expect(socket.listenerCount()).toBe(0);
+  });
+
+  it("publishes the agent contract and the simulation's declared view on the host clock", async () => {
+    const socket = createServerSocket();
+    const { environment } = createMemoryEnvironment(socket);
+    let gameMs = 0;
+    const headless = { ...environment, now: () => gameMs };
+    const scores = createScoreStore();
+    const walker = defineAirJamSimulation<
+      { x: number },
+      z.infer<typeof inputSchema>
+    >({
+      stepMs: 10,
+      create: () => ({ x: 0 }),
+      step: (sim, { input }) => {
+        sim.x += input("ctrl_1")?.direction ?? 0;
+      },
+      observe: (sim) => ({ x: sim.x }),
+    });
+    const runtime = new HostRuntime<typeof inputSchema>({
+      config,
+      store: createConnectionStore(),
+      getSocket: () => {
+        throw new Error("The memory transport needs no socket.");
+      },
+      disconnectSocket: () => {},
+      input: { schema: inputSchema },
+      environment: headless,
+      stores: [scores],
+      simulation: walker,
+      agent: {
+        gameId: "walker",
+        contract: defineAirJamAgentContract({
+          stores: defineAirJamAgentStores({
+            default: agentStore<{ score: number }>(),
+          }),
+          projectSnapshot: ({ stores }) => ({
+            score: stores.default?.score ?? null,
+          }),
+          actions: {},
+        }),
+      },
+    });
+    const stop = runtime.start();
+    await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+    socket.fire("server:input", {
+      roomId: "ROOM1",
+      controllerId: "ctrl_1",
+      input: { direction: 1 },
+    });
+    gameMs = 50;
+    runtime.simulation?.advance(50);
+
+    const control = Reflect.get(
+      headless.controlTarget,
+      AIR_JAM_RUNTIME_CONTROL_KEY,
+    ) as HostRuntimeControl;
+    const response = await control.agent({
+      operation: "observe",
+      roomId: "ROOM1",
+      controllerId: null,
+      scope: "diagnostic",
+      includeImage: false,
+    });
+    if (response.operation !== "observe") throw new Error("Expected observe.");
+    expect(response.observation).toMatchObject({
+      snapshot: { score: 0 },
+      runtime: { x: 5 },
+      ticks: { after: 5 },
+      clock: { startedAtMs: 50, finishedAtMs: 50 },
+      visual: { status: "unavailable", reason: "not-requested" },
+    });
+
+    stop();
+    await expect(
+      control.agent({
+        operation: "observe",
+        roomId: "ROOM1",
+        controllerId: null,
+        scope: "diagnostic",
+        includeImage: false,
+      }),
+    ).rejects.toThrow();
   });
 });

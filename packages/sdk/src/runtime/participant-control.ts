@@ -41,6 +41,7 @@ export class ParticipantControl {
   constructor(
     private readonly runtime: {
       identity: () => HostObservationIdentity | null;
+      now: () => number;
       isParticipant: (controllerId: string) => boolean;
       input: () => InputBuffer | undefined;
       dispatch: (
@@ -78,7 +79,7 @@ export class ParticipantControl {
         : previous.acknowledgement;
     }
     if (request.operation.kind !== "release") {
-      const now = performance.now();
+      const now = this.runtime.now();
       if (request.operation.deadlineMs < now)
         return { status: "rejected", reason: "stale_decision" };
       if (request.operation.deadlineMs > now + PARTICIPANT_CONTROL_DEADLINE_MS)

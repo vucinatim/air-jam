@@ -19,7 +19,6 @@ import {
   useHostRuntimeInspectionContract,
 } from "../runtime-inspection";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
-import { registerHostAgentContract } from "./contracts/control";
 import {
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
@@ -121,6 +120,14 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   | "simulation"
 >): JSX.Element => {
   const declared = useMemo(() => new Set(stores), [stores]);
+  const game = useMemo(
+    () => ({
+      stores,
+      simulation,
+      agent: agent && { contract: agent, gameId: gameId ?? "game" },
+    }),
+    [stores, simulation, agent, gameId],
+  );
   const runtime = useHostRuntimeApi<TSchema>(
     {
       roomId,
@@ -128,18 +135,8 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
       onPlayerLeave,
     },
     "AirJamHostRuntime",
-    stores,
-    simulation,
+    game,
   );
-
-  useEffect(() => {
-    if (!agent || !runtime.roomId) return;
-    return registerHostAgentContract(window, {
-      roomId: runtime.roomId,
-      gameId: gameId ?? "game",
-      contract: agent,
-    });
-  }, [agent, gameId, runtime.roomId]);
 
   return (
     <hostRuntimeContext.Provider value={runtime}>

@@ -1,4 +1,5 @@
 import type { PlayerProfile, RuntimeState } from "../protocol";
+import type { HostObservationContext } from "../runtime/contracts/observation";
 
 /** What one simulation step can read and do. */
 export interface AirJamStepContext<TInput, TEvent> {
@@ -26,6 +27,11 @@ export interface AirJamSimulation<TSim, TInput = unknown, TEvent = never> {
   stepMs: number;
   create(context: { random: () => number }): TSim;
   step(sim: TSim, context: AirJamStepContext<TInput, TEvent>): void;
+  /**
+   * What agents and tests see of the simulation: plain JSON, read between
+   * steps. The clock's tick is published with it.
+   */
+  observe?(sim: TSim, context: HostObservationContext): Record<string, unknown>;
 }
 
 export const defineAirJamSimulation = <TSim, TInput = unknown, TEvent = never>(

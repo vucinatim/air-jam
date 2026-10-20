@@ -1585,6 +1585,7 @@ describe("createAirJamStore networked behavior", () => {
       }),
     });
     const unregister = registerHostRuntimeParticipantReceiver(window, "ROOM1", {
+      now: () => performance.now(),
       readState: () => ({
         runtimeState: "playing",
         connectionStatus: "connected",

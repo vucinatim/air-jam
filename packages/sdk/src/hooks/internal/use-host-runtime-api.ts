@@ -6,9 +6,10 @@ import {
   useAssertSessionScope,
   useClaimSessionRuntimeOwner,
 } from "../../context/session-scope";
-import { HostRuntime } from "../../core/host-runtime";
-import type { AttachableStore } from "../../core/replicated-store";
-import type { AirJamSimulation } from "../../core/simulation";
+import {
+  HostRuntime,
+  type HostRuntimeDependencies,
+} from "../../core/host-runtime";
 import type { RoomCode } from "../../protocol";
 import { createBrowserHostEnvironment } from "../../runtime/browser-host-environment";
 import type {
@@ -16,17 +17,22 @@ import type {
   AirJamHostRuntimeControls,
 } from "../use-air-jam-host";
 
+/** What the game declares for its host runtime. */
+export type HostGameDeclaration = Pick<
+  HostRuntimeDependencies,
+  "stores" | "simulation" | "agent"
+>;
+
 /** Binds one core host runtime to this provider tree for as long as it is mounted. */
 export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   options: AirJamHostOptions,
   hookName: string,
-  stores: readonly AttachableStore[],
-  simulation: AirJamSimulation<unknown, unknown, unknown> | undefined,
+  { stores, simulation, agent }: HostGameDeclaration,
 ): AirJamHostRuntimeControls<TSchema> => {
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
 
-  const { config, store, getSocket, disconnectSocket, inputManager } =
+  const { config, store, getSocket, disconnectSocket, input } =
     useAirJamContext();
 
   const runtime = useMemo(
@@ -36,19 +42,21 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         store,
         getSocket,
         disconnectSocket,
-        inputManager: inputManager as HostRuntime<TSchema>["inputManager"],
+        input: input as HostRuntimeDependencies<TSchema>["input"],
         environment: createBrowserHostEnvironment(config),
         stores,
         simulation,
+        agent,
       }),
     [
       config,
       store,
       getSocket,
       disconnectSocket,
-      inputManager,
+      input,
       stores,
       simulation,
+      agent,
     ],
   );
 
@@ -83,6 +91,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       socket: runtime.socket,
       getInput: runtime.getInput,
       simulation: runtime.simulation,
+      setObservationCapture: runtime.setObservationCapture,
     }),
     [runtime, roomId, joinUrl, joinUrlStatus],
   );

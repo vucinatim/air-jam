@@ -1843,18 +1843,22 @@ const buildProgram = () => {
       "--current",
       "Join the delegated current room; receive its private attachment through stdin",
     )
+    .option(
+      "--headless",
+      "Play in a room with no page, on game time, as fast as the host runs",
+    )
     .option("--dir <path>", "Project directory")
     .option("--game <id>", "Game ID in a monorepo")
     .option(
       "--duration-ms <ms>",
-      "Maximum lifetime including startup",
+      "Maximum play time (game time when headless) and wall lifetime",
       Number,
       30_000,
     )
     .option("--steps <count>", "Maximum policy decisions", Number, 3000)
     .option(
       "--seed <number>",
-      "Policy random seed (does not seed game physics)",
+      "Policy random seed; a headless room also seeds the game with it",
       Number,
       0,
     )
@@ -1874,8 +1878,11 @@ const buildProgram = () => {
         steps: number;
         seed: number;
         current?: boolean;
+        headless?: boolean;
         intent?: string[];
       }>(options);
+      if (input.current && input.headless)
+        throw new Error("Choose either --current or --headless.");
       const intents = input.intent?.length
         ? Object.fromEntries(
             input.intent.map((entry) => {
@@ -1916,7 +1923,13 @@ const buildProgram = () => {
           cwd: input.dir,
           runId: input.runId,
           gameId: input.game,
-          target: { kind: input.current ? "current" : "owned" },
+          target: {
+            kind: input.current
+              ? "current"
+              : input.headless
+                ? "headless"
+                : "owned",
+          },
           profileId: input.profile,
           policyId: input.policy,
           seed: input.seed,

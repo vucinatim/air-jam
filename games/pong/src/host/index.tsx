@@ -8,8 +8,7 @@ import {
   captureAgentCanvas,
   useAirJamHost,
   useAirJamStore,
-  useHostAgentObservation,
-  useSimulation,
+  useHostAgentCapture,
   useSimulationEvents,
   useSimulationFrame,
 } from "@air-jam/sdk";
@@ -47,7 +46,6 @@ function PongHost() {
     (state) => state.teamAssignments,
   );
   const botCounts = useAirJamStore(pongStore, (state) => state.botCounts);
-  const simulation = useSimulation<PongSimulationState, PongSimulationEvent>();
 
   const { triggerPaddleHitFeedback, triggerScoreFeedback } = usePongFeedback();
   const { canvasRef, getContext } = usePongCanvas({
@@ -60,21 +58,7 @@ function PongHost() {
     else triggerScoreFeedback();
   });
 
-  useHostAgentObservation({
-    read: () => {
-      const sim = simulation.sim;
-      return {
-        ...(matchPhase === "lobby" ? {} : { tick: sim.tick }),
-        state: {
-          field: { width: FIELD_WIDTH, height: FIELD_HEIGHT },
-          simulation: { ...sim.buffers.current },
-          countdown: sim.countdown,
-          goals: sim.goals,
-        },
-      };
-    },
-    capture: () => captureAgentCanvas(getContext()?.canvas ?? null),
-  });
+  useHostAgentCapture(() => captureAgentCanvas(getContext()?.canvas ?? null));
 
   useSimulationFrame<PongSimulationState>(({ sim, alpha }) => {
     const ctx = getContext();

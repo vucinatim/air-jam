@@ -15,10 +15,12 @@
  * - Use `useGetInput()` in components that render frequently (game objects, particles)
  * - Use `useAirJamHost().getInput` in host-facing UI or child components that already read host runtime state
  */
-import { useCallback } from "react";
+import { useContext } from "react";
 import type { z } from "zod";
-import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
+import { createAirJamDiagnosticError } from "../diagnostics";
+import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
+import type { AirJamHostRuntimeControls } from "./use-air-jam-host";
 
 /**
  * Lightweight hook for accessing controller input without store subscriptions.
@@ -81,20 +83,19 @@ export const useGetInput = <TSchema extends z.ZodSchema = z.ZodSchema>(): ((
 ) => z.infer<TSchema> | undefined) => {
   useAssertSessionScope("host", "useGetInput");
 
-  const { inputManager } = useAirJamContext();
-
-  // Use useCallback to return a stable function reference
-  // Access InputManager directly from context (no store subscriptions)
-  return useCallback(
-    (controllerId: string): z.infer<TSchema> | undefined => {
-      if (!inputManager) {
-        return undefined;
-      }
-
-      return inputManager.getInput(controllerId) as
-        | z.infer<TSchema>
-        | undefined;
-    },
-    [inputManager],
-  );
+  const runtime = useContext(hostRuntimeContext) as Pick<
+    AirJamHostRuntimeControls<TSchema>,
+    "getInput"
+  > | null;
+  if (!runtime)
+    throw createAirJamDiagnosticError(
+      "AJ_SCOPE_MISMATCH",
+      "useGetInput requires a mounted host runtime boundary. Wrap the host tree with <airjam.Host>.",
+      {
+        hookName: "useGetInput",
+        expectedScope: "host",
+        receivedScope: "host",
+      },
+    );
+  return runtime.getInput;
 };

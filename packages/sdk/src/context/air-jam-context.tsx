@@ -59,7 +59,7 @@ import {
 } from "../core/connection-store";
 import { ensureDevBrowserLogSink } from "../dev/browser-log-sink";
 import { createAirJamDiagnosticError } from "../diagnostics";
-import { InputManager, type InputConfig } from "../internal/input-manager";
+import type { InputConfig } from "../internal/input-manager";
 import type { ConnectionRole } from "../protocol";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import type { HostSessionKind } from "../protocol/host";
@@ -185,8 +185,8 @@ export interface AirJamContextValue {
   getSocket: (role: ConnectionRole) => AirJamSocket;
   /** Disconnect socket for a specific role */
   disconnectSocket: (role: ConnectionRole) => void;
-  /** InputManager instance (created from input config if provided) */
-  inputManager: InputManager | null;
+  /** The game's input config; the host runtime builds its input buffer from it. */
+  input: InputConfig | undefined;
 }
 
 const AirJamContext = createContext<AirJamContextValue | null>(null);
@@ -209,7 +209,6 @@ interface DevProviderMountWindow extends Window {
  * **Key responsibilities:**
  * - Creates and manages WebSocket connections to the AirJam server
  * - Provides a Zustand store for connection state (players, game state, etc.)
- * - Creates an InputManager for typed input behavior processing
  * - Resolves configuration from props and environment variables
  *
  * @template TSchema - Zod schema for input validation (inferred from props)
@@ -292,14 +291,6 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
     () => isLocalDevControlSurfaceTopology(config.topology),
     [config.topology],
   );
-
-  // Create InputManager from input config if provided
-  const inputManager = useMemo(() => {
-    if (!input) {
-      return null;
-    }
-    return new InputManager<TSchema>(input);
-  }, [input]);
 
   // Create context-bound store (once per provider)
   const store = useMemo(() => createConnectionStore(), []);
@@ -429,9 +420,9 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       socketManager,
       getSocket,
       disconnectSocket,
-      inputManager,
+      input,
     }),
-    [config, store, socketManager, getSocket, disconnectSocket, inputManager],
+    [config, store, socketManager, getSocket, disconnectSocket, input],
   );
 
   return (

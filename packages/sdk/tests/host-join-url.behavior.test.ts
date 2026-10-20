@@ -121,7 +121,7 @@ describe("host join url behavior", () => {
       store: mocked.store,
       getSocket: () => mocked.hostSocket,
       disconnectSocket: vi.fn(),
-      inputManager: null,
+      input: undefined,
     });
   });
 
@@ -182,7 +182,7 @@ describe("host join url behavior", () => {
       store: mocked.store,
       getSocket: () => mocked.hostSocket,
       disconnectSocket: vi.fn(),
-      inputManager: null,
+      input: undefined,
     });
     vi.spyOn(urlBuilder, "buildControllerUrl").mockResolvedValue(
       "http://human.localhost:8791/controller?room=ROOM1&aj_controller_cap=retained",

@@ -307,6 +307,19 @@ selector)`; dispatch is `store.actions`. Reading an undeclared store throws
    seeded randomness; browsers drive it from animation frames and headless code
    calls `advance(ms)`. React draws with `useSimulationFrame` and reacts with
    `useSimulationEvents`. Pong's whole match runs in `pongSimulation`.
+4. A simulation declares what agents see with `observe(sim, context)`. The
+   host runtime publishes it with the clock's tick, and also owns the agent
+   contract registration and the input buffer, so all three work without
+   React. A host view adds an image with `useHostAgentCapture`. The host
+   environment gains a clock port (`now()`): input leases, command deadlines
+   and observation timestamps run on it.
+5. Test profiles run headless (`airjam session run start --headless`, MCP
+   target `headless`). A child process runs the relay on a loopback port and
+   the game's host core, built by `airjam.createHostRuntime` from the game's
+   own SDK; players join over the relay as in owned runs. The existing run
+   owner plays on a run clock: wall time for a live room, game time for a
+   headless one, where waiting advances the simulation. Pong's scoring profile
+   passes in a devtools test in about 4 seconds end to end.
 
 Decisions made while building:
 
@@ -316,20 +329,28 @@ Decisions made while building:
    React reading hooks, so there is one import path per concept.
 3. Per-store hook objects and `useLiveStateRef` are removed;
    `store.getState()` is always current.
+4. The headless room reuses the real relay and the Node controllers rather than
+   an in-memory room, so headless and live runs share every protocol path.
+5. The game's app builds its own host core. Monorepo games resolve the SDK to
+   source through tsconfig paths, so a host built from the tool's SDK copy
+   could not see the game's stores.
+
+Measured: headless play runs about 6 to 8 times faster than real time on a
+loaded bee, short of the ten times aimed for. Pong's scoring profile decides
+every 100 ms, and each decision round costs about eight round trips between
+the run owner, the room and the policy and evaluator processes. Profiles that
+decide less often run proportionally faster. Fewer round trips per round, for
+example observing every seat in one request, would raise it.
 
 Next:
 
-1. Declare what agents observe of a simulation in the simulation itself, so
-   observation no longer needs Pong's React host component.
-2. Run test profiles headless: the run owner advances on the game clock and
-   seats act through an in-process room on the host core, so Pong's authored
-   scoring profile gives its verdict at ten times real time or faster. This
-   moves the existing run loop, it does not add a second one.
-3. Move The Office's and Code Review's outcome logic from `useHostTick` into
-   simulations, then port Air Capture (phase 3); `useHostTick` is removed once
-   no game decides outcomes with it.
-4. Store actions still read wall time (`Date.now()` for match timing); replays
+1. Move The Office's and Code Review's outcome logic from `useHostTick` into
+   simulations, then port Air Capture (phase 3). Their agent views then move
+   into `observe`, and `useHostTick` and `useHostAgentObservation` are removed.
+2. Store actions still read wall time (`Date.now()` for match timing); replays
    need them on game time.
+3. Owned runs still refuse monorepo games (they need a standalone game with its
+   own lockfile), so headless is the only profile run for first-party games.
 
 ## Releases and removals
 
