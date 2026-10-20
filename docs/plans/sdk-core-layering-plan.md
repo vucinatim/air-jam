@@ -1,7 +1,7 @@
 # SDK Core Layering Plan
 
 Last updated: 2026-10-20
-Status: direction agreed with Tim, not started; phases 1, 5 and the game declaration are 1.0 scope
+Status: in progress on `claude/sdk-core-layering`; phase 1 built, phase 2's clock built with Pong ported, headless runs next; phases 1, 5 and the game declaration are 1.0 scope
 
 This plan owns giving the SDK a small framework-free core with React as a thin
 binding over it, an SDK-owned clock that lets game logic run without drawing,
@@ -285,6 +285,51 @@ Done when a fresh agent, given only "make a game like X" in a new project and
 in Studio, produces a game that passes the architecture gate with declared
 settings and a headless test, and Studio's worker instructions no longer
 override project guidance.
+
+## Progress
+
+Built on `claude/sdk-core-layering` (2026-10-20), each step checked by the SDK,
+devtools, game and contract suites and by playing Pong in a browser with a phone
+controller:
+
+1. `@air-jam/sdk/core` holds `HostRuntime` and `ControllerRuntime` behind
+   environment ports; the React hooks bind to them. The SDK typecheck runs a
+   boundary check: the core typechecks against web-worker globals only and may
+   import only zod, zustand/vanilla, nanoid and socket.io. The built core
+   reaches nanoid, zod and zustand/vanilla. Both runtimes run in plain Node in
+   tests.
+2. Stores are plain core objects from `createAirJamStore`, declared in
+   `createAirJamApp({ stores })` and attached by the runtime whether or not a
+   component reads them. React reads them with `useAirJamStore(store,
+selector)`; dispatch is `store.actions`. Reading an undeclared store throws
+   `AJ_STORE_NOT_DECLARED`. All six games, templates and creator docs moved.
+3. `SimulationClock` steps a declared `createAirJamApp({ simulation })` with
+   seeded randomness; browsers drive it from animation frames and headless code
+   calls `advance(ms)`. React draws with `useSimulationFrame` and reacts with
+   `useSimulationEvents`. Pong's whole match runs in `pongSimulation`.
+
+Decisions made while building:
+
+1. `airjam.config.ts` stays the single declaration; tools already load it in
+   Node. A separate React-free game definition file was not needed.
+2. Store definitions import from `@air-jam/sdk/core`; the root exports only the
+   React reading hooks, so there is one import path per concept.
+3. Per-store hook objects and `useLiveStateRef` are removed;
+   `store.getState()` is always current.
+
+Next:
+
+1. Declare what agents observe of a simulation in the simulation itself, so
+   observation no longer needs Pong's React host component.
+2. Run test profiles headless: the run owner advances on the game clock and
+   seats act through an in-process room on the host core, so Pong's authored
+   scoring profile gives its verdict at ten times real time or faster. This
+   moves the existing run loop, it does not add a second one.
+3. Move The Office's and Code Review's outcome logic from `useHostTick` into
+   simulations, then port Air Capture (phase 3); `useHostTick` is removed once
+   no game decides outcomes with it.
+4. Store actions still read wall time (`Date.now()` for match timing); replays
+   need them on game time.
 
 ## Releases and removals
 
