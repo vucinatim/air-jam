@@ -144,7 +144,6 @@ Treat `.airjam/logs/dev-latest.ndjson` as the canonical local debugging stream f
 
 ## Browser Testing Rule
 
-Use real Chrome through Chrome DevTools for local host/controller verification.
 Use separate browser contexts when testing distinct controller identities.
 Preserve unrelated sessions, and use the semantic game-session contract for
 deterministic gameplay assertions.
