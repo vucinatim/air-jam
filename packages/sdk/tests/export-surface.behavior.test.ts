@@ -120,6 +120,7 @@ describe("sdk export surface", () => {
         "./arcade/runtime",
         "./arcade/surface",
         "./arcade/url",
+        "./core",
         "./ui",
         "./protocol",
         "./metadata",

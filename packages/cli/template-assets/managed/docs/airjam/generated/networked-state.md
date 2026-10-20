@@ -80,6 +80,25 @@ export const useGameStore = createAirJamStore<GameState>((set) => ({
 }));
 ```
 
+## Declare the Store
+
+The host and controllers sync a store only when the app declares it:
+
+```ts filename="src/airjam.config.ts"
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { useGameStore } from "./game/stores/game-store";
+
+export const airjam = createAirJamApp({
+  runtime: env.vite(import.meta.env),
+  controllerPath: "/controller",
+  stores: [useGameStore],
+});
+```
+
+A declared store syncs for as long as the host or controller runs, whether or
+not any component is reading it. Rendering a store the app does not declare
+throws `AJ_STORE_NOT_DECLARED`.
+
 ## Use on Controller
 
 This controller example matches the starter template surface layout.
@@ -205,7 +224,8 @@ The SDK/runtime automatically resolves the correct replicated store domain from 
 
 ## API Summary
 
-`createAirJamStore<T>(initializer)` returns:
+`createAirJamStore<T>(initializer)` returns a hook to declare in
+`createAirJamApp({ stores })`. It provides:
 
 1. Zustand-compatible hook for selectors.
 2. `useActions()` dispatch map with `() => void` or `(payloadObject) => void` signatures.

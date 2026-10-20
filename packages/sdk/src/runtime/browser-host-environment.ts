@@ -6,6 +6,7 @@ import { roomCodeSchema, type RoomCode } from "../protocol";
 import { runtimeTopologyToQueryParams } from "../runtime-topology";
 import { detectRunMode } from "../utils/mode";
 import { urlBuilder } from "../utils/url-builder";
+import { resolveImplicitReplicatedStoreDomainFromWindow } from "./arcade-runtime-url";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import { readEmbeddedHostChildSession } from "./embedded-runtime-adapters";
 import { getHostRealtimeClient } from "./host-realtime-client";
@@ -34,6 +35,7 @@ export const createBrowserHostEnvironment = (
       : null,
     requestedRoomId: readRequestedRoomId(),
     runMode: detectRunMode(),
+    defaultStoreDomain: resolveImplicitReplicatedStoreDomainFromWindow(),
     controlTarget: window,
     readResume: () => {
       const roomId = sessionStorage.getItem(HOST_ROOM_SESSION_STORAGE_KEY);

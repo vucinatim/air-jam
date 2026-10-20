@@ -1,12 +1,20 @@
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
+import {
+  act,
+  renderHook as renderTestingHook,
+  type RenderHookOptions,
+} from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { agentActionInput } from "../src/agent/agent-action";
 import {
   agentAction,
   defineAirJamAgentContract,
 } from "../src/agent/agent-contract";
+import type { AirJamSocket } from "../src/context/socket-manager";
+import type { HostArcadeRestoreState } from "../src/core/connection-store";
+import { createConnectionStore } from "../src/core/connection-store";
 import {
   onAirJamDiagnostic,
   resetAirJamDiagnosticsForTests,
@@ -23,7 +31,9 @@ import {
   registerHostAgentContract,
   registerHostRuntimeParticipantReceiver,
 } from "../src/runtime/contracts/control";
-import type { HostArcadeRestoreState } from "../src/core/connection-store";
+import { getControllerRealtimeClient } from "../src/runtime/controller-realtime-client";
+import { getHostRealtimeClient } from "../src/runtime/host-realtime-client";
+import { declaredStoresContext } from "../src/runtime/runtime-owner-contexts";
 import {
   AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
   AIR_JAM_DEFAULT_STORE_DOMAIN,
@@ -32,6 +42,7 @@ import {
   createAirJamStore,
   rejectAirJamAction,
   type AirJamActionContext,
+  type AirJamStoreDeclaration,
 } from "../src/store/create-air-jam-store";
 
 type Role = "host" | "controller";
@@ -54,19 +65,8 @@ const mockedContext = vi.hoisted(() => {
     } as HostArcadeRestoreState,
   };
 
-  return {
-    state,
-    useAirJamContext: vi.fn(),
-    useAirJamState: vi.fn((selector: (s: typeof state) => unknown) =>
-      selector(state),
-    ),
-  };
+  return { state };
 });
-
-vi.mock("../src/context/air-jam-context", () => ({
-  useAirJamContext: mockedContext.useAirJamContext,
-  useAirJamState: mockedContext.useAirJamState,
-}));
 
 interface EmittedCall {
   event: string;
@@ -132,6 +132,70 @@ class MockSocket {
   }
 }
 
+// Stores the test created; a rendered hook attaches them like a running runtime.
+const trackedStores: AirJamStoreDeclaration[] = [];
+const pendingDetachments: (() => void)[] = [];
+const track = <T extends AirJamStoreDeclaration>(store: T): T => {
+  trackedStores.push(store);
+  return store;
+};
+let hostSocket: MockSocket;
+let controllerSocket: MockSocket;
+
+/**
+ * Renders a store hook inside a runtime that declares the test's stores. Its
+ * connection follows the test's room state when the hook renders again.
+ */
+const renderHook = <Result, Props>(
+  callback: (props: Props) => Result,
+  options?: RenderHookOptions<Props>,
+) => {
+  const connection = createConnectionStore();
+  const syncConnection = () => connection.setState({ ...mockedContext.state });
+  syncConnection();
+  const surface = mockedContext.state.role ?? "host";
+  const socket =
+    surface === "host"
+      ? getHostRealtimeClient(() => hostSocket as unknown as AirJamSocket)
+      : getControllerRealtimeClient(
+          () => controllerSocket as unknown as AirJamSocket,
+        );
+  const detachments = trackedStores
+    .filter((declaration) => !declaration.store.attached)
+    .map((declaration) =>
+      declaration.store.attach({
+        socket,
+        connection,
+        defaultStoreDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        controlTarget: surface === "host" ? window : null,
+      }),
+    );
+  pendingDetachments.push(...detachments);
+  const declared = new Set(
+    trackedStores.map((declaration) => declaration.store),
+  );
+  const rendered = renderTestingHook(callback, {
+    ...options,
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(
+        declaredStoresContext.Provider,
+        { value: declared },
+        children,
+      ),
+  });
+  return {
+    ...rendered,
+    rerender: (props?: Props) => {
+      syncConnection();
+      rendered.rerender(props);
+    },
+    unmount: () => {
+      rendered.unmount();
+      for (const detach of detachments) detach();
+    },
+  };
+};
+
 interface TestStoreState {
   phase: string;
   lastActor?: string;
@@ -144,27 +208,29 @@ interface TestStoreState {
 }
 
 const createTestStore = () =>
-  createAirJamStore<TestStoreState>((set) => ({
-    phase: "lobby",
-    lastActor: undefined,
-    lastRole: undefined,
-    actions: {
-      joinTeam: (ctx, { team }) =>
-        set({
-          phase: team,
-          lastActor: ctx.actorId,
-          lastRole: ctx.role,
-          lastConnectedPlayerIds: ctx.connectedPlayerIds,
-        }),
-      setPhase: (ctx, { phase }) =>
-        set({
-          phase,
-          lastActor: ctx.actorId,
-          lastRole: ctx.role,
-          lastConnectedPlayerIds: ctx.connectedPlayerIds,
-        }),
-    },
-  }));
+  track(
+    createAirJamStore<TestStoreState>((set) => ({
+      phase: "lobby",
+      lastActor: undefined,
+      lastRole: undefined,
+      actions: {
+        joinTeam: (ctx, { team }) =>
+          set({
+            phase: team,
+            lastActor: ctx.actorId,
+            lastRole: ctx.role,
+            lastConnectedPlayerIds: ctx.connectedPlayerIds,
+          }),
+        setPhase: (ctx, { phase }) =>
+          set({
+            phase,
+            lastActor: ctx.actorId,
+            lastRole: ctx.role,
+            lastConnectedPlayerIds: ctx.connectedPlayerIds,
+          }),
+      },
+    })),
+  );
 
 interface CounterStoreState {
   count: number;
@@ -174,13 +240,15 @@ interface CounterStoreState {
 }
 
 const createCounterStore = () =>
-  createAirJamStore<CounterStoreState>((set) => ({
-    count: 0,
-    actions: {
-      increment: (_ctx, { amount }) =>
-        set((state) => ({ count: state.count + amount })),
-    },
-  }));
+  track(
+    createAirJamStore<CounterStoreState>((set) => ({
+      count: 0,
+      actions: {
+        increment: (_ctx, { amount }) =>
+          set((state) => ({ count: state.count + amount })),
+      },
+    })),
+  );
 
 interface ArcadeShellTestState {
   epoch: number;
@@ -194,20 +262,20 @@ interface ArcadeShellTestState {
 }
 
 const createArcadeShellTestStore = () =>
-  createAirJamStore<ArcadeShellTestState>(
-    (set) => ({
-      epoch: 1,
-      phase: "browser",
-      actions: {
-        setSurface: (_ctx, payload) => set(payload),
-      },
-    }),
-    { storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN },
+  track(
+    createAirJamStore<ArcadeShellTestState>(
+      (set) => ({
+        epoch: 1,
+        phase: "browser",
+        actions: {
+          setSurface: (_ctx, payload) => set(payload),
+        },
+      }),
+      { storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN },
+    ),
   );
 
 describe("createAirJamStore networked behavior", () => {
-  let hostSocket: MockSocket;
-  let controllerSocket: MockSocket;
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -232,22 +300,12 @@ describe("createAirJamStore networked behavior", () => {
       surfaceCheckpoint: null,
     } as HostArcadeRestoreState;
 
-    mockedContext.useAirJamContext.mockReturnValue({
-      getSocket: (role: Role) =>
-        role === "host"
-          ? (hostSocket as unknown)
-          : (controllerSocket as unknown),
-    });
-
-    mockedContext.useAirJamState.mockImplementation(
-      (selector: (s: typeof mockedContext.state) => unknown) =>
-        selector(mockedContext.state),
-    );
-
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
+    for (const detach of pendingDetachments.splice(0)) detach();
+    trackedStores.length = 0;
     warnSpy.mockRestore();
     resetAirJamDiagnosticsForTests();
   });
@@ -332,20 +390,16 @@ describe("createAirJamStore networked behavior", () => {
     replacement.unmount();
   });
 
-  it("rebinds a replacement factory in the same hook position and dispatches only into its store", async () => {
+  it("hands the room to a replacement store with its own epoch and a newer revision", async () => {
     mockedContext.state.role = "host";
     const useFirst = createTestStore();
-    const useReplacement = createTestStore();
     const listener = vi.fn();
-    const rendered = renderHook(
-      ({ useStore }) => {
-        useStore.useHostActionListener(listener);
-        return useStore.useActions();
-      },
-      { initialProps: { useStore: useFirst } },
-    );
+    const first = renderHook(() => {
+      useFirst.useHostActionListener(listener);
+      return useFirst.useActions();
+    });
     await act(async () => {
-      await rendered.result.current.setPhase({ phase: "old" });
+      await first.result.current.setPhase({ phase: "old" });
     });
     const before = readHostStateEpochs(window, "ROOM1");
     const previousUpdate = hostSocket.emitted
@@ -355,7 +409,13 @@ describe("createAirJamStore networked behavior", () => {
     const previousRevision = hostStateSyncSchema.parse(
       previousUpdate.args[0],
     ).revision;
-    rendered.rerender({ useStore: useReplacement });
+    first.unmount();
+
+    const useReplacement = createTestStore();
+    const replacement = renderHook(() => {
+      useReplacement.useHostActionListener(listener);
+      return useReplacement.useActions();
+    });
     expect(readHostStateEpochs(window, "ROOM1")).not.toEqual(before);
     const replacementUpdate = hostSocket.emitted
       .filter((call) => call.event === "host:state_sync")
@@ -368,7 +428,7 @@ describe("createAirJamStore networked behavior", () => {
     expect(replacementState.revision).toBeGreaterThan(previousRevision);
     expect(replacementState.data.phase).toBe("lobby");
     await act(async () => {
-      await rendered.result.current.setPhase({ phase: "new" });
+      await replacement.result.current.setPhase({ phase: "new" });
     });
     expect(useFirst.getState().phase).toBe("old");
     expect(useReplacement.getState().phase).toBe("new");
@@ -376,7 +436,18 @@ describe("createAirJamStore networked behavior", () => {
       actionName: "setPhase",
       payload: { phase: "new" },
     });
-    rendered.unmount();
+    replacement.unmount();
+  });
+
+  it("refuses to render a store its runtime does not declare", () => {
+    const useUndeclared = createAirJamStore<TestStoreState>(() => ({
+      phase: "lobby",
+      actions: { joinTeam: () => {}, setPhase: () => {} },
+    }));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => renderHook(() => useUndeclared())).toThrow(
+      /createAirJamApp\(\{ stores/,
+    );
   });
 
   it("never publishes host control from a controller store", () => {
@@ -1560,23 +1631,25 @@ describe("createAirJamStore networked behavior", () => {
   it("filters rejected host actions unless the listener opts in", async () => {
     mockedContext.state.role = "host";
 
-    const useRejectingStore = createAirJamStore<{
-      phase: string;
-      actions: {
-        failPhaseChange: (
-          ctx: AirJamActionContext,
-          payload: { phase: string },
-        ) => ReturnType<typeof rejectAirJamAction>;
-      };
-    }>(() => ({
-      phase: "lobby",
-      actions: {
-        failPhaseChange: (_ctx, { phase }) =>
-          rejectAirJamAction("phase_locked", `Phase "${phase}" is locked.`, {
-            phase,
-          }),
-      },
-    }));
+    const useRejectingStore = track(
+      createAirJamStore<{
+        phase: string;
+        actions: {
+          failPhaseChange: (
+            ctx: AirJamActionContext,
+            payload: { phase: string },
+          ) => ReturnType<typeof rejectAirJamAction>;
+        };
+      }>(() => ({
+        phase: "lobby",
+        actions: {
+          failPhaseChange: (_ctx, { phase }) =>
+            rejectAirJamAction("phase_locked", `Phase "${phase}" is locked.`, {
+              phase,
+            }),
+        },
+      })),
+    );
 
     const acceptedOnlyEvents: unknown[] = [];
     const rejectedEvents: unknown[] = [];

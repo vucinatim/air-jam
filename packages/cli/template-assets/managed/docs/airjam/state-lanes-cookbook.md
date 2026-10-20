@@ -42,6 +42,8 @@ Use `createAirJamStore(...)` for durable shared truth that host and controllers 
 5. which players are alive
 
 If the controller HUD or another remote surface must render it, it belongs here.
+Declare the store's hook in `createAirJamApp({ stores: [useGameStore] })`; the
+host and controllers sync only declared stores.
 
 ### Host-Only Runtime Lane
 

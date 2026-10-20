@@ -5,6 +5,7 @@ import {
   useClaimSessionRuntimeOwner,
 } from "../../context/session-scope";
 import { ControllerRuntime } from "../../core/controller-runtime";
+import type { AttachableStore } from "../../core/replicated-store";
 import {
   createBrowserControllerEnvironment,
   listenForPreviewClose,
@@ -18,6 +19,7 @@ import type {
 export const useControllerRuntimeApi = (
   options: AirJamControllerOptions,
   hookName: string,
+  stores: readonly AttachableStore[],
 ): AirJamControllerRuntimeControls => {
   useAssertSessionScope("controller", hookName);
   useClaimSessionRuntimeOwner("controller-runtime", hookName);
@@ -33,10 +35,19 @@ export const useControllerRuntimeApi = (
           getSocket,
           disconnectSocket,
           environment: createBrowserControllerEnvironment(),
+          stores,
         },
         { roomId, controllerId, capabilityToken },
       ),
-    [store, getSocket, disconnectSocket, roomId, controllerId, capabilityToken],
+    [
+      store,
+      getSocket,
+      disconnectSocket,
+      stores,
+      roomId,
+      controllerId,
+      capabilityToken,
+    ],
   );
 
   // Declared before start so the runtime joins with the current profile.

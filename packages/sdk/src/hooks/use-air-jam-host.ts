@@ -22,6 +22,7 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
+import type { AirJamStore, JoinUrlStatus } from "../core/connection-store";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
@@ -38,10 +39,8 @@ import type {
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
-import type { AirJamStore, JoinUrlStatus } from "../core/connection-store";
 
 export type { JoinUrlStatus };
-
 
 /**
  * Options for configuring the host runtime boundary.

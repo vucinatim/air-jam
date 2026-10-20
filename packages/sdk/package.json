@@ -162,6 +162,11 @@
       "types": "./dist/controller-bridge.d.ts",
       "import": "./dist/controller-bridge.js",
       "require": "./dist/controller-bridge.cjs"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
     }
   },
   "files": [

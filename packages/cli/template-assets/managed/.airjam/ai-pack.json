@@ -111,8 +111,8 @@
     {
       "path": "docs/airjam/generated/networked-state.md",
       "kind": "docs-generated",
-      "size": 7057,
-      "sha256": "f6e8a0d752bc6a2a8bef82e9a4e9552f4f23e46e3d3dedacd4ac03076c4b0cb9"
+      "size": 7695,
+      "sha256": "570c1d6df457e521cd9d44953353e4ed83e7ab1c52a7a4f1cc955e28b1eabebe"
     },
     {
       "path": "docs/airjam/generated/project-structure.md",
@@ -177,8 +177,8 @@
     {
       "path": "docs/airjam/state-lanes-cookbook.md",
       "kind": "docs-local",
-      "size": 3206,
-      "sha256": "5dde111762f1071ef5e7fc23ffe1adac07454662ad8dced7a42a8d40e4f6150b"
+      "size": 3333,
+      "sha256": "2a688339f9f91464dd1a4726d83ef032aa6db394cb865f3b4bf4ea9b94e7e82d"
     },
     {
       "path": "docs/airjam/visual-system.md",
@@ -187,5 +187,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "d5e870a50333e7ce47e53aad9348a78c0e9bf5a7337ca0287991778cb704c835"
+  "contentDigest": "6bf8c0116c545f143762fb67ddc45a29601805f3a295fd2e374d4e57aad97155"
 }

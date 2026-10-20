@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
   createConnectionStore,
+  createReplicatedStore,
   HostRuntime,
+  type AirJamActionContext,
   type AirJamHostEnvironment,
 } from "../src/core";
 import { InputManager } from "../src/internal/input-manager";
@@ -33,6 +35,7 @@ const createMemoryEnvironment = (
     embedded: null,
     requestedRoomId: null,
     runMode: "standalone",
+    defaultStoreDomain: "default",
     controlTarget: {},
     readResume: () => resume,
     writeResume: (next) => {
@@ -62,6 +65,19 @@ const config = resolveAirJamConfig({
 
 const inputSchema = z.object({ direction: z.number() });
 
+const createScoreStore = () =>
+  createReplicatedStore<{
+    score: number;
+    actions: {
+      score: (ctx: AirJamActionContext, payload: { by: number }) => void;
+    };
+  }>((set) => ({
+    score: 0,
+    actions: {
+      score: (_ctx, { by }) => set((state) => ({ score: state.score + by })),
+    },
+  }));
+
 describe("core host runtime", () => {
   it("creates a room, reads input and stops cleanly without React or DOM", async () => {
     expect(typeof (globalThis as { window?: unknown }).window).toBe(
@@ -71,6 +87,7 @@ describe("core host runtime", () => {
     const { environment, readStoredResume } = createMemoryEnvironment(socket);
     const store = createConnectionStore();
     const joined = vi.fn();
+    const scores = createScoreStore();
     const runtime = new HostRuntime<typeof inputSchema>(
       {
         config,
@@ -81,6 +98,7 @@ describe("core host runtime", () => {
         disconnectSocket: () => {},
         inputManager: new InputManager({ schema: inputSchema }),
         environment,
+        stores: [scores],
       },
       { onPlayerJoin: joined },
     );
@@ -124,7 +142,16 @@ describe("core host runtime", () => {
       state: { runtimeState: "paused" },
     });
 
+    // The store syncs with the room although no component reads it.
+    expect(scores.attached).toBe(true);
+    await scores.actions.score({ by: 2 });
+    expect(socket.emit).toHaveBeenLastCalledWith(
+      "host:state_sync",
+      expect.objectContaining({ roomId: "ROOM1", data: { score: 2 } }),
+    );
+
     stop();
+    expect(scores.attached).toBe(false);
     expect(socket.listenerCount()).toBe(0);
   });
 });

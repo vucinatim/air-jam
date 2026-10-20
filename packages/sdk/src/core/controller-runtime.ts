@@ -38,6 +38,7 @@ import type {
   AirJamControllerEnvironment,
   ControllerRoomBinding,
 } from "./environment";
+import type { AttachableStore } from "./replicated-store";
 
 const HOST_LEFT_RECONNECT_DELAY_MS = 1000;
 
@@ -53,6 +54,8 @@ export interface ControllerRuntimeDependencies {
   getSocket: (role: "controller") => AirJamSocket;
   disconnectSocket: (role: "controller") => void;
   environment: AirJamControllerEnvironment;
+  /** The game's replicated stores; they mirror the host while the runtime runs. */
+  stores: readonly AttachableStore[];
 }
 
 export type ControllerJoinSource = "embedded" | "options" | "url" | "unknown";
@@ -93,6 +96,7 @@ export class ControllerRuntime {
   readonly socket: AirJamRealtimeClient | null;
   private readonly environment: AirJamControllerEnvironment;
   private readonly disconnectSocket: (role: "controller") => void;
+  private readonly stores: readonly AttachableStore[];
   private readonly capabilityToken: string | null;
   private readonly joinSource: ControllerJoinSource;
   private nickname = "";
@@ -116,6 +120,7 @@ export class ControllerRuntime {
     this.store = dependencies.store;
     this.environment = environment;
     this.disconnectSocket = dependencies.disconnectSocket;
+    this.stores = dependencies.stores;
     const embedded = environment.embedded;
     this.capabilityToken =
       identity.capabilityToken === undefined
@@ -166,6 +171,17 @@ export class ControllerRuntime {
     });
     const handleSignal = (signal: SignalPayload) => this.vibrate(signal);
     this.socket?.on("server:signal", handleSignal);
+    const socket = this.socket;
+    const detachStores = socket
+      ? this.stores.map((store) =>
+          store.attach({
+            socket,
+            connection: this.store,
+            defaultStoreDomain: this.environment.defaultStoreDomain,
+            controlTarget: null,
+          }),
+        )
+      : [];
     this.releaseSession = this.startSession();
     return () => {
       unsubscribe();
@@ -174,6 +190,7 @@ export class ControllerRuntime {
       this.hostLeftTimeout = null;
       this.releaseSession?.();
       this.releaseSession = null;
+      for (const detach of detachStores) detach();
       this.leaveOnStop();
       this.environment.setDevLogContext({
         role: undefined,

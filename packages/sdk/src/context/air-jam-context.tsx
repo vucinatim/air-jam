@@ -53,6 +53,10 @@ import {
 import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
+import {
+  createConnectionStore,
+  type AirJamStore,
+} from "../core/connection-store";
 import { ensureDevBrowserLogSink } from "../dev/browser-log-sink";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { InputManager, type InputConfig } from "../internal/input-manager";
@@ -71,7 +75,6 @@ import {
   AIRJAM_DEV_PROVIDER_MOUNTED,
   emitAirJamDevRuntimeEvent,
 } from "../runtime/dev-runtime-events";
-import { createConnectionStore, type AirJamStore } from "../core/connection-store";
 import { SocketManager, type AirJamSocket } from "./socket-manager";
 
 // ============================================================================

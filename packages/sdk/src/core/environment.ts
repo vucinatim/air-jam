@@ -32,6 +32,8 @@ export interface AirJamHostEnvironment {
   /** A room the surrounding page asked for, such as `?room=`. */
   readonly requestedRoomId: RoomCode | null;
   readonly runMode: RunMode;
+  /** The store domain for stores that declare none. */
+  readonly defaultStoreDomain: string;
   /** Where agent tools and devtools find this runtime's control registry. */
   readonly controlTarget: object;
   readResume(): AirJamHostResume | null;
@@ -71,6 +73,8 @@ export interface AirJamControllerEnvironment {
   /** Preview controllers leave their room when their runtime stops. */
   readonly leaveOnStop: boolean;
   readonly runMode: RunMode;
+  /** The store domain for stores that declare none. */
+  readonly defaultStoreDomain: string;
   readBinding(
     roomId: string,
     controllerId?: string,

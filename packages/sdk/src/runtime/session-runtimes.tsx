@@ -1,5 +1,5 @@
 import type { JSX, ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { z } from "zod";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import { useAirJamConfig } from "../context/air-jam-context";
@@ -17,6 +17,7 @@ import {
   useHostRuntimeInspectionContract,
 } from "../runtime-inspection";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
+import type { AirJamStoreDeclaration } from "../store/create-air-jam-store";
 import { registerHostAgentContract } from "./contracts/control";
 import {
   publishRuntimeInspectionContract,
@@ -26,6 +27,7 @@ import { publishEmbeddedHostAgent } from "./host-agent-bridge";
 import { publishEmbeddedHostPreview } from "./preview-inspection-bridge";
 import {
   controllerRuntimeContext,
+  declaredStoresContext,
   hostRuntimeContext,
 } from "./runtime-owner-contexts";
 
@@ -35,12 +37,25 @@ export type AirJamHostRuntimeProps<TSchema extends z.ZodSchema = z.ZodSchema> =
       children: ReactNode;
       agent?: AnyAirJamAgentContract;
       gameId?: string;
+      /** Replicated stores this host owns; they sync while it runs. */
+      stores?: readonly AirJamStoreDeclaration[];
     };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
   AirJamControllerOptions & {
     children: ReactNode;
+    /** Replicated stores this controller mirrors while it runs. */
+    stores?: readonly AirJamStoreDeclaration[];
   };
+
+const NO_STORES: readonly AirJamStoreDeclaration[] = [];
+
+/** The core stores behind declared store hooks, stable while the declarations are. */
+const useDeclaredStores = (declarations: readonly AirJamStoreDeclaration[]) =>
+  useMemo(
+    () => declarations.map((declaration) => declaration.store),
+    [declarations],
+  );
 
 const HostRuntimeInspectionPublisher = (): null => {
   const inspection = useHostRuntimeInspectionContract();
@@ -96,10 +111,19 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   onPlayerLeave,
   agent,
   gameId,
+  stores = NO_STORES,
 }: Pick<
   AirJamHostRuntimeProps<TSchema>,
-  "children" | "roomId" | "onPlayerJoin" | "onPlayerLeave" | "agent" | "gameId"
+  | "children"
+  | "roomId"
+  | "onPlayerJoin"
+  | "onPlayerLeave"
+  | "agent"
+  | "gameId"
+  | "stores"
 >): JSX.Element => {
+  const declaredStores = useDeclaredStores(stores);
+  const declared = useMemo(() => new Set(declaredStores), [declaredStores]);
   const runtime = useHostRuntimeApi<TSchema>(
     {
       roomId,
@@ -107,6 +131,7 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
       onPlayerLeave,
     },
     "AirJamHostRuntime",
+    declaredStores,
   );
 
   useEffect(() => {
@@ -120,8 +145,10 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
 
   return (
     <hostRuntimeContext.Provider value={runtime}>
-      <HostRuntimeInspectionPublisher />
-      {children}
+      <declaredStoresContext.Provider value={declared}>
+        <HostRuntimeInspectionPublisher />
+        {children}
+      </declaredStoresContext.Provider>
     </hostRuntimeContext.Provider>
   );
 };
@@ -134,6 +161,7 @@ const ControllerRuntimeOwner = ({
   controllerId,
   capabilityToken,
   onState,
+  stores = NO_STORES,
 }: Pick<
   AirJamControllerRuntimeProps,
   | "children"
@@ -143,7 +171,10 @@ const ControllerRuntimeOwner = ({
   | "controllerId"
   | "capabilityToken"
   | "onState"
+  | "stores"
 >): JSX.Element => {
+  const declaredStores = useDeclaredStores(stores);
+  const declared = useMemo(() => new Set(declaredStores), [declaredStores]);
   const runtime = useControllerRuntimeApi(
     {
       roomId,
@@ -154,12 +185,15 @@ const ControllerRuntimeOwner = ({
       onState,
     },
     "AirJamControllerRuntime",
+    declaredStores,
   );
 
   return (
     <controllerRuntimeContext.Provider value={runtime}>
-      <ControllerRuntimeInspectionPublisher />
-      {children}
+      <declaredStoresContext.Provider value={declared}>
+        <ControllerRuntimeInspectionPublisher />
+        {children}
+      </declaredStoresContext.Provider>
     </controllerRuntimeContext.Provider>
   );
 };
@@ -171,6 +205,7 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
   onPlayerLeave,
   agent,
   gameId,
+  stores,
   ...providerProps
 }: AirJamHostRuntimeProps<TSchema>): JSX.Element => {
   return (
@@ -182,6 +217,7 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
           onPlayerLeave={onPlayerLeave}
           agent={agent}
           gameId={gameId}
+          stores={stores}
         >
           {children}
         </HostRuntimeOwner>
@@ -198,6 +234,7 @@ export const AirJamControllerRuntime = ({
   controllerId,
   capabilityToken,
   onState,
+  stores,
   ...providerProps
 }: AirJamControllerRuntimeProps): JSX.Element => {
   return (
@@ -210,6 +247,7 @@ export const AirJamControllerRuntime = ({
           controllerId={controllerId}
           capabilityToken={capabilityToken}
           onState={onState}
+          stores={stores}
         >
           {children}
         </ControllerRuntimeOwner>

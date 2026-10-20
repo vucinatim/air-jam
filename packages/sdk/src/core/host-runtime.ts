@@ -53,6 +53,7 @@ import type { AirJamConfig } from "./config";
 import type { AirJamStore } from "./connection-store";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type { AirJamHostEnvironment } from "./environment";
+import type { AttachableStore } from "./replicated-store";
 
 const HOST_BOOTSTRAP_TIMEOUT_MESSAGE =
   "Host bootstrap timed out. The deployed Air Jam server may be out of sync with this client.";
@@ -76,6 +77,8 @@ export interface HostRuntimeDependencies<
   disconnectSocket: (role: "host") => void;
   inputManager: InputManager<TSchema> | null;
   environment: AirJamHostEnvironment;
+  /** The game's replicated stores; they sync while the runtime runs. */
+  stores: readonly AttachableStore[];
 }
 
 interface PendingHostReset {
@@ -97,6 +100,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   private readonly config: AirJamConfig;
   private readonly environment: AirJamHostEnvironment;
   private readonly disconnectSocket: (role: "host") => void;
+  private readonly stores: readonly AttachableStore[];
   private options: HostRuntimeOptions;
   private controllerCapability: ControllerPrivilegedCapability | null = null;
   private pendingReset: PendingHostReset | null = null;
@@ -120,6 +124,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     this.inputManager = dependencies.inputManager;
     this.environment = dependencies.environment;
     this.disconnectSocket = dependencies.disconnectSocket;
+    this.stores = dependencies.stores;
     this.options = options;
     this.socket = dependencies.environment.transport(dependencies.getSocket);
   }
@@ -151,6 +156,14 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
       role: "host",
       roomId: this.watchedRoomId ?? undefined,
     });
+    const detachStores = this.stores.map((store) =>
+      store.attach({
+        socket: this.socket,
+        connection: this.store,
+        defaultStoreDomain: this.environment.defaultStoreDomain,
+        controlTarget: this.environment.controlTarget,
+      }),
+    );
     this.releaseSession = this.startSession();
     this.bindRoomControl();
     this.refreshJoinUrl();
@@ -159,6 +172,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
       unsubscribe();
       this.releaseSession?.();
       this.releaseSession = null;
+      for (const detach of detachStores) detach();
       this.releaseRoomControl?.();
       this.releaseRoomControl = null;
       this.cancelPendingReset();

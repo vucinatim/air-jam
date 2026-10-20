@@ -21,6 +21,7 @@ const createMemoryEnvironment = (
     deviceId: "device-1",
     leaveOnStop: false,
     runMode: "standalone",
+    defaultStoreDomain: "default",
     readBinding: (roomId) => bindings.get(roomId) ?? null,
     writeBinding: (roomId, binding) => bindings.set(roomId, binding),
     clearBinding: (roomId) => bindings.delete(roomId),
@@ -57,6 +58,7 @@ describe("core controller runtime", () => {
         },
         disconnectSocket: () => {},
         environment,
+        stores: [],
       },
       { controllerId: "ctrl_1" },
     );

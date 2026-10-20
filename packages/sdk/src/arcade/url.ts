@@ -1,11 +1,11 @@
-import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
-import { runtimeTopologyToQueryParams } from "../runtime-topology";
 import type { ChildHostCapability } from "../protocol";
 import {
   appendRuntimeQueryParams,
   getRuntimeUrlOrigin,
   normalizeRuntimeUrl,
 } from "../protocol/url-policy";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
+import { runtimeTopologyToQueryParams } from "../runtime-topology";
 import {
   arcadeSurfaceRuntimeUrlParams,
   type ArcadeSurfaceRuntimeIdentity,

@@ -8,6 +8,7 @@ import {
 } from "../preview/messages";
 import type { ControllerLeaveAck } from "../protocol";
 import { detectRunMode } from "../utils/mode";
+import { resolveImplicitReplicatedStoreDomainFromWindow } from "./arcade-runtime-url";
 import {
   clearControllerRoomBinding,
   getOrCreateControllerDeviceId,
@@ -42,6 +43,7 @@ export const createBrowserControllerEnvironment =
         : (previewDeviceId ?? getOrCreateControllerDeviceId()),
       leaveOnStop: previewDeviceId !== null,
       runMode: detectRunMode(),
+      defaultStoreDomain: resolveImplicitReplicatedStoreDomainFromWindow(),
       readBinding: readControllerRoomBinding,
       writeBinding: writeControllerRoomBinding,
       clearBinding: clearControllerRoomBinding,

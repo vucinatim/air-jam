@@ -10,6 +10,7 @@ import {
   parseRuntimeTopology,
   resolveProjectRuntimeTopology,
 } from "../runtime-topology";
+import type { AirJamStoreDeclaration } from "../store/create-air-jam-store";
 import {
   resolveEnvironmentRuntimeTopology,
   type ResolveAirJamConfigInput,
@@ -55,6 +56,8 @@ export interface CreateAirJamAppOptions<
   agent?: AirJamAgentContract;
   /** Project-relative devtools test profiles module. Never imported by the game runtime. */
   testing?: string;
+  /** The game's networked stores; host and controller sync them while they run. */
+  stores?: readonly AirJamStoreDeclaration[];
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -76,7 +79,10 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   controllerPath: string;
   agent?: AirJamAgentContract;
   testing?: string;
+  stores: readonly AirJamStoreDeclaration[];
 }
+
+const NO_STORES: readonly AirJamStoreDeclaration[] = [];
 
 const resolveControllerPath = (controllerPath?: string): string => {
   const normalized = controllerPath ?? CONTROLLER_PATH;
@@ -183,6 +189,7 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   controllerPath: requestedControllerPath,
   agent,
   testing,
+  stores = NO_STORES,
   input,
   errorBoundary,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
@@ -221,6 +228,7 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
           {...runtimeOptions}
           agent={agent}
           gameId={metadata?.slug}
+          stores={stores}
         >
           <ConnectedRuntimeErrorBoundary
             role="host"
@@ -249,7 +257,11 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
         renderFallback={controllerErrorBoundary?.renderFallback}
         onError={controllerErrorBoundary?.onError}
       >
-        <AirJamControllerRuntime {...controllerSession} {...runtimeOptions}>
+        <AirJamControllerRuntime
+          {...controllerSession}
+          {...runtimeOptions}
+          stores={stores}
+        >
           <ConnectedRuntimeErrorBoundary
             role="controller"
             roomId={runtimeOptions.roomId}
@@ -279,5 +291,6 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     controllerPath,
     agent,
     testing,
+    stores,
   };
 };

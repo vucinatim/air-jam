@@ -6,5 +6,5 @@
     "jsx": "preserve",
     "skipLibCheck": true
   },
-  "include": ["src/core/index.ts"]
+  "include": ["src/core.ts"]
 }
