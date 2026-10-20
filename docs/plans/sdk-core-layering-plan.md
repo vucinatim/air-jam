@@ -87,9 +87,10 @@ and dev-server tools does not apply there.
 Sketches agreed on 2026-10-20 as indicators, not final names; phases 1 and 6
 settle the exact API.
 
-**Stays the same.** The app config, the input schema, controllers sending
-input, React components reading state, the three lanes, host authority, rooms
-and QR joining.
+**Stays the same.** The app config, React components reading state, the
+three lanes, host authority, rooms and QR joining. Input does not stay the
+same: the [input system plan](./sdk-input-system-plan.md) replaces the input
+schema with declared controls that the host applies at each simulation step.
 
 ```tsx
 const { joinTeam } = usePongStore((s) => s.actions); // controller
