@@ -1,6 +1,6 @@
 # Working Agreements
 
-Last updated: 2026-10-09
+Last updated: 2026-10-21
 Status: stable operating rules
 
 This file defines how humans and agents should use the Air Jam repo operating system.
@@ -122,16 +122,27 @@ Air Jam separates subjective product authority from implementation assurance:
 
 Until the 1.0 launch, `release/1.0` is the one integration branch in each
 repository, agreed with Tim on 2026-10-20. `main` stays the reviewed production
-baseline and takes `release/1.0` only at launch.
+baseline and takes `release/1.0` at launch, as the candidate the launch
+sequence below deploys before announcing.
+
+Until then this section takes precedence over two rules below: pull-request
+slices must stand on `release/1.0` rather than on `main`, and `release/1.0` is
+the sanctioned long-lived integration line rather than a stack to avoid.
+Incremental production deployment applies to fixes that land on `main`, not to
+1.0 roadmap work.
 
 1. cut each roadmap item's branch from the current `release/1.0` tip and open
-   its pull request into `release/1.0`; it merges under the same CI and single
-   final-review gates as `main`, with the item's readiness status updated in
-   the same pull request
-2. start the next item from the new tip; run items in parallel only when they
+   its pull request into `release/1.0`; merge it only with a successful
+   canonical `checks` job, the single final GitHub review clear or its
+   conversations resolved, and no planned edits remaining. `release/1.0` has
+   no branch protection yet, so agents enforce these gates before each merge
+2. update the item's readiness status in the private release program in the
+   same change: in the private pull request itself, or in a paired private
+   pull request for public work
+3. start the next item from the new tip; run items in parallel only when they
    touch independent files
-3. merge any fix that has to land on `main` forward into `release/1.0`
-4. open no other long-lived parent branch; older feature branches stay as
+4. merge any fix that has to land on `main` forward into `release/1.0`
+5. open no other long-lived parent branch; older feature branches stay as
    history
 
 ## Review Stacks And Integration
