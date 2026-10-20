@@ -469,16 +469,19 @@ describe("createAirJamStore networked behavior", () => {
     });
     const useStore = createTestStore();
     const { result, unmount } = renderHook(() => useStore.useActions());
-    const pending = result.current.joinTeam({ team: "red" });
-    await vi.advanceTimersByTimeAsync(10_000);
-    await expect(pending).resolves.toMatchObject({
-      ok: false,
-      reason: "session_not_ready",
-    });
-    expect(diagnostics).toEqual(["error"]);
-    unsubscribe();
-    unmount();
-    vi.useRealTimers();
+    try {
+      const pending = result.current.joinTeam({ team: "red" });
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(pending).resolves.toMatchObject({
+        ok: false,
+        reason: "session_not_ready",
+      });
+      expect(diagnostics).toEqual(["error"]);
+    } finally {
+      unsubscribe();
+      unmount();
+      vi.useRealTimers();
+    }
   });
 
   it("exposes imperative getState and subscribe on the synced store hook", () => {
