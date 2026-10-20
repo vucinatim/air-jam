@@ -99,5 +99,13 @@ export const createBrowserHostEnvironment = (
     transport: (getSocket) => getHostRealtimeClient(getSocket),
     emitDevEvent: emitAirJamDevRuntimeEvent,
     setDevLogContext: updateDevBrowserLogContext,
+    seed: () => crypto.getRandomValues(new Uint32Array(1))[0],
+    frames: (onFrame) => {
+      let frame = requestAnimationFrame(function next(now) {
+        onFrame(now);
+        frame = requestAnimationFrame(next);
+      });
+      return () => cancelAnimationFrame(frame);
+    },
   };
 };

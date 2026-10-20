@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getPongHostRuntimeEffects } from "./use-pong-host-runtime-state";
+import { getPongPhaseEffects } from "../../../src/game/engine/pong-simulation";
 
-describe("getPongHostRuntimeEffects", () => {
+describe("getPongPhaseEffects", () => {
   it("starts the countdown when the match enters playing", () => {
     expect(
-      getPongHostRuntimeEffects({
+      getPongPhaseEffects({
         previousPhase: "lobby",
         matchPhase: "playing",
         previousScores: { team1: 0, team2: 0 },
@@ -15,7 +15,7 @@ describe("getPongHostRuntimeEffects", () => {
 
   it("starts the countdown again when the score changes during play", () => {
     expect(
-      getPongHostRuntimeEffects({
+      getPongPhaseEffects({
         previousPhase: "playing",
         matchPhase: "playing",
         previousScores: { team1: 0, team2: 0 },
@@ -26,7 +26,7 @@ describe("getPongHostRuntimeEffects", () => {
 
   it("does not restart the countdown when a score change ends the match", () => {
     expect(
-      getPongHostRuntimeEffects({
+      getPongPhaseEffects({
         previousPhase: "playing",
         matchPhase: "ended",
         previousScores: { team1: 2, team2: 0 },

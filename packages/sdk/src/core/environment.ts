@@ -49,6 +49,14 @@ export interface AirJamHostEnvironment {
   transport(getSocket: (role: "host") => AirJamSocket): AirJamRealtimeClient;
   emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
   setDevLogContext(context: AirJamDevLogContext): void;
+  /** A fresh seed for a game's simulation randomness. */
+  seed(): number;
+  /**
+   * Calls `onFrame` with a timestamp once per display frame until the
+   * returned stop is called. Absent where nothing draws: the owner then
+   * advances the simulation itself.
+   */
+  readonly frames?: (onFrame: (now: number) => void) => () => void;
 }
 
 /**

@@ -8,6 +8,7 @@ import {
 } from "../../context/session-scope";
 import { HostRuntime } from "../../core/host-runtime";
 import type { AttachableStore } from "../../core/replicated-store";
+import type { AirJamSimulation } from "../../core/simulation";
 import type { RoomCode } from "../../protocol";
 import { createBrowserHostEnvironment } from "../../runtime/browser-host-environment";
 import type {
@@ -20,6 +21,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   options: AirJamHostOptions,
   hookName: string,
   stores: readonly AttachableStore[],
+  simulation: AirJamSimulation<unknown, unknown, unknown> | undefined,
 ): AirJamHostRuntimeControls<TSchema> => {
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
@@ -37,8 +39,17 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
         inputManager: inputManager as HostRuntime<TSchema>["inputManager"],
         environment: createBrowserHostEnvironment(config),
         stores,
+        simulation,
       }),
-    [config, store, getSocket, disconnectSocket, inputManager, stores],
+    [
+      config,
+      store,
+      getSocket,
+      disconnectSocket,
+      inputManager,
+      stores,
+      simulation,
+    ],
   );
 
   // Declared before start so the runtime starts with the current options.
@@ -71,6 +82,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       resetRoom: runtime.resetRoom,
       socket: runtime.socket,
       getInput: runtime.getInput,
+      simulation: runtime.simulation,
     }),
     [runtime, roomId, joinUrl, joinUrlStatus],
   );

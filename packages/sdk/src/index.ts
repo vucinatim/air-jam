@@ -179,6 +179,11 @@ export {
   type InferAirJamAgentStores,
 } from "./agent/agent-contract";
 export {
+  useSimulation,
+  useSimulationEvents,
+  useSimulationFrame,
+} from "./hooks/use-simulation";
+export {
   useAirJamStore,
   useHostActionListener,
 } from "./store/use-air-jam-store";

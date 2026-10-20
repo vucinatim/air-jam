@@ -9,6 +9,7 @@ import {
   type AirJamProviderProps,
 } from "../context/session-providers";
 import type { AttachableStore } from "../core/replicated-store";
+import type { AirJamSimulation } from "../core/simulation";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
 import { useHostRuntimeApi } from "../hooks/internal/use-host-runtime-api";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
@@ -39,6 +40,8 @@ export type AirJamHostRuntimeProps<TSchema extends z.ZodSchema = z.ZodSchema> =
       gameId?: string;
       /** Replicated stores this host owns; they sync while it runs. */
       stores?: readonly AttachableStore[];
+      /** The game's simulation, advanced on the SDK clock while the host runs. */
+      simulation?: AirJamSimulation<unknown, unknown, unknown>;
     };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
@@ -105,6 +108,7 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   agent,
   gameId,
   stores = NO_STORES,
+  simulation,
 }: Pick<
   AirJamHostRuntimeProps<TSchema>,
   | "children"
@@ -114,6 +118,7 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   | "agent"
   | "gameId"
   | "stores"
+  | "simulation"
 >): JSX.Element => {
   const declared = useMemo(() => new Set(stores), [stores]);
   const runtime = useHostRuntimeApi<TSchema>(
@@ -124,6 +129,7 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
     },
     "AirJamHostRuntime",
     stores,
+    simulation,
   );
 
   useEffect(() => {
@@ -197,6 +203,7 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
   agent,
   gameId,
   stores,
+  simulation,
   ...providerProps
 }: AirJamHostRuntimeProps<TSchema>): JSX.Element => {
   return (
@@ -209,6 +216,7 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
           agent={agent}
           gameId={gameId}
           stores={stores}
+          simulation={simulation}
         >
           {children}
         </HostRuntimeOwner>

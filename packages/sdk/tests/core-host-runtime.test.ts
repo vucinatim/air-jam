@@ -47,6 +47,7 @@ const createMemoryEnvironment = (
     transport: () => socket,
     emitDevEvent: () => {},
     setDevLogContext: () => {},
+    seed: () => 1,
   };
   return { environment, readStoredResume: () => resume };
 };

@@ -4,6 +4,7 @@ import type { AirJamAgentContract } from "../agent/agent-contract";
 import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
 import type { AttachableStore } from "../core/replicated-store";
+import type { AirJamSimulation } from "../core/simulation";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import type { AirJamGameMetadata } from "../metadata/manifest";
@@ -58,6 +59,8 @@ export interface CreateAirJamAppOptions<
   testing?: string;
   /** The game's networked stores; host and controller sync them while they run. */
   stores?: readonly AttachableStore[];
+  /** The game's simulation, advanced on the SDK clock while the host runs. */
+  simulation?: AirJamSimulation<unknown, unknown, unknown>;
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -80,6 +83,7 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   agent?: AirJamAgentContract;
   testing?: string;
   stores: readonly AttachableStore[];
+  simulation?: AirJamSimulation<unknown, unknown, unknown>;
 }
 
 const NO_STORES: readonly AttachableStore[] = [];
@@ -190,6 +194,7 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   agent,
   testing,
   stores = NO_STORES,
+  simulation,
   input,
   errorBoundary,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
@@ -229,6 +234,7 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
           agent={agent}
           gameId={metadata?.slug}
           stores={stores}
+          simulation={simulation}
         >
           <ConnectedRuntimeErrorBoundary
             role="host"
@@ -292,5 +298,6 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     agent,
     testing,
     stores,
+    simulation,
   };
 };

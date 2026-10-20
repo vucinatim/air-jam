@@ -45,3 +45,12 @@ export {
   type AttachableStore,
   type CreateAirJamStoreOptions,
 } from "./core/replicated-store";
+export {
+  SimulationClock,
+  createSeededRandom,
+  defineAirJamSimulation,
+  type AirJamSimulation,
+  type AirJamStepContext,
+  type SimulationFrame,
+  type SimulationPace,
+} from "./core/simulation";

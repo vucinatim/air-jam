@@ -28,7 +28,7 @@ it("awards one goal across consecutive fixed steps before the host updates its c
   expect(onScore).toHaveBeenCalledExactlyOnceWith("team1");
   expect(state.ballX).toBe(FIELD_WIDTH);
   expect(state.paddle2FrontY).toBeGreaterThan(250);
-  resetBall(state);
+  resetBall(state, () => 0.75);
   state.ballX = -1;
   state.ballVX = 0;
   state.ballVY = 0;

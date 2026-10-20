@@ -26,6 +26,7 @@ import type {
   AirJamConnectionState,
   JoinUrlStatus,
 } from "../core/connection-store";
+import type { SimulationClock } from "../core/simulation";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
@@ -176,6 +177,8 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
    * ```
    */
   getInput: (controllerId: string) => z.infer<TSchema> | undefined;
+  /** The game's simulation clock, or null when the game declares no simulation. */
+  simulation: SimulationClock<unknown, unknown, unknown> | null;
 }
 
 export interface AirJamHostState {
@@ -205,6 +208,7 @@ export type AirJamHostRuntimeControls<
   | "resetRoom"
   | "socket"
   | "getInput"
+  | "simulation"
 >;
 
 const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
