@@ -82,6 +82,121 @@ and dev-server tools does not apply there.
    template is exemplary, and the remaining guidance is short, the same in
    Studio and standalone, and updated with Air Jam.
 
+## Expected shape
+
+Sketches agreed on 2026-10-20 as indicators, not final names; phases 1 and 6
+settle the exact API.
+
+**Stays the same.** The app config, the input schema, controllers sending
+input, React components reading state, the three lanes, host authority, rooms
+and QR joining.
+
+```tsx
+const { joinTeam } = usePongStore((s) => s.actions); // controller
+const scores = usePongStore((s) => s.scores); // host UI
+```
+
+**State is declared, not created as a hook.** Today defining the store creates
+a React hook and actions call `set`:
+
+```ts
+export const usePongStore = createAirJamStore<PongState>((set) => ({
+  ...createInitialPongState(),
+  actions: {
+    joinTeam: (ctx, { team }) =>
+      set((s) => reduceJoinTeam(s, { team, ...ctx })),
+  },
+}));
+```
+
+Next, a plain declaration with pure actions that return the new state; React
+gets its hook from the binding:
+
+```ts
+export const pongState = defineState({
+  initial: createInitialPongState,
+  actions: {
+    joinTeam: (s, { team }, ctx) => reduceJoinTeam(s, { team, ...ctx }),
+  },
+});
+export const usePongStore = useAirJamState(pongState);
+```
+
+**The loop moves from a component into the game.** Today:
+
+```tsx
+useHostTick({ mode: "fixed", intervalMs: 16, onTick: ({ deltaSeconds }) => stepGame({ ... }) });
+```
+
+Next, the game declares its step, the SDK runs it, and components only read:
+
+```ts
+step: (sim, { inputs, dt, random }) => stepGame(sim, inputs, dt, random),
+```
+
+```tsx
+const sim = useSimulation(); // read-only, interpolated for drawing
+```
+
+**One declaration that tools read.** Studio's settings panel, agent knobs,
+headless tests and replays all come from it:
+
+```ts
+export const airjam = createAirJamApp({
+  metadata,
+  controllerPath: "/controller",
+  input: { schema },
+  state: pongState,
+  step,
+  settings: {
+    ballSpeed: setting.number({ min: 200, max: 900, default: 400, live: true }),
+  },
+  testing: "./testing/profiles.ts",
+});
+```
+
+**Running without a browser.**
+
+```ts
+const run = await runHeadless(airjam, { seats: ["left", "right"], seed: 1 });
+run.input("left", { direction: 1 });
+run.advance(10_000); // ten seconds of game time in milliseconds of real time
+expect(run.state.scores.team1).toBe(1);
+```
+
+```ts
+import { createHostRuntime } from "@air-jam/sdk/core";
+const host = createHostRuntime(airjam); // what seats, tools and the runner use
+```
+
+**Air Capture changes most.** Today physics is declared in JSX and moved by
+the render loop:
+
+```tsx
+<RigidBody ref={body}>
+  <Ship />
+</RigidBody>;
+useFrame((_, dt) => applyThrust(body.current, input, dt));
+```
+
+Next, logic owns the physics world and rendering only draws it:
+
+```ts
+step: (sim, { inputs, dt }) => {
+  applyThrust(sim.ships, inputs, dt);
+  sim.world.step();
+},
+```
+
+```tsx
+<Ship position={ship.position} rotation={ship.rotation} />
+```
+
+**Expected migration effort.** Action-driven party games such as Code Review
+and The Office change little and mechanically; Pong is about an hour of moving
+code; Air Capture rewrites its logic layer and keeps its rendering. Everything a
+game declares becomes visible to agents and Studio without extra wiring.
+
 ## Delivery sequence
 
 Each phase is production-valid on its own and stays in the final system.
