@@ -63,7 +63,6 @@ assert.equal(
 const testProfiles = defineAirJamTestProfiles({
   sample: {
     label: "Installed profile API",
-    targets: ["owned"],
     seats: [{ id: "player", label: "Player" }],
     setup: [],
     actions: ["counter:tap"],
