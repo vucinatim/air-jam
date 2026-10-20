@@ -49,7 +49,8 @@ physics steps with the same clock, and the screen only reads state and draws
 when someone watches or asks for an image. The same game then runs headless,
 fast-forwarded for tests, or normally for play, without being rewritten.
 
-Doing this properly means:
+Doing this properly means, on the framework-free SDK core the
+[core layering plan](./plans/sdk-core-layering-plan.md) delivers:
 
 1. one clock owned by the SDK; its tick is the supported way to advance game
    logic, and rendering never advances state
@@ -99,6 +100,11 @@ not by whether the first-party launcher's source is public.
 
 Keep input, replicated state and signals distinct. Give every important fact
 one owner. Keep transport adaptation separate from gameplay and presentation.
+
+The SDK is one package with a small framework-free core, and React is a thin
+binding over it rather than the place the runtime lives. The core speaks a
+written protocol, so a host in another engine, such as Unity, implements that
+protocol instead of porting React code.
 Expose behavior through explicit machine-usable contracts rather than hiding
 it behind UI workflows.
 

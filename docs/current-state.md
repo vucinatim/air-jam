@@ -1,7 +1,15 @@
 # Current State
 
-Last updated: 2026-10-18
+Last updated: 2026-10-20
 Status: Studio foundation continuation qualified locally; earlier separation checkpoint retained below
+
+## SDK core layering — next
+
+The [core layering plan](./plans/sdk-core-layering-plan.md) moves the runtime
+out of React hooks into a framework-free `@air-jam/sdk/core` with React as its
+binding, gives the SDK the game clock so logic runs headless and faster than
+real time, ports Air Capture to it and writes down the protocol for other
+engines. The SDK stays one package.
 
 ## Native observation and isolated playtesting
 

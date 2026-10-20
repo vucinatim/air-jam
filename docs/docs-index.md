@@ -1,6 +1,6 @@
 # Air Jam Framework Docs Index
 
-Last updated: 2026-10-10
+Last updated: 2026-10-20
 Status: public framework navigation
 
 This repository owns the open SDK, runtime, standalone server, creator tools,
@@ -28,6 +28,12 @@ acting as another task tracker.
 - [Agent tooling architecture](./architecture/agent-tooling-architecture.md)
 - [Repository memory model](./monorepo-operating-system.md)
 - [Durable framework follow-ups](./suggestions.md)
+
+## Active plans
+
+- [SDK core layering](./plans/sdk-core-layering-plan.md): a framework-free core
+  with React as its binding, an SDK-owned clock for headless and replayable
+  play, and a written protocol for other engines
 
 ## Runtime and authoring contracts
 
