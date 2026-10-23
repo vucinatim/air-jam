@@ -107,7 +107,7 @@ jobs:
           echo "version=$(jq -r .version "$RUNNER_TEMP/public-release-candidate/manifest.json")" >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable candidate
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: public-release-candidate
           path: ${{ runner.temp }}/public-release-candidate
@@ -165,7 +165,7 @@ jobs:
           --output artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
 
       - name: Upload cell evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: publish-install-${{ matrix.system.id }}-node-${{ matrix.node }}
           path: artifacts/public-install-${{ matrix.system.id }}-node-${{ matrix.node }}.json
@@ -226,7 +226,7 @@ jobs:
           test "$(jq -r .commit artifacts/public-install-matrix.json)" = "$EXPECTED_COMMIT"
 
       - name: Upload aggregate evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: publish-install-matrix
           path: artifacts/public-install-matrix.json
@@ -281,7 +281,7 @@ jobs:
           --apply
 
       - name: Upload publication evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: public-release-publication
           path: artifacts/public-release-publication.json
