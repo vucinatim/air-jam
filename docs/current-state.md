@@ -1,18 +1,19 @@
 # Current State
 
-Last updated: 2026-10-20
-Status: Studio foundation continuation qualified locally; earlier separation checkpoint retained below
+Last updated: 2026-10-24
+Status: SDK core layering in review for `release/1.0`; earlier checkpoints retained below
 
-## SDK core layering — next
+## SDK core layering — in review
 
-The [core layering plan](./plans/sdk-core-layering-plan.md) moves the runtime
-out of React hooks into a framework-free `@air-jam/sdk/core` with React as its
-binding, gives the SDK the game clock so logic runs headless and faster than
-real time, ports Air Capture to it and writes down the protocol for other
-engines. The SDK stays one package. Its agent-lanes phase gives games one
-declaration, an architecture gate in `airjam evaluate`, exemplary templates and
-one short rules file that updates with Air Jam; changes before 1.0 are clean
-breaks with migration notes, not deprecations.
+The [core layering plan](./plans/sdk-core-layering-plan.md) is built through
+its export tidy: `@air-jam/sdk/core` owns the runtime with React as its
+binding, games declare stores and simulations that run on the SDK clock in a
+browser or headless, every first-party game plays on game time (Air Capture
+with its own Rapier world), store actions read `ctx.now`, and each of the 21
+entry points has one documented purpose. Its protocol suite and agent lanes
+remain. The [input system plan](./plans/sdk-input-system-plan.md) builds on it
+next: declared controls applied per simulation step, and SDK phone controls
+that own sending.
 
 ## Native observation and isolated playtesting
 

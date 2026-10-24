@@ -1,7 +1,7 @@
 # SDK Core Layering Plan
 
-Last updated: 2026-10-20
-Status: in progress on `claude/sdk-core-layering`; phase 1 built, phase 2's clock built with Pong ported, headless runs next; phases 1, 5 and the game declaration are 1.0 scope
+Last updated: 2026-10-24
+Status: phases 1, 2, 3 and 5 built on `claude/sdk-core-layering`, in review for `release/1.0`; the protocol suite and agent lanes are next; phases 1, 5 and the game declaration are 1.0 scope
 
 This plan owns giving the SDK a small framework-free core with React as a thin
 binding over it, an SDK-owned clock that lets game logic run without drawing,
@@ -37,9 +37,7 @@ speak is defined only by what that code happens to do.
 Games add their own coupling on top. Air Capture declares its physics world as
 React components (16 files use the React Rapier wrapper) and runs its logic in
 the per-frame render hook across 22 files. Rapier itself is plain and
-deterministic; the wrapper is what ties physics to drawing. Pong, Code Review
-and The Office already use the SDK clock; Last Band Standing and
-Minimal are driven by actions alone.
+deterministic; the wrapper is what ties physics to drawing.
 
 Nearly every Air Jam game will be written by agents with no person reading the
 code, so what agents copy and what the tools reject decides game quality more
@@ -338,6 +336,23 @@ selector)`; dispatch is `store.actions`. Reading an undeclared store throws
    `useHostAgentObservation` and `@react-three/rapier` are gone. Its capture
    profile passes headless in about 13 seconds, and the same seed and inputs
    replay the same match.
+8. Store actions run on game time (2026-10-24): the action context carries
+   `ctx.now`, the simulation's time when the game declares one and the host
+   clock otherwise. Pong and Air Capture stamp match times with it; Air
+   Capture's simulation writes the countdown's whole seconds to the store
+   for phones. Last Band Standing's round timers moved from host effects and
+   `setTimeout` onto a declared round clock that calls one `advanceClock`
+   action; its screens read `secondsLeft` from the store and its host reads
+   the clock for the timer bar and music fades. No game action reads the wall
+   clock.
+9. The export surface is tidy (G6-09, 2026-10-24): an export stays only when
+   first-party code or the hosted product uses it, or the creator docs teach
+   it. The `arcade` and `arcade/bridge` barrels, root re-exports of protocol
+   types, `useConnectionStatus`, `usePlayers`, unused match-phase helpers and
+   helpers only the SDK itself used are gone. The architecture guide shows
+   the core and its React binding as one runtime with a table giving each of
+   the 21 entry points one purpose; the README's stability policy and the
+   migration guide follow it.
 
 Decisions made while building:
 
@@ -362,11 +377,15 @@ example observing every seat in one request, would raise it.
 
 Next:
 
-1. Export tidy (G6-09): one documented purpose per export.
-2. Store actions still read wall time (`Date.now()` for match timing); replays
-   need them on game time.
-3. Owned runs still refuse monorepo games (they need a standalone game with its
+1. Phase 4, the protocol contract and its conformance suite; `/protocol`
+   kept its full surface for it.
+2. Phase 6, agent lanes, starting with the declaration surface (G6-10).
+3. Store actions draw randomness from `Math.random()` where they use any, for
+   example Last Band Standing's playlist; replays need the seeded stream.
+4. Owned runs still refuse monorepo games (they need a standalone game with its
    own lockfile), so headless is the only profile run for first-party games.
+5. The Arcade's SDK architecture diagram, drawn by the hosted product, still
+   shows the provider pattern.
 
 ## Releases and removals
 
