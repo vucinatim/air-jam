@@ -44,6 +44,19 @@ export {
   type AirJamStickControl,
   type AirJamVector,
 } from "./core/input";
+export {
+  arrows,
+  keys,
+  keys4,
+  wasd,
+  type AirJamGamepadAxis,
+  type AirJamGamepadButton,
+  type AirJamGamepadMapping,
+  type AirJamGamepadStick,
+  type AirJamInputBindings,
+  type AirJamKeyCode,
+  type AirJamKeyboardLayout,
+} from "./core/input-bindings";
 export { airJamInputLogSchema, type AirJamInputLog } from "./core/input-log";
 export { replayAirJamInputLog } from "./core/replay-input-log";
 export {

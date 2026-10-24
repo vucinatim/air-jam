@@ -16,6 +16,13 @@ import {
 } from "../components/shell-classes";
 import { Button } from "../components/ui/button";
 import type { ControllerPresenceNotice } from "../protocol";
+import { useProvideLocalSeats } from "../runtime/local-players";
+import {
+  AIR_JAM_LOCAL_SEAT_QUERY_PARAM,
+  isLocalSeatReadyMessage,
+  sendLocalSeatOperation,
+  type LocalSeatProvider,
+} from "../runtime/local-seats";
 import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import {
@@ -148,6 +155,43 @@ export const PreviewControllerWorkspace = ({
     enabled,
     maxControllers,
   });
+  // Local players' seats are preview phones launched under their name.
+  const localSeats = useMemo<LocalSeatProvider | null>(
+    () =>
+      enabled
+        ? {
+            open: (seat) =>
+              new Promise((resolve) => {
+                const onMessage = (event: MessageEvent) => {
+                  if (!isLocalSeatReadyMessage(event.data)) return;
+                  const frame = [...document.querySelectorAll("iframe")].find(
+                    (candidate) => candidate.contentWindow === event.source,
+                  );
+                  const url = frame ? new URL(frame.src) : null;
+                  if (
+                    !frame ||
+                    url?.searchParams.get(AIR_JAM_LOCAL_SEAT_QUERY_PARAM) !==
+                      seat.label
+                  )
+                    return;
+                  window.removeEventListener("message", onMessage);
+                  resolve((operation) => {
+                    if (frame.contentWindow)
+                      sendLocalSeatOperation(
+                        frame.contentWindow,
+                        url.origin,
+                        operation,
+                      );
+                  });
+                };
+                window.addEventListener("message", onMessage);
+                spawnPreviewController({ localSeat: seat.label });
+              }),
+          }
+        : null,
+    [enabled, spawnPreviewController],
+  );
+  useProvideLocalSeats(localSeats);
   const platformSettings = useResolvedPlatformSettingsSnapshot();
   const activeOpacity = platformSettings.previewControllers.activeOpacity;
   const sortedSessions = useMemo(

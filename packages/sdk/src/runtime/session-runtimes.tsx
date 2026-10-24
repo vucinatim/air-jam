@@ -24,6 +24,7 @@ import {
   readRuntimeInspectionContract,
 } from "./contracts/inspection";
 import { publishEmbeddedHostAgent } from "./host-agent-bridge";
+import { LocalPlayersHost } from "./local-players";
 import { publishEmbeddedHostPreview } from "./preview-inspection-bridge";
 import {
   controllerRuntimeContext,
@@ -148,8 +149,10 @@ const HostRuntimeOwner = ({
     <hostRuntimeContext.Provider value={runtime}>
       <declaredStoresContext.Provider value={declared}>
         <HostRuntimeInspectionPublisher />
-        {/* The game draws once its declared simulation has loaded. */}
-        {simulation && !runtime.simulation ? null : children}
+        <LocalPlayersHost input={input}>
+          {/* The game draws once its declared simulation has loaded. */}
+          {simulation && !runtime.simulation ? null : children}
+        </LocalPlayersHost>
       </declaredStoresContext.Provider>
     </hostRuntimeContext.Provider>
   );

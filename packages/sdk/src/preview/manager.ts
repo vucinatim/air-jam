@@ -57,7 +57,10 @@ export interface UsePreviewControllerManagerOptions {
 export interface UsePreviewControllerManagerResult {
   sessions: PreviewControllerSession[];
   canSpawn: boolean;
-  spawnPreviewController: () => PreviewControllerSession | null;
+  /** Opens a phone; `localSeat` launches it as a local player's seat under that name. */
+  spawnPreviewController: (options?: {
+    localSeat?: string;
+  }) => PreviewControllerSession | null;
   removePreviewController: (id: string) => void;
   minimizePreviewController: (id: string) => void;
   restorePreviewController: (id: string) => void;
@@ -337,8 +340,8 @@ export const usePreviewControllerManager = ({
     joinUrl.trim().length > 0 &&
     sessions.length < maxControllers;
 
-  const spawnPreviewController =
-    useCallback((): PreviewControllerSession | null => {
+  const spawnPreviewController = useCallback(
+    (options?: { localSeat?: string }): PreviewControllerSession | null => {
       if (!enabled || !joinUrl) {
         return null;
       }
@@ -354,6 +357,7 @@ export const usePreviewControllerManager = ({
           joinUrl,
           allowedOrigins,
           embedOrigin,
+          localSeat: options?.localSeat,
         });
         if (!launch) {
           return current;
@@ -371,7 +375,7 @@ export const usePreviewControllerManager = ({
         nextSession = {
           id: sessionId,
           ordinal,
-          label: `Preview ${ordinal}`,
+          label: options?.localSeat ?? `Preview ${ordinal}`,
           controllerId: launch.controllerId,
           deviceId: launch.deviceId,
           url: launch.url,
@@ -396,7 +400,9 @@ export const usePreviewControllerManager = ({
       });
 
       return nextSession;
-    }, [allowedOrigins, embedOrigin, enabled, joinUrl, maxControllers]);
+    },
+    [allowedOrigins, embedOrigin, enabled, joinUrl, maxControllers],
+  );
 
   const removePreviewController = useCallback((id: string) => {
     setSessions((current) =>

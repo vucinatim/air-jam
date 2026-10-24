@@ -101,6 +101,52 @@ The controller sends its controls once per display frame when they change, again
 after joining, and on a slow keepalive. Nothing stamps input with a device
 clock.
 
+## Keyboards And Gamepads
+
+Declare bindings beside the controls and every keyboard layout and gamepad
+plays as a local player, with no phone:
+
+```ts
+import {
+  arrows,
+  button,
+  defineAirJamInput,
+  stick,
+  wasd,
+} from "@air-jam/sdk/core";
+
+export const shipInput = defineAirJamInput(
+  { move: stick(), fire: button("pressed"), boost: button("held") },
+  {
+    keyboard: [
+      { move: wasd(), fire: "Space", boost: "ShiftLeft" },
+      { move: arrows(), fire: "Enter", boost: "ShiftRight" },
+    ],
+    gamepad: { move: "leftStick", fire: "south", boost: "rightTrigger" },
+  },
+);
+```
+
+1. Each keyboard layout is one player; every connected gamepad is one more.
+   Keys are `KeyboardEvent.code` values. A button binds one or more keys, an
+   axis binds `keys(negative, positive)`, and a stick binds `wasd()`,
+   `arrows()` or `keys4({ up, left, down, right })`.
+2. Gamepad names follow the standard layout: `south`, `east`, `west`,
+   `north`, `leftBumper`, `rightBumper`, `leftTrigger`, `rightTrigger`,
+   `select`, `start`, stick presses and the d-pad for buttons;
+   `leftStickX`/`Y` and `rightStickX`/`Y` for axes; `leftStick`, `rightStick`
+   or `dpad` for sticks. Sticks get a small deadzone and stay y down.
+3. A layout's first key, or a gamepad's first button or stick push, opens a
+   seat: a preview phone named "Keyboard 1" or "Gamepad 1" that joins like any
+   phone. Its own screen answers menus and lobby buttons; the keys or buttons
+   drive play.
+4. Keys and gamepads count only while the game page has focus, key repeats
+   never press, and losing focus releases everything.
+
+Local development's preview phones and Studio provide these seats; the game
+configures nothing else. Game code never listens to keys or polls gamepads
+itself.
+
 ## Agents
 
 Agents fill the same controls through leased participant control. They send

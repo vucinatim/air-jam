@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  assertInputBindings,
+  type AirJamInputBindings,
+} from "./input-bindings";
 
 /** A held button is true while down; a pressed button is true for one step per press. */
 export type AirJamButtonMode = "held" | "pressed";
@@ -63,24 +67,39 @@ export const axis = () => ({ kind: "axis" }) as const;
 export const stick = (options: { keepDirection?: boolean } = {}) =>
   ({ kind: "stick", keepDirection: options.keepDirection ?? false }) as const;
 
+const bindingsKey = Symbol("airjam.inputBindings");
+
 /**
  * Declares what a game reads from each player. Phone controls, agents and
  * replays fill these controls; the host applies each kind's meaning once per
- * simulation step.
+ * simulation step. `bindings` lets keyboard layouts and gamepads join as
+ * local players without a phone.
  */
 export const defineAirJamInput = <
   const TSpecs extends Record<string, ControlSpec>,
 >(
   controls: TSpecs,
-): Named<TSpecs> =>
-  Object.freeze(
-    Object.fromEntries(
-      Object.entries(controls).map(([name, spec]) => [
-        name,
-        Object.freeze({ ...spec, name }),
-      ]),
-    ),
+  bindings?: AirJamInputBindings<Named<TSpecs>>,
+): Named<TSpecs> => {
+  const input = Object.fromEntries(
+    Object.entries(controls).map(([name, spec]) => [
+      name,
+      Object.freeze({ ...spec, name }),
+    ]),
   ) as Named<TSpecs>;
+  if (bindings) {
+    assertInputBindings(input as AirJamInput, bindings as AirJamInputBindings);
+    // A symbol key keeps bindings out of the control map games iterate.
+    Object.defineProperty(input, bindingsKey, { value: bindings });
+  }
+  return Object.freeze(input);
+};
+
+/** The keyboard and gamepad bindings a game declared beside its controls. */
+export const readInputBindings = (
+  input: AirJamInput,
+): AirJamInputBindings | null =>
+  (input as { [bindingsKey]?: AirJamInputBindings })[bindingsKey] ?? null;
 
 /** A button's state as sources send it: whether it is down and how often it was pressed. */
 export interface AirJamButtonState {

@@ -1,7 +1,7 @@
 # SDK Input System Plan
 
-Last updated: 2026-10-24
-Status: phases 1 and 2 built on `claude/sdk-input-system`, on top of the core layering branch; phases 3 and 4 next; phases 1 and 2 are 1.0 scope
+Last updated: 2026-10-25
+Status: phases 1 and 2 merged into `release/1.0` (vucinatim/air-jam#135); phase 3 designed and in progress on `claude/sdk-local-players`; phases 1 and 2 are 1.0 scope
 
 This plan owns how players' input gets from any device into a game: one
 declaration of what a game reads, one set of meanings for buttons and sticks,
@@ -143,17 +143,50 @@ the same on a phone.
 
 ### 3. Local players
 
-1. keyboard layouts and gamepads as sources, from the bindings the game
-   declares; the standard gamepad layout is the vocabulary
-2. each layout in use joins as a seat on first input; Studio shows local seats
-   and lets the creator move one to another player
-3. keys count only while the game has focus, so typing in Studio never moves a
-   paddle; Studio and the Arcade grant their game frames the browser's
-   `gamepad` permission
-4. on by default in local development and Studio, opt-in in the Arcade
+A keyboard layout or a gamepad is a player without a phone. It gets a real
+seat, a preview phone running the game's own controller screen, so it joins,
+picks teams and answers menus like any player. Its keys or buttons drive that
+seat's controls.
 
-Agents prove mappings with SDK tests over simulated key and gamepad states and
-key presses in a local game page. Tim proves real gamepads in his own browser.
+1. **Bindings beside controls.** `defineAirJamInput(controls, bindings)`
+   takes `keyboard`, a list of layouts (one local player each), and
+   `gamepad`, one mapping every connected gamepad uses. Keys are
+   `KeyboardEvent.code` values. A button binds one or more keys. An axis binds
+   `keys(negative, positive)`. A stick binds `wasd()`, `arrows()` or
+   `keys4({ up, left, down, right })`. Gamepad names come from the standard
+   layout: `south`, `east`, `west`, `north`, bumpers, triggers, `select`,
+   `start`, stick presses and the d-pad for buttons; `leftStickX`/`Y` and
+   `rightStickX`/`Y` for axes; `leftStick`, `rightStick` or `dpad` for
+   sticks. Sticks pass the Gamepad API's axes through, since both are y down.
+2. **Sources are pure.** A keyboard source turns key downs and ups into
+   operations on a seat's controls, and a gamepad source turns each polled
+   snapshot into the same operations, with a radial deadzone on sticks and a
+   threshold on analog triggers bound to buttons. Both drive the
+   `ControllerInput` interface (`press`, `hold`, `set`) and live in the core,
+   so SDK tests check every mapping in Node.
+3. **Sources run where focus is.** The host page listens to keys and polls
+   gamepads only while its document has focus, so typing in Studio chat never
+   moves a paddle. Repeated key events never count as presses, and losing
+   focus releases every local seat.
+4. **Seats on first input.** The first bound key of a layout, or the first
+   button of a gamepad, asks for a seat named "Keyboard 1", "Keyboard 2" or
+   "Gamepad 1", queuing its operations until the seat is ready. The seat stays
+   until its phone is removed.
+5. **One sender per seat.** The host page forwards a seat's operations to its
+   preview phone, which applies them to the `ControllerInput` its own screen
+   uses. The phone stays the seat's only input sender, so keepalives, the
+   input log and replays need nothing new. A phone takes local input only from
+   its embedding parent, and only when it was launched as a local seat.
+6. **Whoever owns the phones provides seats.** In standalone local
+   development the SDK's preview workspace launches them. Embedded hosts ask
+   their parent over a seat request. Studio answers with Studio phones,
+   relays operations to the phone's frame or window, and grants its game frame
+   the `gamepad` permission. The Arcade answers only when a game opts in.
+   Games configure nothing.
+
+Agents prove mappings with SDK tests over simulated keys and gamepad
+snapshots, and seats with key presses in a local game page. Tim proves real
+gamepads in his own browser.
 
 Done when in Studio the creator presses W and joins Pong as "Keyboard 1", a
 gamepad joins as a second player, both play against a phone, and Air Capture
@@ -217,9 +250,28 @@ game and contract suites:
    drives the declared axes through the controller's input lane. Last Band
    Standing and Minimal read no input and declare none.
 
+6. **Local players, framework side (phase 3).** `defineAirJamInput(controls,
+   bindings)` takes keyboard layouts and a gamepad mapping, kept off the
+   control map games iterate and checked against control kinds when declared.
+   `KeyboardSource` and `GamepadSource` in the core turn key edges and polled
+   snapshots into `press`, `hold` and `set` on a seat. Repeats never press,
+   diagonals stay unit length, sticks get a radial deadzone, an analog trigger
+   presses past half, and an untouched gamepad sends nothing. The host runtime
+   runs them for every game that declares bindings: first input opens a seat,
+   operations queue until its phone reports ready, and losing focus or
+   visibility releases everything. The preview workspace provides seats in
+   standalone development by launching a preview phone named "Keyboard 1" or
+   "Gamepad 1"; an embedded host asks its parent with `airjam.local-seat.*`
+   messages, exported from `@air-jam/sdk/preview` for products. Pong, The
+   Office, Air Capture and Code Review declare bindings. In a local Pong page,
+   pressing W opened "Keyboard 1", the phone joined a team with its own
+   buttons, and holding S drove its paddle down.
+
 Next:
 
-1. Phase 3, local players: keyboard layouts and gamepads as sources.
+1. Phase 3, product side: Studio answers seat requests with Studio phones,
+   relays operations to the phone's frame or window, and grants its game frame
+   the `gamepad` permission; Tim proves a real gamepad.
 2. Code Review reads device tilt in game code; it becomes an SDK tilt source
    in phase 3.
 3. The hosted product's input flow diagram still shows schemas and send loops.
