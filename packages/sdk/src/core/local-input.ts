@@ -217,7 +217,10 @@ export class GamepadSource {
       const length = Math.hypot(x, y) || 1;
       return { x: x / length, y: y / length };
     }
-    const [xAxis, yAxis] = binding === "rightStick" ? [2, 3] : [0, 1];
+    const [xAxis, yAxis] =
+      binding === "rightStick"
+        ? [gamepadAxes.rightStickX, gamepadAxes.rightStickY]
+        : [gamepadAxes.leftStickX, gamepadAxes.leftStickY];
     return shapeStick(snapshot.axes[xAxis] ?? 0, snapshot.axes[yAxis] ?? 0);
   }
 }

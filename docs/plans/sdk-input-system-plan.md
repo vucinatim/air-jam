@@ -78,24 +78,24 @@ with fixed meanings per control kind, and records them.
 Indicators, not final names; phase 1 settles the API.
 
 ```ts
-export const pongInput = defineAirJamInput(
-  { direction: axis() },
-  {
-    keyboard: [
-      { direction: keys("KeyW", "KeyS") },
-      { direction: keys("ArrowUp", "ArrowDown") },
-    ],
-    gamepad: { direction: "leftStickY" },
-  },
-);
+export const pongInput = defineAirJamInput({ direction: axis() });
+export const pongInputBindings = defineAirJamInputBindings(pongInput, {
+  keyboard: [
+    { direction: keyAxis("KeyW", "KeyS") },
+    { direction: keyAxis("ArrowUp", "ArrowDown") },
+  ],
+  gamepad: { direction: "leftStickY" },
+});
 
-export const shipInput = defineAirJamInput(
-  { move: stick(), fire: button("pressed"), boost: button("held") },
-  {
-    keyboard: [{ move: wasd(), fire: "Space", boost: "ShiftLeft" }],
-    gamepad: { move: "leftStick", fire: "south", boost: "rightTrigger" },
-  },
-);
+export const shipInput = defineAirJamInput({
+  move: stick(),
+  fire: button("pressed"),
+  boost: button("held"),
+});
+export const shipInputBindings = defineAirJamInputBindings(shipInput, {
+  keyboard: [{ move: wasd(), fire: "Space", boost: "ShiftLeft" }],
+  gamepad: { move: "leftStick", fire: "south", boost: "rightTrigger" },
+});
 ```
 
 ```tsx
@@ -148,12 +148,13 @@ seat, a preview phone running the game's own controller screen, so it joins,
 picks teams and answers menus like any player. Its keys or buttons drive that
 seat's controls.
 
-1. **Bindings beside controls.** `defineAirJamInput(controls, bindings)`
-   takes `keyboard`, a list of layouts (one local player each), and
-   `gamepad`, one mapping every connected gamepad uses. Keys are
-   `KeyboardEvent.code` values. A button binds one or more keys. An axis binds
-   `keys(negative, positive)`. A stick binds `wasd()`, `arrows()` or
-   `keys4({ up, left, down, right })`. Gamepad names come from the standard
+1. **Bindings declared for the controls.** `defineAirJamInputBindings(input,
+bindings)` takes `keyboard`, a list of layouts (one local player each),
+   and `gamepad`, one mapping every connected gamepad uses, checks them
+   against the controls' kinds, and goes to `createAirJamApp({ input,
+inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
+   one or more keys. An axis binds `keyAxis(negative, positive)`. A stick
+   binds `wasd()`, `arrows()` or `keyStick({ up, left, down, right })`. Gamepad names come from the standard
    layout: `south`, `east`, `west`, `north`, bumpers, triggers, `select`,
    `start`, stick presses and the d-pad for buttons; `leftStickX`/`Y` and
    `rightStickX`/`Y` for axes; `leftStick`, `rightStick` or `dpad` for
@@ -166,12 +167,14 @@ seat's controls.
    so SDK tests check every mapping in Node.
 3. **Sources run where focus is.** The host page listens to keys and polls
    gamepads only while its document has focus, so typing in Studio chat never
-   moves a paddle. Repeated key events never count as presses, and losing
-   focus releases every local seat.
+   moves a paddle. Repeated key events never count as presses, keys aimed at
+   the page's own buttons and fields stay theirs, losing focus releases every
+   local seat, and an unplugged gamepad releases its own.
 4. **Seats on first input.** The first bound key of a layout, or the first
    button of a gamepad, asks for a seat named "Keyboard 1", "Keyboard 2" or
    "Gamepad 1", queuing its operations until the seat is ready. The seat stays
-   until its phone is removed.
+   until its phone is removed; a refused or closed seat is asked for again on
+   the next input.
 5. **One sender per seat.** The host page forwards a seat's operations to its
    preview phone, which applies them to the `ControllerInput` its own screen
    uses. The phone stays the seat's only input sender, so keepalives, the
@@ -180,11 +183,15 @@ seat's controls.
    origin its topology declares, else its own origin, as the preview
    workspace launches it.
 6. **Whoever owns the phones provides seats.** In standalone local
-   development the SDK's preview workspace launches them. Embedded hosts ask
-   their parent over a seat request. Studio answers with Studio phones,
-   relays operations to the phone's frame or window, and grants its game frame
-   the `gamepad` permission. The Arcade answers only when a game opts in.
-   Games configure nothing.
+   development the SDK's preview workspace launches them, a seat's phone
+   being the session launched for its key. An embedded host first asks its
+   parent whether it provides seats (`airjam.local-seat.query`, answered with
+   `available`) and takes keys and gamepads only after a yes; it then
+   requests seats, and the parent answers `opened`, `refused` or later
+   `closed`. Studio answers with Studio phones, relays operations to the
+   phone's frame or, through a page of its own, its window, and grants its
+   game frame the `gamepad` permission. The Arcade doesn't answer until a game
+   opts in, so its keys stay its own. Games configure nothing.
 
 Agents prove mappings with SDK tests over simulated keys and gamepad
 snapshots, and seats with key presses in a local game page. Tim proves real
@@ -252,19 +259,22 @@ game and contract suites:
    drives the declared axes through the controller's input lane. Last Band
    Standing and Minimal read no input and declare none.
 
-6. **Local players, framework side (phase 3).** `defineAirJamInput(controls,
-bindings)` takes keyboard layouts and a gamepad mapping, kept off the
-   control map games iterate and checked against control kinds when declared.
+6. **Local players, framework side (phase 3).**
+   `defineAirJamInputBindings(input, bindings)` takes keyboard layouts and a
+   gamepad mapping, checked against control kinds when declared, and goes to
+   `createAirJamApp` as `inputBindings`.
    `KeyboardSource` and `GamepadSource` in the core turn key edges and polled
    snapshots into `press`, `hold` and `set` on a seat. Repeats never press,
    diagonals stay unit length, sticks get a radial deadzone, an analog trigger
    presses past half, and an untouched gamepad sends nothing. The host runtime
    runs them for every game that declares bindings: first input opens a seat,
-   operations queue until its phone reports ready, and losing focus or
-   visibility releases everything. The preview workspace provides seats in
-   standalone development by launching a preview phone named "Keyboard 1" or
-   "Gamepad 1"; an embedded host asks its parent with `airjam.local-seat.*`
-   messages, exported from `@air-jam/sdk/preview` for products. Pong, The
+   operations queue until its phone reports ready, a removed phone frees the
+   seat for the next input, and losing focus, visibility or a gamepad
+   releases what it held. The preview workspace provides seats in standalone
+   development by launching a preview phone named "Keyboard 1" or "Gamepad
+   1"; an embedded host asks its parent with `airjam.local-seat.*` messages,
+   exported from `@air-jam/sdk/preview` for products, and starts only once
+   the parent says it provides seats. Pong, The
    Office, Air Capture and Code Review declare bindings. In a local Pong page,
    pressing W opened "Keyboard 1", the phone joined a team with its own
    buttons, and holding S drove its paddle down.

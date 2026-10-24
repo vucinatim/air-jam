@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ControllerInput } from "../src/core/controller-input";
+import { axis, button, defineAirJamInput, stick } from "../src/core/input";
 import {
-  axis,
-  button,
-  defineAirJamInput,
-  readInputBindings,
-  stick,
-} from "../src/core/input";
-import { arrows, keys, wasd } from "../src/core/input-bindings";
+  arrows,
+  defineAirJamInputBindings,
+  keyAxis,
+  wasd,
+} from "../src/core/input-bindings";
 import {
   GamepadSource,
   KeyboardSource,
@@ -17,31 +16,29 @@ import {
   type LocalInputOperation,
 } from "../src/core/local-input";
 
-const fighterInput = defineAirJamInput(
-  {
-    move: stick(),
-    strike: button("held"),
-    dodge: button("pressed"),
-    turn: axis(),
-  },
-  {
-    keyboard: [
-      {
-        move: wasd(),
-        strike: ["KeyJ", "Digit1"],
-        dodge: "Space",
-        turn: keys("KeyQ", "KeyE"),
-      },
-      { move: arrows(), strike: "Enter" },
-    ],
-    gamepad: {
-      move: "leftStick",
-      strike: ["south", "rightTrigger"],
-      dodge: "east",
-      turn: "rightStickX",
+const fighterInput = defineAirJamInput({
+  move: stick(),
+  strike: button("held"),
+  dodge: button("pressed"),
+  turn: axis(),
+});
+const fighterBindings = defineAirJamInputBindings(fighterInput, {
+  keyboard: [
+    {
+      move: wasd(),
+      strike: ["KeyJ", "Digit1"],
+      dodge: "Space",
+      turn: keyAxis("KeyQ", "KeyE"),
     },
+    { move: arrows(), strike: "Enter" },
+  ],
+  gamepad: {
+    move: "leftStick",
+    strike: ["south", "rightTrigger"],
+    dodge: "east",
+    turn: "rightStickX",
   },
-);
+});
 
 /** A seat's real controls, reached through the same operations a phone receives. */
 const seat = () => {
@@ -68,33 +65,23 @@ const pad = (
 });
 
 describe("declared bindings", () => {
-  it("keeps bindings out of the controls games iterate", () => {
-    expect(Object.keys(fighterInput)).toEqual([
-      "move",
-      "strike",
-      "dodge",
-      "turn",
-    ]);
-    expect(readInputBindings(fighterInput)?.keyboard).toHaveLength(2);
-  });
   it("fails fast on bindings for undeclared controls or the wrong kind", () => {
+    const fire = defineAirJamInput({ fire: button("pressed") });
+    const move = defineAirJamInput({ move: stick() });
     expect(() =>
-      defineAirJamInput(
-        { fire: button("pressed") },
-        { keyboard: [{ jump: "Space" } as never] },
-      ),
+      defineAirJamInputBindings(fire, {
+        keyboard: [{ jump: "Space" } as never],
+      }),
     ).toThrow(/not a declared control/);
     expect(() =>
-      defineAirJamInput(
-        { move: stick() },
-        { keyboard: [{ move: "KeyW" as never }] },
-      ),
+      defineAirJamInputBindings(move, {
+        keyboard: [{ move: "KeyW" as never }],
+      }),
     ).toThrow(/does not fit a stick/);
     expect(() =>
-      defineAirJamInput(
-        { move: stick() },
-        { gamepad: { move: "leftStickX" as never } },
-      ),
+      defineAirJamInputBindings(move, {
+        gamepad: { move: "leftStickX" as never },
+      }),
     ).toThrow(/does not fit a stick/);
   });
 });
@@ -102,10 +89,7 @@ describe("declared bindings", () => {
 describe("keyboard source", () => {
   it("presses once per key down and ignores repeats", () => {
     const { controls, target, sent } = seat();
-    const keyboard = new KeyboardSource(
-      readInputBindings(fighterInput)!.keyboard![0],
-      target,
-    );
+    const keyboard = new KeyboardSource(fighterBindings.keyboard![0], target);
     keyboard.keyDown("Space", false);
     keyboard.keyDown("Space", true);
     keyboard.keyDown("Space", true);
@@ -120,10 +104,7 @@ describe("keyboard source", () => {
   });
   it("holds a button while any of its keys is down", () => {
     const { controls, target } = seat();
-    const keyboard = new KeyboardSource(
-      readInputBindings(fighterInput)!.keyboard![0],
-      target,
-    );
+    const keyboard = new KeyboardSource(fighterBindings.keyboard![0], target);
     keyboard.keyDown("KeyJ", false);
     keyboard.keyDown("Digit1", false);
     keyboard.keyUp("KeyJ");
@@ -133,10 +114,7 @@ describe("keyboard source", () => {
   });
   it("steers a stick y down and keeps diagonals at unit length", () => {
     const { controls, target } = seat();
-    const keyboard = new KeyboardSource(
-      readInputBindings(fighterInput)!.keyboard![0],
-      target,
-    );
+    const keyboard = new KeyboardSource(fighterBindings.keyboard![0], target);
     keyboard.keyDown("KeyS", false);
     expect(controls.value("move")).toEqual({ x: 0, y: 1 });
     keyboard.keyDown("KeyD", false);
@@ -147,10 +125,7 @@ describe("keyboard source", () => {
   });
   it("lets the latest key of an axis win and releases everything on focus loss", () => {
     const { controls, target } = seat();
-    const keyboard = new KeyboardSource(
-      readInputBindings(fighterInput)!.keyboard![0],
-      target,
-    );
+    const keyboard = new KeyboardSource(fighterBindings.keyboard![0], target);
     keyboard.keyDown("KeyQ", false);
     keyboard.keyDown("KeyE", false);
     expect(controls.value("turn")).toBe(1);
@@ -164,7 +139,7 @@ describe("keyboard source", () => {
     expect(controls.isDown("strike")).toBe(false);
   });
   it("only handles its own layout's keys", () => {
-    const [first, second] = readInputBindings(fighterInput)!.keyboard!;
+    const [first, second] = fighterBindings.keyboard!;
     expect(new KeyboardSource(first, seat().target).handles("ArrowUp")).toBe(
       false,
     );
@@ -180,7 +155,7 @@ describe("gamepad source", () => {
     return {
       ...parts,
       gamepad: new GamepadSource(
-        readInputBindings(fighterInput)!.gamepad!,
+        fighterBindings.gamepad!,
         fighterInput,
         parts.target,
       ),

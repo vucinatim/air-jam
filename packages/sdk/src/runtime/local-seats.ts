@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AirJamInput } from "../core/input";
-import { readInputBindings } from "../core/input";
+import type { AirJamInputBindings } from "../core/input-bindings";
 import {
   GamepadSource,
   KeyboardSource,
@@ -15,7 +15,8 @@ import { embeddedRuntimeParent } from "./embedded-parent";
 
 /**
  * A preview phone launched for a local player carries its seat's label in
- * this query parameter, and only such a phone takes local input.
+ * this query parameter, as its player name, and only such a phone takes
+ * local input.
  */
 export const AIR_JAM_LOCAL_SEAT_QUERY_PARAM = "airjamLocalSeat";
 
@@ -25,14 +26,26 @@ export interface LocalSeat {
   label: string;
 }
 
-/**
- * Whoever owns preview phones: opens a phone for a seat and resolves with a
- * sender once that phone takes input, or never when it cannot give seats.
- */
-export interface LocalSeatProvider {
-  open(seat: LocalSeat): Promise<(operation: LocalInputOperation) => void>;
+/** A seat whose phone takes input: how to reach it, and when it goes away. */
+export interface OpenedLocalSeat {
+  send: (operation: LocalInputOperation) => void;
+  /** Settles when the seat's phone is removed; the next input asks again. */
+  closed: Promise<void>;
 }
 
+/** Whoever owns preview phones: opens a phone for a seat, or refuses with null. */
+export interface LocalSeatProvider {
+  open(seat: LocalSeat): Promise<OpenedLocalSeat | null>;
+}
+
+const seatSchema = z
+  .object({
+    key: z.string().min(1).max(32),
+    label: z.string().min(1).max(32),
+  })
+  .strict();
+const seatMessage = <TType extends string>(type: TType) =>
+  z.object({ type: z.literal(type), seat: z.string() }).strict();
 const phoneReadySchema = z
   .object({ type: z.literal("airjam.local-seat.ready") })
   .strict();
@@ -42,17 +55,38 @@ const phoneInputSchema = z
     operation: localInputOperationSchema,
   })
   .strict();
+const availableSchema = z
+  .object({ type: z.literal("airjam.local-seat.available") })
+  .strict();
+const openedSchema = seatMessage("airjam.local-seat.opened");
+const refusedSchema = seatMessage("airjam.local-seat.refused");
+const closedSchema = seatMessage("airjam.local-seat.closed");
+
+/*
+ * The seat protocol between an embedded game host and the product that
+ * frames it, with every message posted to a declared origin:
+ *
+ * - host → parent `airjam.local-seat.query`; a parent that provides seats
+ *   answers `airjam.local-seat.available`, and only then does the host take
+ *   keys and gamepads.
+ * - host → parent `airjam.local-seat.request` with a seat; the parent answers
+ *   `opened` once that seat's phone takes input, or `refused`, and later
+ *   `closed` when the phone is removed.
+ * - host → parent `airjam.local-seat.input` with the seat's key and one
+ *   operation, which the parent hands to the seat's phone.
+ *
+ * A seat's phone takes operations only from its direct parent frame, and
+ * says `airjam.local-seat.ready` to it. A product showing a phone in its own
+ * window frames the phone in a page of its own and relays to that page; it
+ * never messages a phone in another window directly.
+ */
+
 /** What a game frame asks of the product that embeds it. */
 export const localSeatRequestSchema = z
-  .object({
-    type: z.literal("airjam.local-seat.request"),
-    seat: z
-      .object({
-        key: z.string().min(1).max(32),
-        label: z.string().min(1).max(32),
-      })
-      .strict(),
-  })
+  .object({ type: z.literal("airjam.local-seat.request"), seat: seatSchema })
+  .strict();
+export const localSeatQuerySchema = z
+  .object({ type: z.literal("airjam.local-seat.query") })
   .strict();
 export const localSeatRelaySchema = z
   .object({
@@ -60,9 +94,6 @@ export const localSeatRelaySchema = z
     seat: z.string(),
     operation: localInputOperationSchema,
   })
-  .strict();
-const seatOpenedSchema = z
-  .object({ type: z.literal("airjam.local-seat.opened"), seat: z.string() })
   .strict();
 
 /** Sends one operation to a local-seat phone's frame. */
@@ -75,9 +106,16 @@ export const sendLocalSeatOperation = (
 /** Whether a message is a local-seat phone announcing it takes input. */
 export const isLocalSeatReadyMessage = (data: unknown): boolean =>
   phoneReadySchema.safeParse(data).success;
-/** Tells an embedded game frame its seat's phone takes input now. */
-export const localSeatOpenedMessage = (seat: string) =>
-  ({ type: "airjam.local-seat.opened", seat }) as const;
+/** What a product tells an embedded game frame about its seats. */
+export const localSeatMessages = {
+  available: () => ({ type: "airjam.local-seat.available" }) as const,
+  opened: (seat: string) =>
+    ({ type: "airjam.local-seat.opened", seat }) as const,
+  refused: (seat: string) =>
+    ({ type: "airjam.local-seat.refused", seat }) as const,
+  closed: (seat: string) =>
+    ({ type: "airjam.local-seat.closed", seat }) as const,
+};
 
 /** A frame's parent and the origin it may talk to. */
 export interface LocalSeatParent {
@@ -85,65 +123,127 @@ export interface LocalSeatParent {
   origin: string;
 }
 
-/** An embedded host asks its declared parent for seats and relays operations through it. */
-export const createParentSeatProvider = (
+/**
+ * An embedded host asks its declared parent whether it provides seats and
+ * calls `onAvailable` with a provider once it says so; a parent that never
+ * answers leaves the host's keys and gamepads alone. Stops listening when
+ * the returned function is called.
+ */
+export const connectParentSeats = (
   parent: LocalSeatParent,
-): LocalSeatProvider => ({
-  open: (seat) =>
-    new Promise((resolve) => {
-      const onMessage = (event: MessageEvent) => {
-        if (event.source !== parent.window || event.origin !== parent.origin)
-          return;
-        const opened = seatOpenedSchema.safeParse(event.data);
-        if (!opened.success || opened.data.seat !== seat.key) return;
-        window.removeEventListener("message", onMessage);
-        resolve((operation) =>
-          parent.window.postMessage(
-            { type: "airjam.local-seat.input", seat: seat.key, operation },
-            parent.origin,
-          ),
-        );
-      };
-      window.addEventListener("message", onMessage);
-      parent.window.postMessage(
-        { type: "airjam.local-seat.request", seat },
-        parent.origin,
-      );
-    }),
-});
+  onAvailable: (provider: LocalSeatProvider) => void,
+): (() => void) => {
+  const stop = new AbortController();
+  const fromParent = (event: MessageEvent) =>
+    event.source === parent.window && event.origin === parent.origin;
+  const listen = (onMessage: (event: MessageEvent) => void) =>
+    window.addEventListener(
+      "message",
+      (event) => {
+        if (fromParent(event)) onMessage(event);
+      },
+      { signal: stop.signal },
+    );
+  const post = (message: object) =>
+    parent.window.postMessage(message, parent.origin);
+
+  const closings = new Map<string, () => void>();
+  const pending = new Map<string, (opened: OpenedLocalSeat | null) => void>();
+  let announced = false;
+  listen((event) => {
+    if (availableSchema.safeParse(event.data).success) {
+      if (announced) return;
+      announced = true;
+      onAvailable({
+        open: (seat) =>
+          new Promise((resolve) => {
+            pending.set(seat.key, resolve);
+            post({ type: "airjam.local-seat.request", seat });
+          }),
+      });
+      return;
+    }
+    const opened = openedSchema.safeParse(event.data);
+    if (opened.success) {
+      const key = opened.data.seat;
+      const resolve = pending.get(key);
+      if (!resolve) return;
+      pending.delete(key);
+      resolve({
+        send: (operation) =>
+          post({ type: "airjam.local-seat.input", seat: key, operation }),
+        closed: new Promise((close) => closings.set(key, close)),
+      });
+      return;
+    }
+    const refused = refusedSchema.safeParse(event.data);
+    if (refused.success) {
+      pending.get(refused.data.seat)?.(null);
+      pending.delete(refused.data.seat);
+      return;
+    }
+    const closed = closedSchema.safeParse(event.data);
+    if (closed.success) {
+      closings.get(closed.data.seat)?.();
+      closings.delete(closed.data.seat);
+    }
+  });
+  post({ type: "airjam.local-seat.query" });
+  return () => stop.abort();
+};
 
 const MAX_QUEUED_OPERATIONS = 256;
 
 /**
  * A seat's controls, asked for on the first operation that does something:
- * operations queue until its phone is ready, and a release before then is moot.
+ * operations queue until its phone is ready, a release before then is moot,
+ * and a refused or closed seat is asked for again on the next one.
  */
 const seatOnFirstInput = (
   provider: LocalSeatProvider,
   seat: LocalSeat,
 ): LocalInputTarget => {
-  let queue: LocalInputOperation[] | null = null;
-  let send: ((operation: LocalInputOperation) => void) | null = null;
+  type State =
+    | { kind: "closed" }
+    | { kind: "opening"; queue: LocalInputOperation[] }
+    | { kind: "open"; send: OpenedLocalSeat["send"] };
+  const closed: State = { kind: "closed" };
+  let state: State = closed;
   return new RemoteInputTarget((operation) => {
-    if (send) return send(operation);
-    if (!queue) {
-      if (operation.op === "release-all") return;
-      queue = [];
-      void provider.open(seat).then((sender) => {
-        send = sender;
-        for (const queued of queue ?? []) sender(queued);
-        queue = [];
+    if (state.kind === "open") return state.send(operation);
+    if (state.kind === "closed") {
+      if (operation.op === "release" || operation.op === "release-all") return;
+      const opening = {
+        kind: "opening" as const,
+        queue: [] as LocalInputOperation[],
+      };
+      state = opening;
+      void provider.open(seat).then((opened) => {
+        if (state !== opening) return;
+        if (!opened) {
+          state = closed;
+          return;
+        }
+        const open = { kind: "open" as const, send: opened.send };
+        state = open;
+        for (const queued of opening.queue) opened.send(queued);
+        void opened.closed.then(() => {
+          if (state === open) state = closed;
+        });
       });
     }
-    queue.push(operation);
-    if (queue.length > MAX_QUEUED_OPERATIONS) queue.shift();
+    state.queue.push(operation);
+    if (state.queue.length > MAX_QUEUED_OPERATIONS) state.queue.shift();
   });
 };
 
-const isTyping = (target: EventTarget | null): boolean =>
+/** Keys aimed at the page's own controls, such as typing or activating a button. */
+const isInteractive = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   (target.isContentEditable ||
-    ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName));
+    target.closest(
+      "input, select, textarea, button, a[href], summary, [role=button], [role=link], [role=menuitem], [role=tab]",
+    ) !== null);
 
 /**
  * The host page's local players: each declared keyboard layout and each
@@ -152,10 +252,9 @@ const isTyping = (target: EventTarget | null): boolean =>
  */
 export const startLocalPlayers = (
   input: AirJamInput,
+  bindings: AirJamInputBindings,
   provider: LocalSeatProvider,
 ): (() => void) => {
-  const bindings = readInputBindings(input);
-  if (!bindings) return () => {};
   const layouts = bindings.keyboard ?? [];
   const keyboards = layouts.map(
     (layout, index) =>
@@ -170,7 +269,7 @@ export const startLocalPlayers = (
   const gamepads = new Map<number, GamepadSource>();
 
   const keydown = (event: KeyboardEvent) => {
-    if (isTyping(event.target)) return;
+    if (isInteractive(event.target)) return;
     for (const keyboard of keyboards)
       if (keyboard.handles(event.code)) {
         event.preventDefault();
@@ -192,8 +291,10 @@ export const startLocalPlayers = (
   const poll = () => {
     frame = requestAnimationFrame(poll);
     if (!bindings.gamepad || !document.hasFocus()) return;
+    const connected = new Set<number>();
     for (const pad of navigator.getGamepads?.() ?? []) {
       if (!pad || pad.mapping !== "standard") continue;
+      connected.add(pad.index);
       let source = gamepads.get(pad.index);
       if (!source) {
         source = new GamepadSource(
@@ -208,6 +309,12 @@ export const startLocalPlayers = (
       }
       source.update(pad);
     }
+    // An unplugged pad lets go of everything; plugged in again, it starts clean.
+    for (const [index, source] of gamepads)
+      if (!connected.has(index)) {
+        source.release();
+        gamepads.delete(index);
+      }
   };
 
   window.addEventListener("keydown", keydown);
@@ -234,9 +341,10 @@ export const readLocalSeatLabel = (): string | null =>
       );
 
 /**
- * The phone side: a local-seat phone applies its parent's operations to its
- * own controls. Its parent is the embedding product its topology declares,
- * or else the preview workspace, which launches it on its own origin.
+ * The phone side: a local-seat phone applies its direct parent's operations
+ * to its own controls. Its parent is the embedding product its topology
+ * declares, or else the preview workspace, which launches it on its own
+ * origin.
  */
 export const listenForLocalSeatInput = (
   target: LocalInputTarget | null,

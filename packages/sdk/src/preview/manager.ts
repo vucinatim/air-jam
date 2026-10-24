@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ControllerOrientation } from "../protocol/controller";
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
+import type { LocalSeat } from "../runtime/local-seats";
 import {
   type PreviewControllerBounds,
   type PreviewControllerResizeHandle,
@@ -29,6 +30,8 @@ export interface PreviewControllerSession {
   id: string;
   ordinal: number;
   label: string;
+  /** The local player's seat this phone plays, if it was launched for one. */
+  localSeat: LocalSeat | null;
   controllerId: string;
   deviceId: string;
   url: string;
@@ -57,9 +60,9 @@ export interface UsePreviewControllerManagerOptions {
 export interface UsePreviewControllerManagerResult {
   sessions: PreviewControllerSession[];
   canSpawn: boolean;
-  /** Opens a phone; `localSeat` launches it as a local player's seat under that name. */
+  /** Opens a phone; `localSeat` launches it as that local player's seat, named after it. */
   spawnPreviewController: (options?: {
-    localSeat?: string;
+    localSeat?: LocalSeat;
   }) => PreviewControllerSession | null;
   removePreviewController: (id: string) => void;
   minimizePreviewController: (id: string) => void;
@@ -341,7 +344,7 @@ export const usePreviewControllerManager = ({
     sessions.length < maxControllers;
 
   const spawnPreviewController = useCallback(
-    (options?: { localSeat?: string }): PreviewControllerSession | null => {
+    (options?: { localSeat?: LocalSeat }): PreviewControllerSession | null => {
       if (!enabled || !joinUrl) {
         return null;
       }
@@ -357,7 +360,7 @@ export const usePreviewControllerManager = ({
           joinUrl,
           allowedOrigins,
           embedOrigin,
-          localSeat: options?.localSeat,
+          localSeat: options?.localSeat?.label,
         });
         if (!launch) {
           return current;
@@ -375,7 +378,8 @@ export const usePreviewControllerManager = ({
         nextSession = {
           id: sessionId,
           ordinal,
-          label: options?.localSeat ?? `Preview ${ordinal}`,
+          label: options?.localSeat?.label ?? `Preview ${ordinal}`,
+          localSeat: options?.localSeat ?? null,
           controllerId: launch.controllerId,
           deviceId: launch.deviceId,
           url: launch.url,

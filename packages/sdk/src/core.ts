@@ -46,8 +46,9 @@ export {
 } from "./core/input";
 export {
   arrows,
-  keys,
-  keys4,
+  defineAirJamInputBindings,
+  keyAxis,
+  keyStick,
   wasd,
   type AirJamGamepadAxis,
   type AirJamGamepadButton,

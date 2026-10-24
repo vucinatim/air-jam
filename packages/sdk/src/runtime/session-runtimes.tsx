@@ -8,6 +8,7 @@ import {
   type AirJamProviderProps,
 } from "../context/session-providers";
 import type { AirJamInput } from "../core/input";
+import type { AirJamInputBindings } from "../core/input-bindings";
 import type { AttachableStore } from "../core/replicated-store";
 import type { AirJamSimulationDeclaration } from "../core/simulation";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
@@ -43,6 +44,8 @@ export type AirJamHostRuntimeProps = AirJamProviderProps &
     simulation?: AirJamSimulationDeclaration;
     /** The game's declared controls, read in simulation steps. */
     input?: AirJamInput;
+    /** Keyboard layouts and gamepads that join as local players. */
+    inputBindings?: AirJamInputBindings;
   };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
@@ -113,6 +116,7 @@ const HostRuntimeOwner = ({
   stores = NO_STORES,
   simulation,
   input,
+  inputBindings,
 }: Pick<
   AirJamHostRuntimeProps,
   | "children"
@@ -124,6 +128,7 @@ const HostRuntimeOwner = ({
   | "stores"
   | "simulation"
   | "input"
+  | "inputBindings"
 >): JSX.Element => {
   const declared = useMemo(() => new Set(stores), [stores]);
   const game = useMemo(
@@ -149,7 +154,7 @@ const HostRuntimeOwner = ({
     <hostRuntimeContext.Provider value={runtime}>
       <declaredStoresContext.Provider value={declared}>
         <HostRuntimeInspectionPublisher />
-        <LocalPlayersHost input={input}>
+        <LocalPlayersHost input={input} bindings={inputBindings}>
           {/* The game draws once its declared simulation has loaded. */}
           {simulation && !runtime.simulation ? null : children}
         </LocalPlayersHost>
@@ -215,6 +220,7 @@ export const AirJamHostRuntime = ({
   stores,
   simulation,
   input,
+  inputBindings,
   ...providerProps
 }: AirJamHostRuntimeProps): JSX.Element => {
   return (
@@ -229,6 +235,7 @@ export const AirJamHostRuntime = ({
           stores={stores}
           simulation={simulation}
           input={input}
+          inputBindings={inputBindings}
         >
           {children}
         </HostRuntimeOwner>

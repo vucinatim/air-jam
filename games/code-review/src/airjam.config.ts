@@ -8,7 +8,10 @@
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
-import { codeReviewInput } from "./game/contracts/input";
+import {
+  codeReviewInput,
+  codeReviewInputBindings,
+} from "./game/contracts/input";
 import { codeReviewSimulation } from "./game/engine/code-review-simulation";
 import { gameStore } from "./game/stores/code-review-store";
 
@@ -36,4 +39,5 @@ export const airjam = createAirJamApp({
   agent: agentContract,
   testing: "./testing/profiles.ts",
   input: codeReviewInput,
+  inputBindings: codeReviewInputBindings,
 });

@@ -27,8 +27,8 @@ export interface AirJamKeyStickBinding {
 const list = (keys: OneOrMore<AirJamKeyCode>): readonly AirJamKeyCode[] =>
   typeof keys === "string" ? [keys] : keys;
 
-/** An axis from two keys or key groups: `keys("KeyW", "KeyS")`. */
-export const keys = (
+/** An axis from two keys or key groups: `keyAxis("KeyW", "KeyS")`. */
+export const keyAxis = (
   negative: OneOrMore<AirJamKeyCode>,
   positive: OneOrMore<AirJamKeyCode>,
 ): AirJamKeyAxisBinding => ({
@@ -37,7 +37,7 @@ export const keys = (
   positive: list(positive),
 });
 /** A stick from four keys or key groups. */
-export const keys4 = (directions: {
+export const keyStick = (directions: {
   up: OneOrMore<AirJamKeyCode>;
   left: OneOrMore<AirJamKeyCode>;
   down: OneOrMore<AirJamKeyCode>;
@@ -50,9 +50,9 @@ export const keys4 = (directions: {
   right: list(directions.right),
 });
 export const wasd = () =>
-  keys4({ up: "KeyW", left: "KeyA", down: "KeyS", right: "KeyD" });
+  keyStick({ up: "KeyW", left: "KeyA", down: "KeyS", right: "KeyD" });
 export const arrows = () =>
-  keys4({
+  keyStick({
     up: "ArrowUp",
     left: "ArrowLeft",
     down: "ArrowDown",
@@ -144,18 +144,24 @@ const gamepadFits = (control: AirJamControl, binding: unknown): boolean => {
   );
 };
 
-/** Fails fast on a binding for an undeclared control or of the wrong kind. */
-export const assertInputBindings = (
-  input: AirJamInput,
-  bindings: AirJamInputBindings,
-): void => {
+/**
+ * Declares how local players drive a game's controls without a phone: each
+ * keyboard layout is one player, and every connected gamepad is one more.
+ * Pass the result to `createAirJamApp({ input, inputBindings })`. Fails fast
+ * on a binding for an undeclared control or of the wrong kind.
+ */
+export const defineAirJamInputBindings = <TInput extends object>(
+  input: TInput,
+  bindings: AirJamInputBindings<TInput>,
+): AirJamInputBindings<TInput> => {
+  const controls = input as AirJamInput;
   const check = (
     source: string,
     layout: Readonly<Record<string, unknown>>,
     fits: (control: AirJamControl, binding: unknown) => boolean,
   ) => {
     for (const [name, binding] of Object.entries(layout)) {
-      const control = input[name];
+      const control = controls[name];
       if (!control)
         throw new Error(
           `${source} binds "${name}", which is not a declared control.`,
@@ -170,4 +176,5 @@ export const assertInputBindings = (
     check(`Keyboard layout ${index + 1}`, layout, keyboardFits),
   );
   if (bindings.gamepad) check("Gamepad mapping", bindings.gamepad, gamepadFits);
+  return bindings;
 };

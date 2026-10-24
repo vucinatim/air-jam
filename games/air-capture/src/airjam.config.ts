@@ -10,7 +10,10 @@
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
-import { airCaptureInput } from "./game/contracts/input";
+import {
+  airCaptureInput,
+  airCaptureInputBindings,
+} from "./game/contracts/input";
 import { prototypeMatchStore } from "./game/stores/match/match-store";
 
 export const gameMetadata = defineAirJamGameMetadata({
@@ -41,4 +44,5 @@ export const airjam = createAirJamApp({
   agent: agentContract,
   testing: "./testing/profiles.ts",
   input: airCaptureInput,
+  inputBindings: airCaptureInputBindings,
 });

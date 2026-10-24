@@ -103,34 +103,42 @@ clock.
 
 ## Keyboards And Gamepads
 
-Declare bindings beside the controls and every keyboard layout and gamepad
-plays as a local player, with no phone:
+Declare bindings for the controls and every keyboard layout and gamepad plays
+as a local player, with no phone:
 
 ```ts
 import {
   arrows,
   button,
   defineAirJamInput,
+  defineAirJamInputBindings,
   stick,
   wasd,
 } from "@air-jam/sdk/core";
 
-export const shipInput = defineAirJamInput(
-  { move: stick(), fire: button("pressed"), boost: button("held") },
-  {
-    keyboard: [
-      { move: wasd(), fire: "Space", boost: "ShiftLeft" },
-      { move: arrows(), fire: "Enter", boost: "ShiftRight" },
-    ],
-    gamepad: { move: "leftStick", fire: "south", boost: "rightTrigger" },
-  },
-);
+export const shipInput = defineAirJamInput({
+  move: stick(),
+  fire: button("pressed"),
+  boost: button("held"),
+});
+
+export const shipInputBindings = defineAirJamInputBindings(shipInput, {
+  keyboard: [
+    { move: wasd(), fire: "Space", boost: "ShiftLeft" },
+    { move: arrows(), fire: "Enter", boost: "ShiftRight" },
+  ],
+  gamepad: { move: "leftStick", fire: "south", boost: "rightTrigger" },
+});
+
+// airjam.config.ts
+createAirJamApp({ input: shipInput, inputBindings: shipInputBindings, ... });
 ```
 
 1. Each keyboard layout is one player; every connected gamepad is one more.
    Keys are `KeyboardEvent.code` values. A button binds one or more keys, an
-   axis binds `keys(negative, positive)`, and a stick binds `wasd()`,
-   `arrows()` or `keys4({ up, left, down, right })`.
+   axis binds `keyAxis(negative, positive)`, and a stick binds `wasd()`,
+   `arrows()` or `keyStick({ up, left, down, right })`. A binding for a
+   control that isn't declared, or of the wrong kind, throws when declared.
 2. Gamepad names follow the standard layout: `south`, `east`, `west`,
    `north`, `leftBumper`, `rightBumper`, `leftTrigger`, `rightTrigger`,
    `select`, `start`, stick presses and the d-pad for buttons;
@@ -139,13 +147,15 @@ export const shipInput = defineAirJamInput(
 3. A layout's first key, or a gamepad's first button or stick push, opens a
    seat: a preview phone named "Keyboard 1" or "Gamepad 1" that joins like any
    phone. Its own screen answers menus and lobby buttons; the keys or buttons
-   drive play.
+   drive play. Removing that phone frees the seat, and the next key opens a
+   new one.
 4. Keys and gamepads count only while the game page has focus, key repeats
-   never press, and losing focus releases everything.
+   never press, and losing focus or unplugging a gamepad releases what it
+   held. Keys aimed at the page's own buttons and fields stay theirs.
 
-Local development's preview phones and Studio provide these seats; the game
-configures nothing else. Game code never listens to keys or polls gamepads
-itself.
+Local development's preview phones and Studio provide these seats; a page
+with nobody to provide them leaves keys and gamepads alone. Game code never
+listens to keys or polls gamepads itself.
 
 ## Agents
 

@@ -35,6 +35,8 @@ export const previewControllerWindowStateLabel: Record<
 
 export interface PreviewControllerWindowProps {
   session: PreviewControllerSession;
+  /** Receives the controller frame while it is mounted. */
+  frameRef?: (frame: HTMLIFrameElement | null) => void;
   activeOpacity: number;
   highContrast?: boolean;
   dragging?: boolean;
@@ -148,6 +150,7 @@ const RESIZE_HANDLES: Array<{
 
 export const PreviewControllerWindow = ({
   session,
+  frameRef,
   activeOpacity,
   highContrast = false,
   dragging = false,
@@ -368,7 +371,10 @@ export const PreviewControllerWindow = ({
               }}
             >
               <iframe
-                ref={iframeRef}
+                ref={(frame) => {
+                  iframeRef.current = frame;
+                  frameRef?.(frame);
+                }}
                 src={session.url}
                 title={`${session.label} controller`}
                 data-testid={`preview-controller-frame-${session.ordinal}`}
