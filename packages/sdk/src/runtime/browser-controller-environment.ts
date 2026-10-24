@@ -51,6 +51,9 @@ export const createBrowserControllerEnvironment =
         if (typeof navigator !== "undefined" && navigator.vibrate)
           navigator.vibrate(pattern);
       },
+      requestFrame: (callback) => {
+        requestAnimationFrame(() => callback());
+      },
       transport: (getSocket) => getControllerRealtimeClient(getSocket),
       emitDevEvent: emitAirJamDevRuntimeEvent,
       setDevLogContext: updateDevBrowserLogContext,

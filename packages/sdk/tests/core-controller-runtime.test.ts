@@ -1,8 +1,12 @@
 // Runs in plain Node: the core controller runtime needs no React and no DOM.
 import { describe, expect, it, vi } from "vitest";
 import {
+  axis,
+  button,
   ControllerRuntime,
   createConnectionStore,
+  defineAirJamInput,
+  stick,
   type AirJamControllerEnvironment,
   type ControllerRoomBinding,
 } from "../src/core";
@@ -13,6 +17,7 @@ const createMemoryEnvironment = (
 ) => {
   const bindings = new Map<string, ControllerRoomBinding>();
   const vibrate = vi.fn();
+  const frames: (() => void)[] = [];
   const environment: AirJamControllerEnvironment = {
     embedded: null,
     requestedRoomId: "ROOM1",
@@ -26,11 +31,15 @@ const createMemoryEnvironment = (
     writeBinding: (roomId, binding) => bindings.set(roomId, binding),
     clearBinding: (roomId) => bindings.delete(roomId),
     vibrate,
+    requestFrame: (callback) => frames.push(callback),
     transport: () => socket,
     emitDevEvent: () => {},
     setDevLogContext: () => {},
   };
-  return { environment, bindings, vibrate };
+  const nextFrame = () => {
+    for (const frame of frames.splice(0)) frame();
+  };
+  return { environment, bindings, vibrate, nextFrame };
 };
 
 describe("core controller runtime", () => {
@@ -111,5 +120,73 @@ describe("core controller runtime", () => {
 
     stop();
     expect(socket.listenerCount()).toBe(0);
+  });
+
+  it("sends its declared controls once per frame when they change, and again after joining", () => {
+    const socket = createMemorySocket((event, payload) => {
+      if (event === "controller:join")
+        return {
+          ok: true,
+          controllerId: (payload as { controllerId: string }).controllerId,
+          resumeCapabilityToken: "seat-token",
+        };
+      return undefined;
+    });
+    const { environment, nextFrame } = createMemoryEnvironment(socket);
+    const runtime = new ControllerRuntime(
+      {
+        store: createConnectionStore(),
+        getSocket: () => {
+          throw new Error("The memory transport needs no socket.");
+        },
+        disconnectSocket: () => {},
+        environment,
+        stores: [],
+        input: defineAirJamInput({
+          paddle: axis(),
+          fire: button("pressed"),
+          move: stick(),
+        }),
+      },
+      { controllerId: "ctrl_1" },
+    );
+    const stop = runtime.start();
+    const sent = () =>
+      socket.emit.mock.calls
+        .filter(([event]) => event === "controller:input")
+        .map(([, payload]) => (payload as { input: unknown }).input);
+    const neutral = {
+      paddle: 0,
+      fire: { down: false, presses: 0 },
+      move: { x: 0, y: 0 },
+    };
+    expect(sent()).toEqual([neutral]);
+
+    const controls = runtime.input;
+    if (!controls) throw new Error("Expected declared controls.");
+    const releaseUp = controls.hold("paddle", -1);
+    const releaseDown = controls.hold("paddle", 1);
+    controls.press("fire")();
+    controls.set("move", { x: 0.333, y: 2 });
+    expect(sent()).toHaveLength(1);
+    nextFrame();
+    expect(sent().at(-1)).toEqual({
+      paddle: 1,
+      fire: { down: false, presses: 1 },
+      move: { x: 0.33, y: 1 },
+    });
+
+    releaseDown();
+    nextFrame();
+    expect(sent().at(-1)).toMatchObject({ paddle: -1 });
+    releaseUp();
+    controls.releaseAll();
+    nextFrame();
+    expect(sent().at(-1)).toEqual({
+      ...neutral,
+      fire: { down: false, presses: 1 },
+    });
+    expect(() => controls.press("paddle")).toThrow(/not a declared button/);
+    stop();
   });
 });

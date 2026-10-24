@@ -273,6 +273,7 @@ export const createAirJamApp = ({
           {...controllerSession}
           {...runtimeOptions}
           stores={stores}
+          input={input}
         >
           <ConnectedRuntimeErrorBoundary
             role="controller"

@@ -68,11 +68,6 @@ export {
   type JoinUrlStatus,
 } from "./hooks/use-air-jam-host";
 export {
-  useControllerTick,
-  type ControllerTickInfo,
-  type ControllerTickOptions,
-} from "./hooks/use-controller-tick";
-export {
   useControllerToasts,
   type ControllerToast,
   type UseControllerToastsOptions,
@@ -82,7 +77,6 @@ export {
   useHostAudioMutePreference,
   type HostAudioMutePreference,
 } from "./hooks/use-host-audio-mute-preference";
-export { useInputWriter } from "./hooks/use-input-writer";
 export { useRoom, type RoomState } from "./hooks/use-room";
 export { useSendSignal, type SendSignalFn } from "./hooks/use-send-signal";
 export {

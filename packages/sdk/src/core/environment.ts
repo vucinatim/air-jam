@@ -95,6 +95,8 @@ export interface AirJamControllerEnvironment {
   writeBinding(roomId: string, binding: ControllerRoomBinding): void;
   clearBinding(roomId: string, controllerId?: string): void;
   vibrate(pattern: number | number[]): void;
+  /** Runs `callback` before the next display frame, so control changes send once per frame. */
+  requestFrame(callback: () => void): void;
   transport(
     getSocket: (role: "controller") => AirJamSocket,
   ): AirJamRealtimeClient;

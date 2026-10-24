@@ -49,6 +49,8 @@ export type AirJamControllerRuntimeProps = AirJamProviderProps &
     children: ReactNode;
     /** Replicated stores this controller mirrors while it runs. */
     stores?: readonly AttachableStore[];
+    /** The game's declared controls; this controller sends them. */
+    input?: AirJamInput;
   };
 
 const NO_STORES: readonly AttachableStore[] = [];
@@ -162,6 +164,7 @@ const ControllerRuntimeOwner = ({
   capabilityToken,
   onState,
   stores = NO_STORES,
+  input,
 }: Pick<
   AirJamControllerRuntimeProps,
   | "children"
@@ -172,6 +175,7 @@ const ControllerRuntimeOwner = ({
   | "capabilityToken"
   | "onState"
   | "stores"
+  | "input"
 >): JSX.Element => {
   const declared = useMemo(() => new Set(stores), [stores]);
   const runtime = useControllerRuntimeApi(
@@ -185,6 +189,7 @@ const ControllerRuntimeOwner = ({
     },
     "AirJamControllerRuntime",
     stores,
+    input,
   );
 
   return (
@@ -238,6 +243,7 @@ export const AirJamControllerRuntime = ({
   capabilityToken,
   onState,
   stores,
+  input,
   ...providerProps
 }: AirJamControllerRuntimeProps): JSX.Element => {
   return (
@@ -251,6 +257,7 @@ export const AirJamControllerRuntime = ({
           capabilityToken={capabilityToken}
           onState={onState}
           stores={stores}
+          input={input}
         >
           {children}
         </ControllerRuntimeOwner>
