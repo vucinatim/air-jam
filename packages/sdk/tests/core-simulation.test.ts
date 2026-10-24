@@ -73,4 +73,32 @@ describe("simulation clock", () => {
       simulatedMs: 50,
     });
   });
+
+  it("keeps game time still while the room is paused and resumes without the gap", () => {
+    let runtimeState: "playing" | "paused" = "playing";
+    const clock = new SimulationClock(
+      walker,
+      { ...room(0), runtimeState: () => runtimeState },
+      1,
+    );
+    const frames: number[] = [];
+    clock.onFrame((frame) => frames.push(frame.tick));
+    clock.frame(0);
+    clock.frame(30);
+    expect(clock.ticks).toBe(3);
+
+    runtimeState = "paused";
+    clock.frame(40);
+    clock.frame(5_000);
+    clock.advance(1_000);
+    expect(clock.ticks).toBe(3);
+    expect(clock.timeMs).toBe(30);
+    expect(frames).toHaveLength(5);
+
+    runtimeState = "playing";
+    clock.frame(5_010);
+    expect(clock.ticks).toBe(3);
+    clock.frame(5_030);
+    expect(clock.ticks).toBe(5);
+  });
 });

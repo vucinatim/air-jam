@@ -282,7 +282,8 @@ send loop.
 A game's authoritative state that changes every step, such as positions,
 timers and physics, lives in a declared simulation. The SDK steps it on the
 host at a fixed rate with seeded randomness, so the same seed and inputs replay
-the same game, in a browser or headless and faster than real time.
+the same game, in a browser or headless and faster than real time. It only
+steps while the room is playing: pausing freezes the game and its game time.
 
 ```ts filename="src/game/engine/simulation.ts"
 import { defineAirJamSimulation } from "@air-jam/sdk/core";
@@ -290,7 +291,7 @@ import { defineAirJamSimulation } from "@air-jam/sdk/core";
 export const simulation = defineAirJamSimulation<Sim, GameInput, SimEvent>({
   stepMs: 1000 / 60,
   create: ({ random }) => createSim(random),
-  step: (sim, { input, players, runtimeState, random, emit }) => {
+  step: (sim, { input, players, random, emit }) => {
     advance(sim, players, input);
   },
   // What agents and tests see of the game, as plain JSON.

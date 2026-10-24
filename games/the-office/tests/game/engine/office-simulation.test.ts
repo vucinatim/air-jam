@@ -80,11 +80,11 @@ describe("Office simulation", () => {
     });
     sim = officeSimulation.create({ random });
     events = [];
-    step("playing");
+    step();
   });
 
   /** One simulation step as the SDK clock runs it. */
-  const step = (runtimeState: "playing" | "paused") =>
+  const step = () =>
     officeSimulation.step(sim, {
       tick: 1,
       stepMs: officeSimulation.stepMs,
@@ -92,7 +92,6 @@ describe("Office simulation", () => {
       random,
       input: () => neutral,
       players: playerIds.map((id) => ({ id, label: id, color: "#000000" })),
-      runtimeState,
       emit: (event) => events.push(event),
     });
 
@@ -191,32 +190,6 @@ describe("Office simulation", () => {
     });
   });
 
-  it("does not advance the match clock, stats, task progress or breaks while paused", () => {
-    sim.tasks.spawnTask(0, random);
-    expect(
-      sim.tasks.startTask(
-        "never-input",
-        sim.tasks.getTasks()[0].locationId,
-        2000,
-        0,
-      ),
-    ).toBe(true);
-    sim.breaks["neutral-input"] = {
-      locationId: "coffee-machine",
-      startTime: 0,
-    };
-    const elapsedMs = sim.elapsedMs;
-    const stats = structuredClone(fixture.state.playerStats);
-    vi.clearAllMocks();
-    for (let index = 0; index < 600; index += 1) step("paused");
-    expect(sim.elapsedMs).toBe(elapsedMs);
-    expect(fixture.state.playerStats).toEqual(stats);
-    expect(sim.tasks.isDoingTask("never-input")).toBe(true);
-    expect(sim.breaks["neutral-input"]).not.toBeNull();
-    expect(fixture.actions.updatePlayerStatsBatch).not.toHaveBeenCalled();
-    expect(fixture.actions.setTaskProgressBatch).not.toHaveBeenCalled();
-  });
-
   it("ends the match once when every no-input player dies from normal stat decay", () => {
     for (const stats of Object.values(fixture.state.playerStats))
       stats.energy = STAT_CONSTANTS.ENERGY_DECAY_PER_SECOND;
@@ -232,21 +205,21 @@ describe("Office simulation", () => {
 
   it("ends the match when the clock runs out", () => {
     sim.elapsedMs = fixture.state.gameDurationMs - officeSimulation.stepMs / 2;
-    step("playing");
+    step();
     expect(sim.elapsedMs).toBe(fixture.state.gameDurationMs);
     expect(fixture.actions.finishMatch).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the match time when the match ends and restarts it for a new match", () => {
-    for (let index = 0; index < 60; index += 1) step("playing");
+    for (let index = 0; index < 60; index += 1) step();
     const played = sim.elapsedMs;
     expect(played).toBeGreaterThan(900);
     fixture.state.matchPhase = "ended";
-    step("playing");
+    step();
     expect(sim.elapsedMs).toBe(played);
     fixture.state.matchPhase = "playing";
     fixture.state.lifecycleVersion += 1;
-    step("playing");
+    step();
     expect(sim.elapsedMs).toBeCloseTo(officeSimulation.stepMs);
   });
 

@@ -304,8 +304,10 @@ selector)`; dispatch is `store.actions`. Reading an undeclared store throws
    `AJ_STORE_NOT_DECLARED`. All six games, templates and creator docs moved.
 3. `SimulationClock` steps a declared `createAirJamApp({ simulation })` with
    seeded randomness; browsers drive it from animation frames and headless code
-   calls `advance(ms)`. React draws with `useSimulationFrame` and reacts with
-   `useSimulationEvents`. Pong's whole match runs in `pongSimulation`.
+   calls `advance(ms)`. It steps only while the room is playing, so a pause
+   freezes game time and no simulation guards for it. React draws with
+   `useSimulationFrame` and reacts with `useSimulationEvents`. Pong's whole
+   match runs in `pongSimulation`.
 4. A simulation declares what agents see with `observe(sim, context)`. The
    host runtime publishes it with the clock's tick, and also owns the agent
    contract registration and the input buffer, so all three work without
