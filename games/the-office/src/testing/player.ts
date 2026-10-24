@@ -51,7 +51,7 @@ export function goControl(self: Self, route: Route) {
     return {
       kind: "input" as const,
       input: {
-        move: { x: route.movementX, y: -route.movementY },
+        move: { x: route.movementX, y: route.movementY },
         action: false,
       },
     };

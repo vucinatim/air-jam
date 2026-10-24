@@ -138,8 +138,7 @@ const move = (
   const position = sim.positions[playerId];
   if (!position) return;
   const nextX = position.x + input.move.x * PLAYER_SPEED;
-  // The stick's y is up; the office's y runs down the screen.
-  const nextY = position.y - input.move.y * PLAYER_SPEED;
+  const nextY = position.y + input.move.y * PLAYER_SPEED;
   const free = (x: number, y: number) =>
     isValidPosition(x, y, PLAYER_RADIUS) &&
     !playerIds.some((otherId) => {

@@ -106,7 +106,7 @@ const describeControl = (control: AirJamControl): string => {
       ? "Button: true while held down."
       : "Button: set true to press; set false and true again to press again.";
   if (control.kind === "axis") return "Axis from -1 to 1.";
-  return "Stick with x and y from -1 to 1; y is up.";
+  return "Stick with x and y from -1 to 1; y is down, like screen space.";
 };
 
 /** Validates what sources send. Controls left out read as released or centred. */

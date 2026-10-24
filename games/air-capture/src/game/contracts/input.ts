@@ -6,7 +6,7 @@ import {
 } from "@air-jam/sdk/core";
 
 /**
- * What each pilot controls: the flight stick (x turns, y climbs and dives),
+ * What each pilot controls: the flight stick (x turns; pushed up it climbs, pulled down it dives),
  * the trigger, held to keep firing, and the ability, used once per press.
  */
 export const airCaptureInput = defineAirJamInput({

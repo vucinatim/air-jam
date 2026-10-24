@@ -66,6 +66,12 @@ with fixed meanings per control kind, and records them.
 7. **Game code never reads devices.** Key listeners, gamepad polling and motion
    events belong to sources. Host-local view controls that never change game
    state, such as a debug camera, stay ordinary host UI.
+8. **Sticks are y down.** A stick's y grows towards the bottom of its surface,
+   like screen space and the browser Gamepad API. Most Air Jam games draw in
+   screen space, so the common case needs no flip and a gamepad source passes
+   its axes through; a game that wants y up, such as Air Capture's climbing
+   flier, flips once where input enters its own model. Decided in the review of
+   vucinatim/air-jam#135 after The Office had to flip a y-up stick.
 
 ## Expected shape
 

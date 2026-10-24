@@ -44,7 +44,7 @@ export const airjam = createAirJamApp({
 | Held button                    | `button("held")`                 | `true` while the button is down, and for at least one step after a tap shorter than a step |
 | Pressed button                 | `button("pressed")`              | `true` for exactly one step per press                                                      |
 | Axis                           | `axis()`                         | a number from -1 to 1                                                                      |
-| Stick                          | `stick()`                        | `{ x, y }`, each from -1 to 1; `y` is up                                                   |
+| Stick                          | `stick()`                        | `{ x, y }`, each from -1 to 1; `y` is down, like screen space                              |
 | Stick that keeps its direction | `stick({ keepDirection: true })` | the last direction while the stick is centred, as in snake                                 |
 
 Presses travel as a counter, so a tap between two network packets or two

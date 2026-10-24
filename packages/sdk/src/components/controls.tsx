@@ -227,7 +227,7 @@ const resolveStickPoint = (
   const offset = { x: point.x - origin.x, y: point.y - origin.y };
   const across = (offset.x * yAxis.y - offset.y * yAxis.x) / determinant;
   const down = (xAxis.x * offset.y - xAxis.y * offset.x) / determinant;
-  return { x: 2 * across - 1, y: 1 - 2 * down };
+  return { x: 2 * across - 1, y: 2 * down - 1 };
 };
 
 const shapeStick = (
@@ -376,7 +376,7 @@ export const Stick = ({
               knobClassName,
             )}
             style={{
-              transform: `translate(calc(-50% + ${value.x * 100}%), calc(-50% + ${-value.y * 100}%))`,
+              transform: `translate(calc(-50% + ${value.x * 100}%), calc(-50% + ${value.y * 100}%))`,
             }}
           >
             {knob}

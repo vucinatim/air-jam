@@ -86,7 +86,7 @@ describe("phone controls", () => {
     place(right, 100, 100);
     place(bottom, 0, 0);
     fireEvent.pointerDown(area, { ...pointer, clientX: 100, clientY: 50 });
-    expect(input.value("move")).toEqual({ x: 0, y: 1 });
+    expect(input.value("move")).toEqual({ x: 0, y: -1 });
     fireEvent.pointerMove(area, { ...pointer, clientX: 50, clientY: 100 });
     expect(input.value("move")).toEqual({ x: 1, y: 0 });
     fireEvent.pointerUp(area, pointer);
