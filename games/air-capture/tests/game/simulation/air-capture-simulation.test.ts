@@ -37,7 +37,6 @@ const idle: GameLoopInput = {
   vector: { x: 0, y: 0 },
   action: false,
   ability: false,
-  timestamp: 0,
 };
 
 const createMatch = (seed = 7) => {
@@ -52,7 +51,7 @@ const createMatch = (seed = 7) => {
         stepMs: airCaptureSimulation.stepMs,
         dtSeconds: airCaptureSimulation.stepMs / 1000,
         random,
-        input: (controllerId) => (controllerId === HUMAN ? input : undefined),
+        input: (controllerId) => (controllerId === HUMAN ? input : idle),
         players: [{ id: HUMAN, label: "One", color: "#ffffff" }],
         runtimeState: "playing",
         emit: (event) => events.push(event),

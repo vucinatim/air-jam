@@ -62,6 +62,14 @@ export const readArena = (sim: AirCaptureSim): BotWorld => ({
   })),
 });
 
+const TURN_DEADZONE = 0.08;
+
+/** A thumb resting slightly off centre does not turn the ship. */
+const withTurnDeadzone = (input: GameLoopInput): GameLoopInput =>
+  Math.abs(input.vector.x) < TURN_DEADZONE
+    ? { ...input, vector: { x: 0, y: input.vector.y } }
+    : input;
+
 /** During the countdown ships may turn but not thrust, fire or use abilities. */
 const countdownInput = (input: GameLoopInput): GameLoopInput => ({
   ...input,
@@ -113,8 +121,7 @@ export const airCaptureSimulation = defineAirJamSimulation<
       const raw =
         ship.bot && arena
           ? ship.bot.update(sim.time, arena)
-          : context.input(ship.controllerId);
-      if (!raw) continue;
+          : withTurnDeadzone(context.input(ship.controllerId));
       const input = sim.matchPhase === "countdown" ? countdownInput(raw) : raw;
       flyShip(sim, ship, input, delta, context.emit);
     }

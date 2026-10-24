@@ -2,19 +2,19 @@
  * Air Jam app config.
  *
  * This is where the SDK picks up your runtime topology, your controller path,
- * and the Zod schema that controllers use to publish input to the host.
+ * and the controls each player has.
  *
  * - `runtime`: `env.vite(import.meta.env)` resolves topology from Vite-exposed
  *    env vars (see README). For Next.js templates swap to `env.next(...)`.
  * - `game.controllerPath`: the sub-route that phones visit. The QR code on
  *    the host encodes `<origin>/<controllerPath>?room=<roomId>`.
- * - `input.schema`: the Zod shape your controller publishes. The host reads
- *    validated values through `host.getInput(playerId)`.
+ * - `input`: the declared controls. Phone controls fill them and the
+ *    simulation reads them each step through `input(playerId)`.
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
-import { gameInputSchema } from "./game/contracts/input";
+import { pongInput } from "./game/contracts/input";
 import { pongSimulation } from "./game/engine/pong-simulation";
 import { pongStore } from "./game/stores/pong-store";
 
@@ -41,7 +41,5 @@ export const airjam = createAirJamApp({
   simulation: pongSimulation,
   agent: agentContract,
   testing: "./testing/profiles.ts",
-  input: {
-    schema: gameInputSchema,
-  },
+  input: pongInput,
 });

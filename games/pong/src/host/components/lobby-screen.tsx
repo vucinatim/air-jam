@@ -7,7 +7,6 @@ import {
   PlayerAvatar,
   useHostJoinControls,
 } from "@air-jam/sdk/ui";
-import { gameInputSchema } from "../../game/contracts/input";
 import { type TeamId } from "../../game/domain/team";
 import { buildTeamSlots } from "../../game/domain/team-slots";
 import { pongStore } from "../../game/stores";
@@ -54,7 +53,7 @@ const TeamCard = ({ team, players, botCount }: TeamCardProps) => {
 };
 
 export const LobbyScreen = () => {
-  const host = useAirJamHost<typeof gameInputSchema>();
+  const host = useAirJamHost();
   const actions = pongStore.actions;
   const {
     botCounts,

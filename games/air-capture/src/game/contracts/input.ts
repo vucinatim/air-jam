@@ -1,20 +1,18 @@
-import { z } from "zod";
+import {
+  button,
+  defineAirJamInput,
+  stick,
+  type AirJamInputValues,
+} from "@air-jam/sdk/core";
 
 /**
- * Game-specific input schema (this game uses vector/action/ability pattern)
- * Other games can define their own input structures
+ * What each pilot controls: the flight stick (x turns, y climbs and dives),
+ * the trigger, held to keep firing, and the ability, used once per press.
  */
-export const gameInputSchema = z.object({
-  vector: z.object({
-    x: z.number(),
-    y: z.number(),
-  }),
-  action: z.boolean(),
-  ability: z.boolean(),
-  timestamp: z.number(),
+export const airCaptureInput = defineAirJamInput({
+  vector: stick(),
+  action: button("held"),
+  ability: button("pressed"),
 });
 
-/**
- * Game-specific input type inferred from schema
- */
-export type GameLoopInput = z.infer<typeof gameInputSchema>;
+export type GameLoopInput = AirJamInputValues<typeof airCaptureInput>;

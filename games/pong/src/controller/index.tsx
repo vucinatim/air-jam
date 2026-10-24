@@ -16,7 +16,6 @@ import { EndedPanel } from "./components/ended-panel";
 import { LobbyPanel } from "./components/lobby-panel";
 import { PlayingControls } from "./components/playing-controls";
 import { useControllerConnectionNotice } from "./hooks/use-controller-connection-notice";
-import { usePongControllerInputRuntime } from "./hooks/use-pong-controller-input-runtime";
 
 export function ControllerView() {
   return (
@@ -29,11 +28,7 @@ export function ControllerView() {
 function PongController() {
   const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
   const { latestToast } = useControllerToasts();
-  const { controlsDisabled, connectionNotice } =
-    useControllerConnectionNotice();
-  const inputRuntime = usePongControllerInputRuntime({
-    controlsDisabled,
-  });
+  const { connectionNotice } = useControllerConnectionNotice();
 
   return (
     <SurfaceViewport orientation="portrait" className="bg-zinc-950">
@@ -63,7 +58,7 @@ function PongController() {
         ) : matchPhase === "ended" ? (
           <EndedPanel />
         ) : (
-          <PlayingControls onDirectionChange={inputRuntime.setDirection} />
+          <PlayingControls />
         )}
       </div>
     </SurfaceViewport>

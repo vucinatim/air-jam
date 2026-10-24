@@ -2,15 +2,17 @@
  * Controller surface for the-office.
  *
  * The controller shows the assigned player's stats, the current busy task
- * (if any), and a d-pad + primary action. It publishes direction + action
- * intent to the host via `useInputWriter`. Phase switches (lobby / playing
+ * (if any), and a d-pad + primary action bound to the declared controls,
+ * which the SDK sends to the host. Phase switches (lobby / playing
  * / ended) come from the networked `spaceStore`.
  */
 import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import {
+  ControlButton,
   ControllerPrimaryAction,
   LifecycleActionGroup,
   RuntimeShellHeader,
+  Stick,
   SurfaceViewport,
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
@@ -29,6 +31,7 @@ import {
   getPlayerCapabilityHighlights,
   PLAYERS,
 } from "../game/content/players";
+import { officeInput } from "../game/contracts/input";
 import {
   spaceStore,
   useOfficeFinalTotalMoney,
@@ -41,7 +44,6 @@ import {
   useOfficeSelectedPlayerCount,
   useOfficeTotalMoney,
 } from "../game/stores";
-import { useOfficeControllerInput } from "./use-office-controller-input";
 
 export function ControllerView() {
   const controller = useAirJamController();
@@ -431,93 +433,57 @@ function OfficeControllerGameplayView({
   return <OfficeControllerPlayingControls controllerId={controllerId} />;
 }
 
+const padArrowClass = (lit: boolean) =>
+  `flex items-center justify-center border text-[#5c4a2e] transition ${
+    lit ? "border-[#8b6914] bg-[#facc15]/35" : "border-[#d8c58a] bg-[#fff6d8]"
+  }`;
+
 function OfficeControllerPlayingControls({
   controllerId,
 }: {
   controllerId: string | null;
 }) {
-  const task = useOfficePlayerBusyTask(controllerId);
-  const input = useOfficeControllerInput({ busy: Boolean(task) });
-  const { padDirection } = input;
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-      <div
-        className="relative min-h-0 rounded-[28px] border border-[#d8c58a] bg-[#fff8df] shadow-md"
-        {...input.padBindings}
-        style={{ touchAction: "none" }}
+      <Stick
+        control={officeInput.move}
+        directions="4-way"
+        deadzone={0.22}
+        aria-label="Movement pad"
+        className="min-h-0 rounded-[28px] border border-[#d8c58a] bg-[#fff8df] shadow-md"
       >
-        {/* Zero-size corners measure the pad's axes after viewport transforms. */}
-        <span
-          ref={input.originRef}
-          aria-hidden="true"
-          className="pointer-events-none absolute top-0 left-0 h-0 w-0"
-        />
-        <span
-          ref={input.rightRef}
-          aria-hidden="true"
-          className="pointer-events-none absolute top-0 right-0 h-0 w-0"
-        />
-        <span
-          ref={input.bottomRef}
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 left-0 h-0 w-0"
-        />
-        <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-2 p-4">
-          <div />
-          <div
-            className={`flex items-center justify-center border text-[#5c4a2e] transition ${
-              padDirection.y === -1
-                ? "border-[#8b6914] bg-[#facc15]/35"
-                : "border-[#d8c58a] bg-[#fff6d8]"
-            }`}
-          >
-            <ChevronUp className="h-8 w-8" />
+        {({ value }) => (
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-2 p-4">
+            <div />
+            <div className={padArrowClass(value.y === 1)}>
+              <ChevronUp className="h-8 w-8" />
+            </div>
+            <div />
+            <div className={padArrowClass(value.x === -1)}>
+              <ChevronLeft className="h-8 w-8" />
+            </div>
+            <div className="border border-[#d8c58a] bg-[#fff1bd]/60" />
+            <div className={padArrowClass(value.x === 1)}>
+              <ChevronRight className="h-8 w-8" />
+            </div>
+            <div />
+            <div className={padArrowClass(value.y === -1)}>
+              <ChevronDown className="h-8 w-8" />
+            </div>
+            <div />
           </div>
-          <div />
-          <div
-            className={`flex items-center justify-center border text-[#5c4a2e] transition ${
-              padDirection.x === -1
-                ? "border-[#8b6914] bg-[#facc15]/35"
-                : "border-[#d8c58a] bg-[#fff6d8]"
-            }`}
-          >
-            <ChevronLeft className="h-8 w-8" />
-          </div>
-          <div className="border border-[#d8c58a] bg-[#fff1bd]/60" />
-          <div
-            className={`flex items-center justify-center border text-[#5c4a2e] transition ${
-              padDirection.x === 1
-                ? "border-[#8b6914] bg-[#facc15]/35"
-                : "border-[#d8c58a] bg-[#fff6d8]"
-            }`}
-          >
-            <ChevronRight className="h-8 w-8" />
-          </div>
-          <div />
-          <div
-            className={`flex items-center justify-center border text-[#5c4a2e] transition ${
-              padDirection.y === 1
-                ? "border-[#8b6914] bg-[#facc15]/35"
-                : "border-[#d8c58a] bg-[#fff6d8]"
-            }`}
-          >
-            <ChevronDown className="h-8 w-8" />
-          </div>
-          <div />
-        </div>
-      </div>
+        )}
+      </Stick>
 
       <div className="flex min-h-0 flex-col gap-3">
         <OfficeControllerGameplayStatusCard controllerId={controllerId} />
 
-        <button
-          type="button"
-          className="flex min-h-[50%] flex-1 items-center justify-center border border-[#d8c58a] bg-[#fff1bd] px-5 text-4xl font-black text-[#5c4a2e] shadow-lg transition-transform select-none active:scale-[0.98]"
-          {...input.workBindings}
-          style={{ touchAction: "none" }}
+        <ControlButton
+          control={officeInput.action}
+          className="flex min-h-[50%] flex-1 items-center justify-center border border-[#d8c58a] bg-[#fff1bd] px-5 text-4xl font-black text-[#5c4a2e] shadow-lg transition-transform active:scale-[0.98] data-[active=true]:scale-[0.98]"
         >
           WORK
-        </button>
+        </ControlButton>
       </div>
     </div>
   );

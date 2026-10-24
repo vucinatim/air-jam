@@ -1,10 +1,10 @@
-import { z } from "zod";
+import {
+  axis,
+  defineAirJamInput,
+  type AirJamInputValues,
+} from "@air-jam/sdk/core";
 
-// Define the input schema for your game
-// This determines what data the controller sends to the host
-export const gameInputSchema = z.object({
-  // Paddle movement: -1 (up), 0 (still), 1 (down)
-  direction: z.number().min(-1).max(1),
-});
+/** What each player controls: their paddle's direction, -1 up to 1 down. */
+export const pongInput = defineAirJamInput({ direction: axis() });
 
-export type GameInput = z.infer<typeof gameInputSchema>;
+export type PongInput = AirJamInputValues<typeof pongInput>;

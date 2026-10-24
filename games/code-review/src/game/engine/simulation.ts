@@ -195,7 +195,7 @@ type StepMatchFrameOptions = {
   };
   dt: number;
   timestamp: number;
-  getInput: (controllerId: string) => GameInput | undefined;
+  getInput: (controllerId: string) => GameInput;
   onMiss: () => void;
   onHit: () => void;
   onBell: () => void;
@@ -238,10 +238,6 @@ export const stepMatchFrame = ({
     const input = participant.isBot
       ? createBotInput(participant, participants, state, timestamp)
       : getInput(participant.id);
-
-    if (!input) {
-      return;
-    }
 
     const playerState = state[participant.slotKey];
     playerState.cooldownLeft = Math.max(0, playerState.cooldownLeft - dt);

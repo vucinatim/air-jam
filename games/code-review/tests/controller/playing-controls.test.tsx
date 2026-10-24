@@ -7,6 +7,17 @@ import { PlayingControls } from "../../src/controller/components/playing-control
 vi.mock("../../src/controller/hooks/use-code-review-controller-teams", () => ({
   useCodeReviewControllerTeams: () => ({ teamAccent: "#dc2626" }),
 }));
+vi.mock("@air-jam/sdk/ui", () => {
+  const Control = ({
+    control,
+    value,
+    ...props
+  }: {
+    control: { name: string };
+    value?: number;
+  }) => <button {...props} data-control={control.name} data-value={value} />;
+  return { AxisButton: Control, ControlButton: Control };
+});
 
 describe("Code Review movement choice and action controls", () => {
   let root: Root;
@@ -26,11 +37,6 @@ describe("Code Review movement choice and action controls", () => {
       motionStatus: "touch",
       onEnableTilt: vi.fn(async () => {}),
       onUseTouch: vi.fn(),
-      onMove: vi.fn(),
-      onLeftPunch: vi.fn(),
-      onRightPunch: vi.fn(),
-      onDefendStart: vi.fn(),
-      onDefendEnd: vi.fn(),
     };
     render();
   });
@@ -69,36 +75,9 @@ describe("Code Review movement choice and action controls", () => {
     act(() => button("Use touch").click());
     expect(props.onUseTouch).toHaveBeenCalledTimes(2);
   });
-  it("does not double-punch on the click following pointer-down; keyboard clicks work", () => {
-    const left = button("TapLeft");
-    act(() => {
-      left.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-      left.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
-    });
-    expect(props.onLeftPunch).toHaveBeenCalledOnce();
-    act(() => left.click());
-    expect(props.onLeftPunch).toHaveBeenCalledTimes(2);
-  });
-  it("supports keyboard guard hold and clears on key-up or blur", () => {
-    const guard = button("HoldGuardBlock");
-    act(() => {
-      guard.dispatchEvent(
-        new KeyboardEvent("keydown", { key: " ", bubbles: true }),
-      );
-      guard.dispatchEvent(
-        new KeyboardEvent("keydown", { key: " ", bubbles: true, repeat: true }),
-      );
-    });
-    expect(props.onDefendStart).toHaveBeenCalledOnce();
-    act(() =>
-      guard.dispatchEvent(
-        new KeyboardEvent("keyup", { key: " ", bubbles: true }),
-      ),
-    );
-    expect(props.onDefendEnd).toHaveBeenCalledOnce();
-    act(() =>
-      guard.dispatchEvent(new FocusEvent("focusout", { bubbles: true })),
-    );
-    expect(props.onDefendEnd).toHaveBeenCalledTimes(2);
+  it("binds each action button to its declared control", () => {
+    expect(button("TapLeft").dataset.control).toBe("leftPunch");
+    expect(button("TapRight").dataset.control).toBe("rightPunch");
+    expect(button("HoldGuardBlock").dataset.control).toBe("defend");
   });
 });

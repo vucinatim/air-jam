@@ -1,9 +1,14 @@
-import { z } from "zod";
+import {
+  button,
+  defineAirJamInput,
+  stick,
+  type AirJamInputValues,
+} from "@air-jam/sdk/core";
 
-export const gameInputSchema = z.object({
-  movementX: z.number().min(-1).max(1),
-  movementY: z.number().min(-1).max(1),
-  action: z.boolean(),
+/** What each worker controls: walking (y is up the screen) and the work button. */
+export const officeInput = defineAirJamInput({
+  move: stick(),
+  action: button("held"),
 });
 
-export type GameInput = z.infer<typeof gameInputSchema>;
+export type GameInput = AirJamInputValues<typeof officeInput>;

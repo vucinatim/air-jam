@@ -1,14 +1,13 @@
 import { useAirJamHost, type AirJamHostApi } from "@air-jam/sdk";
 import { useHostJoinControls } from "@air-jam/sdk/ui";
 import { useCallback, useMemo } from "react";
-import { gameInputSchema } from "../../game/contracts/input";
 import {
   spaceStore,
   useOfficeMatchPhase,
   useOfficeSelectedPlayerCount,
 } from "../../game/stores";
 
-export type OfficeHostApi = AirJamHostApi<typeof gameInputSchema>;
+export type OfficeHostApi = AirJamHostApi;
 
 export interface OfficeHostSession {
   host: OfficeHostApi;
@@ -27,7 +26,7 @@ export interface OfficeHostSession {
 }
 
 export function useOfficeHostSession(): OfficeHostSession {
-  const host = useAirJamHost<typeof gameInputSchema>();
+  const host = useAirJamHost();
   const players = useAirJamHost((state) => state.players);
   const roomId = useAirJamHost((state) => state.roomId);
   const connectionStatus = useAirJamHost((state) => state.connectionStatus);

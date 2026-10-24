@@ -8,9 +8,8 @@
  *  2. Phase-specific panels (`ControllerLobbyPanel`,
  *     `ControllerPlayingControls`, `ControllerEndedPanel`) are picked from
  *     the networked `matchPhase`.
- *  3. `useControllerTick` publishes the current input state (movement +
- *     abilities) to the host every frame; the host reads it through
- *     `host.getInput(playerId)` in its simulation step.
+ *  3. The SDK's stick and buttons fill the declared controls and send them;
+ *     the host's simulation reads them each step.
  *
  * No gameplay logic lives here — everything authoritative is in the host
  * stores under `../game/stores/` and is replicated down.
@@ -18,16 +17,13 @@
 import {
   useAirJamController,
   useAirJamStore,
-  useControllerTick,
-  useInputWriter,
   type PlayerProfile,
 } from "@air-jam/sdk";
 import { ControllerPlayerNameField, SurfaceViewport } from "@air-jam/sdk/ui";
 import type { JSX } from "react";
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ControllerAudioProvider } from "../game/audio/controller-audio";
-import { createControllerStore } from "../game/controller-store";
 import {
   getLobbyReadinessText,
   getMatchReadiness,
@@ -92,8 +88,6 @@ const ControllerHeaderRuntime = memo(function ControllerHeaderRuntime({
 });
 
 const ControllerScreen = () => {
-  const writeInput = useInputWriter();
-  const [store] = useState(() => createControllerStore());
   const controllerState = useAirJamController(
     useShallow((state) => ({
       roomId: state.roomId,
@@ -132,25 +126,6 @@ const ControllerScreen = () => {
 
   const controlsDisabled = controllerState.connectionStatus !== "connected";
   const canSendSystemCommand = controllerState.connectionStatus === "connected";
-
-  useControllerTick(
-    () => {
-      const state = store.getState();
-      writeInput({
-        vector: state.vector,
-        action: state.action,
-        ability: state.ability,
-        timestamp: Date.now(),
-      });
-    },
-    {
-      enabled:
-        controllerState.connectionStatus === "connected" &&
-        (matchPhase === "countdown" || matchPhase === "playing") &&
-        controllerState.runtimeState === "playing",
-      intervalMs: 16,
-    },
-  );
 
   const myAssignment = controllerState.controllerId
     ? teamAssignments[controllerState.controllerId]
@@ -256,7 +231,6 @@ const ControllerScreen = () => {
           />
         ) : (
           <ControllerPlayingControls
-            store={store}
             countdownRemainingSeconds={countdownRemainingSeconds}
           />
         )}

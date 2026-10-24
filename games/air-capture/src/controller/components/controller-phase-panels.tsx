@@ -1,10 +1,14 @@
 import type { PlayerProfile } from "@air-jam/sdk";
-import { ControllerPrimaryAction, LifecycleActionGroup } from "@air-jam/sdk/ui";
+import type { AirJamButtonControl } from "@air-jam/sdk/core";
+import {
+  ControlButton,
+  ControllerPrimaryAction,
+  LifecycleActionGroup,
+  Stick,
+} from "@air-jam/sdk/ui";
 import { Target, Zap, type LucideIcon } from "lucide-react";
-import { memo, useRef, useState, type PointerEvent } from "react";
-import { useStore } from "zustand";
-import { createControllerStore } from "../../game/controller-store";
-import { Button } from "../../game/debug/ui/button";
+import { memo } from "react";
+import { airCaptureInput } from "../../game/contracts/input";
 import type { TeamCounts } from "../../game/domain/match-readiness";
 import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import { buildTeamSlots, MAX_TEAM_SLOTS } from "../../game/domain/team-slots";
@@ -247,230 +251,59 @@ export const ControllerEndedPanel = memo(function ControllerEndedPanel({
   );
 });
 
-const clampUnit = (value: number) => {
-  if (value > 1) return 1;
-  if (value < -1) return -1;
-  return value;
-};
-
-const TURN_DEADZONE = 0.08;
-const resolveViewportOrientation = (): "portrait" | "landscape" => {
-  if (typeof window === "undefined") {
-    return "landscape";
-  }
-
-  const viewport = window.visualViewport;
-  const width = viewport?.width ?? window.innerWidth;
-  const height = viewport?.height ?? window.innerHeight;
-
-  return width >= height ? "landscape" : "portrait";
-};
-
-const resolveStickInputFromPointer = (
-  target: HTMLDivElement,
-  clientX: number,
-  clientY: number,
-): { turn: number; verticalIntent: number } => {
-  const rect = target.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
-  const radius = Math.min(rect.width, rect.height) / 2;
-  const deltaX = clientX - centerX;
-  const deltaY = clientY - centerY;
-
-  let turn = 0;
-  let verticalIntent = 0;
-
-  if (resolveViewportOrientation() === "portrait") {
-    turn = clampUnit(deltaY / radius);
-    verticalIntent = deltaX / radius;
-  } else {
-    turn = clampUnit(deltaX / radius);
-    verticalIntent = -deltaY / radius;
-  }
-
-  if (Math.abs(turn) < TURN_DEADZONE) {
-    turn = 0;
-  }
-
-  return {
-    turn,
-    verticalIntent: clampUnit(verticalIntent),
-  };
-};
-
-const MovementStick = ({
-  store,
-  countdownActive,
-}: {
-  store: ReturnType<typeof createControllerStore>;
-  countdownActive: boolean;
-}) => {
-  const vector = useStore(store, (state) => state.vector);
-  const [isDragging, setIsDragging] = useState(false);
-  const activePointerIdRef = useRef<number | null>(null);
-
-  const writeVectorFromPointer = (
-    target: HTMLDivElement,
-    clientX: number,
-    clientY: number,
-  ) => {
-    const { turn, verticalIntent } = resolveStickInputFromPointer(
-      target,
-      clientX,
-      clientY,
-    );
-    store.getState().setVector({
-      x: Number(turn.toFixed(3)),
-      y: countdownActive ? 0 : Number(verticalIntent.toFixed(3)),
-    });
-  };
-
-  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (activePointerIdRef.current !== null) {
-      return;
-    }
-    e.currentTarget.setPointerCapture(e.pointerId);
-    e.preventDefault();
-    activePointerIdRef.current = e.pointerId;
-    setIsDragging(true);
-    writeVectorFromPointer(e.currentTarget, e.clientX, e.clientY);
-    vibrate(10);
-  };
-
-  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (
-      activePointerIdRef.current !== e.pointerId ||
-      !e.currentTarget.hasPointerCapture(e.pointerId)
-    ) {
-      return;
-    }
-    e.preventDefault();
-    writeVectorFromPointer(e.currentTarget, e.clientX, e.clientY);
-  };
-
-  const handlePointerEnd = (e: PointerEvent<HTMLDivElement>) => {
-    if (activePointerIdRef.current !== e.pointerId) {
-      return;
-    }
-    e.preventDefault();
-    activePointerIdRef.current = null;
-    setIsDragging(false);
-    store.getState().setVector({ x: 0, y: 0 });
-  };
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="text-center text-[11px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
-        {countdownActive ? "Rotate into position" : "Flight stick"}
-      </div>
-      <div
-        className={`relative flex flex-1 touch-none items-center justify-center overflow-hidden rounded-4xl border border-white/10 bg-radial from-slate-800 via-slate-900 to-black shadow-[inset_0_0_30px_rgba(255,255,255,0.06)] ${isDragging ? "ring-2 ring-cyan-300/60" : ""} `}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
-        onLostPointerCapture={handlePointerEnd}
-        onContextMenu={(e) => e.preventDefault()}
-        aria-label="Movement stick"
-        data-testid="air-capture-movement-stick"
-      >
-        <div className="absolute h-44 w-44 rounded-full border border-white/10 bg-white/3" />
-        <div className="absolute h-28 w-28 rounded-full border border-white/8" />
-        <div className="absolute h-px w-32 bg-white/10" />
-        <div className="absolute h-32 w-px bg-white/10" />
-        <div
-          className={`absolute flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/15 shadow-[0_10px_35px_rgba(0,0,0,0.35)] backdrop-blur-sm ${
-            isDragging
-              ? "transition-none"
-              : "transition-transform duration-150 ease-out"
-          }`}
-          style={{
-            transform: `translate(${vector.x * 62}px, ${-vector.y * 62}px)`,
-          }}
-        >
-          <div className="h-10 w-10 rounded-full bg-white/25" />
-        </div>
-      </div>
+const MovementStick = ({ countdownActive }: { countdownActive: boolean }) => (
+  <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="text-center text-[11px] font-semibold tracking-[0.16em] text-zinc-400 uppercase">
+      {countdownActive ? "Rotate into position" : "Flight stick"}
     </div>
-  );
-};
-
-interface ActionControlProps {
-  store: ReturnType<typeof createControllerStore>;
-  action: "ability" | "action";
-  icon: LucideIcon;
-  label: string;
-  colorClass: string;
-  activeRingClass: string;
-  disabled?: boolean;
-}
+    <Stick
+      control={airCaptureInput.vector}
+      aria-label="Movement stick"
+      data-testid="air-capture-movement-stick"
+      onActiveChange={(active) => active && vibrate(10)}
+      className="flex flex-1 items-center justify-center overflow-hidden rounded-4xl border border-white/10 bg-radial from-slate-800 via-slate-900 to-black shadow-[inset_0_0_30px_rgba(255,255,255,0.06)] data-[active=true]:ring-2 data-[active=true]:ring-cyan-300/60"
+      knobClassName="size-24 border border-white/20 bg-white/15 shadow-[0_10px_35px_rgba(0,0,0,0.35)] backdrop-blur-sm"
+      knob={<div className="h-10 w-10 rounded-full bg-white/25" />}
+    >
+      <div className="absolute h-44 w-44 rounded-full border border-white/10 bg-white/3" />
+      <div className="absolute h-28 w-28 rounded-full border border-white/8" />
+      <div className="absolute h-px w-32 bg-white/10" />
+      <div className="absolute h-32 w-px bg-white/10" />
+    </Stick>
+  </div>
+);
 
 const ActionControl = ({
-  store,
-  action,
+  control,
   icon: Icon,
   label,
   colorClass,
   activeRingClass,
   disabled = false,
-}: ActionControlProps) => {
-  const isActive = useStore(store, (state) => state[action]);
-
-  const handlePointerDown = (e: PointerEvent<HTMLButtonElement>) => {
-    if (disabled) {
-      return;
-    }
-    e.currentTarget.setPointerCapture(e.pointerId);
-    e.preventDefault();
-
-    if (action === "ability") {
-      store.getState().setAbility(true);
-    } else {
-      store.getState().setAction(true);
-    }
-
-    vibrate(20);
-  };
-
-  const handlePointerEnd = (e: PointerEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-
-    if (action === "ability") {
-      store.getState().setAbility(false);
-    } else {
-      store.getState().setAction(false);
-    }
-  };
-
-  return (
-    <Button
-      type="button"
-      className={`h-full flex-1 touch-none rounded-xl border-0 text-lg font-bold text-white shadow-lg transition-colors sm:text-xl md:text-2xl ${colorClass} ${
-        isActive ? `ring-2 brightness-110 ${activeRingClass}` : ""
-      } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
-      disabled={disabled}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
-      onLostPointerCapture={handlePointerEnd}
-      onContextMenu={(event: PointerEvent<HTMLButtonElement>) =>
-        event.preventDefault()
-      }
-      aria-label={label}
-    >
-      <Icon className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10" />
-      <span>{label}</span>
-    </Button>
-  );
-};
+}: {
+  control: AirJamButtonControl;
+  icon: LucideIcon;
+  label: string;
+  colorClass: string;
+  activeRingClass: string;
+  disabled?: boolean;
+}) => (
+  <ControlButton
+    control={control}
+    disabled={disabled}
+    onActiveChange={(active) => active && vibrate(20)}
+    aria-label={label}
+    className={`inline-flex h-full flex-1 items-center justify-center gap-2 rounded-xl text-lg font-bold whitespace-nowrap text-white shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 data-[active=true]:ring-2 data-[active=true]:brightness-110 sm:text-xl md:text-2xl ${colorClass} ${activeRingClass}`}
+  >
+    <Icon className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10" />
+    <span>{label}</span>
+  </ControlButton>
+);
 
 export const ControllerPlayingControls = memo(
   function ControllerPlayingControls({
-    store,
     countdownRemainingSeconds = 0,
   }: {
-    store: ReturnType<typeof createControllerStore>;
     countdownRemainingSeconds?: number;
   }) {
     const countdownActive = countdownRemainingSeconds > 0;
@@ -491,7 +324,7 @@ export const ControllerPlayingControls = memo(
         ) : null}
 
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-3">
-          <MovementStick store={store} countdownActive={countdownActive} />
+          <MovementStick countdownActive={countdownActive} />
 
           <div className="flex min-h-0 flex-col gap-3">
             <div className="rounded-2xl border border-white/10 bg-zinc-900/70 px-3 py-3 text-center">
@@ -505,8 +338,7 @@ export const ControllerPlayingControls = memo(
               </div>
             </div>
             <ActionControl
-              store={store}
-              action="ability"
+              control={airCaptureInput.ability}
               icon={Zap}
               label="Ability"
               colorClass="bg-linear-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
@@ -514,8 +346,7 @@ export const ControllerPlayingControls = memo(
               disabled={countdownActive}
             />
             <ActionControl
-              store={store}
-              action="action"
+              control={airCaptureInput.action}
               icon={Target}
               label="Shoot"
               colorClass="bg-linear-to-br from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"

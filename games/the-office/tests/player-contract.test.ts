@@ -160,7 +160,7 @@ describe("The Office player contract", () => {
     });
     expect(pressing?.options["do-meeting-table"]?.control).toEqual({
       kind: "input",
-      input: { movementX: 0, movementY: 0, action: true },
+      input: { move: { x: 0, y: 0 }, action: true },
     });
     const held = officePlayer.turn({
       observation: observe("playing", { ...beside, holdingAction: true }),

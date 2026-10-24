@@ -1,3 +1,5 @@
+import { ControlButton } from "@air-jam/sdk/ui";
+import { codeReviewInput } from "../../game/contracts/input";
 import { useCodeReviewControllerTeams } from "../hooks/use-code-review-controller-teams";
 import { MovementPad } from "./movement-pad";
 
@@ -6,11 +8,6 @@ interface PlayingControlsProps {
   motionStatus: "touch" | "requesting" | "tilt" | "denied" | "unavailable";
   onEnableTilt: () => Promise<void>;
   onUseTouch: () => void;
-  onMove: (vector: { x: number; y: number }) => void;
-  onLeftPunch: () => void;
-  onRightPunch: () => void;
-  onDefendStart: () => void;
-  onDefendEnd: () => void;
 }
 
 export const PlayingControls = ({
@@ -18,11 +15,6 @@ export const PlayingControls = ({
   motionStatus,
   onEnableTilt,
   onUseTouch,
-  onMove,
-  onLeftPunch,
-  onRightPunch,
-  onDefendStart,
-  onDefendEnd,
 }: PlayingControlsProps) => {
   const { teamAccent } = useCodeReviewControllerTeams();
 
@@ -57,22 +49,18 @@ export const PlayingControls = ({
       <div className="flex min-h-0 flex-1 gap-3">
         {movementMode === "touch" ? (
           <div className="flex min-h-0 w-[30%] items-center justify-center">
-            <MovementPad onMove={onMove} />
+            <MovementPad />
           </div>
         ) : null}
         <div className="grid min-h-0 min-w-0 flex-1 grid-cols-3 gap-2">
-          <button
-            type="button"
-            className="flex min-h-0 min-w-0 touch-none flex-col items-start justify-between rounded-none border-4 px-2 py-3 text-left text-white shadow-[0_18px_40px_rgba(24,24,27,0.34)] select-none active:scale-[0.985]"
+          <ControlButton
+            control={codeReviewInput.leftPunch}
+            className="flex min-h-0 min-w-0 flex-col items-start justify-between rounded-none border-4 px-2 py-3 text-left text-white shadow-[0_18px_40px_rgba(24,24,27,0.34)] active:scale-[0.985] data-[active=true]:scale-[0.985]"
             style={{
               background: `linear-gradient(180deg, ${teamAccent}, color-mix(in srgb, ${teamAccent} 60%, #111827))`,
               borderColor: teamAccent,
               willChange: "transform",
               transition: "none",
-            }}
-            onPointerDown={onLeftPunch}
-            onClick={(event) => {
-              if (event.detail === 0) onLeftPunch();
             }}
           >
             <p className="text-[10px] tracking-[0.18em] text-white/75 uppercase">
@@ -81,34 +69,17 @@ export const PlayingControls = ({
             <p className="max-w-full text-base leading-tight sm:text-lg">
               Left
             </p>
-          </button>
+          </ControlButton>
 
-          <button
-            type="button"
-            className="flex min-h-0 min-w-0 touch-none flex-col items-start justify-between rounded-none border-4 px-2 py-3 text-left text-white shadow-[0_22px_50px_rgba(24,24,27,0.38)] select-none active:scale-[0.985]"
+          <ControlButton
+            control={codeReviewInput.defend}
+            className="flex min-h-0 min-w-0 flex-col items-start justify-between rounded-none border-4 px-2 py-3 text-left text-white shadow-[0_22px_50px_rgba(24,24,27,0.38)] active:scale-[0.985] data-[active=true]:scale-[0.985]"
             style={{
               background: `linear-gradient(180deg, ${teamAccent}, color-mix(in srgb, ${teamAccent} 56%, #18181b))`,
               borderColor: teamAccent,
               willChange: "transform",
               transition: "none",
             }}
-            onPointerDown={onDefendStart}
-            onPointerUp={onDefendEnd}
-            onPointerCancel={onDefendEnd}
-            onPointerLeave={onDefendEnd}
-            onKeyDown={(event) => {
-              if (
-                (event.key === " " || event.key === "Enter") &&
-                !event.repeat
-              ) {
-                event.preventDefault();
-                onDefendStart();
-              }
-            }}
-            onKeyUp={(event) => {
-              if (event.key === " " || event.key === "Enter") onDefendEnd();
-            }}
-            onBlur={onDefendEnd}
           >
             <div>
               <p className="text-[10px] tracking-[0.18em] text-white/75 uppercase">
@@ -121,20 +92,16 @@ export const PlayingControls = ({
             <p className="max-w-full text-[11px] leading-relaxed text-white/90">
               Block
             </p>
-          </button>
+          </ControlButton>
 
-          <button
-            type="button"
-            className="flex min-h-0 min-w-0 touch-none flex-col items-start justify-between rounded-none border-4 px-2 py-3 text-left text-white shadow-[0_18px_40px_rgba(24,24,27,0.34)] select-none active:scale-[0.985]"
+          <ControlButton
+            control={codeReviewInput.rightPunch}
+            className="flex min-h-0 min-w-0 flex-col items-start justify-between rounded-none border-4 px-2 py-3 text-left text-white shadow-[0_18px_40px_rgba(24,24,27,0.34)] active:scale-[0.985] data-[active=true]:scale-[0.985]"
             style={{
               background: `linear-gradient(180deg, ${teamAccent}, color-mix(in srgb, ${teamAccent} 66%, #0f172a))`,
               borderColor: teamAccent,
               willChange: "transform",
               transition: "none",
-            }}
-            onPointerDown={onRightPunch}
-            onClick={(event) => {
-              if (event.detail === 0) onRightPunch();
             }}
           >
             <p className="text-[10px] tracking-[0.18em] text-white/75 uppercase">
@@ -143,7 +110,7 @@ export const PlayingControls = ({
             <p className="max-w-full text-base leading-tight sm:text-lg">
               Right
             </p>
-          </button>
+          </ControlButton>
         </div>
       </div>
     </div>
