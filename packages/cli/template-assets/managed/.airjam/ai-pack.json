@@ -105,8 +105,8 @@
     {
       "path": "docs/airjam/generated/migrating-legacy-games.md",
       "kind": "docs-generated",
-      "size": 21895,
-      "sha256": "6001ebd3e2b70059d50d8b929e8486be456ca124c3c34a56fed7d77472447e77"
+      "size": 22179,
+      "sha256": "92ee7c2b4bfc08a716ef69095de4e0e80127c8927e94e7ff1d09d941b2372de5"
     },
     {
       "path": "docs/airjam/generated/networked-state.md",
@@ -187,5 +187,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "6b5bbe724d3be751b5d62e67ff517139939fb3516662ba0719a8075c7dad934c"
+  "contentDigest": "7e6bb112b1d50d3d37ef80296c06cf0bfb6ece98a1fdf9feda75a62ba707b140"
 }

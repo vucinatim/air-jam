@@ -507,6 +507,7 @@ These exports are gone; use the replacement.
 | `getEffectiveAudioVolume`, `useAudioCategoryVolume`, `mergeRoomPlatformSettingsSnapshot`                                                                                               | `useMusicVolume`, `usePlatformAudioSettings`                                                   |
 | `parseAirJamGameMetadata`                                                                                                                                                              | `airJamGameMetadataSchema.safeParse`                                                           |
 | `RoomCode`, `RunMode`, `SignalPayload`, `SignalType`, `ControllerStatePayload`, `ControllerUpdatePlayerProfileAck`, `AirJamActionAccepted`, `AirJamActionRejected` from `@air-jam/sdk` | the same types from `@air-jam/sdk/protocol`                                                    |
+| `isInternalActionName`, `resolveControllerJoinSource`, `JoinUrlStatus` from `@air-jam/sdk/core`                                                                                        | internal; `JoinUrlStatus` comes from `@air-jam/sdk`                                            |
 | `buttonVariants`, `getPlayerAvatarImageUrl`, `resolvePlayerAvatarSeed` from `@air-jam/sdk/ui`                                                                                          | `Button`, `PlayerAvatar`                                                                       |
 
 Tool and platform paths also dropped helpers only the SDK itself used:
