@@ -176,7 +176,9 @@ seat's controls.
    preview phone, which applies them to the `ControllerInput` its own screen
    uses. The phone stays the seat's only input sender, so keepalives, the
    input log and replays need nothing new. A phone takes local input only from
-   its embedding parent, and only when it was launched as a local seat.
+   its parent, and only when it was launched as a local seat: the parent
+   origin its topology declares, else its own origin, as the preview
+   workspace launches it.
 6. **Whoever owns the phones provides seats.** In standalone local
    development the SDK's preview workspace launches them. Embedded hosts ask
    their parent over a seat request. Studio answers with Studio phones,
@@ -251,7 +253,7 @@ game and contract suites:
    Standing and Minimal read no input and declare none.
 
 6. **Local players, framework side (phase 3).** `defineAirJamInput(controls,
-   bindings)` takes keyboard layouts and a gamepad mapping, kept off the
+bindings)` takes keyboard layouts and a gamepad mapping, kept off the
    control map games iterate and checked against control kinds when declared.
    `KeyboardSource` and `GamepadSource` in the core turn key edges and polled
    snapshots into `press`, `hold` and `set` on a seat. Repeats never press,
