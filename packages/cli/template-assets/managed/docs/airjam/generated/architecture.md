@@ -100,7 +100,7 @@ tools do not depend on private application source.
 
 Air Jam uses three lanes and they should stay separate:
 
-1. **Input lane** for high-frequency transient control data via `useInputWriter` and `getInput` / `useGetInput`
+1. **Input lane** for players' controls: declared with `defineAirJamInput`, filled by phone controls, agents or replays, and read once per simulation step
 2. **Replicated state lane** for replayable shared state via `createAirJamStore`
 3. **Signal / command lane** for coarse UX/runtime messages such as haptics, toasts, pause, and exit
 
@@ -160,15 +160,14 @@ Controller runs inside platform's runtime wrapper (iframe communication).
 ### Input Path (Controller → Game)
 
 ```
-1. Player moves joystick on phone
-2. Controller publishes input via useInputWriter({ vector: {x, y}, action: false })
-3. SDK sends controller:input event to server
-4. Server routes to host socket
-5. Host SDK's InputManager receives input
-6. InputManager validates with Zod schema
-7. InputManager applies configured input behavior (`pulse`, `hold`, `latest`)
-8. Game calls getInput(playerId) in game loop
-9. Returns typed, validated input with behavior semantics applied
+1. Player holds a stick or button rendered by the SDK's phone controls
+2. The controller's input lane updates the declared control's state
+3. Once per display frame, if anything changed, the SDK sends controller:input
+4. Server routes it to the host socket
+5. The host's input lane validates it against the declared controls
+6. Before each simulation step, the host samples every player's controls and
+   applies each kind's meaning (a pressed button reads true for one step)
+7. The step reads input(playerId)
 ```
 
 ### Signal Path (Game → Controller)
@@ -205,6 +204,6 @@ Controller runs inside platform's runtime wrapper (iframe communication).
 
 ### Input Validation
 
-- Zod schemas validate all incoming input
-- Invalid input is rejected with console warning
-- Protects game logic from malformed data
+- Every incoming input is checked against the game's declared controls
+- Invalid input is dropped with an `AJ_INPUT_INVALID` diagnostic
+- Agents' input passes the same check before they take a seat

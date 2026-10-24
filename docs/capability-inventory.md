@@ -15,8 +15,9 @@ remains the authority for gameplay state.
 
 The three runtime lanes are transient input, host-owned replicated state and
 explicit signals/commands. Core authoring APIs include `createAirJamApp`,
-`airjam.Host`, `airjam.Controller`, `createAirJamStore`, `useGetInput` and
-`useControllerTick`.
+`airjam.Host`, `airjam.Controller`, `createAirJamStore`,
+`defineAirJamSimulation`, `defineAirJamInput` and the phone controls
+`ControlButton`, `AxisButton` and `Stick`.
 
 The server also exposes its typed composition entrypoint so hosted adapters can
 be injected without importing product persistence into the standalone runtime.

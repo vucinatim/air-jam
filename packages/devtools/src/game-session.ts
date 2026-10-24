@@ -155,6 +155,7 @@ export const cancelGameRun = (input: z.infer<typeof gameRunAddressSchema>) =>
     input,
     input.cwd,
   );
+export { replayGameRun } from "./game-run-replay.js";
 export const listGameRuns = (input: { cwd?: string } = {}) =>
   request<AirJamGameRunRecord[]>("run.list", input, input.cwd);
 export const stopAllGameRuns = (input: { cwd?: string } = {}) =>

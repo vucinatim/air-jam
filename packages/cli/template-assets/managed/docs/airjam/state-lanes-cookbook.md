@@ -22,7 +22,7 @@ Imagine a slingshot artillery game.
 
 ### Controller Input Lane
 
-Use `useInputWriter(...)` on the controller and `host.getInput(...)` or `useGetInput(...)` on the host for:
+Declare controls with `defineAirJamInput`, bind phone UI to them with the SDK's `ControlButton`, `AxisButton` and `Stick`, and read them in the simulation step with `input(playerId)` for:
 
 1. drag vector
 2. aim angle

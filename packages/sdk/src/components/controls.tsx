@@ -103,7 +103,10 @@ const usePress = (
         event.preventDefault();
         end();
       },
-      onBlur: end,
+      // Focus leaving ends a key hold; a finger still down keeps its press.
+      onBlur: () => {
+        if (pointer.current === null) end();
+      },
       onContextMenu: (event: MouseEvent<HTMLElement>) => event.preventDefault(),
     },
   };

@@ -1,5 +1,3 @@
-
-
 # Host System
 
 The Air Jam host system manages game sessions and input routing. This page explains how hosts work in different modes and how input flows through the system.
@@ -9,7 +7,6 @@ The Air Jam host system manages game sessions and input routing. This page expla
 ### Standalone Host
 
 The simplest mode—your game connects directly to the Air Jam server.
-
 
 <StandaloneHostDiagram />
 
@@ -28,19 +25,9 @@ const HostShell = () => (
   </airjam.Host>
 );
 
-const HostView = () => {
-  const host = useAirJamHost();
-
-  // Host receives all input directly
-  useFrame(() => {
-    host.players.forEach((p) => {
-      const input = host.getInput(p.id);
-      processInput(p.id, input);
-    });
-  });
-
-  return <GameCanvas />;
-};
+// Players' controls reach the game in its simulation steps:
+// step: (sim, { input, players }) => players.forEach((p) => process(sim, input(p.id)))
+const HostView = () => <GameCanvas />;
 ```
 
 ### Arcade Mode (Outer App + Embedded Game)
@@ -53,13 +40,11 @@ The important rule is:
 2. your game owns gameplay state
 3. the server owns room membership, focus routing, and runtime invariants
 
-
 <ArcadeModeDiagram />
 
 ## Server-Authoritative Focus System
 
 The server maintains authoritative control over which host receives controller inputs through a **focus** state:
-
 
 <FocusSystemDiagram />
 
@@ -124,16 +109,11 @@ This focus system does not replace the normal Air Jam model. It only decides whi
 
 With focus set to `GAME`, all controller input routes to your game:
 
-```tsx
-// Your game receives input normally inside the mounted host runtime.
-const host = useAirJamHost();
-
-useFrame(() => {
-  host.players.forEach((player) => {
-    const input = host.getInput(player.id);
-    // Process gameplay...
-  });
-});
+```ts
+// Your game's simulation reads controls as usual inside the mounted host runtime.
+step: (sim, { input, players }) => {
+  for (const player of players) play(sim, player.id, input(player.id));
+},
 ```
 
 ### 4. Game Exit

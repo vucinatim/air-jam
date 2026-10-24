@@ -36,8 +36,8 @@ metadata unless they intentionally pin tighter.
 
 ## Three Lanes (Canonical)
 
-1. `Input lane` (high frequency, transient):
-   `useControllerTick` + `useInputWriter` on controller, `host.getInput` / `useGetInput` on host.
+1. `Input lane` (each player's controls):
+   declared with `defineAirJamInput` from `@air-jam/sdk/core`, filled by `ControlButton`, `AxisButton` and `Stick` from `@air-jam/sdk/ui`, and read in simulation steps with `input(playerId)`.
 2. `State lane` (replicated, host-authoritative):
    `createAirJamStore` from `@air-jam/sdk/core`, dispatched through `store.actions`, with `(ctx, payload)` action handlers.
 3. `Signal lane` (out-of-band UX/system):
@@ -64,12 +64,13 @@ to prefill, validate, and compare against release artifacts.
 
 ```tsx
 import { createAirJamApp, env } from "@air-jam/sdk";
+import { button, defineAirJamInput, stick } from "@air-jam/sdk/core";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
-import { z } from "zod";
+import { simulation } from "./game/simulation";
 
-const inputSchema = z.object({
-  vector: z.object({ x: z.number(), y: z.number() }),
-  action: z.boolean(),
+export const gameInput = defineAirJamInput({
+  move: stick(),
+  action: button("pressed"),
 });
 
 export const gameMetadata = defineAirJamGameMetadata({
@@ -87,7 +88,8 @@ export const gameMetadata = defineAirJamGameMetadata({
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   controllerPath: "/controller",
-  input: { schema: inputSchema },
+  simulation,
+  input: gameInput,
 });
 ```
 
@@ -126,7 +128,7 @@ Mount runtime ownership explicitly at the host boundary, then read it from child
 If a component only needs host session state, call `useAirJamHost(selector)` to
 avoid rerendering on unrelated runtime fields.
 Selectors receive state fields only; call `useAirJamHost()` when a component
-also needs runtime controls such as `joinUrl`, `sendSignal`, or `getInput`.
+also needs runtime controls such as `joinUrl` or `sendSignal`.
 
 ```tsx
 import { useAirJamHost } from "@air-jam/sdk";
@@ -159,45 +161,9 @@ when you need the richer controller-session roster with source
 Use `host.resetRoom()` when you need a fresh empty room without restarting the
 local backend.
 
-Use `host.getInput(controllerId)` in your game loop.
-
-Default input behavior:
-
-- booleans: `pulse` (tap-safe consume-on-read)
-- vectors: `latest` (continuous latest value)
-
-Optional overrides are available via `input.behavior` (`pulse | hold | latest`).
-
-### Migration From `input.latch`
-
-If you previously used:
-
-```ts
-input: {
-  schema,
-  latch: {
-    booleanFields: ["action"],
-    vectorFields: ["vector"],
-  },
-}
-```
-
-Use:
-
-```ts
-input: {
-  schema,
-  behavior: {
-    pulse: ["action", "vector"],
-  },
-}
-```
-
-Notes:
-
-- most games can now remove input behavior config entirely (`input: { schema }`)
-- booleans default to tap-safe `pulse`
-- vectors default to `latest` (continuous)
+Players' controls reach the game only in its simulation steps, through
+`input(playerId)`. A pressed button reads `true` for one step per press, a held
+button while it is down, an axis a number and a stick an `{ x, y }`.
 
 ## Controller Usage
 
@@ -210,13 +176,8 @@ Selectors receive state fields only; call `useAirJamController()` when a
 component also needs controls such as `sendSystemCommand`.
 
 ```tsx
-import {
-  useAirJamController,
-  useControllerTick,
-  useInputWriter,
-} from "@air-jam/sdk";
-import { SurfaceViewport } from "@air-jam/sdk/ui";
-import { airjam } from "./airjam.config";
+import { ControlButton, Stick, SurfaceViewport } from "@air-jam/sdk/ui";
+import { airjam, gameInput } from "./airjam.config";
 
 const ControllerShell = () => (
   <airjam.Controller nickname="Player 1">
@@ -224,42 +185,14 @@ const ControllerShell = () => (
   </airjam.Controller>
 );
 
-export const ControllerView = () => {
-  const controller = useAirJamController();
-  const writeInput = useInputWriter();
-
-  useControllerTick(
-    () => {
-      writeInput({
-        vector: { x: 0, y: 0 },
-        action: false,
-      });
-    },
-    {
-      enabled:
-        controller.connectionStatus === "connected" &&
-        controller.runtimeState === "playing",
-      intervalMs: 16,
-    },
-  );
-
-  return (
-    <SurfaceViewport orientation="portrait">
-      <section>
-        <button
-          onPointerDown={() =>
-            writeInput({
-              vector: { x: 0, y: 0 },
-              action: true, // one-shot pulses still valid
-            })
-          }
-        >
-          Action
-        </button>
-      </section>
-    </SurfaceViewport>
-  );
-};
+export const ControllerView = () => (
+  <SurfaceViewport orientation="landscape">
+    <section className="grid h-full grid-cols-2 gap-3 p-3">
+      <Stick control={gameInput.move} />
+      <ControlButton control={gameInput.action}>Action</ControlButton>
+    </section>
+  </SurfaceViewport>
+);
 ```
 
 Controllers usually join via URL query param: `/controller?room=ABCD`.
@@ -569,8 +502,8 @@ const host = useAirJamHost();
 ## One Correct Way (Default Path)
 
 1. Define one `airjam` app config with `createAirJamApp`.
-2. On controllers, publish input with `useControllerTick` + `useInputWriter`.
-3. On hosts, read input with `getInput` / `useGetInput`.
+2. Declare each player's controls with `defineAirJamInput` and bind controller UI to them with `ControlButton`, `AxisButton` and `Stick`; the SDK sends them.
+3. Read controls only in simulation steps, with `input(playerId)`.
 4. Put per-step gameplay in a declared simulation (`defineAirJamSimulation` from `@air-jam/sdk/core`, declared with `createAirJamApp({ simulation })`); draw it with `useSimulationFrame` instead of hand-rolled `requestAnimationFrame` or `setInterval` loops.
 5. Keep replicated gameplay state in `createAirJamStore` and declare it in `createAirJamApp({ stores })`.
 6. Dispatch all store actions through `store.actions` zero-arg or payload-object calls and check the returned acknowledgement when outcome matters.
@@ -581,8 +514,9 @@ Keep one runtime/session declaration and use role wrappers directly in routes.
 
 ```tsx
 import { createAirJamApp, env } from "@air-jam/sdk";
+import { gameInput } from "./game/contracts/input";
+import { simulation } from "./game/engine/simulation";
 import { gameStore } from "./game/stores/game-store";
-import { gameInputSchema } from "./types";
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
@@ -590,9 +524,8 @@ export const airjam = createAirJamApp({
   stores: [gameStore],
   // Optional agent-facing contracts belong here too.
   // agent: agentContract,
-  input: {
-    schema: gameInputSchema,
-  },
+  simulation,
+  input: gameInput,
 });
 ```
 
@@ -622,7 +555,7 @@ export const App = () => (
 );
 ```
 
-This keeps runtime config, host input schema, route path ownership, and the
+This keeps runtime config, declared controls, route path ownership, and the
 optional semantic agent contract in one place.
 
 ## Environment Variables

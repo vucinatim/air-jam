@@ -24,19 +24,9 @@ const HostShell = () => (
   </airjam.Host>
 );
 
-const HostView = () => {
-  const host = useAirJamHost();
-
-  // Host receives all input directly
-  useFrame(() => {
-    host.players.forEach((p) => {
-      const input = host.getInput(p.id);
-      processInput(p.id, input);
-    });
-  });
-
-  return <GameCanvas />;
-};
+// Players' controls reach the game in its simulation steps:
+// step: (sim, { input, players }) => players.forEach((p) => process(sim, input(p.id)))
+const HostView = () => <GameCanvas />;
 ```
 
 ### Arcade Mode (Outer App + Embedded Game)
@@ -112,16 +102,11 @@ This focus system does not replace the normal Air Jam model. It only decides whi
 
 With focus set to `GAME`, all controller input routes to your game:
 
-```tsx
-// Your game receives input normally inside the mounted host runtime.
-const host = useAirJamHost();
-
-useFrame(() => {
-  host.players.forEach((player) => {
-    const input = host.getInput(player.id);
-    // Process gameplay...
-  });
-});
+```ts
+// Your game's simulation reads controls as usual inside the mounted host runtime.
+step: (sim, { input, players }) => {
+  for (const player of players) play(sim, player.id, input(player.id));
+},
 ```
 
 ### 4. Game Exit

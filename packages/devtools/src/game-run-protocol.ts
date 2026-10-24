@@ -297,6 +297,16 @@ export const gameRunRecordSchema = z
           })
           .strict()
           .nullable(),
+        /** A headless run's input log, which replays the match. */
+        inputLog: z
+          .object({
+            path: z.string().min(1),
+            sha256: z.string().regex(/^[a-f0-9]{64}$/),
+            ticks: z.number().int().nonnegative(),
+            entries: z.number().int().nonnegative(),
+          })
+          .strict()
+          .optional(),
         error: z.string().nullable(),
       })
       .strict()

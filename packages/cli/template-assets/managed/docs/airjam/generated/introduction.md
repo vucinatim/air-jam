@@ -60,17 +60,39 @@ export const App = () => (
 
 ```tsx filename="src/airjam.config.ts"
 import { createAirJamApp, env } from "@air-jam/sdk";
-import { z } from "zod";
+import {
+  axis,
+  button,
+  defineAirJamInput,
+  defineAirJamSimulation,
+  type AirJamInputValues,
+} from "@air-jam/sdk/core";
 
-const gameInputSchema = z.object({
-  direction: z.number().min(-1).max(1),
-  action: z.boolean(),
+export const gameInput = defineAirJamInput({
+  direction: axis(),
+  fire: button("pressed"),
+});
+
+const simulation = defineAirJamSimulation<
+  World,
+  AirJamInputValues<typeof gameInput>
+>({
+  stepMs: 1000 / 60,
+  create: () => createWorld(),
+  step: (world, { input, players, dtSeconds }) => {
+    for (const player of players) {
+      const { direction, fire } = input(player.id);
+      movePaddle(world, player.id, direction * SPEED * dtSeconds);
+      if (fire) fireLaser(world, player.id);
+    }
+  },
 });
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   controllerPath: "/controller",
-  input: { schema: gameInputSchema },
+  simulation,
+  input: gameInput,
 });
 ```
 
@@ -84,15 +106,7 @@ import { useAirJamHost } from "@air-jam/sdk";
 
 const HostView = () => {
   const host = useAirJamHost();
-
-  // In your game loop (e.g., useFrame or requestAnimationFrame):
-  // host.players.forEach(p => {
-  //   const input = host.getInput(p.id);
-  //   if (input) {
-  //     player.y += input.direction * SPEED;
-  //     if (input.action) fireLaser(p.id);
-  //   }
-  // });
+  // The simulation moves the game; this view draws it with useSimulationFrame.
 
   return (
     <div className="relative min-h-screen bg-black text-white">
@@ -122,40 +136,32 @@ The path below also matches the current starter template layout.
 If your project uses a different file shape, keep the same ownership boundary even if the filename changes.
 
 ```tsx filename="src/controller/index.tsx"
-import {
-  useAirJamController,
-  useControllerTick,
-  useInputWriter,
-} from "@air-jam/sdk";
-import { useRef } from "react";
+import { AxisButton, ControlButton } from "@air-jam/sdk/ui";
+import { gameInput } from "../airjam.config";
 
-const ControllerView = () => {
-  const controller = useAirJamController();
-  const writeInput = useInputWriter();
-  const directionRef = useRef(0);
-
-  useControllerTick(
-    () => {
-      writeInput({
-        direction: directionRef.current,
-        action: false,
-      });
-    },
-    {
-      enabled:
-        controller.connectionStatus === "connected" &&
-        controller.runtimeState === "playing",
-      intervalMs: 16,
-    },
-  );
-};
+const ControllerView = () => (
+  <div className="grid h-full grid-cols-2 gap-3 p-3">
+    <AxisButton control={gameInput.direction} value={-1}>
+      Up
+    </AxisButton>
+    <AxisButton control={gameInput.direction} value={1}>
+      Down
+    </AxisButton>
+    <ControlButton control={gameInput.fire} className="col-span-2">
+      Fire
+    </ControlButton>
+  </div>
+);
 ```
+
+The SDK's phone controls fill the declared controls and send them; the
+controller runs no send loop.
 
 ## Canonical Architecture: Three Lanes
 
 Use one lane per concern:
 
-1. **Input lane**: `useControllerTick` + `useInputWriter` (controller), `getInput` / `useGetInput` (host).
+1. **Input lane**: controls declared with `defineAirJamInput`, filled by the SDK's phone controls, read in simulation steps with `input(playerId)`.
 2. **State lane**: `createAirJamStore` with host-owned actions, dispatched through `store.actions`.
 3. **Signal lane**: `sendSignal` / system commands for out-of-band UX and runtime commands.
 
@@ -172,4 +178,4 @@ Avoid cross-lane misuse:
 
 - [Architecture](./architecture.md) - Understand the system design
 - [Hooks Reference](./sdk-hooks.md) - Complete API documentation
-- [Input System](./input-system.md) - Learn about input behavior and validation
+- [Input System](./input-system.md) - Declare controls and read them each step

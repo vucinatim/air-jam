@@ -1,19 +1,22 @@
 # Current State
 
 Last updated: 2026-10-24
-Status: SDK core layering in review for `release/1.0`; earlier checkpoints retained below
+Status: SDK core layering in review for `release/1.0`; input system phases 1 and 2 built on top; earlier checkpoints retained below
 
-## SDK core layering — in review
+## SDK core layering and input — in review
 
 The [core layering plan](./plans/sdk-core-layering-plan.md) is built through
 its export tidy: `@air-jam/sdk/core` owns the runtime with React as its
 binding, games declare stores and simulations that run on the SDK clock in a
-browser or headless, every first-party game plays on game time (Air Capture
-with its own Rapier world), store actions read `ctx.now`, and each of the 21
-entry points has one documented purpose. Its protocol suite and agent lanes
-remain. The [input system plan](./plans/sdk-input-system-plan.md) builds on it
-next: declared controls applied per simulation step, and SDK phone controls
-that own sending.
+browser or headless, every first-party game plays on game time, store actions
+read `ctx.now`, and each of the 21 entry points has one documented purpose.
+
+The [input system plan](./plans/sdk-input-system-plan.md) phases 1 and 2
+build on it: games declare buttons, axes and sticks with `defineAirJamInput`,
+the host reads them once per simulation step with press counters, agents and
+replays fill the same controls, headless runs keep an input log that
+`airjam session run replay` reproduces, and the SDK's phone controls own
+sending. Keyboard and gamepad players come next.
 
 ## Native observation and isolated playtesting
 

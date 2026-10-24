@@ -161,6 +161,25 @@ Use it for:
 
 ---
 
+## Phone Controls
+
+`ControlButton`, `AxisButton` and `Stick` bind phone UI to the game's declared
+controls and send them; see [Input System](./input-system.md).
+
+```tsx
+import { AxisButton, ControlButton, Stick } from "@air-jam/sdk/ui";
+
+<Stick control={shipInput.move} knobClassName="bg-white/30" />
+<AxisButton control={pongInput.direction} value={-1}>Up</AxisButton>
+<ControlButton control={shipInput.fire} className="data-[active=true]:ring-2">
+  Fire
+</ControlButton>
+```
+
+Each sets `data-active` while held. `Stick` takes `directions="4-way"`,
+`deadzone`, `knob`, `knobClassName`, and a function child that draws the whole
+stick from `{ value, active }`.
+
 ### `Button`
 
 Styling primitive for consistent buttons.
@@ -217,6 +236,6 @@ Combine:
 
 ## Anti-Patterns
 
-- Do not build gameplay input on UI components; keep input lane in `useInputWriter` / `useGetInput`.
+- Do not build gameplay input on `Button`; bind controls with `ControlButton`, `AxisButton` and `Stick`.
 - Do not rely on UI primitives for room/session lifecycle; lifecycle stays in headless SDK hooks.
 - Do not fork component behavior in each game if composition solves it; prefer small wrappers around canonical primitives.

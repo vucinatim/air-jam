@@ -109,14 +109,14 @@ Target shape:
 
 ```tsx filename="src/airjam.config.ts"
 import { createAirJamApp, env } from "@air-jam/sdk";
-import { gameInputSchema } from "./game/input";
+import { gameInput } from "./game/input";
+import { simulation } from "./game/simulation";
 
 export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   controllerPath: "/controller",
-  input: {
-    schema: gameInputSchema,
-  },
+  simulation,
+  input: gameInput,
 });
 ```
 
@@ -297,45 +297,34 @@ Do not overgeneralize input migration.
 
 ### Continuous Input Games
 
-If your controller sends directional or analog-style input every frame, prefer:
+If your controller sends directional or analog-style input, declare those
+controls and let the SDK's phone controls send them:
 
-1. local refs/state
-2. `useInputWriter()`
-3. `useControllerTick(...)`
+```tsx filename="src/game/input.ts"
+import { button, defineAirJamInput, stick } from "@air-jam/sdk/core";
 
-Example:
+export const gameInput = defineAirJamInput({
+  move: stick(),
+  action: button("held"),
+});
+```
 
-```tsx filename="src/routes/controller-view.tsx"
-import {
-  useAirJamController,
-  useControllerTick,
-  useInputWriter,
-} from "@air-jam/sdk";
-import { useRef } from "react";
+```tsx filename="src/controller/index.tsx"
+import { ControlButton, Stick } from "@air-jam/sdk/ui";
+import { gameInput } from "../game/input";
 
 export function ControllerView() {
-  const controller = useAirJamController();
-  const writeInput = useInputWriter();
-  const movementRef = useRef({ x: 0, y: 0 });
-  const actionRef = useRef(false);
-
-  useControllerTick(
-    () => {
-      writeInput({
-        movementX: movementRef.current.x,
-        movementY: movementRef.current.y,
-        action: actionRef.current,
-      });
-    },
-    {
-      enabled:
-        controller.connectionStatus === "connected" &&
-        controller.runtimeState === "playing",
-      intervalMs: 16,
-    },
+  return (
+    <div className="grid h-full grid-cols-2 gap-3 p-3">
+      <Stick control={gameInput.move} />
+      <ControlButton control={gameInput.action}>Action</ControlButton>
+    </div>
   );
 }
 ```
+
+The simulation reads them each step with `input(playerId)`. Remove the old
+send loop, input writer and any timestamp field.
 
 ### Action-Only Or Choice-Driven Games
 
@@ -345,17 +334,13 @@ Use the simpler model that matches your game.
 
 For more input details, see [Input System](./input-system.md).
 
-## Step 7: Clean Up Old `latch` Usage Carefully
+## Step 7: Replace `latch` And Input Behavior Lists
 
-Older games may still configure input through `latch`.
-
-For most games, the right migration is smaller than you think:
-
-- move the schema into `airjam.config.ts`
-- remove `latch` entirely
-- keep the default input behavior unless you have a real non-default need
-
-Only add `input.behavior` overrides when the defaults are not enough.
+Older games configure input through `latch` or `input.behavior` lists of
+`pulse`, `hold` and `latest` fields. Both are gone: each control's kind carries
+its meaning. A tap-safe boolean becomes `button("pressed")`, a held boolean
+`button("held")`, a sticky vector `stick({ keepDirection: true })`, and any
+other number an `axis()`.
 
 ## Step 8: Remove Legacy Workarounds
 
@@ -432,6 +417,9 @@ These exports are gone; use the replacement.
 | `RoomCode`, `RunMode`, `SignalPayload`, `SignalType`, `ControllerStatePayload`, `ControllerUpdatePlayerProfileAck`, `AirJamActionAccepted`, `AirJamActionRejected` from `@air-jam/sdk` | the same types from `@air-jam/sdk/protocol`                                                    |
 | `isInternalActionName`, `resolveControllerJoinSource`, `JoinUrlStatus` from `@air-jam/sdk/core`                                                                                        | internal; `JoinUrlStatus` comes from `@air-jam/sdk`                                            |
 | `Date.now()` inside store actions                                                                                                                                                      | `ctx.now`, the game time the action runs at                                                    |
+| `input: { schema, behavior }` on the app                                                                                                                                               | `input: defineAirJamInput({ ... })`                                                            |
+| `useInputWriter`, `useControllerTick`                                                                                                                                                  | `ControlButton`, `AxisButton` and `Stick` from `@air-jam/sdk/ui`                               |
+| `useGetInput`, `host.getInput`                                                                                                                                                         | `input(playerId)` in a simulation step                                                         |
 
 The preview, runtime-inspection, runtime-control and agent-tooling paths also
 dropped helpers only the SDK itself used.

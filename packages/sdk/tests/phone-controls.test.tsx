@@ -39,10 +39,13 @@ describe("phone controls", () => {
     fireEvent.pointerDown(fire, pointer);
     expect(fire.dataset.active).toBe("true");
     expect(input.isDown("fire")).toBe(true);
+    fireEvent.blur(fire);
+    expect(input.isDown("fire")).toBe(true);
     fireEvent.pointerUp(fire, pointer);
     expect(fire.dataset.active).toBe("false");
     fireEvent.keyDown(fire, { key: " " });
-    fireEvent.keyUp(fire, { key: " " });
+    fireEvent.blur(fire);
+    expect(input.isDown("fire")).toBe(false);
     expect(input.value("fire")).toEqual({ down: false, presses: 2 });
   });
 

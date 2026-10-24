@@ -3,10 +3,11 @@ import { z } from "zod";
 /** A held button is true while down; a pressed button is true for one step per press. */
 export type AirJamButtonMode = "held" | "pressed";
 
-export interface AirJamVector {
+// A type alias, so values stay assignable to JSON records.
+export type AirJamVector = {
   x: number;
   y: number;
-}
+};
 
 export interface AirJamButtonControl<TName extends string = string> {
   readonly kind: "button";

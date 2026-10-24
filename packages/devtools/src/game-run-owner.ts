@@ -1714,6 +1714,14 @@ export class GameRunOwner {
             },
             error: null,
           };
+          const saveInputLog = run.room?.saveInputLog;
+          if (saveInputLog)
+            run.record.evidence.inputLog = {
+              path: `.airjam/artifacts/runs/${run.record.runId}/input-log.json`,
+              ...(await saveInputLog(
+                path.join(run.directory, "input-log.json"),
+              )),
+            };
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);

@@ -16,6 +16,7 @@ import {
   listGameRuns,
   listGameTestProfiles,
   readGameRun,
+  replayGameRun,
   startGameRun,
   steerGameRun,
   stopAllGameRuns,
@@ -1955,6 +1956,18 @@ const buildProgram = () => {
         );
       });
   }
+  runCommand
+    .command("replay <run-id>")
+    .description(
+      "Replay an ended headless run from its input log and compare where it ends",
+    )
+    .option("--dir <path>", "Project directory")
+    .action(async (runId: string, options: unknown) => {
+      const input = resolveActionOptions<{ dir?: string }>(options);
+      process.stdout.write(
+        `${JSON.stringify(await replayGameRun({ cwd: input.dir, runId }), null, 2)}\n`,
+      );
+    });
   runCommand
     .command("steer <run-id>")
     .description(

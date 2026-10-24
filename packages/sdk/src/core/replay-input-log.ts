@@ -1,5 +1,9 @@
 import type { HostBootstrapAck, HostRegistrationAck } from "../protocol";
 import { resolveRuntimeTopology } from "../runtime-topology";
+import {
+  AIR_JAM_RUNTIME_CONTROL_KEY,
+  type HostRuntimeControl,
+} from "../runtime/contracts/control";
 import type {
   AirJamRealtimeClient,
   BridgeListener,
@@ -80,17 +84,24 @@ const createReplayRoom = () => {
 export const replayAirJamInputLog = async (
   createHostRuntime: HostRuntimeFactory,
   recorded: AirJamInputLog,
-): Promise<{ runtime: HostRuntime; stop: () => void }> => {
+): Promise<{
+  runtime: HostRuntime;
+  roomId: string;
+  /** Asks the replayed host what agents ask a live one, such as for an observation. */
+  agent: HostRuntimeControl["agent"];
+  stop: () => void;
+}> => {
   const log = airJamInputLogSchema.parse(recorded);
   const room = createReplayRoom();
   const store = createConnectionStore();
   let runtime: HostRuntime | null = null;
+  const controlTarget = {};
   const environment: AirJamHostEnvironment = {
     embedded: null,
     requestedRoomId: null,
     runMode: "standalone",
     defaultStoreDomain: log.storeDomain,
-    controlTarget: {},
+    controlTarget,
     readResume: () => null,
     writeResume: () => {},
     requestHostGrant: () =>
@@ -161,7 +172,22 @@ export const replayAirJamInputLog = async (
       }
       clock.advance(log.stepMs);
     }
-    return { runtime, stop };
+    return {
+      runtime,
+      roomId: REPLAY_ROOM_ID,
+      agent: (request) => {
+        const control = Reflect.get(
+          controlTarget,
+          AIR_JAM_RUNTIME_CONTROL_KEY,
+        ) as HostRuntimeControl | undefined;
+        if (!control)
+          throw new Error(
+            "The replayed game publishes nothing agents can read.",
+          );
+        return control.agent(request);
+      },
+      stop,
+    };
   } catch (error) {
     stop();
     throw error;
