@@ -137,8 +137,8 @@ const move = (
 ) => {
   const position = sim.positions[playerId];
   if (!position) return;
-  const nextX = position.x + input.movementX * PLAYER_SPEED;
-  const nextY = position.y + input.movementY * PLAYER_SPEED;
+  const nextX = position.x + input.move.x * PLAYER_SPEED;
+  const nextY = position.y + input.move.y * PLAYER_SPEED;
   const free = (x: number, y: number) =>
     isValidPosition(x, y, PLAYER_RADIUS) &&
     !playerIds.some((otherId) => {
@@ -305,7 +305,7 @@ export const advanceOfficeMatch = (
   }: {
     elapsedMs: number;
     playerIds: string[];
-    input: (playerId: string) => GameInput | undefined;
+    input: (playerId: string) => GameInput;
     random: () => number;
     emit: Emit;
   },
@@ -352,8 +352,8 @@ export const advanceOfficeMatch = (
         1,
       );
     // Input controls intent, not whether the host advances this player.
-    if (playerInput && !working) move(sim, playerId, playerInput, playerIds);
-    if (playerInput?.action && !sim.lastAction[playerId])
+    if (!working) move(sim, playerId, playerInput, playerIds);
+    if (playerInput.action && !sim.lastAction[playerId])
       if (startTaskAt(sim, playerId, LOCATIONS, elapsedMs, emit) !== "started")
         startBreak(sim, playerId, elapsedMs, emit);
 
@@ -372,7 +372,7 @@ export const advanceOfficeMatch = (
       const stats = nextStats(sim, playerId, elapsedMs, random, emit);
       if (stats) updatesByPlayerId[playerId] = stats;
     }
-    sim.lastAction[playerId] = playerInput?.action ?? false;
+    sim.lastAction[playerId] = playerInput.action;
   }
 
   if (Object.keys(progressByPlayerId).length > 0)

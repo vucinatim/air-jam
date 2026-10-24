@@ -1,6 +1,5 @@
 import type { JSX, ReactNode } from "react";
 import { useEffect, useMemo } from "react";
-import type { z } from "zod";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import { useAirJamConfig } from "../context/air-jam-context";
 import {
@@ -8,6 +7,7 @@ import {
   HostSessionProvider,
   type AirJamProviderProps,
 } from "../context/session-providers";
+import type { AirJamInput } from "../core/input";
 import type { AttachableStore } from "../core/replicated-store";
 import type { AirJamSimulationDeclaration } from "../core/simulation";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
@@ -31,23 +31,26 @@ import {
   hostRuntimeContext,
 } from "./runtime-owner-contexts";
 
-export type AirJamHostRuntimeProps<TSchema extends z.ZodSchema = z.ZodSchema> =
-  AirJamProviderProps<TSchema> &
-    AirJamHostOptions & {
-      children: ReactNode;
-      agent?: AnyAirJamAgentContract;
-      gameId?: string;
-      /** Replicated stores this host owns; they sync while it runs. */
-      stores?: readonly AttachableStore[];
-      /** The game's simulation, advanced on the SDK clock while the host runs. */
-      simulation?: AirJamSimulationDeclaration;
-    };
+export type AirJamHostRuntimeProps = AirJamProviderProps &
+  AirJamHostOptions & {
+    children: ReactNode;
+    agent?: AnyAirJamAgentContract;
+    gameId?: string;
+    /** Replicated stores this host owns; they sync while it runs. */
+    stores?: readonly AttachableStore[];
+    /** The game's simulation, advanced on the SDK clock while the host runs. */
+    simulation?: AirJamSimulationDeclaration;
+    /** The game's declared controls, read in simulation steps. */
+    input?: AirJamInput;
+  };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
   AirJamControllerOptions & {
     children: ReactNode;
     /** Replicated stores this controller mirrors while it runs. */
     stores?: readonly AttachableStore[];
+    /** The game's declared controls; this controller sends them. */
+    input?: AirJamInput;
   };
 
 const NO_STORES: readonly AttachableStore[] = [];
@@ -99,7 +102,7 @@ const ControllerRuntimeInspectionPublisher = (): null => {
   return null;
 };
 
-const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
+const HostRuntimeOwner = ({
   children,
   roomId,
   onPlayerJoin,
@@ -108,8 +111,9 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   gameId,
   stores = NO_STORES,
   simulation,
+  input,
 }: Pick<
-  AirJamHostRuntimeProps<TSchema>,
+  AirJamHostRuntimeProps,
   | "children"
   | "roomId"
   | "onPlayerJoin"
@@ -118,17 +122,19 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   | "gameId"
   | "stores"
   | "simulation"
+  | "input"
 >): JSX.Element => {
   const declared = useMemo(() => new Set(stores), [stores]);
   const game = useMemo(
     () => ({
       stores,
       simulation,
+      input,
       agent: agent && { contract: agent, gameId: gameId ?? "game" },
     }),
-    [stores, simulation, agent, gameId],
+    [stores, simulation, input, agent, gameId],
   );
-  const runtime = useHostRuntimeApi<TSchema>(
+  const runtime = useHostRuntimeApi(
     {
       roomId,
       onPlayerJoin,
@@ -158,6 +164,7 @@ const ControllerRuntimeOwner = ({
   capabilityToken,
   onState,
   stores = NO_STORES,
+  input,
 }: Pick<
   AirJamControllerRuntimeProps,
   | "children"
@@ -168,6 +175,7 @@ const ControllerRuntimeOwner = ({
   | "capabilityToken"
   | "onState"
   | "stores"
+  | "input"
 >): JSX.Element => {
   const declared = useMemo(() => new Set(stores), [stores]);
   const runtime = useControllerRuntimeApi(
@@ -181,6 +189,7 @@ const ControllerRuntimeOwner = ({
     },
     "AirJamControllerRuntime",
     stores,
+    input,
   );
 
   return (
@@ -193,7 +202,7 @@ const ControllerRuntimeOwner = ({
   );
 };
 
-export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
+export const AirJamHostRuntime = ({
   children,
   roomId,
   onPlayerJoin,
@@ -202,12 +211,13 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
   gameId,
   stores,
   simulation,
+  input,
   ...providerProps
-}: AirJamHostRuntimeProps<TSchema>): JSX.Element => {
+}: AirJamHostRuntimeProps): JSX.Element => {
   return (
-    <HostSessionProvider<TSchema> {...providerProps}>
+    <HostSessionProvider {...providerProps}>
       <PlatformSettingsBoundary>
-        <HostRuntimeOwner<TSchema>
+        <HostRuntimeOwner
           roomId={roomId}
           onPlayerJoin={onPlayerJoin}
           onPlayerLeave={onPlayerLeave}
@@ -215,6 +225,7 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
           gameId={gameId}
           stores={stores}
           simulation={simulation}
+          input={input}
         >
           {children}
         </HostRuntimeOwner>
@@ -232,6 +243,7 @@ export const AirJamControllerRuntime = ({
   capabilityToken,
   onState,
   stores,
+  input,
   ...providerProps
 }: AirJamControllerRuntimeProps): JSX.Element => {
   return (
@@ -245,6 +257,7 @@ export const AirJamControllerRuntime = ({
           capabilityToken={capabilityToken}
           onState={onState}
           stores={stores}
+          input={input}
         >
           {children}
         </ControllerRuntimeOwner>

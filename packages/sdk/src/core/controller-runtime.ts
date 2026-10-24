@@ -33,14 +33,18 @@ import {
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { generateControllerId } from "../utils/ids";
 import type { AirJamConnectionState } from "./connection-store";
+import { ControllerInput } from "./controller-input";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type {
   AirJamControllerEnvironment,
   ControllerRoomBinding,
 } from "./environment";
+import type { AirJamInput } from "./input";
 import type { AttachableStore } from "./replicated-store";
 
 const HOST_LEFT_RECONNECT_DELAY_MS = 1000;
+/** How often a controller repeats its controls, so a host that rejoined holds them. */
+const INPUT_KEEPALIVE_MS = 1000;
 
 /** Options that decide which seat a controller takes. */
 export interface ControllerRuntimeIdentityOptions {
@@ -56,6 +60,8 @@ export interface ControllerRuntimeDependencies {
   environment: AirJamControllerEnvironment;
   /** The game's replicated stores; they mirror the host while the runtime runs. */
   stores: readonly AttachableStore[];
+  /** The game's declared controls; this controller sends them while it runs. */
+  input?: AirJamInput;
 }
 
 export type ControllerJoinSource = "embedded" | "options" | "url" | "unknown";
@@ -94,6 +100,8 @@ export class ControllerRuntime {
   readonly roomId: RoomCode | null;
   readonly controllerId: string;
   readonly socket: AirJamRealtimeClient | null;
+  /** This player's controls; null when the game declares none. */
+  readonly input: ControllerInput | null;
   private readonly environment: AirJamControllerEnvironment;
   private readonly disconnectSocket: (role: "controller") => void;
   private readonly stores: readonly AttachableStore[];
@@ -146,6 +154,22 @@ export class ControllerRuntime {
     this.socket = this.roomId
       ? environment.transport(dependencies.getSocket)
       : null;
+    this.input = dependencies.input
+      ? new ControllerInput(dependencies.input, {
+          send: (state) => {
+            const { connectionStatus, roomId, controllerId } =
+              this.store.getState();
+            if (!this.socket?.connected || connectionStatus !== "connected")
+              return;
+            this.socket.emit("controller:input", {
+              roomId,
+              controllerId: controllerId ?? this.controllerId,
+              input: state,
+            });
+          },
+          requestFrame: (callback) => environment.requestFrame(callback),
+        })
+      : null;
   }
 
   /** Whether an embedding shell admitted this controller. */
@@ -168,7 +192,15 @@ export class ControllerRuntime {
     const unsubscribe = this.store.subscribe((state, previous) => {
       if (state.controllerId !== previous.controllerId)
         this.updateDevLogContext();
+      if (
+        state.connectionStatus === "connected" &&
+        previous.connectionStatus !== "connected"
+      )
+        this.input?.flush();
     });
+    const keepalive = this.input
+      ? setInterval(() => this.input?.flush(), INPUT_KEEPALIVE_MS)
+      : null;
     const handleSignal = (signal: SignalPayload) => this.vibrate(signal);
     this.socket?.on("server:signal", handleSignal);
     const socket = this.socket;
@@ -186,6 +218,7 @@ export class ControllerRuntime {
     this.releaseSession = this.startSession();
     return () => {
       unsubscribe();
+      if (keepalive) clearInterval(keepalive);
       this.socket?.off("server:signal", handleSignal);
       if (this.hostLeftTimeout) clearTimeout(this.hostLeftTimeout);
       this.hostLeftTimeout = null;

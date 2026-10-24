@@ -1,4 +1,4 @@
-import type { InputManager } from "../internal/input-manager";
+import type { HostInput } from "../core/host-input";
 import type {
   ControllerLeasedControl,
   ControllerLeasedControlAck,
@@ -8,7 +8,7 @@ import type { HostObservationIdentity } from "./contracts/runtime-identity";
 import { sameHostRuntimeIdentity } from "./contracts/runtime-identity";
 
 type InputBuffer = Pick<
-  InputManager,
+  HostInput,
   | "claimLeasedInput"
   | "supportsLeasedInput"
   | "setLeasedInput"

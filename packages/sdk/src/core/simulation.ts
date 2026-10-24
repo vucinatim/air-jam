@@ -9,8 +9,8 @@ export interface AirJamStepContext<TInput, TEvent> {
   dtSeconds: number;
   /** Seeded randomness: the same seed and inputs replay the same game. */
   random: () => number;
-  /** The latest input of a player, as the input schema parsed it. */
-  input: (controllerId: string) => TInput | undefined;
+  /** A player's controls for this step; released and centred before any input. */
+  input: (controllerId: string) => TInput;
   players: readonly PlayerProfile[];
   /** Reports something that happened, such as a hit, for sound and feedback. */
   emit: (event: TEvent) => void;
@@ -78,7 +78,9 @@ export interface SimulationPace {
 }
 
 interface ClockRoom<TInput> {
-  input: (controllerId: string) => TInput | undefined;
+  /** Called before each step with its tick, to sample input for it. */
+  beginStep: (tick: number) => void;
+  input: (controllerId: string) => TInput;
   players: () => readonly PlayerProfile[];
   runtimeState: () => RuntimeState;
 }
@@ -95,6 +97,7 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
   readonly sim: TSim;
   readonly pace: SimulationPace = { frames: 0, wallMs: 0, simulatedMs: 0 };
   private tick = 0;
+  private inStep = false;
   private accumulatorMs = 0;
   private lastFrameAt: number | null = null;
   private readonly random: () => number;
@@ -115,6 +118,16 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
 
   get ticks(): number {
     return this.tick;
+  }
+
+  /** Whether a step is running, so what it causes is told apart from what reaches it. */
+  get stepping(): boolean {
+    return this.inStep;
+  }
+
+  /** Milliseconds of game time per step. */
+  get stepMs(): number {
+    return this.simulation.stepMs;
   }
 
   /** Game time in milliseconds: the steps taken so far. */
@@ -195,19 +208,25 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
   }
 
   private step(): void {
+    this.room.beginStep(this.tick + 1);
     this.tick += 1;
     const stepMs = this.simulation.stepMs;
-    this.simulation.step(this.sim, {
-      tick: this.tick,
-      stepMs,
-      dtSeconds: stepMs / 1000,
-      random: this.random,
-      input: this.room.input,
-      players: this.room.players(),
-      emit: (event) => {
-        for (const listener of this.eventListeners) listener(event);
-      },
-    });
+    this.inStep = true;
+    try {
+      this.simulation.step(this.sim, {
+        tick: this.tick,
+        stepMs,
+        dtSeconds: stepMs / 1000,
+        random: this.random,
+        input: this.room.input,
+        players: this.room.players(),
+        emit: (event) => {
+          for (const listener of this.eventListeners) listener(event);
+        },
+      });
+    } finally {
+      this.inStep = false;
+    }
   }
 
   private notifyFrame(): void {

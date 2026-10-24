@@ -62,6 +62,21 @@ export const readArena = (sim: AirCaptureSim): BotWorld => ({
   })),
 });
 
+const TURN_DEADZONE = 0.08;
+
+/**
+ * A pilot's stick in the flight model's terms, where positive y climbs: the
+ * stick's y runs down the screen, so pushing it up climbs. A thumb resting
+ * slightly off centre does not turn the ship.
+ */
+const pilotInput = (input: GameLoopInput): GameLoopInput => ({
+  ...input,
+  vector: {
+    x: Math.abs(input.vector.x) < TURN_DEADZONE ? 0 : input.vector.x,
+    y: -input.vector.y,
+  },
+});
+
 /** During the countdown ships may turn but not thrust, fire or use abilities. */
 const countdownInput = (input: GameLoopInput): GameLoopInput => ({
   ...input,
@@ -112,8 +127,7 @@ export const airCaptureSimulation = defineAirJamSimulation<
       const raw =
         ship.bot && arena
           ? ship.bot.update(sim.time, arena)
-          : context.input(ship.controllerId);
-      if (!raw) continue;
+          : pilotInput(context.input(ship.controllerId));
       const input = sim.matchPhase === "countdown" ? countdownInput(raw) : raw;
       flyShip(sim, ship, input, delta, context.emit);
     }

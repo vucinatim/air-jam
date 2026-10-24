@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import type { z } from "zod";
 import { useStore } from "zustand";
 import { useAirJamContext } from "../../context/air-jam-context";
 import {
@@ -20,29 +19,28 @@ import type {
 /** What the game declares for its host runtime. */
 export type HostGameDeclaration = Pick<
   HostRuntimeDependencies,
-  "stores" | "simulation" | "agent"
+  "stores" | "simulation" | "agent" | "input"
 >;
 
 /** Binds one core host runtime to this provider tree for as long as it is mounted. */
-export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
+export const useHostRuntimeApi = (
   options: AirJamHostOptions,
   hookName: string,
-  { stores, simulation, agent }: HostGameDeclaration,
-): AirJamHostRuntimeControls<TSchema> => {
+  { stores, simulation, agent, input }: HostGameDeclaration,
+): AirJamHostRuntimeControls => {
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
 
-  const { config, store, getSocket, disconnectSocket, input } =
-    useAirJamContext();
+  const { config, store, getSocket, disconnectSocket } = useAirJamContext();
 
   const runtime = useMemo(
     () =>
-      new HostRuntime<TSchema>({
+      new HostRuntime({
         config,
         store,
         getSocket,
         disconnectSocket,
-        input: input as HostRuntimeDependencies<TSchema>["input"],
+        input,
         environment: createBrowserHostEnvironment(config),
         stores,
         simulation,
@@ -72,7 +70,7 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
   useEffect(() => runtime.start(), [runtime]);
 
   // A loaded simulation appears on the runtime; render again to hand it out.
-  const [, setLoaded] = useState<HostRuntime<TSchema> | null>(null);
+  const [, setLoaded] = useState<HostRuntime | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   useEffect(() => {
     let current = true;
@@ -105,7 +103,6 @@ export const useHostRuntimeApi = <TSchema extends z.ZodSchema = z.ZodSchema>(
       removeController: runtime.removeController,
       resetRoom: runtime.resetRoom,
       socket: runtime.socket,
-      getInput: runtime.getInput,
       simulation: clock,
       setObservationCapture: runtime.setObservationCapture,
     }),

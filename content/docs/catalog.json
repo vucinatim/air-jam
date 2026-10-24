@@ -221,10 +221,10 @@
     "page": {
       "title": "Input System",
       "href": "/docs/sdk/input-system",
-      "description": "Input behavior modes, vectors, and button event handling.",
+      "description": "Declared buttons, axes and sticks, phone controls, and input logs for replays.",
       "section": "SDK",
       "icon": "zap",
-      "keywords": ["input", "behavior", "vector", "button", "validation"],
+      "keywords": ["input", "controls", "button", "stick", "replay"],
       "docType": "contract",
       "order": 2,
       "stability": "evolving",

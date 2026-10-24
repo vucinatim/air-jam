@@ -15,13 +15,14 @@ const walker = defineAirJamSimulation<
   create: () => ({ x: 0, steps: 0, path: [] }),
   step: (sim, { input, random, emit, dtSeconds }) => {
     sim.steps += 1;
-    sim.x += (input("p1")?.direction ?? 0) * dtSeconds + random();
+    sim.x += input("p1").direction * dtSeconds + random();
     sim.path.push(sim.x);
     if (sim.x > 2) emit({ type: "edge" });
   },
 });
 
 const room = (direction: number) => ({
+  beginStep: () => {},
   input: () => ({ direction }),
   players: () => [],
   runtimeState: () => "playing" as const,

@@ -4,9 +4,11 @@
  * owner advances it, so a test plays on game time, as fast as the host runs.
  */
 import {
+  airJamInputLogSchema,
   createAirJamConfig,
   createConnectionStore,
   DirectRealtimeClient,
+  replayAirJamInputLog,
   type AirJamHostEnvironment,
 } from "@air-jam/sdk/core";
 import type {
@@ -22,6 +24,8 @@ import {
   runtimeTopologyToQueryParams,
 } from "@air-jam/sdk/runtime-topology";
 import { createAirJamServer, loadServerEnv } from "@air-jam/server";
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
 import { io, type Socket } from "socket.io-client";
 import {
   HEADLESS_ROOM_IPC_MAX_BYTES,
@@ -37,9 +41,13 @@ const STARTUP_MS = 10_000;
 
 type Room = {
   agent: HostRuntimeControl["agent"];
-  advance: (ms: number) => number;
+  /** Null for a replay, which has already played. */
+  advance: ((ms: number) => number) | null;
+  saveInputLog: ((path: string) => Promise<SavedInputLog>) | null;
   close: () => Promise<void>;
 };
+
+type SavedInputLog = { sha256: string; ticks: number; entries: number };
 
 let room: Room | undefined;
 let initializing = false;
@@ -118,7 +126,8 @@ async function openRoom(configPath: string, seed: number) {
       disconnectSocket: () => socket.disconnect(),
       environment,
     },
-    { seed },
+    // A game with a simulation keeps the input log that replays the run.
+    { seed, record: Boolean(app.simulation) },
   );
   const stop = runtime.start();
   const close = async () => {
@@ -172,6 +181,18 @@ async function openRoom(configPath: string, seed: number) {
         runtime.simulation?.advance(ms);
         return nowMs;
       },
+      saveInputLog: app.simulation
+        ? async (path) => {
+            const log = runtime.inputLog();
+            const source = `${JSON.stringify(log)}\n`;
+            await writeFile(path, source, { mode: 0o600 });
+            return {
+              sha256: createHash("sha256").update(source).digest("hex"),
+              ticks: log.ticks,
+              entries: log.entries.length,
+            };
+          }
+        : null,
       close,
     };
     return {
@@ -179,11 +200,31 @@ async function openRoom(configPath: string, seed: number) {
       roomId: joined.roomId,
       controllerJoinUrl: joined.joinUrl,
       nowMs,
+      recordsInputLog: Boolean(app.simulation),
     };
   } catch (error) {
     await close();
     throw error;
   }
+}
+
+async function replayRoom(configPath: string, logPath: string) {
+  const app = await loadAirJamAppConfig(configPath);
+  const log = airJamInputLogSchema.parse(
+    JSON.parse(await readFile(logPath, "utf8")),
+  );
+  const replayed = await replayAirJamInputLog(app.createHostRuntime, log);
+  room = {
+    agent: replayed.agent,
+    advance: null,
+    saveInputLog: null,
+    close: async () => replayed.stop(),
+  };
+  return {
+    gameId: resolveAirJamConfigGameId(app),
+    roomId: replayed.roomId,
+    ticks: log.ticks,
+  };
 }
 
 process.on("disconnect", () => {
@@ -211,6 +252,17 @@ process.on("message", (message: unknown) => {
         });
         return;
       }
+      if (request.kind === "replay") {
+        if (room || initializing)
+          throw new Error("The headless room is already open.");
+        initializing = true;
+        send({
+          kind: "replayed",
+          id: request.id,
+          ...(await replayRoom(request.configPath, request.logPath)),
+        });
+        return;
+      }
       if (!room) throw new Error("The headless room is not open.");
       if (request.kind === "agent")
         send({
@@ -218,12 +270,25 @@ process.on("message", (message: unknown) => {
           id: request.id,
           response: await room.agent(request.request),
         });
-      else
+      else if (request.kind === "saveInputLog") {
+        if (!room.saveInputLog)
+          throw new Error(
+            "no_input_log: This room keeps no input log; its game declares no simulation.",
+          );
+        send({
+          kind: "savedInputLog",
+          id: request.id,
+          ...(await room.saveInputLog(request.path)),
+        });
+      } else {
+        if (!room.advance)
+          throw new Error("replay_finished: A replay has already played.");
         send({
           kind: "advanced",
           id: request.id,
           nowMs: room.advance(request.ms),
         });
+      }
     } catch (error) {
       send({
         kind: "error",

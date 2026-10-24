@@ -5,6 +5,7 @@ import {
   useClaimSessionRuntimeOwner,
 } from "../../context/session-scope";
 import { ControllerRuntime } from "../../core/controller-runtime";
+import type { AirJamInput } from "../../core/input";
 import type { AttachableStore } from "../../core/replicated-store";
 import {
   createBrowserControllerEnvironment,
@@ -20,6 +21,7 @@ export const useControllerRuntimeApi = (
   options: AirJamControllerOptions,
   hookName: string,
   stores: readonly AttachableStore[],
+  input: AirJamInput | undefined,
 ): AirJamControllerRuntimeControls => {
   useAssertSessionScope("controller", hookName);
   useClaimSessionRuntimeOwner("controller-runtime", hookName);
@@ -36,6 +38,7 @@ export const useControllerRuntimeApi = (
           disconnectSocket,
           environment: createBrowserControllerEnvironment(),
           stores,
+          input,
         },
         { roomId, controllerId, capabilityToken },
       ),
@@ -44,6 +47,7 @@ export const useControllerRuntimeApi = (
       getSocket,
       disconnectSocket,
       stores,
+      input,
       roomId,
       controllerId,
       capabilityToken,
@@ -66,6 +70,22 @@ export const useControllerRuntimeApi = (
 
   useEffect(() => runtime.start(), [runtime]);
 
+  // A phone that loses focus can no longer release what it holds.
+  useEffect(() => {
+    const controls = runtime.input;
+    if (!controls) return;
+    const release = () => controls.releaseAll();
+    const releaseWhenHidden = () => {
+      if (document.hidden) release();
+    };
+    window.addEventListener("blur", release);
+    document.addEventListener("visibilitychange", releaseWhenHidden);
+    return () => {
+      window.removeEventListener("blur", release);
+      document.removeEventListener("visibilitychange", releaseWhenHidden);
+    };
+  }, [runtime]);
+
   useEffect(
     () => listenForPreviewClose(runtime, disconnectSocket),
     [runtime, disconnectSocket],
@@ -80,6 +100,7 @@ export const useControllerRuntimeApi = (
       leave: runtime.leave,
       reconnect: runtime.reconnect,
       socket: runtime.socket,
+      input: runtime.input,
     }),
     [runtime],
   );

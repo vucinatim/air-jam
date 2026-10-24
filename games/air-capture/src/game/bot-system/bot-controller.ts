@@ -888,12 +888,7 @@ export class BotController {
     // We just need to keep action: true when shouldShoot is true
     const action = shouldShoot;
 
-    return {
-      vector,
-      action,
-      ability,
-      timestamp: time,
-    };
+    return { vector, action, ability };
   }
 
   private shouldUseAbility(

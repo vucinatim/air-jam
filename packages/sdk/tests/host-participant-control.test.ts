@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { z } from "zod";
-import { InputManager } from "../src/internal/input-manager";
+import { HostInput } from "../src/core/host-input";
+import { axis, defineAirJamInput, stick } from "../src/core/input";
 import type { ControllerLeasedControl } from "../src/protocol/leased-control";
 import {
   applyHostRuntimeLeasedControl,
@@ -10,9 +10,14 @@ import { observationFixture } from "./fixtures/host-observation";
 
 const leaseId = "223e4567-e89b-42d3-a456-426614174000";
 const manager = () =>
-  new InputManager({
-    schema: z.object({ direction: z.number().min(-1).max(1) }),
-  });
+  new HostInput(defineAirJamInput({ direction: axis() }), () =>
+    performance.now(),
+  );
+/** What the next simulation step reads for a seat. */
+const stepInput = (input: HostInput, controllerId: string) => {
+  input.sample();
+  return input.read(controllerId);
+};
 const request = (
   expected: ControllerLeasedControl["expected"],
   sequence = 1,
@@ -50,12 +55,12 @@ it("advertises leased input only when its actual receiver exists and shares obse
     expect(
       applyHostRuntimeLeasedControl(f.target, request(current.identity)),
     ).toMatchObject({ status: "applied", sequence: 1 });
-    expect(input.getInput("player")).toEqual({ direction: 1 });
+    expect(stepInput(input, "player")).toEqual({ direction: 1 });
   } finally {
     stop();
     f.close();
   }
-  expect(input.getInput("player")).toBeUndefined();
+  expect(stepInput(input, "player")).toEqual({ direction: 0 });
 });
 
 it("fences host-local surface replacement even when the contract and replicated epochs stay unchanged", async () => {
@@ -77,11 +82,11 @@ it("fences host-local surface replacement even when the contract and replicated 
     expect(second.identity.runtimeId).toBe(first.identity.runtimeId);
     expect(second.identity.contractId).toBe(first.identity.contractId);
     expect(second.identity.surfaceId).not.toBe(first.identity.surfaceId);
-    expect(input.getInput("player")).toBeUndefined();
+    expect(stepInput(input, "player")).toEqual({ direction: 0 });
     expect(
       applyHostRuntimeLeasedControl(f.target, request(first.identity, 2)),
     ).toEqual({ status: "rejected", reason: "stale_identity" });
-    expect(input.getInput("player")).toBeUndefined();
+    expect(stepInput(input, "player")).toEqual({ direction: 0 });
   } finally {
     removeSecond();
     stop();
@@ -99,7 +104,7 @@ it("clears held input when its contract is removed and refuses the previous gene
   const current = await f.observe({ ...f.request, includeImage: false });
   applyHostRuntimeLeasedControl(f.target, request(current.identity));
   f.close();
-  expect(input.getInput("player")).toBeUndefined();
+  expect(stepInput(input, "player")).toEqual({ direction: 0 });
   expect(
     applyHostRuntimeLeasedControl(f.target, request(current.identity, 2)),
   ).toEqual({ status: "rejected", reason: "stale_identity" });
@@ -127,7 +132,7 @@ it("rejects stale document and contract identities without changing an existing 
         reason: "stale_identity",
       });
     }
-    expect(input.getInput("player")).toBeUndefined();
+    expect(stepInput(input, "player")).toEqual({ direction: 0 });
     expect(f.invoke).not.toHaveBeenCalled();
   } finally {
     stop();
@@ -151,7 +156,7 @@ it("an older receiver cleanup cannot remove or clear its successor", async () =>
     const current = await f.observe({ ...f.request, includeImage: false });
     applyHostRuntimeLeasedControl(f.target, request(current.identity));
     oldStop();
-    expect(input.getInput("player")).toEqual({ direction: 1 });
+    expect(stepInput(input, "player")).toEqual({ direction: 1 });
     expect(
       (await f.observe({ ...f.request, includeImage: false })).capabilities,
     ).toMatchObject({
@@ -270,7 +275,7 @@ it("keeps one ordered writer through release and expiry; leave permits a new wri
     expect(applyHostRuntimeLeasedControl(f.target, release)).toMatchObject({
       status: "applied",
     });
-    expect(input.getInput("player")).toBeUndefined();
+    expect(stepInput(input, "player")).toEqual({ direction: 0 });
     expect(applyHostRuntimeLeasedControl(f.target, first)).toEqual({
       status: "rejected",
       reason: "stale_sequence",
@@ -402,13 +407,13 @@ it("shares input/action ordering and never extends movement with action acknowle
     expect(applyHostRuntimeLeasedControl(f.target, action)).toMatchObject({
       status: "applied",
     });
-    expect(input.getInput("player")).toEqual({ direction: 1 });
+    expect(stepInput(input, "player")).toEqual({ direction: 1 });
     clock.mockReturnValue(350);
     expect(applyHostRuntimeLeasedControl(f.target, action)).toMatchObject({
       status: "applied",
       replayed: true,
     });
-    expect(input.getInput("player")).toBeUndefined();
+    expect(stepInput(input, "player")).toEqual({ direction: 0 });
     expect(applyHostRuntimeLeasedControl(f.target, moving)).toEqual({
       status: "rejected",
       reason: "stale_sequence",
@@ -448,7 +453,7 @@ it("refuses a delayed command after its participant has left, including cached r
     expect(
       applyHostRuntimeLeasedControl(f.target, request(observed.identity, 2)),
     ).toEqual({ status: "rejected", reason: "unauthorized" });
-    expect(input.getInput("player")).toBeUndefined();
+    expect(stepInput(input, "player")).toEqual({ direction: 0 });
   } finally {
     stop();
     f.close();
@@ -486,12 +491,12 @@ it("expires admission in the observed host clock, without losing receipts or cle
       status: "applied",
     });
     clock.mockReturnValue(400);
-    expect(input.getInput("player")).toBeUndefined();
+    expect(stepInput(input, "player")).toEqual({ direction: 0 });
     expect(applyHostRuntimeLeasedControl(f.target, moving)).toMatchObject({
       status: "applied",
       replayed: true,
     });
-    expect(input.getInput("player")).toBeUndefined();
+    expect(stepInput(input, "player")).toEqual({ direction: 0 });
     const action: ControllerLeasedControl = {
       ...request(observed.identity, 2),
       operation: { kind: "action", deadlineMs: 200, actionId: "tap" },
@@ -522,12 +527,10 @@ it("expires admission in the observed host clock, without losing receipts or cle
 
 it("recovers a receipt when a retry changes only JSON object key ordering", async () => {
   const f = observationFixture();
-  const input = new InputManager({
-    schema: z.object({
-      direction: z.number(),
-      metadata: z.record(z.string(), z.number()),
-    }),
-  });
+  const input = new HostInput(
+    defineAirJamInput({ direction: axis(), move: stick() }),
+    () => performance.now(),
+  );
   const set = vi.spyOn(input, "setLeasedInput");
   const stop = f.receiver({
     input,
@@ -540,7 +543,7 @@ it("recovers a receipt when a retry changes only JSON object key ordering", asyn
       operation: {
         kind: "input",
         deadlineMs: performance.now() + 2000,
-        input: { direction: 1, metadata: { first: 1, second: 2 } },
+        input: { direction: 1, move: { x: 1, y: 0 } },
         ttlMs: 250,
       },
     } satisfies ControllerLeasedControl;
@@ -550,7 +553,7 @@ it("recovers a receipt when a retry changes only JSON object key ordering", asyn
         kind: "input",
         deadlineMs: first.operation.deadlineMs,
         ttlMs: 250,
-        input: { metadata: { second: 2, first: 1 }, direction: 1 },
+        input: { move: { y: 0, x: 1 }, direction: 1 },
       },
     };
     expect(applyHostRuntimeLeasedControl(f.target, first)).toMatchObject({
@@ -630,7 +633,7 @@ it("fences a receiver replacement even when the renderer, contract and store epo
     expect(
       applyHostRuntimeLeasedControl(f.target, request(first.identity, 2)),
     ).toEqual({ status: "rejected", reason: "stale_identity" });
-    expect(successor.getInput("player")).toBeUndefined();
+    expect(stepInput(successor, "player")).toEqual({ direction: 0 });
   } finally {
     stop();
     f.close();

@@ -51,12 +51,17 @@ const canonicalRules = [
     paths: ["packages/sdk/src"],
   },
   {
-    pattern: "\\bsendInput\\s*\\(",
-    label: "raw sendInput usage (use useInputWriter + useControllerTick)",
+    pattern:
+      "\\bsendInput\\s*\\(|[\"\\']controller:input[\"\\']|\\buseInputWriter\\b|\\buseControllerTick\\b",
+    label:
+      "hand-written input sending (declare controls and use the SDK's phone controls)",
     paths: [
       "games/air-capture/src",
+      "games/code-review/src",
+      "games/last-band-standing/src",
+      "games/minimal/src",
       "games/pong/src",
-      "games/pong",
+      "games/the-office/src",
       "packages/sdk/README.md",
       "games/pong/README.md",
     ],

@@ -3,6 +3,7 @@ export {
   createConnectionStore,
   type AirJamConnectionState,
 } from "./core/connection-store";
+export { ControllerInput } from "./core/controller-input";
 export {
   ControllerRuntime,
   type ControllerRuntimeDependencies,
@@ -24,8 +25,27 @@ export {
   HostRuntime,
   type HostObservationCapture,
   type HostRuntimeDependencies,
+  type HostRuntimeFactory,
   type HostRuntimeOptions,
 } from "./core/host-runtime";
+export {
+  agentValuesToInputState,
+  axis,
+  button,
+  defineAirJamInput,
+  stick,
+  type AirJamAxisControl,
+  type AirJamButtonControl,
+  type AirJamButtonMode,
+  type AirJamControl,
+  type AirJamInput,
+  type AirJamInputState,
+  type AirJamInputValues,
+  type AirJamStickControl,
+  type AirJamVector,
+} from "./core/input";
+export { airJamInputLogSchema, type AirJamInputLog } from "./core/input-log";
+export { replayAirJamInputLog } from "./core/replay-input-log";
 export {
   acceptAirJamAction,
   createAirJamStore,

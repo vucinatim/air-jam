@@ -39,7 +39,13 @@ describe("Code Review simulation", () => {
       stepMs: codeReviewSimulation.stepMs,
       dtSeconds: codeReviewSimulation.stepMs / 1000,
       random: () => 0,
-      input: () => undefined,
+      input: () => ({
+        vertical: 0,
+        horizontal: 0,
+        leftPunch: false,
+        rightPunch: false,
+        defend: false,
+      }),
       players,
       emit: (event) => events.push(event),
     });

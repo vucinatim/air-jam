@@ -26,6 +26,7 @@ import {
   openGameSession,
   readGameRun,
   readGameSession,
+  replayGameRun,
   sendGameSessionInput,
   startGameRun,
   steerGameRun,
@@ -567,6 +568,12 @@ export const buildToolDefinitions = ({
       inputSchema: gameRunWaitSchema,
       run: async (input) => withJsonText(await waitGameRun(input)),
     },
+    "airjam.replay_game_run": {
+      description:
+        "Replay an ended headless run from its recorded input log on a fresh copy of the game, with no server or page, and report whether it ends where the run ended: the same agent view, simulation and step.",
+      inputSchema: gameRunAddressSchema,
+      run: async (input) => withJsonText(await replayGameRun(input)),
+    },
     "airjam.stop_game_run": {
       description:
         "Stop a policy run, release its inputs, retain a final actual observation, and disconnect its owned controllers/host. Idempotent.",
@@ -601,7 +608,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.send_game_session_input": {
       description:
-        "Send one real player-style input payload through a previously opened Air Jam game session.",
+        "Send a player's declared controls through a previously opened Air Jam game session: a button true or false (false then true is one press), an axis a number from -1 to 1, a stick an { x, y }.",
       inputSchema: sendGameSessionInputSchema,
       run: async (input: z.infer<typeof sendGameSessionInputSchema>) =>
         withJsonText(await sendGameSessionInput(input)),

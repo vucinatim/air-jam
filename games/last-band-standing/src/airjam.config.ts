@@ -2,13 +2,12 @@
  * Air Jam app config for last-band-standing.
  *
  * Overrides `maxPlayers` on top of the Vite-resolved runtime topology — this
- * game supports up to 10 concurrent phones. The input schema is a simple
- * hold button declared via `input.behavior.latest`.
+ * game supports up to 10 concurrent phones. Players answer through store
+ * actions, so the game declares no controls.
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
-import { gameInputSchema } from "./game/contracts/input";
 import { roundClock } from "./game/engine/round-clock";
 import { gameStore } from "./game/stores/create-store";
 
@@ -37,10 +36,4 @@ export const airjam = createAirJamApp({
   stores: [gameStore],
   simulation: roundClock,
   agent: agentContract,
-  input: {
-    schema: gameInputSchema,
-    behavior: {
-      latest: ["action"],
-    },
-  },
 });

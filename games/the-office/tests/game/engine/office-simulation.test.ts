@@ -36,7 +36,7 @@ vi.mock("../../../src/game/stores", () => ({
 }));
 
 const playerIds = ["never-input", "neutral-input"];
-const neutral: GameInput = { movementX: 0, movementY: 0, action: false };
+const neutral: GameInput = { move: { x: 0, y: 0 }, action: false };
 const random = () => 0;
 
 describe("Office simulation", () => {
@@ -90,14 +90,14 @@ describe("Office simulation", () => {
       stepMs: officeSimulation.stepMs,
       dtSeconds: officeSimulation.stepMs / 1000,
       random,
-      input: () => undefined,
+      input: () => neutral,
       players: playerIds.map((id) => ({ id, label: id, color: "#000000" })),
       emit: (event) => events.push(event),
     });
 
   const advance = (
     elapsedMs: number,
-    input: (id: string) => GameInput | undefined = () => undefined,
+    input: (id: string) => GameInput = () => neutral,
   ) =>
     advanceOfficeMatch(sim, {
       elapsedMs,
@@ -114,7 +114,7 @@ describe("Office simulation", () => {
     });
   });
 
-  it("decays never-input and neutral-input players equally without moving or starting work", () => {
+  it("decays idle players equally without moving or starting work", () => {
     sim.tasks.spawnTask(0, random);
     const task = sim.tasks.getTasks()[0];
     const location = LOCATIONS.find(
@@ -125,8 +125,7 @@ describe("Office simulation", () => {
     const positions = structuredClone(sim.positions);
     const startTask = vi.spyOn(sim.tasks, "startTask");
 
-    const input = (id: string) =>
-      id === "neutral-input" ? neutral : undefined;
+    const input = () => neutral;
     advance(1001, input);
     advance(2002, input);
 

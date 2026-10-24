@@ -24,6 +24,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
 import type { AirJamConnectionState } from "../core/connection-store";
+import type { ControllerInput } from "../core/controller-input";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
@@ -101,6 +102,8 @@ export interface AirJamControllerOptions {
  * Provides state and functions for a mobile/web controller interface.
  */
 export interface AirJamControllerApi {
+  /** This player's declared controls; null when the game declares none. */
+  input: ControllerInput | null;
   /** Room code this controller is connected to (or attempting to join) */
   roomId: RoomCode | null;
   /** This controller's unique ID */
@@ -177,6 +180,7 @@ export type AirJamControllerRuntimeControls = Pick<
   | "leave"
   | "reconnect"
   | "socket"
+  | "input"
 >;
 
 const toControllerState = (

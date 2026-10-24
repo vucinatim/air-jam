@@ -81,8 +81,10 @@ describe("sdk export surface", () => {
     expect("useAudioSettings" in sdk).toBe(false);
   });
 
-  it("exposes the controller loop and leaves host loops to the simulation", () => {
-    expect("useControllerTick" in sdk).toBe(true);
+  it("leaves loops to the simulation and sending to the SDK's phone controls", () => {
+    expect("useControllerTick" in sdk).toBe(false);
+    expect("useInputWriter" in sdk).toBe(false);
+    expect("useGetInput" in sdk).toBe(false);
     expect("useHostTick" in sdk).toBe(false);
     expect("useHostAgentObservation" in sdk).toBe(false);
     expect("useSimulationFrame" in sdk).toBe(true);

@@ -61,7 +61,7 @@ Call `useAirJamHost(selector)` when a component only needs a narrow slice of
 host session state and you want to avoid rerendering on unrelated runtime
 fields.
 Selectors receive state fields only; call `useAirJamHost()` when a component
-also needs runtime controls such as `joinUrl`, `sendSignal`, or `getInput`.
+also needs runtime controls such as `joinUrl` or `sendSignal`.
 
 ```tsx
 import { useAirJamHost } from "@air-jam/sdk";
@@ -97,7 +97,6 @@ const HostView = () => {
     mode, // "standalone" | "platform"
 
     // Functions
-    getInput, // (controllerId: string) => Input | undefined
     sendSignal, // Send haptics/toasts to controllers
     sendState, // Publish lightweight controller presentation state
     pauseRuntime, // Set runtimeState to "paused"
@@ -125,25 +124,8 @@ const HostView = () => {
 Use `players` for normal gameplay-facing iteration. Use `controllers` when you
 need controller provenance or local recovery tooling.
 
-**Reading Input in Game Loops:**
-
-```tsx
-// In a React Three Fiber component
-useFrame(() => {
-  host.players.forEach((player) => {
-    const input = host.getInput(player.id);
-    if (!input) return;
-
-    // Move player based on joystick
-    movePlayer(player.id, input.vector);
-
-    // Handle button press (tap-safe pulse by default)
-    if (input.action) {
-      playerShoot(player.id);
-    }
-  });
-});
-```
+Players' controls reach the game only in its simulation steps, through
+`input(playerId)`; see [Input System](./input-system.md).
 
 `sendState` is only for lightweight controller presentation metadata such as
 orientation, pause/play status, or short UI messages. It is not the primary
@@ -189,34 +171,6 @@ host.sendSignal("TOAST", {
 
 ---
 
-### `useGetInput`
-
-Lightweight hook for accessing input without triggering re-renders. Use in performance-critical components.
-
-```tsx
-import { useGetInput } from "@air-jam/sdk";
-
-const Ship = ({ playerId }: { playerId: string }) => {
-  const getInput = useGetInput();
-
-  // This component won't re-render when connection state changes
-  useFrame(() => {
-    const input = getInput(playerId);
-    if (!input) return;
-
-    // Update ship position
-    shipRef.current.position.x += input.vector.x * SPEED;
-    shipRef.current.position.y += input.vector.y * SPEED;
-  });
-
-  return <mesh ref={shipRef}>...</mesh>;
-};
-```
-
-**When to use `useGetInput` vs `useAirJamHost().getInput`:**
-
----
-
 ### `useSendSignal`
 
 Lightweight hook for sending signals without triggering re-renders. Use in collision handlers.
@@ -255,13 +209,10 @@ Standalone controller runtimes also keep one stable local device identity and
 automatically attempt same-device resume when reconnecting to the same room.
 
 ```tsx
-import {
-  useAirJamController,
-  useControllerTick,
-  useInputWriter,
-} from "@air-jam/sdk";
-import { useRef } from "react";
+import { useAirJamController } from "@air-jam/sdk";
+import { ControlButton, Stick } from "@air-jam/sdk/ui";
 import { airjam } from "../airjam.config";
+import { shipInput } from "../game/contracts/input";
 
 const ControllerShell = () => (
   <airjam.Controller
@@ -279,9 +230,6 @@ const ControllerShell = () => (
 
 const ControllerView = () => {
   const controller = useAirJamController();
-  const writeInput = useInputWriter();
-  const vectorRef = useRef({ x: 0, y: 0 });
-  const actionRef = useRef(false);
 
   const {
     roomId, // Room code (from URL or props)
@@ -298,23 +246,8 @@ const ControllerView = () => {
     updatePlayerProfile, // Patch live label/avatar when connected
     selfPlayer, // This controller's player profile when known
     reconnect, // Force reconnection
+    input, // This player's declared controls, which phone controls fill
   } = controller;
-
-  // Canonical cadence for continuous controls:
-  // publish at a fixed tick with useControllerTick + useInputWriter.
-  useControllerTick(
-    () => {
-      writeInput({
-        vector: vectorRef.current,
-        action: actionRef.current,
-        timestamp: Date.now(),
-      });
-    },
-    {
-      enabled: connectionStatus === "connected" && runtimeState === "playing",
-      intervalMs: 16,
-    },
-  );
 
   if (connectionStatus === "connecting") {
     return <div>Connecting to room {roomId}...</div>;
@@ -334,23 +267,15 @@ const ControllerView = () => {
       <div className="mb-2 text-xs uppercase">
         Layout {controllerOrientation}
       </div>
-      <Joystick
-        onMove={(x, y) => {
-          vectorRef.current = { x, y };
-        }}
-      />
-      <FireButton
-        onPress={() => (actionRef.current = true)}
-        onRelease={() => (actionRef.current = false)}
-      />
+      <Stick control={shipInput.move} className="size-48 rounded-full" />
+      <ControlButton control={shipInput.fire}>Fire</ControlButton>
     </div>
   );
 };
 ```
 
-### `useControllerTick`
-
-Fixed-cadence helper for controller loops. Use it with `useInputWriter` instead of hand-rolled `setInterval` loops.
+Phone controls send the declared controls themselves; a controller runs no
+send loop.
 
 ### Game simulation
 
@@ -448,11 +373,8 @@ const unsubscribe = onAirJamDiagnostic((diagnostic) => {
 | `AJ_STORE_ACTION_SOCKET_DISCONNECTED`      | Controller state action dispatch attempted while socket disconnected. | Reconnect before dispatching action.                                                                     |
 | `AJ_STORE_ACTION_PAYLOAD_INVALID_SHAPE`    | State action payload root was not omitted or a plain object.          | Dispatch no payload or one plain object payload only.                                                    |
 | `AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE` | State action payload contained non-serializable values.               | Use JSON-safe payload objects only (no functions/symbols/cycles).                                        |
-| `AJ_INPUT_WRITER_INVALID_SHAPE`            | `useInputWriter` payload was not an object.                           | Send plain object payloads only.                                                                         |
-| `AJ_INPUT_WRITER_NOT_SERIALIZABLE`         | Input payload contained non-serializable values.                      | Keep input payload JSON-safe.                                                                            |
-| `AJ_INPUT_WRITER_SESSION_NOT_READY`        | Input writer called before room/controller identity was ready.        | Start publish loop after controller connection/session is ready.                                         |
-| `AJ_INPUT_WRITER_SOCKET_DISCONNECTED`      | Input writer called while controller socket was disconnected.         | Reconnect before sending input.                                                                          |
-| `AJ_INPUT_WRITER_SCHEMA_INVALID`           | Input payload failed runtime schema validation.                       | Match payload shape to configured input schema.                                                          |
+| `AJ_INPUT_INVALID`                         | Input from a controller or agent did not match the declared controls. | Send each declared control in its kind's shape; leave out controls not in use.                           |
+| `AJ_INPUT_NOT_DECLARED`                    | A phone control rendered where the game declares no controls.         | Declare them with `createAirJamApp({ input })` and render controls inside `<airjam.Controller>`.         |
 
 ---
 

@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
 import { GameRunOwner } from "../src/game-run-owner.js";
+import { replayGameRun } from "../src/game-run-replay.js";
 import { createGameSessionRuntime } from "../src/game-session-runtime.js";
 
 const pongDir = path.resolve(
@@ -13,7 +14,7 @@ const pongDir = path.resolve(
   "../../../games/pong",
 );
 
-test("Pong's scoring profile passes headless, faster than real time", async () => {
+test("Pong's scoring profile passes headless, faster than real time, and its input log replays the match", async () => {
   const sessions = createGameSessionRuntime();
   const owner = new GameRunOwner({
     projectDir: pongDir,
@@ -61,4 +62,15 @@ test("Pong's scoring profile passes headless, faster than real time", async () =
   const gameMs = (rounds.length - 1) * record.profile.timing.intervalMs;
   const wallMs = at(last) - at(ready);
   expect(gameMs / wallMs).toBeGreaterThan(3);
+
+  // The run kept everything that reached the game, by step; a fresh copy of
+  // the game fed that log ends the match in the same place.
+  expect(record.evidence?.inputLog?.entries).toBeGreaterThan(0);
+  const replay = await replayGameRun({ cwd: pongDir, runId });
+  expect(replay.ticks).toBe(record.evidence?.inputLog?.ticks);
+  expect(replay.replayed).toEqual(replay.recorded);
+  expect(replay.reproduced).toBe(true);
+  expect(
+    (replay.recorded.snapshot as { scores?: unknown }).scores,
+  ).toBeDefined();
 }, 90_000);

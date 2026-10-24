@@ -1,3 +1,4 @@
+import type { PongInput } from "../contracts/input";
 import type { TeamId } from "../domain/team";
 import {
   getBotPositions,
@@ -87,7 +88,7 @@ export const applyHumanPaddleInput = (
   state: RuntimeState,
   players: RuntimePlayer[],
   teamAssignments: Record<string, TeamAssignment>,
-  getInput: (playerId: string) => { direction?: number } | undefined,
+  getInput: (playerId: string) => PongInput,
   deltaSeconds: number,
 ): void => {
   players.forEach((player) => {
@@ -96,7 +97,7 @@ export const applyHumanPaddleInput = (
       return;
     }
 
-    const direction = getInput(player.id)?.direction ?? 0;
+    const { direction } = getInput(player.id);
 
     if (assignment.team === "team1") {
       if (assignment.position === "front") {

@@ -9,6 +9,10 @@ import {
   controllerBridgeServerEvents,
   controllerBridgeSnapshotSchema,
 } from "@air-jam/sdk/controller-bridge";
+import {
+  agentValuesToInputState,
+  type AirJamInputState,
+} from "@air-jam/sdk/core";
 import type {
   AirJamStateSyncPayload,
   ClientToServerEvents,
@@ -129,6 +133,8 @@ type InternalControllerSession = {
   participantLeaseId: string | null;
   participantLastCommand: ControllerLeasedControl | null;
   participantControlPending: boolean;
+  /** The controls this session last sent, so buttons count presses. */
+  inputState: AirJamInputState | null;
 };
 
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -1217,6 +1223,7 @@ export const connectController = async (
       participantLeaseId: null,
       participantLastCommand: null,
       participantControlPending: false,
+      inputState: null,
     };
 
     attachSocketListeners(internalSession);
@@ -1328,7 +1335,12 @@ export const sendControllerInput = async ({
     throw new Error(
       "participant_control_leased: Use the leased control path for this player.",
     );
-  const payload = { ...input };
+  // An agent sends values; a button turns into a press each time it goes down.
+  const payload = {
+    ...session.inputState,
+    ...agentValuesToInputState(session.inputState, input),
+  };
+  session.inputState = payload;
   session.socket.emit("controller:input", {
     roomId: session.summary.roomId,
     controllerId: session.summary.controllerId,

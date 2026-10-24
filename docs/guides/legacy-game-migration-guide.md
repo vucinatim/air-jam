@@ -65,8 +65,7 @@ The target shape is:
 
 1. `src/airjam.config.ts`
 2. `createAirJamApp({ runtime: env.vite(import.meta.env), ... })`
-3. input schema defined there through `input.schema`
-4. input behavior defined there through `input.behavior`
+3. declared controls passed there through `input: defineAirJamInput({ ... })`
 
 This removes ad hoc route/runtime duplication from the main app entry.
 
@@ -167,8 +166,8 @@ Do not blindly rewrite every legacy input loop the same way.
 
 The right choices are:
 
-1. use `useInputWriter()` and `useControllerTick(...)` when fixed-cadence controller publishing is the cleanest fit
-2. keep an app-owned loop only when the game genuinely needs a custom continuous control model and the boundary remains clear
+1. declare the controls and bind the SDK's `ControlButton`, `AxisButton` and `Stick` to them; the SDK sends them
+2. read them only in simulation steps; games run no send loops of their own
 
 The rule is:
 

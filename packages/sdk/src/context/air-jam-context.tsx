@@ -6,7 +6,6 @@
  * AirJam functionality. It manages:
  * - WebSocket connections to the AirJam server
  * - Global state via Zustand store
- * - Input validation and behavior configuration
  * - Environment variable resolution for server URLs and app IDs
  *
  * @example Basic Setup
@@ -20,27 +19,6 @@
  * );
  * ```
  *
- * @example With Input Configuration
- * ```tsx
- * import { HostSessionProvider } from "@air-jam/sdk";
- * import { z } from "zod";
- *
- * const inputSchema = z.object({
- *   vector: z.object({ x: z.number(), y: z.number() }),
- *   action: z.boolean(),
- * });
- *
- * const App = () => (
- *   <HostSessionProvider
- *     input={{
- *       schema: inputSchema,
- *       behavior: { pulse: ["action"], latest: ["vector"] },
- *     }}
- *   >
- *     <YourGame />
- *   </HostSessionProvider>
- * );
- * ```
  */
 import {
   createContext,
@@ -50,7 +28,6 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -59,7 +36,6 @@ import {
 } from "../core/connection-store";
 import { ensureDevBrowserLogSink } from "../dev/browser-log-sink";
 import { createAirJamDiagnosticError } from "../diagnostics";
-import type { InputConfig } from "../internal/input-manager";
 import type { ConnectionRole } from "../protocol";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import type { HostSessionKind } from "../protocol/host";
@@ -84,8 +60,6 @@ import { SocketManager, type AirJamSocket } from "./socket-manager";
 /**
  * Props for the AirJamProvider component.
  *
- * @template TSchema - Zod schema type for input validation (inferred from input.schema)
- *
  * @example Minimal configuration (uses environment variables)
  * ```tsx
  * <HostSessionProvider>
@@ -100,18 +74,12 @@ import { SocketManager, type AirJamSocket } from "./socket-manager";
  *   appId="your-app-id"
  *   hostGrantEndpoint="/api/airjam/host-grant"
  *   maxPlayers={4}
- *   input={{
- *     schema: myInputSchema,
- *     behavior: { pulse: ["fire"], latest: ["move"] },
- *   }}
  * >
  *   <App />
  * </HostSessionProvider>
  * ```
  */
-export interface AirJamProviderProps<
-  TSchema extends z.ZodSchema = z.ZodSchema,
-> {
+export interface AirJamProviderProps {
   /** React children to render within the provider */
   children: ReactNode;
   /** Explicit runtime topology for this surface. Prefer this over loose endpoint props. */
@@ -146,28 +114,6 @@ export interface AirJamProviderProps<
    * @default true
    */
   resolveEnv?: boolean;
-  /**
-   * Input handling configuration including Zod schema validation and field behavior.
-   * When provided, enables typed input with tap-safe defaults:
-   * - booleans => `pulse`
-   * - vectors => `latest`
-   *
-   * @example
-   * ```ts
-   * input={{
-   *   schema: z.object({
-   *     vector: z.object({ x: z.number(), y: z.number() }),
-   *     action: z.boolean(),
-   *     ability: z.boolean(),
-   *   }),
-   *   behavior: {
-   *     pulse: ["action", "ability"],  // consume-on-read actions
-   *     latest: ["vector"],            // continuous movement
-   *   },
-   * }}
-   * ```
-   */
-  input?: InputConfig<TSchema>;
 }
 
 // ============================================================================
@@ -185,8 +131,6 @@ export interface AirJamContextValue {
   getSocket: (role: ConnectionRole) => AirJamSocket;
   /** Disconnect socket for a specific role */
   disconnectSocket: (role: ConnectionRole) => void;
-  /** The game's input config; the host runtime builds its input buffer from it. */
-  input: InputConfig | undefined;
 }
 
 const AirJamContext = createContext<AirJamContextValue | null>(null);
@@ -204,14 +148,12 @@ interface DevProviderMountWindow extends Window {
  *
  * Wrap your application (or game component tree) with this provider to enable
  * AirJam functionality. The provider manages WebSocket connections, global state,
- * and input processing.
+ * and the room connection.
  *
  * **Key responsibilities:**
  * - Creates and manages WebSocket connections to the AirJam server
  * - Provides a Zustand store for connection state (players, game state, etc.)
  * - Resolves configuration from props and environment variables
- *
- * @template TSchema - Zod schema for input validation (inferred from props)
  *
  * @example Basic usage
  * ```tsx
@@ -227,34 +169,8 @@ interface DevProviderMountWindow extends Window {
  * );
  * ```
  *
- * @example With typed input behavior overrides
- * ```tsx
- * import { HostSessionProvider } from "@air-jam/sdk";
- * import { z } from "zod";
- *
- * const gameInputSchema = z.object({
- *   vector: z.object({ x: z.number(), y: z.number() }),
- *   action: z.boolean(),
- *   ability: z.boolean(),
- *   timestamp: z.number(),
- * });
- *
- * export const App = () => (
- *   <HostSessionProvider
- *     input={{
- *       schema: gameInputSchema,
- *       behavior: {
- *         pulse: ["action", "ability"],
- *         latest: ["vector"],
- *       },
- *     }}
- *   >
- *     <GameRoutes />
- *   </HostSessionProvider>
- * );
- * ```
  */
-export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
+export const AirJamProvider = ({
   children,
   topology,
   surfaceRole,
@@ -263,8 +179,7 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
   maxPlayers,
   hostSessionKind,
   resolveEnv = true,
-  input,
-}: AirJamProviderProps<TSchema>) => {
+}: AirJamProviderProps) => {
   // Resolve config via runtime config resolver.
   const config = useMemo<AirJamConfig>(
     () =>
@@ -420,9 +335,8 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
       socketManager,
       getSocket,
       disconnectSocket,
-      input,
     }),
-    [config, store, socketManager, getSocket, disconnectSocket, input],
+    [config, store, socketManager, getSocket, disconnectSocket],
   );
 
   return (
@@ -443,14 +357,13 @@ export const AirJamProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
  * Most applications should use the higher-level hooks instead:
  * - `useAirJamHost()` - For host/game functionality
  * - `useAirJamController()` - For controller functionality
- * - `useGetInput()` - For input access without re-renders
  * - `useSendSignal()` - For sending signals without re-renders
  *
  * @throws Error if used outside of an AirJamProvider
  *
  * @example
  * ```tsx
- * const { config, store, inputManager } = useAirJamContext();
+ * const { config, store } = useAirJamContext();
  * ```
  */
 export const useAirJamContext = (): AirJamContextValue => {

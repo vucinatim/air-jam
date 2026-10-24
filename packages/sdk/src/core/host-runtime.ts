@@ -1,9 +1,7 @@
-import type { z } from "zod";
 import type { StoreApi } from "zustand/vanilla";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import type { AirJamSocket } from "../context/socket-manager";
 import { emitAirJamDiagnostic } from "../diagnostics";
-import { InputManager, type InputConfig } from "../internal/input-manager";
 import type {
   ControllerInputEvent,
   ControllerJoinedNotice,
@@ -58,6 +56,9 @@ import type { AirJamConfig } from "./config";
 import type { AirJamConnectionState } from "./connection-store";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type { AirJamHostEnvironment } from "./environment";
+import { HostInput } from "./host-input";
+import type { AirJamInput } from "./input";
+import { InputRecorder, type AirJamInputLog } from "./input-log";
 import type { AttachableStore } from "./replicated-store";
 import {
   SimulationClock,
@@ -76,19 +77,19 @@ export interface HostRuntimeOptions {
   roomId?: string;
   /** Seeds the simulation; a recorded seed and inputs replay the same game. */
   seed?: number;
+  /** Records the input log that replays this game, read with `inputLog()`. */
+  record?: boolean;
   onPlayerJoin?: (player: PlayerProfile) => void;
   onPlayerLeave?: (controllerId: string) => void;
 }
 
-export interface HostRuntimeDependencies<
-  TSchema extends z.ZodSchema = z.ZodSchema,
-> {
+export interface HostRuntimeDependencies {
   config: AirJamConfig;
   store: StoreApi<AirJamConnectionState>;
   getSocket: (role: "host") => AirJamSocket;
   disconnectSocket: (role: "host") => void;
-  /** The game's input schema and behavior; absent when the game reads no input. */
-  input?: InputConfig<TSchema>;
+  /** The game's declared controls, read in simulation steps. */
+  input?: AirJamInput;
   environment: AirJamHostEnvironment;
   /** The game's replicated stores; they sync while the runtime runs. */
   stores: readonly AttachableStore[];
@@ -97,6 +98,15 @@ export interface HostRuntimeDependencies<
   /** The game's agent contract, published for its room while the runtime runs. */
   agent?: { contract: AnyAirJamAgentContract; gameId: string };
 }
+
+/** Builds a game's host core from what its platform provides. */
+export type HostRuntimeFactory = (
+  dependencies: Omit<
+    HostRuntimeDependencies,
+    "stores" | "simulation" | "agent" | "input"
+  >,
+  options?: HostRuntimeOptions,
+) => HostRuntime;
 
 export type HostObservationCapture = NonNullable<
   HostObservationSurface["capture"]
@@ -114,7 +124,7 @@ interface PendingHostReset {
  * runtime state and signals. It owns no rendering; bindings subscribe to its
  * connection store.
  */
-export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
+export class HostRuntime {
   readonly socket: AirJamRealtimeClient;
   /**
    * Settles once the declared simulation is loaded, at once when it needs no
@@ -122,7 +132,10 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
    */
   readonly ready: Promise<void>;
   readonly store: StoreApi<AirJamConnectionState>;
-  readonly inputManager: InputManager<TSchema> | null;
+  /** The input lane; null when the game declares no controls. */
+  readonly input: HostInput | null;
+  private readonly recorder: InputRecorder | null;
+  private readonly seed: number;
   private readonly config: AirJamConfig;
   private readonly environment: AirJamHostEnvironment;
   private readonly disconnectSocket: (role: "host") => void;
@@ -153,14 +166,23 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   private releaseSession: (() => void) | null = null;
 
   constructor(
-    dependencies: HostRuntimeDependencies<TSchema>,
+    dependencies: HostRuntimeDependencies,
     options: HostRuntimeOptions = {},
   ) {
     this.config = dependencies.config;
     this.store = dependencies.store;
-    this.inputManager = dependencies.input
-      ? new InputManager(dependencies.input, () => this.environment.now())
+    if (dependencies.input && !dependencies.simulation)
+      throw new Error(
+        "A game reads its declared input in simulation steps. Declare a simulation with createAirJamApp({ simulation }).",
+      );
+    this.input = dependencies.input
+      ? new HostInput(dependencies.input, () => this.environment.now())
       : null;
+    if (options.record && !dependencies.simulation)
+      throw new Error(
+        "An input log is kept by simulation step. Declare a simulation to record one.",
+      );
+    this.recorder = options.record ? new InputRecorder() : null;
     this.environment = dependencies.environment;
     this.disconnectSocket = dependencies.disconnectSocket;
     this.stores = dependencies.stores;
@@ -168,6 +190,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     this.options = options;
     this.socket = dependencies.environment.transport(dependencies.getSocket);
     const seed = options.seed ?? dependencies.environment.seed();
+    this.seed = seed;
     const install = (
       simulation: AirJamSimulation<unknown, unknown, unknown>,
     ): void => {
@@ -175,7 +198,17 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
       this.clock = new SimulationClock<unknown, unknown, unknown>(
         simulation,
         {
-          input: (controllerId): unknown => this.getInput(controllerId),
+          beginStep: (tick) => {
+            const changes = this.input?.sample() ?? [];
+            this.recorder?.flush(
+              tick,
+              changes.map(({ controllerId, input }) => ({
+                event: "server:input" as const,
+                payload: structuredClone({ controllerId, input }),
+              })),
+            );
+          },
+          input: (controllerId) => this.input?.read(controllerId) ?? {},
           players: () => this.store.getState().players,
           runtimeState: () => this.store.getState().runtimeState,
         },
@@ -211,6 +244,24 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     this.declaresSimulation
       ? (this.clock?.timeMs ?? 0)
       : this.environment.now();
+
+  /**
+   * Everything that reached the game so far, by step: replaying it on a host
+   * with the same seed plays the same match. Needs `{ record: true }`.
+   */
+  inputLog(): AirJamInputLog {
+    const simulation = this.simulationDeclaration;
+    if (!this.recorder || !simulation)
+      throw new Error(
+        "This host keeps no input log. Start it with { record: true } once its simulation has loaded.",
+      );
+    return this.recorder.log({
+      seed: this.seed,
+      stepMs: simulation.stepMs,
+      ticks: this.clock?.ticks ?? 0,
+      storeDomain: this.environment.defaultStoreDomain,
+    });
+  }
 
   /** The room this host is in or asking for, if any. */
   get roomId(): RoomCode | null {
@@ -248,12 +299,14 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
         now: this.now,
       }),
     );
+    const stopRecordingActions = this.recordActions();
     this.releaseSession = this.startSession();
     this.bindRoomControl();
     this.refreshJoinUrl();
     const unsubscribe = this.store.subscribe(() => this.handleRoomChange());
     this.stopFrames = this.startFrames();
     return () => {
+      for (const stop of stopRecordingActions) stop();
       this.stopFrames?.();
       this.stopFrames = null;
       unsubscribe();
@@ -288,9 +341,6 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     const roomId = this.roomId;
     if (this.running && roomId) this.bindObservation(roomId);
   };
-
-  readonly getInput = (controllerId: string): z.infer<TSchema> | undefined =>
-    this.inputManager?.getInput(controllerId) as z.infer<TSchema> | undefined;
 
   readonly sendState = (state: ControllerStatePayload): boolean => {
     const roomId = this.roomId;
@@ -613,6 +663,26 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     this.environment.setDevLogContext({ traceId });
   }
 
+  /** Records store actions applied between steps; a step's own actions replay with it. */
+  private recordActions(): (() => void)[] {
+    const recorder = this.recorder;
+    if (!recorder) return [];
+    return this.stores.map((store) =>
+      store.subscribeHostActions(
+        ({ actionName, payload, storeDomain, context }) => {
+          if (this.clock?.stepping) return;
+          recorder.record("airjam:action_rpc", {
+            actionName,
+            payload,
+            storeDomain,
+            actor: { id: context.actorId, role: context.role },
+          });
+        },
+        { includeRejected: true },
+      ),
+    );
+  }
+
   /** Admission control for controllers this host leases to agents and tools. */
   private bindRoomControl(): void {
     this.releaseRoomControl?.();
@@ -630,7 +700,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     this.bindObservation(roomId);
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
       now: () => this.environment.now(),
-      input: this.inputManager ?? undefined,
+      input: this.input ?? undefined,
       readState: () => {
         const state = this.store.getState();
         return {
@@ -1045,6 +1115,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     };
 
     const handleJoin = (payload: ControllerJoinedNotice): void => {
+      this.recorder?.record("server:controllerJoined", payload);
       store.getState().upsertControllerSession(payload);
       const player = payload.player;
       if (!player) return;
@@ -1053,7 +1124,8 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     };
 
     const handleLeave = (payload: { controllerId: string }): void => {
-      this.inputManager?.clearInput(payload.controllerId);
+      this.recorder?.record("server:controllerLeft", payload);
+      this.input?.clearInput(payload.controllerId);
       const roomId = this.roomId;
       if (roomId)
         clearHostRuntimeParticipant(
@@ -1068,6 +1140,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     };
 
     const handlePlayerUpdated = (payload: PlayerUpdatedNotice): void => {
+      this.recorder?.record("server:playerUpdated", payload);
       const state = store.getState();
       state.upsertPlayer(payload.player);
       const existing = state.controllerSessions.find(
@@ -1078,11 +1151,12 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
     };
 
     const handleInput = (payload: ControllerInputEvent): void => {
-      this.inputManager?.handleInput(payload);
+      this.input?.receive(payload.controllerId, payload.input);
     };
 
     const handleState = (payload: ControllerStateMessage): void => {
       if (payload.roomId !== this.roomId) return;
+      this.recorder?.record("server:state", payload);
       this.observeRoomState(payload);
     };
 

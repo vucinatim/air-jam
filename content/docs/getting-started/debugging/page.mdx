@@ -1,5 +1,3 @@
-
-
 # Debugging and Logs
 
 When local Air Jam development breaks, the fastest fix is usually knowing which surface is failing:
@@ -96,10 +94,11 @@ pnpm run dev -- --secure
 
 Check:
 
-1. controller is publishing input via `useControllerTick` + `useInputWriter`
-2. host is reading input via `getInput` or `useGetInput`
-3. you are not trying to send per-frame input through store actions
-4. the input schema still matches the payload shape
+1. the game declares its controls with `createAirJamApp({ input })`
+2. the controller renders the SDK's phone controls bound to those controls
+3. the simulation reads them in its step with `input(playerId)`
+4. you are not trying to send per-frame input through store actions
+5. the dev log shows no `AJ_INPUT_INVALID` diagnostic
 
 ### Store actions do nothing
 

@@ -221,22 +221,22 @@ tests/
 ## Runtime Pattern (Canonical)
 
 - `airjam.config.ts` is the single source for catalog metadata plus runtime/provider config.
-- `airjam.Host` wraps `HostView` from `src/host/index.tsx` and owns input schema + behavior defaults.
+- `airjam.Host` wraps `HostView` from `src/host/index.tsx`.
 - `airjam.Controller` wraps `ControllerView` from `src/controller/index.tsx`.
-- Controller input is published on a fixed 16ms cadence using `useInputWriter` in `src/controller/index.tsx`.
-- Host input is consumed with `host.getInput(playerId)` in the game loop.
+- `pongInput` declares one axis per player; the controller's `AxisButton`s fill it and the SDK sends it.
+- The simulation reads it each step with `input(playerId)`.
 
 ## Starter Module Map
 
 When extending this template, inspect these modules before adding new code:
 
 - `src/host/index.tsx` for the host surface boundary and overlay composition
-- `src/controller/index.tsx` for controller flow, action publishing, and input cadence
+- `src/controller/index.tsx` for controller flow and action publishing
 - `src/game/stores/pong-store.ts` for Air Jam store wiring and action ownership
 - `src/game/stores/pong-store-state.ts` for the thin state entrypoint and initial defaults
 - `src/game/stores/pong-store-lobby.ts` for lobby-phase transitions and team setup rules
 - `src/game/stores/pong-store-match.ts` for match lifecycle and scoring reducers
-- `src/game/contracts/input.ts` for the controller input schema and behavior contract
+- `src/game/contracts/input.ts` for the declared controls
 - `src/game/contracts/sounds.ts` for the shared sound manifest
 - `src/game/contracts/controller-signals.ts` for host-to-controller signal payloads and transport-facing mapping
 - `src/game/domain/team-slots.ts` for the canonical mixed human/bot slot model used by both surfaces

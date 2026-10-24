@@ -37,9 +37,9 @@ The SDK offers three ways to move data between the host and controllers:
 | Signal | Out-of-band UX (haptics, toasts)          | No — keep this starter simple |
 | Input  | High-frequency per-frame controller input | No — taps are discrete events |
 
-When you need continuous controller input (joystick, paddle, motion),
-`useInputWriter` / `useControllerTick` on the controller + `host.getInput()`
-on the host is the pattern. See the `pong` template for a worked example.
+When you need continuous controller input (stick, paddle), declare controls
+with `defineAirJamInput`, bind the SDK's phone controls to them and read them
+in a simulation step. See the `pong` template for a worked example.
 
 ## Run it
 
@@ -58,9 +58,10 @@ Good places to grow from here:
 1. **Add a game phase.** Replace the flat counter with a 30-second round: add
    `matchPhase: "lobby" | "playing" | "ended"` to the store, a countdown on
    the host, and a disabled state on the controller between rounds.
-2. **Add real input.** Turn the button into a held accelerator: populate
-   `gameInputSchema` with a `held: boolean`, publish it with
-   `useInputWriter`, and read it on the host with `host.getInput(playerId)`.
+2. **Add real input.** Turn the button into a held accelerator: declare
+   `defineAirJamInput({ accelerate: button("held") })`, render a
+   `ControlButton` for it, and read `input(playerId).accelerate` in a
+   simulation step.
 3. **Add per-player identity.** `controller.selfPlayer` exposes the connected
    player profile (name, color). Show it on both surfaces. Plug
    `ControllerPlayerNameField` into the controller for editable names.

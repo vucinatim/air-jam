@@ -1,18 +1,16 @@
 /**
  * Air Jam app config.
  *
- * Declares the runtime topology, the controller sub-route, and the Zod
- * schema controllers use to publish input to the host. `env.vite(...)`
+ * Declares the runtime topology and the controller sub-route. `env.vite(...)`
  * resolves topology from `VITE_AIR_JAM_*` env vars; see `.env.example`.
  *
- * This minimal template doesn't actually use the input lane — taps are
- * dispatched as store actions instead — so the input schema is empty. For
- * per-frame controller input (joystick, paddle), see the pong template.
+ * This minimal template declares no controls: taps are dispatched as store
+ * actions. For continuous controls (stick, paddle), declare them with
+ * `defineAirJamInput` and read them in a simulation, as the pong template does.
  */
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
-import { gameInputSchema } from "./game/input";
 import { minimalStore } from "./game/store";
 
 export const gameMetadata = defineAirJamGameMetadata({
@@ -37,7 +35,4 @@ export const airjam = createAirJamApp({
   stores: [minimalStore],
   agent: agentContract,
   testing: "./testing/profiles.ts",
-  input: {
-    schema: gameInputSchema,
-  },
 });

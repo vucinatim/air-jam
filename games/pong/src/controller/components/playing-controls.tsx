@@ -1,48 +1,13 @@
+import { AxisButton } from "@air-jam/sdk/ui";
+import { pongInput } from "../../game/contracts/input";
 import { getTeamColor, getTeamLabel } from "../../game/domain/team";
 import { useControllerConnectionNotice } from "../hooks/use-controller-connection-notice";
-import type { PongControllerDirection } from "../hooks/use-pong-controller-input-runtime";
 import { usePongControllerTeams } from "../hooks/use-pong-controller-teams";
 import { PRESS_FEEL_CLASS } from "./classes";
 
-interface PlayingControlsProps {
-  onDirectionChange: (direction: PongControllerDirection) => void;
-}
+const DIRECTION_BUTTON_CLASS = `pong-controller-touch flex flex-1 items-center justify-center rounded-[32px] px-4 text-center text-4xl font-black tracking-[0.2em] text-white ${PRESS_FEEL_CLASS}`;
 
-interface DirectionButtonProps {
-  label: string;
-  direction: -1 | 1;
-  controlsDisabled: boolean;
-  onDirectionChange: (direction: PongControllerDirection) => void;
-}
-
-const DirectionButton = ({
-  label,
-  direction,
-  controlsDisabled,
-  onDirectionChange,
-}: DirectionButtonProps) => {
-  return (
-    <button
-      type="button"
-      className={`pong-controller-touch flex flex-1 touch-none items-center justify-center rounded-[32px] px-4 text-center text-4xl font-black tracking-[0.2em] text-white select-none ${PRESS_FEEL_CLASS}`}
-      disabled={controlsDisabled}
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        onDirectionChange(direction);
-      }}
-      onPointerUp={() => onDirectionChange(0)}
-      onPointerCancel={() => onDirectionChange(0)}
-      onPointerLeave={() => onDirectionChange(0)}
-      onLostPointerCapture={() => onDirectionChange(0)}
-    >
-      {label}
-    </button>
-  );
-};
-
-export const PlayingControls = ({
-  onDirectionChange,
-}: PlayingControlsProps) => {
+export const PlayingControls = () => {
   const { controlsDisabled } = useControllerConnectionNotice();
   const { myTeam } = usePongControllerTeams();
   const teamColor = myTeam ? getTeamColor(myTeam) : "#f8fafc";
@@ -64,18 +29,22 @@ export const PlayingControls = ({
           Hold to move. Release to stop.
         </div>
       </div>
-      <DirectionButton
-        label="UP"
-        direction={-1}
-        controlsDisabled={controlsDisabled}
-        onDirectionChange={onDirectionChange}
-      />
-      <DirectionButton
-        label="DOWN"
-        direction={1}
-        controlsDisabled={controlsDisabled}
-        onDirectionChange={onDirectionChange}
-      />
+      <AxisButton
+        control={pongInput.direction}
+        value={-1}
+        disabled={controlsDisabled}
+        className={DIRECTION_BUTTON_CLASS}
+      >
+        UP
+      </AxisButton>
+      <AxisButton
+        control={pongInput.direction}
+        value={1}
+        disabled={controlsDisabled}
+        className={DIRECTION_BUTTON_CLASS}
+      >
+        DOWN
+      </AxisButton>
     </div>
   );
 };

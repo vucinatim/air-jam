@@ -37,7 +37,6 @@ const idle: GameLoopInput = {
   vector: { x: 0, y: 0 },
   action: false,
   ability: false,
-  timestamp: 0,
 };
 
 const createMatch = (seed = 7) => {
@@ -52,7 +51,7 @@ const createMatch = (seed = 7) => {
         stepMs: airCaptureSimulation.stepMs,
         dtSeconds: airCaptureSimulation.stepMs / 1000,
         random,
-        input: (controllerId) => (controllerId === HUMAN ? input : undefined),
+        input: (controllerId) => (controllerId === HUMAN ? input : idle),
         players: [{ id: HUMAN, label: "One", color: "#ffffff" }],
         emit: (event) => events.push(event),
       });
@@ -133,7 +132,7 @@ describe("Air Capture simulation", () => {
     fixture.state.matchPhase = "playing";
     step();
     const start = ship(sim, HUMAN).position.clone();
-    hold({ vector: { x: 0, y: 1 } });
+    hold({ vector: { x: 0, y: -1 } });
     step(60);
     expect(ship(sim, HUMAN).position.distanceTo(start)).toBeGreaterThan(5);
   });
@@ -190,7 +189,7 @@ describe("Air Capture simulation", () => {
       const match = createMatch(11);
       match.step();
       fixture.state.matchPhase = "playing";
-      match.hold({ vector: { x: 0.4, y: 1 }, action: true });
+      match.hold({ vector: { x: 0.4, y: -1 }, action: true });
       match.step(300);
       return {
         ships: [...match.sim.ships.values()].map((each) =>

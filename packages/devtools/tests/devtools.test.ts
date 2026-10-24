@@ -1396,24 +1396,24 @@ describe("virtual controller runtime control", () => {
 
     const inputResult = await sendControllerInput({
       controllerSessionId: connected.controllerSessionId,
-      input: {
-        buttons: {
-          confirm: true,
-        },
-      },
+      input: { confirm: true, direction: 0.5 },
+    });
+    await sendControllerInput({
+      controllerSessionId: connected.controllerSessionId,
+      input: { confirm: false },
     });
     await new Promise((resolve) => setTimeout(resolve, 25));
     expect(inputResult.controllerId).toBe(connected.controllerId);
+    // A button an agent puts down is one press; other controls hold.
     expect(fixture.receivedInputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           roomId: "ROOM1",
           controllerId: connected.controllerId,
-          input: {
-            buttons: {
-              confirm: true,
-            },
-          },
+          input: { confirm: { down: true, presses: 1 }, direction: 0.5 },
+        }),
+        expect.objectContaining({
+          input: { confirm: { down: false, presses: 1 }, direction: 0.5 },
         }),
       ]),
     );

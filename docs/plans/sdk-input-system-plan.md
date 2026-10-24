@@ -1,7 +1,7 @@
 # SDK Input System Plan
 
-Last updated: 2026-10-20
-Status: direction agreed with Tim, not started; follows the core layering plan's game clock; phases 1 and 2 are 1.0 scope
+Last updated: 2026-10-24
+Status: phases 1 and 2 built on `claude/sdk-input-system`, on top of the core layering branch; phases 3 and 4 next; phases 1 and 2 are 1.0 scope
 
 This plan owns how players' input gets from any device into a game: one
 declaration of what a game reads, one set of meanings for buttons and sticks,
@@ -66,6 +66,12 @@ with fixed meanings per control kind, and records them.
 7. **Game code never reads devices.** Key listeners, gamepad polling and motion
    events belong to sources. Host-local view controls that never change game
    state, such as a debug camera, stay ordinary host UI.
+8. **Sticks are y down.** A stick's y grows towards the bottom of its surface,
+   like screen space and the browser Gamepad API. Most Air Jam games draw in
+   screen space, so the common case needs no flip and a gamepad source passes
+   its axes through; a game that wants y up, such as Air Capture's climbing
+   flier, flips once where input enters its own model. Decided in the review of
+   vucinatim/air-jam#135 after The Office had to flip a y-up stick.
 
 ## Expected shape
 
@@ -162,6 +168,61 @@ flies from a gamepad stick.
 
 Done when a fresh agent asked for a racing game produces one that plays from
 the keyboard, a gamepad and a phone without being asked.
+
+## Progress
+
+Built on `claude/sdk-input-system` (2026-10-24), checked by the SDK, devtools,
+game and contract suites:
+
+1. **Declared controls (phase 1).** `defineAirJamInput` with `button("held")`,
+   `button("pressed")`, `axis()` and `stick({ keepDirection })` from
+   `@air-jam/sdk/core` derives the wire schema, the agent schema and the
+   input description agents read. The host's input lane (`HostInput`)
+   samples every seat before each simulation step: presses travel as a
+   counter, a pressed button reads true for exactly one step per press, a
+   held button also catches a tap shorter than a step, and a source that
+   restarts counts from zero again. `input(playerId)` always returns every
+   control, released and centred before any input. Input reaches a game only
+   in its steps: `InputManager`, the behavior lists, `useGetInput` and the
+   host's `getInput` are gone, and declaring input without a simulation
+   fails fast.
+2. **Agents as a source.** Leases set values (a button `true` or `false`, an
+   axis a number, a stick `{ x, y }`) and a button's rising edge is one press.
+   The raw `send_game_session_input` path converts the same way.
+3. **Input log and replay.** A host started with `{ record: true }` keeps
+   everything that reached its game, stamped with the step it reached it
+   before: joins, leaves, profile updates, runtime state, store actions
+   applied between steps and each seat's controls when they changed. Actions
+   a step dispatches replay with the simulation and are not recorded.
+   `replayAirJamInputLog` plays a log on a fresh host through an in-memory
+   room. Headless runs record it into their evidence, and
+   `airjam session run replay <run-id>` (MCP `airjam.replay_game_run`)
+   replays it and compares where it ends with the run's final observation.
+   A headless Pong scoring run records 42 entries over 275 steps and its
+   replay ends with the same score, simulation state and step.
+4. **Phone controls (phase 2).** The controller runtime holds its player's
+   controls and sends them once per display frame when they change, after
+   joining and on a one-second keepalive; nothing stamps input with a device
+   clock. `ControlButton`, `AxisButton` and `Stick` in `@air-jam/sdk/ui` bind
+   phone UI to controls, set `data-active` for styling and release when the
+   page loses focus. The stick reads its own frame from corner markers, so
+   a rotated controller surface needs no game code. `useInputWriter` and
+   `useControllerTick` are gone, and the canonical guard rejects
+   hand-written input sending in games.
+5. **Games.** Pong (`direction` axis), Air Capture (`vector` stick, held
+   `action`, pressed `ability`), Code Review (two axes, two pressed punches,
+   held guard) and The Office (4-way `move` stick, held `action`) declare
+   controls and use the SDK's controls. Air Capture's input timestamp is gone
+   and its turn deadzone moved into the simulation. Code Review's tilt mode
+   drives the declared axes through the controller's input lane. Last Band
+   Standing and Minimal read no input and declare none.
+
+Next:
+
+1. Phase 3, local players: keyboard layouts and gamepads as sources.
+2. Code Review reads device tilt in game code; it becomes an SDK tilt source
+   in phase 3.
+3. The hosted product's input flow diagram still shows schemas and send loops.
 
 ## Removals
 

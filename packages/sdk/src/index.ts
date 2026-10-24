@@ -68,22 +68,15 @@ export {
   type JoinUrlStatus,
 } from "./hooks/use-air-jam-host";
 export {
-  useControllerTick,
-  type ControllerTickInfo,
-  type ControllerTickOptions,
-} from "./hooks/use-controller-tick";
-export {
   useControllerToasts,
   type ControllerToast,
   type UseControllerToastsOptions,
 } from "./hooks/use-controller-toasts";
-export { useGetInput } from "./hooks/use-get-input";
 export { useHostAgentCapture } from "./hooks/use-host-agent-capture";
 export {
   useHostAudioMutePreference,
   type HostAudioMutePreference,
 } from "./hooks/use-host-audio-mute-preference";
-export { useInputWriter } from "./hooks/use-input-writer";
 export { useRoom, type RoomState } from "./hooks/use-room";
 export { useSendSignal, type SendSignalFn } from "./hooks/use-send-signal";
 export {

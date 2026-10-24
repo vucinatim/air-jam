@@ -6,7 +6,7 @@ import { EndedPanel } from "./components/ended-panel";
 import { LobbyPanel } from "./components/lobby-panel";
 import { PausedPanel } from "./components/paused-panel";
 import { PlayingControls } from "./components/playing-controls";
-import { useCodeReviewControllerInput } from "./hooks/use-code-review-controller-input";
+import { useCodeReviewMovement } from "./hooks/use-code-review-movement";
 
 export function ControllerView() {
   const connectionStatus = useAirJamController(
@@ -21,19 +21,8 @@ export function ControllerView() {
     runtimeState === "playing";
   const desiredOrientation =
     matchPhase === "playing" ? "landscape" : "portrait";
-  const {
-    movementMode,
-    motionStatus,
-    enableTilt,
-    useTouch,
-    move,
-    startDefending,
-    stopDefending,
-    triggerLeftPunch,
-    triggerRightPunch,
-  } = useCodeReviewControllerInput({
-    enabled: canUseGameplayControls,
-  });
+  const { movementMode, motionStatus, enableTilt, useTouch } =
+    useCodeReviewMovement({ enabled: canUseGameplayControls });
 
   return (
     <div className="controller-view-shell">
@@ -59,11 +48,6 @@ export function ControllerView() {
               motionStatus={motionStatus}
               onEnableTilt={enableTilt}
               onUseTouch={useTouch}
-              onMove={move}
-              onLeftPunch={triggerLeftPunch}
-              onRightPunch={triggerRightPunch}
-              onDefendStart={startDefending}
-              onDefendEnd={stopDefending}
             />
           ) : (
             <PausedPanel />

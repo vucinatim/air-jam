@@ -5,7 +5,7 @@
  * only draws it, so the match also runs headless and faster than real time.
  */
 import { defineAirJamSimulation } from "@air-jam/sdk/core";
-import type { GameInput } from "../contracts/input";
+import type { PongInput } from "../contracts/input";
 import type { TeamId } from "../domain/team";
 import { pongStore, type PongState } from "../stores";
 import { FIELD_HEIGHT, FIELD_WIDTH } from "./constants";
@@ -86,7 +86,7 @@ export const getPongPhaseEffects = ({
 
 export const pongSimulation = defineAirJamSimulation<
   PongSimulationState,
-  GameInput,
+  PongInput,
   PongSimulationEvent
 >({
   stepMs: PONG_STEP_MS,

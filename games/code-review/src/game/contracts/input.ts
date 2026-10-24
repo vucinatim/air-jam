@@ -1,11 +1,18 @@
-import { z } from "zod";
+import {
+  axis,
+  button,
+  defineAirJamInput,
+  type AirJamInputValues,
+} from "@air-jam/sdk/core";
 
-export const gameInputSchema = z.object({
-  vertical: z.number().min(-1).max(1),
-  horizontal: z.number().min(-1).max(1),
-  leftPunch: z.boolean(),
-  rightPunch: z.boolean(),
-  defend: z.boolean(),
+/** What each fighter controls: movement, one punch per tap with each hand, and a held guard. */
+export const codeReviewInput = defineAirJamInput({
+  /** -1 moves up the screen, 1 down. */
+  vertical: axis(),
+  horizontal: axis(),
+  leftPunch: button("pressed"),
+  rightPunch: button("pressed"),
+  defend: button("held"),
 });
 
-export type GameInput = z.infer<typeof gameInputSchema>;
+export type GameInput = AirJamInputValues<typeof codeReviewInput>;

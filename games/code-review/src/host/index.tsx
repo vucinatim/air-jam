@@ -13,7 +13,6 @@ import {
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
-import { gameInputSchema } from "../game/contracts/input";
 import {
   CODE_REVIEW_MUSIC_TRACKS,
   CODE_REVIEW_SOUND_MANIFEST,
@@ -38,7 +37,7 @@ export function HostView() {
 }
 
 function CodeReviewHost() {
-  const host = useAirJamHost<typeof gameInputSchema>();
+  const host = useAirJamHost();
   const matchPhase = useAirJamStore(gameStore, (state) => state.matchPhase);
   const actions = gameStore.actions;
 

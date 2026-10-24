@@ -3,258 +3,135 @@
 
 # Input System
 
-The Air Jam input system provides type-safe, validated controller input with clear behavior semantics.
+A game declares the controls each player has. Phones, agents and replays fill
+those controls; the host reads them once per simulation step, with a fixed
+meaning for each kind of control.
 
-## Configuration
+## Declare Controls
 
-Configure input in your canonical Air Jam app setup:
-
-```tsx filename="src/airjam.config.ts"
-import { createAirJamApp, env } from "@air-jam/sdk";
-import { z } from "zod";
-
-const gameInputSchema = z.object({
-  vector: z.object({ x: z.number(), y: z.number() }),
-  action: z.boolean(),
-  ability: z.boolean(),
-  timestamp: z.number(),
-});
-
-type GameInput = z.infer<typeof gameInputSchema>;
-
-export const airjam = createAirJamApp({
-  runtime: env.vite(import.meta.env),
-  controllerPath: "/controller",
-  input: {
-    schema: gameInputSchema,
-  },
-});
-```
-
-## Default Behavior (No Extra Config)
-
-Without any `input.behavior` overrides:
-
-- booleans use `pulse` (tap-safe consume-on-read)
-- vectors use `latest` (continuous current value)
-- all other fields use `latest`
-
-This default is the canonical path for most games.
-
-## Optional Behavior Overrides
-
-Use `input.behavior` only when your game has specialized needs.
-
-```tsx filename="src/airjam.config.ts"
-export const airjam = createAirJamApp({
-  runtime: env.vite(import.meta.env),
-  controllerPath: "/controller",
-  input: {
-    schema: gameInputSchema,
-    behavior: {
-      pulse: ["action", "ability"],
-      latest: ["vector"],
-      hold: ["menuVector"],
-    },
-  },
-});
-```
-
-Behavior modes:
-
-- `pulse`: consume-on-read, ideal for one-shot actions (jump/fire/confirm)
-- `latest`: current value only, ideal for movement sticks
-- `hold`: vectors keep last non-zero direction until next non-zero value
-
-## Migration From `latch`
-
-Old config:
-
-```tsx
-input: {
-  schema: gameInputSchema,
-  latch: {
-    booleanFields: ["action"],
-    vectorFields: ["vector"],
-  },
-}
-```
-
-New config:
-
-```tsx
-input: {
-  schema: gameInputSchema,
-  behavior: {
-    pulse: ["action"],
-    latest: ["vector"],
-  },
-}
-```
-
-For most games, remove the override entirely and keep `input: { schema }`.
-
-## Schema Validation
-
-When you provide a Zod schema, incoming input is validated before your game reads it.
-
-```tsx
-// ✅ valid input
-{
-  vector: { x: 0.5, y: -0.3 },
-  action: true,
-  ability: false,
-  timestamp: 1703123456789,
-}
-
-// ❌ invalid input (returns undefined + warning)
-{
-  vector: { x: "bad", y: 0 },
-  action: true,
-}
-```
-
-Benefits:
-
-- typed `getInput()` values
-- malformed payloads blocked before gameplay logic
-- clear runtime warnings during development
-
-### Main Host Loop
-
-This example uses the starter host surface path.
-Treat it as a recommended default, not a required filename.
-It assumes your app has already mounted `airjam.Host` above this view.
-
-```tsx filename="src/host/index.tsx"
-import { useAirJamHost } from "@air-jam/sdk";
-import { useFrame } from "@react-three/fiber";
-
-const HostView = () => {
-  const host = useAirJamHost();
-
-  useFrame(() => {
-    host.players.forEach((player) => {
-      const input = host.getInput(player.id);
-      if (!input) return;
-
-      movePlayer(player.id, input.vector);
-
-      if (input.action) {
-        playerShoot(player.id);
-      }
-    });
-  });
-
-  return <GameScene />;
-};
-```
-
-### Performance-Critical Components
-
-Use `useGetInput()` to avoid store-driven re-renders:
-
-```tsx filename="src/game/components/ship.tsx"
-import { useGetInput } from "@air-jam/sdk";
-
-const Ship = ({ playerId }: { playerId: string }) => {
-  const getInput = useGetInput<typeof gameInputSchema>();
-
-  useFrame(() => {
-    const input = getInput(playerId);
-    if (!input) return;
-
-    shipRef.current.position.x += input.vector.x * SPEED;
-    shipRef.current.position.y += input.vector.y * SPEED;
-  });
-
-  return <mesh ref={shipRef}>...</mesh>;
-};
-```
-
-## Controller Cadence
-
-Use `useInputWriter()` with `useControllerTick()` for fixed-cadence publishing:
-
-This example uses the starter controller surface path.
-It assumes your app has already mounted `airjam.Controller` above this view.
-
-```tsx filename="src/controller/index.tsx"
+```ts
+// src/game/contracts/input.ts
 import {
-  useAirJamController,
-  useControllerTick,
-  useInputWriter,
-} from "@air-jam/sdk";
-import { useRef } from "react";
+  button,
+  defineAirJamInput,
+  stick,
+  type AirJamInputValues,
+} from "@air-jam/sdk/core";
 
-const ControllerView = () => {
-  const controller = useAirJamController();
-  const writeInput = useInputWriter();
-  const directionRef = useRef(0);
-
-  useControllerTick(
-    () => {
-      writeInput({
-        direction: directionRef.current,
-        action: false,
-      });
-    },
-    {
-      enabled:
-        controller.connectionStatus === "connected" &&
-        controller.runtimeState === "playing",
-      intervalMs: 16,
-    },
-  );
-};
-```
-
-### 1. Keep Input and State in Separate Lanes
-
-- Input lane: `useInputWriter` + `getInput` / `useGetInput`
-- State lane: `createAirJamStore` + `store.actions`
-
-Do not send per-frame analog input via store actions.
-
-### 2. Keep Quickstart Config Minimal
-
-Start with `input: { schema }`. Add `input.behavior` only for non-default needs.
-
-### 3. Handle Missing Input Gracefully
-
-```tsx filename="src/components/Player.tsx"
-const input = getInput(playerId);
-if (!input) return;
-
-movePlayer(input.vector);
-```
-
-### 4. Include Timestamps for Advanced Physics
-
-```tsx filename="src/game/types.ts"
-const inputSchema = z.object({
-  vector: z.object({ x: z.number(), y: z.number() }),
-  action: z.boolean(),
-  timestamp: z.number(),
+export const shipInput = defineAirJamInput({
+  move: stick(),
+  fire: button("pressed"),
+  boost: button("held"),
 });
 
-const inputAge = Date.now() - input.timestamp;
+export type ShipInput = AirJamInputValues<typeof shipInput>;
 ```
 
-### Input Not Received
+Declare them once in the app:
 
-1. Check host connection status (`connected`)
-2. Verify room code matches on host and controller
-3. Check schema warnings in console (`[InputManager] Invalid input ...`)
+```ts
+export const airjam = createAirJamApp({
+  // ...
+  simulation: shipSimulation,
+  input: shipInput,
+});
+```
 
-### Input Feels Laggy
+## Control Kinds
 
-1. Use `useGetInput()` inside game objects
-2. Verify your controller tick cadence (typically `16ms`)
-3. Check network latency (include timestamps in schema)
+| Kind                           | Declared as                      | A step reads                                                                               |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------------------------ |
+| Held button                    | `button("held")`                 | `true` while the button is down, and for at least one step after a tap shorter than a step |
+| Pressed button                 | `button("pressed")`              | `true` for exactly one step per press                                                      |
+| Axis                           | `axis()`                         | a number from -1 to 1                                                                      |
+| Stick                          | `stick()`                        | `{ x, y }`, each from -1 to 1; `y` is down, like screen space                              |
+| Stick that keeps its direction | `stick({ keepDirection: true })` | the last direction while the stick is centred, as in snake                                 |
 
-### Buttons Feel Unreliable
+Presses travel as a counter, so a tap between two network packets or two
+simulation steps is never lost or doubled. Games never debounce or latch input
+themselves.
 
-1. Confirm the field is boolean in your schema
-2. Keep default behavior (`pulse`) for action buttons
-3. Avoid dispatching button presses through store actions
+## Read Controls In The Simulation
+
+Input reaches a game only in its simulation steps:
+
+```ts
+export const shipSimulation = defineAirJamSimulation<Sim, ShipInput>({
+  stepMs: 1000 / 60,
+  create: () => createSim(),
+  step: (sim, { input, players, dtSeconds }) => {
+    for (const player of players) {
+      const { move, fire, boost } = input(player.id);
+      steer(sim, player.id, move, boost, dtSeconds);
+      if (fire) shoot(sim, player.id);
+    }
+  },
+});
+```
+
+`input(playerId)` always returns every control. A player who has sent nothing
+yet reads as released and centred.
+
+## Phone Controls
+
+The SDK's phone controls fill the declared controls and send them; a game
+never runs its own send loop.
+
+```tsx
+import { AxisButton, ControlButton, Stick } from "@air-jam/sdk/ui";
+
+<Stick control={shipInput.move} className="size-48 rounded-full bg-zinc-900" />
+<ControlButton control={shipInput.fire} className="bg-red-500 data-[active=true]:ring-2">
+  Fire
+</ControlButton>
+```
+
+1. `ControlButton` binds a button. Each touch, or Space and Enter while it has
+   focus, is one press.
+2. `AxisButton` holds an axis at a value while held, such as a paddle's up and
+   down buttons. The latest held button wins.
+3. `Stick` reads a drag anywhere inside it. `directions="4-way"` snaps it to a
+   pad, `deadzone` keeps small offsets centred, and a function child draws the
+   whole stick. It stays correct however the controller surface is rotated.
+
+Every control sets `data-active` while held, so games style the held state
+with their own classes. Controls release when the phone page loses focus.
+
+The controller sends its controls once per display frame when they change, again
+after joining, and on a slow keepalive. Nothing stamps input with a device
+clock.
+
+## Agents
+
+Agents fill the same controls through leased participant control. They send
+values: a button is `true` or `false`, an axis a number and a stick an
+`{ x, y }`. A button going from `false` to `true` is one press; to press again,
+send `false` and then `true`. The input description agents read comes from the
+declaration.
+
+## Input Log And Replays
+
+A host started with `{ record: true }` keeps an input log: players joining and
+leaving, runtime state, store actions applied between steps, and every seat's
+controls whenever they changed, each stamped with the step it reached the game
+before. Headless runs keep it in their evidence, and
+
+```bash
+airjam session run replay <run-id>
+```
+
+plays it on a fresh copy of the game, with no server or page, and reports
+whether the replay ends where the run ended. In code,
+`replayAirJamInputLog(airjam.createHostRuntime, log)` from
+`@air-jam/sdk/core` does the same.
+
+### A Control Does Nothing
+
+1. Check the control is declared and passed to `createAirJamApp({ input })`.
+2. Read it in the simulation step; the host has no other way to read input.
+3. Render phone controls inside `<airjam.Controller>`.
+
+### A Tap Fires Twice Or Not At All
+
+Use `button("pressed")` for one-shot actions, which then read `true` once per
+press, and `button("held")` for actions that last while held.
