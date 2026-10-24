@@ -127,6 +127,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   private readonly environment: AirJamHostEnvironment;
   private readonly disconnectSocket: (role: "host") => void;
   private readonly stores: readonly AttachableStore[];
+  private readonly declaresSimulation: boolean;
   private simulationDeclaration: AirJamSimulation<
     unknown,
     unknown,
@@ -182,6 +183,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
       );
     };
     const declared = dependencies.simulation;
+    this.declaresSimulation = Boolean(declared);
     if (typeof declared === "function")
       this.ready = declared().then((simulation) => {
         install(simulation);
@@ -200,6 +202,15 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
   get simulation(): SimulationClock<unknown, unknown, unknown> | null {
     return this.clock;
   }
+
+  /**
+   * Game time in milliseconds: the simulation's time when the game declares
+   * one (zero while it loads), else the host's clock.
+   */
+  readonly now = (): number =>
+    this.declaresSimulation
+      ? (this.clock?.timeMs ?? 0)
+      : this.environment.now();
 
   /** The room this host is in or asking for, if any. */
   get roomId(): RoomCode | null {
@@ -234,6 +245,7 @@ export class HostRuntime<TSchema extends z.ZodSchema = z.ZodSchema> {
         connection: this.store,
         defaultStoreDomain: this.environment.defaultStoreDomain,
         controlTarget: this.environment.controlTarget,
+        now: this.now,
       }),
     );
     this.releaseSession = this.startSession();

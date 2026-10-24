@@ -139,6 +139,8 @@ class MockSocket {
 // Stores the test created; a rendered hook attaches them like a running runtime.
 const trackedStores: AttachableStore[] = [];
 const pendingDetachments: (() => void)[] = [];
+const TEST_GAME_TIME_MS = 4_200;
+
 const track = <T extends AttachableStore>(store: T): T => {
   trackedStores.push(store);
   return store;
@@ -172,6 +174,7 @@ const renderHook = <Result, Props>(
         connection,
         defaultStoreDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
         controlTarget: surface === "host" ? window : null,
+        now: () => TEST_GAME_TIME_MS,
       }),
     );
   pendingDetachments.push(...detachments);
@@ -1002,6 +1005,7 @@ describe("createAirJamStore networked behavior", () => {
           actorId: "host",
           role: "host",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+          now: TEST_GAME_TIME_MS,
         },
         { phase: "results" },
       );
@@ -1441,6 +1445,7 @@ describe("createAirJamStore networked behavior", () => {
           actorId: "host",
           role: "host",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+          now: TEST_GAME_TIME_MS,
         },
         acknowledgement: {
           ok: true,
@@ -1484,6 +1489,7 @@ describe("createAirJamStore networked behavior", () => {
           actorId: "ctrl_2",
           role: "controller",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+          now: TEST_GAME_TIME_MS,
         },
         acknowledgement: {
           ok: true,
@@ -1543,6 +1549,7 @@ describe("createAirJamStore networked behavior", () => {
           actorId: "ctrl_2",
           role: "controller",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+          now: TEST_GAME_TIME_MS,
         },
         acknowledgement: {
           ok: true,
@@ -1723,6 +1730,7 @@ describe("createAirJamStore networked behavior", () => {
           actorId: "host",
           role: "host",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
+          now: TEST_GAME_TIME_MS,
         },
         acknowledgement: {
           ok: false,
@@ -1816,6 +1824,7 @@ describe("createAirJamStore networked behavior", () => {
           actorId: "host",
           role: "host",
           connectedPlayerIds: [],
+          now: TEST_GAME_TIME_MS,
         },
         { epoch: 5, phase: "browser" },
       );

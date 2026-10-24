@@ -33,7 +33,6 @@ import {
   getMatchReadiness,
   getTeamCounts,
 } from "../game/domain/match-readiness";
-import { useMatchCountdown } from "../game/hooks/use-match-countdown";
 import { prototypeMatchStore } from "../game/stores/match/match-store";
 import {
   ControllerHeader,
@@ -125,12 +124,11 @@ const ControllerScreen = () => {
     prototypeMatchStore,
     (state) => state.matchSummary,
   );
-  const countdownEndsAtMs = useAirJamStore(
+  const countdownRemainingSeconds = useAirJamStore(
     prototypeMatchStore,
-    (state) => state.countdownEndsAtMs,
+    (state) => state.countdownSeconds ?? 0,
   );
   const actions = prototypeMatchStore.actions;
-  const countdownRemainingSeconds = useMatchCountdown(countdownEndsAtMs);
 
   const controlsDisabled = controllerState.connectionStatus !== "connected";
   const canSendSystemCommand = controllerState.connectionStatus === "connected";

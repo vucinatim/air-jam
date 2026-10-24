@@ -117,6 +117,11 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
     return this.tick;
   }
 
+  /** Game time in milliseconds: the steps taken so far. */
+  get timeMs(): number {
+    return this.tick * this.simulation.stepMs;
+  }
+
   /** Runs as many whole steps as `ms` of game time holds, without a cap. */
   advance(ms: number): void {
     this.accumulatorMs += ms;

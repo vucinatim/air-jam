@@ -14,6 +14,7 @@ import { rankPlayers } from "@/game/domain/round-engine";
 import { createAirJamStore } from "@air-jam/sdk/core";
 import { buildPlayerLabelMap, filterRecordByPlayerIds } from "./player-helpers";
 import {
+  advanceRoundClock,
   appendPlayedSongKeys,
   createInitialScoreboard,
   createRound,
@@ -45,6 +46,7 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
   roundReveal: null,
   scoreboardByPlayerId: {},
   finalRankingPlayerIds: [],
+  secondsLeft: 0,
 
   actions: {
     setPlayers: ({ role }, { players }) => {
@@ -186,7 +188,7 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
-    startMatch: ({ actorId, role }) => {
+    startMatch: ({ actorId, role, now }) => {
       set((state) => {
         if (
           role !== "host" &&
@@ -228,7 +230,7 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
           return state;
         }
 
-        const roundStartsAtMs = Date.now() + MATCH_START_COUNTDOWN_SEC * 1000;
+        const roundStartsAtMs = now + MATCH_START_COUNTDOWN_SEC * 1000;
 
         return {
           phase: "match-countdown",
@@ -256,39 +258,7 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
-    completeMatchCountdown: ({ role }, { nowMs }) => {
-      if (role !== "host") {
-        return;
-      }
-
-      set((state) => {
-        if (state.phase !== "match-countdown" || !state.currentRound) {
-          return state;
-        }
-
-        const currentTimeMs = nowMs ?? Date.now();
-        if (currentTimeMs < state.currentRound.startedAtMs) {
-          return state;
-        }
-
-        const startDelayMs = currentTimeMs - state.currentRound.startedAtMs;
-        const currentRound =
-          startDelayMs > 0
-            ? {
-                ...state.currentRound,
-                startedAtMs: currentTimeMs,
-                endsAtMs: state.currentRound.endsAtMs + startDelayMs,
-              }
-            : state.currentRound;
-
-        return {
-          phase: "round-active",
-          currentRound,
-        };
-      });
-    },
-
-    submitGuess: ({ actorId }, { optionId }) => {
+    submitGuess: ({ actorId, now }, { optionId }) => {
       if (!actorId) {
         return;
       }
@@ -316,73 +286,31 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
             ...state.answersByPlayerId,
             [actorId]: {
               optionId,
-              answeredAtMs: Date.now(),
+              answeredAtMs: now,
             },
           },
         };
       });
     },
 
-    finalizeRound: ({ role }, { nowMs }) => {
+    skipRound: ({ role }) => {
       if (role !== "host") {
         return;
       }
 
-      set((state) => finalizeRoundState(state, nowMs ?? Date.now()));
+      set((state) =>
+        state.currentRound
+          ? finalizeRoundState(state, state.currentRound.endsAtMs)
+          : state,
+      );
     },
 
-    advanceFromReveal: ({ role }, { nowMs }) => {
+    advanceClock: ({ role, now }) => {
       if (role !== "host") {
         return;
       }
 
-      set((state) => {
-        if (state.phase !== "round-reveal" || !state.roundReveal) {
-          return state;
-        }
-
-        const currentTimeMs = nowMs ?? Date.now();
-        if (currentTimeMs < state.roundReveal.revealEndsAtMs) {
-          return state;
-        }
-
-        const nextRoundNumber = state.completedRoundCount + 1;
-
-        if (nextRoundNumber > state.totalRounds) {
-          return {
-            phase: "game-over",
-            currentRound: null,
-            roundReveal: null,
-            finalRankingPlayerIds: rankPlayers(state.scoreboardByPlayerId),
-          };
-        }
-
-        const nextSongId = state.playlistSongIds[nextRoundNumber - 1];
-        const nextGuessKind = state.playlistGuessKinds[nextRoundNumber - 1];
-
-        if (!nextSongId || !nextGuessKind) {
-          return {
-            phase: "game-over",
-            currentRound: null,
-            roundReveal: null,
-            finalRankingPlayerIds: rankPlayers(state.scoreboardByPlayerId),
-          };
-        }
-
-        return {
-          phase: "round-active",
-          currentRound: createRound({
-            roundNumber: nextRoundNumber,
-            songId: nextSongId,
-            guessKind: nextGuessKind,
-            expectedPlayerIds: state.activePlayerIds,
-            nowMs: currentTimeMs,
-            roundDurationSec: state.roundDurationSec,
-          }),
-          answersByPlayerId: {},
-          roundReveal: null,
-        };
-      });
+      set((state) => advanceRoundClock(state, now));
     },
 
     forceGameOver: ({ role }) => {

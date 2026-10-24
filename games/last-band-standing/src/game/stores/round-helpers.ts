@@ -15,6 +15,7 @@ import { createEmptyScore } from "@/game/domain/player-utils";
 import {
   buildRoundResults,
   findFirstCorrectSummary,
+  rankPlayers,
   shouldFinalizeRound,
   type RoundPlayerResult,
 } from "@/game/domain/round-engine";
@@ -399,4 +400,100 @@ export const finalizeRoundState = (
     },
     scoreboardByPlayerId: nextScoreboard,
   };
+};
+
+const completeMatchCountdownState = (
+  state: QuizState,
+  nowMs: number,
+): QuizState => {
+  if (
+    state.phase !== "match-countdown" ||
+    !state.currentRound ||
+    nowMs < state.currentRound.startedAtMs
+  ) {
+    return state;
+  }
+
+  const startDelayMs = nowMs - state.currentRound.startedAtMs;
+  return {
+    ...state,
+    phase: "round-active",
+    currentRound:
+      startDelayMs > 0
+        ? {
+            ...state.currentRound,
+            startedAtMs: nowMs,
+            endsAtMs: state.currentRound.endsAtMs + startDelayMs,
+          }
+        : state.currentRound,
+  };
+};
+
+const advanceFromRevealState = (state: QuizState, nowMs: number): QuizState => {
+  if (
+    state.phase !== "round-reveal" ||
+    !state.roundReveal ||
+    nowMs < state.roundReveal.revealEndsAtMs
+  ) {
+    return state;
+  }
+
+  const nextRoundNumber = state.completedRoundCount + 1;
+  const nextSongId = state.playlistSongIds[nextRoundNumber - 1];
+  const nextGuessKind = state.playlistGuessKinds[nextRoundNumber - 1];
+
+  if (nextRoundNumber > state.totalRounds || !nextSongId || !nextGuessKind) {
+    return {
+      ...state,
+      phase: "game-over",
+      currentRound: null,
+      roundReveal: null,
+      finalRankingPlayerIds: rankPlayers(state.scoreboardByPlayerId),
+    };
+  }
+
+  return {
+    ...state,
+    phase: "round-active",
+    currentRound: createRound({
+      roundNumber: nextRoundNumber,
+      songId: nextSongId,
+      guessKind: nextGuessKind,
+      expectedPlayerIds: state.activePlayerIds,
+      nowMs,
+      roundDurationSec: state.roundDurationSec,
+    }),
+    answersByPlayerId: {},
+    roundReveal: null,
+  };
+};
+
+const phaseDeadlineMs = (state: QuizState): number | null => {
+  if (state.phase === "match-countdown")
+    return state.currentRound?.startedAtMs ?? null;
+  if (state.phase === "round-active")
+    return state.currentRound?.endsAtMs ?? null;
+  if (state.phase === "round-reveal")
+    return state.roundReveal?.revealEndsAtMs ?? null;
+  return null;
+};
+
+/**
+ * Applies what game time makes due: the countdown ending, a round finishing
+ * or a reveal moving on, and the whole seconds left that screens show.
+ */
+export const advanceRoundClock = (
+  state: QuizState,
+  nowMs: number,
+): QuizState => {
+  const next = advanceFromRevealState(
+    finalizeRoundState(completeMatchCountdownState(state, nowMs), nowMs),
+    nowMs,
+  );
+  const deadlineMs = phaseDeadlineMs(next);
+  const secondsLeft =
+    deadlineMs === null
+      ? 0
+      : Math.max(0, Math.ceil((deadlineMs - nowMs) / 1000));
+  return secondsLeft === next.secondsLeft ? next : { ...next, secondsLeft };
 };

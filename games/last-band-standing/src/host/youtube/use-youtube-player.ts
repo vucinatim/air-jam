@@ -7,8 +7,9 @@ import {
 } from "@/game/constants";
 import { clampNumber } from "@/game/domain/math-utils";
 import { type GamePhase } from "@/game/domain/types";
+import type { RoundClock } from "@/game/engine/round-clock";
 import { type ActiveRound, type RoundReveal } from "@/game/stores/types";
-import { useMusicVolume } from "@air-jam/sdk";
+import { useMusicVolume, useSimulation } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   parseYouTubeMessageData,
@@ -23,7 +24,7 @@ interface UseYouTubePlayerInput {
   currentRound: ActiveRound | null;
   roundReveal: RoundReveal | null;
   revealDurationSec: number;
-  finalizeRound: (payload: { nowMs?: number }) => void;
+  skipRound: () => void;
 }
 
 interface UseYouTubePlayerResult {
@@ -39,8 +40,9 @@ export const useYouTubePlayer = ({
   currentRound,
   roundReveal,
   revealDurationSec,
-  finalizeRound,
+  skipRound,
 }: UseYouTubePlayerInput): UseYouTubePlayerResult => {
+  const clock = useSimulation<RoundClock>();
   const youtubePlayerRef = useRef<HTMLIFrameElement | null>(null);
   const lastYouTubeVolumeRef = useRef<number | null>(null);
   const skippedRoundNumberRef = useRef<number | null>(null);
@@ -105,7 +107,7 @@ export const useYouTubePlayer = ({
       }
       sendYouTubeCommand(youtubePlayerRef.current, "unMute");
 
-      const now = Date.now();
+      const now = clock.sim.timeMs;
       const fadeProgress = clampNumber(
         (now - revealStartMs) / revealDurationMs,
         0,
@@ -124,7 +126,7 @@ export const useYouTubePlayer = ({
     const intervalId = window.setInterval(applyRevealMix, VIDEO_MIX_TICK_MS);
     const pauseDelayMs = Math.max(
       0,
-      roundReveal.revealEndsAtMs - Date.now() - REVEAL_PAUSE_LEAD_MS,
+      roundReveal.revealEndsAtMs - clock.sim.timeMs - REVEAL_PAUSE_LEAD_MS,
     );
     const pauseId = window.setTimeout(() => {
       setYouTubeVolume(youtubePlayerRef.current, 0);
@@ -137,7 +139,14 @@ export const useYouTubePlayer = ({
       window.clearInterval(intervalId);
       window.clearTimeout(pauseId);
     };
-  }, [phase, roundReveal, revealDurationSec, muted, getYouTubeMusicVolume]);
+  }, [
+    clock,
+    phase,
+    roundReveal,
+    revealDurationSec,
+    muted,
+    getYouTubeMusicVolume,
+  ]);
 
   // Mute during lobby/game-over or when host toggle is muted
   useEffect(() => {
@@ -178,12 +187,12 @@ export const useYouTubePlayer = ({
       setYouTubeVolume(currentFrame, 0);
       sendYouTubeCommand(currentFrame, "pauseVideo");
       lastYouTubeVolumeRef.current = 0;
-      finalizeRound({ nowMs: currentRound.endsAtMs });
+      skipRound();
     };
 
     window.addEventListener("message", handleYouTubeMessage);
     return () => window.removeEventListener("message", handleYouTubeMessage);
-  }, [finalizeRound, currentRound, phase]);
+  }, [skipRound, currentRound, phase]);
 
   const onIframeLoad = () => {
     setLoadedEmbedUrl(embedUrl);

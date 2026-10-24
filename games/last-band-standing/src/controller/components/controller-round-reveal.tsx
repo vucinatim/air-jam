@@ -1,4 +1,3 @@
-import { NOW_TICK_MS } from "@/game/constants";
 import { getRoundOptionLabel } from "@/game/content/round-options";
 import { getSongById } from "@/game/content/song-bank";
 import {
@@ -6,14 +5,13 @@ import {
   getLabelForPlayer,
 } from "@/game/domain/player-utils";
 import { rankPlayers } from "@/game/domain/round-engine";
-import { useNowTick } from "@/game/hooks/use-now-tick";
 import { gameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";
 import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 
 export const ControllerRoundReveal = () => {
-  const nowMs = useNowTick(NOW_TICK_MS);
+  const secondsLeft = useAirJamStore(gameStore, (state) => state.secondsLeft);
   const controllerId = useAirJamController((state) => state.controllerId);
   const roundReveal = useAirJamStore(gameStore, (state) => state.roundReveal);
   const playerLabelById = useAirJamStore(
@@ -28,9 +26,6 @@ export const ControllerRoundReveal = () => {
     controllerId && roundReveal
       ? (roundReveal.resultsByPlayerId[controllerId] ?? null)
       : null;
-  const revealCountdownSeconds = roundReveal
-    ? Math.max(0, Math.ceil((roundReveal.revealEndsAtMs - nowMs) / 1000))
-    : 0;
 
   if (!roundReveal) {
     return null;
@@ -182,7 +177,7 @@ export const ControllerRoundReveal = () => {
               )}`
             : "—"}
         </span>
-        <span className="shrink-0">Next in {revealCountdownSeconds}s</span>
+        <span className="shrink-0">Next in {secondsLeft}s</span>
       </div>
     </motion.div>
   );

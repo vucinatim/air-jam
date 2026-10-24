@@ -9,6 +9,7 @@ describe("Last Band Standing agent snapshot", () => {
       actorId: "host",
       role: "host" as const,
       connectedPlayerIds: playerIds,
+      now: 0,
     };
     const { actions } = gameStore.getState();
     actions.resetLobby(host, undefined);
@@ -21,13 +22,14 @@ describe("Last Band Standing agent snapshot", () => {
           actorId: playerId,
           role: "controller",
           connectedPlayerIds: playerIds,
+          now: 0,
         },
         { ready: true },
       );
     actions.startMatch(host, undefined);
     const round = gameStore.getState().currentRound;
     if (!round) throw new Error("Expected round one.");
-    actions.completeMatchCountdown(host, { nowMs: round.startedAtMs });
+    actions.advanceClock({ ...host, now: round.startedAtMs }, undefined);
 
     const snapshot = await agentContract.projectSnapshot({
       controllerId: "player-01",

@@ -49,14 +49,16 @@ export const pongStore = createAirJamStore<PongState>((set) => ({
         }),
       ),
 
-    startMatch: ({ connectedPlayerIds }) =>
-      set((state) => reduceStartMatch(state, connectedPlayerIds)),
+    startMatch: ({ connectedPlayerIds, now }) =>
+      set((state) => reduceStartMatch(state, connectedPlayerIds, now)),
 
-    restartMatch: () => set((state) => reduceRestartMatch(state)),
+    restartMatch: ({ now }) => set((state) => reduceRestartMatch(state, now)),
 
     returnToLobby: () => set((state) => reduceReturnToLobby(state)),
 
-    scorePoint: ({ role }, { team }) =>
-      set((state) => (role === "host" ? reduceScorePoint(state, team) : state)),
+    scorePoint: ({ role, now }, { team }) =>
+      set((state) =>
+        role === "host" ? reduceScorePoint(state, team, now) : state,
+      ),
   },
 }));

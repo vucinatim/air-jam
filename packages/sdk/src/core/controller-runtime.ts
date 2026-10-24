@@ -179,6 +179,7 @@ export class ControllerRuntime {
             connection: this.store,
             defaultStoreDomain: this.environment.defaultStoreDomain,
             controlTarget: null,
+            now: () => performance.now(),
           }),
         )
       : [];

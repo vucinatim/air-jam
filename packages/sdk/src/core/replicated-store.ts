@@ -65,6 +65,12 @@ export interface AirJamActionContext {
   actorId: string;
   role: AirJamActionActorRole;
   connectedPlayerIds: string[];
+  /**
+   * Game time in milliseconds when the action runs: the simulation's time when
+   * the game declares one, else the host's clock. Read it instead of the wall
+   * clock so headless runs and replays see the same time.
+   */
+  now: number;
 }
 
 export interface AirJamActionRejection {
@@ -167,6 +173,7 @@ interface StoreRuntimeSnapshot {
   hostStateSyncBlocked: boolean;
   hostStateRevisionFloor: number;
   connectedPlayerIds: string[];
+  now: () => number;
 }
 
 interface StoreRuntimeBinding {
@@ -222,6 +229,8 @@ export interface AirJamStoreSession {
   defaultStoreDomain: string;
   /** Host only: where agent tools and devtools find this store's control. */
   controlTarget: object | null;
+  /** The surface's game clock; actions the host runs read it as `ctx.now`. */
+  now: () => number;
 }
 
 /** What a runtime needs from a store it attaches, whatever the store holds. */
@@ -356,12 +365,17 @@ const stripActionsFromState = <T extends AirJamNetworkedState>(
 
 const toActionContext = (
   payload: AirJamActionRpcPayload,
-  connectedPlayerIds: string[],
+  runtime: StoreRuntimeSnapshot,
 ): AirJamActionContext => ({
   actorId: payload.actor.id || UNRESOLVED_ACTOR_ID,
   role: payload.actor.role,
-  connectedPlayerIds,
+  connectedPlayerIds: runtime.connectedPlayerIds,
+  now: runtime.now(),
 });
+
+const detachedClock = (): number => {
+  throw new Error("This Air Jam store is not attached to a running session.");
+};
 
 /** How long an action called before its session connects waits for it. */
 const AIR_JAM_ACTION_SESSION_WAIT_MS = 10_000;
@@ -406,6 +420,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       hostStateSyncBlocked: false,
       hostStateRevisionFloor: 0,
       connectedPlayerIds: [],
+      now: detachedClock,
     },
   };
   // Actions called while the session is still connecting (for example from
@@ -547,11 +562,13 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
                     actorId: mode.controllerId.trim(),
                     role: "controller",
                     connectedPlayerIds: runtime.connectedPlayerIds,
+                    now: runtime.now(),
                   } satisfies AirJamActionContext)
                 : ({
                     actorId: "host",
                     role: "host",
                     connectedPlayerIds: runtime.connectedPlayerIds,
+                    now: runtime.now(),
                   } satisfies AirJamActionContext);
             const result = sourceAction(context, normalizedPayload);
             const acknowledgement = normalizeAirJamActionInvocationResult(
@@ -590,6 +607,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
                   mode.kind === "player" ? mode.controllerId.trim() : "host",
                 role: mode.kind === "player" ? "controller" : "host",
                 connectedPlayerIds: runtime.connectedPlayerIds,
+                now: runtime.now(),
               },
               acknowledgement,
               invocationKind: "local",
@@ -842,7 +860,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         }
 
         try {
-          const context = toActionContext(payload, runtime.connectedPlayerIds);
+          const context = toActionContext(payload, runtime);
           const result = actionFn(context, payload.payload);
           const acknowledgement = normalizeAirJamActionInvocationResult(
             result,
@@ -875,7 +893,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           notifyHostActionListeners({
             actionName,
             payload: payload.payload,
-            context: toActionContext(payload, runtime.connectedPlayerIds),
+            context: toActionContext(payload, runtime),
             acknowledgement,
             invocationKind: "rpc",
             roomId,
@@ -1112,6 +1130,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
             ? (connection.hostArcadeRestore.surfaceCheckpoint?.revision ?? 0)
             : 0,
         connectedPlayerIds,
+        now: session.now,
       };
       if (sessionReady(runtimeSnapshotRef.current))
         for (const release of [...sessionWaiters]) release();
@@ -1171,6 +1190,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         role: null,
         roomId: null,
         canBroadcastHostState: false,
+        now: detachedClock,
       };
     };
   };

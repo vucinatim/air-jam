@@ -501,7 +501,7 @@ Networked action contract:
 3. payload roots must be plain objects, not primitives, arrays, DOM events, or `T | undefined` unions
 4. if an action has no payload, omit it entirely instead of using `undefined` as part of an object-union payload type
 
-Action context includes `connectedPlayerIds`, so host actions can prune stale assignments without custom presence-sync actions.
+Action context includes `connectedPlayerIds`, so host actions can prune stale assignments without custom presence-sync actions, and `now`, the game time actions read instead of `Date.now()` so headless runs and replays see the same time.
 
 For host-only local side effects such as sounds, local sim refs, or one-shot animations, listen to host-applied actions instead of queueing ephemeral commands through replicated state:
 

@@ -61,6 +61,8 @@ export interface QuizState {
   roundReveal: RoundReveal | null;
   scoreboardByPlayerId: Record<string, PlayerScore>;
   finalRankingPlayerIds: string[];
+  /** Whole seconds left in the current countdown, round or reveal, on game time. */
+  secondsLeft: number;
 
   actions: {
     setPlayers: (
@@ -73,22 +75,13 @@ export interface QuizState {
       payload: { bucketId: SongBucketId },
     ) => void;
     startMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
-    completeMatchCountdown: (
-      ctx: AirJamActionContext,
-      payload: { nowMs?: number },
-    ) => void;
     submitGuess: (
       ctx: AirJamActionContext,
       payload: { optionId: string },
     ) => void;
-    finalizeRound: (
-      ctx: AirJamActionContext,
-      payload: { nowMs?: number },
-    ) => void;
-    advanceFromReveal: (
-      ctx: AirJamActionContext,
-      payload: { nowMs?: number },
-    ) => void;
+    skipRound: (ctx: AirJamActionContext, _payload: undefined) => void;
+    /** Host only: applies what game time `ctx.now` makes due. */
+    advanceClock: (ctx: AirJamActionContext, _payload: undefined) => void;
     forceGameOver: (ctx: AirJamActionContext, _payload: undefined) => void;
     resetLobby: (ctx: AirJamActionContext, _payload: undefined) => void;
   };

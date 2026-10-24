@@ -19,6 +19,7 @@ const fixture = vi.hoisted(() => ({
   },
   actions: {
     syncConnectedPlayers: vi.fn(),
+    setCountdownSeconds: vi.fn(),
     finishCountdown: vi.fn(),
     endMatch: vi.fn(),
   },

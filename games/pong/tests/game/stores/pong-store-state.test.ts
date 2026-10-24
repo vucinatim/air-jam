@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { agentContract } from "../../../src/game/contracts/agent";
 import { pongStore } from "../../../src/game/stores/pong-store";
 import {
@@ -16,15 +16,12 @@ const createState = (overrides: Partial<PongState> = {}): PongState => ({
 });
 
 describe("pong store state transitions", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("only allows the host to award points during play", () => {
     const player = {
       actorId: "alpha",
       role: "controller" as const,
       connectedPlayerIds: ["alpha"],
+      now: 0,
     };
     const actions = pongStore.getState().actions;
     actions.returnToLobby(player, undefined);
@@ -59,8 +56,6 @@ describe("pong store state transitions", () => {
   );
 
   it("starts the match only when both teams are ready", () => {
-    vi.spyOn(Date, "now").mockReturnValue(42_000);
-
     const result = reduceStartMatch(
       createState({
         teamAssignments: {
@@ -69,6 +64,7 @@ describe("pong store state transitions", () => {
         },
       }),
       ["hostA", "hostB"],
+      42_000,
     );
 
     expect(result).toEqual({
@@ -90,7 +86,7 @@ describe("pong store state transitions", () => {
       },
     });
 
-    expect(reduceStartMatch(state, ["hostA"])).toEqual(state);
+    expect(reduceStartMatch(state, ["hostA"], 0)).toEqual(state);
   });
 
   it("allows mixed humans and bots up to two slots per team", () => {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { agentContract } from "../../../src/game/contracts/agent";
 import { createEmptyTeamCounts } from "../../../src/game/domain/match-readiness";
 import {
@@ -8,6 +8,7 @@ import {
   reduceFinishCountdown,
   reduceJoinTeam,
   reduceSetBotCount,
+  reduceSetCountdownSeconds,
   reduceStartMatch,
   reduceSyncConnectedPlayers,
 } from "../../../src/game/stores/match/match-store-state";
@@ -21,10 +22,6 @@ const createState = (
 });
 
 describe("air-capture match store state", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it.each(["lobby", "countdown", "playing", "ended"] as const)(
     "reports start readiness accurately in %s",
     async (matchPhase) => {
@@ -160,8 +157,6 @@ describe("air-capture match store state", () => {
   });
 
   it("starts the match when both teams are occupied and at least one human is present", () => {
-    vi.spyOn(Date, "now").mockReturnValue(42_000);
-
     const result = reduceStartMatch(
       createState({
         botCounts: {
@@ -179,7 +174,7 @@ describe("air-capture match store state", () => {
 
     expect(result).toMatchObject({
       matchPhase: "countdown",
-      countdownEndsAtMs: 42_000 + MATCH_COUNTDOWN_DURATION_MS,
+      countdownSeconds: MATCH_COUNTDOWN_DURATION_MS / 1000,
       matchStartedAtMs: null,
       botCounts: {
         solaris: 0,
@@ -191,26 +186,37 @@ describe("air-capture match store state", () => {
     });
   });
 
-  it("finishes countdown into live play and stamps match start time", () => {
-    vi.spyOn(Date, "now").mockReturnValue(45_000);
+  it("counts the countdown down only while it runs", () => {
+    const counting = createState({
+      matchPhase: "countdown",
+      countdownSeconds: 3,
+    });
 
+    expect(reduceSetCountdownSeconds(counting, 2)).toMatchObject({
+      countdownSeconds: 2,
+    });
+    expect(reduceSetCountdownSeconds(counting, 3)).toBe(counting);
+    const lobby = createState();
+    expect(reduceSetCountdownSeconds(lobby, 2)).toBe(lobby);
+  });
+
+  it("finishes countdown into live play and stamps match start time", () => {
     const result = reduceFinishCountdown(
       createState({
         matchPhase: "countdown",
-        countdownEndsAtMs: 45_000,
+        countdownSeconds: 1,
       }),
+      45_000,
     );
 
     expect(result).toMatchObject({
       matchPhase: "playing",
-      countdownEndsAtMs: null,
+      countdownSeconds: null,
       matchStartedAtMs: 45_000,
     });
   });
 
   it("ends a running match with duration and summary", () => {
-    vi.spyOn(Date, "now").mockReturnValue(55_000);
-
     const result = reduceEndMatch(
       createState({
         matchPhase: "playing",
@@ -224,6 +230,7 @@ describe("air-capture match store state", () => {
           nebulon: 7,
         },
       },
+      55_000,
     );
 
     expect(result).toEqual({
@@ -253,7 +260,7 @@ describe("air-capture match store state", () => {
       botCounts: createEmptyTeamCounts(),
       teamAssignments: {},
       matchSummary: null,
-      countdownEndsAtMs: null,
+      countdownSeconds: null,
       matchStartedAtMs: null,
     });
   });

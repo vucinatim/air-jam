@@ -249,6 +249,57 @@ describe("core host runtime", () => {
     ).rejects.toThrow();
   });
 
+  it("runs actions on game time: the simulation's when declared, else the host clock", async () => {
+    const createTimedStore = () =>
+      createAirJamStore<{
+        at: number | null;
+        actions: {
+          mark: (ctx: AirJamActionContext, _payload: undefined) => void;
+        };
+      }>((set) => ({
+        at: null,
+        actions: { mark: ({ now }) => set({ at: now }) },
+      }));
+    const start = async (
+      simulation?: ReturnType<typeof defineAirJamSimulation<{ x: number }>>,
+    ) => {
+      const socket = createServerSocket();
+      const { environment } = createMemoryEnvironment(socket);
+      const timed = createTimedStore();
+      const runtime = new HostRuntime({
+        config,
+        store: createConnectionStore(),
+        getSocket: () => {
+          throw new Error("The memory transport needs no socket.");
+        },
+        disconnectSocket: () => {},
+        environment: { ...environment, now: () => 9_000 },
+        stores: [timed],
+        simulation,
+      });
+      const stop = runtime.start();
+      await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+      return { runtime, timed, stop };
+    };
+
+    const simulated = await start(
+      defineAirJamSimulation<{ x: number }>({
+        stepMs: 10,
+        create: () => ({ x: 0 }),
+        step: () => {},
+      }),
+    );
+    simulated.runtime.simulation?.advance(35);
+    await simulated.timed.actions.mark();
+    expect(simulated.timed.getState().at).toBe(30);
+    simulated.stop();
+
+    const clocked = await start();
+    await clocked.timed.actions.mark();
+    expect(clocked.timed.getState().at).toBe(9_000);
+    clocked.stop();
+  });
+
   it("loads a simulation declared as a loader before stepping it", async () => {
     const socket = createServerSocket();
     const { environment } = createMemoryEnvironment(socket);

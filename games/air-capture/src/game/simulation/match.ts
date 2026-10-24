@@ -197,9 +197,14 @@ export const followMatchPhase = (
 
 /** Ends the countdown on game time and the match when a team reaches the target. */
 export const decideMatch = (sim: AirCaptureSim, emit: Emit): void => {
-  if (sim.countdownEndsAt !== null && sim.time >= sim.countdownEndsAt) {
-    sim.countdownEndsAt = null;
-    void prototypeMatchStore.actions.finishCountdown();
+  if (sim.countdownEndsAt !== null) {
+    if (sim.time >= sim.countdownEndsAt) {
+      sim.countdownEndsAt = null;
+      void prototypeMatchStore.actions.finishCountdown();
+    } else
+      void prototypeMatchStore.actions.setCountdownSeconds({
+        seconds: Math.ceil(sim.countdownEndsAt - sim.time),
+      });
     return;
   }
   const { matchPhase, pointsToWin } = prototypeMatchStore.getState();

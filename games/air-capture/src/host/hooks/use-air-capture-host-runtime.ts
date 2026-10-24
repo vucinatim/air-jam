@@ -6,7 +6,6 @@ import {
 import { useHostJoinControls } from "@air-jam/sdk/ui";
 import { useMemo, useState } from "react";
 import { type TeamId } from "../../game/domain/team";
-import { useMatchCountdown } from "../../game/hooks/use-match-countdown";
 import { prototypeMatchStore } from "../../game/stores/match/match-store";
 
 /** What the host screen shows; the match itself runs in the simulation. */
@@ -38,12 +37,11 @@ export function useAirCaptureHostRuntime() {
     prototypeMatchStore,
     (state) => state.matchSummary,
   );
-  const countdownEndsAtMs = useAirJamStore(
+  const countdownRemainingSeconds = useAirJamStore(
     prototypeMatchStore,
-    (state) => state.countdownEndsAtMs,
+    (state) => state.countdownSeconds ?? 0,
   );
   const matchActions = prototypeMatchStore.actions;
-  const countdownRemainingSeconds = useMatchCountdown(countdownEndsAtMs);
   const teamPlayers = useMemo(() => {
     const grouped: Record<TeamId, PlayerProfile[]> = {
       solaris: [],

@@ -9,6 +9,7 @@ import {
   reduceRestartMatch,
   reduceReturnToLobby,
   reduceSetBotCount,
+  reduceSetCountdownSeconds,
   reduceSetPointsToWin,
   reduceStartMatch,
   reduceSyncConnectedPlayers,
@@ -26,7 +27,7 @@ interface PrototypeMatchState {
   botCounts: TeamCounts;
   teamAssignments: Record<string, TeamAssignment>;
   matchSummary: MatchSummary | null;
-  countdownEndsAtMs: number | null;
+  countdownSeconds: number | null;
   matchStartedAtMs: number | null;
 
   actions: {
@@ -44,11 +45,15 @@ interface PrototypeMatchState {
       payload: { pointsToWin: number },
     ) => void;
     startMatch: (_ctx: AirJamActionContext, _payload: undefined) => void;
-    finishCountdown: (_ctx: AirJamActionContext, _payload: undefined) => void;
+    setCountdownSeconds: (
+      ctx: AirJamActionContext,
+      payload: { seconds: number },
+    ) => void;
+    finishCountdown: (ctx: AirJamActionContext, _payload: undefined) => void;
     restartMatch: (_ctx: AirJamActionContext, _payload: undefined) => void;
     returnToLobby: (_ctx: AirJamActionContext, _payload: undefined) => void;
     endMatch: (
-      _ctx: AirJamActionContext,
+      ctx: AirJamActionContext,
       payload: { winner: TeamId; finalScores: Record<TeamId, number> },
     ) => void;
   };
@@ -94,8 +99,15 @@ export const prototypeMatchStore = createAirJamStore<PrototypeMatchState>(
           reduceStartMatch(state as MatchStateSnapshot, { connectedPlayerIds }),
         ),
 
-      finishCountdown: () =>
-        set((state) => reduceFinishCountdown(state as MatchStateSnapshot)),
+      setCountdownSeconds: ({ role }, { seconds }) =>
+        set((state) =>
+          role === "host"
+            ? reduceSetCountdownSeconds(state as MatchStateSnapshot, seconds)
+            : state,
+        ),
+
+      finishCountdown: ({ now }) =>
+        set((state) => reduceFinishCountdown(state as MatchStateSnapshot, now)),
 
       restartMatch: () =>
         set((state) => reduceRestartMatch(state as MatchStateSnapshot)),
@@ -103,9 +115,13 @@ export const prototypeMatchStore = createAirJamStore<PrototypeMatchState>(
       returnToLobby: () =>
         set((state) => reduceReturnToLobby(state as MatchStateSnapshot)),
 
-      endMatch: (_ctx, { winner, finalScores }) =>
+      endMatch: ({ now }, { winner, finalScores }) =>
         set((state) =>
-          reduceEndMatch(state as MatchStateSnapshot, { winner, finalScores }),
+          reduceEndMatch(
+            state as MatchStateSnapshot,
+            { winner, finalScores },
+            now,
+          ),
         ),
     },
   }),

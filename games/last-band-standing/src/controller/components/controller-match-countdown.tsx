@@ -1,16 +1,11 @@
-import { NOW_TICK_MS } from "@/game/constants";
-import { useNowTick } from "@/game/hooks/use-now-tick";
 import { gameStore } from "@/game/stores";
 import { getRoundPrompt } from "@/game/ui/round-prompt";
 import { useAirJamStore } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 
 export const ControllerMatchCountdown = () => {
-  const nowMs = useNowTick(NOW_TICK_MS);
+  const secondsLeft = useAirJamStore(gameStore, (state) => state.secondsLeft);
   const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
-  const countdownSeconds = currentRound
-    ? Math.max(0, Math.ceil((currentRound.startedAtMs - nowMs) / 1000))
-    : 0;
 
   if (!currentRound) {
     return null;
@@ -29,13 +24,13 @@ export const ControllerMatchCountdown = () => {
         Round {currentRound.roundNumber}
       </p>
       <motion.div
-        key={countdownSeconds}
+        key={secondsLeft}
         className="title text-primary text-8xl leading-none"
         initial={{ opacity: 0, scale: 0.75 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 320, damping: 18 }}
       >
-        {countdownSeconds > 0 ? countdownSeconds : "Go!"}
+        {secondsLeft > 0 ? secondsLeft : "Go!"}
       </motion.div>
       <p className="text-foreground text-xl font-bold">
         {getRoundPrompt(currentRound.guessKind)}

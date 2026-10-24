@@ -1,5 +1,3 @@
-import { NOW_TICK_MS } from "@/game/constants";
-import { useNowTick } from "@/game/hooks/use-now-tick";
 import { gameStore } from "@/game/stores";
 import { getRoundPrompt } from "@/game/ui/round-prompt";
 import { useAirJamStore } from "@air-jam/sdk";
@@ -7,11 +5,8 @@ import { motion } from "framer-motion";
 import { HostPlayerStrip } from "./host-player-strip";
 
 export const HostMatchCountdown = () => {
-  const nowMs = useNowTick(NOW_TICK_MS);
+  const secondsLeft = useAirJamStore(gameStore, (state) => state.secondsLeft);
   const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
-  const countdownSeconds = currentRound
-    ? Math.max(0, Math.ceil((currentRound.startedAtMs - nowMs) / 1000))
-    : 0;
 
   if (!currentRound) {
     return null;
@@ -31,13 +26,13 @@ export const HostMatchCountdown = () => {
           Round {currentRound.roundNumber}
         </p>
         <motion.div
-          key={countdownSeconds}
+          key={secondsLeft}
           className="lbs-match-countdown title text-primary text-[8rem] leading-none md:text-[11rem]"
           initial={{ opacity: 0, scale: 0.7 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 320, damping: 18 }}
         >
-          {countdownSeconds > 0 ? countdownSeconds : "Go!"}
+          {secondsLeft > 0 ? secondsLeft : "Go!"}
         </motion.div>
         <p className="bg-background/45 rounded-full px-6 py-3 text-2xl font-bold backdrop-blur-md">
           {getRoundPrompt(currentRound.guessKind)}

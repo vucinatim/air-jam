@@ -1,11 +1,13 @@
 import { NOW_TICK_MS } from "@/game/constants";
-import { useNowTick } from "@/game/hooks/use-now-tick";
+import type { RoundClock } from "@/game/engine/round-clock";
 import { gameStore } from "@/game/stores";
-import { useAirJamStore } from "@air-jam/sdk";
+import { useAirJamStore, useSimulationSelector } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 
 export const HostTimerBar = () => {
-  const nowMs = useNowTick(NOW_TICK_MS);
+  const nowMs = useSimulationSelector(
+    (clock: RoundClock) => clock.timeMs - (clock.timeMs % NOW_TICK_MS),
+  );
   const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
   const countdownFraction = currentRound
     ? Math.max(

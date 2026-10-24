@@ -18,7 +18,7 @@ without React. Components read it with `useAirJamStore`.
 
 Actions always use this shape on the host:
 
-1. First argument: `ctx` (identity and role)
+1. First argument: `ctx` (identity, role, connected players and game time `now`)
 2. Second argument: `payload` (either `undefined` or one typed plain-object payload)
 
 Dispatch always goes through the store's `actions`:
@@ -176,9 +176,10 @@ export const HostView = () => {
 6. Nested values must stay RPC-serializable.
 7. Use `ctx.actorId` for identity-aware actions (team join, ownership, etc.).
 8. `ctx.actorId` is always the dispatcher identity. If host code dispatches through `store.actions`, then `ctx.actorId` is the host.
-9. If the host intentionally needs to run the same semantic player action as controller `X`, use `store.asPlayer("X")` instead of inventing a target payload for an actor-owned action.
-10. Keep per-frame gameplay input in `useInputWriter` / `host.getInput`, not in this store.
-11. For a host-only side effect of an action, such as a sound, use `useHostActionListener(store, listener)`.
+9. Read time as `ctx.now`, never `Date.now()`: it is game time, the simulation's when the game declares one, so headless runs and replays see the same time. Store deadlines in it and let the simulation act on them; phones show what the host writes to the store, such as whole seconds left, because they cannot read the host's clock.
+10. If the host intentionally needs to run the same semantic player action as controller `X`, use `store.asPlayer("X")` instead of inventing a target payload for an actor-owned action.
+11. Keep per-frame gameplay input in `useInputWriter` / `host.getInput`, not in this store.
+12. For a host-only side effect of an action, such as a sound, use `useHostActionListener(store, listener)`.
 
 ## Accept And Reject Examples
 

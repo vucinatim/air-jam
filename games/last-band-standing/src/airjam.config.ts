@@ -9,6 +9,7 @@ import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
 import { gameInputSchema } from "./game/contracts/input";
+import { roundClock } from "./game/engine/round-clock";
 import { gameStore } from "./game/stores/create-store";
 
 export const gameMetadata = defineAirJamGameMetadata({
@@ -34,6 +35,7 @@ export const airjam = createAirJamApp({
   metadata: gameMetadata,
   controllerPath: "/controller",
   stores: [gameStore],
+  simulation: roundClock,
   agent: agentContract,
   input: {
     schema: gameInputSchema,

@@ -158,6 +158,7 @@ export const reduceSetBotCount = (
 export const reduceStartMatch = (
   state: PongState,
   connectedPlayerIds: string[],
+  nowMs: number,
 ): Partial<PongState> | PongState => {
   if (state.matchPhase !== "lobby") {
     return state;
@@ -181,7 +182,7 @@ export const reduceStartMatch = (
     scores: { team1: 0, team2: 0 },
     matchPhase: "playing",
     matchSummary: null,
-    matchStartedAtMs: Date.now(),
+    matchStartedAtMs: nowMs,
     teamAssignments,
   };
 };

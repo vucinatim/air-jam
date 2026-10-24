@@ -1,5 +1,3 @@
-import { NOW_TICK_MS } from "@/game/constants";
-import { useNowTick } from "@/game/hooks/use-now-tick";
 import { gameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";
 import { FullLogo } from "@/game/ui/full-logo";
@@ -7,7 +5,7 @@ import { getRoundPrompt } from "@/game/ui/round-prompt";
 import { useAirJamStore } from "@air-jam/sdk";
 
 export const HostTopBar = () => {
-  const nowMs = useNowTick(NOW_TICK_MS);
+  const secondsLeft = useAirJamStore(gameStore, (state) => state.secondsLeft);
   const phase = useAirJamStore(gameStore, (state) => state.phase);
   const totalRounds = useAirJamStore(gameStore, (state) => state.totalRounds);
   const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
@@ -24,15 +22,6 @@ export const HostTopBar = () => {
     ? currentRound.expectedPlayerIds.filter(
         (playerId) => answersByPlayerId[playerId],
       ).length
-    : 0;
-  const countdownSeconds = currentRound
-    ? Math.max(0, Math.ceil((currentRound.endsAtMs - nowMs) / 1000))
-    : 0;
-  const revealCountdownSeconds = roundReveal
-    ? Math.max(0, Math.ceil((roundReveal.revealEndsAtMs - nowMs) / 1000))
-    : 0;
-  const matchCountdownSeconds = currentRound
-    ? Math.max(0, Math.ceil((currentRound.startedAtMs - nowMs) / 1000))
     : 0;
 
   return (
@@ -60,23 +49,23 @@ export const HostTopBar = () => {
             <span
               className={cn(
                 "min-w-[2ch] text-right text-xl font-bold tabular-nums",
-                countdownSeconds <= 5 ? "text-destructive" : "text-foreground",
+                secondsLeft <= 5 ? "text-destructive" : "text-foreground",
               )}
             >
-              {countdownSeconds}
+              {secondsLeft}
             </span>
           </div>
         )}
 
         {phase === "match-countdown" && currentRound && (
           <span className="text-muted-foreground text-sm">
-            Starting in {matchCountdownSeconds}s
+            Starting in {secondsLeft}s
           </span>
         )}
 
         {phase === "round-reveal" && roundReveal && (
           <span className="text-muted-foreground text-sm">
-            Next in {revealCountdownSeconds}s
+            Next in {secondsLeft}s
           </span>
         )}
       </div>
