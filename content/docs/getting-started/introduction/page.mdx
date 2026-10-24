@@ -174,7 +174,7 @@ Avoid cross-lane misuse:
 
 1. Don’t stream per-frame movement through store actions.
 2. Don’t encode authoritative gameplay state in signals.
-3. Don’t call `state.actions.*`; use `useActions()` only.
+3. Don’t call `state.actions.*`; dispatch through `gameStore.actions`.
 
 ## Next Steps
 

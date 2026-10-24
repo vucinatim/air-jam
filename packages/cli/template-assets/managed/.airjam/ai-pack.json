@@ -69,8 +69,8 @@
     {
       "path": "docs/airjam/generated/debugging-and-logs.md",
       "kind": "docs-generated",
-      "size": 4575,
-      "sha256": "7998e1427b96d162986c193d32f30a97d35f92346c8d50a0a8b77019fb738897"
+      "size": 4639,
+      "sha256": "655642a6340c7136960a0915d33d9d973edd451e46e098288c9d5b8d3cf23af6"
     },
     {
       "path": "docs/airjam/generated/for-agents.md",
@@ -99,14 +99,14 @@
     {
       "path": "docs/airjam/generated/introduction.md",
       "kind": "docs-generated",
-      "size": 5202,
-      "sha256": "3c9d6ebfaee01e0a3ca54c96859b9bea359e6a1df078336fea6cb9c59d4fa760"
+      "size": 5215,
+      "sha256": "1f415c8fe88a37a0758102becc63abba756f4371831ee445f8b023f0e6f66f5e"
     },
     {
       "path": "docs/airjam/generated/migrating-legacy-games.md",
       "kind": "docs-generated",
-      "size": 15814,
-      "sha256": "605a0d5f574b0207a80cc69cf352b6f06c7972c739cf721a7b06c7787967c453"
+      "size": 21895,
+      "sha256": "6001ebd3e2b70059d50d8b929e8486be456ca124c3c34a56fed7d77472447e77"
     },
     {
       "path": "docs/airjam/generated/networked-state.md",
@@ -187,5 +187,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "bc2a57d0def2433172c1be4d478f8d0965e802f8a2caa37363d3e01ba84cd089"
+  "contentDigest": "6b5bbe724d3be751b5d62e67ff517139939fb3516662ba0719a8075c7dad934c"
 }

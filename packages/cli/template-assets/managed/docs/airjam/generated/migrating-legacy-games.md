@@ -416,25 +416,111 @@ That order usually sharpens the guide fastest:
 2. second app forces the harder boundary decisions
 3. third app benefits from the refined guide and should migrate more cleanly
 
-## Removed Before 1.0
+## From 0.9 To 1.0
+
+Games written against the 0.9 SDK, including agent-made Studio games, move
+mechanically with the mappings below. Each removal fails typecheck, so work
+through the compiler errors with this section open.
+
+### Stores Are Plain Objects
+
+`createAirJamStore` moved to `@air-jam/sdk/core` and returns a store object,
+not a hook. Declare every store in the app; reading an undeclared store throws
+`AJ_STORE_NOT_DECLARED`.
+
+```ts
+// 0.9
+import { createAirJamStore } from "@air-jam/sdk";
+export const useGameStore = createAirJamStore<GameState>((set) => ({ ... }));
+
+// 1.0
+import { createAirJamStore } from "@air-jam/sdk/core";
+export const gameStore = createAirJamStore<GameState>((set) => ({ ... }));
+// airjam.config.ts
+createAirJamApp({ stores: [gameStore], ... });
+```
+
+| 0.9                                                                                                             | 1.0                                                              |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `useGameStore((s) => s.score)`                                                                                  | `useAirJamStore(gameStore, (s) => s.score)` from `@air-jam/sdk`  |
+| `useGameStore.useActions().joinTeam(...)`                                                                       | `gameStore.actions.joinTeam(...)`                                |
+| `useGameStore.asPlayer(id)`                                                                                     | `gameStore.asPlayer(id)`                                         |
+| `useGameStore.getState()`, `.subscribe`                                                                         | `gameStore.getState()`, `gameStore.subscribe`                    |
+| `useGameStore.useHostActionListener(listener)`                                                                  | `useHostActionListener(gameStore, listener)` from `@air-jam/sdk` |
+| `useGameStore.useLiveStateRef().current`                                                                        | `gameStore.getState()`, always current                           |
+| `acceptAirJamAction`, `rejectAirJamAction`, `AirJamActionContext` and the other store types from `@air-jam/sdk` | the same names from `@air-jam/sdk/core`                          |
+| `createAirJamStore(init, { storeDomain })`                                                                      | unchanged, from `@air-jam/sdk/core`                              |
+| `Date.now()` inside an action                                                                                   | `ctx.now`, the game time the action runs at                      |
+
+Shells that compose runtimes themselves, such as the Arcade, pass their
+stores to `AirJamHostRuntime` and `AirJamControllerRuntime` from
+`@air-jam/sdk/arcade/runtime` with the `stores` prop.
+
+### The SDK Owns The Loop
+
+`useHostTick` is removed. Per-step game logic moves into a declared
+simulation; components only draw it.
+
+```tsx
+// 0.9
+useHostTick({
+  mode: "fixed",
+  intervalMs: 16,
+  onTick: ({ deltaSeconds }) => stepGame(world, deltaSeconds),
+});
+
+// 1.0: src/game/simulation.ts
+export const simulation = defineAirJamSimulation<World, GameInput, GameEvent>({
+  stepMs: 16,
+  create: ({ random }) => createWorld(random),
+  step: (world, { dtSeconds, input, players, random, emit }) =>
+    stepGame(world, dtSeconds),
+  observe: (world) => ({ score: world.score }),
+});
+// airjam.config.ts
+createAirJamApp({ simulation, ... });
+```
+
+| 0.9                                          | 1.0                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `useHostTick({ onTick })`                    | the simulation's `step`                                                                     |
+| `useHostTick({ onFrame })`, `fixedStepAlpha` | `useSimulationFrame(({ sim, alpha }) => draw(sim, alpha))`                                  |
+| `HostTickInfo.deltaSeconds`, `.tick`         | the step context's `dtSeconds`, `tick`                                                      |
+| `Math.random()` in game logic                | the step context's `random`                                                                 |
+| `useHostAgentObservation({ read, capture })` | `read` becomes the simulation's `observe`; `capture` becomes `useHostAgentCapture(capture)` |
+| UI state derived from the world              | `useSimulationSelector((sim) => value)`                                                     |
+| one-off feedback such as sounds              | `emit` in `step`, `useSimulationEvents` in a component                                      |
+
+### Removed Exports
 
 These exports are gone; use the replacement.
 
 | Removed                                                                                                                                                                                | Use instead                                                                                    |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `@air-jam/sdk/arcade`, `@air-jam/sdk/arcade/bridge`                                                                                                                                    | the leaf that owns the concept, such as `@air-jam/sdk/arcade/bridge/host`                      |
+| `useHostTick`, `HostTickInfo`, `HostTickOptions`, `HostFrameInfo`                                                                                                                      | a declared simulation, above                                                                   |
+| `useHostAgentObservation`                                                                                                                                                              | the simulation's `observe` and `useHostAgentCapture`                                           |
+| `AirJamSyncedStoreHook`                                                                                                                                                                | `AirJamStore` from `@air-jam/sdk/core`                                                         |
 | `useConnectionStatus()`                                                                                                                                                                | `useAirJamHost((s) => s.connectionStatus)` or `useAirJamController((s) => s.connectionStatus)` |
 | `usePlayers()`                                                                                                                                                                         | `useAirJamHost((s) => s.players)`                                                              |
 | `isActiveMatchPhase`, `isEndedMatchPhase`, `isStandardMatchPhase`, `standardMatchPhases`                                                                                               | compare the phase directly; `toShellMatchPhase` stays                                          |
-| `AirJamErrorBoundary`, `PlatformSettingsBoundary`                                                                                                                                      | nothing: `createAirJamApp` mounts both                                                         |
+| `AirJamErrorBoundary`, `PlatformSettingsBoundary`                                                                                                                                      | nothing: `createAirJamApp` and the session runtimes mount both                                 |
 | `getEffectiveAudioVolume`, `useAudioCategoryVolume`, `mergeRoomPlatformSettingsSnapshot`                                                                                               | `useMusicVolume`, `usePlatformAudioSettings`                                                   |
 | `parseAirJamGameMetadata`                                                                                                                                                              | `airJamGameMetadataSchema.safeParse`                                                           |
 | `RoomCode`, `RunMode`, `SignalPayload`, `SignalType`, `ControllerStatePayload`, `ControllerUpdatePlayerProfileAck`, `AirJamActionAccepted`, `AirJamActionRejected` from `@air-jam/sdk` | the same types from `@air-jam/sdk/protocol`                                                    |
-| `isInternalActionName`, `resolveControllerJoinSource`, `JoinUrlStatus` from `@air-jam/sdk/core`                                                                                        | internal; `JoinUrlStatus` comes from `@air-jam/sdk`                                            |
-| `Date.now()` inside store actions                                                                                                                                                      | `ctx.now`, the game time the action runs at                                                    |
+| `buttonVariants`, `getPlayerAvatarImageUrl`, `resolvePlayerAvatarSeed` from `@air-jam/sdk/ui`                                                                                          | `Button`, `PlayerAvatar`                                                                       |
 
-The preview, runtime-inspection, runtime-control and agent-tooling paths also
-dropped helpers only the SDK itself used.
+Tool and platform paths also dropped helpers only the SDK itself used:
+`arcade/bridge/controller` (`AIRJAM_CONTROLLER_BRIDGE_RESPONSE`,
+`AIRJAM_CONTROLLER_PRESENTATION_SYNC`, `createControllerPresentationSyncMessage`,
+`parseControllerBridgeResponseMessage`), `arcade/bridge/host`
+(`AIRJAM_HOST_BRIDGE_RESPONSE`), `arcade/bridge/iframe` (the bridge init and
+settings sync messages), `arcade/surface` (implicit store domain resolution),
+`arcade/url` (`urlBuilder`, `arcadeSurfaceRuntimeUrlParams`, which stays in
+`arcade/surface`), `controller-bridge`, `preview`, `runtime-control`,
+`runtime-inspection`, `agent-tooling` and `metadata`. The
+[architecture guide](./architecture.md) lists what each path
+keeps.
 
 ## Related Docs
 
