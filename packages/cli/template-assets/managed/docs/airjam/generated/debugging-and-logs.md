@@ -105,7 +105,7 @@ Check:
 
 Check:
 
-1. actions are dispatched via `useActions()`
+1. actions are dispatched via `gameStore.actions` and the store is declared in `createAirJamApp({ stores })`
 2. payloads are plain serializable objects
 3. your controller is connected before dispatching
 4. identity-dependent actions use `ctx.actorId` on the host side
