@@ -98,8 +98,7 @@ export const airCaptureSimulation = defineAirJamSimulation<
   step: (sim, context) => {
     syncRoster(sim, context.players, context.random, context.emit);
     followMatchPhase(sim, context.random);
-    if (!isMatchActive(sim.matchPhase) || context.runtimeState !== "playing")
-      return;
+    if (!isMatchActive(sim.matchPhase)) return;
 
     const delta = context.dtSeconds;
     sim.time += delta;

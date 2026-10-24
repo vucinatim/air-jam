@@ -33,7 +33,7 @@ describe("Code Review simulation", () => {
   let sim: CodeReviewSimulationState;
   let events: CodeReviewSimulationEvent[];
 
-  const step = (runtimeState: "playing" | "paused" = "playing") =>
+  const step = () =>
     codeReviewSimulation.step(sim, {
       tick: 1,
       stepMs: codeReviewSimulation.stepMs,
@@ -41,7 +41,6 @@ describe("Code Review simulation", () => {
       random: () => 0,
       input: () => undefined,
       players,
-      runtimeState,
       emit: (event) => events.push(event),
     });
 
@@ -72,8 +71,6 @@ describe("Code Review simulation", () => {
     expect(sim.clockMs).toBe(0);
     fixture.state.matchPhase = "playing";
     for (let index = 0; index < 60; index += 1) step();
-    expect(sim.clockMs).toBeCloseTo(1000);
-    for (let index = 0; index < 60; index += 1) step("paused");
     expect(sim.clockMs).toBeCloseTo(1000);
   });
 

@@ -127,8 +127,7 @@ export const pongSimulation = defineAirJamSimulation<
     sim.previousScores = scores;
     if (matchPhase === "lobby") return;
 
-    const isPlaying =
-      context.runtimeState === "playing" && matchPhase === "playing";
+    const isPlaying = matchPhase === "playing";
     if (sim.countdown !== null && isPlaying) {
       sim.countdownElapsedMs += context.stepMs;
       if (sim.countdownElapsedMs >= 1000) {

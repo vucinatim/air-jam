@@ -12,7 +12,6 @@ export interface AirJamStepContext<TInput, TEvent> {
   /** The latest input of a player, as the input schema parsed it. */
   input: (controllerId: string) => TInput | undefined;
   players: readonly PlayerProfile[];
-  runtimeState: RuntimeState;
   /** Reports something that happened, such as a hit, for sound and feedback. */
   emit: (event: TEvent) => void;
 }
@@ -20,7 +19,8 @@ export interface AirJamStepContext<TInput, TEvent> {
 /**
  * A game's authoritative simulation: state the host advances in fixed steps
  * on the SDK's clock. Drawing reads it and never advances it, so the same
- * game runs in a browser, headless, or faster than real time.
+ * game runs in a browser, headless, or faster than real time. The clock only
+ * steps while the room is playing: a paused game keeps its game time.
  */
 export interface AirJamSimulation<TSim, TInput = unknown, TEvent = never> {
   /** Milliseconds of game time per step. */
@@ -122,18 +122,28 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
     return this.tick * this.simulation.stepMs;
   }
 
-  /** Runs as many whole steps as `ms` of game time holds, without a cap. */
+  /**
+   * Runs as many whole steps as `ms` of game time holds, without a cap. Time
+   * that passes while the room is paused is not game time.
+   */
   advance(ms: number): void {
     this.accumulatorMs += ms;
-    while (this.accumulatorMs >= this.simulation.stepMs) {
-      this.accumulatorMs -= this.simulation.stepMs;
-      this.step();
-    }
+    this.runSteps(Number.POSITIVE_INFINITY);
     this.notifyFrame();
   }
 
-  /** Advances by real elapsed time, dropping steps a slow device cannot run. */
+  /**
+   * Advances by real elapsed time, dropping steps a slow device cannot run.
+   * Frames keep drawing while the room is paused, and resuming does not count
+   * the paused gap.
+   */
   frame(now: number): void {
+    if (!this.playing) {
+      this.lastFrameAt = null;
+      this.accumulatorMs = 0;
+      this.notifyFrame();
+      return;
+    }
     const elapsedMs =
       this.lastFrameAt === null ? 0 : Math.max(0, now - this.lastFrameAt);
     this.lastFrameAt = now;
@@ -142,12 +152,7 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
       elapsedMs,
       Math.max(stepMs, MAX_FRAME_DELTA_MS),
     );
-    let steps = 0;
-    while (this.accumulatorMs >= stepMs && steps < MAX_STEPS_PER_FRAME) {
-      this.accumulatorMs -= stepMs;
-      this.step();
-      steps += 1;
-    }
+    const steps = this.runSteps(MAX_STEPS_PER_FRAME);
     if (steps === MAX_STEPS_PER_FRAME) this.accumulatorMs = 0;
     this.pace.frames += 1;
     this.pace.wallMs += elapsedMs;
@@ -170,6 +175,25 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
     return () => this.frameListeners.delete(listener);
   }
 
+  private get playing(): boolean {
+    return this.room.runtimeState() === "playing";
+  }
+
+  private runSteps(maxSteps: number): number {
+    let steps = 0;
+    while (
+      this.playing &&
+      this.accumulatorMs >= this.simulation.stepMs &&
+      steps < maxSteps
+    ) {
+      this.accumulatorMs -= this.simulation.stepMs;
+      this.step();
+      steps += 1;
+    }
+    if (!this.playing) this.accumulatorMs = 0;
+    return steps;
+  }
+
   private step(): void {
     this.tick += 1;
     const stepMs = this.simulation.stepMs;
@@ -180,7 +204,6 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
       random: this.random,
       input: this.room.input,
       players: this.room.players(),
-      runtimeState: this.room.runtimeState(),
       emit: (event) => {
         for (const listener of this.eventListeners) listener(event);
       },

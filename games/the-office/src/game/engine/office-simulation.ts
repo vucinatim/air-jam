@@ -438,7 +438,7 @@ export const officeSimulation = defineAirJamSimulation<
     }
     sim.roster = roster;
 
-    if (matchPhase !== "playing" || context.runtimeState !== "playing") return;
+    if (matchPhase !== "playing") return;
     sim.elapsedMs = Math.min(sim.elapsedMs + context.stepMs, gameDurationMs);
     advanceOfficeMatch(sim, {
       elapsedMs: sim.elapsedMs,

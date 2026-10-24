@@ -54,7 +54,6 @@ const createMatch = (seed = 7) => {
         random,
         input: (controllerId) => (controllerId === HUMAN ? input : undefined),
         players: [{ id: HUMAN, label: "One", color: "#ffffff" }],
-        runtimeState: "playing",
         emit: (event) => events.push(event),
       });
   };

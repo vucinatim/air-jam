@@ -90,7 +90,6 @@ export const codeReviewSimulation = defineAirJamSimulation<
       void gameStore.actions.finishMatch();
       return;
     }
-    if (context.runtimeState !== "playing") return;
 
     sim.clockMs += context.stepMs;
     stepMatchFrame({
