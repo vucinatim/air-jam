@@ -9,16 +9,11 @@ export {
   hostAgentRequestSchema,
   hostAgentResponseSchema,
   hostAgentResultMessageSchema,
-  hostAgentSnapshotSchema,
   type HostAgentRequest,
   type HostAgentResponse,
 } from "./runtime/contracts/agent-control";
 export {
-  HOST_OBSERVATION_IMAGE_BYTES,
-  HOST_OBSERVATION_TIMEOUT_MS,
-  hostObservationClockSchema,
   hostObservationIdentitySchema,
-  hostObservationImageSchema,
   hostObservationRequestSchema,
   hostObservationSchema,
   type HostObservation,
@@ -28,8 +23,6 @@ export {
   type HostObservationSurface,
 } from "./runtime/contracts/observation";
 export {
-  hostRuntimeIdentitySchema,
+  sameHostRuntimeIdentity,
   type HostRuntimeIdentity,
 } from "./runtime/contracts/runtime-identity";
-
-export { sameHostRuntimeIdentity } from "./runtime/contracts/runtime-identity";

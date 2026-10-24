@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { agentContract } from "../../../src/game/contracts/agent";
-import { usePongStore } from "../../../src/game/stores/pong-store";
+import { pongStore } from "../../../src/game/stores/pong-store";
 import {
   createInitialPongState,
   reduceJoinTeam,
@@ -16,26 +16,23 @@ const createState = (overrides: Partial<PongState> = {}): PongState => ({
 });
 
 describe("pong store state transitions", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("only allows the host to award points during play", () => {
     const player = {
       actorId: "alpha",
       role: "controller" as const,
       connectedPlayerIds: ["alpha"],
+      now: 0,
     };
-    const actions = usePongStore.getState().actions;
+    const actions = pongStore.getState().actions;
     actions.returnToLobby(player, undefined);
     actions.joinTeam(player, { team: "team1" });
     actions.setBotCount(player, { team: "team2", count: 1 });
     actions.startMatch(player, undefined);
-    expect(usePongStore.getState().matchPhase).toBe("playing");
+    expect(pongStore.getState().matchPhase).toBe("playing");
     actions.scorePoint(player, { team: "team1" });
-    expect(usePongStore.getState().scores.team1).toBe(0);
+    expect(pongStore.getState().scores.team1).toBe(0);
     actions.scorePoint({ ...player, role: "host" }, { team: "team1" });
-    expect(usePongStore.getState().scores.team1).toBe(1);
+    expect(pongStore.getState().scores.team1).toBe(1);
     expect(agentContract.actions.award_point.target.kind).toBe("host");
     actions.returnToLobby(player, undefined);
   });
@@ -59,8 +56,6 @@ describe("pong store state transitions", () => {
   );
 
   it("starts the match only when both teams are ready", () => {
-    vi.spyOn(Date, "now").mockReturnValue(42_000);
-
     const result = reduceStartMatch(
       createState({
         teamAssignments: {
@@ -69,6 +64,7 @@ describe("pong store state transitions", () => {
         },
       }),
       ["hostA", "hostB"],
+      42_000,
     );
 
     expect(result).toEqual({
@@ -90,7 +86,7 @@ describe("pong store state transitions", () => {
       },
     });
 
-    expect(reduceStartMatch(state, ["hostA"])).toEqual(state);
+    expect(reduceStartMatch(state, ["hostA"], 0)).toEqual(state);
   });
 
   it("allows mixed humans and bots up to two slots per team", () => {

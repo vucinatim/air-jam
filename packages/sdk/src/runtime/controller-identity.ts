@@ -1,12 +1,10 @@
+import type { ControllerRoomBinding } from "../core/environment";
 import { generateControllerId } from "../utils/ids";
 
 const DEVICE_ID_STORAGE_KEY = "airjam_controller_device_id";
 const ROOM_BINDINGS_STORAGE_KEY = "airjam_controller_room_bindings";
 
-export interface ControllerRoomBinding {
-  controllerId: string;
-  resumeCapabilityToken: string;
-}
+export type { ControllerRoomBinding };
 
 const getLocalStorage = (): Storage | null => {
   if (typeof window === "undefined") {

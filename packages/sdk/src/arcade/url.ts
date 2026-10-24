@@ -1,17 +1,15 @@
-import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
-import { runtimeTopologyToQueryParams } from "../runtime-topology";
 import type { ChildHostCapability } from "../protocol";
 import {
   appendRuntimeQueryParams,
   getRuntimeUrlOrigin,
   normalizeRuntimeUrl,
 } from "../protocol/url-policy";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
+import { runtimeTopologyToQueryParams } from "../runtime-topology";
 import {
   arcadeSurfaceRuntimeUrlParams,
   type ArcadeSurfaceRuntimeIdentity,
 } from "./surface";
-export { urlBuilder } from "../utils/url-builder";
-export { arcadeSurfaceRuntimeUrlParams } from "./surface";
 export { appendRuntimeQueryParams, getRuntimeUrlOrigin, normalizeRuntimeUrl };
 
 export const buildArcadeGameIframeSrc = ({

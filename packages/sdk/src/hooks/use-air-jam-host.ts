@@ -22,6 +22,12 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
+import type {
+  AirJamConnectionState,
+  JoinUrlStatus,
+} from "../core/connection-store";
+import type { HostRuntime } from "../core/host-runtime";
+import type { SimulationClock } from "../core/simulation";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
@@ -38,9 +44,8 @@ import type {
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
-import type { AirJamStore } from "../state/connection-store";
 
-export type JoinUrlStatus = "loading" | "ready" | "unavailable";
+export type { JoinUrlStatus };
 
 /**
  * Options for configuring the host runtime boundary.
@@ -173,6 +178,8 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
    * ```
    */
   getInput: (controllerId: string) => z.infer<TSchema> | undefined;
+  /** The game's simulation clock, or null when the game declares no simulation. */
+  simulation: SimulationClock<unknown, unknown, unknown> | null;
 }
 
 export interface AirJamHostState {
@@ -202,9 +209,12 @@ export type AirJamHostRuntimeControls<
   | "resetRoom"
   | "socket"
   | "getInput"
->;
+  | "simulation"
+> & {
+  setObservationCapture: HostRuntime["setObservationCapture"];
+};
 
-const toHostState = (state: AirJamStore): AirJamHostState => ({
+const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
   roomId: state.roomId,
   connectionStatus: state.connectionStatus,
   players: state.players,

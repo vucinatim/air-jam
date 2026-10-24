@@ -3,6 +3,13 @@ import type { z } from "zod";
 import type { AirJamAgentContract } from "../agent/agent-contract";
 import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
+import {
+  HostRuntime,
+  type HostRuntimeDependencies,
+  type HostRuntimeOptions,
+} from "../core/host-runtime";
+import type { AttachableStore } from "../core/replicated-store";
+import type { AirJamSimulationDeclaration } from "../core/simulation";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import type { AirJamGameMetadata } from "../metadata/manifest";
@@ -55,6 +62,14 @@ export interface CreateAirJamAppOptions<
   agent?: AirJamAgentContract;
   /** Project-relative devtools test profiles module. Never imported by the game runtime. */
   testing?: string;
+  /** The game's networked stores; host and controller sync them while they run. */
+  stores?: readonly AttachableStore[];
+  /**
+   * The game's simulation, advanced on the SDK clock while the host runs.
+   * Pass a loader (`() => import(...)`) when its code is heavy, such as a
+   * physics engine, so controllers never download it.
+   */
+  simulation?: AirJamSimulationDeclaration;
   input?: AirJamProviderProps<TSchema>["input"];
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
@@ -76,7 +91,23 @@ export interface AirJamApp<TSchema extends z.ZodSchema = z.ZodSchema> {
   controllerPath: string;
   agent?: AirJamAgentContract;
   testing?: string;
+  stores: readonly AttachableStore[];
+  simulation?: AirJamSimulationDeclaration;
+  /**
+   * Builds this game's host core without React or a page, such as for a
+   * headless room. It comes from the game's own SDK, so the game's stores
+   * and its host share one runtime.
+   */
+  createHostRuntime: (
+    dependencies: Omit<
+      HostRuntimeDependencies<TSchema>,
+      "stores" | "simulation" | "agent" | "input"
+    >,
+    options?: HostRuntimeOptions,
+  ) => HostRuntime<TSchema>;
 }
+
+const NO_STORES: readonly AttachableStore[] = [];
 
 const resolveControllerPath = (controllerPath?: string): string => {
   const normalized = controllerPath ?? CONTROLLER_PATH;
@@ -183,6 +214,8 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
   controllerPath: requestedControllerPath,
   agent,
   testing,
+  stores = NO_STORES,
+  simulation,
   input,
   errorBoundary,
 }: CreateAirJamAppOptions<TSchema> = {}): AirJamApp<TSchema> => {
@@ -221,6 +254,8 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
           {...runtimeOptions}
           agent={agent}
           gameId={metadata?.slug}
+          stores={stores}
+          simulation={simulation}
         >
           <ConnectedRuntimeErrorBoundary
             role="host"
@@ -249,7 +284,11 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
         renderFallback={controllerErrorBoundary?.renderFallback}
         onError={controllerErrorBoundary?.onError}
       >
-        <AirJamControllerRuntime {...controllerSession} {...runtimeOptions}>
+        <AirJamControllerRuntime
+          {...controllerSession}
+          {...runtimeOptions}
+          stores={stores}
+        >
           <ConnectedRuntimeErrorBoundary
             role="controller"
             roomId={runtimeOptions.roomId}
@@ -279,5 +318,21 @@ export const createAirJamApp = <TSchema extends z.ZodSchema = z.ZodSchema>({
     controllerPath,
     agent,
     testing,
+    stores,
+    simulation,
+    createHostRuntime: (dependencies, options) =>
+      new HostRuntime<TSchema>(
+        {
+          ...dependencies,
+          stores,
+          simulation,
+          input,
+          agent: agent && {
+            contract: agent,
+            gameId: metadata?.slug ?? "game",
+          },
+        },
+        options,
+      ),
   };
 };

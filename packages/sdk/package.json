@@ -62,16 +62,6 @@
       "import": "./dist/ui.js",
       "require": "./dist/ui.cjs"
     },
-    "./arcade": {
-      "types": "./dist/arcade.d.ts",
-      "import": "./dist/arcade.js",
-      "require": "./dist/arcade.cjs"
-    },
-    "./arcade/bridge": {
-      "types": "./dist/arcade/bridge.d.ts",
-      "import": "./dist/arcade/bridge.js",
-      "require": "./dist/arcade/bridge.cjs"
-    },
     "./arcade/bridge/controller": {
       "types": "./dist/arcade/bridge/controller.d.ts",
       "import": "./dist/arcade/bridge/controller.js",
@@ -162,6 +152,11 @@
       "types": "./dist/controller-bridge.d.ts",
       "import": "./dist/controller-bridge.js",
       "require": "./dist/controller-bridge.cjs"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
     }
   },
   "files": [
@@ -172,12 +167,6 @@
     "*": {
       "ui": [
         "dist/ui.d.ts"
-      ],
-      "arcade": [
-        "dist/arcade.d.ts"
-      ],
-      "arcade/bridge": [
-        "dist/arcade/bridge.d.ts"
       ],
       "arcade/bridge/controller": [
         "dist/arcade/bridge/controller.d.ts"
@@ -239,7 +228,7 @@
     "build": "tsup",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tests/tsconfig.json --noEmit && node scripts/check-core-boundary.mjs",
     "dev": "tsup --watch src --no-clean"
   },
   "dependencies": {

@@ -2,16 +2,7 @@ export {
   HostPreviewControllerWorkspace,
   type HostPreviewControllerWorkspaceProps,
 } from "./preview/host-workspace";
-export {
-  AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM,
-  AIR_JAM_PREVIEW_FLAG_QUERY_PARAM,
-  createPreviewControllerIdentity,
-  isPreviewControllerSearchParams,
-  normalizePreviewDeviceId,
-  readPreviewControllerDeviceIdFromLocation,
-  readPreviewControllerDeviceIdFromSearchParams,
-  type PreviewControllerIdentity,
-} from "./preview/identity";
+export { readPreviewControllerDeviceIdFromSearchParams } from "./preview/identity";
 export {
   getPreviewControllerViewportSize,
   getPreviewHostViewportSize,
@@ -23,12 +14,7 @@ export {
   type UsePreviewControllerManagerOptions,
   type UsePreviewControllerManagerResult,
 } from "./preview/manager";
-export {
-  isEmbeddedArcadeRuntimeSearchParams,
-  resolveHostPreviewControllerWorkspaceEnabled,
-  type HostPreviewControllerWorkspaceEnabled,
-  type ResolveHostPreviewControllerWorkspaceEnabledOptions,
-} from "./preview/ownership";
+export type { HostPreviewControllerWorkspaceEnabled } from "./preview/ownership";
 export {
   buildPreviewControllerUrl,
   createPreviewControllerLaunch,
@@ -37,13 +23,11 @@ export {
 } from "./preview/url";
 export {
   PreviewControllerWindow,
-  previewControllerWindowStateLabel,
   type PreviewControllerWindowProps,
 } from "./preview/window";
 export {
   PreviewControllerWorkspace,
   type PreviewControllerWorkspaceProps,
 } from "./preview/workspace";
-export type { ControllerOrientation } from "./protocol/controller";
 
 export { requestPreviewControllerClose } from "./preview/messages";

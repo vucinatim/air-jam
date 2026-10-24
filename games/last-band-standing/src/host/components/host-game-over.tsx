@@ -1,6 +1,7 @@
 import { getLabelForPlayer } from "@/game/domain/player-utils";
 import { rankPlayers } from "@/game/domain/round-engine";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
+import { useAirJamStore } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 
 const centerVariants = {
@@ -10,15 +11,20 @@ const centerVariants = {
 };
 
 export const HostGameOver = () => {
-  const playerLabelById = useGameStore((state) => state.playerLabelById);
-  const totalRounds = useGameStore((state) => state.totalRounds);
-  const scoreboardByPlayerId = useGameStore(
+  const playerLabelById = useAirJamStore(
+    gameStore,
+    (state) => state.playerLabelById,
+  );
+  const totalRounds = useAirJamStore(gameStore, (state) => state.totalRounds);
+  const scoreboardByPlayerId = useAirJamStore(
+    gameStore,
     (state) => state.scoreboardByPlayerId,
   );
-  const finalRankingPlayerIds = useGameStore(
+  const finalRankingPlayerIds = useAirJamStore(
+    gameStore,
     (state) => state.finalRankingPlayerIds,
   );
-  const actions = useGameStore.useActions();
+  const actions = gameStore.actions;
   const rankingPlayerIds =
     finalRankingPlayerIds.length > 0
       ? finalRankingPlayerIds

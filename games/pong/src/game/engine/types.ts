@@ -1,6 +1,6 @@
 /**
  * Engine types. The engine is deliberately decoupled from the networked
- * store — it doesn't know anything about `usePongStore` or the SDK. It only
+ * store — it doesn't know anything about `pongStore` or the SDK. It only
  * sees the minimal shapes defined here, which makes it trivial to unit-test
  * the game loop without mocking a session.
  */

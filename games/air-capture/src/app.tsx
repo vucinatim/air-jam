@@ -3,7 +3,6 @@ import { Suspense, lazy, useMemo } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { airjam } from "./airjam.config";
 import { HostAudioProvider } from "./game/audio/host-audio";
-import "./game/register-abilities";
 import {
   AIR_CAPTURE_PREFAB_CAPTURE_SURFACE,
   AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM,

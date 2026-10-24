@@ -1,9 +1,9 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import type { PlayerProfile } from "@air-jam/sdk/protocol";
 import { PlayerAvatar } from "@air-jam/sdk/ui";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
 import { buildTeamSlots } from "../../game/domain/team-slots";
-import { usePongStore } from "../../game/stores";
+import { pongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
 import { usePongHostTeams } from "../hooks/use-pong-host-teams";
 
@@ -22,7 +22,7 @@ const formatDuration = (durationMs: number): string => {
 
 export const EndedScreen = () => {
   const roomId = useAirJamHost((state) => state.roomId);
-  const matchSummary = usePongStore((state) => state.matchSummary);
+  const matchSummary = useAirJamStore(pongStore, (state) => state.matchSummary);
   const { botCounts, team1Players, team2Players } = usePongHostTeams();
   const winner = matchSummary?.winner;
   const winnerColor = winner ? getTeamColor(winner) : "#ffffff";

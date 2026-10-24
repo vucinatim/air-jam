@@ -15,8 +15,8 @@
     {
       "path": "docs/airjam/agent-gold-path.md",
       "kind": "docs-local",
-      "size": 5018,
-      "sha256": "8419951ad3a1e92fed5b7c3714b0908c6e6bed3d661041d5692ee38337888dcd"
+      "size": 5487,
+      "sha256": "75d71998f6011bf24295f5303d52052b5d01983c0a3c173c90cc9180364d99be"
     },
     {
       "path": "docs/airjam/agent-mcp.md",
@@ -57,8 +57,8 @@
     {
       "path": "docs/airjam/generated/architecture.md",
       "kind": "docs-generated",
-      "size": 7115,
-      "sha256": "1cbd763c55f77bc4bd0fb00605fd718daa63b8638c17313d12a1468f508fdf73"
+      "size": 10899,
+      "sha256": "a88f1bf8449f9cb1c58b850ca11b2c9ea68b751d36ec0a71f5db0e677f1293de"
     },
     {
       "path": "docs/airjam/generated/controller-ui.md",
@@ -69,8 +69,8 @@
     {
       "path": "docs/airjam/generated/debugging-and-logs.md",
       "kind": "docs-generated",
-      "size": 4575,
-      "sha256": "7998e1427b96d162986c193d32f30a97d35f92346c8d50a0a8b77019fb738897"
+      "size": 4639,
+      "sha256": "655642a6340c7136960a0915d33d9d973edd451e46e098288c9d5b8d3cf23af6"
     },
     {
       "path": "docs/airjam/generated/for-agents.md",
@@ -93,26 +93,26 @@
     {
       "path": "docs/airjam/generated/input-system.md",
       "kind": "docs-generated",
-      "size": 6024,
-      "sha256": "86395f226fc78c13eee4632998f60911d487739a027f82858371c8d233d4932f"
+      "size": 6027,
+      "sha256": "0a8c6078655ecc419443f83f315ae17875f349bac8754307329034c8d6acf7bc"
     },
     {
       "path": "docs/airjam/generated/introduction.md",
       "kind": "docs-generated",
-      "size": 5194,
-      "sha256": "f6b2220d39b2a72e736f0f757ba01c948f09ae9063c98c202ec5bbe9ec749d58"
+      "size": 5215,
+      "sha256": "1f415c8fe88a37a0758102becc63abba756f4371831ee445f8b023f0e6f66f5e"
     },
     {
       "path": "docs/airjam/generated/migrating-legacy-games.md",
       "kind": "docs-generated",
-      "size": 11763,
-      "sha256": "dadd93324cd6a1543f4d86124b44f6c7eb84333ae476a1d2026318e19ebeacdf"
+      "size": 22179,
+      "sha256": "92ee7c2b4bfc08a716ef69095de4e0e80127c8927e94e7ff1d09d941b2372de5"
     },
     {
       "path": "docs/airjam/generated/networked-state.md",
       "kind": "docs-generated",
-      "size": 7057,
-      "sha256": "f6e8a0d752bc6a2a8bef82e9a4e9552f4f23e46e3d3dedacd4ac03076c4b0cb9"
+      "size": 8547,
+      "sha256": "c56e9a2c781e5c66ea929647e853de513b74d2f862ef0a3ec7744c01a054c879"
     },
     {
       "path": "docs/airjam/generated/project-structure.md",
@@ -129,8 +129,8 @@
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
       "kind": "docs-generated",
-      "size": 16017,
-      "sha256": "0697f9d3db87814784ab7919f41d40d2d8b0c399e98e0ac165ef8649052e0362"
+      "size": 17112,
+      "sha256": "e02d8461c75e3e4b98d32f70ec90012c3acd2bb0c971ba860a9ac9d2edb6016a"
     },
     {
       "path": "docs/airjam/generated/state-and-rendering.md",
@@ -177,8 +177,8 @@
     {
       "path": "docs/airjam/state-lanes-cookbook.md",
       "kind": "docs-local",
-      "size": 3206,
-      "sha256": "5dde111762f1071ef5e7fc23ffe1adac07454662ad8dced7a42a8d40e4f6150b"
+      "size": 3395,
+      "sha256": "5100b4e705a8f5caed54e83f17307ab7cdb45f3852f6de449a233d641dde2c6f"
     },
     {
       "path": "docs/airjam/visual-system.md",
@@ -187,5 +187,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "d5e870a50333e7ce47e53aad9348a78c0e9bf5a7337ca0287991778cb704c835"
+  "contentDigest": "aa53c127191730c5995ab8fc6ac524b3fa30053c8c2b42c64449b72e5f79b015"
 }

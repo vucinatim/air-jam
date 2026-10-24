@@ -36,7 +36,7 @@ export const createInitialMatchState = (): MatchStateSnapshot => ({
   botCounts: createEmptyTeamCounts(),
   teamAssignments: {},
   matchSummary: null,
-  countdownEndsAtMs: null,
+  countdownSeconds: null,
   matchStartedAtMs: null,
 });
 
@@ -336,13 +336,22 @@ export const reduceStartMatch = (
     teamAssignments: completedAssignments,
     botCounts: normalizedBotCounts,
     matchSummary: null,
-    countdownEndsAtMs: Date.now() + MATCH_COUNTDOWN_DURATION_MS,
+    countdownSeconds: MATCH_COUNTDOWN_DURATION_MS / 1000,
     matchStartedAtMs: null,
   };
 };
 
+export const reduceSetCountdownSeconds = (
+  state: MatchStateSnapshot,
+  seconds: number,
+): MatchStateSnapshot =>
+  state.matchPhase === "countdown" && state.countdownSeconds !== seconds
+    ? { ...state, countdownSeconds: seconds }
+    : state;
+
 export const reduceFinishCountdown = (
   state: MatchStateSnapshot,
+  nowMs: number,
 ): MatchStateSnapshot => {
   if (state.matchPhase !== "countdown") {
     return state;
@@ -351,8 +360,8 @@ export const reduceFinishCountdown = (
   return {
     ...state,
     matchPhase: "playing",
-    countdownEndsAtMs: null,
-    matchStartedAtMs: Date.now(),
+    countdownSeconds: null,
+    matchStartedAtMs: nowMs,
   };
 };
 
@@ -367,7 +376,7 @@ export const reduceRestartMatch = (
     ...state,
     matchPhase: "countdown",
     matchSummary: null,
-    countdownEndsAtMs: Date.now() + MATCH_COUNTDOWN_DURATION_MS,
+    countdownSeconds: MATCH_COUNTDOWN_DURATION_MS / 1000,
     matchStartedAtMs: null,
   };
 };
@@ -378,7 +387,7 @@ export const reduceReturnToLobby = (
   return {
     ...state,
     matchPhase: "lobby",
-    countdownEndsAtMs: null,
+    countdownSeconds: null,
     matchSummary: null,
     matchStartedAtMs: null,
   };
@@ -393,14 +402,16 @@ export const reduceEndMatch = (
     winner: TeamId;
     finalScores: Record<TeamId, number>;
   },
+  nowMs: number,
 ): MatchStateSnapshot => {
   if (state.matchPhase !== "playing") {
     return state;
   }
 
-  const durationMs = state.matchStartedAtMs
-    ? Math.max(0, Date.now() - state.matchStartedAtMs)
-    : 0;
+  const durationMs =
+    state.matchStartedAtMs === null
+      ? 0
+      : Math.max(0, nowMs - state.matchStartedAtMs);
 
   const matchSummary: MatchSummary = {
     winner,
@@ -412,7 +423,7 @@ export const reduceEndMatch = (
   return {
     ...state,
     matchPhase: "ended",
-    countdownEndsAtMs: null,
+    countdownSeconds: null,
     matchStartedAtMs: null,
     matchSummary,
   };

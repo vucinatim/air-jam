@@ -93,6 +93,8 @@ export async function observeHostRuntime(
     read: (request: HostAgentRequest) => Promise<HostAgentResponse>;
     sample: () => {
       identity: HostObservationIdentity | null;
+      /** The host clock, or null when no host runtime owns the room. */
+      now: (() => number) | null;
       capabilities: NonNullable<HostObservation["capabilities"]>;
       host: NonNullable<HostObservation["host"]>["before"];
     };
@@ -121,6 +123,7 @@ export async function observeHostRuntime(
   const before = await semantic();
   const surface = surfaceFor(target, request.roomId);
   const beforeSample = owner.sample();
+  const hostStartedAt = beforeSample.now?.();
   const identity = beforeSample.identity;
   if (
     !identity ||
@@ -173,7 +176,14 @@ export async function observeHostRuntime(
     capabilities: beforeSample.capabilities,
     actions: before.actions,
     capturedAt,
-    clock: { startedAtMs: startedAt, finishedAtMs: performance.now() },
+    ...(beforeSample.now && hostStartedAt !== undefined
+      ? {
+          clock: {
+            startedAtMs: hostStartedAt,
+            finishedAtMs: beforeSample.now(),
+          },
+        }
+      : {}),
     pace: readHostPace(),
     durationMs: performance.now() - startedAt,
     snapshot: before.snapshot,

@@ -35,6 +35,9 @@ acting as another task tracker.
   with React as its binding, an SDK-owned clock for headless and replayable
   play, a written protocol for other engines, and agent lanes that keep
   agent-written games on the supported path
+- [SDK input system](./plans/sdk-input-system-plan.md): declared controls with
+  fixed meanings, pluggable sources for phones, keyboards, gamepads, agent
+  seats and replays, and one input lane on the game clock
 
 ## Runtime and authoring contracts
 

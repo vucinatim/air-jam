@@ -20,7 +20,9 @@ export interface MatchStateSnapshot {
   botCounts: TeamCounts;
   teamAssignments: Record<string, TeamAssignment>;
   matchSummary: MatchSummary | null;
-  countdownEndsAtMs: number | null;
+  /** Whole seconds left in the countdown, kept by the simulation on game time. */
+  countdownSeconds: number | null;
+  /** Game time the current match started. */
   matchStartedAtMs: number | null;
 }
 

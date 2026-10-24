@@ -71,19 +71,21 @@ describe("sdk export surface", () => {
     expect("useAudio" in sdk).toBe(true);
     expect("useAudioRuntimeStatus" in sdk).toBe(true);
     expect("useAudioRuntimeControls" in sdk).toBe(true);
-    expect("PlatformSettingsBoundary" in sdk).toBe(true);
     expect("PlatformSettingsRuntime" in sdk).toBe(true);
     expect("usePlatformSettings" in sdk).toBe(true);
     expect("useInheritedPlatformSettings" in sdk).toBe(true);
     expect("usePlatformAudioSettings" in sdk).toBe(true);
-    expect("getEffectiveAudioVolume" in sdk).toBe(true);
+    expect("getEffectiveAudioVolume" in sdk).toBe(false);
+    expect("PlatformSettingsBoundary" in sdk).toBe(false);
     expect("DEFAULT_PLATFORM_SETTINGS" in sdk).toBe(true);
     expect("useAudioSettings" in sdk).toBe(false);
   });
 
-  it("exposes canonical host loop primitives on root export", () => {
-    expect("useHostTick" in sdk).toBe(true);
+  it("exposes the controller loop and leaves host loops to the simulation", () => {
     expect("useControllerTick" in sdk).toBe(true);
+    expect("useHostTick" in sdk).toBe(false);
+    expect("useHostAgentObservation" in sdk).toBe(false);
+    expect("useSimulationFrame" in sdk).toBe(true);
   });
 
   it("keeps duplicate session/state hook aliases off the root export", () => {
@@ -91,6 +93,9 @@ describe("sdk export surface", () => {
     expect("useAirJamHostState" in sdk).toBe(false);
     expect("useControllerSession" in sdk).toBe(false);
     expect("useHostSession" in sdk).toBe(false);
+    // Read these from useAirJamHost or useAirJamController.
+    expect("useConnectionStatus" in sdk).toBe(false);
+    expect("usePlayers" in sdk).toBe(false);
   });
 
   it("keeps package subpath exports limited to public entrypoints", () => {
@@ -111,8 +116,6 @@ describe("sdk export surface", () => {
     expect(exportKeys).toEqual(
       expect.arrayContaining([
         ".",
-        "./arcade",
-        "./arcade/bridge",
         "./arcade/bridge/controller",
         "./arcade/bridge/host",
         "./arcade/bridge/iframe",
@@ -120,6 +123,7 @@ describe("sdk export surface", () => {
         "./arcade/runtime",
         "./arcade/surface",
         "./arcade/url",
+        "./core",
         "./ui",
         "./protocol",
         "./metadata",
@@ -130,6 +134,9 @@ describe("sdk export surface", () => {
         "./styles.css",
       ]),
     );
+    // Aggregate barrels were removed; import the leaf that owns a concept.
+    expect(packageJson.exports?.["./arcade"]).toBeUndefined();
+    expect(packageJson.exports?.["./arcade/bridge"]).toBeUndefined();
     // Private / internal seams must never appear in the public export map.
     expect(packageJson.exports?.["./context"]).toBeUndefined();
     expect(packageJson.exports?.["./context/socket-manager"]).toBeUndefined();

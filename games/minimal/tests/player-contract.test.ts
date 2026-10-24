@@ -13,6 +13,8 @@ describe("minimal player contract", () => {
     const turn = minimalPlayer.turn({
       observation: observe("me"),
       seatId: "first",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     expect(turn?.state).toEqual(["My own count is 4."]);
     expect(turn?.options.tap?.control).toEqual({
@@ -24,8 +26,12 @@ describe("minimal player contract", () => {
 
   it("starts from zero for a seat that has not tapped yet", () => {
     expect(
-      minimalPlayer.turn({ observation: observe("new"), seatId: "first" })
-        ?.state,
+      minimalPlayer.turn({
+        observation: observe("new"),
+        seatId: "first",
+        random: () => 0.5,
+        elapsedMs: 0,
+      })?.state,
     ).toEqual(["My own count is 0."]);
   });
 });

@@ -1,32 +1,33 @@
-import { NOW_TICK_MS } from "@/game/constants";
 import { getRoundOptionLabel } from "@/game/content/round-options";
 import { getSongById } from "@/game/content/song-bank";
-import { useNowTick } from "@/game/hooks/use-now-tick";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";
 import { getRoundPrompt, optionColors } from "@/game/ui/round-prompt";
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { playControllerHaptic } from "../haptics";
 
 export const ControllerRoundActive = () => {
-  const nowMs = useNowTick(NOW_TICK_MS);
+  const secondsLeft = useAirJamStore(gameStore, (state) => state.secondsLeft);
   const controllerId = useAirJamController((state) => state.controllerId);
-  const totalRounds = useGameStore((state) => state.totalRounds);
-  const currentRound = useGameStore((state) => state.currentRound);
-  const activePlayerIds = useGameStore((state) => state.activePlayerIds);
-  const answersByPlayerId = useGameStore((state) => state.answersByPlayerId);
-  const actions = useGameStore.useActions();
+  const totalRounds = useAirJamStore(gameStore, (state) => state.totalRounds);
+  const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
+  const activePlayerIds = useAirJamStore(
+    gameStore,
+    (state) => state.activePlayerIds,
+  );
+  const answersByPlayerId = useAirJamStore(
+    gameStore,
+    (state) => state.answersByPlayerId,
+  );
+  const actions = gameStore.actions;
   const isActivePlayer = controllerId
     ? activePlayerIds.includes(controllerId)
     : false;
   const selectedOptionId = controllerId
     ? (answersByPlayerId[controllerId]?.optionId ?? null)
     : null;
-  const roundCountdownSeconds = currentRound
-    ? Math.max(0, Math.ceil((currentRound.endsAtMs - nowMs) / 1000))
-    : 0;
   const orderedOptions = useMemo(() => {
     if (!currentRound) return [];
 
@@ -70,10 +71,10 @@ export const ControllerRoundActive = () => {
         <span
           className={cn(
             "text-lg font-bold tabular-nums",
-            roundCountdownSeconds <= 5 ? "text-destructive" : "text-foreground",
+            secondsLeft <= 5 ? "text-destructive" : "text-foreground",
           )}
         >
-          {roundCountdownSeconds}
+          {secondsLeft}
         </span>
       </div>
 

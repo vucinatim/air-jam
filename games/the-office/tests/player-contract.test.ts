@@ -121,6 +121,8 @@ describe("The Office player contract", () => {
     const turn = officePlayer.turn({
       observation: observe("playing"),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     airJamDecisionQuestionSchema.parse(turn);
     expect(turn?.state[0]).toBe(
@@ -153,6 +155,8 @@ describe("The Office player contract", () => {
     const pressing = officePlayer.turn({
       observation: observe("playing", beside),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     expect(pressing?.options["do-meeting-table"]?.control).toEqual({
       kind: "input",
@@ -161,6 +165,8 @@ describe("The Office player contract", () => {
     const held = officePlayer.turn({
       observation: observe("playing", { ...beside, holdingAction: true }),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     expect(held?.options["do-meeting-table"]?.control).toMatchObject({
       input: { action: false },
@@ -173,6 +179,7 @@ describe("The Office player contract", () => {
       seat.control({
         observation: observe("playing"),
         seatId: "player",
+        elapsedMs: 0,
         choice: "do-meeting-table",
       }),
     ).toMatchObject({ kind: "input", input: { action: false } });
@@ -180,6 +187,7 @@ describe("The Office player contract", () => {
       seat.control({
         observation: observe("playing"),
         seatId: "player",
+        elapsedMs: 0,
         choice: "wait",
       }),
     ).toBeNull();
@@ -192,6 +200,13 @@ describe("The Office player contract", () => {
       observe("playing", { onBreakAt: "fifa-table" }),
       observe("playing", {}, { energy: 0, boredom: 0, alive: false }),
     ])
-      expect(officePlayer.turn({ observation, seatId: "player" })).toBeNull();
+      expect(
+        officePlayer.turn({
+          observation,
+          seatId: "player",
+          random: () => 0.5,
+          elapsedMs: 0,
+        }),
+      ).toBeNull();
   });
 });

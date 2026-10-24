@@ -1,4 +1,3 @@
-import { RigidBody } from "@react-three/rapier";
 import { useMemo } from "react";
 import { BoxGeometry, MeshStandardMaterial } from "three";
 import type { AirCaptureObstacleBlockPrefabProps } from "./schema";
@@ -23,20 +22,13 @@ export function AirCaptureObstacleBlock({
   );
 
   return (
-    <RigidBody
-      type="fixed"
+    <mesh
+      geometry={geometry}
+      material={material}
       position={position}
       rotation={[0, rotationY, 0]}
-      colliders="cuboid"
-      userData={{ type: "obstacle" }}
-    >
-      <mesh
-        geometry={geometry}
-        material={material}
-        castShadow
-        receiveShadow
-        userData={{ type: "obstacle" }}
-      />
-    </RigidBody>
+      castShadow
+      receiveShadow
+    />
   );
 }

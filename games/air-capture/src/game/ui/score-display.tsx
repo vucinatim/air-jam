@@ -1,13 +1,16 @@
+import { useSimulationSelector } from "@air-jam/sdk";
 import { memo } from "react";
 import { Fragment } from "react/jsx-runtime";
 import { TEAM_CONFIG, TEAM_IDS } from "../domain/team";
+import type { AirCaptureSim } from "../simulation/state";
 import { useDebugStore } from "../stores/debug/debug-store";
-import { useCaptureTheFlagStore } from "../stores/match/capture-the-flag-store";
-import { useGameStore } from "../stores/players/game-store";
+
+const scoresOf = (sim: AirCaptureSim) => sim.ctf.scores;
+const shipCountOf = (sim: AirCaptureSim) => sim.ships.size;
 
 export const ScoreDisplay = memo(function ScoreDisplay() {
-  const scores = useCaptureTheFlagStore((state) => state.scores);
-  const players = useGameStore((state) => state.players);
+  const scores = useSimulationSelector(scoresOf);
+  const shipCount = useSimulationSelector(shipCountOf);
   const freeFlyMode = useDebugStore((state) => state.freeFlyMode);
 
   const teams = TEAM_IDS.map((teamId) => ({
@@ -16,7 +19,7 @@ export const ScoreDisplay = memo(function ScoreDisplay() {
     score: scores[teamId] ?? 0,
   }));
 
-  const hasLiveMatch = players.length >= 2 && !freeFlyMode;
+  const hasLiveMatch = shipCount >= 2 && !freeFlyMode;
 
   return (
     <div className="pointer-events-none fixed top-4 left-1/2 z-50 -translate-x-1/2">

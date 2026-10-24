@@ -1,4 +1,4 @@
-import type { AirJamActionContext } from "@air-jam/sdk";
+import type { AirJamActionContext } from "@air-jam/sdk/core";
 import type { Team, TeamAssignment } from "../domain/team-assignments";
 
 export type CodeReviewMatchPhase = "lobby" | "playing" | "ended";

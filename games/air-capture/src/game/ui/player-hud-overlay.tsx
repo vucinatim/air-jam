@@ -1,11 +1,13 @@
+import { useSimulation, useSimulationSelector } from "@air-jam/sdk";
 import { memo, useEffect, useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
-import { getAbilityIconPath, useAbilitiesStore } from "../abilities-store";
+import { shallow } from "zustand/shallow";
+import { getAbilityIconPath, type AbilityId } from "../abilities/definitions";
 import { cn } from "../debug/ui/utils";
-import { shipPositions } from "../engine/ships/runtime";
-import { useFlightStateStore } from "../stores/players/flight-state-store";
-import { useGameStore } from "../stores/players/game-store";
-import { useHealthStore } from "../stores/players/health-store";
+import { createPlayerFlightState } from "../engine/ships/flight";
+import { MAX_HEALTH, type AirCaptureSim } from "../simulation/state";
+
+const shipIdsOf = (sim: AirCaptureSim) => [...sim.ships.keys()];
 
 // --- CONFIGURATION ---
 const HUD_CONFIG = {
@@ -22,7 +24,7 @@ const HUD_CONFIG = {
 interface HUDVisualsProps {
   health: number;
   maxHealth: number;
-  abilityId?: string;
+  abilityId?: AbilityId;
   isAbilityActive: boolean;
   energyBarRef?: React.RefObject<HTMLDivElement | null>;
   energyFillRef?: React.RefObject<HTMLDivElement | null>;
@@ -186,16 +188,17 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   const countdownAnimationRef = useRef<number | undefined>(undefined);
 
   // --- Data Stores ---
-  const health = useHealthStore((state) => state.health[controllerId] ?? 100);
-  const maxHealth = 100;
-  const ability = useAbilitiesStore((state) => {
-    const playerAbilities = state.abilities[controllerId];
-    return (
-      playerAbilities?.activeAbility ?? playerAbilities?.queuedAbility ?? null
-    );
+  const clock = useSimulation<AirCaptureSim>();
+  const health = useSimulationSelector(
+    (sim: AirCaptureSim) => sim.ships.get(controllerId)?.health ?? MAX_HEALTH,
+  );
+  const maxHealth = MAX_HEALTH;
+  const ability = useSimulationSelector((sim: AirCaptureSim) => {
+    const ship = sim.ships.get(controllerId);
+    return ship?.activeAbility ?? ship?.queuedAbility ?? null;
   });
-  const isAbilityActive = useAbilitiesStore((state) =>
-    state.isAbilityActive(controllerId),
+  const isAbilityActive = useSimulationSelector((sim: AirCaptureSim) =>
+    Boolean(sim.ships.get(controllerId)?.activeAbility),
   );
 
   // Update countdown circle and duration text via direct DOM manipulation (no re-renders)
@@ -217,15 +220,12 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
 
     // Start countdown animation loop
     const updateCountdown = () => {
-      const store = useAbilitiesStore.getState();
-      const currentAbility =
-        store.getActiveAbility(controllerId) ??
-        store.getQueuedAbility(controllerId);
-      const currentIsActive = store.isAbilityActive(controllerId);
+      const { sim } = clock;
+      const currentAbility = sim.ships.get(controllerId)?.activeAbility ?? null;
 
       if (
-        !currentIsActive ||
         !currentAbility ||
+        currentAbility.startTime === null ||
         currentAbility.duration === 0
       ) {
         if (countdownCircleRef.current) {
@@ -237,7 +237,8 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         return;
       }
 
-      const remaining = store.getRemainingDuration(controllerId);
+      const remaining =
+        currentAbility.duration - (sim.time - currentAbility.startTime);
       const totalDuration = currentAbility.duration;
 
       if (remaining <= 0) {
@@ -278,7 +279,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
         countdownAnimationRef.current = undefined;
       }
     };
-  }, [controllerId, isAbilityActive, ability]);
+  }, [clock, controllerId, isAbilityActive, ability]);
 
   // --- 3D Position Tracking (Runs outside React Render Cycle) ---
   // We use Refs for values accessed inside requestAnimationFrame to avoid stale closures
@@ -297,11 +298,10 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
     const updatePosition = () => {
       const element = containerRef.current;
       const energyBar = energyBarRef.current;
-      const shipPos = shipPositions.get(controllerId);
+      const ship = clock.sim.ships.get(controllerId);
+      const shipPos = ship?.position;
       const energyFill = energyFillRef.current;
-      const flightState = useFlightStateStore
-        .getState()
-        .getFlightState(controllerId);
+      const flightState = ship?.flight ?? createPlayerFlightState();
 
       if (energyBar) {
         energyBar.style.display =
@@ -359,7 +359,7 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
 
     animId = requestAnimationFrame(updatePosition);
     return () => cancelAnimationFrame(animId);
-  }, [controllerId, canvasElement]);
+  }, [clock, controllerId, canvasElement]);
 
   return (
     <div
@@ -390,7 +390,7 @@ export const PlayerHUDOverlay = memo(function PlayerHUDOverlay({
   canvasElement,
   cameras,
 }: PlayerHUDOverlayProps) {
-  const players = useGameStore((state) => state.players);
+  const players = useSimulationSelector(shipIdsOf, shallow);
 
   // Don't render anything if no players
   if (players.length === 0 || !canvasElement) return null;
@@ -415,7 +415,7 @@ export const PlayerHUDOverlay = memo(function PlayerHUDOverlay({
 
         return (
           <div
-            key={player.controllerId}
+            key={player}
             className="pointer-events-none absolute z-10"
             style={{
               left: `${viewport.x}px`,
@@ -425,7 +425,7 @@ export const PlayerHUDOverlay = memo(function PlayerHUDOverlay({
             }}
           >
             <PlayerHUDItem
-              controllerId={player.controllerId}
+              controllerId={player}
               canvasElement={canvasElement}
               viewport={viewport}
               camera={camera}

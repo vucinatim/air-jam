@@ -4,7 +4,7 @@
  * Flow:
  *  1. `useAirJamHost()` gives us the live session: room id, join url, connected
  *     players.
- *  2. `useMinimalStore` pulls the replicated game state (shared count,
+ *  2. `minimalStore` pulls the replicated game state (shared count,
  *     per-player counts).
  *  3. The join URL + QR code are shown so phones can scan to join.
  *  4. When controllers tap, the store action runs here on the host, the count
@@ -15,22 +15,26 @@
  * No game loop, no input reading, no side effects — a counter doesn't need
  * any of that. See `pong` for a host that drives a 60fps simulation.
  */
-import { useAirJamHost } from "@air-jam/sdk";
+import {
+  useAirJamHost,
+  useAirJamStore,
+  useHostActionListener,
+} from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { RoomQrCode, SurfaceViewport } from "@air-jam/sdk/ui";
 import { useEffect, useState } from "react";
-import { useMinimalStore } from "../game/store";
+import { minimalStore } from "../game/store";
 
 export function HostView() {
   const host = useAirJamHost();
-  const totalCount = useMinimalStore((state) => state.totalCount);
-  const actions = useMinimalStore.useActions();
+  const totalCount = useAirJamStore(minimalStore, (state) => state.totalCount);
+  const actions = minimalStore.actions;
   const [hostNotice, setHostNotice] = useState<string | null>(null);
 
   // Host-only local UI effects should react here instead of going through
   // replicated state. This keeps the store authoritative but not bloated with
   // ephemeral presentation commands.
-  useMinimalStore.useHostActionListener((event) => {
+  useHostActionListener(minimalStore, (event) => {
     if (event.actionName === "tap") {
       setHostNotice(`Tap from ${event.context.actorId}`);
       return;

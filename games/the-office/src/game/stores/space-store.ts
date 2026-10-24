@@ -1,4 +1,4 @@
-import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk";
+import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk/core";
 import {
   clearPlayerTaskState,
   createDefaultPlayerStats,
@@ -22,7 +22,7 @@ import type { SpaceGameState } from "./types";
 const hostOnly = (role: AirJamActionContext["role"]): boolean =>
   role === "host";
 
-export const useSpaceStore = createAirJamStore<SpaceGameState>((set) => ({
+export const spaceStore = createAirJamStore<SpaceGameState>((set) => ({
   ...createInitialSpaceGameState(),
 
   actions: {

@@ -1,4 +1,4 @@
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   PlayerAvatar,
@@ -8,7 +8,7 @@ import {
   useControllerShellStatus,
   type LifecycleActionKind,
 } from "@air-jam/sdk/ui";
-import { usePongStore } from "../../game/stores";
+import { pongStore } from "../../game/stores";
 import { useControllerConnectionNotice } from "../hooks/use-controller-connection-notice";
 import { usePongControllerTeams } from "../hooks/use-pong-controller-teams";
 
@@ -20,8 +20,8 @@ export const ControllerHeader = () => {
   );
   const runtimeState = useAirJamController((state) => state.runtimeState);
   const selfPlayer = useAirJamController((state) => state.selfPlayer);
-  const actions = usePongStore.useActions();
-  const matchPhase = usePongStore((state) => state.matchPhase);
+  const actions = pongStore.actions;
+  const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
   const { readiness } = usePongControllerTeams();
   const { canSendSystemCommand } = useControllerConnectionNotice();
   const shellStatus = useControllerShellStatus({

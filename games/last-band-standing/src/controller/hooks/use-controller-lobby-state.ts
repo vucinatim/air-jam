@@ -9,8 +9,8 @@ import {
 } from "@/game/content/song-bank";
 import { isMatchReadyToStart } from "@/game/domain/match-readiness";
 import { normalizePlayerName } from "@/game/domain/player-utils";
-import { useGameStore } from "@/game/stores";
-import { useAirJamController } from "@air-jam/sdk";
+import { gameStore } from "@/game/stores";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { playControllerHaptic } from "../haptics";
 
@@ -23,14 +23,18 @@ export const useControllerLobbyState = () => {
   const connectionStatus = useAirJamController(
     (state) => state.connectionStatus,
   );
-  const phase = useGameStore((state) => state.phase);
-  const playerOrder = useGameStore((state) => state.playerOrder);
-  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
-  const totalRounds = useGameStore((state) => state.totalRounds);
-  const selectedSongBucketIds = useGameStore(
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const playerOrder = useAirJamStore(gameStore, (state) => state.playerOrder);
+  const readyByPlayerId = useAirJamStore(
+    gameStore,
+    (state) => state.readyByPlayerId,
+  );
+  const totalRounds = useAirJamStore(gameStore, (state) => state.totalRounds);
+  const selectedSongBucketIds = useAirJamStore(
+    gameStore,
     (state) => state.selectedSongBucketIds,
   );
-  const actions = useGameStore.useActions();
+  const actions = gameStore.actions;
   const [nameDraft, setNameDraft] = useState("");
   const [editingName, setEditingName] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -43,7 +47,9 @@ export const useControllerLobbyState = () => {
     (playerId) => readyByPlayerId[playerId],
   ).length;
   const profileName = normalizePlayerName(selfPlayer?.label ?? "");
-  const activeName = normalizePlayerName(nameDraft || profileName);
+  // The draft is the player's own text only while they edit; otherwise the profile name.
+  const draft = editingName ? nameDraft : profileName;
+  const activeName = normalizePlayerName(draft || profileName);
   const canReady = Boolean(isConnected && controllerId && phase === "lobby");
   const canReadyToggle = Boolean(
     canReady && (isReady || activeName.length >= PLAYER_NAME_MIN_LENGTH),
@@ -60,14 +66,6 @@ export const useControllerLobbyState = () => {
   const startMatchHelper = hasEnoughSongs
     ? "Everyone is ready."
     : `Host needs ${totalRounds - uniqueSongCount} more unique songs.`;
-
-  useEffect(() => {
-    if (editingName) {
-      return;
-    }
-
-    setNameDraft(profileName);
-  }, [editingName, profileName]);
 
   useEffect(
     () => () => {
@@ -129,15 +127,13 @@ export const useControllerLobbyState = () => {
 
   const commitPlayerName = useCallback((): boolean => {
     clearPendingNamePush();
-    return pushPlayerName(nameDraft);
-  }, [clearPendingNamePush, nameDraft, pushPlayerName]);
+    return pushPlayerName(draft);
+  }, [clearPendingNamePush, draft, pushPlayerName]);
 
   const blurNameInput = useCallback(() => {
     setEditingName(false);
-    if (!commitPlayerName()) {
-      setNameDraft(profileName);
-    }
-  }, [commitPlayerName, profileName]);
+    commitPlayerName();
+  }, [commitPlayerName]);
 
   const toggleReady = () => {
     if (!canReadyToggle) return;
@@ -175,8 +171,11 @@ export const useControllerLobbyState = () => {
     hasEnoughSongs,
     isReady,
     blurNameInput,
-    focusNameInput: () => setEditingName(true),
-    nameDraft,
+    focusNameInput: () => {
+      setNameDraft(profileName);
+      setEditingName(true);
+    },
+    nameDraft: draft,
     playerCount: playerOrder.length,
     readyCount,
     selectedBucketCount,

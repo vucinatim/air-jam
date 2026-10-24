@@ -1,4 +1,4 @@
-import { type AirJamActionContext } from "@air-jam/sdk";
+import { type AirJamActionContext } from "@air-jam/sdk/core";
 
 export type OfficeMatchPhase = "lobby" | "playing" | "ended";
 

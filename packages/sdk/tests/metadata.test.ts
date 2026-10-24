@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  airJamGameMetadataSchema,
   defineAirJamGameMetadata,
-  parseAirJamGameMetadata,
 } from "../src/metadata";
 
 const baseInput = {
@@ -79,17 +79,11 @@ describe("air jam game metadata manifest", () => {
     expect(metadata.maxPlayers).toBe(10);
   });
 
-  it("parseAirJamGameMetadata returns ok=false on invalid input", () => {
-    const result = parseAirJamGameMetadata({ slug: "bad input!" });
-    expect(result.ok).toBe(false);
-  });
-
-  it("parseAirJamGameMetadata returns ok=true on valid stored metadata", () => {
+  it("validates stored metadata with the schema", () => {
+    expect(
+      airJamGameMetadataSchema.safeParse({ slug: "bad input!" }).success,
+    ).toBe(false);
     const defined = defineAirJamGameMetadata({ ...baseInput });
-    const result = parseAirJamGameMetadata(defined);
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.data.slug).toBe("my-cool-game");
-    }
+    expect(airJamGameMetadataSchema.parse(defined).slug).toBe("my-cool-game");
   });
 });

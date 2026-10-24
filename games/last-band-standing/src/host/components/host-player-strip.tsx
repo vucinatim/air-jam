@@ -5,24 +5,32 @@ import {
   getLabelForPlayer,
 } from "@/game/domain/player-utils";
 import { rankPlayers } from "@/game/domain/round-engine";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";
 import { PlayerAvatarWithFire } from "@/game/ui/player-avatar-with-fire";
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import { AnimatePresence, motion } from "framer-motion";
 
 export const HostPlayerStrip = () => {
   const players = useAirJamHost((state) => state.players);
-  const phase = useGameStore((state) => state.phase);
-  const playerOrder = useGameStore((state) => state.playerOrder);
-  const playerLabelById = useGameStore((state) => state.playerLabelById);
-  const currentRound = useGameStore((state) => state.currentRound);
-  const roundReveal = useGameStore((state) => state.roundReveal);
-  const answersByPlayerId = useGameStore((state) => state.answersByPlayerId);
-  const scoreboardByPlayerId = useGameStore(
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const playerOrder = useAirJamStore(gameStore, (state) => state.playerOrder);
+  const playerLabelById = useAirJamStore(
+    gameStore,
+    (state) => state.playerLabelById,
+  );
+  const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
+  const roundReveal = useAirJamStore(gameStore, (state) => state.roundReveal);
+  const answersByPlayerId = useAirJamStore(
+    gameStore,
+    (state) => state.answersByPlayerId,
+  );
+  const scoreboardByPlayerId = useAirJamStore(
+    gameStore,
     (state) => state.scoreboardByPlayerId,
   );
-  const finalRankingPlayerIds = useGameStore(
+  const finalRankingPlayerIds = useAirJamStore(
+    gameStore,
     (state) => state.finalRankingPlayerIds,
   );
   const isPlaying =

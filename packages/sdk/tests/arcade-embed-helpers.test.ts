@@ -1,10 +1,6 @@
 import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { describe, expect, it } from "vitest";
 import {
-  createArcadeBridgeInitMessage,
-  createArcadeSettingsSyncMessage,
-} from "../src/arcade/bridge/iframe";
-import {
   buildArcadeControllerRuntimeUrl,
   buildArcadeGameIframeSrc,
 } from "../src/arcade/url";
@@ -62,17 +58,6 @@ describe("arcade embed helpers", () => {
     );
   });
 
-  it("creates a versioned bridge init message for arcade runtime", () => {
-    const message = createArcadeBridgeInitMessage();
-
-    expect(message.type).toBe("AIRJAM_BRIDGE_INIT");
-    expect(message.payload.handshake.protocolVersion).toBe("2");
-    expect(typeof message.payload.handshake.sdkVersion).toBe("string");
-    expect(message.payload.handshake.sdkVersion.length).toBeGreaterThan(0);
-    expect(message.payload.handshake.runtimeKind).toBe("arcade-runtime");
-    expect(message.payload.handshake.capabilityFlags.settingsSync).toBe(true);
-  });
-
   it("rejects non-http iframe URLs", () => {
     expect(
       buildArcadeGameIframeSrc({
@@ -117,48 +102,5 @@ describe("arcade embed helpers", () => {
     ).toBe(
       "https://games.example/releases/g/game-id/r/release-id/generations/generation-id/controller",
     );
-  });
-
-  it("creates settings sync message payload", () => {
-    const message = createArcadeSettingsSyncMessage({
-      audio: {
-        masterVolume: 0.8,
-        musicVolume: 0.6,
-        sfxVolume: 0.4,
-      },
-      accessibility: {
-        reducedMotion: true,
-        highContrast: false,
-      },
-      feedback: {
-        hapticsEnabled: true,
-      },
-      previewControllers: {
-        activeOpacity: 0.85,
-      },
-    });
-
-    expect(message).toEqual({
-      type: "AIRJAM_SETTINGS_SYNC",
-      payload: {
-        settings: {
-          audio: {
-            masterVolume: 0.8,
-            musicVolume: 0.6,
-            sfxVolume: 0.4,
-          },
-          accessibility: {
-            reducedMotion: true,
-            highContrast: false,
-          },
-          feedback: {
-            hapticsEnabled: true,
-          },
-          previewControllers: {
-            activeOpacity: 0.85,
-          },
-        },
-      },
-    });
   });
 });

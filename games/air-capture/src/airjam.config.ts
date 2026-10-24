@@ -11,6 +11,7 @@ import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
 import { gameInputSchema } from "./game/contracts/input";
+import { prototypeMatchStore } from "./game/stores/match/match-store";
 
 export const gameMetadata = defineAirJamGameMetadata({
   slug: "air-capture",
@@ -31,6 +32,12 @@ export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   metadata: gameMetadata,
   controllerPath: "/controller",
+  stores: [prototypeMatchStore],
+  // Loaded on the host only: it brings the Rapier physics engine.
+  simulation: () =>
+    import("./game/simulation/air-capture-simulation").then(
+      (module) => module.airCaptureSimulation,
+    ),
   agent: agentContract,
   testing: "./testing/profiles.ts",
   input: {

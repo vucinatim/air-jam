@@ -3,9 +3,9 @@
  * Uses refs for game state to avoid re-renders during the game loop.
  */
 
+import { useSimulationFrame } from "@air-jam/sdk";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { getPlayerById } from "../../game/content/players";
-import type { TaskManager } from "../../game/domain/task-manager";
+import { getPlayerById, PLAYERS } from "../../game/content/players";
 import {
   BREAKROOM_LOCATIONS,
   LOCATIONS,
@@ -29,7 +29,24 @@ import {
   WALL_THICKNESS,
   WALLS,
 } from "../../game/engine/office-layout";
-import type { PlayerStats } from "../../game/stores";
+import type { OfficeSimulationState } from "../../game/engine/office-simulation";
+import { spaceStore } from "../../game/stores";
+
+const loadImages = async (
+  sources: { id: string; image?: string }[],
+  into: Record<string, HTMLImageElement>,
+) => {
+  for (const source of sources) {
+    if (!source.image || into[source.id]) continue;
+    const image = new Image();
+    image.src = source.image;
+    await new Promise<void>((resolve) => {
+      image.onload = () => resolve();
+      image.onerror = () => resolve();
+    });
+    into[source.id] = image;
+  }
+};
 
 /**
  * Draws a handdrawn/sketchy line on canvas.
@@ -81,37 +98,21 @@ function drawHanddrawnLine(
   }
 }
 
-// Props interface
-interface GameCanvasProps {
-  gameStateRef: React.MutableRefObject<{
-    positions: Record<string, { x: number; y: number }>;
-    playerAssignments: Record<string, string>;
-    playerStats: Record<string, PlayerStats>;
-  }>;
-  taskManagerRef: React.MutableRefObject<TaskManager>;
-  breakroomActivitiesRef: React.MutableRefObject<
-    Record<string, { locationId: string; startTime: number } | null>
-  >;
-  playerImagesRef: React.MutableRefObject<Record<string, HTMLImageElement>>;
-  locationImagesRef: React.MutableRefObject<Record<string, HTMLImageElement>>;
-  matchElapsedMsRef: React.MutableRefObject<number>;
-  renderFrameRef: React.MutableRefObject<(() => void) | null>;
-  players: { id: string }[];
-}
-
-/**
- * Game canvas component with rendering and game loop.
- */
+/** Draws the office floor from the simulation every display frame. */
 export const GameCanvas = memo(function GameCanvas({
-  gameStateRef,
-  taskManagerRef,
-  breakroomActivitiesRef,
-  playerImagesRef,
-  locationImagesRef,
-  matchElapsedMsRef,
-  renderFrameRef,
   players,
-}: GameCanvasProps) {
+}: {
+  players: { id: string }[];
+}) {
+  const playerImagesRef = useRef<Record<string, HTMLImageElement>>({});
+  const locationImagesRef = useRef<Record<string, HTMLImageElement>>({});
+  useEffect(() => {
+    void loadImages(PLAYERS, playerImagesRef.current);
+    void loadImages(
+      [...LOCATIONS, ...BREAKROOM_LOCATIONS],
+      locationImagesRef.current,
+    );
+  }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({
@@ -157,8 +158,9 @@ export const GameCanvas = memo(function GameCanvas({
 
   // Render function
   const render = useCallback(
-    (ctx: CanvasRenderingContext2D) => {
+    (ctx: CanvasRenderingContext2D, sim: OfficeSimulationState) => {
       const canvas = canvasRef.current;
+      const { playerAssignments, playerStats } = spaceStore.getState();
       if (!canvas) return;
 
       const { width: displayWidth, height: displayHeight } = canvasSize;
@@ -196,7 +198,7 @@ export const GameCanvas = memo(function GameCanvas({
 
       // Draw work locations
       LOCATIONS.forEach((location) => {
-        const hasTask = taskManagerRef.current.hasTaskAt(location.id);
+        const hasTask = sim.tasks.hasTaskAt(location.id);
         const locationImage = locationImagesRef.current[location.id];
 
         if (locationImage) {
@@ -240,7 +242,7 @@ export const GameCanvas = memo(function GameCanvas({
 
       // Draw breakroom locations
       BREAKROOM_LOCATIONS.forEach((location) => {
-        const activity = breakroomActivitiesRef.current;
+        const activity = sim.breaks;
         const hasActivity = Object.values(activity).some(
           (a) => a && a.locationId === location.id,
         );
@@ -289,13 +291,13 @@ export const GameCanvas = memo(function GameCanvas({
 
       // Draw players
       players.forEach((p, index) => {
-        const pos = gameStateRef.current.positions[p.id];
+        const pos = sim.positions[p.id];
         if (!pos) return;
 
-        const playerId = gameStateRef.current.playerAssignments[p.id];
+        const playerId = playerAssignments[p.id];
         const player = playerId ? getPlayerById(playerId) : null;
         const playerImage = playerId ? playerImagesRef.current[playerId] : null;
-        const stats = gameStateRef.current.playerStats[p.id];
+        const stats = playerStats[p.id];
         const isDead = stats && !stats.alive;
 
         // Apply grayscale filter for dead players
@@ -352,12 +354,9 @@ export const GameCanvas = memo(function GameCanvas({
           return; // Skip stat bars for dead players
         }
 
-        const matchElapsedMs = matchElapsedMsRef.current;
-        const taskProgress = taskManagerRef.current.getTaskProgress(
-          p.id,
-          matchElapsedMs,
-        );
-        const breakroomActivity = breakroomActivitiesRef.current[p.id];
+        const matchElapsedMs = sim.elapsedMs;
+        const taskProgress = sim.tasks.getTaskProgress(p.id, matchElapsedMs);
+        const breakroomActivity = sim.breaks[p.id];
 
         // Calculate unified progress (breakroom takes priority)
         let unifiedProgress = 0;
@@ -450,40 +449,13 @@ export const GameCanvas = memo(function GameCanvas({
         }
       });
     },
-    [
-      breakroomActivitiesRef,
-      canvasSize,
-      gameStateRef,
-      locationImagesRef,
-      matchElapsedMsRef,
-      players,
-      playerImagesRef,
-      taskManagerRef,
-    ],
+    [canvasSize, players],
   );
 
-  // Register an imperative render callback. The host owns scheduling through
-  // `useHostTick`, so this component only exposes how to draw the latest refs.
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const renderFrame = () => {
-      render(ctx);
-    };
-
-    renderFrameRef.current = renderFrame;
-    renderFrame();
-
-    return () => {
-      if (renderFrameRef.current === renderFrame) {
-        renderFrameRef.current = null;
-      }
-    };
-  }, [render, renderFrameRef]);
+  useSimulationFrame<OfficeSimulationState>(({ sim }) => {
+    const ctx = canvasRef.current?.getContext("2d");
+    if (ctx) render(ctx, sim);
+  });
 
   return (
     <div ref={canvasContainerRef} className="relative h-full w-full">

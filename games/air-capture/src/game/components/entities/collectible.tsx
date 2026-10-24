@@ -1,7 +1,5 @@
-import { useSendSignal } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
-import { RigidBody, type CollisionPayload } from "@react-three/rapier";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -16,16 +14,12 @@ import {
 import {
   getAbilityDefinition,
   RARITY_INFO,
-  useAbilitiesStore,
-} from "../../abilities-store";
-import { useHostAudio } from "../../audio/use-host-audio";
-import {
-  CollectibleData,
-  useCollectiblesStore,
-} from "../../stores/world/collectibles-store";
+  type AbilityId,
+} from "../../abilities/definitions";
+import type { CollectibleSim } from "../../simulation/state";
 
 interface CollectibleProps {
-  collectible: CollectibleData;
+  collectible: CollectibleSim;
 }
 
 interface Particle {
@@ -37,16 +31,19 @@ interface Particle {
 }
 
 const PARTICLE_COUNT = 30;
-const EXPLOSION_LIFETIME = 0.8;
+export const COLLECTIBLE_BURST_SECONDS = 0.8;
+const EXPLOSION_LIFETIME = COLLECTIBLE_BURST_SECONDS;
 const EXPLOSION_SPEED = 8;
 
-function ExplosionParticles({
+/** The burst a pickup leaves when a ship takes it. */
+export function CollectibleBurst({
   position,
-  color,
+  abilityId,
 }: {
   position: [number, number, number];
-  color: number;
+  abilityId: AbilityId;
 }) {
+  const color = RARITY_INFO[getAbilityDefinition(abilityId).rarity].color;
   const particlesRef = useRef<Group>(null);
   const particles = useRef<Particle[]>([]);
   const ageRef = useRef(0);
@@ -168,9 +165,8 @@ const createLightPillarFragment = (colorHex: number) => {
 
 const CollectibleComponent = ({ collectible }: CollectibleProps) => {
   // Get ability definition to determine rarity and color
-  const abilityDef = getAbilityDefinition(collectible.abilityId);
-  const rarity = abilityDef?.rarity ?? "common";
-  const rarityColor = RARITY_INFO[rarity].color;
+  const rarityColor =
+    RARITY_INFO[getAbilityDefinition(collectible.abilityId).rarity].color;
 
   // OctahedronGeometry creates a proper diamond shape (8 triangular faces)
   const geometry = useMemo(() => new OctahedronGeometry(1.5, 0), []);
@@ -195,18 +191,6 @@ const CollectibleComponent = ({ collectible }: CollectibleProps) => {
   const meshRef = useRef<Mesh>(null);
   const groupRef = useRef<Group>(null);
   const rotationRef = useRef(0);
-  const collectedRef = useRef(false);
-  const [showExplosion, setShowExplosion] = useState(false);
-  const [explosionPosition, setExplosionPosition] = useState<
-    [number, number, number]
-  >([0, 0, 0]);
-  const removeCollectible = useCollectiblesStore(
-    (state) => state.removeCollectible,
-  );
-  const collectAbility = useAbilitiesStore((state) => state.collectAbility);
-  const audio = useHostAudio();
-  const sendSignal = useSendSignal();
-
   // Light pillar geometry - cone shape, wide at base, point at top
   const pillarGeometry = useMemo(() => {
     const geo = new ConeGeometry(0.5, 8, 8); // radius at base, height, radial segments
@@ -224,60 +208,9 @@ const CollectibleComponent = ({ collectible }: CollectibleProps) => {
     }
   });
 
-  const handleIntersection = (payload: CollisionPayload) => {
-    if (collectedRef.current) return;
-    const userData = payload.other.rigidBody?.userData as
-      | { controllerId?: string }
-      | undefined;
-    if (userData?.controllerId) {
-      const controllerId = userData.controllerId;
-      console.log(
-        `Collision detected! Player ${controllerId} collected ${collectible.id}`,
-      );
-      collectedRef.current = true;
-
-      // Collect ability (all collectibles have abilities now)
-      collectAbility(controllerId, collectible.abilityId);
-      audio.play("powerup");
-      sendSignal?.("HAPTIC", { pattern: "success" }, controllerId);
-
-      console.log(
-        `Player ${controllerId} collected ability: ${collectible.abilityId}`,
-      );
-
-      // Store position for explosion
-      if (groupRef.current) {
-        const worldPos = new Vector3();
-        groupRef.current.getWorldPosition(worldPos);
-        setExplosionPosition([worldPos.x, worldPos.y, worldPos.z]);
-      } else {
-        setExplosionPosition([...collectible.position]);
-      }
-
-      // Trigger explosion
-      setShowExplosion(true);
-
-      // Hide collectible immediately
-      if (groupRef.current) {
-        groupRef.current.visible = false;
-      }
-
-      // Remove after a short delay to allow explosion to render
-      setTimeout(() => {
-        removeCollectible(collectible.id);
-      }, EXPLOSION_LIFETIME * 1000);
-    }
-  };
-
   return (
     <>
-      <RigidBody
-        type="fixed"
-        position={collectible.position}
-        colliders="cuboid"
-        sensor
-        onIntersectionEnter={handleIntersection}
-      >
+      <group position={collectible.position}>
         <group ref={groupRef}>
           {/* Light pillar - cone shape extending upward from base to point */}
           <mesh position={[0, 4, 0]}>
@@ -302,12 +235,7 @@ const CollectibleComponent = ({ collectible }: CollectibleProps) => {
             receiveShadow
           />
         </group>
-      </RigidBody>
-
-      {/* Explosion particles */}
-      {showExplosion && (
-        <ExplosionParticles position={explosionPosition} color={rarityColor} />
-      )}
+      </group>
     </>
   );
 };

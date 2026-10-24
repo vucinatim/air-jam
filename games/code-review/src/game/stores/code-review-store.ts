@@ -1,4 +1,4 @@
-import { createAirJamStore } from "@air-jam/sdk";
+import { createAirJamStore } from "@air-jam/sdk/core";
 import {
   createInitialCodeReviewState,
   reduceFinishMatch,
@@ -12,7 +12,7 @@ import {
 } from "./code-review-store-state";
 import type { CodeReviewGameState } from "./code-review-store-types";
 
-export const useGameStore = createAirJamStore<CodeReviewGameState>((set) => ({
+export const gameStore = createAirJamStore<CodeReviewGameState>((set) => ({
   ...createInitialCodeReviewState(),
 
   actions: {

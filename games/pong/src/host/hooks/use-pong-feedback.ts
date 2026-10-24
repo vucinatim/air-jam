@@ -1,4 +1,4 @@
-import { useAudio, useSendSignal } from "@air-jam/sdk";
+import { useAirJamStore, useAudio, useSendSignal } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef } from "react";
 import {
   createMatchWinnerToastSignal,
@@ -6,15 +6,15 @@ import {
 } from "../../game/contracts/controller-signals";
 import type { PongSoundId } from "../../game/contracts/sounds";
 import type { TeamId } from "../../game/domain/team";
-import { usePongStore } from "../../game/stores";
+import { pongStore } from "../../game/stores";
 
 const HIT_FEEDBACK_COOLDOWN_MS = 70;
 
 export const usePongFeedback = () => {
   const audio = useAudio<PongSoundId>();
   const sendSignal = useSendSignal();
-  const matchPhase = usePongStore((state) => state.matchPhase);
-  const matchSummary = usePongStore((state) => state.matchSummary);
+  const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
+  const matchSummary = useAirJamStore(pongStore, (state) => state.matchSummary);
   const matchSummaryWinner = matchSummary?.winner ?? null;
   const lastHitAtRef = useRef(0);
   const previousPhaseRef = useRef(matchPhase);

@@ -215,6 +215,16 @@ interactive input/action/control and generic session closure are refused with
 `session_owned_by_run`. Only explicit run control or internal lease cleanup can
 end its session; a read-only embedding cannot bypass run authority by closing it.
 
+The `headless` target (`--headless`) plays in a room with no page. Its own
+process runs the Air Jam relay on a loopback port and the game's host core,
+built by the game's app (`airjam.createHostRuntime`) so its stores and host
+share one SDK. Players join over that relay as in an owned run. The room's
+clock is game time: the run advances the game's simulation by each decision
+interval instead of waiting, and input leases, command deadlines and the play
+budget run on that clock. The run's seed also seeds the simulation, so a seed
+and a profile replay the same game. A headless run captures no images and
+cannot be watched.
+
 `wait` returns when final evidence and cleanup finish, or after its bounded
 timeout (default 25 seconds, maximum 30 seconds). A timeout returns the current
 record; disconnecting only cancels that waiter. It never stops the run. `read`
@@ -468,10 +478,13 @@ Jam control model.
 
 `observeGameSession` / `airjam.observe_game_session` use the existing owned
 runtime-control channel. The SDK's `agent({ operation: "observe", ... })`
-projects the same live semantic contract used by reads. Games can register
-host-local simulation state through `useHostAgentObservation({ read, capture })`.
-The read callback receives the requested player/diagnostic scope and controller
-identity. This is a declared view of game-authored data, not an adversarial
+projects the same live semantic contract used by reads. A game declares what
+agents see of its simulation with the simulation's `observe(sim, context)`,
+which receives the requested player/diagnostic scope and controller identity;
+the host runtime publishes it with the clock's tick, with or without a page.
+A host view adds an image with `useHostAgentCapture(capture)`. A game without a
+simulation has no host-local state to show beyond its stores, which the
+contract's snapshot already projects. This is a declared view of game-authored data, not an adversarial
 guarantee of human-equivalent information. Raw stores and callable host actions
 are not returned by observation.
 

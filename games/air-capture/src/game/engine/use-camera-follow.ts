@@ -1,13 +1,13 @@
+import { useSimulation } from "@air-jam/sdk";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import {
   Vector3,
   type PerspectiveCamera as ThreePerspectiveCamera,
 } from "three";
-import { PLAYER_CAMERA_OFFSET, TOPDOWN_CAMERA_HEIGHT } from "../constants";
+import { PLAYER_CAMERA_OFFSET } from "../constants";
+import type { AirCaptureSim } from "../simulation/state";
 import { useDebugStore } from "../stores/debug/debug-store";
-import { useGameStore } from "../stores/players/game-store";
-import { shipPositions, shipRotations } from "./ships/runtime";
 
 interface CameraFollowState {
   targetPosition: Vector3;
@@ -20,7 +20,6 @@ export function useCameraFollow(
   activeCamerasRef: React.MutableRefObject<
     Array<ThreePerspectiveCamera | null>
   >,
-  cameraMode: "follow" | "topdown",
 ) {
   const followStateRef = useRef<CameraFollowState[]>(
     Array.from({ length: 4 }, () => ({
@@ -29,19 +28,16 @@ export function useCameraFollow(
       lookTarget: new Vector3(),
     })),
   );
-  const topTargetRef = useRef(new Vector3(0, 0, 0));
-  const players = useGameStore((state) => state.players);
-  const cameraModeRef = useRef(cameraMode);
+  const clock = useSimulation<AirCaptureSim>();
   const freeFlyMode = useDebugStore((state) => state.freeFlyMode);
 
   useFrame((_state, delta) => {
     // Skip camera follow updates when in free-fly mode
     if (freeFlyMode) return;
 
-    cameraModeRef.current = cameraMode;
-
+    const ships = [...clock.sim.ships.values()];
     const maxCams = 4;
-    const playerCount = Math.min(players.length, maxCams);
+    const playerCount = Math.min(ships.length, maxCams);
     const cameras = cameraRefs.map((ref) => ref.current).filter(Boolean);
 
     // When no players, keep a single top-down camera so scene still shows.
@@ -55,23 +51,10 @@ export function useCameraFollow(
       const viewState = viewStates[i];
       if (!cam || !viewState) continue;
 
-      const player = players[i];
-      const isSingleTopDown =
-        activeCount === 1 && cameraModeRef.current === "topdown";
-
-      if (isSingleTopDown) {
-        // No players, top-down spectate
-        const targetPos = new Vector3(0, TOPDOWN_CAMERA_HEIGHT, 0);
-        cam.position.lerp(targetPos, Math.min(1, delta * 6));
-        cam.lookAt(topTargetRef.current);
-        continue;
-      }
-
-      if (!player) continue;
-
-      const shipPos = shipPositions.get(player.controllerId);
-      const shipRot = shipRotations.get(player.controllerId);
-      if (!shipPos || !shipRot) continue;
+      const ship = ships[i];
+      if (!ship) continue;
+      const shipPos = ship.position;
+      const shipRot = ship.rotation;
 
       const offset = new Vector3(
         PLAYER_CAMERA_OFFSET.x,

@@ -1,6 +1,5 @@
 import { Stars } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { RigidBody } from "@react-three/rapier";
 import { useRef } from "react";
 import {
   AdditiveBlending,
@@ -129,23 +128,14 @@ export function SpaceEnvironment({
       />
 
       {/* Ground plane */}
-      <RigidBody
-        type="fixed"
-        rotation={[-Math.PI / 2, 0, 0]}
-        colliders="cuboid"
-        userData={{ type: "ground" }}
-      >
-        <mesh receiveShadow userData={{ type: "ground" }}>
-          <planeGeometry
-            args={[props.arenaRadius * 3, props.arenaRadius * 3]}
-          />
-          <meshStandardMaterial
-            color={props.groundColor}
-            roughness={0.8}
-            metalness={0.2}
-          />
-        </mesh>
-      </RigidBody>
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[props.arenaRadius * 3, props.arenaRadius * 3]} />
+        <meshStandardMaterial
+          color={props.groundColor}
+          roughness={0.8}
+          metalness={0.2}
+        />
+      </mesh>
 
       {/* Grid helper */}
       <gridHelper

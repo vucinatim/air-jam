@@ -1,4 +1,4 @@
-import { createAirJamStore, type AirJamActionContext } from "../src/index";
+import { createAirJamStore, type AirJamActionContext } from "../src/core";
 
 interface ValidNetworkedStore {
   phase: "lobby" | "playing";

@@ -15,32 +15,32 @@ const games = [
   {
     id: "air-capture",
     store: "src/game/stores/match/match-store.ts",
-    storeExport: "usePrototypeMatchStore",
+    storeExport: "prototypeMatchStore",
   },
   {
     id: "code-review",
     store: "src/game/stores/code-review-store.ts",
-    storeExport: "useGameStore",
+    storeExport: "gameStore",
   },
   {
     id: "last-band-standing",
     store: "src/game/stores/create-store.ts",
-    storeExport: "useGameStore",
+    storeExport: "gameStore",
   },
   {
     id: "minimal",
     store: "src/game/store.ts",
-    storeExport: "useMinimalStore",
+    storeExport: "minimalStore",
   },
   {
     id: "pong",
     store: "src/game/stores/pong-store.ts",
-    storeExport: "usePongStore",
+    storeExport: "pongStore",
   },
   {
     id: "the-office",
     store: "src/game/stores/space-store.ts",
-    storeExport: "useSpaceStore",
+    storeExport: "spaceStore",
   },
 ];
 

@@ -1,7 +1,7 @@
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import { LifecycleActionGroup } from "@air-jam/sdk/ui";
 import { getTeamColor } from "../../game/domain/team";
-import { usePongStore } from "../../game/stores";
+import { pongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
 
 const formatMatchDuration = (durationMs: number): string => {
@@ -13,8 +13,8 @@ const formatMatchDuration = (durationMs: number): string => {
 
 export const EndedPanel = () => {
   const runtimeState = useAirJamController((state) => state.runtimeState);
-  const actions = usePongStore.useActions();
-  const matchSummary = usePongStore((state) => state.matchSummary);
+  const actions = pongStore.actions;
+  const matchSummary = useAirJamStore(pongStore, (state) => state.matchSummary);
   const winner = matchSummary?.winner;
   const winnerColor = winner ? getTeamColor(winner) : "#ffffff";
 

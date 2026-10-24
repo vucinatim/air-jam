@@ -17,6 +17,7 @@
  */
 import {
   useAirJamController,
+  useAirJamStore,
   useControllerTick,
   useInputWriter,
   type PlayerProfile,
@@ -32,8 +33,7 @@ import {
   getMatchReadiness,
   getTeamCounts,
 } from "../game/domain/match-readiness";
-import { useMatchCountdown } from "../game/hooks/use-match-countdown";
-import { usePrototypeMatchStore } from "../game/stores/match/match-store";
+import { prototypeMatchStore } from "../game/stores/match/match-store";
 import {
   ControllerHeader,
   type ControllerConnectionStatus,
@@ -104,18 +104,31 @@ const ControllerScreen = () => {
     })),
   );
 
-  const matchPhase = usePrototypeMatchStore((state) => state.matchPhase);
-  const pointsToWin = usePrototypeMatchStore((state) => state.pointsToWin);
-  const botCounts = usePrototypeMatchStore((state) => state.botCounts);
-  const teamAssignments = usePrototypeMatchStore(
+  const matchPhase = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.matchPhase,
+  );
+  const pointsToWin = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.pointsToWin,
+  );
+  const botCounts = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.botCounts,
+  );
+  const teamAssignments = useAirJamStore(
+    prototypeMatchStore,
     (state) => state.teamAssignments,
   );
-  const matchSummary = usePrototypeMatchStore((state) => state.matchSummary);
-  const countdownEndsAtMs = usePrototypeMatchStore(
-    (state) => state.countdownEndsAtMs,
+  const matchSummary = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.matchSummary,
   );
-  const actions = usePrototypeMatchStore.useActions();
-  const countdownRemainingSeconds = useMatchCountdown(countdownEndsAtMs);
+  const countdownRemainingSeconds = useAirJamStore(
+    prototypeMatchStore,
+    (state) => state.countdownSeconds ?? 0,
+  );
+  const actions = prototypeMatchStore.actions;
 
   const controlsDisabled = controllerState.connectionStatus !== "connected";
   const canSendSystemCommand = controllerState.connectionStatus === "connected";

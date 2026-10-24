@@ -1,6 +1,5 @@
 export {
   AIRJAM_HOST_BRIDGE_EVENT,
-  AIRJAM_HOST_BRIDGE_RESPONSE,
   createHostBridgeAttachMessage,
   createHostBridgeCloseMessage,
   createHostBridgeResponseMessage,

@@ -5,7 +5,11 @@
  * on the networked `matchPhase`. The active-round panel exposes the buzz-in
  * button; the reveal panel shows round results once the host finalises them.
  */
-import { AudioRuntime, useAirJamController } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  useAirJamController,
+  useAirJamStore,
+} from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   RuntimeShellHeader,
@@ -19,7 +23,7 @@ import { getUniqueSongCountForBuckets } from "../game/content/song-bank";
 import { soundManifest } from "../game/contracts/sounds";
 import { toShellMatchPhase } from "../game/domain/match-phase";
 import { isMatchReadyToStart } from "../game/domain/match-readiness";
-import { useGameStore } from "../game/stores";
+import { gameStore } from "../game/stores";
 import { ControllerGameOver } from "./components/controller-game-over";
 import { ControllerLobby } from "./components/controller-lobby";
 import { ControllerMatchCountdown } from "./components/controller-match-countdown";
@@ -44,14 +48,18 @@ const ControllerScreen = () => {
   const selfPlayerLabel = useAirJamController(
     (state) => state.selfPlayer?.label ?? null,
   );
-  const phase = useGameStore((state) => state.phase);
-  const playerOrder = useGameStore((state) => state.playerOrder);
-  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
-  const totalRounds = useGameStore((state) => state.totalRounds);
-  const selectedSongBucketIds = useGameStore(
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const playerOrder = useAirJamStore(gameStore, (state) => state.playerOrder);
+  const readyByPlayerId = useAirJamStore(
+    gameStore,
+    (state) => state.readyByPlayerId,
+  );
+  const totalRounds = useAirJamStore(gameStore, (state) => state.totalRounds);
+  const selectedSongBucketIds = useAirJamStore(
+    gameStore,
     (state) => state.selectedSongBucketIds,
   );
-  const actions = useGameStore.useActions();
+  const actions = gameStore.actions;
   useControllerAudioCues();
 
   const isConnected = connectionStatus === "connected";

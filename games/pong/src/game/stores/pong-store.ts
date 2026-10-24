@@ -10,7 +10,7 @@
  * The reducers themselves are pure functions in `./pong-store-state` so they
  * can be unit-tested without a running session.
  */
-import { createAirJamStore } from "@air-jam/sdk";
+import { createAirJamStore } from "@air-jam/sdk/core";
 import {
   createInitialPongState,
   reduceJoinTeam,
@@ -23,7 +23,7 @@ import {
 } from "./pong-store-state";
 import type { PongState } from "./pong-store-types";
 
-export const usePongStore = createAirJamStore<PongState>((set) => ({
+export const pongStore = createAirJamStore<PongState>((set) => ({
   ...createInitialPongState(),
 
   actions: {
@@ -49,14 +49,16 @@ export const usePongStore = createAirJamStore<PongState>((set) => ({
         }),
       ),
 
-    startMatch: ({ connectedPlayerIds }) =>
-      set((state) => reduceStartMatch(state, connectedPlayerIds)),
+    startMatch: ({ connectedPlayerIds, now }) =>
+      set((state) => reduceStartMatch(state, connectedPlayerIds, now)),
 
-    restartMatch: () => set((state) => reduceRestartMatch(state)),
+    restartMatch: ({ now }) => set((state) => reduceRestartMatch(state, now)),
 
     returnToLobby: () => set((state) => reduceReturnToLobby(state)),
 
-    scorePoint: ({ role }, { team }) =>
-      set((state) => (role === "host" ? reduceScorePoint(state, team) : state)),
+    scorePoint: ({ role, now }, { team }) =>
+      set((state) =>
+        role === "host" ? reduceScorePoint(state, team, now) : state,
+      ),
   },
 }));

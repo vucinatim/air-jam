@@ -551,7 +551,7 @@ export const buildToolDefinitions = ({
     },
     "airjam.start_game_run": {
       description:
-        "Start a bounded policy run in its own fresh game room. Supply a stable UUID runId; retries return the same admission. Never uses the creator's live room. Read or stop by runId.",
+        "Start a bounded policy run in its own fresh game room. Supply a stable UUID runId; retries return the same admission. Never uses the creator's live room. Target headless plays with no page on game time, far faster than real time; owned plays the built page. Read or stop by runId.",
       inputSchema: startGameRunSchema,
       run: async (input) => withJsonText(await startGameRun(input)),
     },

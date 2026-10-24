@@ -326,7 +326,15 @@ export async function runGameSessionBroker({
     projectDir: resolvedProjectDir,
     ownerInstanceId: instanceId,
     decisions,
-    async openSession({ runId, gameId, nickname, attachment, build, onScope }) {
+    async openSession({
+      runId,
+      gameId,
+      nickname,
+      attachment,
+      build,
+      room,
+      onScope,
+    }) {
       const pending = (async () => {
         const session = await runtime
           .openRunSession(
@@ -349,6 +357,7 @@ export async function runGameSessionBroker({
                   }
                 : undefined,
               build,
+              room,
               onScope,
             },
           )

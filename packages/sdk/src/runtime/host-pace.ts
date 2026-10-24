@@ -15,8 +15,9 @@ export type HostPace = {
 const loops = new Set<HostPace>();
 
 /** Start counting one fixed-step loop; release it when the loop stops. */
-export function trackHostSimulation() {
-  const pace: HostPace = { frames: 0, wallMs: 0, simulatedMs: 0 };
+export function trackHostSimulation(
+  pace: HostPace = { frames: 0, wallMs: 0, simulatedMs: 0 },
+) {
   loops.add(pace);
   return { pace, release: () => loops.delete(pace) };
 }

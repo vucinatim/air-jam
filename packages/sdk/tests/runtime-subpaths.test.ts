@@ -5,30 +5,11 @@ import {
   AirJamHostRuntime,
 } from "../src/arcade/runtime";
 import { createPrefabCatalog, definePrefab } from "../src/prefabs";
-import {
-  createControllerRuntimeInspectionContract,
-  useHostRuntimeInspectionContract,
-} from "../src/runtime-inspection";
-import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../src/settings/platform-settings";
+import { readRuntimeInspectionContract } from "../src/runtime-inspection";
 
 describe("runtime experimental subpaths", () => {
-  it("re-export the inspection contract seam from the dedicated leaf", () => {
-    const contract = createControllerRuntimeInspectionContract({
-      roomId: "ROOM",
-      controllerId: "controller-1",
-      connectionStatus: "connected",
-      players: [],
-      selfPlayer: null,
-      lastError: undefined,
-      runtimeState: "playing",
-      controllerOrientation: "landscape",
-      roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
-      stateMessage: "Ready",
-    });
-
-    expect(contract.role).toBe("controller");
-    expect(contract.roomId).toBe("ROOM");
-    expect(typeof useHostRuntimeInspectionContract).toBe("function");
+  it("reads the inspection contract from the dedicated leaf", () => {
+    expect(readRuntimeInspectionContract({})).toBeNull();
   });
 
   it("re-exports the prefab contract seam from the dedicated leaf", () => {

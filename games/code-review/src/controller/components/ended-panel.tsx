@@ -1,20 +1,20 @@
-import { useAirJamController } from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   useControllerLifecycleIntents,
   useControllerLifecyclePermissions,
 } from "@air-jam/sdk/ui";
-import { useGameStore } from "../../game/stores";
+import { gameStore } from "../../game/stores";
 
 export const EndedPanel = () => {
   const connectionStatus = useAirJamController(
     (state) => state.connectionStatus,
   );
   const runtimeState = useAirJamController((state) => state.runtimeState);
-  const matchPhase = useGameStore((state) => state.matchPhase);
-  const matchSummary = useGameStore((state) => state.matchSummary);
-  const scores = useGameStore((state) => state.scores);
-  const actions = useGameStore.useActions();
+  const matchPhase = useAirJamStore(gameStore, (state) => state.matchPhase);
+  const matchSummary = useAirJamStore(gameStore, (state) => state.matchSummary);
+  const scores = useAirJamStore(gameStore, (state) => state.scores);
+  const actions = gameStore.actions;
   const lifecyclePermissions = useControllerLifecyclePermissions({
     phase: matchPhase,
     canStartMatch: false,

@@ -360,32 +360,46 @@ const ControllerView = () => {
 
 Fixed-cadence helper for controller loops. Use it with `useInputWriter` instead of hand-rolled `setInterval` loops.
 
-### `useHostTick`
+### Game simulation
 
-Canonical host loop helper. Pass a named options object with `onTick` plus
-the loop mode/options.
+A game's authoritative state that changes every step, such as positions,
+timers and physics, lives in a declared simulation. The SDK steps it on the
+host at a fixed rate with seeded randomness, so the same seed and inputs replay
+the same game, in a browser or headless and faster than real time. It only
+steps while the room is playing: pausing freezes the game and its game time.
 
-- `mode: "raf"` (default) for render-aligned loops.
-- `mode: "interval"` for fixed-cadence polling loops.
-- `mode: "fixed"` for deterministic fixed-step simulation loops.
+```ts filename="src/game/engine/simulation.ts"
+import { defineAirJamSimulation } from "@air-jam/sdk/core";
 
-In fixed mode, pass `onFrame` when rendering should happen every animation
-frame while simulation still advances at the fixed cadence. The frame info
-includes `fixedStepAlpha`, which games can use to interpolate between previous
-and current simulation state.
-
-```tsx
-useHostTick({
-  mode: "fixed",
-  intervalMs: 16,
-  onTick: ({ deltaSeconds }) => {
-    stepSimulation(deltaSeconds);
+export const simulation = defineAirJamSimulation<Sim, GameInput, SimEvent>({
+  stepMs: 1000 / 60,
+  create: ({ random }) => createSim(random),
+  step: (sim, { input, players, random, emit }) => {
+    advance(sim, players, input);
   },
-  onFrame: ({ fixedStepAlpha }) => {
-    renderInterpolatedFrame(fixedStepAlpha);
-  },
+  // What agents and tests see of the game, as plain JSON.
+  observe: (sim) => ({ fighters: sim.fighters }),
 });
 ```
+
+Declare it with `createAirJamApp({ simulation })`. When its code is heavy, such
+as a physics engine, declare a loader instead,
+`simulation: () => import("./game/engine/simulation").then((m) => m.simulation)`,
+so only the host downloads it and controllers stay small. The host draws and
+plays feedback from it, never advances it:
+
+- `useSimulationFrame(({ sim, alpha }) => draw(sim, alpha))` runs after every
+  display frame; `alpha` interpolates between steps.
+- `useSimulationEvents((event) => playSound(event))` receives what `step`
+  emitted, such as a hit.
+- `useSimulationSelector((sim) => value, isEqual?)` reads a value for UI, such
+  as a health bar or an entity list, re-rendering only when it changes.
+- `useSimulation()` returns the clock itself.
+- `useHostAgentCapture(() => captureAgentCanvas(canvas))` gives agents an image
+  of what the host draws.
+
+Step code reads stores with `gameStore.getState()` and dispatches with
+`gameStore.actions`; it never reads `Date.now()` or `Math.random()`.
 
 **Auto Room Join from URL:**
 

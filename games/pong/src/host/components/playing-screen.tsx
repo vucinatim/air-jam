@@ -1,7 +1,7 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import type { Ref } from "react";
 import { FIELD_HEIGHT, FIELD_WIDTH } from "../../game/engine";
-import { usePongStore } from "../../game/stores";
+import { pongStore } from "../../game/stores";
 import { MatchOverlay } from "./match-overlay";
 import { ScoreStrip } from "./score-strip";
 
@@ -11,7 +11,7 @@ interface PlayingScreenProps {
 
 export const PlayingScreen = ({ canvasRef }: PlayingScreenProps) => {
   const runtimeState = useAirJamHost((state) => state.runtimeState);
-  const matchPhase = usePongStore((state) => state.matchPhase);
+  const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
   const showPausedOverlay =
     matchPhase === "playing" && runtimeState !== "playing";
 

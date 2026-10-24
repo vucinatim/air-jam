@@ -54,6 +54,8 @@ describe("Code Review player contract", () => {
     const turn = codeReviewPlayer.turn({
       observation: observe(playing, [me, fighter({ punching: true })]),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     airJamDecisionQuestionSchema.parse(turn);
     expect(turn?.state).toEqual([
@@ -89,6 +91,8 @@ describe("Code Review player contract", () => {
         [],
       ),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     expect(lobby?.options.team1?.control).toEqual({
       kind: "action",
@@ -99,6 +103,8 @@ describe("Code Review player contract", () => {
       codeReviewPlayer.turn({
         observation: observe(playing, [me, fighter({})], true),
         seatId: "player",
+        random: () => 0.5,
+        elapsedMs: 0,
       }),
     ).toBeNull();
   });

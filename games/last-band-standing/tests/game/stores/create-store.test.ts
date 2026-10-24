@@ -1,6 +1,6 @@
 import { DEFAULT_TOTAL_ROUNDS } from "@/game/constants";
-import { useGameStore } from "@/game/stores/create-store";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { gameStore } from "@/game/stores/create-store";
+import { describe, expect, it } from "vitest";
 
 const completeMatch = (playerCount: number) => {
   const playerIds = Array.from(
@@ -11,10 +11,12 @@ const completeMatch = (playerCount: number) => {
     actorId: "host",
     role: "host" as const,
     connectedPlayerIds: playerIds,
+    now: 0,
   };
+  const hostAt = (now: number) => ({ ...hostContext, now });
 
-  useGameStore.getState().actions.resetLobby(hostContext, undefined);
-  useGameStore.getState().actions.setPlayers(hostContext, {
+  gameStore.getState().actions.resetLobby(hostContext, undefined);
+  gameStore.getState().actions.setPlayers(hostContext, {
     players: playerIds.map((id, index) => ({
       id,
       label: `Player ${index + 1}`,
@@ -22,49 +24,51 @@ const completeMatch = (playerCount: number) => {
   });
 
   playerIds.forEach((playerId) => {
-    useGameStore.getState().actions.setReady(
+    gameStore.getState().actions.setReady(
       {
         actorId: playerId,
         role: "controller",
         connectedPlayerIds: playerIds,
+        now: 0,
       },
       { ready: true },
     );
   });
 
-  useGameStore.getState().actions.startMatch(hostContext, undefined);
-  const countdownRound = useGameStore.getState().currentRound;
+  gameStore.getState().actions.startMatch(hostContext, undefined);
+  const countdownRound = gameStore.getState().currentRound;
   if (!countdownRound) {
     throw new Error("Expected the match countdown to prepare round one.");
   }
 
-  useGameStore.getState().actions.completeMatchCountdown(hostContext, {
-    nowMs: countdownRound.startedAtMs,
-  });
+  gameStore
+    .getState()
+    .actions.advanceClock(hostAt(countdownRound.startedAtMs), undefined);
+  expect(gameStore.getState().phase).toBe("round-active");
 
   for (let roundIndex = 0; roundIndex < DEFAULT_TOTAL_ROUNDS; roundIndex += 1) {
-    const round = useGameStore.getState().currentRound;
+    const round = gameStore.getState().currentRound;
     if (!round) {
       throw new Error(`Expected active round ${roundIndex + 1}.`);
     }
 
     playerIds.forEach((playerId, playerIndex) => {
-      vi.setSystemTime(round.startedAtMs + 500 + playerIndex);
-      useGameStore.getState().actions.submitGuess(
+      gameStore.getState().actions.submitGuess(
         {
           actorId: playerId,
           role: "controller",
           connectedPlayerIds: playerIds,
+          now: round.startedAtMs + 500 + playerIndex,
         },
         { optionId: round.songId },
       );
     });
 
-    useGameStore.getState().actions.finalizeRound(hostContext, {
-      nowMs: round.startedAtMs + 2_000,
-    });
+    gameStore
+      .getState()
+      .actions.advanceClock(hostAt(round.startedAtMs + 2_000), undefined);
 
-    const reveal = useGameStore.getState().roundReveal;
+    const reveal = gameStore.getState().roundReveal;
     if (!reveal) {
       throw new Error(`Expected reveal for round ${roundIndex + 1}.`);
     }
@@ -76,12 +80,12 @@ const completeMatch = (playerCount: number) => {
       ),
     ).toBe(true);
 
-    useGameStore.getState().actions.advanceFromReveal(hostContext, {
-      nowMs: reveal.revealEndsAtMs,
-    });
+    gameStore
+      .getState()
+      .actions.advanceClock(hostAt(reveal.revealEndsAtMs), undefined);
   }
 
-  const finalState = useGameStore.getState();
+  const finalState = gameStore.getState();
   expect(finalState.phase).toBe("game-over");
   expect(finalState.completedRoundCount).toBe(DEFAULT_TOTAL_ROUNDS);
   expect(finalState.finalRankingPlayerIds).toEqual(playerIds);
@@ -96,8 +100,42 @@ const completeMatch = (playerCount: number) => {
 };
 
 describe("complete match lifecycle", () => {
-  afterEach(() => {
-    vi.useRealTimers();
+  it("counts down whole seconds on game time and ends the round when time runs out", () => {
+    const host = {
+      actorId: "host",
+      role: "host" as const,
+      connectedPlayerIds: ["alpha", "beta"],
+      now: 10_000,
+    };
+    const actions = gameStore.getState().actions;
+    actions.resetLobby(host, undefined);
+    actions.setPlayers(host, {
+      players: [
+        { id: "alpha", label: "Alpha" },
+        { id: "beta", label: "Beta" },
+      ],
+    });
+    for (const actorId of ["alpha", "beta"])
+      actions.setReady(
+        { ...host, actorId, role: "controller" },
+        { ready: true },
+      );
+    actions.startMatch(host, undefined);
+    actions.advanceClock({ ...host, now: 10_100 }, undefined);
+    expect(gameStore.getState().secondsLeft).toBe(3);
+    actions.advanceClock({ ...host, now: 11_100 }, undefined);
+    expect(gameStore.getState().secondsLeft).toBe(2);
+
+    const round = gameStore.getState().currentRound;
+    if (!round) throw new Error("Expected round one.");
+    actions.advanceClock({ ...host, now: round.startedAtMs }, undefined);
+    expect(gameStore.getState()).toMatchObject({
+      phase: "round-active",
+      secondsLeft: (round.endsAtMs - round.startedAtMs) / 1000,
+    });
+    actions.advanceClock({ ...host, now: round.endsAtMs }, undefined);
+    expect(gameStore.getState().phase).toBe("round-reveal");
+    actions.resetLobby(host, undefined);
   });
 
   it("requires all lobby players ready before a controller can start", () => {
@@ -105,9 +143,10 @@ describe("complete match lifecycle", () => {
       actorId: "host",
       role: "host" as const,
       connectedPlayerIds: ["alpha", "beta"],
+      now: 0,
     };
     const alpha = { ...host, actorId: "alpha", role: "controller" as const };
-    const actions = useGameStore.getState().actions;
+    const actions = gameStore.getState().actions;
     actions.resetLobby(host, undefined);
     actions.setPlayers(host, {
       players: [
@@ -117,21 +156,18 @@ describe("complete match lifecycle", () => {
     });
     actions.setReady(alpha, { ready: true });
     actions.startMatch(alpha, undefined);
-    expect(useGameStore.getState().phase).toBe("lobby");
+    expect(gameStore.getState().phase).toBe("lobby");
     actions.startMatch(host, undefined);
-    expect(useGameStore.getState().phase).toBe("lobby");
+    expect(gameStore.getState().phase).toBe("lobby");
     actions.setReady({ ...alpha, actorId: "beta" }, { ready: true });
     actions.startMatch(alpha, undefined);
-    expect(useGameStore.getState().phase).toBe("match-countdown");
+    expect(gameStore.getState().phase).toBe("match-countdown");
     actions.resetLobby(host, undefined);
   });
 
   it.each([2, 6, 10])(
     "completes every round and ranks all %i players",
     (playerCount) => {
-      vi.useFakeTimers();
-      vi.setSystemTime("2026-07-24T12:00:00Z");
-
       completeMatch(playerCount);
     },
   );

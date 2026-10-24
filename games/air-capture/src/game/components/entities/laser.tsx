@@ -1,29 +1,13 @@
+import { useSimulationFrame } from "@air-jam/sdk";
 import { memo, useMemo, useRef } from "react";
 import type { Mesh } from "three";
-import { BoxGeometry, MeshStandardMaterial, Vector3 } from "three";
+import { BoxGeometry, MeshStandardMaterial } from "three";
 import { getProjectileRotation } from "../../engine/projectiles/flight";
-import { useLaserRuntime } from "../../engine/projectiles/use-laser-runtime";
+import type { AirCaptureSim, LaserSim } from "../../simulation/state";
 
-interface LaserProps {
-  id: string;
-  position: [number, number, number];
-  direction: Vector3;
-  controllerId: string;
-}
-
-const LASER_SPEED = 150;
-const LASER_LIFETIME = 2; // seconds
-const KNOCKBACK_FORCE = 300; // Force applied when laser hits a ship
-const LASER_DAMAGE = 20; // Health damage when laser hits a ship
-
-const LaserComponent = ({
-  id,
-  position,
-  direction,
-  controllerId,
-}: LaserProps) => {
+/** Draws one laser where the simulation flies it. */
+const LaserComponent = ({ laser }: { laser: LaserSim }) => {
   const meshRef = useRef<Mesh>(null);
-
   const geometry = useMemo(() => new BoxGeometry(0.2, 0.2, 5), []);
   const material = useMemo(
     () =>
@@ -35,42 +19,29 @@ const LaserComponent = ({
       }),
     [],
   );
-
-  const rotationQuaternion = useMemo(
-    () => getProjectileRotation(direction),
-    [direction],
+  const rotation = useMemo(
+    () => getProjectileRotation(laser.direction),
+    [laser.direction],
   );
 
-  useLaserRuntime({
-    id,
-    position,
-    direction,
-    controllerId,
-    meshRef,
-    speed: LASER_SPEED,
-    maxLifetime: LASER_LIFETIME,
-    damage: LASER_DAMAGE,
-    knockbackForce: KNOCKBACK_FORCE,
+  useSimulationFrame<AirCaptureSim>(({ alpha }) => {
+    meshRef.current?.position.lerpVectors(
+      laser.previousPosition,
+      laser.position,
+      alpha,
+    );
   });
 
   return (
     <mesh
       ref={meshRef}
-      position={position}
+      position={laser.position}
       geometry={geometry}
       material={material}
       castShadow
-      quaternion={rotationQuaternion}
+      quaternion={rotation}
     />
   );
 };
-export const Laser = memo(LaserComponent, (prev, next) => {
-  return (
-    prev.id === next.id &&
-    prev.controllerId === next.controllerId &&
-    prev.position[0] === next.position[0] &&
-    prev.position[1] === next.position[1] &&
-    prev.position[2] === next.position[2] &&
-    prev.direction.equals(next.direction)
-  );
-});
+
+export const Laser = memo(LaserComponent);

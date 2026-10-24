@@ -1,5 +1,5 @@
 import type { JSX, ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { z } from "zod";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import { useAirJamConfig } from "../context/air-jam-context";
@@ -8,16 +8,17 @@ import {
   HostSessionProvider,
   type AirJamProviderProps,
 } from "../context/session-providers";
+import type { AttachableStore } from "../core/replicated-store";
+import type { AirJamSimulationDeclaration } from "../core/simulation";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
 import { useHostRuntimeApi } from "../hooks/internal/use-host-runtime-api";
-import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
-import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import {
   useControllerRuntimeInspectionContract,
   useHostRuntimeInspectionContract,
-} from "../runtime-inspection";
+} from "../hooks/internal/use-runtime-inspection-contract";
+import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
+import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
-import { registerHostAgentContract } from "./contracts/control";
 import {
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
@@ -26,6 +27,7 @@ import { publishEmbeddedHostAgent } from "./host-agent-bridge";
 import { publishEmbeddedHostPreview } from "./preview-inspection-bridge";
 import {
   controllerRuntimeContext,
+  declaredStoresContext,
   hostRuntimeContext,
 } from "./runtime-owner-contexts";
 
@@ -35,12 +37,20 @@ export type AirJamHostRuntimeProps<TSchema extends z.ZodSchema = z.ZodSchema> =
       children: ReactNode;
       agent?: AnyAirJamAgentContract;
       gameId?: string;
+      /** Replicated stores this host owns; they sync while it runs. */
+      stores?: readonly AttachableStore[];
+      /** The game's simulation, advanced on the SDK clock while the host runs. */
+      simulation?: AirJamSimulationDeclaration;
     };
 
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
   AirJamControllerOptions & {
     children: ReactNode;
+    /** Replicated stores this controller mirrors while it runs. */
+    stores?: readonly AttachableStore[];
   };
+
+const NO_STORES: readonly AttachableStore[] = [];
 
 const HostRuntimeInspectionPublisher = (): null => {
   const inspection = useHostRuntimeInspectionContract();
@@ -96,10 +106,28 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
   onPlayerLeave,
   agent,
   gameId,
+  stores = NO_STORES,
+  simulation,
 }: Pick<
   AirJamHostRuntimeProps<TSchema>,
-  "children" | "roomId" | "onPlayerJoin" | "onPlayerLeave" | "agent" | "gameId"
+  | "children"
+  | "roomId"
+  | "onPlayerJoin"
+  | "onPlayerLeave"
+  | "agent"
+  | "gameId"
+  | "stores"
+  | "simulation"
 >): JSX.Element => {
+  const declared = useMemo(() => new Set(stores), [stores]);
+  const game = useMemo(
+    () => ({
+      stores,
+      simulation,
+      agent: agent && { contract: agent, gameId: gameId ?? "game" },
+    }),
+    [stores, simulation, agent, gameId],
+  );
   const runtime = useHostRuntimeApi<TSchema>(
     {
       roomId,
@@ -107,21 +135,16 @@ const HostRuntimeOwner = <TSchema extends z.ZodSchema = z.ZodSchema>({
       onPlayerLeave,
     },
     "AirJamHostRuntime",
+    game,
   );
-
-  useEffect(() => {
-    if (!agent || !runtime.roomId) return;
-    return registerHostAgentContract(window, {
-      roomId: runtime.roomId,
-      gameId: gameId ?? "game",
-      contract: agent,
-    });
-  }, [agent, gameId, runtime.roomId]);
 
   return (
     <hostRuntimeContext.Provider value={runtime}>
-      <HostRuntimeInspectionPublisher />
-      {children}
+      <declaredStoresContext.Provider value={declared}>
+        <HostRuntimeInspectionPublisher />
+        {/* The game draws once its declared simulation has loaded. */}
+        {simulation && !runtime.simulation ? null : children}
+      </declaredStoresContext.Provider>
     </hostRuntimeContext.Provider>
   );
 };
@@ -134,6 +157,7 @@ const ControllerRuntimeOwner = ({
   controllerId,
   capabilityToken,
   onState,
+  stores = NO_STORES,
 }: Pick<
   AirJamControllerRuntimeProps,
   | "children"
@@ -143,7 +167,9 @@ const ControllerRuntimeOwner = ({
   | "controllerId"
   | "capabilityToken"
   | "onState"
+  | "stores"
 >): JSX.Element => {
+  const declared = useMemo(() => new Set(stores), [stores]);
   const runtime = useControllerRuntimeApi(
     {
       roomId,
@@ -154,12 +180,15 @@ const ControllerRuntimeOwner = ({
       onState,
     },
     "AirJamControllerRuntime",
+    stores,
   );
 
   return (
     <controllerRuntimeContext.Provider value={runtime}>
-      <ControllerRuntimeInspectionPublisher />
-      {children}
+      <declaredStoresContext.Provider value={declared}>
+        <ControllerRuntimeInspectionPublisher />
+        {children}
+      </declaredStoresContext.Provider>
     </controllerRuntimeContext.Provider>
   );
 };
@@ -171,6 +200,8 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
   onPlayerLeave,
   agent,
   gameId,
+  stores,
+  simulation,
   ...providerProps
 }: AirJamHostRuntimeProps<TSchema>): JSX.Element => {
   return (
@@ -182,6 +213,8 @@ export const AirJamHostRuntime = <TSchema extends z.ZodSchema = z.ZodSchema>({
           onPlayerLeave={onPlayerLeave}
           agent={agent}
           gameId={gameId}
+          stores={stores}
+          simulation={simulation}
         >
           {children}
         </HostRuntimeOwner>
@@ -198,6 +231,7 @@ export const AirJamControllerRuntime = ({
   controllerId,
   capabilityToken,
   onState,
+  stores,
   ...providerProps
 }: AirJamControllerRuntimeProps): JSX.Element => {
   return (
@@ -210,6 +244,7 @@ export const AirJamControllerRuntime = ({
           controllerId={controllerId}
           capabilityToken={capabilityToken}
           onState={onState}
+          stores={stores}
         >
           {children}
         </ControllerRuntimeOwner>

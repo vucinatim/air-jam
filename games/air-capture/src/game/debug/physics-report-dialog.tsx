@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PhysicsFrame } from "./physics-recorder";
+import type { PhysicsFrame } from "../stores/debug/physics-store";
 import { Button } from "./ui/button";
 import {
   Dialog,

@@ -33,7 +33,7 @@ These values are transient and per-frame. They should not be replicated store st
 
 ## Replicated State Lane
 
-Use `createAirJamStore(...)` for durable shared truth that host and controllers both render:
+Use `createAirJamStore(...)` from `@air-jam/sdk/core` for durable shared truth that host and controllers both render:
 
 1. current phase (`lobby`, `playing`, `ended`)
 2. team assignments
@@ -42,10 +42,13 @@ Use `createAirJamStore(...)` for durable shared truth that host and controllers 
 5. which players are alive
 
 If the controller HUD or another remote surface must render it, it belongs here.
+Declare the store in `createAirJamApp({ stores: [gameStore] })`; the host and
+controllers sync only declared stores. Components read it with
+`useAirJamStore(gameStore, selector)` and dispatch with `gameStore.actions`.
 
 ### Host-Only Runtime Lane
 
-Use host refs, local runtime state, `useLiveStateRef()`, `useHostTick(...)`, and `useHostActionListener(...)` for local host concerns such as:
+Use the declared simulation, `gameStore.getState()` and `useHostActionListener(gameStore, ...)` for host concerns such as:
 
 1. physics world refs
 2. particle systems
@@ -55,26 +58,18 @@ Use host refs, local runtime state, `useLiveStateRef()`, `useHostTick(...)`, and
 
 These are often derived from replicated state or semantic actions, but they are not themselves the shared truth.
 
-```tsx
-const worldRef = useRef(createPhysicsWorld());
-const gameRef = useGameStore.useLiveStateRef();
-
-useGameStore.useHostActionListener((event) => {
-  if (event.actionName !== "fire") {
-    return;
-  }
-
-  worldRef.current.spawnProjectile(event.payload);
-});
-
-useHostTick({
-  mode: "fixed",
-  intervalMs: 16,
-  onTick: ({ deltaSeconds }) => {
-    worldRef.current.step(deltaSeconds, gameRef.current.playersAlive);
+```ts
+export const simulation = defineAirJamSimulation<World, GameInput>({
+  stepMs: 1000 / 60,
+  create: ({ random }) => createPhysicsWorld(random),
+  step: (world, { dtSeconds }) => {
+    world.step(dtSeconds, gameStore.getState().playersAlive);
   },
 });
 ```
+
+The host draws the world with `useSimulationFrame` and reacts to host-applied
+actions with `useHostActionListener(gameStore, ...)`.
 
 ### Signal And Result Lane
 

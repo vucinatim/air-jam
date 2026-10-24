@@ -284,6 +284,10 @@ export type AirJamPlayerContract = {
   turn: (context: {
     observation: HostObservation;
     seatId: string;
+    /** The seat's seeded randomness, so a run replays the same choices. */
+    random: () => number;
+    /** Play time so far: game time in a headless room. */
+    elapsedMs: number;
   }) => AirJamDecisionQuestion | null;
   /**
    * For games that need control faster than a model answers. Between
@@ -294,11 +298,12 @@ export type AirJamPlayerContract = {
    */
   act?: {
     rethinkMs: number;
-    create: () => {
+    create: (context: { random: () => number }) => {
       control: (context: {
         observation: HostObservation;
         seatId: string;
         choice: string;
+        elapsedMs: number;
       }) => AirJamPlayControl | null;
     };
   };
@@ -327,12 +332,17 @@ export function createAirJamPlayerPolicy(
     );
   return {
     label: "Decision model",
-    create: () => {
-      const actor = act?.create();
+    create: ({ random }) => {
+      const actor = act?.create({ random });
       let asked: { intent: string | null; answeredAtMs?: number } | undefined;
       return {
         decide: ({ observation, seatId, intent, answer, elapsedMs }) => {
-          const turn = contract.turn({ observation, seatId });
+          const turn = contract.turn({
+            observation,
+            seatId,
+            random,
+            elapsedMs,
+          });
           if (!turn) return { control: { kind: "release" } };
           if (turn.state.length > TURN_STATE_LINES)
             throw new Error(
@@ -353,6 +363,7 @@ export function createAirJamPlayerPolicy(
                   observation,
                   seatId,
                   choice: answer.choice,
+                  elapsedMs,
                 }) ?? { kind: "release" },
               };
           }

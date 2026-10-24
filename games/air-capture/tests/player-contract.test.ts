@@ -90,7 +90,7 @@ describe("Air Capture bot world", () => {
   });
 
   it("flies a chosen strategy and the default brain over the same snapshot", () => {
-    const pilot = new BotController("human");
+    const pilot = new BotController("human", () => 0.5);
     for (const strategy of [undefined, "attack", "capture"] as const) {
       const input = pilot.update(1, world(), strategy);
       expect(Math.abs(input.vector.x)).toBeLessThanOrEqual(1);
@@ -104,6 +104,8 @@ describe("Air Capture player contract", () => {
     const turn = airCapturePlayer.turn({
       observation: observe(world()),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 1000,
     });
     airJamDecisionQuestionSchema.parse(turn);
     expect(Object.keys(turn?.options ?? {})).toEqual(["capture", "attack"]);
@@ -115,6 +117,8 @@ describe("Air Capture player contract", () => {
     const turn = airCapturePlayer.turn({
       observation: observe(world(), "lobby"),
       seatId: "player",
+      random: () => 0.5,
+      elapsedMs: 0,
     });
     expect(turn?.options.solaris?.control).toEqual({
       kind: "action",
@@ -124,11 +128,12 @@ describe("Air Capture player contract", () => {
   });
 
   it("keeps flying the chosen strategy between questions", () => {
-    const seat = airCapturePlayer.act.create();
+    const seat = airCapturePlayer.act.create({ random: () => 0.5 });
     const control = seat.control({
       observation: observe(world()),
       seatId: "player",
       choice: "capture",
+      elapsedMs: 1000,
     });
     expect(control).toMatchObject({
       kind: "input",
@@ -139,6 +144,7 @@ describe("Air Capture player contract", () => {
         observation: observe(world()),
         seatId: "player",
         choice: "solaris",
+        elapsedMs: 1100,
       }),
     ).toBeNull();
   });

@@ -13,6 +13,7 @@ import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
 import { gameInputSchema } from "./game/input";
+import { minimalStore } from "./game/store";
 
 export const gameMetadata = defineAirJamGameMetadata({
   slug: "minimal",
@@ -33,6 +34,7 @@ export const airjam = createAirJamApp({
   runtime: env.vite(import.meta.env),
   metadata: gameMetadata,
   controllerPath: "/controller",
+  stores: [minimalStore],
   agent: agentContract,
   testing: "./testing/profiles.ts",
   input: {

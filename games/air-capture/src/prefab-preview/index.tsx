@@ -1,12 +1,10 @@
 import { PerspectiveCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { Physics } from "@react-three/rapier";
-import { type JSX, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type JSX } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import {
   createInitialFlags,
-  createInitialScores,
   type TeamPositions,
 } from "../game/domain/capture-the-flag";
 import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../game/domain/team";
@@ -14,7 +12,8 @@ import { AIR_CAPTURE_PREFABS } from "../game/prefabs";
 import { AIR_CAPTURE_ARENA_PREFAB } from "../game/prefabs/arena/prefab";
 import { resolveAirCaptureArenaProps } from "../game/prefabs/arena/schema";
 import { SpaceEnvironment } from "../game/prefabs/arena/space-environment";
-import { useCaptureTheFlagStore } from "../game/stores/match/capture-the-flag-store";
+import { StaticArenaView } from "../game/view/arena-view";
+import type { ArenaView } from "../game/view/arena-view-context";
 import {
   AIR_CAPTURE_PREFAB_CAPTURE_PREFAB_PARAM,
   AIR_CAPTURE_PREFAB_CAPTURE_STAGE_TEST_ID,
@@ -218,18 +217,19 @@ export function PrefabCaptureSurface(): JSX.Element {
     return selectedPrefab.configSchema.parse(props) as Record<string, unknown>;
   }, [selectedPrefab, selectedTeam]);
 
-  useEffect(() => {
+  // Prefabs draw a fresh arena: flags at their bases, no ships.
+  const arenaView = useMemo<ArenaView>(() => {
     const basePositions = resolveTeamPreviewPositions(
       selectedTeam,
       isArenaPreview,
     );
-    useCaptureTheFlagStore.setState({
-      playerTeams: {},
-      basePositions,
+    return {
       flags: createInitialFlags(basePositions),
-      scores: createInitialScores(),
-    });
-  }, [isArenaPreview, selectedPrefab.id, selectedTeam]);
+      basePositions,
+      baseOccupied: () => false,
+      shipPosition: () => null,
+    };
+  }, [isArenaPreview, selectedTeam]);
 
   return (
     <div
@@ -247,14 +247,14 @@ export function PrefabCaptureSurface(): JSX.Element {
           target={previewCamera.target}
           fov={previewCamera.fov ?? 42}
         />
-        <Physics gravity={[0, 0, 0]} interpolate={true}>
+        <StaticArenaView view={arenaView}>
           <group>
             <PrefabScene
               prefab={selectedPrefab}
               resolvedProps={resolvedProps}
             />
           </group>
-        </Physics>
+        </StaticArenaView>
       </Canvas>
     </div>
   );

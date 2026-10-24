@@ -10,19 +10,19 @@ import { airCapturePlayer, arenaOf } from "./player";
 /** The game's own bot, flying an agent seat. */
 const botPolicy: AirJamTestPolicy = {
   label: "The game's own bot",
-  create: () => {
+  create: ({ random }) => {
     let pilot: BotController | undefined;
     return {
-      decide: ({ observation }) => {
+      decide: ({ observation, elapsedMs }) => {
         const snapshot = snapshotSchema.parse(observation.snapshot);
         if (snapshot.matchPhase !== "playing" || !observation.controllerId)
           return { control: { kind: "release" } };
-        pilot ??= new BotController(observation.controllerId);
+        pilot ??= new BotController(observation.controllerId, random);
         return {
           control: {
             kind: "input",
             input: pilot.update(
-              performance.now() / 1000,
+              elapsedMs / 1000,
               arenaOf(observation.runtime).world,
             ),
           },

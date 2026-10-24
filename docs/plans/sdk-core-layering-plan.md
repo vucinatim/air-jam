@@ -1,7 +1,7 @@
 # SDK Core Layering Plan
 
-Last updated: 2026-10-20
-Status: direction agreed with Tim, not started; phases 1, 5 and the game declaration are 1.0 scope
+Last updated: 2026-10-24
+Status: phases 1, 2, 3 and 5 built on `claude/sdk-core-layering`, in review for `release/1.0`; the protocol suite and agent lanes are next; phases 1, 5 and the game declaration are 1.0 scope
 
 This plan owns giving the SDK a small framework-free core with React as a thin
 binding over it, an SDK-owned clock that lets game logic run without drawing,
@@ -37,9 +37,7 @@ speak is defined only by what that code happens to do.
 Games add their own coupling on top. Air Capture declares its physics world as
 React components (16 files use the React Rapier wrapper) and runs its logic in
 the per-frame render hook across 22 files. Rapier itself is plain and
-deterministic; the wrapper is what ties physics to drawing. Pong, Code Review
-and The Office already use the SDK clock; Last Band Standing and
-Minimal are driven by actions alone.
+deterministic; the wrapper is what ties physics to drawing.
 
 Nearly every Air Jam game will be written by agents with no person reading the
 code, so what agents copy and what the tools reject decides game quality more
@@ -87,9 +85,10 @@ and dev-server tools does not apply there.
 Sketches agreed on 2026-10-20 as indicators, not final names; phases 1 and 6
 settle the exact API.
 
-**Stays the same.** The app config, the input schema, controllers sending
-input, React components reading state, the three lanes, host authority, rooms
-and QR joining.
+**Stays the same.** The app config, React components reading state, the
+three lanes, host authority, rooms and QR joining. Input does not stay the
+same: the [input system plan](./sdk-input-system-plan.md) replaces the input
+schema with declared controls that the host applies at each simulation step.
 
 ```tsx
 const { joinTeam } = usePongStore((s) => s.actions); // controller
@@ -285,6 +284,110 @@ Done when a fresh agent, given only "make a game like X" in a new project and
 in Studio, produces a game that passes the architecture gate with declared
 settings and a headless test, and Studio's worker instructions no longer
 override project guidance.
+
+## Progress
+
+Built on `claude/sdk-core-layering` (2026-10-20), each step checked by the SDK,
+devtools, game and contract suites and by playing Pong in a browser with a phone
+controller:
+
+1. `@air-jam/sdk/core` holds `HostRuntime` and `ControllerRuntime` behind
+   environment ports; the React hooks bind to them. The SDK typecheck runs a
+   boundary check: the core typechecks against web-worker globals only and may
+   import only zod, zustand/vanilla, nanoid and socket.io. The built core
+   reaches nanoid, zod and zustand/vanilla. Both runtimes run in plain Node in
+   tests.
+2. Stores are plain core objects from `createAirJamStore`, declared in
+   `createAirJamApp({ stores })` and attached by the runtime whether or not a
+   component reads them. React reads them with `useAirJamStore(store,
+selector)`; dispatch is `store.actions`. Reading an undeclared store throws
+   `AJ_STORE_NOT_DECLARED`. All six games, templates and creator docs moved.
+3. `SimulationClock` steps a declared `createAirJamApp({ simulation })` with
+   seeded randomness; browsers drive it from animation frames and headless code
+   calls `advance(ms)`. It steps only while the room is playing, so a pause
+   freezes game time and no simulation guards for it. React draws with
+   `useSimulationFrame` and reacts with `useSimulationEvents`. Pong's whole
+   match runs in `pongSimulation`.
+4. A simulation declares what agents see with `observe(sim, context)`. The
+   host runtime publishes it with the clock's tick, and also owns the agent
+   contract registration and the input buffer, so all three work without
+   React. A host view adds an image with `useHostAgentCapture`. The host
+   environment gains a clock port (`now()`): input leases, command deadlines
+   and observation timestamps run on it.
+5. Test profiles run headless (`airjam session run start --headless`, MCP
+   target `headless`). A child process runs the relay on a loopback port and
+   the game's host core, built by `airjam.createHostRuntime` from the game's
+   own SDK; players join over the relay as in owned runs. The existing run
+   owner plays on a run clock: wall time for a live room, game time for a
+   headless one, where waiting advances the simulation. Pong's scoring profile
+   passes in a devtools test in about 4 seconds end to end.
+6. The Office and Code Review play their whole matches in declared
+   simulations, on game time with seeded randomness, and emit events the host
+   turns into toasts, sounds and haptics. Their agent views moved into
+   `observe`. `useHostTick` is removed. All three of their authored profiles
+   pass headless: The Office's two-minute shift in about 17 seconds, Code
+   Review's bot round in about 4 and its four-fighter brawl in about 7.
+7. Air Capture (phase 3) plays its whole match in a declared simulation that
+   owns a Rapier world built from the arena layout: flight, lasers and rockets
+   ray-cast against physics shapes rather than drawn meshes, pickups, jump
+   pads, flags and bases as overlap checks, bots, abilities and the countdown
+   on game time. The scene, HUD and debug panel read it through
+   `useSimulationSelector`; prefabs read a small arena view, so the prefab
+   preview still draws them. The game declares the simulation as a loader
+   (`simulation: () => import(...)`), so phones never download Rapier.
+   `useHostAgentObservation` and `@react-three/rapier` are gone. Its capture
+   profile passes headless in about 13 seconds, and the same seed and inputs
+   replay the same match.
+8. Store actions run on game time (2026-10-24): the action context carries
+   `ctx.now`, the simulation's time when the game declares one and the host
+   clock otherwise. Pong and Air Capture stamp match times with it; Air
+   Capture's simulation writes the countdown's whole seconds to the store
+   for phones. Last Band Standing's round timers moved from host effects and
+   `setTimeout` onto a declared round clock that calls one `advanceClock`
+   action; its screens read `secondsLeft` from the store and its host reads
+   the clock for the timer bar and music fades. No game action reads the wall
+   clock.
+9. The export surface is tidy (G6-09, 2026-10-24): an export stays only when
+   first-party code or the hosted product uses it, or the creator docs teach
+   it. The `arcade` and `arcade/bridge` barrels, root re-exports of protocol
+   types, `useConnectionStatus`, `usePlayers`, unused match-phase helpers and
+   helpers only the SDK itself used are gone. The architecture guide shows
+   the core and its React binding as one runtime with a table giving each of
+   the 21 entry points one purpose; the README's stability policy and the
+   migration guide follow it.
+
+Decisions made while building:
+
+1. `airjam.config.ts` stays the single declaration; tools already load it in
+   Node. A separate React-free game definition file was not needed.
+2. Store definitions import from `@air-jam/sdk/core`; the root exports only the
+   React reading hooks, so there is one import path per concept.
+3. Per-store hook objects and `useLiveStateRef` are removed;
+   `store.getState()` is always current.
+4. The headless room reuses the real relay and the Node controllers rather than
+   an in-memory room, so headless and live runs share every protocol path.
+5. The game's app builds its own host core. Monorepo games resolve the SDK to
+   source through tsconfig paths, so a host built from the tool's SDK copy
+   could not see the game's stores.
+
+Measured: headless play runs about 6 to 8 times faster than real time on a
+loaded bee, short of the ten times aimed for. Pong's scoring profile decides
+every 100 ms, and each decision round costs about eight round trips between
+the run owner, the room and the policy and evaluator processes. Profiles that
+decide less often run proportionally faster. Fewer round trips per round, for
+example observing every seat in one request, would raise it.
+
+Next:
+
+1. Phase 4, the protocol contract and its conformance suite; `/protocol`
+   kept its full surface for it.
+2. Phase 6, agent lanes, starting with the declaration surface (G6-10).
+3. Store actions draw randomness from `Math.random()` where they use any, for
+   example Last Band Standing's playlist; replays need the seeded stream.
+4. Owned runs still refuse monorepo games (they need a standalone game with its
+   own lockfile), so headless is the only profile run for first-party games.
+5. The Arcade's SDK architecture diagram, drawn by the hosted product, still
+   shows the provider pattern.
 
 ## Releases and removals
 

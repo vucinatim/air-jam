@@ -28,7 +28,6 @@ const AIMS: Record<BotStrategy, string> = {
 /** Let a choice play out for a while before asking again. */
 const RETHINK_MS = 2000;
 
-const seconds = () => performance.now() / 1000;
 const isStrategy = (choice: string): choice is BotStrategy =>
   (BOT_STRATEGIES as readonly string[]).includes(choice);
 /** The arena as the game's own bots see it, and the score. */
@@ -40,8 +39,12 @@ function fly(
   pilot: BotController,
   world: BotWorld,
   strategy: BotStrategy,
+  elapsedMs: number,
 ): AirJamPlayControl {
-  return { kind: "input", input: pilot.update(seconds(), world, strategy) };
+  return {
+    kind: "input",
+    input: pilot.update(elapsedMs / 1000, world, strategy),
+  };
 }
 
 function chooseTeam(teams: Snapshot["teams"]): AirJamDecisionQuestion {
@@ -75,6 +78,8 @@ function match(
   controllerId: string,
   world: BotWorld,
   scores: Record<TeamId, number>,
+  random: () => number,
+  elapsedMs: number,
 ): AirJamDecisionQuestion | null {
   const context = new GameContext(world);
   const self = context.getSelf(controllerId);
@@ -126,7 +131,12 @@ function match(
         strategy,
         {
           when: `My aim right now is to ${AIMS[strategy]}.`,
-          control: fly(new BotController(controllerId), world, strategy),
+          control: fly(
+            new BotController(controllerId, random),
+            world,
+            strategy,
+            elapsedMs,
+          ),
         },
       ]),
     ),
@@ -142,26 +152,31 @@ export const airCapturePlayer = {
     "My ship flies itself towards whatever I aim for; I choose what to aim for.",
     "Unless you have been given another goal: carry the enemy flag home when you have it, chase whoever carries our flag, return our dropped flag, otherwise go for the enemy flag, fight enemies that come close, and grab a health pack when badly hurt.",
   ].join(" "),
-  turn: ({ observation }) => {
+  turn: ({ observation, random, elapsedMs }) => {
     const snapshot = snapshotSchema.parse(observation.snapshot);
     if (snapshot.matchPhase === "lobby" && !snapshot.myAssignment)
       return chooseTeam(snapshot.teams);
     if (snapshot.matchPhase !== "playing" || !observation.controllerId)
       return null;
     const { world, scores } = arenaOf(observation.runtime);
-    return match(observation.controllerId, world, scores);
+    return match(observation.controllerId, world, scores, random, elapsedMs);
   },
   act: {
     rethinkMs: RETHINK_MS,
     // One persistent pilot per seat, so jump-pad routes survive between steps.
-    create: () => {
+    create: ({ random }) => {
       let pilot: BotController | undefined;
       return {
-        control: ({ observation, choice }) => {
+        control: ({ observation, choice, elapsedMs }) => {
           const controllerId = observation.controllerId;
           if (!controllerId || !isStrategy(choice)) return null;
-          pilot ??= new BotController(controllerId);
-          return fly(pilot, arenaOf(observation.runtime).world, choice);
+          pilot ??= new BotController(controllerId, random);
+          return fly(
+            pilot,
+            arenaOf(observation.runtime).world,
+            choice,
+            elapsedMs,
+          );
         },
       };
     },

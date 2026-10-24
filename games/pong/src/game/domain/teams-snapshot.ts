@@ -1,6 +1,7 @@
 import type { PlayerProfile } from "@air-jam/sdk";
+import { useAirJamStore } from "@air-jam/sdk";
 import { useMemo } from "react";
-import { usePongStore, type PongState, type TeamAssignment } from "../stores";
+import { pongStore, type PongState, type TeamAssignment } from "../stores";
 import {
   getLobbyReadinessText,
   getMatchReadiness,
@@ -55,13 +56,26 @@ export const useTeamsSnapshot = (
   players: PlayerProfile[],
   perspective: "host" | "controller",
 ): TeamsSnapshot => {
-  const teamAssignments = usePongStore(
+  const teamAssignments = useAirJamStore(
+    pongStore,
     (state: PongState) => state.teamAssignments,
   );
-  const botCounts = usePongStore((state: PongState) => state.botCounts);
-  const pointsToWin = usePongStore((state: PongState) => state.pointsToWin);
-  const matchPhase = usePongStore((state: PongState) => state.matchPhase);
-  const matchSummary = usePongStore((state: PongState) => state.matchSummary);
+  const botCounts = useAirJamStore(
+    pongStore,
+    (state: PongState) => state.botCounts,
+  );
+  const pointsToWin = useAirJamStore(
+    pongStore,
+    (state: PongState) => state.pointsToWin,
+  );
+  const matchPhase = useAirJamStore(
+    pongStore,
+    (state: PongState) => state.matchPhase,
+  );
+  const matchSummary = useAirJamStore(
+    pongStore,
+    (state: PongState) => state.matchSummary,
+  );
 
   const team1Players = useMemo(
     () =>

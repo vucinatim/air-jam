@@ -1,10 +1,16 @@
 /**
- * Host surface for Code Review. The host owns the authoritative simulation,
- * canvas renderer, and host-only preview controls.
+ * Host surface for Code Review. The declared simulation
+ * (`game/engine/code-review-simulation.ts`) plays the fight; this surface
+ * draws it, plays its sounds and hosts the preview controls.
  * Runtime details live in host hooks so this route stays a small composition
  * hub instead of a mixed engine/UI file.
  */
-import { AudioRuntime, MusicPlaylist, useAirJamHost } from "@air-jam/sdk";
+import {
+  AudioRuntime,
+  MusicPlaylist,
+  useAirJamHost,
+  useAirJamStore,
+} from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { gameInputSchema } from "../game/contracts/input";
@@ -12,15 +18,15 @@ import {
   CODE_REVIEW_MUSIC_TRACKS,
   CODE_REVIEW_SOUND_MANIFEST,
 } from "../game/contracts/sounds";
-import { useGameStore } from "../game/stores";
+import { gameStore } from "../game/stores";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
 import { PausedOverlay } from "./components/paused-overlay";
 import { PlayingScreen } from "./components/playing-screen";
 import { useCodeReviewAudio } from "./hooks/use-code-review-audio";
 import { useCodeReviewCanvas } from "./hooks/use-code-review-canvas";
-import { useCodeReviewHostRuntime } from "./hooks/use-code-review-host-runtime";
 import { useCodeReviewHostTeams } from "./hooks/use-code-review-host-teams";
+import { useCodeReviewMatchView } from "./hooks/use-code-review-match-view";
 import { useCodeReviewSprites } from "./hooks/use-code-review-sprites";
 
 export function HostView() {
@@ -33,17 +39,15 @@ export function HostView() {
 
 function CodeReviewHost() {
   const host = useAirJamHost<typeof gameInputSchema>();
-  const matchPhase = useGameStore((state) => state.matchPhase);
-  const actions = useGameStore.useActions();
+  const matchPhase = useAirJamStore(gameStore, (state) => state.matchPhase);
+  const actions = gameStore.actions;
 
   const canvas = useCodeReviewCanvas();
   const sprites = useCodeReviewSprites();
   const teams = useCodeReviewHostTeams();
   const audio = useCodeReviewAudio(matchPhase);
-  const runtime = useCodeReviewHostRuntime({
-    matchPhase,
+  const runtime = useCodeReviewMatchView({
     participantBySlot: teams.participantBySlot,
-    slotParticipants: teams.slotParticipants,
     spritesRef: sprites.spritesRef,
     getContext: canvas.getContext,
     getArenaColors: canvas.getArenaColors,

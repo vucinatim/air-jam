@@ -1,4 +1,3 @@
-import { DEFAULT_MAX_PLAYERS } from "../constants";
 import {
   createAirJamDiagnosticError,
   emitAirJamDiagnostic,
@@ -11,23 +10,14 @@ import {
   readRuntimeTopologyFromWindow,
   resolveProjectRuntimeTopology,
   resolveRuntimeTopology,
-  type ProxyStrategy,
   type ResolvedAirJamRuntimeTopology,
   type RuntimeTopologyInput,
   type SurfaceRole,
 } from "../runtime-topology";
 
-export interface AirJamConfig {
-  topology: ResolvedAirJamRuntimeTopology;
-  appId?: string;
-  hostGrantEndpoint?: string;
-  maxPlayers: number;
-  hostSessionKind: HostSessionKind;
-  backendOrigin: string;
-  socketOrigin: string;
-  appOrigin: string;
-  proxyStrategy: ProxyStrategy;
-}
+import { createAirJamConfig, type AirJamConfig } from "../core/config";
+
+export type { AirJamConfig };
 
 export interface ResolveAirJamConfigInput {
   topology?: RuntimeTopologyInput | ResolvedAirJamRuntimeTopology;
@@ -249,8 +239,8 @@ export const resolveAirJamConfig = ({
   surfaceRole,
   appId,
   hostGrantEndpoint,
-  maxPlayers = DEFAULT_MAX_PLAYERS,
-  hostSessionKind = "game",
+  maxPlayers,
+  hostSessionKind,
   resolveEnv = true,
 }: ResolveAirJamConfigInput): AirJamConfig => {
   const resolvedTopology = topology
@@ -285,15 +275,11 @@ export const resolveAirJamConfig = ({
     });
   }
 
-  return {
+  return createAirJamConfig({
     topology: resolvedTopology,
     appId: resolvedAppId,
     hostGrantEndpoint: hostGrantEndpoint ?? getEnvHostGrantEndpoint(),
     maxPlayers,
     hostSessionKind,
-    backendOrigin: resolvedTopology.backendOrigin,
-    socketOrigin: resolvedTopology.socketOrigin,
-    appOrigin: resolvedTopology.appOrigin,
-    proxyStrategy: resolvedTopology.proxyStrategy,
-  };
+  });
 };

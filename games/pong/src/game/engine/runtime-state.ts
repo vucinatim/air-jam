@@ -19,11 +19,11 @@ export const createRuntimeState = (): RuntimeState => ({
   awaitingServe: false,
 });
 
-export const resetBall = (state: RuntimeState): void => {
+export const resetBall = (state: RuntimeState, random: () => number): void => {
   state.ballX = FIELD_WIDTH / 2;
   state.ballY = FIELD_HEIGHT / 2;
-  state.ballVX = BALL_SPEED * (Math.random() > 0.5 ? 1 : -1);
-  state.ballVY = BALL_SPEED * (Math.random() > 0.5 ? 1 : -1);
+  state.ballVX = BALL_SPEED * (random() > 0.5 ? 1 : -1);
+  state.ballVY = BALL_SPEED * (random() > 0.5 ? 1 : -1);
   state.lastTouchedTeam = null;
   state.awaitingServe = false;
 };
@@ -61,8 +61,9 @@ export const resetRuntimeStateBuffers = (
 
 export const resetRuntimeStateBufferBall = (
   buffers: RuntimeStateBuffers,
+  random: () => number,
 ): void => {
-  resetBall(buffers.current);
+  resetBall(buffers.current, random);
   copyRuntimeState(buffers.previous, buffers.current);
   copyRuntimeState(buffers.render, buffers.current);
 };

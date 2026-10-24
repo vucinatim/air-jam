@@ -1,4 +1,4 @@
-// Optional UI entrypoint. Core runtime stays headless at `@air-jam/sdk`.
+// Ready-made React components for host and controller shells.
 export * from "./components/connection-status-pill";
 export * from "./components/controller-player-name-field";
 export * from "./components/controller-primary-action";
@@ -24,6 +24,4 @@ export * from "./hooks/use-lifecycle-action-group-model";
 export {
   AIRJAM_DEFAULT_AVATAR_SEEDS,
   getDiceBearAdventurerNeutralUrl,
-  getPlayerAvatarImageUrl,
-  resolvePlayerAvatarSeed,
 } from "./utils/player-avatar-url";

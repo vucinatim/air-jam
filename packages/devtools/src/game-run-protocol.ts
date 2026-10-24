@@ -84,6 +84,8 @@ export const startGameRunSchema = z
     target: z.discriminatedUnion("kind", [
       z.object({ kind: z.literal("owned") }).strict(),
       z.object({ kind: z.literal("current") }).strict(),
+      /** Plays in a room with no page, on game time, as fast as the host runs. */
+      z.object({ kind: z.literal("headless") }).strict(),
     ]),
     profileId: z.string().min(1).max(64),
     policyId: z.string().min(1).max(64),

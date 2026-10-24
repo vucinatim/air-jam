@@ -1,3 +1,4 @@
+import { useAirJamStore } from "@air-jam/sdk";
 import {
   JoinQrOverlay,
   JoinUrlControls,
@@ -7,7 +8,7 @@ import {
   getPlayerById,
   getPlayerCapabilityHighlights,
 } from "../../game/content/players";
-import { useSpaceStore } from "../../game/stores";
+import { spaceStore } from "../../game/stores";
 import type { OfficeHostSession } from "../hooks/use-office-host-session";
 
 export function OfficeHostLobbyOverlay({
@@ -15,7 +16,10 @@ export function OfficeHostLobbyOverlay({
 }: {
   session: OfficeHostSession;
 }) {
-  const playerAssignments = useSpaceStore((state) => state.playerAssignments);
+  const playerAssignments = useAirJamStore(
+    spaceStore,
+    (state) => state.playerAssignments,
+  );
   const {
     roomId,
     players,

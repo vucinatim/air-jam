@@ -8,6 +8,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createConnectionStore } from "../src/core/connection-store";
 import { onAirJamDiagnostic } from "../src/diagnostics";
 import { useAirJamController } from "../src/hooks/use-air-jam-controller";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
@@ -22,7 +23,6 @@ import {
   AirJamControllerRuntime,
   AirJamHostRuntime,
 } from "../src/runtime/session-runtimes";
-import { createAirJamStore } from "../src/state/connection-store";
 
 interface MockSocket {
   connected: boolean;
@@ -67,7 +67,7 @@ const mocked = vi.hoisted(() => ({
 
     return socket;
   },
-  store: null as ReturnType<typeof createAirJamStore> | null,
+  store: null as ReturnType<typeof createConnectionStore> | null,
   controllerSocket: null as unknown as MockSocket,
   hostSocket: null as unknown as MockSocket,
   useAirJamContext: vi.fn(),
@@ -177,7 +177,7 @@ describe("session reconnect behavior", () => {
     window.history.replaceState({}, "", "/");
     localStorage.clear();
     sessionStorage.clear();
-    mocked.store = createAirJamStore();
+    mocked.store = createConnectionStore();
     mocked.controllerSocket = mocked.createMockSocket();
     mocked.hostSocket = mocked.createMockSocket();
     vi.stubGlobal("fetch", vi.fn());
@@ -191,7 +191,7 @@ describe("session reconnect behavior", () => {
       getSocket: (role: "host" | "controller") =>
         role === "controller" ? mocked.controllerSocket : mocked.hostSocket,
       disconnectSocket: vi.fn(),
-      inputManager: null,
+      input: undefined,
     });
   });
 
@@ -1135,7 +1135,7 @@ describe("session reconnect behavior", () => {
       getSocket: (role: "host" | "controller") =>
         role === "controller" ? mocked.controllerSocket : mocked.hostSocket,
       disconnectSocket: vi.fn(),
-      inputManager: null,
+      input: undefined,
     });
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ hostGrant: "signed_host_grant" }), {

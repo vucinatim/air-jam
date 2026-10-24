@@ -9,8 +9,6 @@ const packageJson = JSON.parse(
 export default defineConfig((options) => ({
   entry: [
     "src/index.ts",
-    "src/arcade.ts",
-    "src/arcade/bridge.ts",
     "src/arcade/bridge/controller.ts",
     "src/arcade/bridge/host.ts",
     "src/arcade/bridge/iframe.ts",
@@ -30,6 +28,7 @@ export default defineConfig((options) => ({
     "src/runtime-inspection.ts",
     "src/runtime-control.ts",
     "src/controller-bridge.ts",
+    "src/core.ts",
   ],
   format: ["cjs", "esm"],
   dts: true, // Generate declaration files

@@ -21,14 +21,14 @@ vi.mock("@air-jam/sdk", () => ({
     roomId: "TEST",
     connectionStatus: fixture.connectionStatus,
   }),
+  useAirJamStore: (
+    _store: unknown,
+    selector: (state: typeof fixture.state) => unknown,
+  ) => selector(fixture.state),
 }));
 vi.mock("@air-jam/sdk/ui", () => ({ SurfaceViewport: () => null }));
 vi.mock("../src/game/store", () => ({
-  useMinimalStore: Object.assign(
-    (selector: (state: typeof fixture.state) => unknown) =>
-      selector(fixture.state),
-    { useActions: () => ({ tap: fixture.tap }) },
-  ),
+  minimalStore: { actions: { tap: fixture.tap } },
 }));
 
 function findButton(

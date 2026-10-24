@@ -1,27 +1,27 @@
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import { useMemo } from "react";
-import { NOW_TICK_MS } from "../../game/constants";
 import { getSongById } from "../../game/content/song-bank";
 import { toShellMatchPhase } from "../../game/domain/match-phase";
-import { useNowTick } from "../../game/hooks/use-now-tick";
-import { useGameStore } from "../../game/stores";
+import { gameStore } from "../../game/stores";
 import { getYouTubeEmbedUrl, useYouTubePlayer } from "../youtube";
 import { useHostAudioCues } from "./use-host-audio-cues";
 import { useHostPlayerSync } from "./use-host-player-sync";
-import { useHostRoundEffects } from "./use-host-round-effects";
 
 export function useHostRoundVideoRuntime() {
   const host = useAirJamHost();
   const players = useAirJamHost((state) => state.players);
   const connectionStatus = useAirJamHost((state) => state.connectionStatus);
   const runtimeState = useAirJamHost((state) => state.runtimeState);
-  const nowMs = useNowTick(NOW_TICK_MS);
 
-  const phase = useGameStore((state) => state.phase);
-  const revealDurationSec = useGameStore((state) => state.revealDurationSec);
-  const currentRound = useGameStore((state) => state.currentRound);
-  const roundReveal = useGameStore((state) => state.roundReveal);
-  const actions = useGameStore.useActions();
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const revealDurationSec = useAirJamStore(
+    gameStore,
+    (state) => state.revealDurationSec,
+  );
+  const currentRound = useAirJamStore(gameStore, (state) => state.currentRound);
+  const roundReveal = useAirJamStore(gameStore, (state) => state.roundReveal);
+  const secondsLeft = useAirJamStore(gameStore, (state) => state.secondsLeft);
+  const actions = gameStore.actions;
 
   const activeSong = useMemo(() => {
     if (phase === "round-active" && currentRound) {
@@ -41,23 +41,9 @@ export function useHostRoundVideoRuntime() {
     ? getYouTubeEmbedUrl(activeSong.youtubeUrl, true, activeClipStartSeconds)
     : null;
 
-  const countdownSeconds = currentRound
-    ? Math.max(0, Math.ceil((currentRound.endsAtMs - nowMs) / 1000))
-    : 0;
-  const matchCountdownSeconds =
-    phase === "match-countdown" && currentRound
-      ? Math.max(0, Math.ceil((currentRound.startedAtMs - nowMs) / 1000))
-      : 0;
-
   useHostPlayerSync(players, actions, connectionStatus === "connected");
-  useHostRoundEffects({ actions, phase, currentRound, roundReveal });
 
-  const hostAudio = useHostAudioCues({
-    phase,
-    roundReveal,
-    matchCountdownSeconds,
-    countdownSeconds,
-  });
+  const hostAudio = useHostAudioCues({ phase, roundReveal, secondsLeft });
 
   const { youtubePlayerRef, onIframeLoad } = useYouTubePlayer({
     phase,
@@ -66,7 +52,7 @@ export function useHostRoundVideoRuntime() {
     currentRound,
     roundReveal,
     revealDurationSec,
-    finalizeRound: actions.finalizeRound,
+    skipRound: actions.skipRound,
   });
 
   const shellPhase = toShellMatchPhase(phase);

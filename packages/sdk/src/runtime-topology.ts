@@ -411,10 +411,7 @@ export const serializeRuntimeTopology = (
 export const parseRuntimeTopology = (
   serialized: string,
 ): ResolvedAirJamRuntimeTopology => {
-  const normalized = assertString(
-    serialized,
-    "serialized runtime topology",
-  );
+  const normalized = assertString(serialized, "serialized runtime topology");
 
   let parsed: unknown;
   try {
@@ -427,7 +424,7 @@ export const parseRuntimeTopology = (
 };
 
 export const readRuntimeTopologyFromEnv = (
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> | undefined,
 ): ResolvedAirJamRuntimeTopology | null => {
   for (const key of AIR_JAM_RUNTIME_TOPOLOGY_ENV_KEYS) {
     const candidate = env?.[key];
@@ -443,9 +440,11 @@ export const readRuntimeTopologyFromWindow = (
   target:
     | Record<string, unknown>
     | { [AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY]?: unknown }
-    | undefined = (globalThis as typeof globalThis & {
-    window?: { [AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY]?: unknown };
-  }).window,
+    | undefined = (
+    globalThis as typeof globalThis & {
+      window?: { [AIR_JAM_RUNTIME_TOPOLOGY_WINDOW_KEY]?: unknown };
+    }
+  ).window,
 ): ResolvedAirJamRuntimeTopology | null => {
   if (!target || typeof target !== "object") {
     return null;

@@ -27,9 +27,14 @@ import {
   computeGameSnapshotObservation,
 } from "./game-action-observation.js";
 import type { PinnedGameBuild } from "./game-build-protocol.js";
-import type { GameRunParticipant, GameRunSession } from "./game-run-owner.js";
+import {
+  wallClock,
+  type GameRunParticipant,
+  type GameRunSession,
+} from "./game-run-owner.js";
 import { GameSessionOperations } from "./game-session-operations.js";
 import { gameSessionOperationSchemas } from "./game-session-protocol.js";
+import type { HeadlessRoom } from "./headless-room.js";
 import type { ProcessScopeObserver } from "./managed-process-scope.js";
 import type {
   AirJamGameAgentActionDescriptor,
@@ -579,17 +584,31 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       {
         delegation,
         build,
+        room,
         onScope,
       }: {
         /** The creator's host and the further seat identities its editor issued. */
         delegation?: { host: HostRequester; seatControllerIds: string[] };
         build?: PinnedGameBuild;
+        /** A headless room this run owns; its players join it on game time. */
+        room?: HeadlessRoom;
         onScope?: ProcessScopeObserver;
       } = {},
     ): Promise<GameRunSession> {
+      if (room && (delegation || build || options.controllerJoinUrl))
+        throw new Error(
+          "A headless room is its own target; it takes no build or other room.",
+        );
       const summary = await openGameSession(
-        options,
-        delegation && { access: "delegated-host", request: delegation.host },
+        room
+          ? { ...options, controllerJoinUrl: room.controllerJoinUrl }
+          : options,
+        room
+          ? { access: "owned-host", request: room.requestHost }
+          : delegation && {
+              access: "delegated-host",
+              request: delegation.host,
+            },
         build,
         onScope,
       );
@@ -645,6 +664,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
           });
       return {
         summary,
+        clock: room?.clock ?? wallClock,
         watch: watchController(summary.controllerSessionId),
         watchHost: (onEvent, signal) =>
           watchControllerSessionVisuals({

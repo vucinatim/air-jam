@@ -23,6 +23,7 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
+import type { AirJamConnectionState } from "../core/connection-store";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
@@ -38,7 +39,6 @@ import type {
 } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
-import type { AirJamStore } from "../state/connection-store";
 
 /**
  * Options for configuring the controller runtime boundary.
@@ -179,7 +179,9 @@ export type AirJamControllerRuntimeControls = Pick<
   | "socket"
 >;
 
-const toControllerState = (state: AirJamStore): AirJamControllerState => {
+const toControllerState = (
+  state: AirJamConnectionState,
+): AirJamControllerState => {
   const selfPlayer = state.controllerId
     ? (state.players.find((player) => player.id === state.controllerId) ?? null)
     : null;

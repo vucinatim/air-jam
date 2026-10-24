@@ -7,12 +7,12 @@ import {
   createEmptyScore,
   getLabelForPlayer,
 } from "@/game/domain/player-utils";
-import { useGameStore } from "@/game/stores";
+import { gameStore } from "@/game/stores";
 import { cn } from "@/game/ui/classes";
 import { PlayerAvatarWithFire } from "@/game/ui/player-avatar-with-fire";
 import { VerticalLogo } from "@/game/ui/vertical-logo";
 import { MenuVideoBackground } from "@/host/components/menu-video-background";
-import { useAirJamHost } from "@air-jam/sdk";
+import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import {
   JoinQrOverlay,
   JoinUrlControls,
@@ -38,18 +38,26 @@ export const HostLobby = () => {
   const roomId = useAirJamHost((state) => state.roomId);
   const lastError = useAirJamHost((state) => state.lastError);
   const players = useAirJamHost((state) => state.players);
-  const phase = useGameStore((state) => state.phase);
-  const playerOrder = useGameStore((state) => state.playerOrder);
-  const playerLabelById = useGameStore((state) => state.playerLabelById);
-  const readyByPlayerId = useGameStore((state) => state.readyByPlayerId);
-  const totalRounds = useGameStore((state) => state.totalRounds);
-  const selectedSongBucketIds = useGameStore(
+  const phase = useAirJamStore(gameStore, (state) => state.phase);
+  const playerOrder = useAirJamStore(gameStore, (state) => state.playerOrder);
+  const playerLabelById = useAirJamStore(
+    gameStore,
+    (state) => state.playerLabelById,
+  );
+  const readyByPlayerId = useAirJamStore(
+    gameStore,
+    (state) => state.readyByPlayerId,
+  );
+  const totalRounds = useAirJamStore(gameStore, (state) => state.totalRounds);
+  const selectedSongBucketIds = useAirJamStore(
+    gameStore,
     (state) => state.selectedSongBucketIds,
   );
-  const scoreboardByPlayerId = useGameStore(
+  const scoreboardByPlayerId = useAirJamStore(
+    gameStore,
     (state) => state.scoreboardByPlayerId,
   );
-  const actions = useGameStore.useActions();
+  const actions = gameStore.actions;
   const readyCount = playerOrder.filter(
     (playerId) => readyByPlayerId[playerId],
   ).length;

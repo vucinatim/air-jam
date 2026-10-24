@@ -10,7 +10,19 @@ import {
   PLAYER_MAX_SPEED,
 } from "../../constants";
 
-import type { PlayerFlightState } from "../../stores/players/flight-state-store";
+export type FlightMode = "grounded" | "airborne";
+
+export interface PlayerFlightState {
+  mode: FlightMode;
+  airControlEnergy: number;
+  isAirControlDepleted: boolean;
+}
+
+export const createPlayerFlightState = (): PlayerFlightState => ({
+  mode: "grounded",
+  airControlEnergy: 1,
+  isAirControlDepleted: false,
+});
 
 export const SHIP_ENGINE_CONFIG = {
   HOVER_HEIGHT: 5,

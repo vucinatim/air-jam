@@ -220,7 +220,7 @@ const ControllerView = () => {
 ### 1. Keep Input and State in Separate Lanes
 
 - Input lane: `useInputWriter` + `getInput` / `useGetInput`
-- State lane: `createAirJamStore` + `useActions`
+- State lane: `createAirJamStore` + `store.actions`
 
 Do not send per-frame analog input via store actions.
 

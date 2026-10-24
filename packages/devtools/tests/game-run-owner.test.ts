@@ -13,7 +13,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { DecisionProvider } from "../src/decision-provider.js";
-import { GameRunOwner, type GameRunSession } from "../src/game-run-owner.js";
+import {
+  GameRunOwner,
+  wallClock,
+  type GameRunSession,
+} from "../src/game-run-owner.js";
 import {
   MAXIMUM_GAME_RUN_TRACE_BYTES,
   type StartGameRunOptions,
@@ -153,6 +157,7 @@ async function fixture({
   const root = await mkdtemp(path.join(os.tmpdir(), "airjam-run-"));
   const events: string[] = [];
   const session: GameRunSession = {
+    clock: wallClock,
     watch: vi.fn(async () => {}),
     watchHost: vi.fn(async () => {}),
     summary: {

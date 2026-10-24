@@ -1,4 +1,4 @@
-export { useGameStore } from "./create-store";
+export { gameStore } from "./create-store";
 export type {
   ActiveRound,
   ConnectedPlayer,

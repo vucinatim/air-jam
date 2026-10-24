@@ -32,16 +32,48 @@ its database. The diagrams include hosted surfaces to show how embedding works.
 
 **Role:** Developer toolkit for building Air Jam games
 
-**Technology:** React, TypeScript, Socket.IO Client, Zustand, Zod
+**Technology:** TypeScript, Socket.IO Client, Zustand, Zod; React for the binding
 
 **Architecture:**
 
-**Key Design Decisions:**
+The SDK is one runtime in two layers:
 
-1. **Provider Pattern** - Single provider for configuration, multiple hooks for access
-2. **Lightweight Hooks** - `useGetInput`, `useSendSignal` don't trigger re-renders
-3. **Input Latching** - Ensures rapid button taps are never missed
-4. **Schema Validation** - Type-safe input with runtime validation
+1. **The core** (`@air-jam/sdk/core`) owns a room: the connection, players,
+   input, networked stores and their sync, the game's simulation on the SDK
+   clock, signals and the agent contract. It imports no React and no DOM, so
+   the same game runs in a browser, in Node without drawing, or faster than
+   real time in headless tests.
+2. **The React binding** (`@air-jam/sdk`) starts the core for a host or a
+   controller page and lets components read it: `useAirJamHost`,
+   `useAirJamController`, `useAirJamStore`, `useSimulationFrame`. Hooks
+   subscribe to the core; they never keep a second copy of the runtime.
+
+A game declares its stores and simulation once in `createAirJamApp`. Store
+definitions and simulations import from `@air-jam/sdk/core`; components import
+from `@air-jam/sdk`.
+
+**Entry points.** Each import path has one purpose:
+
+| Import path                                             | Purpose                                                                                                                 |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `@air-jam/sdk`                                          | React binding: the app declaration, host and controller hooks, audio, platform settings and the agent contract helpers  |
+| `@air-jam/sdk/core`                                     | Framework-free runtime: networked stores, simulations and the clock, host and controller runtimes                       |
+| `@air-jam/sdk/ui`                                       | Ready-made React components for host and controller shells                                                              |
+| `@air-jam/sdk/styles.css`                               | Styles for those components                                                                                             |
+| `@air-jam/sdk/metadata`                                 | The game's catalog metadata declaration                                                                                 |
+| `@air-jam/sdk/prefabs`                                  | Placeable scene pieces with previews                                                                                    |
+| `@air-jam/sdk/preview`                                  | Preview controllers shown beside a host during development                                                              |
+| `@air-jam/sdk/protocol`                                 | The wire contract: transport events and their schemas                                                                   |
+| `@air-jam/sdk/runtime-topology`                         | Where a runtime connects in each run mode                                                                               |
+| `@air-jam/sdk/runtime-control`                          | Calling a running host: agent requests, actions and observations                                                        |
+| `@air-jam/sdk/runtime-inspection`                       | Reading what a running host or controller publishes for tools                                                           |
+| `@air-jam/sdk/agent-tooling`                            | Checking and evaluating a game's agent contract                                                                         |
+| `@air-jam/sdk/controller-bridge`                        | Owning a controller's room connection from outside its page                                                             |
+| `@air-jam/sdk/arcade/*`                                 | Embedding games in the Arcade: `bridge/host`, `bridge/controller`, `bridge/iframe`, `host`, `runtime`, `surface`, `url` |
+| `@air-jam/sdk/release`, `@air-jam/sdk/platform-machine` | Contracts with the hosted platform for releases and the CLI                                                             |
+
+Games use the first five or six; the rest serve the CLI, MCP server, devtools,
+the server and the hosted platform.
 
 ### 3. Creator Harness
 

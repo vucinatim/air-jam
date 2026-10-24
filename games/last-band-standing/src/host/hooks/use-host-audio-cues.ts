@@ -7,15 +7,13 @@ import { useEffect, useRef } from "react";
 interface UseHostAudioCuesInput {
   phase: GamePhase;
   roundReveal: RoundReveal | null;
-  matchCountdownSeconds: number;
-  countdownSeconds: number;
+  secondsLeft: number;
 }
 
 export const useHostAudioCues = ({
   phase,
   roundReveal,
-  matchCountdownSeconds,
-  countdownSeconds,
+  secondsLeft,
 }: UseHostAudioCuesInput) => {
   const audio = useAudio();
   const audioPreference = useHostAudioMutePreference("last-band-standing");
@@ -55,15 +53,15 @@ export const useHostAudioCues = ({
     }
 
     if (
-      matchCountdownSeconds > 0 &&
-      matchCountdownSeconds <= MATCH_START_COUNTDOWN_SEC &&
-      previousMatchCountdownRef.current !== matchCountdownSeconds
+      secondsLeft > 0 &&
+      secondsLeft <= MATCH_START_COUNTDOWN_SEC &&
+      previousMatchCountdownRef.current !== secondsLeft
     ) {
       audio.play("countdown-tick");
     }
 
-    previousMatchCountdownRef.current = matchCountdownSeconds;
-  }, [audio, phase, matchCountdownSeconds]);
+    previousMatchCountdownRef.current = secondsLeft;
+  }, [audio, phase, secondsLeft]);
 
   useEffect(() => {
     if (phase !== "round-active") {
@@ -73,15 +71,15 @@ export const useHostAudioCues = ({
 
     if (
       previousCountdownRef.current !== null &&
-      countdownSeconds < previousCountdownRef.current &&
-      countdownSeconds > 0 &&
-      countdownSeconds <= 5
+      secondsLeft < previousCountdownRef.current &&
+      secondsLeft > 0 &&
+      secondsLeft <= 5
     ) {
       audio.play("countdown-tick");
     }
 
-    previousCountdownRef.current = countdownSeconds;
-  }, [audio, phase, countdownSeconds]);
+    previousCountdownRef.current = secondsLeft;
+  }, [audio, phase, secondsLeft]);
 
   return {
     muted: audioPreference.muted,

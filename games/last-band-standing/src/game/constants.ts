@@ -8,7 +8,6 @@ export const STREAK_FIRE_MIN_ROUNDS = 2;
 
 // ── Timing intervals (ms) ──
 export const NOW_TICK_MS = 250;
-export const FINALIZE_POLL_MS = 150;
 
 // ── YouTube playback ──
 export const YOUTUBE_MAX_VOLUME = 100;
