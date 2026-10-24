@@ -10,6 +10,8 @@ import {
   type LocalInputOperation,
   type LocalInputTarget,
 } from "../core/local-input";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
+import { embeddedRuntimeParent } from "./embedded-parent";
 
 /**
  * A preview phone launched for a local player carries its seat's label in
@@ -77,26 +79,35 @@ export const isLocalSeatReadyMessage = (data: unknown): boolean =>
 export const localSeatOpenedMessage = (seat: string) =>
   ({ type: "airjam.local-seat.opened", seat }) as const;
 
-/** An embedded host asks its parent for seats and relays operations through it. */
-export const createParentSeatProvider = (): LocalSeatProvider => ({
+/** A frame's parent and the origin it may talk to. */
+export interface LocalSeatParent {
+  window: Window;
+  origin: string;
+}
+
+/** An embedded host asks its declared parent for seats and relays operations through it. */
+export const createParentSeatProvider = (
+  parent: LocalSeatParent,
+): LocalSeatProvider => ({
   open: (seat) =>
     new Promise((resolve) => {
       const onMessage = (event: MessageEvent) => {
-        if (event.source !== window.parent) return;
+        if (event.source !== parent.window || event.origin !== parent.origin)
+          return;
         const opened = seatOpenedSchema.safeParse(event.data);
         if (!opened.success || opened.data.seat !== seat.key) return;
         window.removeEventListener("message", onMessage);
         resolve((operation) =>
-          window.parent.postMessage(
+          parent.window.postMessage(
             { type: "airjam.local-seat.input", seat: seat.key, operation },
-            "*",
+            parent.origin,
           ),
         );
       };
       window.addEventListener("message", onMessage);
-      window.parent.postMessage(
+      parent.window.postMessage(
         { type: "airjam.local-seat.request", seat },
-        "*",
+        parent.origin,
       );
     }),
 });
@@ -222,20 +233,31 @@ export const readLocalSeatLabel = (): string | null =>
         AIR_JAM_LOCAL_SEAT_QUERY_PARAM,
       );
 
-/** The phone side: a local-seat phone applies its parent's operations to its own controls. */
+/**
+ * The phone side: a local-seat phone applies its parent's operations to its
+ * own controls. Its parent is the embedding product its topology declares,
+ * or else the preview workspace, which launches it on its own origin.
+ */
 export const listenForLocalSeatInput = (
   target: LocalInputTarget | null,
+  topology: ResolvedAirJamRuntimeTopology | undefined,
 ): (() => void) => {
   if (!target || readLocalSeatLabel() === null || window.parent === window)
     return () => {};
+  const parent: LocalSeatParent = (topology &&
+    embeddedRuntimeParent(topology)) ?? {
+    window: window.parent,
+    origin: window.location.origin,
+  };
   const receiver = new LocalInputReceiver(target);
   const onMessage = (event: MessageEvent) => {
-    if (event.source !== window.parent) return;
+    if (event.source !== parent.window || event.origin !== parent.origin)
+      return;
     const message = phoneInputSchema.safeParse(event.data);
     if (message.success) receiver.apply(message.data.operation);
   };
   window.addEventListener("message", onMessage);
-  window.parent.postMessage({ type: "airjam.local-seat.ready" }, "*");
+  parent.window.postMessage({ type: "airjam.local-seat.ready" }, parent.origin);
   return () => {
     window.removeEventListener("message", onMessage);
     receiver.apply({ op: "release-all" });
