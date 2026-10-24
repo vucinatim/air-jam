@@ -51,14 +51,12 @@ export const resolveAirJamBrowserConsoleCategory = (
       "[AirJam]",
       "[Arcade]",
       "[GamePlayer]",
-      "[InputManager]",
       "[Arcade][AJ_",
     ]) ||
     matchesAnyPrefix(firstText, [
       "[AirJam]",
       "[Arcade]",
       "[GamePlayer]",
-      "[InputManager]",
       "[Arcade][AJ_",
     ])
   ) {

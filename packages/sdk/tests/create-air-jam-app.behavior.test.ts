@@ -1,11 +1,11 @@
 import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
 import {
   agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
 } from "../src/agent/agent-contract";
+import { defineAirJamInput, stick } from "../src/core/input";
 import { defineAirJamGameMetadata } from "../src/metadata";
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
@@ -39,11 +39,8 @@ describe("createAirJamApp", () => {
     expect(withCustomPath.paths.controller).toBe("/custom-controller");
   });
 
-  it("keeps runtime and input schema in host/controller session wiring", () => {
-    const inputSchema = z.object({
-      vector: z.object({ x: z.number(), y: z.number() }),
-      timestamp: z.number(),
-    });
+  it("keeps the runtime in host and controller sessions and the controls on the app", () => {
+    const shipInput = defineAirJamInput({ move: stick() });
 
     const airjam = createAirJamApp({
       runtime: {
@@ -55,25 +52,17 @@ describe("createAirJamApp", () => {
           publicHost: "https://play.example.com",
         }),
       },
-      input: {
-        schema: inputSchema,
-      },
+      input: shipInput,
     });
 
     expect(airjam.session.host.topology?.backendOrigin).toBe(
       "https://api.example.com",
     );
-    expect(airjam.session.host.topology?.publicHost).toBe(
-      "https://play.example.com",
-    );
-    expect(airjam.session.host.input?.schema).toBe(inputSchema);
-    expect(airjam.session.controller.topology?.backendOrigin).toBe(
-      "https://api.example.com",
-    );
     expect(airjam.session.controller.topology?.publicHost).toBe(
       "https://play.example.com",
     );
-    expect("input" in airjam.session.controller).toBe(false);
+    expect(airjam.input).toBe(shipInput);
+    expect("input" in airjam.session.host).toBe(false);
   });
 
   it("exposes agent-facing contracts on the returned app config", () => {

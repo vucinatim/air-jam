@@ -5,7 +5,7 @@ import {
   agentJson,
   createAirJamAgentEvaluator,
 } from "../../agent/agent-evaluator";
-import type { InputManager } from "../../internal/input-manager";
+import type { HostInput } from "../../core/host-input";
 import { roomCodeSchema } from "../../protocol/core";
 import type {
   ControllerLeasedControl,
@@ -74,7 +74,7 @@ type ParticipantReceiver = {
   readState: () => NonNullable<NonNullable<HostObservation["host"]>["before"]>;
   isParticipant: (controllerId: string) => boolean;
   input?: Pick<
-    InputManager,
+    HostInput,
     | "describeInputSchema"
     | "claimLeasedInput"
     | "supportsLeasedInput"

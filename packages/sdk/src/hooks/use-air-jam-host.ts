@@ -6,7 +6,6 @@
  * all the functionality needed to manage a multiplayer session:
  * - Room management (create/join rooms)
  * - Player tracking (join/leave events, player list)
- * - Input handling (typed and behavior-aware controller input)
  * - Signaling (send haptic feedback, toast notifications to controllers)
  * - Runtime pause/play controls and controller state broadcasts
  *
@@ -17,7 +16,6 @@
  * {@link ../runtime/embedded-runtime-adapters.readEmbeddedHostChildSession}.
  */
 import { useContext } from "react";
-import type { z } from "zod";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { useAirJamContext } from "../context/air-jam-context";
@@ -96,10 +94,8 @@ export interface AirJamHostOptions {
  * Return type of useAirJamHost hook.
  *
  * Provides all the state and functions needed to run a multiplayer game session.
- *
- * @template TSchema - Zod schema type for input (inferred from provider)
  */
-export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
+export interface AirJamHostApi {
   /** The room code for this session (e.g., "ABCD") */
   roomId: RoomCode;
   /** Full URL for controllers to join (display as QR code) */
@@ -157,27 +153,6 @@ export interface AirJamHostApi<TSchema extends z.ZodSchema = z.ZodSchema> {
   resetRoom: () => Promise<HostRegistrationAck>;
   /** Realtime client for host events (socket-backed standalone, bridge-backed in arcade embeds) */
   socket: AirJamRealtimeClient;
-  /**
-   * Get the latest input from a specific controller.
-   *
-   * Returns validated, typed input based on the schema provided to the session provider.
-   * Input behavior defaults are tap-safe booleans (`pulse`) and latest vectors (`latest`),
-   * with optional per-field overrides.
-   *
-   * @example In a game loop
-   * ```ts
-   * useFrame(() => {
-   *   players.forEach((player) => {
-   *     const input = host.getInput(player.id);
-   *     if (input?.action) {
-   *       fireWeapon(player.id);
-   *     }
-   *     movePlayer(player.id, input?.vector ?? { x: 0, y: 0 });
-   *   });
-   * });
-   * ```
-   */
-  getInput: (controllerId: string) => z.infer<TSchema> | undefined;
   /** The game's simulation clock, or null when the game declares no simulation. */
   simulation: SimulationClock<unknown, unknown, unknown> | null;
 }
@@ -192,10 +167,8 @@ export interface AirJamHostState {
   runtimeState: RuntimeState;
 }
 
-export type AirJamHostRuntimeControls<
-  TSchema extends z.ZodSchema = z.ZodSchema,
-> = Pick<
-  AirJamHostApi<TSchema>,
+export type AirJamHostRuntimeControls = Pick<
+  AirJamHostApi,
   | "roomId"
   | "joinUrl"
   | "joinUrlStatus"
@@ -208,7 +181,6 @@ export type AirJamHostRuntimeControls<
   | "removeController"
   | "resetRoom"
   | "socket"
-  | "getInput"
   | "simulation"
 > & {
   setObservationCapture: HostRuntime["setObservationCapture"];
@@ -240,11 +212,9 @@ const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
  * **Features:**
  * - Automatic room creation and management
  * - Real-time player join/leave events
- * - Typed input with validation and behavior defaults
  * - Haptic feedback and toast notifications
  * - Runtime state synchronization
  *
- * @template TSchema - Zod schema for input validation (from provider)
  * @returns API object with state and functions
  *
  * @example Basic usage
@@ -271,30 +241,6 @@ const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
  * };
  * ```
  *
- * @example Reading input in a game loop
- * ```tsx
- * const GameScene = () => {
- *   const host = useAirJamHost();
- *
- *   useFrame(() => {
- *     host.players.forEach((player) => {
- *       const input = host.getInput(player.id);
- *       if (!input) return;
- *
- *       // Move player based on joystick
- *       movePlayer(player.id, input.vector);
- *
- *       // Handle button press (tap-safe pulse default)
- *       if (input.action) {
- *         playerShoot(player.id);
- *       }
- *     });
- *   });
- *
- *   return <GameCanvas />;
- * };
- * ```
- *
  * @example Sending haptic feedback
  * ```tsx
  * const handleHit = (playerId: string) => {
@@ -302,18 +248,13 @@ const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
  * };
  * ```
  */
-export function useAirJamHost<
-  TSchema extends z.ZodSchema = z.ZodSchema,
->(): AirJamHostApi<TSchema>;
+export function useAirJamHost(): AirJamHostApi;
 export function useAirJamHost<TSelected>(
   selector: (state: AirJamHostState) => TSelected,
 ): TSelected;
-export function useAirJamHost<
-  TSchema extends z.ZodSchema = z.ZodSchema,
-  TSelected = AirJamHostApi<TSchema>,
->(
+export function useAirJamHost<TSelected = AirJamHostApi>(
   selector?: (state: AirJamHostState) => TSelected,
-): AirJamHostApi<TSchema> | TSelected {
+): AirJamHostApi | TSelected {
   useAssertSessionScope("host", "useAirJamHost");
 
   const { store } = useAirJamContext();
@@ -326,7 +267,7 @@ export function useAirJamHost<
   );
   const runtime = useContext(
     hostRuntimeContext,
-  ) as AirJamHostRuntimeControls<TSchema> | null;
+  ) as AirJamHostRuntimeControls | null;
   if (!runtime) {
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",

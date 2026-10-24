@@ -1,5 +1,4 @@
 import { useCallback, useRef, type JSX } from "react";
-import type { z } from "zod";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { AirJamProvider, type AirJamProviderProps } from "./air-jam-context";
 import {
@@ -13,13 +12,11 @@ type RuntimeOwnerToken = symbol;
 
 const createScopedSessionProvider = (
   scope: Exclude<SessionScope, "unscoped">,
-): (<TSchema extends z.ZodSchema = z.ZodSchema>(
-  props: AirJamProviderProps<TSchema>,
-) => JSX.Element) => {
-  const ScopedSessionProvider = <TSchema extends z.ZodSchema = z.ZodSchema>({
+): ((props: AirJamProviderProps) => JSX.Element) => {
+  const ScopedSessionProvider = ({
     children,
     ...providerProps
-  }: AirJamProviderProps<TSchema>): JSX.Element => {
+  }: AirJamProviderProps): JSX.Element => {
     const runtimeOwnersRef = useRef<
       Map<
         RuntimeOwnerKind,
@@ -60,7 +57,7 @@ const createScopedSessionProvider = (
     return (
       <SessionScopeContext.Provider value={scope}>
         <RuntimeOwnerRegistryContext.Provider value={{ claimOwner }}>
-          <AirJamProvider<TSchema> {...providerProps} surfaceRole={scope}>
+          <AirJamProvider {...providerProps} surfaceRole={scope}>
             {children}
           </AirJamProvider>
         </RuntimeOwnerRegistryContext.Provider>

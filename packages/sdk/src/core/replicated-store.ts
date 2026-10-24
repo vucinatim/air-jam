@@ -237,6 +237,10 @@ export interface AirJamStoreSession {
 export interface AttachableStore {
   attach: (session: AirJamStoreSession) => () => void;
   readonly attached: boolean;
+  subscribeHostActions(
+    listener: AirJamHostActionListener,
+    options?: AirJamHostActionSubscriptionOptions,
+  ): () => void;
 }
 
 /**

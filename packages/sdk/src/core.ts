@@ -24,8 +24,25 @@ export {
   HostRuntime,
   type HostObservationCapture,
   type HostRuntimeDependencies,
+  type HostRuntimeFactory,
   type HostRuntimeOptions,
 } from "./core/host-runtime";
+export {
+  axis,
+  button,
+  defineAirJamInput,
+  stick,
+  type AirJamAxisControl,
+  type AirJamButtonControl,
+  type AirJamButtonMode,
+  type AirJamControl,
+  type AirJamInput,
+  type AirJamInputValues,
+  type AirJamStickControl,
+  type AirJamVector,
+} from "./core/input";
+export { airJamInputLogSchema, type AirJamInputLog } from "./core/input-log";
+export { replayAirJamInputLog } from "./core/replay-input-log";
 export {
   acceptAirJamAction,
   createAirJamStore,

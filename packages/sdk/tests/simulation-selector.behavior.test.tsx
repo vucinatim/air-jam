@@ -22,6 +22,7 @@ describe("useSimulationSelector", () => {
     const clock = new SimulationClock(
       counter,
       {
+        beginStep: () => {},
         input: () => undefined,
         players: () => [],
         runtimeState: () => "playing",

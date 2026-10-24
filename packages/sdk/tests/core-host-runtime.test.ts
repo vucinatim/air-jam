@@ -1,18 +1,21 @@
 // Runs in plain Node: the core host runtime needs no React and no DOM.
 import { describe, expect, it, vi } from "vitest";
-import { z } from "zod";
 import {
   agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
 } from "../src/agent/agent-contract";
 import {
+  axis,
   createAirJamStore,
   createConnectionStore,
+  defineAirJamInput,
   defineAirJamSimulation,
   HostRuntime,
+  replayAirJamInputLog,
   type AirJamActionContext,
   type AirJamHostEnvironment,
+  type AirJamInputValues,
 } from "../src/core";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
@@ -74,7 +77,7 @@ const config = resolveAirJamConfig({
   resolveEnv: false,
 });
 
-const inputSchema = z.object({ direction: z.number() });
+const walkerInput = defineAirJamInput({ direction: axis() });
 
 const createScoreStore = () =>
   createAirJamStore<{
@@ -99,7 +102,7 @@ describe("core host runtime", () => {
     const store = createConnectionStore();
     const joined = vi.fn();
     const scores = createScoreStore();
-    const runtime = new HostRuntime<typeof inputSchema>(
+    const runtime = new HostRuntime(
       {
         config,
         store,
@@ -107,7 +110,6 @@ describe("core host runtime", () => {
           throw new Error("The memory transport needs no socket.");
         },
         disconnectSocket: () => {},
-        input: { schema: inputSchema },
         environment,
         stores: [scores],
       },
@@ -138,13 +140,7 @@ describe("core host runtime", () => {
       resumeLeaseExpiresAt: null,
       player,
     });
-    socket.fire("server:input", {
-      roomId: "ROOM1",
-      controllerId: "ctrl_1",
-      input: { direction: 1 },
-    });
     expect(store.getState().players).toEqual([player]);
-    expect(runtime.getInput("ctrl_1")).toEqual({ direction: 1 });
     await vi.waitFor(() => expect(joined).toHaveBeenCalledWith(player));
 
     expect(runtime.sendState({ runtimeState: "paused" })).toBe(true);
@@ -174,23 +170,23 @@ describe("core host runtime", () => {
     const scores = createScoreStore();
     const walker = defineAirJamSimulation<
       { x: number },
-      z.infer<typeof inputSchema>
+      AirJamInputValues<typeof walkerInput>
     >({
       stepMs: 10,
       create: () => ({ x: 0 }),
       step: (sim, { input }) => {
-        sim.x += input("ctrl_1")?.direction ?? 0;
+        sim.x += input("ctrl_1").direction;
       },
       observe: (sim) => ({ x: sim.x }),
     });
-    const runtime = new HostRuntime<typeof inputSchema>({
+    const runtime = new HostRuntime({
       config,
       store: createConnectionStore(),
       getSocket: () => {
         throw new Error("The memory transport needs no socket.");
       },
       disconnectSocket: () => {},
-      input: { schema: inputSchema },
+      input: walkerInput,
       environment: headless,
       stores: [scores],
       simulation: walker,
@@ -298,6 +294,113 @@ describe("core host runtime", () => {
     await clocked.timed.actions.mark();
     expect(clocked.timed.getState().at).toBe(9_000);
     clocked.stop();
+  });
+
+  it("records what reached the game by step, and replaying it plays the same match", async () => {
+    const createGame = () => {
+      const scores = createScoreStore();
+      const walker = defineAirJamSimulation<
+        { x: number; path: number[] },
+        AirJamInputValues<typeof walkerInput>
+      >({
+        stepMs: 10,
+        create: () => ({ x: 0, path: [] }),
+        step: (sim, { input, random, tick }) => {
+          sim.x += input("ctrl_1").direction + random();
+          sim.path.push(sim.x);
+          // Outcomes a step causes replay with it rather than from the log.
+          if (tick % 7 === 0) void scores.actions.score({ by: 1 });
+        },
+      });
+      return { scores, walker };
+    };
+    const live = createGame();
+    const socket = createServerSocket();
+    const { environment } = createMemoryEnvironment(socket);
+    let gameMs = 0;
+    const runtime = new HostRuntime(
+      {
+        config,
+        store: createConnectionStore(),
+        getSocket: () => {
+          throw new Error("The memory transport needs no socket.");
+        },
+        disconnectSocket: () => {},
+        environment: { ...environment, now: () => gameMs },
+        stores: [live.scores],
+        simulation: live.walker,
+        input: walkerInput,
+      },
+      { seed: 3, record: true },
+    );
+    const stop = runtime.start();
+    await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+    const advance = (ms: number) => {
+      gameMs += ms;
+      runtime.simulation?.advance(ms);
+    };
+    socket.fire("server:controllerJoined", {
+      controllerId: "ctrl_1",
+      source: "phone",
+      connected: true,
+      resumeLeaseExpiresAt: null,
+      player: { id: "ctrl_1", label: "One", color: "#ff0000" },
+    });
+    advance(30);
+    socket.fire("server:input", {
+      roomId: "ROOM1",
+      controllerId: "ctrl_1",
+      input: { direction: 1 },
+    });
+    advance(55);
+    socket.fire("airjam:action_rpc", {
+      actionName: "score",
+      payload: { by: 5 },
+      storeDomain: "default",
+      actor: { id: "ctrl_1", role: "controller" },
+    });
+    advance(40);
+    socket.fire("server:input", {
+      roomId: "ROOM1",
+      controllerId: "ctrl_1",
+      input: { direction: -0.5 },
+    });
+    advance(100);
+    const log = runtime.inputLog();
+    const played = {
+      path: [...(runtime.simulation?.sim as { path: number[] }).path],
+      score: live.scores.getState().score,
+    };
+    stop();
+
+    expect(log).toMatchObject({ seed: 3, stepMs: 10, ticks: 22 });
+    expect(log.entries.map(({ tick, event }) => [tick, event])).toEqual([
+      [1, "server:controllerJoined"],
+      [4, "server:input"],
+      [9, "airjam:action_rpc"],
+      [13, "server:input"],
+    ]);
+    expect(played.score).toBe(5 + 3);
+
+    const replay = createGame();
+    const replayed = await replayAirJamInputLog(
+      (dependencies, options) =>
+        new HostRuntime(
+          {
+            ...dependencies,
+            stores: [replay.scores],
+            simulation: replay.walker,
+            input: walkerInput,
+          },
+          options,
+        ),
+      JSON.parse(JSON.stringify(log)),
+    );
+    expect(
+      (replayed.runtime.simulation?.sim as { path: number[] }).path,
+    ).toEqual(played.path);
+    expect(replay.scores.getState().score).toBe(played.score);
+    replayed.stop();
   });
 
   it("loads a simulation declared as a loader before stepping it", async () => {
