@@ -16,16 +16,12 @@ export {
 } from "./audio/hooks";
 export {
   MusicPlaylist,
-  useAudioCategoryVolume,
   useMusicVolume,
-  type AudioVolumeCategory,
   type MusicPlaylistProps,
 } from "./audio/music";
 export {
   DEFAULT_PLATFORM_SETTINGS,
   DEFAULT_ROOM_PLATFORM_SETTINGS,
-  getEffectiveAudioVolume,
-  mergeRoomPlatformSettingsSnapshot,
   toRoomPlatformSettingsSnapshot,
 } from "./settings/platform-settings";
 export type {
@@ -40,13 +36,11 @@ export type {
   RoomPlatformSettingsSnapshot,
 } from "./settings/platform-settings";
 export {
-  PlatformSettingsBoundary,
   PlatformSettingsRuntime,
   useInheritedPlatformSettings,
   usePlatformAudioSettings,
   usePlatformSettings,
   type PlatformAudioSettingsApi,
-  type PlatformSettingsBoundaryProps,
   type PlatformSettingsOwnerApi,
   type PlatformSettingsRuntimeProps,
 } from "./settings/platform-settings-runtime";
@@ -73,7 +67,6 @@ export {
   type AirJamHostState,
   type JoinUrlStatus,
 } from "./hooks/use-air-jam-host";
-export { useConnectionStatus } from "./hooks/use-connection-status";
 export {
   useControllerTick,
   type ControllerTickInfo,
@@ -91,45 +84,26 @@ export {
   type HostAudioMutePreference,
 } from "./hooks/use-host-audio-mute-preference";
 export { useInputWriter } from "./hooks/use-input-writer";
-export { usePlayers } from "./hooks/use-players";
 export { useRoom, type RoomState } from "./hooks/use-room";
 export { useSendSignal, type SendSignalFn } from "./hooks/use-send-signal";
 export {
-  isActiveMatchPhase,
-  isEndedMatchPhase,
-  isStandardMatchPhase,
-  standardMatchPhases,
   toShellMatchPhase,
+  type ShellMatchPhase,
+  type StandardMatchPhase,
 } from "./lifecycle";
-export type { ShellMatchPhase, StandardMatchPhase } from "./lifecycle";
-export type {
-  AirJamActionAccepted,
-  AirJamActionInvocationResult,
-  AirJamActionRejected,
-} from "./protocol";
+export type { AirJamActionInvocationResult } from "./protocol";
 export type {
   ControllerOrientation,
-  ControllerStatePayload,
-  ControllerUpdatePlayerProfileAck,
   PlayerProfile,
   PlayerProfilePatch,
 } from "./protocol/controller";
-export type {
-  ConnectionStatus,
-  RoomCode,
-  RunMode,
-  RuntimeState,
-} from "./protocol/core";
+export type { ConnectionStatus, RuntimeState } from "./protocol/core";
 export type {
   HapticSignalPayload,
-  SignalPayload,
-  SignalType,
   ToastSignalPayload,
 } from "./protocol/signals";
 
 export {
-  AirJamErrorBoundary,
-  type AirJamErrorBoundaryProps,
   type AirJamErrorFallbackRenderProps,
   type AirJamErrorFallbackRenderer,
   type AirJamRuntimeRole,

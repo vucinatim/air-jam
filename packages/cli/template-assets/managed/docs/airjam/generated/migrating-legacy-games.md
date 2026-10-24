@@ -416,6 +416,26 @@ That order usually sharpens the guide fastest:
 2. second app forces the harder boundary decisions
 3. third app benefits from the refined guide and should migrate more cleanly
 
+## Removed Before 1.0
+
+These exports are gone; use the replacement.
+
+| Removed                                                                                                                                                                                | Use instead                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `@air-jam/sdk/arcade`, `@air-jam/sdk/arcade/bridge`                                                                                                                                    | the leaf that owns the concept, such as `@air-jam/sdk/arcade/bridge/host`                      |
+| `useConnectionStatus()`                                                                                                                                                                | `useAirJamHost((s) => s.connectionStatus)` or `useAirJamController((s) => s.connectionStatus)` |
+| `usePlayers()`                                                                                                                                                                         | `useAirJamHost((s) => s.players)`                                                              |
+| `isActiveMatchPhase`, `isEndedMatchPhase`, `isStandardMatchPhase`, `standardMatchPhases`                                                                                               | compare the phase directly; `toShellMatchPhase` stays                                          |
+| `AirJamErrorBoundary`, `PlatformSettingsBoundary`                                                                                                                                      | nothing: `createAirJamApp` mounts both                                                         |
+| `getEffectiveAudioVolume`, `useAudioCategoryVolume`, `mergeRoomPlatformSettingsSnapshot`                                                                                               | `useMusicVolume`, `usePlatformAudioSettings`                                                   |
+| `parseAirJamGameMetadata`                                                                                                                                                              | `airJamGameMetadataSchema.safeParse`                                                           |
+| `RoomCode`, `RunMode`, `SignalPayload`, `SignalType`, `ControllerStatePayload`, `ControllerUpdatePlayerProfileAck`, `AirJamActionAccepted`, `AirJamActionRejected` from `@air-jam/sdk` | the same types from `@air-jam/sdk/protocol`                                                    |
+| `isInternalActionName`, `resolveControllerJoinSource`, `JoinUrlStatus` from `@air-jam/sdk/core`                                                                                        | internal; `JoinUrlStatus` comes from `@air-jam/sdk`                                            |
+| `Date.now()` inside store actions                                                                                                                                                      | `ctx.now`, the game time the action runs at                                                    |
+
+The preview, runtime-inspection, runtime-control and agent-tooling paths also
+dropped helpers only the SDK itself used.
+
 ## Related Docs
 
 1. [Quick Start](./quick-start.md)

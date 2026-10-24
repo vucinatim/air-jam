@@ -3,7 +3,6 @@ export {
   GAME_INPUT_MODALITIES,
   airJamGameMetadataSchema,
   defineAirJamGameMetadata,
-  parseAirJamGameMetadata,
   type AirJamGameCategory,
   type AirJamGameInputModality,
   type AirJamGameMaintainer,

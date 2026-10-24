@@ -20,17 +20,6 @@ export type AirJamAgentActionMetadata = {
   resultDescription?: string;
 };
 
-export type AirJamAgentActionDescriptor = {
-  name: string;
-  description: string | null;
-  payload: {
-    kind: AirJamAgentActionPayloadKind;
-    description: string | null;
-    allowedValues?: string[];
-  };
-  resultDescription: string | null;
-};
-
 export type AirJamAgentActionParseMeta = {
   gameId: string;
   actionName: string;
@@ -274,31 +263,3 @@ export const agentActionInput = {
   custom: customInput,
   zod: zodInput,
 };
-
-export const describeAgentActionInputs = <
-  TActions extends Record<
-    string,
-    { metadata?: AirJamAgentActionMetadata | undefined }
-  >,
->(
-  actions: TActions,
-): AirJamAgentActionDescriptor[] =>
-  Object.entries(actions)
-    .map(([name, definition]) => {
-      const metadata = definition.metadata;
-      return {
-        name,
-        description: metadata?.description ?? null,
-        payload: {
-          kind: metadata?.payload.kind ?? "json",
-          description: metadata?.payload.description ?? null,
-          ...(metadata?.payload.allowedValues
-            ? {
-                allowedValues: [...metadata.payload.allowedValues],
-              }
-            : {}),
-        },
-        resultDescription: metadata?.resultDescription ?? null,
-      };
-    })
-    .sort((left, right) => left.name.localeCompare(right.name));

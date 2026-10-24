@@ -53,7 +53,7 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 
 ## Import Rules
 
-1. Browser/runtime code imports runtime symbols from the normal Air Jam packages used by the template.
+1. Store definitions and simulations import from `@air-jam/sdk/core`, the framework-free runtime; components and hooks import from `@air-jam/sdk`, its React binding. The core imports no React, so the same game logic runs headless.
 2. Read live replicated state outside rendering with `gameStore.getState()`.
 
 ## Browser + MCP Pairing

@@ -115,10 +115,6 @@ export const defineAirJamAgentStores = <
   stores: TDeclarations,
 ): TDeclarations => stores;
 
-export const listAirJamAgentStoreDomains = (
-  contract: AnyAirJamAgentContract,
-): string[] => Object.keys(contract.stores);
-
 export const describeAirJamAgentAction = (
   action: AirJamAgentActionContract,
 ): AirJamAgentActionMetadata => ({

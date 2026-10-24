@@ -15,8 +15,8 @@
     {
       "path": "docs/airjam/agent-gold-path.md",
       "kind": "docs-local",
-      "size": 5156,
-      "sha256": "8e6369248f8f809a3d9b27bc8463903b61b536bb0296e0cfdf1fa0923bc17ce9"
+      "size": 5487,
+      "sha256": "75d71998f6011bf24295f5303d52052b5d01983c0a3c173c90cc9180364d99be"
     },
     {
       "path": "docs/airjam/agent-mcp.md",
@@ -57,8 +57,8 @@
     {
       "path": "docs/airjam/generated/architecture.md",
       "kind": "docs-generated",
-      "size": 7115,
-      "sha256": "1cbd763c55f77bc4bd0fb00605fd718daa63b8638c17313d12a1468f508fdf73"
+      "size": 10899,
+      "sha256": "a88f1bf8449f9cb1c58b850ca11b2c9ea68b751d36ec0a71f5db0e677f1293de"
     },
     {
       "path": "docs/airjam/generated/controller-ui.md",
@@ -105,14 +105,14 @@
     {
       "path": "docs/airjam/generated/migrating-legacy-games.md",
       "kind": "docs-generated",
-      "size": 12215,
-      "sha256": "8c607dd1d05cb115532fabe918fcfb6e7413c25a9675afcb802a3f943a48a7fa"
+      "size": 15814,
+      "sha256": "605a0d5f574b0207a80cc69cf352b6f06c7972c739cf721a7b06c7787967c453"
     },
     {
       "path": "docs/airjam/generated/networked-state.md",
       "kind": "docs-generated",
-      "size": 8177,
-      "sha256": "d308134b81b2310be2cc93619c13da812a5df9642ec1a6f38e7eb01d94920772"
+      "size": 8547,
+      "sha256": "c56e9a2c781e5c66ea929647e853de513b74d2f862ef0a3ec7744c01a054c879"
     },
     {
       "path": "docs/airjam/generated/project-structure.md",
@@ -187,5 +187,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "3f017b1013ee9956c0b1d3abc054516dc86dfe9b58d41e8452a64d16b30ff6eb"
+  "contentDigest": "bc2a57d0def2433172c1be4d478f8d0965e802f8a2caa37363d3e01ba84cd089"
 }

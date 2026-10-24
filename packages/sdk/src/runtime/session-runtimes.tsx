@@ -12,12 +12,12 @@ import type { AttachableStore } from "../core/replicated-store";
 import type { AirJamSimulationDeclaration } from "../core/simulation";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
 import { useHostRuntimeApi } from "../hooks/internal/use-host-runtime-api";
-import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
-import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import {
   useControllerRuntimeInspectionContract,
   useHostRuntimeInspectionContract,
-} from "../runtime-inspection";
+} from "../hooks/internal/use-runtime-inspection-contract";
+import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
+import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
 import {
   publishRuntimeInspectionContract,

@@ -1,8 +1,8 @@
 import type {
   AirJamControllerApi,
   AudioHandle,
+  HapticSignalPayload,
   PlayerProfile,
-  SignalPayload,
   SoundManifest,
 } from "../src/index";
 
@@ -49,7 +49,7 @@ export type __assert_use_inherited_platform_settings_exported = AssertTrue<
 export type __assert_use_platform_audio_settings_exported = AssertTrue<
   Has<"usePlatformAudioSettings">
 >;
-export type __assert_get_effective_audio_volume_exported = AssertTrue<
+export type __assert_get_effective_audio_volume_not_exported = AssertFalse<
   Has<"getEffectiveAudioVolume">
 >;
 export type __assert_controller_session_hook_not_exported = AssertFalse<
@@ -71,8 +71,8 @@ export type __assert_host_state_hook_not_exported = AssertFalse<
 export type __assert_player_profile_importable = AssertTrue<
   PlayerProfile extends object ? true : false
 >;
-export type __assert_signal_payload_importable = AssertTrue<
-  SignalPayload extends object ? true : false
+export type __assert_haptic_signal_payload_importable = AssertTrue<
+  HapticSignalPayload extends object ? true : false
 >;
 export type __assert_sound_manifest_importable = AssertTrue<
   SoundManifest extends Record<string, unknown> ? true : false

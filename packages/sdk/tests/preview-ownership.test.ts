@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isEmbeddedArcadeRuntimeSearchParams,
   resolveHostPreviewControllerWorkspaceEnabled,
-} from "../src/preview";
+} from "../src/preview/ownership";
 
 describe("host preview controller ownership", () => {
   it("enables standalone development host previews by default", () => {

@@ -9,9 +9,8 @@ import {
 } from "../src";
 import {
   describeAirJamAgentAction,
-  listAirJamAgentStoreDomains,
   resolveAirJamAgentActionPayload,
-} from "../src/agent-tooling";
+} from "../src/agent/agent-contract";
 
 describe("agentAction", () => {
   it("projects snapshots from declared named stores without generic casts", () => {
@@ -33,10 +32,6 @@ describe("agentAction", () => {
       actions: {},
     });
 
-    expect(listAirJamAgentStoreDomains(contract)).toEqual([
-      "default",
-      "scoreboard",
-    ]);
     expect(
       contract.projectSnapshot({
         controllerId: "controller-1",

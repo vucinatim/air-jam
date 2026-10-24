@@ -62,16 +62,6 @@
       "import": "./dist/ui.js",
       "require": "./dist/ui.cjs"
     },
-    "./arcade": {
-      "types": "./dist/arcade.d.ts",
-      "import": "./dist/arcade.js",
-      "require": "./dist/arcade.cjs"
-    },
-    "./arcade/bridge": {
-      "types": "./dist/arcade/bridge.d.ts",
-      "import": "./dist/arcade/bridge.js",
-      "require": "./dist/arcade/bridge.cjs"
-    },
     "./arcade/bridge/controller": {
       "types": "./dist/arcade/bridge/controller.d.ts",
       "import": "./dist/arcade/bridge/controller.js",
@@ -177,12 +167,6 @@
     "*": {
       "ui": [
         "dist/ui.d.ts"
-      ],
-      "arcade": [
-        "dist/arcade.d.ts"
-      ],
-      "arcade/bridge": [
-        "dist/arcade/bridge.d.ts"
       ],
       "arcade/bridge/controller": [
         "dist/arcade/bridge/controller.d.ts"

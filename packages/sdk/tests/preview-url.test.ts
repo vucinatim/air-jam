@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM,
-  AIR_JAM_PREVIEW_FLAG_QUERY_PARAM,
   buildPreviewControllerUrl,
   createPreviewControllerLaunch,
   readPreviewControllerDeviceIdFromSearchParams,
 } from "../src/preview";
+import {
+  AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM,
+  AIR_JAM_PREVIEW_FLAG_QUERY_PARAM,
+} from "../src/preview/identity";
 
 describe("preview controller launch helpers", () => {
   it("builds a preview controller url from the canonical join url", () => {

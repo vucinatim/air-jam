@@ -2,12 +2,9 @@ export { createAirJamConfig, type AirJamConfig } from "./core/config";
 export {
   createConnectionStore,
   type AirJamConnectionState,
-  type JoinUrlStatus,
 } from "./core/connection-store";
 export {
   ControllerRuntime,
-  resolveControllerJoinSource,
-  type ControllerJoinSource,
   type ControllerRuntimeDependencies,
   type ControllerRuntimeIdentityOptions,
 } from "./core/controller-runtime";
@@ -32,7 +29,6 @@ export {
 export {
   acceptAirJamAction,
   createAirJamStore,
-  isInternalActionName,
   rejectAirJamAction,
   type AirJamActionAcceptance,
   type AirJamActionContext,

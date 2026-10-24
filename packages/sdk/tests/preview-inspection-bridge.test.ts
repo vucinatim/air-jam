@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createHostRuntimeInspectionContract } from "../src/runtime-inspection";
 import { resolveProjectRuntimeTopology } from "../src/runtime-topology";
 import { registerHostRuntimeActionStore } from "../src/runtime/contracts/control";
+import { createHostRuntimeInspectionContract } from "../src/runtime/contracts/inspection";
 import {
   publishEmbeddedHostPreview,
   readHostPreviewSnapshot,

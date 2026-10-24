@@ -132,20 +132,3 @@ export const defineAirJamGameMetadata = (
       ...input,
     }),
   );
-
-/**
- * Lenient parser for read-side consumption (e.g. the platform reading stored
- * metadata). Returns a `{ ok, data } | { ok, error }` discriminated result so
- * the caller can surface validation failures without throwing.
- */
-export const parseAirJamGameMetadata = (
-  value: unknown,
-):
-  | { ok: true; data: AirJamGameMetadata }
-  | { ok: false; error: z.ZodError } => {
-  const result = airJamGameMetadataSchema.safeParse(value);
-  if (result.success) {
-    return { ok: true, data: result.data };
-  }
-  return { ok: false, error: result.error };
-};

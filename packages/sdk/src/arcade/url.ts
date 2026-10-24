@@ -10,8 +10,6 @@ import {
   arcadeSurfaceRuntimeUrlParams,
   type ArcadeSurfaceRuntimeIdentity,
 } from "./surface";
-export { urlBuilder } from "../utils/url-builder";
-export { arcadeSurfaceRuntimeUrlParams } from "./surface";
 export { appendRuntimeQueryParams, getRuntimeUrlOrigin, normalizeRuntimeUrl };
 
 export const buildArcadeGameIframeSrc = ({

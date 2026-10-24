@@ -7,21 +7,22 @@ Core SDK for building Air Jam hosts and mobile controllers.
 Air Jam SDK follows semver. What that means concretely for creators building
 against v1:
 
-1. **Durable v1 surface.** `@air-jam/sdk`, `@air-jam/sdk/ui`, and
-   `@air-jam/sdk/styles.css` are the stable authoring and UI lanes. Breaking
-   changes on these require a major version bump, and v1 will be kept working
-   for games for **at least 12 months** after v1.0.0 ships.
+1. **Durable v1 surface.** The authoring paths every game uses:
+   `@air-jam/sdk` (the React binding), `@air-jam/sdk/core` (the framework-free
+   runtime), `@air-jam/sdk/ui`, `@air-jam/sdk/metadata` and
+   `@air-jam/sdk/styles.css`. Breaking changes on these require a major
+   version bump, and v1 will be kept working for games for **at least 12
+   months** after v1.0.0 ships.
 2. **Non-breaking v1.x.** Within the `1.x` line we commit to: no removals,
    no incompatible type changes, and no silent behavior changes on the stable
    lanes above. New functionality lands as additive APIs.
-3. **Experimental leaves.** `@air-jam/sdk/preview`, `@air-jam/sdk/arcade*`,
-   `@air-jam/sdk/protocol`, `@air-jam/sdk/metadata`, and
-   `@air-jam/sdk/prefabs` are intentionally
-   unstable future-facing seams. They may change within `1.x` — each carries
-   a documented purpose in its leaf, and changes are noted in release notes.
-   Runtime inspection is moving to an explicit experimental leaf because it
-   has real machine-tooling consumers. Speculative control, observability, and
-   `contracts/v2` seams are not retained without a concrete consumer.
+3. **Tooling and platform paths.** `@air-jam/sdk/prefabs`, `preview`,
+   `protocol`, `runtime-*`, `agent-tooling`, `controller-bridge`, `arcade/*`,
+   `release` and `platform-machine` serve Air Jam's own tools, server and
+   hosted platform. They may change within `1.x`, with changes noted in
+   release notes. The
+   [architecture guide](https://airjam.io/docs/how-it-works/architecture)
+   lists every entry point and its one purpose.
 4. **v2 migration.** When v2 ships, we commit to publishing a codemod (or
    migration notes if the surface is too narrow to automate) alongside the
    release. v1 games will not be silently broken — the v1 SDK will remain

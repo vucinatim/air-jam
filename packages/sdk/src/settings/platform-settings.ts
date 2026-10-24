@@ -190,20 +190,3 @@ export const toRoomPlatformSettingsSnapshot = (
   audio: settings.audio,
   previewControllers: settings.previewControllers,
 });
-
-export const mergeRoomPlatformSettingsSnapshot = (
-  current: RoomPlatformSettingsSnapshot,
-  patch: PartialRoomPlatformSettingsPatch,
-): RoomPlatformSettingsSnapshot => ({
-  audio: normalizeAudioSettings(
-    { ...current.audio, ...patch.audio },
-    current.audio,
-  ),
-  previewControllers: normalizePreviewControllerSettings(
-    {
-      ...current.previewControllers,
-      ...patch.previewControllers,
-    },
-    current.previewControllers,
-  ),
-});

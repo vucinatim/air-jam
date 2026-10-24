@@ -1,6 +1,5 @@
 import {
   createControllerBridgeAttachMessage as createBridgeAttach,
-  createControllerPresentationSyncMessage as createPresentationSync,
   parseControllerBridgeRequestMessage as parseBridgeRequest,
   parseControllerPresentationSyncMessage as parsePresentationSync,
   type ControllerBridgeSnapshot,
@@ -9,15 +8,11 @@ import {
 
 export {
   AIRJAM_CONTROLLER_BRIDGE_EVENT,
-  AIRJAM_CONTROLLER_BRIDGE_RESPONSE,
-  AIRJAM_CONTROLLER_PRESENTATION_SYNC,
   createControllerBridgeCloseMessage,
   createControllerBridgeResponseMessage,
   parseControllerBridgeEmitMessage,
-  parseControllerBridgeResponseMessage,
   type ControllerBridgeServerEventName,
 } from "../../runtime/controller-bridge";
-export type { ArcadeControllerPresentationSyncMessage as ControllerPresentationSyncMessage };
 
 type ArcadeSnapshot = Extract<
   ControllerBridgeSnapshot,
@@ -33,9 +28,6 @@ type ArcadeControllerPresentationSyncMessage =
 
 export const createControllerBridgeAttachMessage = (snapshot: ArcadeSnapshot) =>
   createBridgeAttach(snapshot);
-export const createControllerPresentationSyncMessage = (
-  payload: ArcadeControllerPresentationSyncMessage["payload"],
-) => createPresentationSync(payload);
 
 export const parseControllerBridgeRequestMessage = (value: unknown) => {
   const message = parseBridgeRequest(value);

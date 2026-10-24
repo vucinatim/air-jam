@@ -11,7 +11,7 @@ import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
-} from "../src/runtime-inspection";
+} from "../src/runtime/contracts/inspection";
 import { createAirJamApp } from "../src/runtime/create-air-jam-app";
 
 describe("createAirJamApp", () => {
