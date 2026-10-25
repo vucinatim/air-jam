@@ -3,6 +3,7 @@ import {
   getRuntimeUrlOrigin,
   normalizeRuntimeUrl,
 } from "../protocol/url-policy";
+import { AIR_JAM_LOCAL_SEAT_QUERY_PARAM } from "../runtime/local-seats";
 import {
   AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM,
   AIR_JAM_PREVIEW_FLAG_QUERY_PARAM,
@@ -16,6 +17,8 @@ export interface BuildPreviewControllerUrlOptions {
   previewDeviceId?: string | null;
   allowedOrigins?: readonly string[];
   embedOrigin?: string | null;
+  /** Launches the phone as a local player's seat under this name. */
+  localSeat?: string | null;
 }
 
 export interface PreviewControllerLaunch extends PreviewControllerIdentity {
@@ -40,6 +43,7 @@ export const buildPreviewControllerUrl = ({
   previewDeviceId,
   allowedOrigins,
   embedOrigin,
+  localSeat,
 }: BuildPreviewControllerUrlOptions): string | null => {
   const normalizedJoinUrl = normalizeRuntimeUrl(joinUrl);
   if (!normalizedJoinUrl) {
@@ -85,6 +89,7 @@ export const buildPreviewControllerUrl = ({
     controllerId,
     [AIR_JAM_PREVIEW_FLAG_QUERY_PARAM]: "1",
     [AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM]: previewDeviceId,
+    [AIR_JAM_LOCAL_SEAT_QUERY_PARAM]: localSeat,
   });
 };
 
@@ -92,10 +97,12 @@ export const createPreviewControllerLaunch = ({
   joinUrl,
   allowedOrigins,
   embedOrigin,
+  localSeat,
 }: {
   joinUrl: string;
   allowedOrigins?: readonly string[];
   embedOrigin?: string | null;
+  localSeat?: string | null;
 }): PreviewControllerLaunch | null => {
   const identity = createPreviewControllerIdentity();
   const url = buildPreviewControllerUrl({
@@ -104,6 +111,7 @@ export const createPreviewControllerLaunch = ({
     previewDeviceId: identity.deviceId,
     allowedOrigins,
     embedOrigin,
+    localSeat,
   });
 
   if (!url) {

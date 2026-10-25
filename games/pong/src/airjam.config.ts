@@ -14,7 +14,7 @@
 import { createAirJamApp, env } from "@air-jam/sdk";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
-import { pongInput } from "./game/contracts/input";
+import { pongInput, pongInputBindings } from "./game/contracts/input";
 import { pongSimulation } from "./game/engine/pong-simulation";
 import { pongStore } from "./game/stores/pong-store";
 
@@ -42,4 +42,5 @@ export const airjam = createAirJamApp({
   agent: agentContract,
   testing: "./testing/profiles.ts",
   input: pongInput,
+  inputBindings: pongInputBindings,
 });

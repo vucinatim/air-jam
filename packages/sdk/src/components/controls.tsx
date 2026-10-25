@@ -273,8 +273,8 @@ export interface StickProps extends Omit<
 }
 
 /**
- * A phone stick bound to a declared stick: drag anywhere inside it. Up is
- * positive y. `data-active` styles the dragged state.
+ * A phone stick bound to a declared stick: drag anywhere inside it. Down is
+ * positive y, as on a gamepad. `data-active` styles the dragged state.
  */
 export const Stick = ({
   control,

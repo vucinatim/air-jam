@@ -4,6 +4,7 @@ import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
 import { HostRuntime, type HostRuntimeFactory } from "../core/host-runtime";
 import type { AirJamInput } from "../core/input";
+import type { AirJamInputBindings } from "../core/input-bindings";
 import type { AttachableStore } from "../core/replicated-store";
 import type { AirJamSimulationDeclaration } from "../core/simulation";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
@@ -66,6 +67,11 @@ export interface CreateAirJamAppOptions {
    * The host applies them once per simulation step.
    */
   input?: AirJamInput;
+  /**
+   * Keyboard layouts and gamepads that play the declared input as local
+   * players without a phone, from `defineAirJamInputBindings`.
+   */
+  inputBindings?: AirJamInputBindings;
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
 
@@ -207,8 +213,11 @@ export const createAirJamApp = ({
   stores = NO_STORES,
   simulation,
   input,
+  inputBindings,
   errorBoundary,
 }: CreateAirJamAppOptions = {}): AirJamApp => {
+  if (inputBindings && !input)
+    throw new Error("inputBindings need the input they bind; pass input too.");
   const controllerPath = resolveControllerPath(requestedControllerPath);
 
   const hostSession: HostSessionProps = {
@@ -241,6 +250,7 @@ export const createAirJamApp = ({
           stores={stores}
           simulation={simulation}
           input={input}
+          inputBindings={inputBindings}
         >
           <ConnectedRuntimeErrorBoundary
             role="host"

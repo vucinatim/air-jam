@@ -1,5 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useAirJamContext } from "../../context/air-jam-context";
+import {
+  useAirJamConfig,
+  useAirJamContext,
+} from "../../context/air-jam-context";
 import {
   useAssertSessionScope,
   useClaimSessionRuntimeOwner,
@@ -11,6 +14,10 @@ import {
   createBrowserControllerEnvironment,
   listenForPreviewClose,
 } from "../../runtime/browser-controller-environment";
+import {
+  listenForLocalSeatInput,
+  readLocalSeatLabel,
+} from "../../runtime/local-seats";
 import type {
   AirJamControllerOptions,
   AirJamControllerRuntimeControls,
@@ -56,7 +63,7 @@ export const useControllerRuntimeApi = (
 
   // Declared before start so the runtime joins with the current profile.
   useEffect(
-    () => runtime.setNickname(options.nickname ?? ""),
+    () => runtime.setNickname(options.nickname ?? readLocalSeatLabel() ?? ""),
     [runtime, options.nickname],
   );
   useEffect(
@@ -89,6 +96,13 @@ export const useControllerRuntimeApi = (
   useEffect(
     () => listenForPreviewClose(runtime, disconnectSocket),
     [runtime, disconnectSocket],
+  );
+
+  // A local player's phone takes its keys or gamepad from the host page.
+  const { topology } = useAirJamConfig();
+  useEffect(
+    () => listenForLocalSeatInput(runtime.input, topology),
+    [runtime, topology],
   );
 
   return useMemo(

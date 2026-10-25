@@ -16,6 +16,7 @@ import {
 } from "../components/shell-classes";
 import { Button } from "../components/ui/button";
 import type { ControllerPresenceNotice } from "../protocol";
+import { useProvideLocalSeats } from "../runtime/local-players";
 import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import {
@@ -32,6 +33,7 @@ import {
   PreviewControllerWindow,
   previewControllerWindowStateLabel,
 } from "./window";
+import { useWorkspaceLocalSeats } from "./workspace-local-seats";
 
 export interface PreviewControllerWorkspaceProps {
   joinUrl: string | null;
@@ -148,6 +150,15 @@ export const PreviewControllerWorkspace = ({
     enabled,
     maxControllers,
   });
+  const [frames] = useState(() => new Map<string, HTMLIFrameElement>());
+  const localSeats = useWorkspaceLocalSeats({
+    enabled,
+    sessions,
+    canSpawn,
+    spawn: spawnPreviewController,
+    frames,
+  });
+  useProvideLocalSeats(localSeats);
   const platformSettings = useResolvedPlatformSettingsSnapshot();
   const activeOpacity = platformSettings.previewControllers.activeOpacity;
   const sortedSessions = useMemo(
@@ -275,6 +286,10 @@ export const PreviewControllerWorkspace = ({
         <PreviewControllerWindow
           key={session.id}
           session={session}
+          frameRef={(frame) => {
+            if (frame) frames.set(session.id, frame);
+            else frames.delete(session.id);
+          }}
           activeOpacity={activeOpacity}
           highContrast={highContrast}
           dragging={dragState?.id === session.id}

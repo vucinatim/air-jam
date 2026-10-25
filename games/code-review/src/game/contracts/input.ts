@@ -2,6 +2,8 @@ import {
   axis,
   button,
   defineAirJamInput,
+  defineAirJamInputBindings,
+  keyAxis,
   type AirJamInputValues,
 } from "@air-jam/sdk/core";
 
@@ -14,5 +16,35 @@ export const codeReviewInput = defineAirJamInput({
   rightPunch: button("pressed"),
   defend: button("held"),
 });
+
+/** Keyboard layouts and gamepads that play as local players without a phone. */
+export const codeReviewInputBindings = defineAirJamInputBindings(
+  codeReviewInput,
+  {
+    keyboard: [
+      {
+        vertical: keyAxis("KeyW", "KeyS"),
+        horizontal: keyAxis("KeyA", "KeyD"),
+        leftPunch: "KeyJ",
+        rightPunch: "KeyK",
+        defend: "KeyL",
+      },
+      {
+        vertical: keyAxis("ArrowUp", "ArrowDown"),
+        horizontal: keyAxis("ArrowLeft", "ArrowRight"),
+        leftPunch: "Comma",
+        rightPunch: "Period",
+        defend: "Slash",
+      },
+    ],
+    gamepad: {
+      vertical: "leftStickY",
+      horizontal: "leftStickX",
+      leftPunch: "west",
+      rightPunch: "east",
+      defend: ["leftBumper", "rightBumper"],
+    },
+  },
+);
 
 export type GameInput = AirJamInputValues<typeof codeReviewInput>;
