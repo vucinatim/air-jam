@@ -1,7 +1,10 @@
 import type { ControllerRuntime } from "../core/controller-runtime";
 import type { AirJamControllerEnvironment } from "../core/environment";
 import { updateDevBrowserLogContext } from "../dev/browser-log-sink";
-import { readPreviewControllerDeviceIdFromLocation } from "../preview/identity";
+import {
+  readPreviewControllerDeviceIdFromLocation,
+  readPreviewControllerParent,
+} from "../preview/identity";
 import {
   AIR_JAM_PREVIEW_CLOSE_RESULT,
   isPreviewCloseRequestMessage,
@@ -61,30 +64,27 @@ export const createBrowserControllerEnvironment =
   };
 
 /**
- * A preview controller frame leaves its room when the preview workspace asks it
- * to close, then reports the result to its parent.
+ * A preview controller frame leaves its room when its declared parent asks it
+ * to close, then reports the result to that parent.
  */
 export const listenForPreviewClose = (
   runtime: ControllerRuntime,
   disconnectSocket: (role: "controller") => void,
 ): (() => void) => {
   const socket = runtime.socket;
-  if (
-    !socket ||
-    runtime.isEmbedded ||
-    readPreviewControllerDeviceIdFromLocation() === null
-  )
-    return () => {};
+  const parent = readPreviewControllerParent();
+  if (!socket || runtime.isEmbedded || !parent) return () => {};
   const handleMessage = (event: MessageEvent) => {
-    if (event.source !== window.parent) return;
+    if (event.source !== parent.window || event.origin !== parent.origin)
+      return;
     if (!isPreviewCloseRequestMessage(event.data)) return;
     void runtime
       .leave()
       .catch(() => ({ ok: false }) satisfies ControllerLeaveAck)
       .then((ack) => {
-        window.parent.postMessage(
+        parent.window.postMessage(
           { type: AIR_JAM_PREVIEW_CLOSE_RESULT, ok: ack.ok },
-          "*",
+          parent.origin,
         );
         socket.disconnect();
         disconnectSocket("controller");

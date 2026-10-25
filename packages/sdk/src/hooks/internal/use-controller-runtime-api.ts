@@ -1,8 +1,5 @@
 import { useEffect, useMemo } from "react";
-import {
-  useAirJamConfig,
-  useAirJamContext,
-} from "../../context/air-jam-context";
+import { useAirJamContext } from "../../context/air-jam-context";
 import {
   useAssertSessionScope,
   useClaimSessionRuntimeOwner,
@@ -99,11 +96,7 @@ export const useControllerRuntimeApi = (
   );
 
   // A local player's phone takes its keys or gamepad from the host page.
-  const { topology } = useAirJamConfig();
-  useEffect(
-    () => listenForLocalSeatInput(runtime.input, topology),
-    [runtime, topology],
-  );
+  useEffect(() => listenForLocalSeatInput(runtime.input), [runtime]);
 
   return useMemo(
     () => ({
