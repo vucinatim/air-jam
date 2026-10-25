@@ -51,6 +51,7 @@ import {
   AIRJAM_DEV_PROVIDER_MOUNTED,
   emitAirJamDevRuntimeEvent,
 } from "../runtime/dev-runtime-events";
+import { embeddedRuntimeParent } from "../runtime/embedded-parent";
 import { SocketManager, type AirJamSocket } from "./socket-manager";
 
 // ============================================================================
@@ -287,8 +288,9 @@ export const AirJamProvider = ({
             pathname: devWindow.location.pathname,
           },
         });
-        if (devWindow.parent && devWindow.parent !== devWindow) {
-          devWindow.parent.postMessage(
+        const parent = embeddedRuntimeParent(config.topology);
+        if (parent) {
+          parent.window.postMessage(
             {
               type: AIRJAM_DEV_PROVIDER_MOUNTED,
               payload: {
@@ -300,7 +302,7 @@ export const AirJamProvider = ({
                 pathname: devWindow.location.pathname,
               },
             },
-            "*",
+            parent.origin,
           );
         }
       } catch {

@@ -23,6 +23,7 @@ import {
   AirJamControllerRuntime,
   AirJamHostRuntime,
 } from "../src/runtime/session-runtimes";
+import { frameInParent } from "./fixtures/framed-window";
 
 interface MockSocket {
   connected: boolean;
@@ -1406,6 +1407,7 @@ describe("session reconnect behavior", () => {
         "host",
       ),
     );
+    frameInParent();
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
     const { result, unmount } = renderHook(() => useAirJamHost(), {
@@ -1461,6 +1463,7 @@ describe("session reconnect behavior", () => {
         "controller",
       ),
     );
+    frameInParent();
     const postMessageSpy = vi.spyOn(window.parent, "postMessage");
 
     const { result, unmount } = renderHook(() => useAirJamController(), {

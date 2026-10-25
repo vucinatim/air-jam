@@ -4,7 +4,7 @@ import path from "node:path";
 import { loadRepoGames } from "../../workspace/lib/repo-games.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 
-const canonicalRules = [
+export const canonicalRules = [
   {
     pattern:
       "import\\s*{[^}]*\\bAirJamProvider\\b[^}]*}\\s*from\\s*[\"\\']@air-jam/sdk[\"\\']",
@@ -46,7 +46,9 @@ const canonicalRules = [
     paths: ["games/air-capture/src", "games/pong/src"],
   },
   {
-    pattern: "postMessage\\([^,]+,\\s*[\"\\']\\*[\"\\']",
+    // Within one statement, whatever the first argument holds or how it wraps.
+    pattern:
+      "postMessage\\([^;]*?(?:,|targetOrigin\\s*:)\\s*[\"\\'`]\\*[\"\\'`]",
     label: "wildcard postMessage targetOrigin usage",
     paths: ["packages/sdk/src"],
   },

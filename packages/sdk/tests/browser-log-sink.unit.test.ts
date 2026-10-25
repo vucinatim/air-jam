@@ -229,6 +229,7 @@ describe("browser log sink", () => {
       backendOrigin: "http://localhost:3001",
       topology: {
         runtimeMode: "hosted-release",
+        embedded: false,
       },
     });
 
