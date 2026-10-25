@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isLocalSeatReadyMessage,
   sendLocalSeatOperation,
@@ -56,23 +56,55 @@ export const useWorkspaceLocalSeats = ({
     [enabled],
   );
 
+  // Sessions whose phone said it takes input; a later request for one opens at once.
+  const ready = useRef(new Set<string>());
+  const openSeat = useCallback(
+    (key: string, request: SeatRequest, session: PreviewControllerSession) => {
+      const origin = new URL(session.url).origin;
+      requests.current.delete(key);
+      // A new seat on the same phone supersedes the one opened before.
+      closings.current.get(session.id)?.();
+      request.resolve({
+        send: (operation) => {
+          const target = frames.get(session.id)?.contentWindow;
+          if (target) sendLocalSeatOperation(target, origin, operation);
+        },
+        closed: new Promise((close) => closings.current.set(session.id, close)),
+      });
+    },
+    [frames],
+  );
+
   useEffect(() => {
+    let spawned = false;
     for (const [key, request] of requests.current) {
-      if (sessions.some((session) => session.localSeat?.key === key)) continue;
+      const session = sessions.find(
+        (candidate) => candidate.localSeat?.key === key,
+      );
+      if (session) {
+        if (ready.current.has(session.id)) openSeat(key, request, session);
+        continue;
+      }
       if (request.spawned || !canSpawn) {
         requests.current.delete(key);
         request.resolve(null);
         continue;
       }
-      request.spawned = true;
+      requests.current.set(key, { ...request, spawned: true });
+      spawned = true;
       spawn({ localSeat: request.seat });
     }
+    // Look again once the spawn lands, so a phone that never appears is refused.
+    if (spawned) setRequested((count) => count + 1);
+    for (const sessionId of ready.current)
+      if (!sessions.some((session) => session.id === sessionId))
+        ready.current.delete(sessionId);
     for (const [sessionId, close] of closings.current)
       if (!sessions.some((session) => session.id === sessionId)) {
         closings.current.delete(sessionId);
         close();
       }
-  }, [requested, sessions, canSpawn, spawn]);
+  }, [requested, sessions, canSpawn, spawn, openSeat]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -82,23 +114,17 @@ export const useWorkspaceLocalSeats = ({
           candidate.localSeat &&
           frames.get(candidate.id)?.contentWindow === event.source,
       );
-      const key = session?.localSeat?.key;
-      const origin = session && new URL(session.url).origin;
-      const request = key && requests.current.get(key);
+      if (!session?.localSeat || event.origin !== new URL(session.url).origin)
+        return;
+      ready.current.add(session.id);
+      const key = session.localSeat.key;
+      const request = requests.current.get(key);
       // A reloaded phone keeps the seat it already opened.
-      if (!session || !request || event.origin !== origin) return;
-      requests.current.delete(key);
-      request.resolve({
-        send: (operation) => {
-          const target = frames.get(session.id)?.contentWindow;
-          if (target) sendLocalSeatOperation(target, origin, operation);
-        },
-        closed: new Promise((close) => closings.current.set(session.id, close)),
-      });
+      if (request) openSeat(key, request, session);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [sessions, frames]);
+  }, [sessions, frames, openSeat]);
 
   return provider;
 };

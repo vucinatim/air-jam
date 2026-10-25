@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
+import { useCallback, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { PreviewControllerSession } from "../src/preview/manager";
 import { useWorkspaceLocalSeats } from "../src/preview/workspace-local-seats";
-import type { OpenedLocalSeat } from "../src/runtime/local-seats";
+import type { LocalSeat, OpenedLocalSeat } from "../src/runtime/local-seats";
 
 const seat = { key: "keyboard-1", label: "Keyboard 1" };
 const origin = "http://localhost:3000";
@@ -28,57 +29,78 @@ const ready = (source: Window | null, from = origin) => {
   window.dispatchEvent(event);
 };
 
-const setup = (canSpawn = true) => {
+/** The hook with sessions that a spawn adds in the same update, like the manager. */
+const setup = (canSpawn = true, phoneAppears = true) => {
   const frames = new Map<string, HTMLIFrameElement>();
   const spawn = vi.fn();
-  const hook = renderHook(
-    (props: { sessions: PreviewControllerSession[]; canSpawn: boolean }) =>
-      useWorkspaceLocalSeats({ enabled: true, spawn, frames, ...props }),
-    { initialProps: { sessions: [], canSpawn } },
-  );
+  const hook = renderHook(() => {
+    const [sessions, setSessions] = useState<PreviewControllerSession[]>([]);
+    const spawnPhone = useCallback((options: { localSeat: LocalSeat }) => {
+      spawn(options);
+      if (phoneAppears)
+        setSessions((current) => [
+          ...current,
+          session(`phone-${current.length + 1}`, options.localSeat),
+        ]);
+    }, []);
+    return {
+      provider: useWorkspaceLocalSeats({
+        enabled: true,
+        sessions,
+        canSpawn,
+        spawn: spawnPhone,
+        frames,
+      }),
+      setSessions,
+    };
+  });
   return { hook, frames, spawn };
 };
 
 describe("the workspace's local seats", () => {
-  it("opens a seat once the phone launched for its key takes input", async () => {
+  it("opens a seat once the phone launched for its key takes input, and at once when asked again", async () => {
     const { hook, frames, spawn } = setup();
     let opened: Promise<OpenedLocalSeat | null> = Promise.resolve(null);
     act(() => {
-      opened = hook.result.current!.open(seat);
+      opened = hook.result.current.provider!.open(seat);
     });
     expect(spawn).toHaveBeenCalledWith({ localSeat: seat });
-    const phone = session("one");
-    frames.set("one", frame());
-    hook.rerender({ sessions: [phone], canSpawn: false });
+    frames.set("phone-1", frame());
     ready(frame().contentWindow);
-    ready(frames.get("one")!.contentWindow, "https://elsewhere.test");
-    ready(frames.get("one")!.contentWindow);
+    ready(frames.get("phone-1")!.contentWindow, "https://elsewhere.test");
+    ready(frames.get("phone-1")!.contentWindow);
     const seatOpened = await opened;
     expect(seatOpened).not.toBeNull();
+
+    const superseded = vi.fn();
+    void seatOpened!.closed.then(superseded);
+    let again: Promise<OpenedLocalSeat | null> = Promise.resolve(null);
+    act(() => {
+      again = hook.result.current.provider!.open(seat);
+    });
+    const reopened = await again;
+    expect(reopened).not.toBeNull();
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(superseded).toHaveBeenCalled();
+
     const closed = vi.fn();
-    void seatOpened!.closed.then(closed);
-    hook.rerender({ sessions: [], canSpawn: true });
+    void reopened!.closed.then(closed);
+    act(() => hook.result.current.setSessions([]));
     await Promise.resolve();
     expect(closed).toHaveBeenCalled();
   });
 
   it("refuses a seat when the workspace is full or its phone never appears", async () => {
-    const full = setup(false);
-    let refused: Promise<OpenedLocalSeat | null> = Promise.resolve(null);
-    act(() => {
-      refused = full.hook.result.current!.open(seat);
-    });
-    expect(await refused).toBeNull();
-    expect(full.spawn).not.toHaveBeenCalled();
-
-    const lost = setup();
-    act(() => {
-      refused = lost.hook.result.current!.open(seat);
-    });
-    lost.hook.rerender({
-      sessions: [session("other", { key: "x", label: "X" })],
-      canSpawn: true,
-    });
-    expect(await refused).toBeNull();
+    for (const [canSpawn, phoneAppears] of [
+      [false, true],
+      [true, false],
+    ]) {
+      const { hook } = setup(canSpawn, phoneAppears);
+      let refused: Promise<OpenedLocalSeat | null> = Promise.resolve(null);
+      act(() => {
+        refused = hook.result.current.provider!.open(seat);
+      });
+      expect(await refused).toBeNull();
+    }
   });
 });
