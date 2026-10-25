@@ -51,6 +51,11 @@ The provider automatically reads from these environment variables if props aren'
 - `VITE_AIR_JAM_SERVER_URL` / `NEXT_PUBLIC_AIR_JAM_SERVER_URL` - WebSocket server URL
 - `VITE_AIR_JAM_APP_ID` / `NEXT_PUBLIC_AIR_JAM_APP_ID` - Public app ID
 
+Session runtimes mount only in the browser: `airjam.Host`, `airjam.Controller`
+and `AirJamHostRuntime` / `AirJamControllerRuntime` from
+`@air-jam/sdk/arcade/runtime` render nothing on the server, so a server-rendered
+page emits nothing inside them until it hydrates.
+
 ---
 
 ### `useAirJamHost`
