@@ -18,6 +18,11 @@ replays fill the same controls, headless runs keep an input log that
 `airjam session run replay` reproduces, and the SDK's phone controls own
 sending. Keyboard and gamepad players come next.
 
+The [game declaration plan](./plans/game-declaration-plan.md) designs the
+next 1.0 item, G6-10: a React-free `airjam.config.ts` that declares settings,
+assets, theme, test profiles and the player contract beside the stores and
+simulation, read by every tool through one loader.
+
 ## Native observation and isolated playtesting
 
 The public SDK exposes current-host observations and fenced participant controls.
