@@ -10,8 +10,7 @@ import {
   type LocalInputOperation,
   type LocalInputTarget,
 } from "../core/local-input";
-import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
-import { embeddedRuntimeParent } from "./embedded-parent";
+import { readPreviewControllerParent } from "../preview/identity";
 
 /**
  * A preview phone launched for a local player carries its seat's label in
@@ -75,8 +74,9 @@ const closedSchema = seatMessage("airjam.local-seat.closed");
  * - host → parent `airjam.local-seat.input` with the seat's key and one
  *   operation, which the parent hands to the seat's phone.
  *
- * A seat's phone takes operations only from its direct parent frame, and
- * says `airjam.local-seat.ready` to it. A product showing a phone in its own
+ * A seat's phone takes operations only from its direct parent frame, at the
+ * parent origin its preview launch declares (`parentOrigin`, else the phone's
+ * own origin), and says `airjam.local-seat.ready` to it. A product showing a phone in its own
  * window frames the phone in a page of its own and relays to that page; it
  * never messages a phone in another window directly.
  */
@@ -341,22 +341,14 @@ export const readLocalSeatLabel = (): string | null =>
       );
 
 /**
- * The phone side: a local-seat phone applies its direct parent's operations
- * to its own controls. Its parent is the embedding product its topology
- * declares, or else the preview workspace, which launches it on its own
- * origin.
+ * The phone side: a local-seat phone applies operations from the parent its
+ * preview launch declares to its own controls.
  */
 export const listenForLocalSeatInput = (
   target: LocalInputTarget | null,
-  topology: ResolvedAirJamRuntimeTopology | undefined,
 ): (() => void) => {
-  if (!target || readLocalSeatLabel() === null || window.parent === window)
-    return () => {};
-  const parent: LocalSeatParent = (topology &&
-    embeddedRuntimeParent(topology)) ?? {
-    window: window.parent,
-    origin: window.location.origin,
-  };
+  const parent = readPreviewControllerParent();
+  if (!target || readLocalSeatLabel() === null || !parent) return () => {};
   const receiver = new LocalInputReceiver(target);
   const onMessage = (event: MessageEvent) => {
     if (event.source !== parent.window || event.origin !== parent.origin)

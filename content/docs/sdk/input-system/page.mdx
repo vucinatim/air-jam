@@ -154,6 +154,13 @@ Local development's preview phones and Studio provide these seats; a page
 with nobody to provide them leaves keys and gamepads alone. Game code never
 listens to keys or polls gamepads itself.
 
+A product framing its own phones launches each with
+`createPreviewControllerLaunch` from `@air-jam/sdk/preview`, passing its
+page's origin as `parentOrigin` and, for a seat, its label as `localSeat`. A
+phone takes seat input and close requests only from its direct parent at that
+origin, and answers only there; without `parentOrigin` that is the phone's own
+origin, as the preview workspace launches it.
+
 ## Agents
 
 Agents fill the same controls through leased participant control. They send

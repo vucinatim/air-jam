@@ -2,6 +2,7 @@ import { generateControllerId } from "../utils/ids";
 
 export const AIR_JAM_PREVIEW_FLAG_QUERY_PARAM = "aj_preview";
 export const AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM = "aj_preview_device";
+export const AIR_JAM_PREVIEW_PARENT_QUERY_PARAM = "aj_preview_parent";
 
 export interface PreviewControllerIdentity {
   controllerId: string;
@@ -63,4 +64,30 @@ export const readPreviewControllerDeviceIdFromLocation = (): string | null => {
   return readPreviewControllerDeviceIdFromSearchParams(
     new URLSearchParams(window.location.search),
   );
+};
+
+/**
+ * The page framing a preview phone: its direct parent frame, at the origin
+ * its launch declared, or else the phone's own origin, as the preview
+ * workspace launches it. Null for anything but a framed preview phone.
+ */
+export const readPreviewControllerParent = (): {
+  window: Window;
+  origin: string;
+} | null => {
+  if (
+    typeof window === "undefined" ||
+    window.parent === window ||
+    readPreviewControllerDeviceIdFromLocation() === null
+  ) {
+    return null;
+  }
+
+  const declared = new URLSearchParams(window.location.search).get(
+    AIR_JAM_PREVIEW_PARENT_QUERY_PARAM,
+  );
+  return {
+    window: window.parent,
+    origin: declared ? new URL(declared).origin : window.location.origin,
+  };
 };

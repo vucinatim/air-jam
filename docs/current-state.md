@@ -64,6 +64,8 @@ The supported preview export also exposes `requestPreviewControllerClose` for
 editors removing a controller. It reuses the framework preview's guarded leave
 handshake and reports acknowledgement separately from timeout/refusal; moving a
 phone between surfaces keeps its recovery authority instead of leaving the room.
+A phone answers close requests only from its direct parent at the origin its
+launch declares (`parentOrigin`, else its own origin), and only to that origin.
 
 Controller storage retains private resume authority for each controller within a
 room, alongside the ordinary last-used phone binding. Explicit preview identities

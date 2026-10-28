@@ -7,7 +7,9 @@ import {
 import {
   AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM,
   AIR_JAM_PREVIEW_FLAG_QUERY_PARAM,
+  AIR_JAM_PREVIEW_PARENT_QUERY_PARAM,
 } from "../src/preview/identity";
+import { AIR_JAM_LOCAL_SEAT_QUERY_PARAM } from "../src/runtime/local-seats";
 
 describe("preview controller launch helpers", () => {
   it("builds a preview controller url from the canonical join url", () => {
@@ -82,6 +84,27 @@ describe("preview controller launch helpers", () => {
     expect(params.get(AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM)).toBe(
       launch?.deviceId,
     );
+  });
+
+  it("declares the parent origin a phone answers, and refuses an invalid one", () => {
+    const launch = createPreviewControllerLaunch({
+      joinUrl: "https://game.example/controller?room=ROOM2",
+      parentOrigin: "https://studio.example/editor?project=1",
+      localSeat: "Keyboard 1",
+    });
+    const params = new URL(launch!.url).searchParams;
+    expect(params.get(AIR_JAM_PREVIEW_PARENT_QUERY_PARAM)).toBe(
+      "https://studio.example",
+    );
+    expect(params.get(AIR_JAM_LOCAL_SEAT_QUERY_PARAM)).toBe("Keyboard 1");
+
+    expect(
+      buildPreviewControllerUrl({
+        joinUrl: "https://game.example/controller?room=ROOM2",
+        controllerId: "ctrl_preview_1",
+        parentOrigin: "javascript:alert(1)",
+      }),
+    ).toBeNull();
   });
 
   it("only reads preview device ids from explicit preview launches", () => {

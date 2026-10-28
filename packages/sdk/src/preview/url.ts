@@ -7,6 +7,7 @@ import { AIR_JAM_LOCAL_SEAT_QUERY_PARAM } from "../runtime/local-seats";
 import {
   AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM,
   AIR_JAM_PREVIEW_FLAG_QUERY_PARAM,
+  AIR_JAM_PREVIEW_PARENT_QUERY_PARAM,
   createPreviewControllerIdentity,
   type PreviewControllerIdentity,
 } from "./identity";
@@ -17,6 +18,11 @@ export interface BuildPreviewControllerUrlOptions {
   previewDeviceId?: string | null;
   allowedOrigins?: readonly string[];
   embedOrigin?: string | null;
+  /**
+   * The origin of the page that frames the phone, the only one it takes
+   * messages from and answers; defaults to the phone's own origin.
+   */
+  parentOrigin?: string | null;
   /** Launches the phone as a local player's seat under this name. */
   localSeat?: string | null;
 }
@@ -43,6 +49,7 @@ export const buildPreviewControllerUrl = ({
   previewDeviceId,
   allowedOrigins,
   embedOrigin,
+  parentOrigin,
   localSeat,
 }: BuildPreviewControllerUrlOptions): string | null => {
   const normalizedJoinUrl = normalizeRuntimeUrl(joinUrl);
@@ -85,10 +92,18 @@ export const buildPreviewControllerUrl = ({
     return null;
   }
 
+  const normalizedParentOrigin = parentOrigin
+    ? getRuntimeUrlOrigin(parentOrigin)
+    : null;
+  if (parentOrigin && !normalizedParentOrigin) {
+    return null;
+  }
+
   return appendRuntimeQueryParams(previewBaseUrl, {
     controllerId,
     [AIR_JAM_PREVIEW_FLAG_QUERY_PARAM]: "1",
     [AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM]: previewDeviceId,
+    [AIR_JAM_PREVIEW_PARENT_QUERY_PARAM]: normalizedParentOrigin,
     [AIR_JAM_LOCAL_SEAT_QUERY_PARAM]: localSeat,
   });
 };
@@ -97,13 +112,12 @@ export const createPreviewControllerLaunch = ({
   joinUrl,
   allowedOrigins,
   embedOrigin,
+  parentOrigin,
   localSeat,
-}: {
-  joinUrl: string;
-  allowedOrigins?: readonly string[];
-  embedOrigin?: string | null;
-  localSeat?: string | null;
-}): PreviewControllerLaunch | null => {
+}: Omit<
+  BuildPreviewControllerUrlOptions,
+  "controllerId" | "previewDeviceId"
+>): PreviewControllerLaunch | null => {
   const identity = createPreviewControllerIdentity();
   const url = buildPreviewControllerUrl({
     joinUrl,
@@ -111,6 +125,7 @@ export const createPreviewControllerLaunch = ({
     previewDeviceId: identity.deviceId,
     allowedOrigins,
     embedOrigin,
+    parentOrigin,
     localSeat,
   });
 

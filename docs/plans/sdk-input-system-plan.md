@@ -178,10 +178,11 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
 5. **One sender per seat.** The host page forwards a seat's operations to its
    preview phone, which applies them to the `ControllerInput` its own screen
    uses. The phone stays the seat's only input sender, so keepalives, the
-   input log and replays need nothing new. A phone takes local input only from
-   its parent, and only when it was launched as a local seat: the parent
-   origin its topology declares, else its own origin, as the preview
-   workspace launches it.
+   input log and replays need nothing new. A phone takes local input only
+   when it was launched as a local seat, and only from its direct parent at
+   the origin its preview launch declares (`parentOrigin`), else its own
+   origin, as the preview workspace launches it. Embedding flags in its
+   runtime topology play no part.
 6. **Whoever owns the phones provides seats.** In standalone local
    development the SDK's preview workspace launches them, a seat's phone
    being the session launched for its key. An embedded host first asks its
