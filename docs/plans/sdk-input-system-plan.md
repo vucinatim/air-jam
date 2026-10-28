@@ -280,6 +280,12 @@ game and contract suites:
    pressing W opened "Keyboard 1", the phone joined a team with its own
    buttons, and holding S drove its paddle down.
 
+7. **Docs figures.** The hosted renderer no longer has to provide
+   `HooksComparisonTable` or `InputFlowDiagram`, which drew `useGetInput`,
+   input schemas and send loops; no page used them. The architecture figure
+   is redrawn in the private renderer for the core, the React binding and the
+   input sources.
+
 Next:
 
 1. Phase 3, product side: Studio answers seat requests with Studio phones,
@@ -287,7 +293,6 @@ Next:
    the `gamepad` permission; Tim proves a real gamepad.
 2. Code Review reads device tilt in game code; it becomes an SDK tilt source
    in phase 3.
-3. The hosted product's input flow diagram still shows schemas and send loops.
 
 ## Removals
 
