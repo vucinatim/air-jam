@@ -1,5 +1,5 @@
 import type { JSX, ReactNode } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import { useAirJamConfig } from "../context/air-jam-context";
 import {
@@ -210,6 +210,19 @@ const ControllerRuntimeOwner = ({
   );
 };
 
+const subscribeToNothing = () => () => {};
+/**
+ * Session runtimes read the page's address, storage and frames, so they mount
+ * only in the browser: server rendering emits nothing for them, and hydration
+ * matches before the runtime starts.
+ */
+const useInBrowser = () =>
+  useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+
 export const AirJamHostRuntime = ({
   children,
   roomId,
@@ -222,7 +235,8 @@ export const AirJamHostRuntime = ({
   input,
   inputBindings,
   ...providerProps
-}: AirJamHostRuntimeProps): JSX.Element => {
+}: AirJamHostRuntimeProps): JSX.Element | null => {
+  if (!useInBrowser()) return null;
   return (
     <HostSessionProvider {...providerProps}>
       <PlatformSettingsBoundary>
@@ -255,7 +269,8 @@ export const AirJamControllerRuntime = ({
   stores,
   input,
   ...providerProps
-}: AirJamControllerRuntimeProps): JSX.Element => {
+}: AirJamControllerRuntimeProps): JSX.Element | null => {
+  if (!useInBrowser()) return null;
   return (
     <ControllerSessionProvider {...providerProps}>
       <PlatformSettingsBoundary>
