@@ -22,6 +22,7 @@ import {
   AIRJAM_DEV_RUNTIME_EVENT,
   type AirJamDevRuntimeEventDetail,
 } from "../runtime/dev-runtime-events";
+import { embeddedRuntimeParent } from "../runtime/embedded-parent";
 
 type BrowserLogLevel = "debug" | "info" | "warn" | "error";
 type BrowserLogSource = AirJamDevBrowserLogSource;
@@ -77,7 +78,10 @@ interface BrowserLogSinkOptions {
   appOrigin?: string;
   proxyStrategy?: ProxyStrategy;
   appId?: string;
-  topology?: Pick<ResolvedAirJamRuntimeTopology, "runtimeMode">;
+  topology?: Pick<
+    ResolvedAirJamRuntimeTopology,
+    "runtimeMode" | "embedded" | "embedParentOrigin"
+  >;
 }
 
 interface BrowserLogSinkController {
@@ -323,6 +327,7 @@ class BrowserLogSinkRuntime {
   private endpoint: string | null = null;
   private unloadEndpoint: string | null = null;
   private appId: string | undefined;
+  private parent: ReturnType<typeof embeddedRuntimeParent> = null;
   private readonly sessionId = createSessionId();
   private readonly queue: BrowserLogEntry[] = [];
   private nextSourceSeq = 1;
@@ -340,6 +345,9 @@ class BrowserLogSinkRuntime {
     this.endpoint = resolveLogEndpoint(options);
     this.unloadEndpoint = resolveUnloadEndpoint(options);
     this.appId = options.appId;
+    this.parent = options.topology
+      ? embeddedRuntimeParent(options.topology)
+      : null;
 
     if (
       this.endpoint &&
@@ -386,18 +394,14 @@ class BrowserLogSinkRuntime {
       this.originalConsole.get("error") ?? console.error.bind(console);
     originalError("[AirJam][AJ_BROWSER_LOG_SINK_POST_FAILED]", payload);
 
-    if (
-      typeof window !== "undefined" &&
-      window.parent &&
-      window.parent !== window
-    ) {
+    if (this.parent) {
       try {
-        window.parent.postMessage(
+        this.parent.window.postMessage(
           {
             type: AIRJAM_DEV_LOG_SINK_FAILURE,
             payload,
           },
-          "*",
+          this.parent.origin,
         );
       } catch {
         // Best effort only

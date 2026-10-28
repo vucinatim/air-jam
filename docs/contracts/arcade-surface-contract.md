@@ -261,6 +261,12 @@ That identity is used to:
 2. close stale forwards after shell drift
 3. keep old iframes from surviving a surface switch
 
+An embedded runtime posts its bridge request, presentation sync and dev
+notices only to its parent frame at the topology's `embedParentOrigin`, never
+to `"*"`: the host request carries its capability token and a `MessagePort`.
+A runtime whose topology declares no parent sends no request and reports
+`parent_origin_missing`.
+
 ## Invariants
 
 The contract is correct when:

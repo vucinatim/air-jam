@@ -1,6 +1,12 @@
 import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 
-export function embeddedRuntimeParent(topology: ResolvedAirJamRuntimeTopology) {
+/** An embedded runtime's parent frame and the origin its topology declares, or null when not embedded. */
+export function embeddedRuntimeParent(
+  topology: Pick<
+    ResolvedAirJamRuntimeTopology,
+    "embedded" | "embedParentOrigin"
+  >,
+) {
   if (
     typeof window === "undefined" ||
     window.parent === window ||

@@ -16,6 +16,7 @@ import {
 } from "./controller-bridge";
 import { controllerBridgeContext } from "./controller-bridge-context";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
+import { embeddedRuntimeParent } from "./embedded-parent";
 import type {
   AirJamRealtimeClient,
   BridgeListener,
@@ -58,6 +59,18 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       return this;
     }
 
+    const parent = embeddedRuntimeParent(runtimeParams.topology);
+    if (!parent) {
+      this.fail(
+        "Embedded controller bridge requires a declared parent origin.",
+        {
+          reason: "parent_origin_missing",
+          runtimeParams,
+        },
+      );
+      return this;
+    }
+
     if (this.connected || this.requested) {
       return this;
     }
@@ -81,13 +94,13 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
       });
     }, BRIDGE_HANDSHAKE_TIMEOUT_MS);
 
-    window.parent.postMessage(
+    parent.window.postMessage(
       createControllerBridgeRequestMessage({
         roomId: runtimeParams.room as RoomCode,
         controllerId: runtimeParams.controllerId,
         ...controllerBridgeContext(runtimeParams),
       }),
-      "*",
+      parent.origin,
       [channel.port2],
     );
 
