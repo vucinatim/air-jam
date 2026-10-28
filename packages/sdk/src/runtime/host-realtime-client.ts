@@ -2,6 +2,7 @@ import type { AirJamSocket } from "../context/socket-manager";
 import { DirectRealtimeClient } from "../core/direct-realtime-client";
 import { AIRJAM_DEV_LOG_EVENTS, type RoomCode } from "../protocol";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
+import { embeddedRuntimeParent } from "./embedded-parent";
 import {
   createHostBridgeCloseMessage,
   createHostBridgeEmitMessage,
@@ -60,6 +61,15 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
       return this;
     }
 
+    const parent = embeddedRuntimeParent(runtimeParams.topology);
+    if (!parent) {
+      this.fail("Embedded host bridge requires a declared parent origin.", {
+        reason: "parent_origin_missing",
+        runtimeParams,
+      });
+      return this;
+    }
+
     if (this.connected || this.requested) {
       return this;
     }
@@ -83,13 +93,13 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
       });
     }, BRIDGE_HANDSHAKE_TIMEOUT_MS);
 
-    window.parent.postMessage(
+    parent.window.postMessage(
       createHostBridgeRequestMessage({
         roomId: runtimeParams.room as RoomCode,
         capabilityToken: runtimeParams.capabilityToken,
         arcadeSurface: runtimeParams.arcadeSurface,
       }),
-      "*",
+      parent.origin,
       [channel.port2],
     );
 

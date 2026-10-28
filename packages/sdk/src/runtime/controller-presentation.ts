@@ -1,25 +1,27 @@
 import type { ControllerOrientation } from "../protocol";
 import { createControllerPresentationSyncMessage } from "./controller-bridge";
 import { controllerBridgeContext } from "./controller-bridge-context";
+import { embeddedRuntimeParent } from "./embedded-parent";
 import { readEmbeddedControllerRuntimeParams } from "./runtime-session-params";
 
 export const publishEmbeddedControllerPresentation = (
   orientation: ControllerOrientation,
 ): void => {
-  if (typeof window === "undefined" || window.parent === window) {
-    return;
-  }
-
   const runtimeParams = readEmbeddedControllerRuntimeParams();
   if (!runtimeParams) {
     return;
   }
 
-  window.parent.postMessage(
+  const parent = embeddedRuntimeParent(runtimeParams.topology);
+  if (!parent) {
+    return;
+  }
+
+  parent.window.postMessage(
     createControllerPresentationSyncMessage({
       orientation,
       ...controllerBridgeContext(runtimeParams),
     }),
-    runtimeParams.topology.embedParentOrigin ?? "*",
+    parent.origin,
   );
 };

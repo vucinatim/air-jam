@@ -7,7 +7,10 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
-import { findCanonicalViolations } from "../commands/standards.mjs";
+import {
+  canonicalRules,
+  findCanonicalViolations,
+} from "../commands/standards.mjs";
 import { buildPerfSanityArgs, perfProfiles } from "../lib/perf-plan.mjs";
 
 const repoRoot = path.resolve(
@@ -178,6 +181,42 @@ test("the canonical scanner preserves multiline matching and Git ignore boundari
           excerpt: 'import { AirJamProvider, } from "@air-jam/sdk"',
         },
       ],
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the wildcard postMessage guard catches a target origin on any line", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-canonical-"));
+  try {
+    fs.mkdirSync(path.join(root, "src"));
+    fs.writeFileSync(
+      path.join(root, "src/example.ts"),
+      [
+        'window.parent.postMessage({ type: "single" }, "*");',
+        "window.parent.postMessage(",
+        "  { type: AIR_JAM_PREVIEW_CLOSE_RESULT, ok: ack.ok },",
+        '  "*",',
+        ");",
+        'frame.postMessage(message, { targetOrigin: "*" });',
+        'parent.postMessage({ type: "declared", ok }, parent.origin);',
+        'const all = "*";',
+        "",
+      ].join("\n"),
+    );
+    execFileSync("git", ["init", "--quiet"], { cwd: root });
+    execFileSync("git", ["add", "src"], { cwd: root });
+    const rule = canonicalRules.find(
+      ({ label }) => label === "wildcard postMessage targetOrigin usage",
+    );
+
+    assert.deepEqual(
+      findCanonicalViolations({
+        root,
+        rules: [{ ...rule, paths: ["src"] }],
+      }).map(({ line }) => line),
+      [1, 2, 6],
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

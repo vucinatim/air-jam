@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
 import {
+  AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX,
   resolveRuntimeTopology,
   runtimeTopologyToQueryParams,
 } from "../src/runtime-topology";
@@ -14,6 +15,7 @@ import {
   AIRJAM_DEV_RUNTIME_EVENT,
   type AirJamDevRuntimeEventDetail,
 } from "../src/runtime/dev-runtime-events";
+import { frameInParent } from "./fixtures/framed-window";
 
 describe("embedded controller bridge runtime", () => {
   const getMockCall = (
@@ -24,6 +26,7 @@ describe("embedded controller bridge runtime", () => {
 
   beforeEach(() => {
     vi.useRealTimers();
+    frameInParent();
     const topology = resolveRuntimeTopology({
       runtimeMode: "arcade-live",
       surfaceRole: "controller",
@@ -34,7 +37,7 @@ describe("embedded controller bridge runtime", () => {
       assetBasePath: "/",
       secureTransport: false,
       embedded: true,
-      embedParentOrigin: window.location.origin,
+      embedParentOrigin: "https://arcade.example",
       proxyStrategy: "none",
     });
     const params = new URLSearchParams({
@@ -85,6 +88,7 @@ describe("embedded controller bridge runtime", () => {
     expect(requestCall?.[0]).toMatchObject({
       type: "AIRJAM_CONTROLLER_BRIDGE_REQUEST",
     });
+    expect(requestCall?.[1]).toBe("https://arcade.example");
     expect(directSocketGetter).not.toHaveBeenCalled();
 
     const parentPort = (requestCall?.[2] as MessagePort[] | undefined)?.[0];
@@ -207,6 +211,45 @@ describe("embedded controller bridge runtime", () => {
       player: { id: "ctrl_1", label: "Player 1" },
       players: [{ id: "ctrl_1", label: "Player 1" }],
     });
+  });
+
+  it("sends no request without a declared parent", () => {
+    const params = new URLSearchParams(window.location.search);
+    params.set(
+      `${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}embedded`,
+      "false",
+    );
+    params.delete(
+      `${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}embed_parent_origin`,
+    );
+    window.history.replaceState({}, "", `?${params.toString()}`);
+    const runtimeEvents = captureRuntimeEvents();
+    const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+    const client = getControllerRealtimeClient(
+      vi.fn(() => {
+        throw new Error(
+          "direct socket should not be requested in embedded mode",
+        );
+      }),
+    );
+    const disconnectSpy = vi.fn();
+    client.on("disconnect", disconnectSpy);
+
+    client.connect();
+
+    expect(postMessageSpy).not.toHaveBeenCalled();
+    expect(disconnectSpy).toHaveBeenCalledWith(
+      "Embedded controller bridge requires a declared parent origin.",
+    );
+    expect(runtimeEvents.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.embeddedBridgeRejected,
+          data: expect.objectContaining({ reason: "parent_origin_missing" }),
+        }),
+      ]),
+    );
+    runtimeEvents.cleanup();
   });
 
   it("surfaces handshake timeout and then re-requests the bridge", () => {
@@ -466,6 +509,7 @@ it("renders the acting controller through a read-only harness bridge without req
       (event as CustomEvent<AirJamDevRuntimeEventDetail>).detail,
     );
   window.addEventListener(AIRJAM_DEV_RUNTIME_EVENT, recordRuntimeEvent);
+  frameInParent();
   const harnessSessionId = "b3ac882e-e3da-41d3-b3ec-2b065755eb31";
   const topology = resolveRuntimeTopology({
     runtimeMode: "standalone-dev",
