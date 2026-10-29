@@ -590,7 +590,7 @@ section.
 
 Proved by:
 
-1. a headless Pong test starts with `ballSpeed: 600`, changes it live to 800
+1. a headless Pong test starts with `ballSpeed: 600`, changes it live to 700
    mid-rally, and its replay from the input log ends in the identical final
    observation
 2. updating a non-live setting fails `AJ_SETTING_NOT_LIVE`, a stale revision
