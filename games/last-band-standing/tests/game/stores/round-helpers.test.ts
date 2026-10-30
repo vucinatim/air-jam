@@ -126,7 +126,6 @@ describe("createRound", () => {
       guessKind: "song-title",
       expectedPlayerIds: ["player-1"],
       nowMs: 1_000,
-      roundDurationSec: 30,
     });
     const quizCategorySongIds = new Set(
       getSongsForQuizCategory(correctSong.quizCategoryId).map(

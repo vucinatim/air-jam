@@ -216,7 +216,6 @@ export interface CreateRoundOptions {
   guessKind: RoundGuessKind;
   expectedPlayerIds: string[];
   nowMs: number;
-  roundDurationSec: number;
 }
 
 export const createRound = ({
@@ -226,7 +225,6 @@ export const createRound = ({
   guessKind,
   expectedPlayerIds,
   nowMs,
-  roundDurationSec,
 }: CreateRoundOptions): ActiveRound => {
   const song = getSongById(songId);
   if (!song) {
@@ -246,7 +244,7 @@ export const createRound = ({
     guessKind,
     optionOrder,
     startedAtMs: nowMs,
-    endsAtMs: nowMs + roundDurationSec * 1000,
+    endsAtMs: nowMs + settings.roundDurationSec * 1000,
     expectedPlayerIds,
   };
 };
@@ -469,7 +467,6 @@ const advanceFromRevealState = (
       guessKind: nextGuessKind,
       expectedPlayerIds: state.activePlayerIds,
       nowMs,
-      roundDurationSec: settings.roundDurationSec,
     }),
     answersByPlayerId: {},
     roundReveal: null,

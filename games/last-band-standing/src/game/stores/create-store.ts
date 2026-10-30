@@ -249,7 +249,6 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
             guessKind: firstGuessKind,
             expectedPlayerIds: activePlayerIds,
             nowMs: roundStartsAtMs,
-            roundDurationSec: settings.roundDurationSec,
           }),
           answersByPlayerId: {},
           roundReveal: null,
