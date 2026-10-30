@@ -5,8 +5,8 @@ export const getRoundPrompt = (guessKind: RoundGuessKind): string => {
 };
 
 export const optionColors = [
-  "bg-[#e74c3c] active:bg-[#c0392b]",
-  "bg-[#2980b9] active:bg-[#1f6da0]",
-  "bg-[#27ae60] active:bg-[#1e8c4c]",
-  "bg-[#f39c12] active:bg-[#d68910]",
+  "bg-[var(--airjam-color-destructive)] active:bg-[var(--airjam-color-answer-red-pressed)]",
+  "bg-[var(--airjam-color-answer-blue)] active:bg-[var(--airjam-color-answer-blue-pressed)]",
+  "bg-[var(--airjam-color-answer-green)] active:bg-[var(--airjam-color-answer-green-pressed)]",
+  "bg-[var(--airjam-color-answer-orange)] active:bg-[var(--airjam-color-answer-orange-pressed)]",
 ];

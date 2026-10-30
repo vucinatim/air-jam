@@ -1,3 +1,4 @@
+import { pongTheme } from "../theme";
 /**
  * Team identity + static presentation (label, color).
  *
@@ -17,12 +18,12 @@ export const TEAMS: Record<
   team1: {
     id: "team1",
     label: "Sołaris",
-    color: "#f97316",
+    color: pongTheme.colors.team1,
   },
   team2: {
     id: "team2",
     label: "Nebułon",
-    color: "#38bdf8",
+    color: pongTheme.colors.team2,
   },
 };
 

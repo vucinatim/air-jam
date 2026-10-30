@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { codeReviewAssets } from "../../game/assets";
 import { TEAM1_COLOR, TEAM2_COLOR } from "../../game/engine/constants";
 import {
   createEmptySpriteMap,
@@ -10,20 +11,14 @@ import type {
   SpriteTintCacheKey,
   SpriteVariant,
 } from "../../game/engine/types";
-import defendSprite from "/sprites/defend.png";
-import endSprite from "/sprites/end.png";
-import leftExtendedSprite from "/sprites/left-extended.png";
-import leftShortSprite from "/sprites/left-short.png";
-import rightExtendedSprite from "/sprites/right-extended.png";
-import rightShortSprite from "/sprites/right-short.png";
 
 const SPRITE_VARIANTS: { variant: SpriteVariant; url: string }[] = [
-  { variant: "LeftShort", url: leftShortSprite },
-  { variant: "RightShort", url: rightShortSprite },
-  { variant: "LeftExtended", url: leftExtendedSprite },
-  { variant: "RightExtended", url: rightExtendedSprite },
-  { variant: "Defend", url: defendSprite },
-  { variant: "End", url: endSprite },
+  { variant: "LeftShort", url: codeReviewAssets.images.leftShort.src },
+  { variant: "RightShort", url: codeReviewAssets.images.rightShort.src },
+  { variant: "LeftExtended", url: codeReviewAssets.images.leftExtended.src },
+  { variant: "RightExtended", url: codeReviewAssets.images.rightExtended.src },
+  { variant: "Defend", url: codeReviewAssets.images.defend.src },
+  { variant: "End", url: codeReviewAssets.images.end.src },
 ];
 
 const SPRITE_TEAMS: { team: "team1" | "team2"; color: string }[] = [

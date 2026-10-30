@@ -2,7 +2,6 @@ export type {
   AudioHandle,
   PlayOptions,
   SoundCategory,
-  SoundConfig,
   SoundManifest,
 } from "./audio/audio-manager";
 export {

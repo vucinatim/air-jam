@@ -4,12 +4,14 @@ import {
   airJamGameMetadataSchema,
   type AirJamGameMetadata,
 } from "../metadata/manifest";
+import { airJamAssetsSchema, type AirJamAssets } from "./assets";
 import { HostRuntime, type HostRuntimeFactory } from "./host-runtime";
 import type { AirJamInput } from "./input";
 import type { AirJamInputBindings } from "./input-bindings";
 import type { AttachableStore } from "./replicated-store";
 import type { AirJamSettings, SettingsValues } from "./settings";
 import type { AirJamSimulationDeclaration } from "./simulation";
+import { airJamThemeSchema, type AirJamTheme } from "./theme";
 
 export interface AirJamGameDeclaration {
   metadata: AirJamGameMetadata;
@@ -22,6 +24,8 @@ export interface AirJamGameDeclaration {
     SettingsValues
   >;
   settings?: AirJamSettings;
+  assets?: AirJamAssets;
+  theme?: AirJamTheme;
   input?: AirJamInput;
   inputBindings?: AirJamInputBindings;
   agent?: AirJamAgentContract;
@@ -91,6 +95,8 @@ export function defineAirJamGame(
   );
   if (declaration.testing !== undefined)
     testingPathSchema.parse(declaration.testing);
+  if (declaration.assets) airJamAssetsSchema.parse(declaration.assets);
+  if (declaration.theme) airJamThemeSchema.parse(declaration.theme);
   const stores = Object.freeze([...(declaration.stores ?? [])]);
   const { agent, simulation, input, settings } = declaration;
   return Object.freeze({

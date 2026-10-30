@@ -5,18 +5,10 @@
  * Runtime details live in host hooks so this route stays a small composition
  * hub instead of a mixed engine/UI file.
  */
-import {
-  AudioRuntime,
-  MusicPlaylist,
-  useAirJamHost,
-  useAirJamStore,
-} from "@air-jam/sdk";
+import { MusicPlaylist, useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
-import {
-  CODE_REVIEW_MUSIC_TRACKS,
-  CODE_REVIEW_SOUND_MANIFEST,
-} from "../game/contracts/sounds";
+import { CODE_REVIEW_MUSIC_TRACKS } from "../game/assets";
 import { gameStore } from "../game/stores";
 import { EndedScreen } from "./components/ended-screen";
 import { LobbyScreen } from "./components/lobby-screen";
@@ -29,14 +21,6 @@ import { useCodeReviewMatchView } from "./hooks/use-code-review-match-view";
 import { useCodeReviewSprites } from "./hooks/use-code-review-sprites";
 
 export function HostView() {
-  return (
-    <AudioRuntime manifest={CODE_REVIEW_SOUND_MANIFEST}>
-      <CodeReviewHost />
-    </AudioRuntime>
-  );
-}
-
-function CodeReviewHost() {
   const host = useAirJamHost();
   const matchPhase = useAirJamStore(gameStore, (state) => state.matchPhase);
   const actions = gameStore.actions;
@@ -61,7 +45,7 @@ function CodeReviewHost() {
         playing={!audio.audioMuted}
         tracks={CODE_REVIEW_MUSIC_TRACKS}
       />
-      <SurfaceViewport className="bg-(--ring-mat-color,#e5e7eb)">
+      <SurfaceViewport className="bg-(--ring-mat-color)">
         <div className="relative h-full w-full">
           <PlayingScreen
             canvasRef={canvas.canvasRef}

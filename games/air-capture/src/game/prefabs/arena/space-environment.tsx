@@ -8,6 +8,7 @@ import {
   ShaderMaterial,
   type DirectionalLight,
 } from "three";
+import { airCaptureTheme } from "../../theme";
 import type { AirCaptureArenaPrefabProps } from "./schema";
 
 function Forcefield({
@@ -92,8 +93,8 @@ export function SpaceEnvironment({
   return (
     <>
       {/* Scene settings */}
-      <color args={[0x000000]} attach="background" />
-      <fogExp2 args={[0x000000, props.fogDensity]} />
+      <color args={[airCaptureTheme.colors.black]} attach="background" />
+      <fogExp2 args={[airCaptureTheme.colors.black, props.fogDensity]} />
 
       {/* Space skybox with stars */}
       <Stars

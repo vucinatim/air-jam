@@ -11,6 +11,7 @@ import {
   type Mesh,
   type Object3D,
 } from "three";
+import { airCaptureTheme } from "../../theme";
 
 const trailVertexShader = `
   uniform float uTime;
@@ -82,7 +83,7 @@ interface ExhaustTrailProps {
 export function Trail({
   target,
   thrustRef,
-  color = "#00ffff",
+  color = airCaptureTheme.colors.cyan,
   width = 0.5,
   length = 1.0,
   maxPoints = 100,

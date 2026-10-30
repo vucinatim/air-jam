@@ -1,7 +1,8 @@
+import { airCaptureTheme } from "../../theme";
 export const AIR_CAPTURE_OBSTACLE_BLOCK_PREVIEW = {
   summary:
     "A solid obstacle block used to shape lanes, cover, and traversal pressure.",
-  accentColor: "#666666",
+  accentColor: airCaptureTheme.colors.rocketBand,
   dimensions: {
     width: 8,
     height: 8,

@@ -34,17 +34,17 @@ export function OfficeHostLobbyOverlay({
   } = session;
 
   return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#1f2937]/70 p-4">
-      <div className="w-full max-w-2xl border border-[#fef3c7] bg-[#fef3c7] p-6 text-[#5c4a2e] shadow-2xl">
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--airjam-color-text-dark)]/70 p-4">
+      <div className="w-full max-w-2xl border border-[var(--airjam-color-paper-pale-gold)] bg-[var(--airjam-color-paper-pale-gold)] p-6 text-[var(--airjam-color-text-paper)] shadow-2xl">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
+            <p className="text-xs tracking-[0.2em] text-[var(--airjam-color-button)] uppercase">
               Room
             </p>
             <p className="text-xl font-bold">{roomId ?? "----"}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
+            <p className="text-xs tracking-[0.2em] text-[var(--airjam-color-button)] uppercase">
               Picked
             </p>
             <p className="text-xl font-bold">
@@ -57,7 +57,7 @@ export function OfficeHostLobbyOverlay({
           <JoinUrlControls
             value={joinControls.joinUrlValue}
             label={
-              <span className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
+              <span className="text-xs tracking-[0.2em] text-[var(--airjam-color-button)] uppercase">
                 Controller link
               </span>
             }
@@ -66,14 +66,14 @@ export function OfficeHostLobbyOverlay({
             onOpen={joinControls.handleOpen}
             qrVisible={joinControls.joinQrVisible}
             onToggleQr={joinControls.toggleJoinQr}
-            inputClassName="border-[#e5d4ab] bg-[#fff6d8] text-[#5c4a2e] placeholder:text-[#8b6914]/70"
-            buttonClassName="rounded-none border-[#8b6914]/25 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11]"
+            inputClassName="border-[var(--airjam-color-border-light)] bg-[var(--airjam-color-paper)] text-[var(--airjam-color-text-paper)] placeholder:text-[var(--airjam-color-button)]/70"
+            buttonClassName="rounded-none border-[var(--airjam-color-button)]/25 bg-[var(--airjam-color-button)] text-[var(--airjam-color-paper-cream)] hover:bg-[var(--airjam-color-button-hover)]"
           />
         </div>
 
-        <div className="mb-4 max-h-64 overflow-y-auto border border-[#e5d4ab] bg-[#fff6d8] p-3">
+        <div className="mb-4 max-h-64 overflow-y-auto border border-[var(--airjam-color-border-light)] bg-[var(--airjam-color-paper)] p-3">
           {players.length === 0 ? (
-            <p className="text-sm text-[#6b7280]">
+            <p className="text-sm text-[var(--airjam-color-text-gray)]">
               Waiting for controllers to join…
             </p>
           ) : (
@@ -94,12 +94,12 @@ export function OfficeHostLobbyOverlay({
                 return (
                   <li
                     key={player.id}
-                    className="border-b border-[#e5d4ab] pb-2 text-sm last:border-0 last:pb-0"
+                    className="border-b border-[var(--airjam-color-border-light)] pb-2 text-sm last:border-0 last:pb-0"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="font-semibold">{player.label}</p>
-                        <p className="text-xs text-[#8b6914]">
+                        <p className="text-xs text-[var(--airjam-color-button)]">
                           {selectedCharacter
                             ? selectedCharacter.name
                             : "No character selected"}
@@ -116,7 +116,7 @@ export function OfficeHostLobbyOverlay({
                           alt={selectedCharacter.name}
                           className="h-10 w-10 rounded object-cover object-top"
                         />
-                        <div className="space-y-1 text-[11px] text-[#5c4a2e]">
+                        <div className="space-y-1 text-[11px] text-[var(--airjam-color-text-paper)]">
                           {highlights.map((highlight) => (
                             <p
                               key={`${selectedCharacter.id}:${highlight.taskId}`}
@@ -141,7 +141,7 @@ export function OfficeHostLobbyOverlay({
           onStart={startMatch}
           startLabel="Start Match"
           className="justify-center"
-          buttonClassName="rounded-none border-[#8b6914]/25 bg-[#8b6914] px-5 text-[#fdf6e3] hover:bg-[#7a5b11]"
+          buttonClassName="rounded-none border-[var(--airjam-color-button)]/25 bg-[var(--airjam-color-button)] px-5 text-[var(--airjam-color-paper-cream)] hover:bg-[var(--airjam-color-button-hover)]"
         />
         <JoinQrOverlay
           open={joinControls.joinQrVisible}

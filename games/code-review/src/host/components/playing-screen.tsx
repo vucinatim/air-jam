@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { codeReviewTheme } from "../../game/theme";
 
 interface PlayingScreenProps {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -11,14 +12,14 @@ interface PlayingScreenProps {
 export const PlayingScreen = ({ canvasRef, hpDisplay }: PlayingScreenProps) => (
   <div
     className="relative flex h-full w-full flex-col items-center justify-center p-4"
-    style={{ backgroundColor: "var(--ring-mat-color, #e5e7eb)" }}
+    style={{ backgroundColor: "var(--ring-mat-color)" }}
   >
     <div className="mb-4 flex w-full items-center">
       <div className="flex w-1/3 justify-center">
         <div className="relative">
           <span
             style={{
-              color: "rgb(220, 38, 38)",
+              color: codeReviewTheme.colors.team1ControllerAccent,
               whiteSpace: "nowrap",
             }}
             className="pixel-font text-7xl leading-none"
@@ -36,7 +37,7 @@ export const PlayingScreen = ({ canvasRef, hpDisplay }: PlayingScreenProps) => (
         <div className="relative">
           <span
             style={{
-              color: "rgb(37, 99, 235)",
+              color: codeReviewTheme.colors.team2ControllerAccent,
               whiteSpace: "nowrap",
             }}
             className="pixel-font text-7xl leading-none"

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getTeamColor, type TeamId } from "../../domain/team";
+import { pongTheme } from "../../theme";
 
 const teamColorSchema = z.object({
   team1: z.string(),
@@ -26,8 +27,8 @@ export const PONG_ARENA_DEFAULT_PROPS: PongArenaPrefabProps =
   pongArenaPrefabSchema.parse({
     fieldWidth: 1000,
     fieldHeight: 600,
-    backgroundColor: "#09090b",
-    centerLineColor: "#3f3f46",
+    backgroundColor: pongTheme.colors.arenaBackground,
+    centerLineColor: pongTheme.colors.centerLineColor,
     teamColors: {
       team1: getTeamColor("team1"),
       team2: getTeamColor("team2"),

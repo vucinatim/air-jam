@@ -86,3 +86,9 @@ under host authority. Only `live: true` values can change; non-live values go
 in `airjam.start_game_run({ settings, ... })` for a fresh room. Stale revisions
 require a fresh read. Input log version 2 records initial values and ordered
 settings updates for replay. See `docs/airjam/generated/settings.md`.
+
+Declared assets and theme are read through `airjam.inspect_game` in
+`declaration.assets` and `declaration.theme`. Keep sounds, images and loaded
+files in `defineAirJamAssets`, colours and font families in `defineAirJamTheme`,
+and pass both to `defineAirJamGame`. The React binding owns audio mounts and
+theme CSS variables; games consume the declared objects and never duplicate them.

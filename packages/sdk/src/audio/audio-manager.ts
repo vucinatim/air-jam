@@ -1,4 +1,5 @@
 import { Howl, Howler } from "howler";
+import type { SoundConfig } from "../core/assets";
 import type { ConnectionRole } from "../protocol";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import {
@@ -7,18 +8,7 @@ import {
   getEffectiveAudioVolume,
 } from "../settings/platform-settings";
 
-export type SoundCategory = "music" | "sfx";
-
-export interface SoundConfig {
-  src: string[];
-  volume?: number;
-  loop?: boolean;
-  html5?: boolean;
-  sprite?: {
-    [key: string]: [number, number];
-  };
-  category?: SoundCategory;
-}
+export type SoundCategory = NonNullable<SoundConfig["category"]>;
 
 export type SoundManifest = Record<string, SoundConfig>;
 

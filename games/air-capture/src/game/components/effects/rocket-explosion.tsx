@@ -10,6 +10,7 @@ import {
   Vector3,
   type Mesh,
 } from "three";
+import { airCaptureTheme } from "../../theme";
 
 interface Particle {
   position: Vector3;
@@ -46,8 +47,8 @@ export function RocketExplosion({
   const particleMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xff6600,
-        emissive: 0xff4400,
+        color: airCaptureTheme.colors.explosionOrange,
+        emissive: airCaptureTheme.colors.explosionRed,
         emissiveIntensity: 5,
         transparent: true,
         opacity: 1,
@@ -63,8 +64,8 @@ export function RocketExplosion({
   const flashMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xffaa00, // Match emissive color to avoid black appearance
-        emissive: 0xffaa00,
+        color: airCaptureTheme.colors.legendary, // Match emissive color to avoid black appearance
+        emissive: airCaptureTheme.colors.legendary,
         emissiveIntensity: 10,
         transparent: true,
         opacity: 1,
@@ -184,7 +185,7 @@ export function RocketExplosion({
       {/* Point light for dramatic effect */}
       <pointLight
         ref={lightRef}
-        color={0xffaa00}
+        color={airCaptureTheme.colors.legendary}
         intensity={20}
         distance={25}
         decay={1.5}

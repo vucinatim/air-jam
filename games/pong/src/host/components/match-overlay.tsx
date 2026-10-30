@@ -7,7 +7,7 @@ export const MatchOverlay = () => {
 
   return (
     // Short host areas scroll the pause card instead of clipping its QR code.
-    <div className="absolute inset-0 overflow-y-auto bg-[#02040a]/72 backdrop-blur-md">
+    <div className="absolute inset-0 overflow-y-auto bg-[var(--airjam-color-controller-background)]/72 backdrop-blur-md">
       <div className="flex min-h-full items-center justify-center px-4 py-6">
         <div className="pong-panel-strong flex max-w-md flex-col items-center gap-4 rounded-[28px] px-6 py-7 text-center text-white">
           <div className="pong-caption">Match Paused</div>

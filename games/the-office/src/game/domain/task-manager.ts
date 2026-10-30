@@ -1,3 +1,4 @@
+import { theOfficeAssets } from "../assets";
 import type { OfficeSettings } from "../contracts/settings";
 export type TaskType =
   | "computer"
@@ -153,7 +154,7 @@ export const LOCATIONS: Location[] = [
     width: 150,
     height: 110,
     label: "Programerska miza",
-    image: "/items/coding-table-1.png",
+    image: theOfficeAssets.images.codingTable1.src,
   },
   // Soba sramote - right table
   {
@@ -164,7 +165,7 @@ export const LOCATIONS: Location[] = [
     width: 110,
     height: 150,
     label: "Programerska miza",
-    image: "/items/coding-table-2.png",
+    image: theOfficeAssets.images.codingTable2.src,
   },
   // Soba za jok (Room of Crying) - desk with printer, top left
   {
@@ -175,7 +176,7 @@ export const LOCATIONS: Location[] = [
     width: 110,
     height: 150,
     label: "Desk + Printer",
-    image: "/items/table-printer.png",
+    image: theOfficeAssets.images.tablePrinter.src,
   },
   // Sejna soba (Meeting Room) - meeting table, top right
   {
@@ -186,7 +187,7 @@ export const LOCATIONS: Location[] = [
     width: 80,
     height: 120,
     label: "Meeting Table",
-    image: "/items/meeting-table.png",
+    image: theOfficeAssets.images.meetingTable.src,
   },
   // Sejna soba - T2 box in corner for maintenance tasks
   {
@@ -197,7 +198,7 @@ export const LOCATIONS: Location[] = [
     width: 50,
     height: 40,
     label: "T2",
-    image: "/items/server.png",
+    image: theOfficeAssets.images.server.src,
   },
   // Hodnik - doors for kitchen tasks
   {
@@ -208,7 +209,7 @@ export const LOCATIONS: Location[] = [
     width: 80,
     height: 30,
     label: "Doors",
-    image: "/items/door.png",
+    image: theOfficeAssets.images.door.src,
   },
 ];
 
@@ -222,7 +223,7 @@ export const BREAKROOM_LOCATIONS: Location[] = [
     width: 135,
     height: 60,
     label: "Rest",
-    image: "/items/couch-1.png",
+    image: theOfficeAssets.images.couch1.src,
   },
   {
     id: "couch-sramote-2",
@@ -232,7 +233,7 @@ export const BREAKROOM_LOCATIONS: Location[] = [
     width: 75,
     height: 100,
     label: "Couch",
-    image: "/items/couch-2.png",
+    image: theOfficeAssets.images.couch2.src,
   },
   // Soba za jok - couch
   {
@@ -243,7 +244,7 @@ export const BREAKROOM_LOCATIONS: Location[] = [
     width: 65,
     height: 90,
     label: "Couch",
-    image: "/items/beanbag.png",
+    image: theOfficeAssets.images.beanbag.src,
   },
 
   // Kuhinja - coffee machine (also a task station)
@@ -255,7 +256,7 @@ export const BREAKROOM_LOCATIONS: Location[] = [
     width: 50,
     height: 140,
     label: "☕ Coffee",
-    image: "/items/kitchen.png",
+    image: theOfficeAssets.images.kitchen.src,
   },
   // Kuhinja - FIFA table
   {
@@ -266,7 +267,7 @@ export const BREAKROOM_LOCATIONS: Location[] = [
     width: 150,
     height: 35,
     label: "⚽ FIFA",
-    image: "/items/fifa.png",
+    image: theOfficeAssets.images.fifa.src,
   },
   // Kuhinja - lunch area
   {
@@ -277,7 +278,7 @@ export const BREAKROOM_LOCATIONS: Location[] = [
     width: 90,
     height: 60,
     label: "🥪 Lunch",
-    image: "/items/kitchen-table.png",
+    image: theOfficeAssets.images.kitchenTable.src,
   },
 ];
 

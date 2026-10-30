@@ -6,7 +6,7 @@
 
 import { useAudio } from "@air-jam/sdk";
 import { useCallback, useEffect } from "react";
-import type { OfficeSoundId } from "../../game/contracts/sounds";
+import type { OfficeSoundId } from "../../game/assets";
 
 /** Available sound effect types */
 type SoundType = OfficeSoundId;

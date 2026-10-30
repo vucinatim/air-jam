@@ -1,3 +1,4 @@
+import { codeReviewTheme } from "../theme";
 import {
   DEFAULT_ARENA_COLORS,
   EMPOWER_GLOW_COLOR,
@@ -332,19 +333,19 @@ export const drawFrame = ({
 
   const remaining = Math.max(0, koState.endTime - timestamp);
   const seconds = Math.ceil(remaining / 1000);
-  const koFont = "'Press Start 2P', monospace";
+  const koFont = codeReviewTheme.fonts.canvas;
 
   context.save();
-  context.fillStyle = "rgba(0, 0, 0, 0.55)";
+  context.fillStyle = codeReviewTheme.colors.overlay;
   context.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
   context.font = `bold 80px ${koFont}`;
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.lineWidth = 4;
-  context.strokeStyle = "rgba(0, 0, 0, 0.7)";
+  context.strokeStyle = codeReviewTheme.colors.overlayStrong;
   context.strokeText("KO!", FIELD_WIDTH / 2, FIELD_HEIGHT / 2 - 50);
-  context.fillStyle = "#ffffff";
+  context.fillStyle = codeReviewTheme.colors.white;
   context.fillText("KO!", FIELD_WIDTH / 2, FIELD_HEIGHT / 2 - 50);
 
   context.font = `bold 120px ${koFont}`;

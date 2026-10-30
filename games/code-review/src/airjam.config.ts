@@ -1,5 +1,6 @@
 import { defineAirJamGame } from "@air-jam/sdk/core";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+import { codeReviewAssets } from "./game/assets";
 import { agentContract } from "./game/contracts/agent";
 import {
   codeReviewInput,
@@ -7,10 +8,13 @@ import {
 } from "./game/contracts/input";
 import { codeReviewSimulation } from "./game/engine/code-review-simulation";
 import { gameStore } from "./game/stores/code-review-store";
+import { codeReviewTheme } from "./game/theme";
 
 import { codeReviewSettings } from "./game/contracts/settings";
 
 export const airjam = defineAirJamGame({
+  assets: codeReviewAssets,
+  theme: codeReviewTheme,
   metadata: defineAirJamGameMetadata({
     slug: "code-review",
     name: "Code Review",

@@ -526,6 +526,25 @@ settings and the ordered settings events; version 1 logs must be recorded again.
 See [Game Settings](./settings.md) for declarations, host hooks and CLI
 commands.
 
+### Assets and theme are declared
+
+Move sound manifests into `defineAirJamAssets` from `@air-jam/sdk/core` and
+pass the result as `assets` in `defineAirJamGame`. Import `SoundConfig` from
+`@air-jam/sdk/core`. Declare images and other loaded files there too, using
+served paths under `public/`. Read their paths
+from the object and remove old manifests and path imports. Use sound `surface`
+marks for host-only or controller-only audio. Remove game-owned `<AudioRuntime>`
+mounts; the binding supplies it on each surface. Keep playlist and playback
+logic inside that binding.
+
+Move colours and font families into `defineAirJamTheme` and pass it as `theme`.
+Map existing Tailwind names to `--airjam-color-*` and `--airjam-font-*` with
+`@theme inline`. Canvas and 3D drawing read the same theme object. Remove
+repeated colour and font literals; shadows and gradients remain CSS.
+Inspection now fails `AJ_ASSET_MISSING` for a declared file that is absent.
+
+See [Game Assets and Theme](./assets-and-theme.md) for the complete shapes.
+
 ### The SDK Owns The Loop
 
 `useHostTick` is removed. Per-step game logic moves into a declared

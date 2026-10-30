@@ -11,6 +11,7 @@ import { airCaptureSettings } from "../contracts/settings";
 import { cn } from "../debug/ui/utils";
 import { createPlayerFlightState } from "../engine/ships/flight";
 import { type AirCaptureSim } from "../simulation/state";
+import { airCaptureTheme } from "../theme";
 
 const shipIdsOf = (sim: AirCaptureSim) => [...sim.ships.keys()];
 
@@ -19,9 +20,9 @@ const HUD_CONFIG = {
   OFFSET_Y: 4, // Units below the ship
   WIDTH: 80, // Width of HUD in px
   COLORS: {
-    HIGH: "#22c55e", // Green (>60%)
-    MID: "#eab308", // Yellow (>30%)
-    LOW: "#ef4444", // Red
+    HIGH: airCaptureTheme.colors.high, // Green (>60%)
+    MID: airCaptureTheme.colors.mid, // Yellow (>30%)
+    LOW: airCaptureTheme.colors.low, // Red
   },
 };
 
@@ -134,7 +135,7 @@ const HUDVisuals = memo(
                 cy={size / 2}
                 r={radius}
                 fill="none"
-                stroke="rgba(0, 0, 0, 0.4)"
+                stroke={airCaptureTheme.colors.hudBackground}
                 strokeWidth="3"
               />
               {/* Countdown circle (sweeps clockwise from top) - Updated via ref */}

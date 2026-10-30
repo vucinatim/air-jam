@@ -1,3 +1,4 @@
+import { theOfficeTheme } from "../theme";
 /**
  * Game constants, geometry functions, and collision detection utilities.
  * Extracted from the main host view for better maintainability.
@@ -14,15 +15,15 @@ export const TAG_RANGE = 60;
 export const WALL_THICKNESS = 12;
 
 // Colors
-export const WALL_COLOR = "#b5a07a"; // warm sandy wall
-export const LOCATION_COLOR = "#d4b896"; // warm tan for inactive locations
-export const LOCATION_ACTIVE_COLOR = "#6aaa64"; // muted green for active tasks
+export const WALL_COLOR = theOfficeTheme.colors.wall; // warm sandy wall
+export const LOCATION_COLOR = theOfficeTheme.colors.location; // warm tan for inactive locations
+export const LOCATION_ACTIVE_COLOR = theOfficeTheme.colors.locationActive; // muted green for active tasks
 export const PLAYER_COLORS = [
-  "#e6a817",
-  "#5b9bd5",
-  "#6aaa64",
-  "#c97dd4",
-  "#e06060",
+  theOfficeTheme.colors.player1,
+  theOfficeTheme.colors.player2,
+  theOfficeTheme.colors.locationActive,
+  theOfficeTheme.colors.player3,
+  theOfficeTheme.colors.player4,
 ];
 
 /** Predefined spawn positions for up to 9 players (only one player per position) */
@@ -39,18 +40,18 @@ export const SPAWN_POSITIONS: { x: number; y: number }[] = [
 ];
 
 // Canvas background
-export const CANVAS_BG_COLOR = "#ebebf0";
+export const CANVAS_BG_COLOR = theOfficeTheme.colors.canvasBg;
 
 // Breakroom colors
-export const BREAKROOM_ACTIVE_COLOR = "#e8936a";
-export const BREAKROOM_INACTIVE_COLOR = "#c4855a";
+export const BREAKROOM_ACTIVE_COLOR = theOfficeTheme.colors.breakroomActive;
+export const BREAKROOM_INACTIVE_COLOR = theOfficeTheme.colors.breakroomInactive;
 
 // Stat bar colors
-export const STAT_BAR_TRACK_COLOR = "#d6c8b0";
-export const ENERGY_BAR_COLOR = "#d46060";
-export const ENERGY_BAR_LOW_COLOR = "#a03030";
-export const BOREDOM_BAR_COLOR = "#5b9bd5";
-export const BOREDOM_BAR_LOW_COLOR = "#3a7bb5";
+export const STAT_BAR_TRACK_COLOR = theOfficeTheme.colors.statBarTrack;
+export const ENERGY_BAR_COLOR = theOfficeTheme.colors.energyBar;
+export const ENERGY_BAR_LOW_COLOR = theOfficeTheme.colors.energyBarLow;
+export const BOREDOM_BAR_COLOR = theOfficeTheme.colors.player2;
+export const BOREDOM_BAR_LOW_COLOR = theOfficeTheme.colors.boredomBarLow;
 
 // Wall interface
 export interface Wall {
