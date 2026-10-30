@@ -23,6 +23,7 @@ import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
   type HostRuntimeControl,
 } from "../src/runtime/contracts/control";
+import { hostObservationSchema } from "../src/runtime/contracts/observation";
 import { createMemorySocket } from "./fixtures/memory-socket";
 
 const createServerSocket = () =>
@@ -465,3 +466,109 @@ describe("core host runtime", () => {
     stop();
   });
 });
+
+it.each(["frame", "step"])(
+  "retains a %s exception once, stops frames and exposes it to agents",
+  async (lane) => {
+    const socket = createServerSocket();
+    const { environment } = createMemoryEnvironment(socket);
+    let frame: (now: number) => void = () => {};
+    const cancel = vi.fn();
+    const framed: AirJamHostEnvironment = {
+      ...environment,
+      frames: (callback) => {
+        frame = callback;
+        return cancel;
+      },
+    };
+    const emit = vi.spyOn(framed, "emitDevEvent");
+    const error = new TypeError("radius must be non-negative");
+    error.stack =
+      "TypeError: radius must be non-negative\n    at sdk (http://localhost/packages/sdk/dist/core.js:1:2)\n    at draw (http://localhost/src/combat/arena-paint.ts?t=12:42:7)\n    at vendor (http://localhost/node_modules/render.js:4:5)";
+    const fail = vi.fn(() => {
+      throw error;
+    });
+    const scores = createScoreStore();
+    const store = createConnectionStore();
+    const runtime = new HostRuntime({
+      config,
+      store,
+      getSocket: () => {
+        throw new Error("The memory transport needs no socket.");
+      },
+      disconnectSocket: () => {},
+      environment: framed,
+      stores: [scores],
+      simulation: defineAirJamSimulation({
+        stepMs: 10,
+        create: () => ({}),
+        step: lane === "step" ? fail : () => {},
+        observe: () => ({}),
+      }),
+      agent: {
+        gameId: "walker",
+        contract: defineAirJamAgentContract({
+          stores: defineAirJamAgentStores({
+            default: agentStore<{ score: number }>(),
+          }),
+          projectSnapshot: () => ({}),
+          actions: {},
+        }),
+      },
+    });
+    const stop = runtime.start();
+    try {
+      await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+      store.getState().setRuntimeState("playing");
+      if (lane === "frame") runtime.simulation!.onFrame(fail);
+      expect(runtime.fault).toBeNull();
+      expect(() => {
+        frame(0);
+        frame(20);
+        frame(40);
+      }).not.toThrow();
+      const tick = runtime.simulation!.ticks;
+      frame(60);
+      expect(runtime.simulation!.ticks).toBe(tick);
+      expect(fail).toHaveBeenCalledOnce();
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(runtime.fault).toEqual({
+        name: "TypeError",
+        message: error.message,
+        stack: error.stack,
+        source: { file: "src/combat/arena-paint.ts", line: 42, column: 7 },
+      });
+      const faults = emit.mock.calls
+        .map(([event]) => event)
+        .filter((event) => event.level === "error");
+      expect(faults).toEqual([
+        expect.objectContaining({
+          event: "runtime.host.frame_fault",
+          level: "error",
+          role: "host",
+          roomId: "ROOM1",
+          message:
+            "TypeError: radius must be non-negative at src/combat/arena-paint.ts:42:7",
+          data: { fault: runtime.fault },
+        }),
+      ]);
+      const control = Reflect.get(
+        environment.controlTarget,
+        AIR_JAM_RUNTIME_CONTROL_KEY,
+      ) as HostRuntimeControl;
+      const response = await control.agent({
+        operation: "observe",
+        roomId: "ROOM1",
+        controllerId: null,
+        scope: "diagnostic",
+        includeImage: false,
+      });
+      if (response.operation !== "observe") throw new Error("Expected observe");
+      expect(
+        hostObservationSchema.parse(response.observation).host?.after?.fault,
+      ).toEqual(runtime.fault);
+    } finally {
+      stop();
+    }
+  },
+);

@@ -102,11 +102,15 @@ export const createBrowserHostEnvironment = (
     seed: () => crypto.getRandomValues(new Uint32Array(1))[0],
     now: () => performance.now(),
     frames: (onFrame) => {
+      let stopped = false;
       let frame = requestAnimationFrame(function next(now) {
         onFrame(now);
-        frame = requestAnimationFrame(next);
+        if (!stopped) frame = requestAnimationFrame(next);
       });
-      return () => cancelAnimationFrame(frame);
+      return () => {
+        stopped = true;
+        cancelAnimationFrame(frame);
+      };
     },
   };
 };

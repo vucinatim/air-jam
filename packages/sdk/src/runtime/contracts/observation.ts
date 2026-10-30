@@ -62,10 +62,28 @@ const storeRevision = z.object({
   revision: z.number().int().nonnegative(),
 });
 
+export const hostRuntimeFaultSchema = z
+  .object({
+    name: z.string().max(128),
+    message: z.string().max(2048),
+    source: z
+      .object({
+        file: z.string().max(2048),
+        line: z.number().int().positive(),
+        column: z.number().int().positive(),
+      })
+      .strict()
+      .nullable(),
+    stack: z.string().max(8192),
+  })
+  .strict();
+export type HostRuntimeFault = z.infer<typeof hostRuntimeFaultSchema>;
+
 export const hostObservationPresentationSchema = z
   .object({
     runtimeState: runtimeStateSchema,
     connectionStatus: connectionStatusSchema,
+    fault: hostRuntimeFaultSchema.nullable().optional(),
   })
   .strict();
 

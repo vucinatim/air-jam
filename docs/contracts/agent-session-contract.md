@@ -434,6 +434,10 @@ beside any people already playing. A profile needing more seats than the
 attachment issued is refused. Profiles do not declare targets: whether a test
 may use someone's room is that room owner's decision, not the game's.
 
+HTTP 401/403/409 refusals from the current-room host retain `runtime_replaced`
+and use the editor's JSON `error` text (at most 300 characters). Missing, invalid
+or oversized refusal bodies fall back to the generic room-grant message.
+
 ## Live owned-run viewing
 
 `watchGameRun(request, onEvent, signal)` and
@@ -487,6 +491,21 @@ simulation has no host-local state to show beyond its stores, which the
 contract's snapshot already projects. This is a declared view of game-authored data, not an adversarial
 guarantee of human-equivalent information. Raw stores and callable host actions
 are not returned by observation.
+
+Host presentation samples (`host.before` / `host.after`) include an optional
+`fault`, null on a healthy host. An exception in the SDK-driven simulation frame
+or its render listeners stops that loop and retains one `{ name, message, source,
+stack }` fault for the runtime's lifetime. Source is the first identifiable stack
+frame outside SDK/vendor code (`{ file, line, column }`), or null; stack text is
+bounded to 8,192 characters. The runtime emits one error event,
+`runtime.host.frame_fault`, through the dev browser log sink, with the location
+in its message and the structured fault in its data. It does not retry the frame
+or emit a second unhandled window error. When the existing freeze gate fires,
+the run stays `host_not_advancing` / `inconclusive`; `end.message` names the
+exception and location and `end.hostFault` retains the structured cause. A freeze
+without a reported fault keeps the generic reason. Final input-release settling
+also retains a newly observed fault in its evidence error and `end.hostFault`,
+preserving the existing inconclusive verdict for a failed final capture.
 
 `captureAgentCanvas` produces a bounded JPEG of a game-provided canvas. Its
 coverage is `render-surface`; surrounding HTML is excluded. Games without this

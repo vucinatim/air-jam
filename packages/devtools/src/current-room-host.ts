@@ -46,11 +46,22 @@ export function currentRoomHost(
       );
     }
     if (!response.ok) {
+      if ([401, 403, 409].includes(response.status)) {
+        let message = "The creator's room is no longer granted.";
+        try {
+          if (response.body) {
+            const body = JSON.parse(await readBoundedText(response.body, 4096));
+            if (typeof body?.error === "string" && body.error.trim())
+              message = body.error.trim().slice(0, 300);
+          }
+        } catch {
+          // Missing, invalid or oversized refusal bodies use the generic cause.
+        }
+        throw new Error(`runtime_replaced: ${message}`);
+      }
       await response.body?.cancel();
       throw new Error(
-        [401, 403, 409].includes(response.status)
-          ? "runtime_replaced: The creator's room is no longer granted."
-          : `current_host_unavailable: The editor returned HTTP ${response.status}.`,
+        `current_host_unavailable: The editor returned HTTP ${response.status}.`,
       );
     }
     if (!response.body)

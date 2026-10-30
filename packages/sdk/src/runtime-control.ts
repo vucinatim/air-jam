@@ -16,12 +16,15 @@ export {
   hostObservationIdentitySchema,
   hostObservationRequestSchema,
   hostObservationSchema,
+  hostRuntimeFaultSchema,
   type HostObservation,
   type HostObservationContext,
   type HostObservationImage,
   type HostObservationRequest,
   type HostObservationSurface,
+  type HostRuntimeFault,
 } from "./runtime/contracts/observation";
+export { describeHostRuntimeFault } from "./runtime/host-runtime-fault";
 export {
   sameHostRuntimeIdentity,
   type HostRuntimeIdentity,
