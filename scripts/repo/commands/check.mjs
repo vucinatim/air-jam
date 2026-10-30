@@ -1,7 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { buildChangedCheckPlan } from "../lib/check-plan.mjs";
+import {
+  buildChangedCheckPlan,
+  integrationBranch,
+} from "../lib/check-plan.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 import { runCommand, runCommandCaptured } from "../lib/shell.mjs";
 const cacheRoot = path.join(repoRoot, "node_modules/.cache/airjam-check");
@@ -247,7 +250,7 @@ export const registerCheckCommands = (program) => {
     .option(
       "--base <ref>",
       "Git ref used to find committed branch changes",
-      "origin/main",
+      `origin/${integrationBranch}`,
     )
     .option(
       "--files <paths...>",
@@ -266,7 +269,7 @@ export const registerCheckCommands = (program) => {
     .option(
       "--base <ref>",
       "Git ref used to find committed branch changes",
-      "origin/main",
+      `origin/${integrationBranch}`,
     )
     .option(
       "--files <paths...>",
@@ -283,7 +286,7 @@ export const registerCheckCommands = (program) => {
     .option(
       "--base <ref>",
       "Git ref used to find committed branch changes",
-      "origin/main",
+      `origin/${integrationBranch}`,
     )
     .option(
       "--files <paths...>",
