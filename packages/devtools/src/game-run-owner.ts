@@ -4,6 +4,7 @@ import type {
 } from "@air-jam/sdk/protocol";
 import { PARTICIPANT_CONTROL_DEADLINE_MS } from "@air-jam/sdk/protocol";
 import {
+  describeHostRuntimeFault,
   sameHostRuntimeIdentity,
   type HostObservation,
 } from "@air-jam/sdk/runtime-control";
@@ -1423,6 +1424,7 @@ export class GameRunOwner {
           lastTick = tick;
           progressedAt = clock.now();
         }
+        const fault = observation.host?.after?.fault;
         if (
           observation.host?.after?.connectionStatus !== "connected" ||
           observation.host.after.runtimeState !== "playing" ||
@@ -1431,7 +1433,10 @@ export class GameRunOwner {
           return this.terminate(
             run,
             "host_not_advancing",
-            "The observed host stopped advancing.",
+            fault
+              ? `The observed host stopped advancing: ${describeHostRuntimeFault(fault)}`
+              : "The observed host stopped advancing.",
+            fault ?? undefined,
           );
         const step = ++run.record.counters.steps;
         const counters = this.seatRecord(run, seat).counters;
@@ -1612,7 +1617,12 @@ export class GameRunOwner {
       console.error(failure),
     );
   }
-  private terminate(run: Run, reason: EndReason, message: string) {
+  private terminate(
+    run: Run,
+    reason: EndReason,
+    message: string,
+    hostFault?: NonNullable<AirJamGameRunRecord["end"]>["hostFault"],
+  ) {
     return (run.termination ??= (async () => {
       run.abort.abort();
       clearTimeout(run.timer);
@@ -1621,6 +1631,7 @@ export class GameRunOwner {
         reason,
         outcome: "inconclusive",
         message,
+        ...(hostFault ? { hostFault } : {}),
       };
       const cleanup: NonNullable<AirJamGameRunRecord["cleanup"]> = {
         seats: [],
@@ -1687,8 +1698,15 @@ export class GameRunOwner {
           if (
             before.ticks.after !== null &&
             settled.ticks.after === before.ticks.after
-          )
-            throw new Error("The host did not advance after input release.");
+          ) {
+            const fault = settled.host?.after?.fault;
+            if (fault) run.record.end.hostFault = fault;
+            throw new Error(
+              fault
+                ? `The host did not advance after input release: ${describeHostRuntimeFault(fault)}`
+                : "The host did not advance after input release.",
+            );
+          }
           finalObservation = await this.evaluationObservation(run, true);
           const source = `${JSON.stringify(finalObservation)}\n`;
           const file = await open(
@@ -1730,6 +1748,9 @@ export class GameRunOwner {
               reason: failureReason(message),
               outcome: "inconclusive",
               message,
+              ...(run.record.end.hostFault
+                ? { hostFault: run.record.end.hostFault }
+                : {}),
             };
         }
         if (finalObservation && run.evaluator && run.playEvaluationSent)

@@ -1165,6 +1165,51 @@ it("requires acknowledged cleanup releases before a completed scenario can pass"
   expect(record.cleanup?.seats[0].release?.status).toBe("unconfirmed");
 });
 
+it("retains a frame fault first observed while settling final input release", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "action", actionId: "tap" } });
+  passAfterEffect("Tentative pass");
+  const fault = {
+    name: "TypeError",
+    message: "render failed",
+    source: { file: "src/render.ts", line: 42, column: 7 },
+    stack: "TypeError: render failed\n    at src/render.ts:42:7",
+  };
+  const control = f.session.control;
+  let released = false;
+  f.session.control = vi.fn(async (request) => {
+    released ||=
+      request.operation.kind === "release" && request.lease.sequence > 1;
+    return control(request);
+  });
+  const observe = f.session.observe;
+  f.session.observe = vi.fn(async (options) => {
+    const observation = await observe(options);
+    if (released) {
+      observation.ticks = { before: 1, after: 1 };
+      observation.host!.after!.fault = fault;
+    }
+    return observation;
+  });
+  let now = performance.now();
+  f.session.clock = {
+    now: () => now,
+    wait: async (ms) => {
+      now += ms;
+    },
+  };
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end).toEqual({
+    reason: "error",
+    outcome: "inconclusive",
+    message:
+      "The host did not advance after input release: TypeError: render failed at src/render.ts:42:7",
+    hostFault: fault,
+  });
+  expect(record.evidence?.error).toBe(record.end?.message);
+});
+
 it("waits for actual room membership and retains it before any scenario actions", async () => {
   const f = await twoSeatFixture();
   f.session.readParticipants = vi
@@ -1997,3 +2042,58 @@ it("refuses intents and steering for seats the profile does not have", async () 
   ).rejects.toThrow("run_seat_unknown");
   await g.owner.stop(g.request.runId);
 });
+
+it.each([true, false])(
+  "retains the freeze cause in the terminal run (fault=%s)",
+  async (hasFault) => {
+    const f = await fixture();
+    const fault = {
+      name: "TypeError",
+      message: "radius must be non-negative",
+      source: { file: "src/combat/arena-paint.ts", line: 42, column: 7 },
+      stack:
+        "TypeError: radius must be non-negative\n    at src/combat/arena-paint.ts:42:7",
+    };
+    const original = f.session.observe;
+    let observations = 0;
+    f.session.observe = vi.fn(async (options) => {
+      const observation = await original(options);
+      observation.ticks = { before: 1, after: 1 };
+      observation.host!.after!.fault = hasFault ? fault : null;
+      observations++;
+      return observation;
+    });
+    // Advance only the run's wall clock: exercise the real five-second freeze gate without waiting.
+    let now = performance.now();
+    f.session.clock = {
+      now: () => now,
+      wait: async (ms) => {
+        now += Math.max(ms, 1000);
+      },
+    };
+    f.request.budget.durationMs = 60000;
+    await f.owner.start(f.request);
+    const result = await f.ended();
+    expect(observations).toBeGreaterThan(1);
+    expect(result.end).toEqual({
+      reason: "host_not_advancing",
+      outcome: "inconclusive",
+      message: hasFault
+        ? "The observed host stopped advancing: TypeError: radius must be non-negative at src/combat/arena-paint.ts:42:7"
+        : "The observed host stopped advancing.",
+      ...(hasFault ? { hostFault: fault } : {}),
+    });
+    const saved = JSON.parse(
+      await readFile(
+        path.join(
+          f.root,
+          ".airjam/artifacts/runs",
+          f.request.runId,
+          "record.json",
+        ),
+        "utf8",
+      ),
+    );
+    expect(saved.end).toEqual(result.end);
+  },
+);
