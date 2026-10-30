@@ -13,7 +13,6 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Server as SocketIoServer } from "socket.io";
 import { afterEach, describe, expect, it } from "vitest";
-import { inspectGameAgentContract } from "../src/agent.js";
 import { detectProjectContext, inspectProject } from "../src/context.js";
 import {
   connectController,
@@ -1537,13 +1536,14 @@ describe("virtual controller runtime control", () => {
 
 describe("agent contracts", () => {
   it("inspects a repo agent contract", async () => {
-    const contract = await inspectGameAgentContract({
+    const game = await inspectGame({
       cwd: path.resolve(__dirname, "../../.."),
       gameId: "last-band-standing",
     });
 
-    expect(contract.hasContract).toBe(true);
-    expect(contract.actions).toEqual(
+    const contract = game.declaration.agent;
+    expect(contract).not.toBeNull();
+    expect(contract?.actions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           actionId: "set_ready",
@@ -1562,13 +1562,14 @@ describe("agent contracts", () => {
   });
 
   it("inspects a second repo agent contract", async () => {
-    const contract = await inspectGameAgentContract({
+    const game = await inspectGame({
       cwd: path.resolve(__dirname, "../../.."),
       gameId: "pong",
     });
 
-    expect(contract.hasContract).toBe(true);
-    expect(contract.actions).toEqual(
+    const contract = game.declaration.agent;
+    expect(contract).not.toBeNull();
+    expect(contract?.actions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           actionId: "join_team",
@@ -1592,10 +1593,10 @@ describe("agent contracts", () => {
       const fixture = await createControllerSocketFixture({
         aliasedAgentImport,
       });
-      const contract = await inspectGameAgentContract({ cwd: fixture.root });
-      expect(contract.source).toBe("source-declaration");
+      const game = await inspectGame({ cwd: fixture.root });
+      const contract = game.declaration.agent;
       expect(
-        contract.actions.some((action) => action.actionId === "set_score"),
+        contract?.actions.some((action) => action.actionId === "set_score"),
       ).toBe(true);
     },
   );
@@ -1629,10 +1630,9 @@ describe("agent contracts", () => {
       "utf8",
     );
 
-    const contract = await inspectGameAgentContract({ cwd: root });
+    const game = await inspectGame({ cwd: root });
 
-    expect(contract.hasContract).toBe(false);
-    expect(contract.actions).toEqual([]);
+    expect(game.declaration.agent).toBeNull();
   });
 });
 

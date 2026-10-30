@@ -560,21 +560,6 @@ export type AirJamGameAgentActionDescriptor = import("zod").z.infer<
   typeof import("@air-jam/sdk/agent-tooling").agentActionDescriptorSchema
 >;
 
-export type AirJamAgentContractInspection = {
-  source: "source-declaration";
-  gameId: string;
-  rootDir: string;
-  hasContract: boolean;
-  snapshotStoreDomains: string[];
-  snapshotDescription: string | null;
-  actions: AirJamGameAgentActionDescriptor[];
-};
-
-export type InspectGameAgentContractOptions = {
-  cwd?: string;
-  gameId?: string;
-};
-
 export type AirJamGameSnapshotInspection = {
   contractId: string;
   runtimeId: string;

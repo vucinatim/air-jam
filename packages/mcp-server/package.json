@@ -2,7 +2,7 @@
   "name": "@air-jam/mcp-server",
   "version": "0.9.3",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.15.0"
   },
   "description": "Official Air Jam MCP server for project inspection, semantic game sessions, quality gates, and releases",
   "private": false,

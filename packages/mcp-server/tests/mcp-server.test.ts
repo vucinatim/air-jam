@@ -126,7 +126,6 @@ it("uses the installed devtools helpers without shipping duplicate copies", asyn
   );
   for (const name of [
     "describe-game",
-    "declaration-hook",
     "hold-runtime-host",
     "list-visual-scenarios",
     "managed-dev-supervisor",

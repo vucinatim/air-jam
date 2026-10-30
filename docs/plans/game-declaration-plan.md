@@ -405,10 +405,13 @@ One loader in devtools, two forms of result:
    exports `loadAirJamGame(configPath): Promise<AirJamGame>` and
    `loadAirJamTesting(configPath, game)`. It imports the module, reads only the
    named export `airjam`, and requires `isAirJamGame`. Before importing, it
-   registers a Node module resolve hook that fails
+   registers one synchronous `module.registerHooks` boundary for imports,
+   `require` and `createRequire` that fails
    `AJ_DECLARATION_NOT_FRAMEWORK_FREE` naming the importing file when the
    graph reaches `react`, `react-dom`, the `@air-jam/sdk` root, a `.tsx` or a
-   `.css` file. Only helper subprocesses that already run under `tsx` call it:
+   `.css` file. Authoring tools require Node.js 22.15 or newer; SDK and
+   server minimums remain 22.0. Older authoring runtimes fail with a clear
+   minimum-version error. Only helper subprocesses that already run under `tsx` call it:
    `run-test-profile`, `run-headless-room`, `run-visual-capture` and the new
    `describe-game`.
 3. **Description, across processes.** `tooling/describe-game.ts` takes one or

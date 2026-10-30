@@ -1,12 +1,11 @@
 import { isAirJamGame, type AirJamGame } from "@air-jam/sdk/core";
 import { existsSync } from "node:fs";
 import { realpath } from "node:fs/promises";
-import { register } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { register as registerTypescript } from "tsx/esm/api";
-import { resolveDevtoolsHelperScript } from "../helper-scripts.js";
 import type { defineAirJamTesting } from "../testing.js";
+import { registerDeclarationHook } from "./declaration-hook.js";
 
 const registered = new Map<
   string,
@@ -19,6 +18,7 @@ const registered = new Map<
 >();
 export async function loadAirJamGame(configPath: string): Promise<AirJamGame> {
   const configUrl = pathToFileURL(await realpath(configPath)).href;
+  registerDeclarationHook(configUrl);
   if (!registered.has(configUrl)) {
     const tsconfig = [
       path.join(path.dirname(configPath), "tsconfig.json"),
@@ -28,10 +28,6 @@ export async function loadAirJamGame(configPath: string): Promise<AirJamGame> {
       namespace: configUrl,
       tsconfig: tsconfig ?? false,
     });
-    register(
-      pathToFileURL(resolveDevtoolsHelperScript("declaration-hook.ts")),
-      { data: configUrl },
-    );
     registered.set(configUrl, typescript);
   }
   const typescript = registered.get(configUrl);

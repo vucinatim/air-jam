@@ -23,6 +23,13 @@ It is based on the three ZeroDays legacy games:
 
 These games now serve as the migration proof set, not just as historical examples.
 
+## Node.js Minimum
+
+Air Jam 1.0 authoring requires Node.js 22.15 or newer for devtools, the CLI and MCP,
+create-airjam and generated projects. The declaration loader uses synchronous
+module hooks to enforce its framework-free boundary through imports, `require`
+and `createRequire`. The SDK and server retain their Node.js 22.0 minimum.
+
 ## What Counts As A Successful Migration
 
 A migrated game is not “something that still runs in the repo after patching imports.”

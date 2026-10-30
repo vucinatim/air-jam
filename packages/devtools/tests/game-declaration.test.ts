@@ -1,5 +1,11 @@
 import { airJamGameDescriptionSchema } from "@air-jam/sdk/core";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -116,6 +122,41 @@ it.each([
     rmSync(directory, { recursive: true, force: true });
   }
 });
+it.each(["react", "./dependency.cjs"])(
+  "rejects createRequire dependencies reached through %s",
+  (specifier) => {
+    const directory = mkdtempSync(
+      path.join(os.tmpdir(), "airjam-framework-free-"),
+    );
+    try {
+      symlinkSync(
+        path.join(root, "games/pong/node_modules"),
+        path.join(directory, "node_modules"),
+        "junction",
+      );
+      const config = path.join(directory, "airjam.config.ts");
+      const helper = path.join(directory, "helper.mjs");
+      const dependency = path.join(directory, "dependency.cjs");
+      writeFileSync(dependency, 'module.exports = require("react");');
+      writeFileSync(
+        helper,
+        `import { createRequire } from "node:module"; const require = createRequire(import.meta.url); require(${JSON.stringify(specifier)}).createElement("div");`,
+      );
+      writeFileSync(
+        config,
+        declarationSource({}, "", 'import "./helper.mjs";'),
+      );
+      const result = describe([config]);
+      expect(result.ok).toBe(false);
+      expect(result.stderr).toContain("AJ_DECLARATION_NOT_FRAMEWORK_FREE");
+      expect(result.stderr).toContain(
+        specifier === "react" ? helper : dependency,
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);
 it("requires the branded named declaration without fallback exports", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "airjam-unbranded-"));
   try {

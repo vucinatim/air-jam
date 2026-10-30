@@ -80,7 +80,7 @@ test("public install matrix exactly covers the supported OS and Node pairs", () 
   );
 });
 
-test("every public package declares the supported Node floor", () => {
+test("public packages declare the approved runtime and authoring Node floors", () => {
   const minimumSupportedNodeMajor = Math.min(
     ...summarizePublicInstallMatrix(readPublicInstallMatrix()).cells.map(
       (cell) => cell.nodeMajor,
@@ -88,8 +88,8 @@ test("every public package declares the supported Node floor", () => {
   );
   assert.equal(
     rootManifest.engines?.node,
-    `>=${minimumSupportedNodeMajor}.0.0`,
-    "root Node floor must match the canonical install matrix",
+    `>=${minimumSupportedNodeMajor}.15.0`,
+    "workspace authoring requires synchronous module hooks",
   );
   for (const packageDefinition of resolvePublicPackages()) {
     const manifest = JSON.parse(
@@ -100,7 +100,11 @@ test("every public package declares the supported Node floor", () => {
     );
     assert.equal(
       manifest.engines?.node,
-      rootManifest.engines?.node,
+      ["@air-jam/sdk", "@air-jam/server", "@air-jam/env"].includes(
+        manifest.name,
+      )
+        ? `>=${minimumSupportedNodeMajor}.0.0`
+        : rootManifest.engines?.node,
       manifest.name,
     );
   }

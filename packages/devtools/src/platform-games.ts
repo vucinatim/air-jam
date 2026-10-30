@@ -6,12 +6,7 @@ import {
 } from "@air-jam/sdk/platform-machine";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  findUp,
-  pathExists,
-  readJsonFile,
-  readPackageJson,
-} from "./fs-utils.js";
+import { findUp, pathExists, readPackageJson } from "./fs-utils.js";
 import { inspectGame } from "./games.js";
 import {
   requestPlatformMachineApi,
@@ -122,44 +117,13 @@ const resolveRepoSourceUrl = async ({
   return `${normalizedRemoteUrl}/tree/main/${relativeProjectPath.replaceAll(path.sep, "/")}`;
 };
 
-type LocalTemplateManifest = {
-  id?: unknown;
-  name?: unknown;
-  description?: unknown;
-  category?: unknown;
-};
-
-const resolveTemplateManifestPath = (projectDir: string) =>
-  path.join(projectDir, "airjam-template.json");
-
-const loadTemplateManifest = async (
-  projectDir: string,
-): Promise<{
-  path: string | null;
-  value: LocalTemplateManifest | null;
-}> => {
-  const manifestPath = resolveTemplateManifestPath(projectDir);
-  try {
-    return {
-      path: manifestPath,
-      value: await readJsonFile<LocalTemplateManifest>(manifestPath),
-    };
-  } catch {
-    return {
-      path: null,
-      value: null,
-    };
-  }
-};
-
 export const readLocalHostedGameDefaults = async ({
   cwd = process.cwd(),
 }: {
   cwd?: string;
 } = {}): Promise<AirJamLocalHostedGameDefaults> => {
   const game = await inspectGame({ cwd });
-  const [template, packageJson, sourceUrl] = await Promise.all([
-    loadTemplateManifest(game.rootDir),
+  const [packageJson, sourceUrl] = await Promise.all([
     readPackageJson(game.rootDir),
     resolveRepoSourceUrl({ projectDir: game.rootDir }),
   ]);
@@ -168,16 +132,16 @@ export const readLocalHostedGameDefaults = async ({
   return {
     projectDir: game.rootDir,
     configPath: game.configPath,
-    manifestPath: template.path,
+    manifestPath: game.manifestPath,
     packageJsonPath: packageJson?.path ?? null,
     packageName: game.packageName,
     sourceUrl,
     metadata: {
-      name: metadata?.name ?? null,
-      slug: metadata?.slug ?? null,
-      description: metadata?.tagline ?? null,
-      category: metadata?.category ?? null,
-      tags: metadata?.tags ? [...metadata.tags] : [],
+      name: metadata.name,
+      slug: metadata.slug,
+      description: metadata.tagline,
+      category: metadata.category,
+      tags: [...(metadata.tags ?? [])],
     },
     template: {
       id: metadata.slug,

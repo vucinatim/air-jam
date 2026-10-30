@@ -11,6 +11,13 @@ If you are using an LLM to help with the migration, copy this guide into the
 conversation first. Codex or Claude are the best fit for this kind of
 repo-wide migration work.
 
+## Node.js Minimum
+
+Air Jam 1.0 authoring requires Node.js 22.15 or newer for devtools, the CLI and MCP,
+create-airjam and generated projects. The declaration loader uses synchronous
+module hooks to enforce its framework-free boundary through imports, `require`
+and `createRequire`. The SDK and server retain their Node.js 22.0 minimum.
+
 ## When You Need This Guide
 
 You are likely on the old shape if your game still has some of these patterns:

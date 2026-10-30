@@ -2,7 +2,7 @@
   "name": "@air-jam/cli",
   "version": "0.9.3",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.15.0"
   },
   "description": "Canonical project and operator CLI for Air Jam game development, agent sessions, and hosted releases",
   "type": "module",

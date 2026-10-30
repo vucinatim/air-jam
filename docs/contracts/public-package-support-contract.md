@@ -55,7 +55,11 @@ Air Jam 1.0 certifies the following matrix:
 | Windows                 | `windows-latest`    | required       | required       |
 
 Node.js 20 is not part of the 1.0 contract because it reached end of life in 2026. Node.js 22 and 24 are the supported LTS release lines at the time of this
-decision. The package manifests declare `node >=22.0.0`; newer Node versions are
+decision. Authoring tools (`@air-jam/devtools`, `@air-jam/cli`,
+`@air-jam/mcp-server` and `create-airjam`) and the workspace require Node.js
+22.15 or newer. The declaration loader uses synchronous module hooks to cover
+imports, `require` and `createRequire`. The SDK, server and environment package
+retain `node >=22.0.0`. Newer Node versions are
 not artificially rejected, but a non-LTS or future release is not certified
 until it joins the matrix. See the Node.js project's
 [release lifecycle](https://nodejs.org/en/about/previous-releases).

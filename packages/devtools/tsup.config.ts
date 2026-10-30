@@ -5,7 +5,6 @@ export default defineConfig({
   entry: {
     "harness/visual": "src/harness/visual.ts",
     "mcp-config": "src/mcp-config.ts",
-    agent: "src/agent.ts",
     context: "src/context.ts",
     controller: "src/controller.ts",
     dev: "src/dev.ts",
@@ -25,7 +24,6 @@ export default defineConfig({
     "game-builds": "src/game-build-protocol.ts",
     "source-tree-contract": "src/source-tree-contract.ts",
     "tooling/describe-game": "src/tooling/describe-game.ts",
-    "tooling/declaration-hook": "src/tooling/declaration-hook.ts",
     "tooling/hold-runtime-host": "src/tooling/hold-runtime-host.ts",
     "tooling/list-visual-scenarios": "src/tooling/list-visual-scenarios.ts",
     "tooling/managed-dev-supervisor": "src/tooling/managed-dev-supervisor.ts",
