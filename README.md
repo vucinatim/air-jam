@@ -95,8 +95,9 @@ The framework package family is:
 - `@air-jam/devtools`
 - `create-airjam`
 
-The separation checkout contains unpublished 0.9.3 candidates. Qualification of
-these local packages is not a claim that the same versions are available on npm.
+The `next` channel contains the 0.9.3 prerelease packages. Release qualification
+uses freshly packed candidate archives from `release/1.0`; npm availability
+does not identify or qualify those archives.
 
 ## Repo Development
 
