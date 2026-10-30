@@ -65,7 +65,7 @@ They are regression and authoring surfaces, not a second framework.
 
 ## Documentation and publishing clients
 
-`content/docs/` and its catalog own the 16 creator pages. The CLI ships verified
+`content/docs/` and its catalog own the 17 creator pages. The CLI ships verified
 MDX and agent-guidance snapshots; `airjam docs list/read --json` and
 `@air-jam/cli/documentation` expose the website snapshot. The private website
 supplies its renderer and presentation components without owning a prose copy.
