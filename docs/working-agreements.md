@@ -65,6 +65,12 @@ and flips to `main` at launch.
 2. `pnpm check:changed` is the coherent-change gate. It runs cached ESLint and
    cached affected-project TypeScript checks in parallel with a warm target of
    `<=5s`.
+   Edits inside scaffold-enabled game directories also run create-airjam's
+   template freshness check for only the touched templates, using the generator's
+   canonical source discovery; this scoped check still runs if it exceeds the warm target.
+   If a packaged template is stale, run `pnpm --filter create-airjam templates:generate`
+   and then `pnpm check:changed`. The template tooling checks all templates by default;
+   `pnpm --filter create-airjam templates:check --game minimal` checks one game input.
    During a larger uncommitted batch, use `-- --files <paths...>` to check only
    the files currently being edited without losing the full pre-push gate.
 3. the changed gate must stay bounded. Central toolchain changes or more than
