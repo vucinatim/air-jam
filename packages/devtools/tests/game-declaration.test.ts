@@ -6,6 +6,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +20,7 @@ import {
   defineAirJamTesting,
   describeAirJamTestProfiles,
 } from "../src/testing.js";
+import { importDeclaration } from "../src/tooling/declaration-hook.js";
 import { loadAirJamGame, loadAirJamTesting } from "../src/tooling/load-game.js";
 import {
   declarationSource,
@@ -122,9 +124,13 @@ it.each([
     rmSync(directory, { recursive: true, force: true });
   }
 });
-it.each(["react", "./dependency.cjs"])(
-  "rejects createRequire dependencies reached through %s",
-  (specifier) => {
+it.each([
+  ["react", "import.meta.url"],
+  ["./dependency.cjs", "import.meta.url"],
+  ["react", "new URL('./package.json', import.meta.url)"],
+])(
+  "rejects createRequire dependencies reached through %s from %s",
+  (specifier, base) => {
     const directory = mkdtempSync(
       path.join(os.tmpdir(), "airjam-framework-free-"),
     );
@@ -140,7 +146,7 @@ it.each(["react", "./dependency.cjs"])(
       writeFileSync(dependency, 'module.exports = require("react");');
       writeFileSync(
         helper,
-        `import { createRequire } from "node:module"; const require = createRequire(import.meta.url); require(${JSON.stringify(specifier)}).createElement("div");`,
+        `import { createRequire } from "node:module"; const require = createRequire(${base}); require(${JSON.stringify(specifier)}).createElement("div");`,
       );
       writeFileSync(
         config,
@@ -150,7 +156,11 @@ it.each(["react", "./dependency.cjs"])(
       expect(result.ok).toBe(false);
       expect(result.stderr).toContain("AJ_DECLARATION_NOT_FRAMEWORK_FREE");
       expect(result.stderr).toContain(
-        specifier === "react" ? helper : dependency,
+        specifier !== "react"
+          ? dependency
+          : base === "import.meta.url"
+            ? helper
+            : path.join(directory, "package.json"),
       );
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -197,4 +207,25 @@ it("offers a declared player in every profile and reserves the model policy name
       },
     }),
   ).toThrow("AJ_TEST_POLICY_RESERVED");
+});
+
+it("serializes declaration imports and releases the boundary after failure", async () => {
+  const events: string[] = [];
+  const first = importDeclaration(async () => {
+    events.push("first-start");
+    await Promise.resolve();
+    events.push("first-end");
+    throw new Error("Failed declaration");
+  });
+  const second = importDeclaration(async () => {
+    events.push("second");
+    return "loaded";
+  });
+  expect(await Promise.allSettled([first, second])).toEqual([
+    { status: "rejected", reason: new Error("Failed declaration") },
+    { status: "fulfilled", value: "loaded" },
+  ]);
+  expect(events).toEqual(["first-start", "first-end", "second"]);
+  const require = createRequire(path.join(root, "games/pong/package.json"));
+  expect(() => require("react").createElement("div")).not.toThrow();
 });

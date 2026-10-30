@@ -5,7 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { register as registerTypescript } from "tsx/esm/api";
 import type { defineAirJamTesting } from "../testing.js";
-import { registerDeclarationHook } from "./declaration-hook.js";
+import { importDeclaration } from "./declaration-hook.js";
 
 const registered = new Map<
   string,
@@ -18,7 +18,6 @@ const registered = new Map<
 >();
 export async function loadAirJamGame(configPath: string): Promise<AirJamGame> {
   const configUrl = pathToFileURL(await realpath(configPath)).href;
-  registerDeclarationHook(configUrl);
   if (!registered.has(configUrl)) {
     const tsconfig = [
       path.join(path.dirname(configPath), "tsconfig.json"),
@@ -33,7 +32,9 @@ export async function loadAirJamGame(configPath: string): Promise<AirJamGame> {
   const typescript = registered.get(configUrl);
   if (!typescript)
     throw new Error("Declaration TypeScript loader was not registered.");
-  const loaded = await typescript.import(configUrl, import.meta.url);
+  const loaded = await importDeclaration(() =>
+    typescript.import(configUrl, import.meta.url),
+  );
   if (!isAirJamGame(loaded.airjam))
     throw new Error(
       `Air Jam config "${configPath}" must export airjam = defineAirJamGame(...) from @air-jam/sdk/core.`,

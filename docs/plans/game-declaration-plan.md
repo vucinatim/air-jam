@@ -406,10 +406,12 @@ One loader in devtools, two forms of result:
    `loadAirJamTesting(configPath, game)`. It imports the module, reads only the
    named export `airjam`, and requires `isAirJamGame`. Before importing, it
    registers one synchronous `module.registerHooks` boundary for imports,
-   `require` and `createRequire` that fails
-   `AJ_DECLARATION_NOT_FRAMEWORK_FREE` naming the importing file when the
-   graph reaches `react`, `react-dom`, the `@air-jam/sdk` root, a `.tsx` or a
-   `.css` file. Authoring tools require Node.js 22.15 or newer; SDK and
+   `require` and `createRequire`. Declaration imports are serialized, with a
+   counter active only during each import and cleared even on failure. While
+   active, every resolve of `react`, `react-dom`, the `@air-jam/sdk` root,
+   a `.tsx` or a `.css` file fails `AJ_DECLARATION_NOT_FRAMEWORK_FREE`, naming
+   the importer regardless of its parent URL. Tools finish loading the
+   declaration before importing testing or starting framework-bound work. Authoring tools require Node.js 22.15 or newer; SDK and
    server minimums remain 22.0. Older authoring runtimes fail with a clear
    minimum-version error. Only helper subprocesses that already run under `tsx` call it:
    `run-test-profile`, `run-headless-room`, `run-visual-capture` and the new

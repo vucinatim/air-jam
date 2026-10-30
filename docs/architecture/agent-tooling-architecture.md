@@ -34,7 +34,11 @@ The intended architecture is:
 with `createAirJamApp(game, { runtime })`. Metadata owns identity and room
 capacity. Agent contracts also come from core.
 
-Devtools' `load-game.ts` enforces that boundary. Its `describe-game` subprocess
+Devtools' `load-game.ts` serializes declaration imports. One synchronous Node
+resolve hook rejects framework imports throughout each declaration load,
+regardless of parent URL, and becomes inactive when the import settles. Tools
+await the declaration before loading testing or starting framework-bound work.
+Its `describe-game` subprocess
 returns versioned JSON validated in core; `listGames` uses one process for the
 workspace, and `inspectGame` describes one game. CLI, MCP, release, scaffold and
 repo tooling consume those services. `airjam.inspect_game` exposes the
