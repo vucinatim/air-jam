@@ -4,6 +4,13 @@ import {
   type AirJamSettingsValues,
 } from "@air-jam/sdk/core";
 export const airCaptureSettings = defineAirJamSettings({
+  matchCountdownDurationMs: setting.number({
+    default: 3000,
+    min: 1500,
+    max: 6000,
+    step: 1,
+    live: true,
+  }),
   airborneLaunchVelocityThreshold: setting.number({
     default: 2.5,
     min: 1.25,

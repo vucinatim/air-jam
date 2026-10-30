@@ -86,7 +86,7 @@ export interface AirCaptureSim {
   /** Bumped when a new round places every ship back at its base. */
   roundId: number;
   matchPhase: MatchPhase;
-  countdownEndsAt: number | null;
+  countdownStartedAt: number | null;
   roster: string;
   nextEntityId: number;
 }

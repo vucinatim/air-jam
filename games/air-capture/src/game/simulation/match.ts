@@ -16,7 +16,6 @@ import {
   reduceSetPlayerTeam,
 } from "../stores/match/capture-the-flag-store-state";
 import { prototypeMatchStore } from "../stores/match/match-store";
-import { MATCH_COUNTDOWN_DURATION_MS } from "../stores/match/match-store-state";
 import { emptyTeamSets } from "./arena";
 import { addShipBody, removeShipBody, teleportShip } from "./physics";
 import { resetShipMotion, spawnPositionAt } from "./ships";
@@ -192,22 +191,21 @@ export const followMatchPhase = (
   if (matchPhase === sim.matchPhase) return;
   if (!isMatchActive(sim.matchPhase) && isMatchActive(matchPhase))
     startRound(sim, random);
-  sim.countdownEndsAt =
-    matchPhase === "countdown"
-      ? sim.time + MATCH_COUNTDOWN_DURATION_MS / 1000
-      : null;
+  sim.countdownStartedAt = matchPhase === "countdown" ? sim.time : null;
   sim.matchPhase = matchPhase;
 };
 
 /** Ends the countdown on game time and the match when a team reaches the target. */
 export const decideMatch = (sim: AirCaptureSim, emit: Emit): void => {
-  if (sim.countdownEndsAt !== null) {
-    if (sim.time >= sim.countdownEndsAt) {
-      sim.countdownEndsAt = null;
+  if (sim.countdownStartedAt !== null) {
+    const countdownEndsAt =
+      sim.countdownStartedAt + sim.settings.matchCountdownDurationMs / 1000;
+    if (sim.time >= countdownEndsAt) {
+      sim.countdownStartedAt = null;
       void prototypeMatchStore.actions.finishCountdown();
     } else
       void prototypeMatchStore.actions.setCountdownSeconds({
-        seconds: Math.ceil(sim.countdownEndsAt - sim.time),
+        seconds: Math.ceil(countdownEndsAt - sim.time),
       });
     return;
   }

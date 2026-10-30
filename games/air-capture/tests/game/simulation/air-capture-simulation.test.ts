@@ -51,14 +51,18 @@ const idle: GameLoopInput = {
 };
 
 const createMatch = (seed = 7) => {
+  let currentSettings = { ...settings };
   const random = createSeededRandom(seed);
-  const sim = airCaptureSimulation.create({ random, settings });
+  const sim = airCaptureSimulation.create({
+    random,
+    settings: currentSettings,
+  });
   const events: AirCaptureEvent[] = [];
   let input: GameLoopInput = idle;
   const step = (count = 1) => {
     for (let index = 0; index < count; index += 1)
       airCaptureSimulation.step(sim, {
-        settings,
+        settings: currentSettings,
         tick: index,
         stepMs: airCaptureSimulation.stepMs,
         dtSeconds: airCaptureSimulation.stepMs / 1000,
@@ -72,6 +76,9 @@ const createMatch = (seed = 7) => {
     sim,
     events,
     step,
+    updateSettings: (patch: Partial<AirCaptureSettings>) => {
+      currentSettings = { ...currentSettings, ...patch };
+    },
     hold: (next: Partial<GameLoopInput>) => {
       input = { ...idle, ...next };
     },
@@ -135,6 +142,17 @@ describe("Air Capture simulation", () => {
     step(170);
     expect(fixture.actions.finishCountdown).not.toHaveBeenCalled();
     step(20);
+    expect(fixture.actions.finishCountdown).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies a live countdown duration change to an active countdown", () => {
+    const { step, updateSettings } = createMatch();
+    step();
+    fixture.state.matchPhase = "countdown";
+    step(120);
+    expect(fixture.actions.finishCountdown).not.toHaveBeenCalled();
+    updateSettings({ matchCountdownDurationMs: 1500 });
+    step();
     expect(fixture.actions.finishCountdown).toHaveBeenCalledTimes(1);
   });
 

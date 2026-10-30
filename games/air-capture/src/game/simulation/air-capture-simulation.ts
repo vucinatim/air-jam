@@ -110,7 +110,7 @@ export const airCaptureSimulation = defineAirJamSimulation<
     jumpPadCooldownUntil: new Map(),
     roundId: 0,
     matchPhase: prototypeMatchStore.getState().matchPhase,
-    countdownEndsAt: null,
+    countdownStartedAt: null,
     roster: "",
     nextEntityId: 0,
   }),

@@ -17,8 +17,6 @@ import type {
   TeamAssignment,
 } from "./match-store-types";
 
-export const MATCH_COUNTDOWN_DURATION_MS = 3_000;
-
 const toConnectedPlayerIdSet = (
   connectedPlayerIds: string[],
   actorId?: string,
@@ -295,6 +293,7 @@ export const reduceSetPointsToWin = (
 export const reduceStartMatch = (
   state: MatchStateSnapshot,
   { connectedPlayerIds = [] }: MatchActionContext,
+  countdownDurationMs: number,
 ): MatchStateSnapshot => {
   if (state.matchPhase !== "lobby") {
     return state;
@@ -336,7 +335,7 @@ export const reduceStartMatch = (
     teamAssignments: completedAssignments,
     botCounts: normalizedBotCounts,
     matchSummary: null,
-    countdownSeconds: MATCH_COUNTDOWN_DURATION_MS / 1000,
+    countdownSeconds: countdownDurationMs / 1000,
     matchStartedAtMs: null,
   };
 };
@@ -367,6 +366,7 @@ export const reduceFinishCountdown = (
 
 export const reduceRestartMatch = (
   state: MatchStateSnapshot,
+  countdownDurationMs: number,
 ): MatchStateSnapshot => {
   if (state.matchPhase !== "ended") {
     return state;
@@ -376,7 +376,7 @@ export const reduceRestartMatch = (
     ...state,
     matchPhase: "countdown",
     matchSummary: null,
-    countdownSeconds: MATCH_COUNTDOWN_DURATION_MS / 1000,
+    countdownSeconds: countdownDurationMs / 1000,
     matchStartedAtMs: null,
   };
 };

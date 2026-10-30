@@ -1,4 +1,5 @@
 import { createAirJamStore, type AirJamActionContext } from "@air-jam/sdk/core";
+import type { AirCaptureSettings } from "../../contracts/settings";
 import type { TeamCounts } from "../../domain/match-readiness";
 import type { TeamId } from "../../domain/team";
 import {
@@ -44,13 +45,19 @@ interface PrototypeMatchState {
       _ctx: AirJamActionContext,
       payload: { pointsToWin: number },
     ) => void;
-    startMatch: (_ctx: AirJamActionContext, _payload: undefined) => void;
+    startMatch: (
+      _ctx: AirJamActionContext<AirCaptureSettings>,
+      _payload: undefined,
+    ) => void;
     setCountdownSeconds: (
       ctx: AirJamActionContext,
       payload: { seconds: number },
     ) => void;
     finishCountdown: (ctx: AirJamActionContext, _payload: undefined) => void;
-    restartMatch: (_ctx: AirJamActionContext, _payload: undefined) => void;
+    restartMatch: (
+      _ctx: AirJamActionContext<AirCaptureSettings>,
+      _payload: undefined,
+    ) => void;
     returnToLobby: (_ctx: AirJamActionContext, _payload: undefined) => void;
     endMatch: (
       ctx: AirJamActionContext,
@@ -94,9 +101,13 @@ export const prototypeMatchStore = createAirJamStore<PrototypeMatchState>(
           reduceSetPointsToWin(state as MatchStateSnapshot, { pointsToWin }),
         ),
 
-      startMatch: ({ connectedPlayerIds }) =>
+      startMatch: ({ connectedPlayerIds, settings }) =>
         set((state) =>
-          reduceStartMatch(state as MatchStateSnapshot, { connectedPlayerIds }),
+          reduceStartMatch(
+            state as MatchStateSnapshot,
+            { connectedPlayerIds },
+            settings.matchCountdownDurationMs,
+          ),
         ),
 
       setCountdownSeconds: ({ role }, { seconds }) =>
@@ -109,8 +120,13 @@ export const prototypeMatchStore = createAirJamStore<PrototypeMatchState>(
       finishCountdown: ({ now }) =>
         set((state) => reduceFinishCountdown(state as MatchStateSnapshot, now)),
 
-      restartMatch: () =>
-        set((state) => reduceRestartMatch(state as MatchStateSnapshot)),
+      restartMatch: ({ settings }) =>
+        set((state) =>
+          reduceRestartMatch(
+            state as MatchStateSnapshot,
+            settings.matchCountdownDurationMs,
+          ),
+        ),
 
       returnToLobby: () =>
         set((state) => reduceReturnToLobby(state as MatchStateSnapshot)),
