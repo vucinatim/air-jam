@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { pongSettings } from "../../../src/game/contracts/settings";
 import {
   createEmptyBotCounts,
   getBotPositions,
@@ -13,7 +14,7 @@ import type { RuntimeState } from "../../../src/game/engine/types";
 const createRuntimeState = (
   overrides: Partial<RuntimeState> = {},
 ): RuntimeState => ({
-  ...createInitialRuntimeState(),
+  ...createInitialRuntimeState(pongSettings.ballSpeed.default),
   paddle1FrontY: 100,
   paddle1BackY: 100,
   paddle2FrontY: 100,
@@ -60,7 +61,13 @@ describe("paddle occupancy", () => {
   it("clamps bot movement at the target instead of overshooting", () => {
     const state = createRuntimeState();
 
-    applyBotPaddleInput(state, {}, { team1: 1, team2: 0 }, 1 / 60);
+    applyBotPaddleInput(
+      state,
+      {},
+      { team1: 1, team2: 0 },
+      1 / 60,
+      pongSettings.paddleSpeed.default,
+    );
 
     expect(state.paddle1FrontY).toBe(104);
   });

@@ -23,6 +23,7 @@ const ship = (
   queuedAbility: null,
 });
 const world = (overrides: Partial<BotWorld> = {}): BotWorld => ({
+  jumpForce: 25,
   ships: [
     ship("human", "solaris", [-100, 5, 40]),
     ship("bot", "nebulon", [100, 5, -40]),

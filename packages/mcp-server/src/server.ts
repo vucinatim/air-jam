@@ -57,6 +57,8 @@ const EMBEDDED_ROOM_OMITTED_TOOLS = new Set([
   "airjam.send_game_session_input",
   "airjam.read_game_session",
   "airjam.observe_game_session",
+  "airjam.read_game_settings",
+  "airjam.update_game_settings",
   "airjam.invoke_game_session_action",
   "airjam.capture_game_session_visuals",
   "airjam.close_game_session",

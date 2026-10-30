@@ -1006,6 +1006,7 @@ describe("createAirJamStore networked behavior", () => {
           role: "host",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
           now: TEST_GAME_TIME_MS,
+          settings: {},
         },
         { phase: "results" },
       );
@@ -1446,6 +1447,7 @@ describe("createAirJamStore networked behavior", () => {
           role: "host",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
           now: TEST_GAME_TIME_MS,
+          settings: {},
         },
         acknowledgement: {
           ok: true,
@@ -1490,6 +1492,7 @@ describe("createAirJamStore networked behavior", () => {
           role: "controller",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
           now: TEST_GAME_TIME_MS,
+          settings: {},
         },
         acknowledgement: {
           ok: true,
@@ -1550,6 +1553,7 @@ describe("createAirJamStore networked behavior", () => {
           role: "controller",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
           now: TEST_GAME_TIME_MS,
+          settings: {},
         },
         acknowledgement: {
           ok: true,
@@ -1731,6 +1735,7 @@ describe("createAirJamStore networked behavior", () => {
           role: "host",
           connectedPlayerIds: ["ctrl_1", "ctrl_2"],
           now: TEST_GAME_TIME_MS,
+          settings: {},
         },
         acknowledgement: {
           ok: false,
@@ -1825,6 +1830,7 @@ describe("createAirJamStore networked behavior", () => {
           role: "host",
           connectedPlayerIds: [],
           now: TEST_GAME_TIME_MS,
+          settings: {},
         },
         { epoch: 5, phase: "browser" },
       );

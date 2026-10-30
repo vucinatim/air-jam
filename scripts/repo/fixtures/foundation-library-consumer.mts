@@ -84,7 +84,14 @@ assert.equal(
   "release",
 );
 assert.equal(controllerOptions.cwd, developmentOptions.cwd);
-assert.equal(documentation.documents.length, 16);
+assert.equal(documentation.documents.length, 17);
+assert.ok(
+  documentation.documents.some(
+    (document) =>
+      document.page.href === "/docs/sdk/settings" &&
+      document.content.includes("defineAirJamSettings"),
+  ),
+);
 assert.ok(
   documentation.documents.some(
     (document) =>

@@ -9,6 +9,7 @@ describe("air-capture ship weapon engine", () => {
   it("fires on edge press and on held repeat cadence", () => {
     expect(
       shouldFireShipWeapons({
+        shootInterval: 0.2,
         actionPressed: true,
         wasActionPressed: false,
         time: 1,
@@ -18,6 +19,7 @@ describe("air-capture ship weapon engine", () => {
 
     expect(
       shouldFireShipWeapons({
+        shootInterval: 0.2,
         actionPressed: true,
         wasActionPressed: true,
         time: 1,
@@ -27,6 +29,7 @@ describe("air-capture ship weapon engine", () => {
 
     expect(
       shouldFireShipWeapons({
+        shootInterval: 0.2,
         actionPressed: true,
         wasActionPressed: true,
         time: 1.3,

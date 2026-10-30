@@ -19,6 +19,7 @@ export const airjam = defineAirJamGame({
     tags: ["starter", "minimal", "counter"],
   }),
   controllerPath: "/controller",
+  // No outcome settings yet: declare settings with defineAirJamSettings({}).
   stores: [minimalStore],
   agent: agentContract,
   testing: "./testing/profiles.ts",

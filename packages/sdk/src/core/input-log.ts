@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { airJamSettingsValuesSchema } from "./settings";
 
 /** Room events a host receives that change what its simulation reads. */
 export const AIR_JAM_INPUT_LOG_EVENTS = [
@@ -8,6 +9,7 @@ export const AIR_JAM_INPUT_LOG_EVENTS = [
   "server:state",
   "server:input",
   "airjam:action_rpc",
+  "airjam:settings",
 ] as const;
 
 const inputLogEntrySchema = z
@@ -27,7 +29,8 @@ const inputLogEntrySchema = z
  */
 export const airJamInputLogSchema = z
   .object({
-    version: z.literal(1),
+    version: z.literal(2),
+    settings: airJamSettingsValuesSchema,
     seed: z.number().int().min(0).max(0xffff_ffff),
     stepMs: z.number().positive(),
     /** Steps the recorded host took. */
@@ -67,17 +70,22 @@ export class InputRecorder {
 
   log({
     seed,
+    settings,
     stepMs,
     ticks,
     storeDomain,
   }: Omit<AirJamInputLog, "version" | "entries">): AirJamInputLog {
     return {
-      version: 1,
+      version: 2,
+      settings,
       seed,
       stepMs,
       ticks,
       storeDomain,
-      entries: [...this.entries],
+      entries: [
+        ...this.entries,
+        ...this.pending.map((entry) => ({ tick: ticks + 1, ...entry })),
+      ],
     };
   }
 }

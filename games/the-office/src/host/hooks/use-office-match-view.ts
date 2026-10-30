@@ -1,4 +1,5 @@
 import {
+  useAirJamSettings,
   useHostActionListener,
   useSimulationEvents,
   useSimulationFrame,
@@ -6,17 +7,13 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { getPlayerById } from "../../game/content/players";
+import { officeSettings } from "../../game/contracts/settings";
 import type { ActiveTask } from "../../game/domain/task-manager";
-import { STAT_CONSTANTS } from "../../game/domain/task-manager";
 import type {
   OfficeSimulationEvent,
   OfficeSimulationState,
 } from "../../game/engine/office-simulation";
-import {
-  spaceStore,
-  useOfficeGameDurationMs,
-  useOfficeMatchPhase,
-} from "../../game/stores";
+import { spaceStore, useOfficeMatchPhase } from "../../game/stores";
 import { useOfficeSounds } from "./use-office-sounds";
 
 const CLOCK_PUBLISH_MS = 250;
@@ -25,23 +22,25 @@ const playerName = (playerId: string) =>
   getPlayerById(spaceStore.getState().playerAssignments[playerId])?.name ??
   "Igralec";
 
-const BREAK_TOASTS: Record<string, { message: string; description: string }> = {
-  "coffee-machine": {
-    message: "je spil kavo!",
-    description: `+${STAT_CONSTANTS.COFFEE_ENERGY_RESTORE} energije`,
-  },
-  "lunch-spot": {
-    message: "je pojedel malico!",
-    description: `+${STAT_CONSTANTS.LUNCH_ENERGY_RESTORE} energije`,
-  },
-  "fifa-table": {
-    message: "je igral FIFO!",
-    description: `+${STAT_CONSTANTS.FIFA_BOREDOM_RESTORE} sreče`,
-  },
-};
-
 /** Turns what happened in the match into toasts and sounds. */
 export function useOfficeFeedback(muted: boolean): void {
+  const settings = useAirJamSettings(officeSettings);
+  const breakToasts: Record<string, { message: string; description: string }> =
+    {
+      "coffee-machine": {
+        message: "je spil kavo!",
+        description: `+${settings.coffeeEnergyRestore} energije`,
+      },
+      "lunch-spot": {
+        message: "je pojedel malico!",
+        description: `+${settings.lunchEnergyRestore} energije`,
+      },
+      "fifa-table": {
+        message: "je igral FIFO!",
+        description: `+${settings.fifaBoredomRestore} sreče`,
+      },
+    };
+
   const sounds = useOfficeSounds(muted);
 
   useSimulationEvents<OfficeSimulationEvent>((event) => {
@@ -62,9 +61,9 @@ export function useOfficeFeedback(muted: boolean): void {
       );
       sounds.playTaskComplete();
     } else if (event.type === "break-finished") {
-      const rest = BREAK_TOASTS[event.locationId] ?? {
+      const rest = breakToasts[event.locationId] ?? {
         message: "je počival!",
-        description: `+${STAT_CONSTANTS.LUNCH_ENERGY_RESTORE} energije`,
+        description: `+${settings.lunchEnergyRestore} energije`,
       };
       toast(`${playerName(event.playerId)} ${rest.message}`, {
         description: rest.description,
@@ -97,7 +96,7 @@ export function useOfficePendingTasks(): ActiveTask[] {
 
 /** Match time left, published a few times a second for the clock display. */
 export function useOfficeTimeRemainingMs(): number {
-  const gameDurationMs = useOfficeGameDurationMs();
+  const { gameDurationMs } = useAirJamSettings(officeSettings);
   const matchPhase = useOfficeMatchPhase();
   const [elapsedMs, setElapsedMs] = useState(0);
   useSimulationFrame<OfficeSimulationState>(({ sim }) => {

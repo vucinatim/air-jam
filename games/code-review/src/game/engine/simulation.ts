@@ -1,37 +1,14 @@
 import type { GameInput } from "../contracts/input";
-import { PUNCH_COOLDOWN_MS, PUNCH_DURATION_MS } from "../domain/combat-rules";
+import type { CodeReviewSettings } from "../contracts/settings";
 import type { Team } from "../domain/team-assignments";
 import {
-  ACCELERATION,
-  BOT_APPROACH_INTENT,
   BOT_DEFEND_DISTANCE,
-  BOT_DEFEND_WINDOW_MS,
   BOT_FOLLOW_DISTANCE,
   BOT_PUNCH_DISTANCE,
-  BOT_PUNCH_WINDOW_MS,
   BOT_RETREAT_DISTANCE,
   BOT_STRAFE_DISTANCE,
-  BOT_STRAFE_INTENT,
-  COAST_FRICTION,
-  COLLISION_PUSH,
-  DEFEND_ACCELERATION_MULTIPLIER,
-  DEFEND_DAMAGE_MULTIPLIER,
-  DEFEND_KNOCKBACK_MULTIPLIER,
-  EMPOWER_DAMAGE_MULTIPLIER,
-  EMPOWER_DURATION_MS,
-  EMPOWER_KNOCKBACK_MULTIPLIER,
-  HIT_FLASH_MS,
-  KNOCKBACK_FRICTION,
-  KO_COUNTDOWN_MS,
-  MAX_VELOCITY,
-  MOVE_FRICTION,
   PLAYER_SIZE,
-  PUNCH_DAMAGE,
-  PUNCH_DISPLACEMENT,
-  PUNCH_KNOCKBACK_FRAMES,
-  PUNCH_KNOCKBACK_VELOCITY,
   PUNCH_REACH,
-  PUNCH_RECOIL,
   RING_MAX_X,
   RING_MAX_Y,
   RING_MIN_X,
@@ -80,14 +57,17 @@ const hasMovementInput = (input: Pick<GameInput, "horizontal" | "vertical">) =>
   Math.abs(input.horizontal) > 0.01 || Math.abs(input.vertical) > 0.01;
 
 const getAppliedFriction = (
+  settings: CodeReviewSettings,
   input: Pick<GameInput, "horizontal" | "vertical">,
   inKnockback: boolean,
 ) => {
   if (inKnockback) {
-    return KNOCKBACK_FRICTION;
+    return settings.knockbackFriction;
   }
 
-  return hasMovementInput(input) ? MOVE_FRICTION : COAST_FRICTION;
+  return hasMovementInput(input)
+    ? settings.moveFriction
+    : settings.coastFriction;
 };
 
 const createBotInput = (
@@ -95,6 +75,7 @@ const createBotInput = (
   participants: SlotParticipant[],
   state: RuntimePlayerState,
   timestamp: number,
+  settings: CodeReviewSettings,
 ): GameInput => {
   const selfState = state[participant.slotKey];
   const enemies = participants.filter(
@@ -128,9 +109,9 @@ const createBotInput = (
   const distance = Math.max(rawDistance, 1);
   const towardX = dx / distance;
   const towardY = dy / distance;
-  const pulseStep = Math.floor(timestamp / 220);
-  const punchStep = Math.floor(timestamp / BOT_PUNCH_WINDOW_MS);
-  const defendStep = Math.floor(timestamp / BOT_DEFEND_WINDOW_MS);
+  const pulseStep = Math.floor(timestamp / settings.botPulseMs);
+  const punchStep = Math.floor(timestamp / settings.botPunchWindowMs);
+  const defendStep = Math.floor(timestamp / settings.botDefendWindowMs);
   const strafeDirection =
     (pulseStep + participant.slotKey.length) % 2 === 0 ? 1 : -1;
 
@@ -144,16 +125,16 @@ const createBotInput = (
     horizontal = -towardX;
     vertical = -towardY;
   } else {
-    horizontal = towardX * BOT_APPROACH_INTENT;
-    vertical = towardY * BOT_APPROACH_INTENT;
+    horizontal = towardX * settings.botApproachIntent;
+    vertical = towardY * settings.botApproachIntent;
   }
 
   if (
     nearestDistance <= BOT_STRAFE_DISTANCE &&
     nearestDistance >= BOT_RETREAT_DISTANCE
   ) {
-    horizontal += towardY * BOT_STRAFE_INTENT * strafeDirection;
-    vertical += -towardX * BOT_STRAFE_INTENT * strafeDirection;
+    horizontal += towardY * settings.botStrafeIntent * strafeDirection;
+    vertical += -towardX * settings.botStrafeIntent * strafeDirection;
   }
 
   horizontal = clamp(horizontal, -1, 1);
@@ -185,6 +166,7 @@ const createBotInput = (
 };
 
 type StepMatchFrameOptions = {
+  settings: CodeReviewSettings;
   state: RuntimePlayerState;
   participants: SlotParticipant[];
   hpState: HpState;
@@ -204,6 +186,7 @@ type StepMatchFrameOptions = {
 };
 
 export const stepMatchFrame = ({
+  settings,
   state,
   participants,
   hpState,
@@ -224,7 +207,7 @@ export const stepMatchFrame = ({
       }
 
       Object.assign(state, createRuntimePlayerState());
-      Object.assign(hpState, createHpState());
+      Object.assign(hpState, createHpState(settings.maxHp));
       Object.assign(koState, createKoState());
       onBell();
     }
@@ -236,7 +219,7 @@ export const stepMatchFrame = ({
 
   participants.forEach((participant) => {
     const input = participant.isBot
-      ? createBotInput(participant, participants, state, timestamp)
+      ? createBotInput(participant, participants, state, timestamp, settings)
       : getInput(participant.id);
 
     const playerState = state[participant.slotKey];
@@ -269,8 +252,8 @@ export const stepMatchFrame = ({
       if (input.leftPunch && playerState.cooldownLeft <= 0) {
         playerState.punchingLeft = true;
         playerState.punchLandedLeft = false;
-        playerState.cooldownLeft = PUNCH_COOLDOWN_MS;
-        playerState.punchEndLeft = timestamp + PUNCH_DURATION_MS;
+        playerState.cooldownLeft = settings.punchCooldownMs;
+        playerState.punchEndLeft = timestamp + settings.punchDurationMs;
         if (timestamp < playerState.empoweredUntil) {
           playerState.punchEmpowered = true;
           playerState.empoweredUntil = 0;
@@ -280,8 +263,8 @@ export const stepMatchFrame = ({
       if (input.rightPunch && playerState.cooldownRight <= 0) {
         playerState.punchingRight = true;
         playerState.punchLandedRight = false;
-        playerState.cooldownRight = PUNCH_COOLDOWN_MS;
-        playerState.punchEndRight = timestamp + PUNCH_DURATION_MS;
+        playerState.cooldownRight = settings.punchCooldownMs;
+        playerState.punchEndRight = timestamp + settings.punchDurationMs;
         if (timestamp < playerState.empoweredUntil) {
           playerState.punchEmpowered = true;
           playerState.empoweredUntil = 0;
@@ -297,9 +280,10 @@ export const stepMatchFrame = ({
     }
 
     const acceleration = playerState.defending
-      ? ACCELERATION * DEFEND_ACCELERATION_MULTIPLIER
-      : ACCELERATION;
+      ? settings.acceleration * settings.defendAccelerationMultiplier
+      : settings.acceleration;
     const appliedFriction = getAppliedFriction(
+      settings,
       input,
       playerState.knockbackFrames > 0,
     );
@@ -313,13 +297,13 @@ export const stepMatchFrame = ({
     } else {
       playerState.vx = clamp(
         (playerState.vx + input.horizontal * acceleration) * appliedFriction,
-        -MAX_VELOCITY,
-        MAX_VELOCITY,
+        -settings.maxVelocity,
+        settings.maxVelocity,
       );
       playerState.vy = clamp(
         (playerState.vy + input.vertical * acceleration) * appliedFriction,
-        -MAX_VELOCITY,
-        MAX_VELOCITY,
+        -settings.maxVelocity,
+        settings.maxVelocity,
       );
     }
 
@@ -385,32 +369,38 @@ export const stepMatchFrame = ({
         if (leftIsPunchingRight) {
           const victimDefending = right.playerState.defending;
           const knockbackMultiplier =
-            (victimDefending ? DEFEND_KNOCKBACK_MULTIPLIER : 1) *
+            (victimDefending ? settings.defendKnockbackMultiplier : 1) *
             (left.playerState.punchEmpowered
-              ? EMPOWER_KNOCKBACK_MULTIPLIER
+              ? settings.empowerKnockbackMultiplier
               : 1);
           const damageMultiplier =
-            (victimDefending ? DEFEND_DAMAGE_MULTIPLIER : 1) *
-            (left.playerState.punchEmpowered ? EMPOWER_DAMAGE_MULTIPLIER : 1);
+            (victimDefending ? settings.defendDamageMultiplier : 1) *
+            (left.playerState.punchEmpowered
+              ? settings.empowerDamageMultiplier
+              : 1);
 
-          right.playerState.x += nx * PUNCH_DISPLACEMENT * knockbackMultiplier;
-          right.playerState.y += ny * PUNCH_DISPLACEMENT * knockbackMultiplier;
+          right.playerState.x +=
+            nx * settings.punchDisplacement * knockbackMultiplier;
+          right.playerState.y +=
+            ny * settings.punchDisplacement * knockbackMultiplier;
           right.playerState.vx =
-            nx * PUNCH_KNOCKBACK_VELOCITY * knockbackMultiplier;
+            nx * settings.punchKnockbackVelocity * knockbackMultiplier;
           right.playerState.vy =
-            ny * PUNCH_KNOCKBACK_VELOCITY * knockbackMultiplier;
-          right.playerState.knockbackFrames = PUNCH_KNOCKBACK_FRAMES;
-          left.playerState.vx -= nx * PUNCH_RECOIL;
-          left.playerState.vy -= ny * PUNCH_RECOIL;
+            ny * settings.punchKnockbackVelocity * knockbackMultiplier;
+          right.playerState.knockbackFrames = settings.punchKnockbackFrames;
+          left.playerState.vx -= nx * settings.punchRecoil;
+          left.playerState.vy -= ny * settings.punchRecoil;
 
           hpState[right.participant.team] = Math.max(
             0,
-            hpState[right.participant.team] - PUNCH_DAMAGE * damageMultiplier,
+            hpState[right.participant.team] -
+              settings.punchDamage * damageMultiplier,
           );
-          right.playerState.hitFlashEnd = timestamp + HIT_FLASH_MS;
+          right.playerState.hitFlashEnd = timestamp + settings.hitFlashMs;
 
           if (victimDefending) {
-            right.playerState.empoweredUntil = timestamp + EMPOWER_DURATION_MS;
+            right.playerState.empoweredUntil =
+              timestamp + settings.empowerDurationMs;
           }
 
           if (left.playerState.punchingLeft) {
@@ -433,32 +423,38 @@ export const stepMatchFrame = ({
         if (rightIsPunchingLeft) {
           const victimDefending = left.playerState.defending;
           const knockbackMultiplier =
-            (victimDefending ? DEFEND_KNOCKBACK_MULTIPLIER : 1) *
+            (victimDefending ? settings.defendKnockbackMultiplier : 1) *
             (right.playerState.punchEmpowered
-              ? EMPOWER_KNOCKBACK_MULTIPLIER
+              ? settings.empowerKnockbackMultiplier
               : 1);
           const damageMultiplier =
-            (victimDefending ? DEFEND_DAMAGE_MULTIPLIER : 1) *
-            (right.playerState.punchEmpowered ? EMPOWER_DAMAGE_MULTIPLIER : 1);
+            (victimDefending ? settings.defendDamageMultiplier : 1) *
+            (right.playerState.punchEmpowered
+              ? settings.empowerDamageMultiplier
+              : 1);
 
-          left.playerState.x -= nx * PUNCH_DISPLACEMENT * knockbackMultiplier;
-          left.playerState.y -= ny * PUNCH_DISPLACEMENT * knockbackMultiplier;
+          left.playerState.x -=
+            nx * settings.punchDisplacement * knockbackMultiplier;
+          left.playerState.y -=
+            ny * settings.punchDisplacement * knockbackMultiplier;
           left.playerState.vx =
-            -nx * PUNCH_KNOCKBACK_VELOCITY * knockbackMultiplier;
+            -nx * settings.punchKnockbackVelocity * knockbackMultiplier;
           left.playerState.vy =
-            -ny * PUNCH_KNOCKBACK_VELOCITY * knockbackMultiplier;
-          left.playerState.knockbackFrames = PUNCH_KNOCKBACK_FRAMES;
-          right.playerState.vx += nx * PUNCH_RECOIL;
-          right.playerState.vy += ny * PUNCH_RECOIL;
+            -ny * settings.punchKnockbackVelocity * knockbackMultiplier;
+          left.playerState.knockbackFrames = settings.punchKnockbackFrames;
+          right.playerState.vx += nx * settings.punchRecoil;
+          right.playerState.vy += ny * settings.punchRecoil;
 
           hpState[left.participant.team] = Math.max(
             0,
-            hpState[left.participant.team] - PUNCH_DAMAGE * damageMultiplier,
+            hpState[left.participant.team] -
+              settings.punchDamage * damageMultiplier,
           );
-          left.playerState.hitFlashEnd = timestamp + HIT_FLASH_MS;
+          left.playerState.hitFlashEnd = timestamp + settings.hitFlashMs;
 
           if (victimDefending) {
-            left.playerState.empoweredUntil = timestamp + EMPOWER_DURATION_MS;
+            left.playerState.empoweredUntil =
+              timestamp + settings.empowerDurationMs;
           }
 
           if (right.playerState.punchingLeft) {
@@ -505,8 +501,8 @@ export const stepMatchFrame = ({
         const half = bodyOverlapX / 2;
         left.playerState.x += sign * half;
         right.playerState.x -= sign * half;
-        left.playerState.vx += sign * COLLISION_PUSH;
-        right.playerState.vx -= sign * COLLISION_PUSH;
+        left.playerState.vx += sign * settings.collisionPush;
+        right.playerState.vx -= sign * settings.collisionPush;
       } else {
         const sign =
           left.playerState.y + PLAYER_SIZE / 2 <
@@ -516,8 +512,8 @@ export const stepMatchFrame = ({
         const half = bodyOverlapY / 2;
         left.playerState.y += sign * half;
         right.playerState.y -= sign * half;
-        left.playerState.vy += sign * COLLISION_PUSH;
-        right.playerState.vy -= sign * COLLISION_PUSH;
+        left.playerState.vy += sign * settings.collisionPush;
+        right.playerState.vy -= sign * settings.collisionPush;
       }
     }
   }
@@ -530,7 +526,7 @@ export const stepMatchFrame = ({
   if (hpState.team1 <= 0 || hpState.team2 <= 0) {
     koState.active = true;
     koState.winner = hpState.team1 <= 0 ? "team2" : "team1";
-    koState.endTime = timestamp + KO_COUNTDOWN_MS;
+    koState.endTime = timestamp + settings.koCountdownMs;
     onBell();
   }
 };

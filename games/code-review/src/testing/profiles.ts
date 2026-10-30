@@ -2,7 +2,7 @@ import {
   defineAirJamTesting,
   type AirJamTestPolicy,
 } from "@air-jam/devtools/testing";
-import { MAX_HP } from "../game/engine/constants";
+import { codeReviewSettings } from "../game/contracts/settings";
 import {
   fightOf,
   moveRelative,
@@ -100,7 +100,10 @@ export const testing = defineAirJamTesting({
       },
       evaluator: {
         create: () => {
-          const lowest = { team1: MAX_HP, team2: MAX_HP };
+          const lowest = {
+            team1: codeReviewSettings.maxHp.default,
+            team2: codeReviewSettings.maxHp.default,
+          };
           return {
             evaluate: ({ observation }) => {
               const { scores } = snapshotSchema.parse(observation.snapshot);
@@ -114,9 +117,13 @@ export const testing = defineAirJamTesting({
                 rounds_won: scores.team1,
                 rounds_lost: scores.team2,
                 damage_dealt:
-                  decided && scores.team1 > 0 ? MAX_HP : MAX_HP - lowest.team2,
+                  decided && scores.team1 > 0
+                    ? codeReviewSettings.maxHp.default
+                    : codeReviewSettings.maxHp.default - lowest.team2,
                 damage_taken:
-                  decided && scores.team2 > 0 ? MAX_HP : MAX_HP - lowest.team1,
+                  decided && scores.team2 > 0
+                    ? codeReviewSettings.maxHp.default
+                    : codeReviewSettings.maxHp.default - lowest.team1,
               };
               return decided
                 ? {

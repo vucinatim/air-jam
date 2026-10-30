@@ -1,5 +1,3 @@
-import { MATCH_POINTS_TO_WIN } from "./match-rules";
-
 export type TeamCounts = { team1: number; team2: number };
 
 export const getEffectiveTeamCounts = (
@@ -24,12 +22,13 @@ export const getMatchReadiness = (
 };
 
 export const getLobbyReadinessText = (
+  pointsToWin: number,
   humanCounts: TeamCounts,
   botCounts: TeamCounts,
 ): string => {
   const readiness = getMatchReadiness(humanCounts, botCounts);
   if (readiness.canStart) {
-    return `Ready. First to ${MATCH_POINTS_TO_WIN}.`;
+    return `Ready. First to ${pointsToWin}.`;
   }
 
   const totalHumans = humanCounts.team1 + humanCounts.team2;

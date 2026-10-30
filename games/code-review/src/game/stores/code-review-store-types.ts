@@ -17,6 +17,7 @@ export interface BotCounts {
 }
 
 export interface CodeReviewGameState {
+  pointsToWin: number;
   matchPhase: CodeReviewMatchPhase;
   matchSummary: CodeReviewMatchSummary | null;
   scores: { team1: number; team2: number };

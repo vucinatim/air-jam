@@ -68,6 +68,11 @@ import type { AirJamInput } from "./input";
 import { InputRecorder, type AirJamInputLog } from "./input-log";
 import type { AttachableStore } from "./replicated-store";
 import {
+  HostSettings,
+  type AirJamSettings,
+  type SettingsValues,
+} from "./settings";
+import {
   SimulationClock,
   type AirJamSimulation,
   type AirJamSimulationDeclaration,
@@ -84,6 +89,7 @@ export interface HostRuntimeOptions {
   roomId?: string;
   /** Seeds the simulation; a recorded seed and inputs replay the same game. */
   seed?: number;
+  settings?: SettingsValues;
   /** Records the input log that replays this game, read with `inputLog()`. */
   record?: boolean;
   onPlayerJoin?: (player: PlayerProfile) => void;
@@ -97,11 +103,17 @@ export interface HostRuntimeDependencies {
   disconnectSocket: (role: "host") => void;
   /** The game's declared controls, read in simulation steps. */
   input?: AirJamInput;
+  settings?: AirJamSettings;
   environment: AirJamHostEnvironment;
   /** The game's replicated stores; they sync while the runtime runs. */
   stores: readonly AttachableStore[];
   /** The game's simulation, advanced on the SDK clock while the runtime runs. */
-  simulation?: AirJamSimulationDeclaration<unknown, unknown, unknown>;
+  simulation?: AirJamSimulationDeclaration<
+    unknown,
+    unknown,
+    unknown,
+    SettingsValues
+  >;
   /** The game's agent contract, published for its room while the runtime runs. */
   agent?: { contract: AnyAirJamAgentContract; gameId: string };
 }
@@ -110,7 +122,7 @@ export interface HostRuntimeDependencies {
 export type HostRuntimeFactory = (
   dependencies: Omit<
     HostRuntimeDependencies,
-    "stores" | "simulation" | "agent" | "input"
+    "stores" | "simulation" | "agent" | "input" | "settings"
   >,
   options?: HostRuntimeOptions,
 ) => HostRuntime;
@@ -141,6 +153,8 @@ export class HostRuntime {
   readonly store: StoreApi<AirJamConnectionState>;
   /** The input lane; null when the game declares no controls. */
   readonly input: HostInput | null;
+  private readonly hostSettings: HostSettings;
+  readonly settings: Pick<HostSettings, "declaration" | "read" | "subscribe">;
   private readonly recorder: InputRecorder | null;
   private readonly seed: number;
   private readonly config: AirJamConfig;
@@ -151,9 +165,15 @@ export class HostRuntime {
   private simulationDeclaration: AirJamSimulation<
     unknown,
     unknown,
-    unknown
+    unknown,
+    SettingsValues
   > | null = null;
-  private clock: SimulationClock<unknown, unknown, unknown> | null = null;
+  private clock: SimulationClock<
+    unknown,
+    unknown,
+    unknown,
+    SettingsValues
+  > | null = null;
   private frameFault: HostRuntimeFault | null = null;
   private stopFrames: (() => void) | null = null;
   private readonly agent: HostRuntimeDependencies["agent"];
@@ -177,6 +197,15 @@ export class HostRuntime {
     dependencies: HostRuntimeDependencies,
     options: HostRuntimeOptions = {},
   ) {
+    this.hostSettings = new HostSettings(
+      dependencies.settings,
+      options.settings,
+    );
+    this.settings = Object.freeze({
+      declaration: this.hostSettings.declaration,
+      read: this.hostSettings.read,
+      subscribe: this.hostSettings.subscribe,
+    });
     this.config = dependencies.config;
     this.store = dependencies.store;
     if (dependencies.input && !dependencies.simulation)
@@ -200,10 +229,15 @@ export class HostRuntime {
     const seed = options.seed ?? dependencies.environment.seed();
     this.seed = seed;
     const install = (
-      simulation: AirJamSimulation<unknown, unknown, unknown>,
+      simulation: AirJamSimulation<unknown, unknown, unknown, SettingsValues>,
     ): void => {
       this.simulationDeclaration = simulation;
-      this.clock = new SimulationClock<unknown, unknown, unknown>(
+      this.clock = new SimulationClock<
+        unknown,
+        unknown,
+        unknown,
+        SettingsValues
+      >(
         simulation,
         {
           beginStep: (tick) => {
@@ -218,6 +252,7 @@ export class HostRuntime {
           },
           input: (controllerId) => this.input?.read(controllerId) ?? {},
           players: () => this.store.getState().players,
+          settings: () => this.settings.read().values,
           runtimeState: () => this.store.getState().runtimeState,
         },
         seed,
@@ -245,7 +280,12 @@ export class HostRuntime {
   }
 
   /** The game's simulation clock; null while it loads or when the game declares none. */
-  get simulation(): SimulationClock<unknown, unknown, unknown> | null {
+  get simulation(): SimulationClock<
+    unknown,
+    unknown,
+    unknown,
+    SettingsValues
+  > | null {
     return this.clock;
   }
 
@@ -270,11 +310,28 @@ export class HostRuntime {
       );
     return this.recorder.log({
       seed: this.seed,
+      settings: this.hostSettings.initial,
       stepMs: simulation.stepMs,
       ticks: this.clock?.ticks ?? 0,
       storeDomain: this.environment.defaultStoreDomain,
     });
   }
+
+  readonly updateSettings = (
+    patch: SettingsValues,
+    expectedRevision: number,
+  ) => {
+    if (this.clock?.stepping)
+      throw new Error(
+        "AJ_SETTING_INVALID: Settings change between simulation steps.",
+      );
+    return this.hostSettings.update(patch, expectedRevision, (revision) => {
+      this.recorder?.record("airjam:settings", {
+        patch: { ...patch },
+        revision,
+      });
+    });
+  };
 
   /** The room this host is in or asking for, if any. */
   get roomId(): RoomCode | null {
@@ -310,6 +367,7 @@ export class HostRuntime {
         defaultStoreDomain: this.environment.defaultStoreDomain,
         controlTarget: this.environment.controlTarget,
         now: this.now,
+        settings: () => this.settings.read().values,
       }),
     );
     const stopRecordingActions = this.recordActions();
@@ -723,6 +781,7 @@ export class HostRuntime {
           roomId,
           gameId: this.agent.gameId,
           contract: this.agent.contract,
+          settings: { read: this.settings.read, update: this.updateSettings },
         })
       : null;
     this.bindObservation(roomId);
@@ -800,7 +859,10 @@ export class HostRuntime {
         read: (context) =>
           simulation?.observe && clock
             ? {
-                state: simulation.observe(clock.sim, context),
+                state: simulation.observe(clock.sim, {
+                  ...context,
+                  settings: this.settings.read().values,
+                }),
                 tick: clock.ticks,
               }
             : { state: {} },

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { agentContract } from "../../../src/game/contracts/agent";
 import { createEmptyTeamCounts } from "../../../src/game/domain/match-readiness";
 import {
-  MATCH_COUNTDOWN_DURATION_MS,
   createInitialMatchState,
   reduceEndMatch,
   reduceFinishCountdown,
@@ -170,11 +169,12 @@ describe("air-capture match store state", () => {
       {
         connectedPlayerIds: ["p1"],
       },
+      4500,
     );
 
     expect(result).toMatchObject({
       matchPhase: "countdown",
-      countdownSeconds: MATCH_COUNTDOWN_DURATION_MS / 1000,
+      countdownSeconds: 4.5,
       matchStartedAtMs: null,
       botCounts: {
         solaris: 0,

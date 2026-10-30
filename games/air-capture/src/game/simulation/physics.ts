@@ -15,7 +15,6 @@ const SHIP_COLLIDER_RADIUS = 1.8;
 /** The sphere weapons hit, larger than the body that collides. */
 const SHIP_HITBOX_RADIUS = 3.8;
 export const SHIP_COLLIDER_CENTER_Y = 1.8;
-const SHIP_LINEAR_DAMPING = 0.5;
 
 export interface ArenaPhysics {
   world: RAPIER.World;
@@ -68,12 +67,13 @@ export const addShipBody = (
   physics: ArenaPhysics,
   controllerId: string,
   position: [number, number, number],
+  linearDamping: number,
 ): RAPIER.RigidBody => {
   const body = physics.world.createRigidBody(
     RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(...position)
       .lockRotations()
-      .setLinearDamping(SHIP_LINEAR_DAMPING),
+      .setLinearDamping(linearDamping),
   );
   const hull = physics.world.createCollider(
     RAPIER.ColliderDesc.capsule(

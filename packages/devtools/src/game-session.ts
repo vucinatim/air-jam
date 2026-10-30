@@ -114,6 +114,26 @@ export const observeGameSession = (input: ObserveGameSessionOptions) =>
       >
     >
   >("observe", input, input.cwd);
+export const readGameSettings = (
+  input: z.infer<(typeof gameSessionOperationSchemas)["settings-read"]>,
+) =>
+  request<
+    Awaited<
+      ReturnType<
+        ReturnType<typeof createGameSessionRuntime>["readGameSettings"]
+      >
+    >
+  >("settings-read", input, input.cwd);
+export const updateGameSettings = (
+  input: z.infer<(typeof gameSessionOperationSchemas)["settings-update"]>,
+) =>
+  request<
+    Awaited<
+      ReturnType<
+        ReturnType<typeof createGameSessionRuntime>["updateGameSettings"]
+      >
+    >
+  >("settings-update", input, input.cwd);
 export const controlGameSessionParticipant = (
   input: ControlGameSessionParticipantOptions,
 ) =>

@@ -10,6 +10,7 @@ const teamIdSchema = z.enum(TEAM_IDS as [TeamId, ...TeamId[]]);
  * player can fly with the game's own bot logic.
  */
 export const botWorldSchema = z.object({
+  jumpForce: z.number(),
   ships: z.array(
     z.object({
       controllerId: z.string(),

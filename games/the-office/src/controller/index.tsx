@@ -232,6 +232,10 @@ function OfficeControllerLobbyView({
     [myPlayerId],
   );
 
+  const taskDurationMs = useAirJamStore(
+    spaceStore,
+    (state) => state.taskDurationMs,
+  );
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -244,6 +248,7 @@ function OfficeControllerLobbyView({
               ownerControllerId !== controllerId;
             const highlights = getPlayerCapabilityHighlights(
               playerOption.id,
+              taskDurationMs,
               2,
             );
 

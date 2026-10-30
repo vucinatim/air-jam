@@ -9,6 +9,7 @@ import {
   HostRuntime,
   type HostRuntimeDependencies,
 } from "../../core/host-runtime";
+import { airJamSettingsValuesSchema } from "../../core/settings";
 import type { RoomCode } from "../../protocol";
 import { createBrowserHostEnvironment } from "../../runtime/browser-host-environment";
 import type {
@@ -19,14 +20,14 @@ import type {
 /** What the game declares for its host runtime. */
 export type HostGameDeclaration = Pick<
   HostRuntimeDependencies,
-  "stores" | "simulation" | "agent" | "input"
+  "stores" | "simulation" | "agent" | "input" | "settings"
 >;
 
 /** Binds one core host runtime to this provider tree for as long as it is mounted. */
 export const useHostRuntimeApi = (
   options: AirJamHostOptions,
   hookName: string,
-  { stores, simulation, agent, input }: HostGameDeclaration,
+  { stores, simulation, agent, input, settings }: HostGameDeclaration,
 ): AirJamHostRuntimeControls => {
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
@@ -35,17 +36,29 @@ export const useHostRuntimeApi = (
 
   const runtime = useMemo(
     () =>
-      new HostRuntime({
-        config,
-        store,
-        getSocket,
-        disconnectSocket,
-        input,
-        environment: createBrowserHostEnvironment(config),
-        stores,
-        simulation,
-        agent,
-      }),
+      new HostRuntime(
+        {
+          config,
+          store,
+          getSocket,
+          disconnectSocket,
+          input,
+          environment: createBrowserHostEnvironment(config),
+          stores,
+          settings,
+          simulation,
+          agent,
+        },
+        {
+          settings: airJamSettingsValuesSchema.parse(
+            JSON.parse(
+              new URLSearchParams(window.location.search).get(
+                "airjamSettings",
+              ) ?? "{}",
+            ),
+          ),
+        },
+      ),
     [
       config,
       store,
@@ -53,6 +66,7 @@ export const useHostRuntimeApi = (
       disconnectSocket,
       input,
       stores,
+      settings,
       simulation,
       agent,
     ],
@@ -105,6 +119,7 @@ export const useHostRuntimeApi = (
       socket: runtime.socket,
       simulation: clock,
       setObservationCapture: runtime.setObservationCapture,
+      settings: runtime.settings,
     }),
     [runtime, roomId, joinUrl, joinUrlStatus, clock],
   );

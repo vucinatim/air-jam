@@ -192,6 +192,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
     host?: { access: "owned-host" | "delegated-host"; request: HostRequester },
     build?: PinnedGameBuild,
     onScope?: ProcessScopeObserver,
+    settings?: Record<string, number | boolean | string>,
   ): Promise<AirJamGameSessionSummary> => {
     const devProcessId = build ? null : await acquireDevProcessLease(options);
     const timeoutMs = options.timeoutMs ?? DEFAULT_SESSION_OPEN_TIMEOUT_MS;
@@ -199,7 +200,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
     try {
       controllerSession = await connectController(
         { ...options, timeoutMs },
-        { build, onScope },
+        { build, onScope, settings },
       );
     } catch (error) {
       if (devProcessId) {
@@ -351,7 +352,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       Pick<HostObservationRequest, "scope" | "includeImage" | "expected">
     >) => {
     const session = getRequiredGameSession(gameSessionId);
-    if (session.summary.semanticAccess !== "owned-host")
+    if (session.summary.semanticAccess === "participant-only")
       throw new Error(
         "contract_runtime_not_owned: Observation requires an owned host or an explicit observation delegation.",
       );
@@ -375,6 +376,54 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       return result.observation;
     });
   };
+
+  const gameSettings = async (
+    options:
+      | z.infer<(typeof gameSessionOperationSchemas)["settings-read"]>
+      | z.infer<(typeof gameSessionOperationSchemas)["settings-update"]>,
+  ) => {
+    const session = getRequiredGameSession(options.gameSessionId);
+    if (session.summary.semanticAccess === "participant-only")
+      throw new Error(
+        "contract_runtime_not_owned: Settings require an owned host.",
+      );
+    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    return session.operations.run(timeoutMs, async (signal) => {
+      const snapshot = await readLiveSnapshot(session, timeoutMs, signal);
+      if (!snapshot)
+        throw new Error(
+          "contract_runtime_unavailable: Game has no live semantic contract.",
+        );
+      const request = {
+        roomId: session.summary.roomId,
+        runtimeId: snapshot.runtimeId,
+      };
+      const response = await session.requestHost(
+        "patch" in options
+          ? {
+              ...request,
+              operation: "settings-update",
+              patch: options.patch,
+              expectedRevision: options.expectedRevision,
+            }
+          : { ...request, operation: "settings-read" },
+        timeoutMs,
+        signal,
+      );
+      if (
+        response.operation !== "settings-read" &&
+        response.operation !== "settings-update"
+      )
+        throw new Error("invalid_runtime_response: Expected settings.");
+      return { values: response.values, revision: response.revision };
+    });
+  };
+  const readGameSettings = (
+    options: z.infer<(typeof gameSessionOperationSchemas)["settings-read"]>,
+  ) => gameSettings(options);
+  const updateGameSettings = (
+    options: z.infer<(typeof gameSessionOperationSchemas)["settings-update"]>,
+  ) => gameSettings(options);
 
   const controlGameSessionParticipant = async (
     options: z.infer<typeof gameSessionOperationSchemas.control>,
@@ -574,6 +623,8 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
     openGameSession,
     readGameSession,
     observeGameSession,
+    readGameSettings,
+    updateGameSettings,
     sendGameSessionInput,
     controlGameSessionParticipant,
     invokeGameSessionAction,
@@ -585,6 +636,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
         delegation,
         build,
         room,
+        settings,
         onScope,
       }: {
         /** The creator's host and the further seat identities its editor issued. */
@@ -592,6 +644,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
         build?: PinnedGameBuild;
         /** A headless room this run owns; its players join it on game time. */
         room?: HeadlessRoom;
+        settings?: Record<string, number | boolean | string>;
         onScope?: ProcessScopeObserver;
       } = {},
     ): Promise<GameRunSession> {
@@ -611,6 +664,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
             },
         build,
         onScope,
+        room ? undefined : settings,
       );
       const seatControllerIds = [...(delegation?.seatControllerIds ?? [])];
       const gameSessionId = summary.gameSessionId;

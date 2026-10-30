@@ -1,11 +1,16 @@
-import { useSimulation, useSimulationSelector } from "@air-jam/sdk";
+import {
+  useAirJamSettings,
+  useSimulation,
+  useSimulationSelector,
+} from "@air-jam/sdk";
 import { memo, useEffect, useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
 import { shallow } from "zustand/shallow";
 import { getAbilityIconPath, type AbilityId } from "../abilities/definitions";
+import { airCaptureSettings } from "../contracts/settings";
 import { cn } from "../debug/ui/utils";
 import { createPlayerFlightState } from "../engine/ships/flight";
-import { MAX_HEALTH, type AirCaptureSim } from "../simulation/state";
+import { type AirCaptureSim } from "../simulation/state";
 
 const shipIdsOf = (sim: AirCaptureSim) => [...sim.ships.keys()];
 
@@ -190,9 +195,10 @@ const PlayerHUDItem = memo(function PlayerHUDItem({
   // --- Data Stores ---
   const clock = useSimulation<AirCaptureSim>();
   const health = useSimulationSelector(
-    (sim: AirCaptureSim) => sim.ships.get(controllerId)?.health ?? MAX_HEALTH,
+    (sim: AirCaptureSim) =>
+      sim.ships.get(controllerId)?.health ?? sim.settings.maxHealth,
   );
-  const maxHealth = MAX_HEALTH;
+  const { maxHealth } = useAirJamSettings(airCaptureSettings);
   const ability = useSimulationSelector((sim: AirCaptureSim) => {
     const ship = sim.ships.get(controllerId);
     return ship?.activeAbility ?? ship?.queuedAbility ?? null;

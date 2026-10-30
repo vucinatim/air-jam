@@ -8,6 +8,8 @@ import {
 import { codeReviewSimulation } from "./game/engine/code-review-simulation";
 import { gameStore } from "./game/stores/code-review-store";
 
+import { codeReviewSettings } from "./game/contracts/settings";
+
 export const airjam = defineAirJamGame({
   metadata: defineAirJamGameMetadata({
     slug: "code-review",
@@ -24,6 +26,7 @@ export const airjam = defineAirJamGame({
     tags: ["fighting", "teams", "motion"],
   }),
   controllerPath: "/controller",
+  settings: codeReviewSettings,
   stores: [gameStore],
   simulation: codeReviewSimulation,
   agent: agentContract,

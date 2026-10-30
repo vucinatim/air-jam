@@ -3,7 +3,7 @@
  * reacts once when a ship enters it, as the scene's sensors did.
  */
 import { getRandomAbilityByRarity } from "../abilities/definitions";
-import { ARENA_RADIUS, JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
+import { ARENA_RADIUS, JUMP_PAD_RADIUS } from "../constants";
 import { generateRandomBasePositions } from "../domain/capture-the-flag";
 import { TEAM_IDS, type TeamId } from "../domain/team";
 import { AIR_CAPTURE_ARENA_JUMP_PADS } from "../prefabs/arena/layout";
@@ -25,8 +25,6 @@ const SHIP_REACH_BELOW = 3.3 - SHIP_COLLIDER_CENTER_Y;
 const SHIP_REACH_ABOVE = SHIP_COLLIDER_CENTER_Y + 3.3;
 
 const COLLECTIBLE = {
-  interval: 3,
-  max: 20,
   height: 5,
   minDistance: 20,
   maxDistance: ARENA_RADIUS - 10,
@@ -34,7 +32,7 @@ const COLLECTIBLE = {
   below: 1.5,
   above: 8,
 };
-const JUMP_PAD = { height: 8, cooldown: 0.5 };
+const JUMP_PAD = { height: 8 };
 const FLAG = { radius: 4.5, height: 6 };
 const BASE = { radius: 10, height: 10 };
 
@@ -67,8 +65,8 @@ const trackContacts = (
 
 const spawnCollectibles = (sim: AirCaptureSim, random: () => number) => {
   if (
-    sim.collectibles.size >= COLLECTIBLE.max ||
-    sim.time - sim.lastCollectibleSpawnAt < COLLECTIBLE.interval
+    sim.collectibles.size >= sim.settings.maxCollectibles ||
+    sim.time - sim.lastCollectibleSpawnAt < sim.settings.collectibleInterval
   )
     return;
   const angle = random() * Math.PI * 2;
@@ -100,7 +98,7 @@ const takeCollectibles = (sim: AirCaptureSim, emit: Emit) => {
         ship.position.y - SHIP_REACH_BELOW < y + COLLECTIBLE.above,
     );
     if (!taker) continue;
-    collectAbility(taker, collectible.abilityId);
+    collectAbility(sim, taker, collectible.abilityId);
     sim.collectibles.delete(collectible.id);
     emit({ type: "sound", sound: "powerup" });
     emit({
@@ -129,10 +127,13 @@ const launchFromJumpPads = (sim: AirCaptureSim, emit: Emit) => {
         if (sim.time < (sim.jumpPadCooldownUntil.get(pad.id) ?? 0)) return;
         const velocity = ship.body.linvel();
         ship.body.setLinvel(
-          { x: velocity.x, y: JUMP_FORCE, z: velocity.z },
+          { x: velocity.x, y: sim.settings.jumpForce, z: velocity.z },
           true,
         );
-        sim.jumpPadCooldownUntil.set(pad.id, sim.time + JUMP_PAD.cooldown);
+        sim.jumpPadCooldownUntil.set(
+          pad.id,
+          sim.time + sim.settings.jumpPadCooldown,
+        );
         emit({ type: "sound", sound: "jump_pad" });
         emit({ type: "jump-pad", padId: pad.id });
       },

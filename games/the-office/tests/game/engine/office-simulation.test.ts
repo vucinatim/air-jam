@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PLAYERS } from "../../../src/game/content/players";
 import type { GameInput } from "../../../src/game/contracts/input";
 import {
-  LOCATIONS,
-  STAT_CONSTANTS,
-} from "../../../src/game/domain/task-manager";
+  officeSettings,
+  type OfficeSettings,
+} from "../../../src/game/contracts/settings";
+import { LOCATIONS } from "../../../src/game/domain/task-manager";
 import {
   advanceOfficeMatch,
   officeSimulation,
@@ -14,11 +15,19 @@ import {
 import { mergePlayerStatUpdates } from "../../../src/game/stores/space-store-helpers";
 import type { PlayerStats } from "../../../src/game/stores/types";
 
+const settings = Object.fromEntries(
+  Object.entries(officeSettings).map(([name, definition]) => [
+    name,
+    definition.default,
+  ]),
+) as OfficeSettings;
+
 const fixture = vi.hoisted(() => ({
   state: {
     matchPhase: "playing" as "lobby" | "playing" | "ended",
     lifecycleVersion: 1,
     gameDurationMs: 300_000,
+    taskDurationMs: 10_000,
     gameOver: false,
     playerAssignments: {} as Record<string, string>,
     playerStats: {} as Record<string, PlayerStats>,
@@ -78,7 +87,7 @@ describe("Office simulation", () => {
     fixture.actions.finishMatch = vi.fn(() => {
       fixture.state.gameOver = true;
     });
-    sim = officeSimulation.create({ random });
+    sim = officeSimulation.create({ random, settings });
     events = [];
     step();
   });
@@ -86,6 +95,7 @@ describe("Office simulation", () => {
   /** One simulation step as the SDK clock runs it. */
   const step = () =>
     officeSimulation.step(sim, {
+      settings,
       tick: 1,
       stepMs: officeSimulation.stepMs,
       dtSeconds: officeSimulation.stepMs / 1000,
@@ -133,7 +143,7 @@ describe("Office simulation", () => {
       fixture.state.playerStats["neutral-input"],
     );
     expect(fixture.state.playerStats["never-input"].energy).toBe(
-      100 - 2 * STAT_CONSTANTS.ENERGY_DECAY_PER_SECOND,
+      100 - 2 * settings.energyDecayPerSecond,
     );
     expect(sim.positions).toEqual(positions);
     expect(startTask).not.toHaveBeenCalled();
@@ -172,15 +182,15 @@ describe("Office simulation", () => {
 
   it("advances and completes an active coffee break even when input is absent", () => {
     sim.breaks["never-input"] = { locationId: "coffee-machine", startTime: 0 };
-    advance(STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS / 2);
+    advance(settings.breakroomActivityDurationMs / 2);
     expect(fixture.actions.setTaskProgressBatch).toHaveBeenLastCalledWith({
       progressByPlayerId: { "never-input": 0.5 },
     });
     expect(fixture.actions.restoreEnergy).not.toHaveBeenCalled();
-    advance(STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS);
+    advance(settings.breakroomActivityDurationMs);
     expect(fixture.actions.restoreEnergy).toHaveBeenCalledWith({
       playerId: "never-input",
-      amount: STAT_CONSTANTS.COFFEE_ENERGY_RESTORE,
+      amount: settings.coffeeEnergyRestore,
     });
     expect(sim.breaks["never-input"]).toBeNull();
     expect(events).toContainEqual({
@@ -192,7 +202,7 @@ describe("Office simulation", () => {
 
   it("ends the match once when every no-input player dies from normal stat decay", () => {
     for (const stats of Object.values(fixture.state.playerStats))
-      stats.energy = STAT_CONSTANTS.ENERGY_DECAY_PER_SECOND;
+      stats.energy = settings.energyDecayPerSecond;
     advance(1001);
     advance(2002);
     for (const stats of Object.values(fixture.state.playerStats))
@@ -226,6 +236,7 @@ describe("Office simulation", () => {
   it("observes coworkers and open orders for agents", () => {
     sim.tasks.spawnTask(0, random);
     const view = officeSimulation.observe?.(sim, {
+      settings,
       controllerId: null,
       scope: "diagnostic",
     });

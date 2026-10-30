@@ -8,7 +8,9 @@ import {
   observeGameSession,
   openGameSession,
   readGameSession,
+  readGameSettings,
   sendGameSessionInput,
+  updateGameSettings,
 } from "@air-jam/devtools/game-session";
 import {
   getGameSessionBrokerStatus,
@@ -32,6 +34,10 @@ const request = async ({
       return readGameSession({ ...operation.input, cwd: dir });
     case "observe":
       return observeGameSession({ ...operation.input, cwd: dir });
+    case "settings-read":
+      return readGameSettings({ ...operation.input, cwd: dir });
+    case "settings-update":
+      return updateGameSettings({ ...operation.input, cwd: dir });
     case "control":
       return controlGameSessionParticipant({ ...operation.input, cwd: dir });
     case "input":

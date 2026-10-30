@@ -1,7 +1,6 @@
 import {
   IDLE_FRAME_MAX_MS,
   IDLE_FRAME_MIN_MS,
-  MAX_HP,
   SPAWN_X_PLAYER1_BACK,
   SPAWN_X_PLAYER1_FRONT,
   SPAWN_X_PLAYER2_BACK,
@@ -55,7 +54,10 @@ export const createRuntimePlayerState = (
   player2Back: makePlayerState(SPAWN_X_PLAYER2_BACK, SPAWN_Y, now),
 });
 
-export const createHpState = (): HpState => ({ team1: MAX_HP, team2: MAX_HP });
+export const createHpState = (maxHp: number): HpState => ({
+  team1: maxHp,
+  team2: maxHp,
+});
 
 export const createKoState = (): KoState => ({
   active: false,

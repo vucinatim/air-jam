@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { agentContractDescriptionSchema } from "../../agent/agent-evaluator";
+import { airJamSettingsValuesSchema } from "../../core/settings";
 import { roomCodeSchema } from "../../protocol/core";
 import { airJamActionInvocationResultSchema } from "../../protocol/sync";
 import { isRpcSerializable } from "../../utils/is-rpc-serializable";
@@ -34,6 +35,22 @@ export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
       controllerId: z.string().min(1).nullable(),
     })
     .strict(),
+  z
+    .object({
+      operation: z.literal("settings-read"),
+      roomId: roomCodeSchema,
+      runtimeId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      operation: z.literal("settings-update"),
+      roomId: roomCodeSchema,
+      runtimeId: z.string().min(1),
+      patch: airJamSettingsValuesSchema,
+      expectedRevision: z.number().int().nonnegative(),
+    })
+    .strict(),
   actionRequest.extend({ operation: z.literal("resolve") }).strict(),
   actionRequest.extend({ operation: z.literal("invoke-host") }).strict(),
 ]);
@@ -59,6 +76,11 @@ export const hostAgentSnapshotSchema = agentContractDescriptionSchema.extend({
 });
 
 export const hostAgentResponseSchema = z.discriminatedUnion("operation", [
+  z.object({
+    operation: z.enum(["settings-read", "settings-update"]),
+    values: airJamSettingsValuesSchema,
+    revision: z.number().int().nonnegative(),
+  }),
   z.object({
     operation: z.literal("observe"),
     observation: hostObservationSchema,

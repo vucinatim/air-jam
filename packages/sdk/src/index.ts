@@ -126,3 +126,5 @@ export type {
   DocumentWithFullscreen,
   ElementWithFullscreen,
 } from "./types/browser";
+
+export { useAirJamSettings } from "./hooks/use-air-jam-settings";

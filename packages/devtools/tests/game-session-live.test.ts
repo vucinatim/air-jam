@@ -8,6 +8,8 @@ const {
   observeGameSession,
   openGameSession,
   readGameSession,
+  readGameSettings,
+  updateGameSettings,
 } = createGameSessionRuntime();
 const io = vi.hoisted(() => ({
   request: vi.fn(),
@@ -58,6 +60,8 @@ function fixture() {
   let score = 0,
     revision = 0,
     contractId = "one";
+  let settings = { ballSpeed: 600 };
+  let settingsRevision = 0;
   const actions = [
     {
       actionId: "score",
@@ -82,6 +86,24 @@ function fixture() {
   ];
   io.request.mockImplementation(
     async (_id: string, request: HostAgentRequest) => {
+      if (
+        request.operation === "settings-read" ||
+        request.operation === "settings-update"
+      ) {
+        expect(request.roomId).toBe("ROOM");
+        expect(request.runtimeId).toBe("runtime");
+        if (request.operation === "settings-update") {
+          if (request.expectedRevision !== settingsRevision)
+            throw new Error("AJ_SETTING_STALE");
+          settings = { ...settings, ...request.patch };
+          settingsRevision++;
+        }
+        return {
+          operation: request.operation,
+          values: settings,
+          revision: settingsRevision,
+        };
+      }
       if (request.operation === "observe")
         return {
           operation: "observe",
@@ -166,6 +188,38 @@ const open = () =>
     controllerJoinUrl: "http://localhost/controller?room=ROOM",
   });
 describe("live semantic session", () => {
+  it("reads and updates settings on the current owned host with revision checks", async () => {
+    fixture();
+    const session = await open();
+    const gameSessionId = session.gameSessionId;
+    try {
+      expect(await readGameSettings({ gameSessionId })).toEqual({
+        values: { ballSpeed: 600 },
+        revision: 0,
+      });
+      expect(
+        await updateGameSettings({
+          gameSessionId,
+          patch: { ballSpeed: 700 },
+          expectedRevision: 0,
+        }),
+      ).toEqual({ values: { ballSpeed: 700 }, revision: 1 });
+      await expect(
+        updateGameSettings({
+          gameSessionId,
+          patch: { ballSpeed: 600 },
+          expectedRevision: 0,
+        }),
+      ).rejects.toThrow("AJ_SETTING_STALE");
+      expect(await readGameSettings({ gameSessionId })).toEqual({
+        values: { ballSpeed: 700 },
+        revision: 1,
+      });
+      expect(io.invoke).not.toHaveBeenCalled();
+    } finally {
+      await closeGameSession({ gameSessionId });
+    }
+  });
   it("observes the already owned runtime without adding a player or invoking a game action", async () => {
     fixture();
     const session = await open();

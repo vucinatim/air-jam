@@ -1,29 +1,28 @@
-import {
-  BALL_SPEED,
-  FIELD_HEIGHT,
-  FIELD_WIDTH,
-  PADDLE_HEIGHT,
-} from "./constants";
+import { FIELD_HEIGHT, FIELD_WIDTH, PADDLE_HEIGHT } from "./constants";
 import type { RuntimeState } from "./types";
 
-export const createRuntimeState = (): RuntimeState => ({
+export const createRuntimeState = (ballSpeed: number): RuntimeState => ({
   paddle1FrontY: FIELD_HEIGHT / 2 - PADDLE_HEIGHT / 2,
   paddle1BackY: FIELD_HEIGHT / 2 - PADDLE_HEIGHT / 2,
   paddle2FrontY: FIELD_HEIGHT / 2 - PADDLE_HEIGHT / 2,
   paddle2BackY: FIELD_HEIGHT / 2 - PADDLE_HEIGHT / 2,
   ballX: FIELD_WIDTH / 2,
   ballY: FIELD_HEIGHT / 2,
-  ballVX: BALL_SPEED,
-  ballVY: BALL_SPEED,
+  ballVX: ballSpeed,
+  ballVY: ballSpeed,
   lastTouchedTeam: null,
   awaitingServe: false,
 });
 
-export const resetBall = (state: RuntimeState, random: () => number): void => {
+export const resetBall = (
+  state: RuntimeState,
+  random: () => number,
+  ballSpeed: number,
+): void => {
   state.ballX = FIELD_WIDTH / 2;
   state.ballY = FIELD_HEIGHT / 2;
-  state.ballVX = BALL_SPEED * (random() > 0.5 ? 1 : -1);
-  state.ballVY = BALL_SPEED * (random() > 0.5 ? 1 : -1);
+  state.ballVX = ballSpeed * (random() > 0.5 ? 1 : -1);
+  state.ballVY = ballSpeed * (random() > 0.5 ? 1 : -1);
   state.lastTouchedTeam = null;
   state.awaitingServe = false;
 };
@@ -41,8 +40,10 @@ export interface RuntimeStateBuffers {
   render: RuntimeState;
 }
 
-export const createRuntimeStateBuffers = (): RuntimeStateBuffers => {
-  const current = createRuntimeState();
+export const createRuntimeStateBuffers = (
+  ballSpeed: number,
+): RuntimeStateBuffers => {
+  const current = createRuntimeState(ballSpeed);
   return {
     current,
     previous: { ...current },
@@ -52,7 +53,7 @@ export const createRuntimeStateBuffers = (): RuntimeStateBuffers => {
 
 export const resetRuntimeStateBuffers = (
   buffers: RuntimeStateBuffers,
-  nextState = createRuntimeState(),
+  nextState: RuntimeState,
 ): void => {
   copyRuntimeState(buffers.current, nextState);
   copyRuntimeState(buffers.previous, nextState);
@@ -62,8 +63,9 @@ export const resetRuntimeStateBuffers = (
 export const resetRuntimeStateBufferBall = (
   buffers: RuntimeStateBuffers,
   random: () => number,
+  ballSpeed: number,
 ): void => {
-  resetBall(buffers.current, random);
+  resetBall(buffers.current, random, ballSpeed);
   copyRuntimeState(buffers.previous, buffers.current);
   copyRuntimeState(buffers.render, buffers.current);
 };

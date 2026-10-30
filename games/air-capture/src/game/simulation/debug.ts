@@ -6,7 +6,7 @@ import type { AbilityId } from "../abilities/definitions";
 import type { TeamId } from "../domain/team";
 import { reduceManualScore } from "../stores/match/capture-the-flag-store-state";
 import { collectAbility } from "./ships";
-import { MAX_HEALTH, type AirCaptureSim } from "./state";
+import { type AirCaptureSim } from "./state";
 
 export const debugSetHealth = (
   sim: AirCaptureSim,
@@ -14,7 +14,7 @@ export const debugSetHealth = (
   health: number,
 ): void => {
   const ship = sim.ships.get(controllerId);
-  if (ship) ship.health = Math.max(0, Math.min(MAX_HEALTH, health));
+  if (ship) ship.health = Math.max(0, Math.min(sim.settings.maxHealth, health));
 };
 
 export const debugGiveAbility = (
@@ -23,7 +23,7 @@ export const debugGiveAbility = (
   abilityId: AbilityId,
 ): void => {
   const ship = sim.ships.get(controllerId);
-  if (ship) collectAbility(ship, abilityId);
+  if (ship) collectAbility(sim, ship, abilityId);
 };
 
 export const debugClearAbility = (

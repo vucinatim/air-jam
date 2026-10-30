@@ -16,6 +16,7 @@ export const useCodeReviewControllerTeams = () => {
     gameStore,
     (state) => state.teamAssignments,
   );
+  const pointsToWin = useAirJamStore(gameStore, (state) => state.pointsToWin);
   const botCounts = useAirJamStore(gameStore, (state) => state.botCounts);
 
   const myAssignment = controllerId ? teamAssignments[controllerId] : null;
@@ -78,11 +79,12 @@ export const useCodeReviewControllerTeams = () => {
     [botCounts, teamHumanCounts],
   );
   const readinessText = useMemo(
-    () => getLobbyReadinessText(teamHumanCounts, botCounts),
-    [botCounts, teamHumanCounts],
+    () => getLobbyReadinessText(pointsToWin, teamHumanCounts, botCounts),
+    [botCounts, teamHumanCounts, pointsToWin],
   );
 
   return {
+    pointsToWin,
     botCounts,
     myProfile,
     myTeam,

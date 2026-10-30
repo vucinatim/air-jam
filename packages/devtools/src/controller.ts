@@ -483,8 +483,10 @@ const startIsolatedRuntimeOwner = async ({
   secure,
   timeoutMs,
   build,
+  settings,
   onScope,
 }: {
+  settings?: Record<string, number | boolean | string>;
   cwd: string;
   onScope?: ProcessScopeObserver;
   build?: PinnedGameBuild;
@@ -527,6 +529,7 @@ const startIsolatedRuntimeOwner = async ({
     "--timeout-ms",
     String(timeoutMs),
   ];
+  if (settings) args.push("--settings", JSON.stringify(settings));
   if (build) args.push("--pinned-build", build.manifestPath);
   else {
     for (const [flag, value] of [
@@ -1125,7 +1128,12 @@ export const connectController = async (
   {
     build,
     onScope,
-  }: { build?: PinnedGameBuild; onScope?: ProcessScopeObserver } = {},
+    settings,
+  }: {
+    build?: PinnedGameBuild;
+    onScope?: ProcessScopeObserver;
+    settings?: Record<string, number | boolean | string>;
+  } = {},
 ): Promise<AirJamVirtualControllerSession> => {
   const context = await detectProjectContext({ cwd });
   const normalizedRequestedRoomId = roomId?.trim().toUpperCase() || undefined;
@@ -1299,6 +1307,7 @@ export const connectController = async (
       secure,
       timeoutMs,
       build,
+      settings,
       onScope,
     });
     if (!owner.controllerJoinUrl) {

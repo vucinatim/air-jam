@@ -30,6 +30,7 @@ interface OfficeState {
   money: Record<string, number>;
   totalMoneyPenalty: number;
   gameDurationMs: number;
+  taskDurationMs: number;
   playerAssignments: Record<string, string>;
   busyPlayers: Record<string, string>;
   taskProgress: Record<string, number>;
@@ -55,7 +56,10 @@ const summarizePlayer = (
     name: player.name,
     selected: selectedByControllerId !== null,
     selectedByControllerId,
-    taskHighlights: getPlayerCapabilityHighlights(player.id),
+    taskHighlights: getPlayerCapabilityHighlights(
+      player.id,
+      state.taskDurationMs,
+    ),
     stats: stats
       ? {
           energy: stats.energy,

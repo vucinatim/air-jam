@@ -20,7 +20,7 @@ test("the public snapshot owns every creator page without private imports", asyn
       "utf8",
     ),
   );
-  assert.equal(snapshot.documents.length, 16);
+  assert.equal(snapshot.documents.length, 17);
   assert.deepEqual(
     snapshot.requiredComponents,
     JSON.parse(
@@ -60,7 +60,7 @@ test("documentation discovery and reads have clean JSON output", async () => {
     "list",
     "--json",
   ]);
-  assert.equal(JSON.parse(list.stdout).documents.length, 16);
+  assert.equal(JSON.parse(list.stdout).documents.length, 17);
   const read = await execute(process.execPath, [
     path.join(packageRoot, "bin/airjam.mjs"),
     "docs",
@@ -94,7 +94,7 @@ test("a packaged consumer fails on tampered bytes and unsafe identities", async 
       pathToFileURL(path.join(root, "dist/documentation.js"))
     );
     const initial = await readSnapshot();
-    assert.equal(initial.documents.length, 16);
+    assert.equal(initial.documents.length, 17);
     const first = initial.documents[0];
     const sourcePath = path.join(
       root,

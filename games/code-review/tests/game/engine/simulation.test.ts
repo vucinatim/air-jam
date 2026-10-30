@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { PUNCH_DURATION_MS } from "../../../src/game/domain/combat-rules";
+import {
+  codeReviewSettings,
+  type CodeReviewSettings,
+} from "../../../src/game/contracts/settings";
 import {
   BOT_PUNCH_DISTANCE,
-  MAX_HP,
   PLAYER_SIZE,
-  PUNCH_DAMAGE,
 } from "../../../src/game/engine/constants";
 import {
   createHpState,
@@ -36,7 +37,7 @@ const makeParticipants = (): SlotParticipant[] => [
 describe("stepMatchFrame", () => {
   it("lands a punch when fighters are within melee reach", () => {
     const state = createRuntimePlayerState(0);
-    const hpState = createHpState();
+    const hpState = createHpState(codeReviewSettings.maxHp.default);
     const koState = createKoState();
     const participants = makeParticipants();
     const participantBySlot = {
@@ -49,9 +50,16 @@ describe("stepMatchFrame", () => {
     state.player2Front.x = 180;
     state.player2Front.y = 100;
     state.player1Front.punchingRight = true;
-    state.player1Front.punchEndRight = PUNCH_DURATION_MS;
+    state.player1Front.punchEndRight =
+      codeReviewSettings.punchDurationMs.default;
 
     stepMatchFrame({
+      settings: Object.fromEntries(
+        Object.entries(codeReviewSettings).map(([key, definition]) => [
+          key,
+          definition.default,
+        ]),
+      ) as CodeReviewSettings,
       state,
       participants,
       participantBySlot,
@@ -73,13 +81,15 @@ describe("stepMatchFrame", () => {
       onHeavyHit: vi.fn(),
     });
 
-    expect(hpState.team2).toBe(MAX_HP - PUNCH_DAMAGE);
+    expect(hpState.team2).toBe(
+      codeReviewSettings.maxHp.default - codeReviewSettings.punchDamage.default,
+    );
     expect(state.player1Front.punchLandedRight).toBe(true);
   });
 
   it("lets bots start a punch when they enter attack range", () => {
     const state = createRuntimePlayerState(0);
-    const hpState = createHpState();
+    const hpState = createHpState(codeReviewSettings.maxHp.default);
     const koState = createKoState();
     const participants: SlotParticipant[] = [
       {
@@ -110,6 +120,12 @@ describe("stepMatchFrame", () => {
     state.player2Front.y = 100;
 
     stepMatchFrame({
+      settings: Object.fromEntries(
+        Object.entries(codeReviewSettings).map(([key, definition]) => [
+          key,
+          definition.default,
+        ]),
+      ) as CodeReviewSettings,
       state,
       participants,
       participantBySlot,
@@ -138,7 +154,7 @@ describe("stepMatchFrame", () => {
 
   it("lets bots occasionally pressure a defending target", () => {
     const state = createRuntimePlayerState(0);
-    const hpState = createHpState();
+    const hpState = createHpState(codeReviewSettings.maxHp.default);
     const koState = createKoState();
     const participants: SlotParticipant[] = [
       {
@@ -170,6 +186,12 @@ describe("stepMatchFrame", () => {
     state.player2Front.defending = true;
 
     stepMatchFrame({
+      settings: Object.fromEntries(
+        Object.entries(codeReviewSettings).map(([key, definition]) => [
+          key,
+          definition.default,
+        ]),
+      ) as CodeReviewSettings,
       state,
       participants,
       participantBySlot,

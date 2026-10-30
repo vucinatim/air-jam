@@ -8,13 +8,20 @@ import { HostRuntime, type HostRuntimeFactory } from "./host-runtime";
 import type { AirJamInput } from "./input";
 import type { AirJamInputBindings } from "./input-bindings";
 import type { AttachableStore } from "./replicated-store";
+import type { AirJamSettings, SettingsValues } from "./settings";
 import type { AirJamSimulationDeclaration } from "./simulation";
 
 export interface AirJamGameDeclaration {
   metadata: AirJamGameMetadata;
   controllerPath?: string;
   stores?: readonly AttachableStore[];
-  simulation?: AirJamSimulationDeclaration;
+  simulation?: AirJamSimulationDeclaration<
+    unknown,
+    unknown,
+    unknown,
+    SettingsValues
+  >;
+  settings?: AirJamSettings;
   input?: AirJamInput;
   inputBindings?: AirJamInputBindings;
   agent?: AirJamAgentContract;
@@ -85,7 +92,7 @@ export function defineAirJamGame(
   if (declaration.testing !== undefined)
     testingPathSchema.parse(declaration.testing);
   const stores = Object.freeze([...(declaration.stores ?? [])]);
-  const { agent, simulation, input } = declaration;
+  const { agent, simulation, input, settings } = declaration;
   return Object.freeze({
     ...declaration,
     [gameBrand]: true,
@@ -101,6 +108,7 @@ export function defineAirJamGame(
           config: { ...dependencies.config, maxPlayers: metadata.maxPlayers },
           stores,
           simulation,
+          settings,
           input,
           agent: agent && { contract: agent, gameId: metadata.slug },
         },

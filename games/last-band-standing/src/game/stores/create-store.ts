@@ -1,15 +1,10 @@
 import { createAirJamStore } from "@air-jam/sdk/core";
 import {
-  DEFAULT_REVEAL_DURATION_SEC,
-  DEFAULT_ROUND_DURATION_SEC,
-  DEFAULT_TOTAL_ROUNDS,
-  MATCH_START_COUNTDOWN_SEC,
-} from "../constants";
-import {
   defaultSelectedSongBucketIds,
   getUniqueSongCountForBuckets,
   toggleSelectedSongBucketIds,
 } from "../content/song-bank";
+import { quizSettings } from "../contracts/settings";
 import { isMatchReadyToStart } from "../domain/match-readiness";
 import { rankPlayers } from "../domain/round-engine";
 import { buildPlayerLabelMap, filterRecordByPlayerIds } from "./player-helpers";
@@ -31,9 +26,10 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
   playerLabelById: {},
   readyByPlayerId: {},
 
-  totalRounds: DEFAULT_TOTAL_ROUNDS,
-  roundDurationSec: DEFAULT_ROUND_DURATION_SEC,
-  revealDurationSec: DEFAULT_REVEAL_DURATION_SEC,
+  matchStartCountdownSec: quizSettings.matchStartCountdownSec.default,
+  totalRounds: quizSettings.totalRounds.default,
+  roundDurationSec: quizSettings.roundDurationSec.default,
+  revealDurationSec: quizSettings.revealDurationSec.default,
   selectedSongBucketIds: defaultSelectedSongBucketIds,
   playedSongKeys: [],
 
@@ -188,7 +184,7 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
-    startMatch: ({ actorId, role, now }) => {
+    startMatch: ({ actorId, role, now, settings }) => {
       set((state) => {
         if (
           role !== "host" &&
@@ -204,7 +200,7 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
             readyByPlayerId: state.readyByPlayerId,
             hasEnoughSongs:
               getUniqueSongCountForBuckets(state.selectedSongBucketIds) >=
-              state.totalRounds,
+              settings.totalRounds,
           })
         ) {
           return state;
@@ -213,27 +209,31 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
         const activePlayerIds = [...state.playerOrder];
 
         const playlistSelection = pickPlaylistSongs(
-          state.totalRounds,
+          settings.totalRounds,
           state.selectedSongBucketIds,
           state.playedSongKeys,
         );
         const playlistSongIds = playlistSelection.songIds;
-        const playlistGuessKinds = pickPlaylistGuessKinds(state.totalRounds);
+        const playlistGuessKinds = pickPlaylistGuessKinds(settings.totalRounds);
         const firstSongId = playlistSongIds[0];
         const firstGuessKind = playlistGuessKinds[0];
 
         if (
-          playlistSelection.uniqueSongCount < state.totalRounds ||
+          playlistSelection.uniqueSongCount < settings.totalRounds ||
           !firstSongId ||
           !firstGuessKind
         ) {
           return state;
         }
 
-        const roundStartsAtMs = now + MATCH_START_COUNTDOWN_SEC * 1000;
+        const roundStartsAtMs = now + settings.matchStartCountdownSec * 1000;
 
         return {
           phase: "match-countdown",
+          matchStartCountdownSec: settings.matchStartCountdownSec,
+          totalRounds: settings.totalRounds,
+          roundDurationSec: settings.roundDurationSec,
+          revealDurationSec: settings.revealDurationSec,
           activePlayerIds,
           playlistSongIds,
           playlistGuessKinds,
@@ -243,12 +243,12 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
           ),
           completedRoundCount: 0,
           currentRound: createRound({
+            settings,
             roundNumber: 1,
             songId: firstSongId,
             guessKind: firstGuessKind,
             expectedPlayerIds: activePlayerIds,
             nowMs: roundStartsAtMs,
-            roundDurationSec: state.roundDurationSec,
           }),
           answersByPlayerId: {},
           roundReveal: null,
@@ -293,24 +293,24 @@ export const gameStore = createAirJamStore<QuizState>((set) => ({
       });
     },
 
-    skipRound: ({ role }) => {
+    skipRound: ({ role, settings }) => {
       if (role !== "host") {
         return;
       }
 
       set((state) =>
         state.currentRound
-          ? finalizeRoundState(state, state.currentRound.endsAtMs)
+          ? finalizeRoundState(state, state.currentRound.endsAtMs, settings)
           : state,
       );
     },
 
-    advanceClock: ({ role, now }) => {
+    advanceClock: ({ role, now, settings }) => {
       if (role !== "host") {
         return;
       }
 
-      set((state) => advanceRoundClock(state, now));
+      set((state) => advanceRoundClock(state, now, settings));
     },
 
     forceGameOver: ({ role }) => {

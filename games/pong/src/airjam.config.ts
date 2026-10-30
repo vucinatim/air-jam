@@ -5,6 +5,8 @@ import { pongInput, pongInputBindings } from "./game/contracts/input";
 import { pongSimulation } from "./game/engine/pong-simulation";
 import { pongStore } from "./game/stores/pong-store";
 
+import { pongSettings } from "./game/contracts/settings";
+
 export const airjam = defineAirJamGame({
   metadata: defineAirJamGameMetadata({
     slug: "pong",
@@ -21,6 +23,7 @@ export const airjam = defineAirJamGame({
     tags: ["starter", "canvas", "teams"],
   }),
   controllerPath: "/controller",
+  settings: pongSettings,
   stores: [pongStore],
   simulation: pongSimulation,
   agent: agentContract,

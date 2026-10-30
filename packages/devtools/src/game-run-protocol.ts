@@ -1,3 +1,4 @@
+import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
 import { controllerLeasedControlAckSchema } from "@air-jam/sdk/protocol";
 import {
   hostAgentRequestSchema,
@@ -90,6 +91,7 @@ export const startGameRunSchema = z
     ]),
     profileId: z.string().min(1).max(64),
     policyId: z.string().min(1).max(64),
+    settings: airJamSettingsValuesSchema.optional(),
     seed: z.number().int().min(0).max(0xffff_ffff).default(0),
     budget: z
       .object({
@@ -99,7 +101,16 @@ export const startGameRunSchema = z
       .strict(),
     intents: z.record(z.string().min(1).max(64), seatIntentSchema).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (request) =>
+      request.settings === undefined || request.target.kind !== "current",
+    {
+      message:
+        "Initial settings require a new owned or headless room; use settings-update for an existing room.",
+      path: ["settings"],
+    },
+  );
 export type StartGameRunOptions = z.input<typeof startGameRunSchema>;
 export const gameRunAddressSchema = z
   .object({ cwd: z.string().min(1).optional(), runId: z.uuid() })

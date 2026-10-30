@@ -6,11 +6,13 @@
  */
 import { defineAirJamSimulation } from "@air-jam/sdk/core";
 import type { PongInput } from "../contracts/input";
+import type { PongSettings } from "../contracts/settings";
 import type { TeamId } from "../domain/team";
 import { pongStore, type PongState } from "../stores";
 import { FIELD_HEIGHT, FIELD_WIDTH } from "./constants";
 import {
   captureRuntimeStateStep,
+  createRuntimeState,
   createRuntimeStateBuffers,
   resetRuntimeStateBufferBall,
   resetRuntimeStateBuffers,
@@ -19,7 +21,6 @@ import {
 import { stepGame } from "./simulation";
 
 export const PONG_STEP_MS = 1000 / 60;
-const COUNTDOWN_SECONDS = 3;
 
 export interface PongGoal {
   sequence: number;
@@ -87,13 +88,14 @@ export const getPongPhaseEffects = ({
 export const pongSimulation = defineAirJamSimulation<
   PongSimulationState,
   PongInput,
-  PongSimulationEvent
+  PongSimulationEvent,
+  PongSettings
 >({
   stepMs: PONG_STEP_MS,
-  create: () => {
+  create: ({ settings }) => {
     const { matchPhase, scores } = pongStore.getState();
     return {
-      buffers: createRuntimeStateBuffers(),
+      buffers: createRuntimeStateBuffers(settings.ballSpeed),
       countdown: null,
       countdownElapsedMs: 0,
       tick: 0,
@@ -114,14 +116,21 @@ export const pongSimulation = defineAirJamSimulation<
       scores,
     })) {
       if (effect === "reset-match-buffers")
-        resetRuntimeStateBuffers(sim.buffers);
+        resetRuntimeStateBuffers(
+          sim.buffers,
+          createRuntimeState(context.settings.ballSpeed),
+        );
       if (effect === "start-countdown") {
-        sim.countdown = COUNTDOWN_SECONDS;
+        sim.countdown = context.settings.countdownSeconds;
         sim.countdownElapsedMs = 0;
       }
       if (effect === "clear-countdown") sim.countdown = null;
       if (effect === "reset-ball")
-        resetRuntimeStateBufferBall(sim.buffers, context.random);
+        resetRuntimeStateBufferBall(
+          sim.buffers,
+          context.random,
+          context.settings.ballSpeed,
+        );
     }
     sim.previousPhase = matchPhase;
     sim.previousScores = scores;
@@ -130,13 +139,15 @@ export const pongSimulation = defineAirJamSimulation<
     const isPlaying = matchPhase === "playing";
     if (sim.countdown !== null && isPlaying) {
       sim.countdownElapsedMs += context.stepMs;
-      if (sim.countdownElapsedMs >= 1000) {
-        sim.countdownElapsedMs -= 1000;
-        if (sim.countdown <= 1) {
-          sim.countdown = null;
-          resetRuntimeStateBufferBall(sim.buffers, context.random);
-        } else sim.countdown -= 1;
-      }
+      const remaining =
+        context.settings.countdownSeconds - sim.countdownElapsedMs / 1000;
+      sim.countdown = remaining > 0 ? Math.ceil(remaining) : null;
+      if (sim.countdown === null)
+        resetRuntimeStateBufferBall(
+          sim.buffers,
+          context.random,
+          context.settings.ballSpeed,
+        );
     }
 
     sim.tick += 1;
@@ -144,6 +155,7 @@ export const pongSimulation = defineAirJamSimulation<
     captureRuntimeStateStep(sim.buffers);
     stepGame({
       state: sim.buffers.current,
+      settings: context.settings,
       players: [...context.players],
       teamAssignments,
       getInput: context.input,

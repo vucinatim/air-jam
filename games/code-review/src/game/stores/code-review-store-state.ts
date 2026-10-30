@@ -47,6 +47,7 @@ export const clampBotCounts = (
 });
 
 export const createInitialCodeReviewState = () => ({
+  pointsToWin: 5,
   matchPhase: "lobby" as const,
   matchSummary: null,
   scores: { team1: 0, team2: 0 },

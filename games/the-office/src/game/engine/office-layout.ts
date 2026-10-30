@@ -11,7 +11,6 @@ export const FIELD_HEIGHT = 600;
 export const PADDING = 8;
 export const PLAYER_RADIUS = 20;
 export const TAG_RANGE = 60;
-export const PLAYER_SPEED = 5;
 export const WALL_THICKNESS = 12;
 
 // Colors

@@ -1,3 +1,4 @@
+import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
 import {
   hostAgentRequestSchema,
   hostAgentResponseSchema,
@@ -14,6 +15,7 @@ export const headlessRoomRequestSchema = z.discriminatedUnion("kind", [
       kind: z.literal("initialize"),
       id: z.uuid(),
       configPath: z.string().min(1),
+      settings: airJamSettingsValuesSchema.optional(),
       seed: z.number().int().min(0).max(0xffff_ffff),
     })
     .strict(),

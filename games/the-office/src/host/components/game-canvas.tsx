@@ -6,11 +6,7 @@
 import { useSimulationFrame } from "@air-jam/sdk";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { getPlayerById, PLAYERS } from "../../game/content/players";
-import {
-  BREAKROOM_LOCATIONS,
-  LOCATIONS,
-  STAT_CONSTANTS,
-} from "../../game/domain/task-manager";
+import { BREAKROOM_LOCATIONS, LOCATIONS } from "../../game/domain/task-manager";
 import {
   BOREDOM_BAR_COLOR,
   BOREDOM_BAR_LOW_COLOR,
@@ -363,7 +359,7 @@ export const GameCanvas = memo(function GameCanvas({
         if (breakroomActivity) {
           const elapsed = matchElapsedMs - breakroomActivity.startTime;
           unifiedProgress = Math.min(
-            elapsed / STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS,
+            elapsed / sim.settings.breakroomActivityDurationMs,
             1,
           );
         } else if (taskProgress > 0) {

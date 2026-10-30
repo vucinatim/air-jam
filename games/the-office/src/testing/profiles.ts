@@ -39,9 +39,17 @@ const workdayPolicy: AirJamTestPolicy = {
                 .sort(
                   (left, right) =>
                     left.route!.seconds * 1000 +
-                    getTaskDurationMs(left.task.taskId, self.coworkerId) -
+                    getTaskDurationMs(
+                      left.task.taskId,
+                      self.coworkerId,
+                      runtime.taskDurationMs,
+                    ) -
                     (right.route!.seconds * 1000 +
-                      getTaskDurationMs(right.task.taskId, self.coworkerId)),
+                      getTaskDurationMs(
+                        right.task.taskId,
+                        self.coworkerId,
+                        runtime.taskDurationMs,
+                      )),
                 )[0]?.task.locationId;
       const route = destination ? routeTo(self, destination) : null;
       return { control: route ? goControl(self, route) : { kind: "release" } };

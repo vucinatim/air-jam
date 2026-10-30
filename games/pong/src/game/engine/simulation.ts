@@ -25,6 +25,7 @@ import type { StepGameOptions } from "./types";
 
 export const stepGame = ({
   state,
+  settings,
   players,
   teamAssignments,
   getInput,
@@ -45,9 +46,18 @@ export const stepGame = ({
     teamAssignments,
     getInput,
     deltaSeconds,
+    settings.paddleSpeed,
   );
-  applyBotPaddleInput(state, teamAssignments, botCounts, deltaSeconds);
+  applyBotPaddleInput(
+    state,
+    teamAssignments,
+    botCounts,
+    deltaSeconds,
+    settings.paddleSpeed,
+  );
   if (state.awaitingServe) return;
+  state.ballVX = Math.sign(state.ballVX) * settings.ballSpeed;
+  state.ballVY = Math.sign(state.ballVY) * settings.ballSpeed;
   advanceBall(state, countdown, deltaSeconds);
   reflectBallOffWalls(state);
 

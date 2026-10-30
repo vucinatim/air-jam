@@ -5,6 +5,7 @@
  * the game loop without mocking a session.
  */
 import type { PongInput } from "../contracts/input";
+import type { PongSettings } from "../contracts/settings";
 import type { TeamId } from "../domain/team";
 import type { BotCounts } from "../domain/team-slots";
 import type { TeamAssignment } from "../stores";
@@ -29,6 +30,7 @@ export interface RuntimeState {
 }
 
 export interface StepGameOptions {
+  settings: PongSettings;
   state: RuntimeState;
   players: RuntimePlayer[];
   teamAssignments: Record<string, TeamAssignment>;

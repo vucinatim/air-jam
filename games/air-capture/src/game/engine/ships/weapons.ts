@@ -1,5 +1,4 @@
 import { Quaternion, Vector3 } from "three";
-import { SHIP_ENGINE_CONFIG } from "./flight";
 
 const SHIP_GUN_OFFSETS = [
   new Vector3(-1.5, 0, 0.95),
@@ -24,15 +23,10 @@ export function shouldFireShipWeapons(params: {
   wasActionPressed: boolean;
   time: number;
   lastShotAt: number;
-  shootInterval?: number;
+  shootInterval: number;
 }): boolean {
-  const {
-    actionPressed,
-    wasActionPressed,
-    time,
-    lastShotAt,
-    shootInterval = SHIP_ENGINE_CONFIG.SHOOT_INTERVAL,
-  } = params;
+  const { actionPressed, wasActionPressed, time, lastShotAt, shootInterval } =
+    params;
 
   const pressedThisFrame = actionPressed && !wasActionPressed;
   const heldLongEnough = actionPressed && time - lastShotAt >= shootInterval;

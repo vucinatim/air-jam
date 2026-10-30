@@ -74,6 +74,7 @@ describe("capture against a caller-owned runtime", () => {
         input: null,
         agent: null,
         testing: true,
+        settings: {},
       },
     });
     vi.mocked(runCommandResult).mockImplementation((command) => {

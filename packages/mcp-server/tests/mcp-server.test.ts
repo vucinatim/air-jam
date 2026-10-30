@@ -162,6 +162,8 @@ describe("createAirJamMcpServer", () => {
         "airjam.steer_game_run",
         "airjam.open_game_session",
         "airjam.capture_game_session_visuals",
+        "airjam.read_game_settings",
+        "airjam.update_game_settings",
       ])
         expect(tools).not.toContain(omitted);
       expect(tools).toEqual(
@@ -233,6 +235,8 @@ describe("createAirJamMcpServer", () => {
       "airjam.read_game_session",
       "airjam.observe_game_session",
       "airjam.invoke_game_session_action",
+      "airjam.read_game_settings",
+      "airjam.update_game_settings",
       "airjam.capture_game_session_visuals",
       "airjam.close_game_session",
     ]);

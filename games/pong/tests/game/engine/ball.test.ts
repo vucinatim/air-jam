@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { pongSettings } from "../../../src/game/contracts/settings";
 import {
   advanceBall,
   applyPaddleBounce,
@@ -18,7 +19,7 @@ const TEST_STEP_SECONDS = 1 / 60;
 const createRuntimeState = (
   overrides: Partial<RuntimeState> = {},
 ): RuntimeState => ({
-  ...createInitialRuntimeState(),
+  ...createInitialRuntimeState(pongSettings.ballSpeed.default),
   paddle1FrontY: 0,
   paddle1BackY: 0,
   paddle2FrontY: 0,

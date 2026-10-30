@@ -1,3 +1,4 @@
+import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
 import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
@@ -63,6 +64,16 @@ if (!appOrigin || !hostUrl || !controllerBaseUrl || !publicHost) {
   );
 }
 
+const initialSettings = getFlagValue("--settings");
+const initialHostUrl = new URL(hostUrl);
+if (initialSettings)
+  initialHostUrl.searchParams.set(
+    "airjamSettings",
+    JSON.stringify(
+      airJamSettingsValuesSchema.parse(JSON.parse(initialSettings)),
+    ),
+  );
+
 const runtimeBrowser = await launchScopedHarnessBrowser();
 const { browser } = runtimeBrowser;
 let startupDiagnostics = true;
@@ -75,7 +86,7 @@ const session = await openVisualHarnessHostSession({
   mode: requestedMode as VisualHarnessMode,
   urls: {
     appOrigin,
-    hostUrl,
+    hostUrl: initialHostUrl.toString(),
     controllerBaseUrl,
     publicHost,
     localBuildUrl,

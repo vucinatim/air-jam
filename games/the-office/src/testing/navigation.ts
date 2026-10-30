@@ -1,3 +1,4 @@
+import { officeSettings } from "../game/contracts/settings";
 import {
   BREAKROOM_LOCATIONS,
   LOCATIONS,
@@ -9,7 +10,6 @@ import {
   isNearLocation,
   isValidPosition,
   PLAYER_RADIUS,
-  PLAYER_SPEED,
 } from "../game/engine/office-layout";
 
 /**
@@ -118,7 +118,8 @@ export function routeTo(
         movementX: dx / length,
         movementY: dy / length,
         seconds:
-          (path.length * CELL) / (PLAYER_SPEED * SIMULATION_STEPS_PER_SECOND),
+          (path.length * CELL) /
+          (officeSettings.playerSpeed.default * SIMULATION_STEPS_PER_SECOND),
       };
     }
     const column = cell % COLUMNS;

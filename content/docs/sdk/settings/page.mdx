@@ -1,0 +1,128 @@
+# Game Settings
+
+Declare the numbers, switches and choices a creator tunes while playtesting in
+`airjam.config.ts`. The host owns their values and revision. A live update takes
+effect between simulation steps and is recorded for exact replay.
+
+## Declare settings in core
+
+Keep the declaration in a leaf module so the simulation can import its type
+without importing the game config back again.
+
+```ts filename="src/game/contracts/settings.ts"
+import {
+  defineAirJamSettings,
+  setting,
+  type AirJamSettingsValues,
+} from "@air-jam/sdk/core";
+
+export const pongSettings = defineAirJamSettings({
+  ballSpeed: setting.number({
+    default: 360,
+    min: 180,
+    max: 720,
+    step: 10,
+    live: true,
+    description: "Ball speed in pixels per second.",
+  }),
+});
+export type PongSettings = AirJamSettingsValues<typeof pongSettings>;
+```
+
+Pass it as `defineAirJamGame({ settings: pongSettings, ... })`. Remove the
+module constants it replaces. A lobby choice players make, such as
+`pointsToWin`, remains replicated store state.
+
+Keys are lower camel case. `setting.number` requires `default`, `min` and
+`max`, with an optional positive `step`; use `step: 1` for whole numbers.
+Steps are multiples of zero. `setting.boolean` requires a boolean `default`.
+`setting.choice` takes a nonempty string tuple in `options` and a `default`
+from that tuple; its value type is the union of those strings.
+Every kind accepts `description` and `live`, which defaults to false.
+`defineAirJamSettings` validates defaults immediately. The description returned
+by `airjam.inspect_game` includes these descriptors in `declaration.settings`.
+
+## Read the current values
+
+Use the settings type as the fourth simulation type parameter:
+
+```ts
+defineAirJamSimulation<State, Input, Event, PongSettings>({
+  stepMs: 1000 / 60,
+  create: ({ settings }) => createState(settings.ballSpeed),
+  step: (state, { settings, stepMs }) => {
+    state.x += (settings.ballSpeed * stepMs) / 1000;
+  },
+  observe: (state, { settings }) => ({
+    x: state.x,
+    ballSpeed: settings.ballSpeed,
+  }),
+});
+```
+
+Store actions read the same values through
+`AirJamActionContext<PongSettings>.settings`. Host rendering calls
+`useAirJamSettings(pongSettings)` from `@air-jam/sdk`; the hook subscribes to
+the host runtime and returns the typed values. Controllers have no settings
+hook. Copy any value a phone must display into replicated store state.
+
+## Set initial values and tune a live room
+
+`HostRuntimeOptions.settings` accepts a partial set of initial values and fills
+the rest from defaults. `airjam.start_game_run` accepts the same `settings`
+object when creating a new room, for browser and headless runs. Initial values
+may include non-live settings. They are fixed for the host's lifetime.
+
+Open a game session with host authority, then call:
+
+```json
+{
+  "tool": "airjam.read_game_settings",
+  "arguments": { "gameSessionId": "<session id>" }
+}
+```
+
+The result contains `values` and `revision`, initially zero. Update using that
+revision:
+
+```json
+{
+  "tool": "airjam.update_game_settings",
+  "arguments": {
+    "gameSessionId": "<session id>",
+    "patch": { "ballSpeed": 700 },
+    "expectedRevision": 0
+  }
+}
+```
+
+A successful update returns the complete values and the next revision. The
+whole patch is validated before any value changes. Both tools have the same
+host authority requirements as semantic host actions. The runtime contract is
+`settings-read` with `{ roomId, runtimeId }`, and `settings-update` with those
+fields plus `patch` and `expectedRevision`.
+
+The CLI uses the same operations:
+
+```bash
+pnpm exec airjam session settings-read <session-id>
+pnpm exec airjam session settings-update <session-id> --patch '{"ballSpeed":700}' --expected-revision 0
+```
+
+Both commands print JSON. Use `airjam run start --settings '{"ballSpeed":600}'` with the other required
+run options to start a fresh room at a chosen speed. Attaching a run to an
+existing room does not replace its initial settings.
+
+## Errors and replay
+
+`AJ_SETTING_UNKNOWN` names an undeclared key. `AJ_SETTING_INVALID` means a
+value violates its type, range, step or choices. `AJ_SETTING_STALE` means
+another update changed the revision; read again before applying a new patch.
+`AJ_SETTING_NOT_LIVE` means the setting requires a new room with that initial
+value. Rejected updates leave all values and the revision unchanged.
+
+Input logs use `version: 2`, with resolved initial `settings` and ordered
+`airjam:settings` events containing each accepted `patch` and `revision`.
+They share the stream with inputs and actions. `replayAirJamInputLog` creates
+the host with the initial values and applies each update in order before its
+recorded step. Use the same seed and game code to reproduce the final state.

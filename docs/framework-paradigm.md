@@ -107,3 +107,13 @@ A change fits this paradigm when:
 4. the private product consumes public exports rather than source aliases or a fork
 5. public creation and testing do not acquire a hidden hosted dependency
 6. human and agent workflows use the same runtime contracts
+
+## Declared game settings
+
+The framework-free game declaration owns tunable settings descriptors. One host
+runtime owns validated current values and a revision, shared by simulation and
+action contexts and host rendering through `useAirJamSettings`. Host-authorized
+settings operations apply atomic live patches between steps. Input log version 2
+records resolved initial values and ordered patches alongside inputs and actions
+so replay uses the same values at every step. Controllers consume only display
+values a game copies to its store; lobby choices remain store state.

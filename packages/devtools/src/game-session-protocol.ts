@@ -1,3 +1,4 @@
+import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
 import { controllerLeasedControlSchema } from "@air-jam/sdk/protocol";
 import { hostObservationRequestSchema } from "@air-jam/sdk/runtime-control";
 import { z } from "zod";
@@ -38,6 +39,12 @@ export const gameSessionOperationSchemas = {
     ...hostObservationRequestSchema
       .omit({ roomId: true, controllerId: true })
       .partial().shape,
+  }),
+  "settings-read": session.extend({ timeoutMs }),
+  "settings-update": session.extend({
+    timeoutMs,
+    patch: airJamSettingsValuesSchema,
+    expectedRevision: z.number().int().nonnegative(),
   }),
   control: session.extend({
     lease: controllerLeasedControlSchema.shape.lease,
@@ -153,6 +160,18 @@ export const gameSessionBrokerRequestSchema = z.discriminatedUnion(
       .object({
         operation: z.literal("close"),
         input: gameSessionOperationSchemas.close,
+      })
+      .strict(),
+    z
+      .object({
+        operation: z.literal("settings-read"),
+        input: gameSessionOperationSchemas["settings-read"],
+      })
+      .strict(),
+    z
+      .object({
+        operation: z.literal("settings-update"),
+        input: gameSessionOperationSchemas["settings-update"],
       })
       .strict(),
     z.object({ operation: z.literal("shutdown") }).strict(),

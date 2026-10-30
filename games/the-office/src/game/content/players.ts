@@ -154,31 +154,36 @@ export function getRandomUnassignedPlayer(
  * - 2: 13 seconds
  * - 1: 17 seconds
  */
-export function getTaskDurationMs(taskId: string, playerId: string): number {
+export function getTaskDurationMs(
+  taskId: string,
+  playerId: string,
+  baseDurationMs: number,
+): number {
   const player = getPlayerById(playerId);
-  if (!player) return 10000; // Default 10 seconds
+  if (!player) return baseDurationMs; // Default 10 seconds
 
   const capability = player.capabilities[taskId as TaskId];
 
   // Capability to seconds mapping
-  const capabilityToSeconds: Record<number, number> = {
-    5: 4000, // 4 seconds
-    4: 7000, // 7 seconds
-    3: 10000, // 10 seconds (average)
-    2: 13000, // 13 seconds
-    1: 17000, // 17 seconds
+  const capabilityDurationMultiplier: Record<number, number> = {
+    5: 0.4, // 4 seconds
+    4: 0.7, // 7 seconds
+    3: 1, // 10 seconds (average)
+    2: 1.3, // 13 seconds
+    1: 1.7, // 17 seconds
   };
 
   // If no capability specified, use default 10 seconds
   if (capability === undefined) {
-    return 10000;
+    return baseDurationMs;
   }
 
-  return capabilityToSeconds[capability] ?? 10000;
+  return baseDurationMs * (capabilityDurationMultiplier[capability] ?? 1);
 }
 
 export function getPlayerCapabilityHighlights(
   playerId: string,
+  baseDurationMs: number,
   limit = 3,
 ): PlayerCapabilityHighlight[] {
   const player = getPlayerById(playerId);
@@ -202,7 +207,7 @@ export function getPlayerCapabilityHighlights(
       taskId,
       label: TASK_LABELS[taskId],
       level,
-      durationMs: getTaskDurationMs(taskId, player.id),
+      durationMs: getTaskDurationMs(taskId, player.id, baseDurationMs),
     }));
 }
 

@@ -1,10 +1,16 @@
 import type { PlayerProfile, RuntimeState } from "../protocol";
 import type { HostObservationContext } from "../runtime/contracts/observation";
+import type { SettingsValues } from "./settings";
 
 /** What one simulation step can read and do. */
-export interface AirJamStepContext<TInput, TEvent> {
+export interface AirJamStepContext<
+  TInput,
+  TEvent,
+  TSettings = Record<string, never>,
+> {
   /** Steps taken since the simulation was created, starting at 1. */
   tick: number;
+  settings: TSettings;
   stepMs: number;
   dtSeconds: number;
   /** Seeded randomness: the same seed and inputs replay the same game. */
@@ -22,16 +28,24 @@ export interface AirJamStepContext<TInput, TEvent> {
  * game runs in a browser, headless, or faster than real time. The clock only
  * steps while the room is playing: a paused game keeps its game time.
  */
-export interface AirJamSimulation<TSim, TInput = unknown, TEvent = never> {
+export interface AirJamSimulation<
+  TSim,
+  TInput = unknown,
+  TEvent = never,
+  TSettings = Record<string, never>,
+> {
   /** Milliseconds of game time per step. */
   stepMs: number;
-  create(context: { random: () => number }): TSim;
-  step(sim: TSim, context: AirJamStepContext<TInput, TEvent>): void;
+  create(context: { random: () => number; settings: TSettings }): TSim;
+  step(sim: TSim, context: AirJamStepContext<TInput, TEvent, TSettings>): void;
   /**
    * What agents and tests see of the simulation: plain JSON, read between
    * steps. The clock's tick is published with it.
    */
-  observe?(sim: TSim, context: HostObservationContext): Record<string, unknown>;
+  observe?(
+    sim: TSim,
+    context: HostObservationContext & { settings: TSettings },
+  ): Record<string, unknown>;
 }
 
 /**
@@ -43,13 +57,19 @@ export type AirJamSimulationDeclaration<
   TSim = unknown,
   TInput = unknown,
   TEvent = unknown,
+  TSettings = Record<string, never>,
 > =
-  | AirJamSimulation<TSim, TInput, TEvent>
-  | (() => Promise<AirJamSimulation<TSim, TInput, TEvent>>);
+  | AirJamSimulation<TSim, TInput, TEvent, TSettings>
+  | (() => Promise<AirJamSimulation<TSim, TInput, TEvent, TSettings>>);
 
-export const defineAirJamSimulation = <TSim, TInput = unknown, TEvent = never>(
-  simulation: AirJamSimulation<TSim, TInput, TEvent>,
-): AirJamSimulation<TSim, TInput, TEvent> => simulation;
+export const defineAirJamSimulation = <
+  TSim,
+  TInput = unknown,
+  TEvent = never,
+  TSettings = Record<string, never>,
+>(
+  simulation: AirJamSimulation<TSim, TInput, TEvent, TSettings>,
+): AirJamSimulation<TSim, TInput, TEvent, TSettings> => simulation;
 
 /** Deterministic 32-bit generator (mulberry32). */
 export const createSeededRandom = (seed: number): (() => number) => {
@@ -77,9 +97,10 @@ export interface SimulationPace {
   simulatedMs: number;
 }
 
-interface ClockRoom<TInput> {
+interface ClockRoom<TInput, TSettings> {
   /** Called before each step with its tick, to sample input for it. */
   beginStep: (tick: number) => void;
+  settings?: () => TSettings;
   input: (controllerId: string) => TInput;
   players: () => readonly PlayerProfile[];
   runtimeState: () => RuntimeState;
@@ -92,7 +113,12 @@ const MAX_STEPS_PER_FRAME = 5;
  * Advances one simulation. Real-time play calls `frame` once per display
  * frame; tests and replays call `advance` with any amount of game time.
  */
-export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
+export class SimulationClock<
+  TSim,
+  TInput = unknown,
+  TEvent = never,
+  TSettings extends SettingsValues = Record<string, never>,
+> {
   readonly seed: number;
   readonly sim: TSim;
   readonly pace: SimulationPace = { frames: 0, wallMs: 0, simulatedMs: 0 };
@@ -107,13 +133,25 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
   >();
 
   constructor(
-    private readonly simulation: AirJamSimulation<TSim, TInput, TEvent>,
-    private readonly room: ClockRoom<TInput>,
+    private readonly simulation: AirJamSimulation<
+      TSim,
+      TInput,
+      TEvent,
+      TSettings
+    >,
+    private readonly room: ClockRoom<TInput, TSettings>,
     seed: number,
   ) {
     this.seed = seed >>> 0;
     this.random = createSeededRandom(this.seed);
-    this.sim = simulation.create({ random: this.random });
+    this.sim = simulation.create({
+      random: this.random,
+      settings: this.settings,
+    });
+  }
+
+  private get settings(): TSettings {
+    return this.room.settings?.() ?? ({} as TSettings);
   }
 
   get ticks(): number {
@@ -215,6 +253,7 @@ export class SimulationClock<TSim, TInput = unknown, TEvent = never> {
     try {
       this.simulation.step(this.sim, {
         tick: this.tick,
+        settings: this.settings,
         stepMs,
         dtSeconds: stepMs / 1000,
         random: this.random,

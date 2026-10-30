@@ -17,7 +17,7 @@ describe("air-capture ship lifecycle engine", () => {
   });
 
   it("keeps respawn timing explicit", () => {
-    expect(scheduleShipRespawn(10)).toBe(12);
+    expect(scheduleShipRespawn(10, 2)).toBe(12);
     expect(shouldRespawnShip(12, 12)).toBe(true);
     expect(shouldRespawnShip(11.9, 12)).toBe(false);
   });

@@ -1,5 +1,5 @@
 import { Vector3 } from "three";
-import { JUMP_FORCE, JUMP_PAD_RADIUS } from "../constants";
+import { JUMP_PAD_RADIUS } from "../constants";
 import { TEAM_IDS, type TeamId } from "../domain/team";
 import {
   AIR_CAPTURE_ARENA_JUMP_PADS,
@@ -144,7 +144,7 @@ export class GameContext {
       id: pad.id,
       position: new Vector3(...pad.position),
       radius: JUMP_PAD_RADIUS,
-      jumpForce: JUMP_FORCE,
+      jumpForce: this.world.jumpForce,
     }));
   }
 
