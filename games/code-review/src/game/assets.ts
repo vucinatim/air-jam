@@ -31,6 +31,9 @@ export const codeReviewAssets = defineAirJamAssets({
     },
   },
   images: {
+    cover: {
+      src: "/sprites/cover.png",
+    },
     defend: {
       src: "/sprites/defend.png",
     },
