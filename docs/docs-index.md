@@ -35,6 +35,9 @@ acting as another task tracker.
   with React as its binding, an SDK-owned clock for headless and replayable
   play, a written protocol for other engines, and agent lanes that keep
   agent-written games on the supported path
+- [Game declaration](./plans/game-declaration-plan.md): one React-free
+  `airjam.config.ts` declaring state, step, settings, assets, theme, test
+  profiles and the player contract, read by every tool through one loader
 - [SDK input system](./plans/sdk-input-system-plan.md): declared controls with
   fixed meanings, pluggable sources for phones, keyboards, gamepads, agent
   seats and replays, and one input lane on the game clock

@@ -138,18 +138,19 @@ const sim = useSimulation(); // read-only, interpolated for drawing
 ```
 
 **One declaration that tools read.** Studio's settings panel, agent knobs,
-headless tests and replays all come from it:
+headless tests and replays all come from it. The
+[game declaration plan](./game-declaration-plan.md) owns its exact shape:
 
 ```ts
-export const airjam = createAirJamApp({
+export const airjam = defineAirJamGame({
   metadata,
   controllerPath: "/controller",
-  input: { schema },
-  state: pongState,
-  step,
-  settings: {
-    ballSpeed: setting.number({ min: 200, max: 900, default: 400, live: true }),
-  },
+  stores: [pongStore],
+  simulation: pongSimulation,
+  input: pongInput,
+  settings: defineAirJamSettings({
+    ballSpeed: setting.number({ default: 360, min: 180, max: 720, live: true }),
+  }),
   testing: "./testing/profiles.ts",
 });
 ```
@@ -262,7 +263,9 @@ and the React binding as one system.
    settings with their ranges, assets, theme tokens, test profiles and the
    player contract for agents. Tools read only what is declared, so the
    declared path is the one that gets live settings, headless tests, replays
-   and Studio panels.
+   and Studio panels. The
+   [game declaration plan](./game-declaration-plan.md) owns its shapes, the
+   one loader, the removals, the migration and its four phases.
 2. **Architecture checks.** `airjam evaluate` and its MCP tool gain an
    architecture gate beside typecheck, lint, tests and build. It fails on
    outcome logic advanced from render hooks, physics owned by rendering
@@ -359,7 +362,9 @@ selector)`; dispatch is `store.actions`. Reading an undeclared store throws
 Decisions made while building:
 
 1. `airjam.config.ts` stays the single declaration; tools already load it in
-   Node. A separate React-free game definition file was not needed.
+   Node. A separate React-free game definition file was not needed. The
+   [game declaration plan](./game-declaration-plan.md) keeps the one file and
+   makes it React-free, with topology moving to the React binding.
 2. Store definitions import from `@air-jam/sdk/core`; the root exports only the
    React reading hooks, so there is one import path per concept.
 3. Per-store hook objects and `useLiveStateRef` are removed;
@@ -381,7 +386,8 @@ Next:
 
 1. Phase 4, the protocol contract and its conformance suite; `/protocol`
    kept its full surface for it.
-2. Phase 6, agent lanes, starting with the declaration surface (G6-10).
+2. Phase 6, agent lanes, starting with the declaration surface (G6-10),
+   designed in the [game declaration plan](./game-declaration-plan.md).
 3. Store actions draw randomness from `Math.random()` where they use any, for
    example Last Band Standing's playlist; replays need the seeded stream.
 4. Owned runs still refuse monorepo games (they need a standalone game with its
