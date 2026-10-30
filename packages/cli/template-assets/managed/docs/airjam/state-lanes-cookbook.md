@@ -42,7 +42,7 @@ Use `createAirJamStore(...)` from `@air-jam/sdk/core` for durable shared truth t
 5. which players are alive
 
 If the controller HUD or another remote surface must render it, it belongs here.
-Declare the store in `createAirJamApp({ stores: [gameStore] })`; the host and
+Declare the store in `defineAirJamGame({ stores: [gameStore] })`; the host and
 controllers sync only declared stores. Components read it with
 `useAirJamStore(gameStore, selector)` and dispatch with `gameStore.actions`.
 

@@ -1,6 +1,3 @@
-import { realpath } from "node:fs/promises";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import {
   TEST_PROFILE_IPC_MAX_BYTES,
   createPolicyRandom,
@@ -16,7 +13,7 @@ import {
   type AirJamTestPolicy,
   type AirJamTestProfile,
 } from "../testing.js";
-import { loadAirJamAppConfig } from "./airjam-agent.js";
+import { loadAirJamGame, loadAirJamTesting } from "./load-game.js";
 
 let role: "discover" | "policy" | "evaluator" | undefined;
 let busy = false;
@@ -61,28 +58,10 @@ process.on("message", (message: unknown) => {
       if (request.kind === "initialize") {
         if (role !== undefined)
           throw new Error("Test profile already initialized.");
-        const app = await loadAirJamAppConfig(request.configPath);
-        if (!app.testing)
-          throw new Error("Game does not publish test profiles.");
-        const root = await realpath(request.rootDir);
-        const modulePath = await realpath(
-          path.resolve(path.dirname(request.configPath), app.testing),
-        );
-        const relative = path.relative(root, modulePath);
-        if (
-          relative.startsWith(`..${path.sep}`) ||
-          relative === ".." ||
-          path.isAbsolute(relative)
-        )
-          throw new Error("Test profiles must live inside the game project.");
-        const loaded = (await import(pathToFileURL(modulePath).href)) as {
-          testProfiles?: Record<string, AirJamTestProfile>;
-        };
-        if (!loaded.testProfiles)
-          throw new Error(
-            "Test module must export testProfiles = defineAirJamTestProfiles(...).",
-          );
-        const profiles = describeAirJamTestProfiles(loaded.testProfiles);
+        const game = await loadAirJamGame(request.configPath);
+        const testing = await loadAirJamTesting(request.configPath, game);
+        if (!testing) throw new Error("Game does not declare testing.");
+        const profiles = describeAirJamTestProfiles(testing.profiles);
         const preparation = policyPreparationSchema.parse([]);
         const artifacts = request.artifacts;
         role = request.role;
@@ -91,7 +70,7 @@ process.on("message", (message: unknown) => {
             "Only the policy process can receive model artifacts.",
           );
         if (role !== "discover") {
-          profile = loaded.testProfiles[request.profileId ?? ""];
+          profile = testing.profiles[request.profileId ?? ""];
           if (!profile) throw new Error("Unknown test profile.");
           if (role === "policy") {
             const policy = profile.policies[request.policyId ?? ""];

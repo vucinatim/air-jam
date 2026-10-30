@@ -567,8 +567,10 @@ Proved by:
    description parses, and each `metadata.slug` equals its template id
 3. a devtools test fixture whose config imports React fails with
    `AJ_DECLARATION_NOT_FRAMEWORK_FREE` naming the importing file
-4. every authored profile of Pong, Minimal, The Office, Code Review and Air
-   Capture passes headless, with `model` offered from the declared player in
+4. every terminating authored profile of Pong, Minimal, The Office, Code
+   Review and Air Capture returns a passed headless verdict; each cooperative
+   profile runs headless to a bounded end with clean teardown, preserving its
+   semantics. Every profile offers `model` from the declared player in
    `airjam.list_game_test_profiles`
 5. a search finds no `loadAirJamAppConfig`, `gameMetadata` export,
    `visualScenariosModule`, `maxPlayers` in runtime options or

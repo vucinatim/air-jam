@@ -4,9 +4,9 @@ import {
   firstExistingPath,
   pathExists,
   readPackageJson,
-  resolveCandidatePath,
   resolveCanonicalPath,
 } from "./fs-utils.js";
+import { AIRJAM_CONFIG_PATH } from "./games.js";
 import type {
   AirJamCapabilityGroup,
   AirJamPackageManager,
@@ -108,18 +108,7 @@ const isStandaloneGameRoot = async (
     return true;
   }
 
-  return Boolean(
-    await resolveCandidatePath(rootDir, [
-      "src/airjam.config.ts",
-      "src/airjam.config.tsx",
-      "src/airjam.config.js",
-      "src/airjam.config.mjs",
-      "airjam.config.ts",
-      "airjam.config.tsx",
-      "airjam.config.js",
-      "airjam.config.mjs",
-    ]),
-  );
+  return Boolean(await pathExists(path.join(rootDir, AIRJAM_CONFIG_PATH)));
 };
 
 export const detectProjectContext = async ({

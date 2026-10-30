@@ -173,7 +173,7 @@ export class HostRuntime {
     this.store = dependencies.store;
     if (dependencies.input && !dependencies.simulation)
       throw new Error(
-        "A game reads its declared input in simulation steps. Declare a simulation with createAirJamApp({ simulation }).",
+        "A game reads its declared input in simulation steps. Declare a simulation with defineAirJamGame({ simulation }).",
       );
     this.input = dependencies.input
       ? new HostInput(dependencies.input, () => this.environment.now())

@@ -12,7 +12,7 @@ vi.mock("../src/game-session-runtime.js", () => ({
   }),
 }));
 vi.mock("../src/tooling/visual-pack.js", () => ({
-  loadVisualScenarioPackFromModuleOrConfig: vi.fn(async () => ({
+  loadVisualScenarioPackFromConfig: vi.fn(async () => ({
     scenarios: [],
   })),
 }));

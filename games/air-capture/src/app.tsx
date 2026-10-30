@@ -1,3 +1,4 @@
+import { createAirJamApp, env } from "@air-jam/sdk";
 import type { JSX } from "react";
 import { Suspense, lazy, useMemo } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
@@ -7,6 +8,8 @@ import {
   AIR_CAPTURE_PREFAB_CAPTURE_SURFACE,
   AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM,
 } from "./prefab-preview/params";
+
+const app = createAirJamApp(airjam, { runtime: env.vite(import.meta.env) });
 
 // Prefab-preview is dev-only tooling for inspecting reusable game objects.
 // `import.meta.env.DEV` resolves to a compile-time boolean, so production
@@ -65,17 +68,17 @@ export const App = (): JSX.Element => {
         <Route
           path="/"
           element={
-            <airjam.Host>
+            <app.Host>
               <HostSurface />
-            </airjam.Host>
+            </app.Host>
           }
         />
         <Route
-          path={airjam.paths.controller}
+          path={app.paths.controller}
           element={
-            <airjam.Controller>
+            <app.Controller>
               <ControllerView />
-            </airjam.Controller>
+            </app.Controller>
           }
         />
       </Routes>

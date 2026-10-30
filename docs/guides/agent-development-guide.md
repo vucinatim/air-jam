@@ -66,8 +66,10 @@ source `gameId`, resolved runtime `urls`, `mode` (`standalone-dev` or
 the project, not a launcher catalog alias. The result contains the capture
 summary and scenario metadata at the caller's artifact root.
 
-The game's config must explicitly publish `visualScenariosModule`; arbitrary
-files are not discovered as a fallback. The runtime owner remains responsible
+The game's declaration must name a `testing` module exporting
+`testing = defineAirJamTesting({ profiles, visual: { scenarios } })`. Visual
+scenarios use the declaration's agent contract; arbitrary files are not
+discovered as a fallback. The runtime owner remains responsible
 for startup, readiness and shutdown on success or failure. Normal standalone
 agents should continue using `captureVisuals` when they want the tool to manage
 that lifecycle.

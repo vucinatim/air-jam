@@ -18,10 +18,11 @@ replays fill the same controls, headless runs keep an input log that
 `airjam session run replay` reproduces, and the SDK's phone controls own
 sending. Keyboard and gamepad players come next.
 
-The [game declaration plan](./plans/game-declaration-plan.md) designs the
-next 1.0 item, G6-10: a React-free `airjam.config.ts` that declares settings,
-assets, theme, test profiles and the player contract beside the stores and
-simulation, read by every tool through one loader.
+The [game declaration plan](./plans/game-declaration-plan.md) phase 1 is built:
+every first-party game declares itself in one framework-free config, every
+reader uses the canonical loader and description, and room capacity comes from
+metadata. Test profiles declare their player once and offer `model` in every
+profile. G6-10 remains open for settings, assets and theme in phases 2 and 3.
 
 ## Native observation and isolated playtesting
 

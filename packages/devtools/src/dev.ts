@@ -338,31 +338,6 @@ const resolveWorkspaceCliPath = (context: AirJamProjectContext): string => {
   return path.resolve(context.rootDir, workspace.cli);
 };
 
-const resolveRequestedGameId = async ({
-  cwd,
-  context,
-  gameId,
-}: {
-  cwd: string;
-  context: AirJamProjectContext;
-  gameId?: string;
-}): Promise<string | null> => {
-  if (context.mode === "standalone-game") {
-    return (await inspectGame({ cwd, gameId })).id;
-  }
-
-  if (context.mode !== "monorepo") {
-    return null;
-  }
-
-  if (gameId) {
-    return gameId;
-  }
-
-  const games = await listGames({ cwd });
-  return games[0]?.id ?? null;
-};
-
 const resolveStartCommand = async ({
   context,
   cwd,
@@ -732,16 +707,13 @@ export const getTopology = async ({
     );
   }
 
-  const resolvedGameId = await resolveRequestedGameId({
-    cwd,
-    context,
-    gameId,
-  });
   const game =
-    resolvedGameId !== null
-      ? await inspectGame({ cwd, gameId: resolvedGameId })
-      : null;
-  const controllerPath = game?.controllerPathLikely ?? DEFAULT_CONTROLLER_PATH;
+    context.mode === "standalone-game" || gameId
+      ? await inspectGame({ cwd, gameId })
+      : ((await listGames({ cwd }))[0] ?? null);
+  const resolvedGameId = game?.id ?? null;
+  const controllerPath =
+    game?.declaration.controllerPath ?? DEFAULT_CONTROLLER_PATH;
   const topologyCommand = await resolveTopologyCommand({
     context,
     gameId: resolvedGameId,
@@ -804,11 +776,13 @@ export const startDev = async ({
     );
   }
 
-  const resolvedGameId = await resolveRequestedGameId({
+  const topology = await getTopology({
     cwd,
-    context,
     gameId,
+    mode,
+    secure,
   });
+  const resolvedGameId = topology.gameId;
   const existingProcesses = await listManagedProcessesForRoot(context.rootDir);
   const exactMatch =
     existingProcesses.find(
@@ -821,12 +795,7 @@ export const startDev = async ({
     return {
       process: exactMatch,
       reusedExistingProcess: true,
-      topology: await getTopology({
-        cwd: context.rootDir,
-        gameId: resolvedGameId ?? undefined,
-        mode,
-        secure,
-      }),
+      topology,
     };
   }
 
@@ -912,12 +881,7 @@ export const startDev = async ({
   });
 
   try {
-    const topology = await getTopology({
-      cwd: context.rootDir,
-      gameId: resolvedGameId ?? undefined,
-      mode,
-      secure,
-    });
+    topology.process = managedProcess;
     await Promise.race([
       waitForTopologyReady({ topology }),
       childExited.then(({ code, signal }) => {

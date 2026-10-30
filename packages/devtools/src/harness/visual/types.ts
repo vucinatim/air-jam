@@ -1,7 +1,10 @@
-import type { AirJamAgentContract, AnyAirJamAgentContract } from "@air-jam/sdk";
+import type {
+  AirJamAgentContract,
+  AnyAirJamAgentContract,
+} from "@air-jam/sdk/core";
 import type { Page } from "playwright-core";
 
-export type { AnyAirJamAgentContract } from "@air-jam/sdk";
+export type { AnyAirJamAgentContract } from "@air-jam/sdk/core";
 
 export type VisualHarnessMode = "standalone-dev" | "arcade-built";
 
@@ -132,7 +135,6 @@ export type VisualScenario<
 export type VisualScenarioPack<
   TAgent extends AnyAirJamAgentContract = AnyAirJamAgentContract,
 > = {
-  agent: TAgent;
   scenarios: ReadonlyArray<VisualScenario<TAgent>>;
 };
 

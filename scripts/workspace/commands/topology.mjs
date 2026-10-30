@@ -7,7 +7,7 @@ export const runWorkspaceTopologyCommand = async ({
   mode,
   secure = false,
 } = {}) => {
-  const activeGame = findRepoGame({ rootDir, gameId });
+  const activeGame = await findRepoGame({ rootDir, gameId });
   if (!activeGame) throw new Error(`Unknown game "${gameId}".`);
   await runProjectTopologyCli({
     cwd: activeGame.dir,

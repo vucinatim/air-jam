@@ -142,7 +142,7 @@ const printReleaseDoctor = async ({
     `Build script: ${doctor.buildScript ? kleur.cyan("present") : kleur.red("missing")}`,
   );
   console.log(
-    `Metadata export: ${doctor.metadataExportLikely ? kleur.cyan("present") : kleur.yellow("missing")}`,
+    `Metadata export: ${doctor.gameSlug ? kleur.cyan("present") : kleur.yellow("missing")}`,
   );
   console.log(
     `Hosted contract: ${kleur.dim(

@@ -15,9 +15,6 @@ import { generateScaffoldTemplates } from "./lib/scaffold-template-generation.mj
 const AGENT_CONTRACT_PATH = "src/game/contracts/agent.ts";
 const CONFIG_PATH = "src/airjam.config.ts";
 
-const readFileIfPresent = (filePath) =>
-  fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : null;
-
 const listFiles = (rootDir, currentDir = rootDir) =>
   fs
     .readdirSync(currentDir, { withFileTypes: true })
@@ -82,7 +79,7 @@ const listArchiveEntries = async (archivePath) =>
   });
 
 const missing = [];
-const expectedTemplates = loadScaffoldableRepoGameManifests();
+const expectedTemplates = await loadScaffoldableRepoGameManifests();
 const expectedTemplateIds = expectedTemplates.map(
   ({ manifest }) => manifest.id,
 );
@@ -112,7 +109,7 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
       }
     }
 
-    for (const { manifest, gameDir } of expectedTemplates) {
+    for (const { manifest, gameDir, declaration } of expectedTemplates) {
       const templateId = manifest.id;
       const entry = index.templates.find(
         (candidate) => candidate?.manifest?.id === templateId,
@@ -140,7 +137,6 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
 
       const archivePath = path.join(scaffoldTemplatesRoot, entry.archive);
       const archiveEntries = await listArchiveEntries(archivePath);
-      const configSource = readFileIfPresent(path.join(gameDir, CONFIG_PATH));
       const sourceHasAgentContract = fs.existsSync(
         path.join(gameDir, AGENT_CONTRACT_PATH),
       );
@@ -153,26 +149,20 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
         );
       }
 
-      if (!configSource) {
+      if (!fs.existsSync(path.join(gameDir, CONFIG_PATH))) {
         missing.push(
           `scaffold template ${templateId} is missing ${CONFIG_PATH}`,
         );
         continue;
       }
 
-      const declaresAgent = configSource.includes("agent:");
+      const declaresAgent = Boolean(declaration.agent);
 
       if (sourceHasAgentContract !== declaresAgent) {
         missing.push(
           sourceHasAgentContract
             ? `scaffold template ${templateId} ships ${AGENT_CONTRACT_PATH} but ${CONFIG_PATH} does not declare agent`
             : `scaffold template ${templateId} declares agent without shipping ${AGENT_CONTRACT_PATH}`,
-        );
-      }
-
-      if (configSource.includes("visualScenariosModule:")) {
-        missing.push(
-          `scaffold template ${templateId} declares visualScenariosModule; visual capture scenarios are repo-internal and must not ship in scaffolded templates`,
         );
       }
     }

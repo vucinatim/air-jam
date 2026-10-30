@@ -55,7 +55,8 @@ const createStandaloneGameRoot = async (): Promise<string> => {
   );
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    "export const airjam = { controllerPath: '/controller' };\n",
+    `import {defineAirJamGame} from ${JSON.stringify(new URL("../../sdk/dist/core.js", import.meta.url).href)};
+     export const airjam = defineAirJamGame({metadata:{version:1,slug:"standalone-airjam-fixture",name:"Fixture",tagline:"Fixture",category:"arcade",minPlayers:1,maxPlayers:4,inputModalities:["buttons"],supportedSdkRange:"^1.0.0",maintainer:{name:"Air Jam"}}});`,
     "utf8",
   );
   return root;
@@ -80,11 +81,12 @@ const createStandaloneAgentGameRoot = async (): Promise<string> => {
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
     `import { agentContract } from "./game/contracts/agent";
-export const airjam = {
-  metadata: { slug: "standalone-agent-fixture" },
+import {defineAirJamGame} from ${JSON.stringify(new URL("../../sdk/dist/core.js", import.meta.url).href)};
+export const airjam = defineAirJamGame({
+  metadata: {version:1,slug:"standalone-agent-fixture",name:"Fixture",tagline:"Fixture",category:"arcade",minPlayers:1,maxPlayers:4,inputModalities:["buttons"],supportedSdkRange:"^1.0.0",maintainer:{name:"Air Jam"}},
   controllerPath: "/controller",
   agent: agentContract,
-};
+});
 `,
     "utf8",
   );
@@ -123,9 +125,9 @@ it("uses the installed devtools helpers without shipping duplicate copies", asyn
     ),
   );
   for (const name of [
-    "agent-contract",
+    "describe-game",
+    "declaration-hook",
     "hold-runtime-host",
-    "inspect-airjam-agent",
     "list-visual-scenarios",
     "managed-dev-supervisor",
     "run-visual-capture",
@@ -165,7 +167,7 @@ describe("createAirJamMcpServer", () => {
         expect(tools).not.toContain(omitted);
       expect(tools).toEqual(
         expect.arrayContaining([
-          "airjam.inspect_game_agent_contract",
+          "airjam.inspect_game",
           "airjam.read_logs",
           "airjam.list_game_test_profiles",
           "airjam.read_game_run",
@@ -205,7 +207,6 @@ describe("createAirJamMcpServer", () => {
       "airjam.auth_status",
       "airjam.list_games",
       "airjam.inspect_game",
-      "airjam.inspect_game_agent_contract",
       "airjam.read_logs",
       "airjam.run_quality_gate",
       "airjam.evaluate",
@@ -283,7 +284,7 @@ describe("createAirJamMcpServer", () => {
       "airjam.reset_local",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
-      "airjam.inspect_game_agent_contract",
+      "airjam.inspect_game",
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.open_game_session",
@@ -457,7 +458,7 @@ describe("createAirJamMcpServer", () => {
     ]);
 
     const result = await client.callTool({
-      name: "airjam.inspect_game_agent_contract",
+      name: "airjam.inspect_game",
       arguments: { cwd: root },
     });
 
@@ -466,9 +467,12 @@ describe("createAirJamMcpServer", () => {
       result.content as Array<{ type: string; text?: string }>
     ).find((block) => block.type === "text");
     expect(JSON.parse(textBlock?.text ?? "{}")).toMatchObject({
-      hasContract: true,
-      snapshotDescription: "Extensionless TypeScript fixture",
-      actions: [],
+      declaration: {
+        agent: {
+          snapshotDescription: "Extensionless TypeScript fixture",
+          actions: [],
+        },
+      },
     });
   });
 

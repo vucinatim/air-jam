@@ -6,7 +6,7 @@ import {
   agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-} from "../src";
+} from "../src/core";
 import {
   describeAirJamAgentAction,
   resolveAirJamAgentActionPayload,

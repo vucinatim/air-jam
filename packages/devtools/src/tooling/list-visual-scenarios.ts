@@ -1,64 +1,21 @@
-import {
-  loadAirJamAppConfig,
-  resolveAirJamConfigGameId,
-  resolveVisualScenarioModulePathFromConfig,
-} from "./airjam-agent.js";
-import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
-
-const getFlagValue = (flag: string): string | null => {
-  const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
-  if (inline) {
-    return inline.slice(flag.length + 1);
-  }
-
-  const index = process.argv.indexOf(flag);
-  return index === -1 ? null : (process.argv[index + 1] ?? null);
-};
-
-const modulePath = getFlagValue("--module-path");
-const configPath = getFlagValue("--config");
-if (!modulePath && !configPath) {
-  throw new Error("Missing required --config or --module-path.");
-}
-
-if (configPath) {
-  if (!(await resolveVisualScenarioModulePathFromConfig(configPath))) {
-    process.stdout.write(
-      `${JSON.stringify(
-        {
-          hasVisualScenarios: false,
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    process.exit(0);
-  }
-}
-
-const scenarioPack = await loadVisualScenarioPackFromModuleOrConfig({
-  modulePath,
-  configPath,
-});
-const effectiveGameId =
-  (configPath
-    ? resolveAirJamConfigGameId(await loadAirJamAppConfig(configPath))
-    : null) ?? "unknown-game";
-
+import { loadAirJamGame, loadAirJamTesting } from "./load-game.js";
+const inline = process.argv.find((value) => value.startsWith("--config="));
+const configIndex = process.argv.indexOf("--config");
+const configPath =
+  inline?.slice(9) ??
+  (configIndex >= 0 ? process.argv[configIndex + 1] : undefined);
+if (!configPath) throw new Error("Missing required --config.");
+const game = await loadAirJamGame(configPath);
+const testing = await loadAirJamTesting(configPath, game);
 process.stdout.write(
-  `${JSON.stringify(
-    {
-      hasVisualScenarios: true,
-      gameId: effectiveGameId,
-      scenarios: scenarioPack.scenarios.map(
-        (scenario: { id: string; description?: string }) => ({
-          scenarioId: scenario.id,
-          description: scenario.description ?? null,
-          supportedModes: ["standalone-dev", "arcade-test"],
-        }),
-      ),
-    },
-    null,
-    2,
-  )}\n`,
+  `${JSON.stringify({
+    hasVisualScenarios: Boolean(testing?.visual),
+    gameId: game.metadata.slug,
+    scenarios:
+      testing?.visual?.scenarios.map((scenario) => ({
+        scenarioId: scenario.id,
+        description: scenario.description ?? null,
+        supportedModes: ["standalone-dev", "arcade-test"],
+      })) ?? [],
+  })}\n`,
 );

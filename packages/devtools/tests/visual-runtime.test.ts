@@ -4,11 +4,12 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCommandResult } from "../src/commands.js";
 import { startDev, stopDev, tryAttachToRunningDev } from "../src/dev.js";
-import { inspectAirJamAgentConfig } from "../src/tooling/airjam-agent-inspection.js";
+import { inspectGame } from "../src/games.js";
 import {
   captureVisualsAtRuntime,
   type CaptureVisualsAtRuntimeOptions,
 } from "../src/visual.js";
+import { fixtureMetadata } from "./game-declaration-fixture.js";
 
 vi.mock("../src/commands.js", () => ({ runCommandResult: vi.fn() }));
 vi.mock("../src/dev.js", () => ({
@@ -17,9 +18,7 @@ vi.mock("../src/dev.js", () => ({
   stopDev: vi.fn(),
   tryAttachToRunningDev: vi.fn(),
 }));
-vi.mock("../src/tooling/airjam-agent-inspection.js", () => ({
-  inspectAirJamAgentConfig: vi.fn(),
-}));
+vi.mock("../src/games.js", () => ({ inspectGame: vi.fn() }));
 
 describe("capture against a caller-owned runtime", () => {
   let root: string;
@@ -39,10 +38,7 @@ describe("capture against a caller-owned runtime", () => {
         dependencies: { "@air-jam/sdk": "0.9.3" },
       }),
     );
-    fs.writeFileSync(
-      path.join(project, "airjam.config.ts"),
-      "export default {};",
-    );
+
     options = {
       cwd: project,
       artifactRoot: path.join(root, "product-artifacts"),
@@ -57,9 +53,28 @@ describe("capture against a caller-owned runtime", () => {
         browserBuildUrl: "http://localhost:3500/airjam-local-builds/pong",
       },
     };
-    vi.mocked(inspectAirJamAgentConfig).mockResolvedValue({
-      hasAgent: true,
-      visualScenariosModulePath: path.join(project, "visual/scenarios.ts"),
+    vi.mocked(inspectGame).mockResolvedValue({
+      id: "external-game",
+      name: "Fixture",
+      rootDir: project,
+      configPath: path.join(project, "src/airjam.config.ts"),
+      packageName: "external-game",
+      description: "Fixture",
+      category: "arcade",
+      manifestPath: null,
+      scaffold: null,
+      packageJsonPath: null,
+      scripts: {},
+      qualityGates: [],
+      declaration: {
+        version: 1,
+        metadata: fixtureMetadata({ slug: "external-game" }),
+        controllerPath: "/controller",
+        simulation: false,
+        input: null,
+        agent: null,
+        testing: true,
+      },
     });
     vi.mocked(runCommandResult).mockImplementation((command) => {
       const summary = {
@@ -137,12 +152,13 @@ describe("capture against a caller-owned runtime", () => {
   });
 
   it("requires explicitly published scenarios without taking over the runtime", async () => {
-    vi.mocked(inspectAirJamAgentConfig).mockResolvedValue({
-      hasAgent: true,
-      visualScenariosModulePath: null,
+    const game = await inspectGame({ cwd: options.cwd });
+    vi.mocked(inspectGame).mockResolvedValue({
+      ...game,
+      declaration: { ...game.declaration, testing: false },
     });
     await expect(captureVisualsAtRuntime(options)).rejects.toThrow(
-      /No visual scenarios published/u,
+      /No visual scenarios declared/u,
     );
     expect(runCommandResult).not.toHaveBeenCalled();
     expect(startDev).not.toHaveBeenCalled();

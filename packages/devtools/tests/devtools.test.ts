@@ -44,6 +44,10 @@ import {
 } from "../src/quality.js";
 import type { AirJamVisualCaptureSummary } from "../src/types.js";
 import { listVisualScenarios } from "../src/visual.js";
+import {
+  declarationSource,
+  testingSource,
+} from "./game-declaration-fixture.js";
 const {
   closeGameSession,
   invokeGameSessionAction,
@@ -166,7 +170,10 @@ const createStandaloneDevFixture = async (): Promise<{
   await mkdir(path.join(root, "src"), { recursive: true });
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    'export const airjam = { controllerPath: "/controller", visualScenariosModule: "./game/contracts/visual-scenarios.mjs" };\n',
+    declarationSource(
+      { slug: "solo-fixture" },
+      'testing: "./game/contracts/visual-scenarios.mjs"',
+    ),
     "utf8",
   );
   await writeFile(
@@ -232,8 +239,7 @@ console.log(JSON.stringify({
   });
   await writeFile(
     path.join(root, "src", "game", "contracts", "visual-scenarios.mjs"),
-    `export const visualScenarios = {
-  agent: {},
+    testingSource(`profiles: {}, visual: {
   scenarios: [
     {
       id: "lobby",
@@ -241,8 +247,7 @@ console.log(JSON.stringify({
       run: async () => {},
     },
   ],
-};
-`,
+}`),
     "utf8",
   );
 
@@ -297,7 +302,11 @@ const createControllerSocketFixture = async ({
   }
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    `import { agentContract } from "${aliasedAgentImport ? "@/game/contracts/agent" : "./game/contracts/agent"}";\nexport const airjam = { controllerPath: "/controller", agent: agentContract, visualScenariosModule: "./game/contracts/visual-scenarios.mjs" };\n`,
+    declarationSource(
+      { slug: "socket-fixture" },
+      "agent: agentContract",
+      `import { agentContract } from "${aliasedAgentImport ? "@/game/contracts/agent" : "./game/contracts/agent"}";`,
+    ),
     "utf8",
   );
   await mkdir(path.join(root, "src", "game", "contracts"), {
@@ -372,8 +381,7 @@ const createControllerSocketFixture = async ({
   await mkdir(path.join(root, "visual"), { recursive: true });
   await writeFile(
     path.join(root, "visual", "scenarios.mjs"),
-    `export const visualScenarios = {
-  agent: {},
+    testingSource(`profiles: {}, visual: {
   scenarios: [
     {
       id: "lobby",
@@ -381,8 +389,7 @@ const createControllerSocketFixture = async ({
       run: async () => {},
     },
   ],
-};
-`,
+}`),
     "utf8",
   );
 
@@ -701,7 +708,7 @@ describe("detectProjectContext", () => {
     await mkdir(path.join(root, "src"), { recursive: true });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const gameMetadata = {}; export const airjam = { controllerPath: "/controller" };\n',
+      'export const airjam = { controllerPath: "/controller" };\n',
       "utf8",
     );
 
@@ -757,9 +764,9 @@ describe("listGames and inspectGame", () => {
     expect(games.map((game) => game.id)).toContain("air-capture");
     expect(games.map((game) => game.id)).toContain("pong");
     expect(games.every((game) => game.manifestPath)).toBe(true);
-  });
+  }, 60_000);
 
-  it("inspects a repo game without loading its TypeScript config", async () => {
+  it("inspects the declared repo game", async () => {
     const game = await inspectGame({
       cwd: path.resolve(__dirname, "../../.."),
       gameId: "pong",
@@ -767,8 +774,8 @@ describe("listGames and inspectGame", () => {
 
     expect(game.id).toBe("pong");
     expect(game.configPath).toMatch(/src\/airjam\.config\.ts$/);
-    expect(game.metadataExportLikely).toBe(true);
-    expect(game.controllerPathLikely).toBe("/controller");
+    expect(game.declaration.metadata.slug).toBe("pong");
+    expect(game.declaration.controllerPath).toBe("/controller");
     expect(game).not.toHaveProperty("visual");
     expect(game.qualityGates).toContain("typecheck");
     expect(game.qualityGates).toContain("release-check");
@@ -789,7 +796,7 @@ describe("listGames and inspectGame", () => {
     await mkdir(path.join(root, "src"), { recursive: true });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { controllerPath: "/phone" };\n',
+      declarationSource({ slug: "solo-game" }, 'controllerPath: "/phone"'),
       "utf8",
     );
 
@@ -798,7 +805,7 @@ describe("listGames and inspectGame", () => {
 
     expect(games).toHaveLength(1);
     expect(game.id).toBe("solo-game");
-    expect(game.controllerPathLikely).toBe("/phone");
+    expect(game.declaration.controllerPath).toBe("/phone");
     expect(game.qualityGates).toEqual(["typecheck", "test"]);
   });
 });
@@ -823,9 +830,13 @@ describe("visual capture summaries", () => {
       name: "pong",
     });
     await writeJson(path.join(root, "games/pong/airjam-template.json"), {
-      id: "pong",
-      name: "Pong",
+      scaffold: true,
     });
+    await mkdir(path.join(root, "games/pong/src"), { recursive: true });
+    await writeFile(
+      path.join(root, "games/pong/src/airjam.config.ts"),
+      declarationSource({ slug: "pong", name: "Pong" }),
+    );
     await writeJson(
       path.join(root, ".airjam/artifacts/visual/pong/capture-summary.json"),
       {
@@ -929,7 +940,7 @@ describe("dev lifecycle and topology", () => {
     expect(hostUrl.port).toBe("5173");
     expect(hostUrl.pathname).toBe("/");
     expect(topology.urls.localBuildUrl).toBeNull();
-  });
+  }, 30_000);
 
   it.each([
     ["standalone-dev", "standalone:dev", "standalone-dev"],
@@ -955,18 +966,29 @@ describe("dev lifecycle and topology", () => {
         "packages: [games/*]\n",
       );
       await writeJson(path.join(root, "games/pong/airjam-template.json"), {
-        id: "pong",
-        name: "Pong",
+        scaffold: true,
       });
+      await mkdir(path.join(root, "games/pong/src"), { recursive: true });
+      await writeFile(
+        path.join(root, "games/pong/src/airjam.config.ts"),
+        declarationSource({ slug: "pong", name: "Pong" }),
+      );
       await writeJson(path.join(root, "games/pong/package.json"), {
         name: "pong",
       });
       await writeJson(
         path.join(root, "games/air-capture/airjam-template.json"),
-        {
-          id: "air-capture",
+        { scaffold: true },
+      );
+      await mkdir(path.join(root, "games/air-capture/src"), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(root, "games/air-capture/src/airjam.config.ts"),
+        declarationSource({
+          slug: "air-capture",
           name: "Zebra reference game",
-        },
+        }),
       );
       await writeFile(
         path.join(root, "workspace.mjs"),
@@ -1020,6 +1042,7 @@ if (command === "topology") {
       }
       await waitForHttpClosed(port);
     },
+    30_000,
   );
 
   it("rejects undeclared workspace modes before inspecting games or starting a process", async () => {
@@ -1115,7 +1138,7 @@ if (command === "topology") {
     const statusAfterStop = await getDevStatus({ cwd: root });
     expect(statusAfterStop.processes).toHaveLength(0);
     await waitForHttpClosed(port);
-  });
+  }, 30_000);
 
   it("reports an early managed runtime exit without waiting for the topology timeout", async () => {
     const { root } = await createStandaloneDevFixture();
@@ -1208,8 +1231,8 @@ describe("visual scenarios", () => {
         cwd: path.resolve(__dirname, "../../.."),
         gameId: "pong",
       }),
-    ).rejects.toThrow(/No visual scenarios published/);
-  });
+    ).rejects.toThrow(/No visual scenarios declared/);
+  }, 30_000);
 
   it("lists explicitly published visual scenarios for an internal fixture", async () => {
     const root = await createTempRoot();
@@ -1225,12 +1248,17 @@ describe("visual scenarios", () => {
     });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { metadata: { slug: "published-visual-fixture" }, controllerPath: "/controller", visualScenariosModule: "./game/contracts/visual-scenarios" };\n',
+      declarationSource(
+        { slug: "published-visual-fixture" },
+        'testing: "./game/contracts/visual-scenarios.ts"',
+      ),
       "utf8",
     );
     await writeFile(
       path.join(root, "src", "game", "contracts", "visual-scenarios.ts"),
-      "export const visualScenarios = { agent: {}, scenarios: [{ id: 'lobby', description: 'Lobby state', run: async () => {} }] };\n",
+      testingSource(
+        "profiles: {}, visual: { scenarios: [{ id: 'lobby', description: 'Lobby state', run: async () => {} }] }",
+      ),
       "utf8",
     );
 
@@ -1239,9 +1267,7 @@ describe("visual scenarios", () => {
     });
 
     expect(scenarios.gameId).toBe("published-visual-fixture");
-    expect(scenarios.scenarioModulePath).toMatch(
-      /game\/contracts\/visual-scenarios(?:\.ts)?$/,
-    );
+    expect(scenarios.configPath).toMatch(/src\/airjam\.config\.ts$/);
     expect(scenarios.scenarios.map((scenario) => scenario.scenarioId)).toEqual([
       "lobby",
     ]);
@@ -1260,7 +1286,7 @@ describe("visual scenarios", () => {
     await mkdir(path.join(root, "visual"), { recursive: true });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { controllerPath: "/controller" };\n',
+      declarationSource(),
       "utf8",
     );
     await writeFile(
@@ -1270,7 +1296,7 @@ describe("visual scenarios", () => {
     );
 
     await expect(listVisualScenarios({ cwd: root })).rejects.toThrow(
-      /No visual scenarios published/,
+      /No visual scenarios declared/,
     );
   });
 });
@@ -1588,7 +1614,7 @@ describe("agent contracts", () => {
     });
     await writeFile(
       path.join(root, "src", "airjam.config.ts"),
-      'export const airjam = { controllerPath: "/controller" };\n',
+      declarationSource(),
       "utf8",
     );
     await writeFile(

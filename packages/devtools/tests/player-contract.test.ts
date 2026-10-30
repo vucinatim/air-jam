@@ -5,9 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { takeDecisionProviderFromEnvironment } from "../src/decision-provider.js";
 import {
   airJamPolicyDecisionSchema,
-  createAirJamPlayerPolicy,
   type AirJamPlayerContract,
 } from "../src/testing.js";
+import { declaredModelPolicy } from "./game-declaration-fixture.js";
 
 const observation = { snapshot: { count: 2 } } as unknown as HostObservation;
 const configured = (environment: NodeJS.ProcessEnv) => {
@@ -40,7 +40,7 @@ const counter = {
 
 describe("player contract", () => {
   it("asks with the brief ahead of the described state, as a valid decision", async () => {
-    const decider = await createAirJamPlayerPolicy(counter).create({
+    const decider = await declaredModelPolicy(counter).create({
       seatId: "first",
       random: Math.random,
     });
@@ -65,7 +65,7 @@ describe("player contract", () => {
   });
 
   it("puts the seat's current goal right after the brief", async () => {
-    const decider = await createAirJamPlayerPolicy(counter).create({
+    const decider = await declaredModelPolicy(counter).create({
       seatId: "first",
       random: Math.random,
     });
@@ -86,7 +86,7 @@ describe("player contract", () => {
   });
 
   it("refuses a turn too long to take a goal line, even before any steering", async () => {
-    const decider = await createAirJamPlayerPolicy({
+    const decider = await declaredModelPolicy({
       ...counter,
       turn: () => ({
         state: Array.from({ length: 31 }, (_, index) => `Line ${index}.`),
@@ -111,7 +111,7 @@ describe("player contract", () => {
   });
 
   it("releases a seat with nothing to decide", async () => {
-    const decider = await createAirJamPlayerPolicy(counter).create({
+    const decider = await declaredModelPolicy(counter).create({
       seatId: "first",
       random: Math.random,
     });
@@ -131,7 +131,7 @@ describe("player contract", () => {
   it("keeps acting on the last choice between questions when the contract acts", async () => {
     const acted: string[] = [];
     let seats = 0;
-    const decider = await createAirJamPlayerPolicy({
+    const decider = await declaredModelPolicy({
       ...counter,
       act: {
         rethinkMs: 1000,
@@ -178,7 +178,7 @@ describe("player contract", () => {
     expect(await step(2300, tap, "Stop at four taps.")).toHaveProperty("ask");
     expect(acted).toEqual(["tap", "tap", "tap"]);
     expect(() =>
-      createAirJamPlayerPolicy({
+      declaredModelPolicy({
         ...counter,
         act: { rethinkMs: 0, create: () => ({ control: () => null }) },
       }),
@@ -187,7 +187,7 @@ describe("player contract", () => {
 
   it("refuses an empty brief and questions that offer one option or mix control with asking", () => {
     expect(() =>
-      createAirJamPlayerPolicy({ brief: "", turn: () => null }),
+      declaredModelPolicy({ brief: "", turn: () => null }),
     ).toThrow();
     const single = {
       ask: {

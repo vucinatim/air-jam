@@ -48,7 +48,7 @@ The canonical target is the current Air Jam app pattern used by:
 
 The most important traits are:
 
-1. `createAirJamApp(...)` in `src/airjam.config.ts`
+1. `defineAirJamGame(...)` from `@air-jam/sdk/core` in `src/airjam.config.ts`
 2. `airjam.Host` and `airjam.Controller` route wrappers in `src/app.tsx`
 3. host and controller runtime hooks mounted only inside their route entry files
 4. game-owned code grouped under `src/game/` or `src/store/` with explicit boundaries
@@ -57,15 +57,16 @@ The most important traits are:
 
 ## Minimal Migration Recipe
 
-### 1. Move Runtime Bootstrap Into `airjam.config.ts`
+### 1. Declare The Game In `airjam.config.ts`
 
 Old apps often kept runtime wiring inside `App.tsx` or provider setup.
 
 The target shape is:
 
 1. `src/airjam.config.ts`
-2. `createAirJamApp({ runtime: env.vite(import.meta.env), ... })`
-3. declared controls passed there through `input: defineAirJamInput({ ... })`
+2. `defineAirJamGame({ metadata, stores, simulation, input, agent, testing })`
+3. `createAirJamApp(airjam, { runtime: env.vite(import.meta.env) })` in `app.tsx`
+4. declared controls passed there through `input: defineAirJamInput({ ... })`
 
 This removes ad hoc route/runtime duplication from the main app entry.
 
@@ -264,3 +265,22 @@ Air Jam v1 migration proof should be judged by these outcomes:
 5. packaged dependency validation passes
 
 If those are true, the migration is real.
+
+## From 0.9 To 1.0: The game is declared in core
+
+Keep `src/airjam.config.ts` framework-free and export the named `airjam` from
+`defineAirJamGame` in `@air-jam/sdk/core`. Move metadata into the declaration;
+`metadata.maxPlayers` alone sets room capacity. The loader rejects React,
+the SDK root, TSX and CSS in that module graph with
+`AJ_DECLARATION_NOT_FRAMEWORK_FREE`, naming the importer.
+
+Bind the declaration in `app.tsx` with `createAirJamApp(airjam, { runtime })`.
+The result contains `Host`, `Controller`, `paths` and `session`; game facts and
+`createHostRuntime` belong to the declaration. Import agent helpers from core.
+
+The declared relative `testing` path names a development-only module exporting
+`testing = defineAirJamTesting({ player, profiles, visual })` from
+`@air-jam/devtools/testing`. `visual` is optional and uses the declared agent.
+A player offers `model` in every profile automatically; remove manually authored
+model policies. Agents inspect the description through `airjam.inspect_game`.
+See the creator migration page for the complete before/after mapping.

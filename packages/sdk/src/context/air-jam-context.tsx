@@ -184,15 +184,17 @@ export const AirJamProvider = ({
   // Resolve config via runtime config resolver.
   const config = useMemo<AirJamConfig>(
     () =>
-      resolveAirJamConfig({
-        topology,
-        surfaceRole,
-        appId,
-        hostGrantEndpoint,
+      resolveAirJamConfig(
+        {
+          topology,
+          surfaceRole,
+          appId,
+          hostGrantEndpoint,
+          hostSessionKind,
+          resolveEnv,
+        },
         maxPlayers,
-        hostSessionKind,
-        resolveEnv,
-      }),
+      ),
     [
       topology,
       surfaceRole,

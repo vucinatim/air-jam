@@ -10,6 +10,7 @@ import {
   readLocalHostedGameDefaults,
   updatePlatformGame,
 } from "../src/platform-games.js";
+import { declarationSource } from "./game-declaration-fixture.js";
 
 const tempRoots: string[] = [];
 
@@ -53,10 +54,7 @@ describe("platform game tooling", () => {
       path.join(gameRoot, "airjam-template.json"),
       `${JSON.stringify(
         {
-          id: "minimal",
-          name: "Minimal",
-          description: "Template summary.",
-          category: "showcase",
+          scaffold: true,
         },
         null,
         2,
@@ -65,21 +63,12 @@ describe("platform game tooling", () => {
     );
     await writeFile(
       path.join(gameRoot, "src", "airjam.config.ts"),
-      `
-        export const gameMetadata = {
-          version: 1,
-          slug: "minimal",
-          name: "Minimal",
-          tagline: "Clean-slate starter.",
-          category: "showcase",
-          minPlayers: 1,
-          maxPlayers: 4,
-          inputModalities: ["buttons"],
-          supportedSdkRange: "^1.0.0",
-          maintainer: { name: "Air Jam" }
-        };
-        export const airjam = { metadata: gameMetadata, controllerPath: "/controller" };
-      `,
+      declarationSource({
+        slug: "minimal",
+        name: "Minimal",
+        tagline: "Clean-slate starter.",
+        category: "showcase",
+      }),
       "utf8",
     );
     execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });

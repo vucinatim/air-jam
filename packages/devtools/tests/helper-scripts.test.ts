@@ -15,8 +15,8 @@ describe("devtools helper execution", () => {
 
   it("loads project TypeScript for built helpers that import user config", () => {
     for (const helperName of [
-      "agent-contract",
-      "inspect-airjam-agent",
+      "describe-game",
+      "run-headless-room",
       "list-visual-scenarios",
       "run-visual-capture",
       "run-test-profile",

@@ -4,7 +4,7 @@ import {
   agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-} from "@air-jam/sdk";
+} from "@air-jam/sdk/core";
 import { getMatchReadiness } from "../domain/match-readiness";
 import { getTeamLabel, type TeamId } from "../domain/team";
 import { getEffectiveTeamCounts, getTeamCounts } from "../domain/team-slots";

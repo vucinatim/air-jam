@@ -1,6 +1,5 @@
 import {
-  createAirJamPlayerPolicy,
-  defineAirJamTestProfiles,
+  defineAirJamTesting,
   type AirJamTestPolicy,
 } from "@air-jam/devtools/testing";
 import { MAX_HP } from "../game/engine/constants";
@@ -61,134 +60,135 @@ const join = (seatId: string, team: "team1" | "team2") => ({
   input: team,
 });
 
-export const testProfiles = defineAirJamTestProfiles({
-  round: {
-    label: "Fight one round against the game's bot",
-    seats: [{ id: "player", label: "Coder fighter" }],
-    setup: [
-      // The room may hold an earlier match; every run starts from the lobby.
-      { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
-      join("player", "team1"),
-      {
-        lane: "participant",
-        seatId: "player",
-        actionId: "set_bot_count",
-        input: { team: "team1", count: 0 },
+export const testing = defineAirJamTesting({
+  player: codeReviewPlayer,
+  profiles: {
+    round: {
+      label: "Fight one round against the game's bot",
+      seats: [{ id: "player", label: "Coder fighter" }],
+      setup: [
+        // The room may hold an earlier match; every run starts from the lobby.
+        { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
+        join("player", "team1"),
+        {
+          lane: "participant",
+          seatId: "player",
+          actionId: "set_bot_count",
+          input: { team: "team1", count: 0 },
+        },
+        {
+          lane: "participant",
+          seatId: "player",
+          actionId: "set_bot_count",
+          input: { team: "team2", count: 1 },
+        },
+        { lane: "participant", seatId: "player", actionId: "start_match" },
+      ],
+      actions: [],
+      scope: "player",
+      includeImage: false,
+      timing: { intervalMs: 100, decisionMs: 1200, inputTtlMs: 1500 },
+      metrics: [
+        { id: "rounds_won", label: "Rounds won" },
+        { id: "rounds_lost", label: "Rounds lost" },
+        { id: "damage_dealt", label: "Damage dealt" },
+        { id: "damage_taken", label: "Damage taken" },
+      ],
+      policies: {
+        code: brawlerPolicy(false),
+        random: brawlerPolicy(true),
       },
-      {
-        lane: "participant",
-        seatId: "player",
-        actionId: "set_bot_count",
-        input: { team: "team2", count: 1 },
+      evaluator: {
+        create: () => {
+          const lowest = { team1: MAX_HP, team2: MAX_HP };
+          return {
+            evaluate: ({ observation }) => {
+              const { scores } = snapshotSchema.parse(observation.snapshot);
+              const { hp } = runtimeSchema.parse(observation.runtime);
+              const decided = scores.team1 + scores.team2 > 0;
+              if (!decided) {
+                lowest.team1 = Math.min(lowest.team1, hp.team1);
+                lowest.team2 = Math.min(lowest.team2, hp.team2);
+              }
+              const metrics = {
+                rounds_won: scores.team1,
+                rounds_lost: scores.team2,
+                damage_dealt:
+                  decided && scores.team1 > 0 ? MAX_HP : MAX_HP - lowest.team2,
+                damage_taken:
+                  decided && scores.team2 > 0 ? MAX_HP : MAX_HP - lowest.team1,
+              };
+              return decided
+                ? {
+                    status: "passed",
+                    message: `The first round went to ${scores.team1 > 0 ? "the player" : "the bot"}.`,
+                    metrics,
+                  }
+                : { status: "pending", metrics };
+            },
+          };
+        },
       },
-      { lane: "participant", seatId: "player", actionId: "start_match" },
-    ],
-    actions: [],
-    scope: "player",
-    includeImage: false,
-    timing: { intervalMs: 100, decisionMs: 1200, inputTtlMs: 1500 },
-    metrics: [
-      { id: "rounds_won", label: "Rounds won" },
-      { id: "rounds_lost", label: "Rounds lost" },
-      { id: "damage_dealt", label: "Damage dealt" },
-      { id: "damage_taken", label: "Damage taken" },
-    ],
-    policies: {
-      code: brawlerPolicy(false),
-      random: brawlerPolicy(true),
-      model: createAirJamPlayerPolicy(codeReviewPlayer),
     },
-    evaluator: {
-      create: () => {
-        const lowest = { team1: MAX_HP, team2: MAX_HP };
-        return {
+    brawl: {
+      label: "Four agent fighters, two a side, for one round",
+      seats: [
+        { id: "coder1", label: "Coder one" },
+        { id: "coder2", label: "Coder two" },
+        { id: "reviewer1", label: "Reviewer one" },
+        { id: "reviewer2", label: "Reviewer two" },
+      ],
+      setup: [
+        // The room may hold an earlier match; every run starts from the lobby.
+        { lane: "participant", seatId: "coder1", actionId: "return_to_lobby" },
+        join("coder1", "team1"),
+        join("coder2", "team1"),
+        join("reviewer1", "team2"),
+        join("reviewer2", "team2"),
+        {
+          lane: "participant",
+          seatId: "coder1",
+          actionId: "set_bot_count",
+          input: { team: "team1", count: 0 },
+        },
+        {
+          lane: "participant",
+          seatId: "coder1",
+          actionId: "set_bot_count",
+          input: { team: "team2", count: 0 },
+        },
+        { lane: "participant", seatId: "coder1", actionId: "start_match" },
+      ],
+      actions: [],
+      scope: "player",
+      includeImage: false,
+      timing: { intervalMs: 100, decisionMs: 1500, inputTtlMs: 1800 },
+      metrics: [
+        { id: "coder_rounds", label: "Rounds won by the Coders" },
+        { id: "reviewer_rounds", label: "Rounds won by the Reviewers" },
+      ],
+      policies: {
+        code: brawlerPolicy(false),
+        random: brawlerPolicy(true),
+      },
+      evaluator: {
+        create: () => ({
           evaluate: ({ observation }) => {
             const { scores } = snapshotSchema.parse(observation.snapshot);
-            const { hp } = runtimeSchema.parse(observation.runtime);
-            const decided = scores.team1 + scores.team2 > 0;
-            if (!decided) {
-              lowest.team1 = Math.min(lowest.team1, hp.team1);
-              lowest.team2 = Math.min(lowest.team2, hp.team2);
-            }
             const metrics = {
-              rounds_won: scores.team1,
-              rounds_lost: scores.team2,
-              damage_dealt:
-                decided && scores.team1 > 0 ? MAX_HP : MAX_HP - lowest.team2,
-              damage_taken:
-                decided && scores.team2 > 0 ? MAX_HP : MAX_HP - lowest.team1,
+              coder_rounds: scores.team1,
+              reviewer_rounds: scores.team2,
             };
-            return decided
+            return scores.team1 + scores.team2 > 0
               ? {
                   status: "passed",
-                  message: `The first round went to ${scores.team1 > 0 ? "the player" : "the bot"}.`,
+                  message: `The first round went to the ${scores.team1 > 0 ? "Coders" : "Reviewers"}.`,
                   metrics,
                 }
               : { status: "pending", metrics };
           },
-        };
+        }),
       },
-    },
-  },
-  brawl: {
-    label: "Four agent fighters, two a side, for one round",
-    seats: [
-      { id: "coder1", label: "Coder one" },
-      { id: "coder2", label: "Coder two" },
-      { id: "reviewer1", label: "Reviewer one" },
-      { id: "reviewer2", label: "Reviewer two" },
-    ],
-    setup: [
-      // The room may hold an earlier match; every run starts from the lobby.
-      { lane: "participant", seatId: "coder1", actionId: "return_to_lobby" },
-      join("coder1", "team1"),
-      join("coder2", "team1"),
-      join("reviewer1", "team2"),
-      join("reviewer2", "team2"),
-      {
-        lane: "participant",
-        seatId: "coder1",
-        actionId: "set_bot_count",
-        input: { team: "team1", count: 0 },
-      },
-      {
-        lane: "participant",
-        seatId: "coder1",
-        actionId: "set_bot_count",
-        input: { team: "team2", count: 0 },
-      },
-      { lane: "participant", seatId: "coder1", actionId: "start_match" },
-    ],
-    actions: [],
-    scope: "player",
-    includeImage: false,
-    timing: { intervalMs: 100, decisionMs: 1500, inputTtlMs: 1800 },
-    metrics: [
-      { id: "coder_rounds", label: "Rounds won by the Coders" },
-      { id: "reviewer_rounds", label: "Rounds won by the Reviewers" },
-    ],
-    policies: {
-      code: brawlerPolicy(false),
-      random: brawlerPolicy(true),
-      model: createAirJamPlayerPolicy(codeReviewPlayer),
-    },
-    evaluator: {
-      create: () => ({
-        evaluate: ({ observation }) => {
-          const { scores } = snapshotSchema.parse(observation.snapshot);
-          const metrics = {
-            coder_rounds: scores.team1,
-            reviewer_rounds: scores.team2,
-          };
-          return scores.team1 + scores.team2 > 0
-            ? {
-                status: "passed",
-                message: `The first round went to the ${scores.team1 > 0 ? "Coders" : "Reviewers"}.`,
-                metrics,
-              }
-            : { status: "pending", metrics };
-        },
-      }),
     },
   },
 });

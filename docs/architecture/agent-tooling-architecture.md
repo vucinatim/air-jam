@@ -1,6 +1,6 @@
 # Agent And Tooling Architecture
 
-Last updated: 2026-10-16
+Last updated: 2026-10-30
 Status: implemented architecture
 
 Related docs:
@@ -26,6 +26,24 @@ The intended architecture is:
 2. runtime inspection as an explicit contract
 3. logs and topology as explicit tooling surfaces
 4. browser interaction as proof and fallback, not the only lane
+
+## Game declarations
+
+`src/airjam.config.ts` exports one branded `defineAirJamGame` declaration from
+`@air-jam/sdk/core`. Its graph is framework-free; React binds it in `app.tsx`
+with `createAirJamApp(game, { runtime })`. Metadata owns identity and room
+capacity. Agent contracts also come from core.
+
+Devtools' `load-game.ts` enforces that boundary. Its `describe-game` subprocess
+returns versioned JSON validated in core; `listGames` uses one process for the
+workspace, and `inspectGame` describes one game. CLI, MCP, release, scaffold and
+repo tooling consume those services. `airjam.inspect_game` exposes the
+`declaration`, including the agent contract and controls.
+
+Development profiles, the player and optional visual scenarios live in the
+module named by `testing`, exported through `defineAirJamTesting`. A declared
+player supplies the reserved `model` policy to every profile; visual scenarios
+use the game's agent. These modules stay out of browser bundles.
 
 ## Layers
 

@@ -1,18 +1,11 @@
 import {
-  airJamGameMetadataSchema,
-  type AirJamGameMetadata,
-} from "@air-jam/sdk/metadata";
-import {
   platformMachineCreateOwnedGameResultSchema,
   platformMachineGetOwnedGameResultSchema,
   platformMachineListOwnedGamesResultSchema,
   platformMachineUpdateOwnedGameResultSchema,
 } from "@air-jam/sdk/platform-machine";
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { runCommandResult } from "./commands.js";
 import {
   findUp,
   pathExists,
@@ -39,16 +32,6 @@ export type {
   ListPlatformGamesOptions,
   UpdatePlatformGameOptions,
 } from "./types.js";
-
-const require = createRequire(import.meta.url);
-
-const resolveTsxLoaderPath = (): string | null => {
-  try {
-    return require.resolve("tsx/esm");
-  } catch {
-    return null;
-  }
-};
 
 const normalizeGithubRemoteUrl = (value: string): string | null => {
   const trimmed = value.trim();
@@ -146,9 +129,6 @@ type LocalTemplateManifest = {
   category?: unknown;
 };
 
-const toOptionalString = (value: unknown): string | null =>
-  typeof value === "string" && value.trim() ? value.trim() : null;
-
 const resolveTemplateManifestPath = (projectDir: string) =>
   path.join(projectDir, "airjam-template.json");
 
@@ -172,61 +152,19 @@ const loadTemplateManifest = async (
   }
 };
 
-const loadGameMetadataFromConfig = async (
-  configPath: string | null,
-): Promise<AirJamGameMetadata | null> => {
-  if (!configPath) {
-    return null;
-  }
-
-  const tsxLoaderPath = resolveTsxLoaderPath();
-  if (!tsxLoaderPath) {
-    return null;
-  }
-
-  const configUrl = pathToFileURL(configPath).href;
-  const script = `
-    const moduleUrl = ${JSON.stringify(configUrl)};
-    const mod = await import(moduleUrl);
-    const value = mod.gameMetadata ?? mod.airjam?.metadata ?? null;
-    process.stdout.write(JSON.stringify(value));
-  `;
-
-  const result = runCommandResult({
-    command: process.execPath,
-    args: ["--import", tsxLoaderPath, "--input-type=module", "--eval", script],
-    cwd: path.dirname(configPath),
-  });
-
-  if (!result.ok) {
-    return null;
-  }
-
-  const raw = result.stdout.trim();
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return airJamGameMetadataSchema.parse(JSON.parse(raw) as unknown);
-  } catch {
-    return null;
-  }
-};
-
 export const readLocalHostedGameDefaults = async ({
   cwd = process.cwd(),
 }: {
   cwd?: string;
 } = {}): Promise<AirJamLocalHostedGameDefaults> => {
   const game = await inspectGame({ cwd });
-  const [template, packageJson, metadata, sourceUrl] = await Promise.all([
+  const [template, packageJson, sourceUrl] = await Promise.all([
     loadTemplateManifest(game.rootDir),
     readPackageJson(game.rootDir),
-    loadGameMetadataFromConfig(game.configPath),
     resolveRepoSourceUrl({ projectDir: game.rootDir }),
   ]);
 
+  const metadata = game.declaration.metadata;
   return {
     projectDir: game.rootDir,
     configPath: game.configPath,
@@ -242,10 +180,10 @@ export const readLocalHostedGameDefaults = async ({
       tags: metadata?.tags ? [...metadata.tags] : [],
     },
     template: {
-      id: toOptionalString(template.value?.id),
-      name: toOptionalString(template.value?.name),
-      description: toOptionalString(template.value?.description),
-      category: toOptionalString(template.value?.category),
+      id: metadata.slug,
+      name: metadata.name,
+      description: metadata.tagline,
+      category: metadata.category,
     },
   };
 };

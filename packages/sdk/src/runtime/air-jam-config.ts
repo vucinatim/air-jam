@@ -24,7 +24,6 @@ export interface ResolveAirJamConfigInput {
   surfaceRole?: SurfaceRole;
   appId?: string;
   hostGrantEndpoint?: string;
-  maxPlayers?: number;
   hostSessionKind?: HostSessionKind;
   resolveEnv?: boolean;
 }
@@ -234,15 +233,17 @@ const resolveProjectTopologyFromEnv = (
   });
 };
 
-export const resolveAirJamConfig = ({
-  topology,
-  surfaceRole,
-  appId,
-  hostGrantEndpoint,
-  maxPlayers,
-  hostSessionKind,
-  resolveEnv = true,
-}: ResolveAirJamConfigInput): AirJamConfig => {
+export const resolveAirJamConfig = (
+  {
+    topology,
+    surfaceRole,
+    appId,
+    hostGrantEndpoint,
+    hostSessionKind,
+    resolveEnv = true,
+  }: ResolveAirJamConfigInput,
+  maxPlayers?: number,
+): AirJamConfig => {
   const resolvedTopology = topology
     ? applySurfaceRoleOverride(resolveRuntimeTopology(topology), surfaceRole)
     : resolveEnv
@@ -279,7 +280,7 @@ export const resolveAirJamConfig = ({
     topology: resolvedTopology,
     appId: resolvedAppId,
     hostGrantEndpoint: hostGrantEndpoint ?? getEnvHostGrantEndpoint(),
-    maxPlayers,
     hostSessionKind,
+    maxPlayers,
   });
 };

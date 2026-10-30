@@ -21,7 +21,7 @@ export const useSimulation = <TSim, TEvent = never>(): SimulationClock<
   if (!runtime?.simulation)
     throw createAirJamDiagnosticError(
       "AJ_SIMULATION_NOT_DECLARED",
-      "This host component reads the game simulation, but the host runs none. Declare it with createAirJamApp({ simulation }).",
+      "This host component reads the game simulation, but the host runs none. Declare it with defineAirJamGame({ simulation }).",
     );
   return runtime.simulation as SimulationClock<TSim, unknown, TEvent>;
 };

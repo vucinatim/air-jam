@@ -1,11 +1,11 @@
-import { type SongBucketId } from "@/game/content/song-bank";
-import { type PlayerScore } from "@/game/domain/player-utils";
+import { type AirJamActionContext } from "@air-jam/sdk/core";
+import { type SongBucketId } from "../content/song-bank";
+import { type PlayerScore } from "../domain/player-utils";
 import {
   type PlayerAnswer,
   type RoundPlayerResult,
-} from "@/game/domain/round-engine";
-import { type GamePhase, type RoundGuessKind } from "@/game/domain/types";
-import { type AirJamActionContext } from "@air-jam/sdk/core";
+} from "../domain/round-engine";
+import { type GamePhase, type RoundGuessKind } from "../domain/types";
 
 export type { PlayerScore };
 

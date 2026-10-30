@@ -1,13 +1,18 @@
-import { readFile } from "node:fs/promises";
+import { airJamGameDescriptionSchema } from "@air-jam/sdk/core";
 import path from "node:path";
+import { z } from "zod";
+import { runCommandResult } from "./commands.js";
 import { detectProjectContext } from "./context.js";
 import {
   listDirectories,
   pathExists,
   readJsonFile,
   readPackageJson,
-  resolveCandidatePath,
 } from "./fs-utils.js";
+import {
+  resolveDevtoolsHelperArgs,
+  resolveDevtoolsHelperScript,
+} from "./helper-scripts.js";
 import type {
   AirJamGameInspection,
   AirJamGameSummary,
@@ -27,101 +32,85 @@ export type {
 
 const REPO_GAME_MANIFEST = "airjam-template.json";
 
-const toStringOrNull = (value: unknown): string | null =>
-  typeof value === "string" ? value : null;
-
 const toBooleanOrNull = (value: unknown): boolean | null =>
   typeof value === "boolean" ? value : null;
 
-const inferGameIdFromRoot = (
-  rootDir: string,
-  packageName: string | null,
-): string => packageName ?? path.basename(rootDir);
+export const AIRJAM_CONFIG_PATH = "src/airjam.config.ts";
 
-const getConfigPath = async (rootDir: string): Promise<string | null> =>
-  resolveCandidatePath(rootDir, [
-    "src/airjam.config.ts",
-    "src/airjam.config.tsx",
-    "src/airjam.config.js",
-    "src/airjam.config.mjs",
-    "airjam.config.ts",
-    "airjam.config.tsx",
-    "airjam.config.js",
-    "airjam.config.mjs",
-  ]);
+const describeGames = (configPaths: string[], cwd: string) => {
+  if (!configPaths.length) return [];
+  const result = runCommandResult({
+    command: process.execPath,
+    args: [
+      ...resolveDevtoolsHelperArgs(
+        resolveDevtoolsHelperScript("describe-game.ts"),
+      ),
+      ...configPaths.flatMap((config) => ["--config", config]),
+    ],
+    cwd,
+  });
+  if (!result.ok)
+    throw new Error(
+      `Air Jam declaration inspection failed.\n${result.stderr || result.stdout}`,
+    );
+  return z.array(airJamGameDescriptionSchema).parse(JSON.parse(result.stdout));
+};
 
-const readRepoGameSummary = async (
+const readGameSummary = async (
   rootDir: string,
-): Promise<AirJamGameSummary | null> => {
+  declaration: AirJamGameSummary["declaration"],
+): Promise<AirJamGameSummary> => {
   const manifestPath = path.join(rootDir, REPO_GAME_MANIFEST);
-  if (!(await pathExists(manifestPath))) {
-    return null;
-  }
-
-  const manifest = await readJsonFile<JsonObject>(manifestPath);
+  const hasManifest = await pathExists(manifestPath);
+  const manifest = hasManifest
+    ? await readJsonFile<JsonObject>(manifestPath)
+    : null;
   const packageJson = await readPackageJson(rootDir);
-  const packageName = packageJson?.value.name ?? null;
-  const configPath = await getConfigPath(rootDir);
-
   return {
-    id:
-      toStringOrNull(manifest.id) ?? inferGameIdFromRoot(rootDir, packageName),
-    name:
-      toStringOrNull(manifest.name) ?? packageName ?? path.basename(rootDir),
     rootDir,
-    packageName,
-    description: toStringOrNull(manifest.description),
-    category: toStringOrNull(manifest.category),
-    scaffold: toBooleanOrNull(manifest.scaffold),
-    manifestPath,
-    configPath,
+    manifestPath: hasManifest ? manifestPath : null,
+    id: declaration.metadata.slug,
+    name: declaration.metadata.name,
+    packageName: packageJson?.value.name ?? null,
+    description: declaration.metadata.tagline,
+    category: declaration.metadata.category,
+    scaffold: toBooleanOrNull(manifest?.scaffold),
+    configPath: path.join(rootDir, AIRJAM_CONFIG_PATH),
+    declaration,
   };
 };
 
-const readStandaloneGameSummary = async (
-  context: AirJamProjectContext,
-): Promise<AirJamGameSummary> => {
-  const packageName = context.packageJson?.name ?? null;
-  const configPath = await getConfigPath(context.rootDir);
-
-  return {
-    id: inferGameIdFromRoot(context.rootDir, packageName),
-    name: packageName ?? path.basename(context.rootDir),
-    rootDir: context.rootDir,
-    packageName,
-    description: toStringOrNull(context.packageJson?.description),
-    category: null,
-    scaffold: null,
-    manifestPath: null,
-    configPath,
-  };
+const gameRoots = async (context: AirJamProjectContext) => {
+  if (context.mode === "standalone-game") return [context.rootDir];
+  if (context.mode !== "monorepo") return [];
+  const directories = await listDirectories(
+    path.join(context.rootDir, "games"),
+  );
+  const candidates = await Promise.all(
+    directories.map(async (rootDir) =>
+      (await pathExists(path.join(rootDir, REPO_GAME_MANIFEST)))
+        ? rootDir
+        : null,
+    ),
+  );
+  return candidates.filter((rootDir) => rootDir !== null);
 };
 
 export const listGames = async ({
   cwd = process.cwd(),
-}: {
-  cwd?: string;
-} = {}): Promise<AirJamGameSummary[]> => {
+}: { cwd?: string } = {}): Promise<AirJamGameSummary[]> => {
   const context = await detectProjectContext({ cwd });
-
-  if (context.mode === "monorepo") {
-    const gameDirs = await listDirectories(path.join(context.rootDir, "games"));
-    const summaries = await Promise.all(gameDirs.map(readRepoGameSummary));
-    return summaries
-      .filter((game): game is AirJamGameSummary => Boolean(game))
-      .sort((left, right) => left.name.localeCompare(right.name));
-  }
-
-  if (context.mode === "standalone-game") {
-    return [await readStandaloneGameSummary(context)];
-  }
-
-  return [];
-};
-
-const inferControllerPath = (configSource: string): string | null => {
-  const match = /controllerPath:\s*["'`]([^"'`]+)["'`]/.exec(configSource);
-  return match?.[1] ?? null;
+  const roots = await gameRoots(context);
+  const descriptions = describeGames(
+    roots.map((rootDir) => path.join(rootDir, AIRJAM_CONFIG_PATH)),
+    context.rootDir,
+  );
+  const games = await Promise.all(
+    roots.map((rootDir, index) =>
+      readGameSummary(rootDir, descriptions[index]),
+    ),
+  );
+  return games.sort((left, right) => left.name.localeCompare(right.name));
 };
 
 const inferQualityGates = (
@@ -163,31 +152,38 @@ export const inspectGame = async ({
   gameId?: string;
 } = {}): Promise<AirJamGameInspection> => {
   const context = await detectProjectContext({ cwd });
-  const games = await listGames({ cwd });
-  const game = gameId
-    ? games.find((candidate) => candidate.id === gameId)
-    : games[0];
-
-  if (!game) {
+  const roots = await gameRoots(context);
+  const rootDir =
+    context.mode === "standalone-game"
+      ? roots[0]
+      : gameId
+        ? roots.find((candidate) => path.basename(candidate) === gameId)
+        : roots.find(
+            (candidate) =>
+              path.resolve(cwd).startsWith(`${candidate}${path.sep}`) ||
+              path.resolve(cwd) === candidate,
+          );
+  if (!rootDir)
     throw new Error(
       gameId
         ? `Unable to find Air Jam game "${gameId}".`
-        : "Unable to find an Air Jam game in this project.",
+        : "Choose a gameId when inspecting a workspace.",
     );
-  }
+  const [declaration] = describeGames(
+    [path.join(rootDir, AIRJAM_CONFIG_PATH)],
+    context.rootDir,
+  );
+  const game = await readGameSummary(rootDir, declaration);
+  if (gameId && game.id !== gameId)
+    throw new Error(`Game directory "${gameId}" declares slug "${game.id}".`);
 
   const packageJson = await readPackageJson(game.rootDir);
   const scripts = packageJson?.value.scripts ?? {};
-  const configSource = game.configPath
-    ? await readFile(game.configPath, "utf8").catch(() => "")
-    : "";
 
   return {
     ...game,
     packageJsonPath: packageJson?.path ?? null,
     scripts,
-    metadataExportLikely: /\bgameMetadata\b/.test(configSource),
-    controllerPathLikely: inferControllerPath(configSource),
     qualityGates: inferQualityGates(
       context.mode === "monorepo"
         ? (context.packageJson?.scripts ?? {})

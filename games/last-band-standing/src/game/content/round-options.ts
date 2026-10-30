@@ -1,5 +1,5 @@
-import { shuffleList } from "@/game/domain/shuffle";
-import { type RoundGuessKind } from "@/game/domain/types";
+import { shuffleList } from "../domain/shuffle";
+import { type RoundGuessKind } from "../domain/types";
 import { normalizeSongValue, songBank, type SongEntry } from "./song-bank";
 
 export interface PickRoundOptionSongIdsOptions {

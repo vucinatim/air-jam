@@ -9,7 +9,7 @@ import type {
 } from "../harness/visual.js";
 import { runVisualHarness } from "../harness/visual.js";
 import { evaluateOwnedGameContract } from "./runtime-owner-actions.js";
-import { loadVisualScenarioPackFromModuleOrConfig } from "./visual-pack.js";
+import { loadVisualScenarioPackFromConfig } from "./visual-pack.js";
 
 const getFlagValue = (flag: string): string | null => {
   const inline = process.argv.find((value) => value.startsWith(`${flag}=`));
@@ -21,7 +21,6 @@ const getFlagValue = (flag: string): string | null => {
   return index === -1 ? null : (process.argv[index + 1] ?? null);
 };
 
-const modulePath = getFlagValue("--module-path");
 const configPath = getFlagValue("--config");
 const artifactRoot = getFlagValue("--artifact-root");
 const hostUrl = getFlagValue("--host-url");
@@ -36,7 +35,7 @@ const gameId = getFlagValue("--game-id");
 const secure = process.argv.includes("--secure");
 
 if (
-  (!modulePath && !configPath) ||
+  !configPath ||
   !artifactRoot ||
   !hostUrl ||
   !appOrigin ||
@@ -45,14 +44,13 @@ if (
   !gameId
 ) {
   throw new Error(
-    "Missing required visual capture inputs. Expected game id, module path, artifact root, and resolved topology URLs.",
+    "Missing required visual capture inputs. Expected game id, config path, artifact root, and resolved topology URLs.",
   );
 }
 
-const scenarioPack = (await loadVisualScenarioPackFromModuleOrConfig({
-  modulePath,
+const scenarioPack = (await loadVisualScenarioPackFromConfig(
   configPath,
-})) as VisualScenarioPack<AnyAirJamAgentContract>;
+)) as VisualScenarioPack<AnyAirJamAgentContract>;
 const {
   closeGameSession,
   invokeGameSessionAction,

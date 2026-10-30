@@ -238,6 +238,10 @@ class FakeChildProcess extends EventEmitter {
   }
 }
 
+vi.mock("../src/games.js", () => ({
+  inspectGame: vi.fn(async () => ({ id: "solo-fixture" })),
+}));
+
 vi.mock("../src/context.js", () => ({
   detectProjectContext: vi.fn(async () => ({
     rootDir: "/tmp/solo",
