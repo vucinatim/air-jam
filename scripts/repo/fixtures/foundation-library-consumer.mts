@@ -84,7 +84,14 @@ assert.equal(
   "release",
 );
 assert.equal(controllerOptions.cwd, developmentOptions.cwd);
-assert.equal(documentation.documents.length, 17);
+assert.ok(
+  documentation.documents.some(
+    (document) =>
+      document.page.href === "/docs/sdk/assets-and-theme" &&
+      document.content.includes("defineAirJamAssets") &&
+      document.content.includes("defineAirJamTheme"),
+  ),
+);
 assert.ok(
   documentation.documents.some(
     (document) =>
