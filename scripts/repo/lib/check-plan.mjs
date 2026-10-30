@@ -2,6 +2,8 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { repoRoot } from "./paths.mjs";
 
+export const integrationBranch = "release/1.0";
+
 export const fastCheckTargets = Object.freeze({
   instantWarmMs: 1_000,
   changedWarmMs: 5_000,

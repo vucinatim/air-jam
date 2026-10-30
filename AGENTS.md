@@ -119,6 +119,8 @@ Follow the canonical
 [Development Check Layers](docs/working-agreements.md#development-check-layers).
 Keep ordinary edits on the fast tiers and escalate only when that agreement
 requires it.
+`integrationBranch` in `scripts/repo/lib/check-plan.mjs` sets the default local check base to `release/1.0`
+and flips to `main` at launch.
 
 ## Review, Merge, And Production Gate
 
