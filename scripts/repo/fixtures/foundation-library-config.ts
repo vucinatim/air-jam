@@ -8,6 +8,7 @@ export const agent = defineAirJamAgentContract({
 
 export const airjam = defineAirJamGame({
   metadata: {
+    version: 1,
     slug: "installed-library",
     name: "Installed library",
     tagline: "Installed package proof.",
