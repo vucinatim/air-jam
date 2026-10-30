@@ -57,6 +57,9 @@ If an agent jumps from chat context straight into edits without checking the cur
 
 Quality gates surround development; they are not the development loop.
 
+`integrationBranch` in `scripts/repo/lib/check-plan.mjs` sets the default local check base to `release/1.0`
+and flips to `main` at launch.
+
 1. `pnpm check:instant` is the continuous local loop. It checks diff hygiene,
    changed JSON, and JavaScript syntax with a warm target of `<=1s`.
 2. `pnpm check:changed` is the coherent-change gate. It runs cached ESLint and
@@ -124,6 +127,9 @@ Until the 1.0 launch, `release/1.0` is the one integration branch in each
 repository, agreed with Tim on 2026-10-20. `main` stays the reviewed production
 baseline and takes `release/1.0` at launch, as the candidate the launch
 sequence below deploys before announcing.
+
+`integrationBranch` in `scripts/repo/lib/check-plan.mjs` sets the default local check base to `release/1.0`
+and flips to `main` at launch.
 
 Until then this section takes precedence over two rules below: pull-request
 slices must stand on `release/1.0` rather than on `main`, and `release/1.0` is

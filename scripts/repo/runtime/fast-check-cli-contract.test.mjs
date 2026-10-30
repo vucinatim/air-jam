@@ -1,7 +1,13 @@
+import { Command } from "commander";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import test from "node:test";
-import { buildChangedCheckPlan, fastCheckTargets } from "../lib/check-plan.mjs";
+import { registerCheckCommands } from "../commands/check.mjs";
+import {
+  buildChangedCheckPlan,
+  fastCheckTargets,
+  integrationBranch,
+} from "../lib/check-plan.mjs";
 
 test("layered checks are discoverable through the canonical repo CLI", () => {
   const output = execFileSync(
@@ -112,3 +118,24 @@ test("too many affected projects require the deliberately slower batch gate", ()
   assert.equal(plan.batchRequired, true);
   assert.match(plan.batchReasons[0], /5 TypeScript projects/);
 });
+
+for (const tier of ["plan", "instant", "changed"]) {
+  test(`${tier} defaults to the configured integration branch and accepts an explicit base`, () => {
+    const program = new Command();
+    registerCheckCommands(program);
+    const check = program.commands.find(
+      (command) => command.name() === "check",
+    );
+    const command = check.commands.find((command) => command.name() === tier);
+    let selectedBase;
+    command.action((options) => {
+      selectedBase = options.base;
+    });
+
+    program.parse(["check", tier], { from: "user" });
+    assert.equal(selectedBase, `origin/${integrationBranch}`);
+
+    program.parse(["check", tier, "--base", "HEAD"], { from: "user" });
+    assert.equal(selectedBase, "HEAD");
+  });
+}
