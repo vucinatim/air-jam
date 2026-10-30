@@ -123,6 +123,7 @@ export const AIRJAM_DEV_LOG_EVENTS = {
     hostReconnectRequested: "runtime.host.reconnect.requested",
     hostReconnectRetryScheduled: "runtime.host.reconnect.retry_scheduled",
     hostResetRoomRequested: "runtime.host.reset_room.requested",
+    hostFrameFault: "runtime.host.frame_fault",
     hostStateReceived: "runtime.host.state.received",
     controllerJoinRequested: "runtime.controller.join.requested",
     controllerStateReceived: "runtime.controller.state.received",

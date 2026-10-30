@@ -3,6 +3,7 @@ import { controllerLeasedControlAckSchema } from "@air-jam/sdk/protocol";
 import {
   hostAgentRequestSchema,
   hostObservationIdentitySchema,
+  hostRuntimeFaultSchema,
 } from "@air-jam/sdk/runtime-control";
 import { z } from "zod";
 import { controllerDisconnectionSchema } from "./controller-protocol.js";
@@ -255,6 +256,7 @@ export const gameRunRecordSchema = z
         reason: gameRunEndReasonSchema,
         outcome: z.enum(["passed", "failed", "inconclusive"]),
         message: z.string(),
+        hostFault: hostRuntimeFaultSchema.optional(),
       })
       .strict()
       .optional(),

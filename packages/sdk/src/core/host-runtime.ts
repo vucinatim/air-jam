@@ -48,9 +48,16 @@ import {
   registerHostAgentContract,
   registerHostRuntimeParticipantReceiver,
 } from "../runtime/contracts/control";
-import type { HostObservationSurface } from "../runtime/contracts/observation";
+import type {
+  HostObservationSurface,
+  HostRuntimeFault,
+} from "../runtime/contracts/observation";
 import { registerHostObservationSurface } from "../runtime/host-observation";
 import { trackHostSimulation } from "../runtime/host-pace";
+import {
+  describeHostRuntimeFault,
+  hostRuntimeFault,
+} from "../runtime/host-runtime-fault";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import type { AirJamConfig } from "./config";
 import type { AirJamConnectionState } from "./connection-store";
@@ -167,6 +174,7 @@ export class HostRuntime {
     unknown,
     SettingsValues
   > | null = null;
+  private frameFault: HostRuntimeFault | null = null;
   private stopFrames: (() => void) | null = null;
   private readonly agent: HostRuntimeDependencies["agent"];
   private capture: HostObservationCapture | null = null;
@@ -264,6 +272,11 @@ export class HostRuntime {
       if (declared) install(declared);
       this.ready = Promise.resolve();
     }
+  }
+
+  /** The exception that stopped this host's display loop, if any. */
+  get fault(): HostRuntimeFault | null {
+    return this.frameFault;
   }
 
   /** The game's simulation clock; null while it loads or when the game declares none. */
@@ -574,10 +587,25 @@ export class HostRuntime {
   private startFrames(): () => void {
     const clock = this.simulation;
     const frames = this.environment.frames;
-    if (!clock || !frames) return () => {};
+    if (!clock || !frames || this.frameFault) return () => {};
     clock.rest();
     const tracked = trackHostSimulation(clock.pace);
-    const stop = frames((now) => clock.frame(now));
+    const stop = frames((now) => {
+      if (this.frameFault) return;
+      try {
+        clock.frame(now);
+      } catch (error) {
+        this.frameFault = hostRuntimeFault(error);
+        stop();
+        this.emitRuntimeEvent({
+          event: AIRJAM_DEV_LOG_EVENTS.runtime.hostFrameFault,
+          level: "error",
+          message: describeHostRuntimeFault(this.frameFault),
+          roomId: this.roomId ?? undefined,
+          data: { fault: this.frameFault },
+        });
+      }
+    });
     return () => {
       stop();
       tracked.release();
@@ -765,6 +793,7 @@ export class HostRuntime {
         return {
           runtimeState: state.runtimeState,
           connectionStatus: state.connectionStatus,
+          fault: this.frameFault,
         };
       },
       isParticipant: (controllerId) =>

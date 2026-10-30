@@ -175,3 +175,43 @@ it("reports the host's own refusal and rejects an answer to another request", as
     "current_host_invalid",
   );
 });
+
+it.each([401, 403, 409])(
+  "passes the editor's HTTP %s refusal cause through",
+  async (status) => {
+    const message =
+      "The test lost the creator's room. The game reloaded in the creator's editor.";
+    const f = await fixture((response) => {
+      response.statusCode = status;
+      response.end(JSON.stringify({ error: message }));
+    });
+    await expect(f.read(request, 5000)).rejects.toThrow(
+      `runtime_replaced: ${message}`,
+    );
+  },
+);
+it.each([
+  "",
+  "{}",
+  '{"error":null}',
+  '{"error":"  "}',
+  "not json",
+  "x".repeat(4097),
+])("falls back for an absent or invalid refusal cause (%#)", async (body) => {
+  const f = await fixture((response) => {
+    response.statusCode = 403;
+    response.end(body);
+  });
+  await expect(f.read(request, 5000)).rejects.toThrow(
+    "runtime_replaced: The creator's room is no longer granted.",
+  );
+});
+it("bounds the editor's refusal text", async () => {
+  const f = await fixture((response) => {
+    response.statusCode = 409;
+    response.end(JSON.stringify({ error: "a".repeat(500) }));
+  });
+  await expect(f.read(request, 5000)).rejects.toThrow(
+    new Error(`runtime_replaced: ${"a".repeat(300)}`),
+  );
+});
