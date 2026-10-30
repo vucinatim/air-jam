@@ -16,6 +16,10 @@ export function OfficeHostLobbyOverlay({
 }: {
   session: OfficeHostSession;
 }) {
+  const taskDurationMs = useAirJamStore(
+    spaceStore,
+    (state) => state.taskDurationMs,
+  );
   const playerAssignments = useAirJamStore(
     spaceStore,
     (state) => state.playerAssignments,
@@ -80,7 +84,11 @@ export function OfficeHostLobbyOverlay({
                   ? getPlayerById(selectedCharacterId)
                   : null;
                 const highlights = selectedCharacterId
-                  ? getPlayerCapabilityHighlights(selectedCharacterId, 2)
+                  ? getPlayerCapabilityHighlights(
+                      selectedCharacterId,
+                      taskDurationMs,
+                      2,
+                    )
                   : [];
 
                 return (

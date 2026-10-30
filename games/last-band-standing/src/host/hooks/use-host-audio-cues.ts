@@ -1,7 +1,11 @@
-import { MATCH_START_COUNTDOWN_SEC } from "@/game/constants";
+import { quizSettings } from "@/game/contracts/settings";
 import { type GamePhase } from "@/game/domain/types";
 import { type RoundReveal } from "@/game/stores/types";
-import { useAudio, useHostAudioMutePreference } from "@air-jam/sdk";
+import {
+  useAirJamSettings,
+  useAudio,
+  useHostAudioMutePreference,
+} from "@air-jam/sdk";
 import { useEffect, useRef } from "react";
 
 interface UseHostAudioCuesInput {
@@ -15,6 +19,7 @@ export const useHostAudioCues = ({
   roundReveal,
   secondsLeft,
 }: UseHostAudioCuesInput) => {
+  const { matchStartCountdownSec } = useAirJamSettings(quizSettings);
   const audio = useAudio();
   const audioPreference = useHostAudioMutePreference("last-band-standing");
   const previousPhaseRef = useRef<string>(phase);
@@ -54,7 +59,7 @@ export const useHostAudioCues = ({
 
     if (
       secondsLeft > 0 &&
-      secondsLeft <= MATCH_START_COUNTDOWN_SEC &&
+      secondsLeft <= matchStartCountdownSec &&
       previousMatchCountdownRef.current !== secondsLeft
     ) {
       audio.play("countdown-tick");

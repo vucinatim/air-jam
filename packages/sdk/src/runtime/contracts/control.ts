@@ -6,6 +6,7 @@ import {
   createAirJamAgentEvaluator,
 } from "../../agent/agent-evaluator";
 import type { HostInput } from "../../core/host-input";
+import type { HostSettings, SettingsValues } from "../../core/settings";
 import { roomCodeSchema } from "../../protocol/core";
 import type {
   ControllerLeasedControl,
@@ -94,6 +95,13 @@ const controls = new WeakMap<
       roomId: string;
       gameId: string;
       evaluator: ReturnType<typeof createAirJamAgentEvaluator>;
+      settings?: {
+        read: HostSettings["read"];
+        update: (
+          patch: SettingsValues,
+          expectedRevision: number,
+        ) => ReturnType<HostSettings["read"]>;
+      };
     }>;
     control: HostRuntimeControl;
     participants: Map<string, ParticipantControl>;
@@ -245,6 +253,28 @@ function controlEntry(target: object) {
           selected,
           identity: { runtimeId },
         } = runtime;
+        if (
+          request.operation === "settings-read" ||
+          request.operation === "settings-update"
+        ) {
+          if (request.runtimeId !== runtimeId)
+            throw new Error(
+              "runtime_replaced: The game's store runtime was replaced.",
+            );
+          if (!binding.settings)
+            throw new Error(
+              "contract_runtime_unavailable: The host does not publish settings.",
+            );
+          return {
+            operation: request.operation,
+            ...(request.operation === "settings-read"
+              ? binding.settings.read()
+              : binding.settings.update(
+                  request.patch,
+                  request.expectedRevision,
+                )),
+          };
+        }
         if (request.operation !== "read") {
           if (request.contractId !== binding.id)
             throw new Error(
@@ -556,7 +586,18 @@ export const registerHostRuntimeActionStore = (
 
 export function registerHostAgentContract(
   target: object,
-  binding: { roomId: string; gameId: string; contract: AnyAirJamAgentContract },
+  binding: {
+    roomId: string;
+    gameId: string;
+    contract: AnyAirJamAgentContract;
+    settings?: {
+      read: HostSettings["read"];
+      update: (
+        patch: SettingsValues,
+        expectedRevision: number,
+      ) => ReturnType<HostSettings["read"]>;
+    };
+  },
 ) {
   const entry = controlEntry(target);
   const registration = {
@@ -564,6 +605,7 @@ export function registerHostAgentContract(
     roomId: binding.roomId,
     gameId: binding.gameId,
     evaluator: createAirJamAgentEvaluator(binding.contract),
+    settings: binding.settings,
   };
   entry.contracts.add(registration);
   Reflect.set(target, AIR_JAM_RUNTIME_CONTROL_KEY, entry.control);

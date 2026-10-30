@@ -48,6 +48,7 @@ export async function startHeadlessRoom({
   toolingRootDir,
   configPath,
   seed,
+  settings,
   logPath,
   onScope,
   startupSignal,
@@ -56,6 +57,7 @@ export async function startHeadlessRoom({
   toolingRootDir?: string;
   configPath: string;
   seed: number;
+  settings?: Record<string, string | number | boolean>;
   logPath: string;
   onScope?: ProcessScopeObserver;
   startupSignal?: AbortSignal;
@@ -91,7 +93,7 @@ export async function startHeadlessRoom({
   };
   try {
     const opened = await request(
-      { kind: "initialize", id: randomUUID(), configPath, seed },
+      { kind: "initialize", id: randomUUID(), configPath, seed, settings },
       "initialized",
       10_000,
     );

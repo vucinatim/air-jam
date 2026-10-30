@@ -154,7 +154,12 @@ export interface AirJamHostApi {
   /** Realtime client for host events (socket-backed standalone, bridge-backed in arcade embeds) */
   socket: AirJamRealtimeClient;
   /** The game's simulation clock, or null when the game declares no simulation. */
-  simulation: SimulationClock<unknown, unknown, unknown> | null;
+  simulation: SimulationClock<
+    unknown,
+    unknown,
+    unknown,
+    import("../core/settings").SettingsValues
+  > | null;
 }
 
 export interface AirJamHostState {
@@ -184,6 +189,7 @@ export type AirJamHostRuntimeControls = Pick<
   | "simulation"
 > & {
   setObservationCapture: HostRuntime["setObservationCapture"];
+  settings: HostRuntime["settings"];
 };
 
 const toHostState = (state: AirJamConnectionState): AirJamHostState => ({

@@ -26,20 +26,32 @@ export const spaceStore = createAirJamStore<SpaceGameState>((set) => ({
   ...createInitialSpaceGameState(),
 
   actions: {
-    syncConnectedPlayers: ({ role }, { connectedPlayerIds }) =>
+    syncConnectedPlayers: ({ role, settings }, { connectedPlayerIds }) =>
       set((state) => {
         if (!hostOnly(role)) {
           return state;
         }
 
-        return reduceSyncConnectedPlayers(state, connectedPlayerIds);
+        return {
+          ...reduceSyncConnectedPlayers(state, connectedPlayerIds),
+          gameDurationMs: settings.gameDurationMs,
+          taskDurationMs: settings.taskDurationMs,
+        };
       }),
 
-    startMatch: ({ connectedPlayerIds }) =>
-      set((state) => reduceStartMatch(state, connectedPlayerIds)),
+    startMatch: ({ connectedPlayerIds, settings }) =>
+      set((state) => ({
+        ...reduceStartMatch(state, connectedPlayerIds),
+        gameDurationMs: settings.gameDurationMs,
+        taskDurationMs: settings.taskDurationMs,
+      })),
 
-    restartMatch: ({ connectedPlayerIds }) =>
-      set((state) => reduceRestartMatch(state, connectedPlayerIds)),
+    restartMatch: ({ connectedPlayerIds, settings }) =>
+      set((state) => ({
+        ...reduceRestartMatch(state, connectedPlayerIds),
+        gameDurationMs: settings.gameDurationMs,
+        taskDurationMs: settings.taskDurationMs,
+      })),
 
     returnToLobby: ({ connectedPlayerIds }) =>
       set((state) => reduceReturnToLobby(state, connectedPlayerIds)),

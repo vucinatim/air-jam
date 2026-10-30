@@ -1,3 +1,4 @@
+import type { OfficeSettings } from "../contracts/settings";
 /**
  * The Office's authoritative simulation, stepped by the SDK clock on the host.
  * It owns everything that decides the match: movement, tasks and breaks,
@@ -11,7 +12,6 @@ import type { GameInput } from "../contracts/input";
 import {
   BREAKROOM_LOCATIONS,
   LOCATIONS,
-  STAT_CONSTANTS,
   TaskManager,
   type ActiveTask,
   type Location,
@@ -25,12 +25,10 @@ import {
   isNearLocation,
   isValidPosition,
   PLAYER_RADIUS,
-  PLAYER_SPEED,
   SPAWN_POSITIONS,
 } from "./office-layout";
 
 export const OFFICE_STEP_MS = 1000 / 60;
-const TASK_COOLDOWN_MS = 1000;
 const ORDER_PENALTY = 100;
 
 export interface BreakroomActivity {
@@ -39,6 +37,7 @@ export interface BreakroomActivity {
 }
 
 export interface OfficeSimulationState {
+  settings: OfficeSettings;
   positions: Record<string, { x: number; y: number }>;
   lastAction: Record<string, boolean>;
   lastTaskCompleteTime: Record<string, number>;
@@ -138,8 +137,8 @@ const move = (
 ) => {
   const position = sim.positions[playerId];
   if (!position) return;
-  const nextX = position.x + input.move.x * PLAYER_SPEED;
-  const nextY = position.y + input.move.y * PLAYER_SPEED;
+  const nextX = position.x + input.move.x * sim.settings.playerSpeed;
+  const nextY = position.y + input.move.y * sim.settings.playerSpeed;
   const free = (x: number, y: number) =>
     isValidPosition(x, y, PLAYER_RADIUS) &&
     !playerIds.some((otherId) => {
@@ -177,14 +176,15 @@ const startTaskAt = (
   if (
     !player ||
     sim.tasks.isDoingTask(playerId) ||
-    elapsedMs - (sim.lastTaskCompleteTime[playerId] ?? 0) < TASK_COOLDOWN_MS
+    elapsedMs - (sim.lastTaskCompleteTime[playerId] ?? 0) <
+      sim.settings.taskCooldownMs
   )
     return "refused";
   if (
     !sim.tasks.startTask(
       playerId,
       location.id,
-      getTaskDurationMs(task.taskDefId, player.id),
+      getTaskDurationMs(task.taskDefId, player.id, sim.settings.taskDurationMs),
       elapsedMs,
     )
   )
@@ -226,25 +226,24 @@ const finishBreak = (
   const activity = sim.breaks[playerId];
   if (
     !activity ||
-    elapsedMs - activity.startTime <
-      STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS
+    elapsedMs - activity.startTime < sim.settings.breakroomActivityDurationMs
   )
     return;
   const { locationId } = activity;
   if (locationId === "coffee-machine")
     void spaceStore.actions.restoreEnergy({
       playerId,
-      amount: STAT_CONSTANTS.COFFEE_ENERGY_RESTORE,
+      amount: sim.settings.coffeeEnergyRestore,
     });
   else if (locationId === "fifa-table")
     void spaceStore.actions.restoreBoredom({
       playerId,
-      amount: STAT_CONSTANTS.FIFA_BOREDOM_RESTORE,
+      amount: sim.settings.fifaBoredomRestore,
     });
   else
     void spaceStore.actions.restoreEnergy({
       playerId,
-      amount: STAT_CONSTANTS.LUNCH_ENERGY_RESTORE,
+      amount: sim.settings.lunchEnergyRestore,
     });
   sim.breaks[playerId] = null;
   void spaceStore.actions.setBusy({ playerId, taskName: null });
@@ -260,26 +259,22 @@ const nextStats = (
 ): Partial<PlayerStats> | null => {
   const stats = spaceStore.getState().playerStats[playerId];
   if (!stats?.alive || sim.breaks[playerId]) return null;
-  const energy = Math.max(
-    0,
-    stats.energy - STAT_CONSTANTS.ENERGY_DECAY_PER_SECOND,
-  );
+  const energy = Math.max(0, stats.energy - sim.settings.energyDecayPerSecond);
   let boredom = stats.boredom;
   if (elapsedMs > (sim.boredomDecayAt[playerId] ?? 0)) {
     boredom = Math.max(
       0,
       stats.boredom -
-        (STAT_CONSTANTS.BOREDOM_DECAY_MIN +
+        (sim.settings.boredomDecayMin +
           random() *
-            (STAT_CONSTANTS.BOREDOM_DECAY_MAX -
-              STAT_CONSTANTS.BOREDOM_DECAY_MIN)),
+            (sim.settings.boredomDecayMax - sim.settings.boredomDecayMin)),
     );
     sim.boredomDecayAt[playerId] =
       elapsedMs +
-      STAT_CONSTANTS.BOREDOM_DECAY_INTERVAL_MIN_MS +
+      sim.settings.boredomDecayIntervalMinMs +
       random() *
-        (STAT_CONSTANTS.BOREDOM_DECAY_INTERVAL_MAX_MS -
-          STAT_CONSTANTS.BOREDOM_DECAY_INTERVAL_MIN_MS);
+        (sim.settings.boredomDecayIntervalMaxMs -
+          sim.settings.boredomDecayIntervalMinMs);
   }
   if (energy <= 0 || boredom <= 0) {
     emit({
@@ -311,9 +306,9 @@ export const advanceOfficeMatch = (
     emit: Emit;
   },
 ): void => {
-  const { gameOver, gameDurationMs } = spaceStore.getState();
+  const { gameOver } = spaceStore.getState();
   if (gameOver) return;
-  if (elapsedMs >= gameDurationMs) {
+  if (elapsedMs >= sim.settings.gameDurationMs) {
     void spaceStore.actions.finishMatch();
     return;
   }
@@ -349,7 +344,7 @@ export const advanceOfficeMatch = (
     else if (activity)
       progressByPlayerId[playerId] = Math.min(
         (elapsedMs - activity.startTime) /
-          STAT_CONSTANTS.BREAKROOM_ACTIVITY_DURATION_MS,
+          sim.settings.breakroomActivityDurationMs,
         1,
       );
     // Input controls intent, not whether the host advances this player.
@@ -393,17 +388,19 @@ export const advanceOfficeMatch = (
 export const officeSimulation = defineAirJamSimulation<
   OfficeSimulationState,
   GameInput,
-  OfficeSimulationEvent
+  OfficeSimulationEvent,
+  OfficeSettings
 >({
   stepMs: OFFICE_STEP_MS,
-  create: () => {
+  create: ({ settings }) => {
     const { matchPhase, lifecycleVersion } = spaceStore.getState();
-    return {
+    const sim: OfficeSimulationState = {
+      settings,
       positions: {},
       lastAction: {},
       lastTaskCompleteTime: {},
       usedSpawnIndices: [],
-      tasks: new TaskManager(),
+      tasks: new TaskManager(() => sim.settings),
       pendingTasks: [],
       breaks: {},
       boredomDecayAt: {},
@@ -415,10 +412,11 @@ export const officeSimulation = defineAirJamSimulation<
       matchPhase,
       lifecycleVersion,
     };
+    return sim;
   },
   step: (sim, context) => {
-    const { matchPhase, lifecycleVersion, gameDurationMs } =
-      spaceStore.getState();
+    sim.settings = context.settings;
+    const { matchPhase, lifecycleVersion } = spaceStore.getState();
     const playerIds = context.players.map((player) => player.id);
     const roster = playerIds.join("\u0000");
     const lifecycleChanged =
@@ -431,7 +429,15 @@ export const officeSimulation = defineAirJamSimulation<
       sim.matchPhase = matchPhase;
       sim.lifecycleVersion = lifecycleVersion;
     }
-    if ((lifecycleChanged || roster !== sim.roster) && matchPhase !== "ended") {
+    if (
+      (lifecycleChanged ||
+        roster !== sim.roster ||
+        spaceStore.getState().gameDurationMs !==
+          context.settings.gameDurationMs ||
+        spaceStore.getState().taskDurationMs !==
+          context.settings.taskDurationMs) &&
+      matchPhase !== "ended"
+    ) {
       void spaceStore.actions.syncConnectedPlayers({
         connectedPlayerIds: playerIds,
       });
@@ -440,7 +446,10 @@ export const officeSimulation = defineAirJamSimulation<
     sim.roster = roster;
 
     if (matchPhase !== "playing") return;
-    sim.elapsedMs = Math.min(sim.elapsedMs + context.stepMs, gameDurationMs);
+    sim.elapsedMs = Math.min(
+      sim.elapsedMs + context.stepMs,
+      context.settings.gameDurationMs,
+    );
     advanceOfficeMatch(sim, {
       elapsedMs: sim.elapsedMs,
       playerIds,
@@ -451,9 +460,10 @@ export const officeSimulation = defineAirJamSimulation<
   },
   // Positions, tasks and breaks live only in the simulation; agents read them here.
   observe: (sim) => ({
+    taskDurationMs: sim.settings.taskDurationMs,
     timeLeftMs: Math.max(
       0,
-      Math.round(spaceStore.getState().gameDurationMs - sim.elapsedMs),
+      Math.round(sim.settings.gameDurationMs - sim.elapsedMs),
     ),
     coworkers: Object.entries(sim.positions).map(([playerId, position]) => ({
       playerId,
@@ -470,9 +480,7 @@ export const officeSimulation = defineAirJamSimulation<
       locationId: task.locationId,
       expiresInMs: Math.max(
         0,
-        Math.round(
-          task.spawnTime + STAT_CONSTANTS.TASK_EXPIRY_MS - sim.elapsedMs,
-        ),
+        Math.round(task.spawnTime + sim.settings.taskExpiryMs - sim.elapsedMs),
       ),
     })),
   }),

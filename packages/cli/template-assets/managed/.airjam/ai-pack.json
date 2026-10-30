@@ -15,14 +15,14 @@
     {
       "path": "docs/airjam/agent-gold-path.md",
       "kind": "docs-local",
-      "size": 6623,
-      "sha256": "f694b4cb0731ae5ed0e7c0f3622168d11392171e15922797423d60611a39266f"
+      "size": 7569,
+      "sha256": "93d64480b0a0b067f8418c23ae3396570072cebfaedf27955da30db6e350783e"
     },
     {
       "path": "docs/airjam/agent-mcp.md",
       "kind": "docs-local",
-      "size": 8118,
-      "sha256": "cf742b171af0fa924b1f6e474ccad830acd2872f882a176948dff04fac1ecd3e"
+      "size": 9064,
+      "sha256": "1a9679123b2722ab40e98eb898dd527009df9954a0db1bdfa189792278379982"
     },
     {
       "path": "docs/airjam/canvas-2d-gameplay.md",
@@ -105,8 +105,8 @@
     {
       "path": "docs/airjam/generated/migrating-legacy-games.md",
       "kind": "docs-generated",
-      "size": 28510,
-      "sha256": "a7de73d9e057c2a8ad1683ca68ddfe0352158efdbe7cd272b92c8991afdfaf08"
+      "size": 29896,
+      "sha256": "644b4fb40695896f00e90504f9dc286cbab4fbc18b2af1c5c6ebbd3c602e5336"
     },
     {
       "path": "docs/airjam/generated/networked-state.md",
@@ -129,8 +129,14 @@
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
       "kind": "docs-generated",
-      "size": 15106,
-      "sha256": "bb68006f95c41b42ea2a7e9fa30f3ae2eb777a91e6ca5f3f402ac5df5f322822"
+      "size": 15411,
+      "sha256": "93843939a8e74e9244af9fd689f02b529dfc123b368e2fddbf8ed1a79f504be7"
+    },
+    {
+      "path": "docs/airjam/generated/settings.md",
+      "kind": "docs-generated",
+      "size": 4901,
+      "sha256": "df0dad0152c0c045feb466ed735e2fcea907b5d08307990fd5e902abf4feae5f"
     },
     {
       "path": "docs/airjam/generated/state-and-rendering.md",
@@ -187,5 +193,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "c1a5a1a8c4059ceef07ba223444d60eddb254ba7318fd4b46fc075daecdb3547"
+  "contentDigest": "5300a628d3b0b94cca394418d769b2a9304686fb9a720bd932ec0a77bcb88938"
 }

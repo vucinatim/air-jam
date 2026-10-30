@@ -7,6 +7,7 @@ import {
 } from "./game/contracts/input";
 import { prototypeMatchStore } from "./game/stores/match/match-store";
 
+import { airCaptureSettings } from "./game/contracts/settings";
 export const airjam = defineAirJamGame({
   metadata: defineAirJamGameMetadata({
     slug: "air-capture",
@@ -23,6 +24,7 @@ export const airjam = defineAirJamGame({
     tags: ["3d", "physics", "capture-the-flag"],
   }),
   controllerPath: "/controller",
+  settings: airCaptureSettings,
   stores: [prototypeMatchStore],
   // Loaded on the host only: it brings the Rapier physics engine.
   simulation: () =>

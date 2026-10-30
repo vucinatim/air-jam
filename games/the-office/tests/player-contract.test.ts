@@ -1,12 +1,12 @@
 import { airJamDecisionQuestionSchema } from "@air-jam/devtools/testing";
 import type { HostObservation } from "@air-jam/sdk/runtime-control";
 import { describe, expect, it } from "vitest";
+import { officeSettings } from "../src/game/contracts/settings";
 import {
   FIELD_HEIGHT,
   FIELD_WIDTH,
   isValidPosition,
   PLAYER_RADIUS,
-  PLAYER_SPEED,
   SPAWN_POSITIONS,
 } from "../src/game/engine/office-layout";
 import { ALL_LOCATIONS, routeTo } from "../src/testing/navigation";
@@ -36,6 +36,7 @@ const observe = (
     snapshot: snapshot(phase, stats),
     runtime: {
       timeLeftMs: 120_000,
+      taskDurationMs: officeSettings.taskDurationMs.default,
       coworkers: [
         {
           playerId: "human",
@@ -74,8 +75,8 @@ function walk(
       if (route.arrived) return true;
       direction = { x: route.movementX, y: route.movementY };
     }
-    const x = position.x + direction.x * PLAYER_SPEED;
-    const y = position.y + direction.y * PLAYER_SPEED;
+    const x = position.x + direction.x * officeSettings.playerSpeed.default;
+    const y = position.y + direction.y * officeSettings.playerSpeed.default;
     if (isValidPosition(x, y, PLAYER_RADIUS)) Object.assign(position, { x, y });
     else if (isValidPosition(x, position.y, PLAYER_RADIUS)) position.x = x;
     else if (isValidPosition(position.x, y, PLAYER_RADIUS)) position.y = y;

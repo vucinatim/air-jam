@@ -1,4 +1,8 @@
 import { expect, it, vi } from "vitest";
+import {
+  pongSettings,
+  type PongSettings,
+} from "../../../src/game/contracts/settings";
 import { FIELD_WIDTH } from "../../../src/game/engine/constants";
 import {
   createRuntimeState,
@@ -7,13 +11,19 @@ import {
 import { stepGame } from "../../../src/game/engine/simulation";
 
 it("awards one goal across consecutive fixed steps before the host updates its countdown", () => {
-  const state = createRuntimeState();
+  const state = createRuntimeState(pongSettings.ballSpeed.default);
   state.ballX = FIELD_WIDTH;
   state.ballVX = 0;
   state.ballVY = 0;
   const onScore = vi.fn();
   const tick = () =>
     stepGame({
+      settings: Object.fromEntries(
+        Object.entries(pongSettings).map(([key, definition]) => [
+          key,
+          definition.default,
+        ]),
+      ) as PongSettings,
       state,
       players: [{ id: "player" }],
       teamAssignments: { player: { team: "team2", position: "front" } },
@@ -28,7 +38,7 @@ it("awards one goal across consecutive fixed steps before the host updates its c
   expect(onScore).toHaveBeenCalledExactlyOnceWith("team1");
   expect(state.ballX).toBe(FIELD_WIDTH);
   expect(state.paddle2FrontY).toBeGreaterThan(250);
-  resetBall(state, () => 0.75);
+  resetBall(state, () => 0.75, pongSettings.ballSpeed.default);
   state.ballX = -1;
   state.ballVX = 0;
   state.ballVY = 0;

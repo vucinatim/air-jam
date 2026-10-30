@@ -10,6 +10,7 @@ import {
 import type { AirJamInput } from "../core/input";
 import type { AirJamInputBindings } from "../core/input-bindings";
 import type { AttachableStore } from "../core/replicated-store";
+import type { AirJamSettings, SettingsValues } from "../core/settings";
 import type { AirJamSimulationDeclaration } from "../core/simulation";
 import { useControllerRuntimeApi } from "../hooks/internal/use-controller-runtime-api";
 import { useHostRuntimeApi } from "../hooks/internal/use-host-runtime-api";
@@ -41,7 +42,13 @@ export type AirJamHostRuntimeProps = AirJamProviderProps &
     /** Replicated stores this host owns; they sync while it runs. */
     stores?: readonly AttachableStore[];
     /** The game's simulation, advanced on the SDK clock while the host runs. */
-    simulation?: AirJamSimulationDeclaration;
+    simulation?: AirJamSimulationDeclaration<
+      unknown,
+      unknown,
+      unknown,
+      SettingsValues
+    >;
+    settings?: AirJamSettings;
     /** The game's declared controls, read in simulation steps. */
     input?: AirJamInput;
     /** Keyboard layouts and gamepads that join as local players. */
@@ -115,6 +122,7 @@ const HostRuntimeOwner = ({
   gameId,
   stores = NO_STORES,
   simulation,
+  settings,
   input,
   inputBindings,
 }: Pick<
@@ -127,6 +135,7 @@ const HostRuntimeOwner = ({
   | "gameId"
   | "stores"
   | "simulation"
+  | "settings"
   | "input"
   | "inputBindings"
 >): JSX.Element => {
@@ -135,10 +144,11 @@ const HostRuntimeOwner = ({
     () => ({
       stores,
       simulation,
+      settings,
       input,
       agent: agent && { contract: agent, gameId: gameId ?? "game" },
     }),
-    [stores, simulation, input, agent, gameId],
+    [stores, simulation, settings, input, agent, gameId],
   );
   const runtime = useHostRuntimeApi(
     {
@@ -232,6 +242,7 @@ export const AirJamHostRuntime = ({
   gameId,
   stores,
   simulation,
+  settings,
   input,
   inputBindings,
   ...providerProps
@@ -248,6 +259,7 @@ export const AirJamHostRuntime = ({
           gameId={gameId}
           stores={stores}
           simulation={simulation}
+          settings={settings}
           input={input}
           inputBindings={inputBindings}
         >

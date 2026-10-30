@@ -27,6 +27,7 @@ export const snapshotSchema = z.object({
   }),
 });
 export const runtimeSchema = z.object({
+  taskDurationMs: z.number(),
   timeLeftMs: z.number().nonnegative(),
   coworkers: z.array(
     z.object({

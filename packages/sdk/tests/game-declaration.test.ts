@@ -48,6 +48,7 @@ describe("game declaration", () => {
       controllerPath: "/phone",
       simulation: false,
       input,
+      settings: {},
       agent: null,
       testing: true,
     });

@@ -1,10 +1,9 @@
 import { getPlayerById } from "../content/players";
+import { officeSettings } from "../contracts/settings";
 import { createDefaultPlayerStats, pruneRecord } from "./space-store-helpers";
 import type { SpaceGameState } from "./types";
 
 type SpaceStoreSnapshot = Omit<SpaceGameState, "actions">;
-
-const OFFICE_MATCH_DURATION_MS = 300000;
 
 const createConnectedSet = (
   connectedPlayerIds: string[] | undefined,
@@ -80,7 +79,8 @@ export const createInitialSpaceGameState = (): SpaceStoreSnapshot => ({
   matchPhase: "lobby",
   money: {},
   totalMoneyPenalty: 0,
-  gameDurationMs: OFFICE_MATCH_DURATION_MS,
+  gameDurationMs: officeSettings.gameDurationMs.default,
+  taskDurationMs: officeSettings.taskDurationMs.default,
   playerAssignments: {},
   busyPlayers: {},
   taskProgress: {},

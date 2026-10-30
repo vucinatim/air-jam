@@ -19,6 +19,7 @@ import {
 } from "../store/air-jam-store-domain-constants";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
 import type { AirJamConnectionState } from "./connection-store";
+import type { SettingsValues } from "./settings";
 
 const INTERNAL_ACTION_PREFIX = "_";
 const UNRESOLVED_ACTOR_ID = "unknown";
@@ -61,7 +62,8 @@ const isPlainActionPayload = (
   return prototype === Object.prototype || prototype === null;
 };
 
-export interface AirJamActionContext {
+export interface AirJamActionContext<TSettings = Record<string, never>> {
+  settings: TSettings;
   actorId: string;
   role: AirJamActionActorRole;
   connectedPlayerIds: string[];
@@ -85,13 +87,15 @@ export interface AirJamActionAcceptance<TResult = unknown> {
   result?: TResult;
 }
 
-type AirJamActionHandler = (
-  ctx: AirJamActionContext,
-  // Internal existential handler shape for heterogenous action maps.
-  // Store authors still get precise payload types through inference at the public API.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any,
-) => unknown;
+type AirJamActionHandler = {
+  invoke(
+    ctx: AirJamActionContext<SettingsValues>,
+    // Internal existential handler shape for heterogenous action maps.
+    // Store authors still get precise payload types through inference at the public API.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payload: any,
+  ): unknown;
+}["invoke"];
 export type AirJamActionMap = Record<string, AirJamActionHandler>;
 export type AirJamActionName<TActions extends AirJamActionMap> = Extract<
   keyof TActions,
@@ -108,7 +112,7 @@ type IsValidActionPayloadType<TPayload> = [TPayload] extends [undefined]
 
 export type InvalidActionPayloadKeys<TActions extends AirJamActionMap> = {
   [K in keyof TActions]: TActions[K] extends (
-    ctx: AirJamActionContext,
+    ctx: infer _Context,
     payload: infer TPayload,
   ) => unknown
     ? IsValidActionPayloadType<TPayload> extends true
@@ -137,7 +141,7 @@ export type AirJamNetworkedState<
 
 export type AirJamActionDispatchMap<TActions extends AirJamActionMap> = {
   [K in keyof TActions]: TActions[K] extends (
-    ctx: AirJamActionContext,
+    ctx: infer _Context,
     payload: infer TPayload,
   ) => infer TResult
     ? [TPayload] extends [undefined]
@@ -174,6 +178,7 @@ interface StoreRuntimeSnapshot {
   hostStateRevisionFloor: number;
   connectedPlayerIds: string[];
   now: () => number;
+  settings?: () => SettingsValues;
 }
 
 interface StoreRuntimeBinding {
@@ -187,13 +192,13 @@ export type AirJamHostActionEvent<
 > =
   TActionName extends AirJamActionName<TActions>
     ? TActions[TActionName] extends (
-        ctx: AirJamActionContext,
+        ctx: infer _Context,
         payload: infer TPayload,
       ) => infer TResult
       ? {
           actionName: TActionName;
           payload: TPayload;
-          context: AirJamActionContext;
+          context: AirJamActionContext<SettingsValues>;
           acknowledgement: AirJamActionInvocationResult<
             InferAirJamActionResult<TResult>
           >;
@@ -231,6 +236,7 @@ export interface AirJamStoreSession {
   controlTarget: object | null;
   /** The surface's game clock; actions the host runs read it as `ctx.now`. */
   now: () => number;
+  settings?: () => SettingsValues;
 }
 
 /** What a runtime needs from a store it attaches, whatever the store holds. */
@@ -370,11 +376,12 @@ const stripActionsFromState = <T extends AirJamNetworkedState>(
 const toActionContext = (
   payload: AirJamActionRpcPayload,
   runtime: StoreRuntimeSnapshot,
-): AirJamActionContext => ({
+): AirJamActionContext<SettingsValues> => ({
   actorId: payload.actor.id || UNRESOLVED_ACTOR_ID,
   role: payload.actor.role,
   connectedPlayerIds: runtime.connectedPlayerIds,
   now: runtime.now(),
+  settings: runtime.settings?.() ?? {},
 });
 
 const detachedClock = (): number => {
@@ -567,13 +574,15 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
                     role: "controller",
                     connectedPlayerIds: runtime.connectedPlayerIds,
                     now: runtime.now(),
-                  } satisfies AirJamActionContext)
+                    settings: runtime.settings?.() ?? {},
+                  } satisfies AirJamActionContext<SettingsValues>)
                 : ({
                     actorId: "host",
                     role: "host",
                     connectedPlayerIds: runtime.connectedPlayerIds,
                     now: runtime.now(),
-                  } satisfies AirJamActionContext);
+                    settings: runtime.settings?.() ?? {},
+                  } satisfies AirJamActionContext<SettingsValues>);
             const result = sourceAction(context, normalizedPayload);
             const acknowledgement = normalizeAirJamActionInvocationResult(
               result,
@@ -612,6 +621,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
                 role: mode.kind === "player" ? "controller" : "host",
                 connectedPlayerIds: runtime.connectedPlayerIds,
                 now: runtime.now(),
+                settings: runtime.settings?.() ?? {},
               },
               acknowledgement,
               invocationKind: "local",
@@ -1135,6 +1145,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
             : 0,
         connectedPlayerIds,
         now: session.now,
+        settings: session.settings,
       };
       if (sessionReady(runtimeSnapshotRef.current))
         for (const release of [...sessionWaiters]) release();

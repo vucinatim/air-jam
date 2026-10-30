@@ -1,3 +1,7 @@
+import {
+  airCaptureSettings,
+  type AirCaptureSettings,
+} from "../../../src/game/contracts/settings";
 // Runs in plain Node: the whole match, physics included, with no page.
 import { createSeededRandom } from "@air-jam/sdk/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +13,13 @@ import type {
   AirCaptureEvent,
   AirCaptureSim,
 } from "../../../src/game/simulation/state";
+
+const settings = Object.fromEntries(
+  Object.entries(airCaptureSettings).map(([name, definition]) => [
+    name,
+    definition.default,
+  ]),
+) as AirCaptureSettings;
 
 const fixture = vi.hoisted(() => ({
   state: {
@@ -41,12 +52,13 @@ const idle: GameLoopInput = {
 
 const createMatch = (seed = 7) => {
   const random = createSeededRandom(seed);
-  const sim = airCaptureSimulation.create({ random });
+  const sim = airCaptureSimulation.create({ random, settings });
   const events: AirCaptureEvent[] = [];
   let input: GameLoopInput = idle;
   const step = (count = 1) => {
     for (let index = 0; index < count; index += 1)
       airCaptureSimulation.step(sim, {
+        settings,
         tick: index,
         stepMs: airCaptureSimulation.stepMs,
         dtSeconds: airCaptureSimulation.stepMs / 1000,
@@ -207,6 +219,7 @@ describe("Air Capture simulation", () => {
     const { sim, step } = createMatch();
     step();
     const view = airCaptureSimulation.observe?.(sim, {
+      settings,
       controllerId: null,
       scope: "diagnostic",
     });

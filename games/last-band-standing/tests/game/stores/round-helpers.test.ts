@@ -1,4 +1,3 @@
-import { DEFAULT_TOTAL_ROUNDS } from "@/game/constants";
 import {
   defaultSelectedSongBucketIds,
   getSongById,
@@ -6,12 +5,21 @@ import {
   getSongsForBuckets,
   getSongsForQuizCategory,
 } from "@/game/content/song-bank";
+import type { QuizSettings } from "@/game/contracts/settings";
+import { quizSettings } from "@/game/contracts/settings";
 import {
   createRound,
   getPlaylistDifficultyTargets,
   pickPlaylistSongs,
 } from "@/game/stores/round-helpers";
 import { describe, expect, it } from "vitest";
+
+const settings = Object.fromEntries(
+  Object.entries(quizSettings).map(([name, definition]) => [
+    name,
+    definition.default,
+  ]),
+) as QuizSettings;
 
 describe("pickPlaylistSongs", () => {
   it("builds a ten-round default mix with an intentional difficulty curve", () => {
@@ -70,13 +78,15 @@ describe("pickPlaylistSongs", () => {
       .slice(0, -unplayedSongs.length)
       .map(getSongCanonicalKey);
     const playlist = pickPlaylistSongs(
-      DEFAULT_TOTAL_ROUNDS,
+      quizSettings.totalRounds.default,
       defaultSelectedSongBucketIds,
       playedSongKeys,
     );
 
-    expect(playlist.songIds).toHaveLength(DEFAULT_TOTAL_ROUNDS);
-    expect(new Set(playlist.songIds)).toHaveLength(DEFAULT_TOTAL_ROUNDS);
+    expect(playlist.songIds).toHaveLength(quizSettings.totalRounds.default);
+    expect(new Set(playlist.songIds)).toHaveLength(
+      quizSettings.totalRounds.default,
+    );
     expect(
       playlist.songIds.filter((songId) => unplayedSongIds.has(songId)),
     ).toHaveLength(unplayedSongs.length);
@@ -110,6 +120,7 @@ describe("createRound", () => {
     }
 
     const round = createRound({
+      settings,
       roundNumber: 1,
       songId: correctSong.id,
       guessKind: "song-title",

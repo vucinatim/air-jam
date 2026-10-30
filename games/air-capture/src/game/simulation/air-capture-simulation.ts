@@ -1,3 +1,4 @@
+import type { AirCaptureSettings } from "../contracts/settings";
 /**
  * Air Capture's authoritative simulation, stepped by the SDK clock on the
  * host. It owns the whole match: the physics world, ships, weapons, pickups,
@@ -33,6 +34,7 @@ export const AIR_CAPTURE_STEP_MS = 1000 / 60;
 
 /** Everything a pilot knows about the arena, as plain data; bots and agents read it. */
 export const readArena = (sim: AirCaptureSim): BotWorld => ({
+  jumpForce: sim.settings.jumpForce,
   ships: [...sim.ships.values()].map((ship) => ({
     controllerId: ship.controllerId,
     teamId: sim.ctf.playerTeams[ship.controllerId] ?? ship.teamId,
@@ -88,10 +90,12 @@ const countdownInput = (input: GameLoopInput): GameLoopInput => ({
 export const airCaptureSimulation = defineAirJamSimulation<
   AirCaptureSim,
   GameLoopInput,
-  AirCaptureEvent
+  AirCaptureEvent,
+  AirCaptureSettings
 >({
   stepMs: AIR_CAPTURE_STEP_MS,
-  create: ({ random }) => ({
+  create: ({ random, settings }) => ({
+    settings,
     physics: createArenaPhysics(AIR_CAPTURE_STEP_MS / 1000),
     time: 0,
     ships: new Map(),
@@ -111,6 +115,7 @@ export const airCaptureSimulation = defineAirJamSimulation<
     nextEntityId: 0,
   }),
   step: (sim, context) => {
+    sim.settings = context.settings;
     syncRoster(sim, context.players, context.random, context.emit);
     followMatchPhase(sim, context.random);
     if (!isMatchActive(sim.matchPhase)) return;

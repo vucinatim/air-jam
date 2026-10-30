@@ -1,6 +1,5 @@
 import { useAirJamController } from "@air-jam/sdk";
 import { ControllerPrimaryAction } from "@air-jam/sdk/ui";
-import { MATCH_POINTS_TO_WIN } from "../../game/domain/match-rules";
 import {
   buildTeamSlots,
   MAX_TEAM_SLOTS,
@@ -134,7 +133,7 @@ export const LobbyPanel = () => {
         <div className={`${capturePanelClass} px-3 py-3`}>
           <div className="grid grid-cols-4 gap-2">
             {([3, 5, 7, 11] as const).map((value) => {
-              const selected = value === MATCH_POINTS_TO_WIN;
+              const selected = value === teams.pointsToWin;
               return (
                 <div
                   key={value}

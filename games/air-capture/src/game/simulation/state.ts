@@ -3,13 +3,13 @@ import { Quaternion, Vector3 } from "three";
 import type { AbilityData, AbilityId } from "../abilities/definitions";
 import type { HostSfxId } from "../audio/sounds";
 import { BotController } from "../bot-system/bot-controller";
+import type { AirCaptureSettings } from "../contracts/settings";
 import type { CaptureTheFlagSnapshot } from "../domain/capture-the-flag";
 import type { TeamId } from "../domain/team";
 import type { PlayerFlightState } from "../engine/ships/flight";
 import type { MatchPhase } from "../stores/match/match-store-types";
 import type { ArenaPhysics } from "./physics";
 
-export const MAX_HEALTH = 100;
 export const MAX_SHIPS = 4;
 
 export type ShipSource = "connected" | "bot";
@@ -68,6 +68,7 @@ export interface CollectibleSim {
 }
 
 export interface AirCaptureSim {
+  settings: AirCaptureSettings;
   physics: ArenaPhysics;
   /** Game seconds since the simulation began; every timer runs on it. */
   time: number;

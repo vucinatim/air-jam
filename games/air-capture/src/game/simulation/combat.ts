@@ -17,14 +17,7 @@ import {
 import { castProjectile, type ProjectileHit } from "./physics";
 import type { AirCaptureSim, Emit, RocketSim } from "./state";
 
-const LASER = { speed: 150, lifetime: 2, knockback: 300, damage: 20 };
-const ROCKET = {
-  speed: 70,
-  lifetime: 5,
-  damage: 85,
-  knockback: 900,
-  radius: 18,
-};
+const ROCKET_RADIUS = 18;
 
 const toTuple = (vector: Vector3): [number, number, number] => [
   vector.x,
@@ -50,7 +43,7 @@ export const stepLasers = (
     const { normalizedDirection, nextPosition } = advanceProjectilePosition(
       laser.position,
       laser.direction,
-      LASER.speed,
+      sim.settings.laserSpeed,
       delta,
     );
     const hit = castProjectile(
@@ -62,7 +55,7 @@ export const stepLasers = (
     if (hit) {
       const target = hit.controllerId ? sim.ships.get(hit.controllerId) : null;
       if (target) {
-        target.health = Math.max(0, target.health - LASER.damage);
+        target.health = Math.max(0, target.health - sim.settings.laserDamage);
         emit({ type: "sound", sound: "hit" });
         emit({
           type: "haptic",
@@ -76,7 +69,7 @@ export const stepLasers = (
         });
         const impulse = calculateLaserKnockbackImpulse(
           normalizedDirection,
-          LASER.knockback,
+          sim.settings.laserKnockback,
         );
         target.body.applyImpulse(impulse, true);
       }
@@ -87,7 +80,7 @@ export const stepLasers = (
     laser.previousPosition.copy(laser.position);
     laser.position.copy(nextPosition);
     laser.age += delta;
-    if (shouldExpireProjectile(laser.age, LASER.lifetime))
+    if (shouldExpireProjectile(laser.age, sim.settings.laserLifetime))
       sim.lasers.delete(laser.id);
   }
 };
@@ -102,20 +95,24 @@ const explode = (
   for (const ship of sim.ships.values()) {
     if (ship.controllerId === rocket.controllerId || ship.dead) continue;
     const distance = origin.distanceTo(ship.position);
-    if (distance > ROCKET.radius) continue;
+    if (distance > ROCKET_RADIUS) continue;
     ship.health = Math.max(
       0,
       ship.health -
         (ship.controllerId === directTargetId
           ? calculateDirectHitDamage(ship.health)
-          : calculateExplosionDamage(distance, ROCKET.radius, ROCKET.damage)),
+          : calculateExplosionDamage(
+              distance,
+              ROCKET_RADIUS,
+              sim.settings.rocketDamage,
+            )),
     );
     ship.body.applyImpulse(
       calculateExplosionImpulse({
         explosionOrigin: origin,
         targetPosition: ship.position,
-        radius: ROCKET.radius,
-        maxForce: ROCKET.knockback,
+        radius: ROCKET_RADIUS,
+        maxForce: sim.settings.rocketKnockback,
       }),
       true,
     );
@@ -138,7 +135,7 @@ export const stepRockets = (
     const { nextPosition } = advanceProjectilePosition(
       rocket.position,
       rocket.direction,
-      ROCKET.speed,
+      sim.settings.rocketSpeed,
       delta,
     );
     const hit = castProjectile(
@@ -162,7 +159,7 @@ export const stepRockets = (
     rocket.previousPosition.copy(rocket.position);
     rocket.position.copy(nextPosition);
     rocket.age += delta;
-    if (shouldExpireProjectile(rocket.age, ROCKET.lifetime))
+    if (shouldExpireProjectile(rocket.age, sim.settings.rocketLifetime))
       sim.rockets.delete(rocket.id);
   }
 };

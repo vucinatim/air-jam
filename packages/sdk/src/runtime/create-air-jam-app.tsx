@@ -160,6 +160,7 @@ export const createAirJamApp = (
     agent,
     stores,
     simulation,
+    settings,
     input,
     inputBindings,
   } = game;
@@ -194,6 +195,7 @@ export const createAirJamApp = (
           gameId={metadata.slug}
           stores={stores}
           simulation={simulation}
+          settings={settings}
           input={input}
           inputBindings={inputBindings}
         >

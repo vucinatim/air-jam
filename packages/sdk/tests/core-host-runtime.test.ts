@@ -10,12 +10,15 @@ import {
   createAirJamStore,
   createConnectionStore,
   defineAirJamInput,
+  defineAirJamSettings,
   defineAirJamSimulation,
   HostRuntime,
   replayAirJamInputLog,
+  setting,
   type AirJamActionContext,
   type AirJamHostEnvironment,
   type AirJamInputValues,
+  type AirJamSettingsValues,
 } from "../src/core";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
@@ -401,6 +404,152 @@ describe("core host runtime", () => {
     ).toEqual(played.path);
     expect(replay.scores.getState().score).toBe(played.score);
     replayed.stop();
+  });
+
+  it("shares one settings revision across creation, steps, actions, observation and host control", async () => {
+    const settings = defineAirJamSettings({
+      speed: setting.number({ default: 2, min: 1, max: 4, live: true }),
+      seats: setting.number({ default: 4, min: 2, max: 8 }),
+    });
+    type Values = AirJamSettingsValues<typeof settings>;
+    const values = createAirJamStore<{
+      speed: number;
+      actions: {
+        read: (
+          context: AirJamActionContext<Values>,
+          payload: undefined,
+        ) => void;
+      };
+    }>((set) => ({
+      speed: 0,
+      actions: { read: ({ settings }) => set({ speed: settings.speed }) },
+    }));
+    const simulation = defineAirJamSimulation<
+      { created: number; stepped: number },
+      Record<string, never>,
+      never,
+      Values
+    >({
+      stepMs: 10,
+      create: ({ settings }) => ({ created: settings.speed, stepped: 0 }),
+      step: (sim, { settings }) => {
+        sim.stepped = settings.speed;
+      },
+      observe: (sim, { settings }) => ({ ...sim, observed: settings.speed }),
+    });
+    const socket = createServerSocket();
+    const { environment } = createMemoryEnvironment(socket);
+    const runtime = new HostRuntime(
+      {
+        config,
+        store: createConnectionStore(),
+        environment,
+        getSocket: () => {
+          throw new Error("No socket");
+        },
+        disconnectSocket: () => {},
+        stores: [values],
+        simulation,
+        settings,
+        agent: {
+          gameId: "settings",
+          contract: defineAirJamAgentContract({
+            stores: defineAirJamAgentStores({
+              default: agentStore<{ speed: number }>(),
+            }),
+            projectSnapshot: ({ stores }) => stores.default ?? {},
+            actions: {},
+          }),
+        },
+      },
+      { settings: { speed: 3, seats: 6 }, record: true },
+    );
+    const stop = runtime.start();
+    try {
+      await runtime.ready;
+      await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+      const control = Reflect.get(
+        environment.controlTarget,
+        AIR_JAM_RUNTIME_CONTROL_KEY,
+      ) as HostRuntimeControl;
+      const snapshot = await control.agent({
+        operation: "read",
+        roomId: "ROOM1",
+        controllerId: null,
+      });
+      if (snapshot.operation !== "read" || !snapshot.snapshot)
+        throw new Error("Expected runtime");
+      const target = {
+        roomId: "ROOM1",
+        runtimeId: snapshot.snapshot.runtimeId,
+      };
+      expect(
+        await control.agent({ operation: "settings-read", ...target }),
+      ).toMatchObject({ values: { speed: 3, seats: 6 }, revision: 0 });
+      await expect(
+        control.agent({
+          operation: "settings-update",
+          ...target,
+          patch: { seats: 5 },
+          expectedRevision: 0,
+        }),
+      ).rejects.toThrow("AJ_SETTING_NOT_LIVE");
+      await expect(
+        control.agent({
+          operation: "settings-update",
+          ...target,
+          patch: { speed: 4 },
+          expectedRevision: 1,
+        }),
+      ).rejects.toThrow("AJ_SETTING_STALE");
+      await expect(
+        control.agent({
+          operation: "settings-update",
+          ...target,
+          runtimeId: "replaced",
+          patch: { speed: 4 },
+          expectedRevision: 0,
+        }),
+      ).rejects.toThrow("runtime_replaced");
+      await expect(
+        control.agent({
+          operation: "settings-update",
+          ...target,
+          roomId: "OTHER",
+          patch: { speed: 4 },
+          expectedRevision: 0,
+        }),
+      ).rejects.toThrow();
+      expect(
+        await control.agent({
+          operation: "settings-update",
+          ...target,
+          patch: { speed: 4 },
+          expectedRevision: 0,
+        }),
+      ).toMatchObject({ values: { speed: 4, seats: 6 }, revision: 1 });
+      await values.actions.read();
+      runtime.simulation?.advance(10);
+      const observed = await control.agent({
+        operation: "observe",
+        roomId: "ROOM1",
+        controllerId: null,
+        scope: "diagnostic",
+        includeImage: false,
+      });
+      expect(observed).toMatchObject({
+        observation: {
+          runtime: { created: 3, stepped: 4, observed: 4 },
+          snapshot: { speed: 4 },
+        },
+      });
+      expect(runtime.inputLog().entries.map(({ event }) => event)).toEqual([
+        "airjam:settings",
+        "airjam:action_rpc",
+      ]);
+    } finally {
+      stop();
+    }
   });
 
   it("loads a simulation declared as a loader before stepping it", async () => {

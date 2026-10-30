@@ -1,4 +1,3 @@
-import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "../constants";
 import {
   getRoundOptionLabel,
   pickRoundOptionSongIds,
@@ -11,6 +10,7 @@ import {
   type SongBucketId,
   type SongEntry,
 } from "../content/song-bank";
+import type { QuizSettings } from "../contracts/settings";
 import { createEmptyScore } from "../domain/player-utils";
 import {
   buildRoundResults,
@@ -210,6 +210,7 @@ export const pickPlaylistGuessKinds = (count: number): RoundGuessKind[] => {
 };
 
 export interface CreateRoundOptions {
+  settings: QuizSettings;
   roundNumber: number;
   songId: string;
   guessKind: RoundGuessKind;
@@ -219,6 +220,7 @@ export interface CreateRoundOptions {
 }
 
 export const createRound = ({
+  settings,
   roundNumber,
   songId,
   guessKind,
@@ -233,7 +235,7 @@ export const createRound = ({
 
   const optionOrder = pickRoundOptionSongIds({
     correctSongId: song.id,
-    optionCount: DEFAULT_OPTION_COUNT,
+    optionCount: settings.optionCount,
     guessKind,
   });
 
@@ -308,6 +310,7 @@ export const resetLobbyState = (state: QuizState): Partial<QuizState> => {
 export const finalizeRoundState = (
   state: QuizState,
   nowMs: number,
+  settings: QuizSettings,
 ): QuizState => {
   if (state.phase !== "round-active" || !state.currentRound) {
     return state;
@@ -371,7 +374,7 @@ export const finalizeRoundState = (
         previousScore.totalResponseMs + (playerRoundResult.responseMs ?? 0),
       answeredRounds: previousScore.answeredRounds + (didAnswer ? 1 : 0),
       mostPointsStreak,
-      hasStreakFire: mostPointsStreak >= STREAK_FIRE_MIN_ROUNDS,
+      hasStreakFire: mostPointsStreak >= settings.streakFireMinRounds,
     };
   });
 
@@ -396,7 +399,7 @@ export const finalizeRoundState = (
       firstCorrectPlayerId: firstCorrectSummary.playerId,
       firstCorrectResponseMs: firstCorrectSummary.responseMs,
       resultsByPlayerId,
-      revealEndsAtMs: nowMs + state.revealDurationSec * 1000,
+      revealEndsAtMs: nowMs + settings.revealDurationSec * 1000,
     },
     scoreboardByPlayerId: nextScoreboard,
   };
@@ -429,7 +432,11 @@ const completeMatchCountdownState = (
   };
 };
 
-const advanceFromRevealState = (state: QuizState, nowMs: number): QuizState => {
+const advanceFromRevealState = (
+  state: QuizState,
+  nowMs: number,
+  settings: QuizSettings,
+): QuizState => {
   if (
     state.phase !== "round-reveal" ||
     !state.roundReveal ||
@@ -442,7 +449,7 @@ const advanceFromRevealState = (state: QuizState, nowMs: number): QuizState => {
   const nextSongId = state.playlistSongIds[nextRoundNumber - 1];
   const nextGuessKind = state.playlistGuessKinds[nextRoundNumber - 1];
 
-  if (nextRoundNumber > state.totalRounds || !nextSongId || !nextGuessKind) {
+  if (nextRoundNumber > settings.totalRounds || !nextSongId || !nextGuessKind) {
     return {
       ...state,
       phase: "game-over",
@@ -456,12 +463,13 @@ const advanceFromRevealState = (state: QuizState, nowMs: number): QuizState => {
     ...state,
     phase: "round-active",
     currentRound: createRound({
+      settings,
       roundNumber: nextRoundNumber,
       songId: nextSongId,
       guessKind: nextGuessKind,
       expectedPlayerIds: state.activePlayerIds,
       nowMs,
-      roundDurationSec: state.roundDurationSec,
+      roundDurationSec: settings.roundDurationSec,
     }),
     answersByPlayerId: {},
     roundReveal: null,
@@ -485,10 +493,77 @@ const phaseDeadlineMs = (state: QuizState): number | null => {
 export const advanceRoundClock = (
   state: QuizState,
   nowMs: number,
+  settings: QuizSettings,
 ): QuizState => {
+  const countdownShiftMs =
+    state.phase === "match-countdown"
+      ? (settings.matchStartCountdownSec - state.matchStartCountdownSec) * 1000
+      : 0;
+  const changed =
+    state.matchStartCountdownSec !== settings.matchStartCountdownSec ||
+    state.totalRounds !== settings.totalRounds ||
+    state.roundDurationSec !== settings.roundDurationSec ||
+    state.revealDurationSec !== settings.revealDurationSec;
+  if (changed) {
+    const missing = Math.max(
+      0,
+      settings.totalRounds - state.playlistSongIds.length,
+    );
+    const extra =
+      missing > 0
+        ? pickPlaylistSongs(
+            missing,
+            state.selectedSongBucketIds,
+            state.playedSongKeys,
+          )
+        : null;
+    state = {
+      ...state,
+      matchStartCountdownSec: settings.matchStartCountdownSec,
+      totalRounds: settings.totalRounds,
+      roundDurationSec: settings.roundDurationSec,
+      revealDurationSec: settings.revealDurationSec,
+      currentRound: state.currentRound
+        ? {
+            ...state.currentRound,
+            startedAtMs: state.currentRound.startedAtMs + countdownShiftMs,
+            endsAtMs:
+              state.currentRound.startedAtMs +
+              countdownShiftMs +
+              settings.roundDurationSec * 1000,
+          }
+        : null,
+      roundReveal: state.roundReveal
+        ? {
+            ...state.roundReveal,
+            revealEndsAtMs:
+              state.roundReveal.revealEndsAtMs +
+              (settings.revealDurationSec - state.revealDurationSec) * 1000,
+          }
+        : null,
+      ...(extra
+        ? {
+            playlistSongIds: [...state.playlistSongIds, ...extra.songIds],
+            playlistGuessKinds: [
+              ...state.playlistGuessKinds,
+              ...pickPlaylistGuessKinds(extra.songIds.length),
+            ],
+            playedSongKeys: appendPlayedSongKeys(
+              state.playedSongKeys,
+              extra.songKeys,
+            ),
+          }
+        : {}),
+    };
+  }
   const next = advanceFromRevealState(
-    finalizeRoundState(completeMatchCountdownState(state, nowMs), nowMs),
+    finalizeRoundState(
+      completeMatchCountdownState(state, nowMs),
+      nowMs,
+      settings,
+    ),
     nowMs,
+    settings,
   );
   const deadlineMs = phaseDeadlineMs(next);
   const secondsLeft =

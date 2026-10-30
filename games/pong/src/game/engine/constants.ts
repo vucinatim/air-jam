@@ -9,8 +9,6 @@ export const PADDLE_HEIGHT = 100;
 export const PADDLE_WIDTH = 15;
 export const PADDLE_OFFSET = 30;
 export const BALL_SIZE = 15;
-export const PADDLE_SPEED = 720; // pixels per second
-export const BALL_SPEED = 360; // pixels per second
 export const FIELD_BACKGROUND_COLOR = arenaProps.backgroundColor;
 export const FIELD_CENTER_LINE_COLOR = arenaProps.centerLineColor;
 

@@ -22,6 +22,7 @@ describe("pong store state transitions", () => {
       role: "controller" as const,
       connectedPlayerIds: ["alpha"],
       now: 0,
+      settings: {},
     };
     const actions = pongStore.getState().actions;
     actions.returnToLobby(player, undefined);

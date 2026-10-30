@@ -25,11 +25,13 @@ import {
   openGameSession,
   readGameRun,
   readGameSession,
+  readGameSettings,
   replayGameRun,
   sendGameSessionInput,
   startGameRun,
   steerGameRun,
   stopGameRun,
+  updateGameSettings,
   waitGameRun,
 } from "@air-jam/devtools/game-session";
 import { inspectGame, listGames } from "@air-jam/devtools/games";
@@ -627,6 +629,22 @@ export const buildToolDefinitions = ({
           ],
         };
       },
+    },
+    "airjam.read_game_settings": {
+      description:
+        "Read the current settings and revision from an owned live game host.",
+      inputSchema: gameSessionOperationSchemas["settings-read"],
+      run: async (
+        input: z.infer<(typeof gameSessionOperationSchemas)["settings-read"]>,
+      ) => withJsonText(await readGameSettings(input)),
+    },
+    "airjam.update_game_settings": {
+      description:
+        "Atomically change live settings on an owned game host using its current revision. Non-live settings require a new room.",
+      inputSchema: gameSessionOperationSchemas["settings-update"],
+      run: async (
+        input: z.infer<(typeof gameSessionOperationSchemas)["settings-update"]>,
+      ) => withJsonText(await updateGameSettings(input)),
     },
     "airjam.invoke_game_session_action": {
       description:

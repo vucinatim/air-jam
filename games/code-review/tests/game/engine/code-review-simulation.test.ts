@@ -1,14 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MATCH_POINTS_TO_WIN } from "../../../src/game/domain/match-rules";
+import {
+  codeReviewSettings,
+  type CodeReviewSettings,
+} from "../../../src/game/contracts/settings";
 import {
   codeReviewSimulation,
   type CodeReviewSimulationEvent,
   type CodeReviewSimulationState,
 } from "../../../src/game/engine/code-review-simulation";
 
+const settings = Object.fromEntries(
+  Object.entries(codeReviewSettings).map(([name, definition]) => [
+    name,
+    definition.default,
+  ]),
+) as CodeReviewSettings;
+
 const fixture = vi.hoisted(() => ({
   state: {
     matchPhase: "lobby" as "lobby" | "playing" | "ended",
+    pointsToWin: 5,
     scores: { team1: 0, team2: 0 },
     teamAssignments: {} as Record<
       string,
@@ -35,6 +46,7 @@ describe("Code Review simulation", () => {
 
   const step = () =>
     codeReviewSimulation.step(sim, {
+      settings,
       tick: 1,
       stepMs: codeReviewSimulation.stepMs,
       dtSeconds: codeReviewSimulation.stepMs / 1000,
@@ -57,7 +69,7 @@ describe("Code Review simulation", () => {
     fixture.state.teamAssignments = {
       ctrl_1: { team: "team1", position: "front" },
     };
-    sim = codeReviewSimulation.create({ random: () => 0 });
+    sim = codeReviewSimulation.create({ random: () => 0, settings });
     events = [];
   });
 
@@ -84,7 +96,7 @@ describe("Code Review simulation", () => {
     fixture.state.matchPhase = "playing";
     step();
     expect(fixture.actions.finishMatch).not.toHaveBeenCalled();
-    fixture.state.scores = { team1: MATCH_POINTS_TO_WIN, team2: 0 };
+    fixture.state.scores = { team1: fixture.state.pointsToWin, team2: 0 };
     step();
     expect(fixture.actions.finishMatch).toHaveBeenCalledTimes(1);
   });
@@ -94,6 +106,7 @@ describe("Code Review simulation", () => {
     step();
     expect(
       codeReviewSimulation.observe?.(sim, {
+        settings,
         controllerId: null,
         scope: "diagnostic",
       }),

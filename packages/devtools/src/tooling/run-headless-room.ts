@@ -54,7 +54,11 @@ function send(message: HeadlessRoomResponse) {
   if (process.connected) process.send?.(message);
 }
 
-async function openRoom(configPath: string, seed: number) {
+async function openRoom(
+  configPath: string,
+  seed: number,
+  settings?: Record<string, string | number | boolean>,
+) {
   const app = await loadAirJamGame(configPath);
   const server = createAirJamServer({
     host: "127.0.0.1",
@@ -124,7 +128,7 @@ async function openRoom(configPath: string, seed: number) {
       environment,
     },
     // A game with a simulation keeps the input log that replays the run.
-    { seed, record: Boolean(app.simulation) },
+    { seed, settings, record: Boolean(app.simulation) },
   );
   const stop = runtime.start();
   const close = async () => {
@@ -245,7 +249,11 @@ process.on("message", (message: unknown) => {
         send({
           kind: "initialized",
           id: request.id,
-          ...(await openRoom(request.configPath, request.seed)),
+          ...(await openRoom(
+            request.configPath,
+            request.seed,
+            request.settings,
+          )),
         });
         return;
       }

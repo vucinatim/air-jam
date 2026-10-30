@@ -1,6 +1,14 @@
-import { DEFAULT_TOTAL_ROUNDS } from "@/game/constants";
+import type { QuizSettings } from "@/game/contracts/settings";
+import { quizSettings } from "@/game/contracts/settings";
 import { gameStore } from "@/game/stores/create-store";
 import { describe, expect, it } from "vitest";
+
+const settings = Object.fromEntries(
+  Object.entries(quizSettings).map(([name, definition]) => [
+    name,
+    definition.default,
+  ]),
+) as QuizSettings;
 
 const completeMatch = (playerCount: number) => {
   const playerIds = Array.from(
@@ -11,6 +19,7 @@ const completeMatch = (playerCount: number) => {
     actorId: "host",
     role: "host" as const,
     connectedPlayerIds: playerIds,
+    settings,
     now: 0,
   };
   const hostAt = (now: number) => ({ ...hostContext, now });
@@ -29,6 +38,7 @@ const completeMatch = (playerCount: number) => {
         actorId: playerId,
         role: "controller",
         connectedPlayerIds: playerIds,
+        settings,
         now: 0,
       },
       { ready: true },
@@ -46,7 +56,11 @@ const completeMatch = (playerCount: number) => {
     .actions.advanceClock(hostAt(countdownRound.startedAtMs), undefined);
   expect(gameStore.getState().phase).toBe("round-active");
 
-  for (let roundIndex = 0; roundIndex < DEFAULT_TOTAL_ROUNDS; roundIndex += 1) {
+  for (
+    let roundIndex = 0;
+    roundIndex < quizSettings.totalRounds.default;
+    roundIndex += 1
+  ) {
     const round = gameStore.getState().currentRound;
     if (!round) {
       throw new Error(`Expected active round ${roundIndex + 1}.`);
@@ -58,6 +72,7 @@ const completeMatch = (playerCount: number) => {
           actorId: playerId,
           role: "controller",
           connectedPlayerIds: playerIds,
+          settings,
           now: round.startedAtMs + 500 + playerIndex,
         },
         { optionId: round.songId },
@@ -87,14 +102,14 @@ const completeMatch = (playerCount: number) => {
 
   const finalState = gameStore.getState();
   expect(finalState.phase).toBe("game-over");
-  expect(finalState.completedRoundCount).toBe(DEFAULT_TOTAL_ROUNDS);
+  expect(finalState.completedRoundCount).toBe(quizSettings.totalRounds.default);
   expect(finalState.finalRankingPlayerIds).toEqual(playerIds);
   expect(Object.keys(finalState.scoreboardByPlayerId)).toHaveLength(
     playerCount,
   );
   playerIds.forEach((playerId) => {
     expect(finalState.scoreboardByPlayerId[playerId]?.correct).toBe(
-      DEFAULT_TOTAL_ROUNDS,
+      quizSettings.totalRounds.default,
     );
   });
 };
@@ -105,6 +120,7 @@ describe("complete match lifecycle", () => {
       actorId: "host",
       role: "host" as const,
       connectedPlayerIds: ["alpha", "beta"],
+      settings,
       now: 10_000,
     };
     const actions = gameStore.getState().actions;
@@ -143,6 +159,7 @@ describe("complete match lifecycle", () => {
       actorId: "host",
       role: "host" as const,
       connectedPlayerIds: ["alpha", "beta"],
+      settings,
       now: 0,
     };
     const alpha = { ...host, actorId: "alpha", role: "controller" as const };

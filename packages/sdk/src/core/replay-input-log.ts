@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { HostBootstrapAck, HostRegistrationAck } from "../protocol";
 import { resolveRuntimeTopology } from "../runtime-topology";
 import {
@@ -13,6 +14,13 @@ import { createConnectionStore } from "./connection-store";
 import type { AirJamHostEnvironment } from "./environment";
 import type { HostRuntime, HostRuntimeFactory } from "./host-runtime";
 import { airJamInputLogSchema, type AirJamInputLog } from "./input-log";
+import { airJamSettingsValuesSchema } from "./settings";
+const settingsLogEventSchema = z
+  .object({
+    patch: airJamSettingsValuesSchema,
+    revision: z.number().int().positive(),
+  })
+  .strict();
 
 const REPLAY_ROOM_ID = "REPLAY";
 const REPLAY_ORIGIN = "http://replay.invalid";
@@ -136,7 +144,7 @@ export const replayAirJamInputLog = async (
       disconnectSocket: () => {},
       environment,
     },
-    { seed: log.seed },
+    { seed: log.seed, settings: log.settings },
   );
   const stop = runtime.start();
   try {
@@ -160,9 +168,15 @@ export const replayAirJamInputLog = async (
     if (clock.ticks !== 0 || clock.stepMs !== log.stepMs)
       throw new Error("The replayed game does not match the recorded one.");
     let next = 0;
-    for (let tick = 1; tick <= log.ticks; tick += 1) {
+    // Events after the last step still affect settings, actions and observations.
+    for (let tick = 1; tick <= log.ticks + 1; tick += 1) {
       for (; log.entries[next]?.tick === tick; next += 1) {
         const { event, payload } = log.entries[next];
+        if (event === "airjam:settings") {
+          const accepted = settingsLogEventSchema.parse(payload);
+          runtime.updateSettings(accepted.patch, accepted.revision - 1);
+          continue;
+        }
         room.fire(
           event,
           "roomId" in payload
@@ -170,7 +184,7 @@ export const replayAirJamInputLog = async (
             : payload,
         );
       }
-      clock.advance(log.stepMs);
+      if (tick <= log.ticks) clock.advance(log.stepMs);
     }
     return {
       runtime,

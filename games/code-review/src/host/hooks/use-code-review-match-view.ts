@@ -1,17 +1,18 @@
 import {
   captureAgentCanvas,
+  useAirJamSettings,
   useHostAgentCapture,
   useSendSignal,
   useSimulationEvents,
   useSimulationFrame,
 } from "@air-jam/sdk";
 import { useRef, useState, type MutableRefObject } from "react";
+import { codeReviewSettings } from "../../game/contracts/settings";
 import type { CodeReviewSfxId } from "../../game/contracts/sounds";
 import type {
   CodeReviewSimulationEvent,
   CodeReviewSimulationState,
 } from "../../game/engine/code-review-simulation";
-import { MAX_HP } from "../../game/engine/constants";
 import { drawFrame } from "../../game/engine/render";
 import type {
   ArenaColors,
@@ -40,11 +41,12 @@ export const useCodeReviewMatchView = ({
   ) => HTMLCanvasElement;
   playSfxFromRef: (key: CodeReviewSfxId) => void;
 }) => {
+  const { maxHp } = useAirJamSettings(codeReviewSettings);
   const sendSignal = useSendSignal();
-  const hpSnapshotRef = useRef({ team1: MAX_HP, team2: MAX_HP });
+  const hpSnapshotRef = useRef({ team1: maxHp, team2: maxHp });
   const [hpDisplay, setHpDisplay] = useState(() => ({
-    team1: MAX_HP,
-    team2: MAX_HP,
+    team1: maxHp,
+    team2: maxHp,
   }));
 
   useHostAgentCapture(() => captureAgentCanvas(getContext()?.canvas ?? null));

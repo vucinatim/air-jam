@@ -1,3 +1,4 @@
+import type { OfficeSettings } from "../contracts/settings";
 export type TaskType =
   | "computer"
   | "meeting"
@@ -21,28 +22,12 @@ export type TaskId =
   | "internet-down"
   | "narisi-strip";
 
-/** Stat system constants */
-export const STAT_CONSTANTS = {
-  MAX_STAT: 100,
-  ENERGY_DECAY_PER_SECOND: 2,
-  BOREDOM_DECAY_MIN: 10,
-  BOREDOM_DECAY_MAX: 20,
-  BOREDOM_DECAY_INTERVAL_MIN_MS: 5000,
-  BOREDOM_DECAY_INTERVAL_MAX_MS: 15000,
-  COFFEE_ENERGY_RESTORE: 30,
-  LUNCH_ENERGY_RESTORE: 50,
-  FIFA_BOREDOM_RESTORE: 40,
-  BREAKROOM_ACTIVITY_DURATION_MS: 3000,
-  TASK_EXPIRY_MS: 45000,
-} as const;
-
 export interface TaskDefinition {
   id: string;
   type: TaskType;
   name: string;
   description: string;
   reward: number;
-  baseDurationMs: number;
 }
 
 export const TASK_DEFINITIONS: TaskDefinition[] = [
@@ -53,7 +38,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Vibe coding",
     description: "Programiraj z vibrom",
     reward: 400,
-    baseDurationMs: 10000,
   },
   {
     id: "coding",
@@ -61,7 +45,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Coding",
     description: "Napiši kodo",
     reward: 500,
-    baseDurationMs: 10000,
   },
   {
     id: "maili",
@@ -69,7 +52,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Maili",
     description: "Pošlji e-pošto",
     reward: 450,
-    baseDurationMs: 10000,
   },
   {
     id: "opravek",
@@ -77,7 +59,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Opravek",
     description: "Popravi napako",
     reward: 200,
-    baseDurationMs: 10000,
   },
 
   // Kitchen tasks
@@ -87,7 +68,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Bejži po špejžo",
     description: "Pojdi po prigrizke",
     reward: 0,
-    baseDurationMs: 10000,
   },
 
   // Printer tasks
@@ -97,7 +77,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Odnesi v print",
     description: "Natisni dokumente",
     reward: 0,
-    baseDurationMs: 10000,
   },
 
   // Kitchen tasks (coffee machine)
@@ -107,7 +86,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Spuci kavomat",
     description: "Oper kavomat",
     reward: 0,
-    baseDurationMs: 10000,
   },
 
   // Maintenance tasks
@@ -117,7 +95,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Hišniška dela",
     description: "Hišniška opravila",
     reward: 100,
-    baseDurationMs: 10000,
   },
 
   // Meeting tasks
@@ -127,7 +104,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Sestanek v sejni",
     description: "Sestanek v sejni sobi",
     reward: 400,
-    baseDurationMs: 10000,
   },
   {
     id: "interni-sestanek",
@@ -135,7 +111,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Interni sestanek",
     description: "Notranji sestanek",
     reward: 250,
-    baseDurationMs: 10000,
   },
 
   // Maintenance tasks (internet)
@@ -145,7 +120,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Internet je down",
     description: "Popravi internet",
     reward: 250,
-    baseDurationMs: 10000,
   },
 
   // Computer tasks (creative)
@@ -155,7 +129,6 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
     name: "Nariši strip",
     description: "Nariši strip",
     reward: 100,
-    baseDurationMs: 10000,
   },
 ];
 
@@ -328,22 +301,25 @@ export interface PlayerTask {
 export class TaskManager {
   private tasks: ActiveTask[] = [];
   private lastSpawnTime = 0;
-  private spawnInterval = 4000;
+  constructor(private readonly readSettings: () => OfficeSettings) {}
   private taskIdCounter = 0;
   private playerTasks: PlayerTask[] = [];
 
   update(currentTime: number, random: () => number): ActiveTask[] {
     // Find expired tasks before filtering them out
     const expiredTasks = this.tasks.filter(
-      (t) => currentTime - t.spawnTime >= STAT_CONSTANTS.TASK_EXPIRY_MS,
+      (t) => currentTime - t.spawnTime >= this.readSettings().taskExpiryMs,
     );
 
     // Remove expired tasks
     this.tasks = this.tasks.filter(
-      (t) => currentTime - t.spawnTime < STAT_CONSTANTS.TASK_EXPIRY_MS,
+      (t) => currentTime - t.spawnTime < this.readSettings().taskExpiryMs,
     );
 
-    if (currentTime - this.lastSpawnTime > this.spawnInterval) {
+    if (
+      currentTime - this.lastSpawnTime >
+      this.readSettings().taskSpawnIntervalMs
+    ) {
       this.spawnTask(currentTime, random);
       this.lastSpawnTime = currentTime;
     }
@@ -375,7 +351,7 @@ export class TaskManager {
       reward: taskDef.reward,
       locationId: location.id,
       spawnTime: currentTime,
-      durationMs: taskDef.baseDurationMs,
+      durationMs: this.readSettings().taskDurationMs,
     };
 
     this.tasks.push(task);

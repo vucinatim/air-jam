@@ -1,5 +1,6 @@
 import { Euler, Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
+import { airCaptureSettings } from "../../../../src/game/contracts/settings";
 import type { PlayerFlightState } from "../../../../src/game/engine/ships/flight";
 import {
   SHIP_ENGINE_CONFIG,
@@ -13,6 +14,12 @@ import {
   smoothShipInput,
   stepAirControlEnergy,
 } from "../../../../src/game/engine/ships/flight";
+const defaultSettings = Object.fromEntries(
+  Object.entries(airCaptureSettings).map(([key, definition]) => [
+    key,
+    definition.default,
+  ]),
+) as import("../../../../src/game/contracts/settings").AirCaptureSettings;
 
 const AIRBORNE_FLIGHT_STATE: PlayerFlightState = {
   mode: "airborne",
@@ -22,7 +29,12 @@ const AIRBORNE_FLIGHT_STATE: PlayerFlightState = {
 
 describe("air-capture ship flight engine", () => {
   it("smooths stick input without store coupling", () => {
-    const result = smoothShipInput({ x: 0, y: 0 }, { x: 1, y: -1 }, 0.05);
+    const result = smoothShipInput(
+      defaultSettings,
+      { x: 0, y: 0 },
+      { x: 1, y: -1 },
+      0.05,
+    );
 
     expect(result.x).toBeGreaterThan(0);
     expect(result.x).toBeLessThan(1);
@@ -32,7 +44,13 @@ describe("air-capture ship flight engine", () => {
 
   it("switches control mapping between hover and flight modes", () => {
     expect(
-      resolveShipControls(5, 0, { x: 0.25, y: -0.5 }, AIRBORNE_FLIGHT_STATE),
+      resolveShipControls(
+        defaultSettings,
+        5,
+        0,
+        { x: 0.25, y: -0.5 },
+        AIRBORNE_FLIGHT_STATE,
+      ),
     ).toEqual({
       mode: "grounded",
       isInAir: false,
@@ -44,7 +62,13 @@ describe("air-capture ship flight engine", () => {
     });
 
     expect(
-      resolveShipControls(5, 0, { x: 0.25, y: 0.5 }, AIRBORNE_FLIGHT_STATE),
+      resolveShipControls(
+        defaultSettings,
+        5,
+        0,
+        { x: 0.25, y: 0.5 },
+        AIRBORNE_FLIGHT_STATE,
+      ),
     ).toEqual({
       mode: "grounded",
       isInAir: false,
@@ -56,7 +80,13 @@ describe("air-capture ship flight engine", () => {
     });
 
     expect(
-      resolveShipControls(7, 0, { x: 0.25, y: -0.5 }, AIRBORNE_FLIGHT_STATE),
+      resolveShipControls(
+        defaultSettings,
+        7,
+        0,
+        { x: 0.25, y: -0.5 },
+        AIRBORNE_FLIGHT_STATE,
+      ),
     ).toEqual({
       mode: "airborne",
       isInAir: true,
@@ -68,7 +98,13 @@ describe("air-capture ship flight engine", () => {
     });
 
     expect(
-      resolveShipControls(5, 8, { x: 0.1, y: 0.25 }, AIRBORNE_FLIGHT_STATE),
+      resolveShipControls(
+        defaultSettings,
+        5,
+        8,
+        { x: 0.1, y: 0.25 },
+        AIRBORNE_FLIGHT_STATE,
+      ),
     ).toEqual({
       mode: "airborne",
       isInAir: true,
@@ -81,6 +117,7 @@ describe("air-capture ship flight engine", () => {
 
     expect(
       resolveShipControls(
+        defaultSettings,
         7,
         0,
         { x: 0.25, y: -0.5 },
@@ -104,6 +141,7 @@ describe("air-capture ship flight engine", () => {
   it("keeps flight stepping pure and bounded", () => {
     const forward = new Vector3(0, 0, -1);
     const velocity = calculateShipVelocity(
+      defaultSettings,
       new Vector3(),
       forward,
       1,
@@ -113,7 +151,9 @@ describe("air-capture ship flight engine", () => {
     );
 
     expect(velocity.z).toBeLessThan(0);
-    expect(calculateShipYawVelocity(0, 1, 1 / 60)).toBeLessThan(0);
+    expect(
+      calculateShipYawVelocity(defaultSettings, 0, 1, 1 / 60),
+    ).toBeLessThan(0);
     expect(calculateShipWingRoll(0, 1, 1 / 60)).toBeLessThan(0);
   });
 
@@ -122,6 +162,7 @@ describe("air-capture ship flight engine", () => {
       new Euler(SHIP_ENGINE_CONFIG.MAX_PITCH_UP, 0, 0),
     );
     const airborneRotation = advanceShipRotation(
+      defaultSettings,
       steepRotation,
       0,
       100,
@@ -129,6 +170,7 @@ describe("air-capture ship flight engine", () => {
       1 / 60,
     );
     const groundedRotation = advanceShipRotation(
+      defaultSettings,
       steepRotation,
       0,
       0,
@@ -153,16 +195,33 @@ describe("air-capture ship flight engine", () => {
 
   it("keeps launch arcs and hover correction explicit", () => {
     expect(
-      calculateShipVerticalVelocityDelta(true, 12, 11, 0, 20, 1 / 60),
+      calculateShipVerticalVelocityDelta(
+        defaultSettings,
+        true,
+        12,
+        11,
+        0,
+        20,
+        1 / 60,
+      ),
     ).toBeLessThanOrEqual(0);
 
-    expect(calculateShipVerticalVelocityDelta(false, 4, -3, 0, 0, 1 / 60)).toBe(
-      3,
-    );
+    expect(
+      calculateShipVerticalVelocityDelta(
+        defaultSettings,
+        false,
+        4,
+        -3,
+        0,
+        0,
+        1 / 60,
+      ),
+    ).toBe(3);
   });
 
   it("derives pitch velocity from player air control intent", () => {
     const pitchVelocity = calculateShipPitchVelocity(
+      defaultSettings,
       true,
       12,
       new Quaternion(),
@@ -176,6 +235,7 @@ describe("air-capture ship flight engine", () => {
 
   it("drains upward air control and recharges when grounded", () => {
     const airborneEnergy = stepAirControlEnergy(
+      defaultSettings,
       {
         mode: "airborne",
         airControlEnergy: 1,
@@ -195,6 +255,7 @@ describe("air-capture ship flight engine", () => {
     );
 
     const groundedEnergy = stepAirControlEnergy(
+      defaultSettings,
       {
         mode: "airborne",
         airControlEnergy: 0.2,
@@ -220,6 +281,7 @@ describe("air-capture ship flight engine", () => {
 
   it("depletes fully under sustained nose-up flight", () => {
     const depletedEnergy = stepAirControlEnergy(
+      defaultSettings,
       {
         mode: "airborne",
         airControlEnergy: 0.1,
@@ -245,6 +307,7 @@ describe("air-capture ship flight engine", () => {
   it("lets upward pitch feed thrust into a climbing arc", () => {
     const upwardForward = new Vector3(0, 0.45, -0.89).normalize();
     const airborneVelocity = calculateShipVelocity(
+      defaultSettings,
       new Vector3(0, 0, -12),
       upwardForward,
       1,
@@ -258,6 +321,7 @@ describe("air-capture ship flight engine", () => {
 
   it("adds glide lift from forward speed while still allowing descent", () => {
     const climbDelta = calculateShipVerticalVelocityDelta(
+      defaultSettings,
       true,
       12,
       0,
@@ -266,6 +330,7 @@ describe("air-capture ship flight engine", () => {
       1 / 60,
     );
     const diveDelta = calculateShipVerticalVelocityDelta(
+      defaultSettings,
       true,
       12,
       0,

@@ -10,7 +10,6 @@ import {
   BALL_SIZE,
   FIELD_HEIGHT,
   PADDLE_HEIGHT,
-  PADDLE_SPEED,
   type PaddlePosition,
 } from "./constants";
 import type { RuntimePlayer, RuntimeState } from "./types";
@@ -90,6 +89,7 @@ export const applyHumanPaddleInput = (
   teamAssignments: Record<string, TeamAssignment>,
   getInput: (playerId: string) => PongInput,
   deltaSeconds: number,
+  paddleSpeed: number,
 ): void => {
   players.forEach((player) => {
     const assignment = teamAssignments[player.id];
@@ -102,11 +102,11 @@ export const applyHumanPaddleInput = (
     if (assignment.team === "team1") {
       if (assignment.position === "front") {
         state.paddle1FrontY = clampPaddleY(
-          state.paddle1FrontY + direction * PADDLE_SPEED * deltaSeconds,
+          state.paddle1FrontY + direction * paddleSpeed * deltaSeconds,
         );
       } else {
         state.paddle1BackY = clampPaddleY(
-          state.paddle1BackY + direction * PADDLE_SPEED * deltaSeconds,
+          state.paddle1BackY + direction * paddleSpeed * deltaSeconds,
         );
       }
       return;
@@ -114,11 +114,11 @@ export const applyHumanPaddleInput = (
 
     if (assignment.position === "front") {
       state.paddle2FrontY = clampPaddleY(
-        state.paddle2FrontY + direction * PADDLE_SPEED * deltaSeconds,
+        state.paddle2FrontY + direction * paddleSpeed * deltaSeconds,
       );
     } else {
       state.paddle2BackY = clampPaddleY(
-        state.paddle2BackY + direction * PADDLE_SPEED * deltaSeconds,
+        state.paddle2BackY + direction * paddleSpeed * deltaSeconds,
       );
     }
   });
@@ -130,6 +130,7 @@ const applyBotDirection = (
   position: PaddleSlotPosition,
   targetY: number,
   deltaSeconds: number,
+  paddleSpeed: number,
 ): void => {
   const key =
     team === "team1"
@@ -141,7 +142,7 @@ const applyBotDirection = (
         : "paddle2BackY";
   const currentY = state[key];
   const distance = targetY - currentY;
-  const maxMove = PADDLE_SPEED * 0.9 * deltaSeconds;
+  const maxMove = paddleSpeed * 0.9 * deltaSeconds;
   const nextY =
     Math.abs(distance) <= maxMove
       ? targetY
@@ -154,11 +155,19 @@ export const applyBotPaddleInput = (
   teamAssignments: Record<string, TeamAssignment>,
   botCounts: BotCounts,
   deltaSeconds: number,
+  paddleSpeed: number,
 ): void => {
   const targetY = state.ballY + BALL_SIZE / 2 - PADDLE_HEIGHT / 2;
   (["team1", "team2"] as const).forEach((team) => {
     getBotPositions(teamAssignments, botCounts, team).forEach((position) => {
-      applyBotDirection(state, team, position, targetY, deltaSeconds);
+      applyBotDirection(
+        state,
+        team,
+        position,
+        targetY,
+        deltaSeconds,
+        paddleSpeed,
+      );
     });
   });
 };

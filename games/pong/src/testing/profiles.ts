@@ -3,12 +3,12 @@ import {
   type AirJamTestPolicy,
 } from "@air-jam/devtools/testing";
 import { z } from "zod";
+import { pongSettings } from "../game/contracts/settings";
 import { MAX_TEAM_SLOTS } from "../game/domain/team-slots";
 import {
   BALL_SIZE,
   FIELD_WIDTH,
   PADDLE_HEIGHT,
-  PADDLE_SPEED,
 } from "../game/engine/constants";
 import {
   paddleTop,
@@ -40,7 +40,8 @@ function rallyPolicy(randomized: boolean): AirJamTestPolicy {
               -1,
               Math.min(
                 1,
-                (target - (paddleY + PADDLE_HEIGHT / 2)) / (PADDLE_SPEED * 0.2),
+                (target - (paddleY + PADDLE_HEIGHT / 2)) /
+                  (pongSettings.paddleSpeed.default * 0.2),
               ),
             );
         return { control: { kind: "input", input: { direction } } };
@@ -90,7 +91,7 @@ function cooperativePaddlePolicy(randomized: boolean): AirJamTestPolicy {
                     Math.min(
                       1,
                       (simulation.ballY - paddleY - PADDLE_HEIGHT / 2) /
-                        (PADDLE_SPEED * 0.2),
+                        (pongSettings.paddleSpeed.default * 0.2),
                     ),
                   ),
             },

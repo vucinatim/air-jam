@@ -1,6 +1,15 @@
 import { agentContract } from "@/game/contracts/agent";
+import type { QuizSettings } from "@/game/contracts/settings";
+import { quizSettings } from "@/game/contracts/settings";
 import { gameStore } from "@/game/stores/create-store";
 import { describe, expect, it } from "vitest";
+
+const settings = Object.fromEntries(
+  Object.entries(quizSettings).map(([name, definition]) => [
+    name,
+    definition.default,
+  ]),
+) as QuizSettings;
 
 describe("Last Band Standing agent snapshot", () => {
   it("never tells a player which option is correct during a round", async () => {
@@ -9,6 +18,7 @@ describe("Last Band Standing agent snapshot", () => {
       actorId: "host",
       role: "host" as const,
       connectedPlayerIds: playerIds,
+      settings,
       now: 0,
     };
     const { actions } = gameStore.getState();
@@ -22,6 +32,7 @@ describe("Last Band Standing agent snapshot", () => {
           actorId: playerId,
           role: "controller",
           connectedPlayerIds: playerIds,
+          settings,
           now: 0,
         },
         { ready: true },

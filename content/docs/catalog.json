@@ -345,5 +345,23 @@
       "sinceVersion": "1.0.0",
       "lastVerifiedVersion": "1.0.0"
     }
+  },
+  {
+    "source": "sdk/settings/page.mdx",
+    "output": "settings.md",
+    "page": {
+      "title": "Game Settings",
+      "href": "/docs/sdk/settings",
+      "description": "Declare tunable values, update a live host, and replay every change.",
+      "section": "SDK",
+      "icon": "zap",
+      "keywords": ["settings", "tuning", "revision", "replay"],
+      "docType": "contract",
+      "order": 4,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
   }
 ]

@@ -425,3 +425,10 @@ interface ToastSignalPayload {
   duration?: number; // Optional duration in ms
 }
 ```
+
+## useAirJamSettings
+
+Host rendering reads declared settings with `useAirJamSettings(gameSettings)`.
+The hook returns typed current values and subscribes to accepted host updates.
+Controllers read display values copied to replicated store state. See
+[Game Settings](./settings.md) for the full contract.

@@ -2,12 +2,8 @@ import type {
   AirJamDecisionQuestion,
   AirJamPlayerContract,
 } from "@air-jam/devtools/testing";
-import {
-  FIELD_HEIGHT,
-  FIELD_WIDTH,
-  MAX_HP,
-  PUNCH_DAMAGE,
-} from "../game/engine/constants";
+import { codeReviewSettings } from "../game/contracts/settings";
+import { FIELD_HEIGHT, FIELD_WIDTH } from "../game/engine/constants";
 import {
   fightOf,
   moveRelative,
@@ -98,8 +94,8 @@ export const codeReviewPlayer = {
     `This is Code Review, a boxing brawl in a square ring seen from above, ${FIELD_WIDTH} by ${FIELD_HEIGHT} pixels.`,
     "Positions are measured from the top-left corner: x grows to the right and y grows downwards.",
     "Each player moves their own fighter in any direction and throws punches; the Coder team fights the Reviewer team.",
-    `A punch hits every opposing fighter whose centre is within reach of yours for ${PUNCH_DAMAGE} damage, half that if they are guarding, and a fighter who guards a hit has charged punches for two seconds.`,
-    `Each team shares ${MAX_HP} health; knocking the other team to zero wins the round.`,
+    `A punch hits every opposing fighter whose centre is within reach of yours for ${codeReviewSettings.punchDamage.default} damage, half that if they are guarding, and a fighter who guards a hit has charged punches for two seconds.`,
+    `Each team shares ${codeReviewSettings.maxHp.default} health; knocking the other team to zero wins the round.`,
     "Unless you have been given another goal, the fighter you aim at is the nearest opponent: close in, punch when they are in reach, and guard when they punch at you.",
   ].join(" "),
   turn: ({ observation }) => {

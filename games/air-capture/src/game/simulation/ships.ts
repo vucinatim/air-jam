@@ -31,15 +31,12 @@ import {
 import { reduceDropFlagAtPosition } from "../stores/match/capture-the-flag-store-state";
 import { teleportShip } from "./physics";
 import {
-  MAX_HEALTH,
   nextEntityId,
   type AirCaptureSim,
   type Emit,
   type ShipSim,
 } from "./state";
 
-const HEALTH_PACK_AMOUNT = 25;
-const SPEED_BOOST_MULTIPLIER = 2;
 const ROCKET_UPWARD_OFFSET = 0.9;
 
 /** Keeps the pose a step starts from, so drawing can interpolate to the next. */
@@ -71,14 +68,19 @@ const deactivateAbility = (ship: ShipSim): void => {
 };
 
 /** Takes a pickup's ability into the ship's slot, ending any running one. */
-export const collectAbility = (ship: ShipSim, abilityId: AbilityId): void => {
+export const collectAbility = (
+  sim: AirCaptureSim,
+  ship: ShipSim,
+  abilityId: AbilityId,
+): void => {
   const definition = ABILITY_DEFINITIONS[abilityId];
   deactivateAbility(ship);
   ship.queuedAbility = {
     id: definition.id,
     name: definition.name,
     icon: definition.icon,
-    duration: definition.duration,
+    duration:
+      abilityId === "speed_boost" ? sim.settings.speedBoostDurationSeconds : 0,
     startTime: null,
   };
 };
@@ -110,9 +112,12 @@ const activateAbility = (
   if (!queued || queued.id !== abilityId) return;
   deactivateAbility(ship);
   if (abilityId === "speed_boost")
-    ship.speedMultiplier = SPEED_BOOST_MULTIPLIER;
+    ship.speedMultiplier = sim.settings.speedBoostMultiplier;
   else if (abilityId === "health_pack")
-    ship.health = Math.min(MAX_HEALTH, ship.health + HEALTH_PACK_AMOUNT);
+    ship.health = Math.min(
+      sim.settings.maxHealth,
+      ship.health + sim.settings.healthPackAmount,
+    );
   else fireRocket(sim, ship);
   ship.queuedAbility = null;
   ship.activeAbility =
@@ -128,6 +133,10 @@ const activeRocketOf = (sim: AirCaptureSim, controllerId: string) => {
 /** Ends a timed ability once its time is up. */
 export const expireAbility = (sim: AirCaptureSim, ship: ShipSim): void => {
   const active = ship.activeAbility;
+  if (active?.id === "speed_boost") {
+    active.duration = sim.settings.speedBoostDurationSeconds;
+    ship.speedMultiplier = sim.settings.speedBoostMultiplier;
+  }
   if (
     active &&
     active.startTime !== null &&
@@ -144,9 +153,16 @@ export const flyShip = (
   delta: number,
   emit: Emit,
 ): void => {
+  ship.body.setLinearDamping(sim.settings.shipLinearDamping);
   const linearVelocity = ship.body.linvel();
-  ship.smoothedInput = smoothShipInput(ship.smoothedInput, input.vector, delta);
+  ship.smoothedInput = smoothShipInput(
+    sim.settings,
+    ship.smoothedInput,
+    input.vector,
+    delta,
+  );
   const controls = resolveShipControls(
+    sim.settings,
     ship.position.y,
     linearVelocity.y,
     ship.smoothedInput,
@@ -181,6 +197,7 @@ export const flyShip = (
       wasActionPressed: ship.lastActionPressed,
       time: sim.time,
       lastShotAt: ship.lastShotAt,
+      shootInterval: sim.settings.shootInterval,
     })
   ) {
     ship.lastShotAt = sim.time;
@@ -208,6 +225,7 @@ export const flyShip = (
 
   const forward = new Vector3(0, 0, -1).applyQuaternion(ship.rotation);
   const velocity = calculateShipVelocity(
+    sim.settings,
     new Vector3(linearVelocity.x, linearVelocity.y, linearVelocity.z),
     forward,
     controls.thrustInput,
@@ -216,11 +234,13 @@ export const flyShip = (
     controls.isInAir,
   );
   ship.angularVelocity = calculateShipYawVelocity(
+    sim.settings,
     ship.angularVelocity,
     controls.turnInput,
     delta,
   );
   ship.pitchAngularVelocity = calculateShipPitchVelocity(
+    sim.settings,
     controls.isInAir,
     ship.position.y,
     ship.rotation,
@@ -230,6 +250,7 @@ export const flyShip = (
   );
   ship.rotation.copy(
     advanceShipRotation(
+      sim.settings,
       ship.rotation,
       ship.angularVelocity,
       ship.pitchAngularVelocity,
@@ -238,8 +259,15 @@ export const flyShip = (
     ),
   );
   const pitch = new Euler().setFromQuaternion(ship.rotation, "YXZ").x;
-  ship.flight = stepAirControlEnergy(ship.flight, controls, pitch, delta);
+  ship.flight = stepAirControlEnergy(
+    sim.settings,
+    ship.flight,
+    controls,
+    pitch,
+    delta,
+  );
   velocity.y += calculateShipVerticalVelocityDelta(
+    sim.settings,
     controls.isInAir,
     ship.position.y,
     velocity.y,
@@ -277,7 +305,10 @@ export const resolveDeathsAndRespawns = (
       ship.body.setEnabled(false);
       const position = getShipDeathPosition(ship.position);
       sim.ctf = reduceDropFlagAtPosition(sim.ctf, ship.controllerId, position);
-      ship.respawnAt = scheduleShipRespawn(sim.time);
+      ship.respawnAt = scheduleShipRespawn(
+        sim.time,
+        sim.settings.shipRespawnDelaySeconds,
+      );
       emit({ type: "ship-destroyed", position });
       emit({ type: "sound", sound: "explosion" });
     } else if (ship.dead && shouldRespawnShip(sim.time, ship.respawnAt)) {
@@ -287,7 +318,7 @@ export const resolveDeathsAndRespawns = (
       ship.position.set(...position);
       ship.previousPosition.copy(ship.position);
       resetShipMotion(ship);
-      ship.health = MAX_HEALTH;
+      ship.health = sim.settings.maxHealth;
       ship.dead = false;
       ship.respawnAt = 0;
     }

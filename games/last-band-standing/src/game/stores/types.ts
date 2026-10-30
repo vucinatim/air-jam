@@ -1,5 +1,6 @@
 import { type AirJamActionContext } from "@air-jam/sdk/core";
 import { type SongBucketId } from "../content/song-bank";
+import type { QuizSettings } from "../contracts/settings";
 import { type PlayerScore } from "../domain/player-utils";
 import {
   type PlayerAnswer,
@@ -46,6 +47,7 @@ export interface QuizState {
   playerLabelById: Record<string, string>;
   readyByPlayerId: Record<string, boolean>;
 
+  matchStartCountdownSec: number;
   totalRounds: number;
   roundDurationSec: number;
   revealDurationSec: number;
@@ -66,23 +68,41 @@ export interface QuizState {
 
   actions: {
     setPlayers: (
-      ctx: AirJamActionContext,
+      ctx: AirJamActionContext<QuizSettings>,
       payload: { players: ConnectedPlayer[] },
     ) => void;
-    setReady: (ctx: AirJamActionContext, payload: { ready: boolean }) => void;
+    setReady: (
+      ctx: AirJamActionContext<QuizSettings>,
+      payload: { ready: boolean },
+    ) => void;
     toggleSongBucket: (
-      ctx: AirJamActionContext,
+      ctx: AirJamActionContext<QuizSettings>,
       payload: { bucketId: SongBucketId },
     ) => void;
-    startMatch: (ctx: AirJamActionContext, _payload: undefined) => void;
+    startMatch: (
+      ctx: AirJamActionContext<QuizSettings>,
+      _payload: undefined,
+    ) => void;
     submitGuess: (
-      ctx: AirJamActionContext,
+      ctx: AirJamActionContext<QuizSettings>,
       payload: { optionId: string },
     ) => void;
-    skipRound: (ctx: AirJamActionContext, _payload: undefined) => void;
+    skipRound: (
+      ctx: AirJamActionContext<QuizSettings>,
+      _payload: undefined,
+    ) => void;
     /** Host only: applies what game time `ctx.now` makes due. */
-    advanceClock: (ctx: AirJamActionContext, _payload: undefined) => void;
-    forceGameOver: (ctx: AirJamActionContext, _payload: undefined) => void;
-    resetLobby: (ctx: AirJamActionContext, _payload: undefined) => void;
+    advanceClock: (
+      ctx: AirJamActionContext<QuizSettings>,
+      _payload: undefined,
+    ) => void;
+    forceGameOver: (
+      ctx: AirJamActionContext<QuizSettings>,
+      _payload: undefined,
+    ) => void;
+    resetLobby: (
+      ctx: AirJamActionContext<QuizSettings>,
+      _payload: undefined,
+    ) => void;
   };
 }

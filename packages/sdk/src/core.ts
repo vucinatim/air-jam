@@ -78,6 +78,14 @@ export {
   type CreateAirJamStoreOptions,
 } from "./core/replicated-store";
 export {
+  airJamSettingSchema,
+  airJamSettingsValuesSchema,
+  defineAirJamSettings,
+  setting,
+  type AirJamSettings,
+  type AirJamSettingsValues,
+} from "./core/settings";
+export {
   SimulationClock,
   createSeededRandom,
   defineAirJamSimulation,

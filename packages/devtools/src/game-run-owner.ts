@@ -200,6 +200,7 @@ export class GameRunOwner {
         runId: string;
         gameId?: string;
         nickname: string;
+        settings?: Record<string, number | boolean | string>;
         attachment?: CurrentRoomAttachment;
         build?: PinnedGameBuild;
         room?: HeadlessRoom;
@@ -740,6 +741,7 @@ export class GameRunOwner {
             rootDir: common.rootDir,
             configPath: common.configPath,
             seed: run.record.request.seed,
+            settings: run.record.request.settings,
             logPath: path.join(run.directory, "room.log"),
             onScope: common.onScope,
             startupSignal: run.abort.signal,
@@ -812,6 +814,7 @@ export class GameRunOwner {
       runId: run.record.runId,
       gameId: run.record.request.gameId,
       nickname: agentNickname(0),
+      settings: run.record.request.settings,
       attachment: run.attachment,
       build: run.build,
       room: run.room,

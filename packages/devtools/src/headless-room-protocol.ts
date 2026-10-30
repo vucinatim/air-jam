@@ -14,6 +14,12 @@ export const headlessRoomRequestSchema = z.discriminatedUnion("kind", [
       kind: z.literal("initialize"),
       id: z.uuid(),
       configPath: z.string().min(1),
+      settings: z
+        .record(
+          z.string(),
+          z.union([z.number().finite(), z.boolean(), z.string()]),
+        )
+        .optional(),
       seed: z.number().int().min(0).max(0xffff_ffff),
     })
     .strict(),

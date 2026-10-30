@@ -51,7 +51,6 @@ export interface AbilityDefinition {
   id: AbilityId;
   name: string;
   icon: string;
-  duration: number; // Duration in seconds
   rarity: Rarity;
 }
 
@@ -60,21 +59,18 @@ export const ABILITY_DEFINITIONS: Record<AbilityId, AbilityDefinition> = {
     id: "health_pack",
     name: "Health Pack",
     icon: "❤️", // Heart emoji
-    duration: 0, // Instant ability
     rarity: "common", // Gray
   },
   speed_boost: {
     id: "speed_boost",
     name: "Speed Boost",
     icon: "⚡", // Lightning bolt emoji
-    duration: 5, // 5 seconds
     rarity: "uncommon", // Green
   },
   rocket: {
     id: "rocket",
     name: "Rocket",
     icon: "🚀", // Rocket emoji
-    duration: 0, // Instant ability (fires immediately)
     rarity: "rare", // Blue
   },
 };

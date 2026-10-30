@@ -21,7 +21,6 @@ import { emptyTeamSets } from "./arena";
 import { addShipBody, removeShipBody, teleportShip } from "./physics";
 import { resetShipMotion, spawnPositionAt } from "./ships";
 import {
-  MAX_HEALTH,
   MAX_SHIPS,
   nextEntityId,
   type AirCaptureSim,
@@ -53,7 +52,12 @@ const addShip = (
     teamId,
     color: TEAM_CONFIG[teamId].color,
     source,
-    body: addShipBody(sim.physics, controllerId, spawn),
+    body: addShipBody(
+      sim.physics,
+      controllerId,
+      spawn,
+      sim.settings.shipLinearDamping,
+    ),
     previousPosition: new Vector3(...spawn),
     position: new Vector3(...spawn),
     previousRotation: new Quaternion(),
@@ -65,7 +69,7 @@ const addShip = (
     lastActionPressed: false,
     lastAbilityPressed: false,
     lastShotAt: 0,
-    health: MAX_HEALTH,
+    health: sim.settings.maxHealth,
     dead: false,
     respawnAt: 0,
     flight: createPlayerFlightState(),
@@ -169,7 +173,7 @@ const startRound = (sim: AirCaptureSim, random: () => number) => {
     ship.position.set(...spawn);
     ship.previousPosition.copy(ship.position);
     resetShipMotion(ship);
-    ship.health = MAX_HEALTH;
+    ship.health = sim.settings.maxHealth;
     ship.dead = false;
     ship.respawnAt = 0;
     ship.flight = createPlayerFlightState();

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { gameSessionOperationSchemas } from "@air-jam/devtools/game-session";
+import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
+
 import {
   getDevStatus,
   resetLocalDev,
@@ -16,11 +19,13 @@ import {
   listGameRuns,
   listGameTestProfiles,
   readGameRun,
+  readGameSettings,
   replayGameRun,
   startGameRun,
   steerGameRun,
   stopAllGameRuns,
   stopGameRun,
+  updateGameSettings,
   waitGameRun,
   watchGameRun,
 } from "@air-jam/devtools/game-session";
@@ -1856,6 +1861,7 @@ const buildProgram = () => {
       Number,
       30_000,
     )
+    .option("--settings <json>", "Initial game settings JSON object")
     .option("--steps <count>", "Maximum policy decisions", Number, 3000)
     .option(
       "--seed <number>",
@@ -1878,6 +1884,7 @@ const buildProgram = () => {
         durationMs: number;
         steps: number;
         seed: number;
+        settings?: string;
         current?: boolean;
         headless?: boolean;
         intent?: string[];
@@ -1934,6 +1941,13 @@ const buildProgram = () => {
           profileId: input.profile,
           policyId: input.policy,
           seed: input.seed,
+          ...(input.settings
+            ? {
+                settings: airJamSettingsValuesSchema.parse(
+                  parseJsonObject(input.settings),
+                ),
+              }
+            : {}),
           budget: { durationMs: input.durationMs, steps: input.steps },
           ...(intents ? { intents } : {}),
         },
@@ -2127,6 +2141,43 @@ const buildProgram = () => {
         timeoutMs: input.timeoutMs,
       });
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    });
+
+  sessionCommand
+    .command("settings-read <session-id>")
+    .description("Read this host's settings values and revision")
+    .option("--dir <path>", "Project directory")
+    .action(async (gameSessionId: string, options: unknown) => {
+      const { dir } = resolveActionOptions<{ dir?: string }>(options);
+      process.stdout.write(
+        `${JSON.stringify(await readGameSettings({ gameSessionId, cwd: dir }), null, 2)}\n`,
+      );
+    });
+  sessionCommand
+    .command("settings-update <session-id>")
+    .description("Change live settings at an expected revision")
+    .requiredOption("--patch <json>", "Settings patch JSON object")
+    .requiredOption(
+      "--expected-revision <number>",
+      "Revision from settings-read",
+      Number,
+    )
+    .option("--dir <path>", "Project directory")
+    .action(async (gameSessionId: string, options: unknown) => {
+      const input = resolveActionOptions<{
+        dir?: string;
+        patch: string;
+        expectedRevision: number;
+      }>(options);
+      const parsed = gameSessionOperationSchemas["settings-update"].parse({
+        gameSessionId,
+        cwd: input.dir,
+        patch: parseJsonObject(input.patch),
+        expectedRevision: input.expectedRevision,
+      });
+      process.stdout.write(
+        `${JSON.stringify(await updateGameSettings(parsed), null, 2)}\n`,
+      );
     });
 
   sessionCommand

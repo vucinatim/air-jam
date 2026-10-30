@@ -6,6 +6,7 @@ import {
 import { airJamGameMetadataSchema } from "../metadata/manifest";
 import type { AirJamGame } from "./game";
 import { airJamInputDescriptionSchema } from "./input";
+import { airJamSettingSchema } from "./settings";
 
 export const airJamGameDescriptionSchema = z
   .object({
@@ -16,6 +17,7 @@ export const airJamGameDescriptionSchema = z
     input: airJamInputDescriptionSchema.nullable(),
     agent: agentContractDescriptionSchema.nullable(),
     testing: z.boolean(),
+    settings: z.record(z.string(), airJamSettingSchema),
   })
   .strict();
 export type AirJamGameDescription = z.infer<typeof airJamGameDescriptionSchema>;
@@ -31,5 +33,6 @@ export function describeAirJamGame(game: AirJamGame): AirJamGameDescription {
       ? createAirJamAgentEvaluator(game.agent).describe()
       : null,
     testing: Boolean(game.testing),
+    settings: game.settings ?? {},
   });
 }

@@ -291,3 +291,28 @@ The declared relative `testing` path names a development-only module exporting
 A player offers `model` in every profile automatically; remove manually authored
 model policies. Agents inspect the description through `airjam.inspect_game`.
 See the creator migration page for the complete before/after mapping.
+
+## From 0.9 To 1.0: Settings are declared
+
+Move tunable speed, force, damage, health, duration and count constants into
+`defineAirJamSettings` from `@air-jam/sdk/core`, and pass the result as the
+`settings` field of `defineAirJamGame`. Keep a leaf settings module and infer
+its values with `AirJamSettingsValues<typeof gameSettings>`. Delete the old
+constants. Lobby choices remain store state.
+
+Read `settings` in simulation create, step and observe contexts, and in
+`AirJamActionContext<GameSettings>`. Supply the fourth simulation type parameter
+for typed values. Host drawing uses `useAirJamSettings(gameSettings)`; copy any
+phone display values into the store rather than reading settings on controllers.
+
+Only settings declared `live: true` can change during a host's lifetime.
+`airjam.read_game_settings` returns the current values and revision;
+`airjam.update_game_settings` takes an atomic patch and `expectedRevision`.
+Unknown, invalid, stale and non-live updates fail with `AJ_SETTING_UNKNOWN`,
+`AJ_SETTING_INVALID`, `AJ_SETTING_STALE` and `AJ_SETTING_NOT_LIVE` respectively.
+Start a new room through `airjam.start_game_run({ settings: { ... }, ... })`
+for a non-live value. Input logs now require version 2, resolved initial
+settings and the ordered settings events; version 1 logs must be recorded again.
+
+See [Game Settings](../../content/docs/sdk/settings/page.mdx) for declarations, host hooks and CLI
+commands.

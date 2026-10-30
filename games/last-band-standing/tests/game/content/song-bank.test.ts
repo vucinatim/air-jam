@@ -1,4 +1,3 @@
-import { DEFAULT_TOTAL_ROUNDS } from "@/game/constants";
 import {
   defaultSelectedSongBucketIds,
   getSongCanonicalKey,
@@ -11,6 +10,7 @@ import {
   songBuckets,
   toggleSelectedSongBucketIds,
 } from "@/game/content/song-bank";
+import { quizSettings } from "@/game/contracts/settings";
 import {
   appendPlayedSongKeys,
   pickPlaylistSongs,
@@ -25,7 +25,7 @@ describe("song bank buckets", () => {
   it("keeps every visible song bucket large enough for a default match", () => {
     songBuckets.forEach((bucket) => {
       expect(getSongsForBuckets([bucket.id]).length).toBeGreaterThanOrEqual(
-        DEFAULT_TOTAL_ROUNDS,
+        quizSettings.totalRounds.default,
       );
     });
   });
@@ -138,35 +138,43 @@ describe("song bank buckets", () => {
 describe("playlist selection", () => {
   it("does not repeat canonical songs in one playlist when enough songs exist", () => {
     const playlist = pickPlaylistSongs(
-      DEFAULT_TOTAL_ROUNDS,
+      quizSettings.totalRounds.default,
       defaultSelectedSongBucketIds,
     );
 
-    expect(playlist.songIds).toHaveLength(DEFAULT_TOTAL_ROUNDS);
-    expect(new Set(playlist.songKeys).size).toBe(DEFAULT_TOTAL_ROUNDS);
+    expect(playlist.songIds).toHaveLength(quizSettings.totalRounds.default);
+    expect(new Set(playlist.songKeys).size).toBe(
+      quizSettings.totalRounds.default,
+    );
   });
 
   it("builds a full non-repeating playlist from every visible bucket", () => {
     songBuckets.forEach((bucket) => {
-      const playlist = pickPlaylistSongs(DEFAULT_TOTAL_ROUNDS, [bucket.id]);
+      const playlist = pickPlaylistSongs(quizSettings.totalRounds.default, [
+        bucket.id,
+      ]);
 
       expect(playlist.uniqueSongCount).toBe(
         getUniqueSongCountForBuckets([bucket.id]),
       );
-      expect(playlist.songIds).toHaveLength(DEFAULT_TOTAL_ROUNDS);
-      expect(new Set(playlist.songIds).size).toBe(DEFAULT_TOTAL_ROUNDS);
-      expect(new Set(playlist.songKeys).size).toBe(DEFAULT_TOTAL_ROUNDS);
+      expect(playlist.songIds).toHaveLength(quizSettings.totalRounds.default);
+      expect(new Set(playlist.songIds).size).toBe(
+        quizSettings.totalRounds.default,
+      );
+      expect(new Set(playlist.songKeys).size).toBe(
+        quizSettings.totalRounds.default,
+      );
     });
   });
 
   it("prefers songs that have not appeared in the current session", () => {
     const firstPlaylist = pickPlaylistSongs(
-      DEFAULT_TOTAL_ROUNDS,
+      quizSettings.totalRounds.default,
       defaultSelectedSongBucketIds,
     );
     const playedSongKeys = appendPlayedSongKeys([], firstPlaylist.songKeys);
     const secondPlaylist = pickPlaylistSongs(
-      DEFAULT_TOTAL_ROUNDS,
+      quizSettings.totalRounds.default,
       defaultSelectedSongBucketIds,
       playedSongKeys,
     );

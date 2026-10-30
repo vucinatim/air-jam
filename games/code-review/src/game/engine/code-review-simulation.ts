@@ -1,3 +1,4 @@
+import type { CodeReviewSettings } from "../contracts/settings";
 /**
  * Code Review's authoritative simulation, stepped by the SDK clock on the
  * host. It owns the fight: who stands in each slot, movement, punches, hit
@@ -7,7 +8,6 @@
  */
 import { defineAirJamSimulation } from "@air-jam/sdk/core";
 import type { GameInput } from "../contracts/input";
-import { MATCH_POINTS_TO_WIN } from "../domain/match-rules";
 import { gameStore } from "../stores";
 import {
   HITBOX_CENTER,
@@ -48,12 +48,13 @@ export type CodeReviewSimulationEvent =
 export const codeReviewSimulation = defineAirJamSimulation<
   CodeReviewSimulationState,
   GameInput,
-  CodeReviewSimulationEvent
+  CodeReviewSimulationEvent,
+  CodeReviewSettings
 >({
   stepMs: CODE_REVIEW_STEP_MS,
-  create: () => ({
+  create: ({ settings }) => ({
     fighters: createRuntimePlayerState(),
-    hp: createHpState(),
+    hp: createHpState(settings.maxHp),
     ko: createKoState(),
     clockMs: 0,
     participants: [],
@@ -61,7 +62,7 @@ export const codeReviewSimulation = defineAirJamSimulation<
     matchPhase: gameStore.getState().matchPhase,
   }),
   step: (sim, context) => {
-    const { matchPhase, scores, teamAssignments, botCounts } =
+    const { matchPhase, scores, teamAssignments, botCounts, pointsToWin } =
       gameStore.getState();
     sim.participants = resolveSlotParticipants(
       context.players,
@@ -79,20 +80,18 @@ export const codeReviewSimulation = defineAirJamSimulation<
     if (matchPhase !== sim.matchPhase) {
       sim.matchPhase = matchPhase;
       Object.assign(sim.fighters, createRuntimePlayerState());
-      Object.assign(sim.hp, createHpState());
+      Object.assign(sim.hp, createHpState(context.settings.maxHp));
       Object.assign(sim.ko, createKoState());
     }
     if (matchPhase !== "playing") return;
-    if (
-      scores.team1 >= MATCH_POINTS_TO_WIN ||
-      scores.team2 >= MATCH_POINTS_TO_WIN
-    ) {
+    if (scores.team1 >= pointsToWin || scores.team2 >= pointsToWin) {
       void gameStore.actions.finishMatch();
       return;
     }
 
     sim.clockMs += context.stepMs;
     stepMatchFrame({
+      settings: context.settings,
       state: sim.fighters,
       participants: sim.participants,
       hpState: sim.hp,

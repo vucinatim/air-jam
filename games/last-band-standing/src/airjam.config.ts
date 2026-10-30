@@ -4,6 +4,7 @@ import { agentContract } from "./game/contracts/agent";
 import { roundClock } from "./game/engine/round-clock";
 import { gameStore } from "./game/stores/create-store";
 
+import { quizSettings } from "./game/contracts/settings";
 export const airjam = defineAirJamGame({
   metadata: defineAirJamGameMetadata({
     slug: "last-band-standing",
@@ -20,6 +21,7 @@ export const airjam = defineAirJamGame({
     tags: ["quiz", "music", "party"],
   }),
   controllerPath: "/controller",
+  settings: quizSettings,
   stores: [gameStore],
   simulation: roundClock,
   agent: agentContract,

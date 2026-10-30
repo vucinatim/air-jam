@@ -3,7 +3,8 @@ import type {
   AirJamPlayerContract,
 } from "@air-jam/devtools/testing";
 import { getTaskDurationMs } from "../game/content/players";
-import { STAT_CONSTANTS } from "../game/domain/task-manager";
+import { officeSettings } from "../game/contracts/settings";
+
 import { ALL_LOCATIONS, routeTo, type Route } from "./navigation";
 import {
   runtimeSchema,
@@ -16,15 +17,15 @@ import {
 export const BREAKS = {
   coffee: {
     locationId: "coffee-machine",
-    effect: `+${STAT_CONSTANTS.COFFEE_ENERGY_RESTORE} energy`,
+    effect: `+${officeSettings.coffeeEnergyRestore.default} energy`,
   },
   lunch: {
     locationId: "lunch-spot",
-    effect: `+${STAT_CONSTANTS.LUNCH_ENERGY_RESTORE} energy`,
+    effect: `+${officeSettings.lunchEnergyRestore.default} energy`,
   },
   fifa: {
     locationId: "fifa-table",
-    effect: `+${STAT_CONSTANTS.FIFA_BOREDOM_RESTORE} fun`,
+    effect: `+${officeSettings.fifaBoredomRestore.default} fun`,
   },
 } as const;
 /** Where a choice leads: a task's location, a break spot, or nowhere. */
@@ -99,7 +100,7 @@ function shift(
       ...(tasks.length
         ? tasks.map(
             ({ task, route }) =>
-              `Task "${task.name}" at ${label(task.locationId)} pays ${task.reward}, expires in ${Math.round(task.expiresInMs / 1000)} s, takes me ${Math.round(getTaskDurationMs(task.taskId, self.coworkerId) / 1000)} s and is ${route.arrived ? "right here" : `${Math.round(route.seconds)} s away`}.`,
+              `Task "${task.name}" at ${label(task.locationId)} pays ${task.reward}, expires in ${Math.round(task.expiresInMs / 1000)} s, takes me ${Math.round(getTaskDurationMs(task.taskId, self.coworkerId, runtime.taskDurationMs) / 1000)} s and is ${route.arrived ? "right here" : `${Math.round(route.seconds)} s away`}.`,
           )
         : ["There are no open tasks right now."]),
       ...breaks.map(
@@ -116,8 +117,8 @@ function shift(
 export const officePlayer = {
   brief: [
     "This is The Office, a co-op workday seen from above. Every coworker walks around the office and does tasks for money before the day ends.",
-    `Tasks appear at desks and rooms and pay when finished; a task left open for ${STAT_CONSTANTS.TASK_EXPIRY_MS / 1000} seconds expires and costs the team 100.`,
-    `Each coworker loses ${STAT_CONSTANTS.ENERGY_DECAY_PER_SECOND} energy a second and fun in random drops; if either reaches zero they are out for the rest of the day.`,
+    `Tasks appear at desks and rooms and pay when finished; a task left open for ${officeSettings.taskExpiryMs.default / 1000} seconds expires and costs the team 100.`,
+    `Each coworker loses ${officeSettings.energyDecayPerSecond.default} energy a second and fun in random drops; if either reaches zero they are out for the rest of the day.`,
     "Coffee and lunch restore energy and FIFA restores fun; each break takes a few seconds.",
     "Coworkers are faster at some tasks than others, so a task's time depends on who does it.",
     "Unless you have been given another goal, aim to keep energy and fun above 25 with breaks, and otherwise do the open task you can reach and finish soonest before it expires, preferring higher pay.",

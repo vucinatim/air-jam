@@ -333,6 +333,7 @@ export async function runGameSessionBroker({
       attachment,
       build,
       room,
+      settings,
       onScope,
     }) {
       const pending = (async () => {
@@ -358,6 +359,7 @@ export async function runGameSessionBroker({
                 : undefined,
               build,
               room,
+              settings,
               onScope,
             },
           )
@@ -613,7 +615,9 @@ export async function runGameSessionBroker({
       lease.expiresAt = Math.min(Date.now() + SESSION_IDLE_MS, lease.maximumAt);
       if (
         lease.runId &&
-        ["input", "invoke", "control", "close"].includes(operation.operation)
+        ["input", "invoke", "control", "close", "settings-update"].includes(
+          operation.operation,
+        )
       )
         throw new Error(
           "session_owned_by_run: Interactive writes are refused; use run.stop to end this activity.",
@@ -625,6 +629,12 @@ export async function runGameSessionBroker({
           break;
         case "observe":
           result = await runtime.observeGameSession(operation.input);
+          break;
+        case "settings-read":
+          result = await runtime.readGameSettings(operation.input);
+          break;
+        case "settings-update":
+          result = await runtime.updateGameSettings(operation.input);
           break;
         case "control":
           result = await runtime.controlGameSessionParticipant(operation.input);

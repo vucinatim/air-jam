@@ -5,6 +5,7 @@ import { officeInput, officeInputBindings } from "./game/contracts/input";
 import { officeSimulation } from "./game/engine/office-simulation";
 import { spaceStore } from "./game/stores/space-store";
 
+import { officeSettings } from "./game/contracts/settings";
 export const airjam = defineAirJamGame({
   metadata: defineAirJamGameMetadata({
     slug: "the-office",
@@ -21,6 +22,7 @@ export const airjam = defineAirJamGame({
     tags: ["co-op", "workplace", "party"],
   }),
   controllerPath: "/controller",
+  settings: officeSettings,
   stores: [spaceStore],
   simulation: officeSimulation,
   agent: agentContract,

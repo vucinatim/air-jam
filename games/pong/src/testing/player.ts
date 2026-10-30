@@ -4,12 +4,12 @@ import type {
   AirJamPlayerContract,
 } from "@air-jam/devtools/testing";
 import type { HostObservation } from "@air-jam/sdk/runtime-control";
+import { pongSettings } from "../game/contracts/settings";
 import {
   BALL_SIZE,
   FIELD_HEIGHT,
   FIELD_WIDTH,
   PADDLE_HEIGHT,
-  PADDLE_SPEED,
   PADDLE_WIDTH,
   PADDLE_X,
 } from "../game/engine/constants";
@@ -111,7 +111,10 @@ function steerTo(
           ? 0
           : Math.max(
               -1,
-              Math.min(1, gap / (PADDLE_SPEED * STEER_STEP_SECONDS)),
+              Math.min(
+                1,
+                gap / (pongSettings.paddleSpeed.default * STEER_STEP_SECONDS),
+              ),
             ),
     },
   };

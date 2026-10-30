@@ -70,3 +70,19 @@ exporting `testing = defineAirJamTesting({ player, profiles, visual })` from
 player is offered as the reserved `model` policy in every profile. Optional
 `visual.scenarios` uses the game's declared agent. Do not duplicate identity
 in template flags or read config source with regular expressions.
+
+## Declared settings
+
+Declare creator tuning values with `defineAirJamSettings` and `setting` from
+`@air-jam/sdk/core`, in the game declaration's `settings` field. Remove the
+constants they replace. Read values in simulation create/step/observe contexts
+and typed action contexts; host rendering uses `useAirJamSettings`. Controllers
+show copies in replicated state. Lobby player choices stay store state.
+
+Inspect descriptors in `airjam.inspect_game` → `declaration.settings`.
+Use `airjam.read_game_settings({ gameSessionId })` for live values and revision,
+then `airjam.update_game_settings({ gameSessionId, patch, expectedRevision })`
+under host authority. Only `live: true` values can change; non-live values go
+in `airjam.start_game_run({ settings, ... })` for a fresh room. Stale revisions
+require a fresh read. Input log version 2 records initial values and ordered
+settings updates for replay. See `docs/airjam/generated/settings.md`.
