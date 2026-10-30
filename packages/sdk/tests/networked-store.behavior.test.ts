@@ -451,7 +451,7 @@ describe("createAirJamStore networked behavior", () => {
     }));
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => renderHook(() => useAirJamStore(undeclaredStore))).toThrow(
-      /createAirJamApp\(\{ stores/,
+      /defineAirJamGame\(\{ stores/,
     );
   });
 
