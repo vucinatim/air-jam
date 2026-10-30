@@ -19,6 +19,7 @@ import {
   submitPlatformRelease,
   validateLocalRelease,
 } from "../src/release.js";
+import { declarationSource } from "./game-declaration-fixture.js";
 
 const tempRoots: string[] = [];
 const repoRoot = path.resolve(
@@ -34,11 +35,9 @@ const createTempRoot = async (): Promise<string> => {
 
 const createReleaseFixture = async ({
   controllerPath = "/controller",
-  metadata = true,
   css = null,
 }: {
   controllerPath?: string;
-  metadata?: boolean;
   css?: string | null;
 } = {}) => {
   const root = await createTempRoot();
@@ -67,7 +66,10 @@ const createReleaseFixture = async ({
 
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
-    `${metadata ? 'export const gameMetadata = { title: "Fixture" };\n' : ""}export const airjam = { controllerPath: "${controllerPath}" };\n`,
+    declarationSource(
+      { slug: "release-fixture" },
+      `controllerPath: ${JSON.stringify(controllerPath)}`,
+    ),
     "utf8",
   );
 
@@ -193,7 +195,7 @@ describe("local release tooling", () => {
     const doctor = await inspectLocalRelease({ cwd: root });
 
     expect(doctor.canBundle).toBe(true);
-    expect(doctor.metadataExportLikely).toBe(true);
+    expect(doctor.gameSlug).toBe("release-fixture");
     expect(doctor.distEntryExists).toBe(true);
     expect(doctor.recommendedBundlePath).toContain(
       ".airjam/releases/1.2.3/release-fixture-hosted-release.zip",
@@ -206,7 +208,6 @@ describe("local release tooling", () => {
   it("reports invalid hosted controller paths", async () => {
     const root = await createReleaseFixture({
       controllerPath: "/play",
-      metadata: false,
     });
 
     const doctor = await inspectLocalRelease({ cwd: root });
@@ -217,10 +218,6 @@ describe("local release tooling", () => {
         expect.objectContaining({
           code: "invalid-controller-path",
           severity: "error",
-        }),
-        expect.objectContaining({
-          code: "missing-game-metadata",
-          severity: "warning",
         }),
       ]),
     );

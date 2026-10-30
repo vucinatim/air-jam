@@ -87,3 +87,44 @@ export {
   type SimulationFrame,
   type SimulationPace,
 } from "./core/simulation";
+
+export {
+  agentActionInput,
+  type AirJamAgentActionCustomOptions,
+  type AirJamAgentActionOptions,
+  type AirJamAgentActionPayloadKind,
+  type AirJamAgentActionPayloadMetadata,
+  type InferAirJamAgentActionInputPayload,
+} from "./agent/agent-action";
+export {
+  agentAction,
+  agentStore,
+  defineAirJamAgentContract,
+  defineAirJamAgentStores,
+  type AirJamAgentActionContract,
+  type AirJamAgentActionTarget,
+  type AirJamAgentContract,
+  type AirJamAgentContractActionOptions,
+  type AirJamAgentContractPayloadKind,
+  type AirJamAgentContractPayloadMetadata,
+  type AirJamAgentJsonObject,
+  type AirJamAgentResolvedActionContract,
+  type AirJamAgentSnapshotContext,
+  type AirJamAgentStoreDeclaration,
+  type AirJamAgentStoreDeclarations,
+  type AirJamAgentStores,
+  type AnyAirJamAgentContract,
+  type InferAirJamAgentStores,
+} from "./agent/agent-contract";
+export {
+  defineAirJamGame,
+  isAirJamGame,
+  type AirJamGame,
+  type AirJamGameDeclaration,
+} from "./core/game";
+export {
+  airJamGameDescriptionSchema,
+  describeAirJamGame,
+  type AirJamGameDescription,
+} from "./core/game-description";
+export { airJamInputDescriptionSchema } from "./core/input";

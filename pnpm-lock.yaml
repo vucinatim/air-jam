@@ -772,7 +772,7 @@ importers:
         specifier: ^4.8.3
         version: 4.8.3
       tsx:
-        specifier: ^4.20.6
+        specifier: 4.20.6
         version: 4.20.6
       yauzl:
         specifier: ^3.2.1

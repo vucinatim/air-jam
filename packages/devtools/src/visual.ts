@@ -13,7 +13,6 @@ import {
   resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
 } from "./helper-scripts.js";
-import { inspectAirJamAgentConfig } from "./tooling/airjam-agent-inspection.js";
 import type {
   AirJamSurfaceUrlSummary,
   AirJamVisualArtifactMode,
@@ -39,7 +38,6 @@ export type {
 
 type ResolvedVisualSource = {
   configPath: string;
-  scenarioModulePath: string;
 };
 
 const captureUrlsSchema = z.object({
@@ -96,18 +94,10 @@ const runTsxHelper = <T>({
   return parseHelperJson<T>(result.stdout);
 };
 
-const resolveVisualSource = async (
-  configPath: string | null,
-): Promise<ResolvedVisualSource | null> => {
-  if (!configPath) {
-    return null;
-  }
-
-  const scenarioModulePath = await inspectAirJamAgentConfig(configPath).then(
-    (inspection) => inspection.visualScenariosModulePath,
-  );
-  return scenarioModulePath ? { configPath, scenarioModulePath } : null;
-};
+const resolveVisualSource = (
+  game: Awaited<ReturnType<typeof inspectGame>>,
+): ResolvedVisualSource | null =>
+  game.declaration.testing ? { configPath: game.configPath } : null;
 
 const readScenarioMetadata = async ({
   artifactRoot,
@@ -139,14 +129,15 @@ export const listVisualScenarios = async ({
   gameId,
 }: ListVisualScenariosOptions = {}): Promise<AirJamVisualScenarioList> => {
   const game = await inspectGame({ cwd, gameId });
-  const source = await resolveVisualSource(game.configPath);
+  const source = resolveVisualSource(game);
   if (!source) {
     throw new Error(
-      `No visual scenarios published for "${game.id}" in ${game.rootDir}.`,
+      `No visual scenarios declared for "${game.id}" in ${game.rootDir}.`,
     );
   }
 
   const result = runTsxHelper<{
+    hasVisualScenarios: boolean;
     gameId: string;
     scenarios: AirJamVisualScenarioList["scenarios"];
   }>({
@@ -154,9 +145,11 @@ export const listVisualScenarios = async ({
     cwd: game.rootDir,
     args: [`--config=${source.configPath}`],
   });
+  if (!result.hasVisualScenarios)
+    throw new Error(`No visual scenarios declared for "${game.id}".`);
   return {
     gameId: result.gameId,
-    scenarioModulePath: source.scenarioModulePath,
+    configPath: source.configPath,
     scenarios: result.scenarios,
   };
 };
@@ -179,10 +172,10 @@ const withVisualSession = async <T>({
   }) => Promise<T>;
 }): Promise<T> => {
   const game = await inspectGame({ cwd, gameId });
-  const visualSource = await resolveVisualSource(game.configPath);
+  const visualSource = resolveVisualSource(game);
   if (!visualSource) {
     throw new Error(
-      `No visual scenarios published for "${game.id}" in ${game.rootDir}.`,
+      `No visual scenarios declared for "${game.id}" in ${game.rootDir}.`,
     );
   }
 
@@ -234,7 +227,6 @@ const captureGameAtRuntime = async ({
     args: [
       `--game-id=${game.id}`,
       `--config=${visualSource.configPath}`,
-      `--module-path=${visualSource.scenarioModulePath}`,
       `--artifact-root=${artifactRoot}`,
       `--mode=${mode === "arcade-built" ? "arcade-test" : "standalone-dev"}`,
       `--app-origin=${resolvedUrls.appOrigin}`,
@@ -268,10 +260,10 @@ export const captureVisualsAtRuntime = async ({
   ...runtime
 }: CaptureVisualsAtRuntimeOptions): Promise<CaptureVisualsResult> => {
   const game = await inspectGame({ cwd, gameId });
-  const visualSource = await resolveVisualSource(game.configPath);
+  const visualSource = resolveVisualSource(game);
   if (!visualSource) {
     throw new Error(
-      `No visual scenarios published for "${game.id}" in ${game.rootDir}.`,
+      `No visual scenarios declared for "${game.id}" in ${game.rootDir}.`,
     );
   }
   return captureGameAtRuntime({ game, visualSource, ...runtime });

@@ -1,11 +1,4 @@
-/**
- * Air Jam app config for code-review.
- *
- * `input.behavior.latest` makes the `defend` field behave as a continuous
- * latest value (good for a held button) instead of the default one-shot
- * pulse. See `@air-jam/sdk` docs for the full behavior matrix.
- */
-import { createAirJamApp, env } from "@air-jam/sdk";
+import { defineAirJamGame } from "@air-jam/sdk/core";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
 import { agentContract } from "./game/contracts/agent";
 import {
@@ -15,24 +8,21 @@ import {
 import { codeReviewSimulation } from "./game/engine/code-review-simulation";
 import { gameStore } from "./game/stores/code-review-store";
 
-export const gameMetadata = defineAirJamGameMetadata({
-  slug: "code-review",
-  name: "Code Review",
-  tagline:
-    "2D team brawler with touch controls, optional tilt movement and a code-review twist.",
-  category: "arcade",
-  minPlayers: 1,
-  maxPlayers: 4,
-  inputModalities: ["buttons", "motion", "touch"],
-  supportedSdkRange: "^1.0.0",
-  maintainer: { name: "Air Jam" },
-  ageRating: "all-ages",
-  tags: ["fighting", "teams", "motion"],
-});
-
-export const airjam = createAirJamApp({
-  runtime: env.vite(import.meta.env),
-  metadata: gameMetadata,
+export const airjam = defineAirJamGame({
+  metadata: defineAirJamGameMetadata({
+    slug: "code-review",
+    name: "Code Review",
+    tagline:
+      "2D team brawler with touch controls, optional tilt movement and a code-review twist.",
+    category: "arcade",
+    minPlayers: 1,
+    maxPlayers: 4,
+    inputModalities: ["buttons", "motion", "touch"],
+    supportedSdkRange: "^1.0.0",
+    maintainer: { name: "Air Jam" },
+    ageRating: "all-ages",
+    tags: ["fighting", "teams", "motion"],
+  }),
   controllerPath: "/controller",
   stores: [gameStore],
   simulation: codeReviewSimulation,

@@ -15,7 +15,7 @@ const useRequireDeclaredStore = (store: AttachableStore): void => {
   if (!declared?.has(store))
     throw createAirJamDiagnosticError(
       "AJ_STORE_NOT_DECLARED",
-      "This Air Jam store is used in a host or controller that does not declare it, so it would never sync with the room. Add it to createAirJamApp({ stores: [yourStore] }).",
+      "This Air Jam store is used in a host or controller that does not declare it, so it would never sync with the room. Add it to defineAirJamGame({ stores: [yourStore] }).",
     );
 };
 

@@ -32,10 +32,7 @@ import {
   headlessRoomRequestSchema,
   type HeadlessRoomResponse,
 } from "../headless-room-protocol.js";
-import {
-  loadAirJamAppConfig,
-  resolveAirJamConfigGameId,
-} from "./airjam-agent.js";
+import { loadAirJamGame } from "./load-game.js";
 
 const STARTUP_MS = 10_000;
 
@@ -58,7 +55,7 @@ function send(message: HeadlessRoomResponse) {
 }
 
 async function openRoom(configPath: string, seed: number) {
-  const app = await loadAirJamAppConfig(configPath);
+  const app = await loadAirJamGame(configPath);
   const server = createAirJamServer({
     host: "127.0.0.1",
     port: 0,
@@ -119,7 +116,7 @@ async function openRoom(configPath: string, seed: number) {
     {
       config: createAirJamConfig({
         topology: topology("host"),
-        maxPlayers: app.runtime.maxPlayers,
+        maxPlayers: app.metadata.maxPlayers,
       }),
       store,
       getSocket: () => socket,
@@ -196,7 +193,7 @@ async function openRoom(configPath: string, seed: number) {
       close,
     };
     return {
-      gameId: resolveAirJamConfigGameId(app),
+      gameId: app.metadata.slug,
       roomId: joined.roomId,
       controllerJoinUrl: joined.joinUrl,
       nowMs,
@@ -209,7 +206,7 @@ async function openRoom(configPath: string, seed: number) {
 }
 
 async function replayRoom(configPath: string, logPath: string) {
-  const app = await loadAirJamAppConfig(configPath);
+  const app = await loadAirJamGame(configPath);
   const log = airJamInputLogSchema.parse(
     JSON.parse(await readFile(logPath, "utf8")),
   );
@@ -221,7 +218,7 @@ async function replayRoom(configPath: string, logPath: string) {
     close: async () => replayed.stop(),
   };
   return {
-    gameId: resolveAirJamConfigGameId(app),
+    gameId: app.metadata.slug,
     roomId: replayed.roomId,
     ticks: log.ticks,
   };

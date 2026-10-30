@@ -1,46 +1,11 @@
-import { pathToFileURL } from "node:url";
-import type {
-  AnyAirJamAgentContract,
-  VisualScenarioPack,
-} from "../harness/visual.js";
-import { loadVisualScenarioPackFromConfig } from "./airjam-agent.js";
+import { loadAirJamGame, loadAirJamTesting } from "./load-game.js";
 
-export const loadVisualScenarioPack = async (
-  modulePath: string,
-): Promise<VisualScenarioPack<AnyAirJamAgentContract>> => {
-  const loaded = (await import(pathToFileURL(modulePath).href)) as {
-    visualScenarios?: VisualScenarioPack<AnyAirJamAgentContract>;
-  };
-
-  const scenarioPack = loaded.visualScenarios ?? null;
-
-  if (
-    !scenarioPack ||
-    !scenarioPack.agent ||
-    !Array.isArray(scenarioPack.scenarios)
-  ) {
-    throw new Error(`Invalid Air Jam visual scenario pack at ${modulePath}.`);
-  }
-
-  return scenarioPack;
-};
-
-export const loadVisualScenarioPackFromModuleOrConfig = async ({
-  modulePath,
-  configPath,
-}: {
-  modulePath?: string | null;
-  configPath?: string | null;
-}): Promise<VisualScenarioPack<AnyAirJamAgentContract>> => {
-  if (configPath) {
-    return loadVisualScenarioPackFromConfig(configPath);
-  }
-
-  if (modulePath) {
-    return loadVisualScenarioPack(modulePath);
-  }
-
-  throw new Error(
-    "Missing visual scenario source. Expected --config or --module-path.",
-  );
+export const loadVisualScenarioPackFromConfig = async (configPath: string) => {
+  const game = await loadAirJamGame(configPath);
+  const testing = await loadAirJamTesting(configPath, game);
+  if (!game.agent || !testing?.visual)
+    throw new Error(
+      `Game "${game.metadata.slug}" must declare agent and testing.visual for visual scenarios.`,
+    );
+  return testing.visual;
 };

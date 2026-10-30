@@ -24,10 +24,10 @@ export const shipInput = defineAirJamInput({
 export type ShipInput = AirJamInputValues<typeof shipInput>;
 ```
 
-Declare them once in the app:
+Declare them once in `src/airjam.config.ts` with `defineAirJamGame` from `@air-jam/sdk/core`:
 
 ```ts
-export const airjam = createAirJamApp({
+export const airjam = defineAirJamGame({
   // ...
   simulation: shipSimulation,
   input: shipInput,
@@ -128,7 +128,7 @@ export const shipInputBindings = defineAirJamInputBindings(shipInput, {
 });
 
 // airjam.config.ts
-createAirJamApp({ input: shipInput, inputBindings: shipInputBindings, ... });
+defineAirJamGame({ input: shipInput, inputBindings: shipInputBindings, ... });
 ```
 
 1. Each keyboard layout is one player; every connected gamepad is one more.
@@ -189,7 +189,7 @@ whether the replay ends where the run ended. In code,
 
 ### A Control Does Nothing
 
-1. Check the control is declared and passed to `createAirJamApp({ input })`.
+1. Check the control is declared and passed to `defineAirJamGame({ input })`.
 2. Read it in the simulation step; the host has no other way to read input.
 3. Render phone controls inside `<airjam.Controller>`.
 

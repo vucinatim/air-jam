@@ -33,8 +33,7 @@ export const resolveDevtoolsHelperScript = (fileName: string): string => {
 
 const typescriptExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const projectTypescriptLoaderHelpers = new Set([
-  "agent-contract",
-  "inspect-airjam-agent",
+  "describe-game",
   "list-visual-scenarios",
   "run-visual-capture",
   "run-test-profile",

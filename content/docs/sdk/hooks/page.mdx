@@ -6,21 +6,17 @@ The Air Jam SDK provides React hooks for building multiplayer games. This page d
 
 ### `createAirJamApp`
 
-Use `createAirJamApp` as the canonical runtime setup. It wires scoped providers, route paths, and typed input schema in one place.
+Declare the game once with `defineAirJamGame` from `@air-jam/sdk/core` in
+`src/airjam.config.ts`. In `app.tsx`, `createAirJamApp(game, options)` binds that
+declaration to the browser environment and returns `Host`, `Controller`,
+`paths` and `session`. Its capacity comes from `game.metadata.maxPlayers`.
 
 ```tsx
 import { createAirJamApp, env } from "@air-jam/sdk";
-import { z } from "zod";
+import { airjam as game } from "./airjam.config";
 
-const inputSchema = z.object({
-  vector: z.object({ x: z.number(), y: z.number() }),
-  timestamp: z.number(),
-});
-
-const airjam = createAirJamApp({
+export const airjam = createAirJamApp(game, {
   runtime: env.vite(import.meta.env),
-  controllerPath: "/controller",
-  input: { schema: inputSchema },
 });
 
 <Routes>
@@ -71,7 +67,7 @@ also needs runtime controls such as `joinUrl` or `sendSignal`.
 
 ```tsx
 import { useAirJamHost } from "@air-jam/sdk";
-import { airjam } from "../airjam.config";
+import { airjam } from "../app";
 
 const HostShell = () => (
   <airjam.Host
@@ -219,7 +215,7 @@ automatically attempt same-device resume when reconnecting to the same room.
 ```tsx
 import { useAirJamController } from "@air-jam/sdk";
 import { ControlButton, Stick } from "@air-jam/sdk/ui";
-import { airjam } from "../airjam.config";
+import { airjam } from "../app";
 import { shipInput } from "../game/contracts/input";
 
 const ControllerShell = () => (
@@ -307,7 +303,7 @@ export const simulation = defineAirJamSimulation<Sim, GameInput, SimEvent>({
 });
 ```
 
-Declare it with `createAirJamApp({ simulation })`. When its code is heavy, such
+Declare it with `defineAirJamGame({ simulation })`. When its code is heavy, such
 as a physics engine, declare a loader instead,
 `simulation: () => import("./game/engine/simulation").then((m) => m.simulation)`,
 so only the host downloads it and controllers stay small. The host draws and
@@ -382,7 +378,7 @@ const unsubscribe = onAirJamDiagnostic((diagnostic) => {
 | `AJ_STORE_ACTION_PAYLOAD_INVALID_SHAPE`    | State action payload root was not omitted or a plain object.          | Dispatch no payload or one plain object payload only.                                                    |
 | `AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE` | State action payload contained non-serializable values.               | Use JSON-safe payload objects only (no functions/symbols/cycles).                                        |
 | `AJ_INPUT_INVALID`                         | Input from a controller or agent did not match the declared controls. | Send each declared control in its kind's shape; leave out controls not in use.                           |
-| `AJ_INPUT_NOT_DECLARED`                    | A phone control rendered where the game declares no controls.         | Declare them with `createAirJamApp({ input })` and render controls inside `<airjam.Controller>`.         |
+| `AJ_INPUT_NOT_DECLARED`                    | A phone control rendered where the game declares no controls.         | Declare them with `defineAirJamGame({ input })` and render controls inside `<airjam.Controller>`.        |
 
 ---
 

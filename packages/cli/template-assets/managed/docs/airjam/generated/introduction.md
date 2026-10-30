@@ -11,7 +11,7 @@ input, state, and release model.
 ## Key Features
 
 - **Zero App Download**: Players join by scanning a QR code—no app store required
-- **Instant Multiplayer**: Seamlessly connect up to 8 smartphones as controllers
+- **Instant Multiplayer**: Connect smartphones up to the game’s declared player capacity
 - **Developer Friendly**: Built with modern web technologies (React, TypeScript)
 - **AI-Native By Design**: Humans and agents share explicit contracts for runtime, input, logs, and release workflows
 - **Type Safe**: End-to-end type safety with Zod schema validation
@@ -27,7 +27,10 @@ pnpm add @air-jam/sdk
 ### 2. Wrap Your App
 
 ```tsx filename="src/app.tsx"
-import { airjam } from "./airjam.config";
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { airjam as game } from "./airjam.config";
+
+const airjam = createAirJamApp(game, { runtime: env.vite(import.meta.env) });
 
 export const App = () => (
   <Routes>
@@ -58,8 +61,8 @@ export const App = () => (
 );
 ```
 
-```tsx filename="src/airjam.config.ts"
-import { createAirJamApp, env } from "@air-jam/sdk";
+```ts filename="src/airjam.config.ts"
+import { defineAirJamGame } from "@air-jam/sdk/core";
 import {
   axis,
   button,
@@ -88,8 +91,19 @@ const simulation = defineAirJamSimulation<
   },
 });
 
-export const airjam = createAirJamApp({
-  runtime: env.vite(import.meta.env),
+export const airjam = defineAirJamGame({
+  metadata: {
+    slug: "space-game",
+    name: "Space Game",
+    tagline: "Fly together and defend the fleet.",
+    category: "arcade",
+    minPlayers: 1,
+    maxPlayers: 4,
+    inputModalities: ["buttons", "touch"],
+    supportedSdkRange: "^1.0.0",
+    maintainer: { name: "Air Jam" },
+    version: 1,
+  },
   controllerPath: "/controller",
   simulation,
   input: gameInput,

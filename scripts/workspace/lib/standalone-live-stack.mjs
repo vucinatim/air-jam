@@ -24,7 +24,7 @@ export const startWorkspaceStandaloneLiveStack = async ({
   secure = false,
   secureMode = SECURE_MODE_LOCAL,
 } = {}) => {
-  const activeGame = findRepoGame({ rootDir, gameId });
+  const activeGame = await findRepoGame({ rootDir, gameId });
   if (!activeGame) {
     throw new Error(`Unknown game "${gameId}".`);
   }

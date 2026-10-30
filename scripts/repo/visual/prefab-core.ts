@@ -9,7 +9,7 @@ import { startRepoVisualStack, VISUAL_ARTIFACT_ROOT } from "./core.js";
 export const runVisualPrefabCaptureCommand = async (
   options: Omit<Parameters<typeof loadPrefabCapture>[0], "gameDirectory">,
 ) => {
-  const game = findRepoGame({
+  const game = await findRepoGame({
     rootDir: repoRoot,
     gameId: options.gameId,
   });

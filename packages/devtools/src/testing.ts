@@ -314,7 +314,7 @@ export type AirJamPlayerContract = {
  * brief and any seat intent lead every question, so a turn may describe at
  * most 30 state lines.
  */
-export function createAirJamPlayerPolicy(
+function createAirJamPlayerPolicy(
   contract: AirJamPlayerContract,
 ): AirJamTestPolicy {
   airJamDecisionQuestionSchema.shape.state.element.parse(contract.brief);
@@ -382,4 +382,30 @@ export function createAirJamPlayerPolicy(
       };
     },
   };
+}
+
+export function defineAirJamTesting(declaration: {
+  player?: AirJamPlayerContract;
+  profiles: Record<string, AirJamTestProfile>;
+  visual?: import("./harness/visual.js").VisualScenarioPack;
+}) {
+  const model =
+    declaration.player && createAirJamPlayerPolicy(declaration.player);
+  const profiles = Object.fromEntries(
+    Object.entries(declaration.profiles).map(([id, profile]) => {
+      if (Object.hasOwn(profile.policies, "model"))
+        throw new Error(
+          `AJ_TEST_POLICY_RESERVED: Profile "${id}" must declare its player in defineAirJamTesting.player, not a model policy.`,
+        );
+      return [
+        id,
+        {
+          ...profile,
+          policies: { ...profile.policies, ...(model ? { model } : {}) },
+        },
+      ];
+    }),
+  );
+  describeAirJamTestProfiles(profiles);
+  return { ...declaration, profiles };
 }

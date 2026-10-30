@@ -205,3 +205,24 @@ export const neutralInputValues = (
           : { x: 0, y: 0 },
     ]),
   );
+
+export const airJamInputDescriptionSchema = z.record(
+  z.string(),
+  z.discriminatedUnion("kind", [
+    z
+      .object({
+        kind: z.literal("button"),
+        name: z.string(),
+        mode: z.enum(["held", "pressed"]),
+      })
+      .strict(),
+    z.object({ kind: z.literal("axis"), name: z.string() }).strict(),
+    z
+      .object({
+        kind: z.literal("stick"),
+        name: z.string(),
+        keepDirection: z.boolean(),
+      })
+      .strict(),
+  ]),
+);

@@ -2,7 +2,7 @@
   "name": "@air-jam/devtools",
   "version": "0.9.3",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.15.0"
   },
   "description": "Air Jam authoring, inspection and evaluation toolchain for CLI, MCP and Studio consumers",
   "private": false,
@@ -37,10 +37,6 @@
     "./controller": {
       "types": "./dist/controller.d.ts",
       "import": "./dist/controller.js"
-    },
-    "./agent": {
-      "types": "./dist/agent.d.ts",
-      "import": "./dist/agent.js"
     },
     "./context": {
       "types": "./dist/context.d.ts",
@@ -121,7 +117,7 @@
     "cross-spawn": "^7.0.6",
     "playwright-core": "^1.58.2",
     "socket.io-client": "^4.8.3",
-    "tsx": "^4.20.6",
+    "tsx": "4.20.6",
     "yauzl": "^3.2.1",
     "yazl": "^3.3.1",
     "zod": "^4.2.1",

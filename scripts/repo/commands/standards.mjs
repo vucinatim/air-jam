@@ -1,7 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { loadRepoGames } from "../../workspace/lib/repo-games.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 
 export const canonicalRules = [
@@ -163,50 +162,8 @@ export const findCanonicalViolations = ({
     });
   });
 
-/**
- * First-party games still waiting for a player contract, each with the reason.
- * Every other game must declare test profiles with a decision-model policy.
- */
-const PLAYER_CONTRACTS_PENDING = {
-  "last-band-standing":
-    "its stimulus is audio, which a text model cannot hear (docs/suggestions.md, item 40)",
-};
-
-export const findGamesWithoutPlayerContracts = ({
-  root = repoRoot,
-  pending = PLAYER_CONTRACTS_PENDING,
-} = {}) =>
-  loadRepoGames({ rootDir: root }).flatMap((game) => {
-    const config = path.join(game.dir, "src/airjam.config.ts");
-    const profiles = path.join(game.dir, "src/testing/profiles.ts");
-    const problem =
-      !existsSync(config) ||
-      !readFileSync(config, "utf8").includes('testing: "./testing/profiles.ts"')
-        ? "declares no test profiles"
-        : !existsSync(profiles) ||
-            !readFileSync(profiles, "utf8").includes(
-              "createAirJamPlayerPolicy(",
-            )
-          ? "offers no decision-model player policy"
-          : null;
-    if (Object.hasOwn(pending, game.id))
-      return problem
-        ? []
-        : [
-            {
-              game: game.id,
-              problem:
-                "already offers a decision-model player; remove it from the pending list",
-            },
-          ];
-    return problem ? [{ game: game.id, problem }] : [];
-  });
-
 const runCanonicalGuard = () => {
   const violations = findCanonicalViolations();
-  const contractless = findGamesWithoutPlayerContracts();
-  for (const { game, problem } of contractless)
-    console.log(`First-party game ${game} ${problem}.`);
 
   for (const violation of violations) {
     console.log(`Forbidden pattern detected: ${violation.label}`);
@@ -214,7 +171,7 @@ const runCanonicalGuard = () => {
     console.log("");
   }
 
-  if (violations.length > 0 || contractless.length > 0) {
+  if (violations.length > 0) {
     throw new Error("Canonical guard failed.");
   }
 

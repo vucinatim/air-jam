@@ -16,7 +16,8 @@ import {
   type ActiveTask,
   type Location,
 } from "../domain/task-manager";
-import { spaceStore, type PlayerStats } from "../stores";
+import { spaceStore } from "../stores/space-store";
+import type { PlayerStats } from "../stores/types";
 import {
   circlesOverlap,
   FIELD_HEIGHT,

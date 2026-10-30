@@ -39,9 +39,9 @@ import { detectProjectContext } from "./context.js";
 import {
   pathExists,
   readPackageJson,
-  resolveCandidatePath,
   resolveCanonicalPath,
 } from "./fs-utils.js";
+import { AIRJAM_CONFIG_PATH, inspectGame } from "./games.js";
 import {
   requestPlatformMachineApi,
   resolvePlatformMachineAuth,
@@ -167,31 +167,12 @@ const getDefaultReleaseBundlePath = ({
   );
 };
 
-const readConfiguredControllerPath = async (
-  configPath: string | null,
-): Promise<string | null> => {
-  if (!configPath || !(await pathExists(configPath))) {
-    return null;
-  }
-
-  const source = await readFile(configPath, "utf8");
-  const match = source.match(/controllerPath\s*:\s*["'`](?<path>[^"'`]+)["'`]/);
-  return match?.groups?.path?.trim() || null;
-};
-
 const getLocalAirJamConfigPath = async (
   projectDir: string,
-): Promise<string | null> =>
-  resolveCandidatePath(projectDir, [
-    "src/airjam.config.ts",
-    "src/airjam.config.tsx",
-    "src/airjam.config.js",
-    "src/airjam.config.mjs",
-    "airjam.config.ts",
-    "airjam.config.tsx",
-    "airjam.config.js",
-    "airjam.config.mjs",
-  ]);
+): Promise<string | null> => {
+  const configPath = path.join(projectDir, AIRJAM_CONFIG_PATH);
+  return (await pathExists(configPath)) ? configPath : null;
+};
 
 const collectDirectoryFiles = async (sourceDir: string): Promise<string[]> => {
   const entries = await readdir(sourceDir);
@@ -740,11 +721,8 @@ const inspectProjectRelease = async ({
 }): Promise<AirJamLocalReleaseDoctor> => {
   const packageJson = await readPackageJson(projectDir);
   const configPath = await getLocalAirJamConfigPath(projectDir);
-  const configSource = configPath
-    ? await readFile(configPath, "utf8").catch(() => "")
-    : "";
-  const controllerPath =
-    (await readConfiguredControllerPath(configPath)) ?? null;
+  const game = configPath ? await inspectGame({ cwd: projectDir }) : null;
+  const controllerPath = game?.declaration.controllerPath ?? null;
   const distExists = await pathExists(distDir);
   const distEntryExists = distExists
     ? await pathExists(path.join(distDir, HOSTED_RELEASE_ENTRY_PATH))
@@ -783,17 +761,6 @@ const inspectProjectRelease = async ({
     );
   }
 
-  if (!/\bgameMetadata\b/.test(configSource)) {
-    issues.push(
-      createIssue(
-        "missing-game-metadata",
-        "warning",
-        "No gameMetadata export was detected in airjam.config.ts. Hosted release submission can still bundle locally, but dashboard prefill and catalog metadata will be incomplete.",
-        configPath,
-      ),
-    );
-  }
-
   if (distExists && !distEntryExists) {
     issues.push(
       createIssue(
@@ -813,7 +780,7 @@ const inspectProjectRelease = async ({
     packageManager,
     configPath,
     buildScript: packageJson?.value.scripts?.build ?? null,
-    metadataExportLikely: /\bgameMetadata\b/.test(configSource),
+    gameSlug: game?.id ?? null,
     controllerPath,
     distDir,
     distExists,
@@ -1177,7 +1144,7 @@ export const inspectLocalRelease = async ({
       packageManager,
       configPath: null,
       buildScript: null,
-      metadataExportLikely: false,
+      gameSlug: null,
       controllerPath: null,
       distDir: resolvedDistDir,
       distExists: await pathExists(resolvedDistDir),

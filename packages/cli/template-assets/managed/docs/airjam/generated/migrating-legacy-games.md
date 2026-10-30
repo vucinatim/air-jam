@@ -11,6 +11,13 @@ If you are using an LLM to help with the migration, copy this guide into the
 conversation first. Codex or Claude are the best fit for this kind of
 repo-wide migration work.
 
+## Node.js Minimum
+
+Air Jam 1.0 authoring requires Node.js 22.15 or newer for devtools, the CLI and MCP,
+create-airjam and generated projects. The declaration loader uses synchronous
+module hooks to enforce its framework-free boundary through imports, `require`
+and `createRequire`. The SDK and server retain their Node.js 22.0 minimum.
+
 ## When You Need This Guide
 
 You are likely on the old shape if your game still has some of these patterns:
@@ -60,7 +67,7 @@ Not every migrated game must match that exact folder tree.
 
 What matters is the boundary model:
 
-1. `createAirJamApp(...)` defines runtime and input config
+1. `defineAirJamGame(...)` declares the game in core; `createAirJamApp(game, options)` binds its browser runtime
 2. `app.tsx` owns route-level `<airjam.Host>` and `<airjam.Controller>` wrappers
 3. host/controller runtime owner hooks mount only in those route entry files
 4. replicated state uses the current `createAirJamStore` action contract
@@ -107,13 +114,24 @@ export function App() {
 
 Target shape:
 
-```tsx filename="src/airjam.config.ts"
-import { createAirJamApp, env } from "@air-jam/sdk";
+```ts filename="src/airjam.config.ts"
+import { defineAirJamGame } from "@air-jam/sdk/core";
 import { gameInput } from "./game/input";
 import { simulation } from "./game/simulation";
 
-export const airjam = createAirJamApp({
-  runtime: env.vite(import.meta.env),
+export const airjam = defineAirJamGame({
+  metadata: {
+    slug: "space-game",
+    name: "Space Game",
+    tagline: "Fly together and defend the fleet.",
+    category: "arcade",
+    minPlayers: 1,
+    maxPlayers: 4,
+    inputModalities: ["buttons", "touch"],
+    supportedSdkRange: "^1.0.0",
+    maintainer: { name: "Air Jam" },
+    version: 1,
+  },
   controllerPath: "/controller",
   simulation,
   input: gameInput,
@@ -137,7 +155,10 @@ Target shape:
 
 ```tsx filename="src/app.tsx"
 import { Route, Routes } from "react-router-dom";
-import { airjam } from "./airjam.config";
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { airjam as game } from "./airjam.config";
+
+const airjam = createAirJamApp(game, { runtime: env.vite(import.meta.env) });
 
 export function App() {
   return (
@@ -282,7 +303,7 @@ The migration guide is about boundaries, not folder cosplay.
 
 ### Branch C: Host-Simulation-Heavy App
 
-If most of the game logic lives in a host-side hook or `useHostTick` loop, move it into a declared simulation (`defineAirJamSimulation`, declared with `createAirJamApp({ simulation })`). `useHostTick` is removed.
+If most of the game logic lives in a host-side hook or `useHostTick` loop, move it into a declared simulation (`defineAirJamSimulation`, declared with `defineAirJamGame({ simulation })`). `useHostTick` is removed.
 
 1. replicated store state owns shared, synchronized state
 2. the simulation owns timers, positions, physics and outcomes; it reads input from its step context, uses the step's `random` and game time instead of `Math.random()` and `Date.now()`, and dispatches store actions for outcomes such as scores
@@ -407,6 +428,45 @@ Games written against the 0.9 SDK, including agent-made Studio games, move
 mechanically with the mappings below. Each removal fails typecheck, so work
 through the compiler errors with this section open.
 
+### The game is declared in core
+
+`src/airjam.config.ts` exports only the named `airjam = defineAirJamGame(...)`
+declaration from `@air-jam/sdk/core`. Move metadata into its `metadata` field;
+remove the separate metadata export. Its entire import graph must stay free of
+React, the SDK root, TSX and CSS. The loader names the importing file with
+`AJ_DECLARATION_NOT_FRAMEWORK_FREE` when that boundary is crossed.
+
+Move `createAirJamApp` to `app.tsx` and call
+`createAirJamApp(airjam, { runtime: env.vite(import.meta.env) })`. The binding
+returns `Host`, `Controller`, `paths` and `session`; game data stays on the
+declaration. Passing the former options object as the first argument fails
+with an error naming `defineAirJamGame` as its replacement.
+
+Import agent helpers and their types from `@air-jam/sdk/core`. A declared
+`testing` path, relative to the config, names the development module:
+
+```ts
+import { defineAirJamTesting } from "@air-jam/devtools/testing";
+import { gamePlayer } from "./player";
+
+export const testing = defineAirJamTesting({
+  player: gamePlayer,
+  profiles: { scoring, diagnostics },
+  // Optional: visual: { scenarios: [...] }, using the game's declared agent.
+});
+```
+
+The declared player is offered as `model` in every profile. Remove each
+profile's manually created model policy; the name is reserved and fails with
+`AJ_TEST_POLICY_RESERVED` when authored. Visual packs no longer declare their
+own agent. Tools read the game through `airjam.inspect_game` and its
+`declaration.agent` field.
+
+Remove capacity from runtime options. `metadata.maxPlayers` is the capacity
+for both browser and headless rooms: a four-player game refuses a fifth phone.
+Remove identity fields from `airjam-template.json`; it now holds only scaffold
+and export flags. Regenerate template catalogs after changing declarations.
+
 ### Stores Are Plain Objects
 
 `createAirJamStore` moved to `@air-jam/sdk/core` and returns a store object,
@@ -422,7 +482,7 @@ export const useGameStore = createAirJamStore<GameState>((set) => ({ ... }));
 import { createAirJamStore } from "@air-jam/sdk/core";
 export const gameStore = createAirJamStore<GameState>((set) => ({ ... }));
 // airjam.config.ts
-createAirJamApp({ stores: [gameStore], ... });
+defineAirJamGame({ stores: [gameStore], ... });
 ```
 
 | 0.9                                                                                                             | 1.0                                                              |
@@ -463,7 +523,7 @@ export const simulation = defineAirJamSimulation<World, GameInput, GameEvent>({
   observe: (world) => ({ score: world.score }),
 });
 // airjam.config.ts
-createAirJamApp({ simulation, ... });
+defineAirJamGame({ simulation, ... });
 ```
 
 | 0.9                                          | 1.0                                                                                         |
@@ -500,7 +560,7 @@ const { direction, fire } = host.getInput(playerId) ?? { direction: 0, fire: fal
 import { axis, button, defineAirJamInput } from "@air-jam/sdk/core";
 export const gameInput = defineAirJamInput({ direction: axis(), fire: button("pressed") });
 // airjam.config.ts
-createAirJamApp({ input: gameInput, simulation, ... });
+defineAirJamGame({ input: gameInput, simulation, ... });
 // controller
 import { AxisButton, ControlButton } from "@air-jam/sdk/ui";
 <AxisButton control={gameInput.direction} value={-1}>Up</AxisButton>

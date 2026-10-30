@@ -147,7 +147,7 @@ const gamepadFits = (control: AirJamControl, binding: unknown): boolean => {
 /**
  * Declares how local players drive a game's controls without a phone: each
  * keyboard layout is one player, and every connected gamepad is one more.
- * Pass the result to `createAirJamApp({ input, inputBindings })`. Fails fast
+ * Pass the result to `defineAirJamGame({ input, inputBindings })`. Fails fast
  * on a binding for an undeclared control or of the wrong kind.
  */
 export const defineAirJamInputBindings = <TInput extends object>(

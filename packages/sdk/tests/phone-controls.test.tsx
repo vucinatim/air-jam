@@ -100,6 +100,6 @@ describe("phone controls", () => {
           <ControlButton control={padInput.fire}>Fire</ControlButton>
         </controllerRuntimeContext.Provider>,
       ),
-    ).toThrow(/createAirJamApp\(\{ input \}\)/);
+    ).toThrow(/defineAirJamGame\(\{ input \}\)/);
   });
 });

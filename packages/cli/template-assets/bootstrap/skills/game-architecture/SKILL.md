@@ -16,8 +16,8 @@ Use this skill when adding new systems or moving code between boundaries.
 
 Prefer this split:
 
-1. `src/airjam.config.ts` for catalog metadata plus runtime config such as `controllerPath` and input schema
-2. `src/app.tsx` for mounting explicit host/controller runtime boundaries
+1. `src/airjam.config.ts` for the framework-free `defineAirJamGame` declaration from `@air-jam/sdk/core`: metadata, stores, simulation, input, bindings, agent and testing path
+2. `src/app.tsx` for `createAirJamApp(airjam, { runtime })` and mounting its host/controller runtime boundaries
 3. `src/host/` for host-only composition
 4. `src/controller/` for controller-only composition
 5. `src/game/domain/` for pure rules
@@ -29,7 +29,7 @@ Prefer this split:
 
 Keep runtime ownership explicit:
 
-1. mount `airjam.Host` / `airjam.Controller` once at the boundary
+1. mount `app.Host` / `app.Controller` from the React binding once at the boundary
 2. use consumer hooks like `useAirJamHost()` and `useAirJamController()` only below that boundary
 3. keep gameplay code out of runtime setup and transport bootstrap
 
@@ -56,3 +56,19 @@ If new work would harden a mixed boundary, split the structure first or split th
 1. one large file that mixes host, controller, domain, and rendering concerns
 2. React components as the only home for gameplay logic
 3. adapter code becoming the real game model
+
+## One game declaration
+
+Read `airjam.inspect_game` for the versioned `declaration`, including
+`declaration.agent`, controls, controller path and metadata. The game's
+`src/airjam.config.ts` exports `airjam = defineAirJamGame(...)` from
+`@air-jam/sdk/core`; agent helpers also come from core. Keep React, the SDK
+root, TSX and CSS out of its graph. `app.tsx` alone binds it with
+`createAirJamApp(airjam, { runtime })`.
+
+Capacity comes from `metadata.maxPlayers`. The `testing` path names a module
+exporting `testing = defineAirJamTesting({ player, profiles, visual })` from
+`@air-jam/devtools/testing`. Profiles author scripted policies only; a declared
+player is offered as the reserved `model` policy in every profile. Optional
+`visual.scenarios` uses the game's declared agent. Do not duplicate identity
+in template flags or read config source with regular expressions.

@@ -7,6 +7,10 @@ import { afterEach, beforeAll, expect, it } from "vitest";
 import { prepareProcessScopes } from "../src/managed-process-scope.js";
 import { processGuardStartupTimeoutMs } from "../src/process-scope-protocol.js";
 import { startTestProfileProcess } from "../src/test-profile-process.js";
+import {
+  declarationSource,
+  testingSource,
+} from "./game-declaration-fixture.js";
 
 const cleanups: Array<() => Promise<void>> = [];
 beforeAll(async () => {
@@ -30,11 +34,11 @@ async function fixture(
   cleanups.push(() => rm(root, { recursive: true, force: true }));
   await writeFile(
     path.join(root, "config.mjs"),
-    'export const airjam = { testing: "./profiles.mjs" };',
+    declarationSource({}, 'testing: "./profiles.mjs"'),
   );
   await writeFile(
     path.join(root, "profiles.mjs"),
-    `export const testProfiles = {
+    testingSource(`profiles: {
     counter: {
       label: "Counter", seats: [{id:"player",label:"Player"}],
       setup: [], actions: ["tap"], scope: "diagnostic", includeImage: false,
@@ -42,7 +46,7 @@ async function fixture(
       metrics: [], evaluator:{create:${options.evaluatorCreate ?? `()=>({evaluate:${options.evaluate ?? '()=>({status:"pending"})'}})`}},
       policies: { code: { label: "Code", create: ${options.create ?? `({random}) => ({ decide: ${decide} })`} } }
     }
-  };`,
+  }`),
   );
   const child = await startTestProfileProcess({
     rootDir: root,

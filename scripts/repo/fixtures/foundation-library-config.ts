@@ -1,4 +1,4 @@
-import { createAirJamApp, defineAirJamAgentContract } from "@air-jam/sdk";
+import { defineAirJamAgentContract, defineAirJamGame } from "@air-jam/sdk/core";
 
 export const agent = defineAirJamAgentContract({
   stores: {},
@@ -6,6 +6,19 @@ export const agent = defineAirJamAgentContract({
   actions: {},
 });
 
-export const airjam = Object.assign(createAirJamApp({ agent }), {
-  visualScenariosModule: "./visual-scenarios.ts",
+export const airjam = defineAirJamGame({
+  metadata: {
+    version: 1,
+    slug: "installed-library",
+    name: "Installed library",
+    tagline: "Installed package proof.",
+    category: "party",
+    minPlayers: 1,
+    maxPlayers: 4,
+    inputModalities: ["buttons"],
+    supportedSdkRange: "^1.0.0",
+    maintainer: { name: "Air Jam" },
+  },
+  agent,
+  testing: "./visual-scenarios.ts",
 });

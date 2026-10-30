@@ -1,8 +1,5 @@
 import { ensureWorkspacePackageBuild } from "../../ensure-workspace-package-build.mjs";
-import {
-  defaultWorkspaceGameId,
-  loadRepoGames,
-} from "../../workspace/lib/repo-games.mjs";
+import { defaultWorkspaceGameId } from "../../workspace/lib/repo-games.mjs";
 import { runCommand } from "../lib/shell.mjs";
 
 let workspaceRuntimePromise;
@@ -99,9 +96,7 @@ export const registerWorkspaceCommands = (program) => {
 
   workspaceCommand.addHelpText(
     "afterAll",
-    `\nUse pnpm run dev -- --game=<id> for standalone game development.\nAvailable games:\n${loadRepoGames()
-      .map((game) => `  - ${game.id}`)
-      .join("\n")}`,
+    "\nUse pnpm run dev -- --game=<id> for standalone game development; repo games lists the declarations.",
   );
   return workspaceCommand;
 };

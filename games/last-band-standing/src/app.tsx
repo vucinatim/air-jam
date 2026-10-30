@@ -1,6 +1,9 @@
+import { createAirJamApp, env } from "@air-jam/sdk";
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { airjam } from "./airjam.config";
+
+const app = createAirJamApp(airjam, { runtime: env.vite(import.meta.env) });
 
 const HostView = lazy(async () => {
   const module = await import("./host");
@@ -23,17 +26,17 @@ export const App = () => {
         <Route
           path="/"
           element={
-            <airjam.Host>
+            <app.Host>
               <HostView />
-            </airjam.Host>
+            </app.Host>
           }
         />
         <Route
-          path={airjam.paths.controller}
+          path={app.paths.controller}
           element={
-            <airjam.Controller>
+            <app.Controller>
               <ControllerView />
-            </airjam.Controller>
+            </app.Controller>
           }
         />
       </Routes>

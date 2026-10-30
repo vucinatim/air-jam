@@ -26,7 +26,7 @@ const fixture = vi.hoisted(() => ({
   actions: {} as Record<string, ReturnType<typeof vi.fn>>,
 }));
 
-vi.mock("../../../src/game/stores", () => ({
+vi.mock("../../../src/game/stores/space-store", () => ({
   spaceStore: {
     getState: () => fixture.state,
     get actions() {

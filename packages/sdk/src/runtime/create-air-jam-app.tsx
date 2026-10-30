@@ -1,15 +1,8 @@
 import type { JSX, ReactNode } from "react";
-import type { AirJamAgentContract } from "../agent/agent-contract";
-import { CONTROLLER_PATH } from "../constants";
 import { type AirJamProviderProps } from "../context/session-providers";
-import { HostRuntime, type HostRuntimeFactory } from "../core/host-runtime";
-import type { AirJamInput } from "../core/input";
-import type { AirJamInputBindings } from "../core/input-bindings";
-import type { AttachableStore } from "../core/replicated-store";
-import type { AirJamSimulationDeclaration } from "../core/simulation";
+import { isAirJamGame, type AirJamGame } from "../core/game";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
-import type { AirJamGameMetadata } from "../metadata/manifest";
 import {
   parseRuntimeTopology,
   resolveProjectRuntimeTopology,
@@ -42,36 +35,6 @@ export interface AirJamAppErrorBoundaryOptions {
 
 export interface CreateAirJamAppOptions {
   runtime?: ResolveAirJamConfigInput;
-  metadata?: AirJamGameMetadata;
-  /**
-   * Controller route path relative to the app origin.
-   * Defaults to "/controller".
-   */
-  controllerPath?: string;
-  /**
-   * Optional semantic agent contract published by the app.
-   */
-  agent?: AirJamAgentContract;
-  /** Project-relative devtools test profiles module. Never imported by the game runtime. */
-  testing?: string;
-  /** The game's networked stores; host and controller sync them while they run. */
-  stores?: readonly AttachableStore[];
-  /**
-   * The game's simulation, advanced on the SDK clock while the host runs.
-   * Pass a loader (`() => import(...)`) when its code is heavy, such as a
-   * physics engine, so controllers never download it.
-   */
-  simulation?: AirJamSimulationDeclaration;
-  /**
-   * The controls the game reads from each player, from `defineAirJamInput`.
-   * The host applies them once per simulation step.
-   */
-  input?: AirJamInput;
-  /**
-   * Keyboard layouts and gamepads that play the declared input as local
-   * players without a phone, from `defineAirJamInputBindings`.
-   */
-  inputBindings?: AirJamInputBindings;
   errorBoundary?: AirJamAppErrorBoundaryOptions;
 }
 
@@ -87,28 +50,7 @@ export interface AirJamApp {
     host: HostSessionProps;
     controller: ControllerSessionProps;
   };
-  runtime: ResolveAirJamConfigInput;
-  metadata?: AirJamGameMetadata;
-  controllerPath: string;
-  agent?: AirJamAgentContract;
-  testing?: string;
-  stores: readonly AttachableStore[];
-  simulation?: AirJamSimulationDeclaration;
-  input?: AirJamInput;
-  /**
-   * Builds this game's host core without React or a page, such as for a
-   * headless room. It comes from the game's own SDK, so the game's stores
-   * and its host share one runtime.
-   */
-  createHostRuntime: HostRuntimeFactory;
 }
-
-const NO_STORES: readonly AttachableStore[] = [];
-
-const resolveControllerPath = (controllerPath?: string): string => {
-  const normalized = controllerPath ?? CONTROLLER_PATH;
-  return normalized.startsWith("/") ? normalized : `/${normalized}`;
-};
 
 export interface ViteEnvLike {
   DEV?: boolean;
@@ -204,24 +146,27 @@ export const env = {
   }),
 } as const;
 
-export const createAirJamApp = ({
-  runtime = {},
-  metadata,
-  controllerPath: requestedControllerPath,
-  agent,
-  testing,
-  stores = NO_STORES,
-  simulation,
-  input,
-  inputBindings,
-  errorBoundary,
-}: CreateAirJamAppOptions = {}): AirJamApp => {
-  if (inputBindings && !input)
-    throw new Error("inputBindings need the input they bind; pass input too.");
-  const controllerPath = resolveControllerPath(requestedControllerPath);
+export const createAirJamApp = (
+  game: AirJamGame,
+  { runtime = {}, errorBoundary }: CreateAirJamAppOptions = {},
+): AirJamApp => {
+  if (!isAirJamGame(game))
+    throw new Error(
+      "createAirJamApp requires a game from defineAirJamGame in @air-jam/sdk/core; pass runtime options as the second argument.",
+    );
+  const {
+    metadata,
+    controllerPath,
+    agent,
+    stores,
+    simulation,
+    input,
+    inputBindings,
+  } = game;
 
   const hostSession: HostSessionProps = {
     ...runtime,
+    maxPlayers: metadata.maxPlayers,
     hostSessionKind: runtime.hostSessionKind ?? "game",
   };
 
@@ -246,7 +191,7 @@ export const createAirJamApp = ({
           {...hostSession}
           {...runtimeOptions}
           agent={agent}
-          gameId={metadata?.slug}
+          gameId={metadata.slug}
           stores={stores}
           simulation={simulation}
           input={input}
@@ -309,27 +254,5 @@ export const createAirJamApp = ({
       host: hostSession,
       controller: controllerSession,
     },
-    runtime,
-    metadata,
-    controllerPath,
-    agent,
-    testing,
-    stores,
-    simulation,
-    input,
-    createHostRuntime: (dependencies, options) =>
-      new HostRuntime(
-        {
-          ...dependencies,
-          stores,
-          simulation,
-          input,
-          agent: agent && {
-            contract: agent,
-            gameId: metadata?.slug ?? "game",
-          },
-        },
-        options,
-      ),
   };
 };

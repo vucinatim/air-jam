@@ -27,8 +27,8 @@ import type {
   AirJamPolicyDecision,
   AirJamTestProfileDescription,
 } from "../src/testing.js";
-import { createAirJamPlayerPolicy } from "../src/testing.js";
 import type { CloseGameSessionResult } from "../src/types.js";
+import { declaredModelPolicy } from "./game-declaration-fixture.js";
 
 const io = vi.hoisted(() => ({
   startPolicy: vi.fn(),
@@ -37,7 +37,7 @@ const io = vi.hoisted(() => ({
   evaluate: vi.fn(),
   stopEvaluator: vi.fn(),
   stopPolicy: vi.fn(),
-  games: vi.fn(),
+  inspectGame: vi.fn(),
   build: vi.fn(),
   verifyBuild: vi.fn(),
   verifyArtifacts: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock("../src/game-build.js", () => ({
   verifyPinnedGameBuild: (...args: unknown[]) => io.verifyBuild(...args),
 }));
 vi.mock("../src/games.js", () => ({
-  listGames: (...args: unknown[]) => io.games(...args),
+  inspectGame: (...args: unknown[]) => io.inspectGame(...args),
 }));
 const fixtures: Array<{
   owner: GameRunOwner;
@@ -78,8 +78,7 @@ const profile: AirJamTestProfileDescription = {
   policies: [{ id: "code", label: "Code" }],
 };
 beforeEach(() => {
-  vi.clearAllMocks();
-  io.assertScopes.mockReset();
+  vi.resetAllMocks();
   io.build.mockResolvedValue({
     rootDir: "/sealed",
     configPath: "/sealed/src/airjam.config.ts",
@@ -122,9 +121,11 @@ beforeEach(() => {
     },
   });
   io.verifyBuild.mockResolvedValue(undefined);
-  io.games.mockResolvedValue([
-    { id: "test", rootDir: "/game", configPath: "/game/src/airjam.config.ts" },
-  ]);
+  io.inspectGame.mockResolvedValue({
+    id: "test",
+    rootDir: "/game",
+    configPath: "/game/src/airjam.config.ts",
+  });
   io.startPolicy.mockImplementation(async (options) => ({
     profiles: [structuredClone(profile)],
     decide: io.decide,
@@ -1799,7 +1800,7 @@ it("ends a run whose model stops answering, even when the contract acts between 
       throw new Error("decision_failed: Decision model returned HTTP 500.");
     },
   });
-  const decider = await createAirJamPlayerPolicy({
+  const decider = await declaredModelPolicy({
     brief: "A shared counter.",
     turn: () => tapOrWait.ask,
     act: {

@@ -1,4 +1,3 @@
-import { inspectGameAgentContract } from "@air-jam/devtools/agent";
 import { inspectProject } from "@air-jam/devtools/context";
 import {
   getDevStatus,
@@ -234,10 +233,6 @@ export const buildToolDefinitions = ({
   const runQualityGateInputSchema = buildQualityGateSchema(projectMode);
   const startDevInputSchema = buildStartDevSchema(projectMode);
   const topologyInputSchema = buildTopologySchema(projectMode);
-  const inspectGameAgentContractInputSchema = z.object({
-    cwd: z.string().optional(),
-    gameId: z.string().optional(),
-  });
   const openGameSessionInputSchema = gameSessionOperationSchemas.open.extend({
     mode: buildGameSessionModeSchema(projectMode),
   });
@@ -273,13 +268,6 @@ export const buildToolDefinitions = ({
       inputSchema: INSPECT_GAME_INPUT_SCHEMA,
       run: async ({ cwd, gameId }: { cwd?: string; gameId?: string }) =>
         withJsonText(await inspectGame({ cwd, gameId })),
-    },
-    "airjam.inspect_game_agent_contract": {
-      description:
-        "Inspect the source declaration of a game's agent contract without starting it. This does not describe the code currently running in a room; read an owned game session for live semantics.",
-      inputSchema: inspectGameAgentContractInputSchema,
-      run: async ({ cwd, gameId }: { cwd?: string; gameId?: string }) =>
-        withJsonText(await inspectGameAgentContract({ cwd, gameId })),
     },
     "airjam.read_logs": {
       description:

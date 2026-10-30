@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.9.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.15.0"
   },
   "type": "module",
   "airjam": {
@@ -44,7 +44,7 @@
     "test:scaffold": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke",
     "test:scaffold:registry": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:registry",
     "test:scaffold:tarball": "pnpm --filter create-airjam build && pnpm --filter create-airjam smoke:tarball",
-    "typecheck": "pnpm --filter sdk build && pnpm -r --filter \"!sdk\" typecheck",
+    "typecheck": "pnpm --filter sdk build && pnpm -r typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

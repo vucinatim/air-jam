@@ -1,4 +1,4 @@
-import { PLAYER_NAME_MAX_LENGTH } from "@/game/constants";
+import { PLAYER_NAME_MAX_LENGTH } from "../constants";
 
 export interface PlayerScore {
   points: number;

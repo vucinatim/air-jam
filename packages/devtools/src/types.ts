@@ -1,4 +1,5 @@
 import type { AirJamActionInvocationResult } from "@air-jam/sdk";
+import type { AirJamGameDescription } from "@air-jam/sdk/core";
 import type {
   PlatformMachineCreateOwnedGameInput,
   PlatformMachineCreateOwnedGameResult,
@@ -80,14 +81,13 @@ export type AirJamGameSummary = {
   category: string | null;
   scaffold: boolean | null;
   manifestPath: string | null;
-  configPath: string | null;
+  configPath: string;
+  declaration: AirJamGameDescription;
 };
 
 export type AirJamGameInspection = AirJamGameSummary & {
   packageJsonPath: string | null;
   scripts: Record<string, string>;
-  metadataExportLikely: boolean;
-  controllerPathLikely: string | null;
   qualityGates: AirJamQualityGate[];
 };
 
@@ -142,7 +142,7 @@ export type AirJamLocalReleaseDoctor = {
   packageManager: AirJamPackageManager;
   configPath: string | null;
   buildScript: string | null;
-  metadataExportLikely: boolean;
+  gameSlug: string | null;
   controllerPath: string | null;
   distDir: string;
   distExists: boolean;
@@ -560,21 +560,6 @@ export type AirJamGameAgentActionDescriptor = import("zod").z.infer<
   typeof import("@air-jam/sdk/agent-tooling").agentActionDescriptorSchema
 >;
 
-export type AirJamAgentContractInspection = {
-  source: "source-declaration";
-  gameId: string;
-  rootDir: string;
-  hasContract: boolean;
-  snapshotStoreDomains: string[];
-  snapshotDescription: string | null;
-  actions: AirJamGameAgentActionDescriptor[];
-};
-
-export type InspectGameAgentContractOptions = {
-  cwd?: string;
-  gameId?: string;
-};
-
 export type AirJamGameSnapshotInspection = {
   contractId: string;
   runtimeId: string;
@@ -642,7 +627,7 @@ export type AirJamGameSessionActionDescriptor = {
 
 export type AirJamVisualScenarioList = {
   gameId: string;
-  scenarioModulePath: string | null;
+  configPath: string;
   scenarios: AirJamVisualScenarioSummary[];
 };
 

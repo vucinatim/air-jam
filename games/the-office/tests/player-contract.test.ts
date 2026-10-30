@@ -11,7 +11,7 @@ import {
 } from "../src/game/engine/office-layout";
 import { ALL_LOCATIONS, routeTo } from "../src/testing/navigation";
 import { officePlayer } from "../src/testing/player";
-import { testProfiles } from "../src/testing/profiles";
+import { testing } from "../src/testing/profiles";
 
 const snapshot = (
   phase: string,
@@ -84,7 +84,7 @@ function walk(
 }
 
 const stepTicks = Math.round(
-  testProfiles.shift.timing.intervalMs / (1000 / 60),
+  testing.profiles.shift.timing.intervalMs / (1000 / 60),
 );
 
 describe("The Office navigation", () => {

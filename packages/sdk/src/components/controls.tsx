@@ -30,7 +30,7 @@ const useControllerInput = (): ControllerInput => {
   if (!runtime?.input)
     throw createAirJamDiagnosticError(
       "AJ_INPUT_NOT_DECLARED",
-      "Phone controls send declared controls. Declare them with createAirJamApp({ input }) and render controls inside <airjam.Controller>.",
+      "Phone controls send declared controls. Declare them with defineAirJamGame({ input }) and render controls inside <airjam.Controller>.",
     );
   return runtime.input;
 };

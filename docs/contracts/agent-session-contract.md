@@ -580,10 +580,10 @@ contracts and offer a `model` policy beside their code policies. Pong gains a
 test profiles (`round` against the game's bot, and a solo `shift`) and host
 observation surfaces for state that lives only in the host simulation.
 
-`@air-jam/devtools/agent` now exports only static `inspectGameAgentContract` and
-its types. Removed `readGameSnapshot`, `invokeGameAction` and
-`resolveGameActionPayload` are replaced by owned `game-session` read/invoke.
-Static inspection reports `source: source-declaration` and is not live truth.
+`inspectGame` from `@air-jam/devtools/games` exposes the declared contract as
+`declaration.agent`, or `null` when none is declared. Owned `game-session`
+read/invoke provides live state and actions; declaration inspection describes
+the authored contract.
 The semantic read's `requestSync` option and CLI `session read --no-sync` option
 are removed: semantic state always comes directly from the owned host. Raw
 controller snapshot synchronization is unchanged. Consumers must use a matching

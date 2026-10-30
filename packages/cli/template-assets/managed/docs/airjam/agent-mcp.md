@@ -133,3 +133,19 @@ Before finishing meaningful work:
 The MCP config is project-local and scaffolded by default.
 
 Do not mutate global client configuration unless you explicitly mean to.
+
+## One game declaration
+
+Read `airjam.inspect_game` for the versioned `declaration`, including
+`declaration.agent`, controls, controller path and metadata. The game's
+`src/airjam.config.ts` exports `airjam = defineAirJamGame(...)` from
+`@air-jam/sdk/core`; agent helpers also come from core. Keep React, the SDK
+root, TSX and CSS out of its graph. `app.tsx` alone binds it with
+`createAirJamApp(airjam, { runtime })`.
+
+Capacity comes from `metadata.maxPlayers`. The `testing` path names a module
+exporting `testing = defineAirJamTesting({ player, profiles, visual })` from
+`@air-jam/devtools/testing`. Profiles author scripted policies only; a declared
+player is offered as the reserved `model` policy in every profile. Optional
+`visual.scenarios` uses the game's declared agent. Do not duplicate identity
+in template flags or read config source with regular expressions.

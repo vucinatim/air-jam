@@ -61,7 +61,10 @@ export const generateScaffoldTemplates = async ({ outputRoot }) => {
     templates: [],
   };
 
-  for (const { gameDir, manifest } of loadScaffoldableRepoGameManifests()) {
+  for (const {
+    gameDir,
+    manifest,
+  } of await loadScaffoldableRepoGameManifests()) {
     const tempRoot = await fse.mkdtemp(
       path.join(os.tmpdir(), `airjam-template-${manifest.id}-`),
     );

@@ -405,10 +405,15 @@ One loader in devtools, two forms of result:
    exports `loadAirJamGame(configPath): Promise<AirJamGame>` and
    `loadAirJamTesting(configPath, game)`. It imports the module, reads only the
    named export `airjam`, and requires `isAirJamGame`. Before importing, it
-   registers a Node module resolve hook that fails
-   `AJ_DECLARATION_NOT_FRAMEWORK_FREE` naming the importing file when the
-   graph reaches `react`, `react-dom`, the `@air-jam/sdk` root, a `.tsx` or a
-   `.css` file. Only helper subprocesses that already run under `tsx` call it:
+   registers one synchronous `module.registerHooks` boundary for imports,
+   `require` and `createRequire`. Declaration imports are serialized, with a
+   counter active only during each import and cleared even on failure. While
+   active, every resolve of `react`, `react-dom`, the `@air-jam/sdk` root,
+   a `.tsx` or a `.css` file fails `AJ_DECLARATION_NOT_FRAMEWORK_FREE`, naming
+   the importer regardless of its parent URL. Tools finish loading the
+   declaration before importing testing or starting framework-bound work. Authoring tools require Node.js 22.15 or newer; SDK and
+   server minimums remain 22.0. Older authoring runtimes fail with a clear
+   minimum-version error. Only helper subprocesses that already run under `tsx` call it:
    `run-test-profile`, `run-headless-room`, `run-visual-capture` and the new
    `describe-game`.
 3. **Description, across processes.** `tooling/describe-game.ts` takes one or
@@ -567,8 +572,10 @@ Proved by:
    description parses, and each `metadata.slug` equals its template id
 3. a devtools test fixture whose config imports React fails with
    `AJ_DECLARATION_NOT_FRAMEWORK_FREE` naming the importing file
-4. every authored profile of Pong, Minimal, The Office, Code Review and Air
-   Capture passes headless, with `model` offered from the declared player in
+4. every terminating authored profile of Pong, Minimal, The Office, Code
+   Review and Air Capture returns a passed headless verdict; each cooperative
+   profile runs headless to a bounded end with clean teardown, preserving its
+   semantics. Every profile offers `model` from the declared player in
    `airjam.list_game_test_profiles`
 5. a search finds no `loadAirJamAppConfig`, `gameMetadata` export,
    `visualScenariosModule`, `maxPlayers` in runtime options or

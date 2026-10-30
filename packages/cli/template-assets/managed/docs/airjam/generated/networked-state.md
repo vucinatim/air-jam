@@ -82,11 +82,22 @@ export const gameStore = createAirJamStore<GameState>((set) => ({
 The host and controllers sync a store only when the app declares it:
 
 ```ts filename="src/airjam.config.ts"
-import { createAirJamApp, env } from "@air-jam/sdk";
+import { defineAirJamGame } from "@air-jam/sdk/core";
 import { gameStore } from "./game/stores/game-store";
 
-export const airjam = createAirJamApp({
-  runtime: env.vite(import.meta.env),
+export const airjam = defineAirJamGame({
+  metadata: {
+    slug: "space-game",
+    name: "Space Game",
+    tagline: "Fly together and defend the fleet.",
+    category: "arcade",
+    minPlayers: 1,
+    maxPlayers: 4,
+    inputModalities: ["buttons", "touch"],
+    supportedSdkRange: "^1.0.0",
+    maintainer: { name: "Air Jam" },
+    version: 1,
+  },
   controllerPath: "/controller",
   stores: [gameStore],
 });
@@ -229,7 +240,7 @@ The SDK/runtime automatically resolves the correct replicated store domain from 
 ## API Summary
 
 `createAirJamStore<T>(initializer)` from `@air-jam/sdk/core` returns a store to
-declare in `createAirJamApp({ stores })`. It provides:
+declare in `defineAirJamGame({ stores })`. It provides:
 
 1. `actions`, dispatching with `() => Promise` or `(payloadObject) => Promise` signatures.
 2. `getState()` and `subscribe()` for logic outside React.

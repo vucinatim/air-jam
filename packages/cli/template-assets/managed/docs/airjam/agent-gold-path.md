@@ -32,7 +32,10 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 ## Canonical Files
 
 `src/airjam.config.ts`
-: Declares the runtime, metadata, controller path, and semantic game contract.
+: Exports `airjam = defineAirJamGame(...)` from `@air-jam/sdk/core`: metadata, stores, simulation, input, bindings, controller path, agent and testing path. The entire graph stays free of React, the SDK root, TSX and CSS.
+
+`src/app.tsx`
+: Binds the declaration with `createAirJamApp(airjam, { runtime })` and mounts its Host and Controller.
 
 `src/game/contracts/agent.ts`
 : Owns the semantic agent contract. Keep snapshot projection and semantic actions here.
@@ -48,7 +51,7 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 7. If a store action needs a host-only local side effect like audio, sim refs, or one-shot UI effects, use `useHostActionListener(gameStore, ...)` instead of replicated queue-and-drain state.
 8. `resultDescription` is documentation for agents and humans about the expected semantic effect. It does not automatically become runtime result data.
 9. If an action must return actual runtime result data, return `acceptAirJamAction(result)` from the store action and read the acknowledgement/result separately.
-10. Put per-step gameplay in a declared simulation (`defineAirJamSimulation`, declared with `createAirJamApp({ simulation })`): step it with game time and `random` from its context, declare what agents see with `observe`, and draw it with `useSimulationFrame`. Never hand-roll `requestAnimationFrame` or `setInterval` gameplay loops.
+10. Put per-step gameplay in a declared simulation (`defineAirJamSimulation`, declared with `defineAirJamGame({ simulation })`): step it with game time and `random` from its context, declare what agents see with `observe`, and draw it with `useSimulationFrame`. Never hand-roll `requestAnimationFrame` or `setInterval` gameplay loops.
 11. Store actions read time as `ctx.now` (game time), never `Date.now()`. Timers and deadlines are checked by the simulation; phones show values the host writes to the store, such as whole seconds left.
 
 ## Import Rules
@@ -66,3 +69,19 @@ This is the shortest correct workflow for building and testing an Air Jam game.
 6. Use visible preview controllers for UI smoke proof with real browser click/drag/release gestures.
 7. Do not synthesize pointer events into controller iframes from parent-page eval; use semantic game actions when reliable gameplay proof matters.
 8. If the agent environment cannot launch a browser, capture the existing room's canonical host and controller views through `airjam.capture_game_session_visuals`; do not start an unrelated browser or room.
+
+## One game declaration
+
+Read `airjam.inspect_game` for the versioned `declaration`, including
+`declaration.agent`, controls, controller path and metadata. The game's
+`src/airjam.config.ts` exports `airjam = defineAirJamGame(...)` from
+`@air-jam/sdk/core`; agent helpers also come from core. Keep React, the SDK
+root, TSX and CSS out of its graph. `app.tsx` alone binds it with
+`createAirJamApp(airjam, { runtime })`.
+
+Capacity comes from `metadata.maxPlayers`. The `testing` path names a module
+exporting `testing = defineAirJamTesting({ player, profiles, visual })` from
+`@air-jam/devtools/testing`. Profiles author scripted policies only; a declared
+player is offered as the reserved `model` policy in every profile. Optional
+`visual.scenarios` uses the game's declared agent. Do not duplicate identity
+in template flags or read config source with regular expressions.

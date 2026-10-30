@@ -4,7 +4,7 @@ import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { readTerminalGameRun } from "./game-run-record.js";
-import { listGames } from "./games.js";
+import { inspectGame } from "./games.js";
 import { replayInputLog } from "./headless-room.js";
 
 const OBSERVE_TIMEOUT_MS = 10_000;
@@ -36,8 +36,10 @@ export async function replayGameRun({
     throw new Error(
       "no_input_log: Only headless runs of games with a simulation keep an input log.",
     );
-  const games = await listGames({ cwd: projectDir });
-  const game = games.find(({ id }) => id === record.request.gameId);
+  const game = await inspectGame({
+    cwd: projectDir,
+    gameId: record.request.gameId,
+  });
   if (!game?.configPath)
     throw new Error("game_not_found: The run's game is no longer here.");
   const runDirectory = path.join(

@@ -1,17 +1,17 @@
+import { createAirJamStore } from "@air-jam/sdk/core";
 import {
   DEFAULT_REVEAL_DURATION_SEC,
   DEFAULT_ROUND_DURATION_SEC,
   DEFAULT_TOTAL_ROUNDS,
   MATCH_START_COUNTDOWN_SEC,
-} from "@/game/constants";
+} from "../constants";
 import {
   defaultSelectedSongBucketIds,
   getUniqueSongCountForBuckets,
   toggleSelectedSongBucketIds,
-} from "@/game/content/song-bank";
-import { isMatchReadyToStart } from "@/game/domain/match-readiness";
-import { rankPlayers } from "@/game/domain/round-engine";
-import { createAirJamStore } from "@air-jam/sdk/core";
+} from "../content/song-bank";
+import { isMatchReadyToStart } from "../domain/match-readiness";
+import { rankPlayers } from "../domain/round-engine";
 import { buildPlayerLabelMap, filterRecordByPlayerIds } from "./player-helpers";
 import {
   advanceRoundClock,

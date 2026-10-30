@@ -102,7 +102,7 @@ const runPnpmBuild = (packageName) =>
   new Promise((resolve, reject) => {
     const child = spawn("pnpm", ["--filter", packageName, "build"], {
       cwd: repoRoot,
-      stdio: "inherit",
+      stdio: ["inherit", process.stderr, process.stderr],
       shell: process.platform === "win32",
     });
 

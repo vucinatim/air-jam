@@ -48,7 +48,9 @@ The SDK is one runtime in two layers:
    `useAirJamController`, `useAirJamStore`, `useSimulationFrame`. Hooks
    subscribe to the core; they never keep a second copy of the runtime.
 
-A game declares its stores and simulation once in `createAirJamApp`. Store
+A game declares metadata, stores, simulation, controls and its agent contract
+once in `src/airjam.config.ts` with `defineAirJamGame` from core.
+`app.tsx` binds it with `createAirJamApp(airjam, { runtime })`. Store
 definitions and simulations import from `@air-jam/sdk/core`; components import
 from `@air-jam/sdk`.
 
@@ -56,8 +58,8 @@ from `@air-jam/sdk`.
 
 | Import path                                             | Purpose                                                                                                                 |
 | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `@air-jam/sdk`                                          | React binding: the app declaration, host and controller hooks, audio, platform settings and the agent contract helpers  |
-| `@air-jam/sdk/core`                                     | Framework-free runtime: networked stores, simulations and the clock, host and controller runtimes                       |
+| `@air-jam/sdk`                                          | React binding: host and controller surfaces and hooks, audio and platform settings                                      |
+| `@air-jam/sdk/core`                                     | Framework-free game declaration, agent helpers, networked stores, simulations and runtimes                              |
 | `@air-jam/sdk/ui`                                       | Ready-made React components for host and controller shells                                                              |
 | `@air-jam/sdk/styles.css`                               | Styles for those components                                                                                             |
 | `@air-jam/sdk/metadata`                                 | The game's catalog metadata declaration                                                                                 |

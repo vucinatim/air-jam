@@ -5,6 +5,7 @@ import {
   defineAirJamAgentContract,
   defineAirJamAgentStores,
 } from "../src/agent/agent-contract";
+import { defineAirJamGame } from "../src/core/game";
 import { defineAirJamInput, stick } from "../src/core/input";
 import { defineAirJamGameMetadata } from "../src/metadata";
 import {
@@ -15,57 +16,26 @@ import {
 import { createAirJamApp } from "../src/runtime/create-air-jam-app";
 
 describe("createAirJamApp", () => {
-  it("normalizes controller path and provides defaults", () => {
-    const baseTopology = resolveRuntimeTopology({
+  const metadata = defineAirJamGameMetadata({
+    slug: "fixture-game",
+    name: "Fixture Game",
+    tagline: "Fixture",
+    category: "arcade",
+    minPlayers: 1,
+    maxPlayers: 4,
+    inputModalities: ["buttons"],
+    supportedSdkRange: "^1.0.0",
+    maintainer: { name: "Air Jam" },
+  });
+  it("binds one declaration to the browser environment and its declared capacity", () => {
+    const topology = resolveRuntimeTopology({
       runtimeMode: "self-hosted-production",
       surfaceRole: "host",
       appOrigin: "https://play.example.com",
       backendOrigin: "https://api.example.com",
       publicHost: "https://play.example.com",
     });
-    const withDefaultPath = createAirJamApp({
-      runtime: {
-        topology: baseTopology,
-      },
-    });
-    const withCustomPath = createAirJamApp({
-      runtime: {
-        topology: baseTopology,
-      },
-      controllerPath: "custom-controller",
-    });
-
-    expect(withDefaultPath.paths.controller).toBe("/controller");
-    expect(withCustomPath.paths.controller).toBe("/custom-controller");
-  });
-
-  it("keeps the runtime in host and controller sessions and the controls on the app", () => {
-    const shipInput = defineAirJamInput({ move: stick() });
-
-    const airjam = createAirJamApp({
-      runtime: {
-        topology: resolveRuntimeTopology({
-          runtimeMode: "self-hosted-production",
-          surfaceRole: "host",
-          appOrigin: "https://play.example.com",
-          backendOrigin: "https://api.example.com",
-          publicHost: "https://play.example.com",
-        }),
-      },
-      input: shipInput,
-    });
-
-    expect(airjam.session.host.topology?.backendOrigin).toBe(
-      "https://api.example.com",
-    );
-    expect(airjam.session.controller.topology?.publicHost).toBe(
-      "https://play.example.com",
-    );
-    expect(airjam.input).toBe(shipInput);
-    expect("input" in airjam.session.host).toBe(false);
-  });
-
-  it("exposes agent-facing contracts on the returned app config", () => {
+    const input = defineAirJamInput({ move: stick() });
     const agent = defineAirJamAgentContract({
       stores: defineAirJamAgentStores({
         default: agentStore<{ phase: string }>(),
@@ -73,26 +43,37 @@ describe("createAirJamApp", () => {
       projectSnapshot: () => ({ phase: "lobby" }),
       actions: {},
     });
-    const metadata = defineAirJamGameMetadata({
-      slug: "fixture-game",
-      name: "Fixture Game",
-      tagline: "Fixture",
-      category: "arcade",
-      minPlayers: 1,
-      maxPlayers: 4,
-      inputModalities: ["buttons"],
-      supportedSdkRange: "^1.0.0",
-      maintainer: { name: "Air Jam" },
-    });
-    const airjam = createAirJamApp({
+    const game = defineAirJamGame({
       metadata,
-      controllerPath: "controller",
+      input,
       agent,
+      controllerPath: "phone",
     });
-
-    expect(airjam.controllerPath).toBe("/controller");
-    expect(airjam.metadata?.slug).toBe("fixture-game");
-    expect(airjam.agent).toBe(agent);
+    const app = createAirJamApp(game, { runtime: { topology } });
+    expect(app.paths.controller).toBe("/phone");
+    expect(app.session.host.maxPlayers).toBe(4);
+    expect(app.session.host.topology?.backendOrigin).toBe(
+      "https://api.example.com",
+    );
+    expect(app.session.controller.topology?.publicHost).toBe(
+      "https://play.example.com",
+    );
+    expect(Object.keys(app).sort()).toEqual([
+      "Controller",
+      "Host",
+      "paths",
+      "session",
+    ]);
+    expect(game.input).toBe(input);
+    expect(game.agent).toBe(agent);
+    expect(
+      createAirJamApp(defineAirJamGame({ metadata })).paths.controller,
+    ).toBe("/controller");
+  });
+  it("names the replacement when passed the old options object", () => {
+    expect(() => Reflect.apply(createAirJamApp, null, [{}])).toThrow(
+      /defineAirJamGame.*second argument/,
+    );
   });
 
   it("publishes and reads runtime inspection contracts through one SDK key", () => {

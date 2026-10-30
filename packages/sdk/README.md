@@ -57,15 +57,16 @@ pnpm add @air-jam/sdk zod
 
 ## Minimal Setup
 
-Use `defineAirJamGameMetadata` for catalog-facing identity and
-`createAirJamApp` for runtime/session wiring. Platform submissions can still
-edit metadata in the dashboard; the code export gives tooling a typed default
-to prefill, validate, and compare against release artifacts.
+Declare the game once in `src/airjam.config.ts`, using only framework-free
+imports. Tools read this declaration; player capacity comes from its metadata.
 
-```tsx
-import { createAirJamApp, env } from "@air-jam/sdk";
-import { button, defineAirJamInput, stick } from "@air-jam/sdk/core";
-import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+```ts
+import {
+  button,
+  defineAirJamGame,
+  defineAirJamInput,
+  stick,
+} from "@air-jam/sdk/core";
 import { simulation } from "./game/simulation";
 
 export const gameInput = defineAirJamInput({
@@ -73,23 +74,31 @@ export const gameInput = defineAirJamInput({
   action: button("pressed"),
 });
 
-export const gameMetadata = defineAirJamGameMetadata({
-  slug: "my-game",
-  name: "My Game",
-  tagline: "A short catalog pitch for players.",
-  category: "party",
-  minPlayers: 1,
-  maxPlayers: 4,
-  inputModalities: ["buttons", "touch"],
-  supportedSdkRange: "^1.0.0",
-  maintainer: { name: "Your Name" },
-});
-
-export const airjam = createAirJamApp({
-  runtime: env.vite(import.meta.env),
-  controllerPath: "/controller",
+export const airjam = defineAirJamGame({
+  metadata: {
+    slug: "my-game",
+    name: "My Game",
+    tagline: "A short catalog pitch for players.",
+    category: "party",
+    minPlayers: 1,
+    maxPlayers: 4,
+    inputModalities: ["buttons", "touch"],
+    supportedSdkRange: "^1.0.0",
+    maintainer: { name: "Your Name" },
+  },
   simulation,
   input: gameInput,
+});
+```
+
+Bind it to React in `app.tsx`:
+
+```tsx
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { airjam as game } from "./airjam.config";
+
+export const airjam = createAirJamApp(game, {
+  runtime: env.vite(import.meta.env),
 });
 ```
 
@@ -132,7 +141,7 @@ also needs runtime controls such as `joinUrl` or `sendSignal`.
 
 ```tsx
 import { useAirJamHost } from "@air-jam/sdk";
-import { airjam } from "./airjam.config";
+import { airjam } from "./app";
 
 const HostShell = () => (
   <airjam.Host
@@ -177,7 +186,8 @@ component also needs controls such as `sendSystemCommand`.
 
 ```tsx
 import { ControlButton, Stick, SurfaceViewport } from "@air-jam/sdk/ui";
-import { airjam, gameInput } from "./airjam.config";
+import { airjam } from "./app";
+import { gameInput } from "./airjam.config";
 
 const ControllerShell = () => (
   <airjam.Controller nickname="Player 1">
@@ -387,7 +397,7 @@ These components are lifecycle-free: they do not create sockets or own host/cont
 ## Networked State (Host Source of Truth)
 
 Use `createAirJamStore` from `@air-jam/sdk/core` for shared game state synced
-from host to controllers, declare it in `createAirJamApp({ stores })`, and read
+from host to controllers, declare it in `defineAirJamGame({ metadata, stores })`, and read
 it in components with `useAirJamStore`.
 
 ```tsx
@@ -501,37 +511,25 @@ const host = useAirJamHost();
 
 ## One Correct Way (Default Path)
 
-1. Define one `airjam` app config with `createAirJamApp`.
+1. Declare one game with `defineAirJamGame` from core and bind it in `app.tsx` with `createAirJamApp`.
 2. Declare each player's controls with `defineAirJamInput` and bind controller UI to them with `ControlButton`, `AxisButton` and `Stick`; the SDK sends them.
 3. Read controls only in simulation steps, with `input(playerId)`.
-4. Put per-step gameplay in a declared simulation (`defineAirJamSimulation` from `@air-jam/sdk/core`, declared with `createAirJamApp({ simulation })`); draw it with `useSimulationFrame` instead of hand-rolled `requestAnimationFrame` or `setInterval` loops.
-5. Keep replicated gameplay state in `createAirJamStore` and declare it in `createAirJamApp({ stores })`.
+4. Put per-step gameplay in a declared simulation (`defineAirJamSimulation` from `@air-jam/sdk/core`, declared with `defineAirJamGame({ metadata, simulation })`); draw it with `useSimulationFrame` instead of hand-rolled `requestAnimationFrame` or `setInterval` loops.
+5. Keep replicated gameplay state in `createAirJamStore` and declare it in `defineAirJamGame({ metadata, stores })`.
 6. Dispatch all store actions through `store.actions` zero-arg or payload-object calls and check the returned acknowledgement when outcome matters.
 
 ## Canonical `airjam.config.ts`
 
-Keep one runtime/session declaration and use role wrappers directly in routes.
-
-```tsx
-import { createAirJamApp, env } from "@air-jam/sdk";
-import { gameInput } from "./game/contracts/input";
-import { simulation } from "./game/engine/simulation";
-import { gameStore } from "./game/stores/game-store";
-
-export const airjam = createAirJamApp({
-  runtime: env.vite(import.meta.env),
-  controllerPath: "/controller",
-  stores: [gameStore],
-  // Optional agent-facing contracts belong here too.
-  // agent: agentContract,
-  simulation,
-  input: gameInput,
-});
-```
+Keep gameplay declarations in the framework-free config shown above. Add
+`stores`, `agent`, `inputBindings` and the relative `testing` module path there
+as needed. Agent helpers come from `@air-jam/sdk/core`. A testing module exports
+`testing = defineAirJamTesting({ player, profiles, visual })` from
+`@air-jam/devtools/testing`; its player supplies `model` to every profile.
+Use the React binding from `app.tsx` in routes.
 
 ```tsx
 import { Route, Routes } from "react-router-dom";
-import { airjam } from "./airjam.config";
+import { airjam } from "./app";
 
 export const App = () => (
   <Routes>

@@ -45,7 +45,7 @@ import {
   type GameRunWatchEvent,
   type GameSurfaceWatcher,
 } from "./game-run-watch.js";
-import { listGames } from "./games.js";
+import { inspectGame } from "./games.js";
 import { startHeadlessRoom, type HeadlessRoom } from "./headless-room.js";
 import {
   assertProcessScopesConfirmed,
@@ -320,12 +320,7 @@ export class GameRunOwner {
     }
   }
   private async game(gameId?: string) {
-    const games = await listGames({ cwd: this.options.projectDir });
-    const game = gameId
-      ? games.find((candidate) => candidate.id === gameId)
-      : games.length === 1
-        ? games[0]
-        : undefined;
+    const game = await inspectGame({ cwd: this.options.projectDir, gameId });
     if (!game?.configPath)
       throw new Error("Choose a game that publishes an Air Jam config.");
     return { ...game, configPath: game.configPath };

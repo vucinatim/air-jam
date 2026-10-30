@@ -1,8 +1,8 @@
-import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "@/game/constants";
+import { DEFAULT_OPTION_COUNT, STREAK_FIRE_MIN_ROUNDS } from "../constants";
 import {
   getRoundOptionLabel,
   pickRoundOptionSongIds,
-} from "@/game/content/round-options";
+} from "../content/round-options";
 import {
   getSongById,
   getSongCanonicalKey,
@@ -10,17 +10,17 @@ import {
   pickSongClipStartSeconds,
   type SongBucketId,
   type SongEntry,
-} from "@/game/content/song-bank";
-import { createEmptyScore } from "@/game/domain/player-utils";
+} from "../content/song-bank";
+import { createEmptyScore } from "../domain/player-utils";
 import {
   buildRoundResults,
   findFirstCorrectSummary,
   rankPlayers,
   shouldFinalizeRound,
   type RoundPlayerResult,
-} from "@/game/domain/round-engine";
-import { shuffleList } from "@/game/domain/shuffle";
-import { type RoundGuessKind } from "@/game/domain/types";
+} from "../domain/round-engine";
+import { shuffleList } from "../domain/shuffle";
+import { type RoundGuessKind } from "../domain/types";
 import { type ActiveRound, type PlayerScore, type QuizState } from "./types";
 
 export interface PlaylistSelection {

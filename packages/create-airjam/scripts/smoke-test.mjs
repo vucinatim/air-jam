@@ -361,8 +361,8 @@ const loadScaffoldTemplateIds = (repoRoot) => {
     .map((manifest) => manifest.id);
 };
 
-const resolveTemplateAgentContractExpectation = (templateId) => {
-  const entry = loadScaffoldableRepoGameManifests().find(
+const resolveTemplateAgentContractExpectation = async (templateId) => {
+  const entry = (await loadScaffoldableRepoGameManifests()).find(
     (candidate) => candidate.manifest.id === templateId,
   );
   if (!entry) {
@@ -465,6 +465,10 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         packageDir: path.join(repoRoot, "packages", "server"),
         outDir: tarballDir,
       });
+      const devtoolsTarball = packWorkspacePackage({
+        packageDir: path.join(repoRoot, "packages", "devtools"),
+        outDir: tarballDir,
+      });
       const mcpServerTarball = packWorkspacePackage({
         packageDir: path.join(repoRoot, "packages", "mcp-server"),
         outDir: tarballDir,
@@ -479,6 +483,7 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         overrides: {
           "@air-jam/sdk": sdkTarball,
           "@air-jam/server": serverTarball,
+          "@air-jam/devtools": devtoolsTarball,
           "@air-jam/mcp-server": mcpServerTarball,
           "@air-jam/cli": airJamCliTarball,
         },
@@ -489,10 +494,12 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       cliCommand = "pnpm exec create-airjam";
       cliArgs.push(`--dep-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/server=file:${serverTarball}`);
+      cliArgs.push(`--dep-spec=@air-jam/devtools=file:${devtoolsTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/mcp-server=file:${mcpServerTarball}`);
       cliArgs.push(`--dep-spec=@air-jam/cli=file:${airJamCliTarball}`);
       cliArgs.push(`--override-spec=@air-jam/sdk=file:${sdkTarball}`);
       cliArgs.push(`--override-spec=@air-jam/server=file:${serverTarball}`);
+      cliArgs.push(`--override-spec=@air-jam/devtools=file:${devtoolsTarball}`);
       cliArgs.push(
         `--override-spec=@air-jam/mcp-server=file:${mcpServerTarball}`,
       );
@@ -517,6 +524,9 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
         `--dep-spec=@air-jam/server=link:${path.join(repoRoot, "packages", "server")}`,
       );
       cliArgs.push(
+        `--dep-spec=@air-jam/devtools=link:${path.join(repoRoot, "packages", "devtools")}`,
+      );
+      cliArgs.push(
         `--dep-spec=@air-jam/mcp-server=link:${path.join(repoRoot, "packages", "mcp-server")}`,
       );
       cliArgs.push(
@@ -528,13 +538,16 @@ const runScaffoldSmoke = async ({ repoRoot, source, template }) => {
       cliArgs.push(
         `--override-spec=@air-jam/sdk=link:${path.join(repoRoot, "packages", "sdk")}`,
       );
+      cliArgs.push(
+        `--override-spec=@air-jam/devtools=link:${path.join(repoRoot, "packages", "devtools")}`,
+      );
       run([cliCommand, ...cliArgs.map(quoteArg)].join(" "), tempRoot);
     } else {
       run([cliCommand, ...cliArgs.map(quoteArg)].join(" "), scaffoldRoot);
     }
 
     const expectedAgentContract =
-      resolveTemplateAgentContractExpectation(template);
+      await resolveTemplateAgentContractExpectation(template);
     const generatedAgentContractPath = path.join(
       projectDir,
       AGENT_CONTRACT_PATH,
