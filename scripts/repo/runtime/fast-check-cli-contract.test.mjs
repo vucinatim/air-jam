@@ -80,6 +80,44 @@ test("deleted typed files still select their owning project", () => {
   assert.deepEqual(plan.changed.typecheckProjects, ["packages/sdk"]);
 });
 
+test("scaffold input edits select the generator's freshness check, including deleted files", () => {
+  const scaffoldGameDirectories = ["games/scaffolded", "games/untouched"];
+  for (const file of [
+    "games/scaffolded/src/game.ts",
+    "games/scaffolded/public/icon.svg",
+    "games/scaffolded/airjam-template.json",
+  ]) {
+    for (const exists of [true, false]) {
+      const plan = buildChangedCheckPlan([file], {
+        projects: [],
+        fileExists: () => exists,
+        scaffoldGameDirectories,
+      });
+      assert.deepEqual(
+        plan.changed.templateGameDirectories,
+        ["games/scaffolded"],
+        file,
+      );
+    }
+  }
+});
+
+test("unrelated edits do not select scaffold freshness", () => {
+  for (const file of [
+    "README.md",
+    "packages/env/src/index.ts",
+    "games/other/src/game.ts",
+    "games/scaffolded-extra/src/game.ts",
+  ]) {
+    const plan = buildChangedCheckPlan([file], {
+      projects: [],
+      fileExists: () => true,
+      scaffoldGameDirectories: ["games/scaffolded"],
+    });
+    assert.deepEqual(plan.changed.templateGameDirectories, [], file);
+  }
+});
+
 test("public SDK source changes escalate to consumer-compatible batch proof", () => {
   const plan = buildChangedCheckPlan(["packages/sdk/src/index.ts"], {
     projects: ["packages/sdk"],

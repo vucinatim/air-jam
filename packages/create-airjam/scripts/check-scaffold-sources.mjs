@@ -3,9 +3,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { parseArgs } from "node:util";
 import yauzl from "yauzl";
 import {
   scaffoldSourcesRoot as legacyScaffoldSourcesRoot,
+  listScaffoldableRepoGameDirectories,
   loadScaffoldableRepoGameManifests,
   scaffoldTemplateManifestPath,
   scaffoldTemplatesRoot,
@@ -14,6 +16,8 @@ import { generateScaffoldTemplates } from "./lib/scaffold-template-generation.mj
 
 const AGENT_CONTRACT_PATH = "src/game/contracts/agent.ts";
 const CONFIG_PATH = "src/airjam.config.ts";
+const REPAIR_HINT =
+  "Run pnpm --filter create-airjam templates:generate, then pnpm check:changed.";
 
 const listFiles = (rootDir, currentDir = rootDir) =>
   fs
@@ -27,30 +31,62 @@ const listFiles = (rootDir, currentDir = rootDir) =>
       return [path.relative(rootDir, absolutePath).replace(/\\/g, "/")];
     });
 
-const verifyGeneratedArtifacts = async () => {
+const { values } = parseArgs({
+  options: {
+    game: { type: "string", multiple: true },
+    help: { type: "boolean" },
+  },
+});
+if (values.help) {
+  console.log(
+    "Usage: pnpm --filter create-airjam templates:check [--game <game-directory-name>]...",
+  );
+  console.log(
+    "Checks all templates by default; --game checks only the named scaffold inputs.",
+  );
+  process.exit(0);
+}
+const gameDirectories = values.game?.map((game) => {
+  const directory = listScaffoldableRepoGameDirectories().find(
+    (candidate) => path.basename(candidate) === game,
+  );
+  if (!directory) throw new Error(`Unknown scaffold input: ${game}`);
+  return directory;
+});
+
+const verifyGeneratedArtifacts = async (templates) => {
   const tempRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "airjam-template-check-"),
   );
   const generatedRoot = path.join(tempRoot, "scaffold-templates");
 
   try {
-    await generateScaffoldTemplates({ outputRoot: generatedRoot });
+    await generateScaffoldTemplates({ outputRoot: generatedRoot, templates });
     const expectedFiles = listFiles(generatedRoot);
-    const actualFiles = listFiles(scaffoldTemplatesRoot);
+    const actualFiles = listFiles(scaffoldTemplatesRoot).filter(
+      (file) => !gameDirectories || expectedFiles.includes(file),
+    );
     if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
       throw new Error(
-        `scaffold template artifact set is stale\nexpected: ${expectedFiles.join(", ")}\nactual: ${actualFiles.join(", ")}`,
+        `scaffold template artifact set is stale\nexpected: ${expectedFiles.join(", ")}\nactual: ${actualFiles.join(", ")}\n${REPAIR_HINT}`,
       );
     }
 
     for (const relativePath of expectedFiles) {
       const expected = fs.readFileSync(path.join(generatedRoot, relativePath));
-      const actual = fs.readFileSync(
+      let actual = fs.readFileSync(
         path.join(scaffoldTemplatesRoot, relativePath),
       );
+      if (gameDirectories && relativePath === "manifest.json") {
+        const index = JSON.parse(actual.toString("utf8"));
+        index.templates = index.templates.filter((entry) =>
+          templates.some(({ manifest }) => manifest.id === entry.manifest.id),
+        );
+        actual = Buffer.from(`${JSON.stringify(index, null, 2)}\n`);
+      }
       if (!actual.equals(expected)) {
         throw new Error(
-          `scaffold template artifact ${relativePath} is stale; run pnpm templates:generate`,
+          `scaffold template artifact ${relativePath} is stale (checked templates: ${templates.map(({ manifest }) => manifest.id).join(", ")})\n${REPAIR_HINT}`,
         );
       }
     }
@@ -79,7 +115,9 @@ const listArchiveEntries = async (archivePath) =>
   });
 
 const missing = [];
-const expectedTemplates = await loadScaffoldableRepoGameManifests();
+const expectedTemplates = await loadScaffoldableRepoGameManifests({
+  gameDirectories,
+});
 const expectedTemplateIds = expectedTemplates.map(
   ({ manifest }) => manifest.id,
 );
@@ -103,7 +141,7 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
       .filter(Boolean)
       .sort();
 
-    for (const templateId of actualTemplates) {
+    for (const templateId of gameDirectories ? [] : actualTemplates) {
       if (!expectedTemplateIds.includes(templateId)) {
         missing.push(`unexpected scaffold template ${templateId}`);
       }
@@ -170,10 +208,10 @@ if (!fs.existsSync(scaffoldTemplateManifestPath)) {
 }
 
 if (missing.length > 0) {
-  throw new Error(missing.join("\n"));
+  throw new Error(`${missing.join("\n")}\n${REPAIR_HINT}`);
 }
 
-await verifyGeneratedArtifacts();
+await verifyGeneratedArtifacts(expectedTemplates);
 
 console.log(
   `✓ Scaffold template archives verified in ${scaffoldTemplatesRoot}`,

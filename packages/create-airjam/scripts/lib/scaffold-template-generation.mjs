@@ -52,7 +52,7 @@ const shouldExclude = ({ relativePath, basename, manifestExcludes }) => {
   );
 };
 
-export const generateScaffoldTemplates = async ({ outputRoot }) => {
+export const generateScaffoldTemplates = async ({ outputRoot, templates }) => {
   await fse.remove(outputRoot);
   await fse.ensureDir(outputRoot);
 
@@ -61,10 +61,8 @@ export const generateScaffoldTemplates = async ({ outputRoot }) => {
     templates: [],
   };
 
-  for (const {
-    gameDir,
-    manifest,
-  } of await loadScaffoldableRepoGameManifests()) {
+  for (const { gameDir, manifest } of templates ??
+    (await loadScaffoldableRepoGameManifests())) {
     const tempRoot = await fse.mkdtemp(
       path.join(os.tmpdir(), `airjam-template-${manifest.id}-`),
     );
