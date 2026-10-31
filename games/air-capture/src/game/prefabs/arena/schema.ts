@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ARENA_RADIUS } from "../../constants";
+import { airCaptureTheme } from "../../theme";
 
 const vector3Schema = z.object({
   x: z.number(),
@@ -29,7 +30,7 @@ export type AirCaptureArenaPrefabOverrides =
 export const AIR_CAPTURE_ARENA_DEFAULT_PROPS: AirCaptureArenaPrefabProps =
   airCaptureArenaPrefabSchema.parse({
     arenaRadius: ARENA_RADIUS,
-    groundColor: "#222222",
+    groundColor: airCaptureTheme.colors.rocketBandDark,
     fogDensity: 0.0005,
     ambientLightIntensity: 0.4,
     directionalLightIntensity: 2,
@@ -38,9 +39,9 @@ export const AIR_CAPTURE_ARENA_DEFAULT_PROPS: AirCaptureArenaPrefabProps =
       y: 100,
       z: 60,
     },
-    gridColorMajor: "#555555",
-    gridColorMinor: "#333333",
-    forcefieldColor: "#00e5ff",
+    gridColorMajor: airCaptureTheme.colors.gridColorMajor,
+    gridColorMinor: airCaptureTheme.colors.engine,
+    forcefieldColor: airCaptureTheme.colors.arenaPreviewAccent,
   });
 
 export const resolveAirCaptureArenaProps = (

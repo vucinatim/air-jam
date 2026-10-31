@@ -13,6 +13,7 @@ import {
   Shape,
   Vector3,
 } from "three";
+import { airCaptureTheme } from "../../theme";
 
 /**
  * Initialize particle data for exhaust effect
@@ -65,7 +66,7 @@ export function RocketModel({
   const bodyMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xcccccc,
+        color: airCaptureTheme.colors.bodyMaterial,
         metalness: 0.2,
         roughness: 0.7,
       }),
@@ -77,7 +78,7 @@ export function RocketModel({
   const noseMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xff0000,
+        color: airCaptureTheme.colors.noseMaterial,
         metalness: 0.3,
         roughness: 0.6,
       }),
@@ -104,7 +105,7 @@ export function RocketModel({
   const finMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0x999999,
+        color: airCaptureTheme.colors.finMaterial,
         metalness: 0.2,
         roughness: 0.8,
       }),
@@ -119,8 +120,8 @@ export function RocketModel({
   const flameMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xff6600,
-        emissive: 0xff4400,
+        color: airCaptureTheme.colors.explosionOrange,
+        emissive: airCaptureTheme.colors.explosionRed,
         emissiveIntensity: 1.5,
         transparent: true,
         opacity: 0.8,
@@ -148,7 +149,7 @@ export function RocketModel({
   const particleMaterial = useMemo(
     () =>
       new PointsMaterial({
-        color: 0xff6600,
+        color: airCaptureTheme.colors.explosionOrange,
         size: 0.1,
         transparent: true,
         opacity: 0.8,

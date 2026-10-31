@@ -1,3 +1,4 @@
+import { theOfficeTheme } from "../../game/theme";
 /**
  * Game canvas component that handles all rendering.
  * Uses refs for game state to avoid re-renders during the game loop.
@@ -179,7 +180,7 @@ export const GameCanvas = memo(function GameCanvas({
       ctx.clearRect(-PADDING, -PADDING, gameWidth, gameHeight);
 
       // Draw walls - handdrawn style
-      ctx.strokeStyle = "#000000";
+      ctx.strokeStyle = theOfficeTheme.colors.black;
       ctx.lineCap = "round";
       WALLS.forEach((wall) => {
         drawHanddrawnLine(
@@ -211,8 +212,11 @@ export const GameCanvas = memo(function GameCanvas({
               centerY,
               radius,
             );
-            gradient.addColorStop(0, "rgba(245, 213, 71, 0.9)");
-            gradient.addColorStop(1, "rgba(245, 213, 71, 0)");
+            gradient.addColorStop(0, theOfficeTheme.colors.playerGlow);
+            gradient.addColorStop(
+              1,
+              theOfficeTheme.colors.playerGlowTransparent,
+            );
             ctx.fillStyle = gradient;
             ctx.fillRect(
               location.x - 10,
@@ -258,8 +262,11 @@ export const GameCanvas = memo(function GameCanvas({
               centerY,
               radius,
             );
-            gradient.addColorStop(0, "rgba(245, 213, 71, 0.9)");
-            gradient.addColorStop(1, "rgba(245, 213, 71, 0)");
+            gradient.addColorStop(0, theOfficeTheme.colors.playerGlow);
+            gradient.addColorStop(
+              1,
+              theOfficeTheme.colors.playerGlowTransparent,
+            );
             ctx.fillStyle = gradient;
             ctx.fillRect(
               location.x - 10,
@@ -337,8 +344,8 @@ export const GameCanvas = memo(function GameCanvas({
           ctx.restore();
         } else {
           const initials = player?.name?.charAt(0) || "?";
-          ctx.font = "bold 14px Arial";
-          ctx.fillStyle = "#fff";
+          ctx.font = `bold 14px ${theOfficeTheme.fonts.canvas}`;
+          ctx.fillStyle = theOfficeTheme.colors.white;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(initials, pos.x, pos.y);

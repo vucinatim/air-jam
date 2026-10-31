@@ -1,27 +1,9 @@
-import { AudioRuntime, MusicPlaylist, useAudio } from "@air-jam/sdk";
+import { MusicPlaylist, useAudio } from "@air-jam/sdk";
 import { useEffect, useMemo, type ReactNode } from "react";
+import { HOST_MUSIC_TRACKS, type HostSfxId } from "../assets";
 import { createHostAudioFacade } from "./host-audio-playback";
-import {
-  HOST_AUDIO_MANIFEST,
-  HOST_MUSIC_TRACKS,
-  type HostSfxId,
-} from "./sounds";
 
 export function HostAudioProvider({
-  children,
-  muted,
-}: {
-  children: ReactNode;
-  muted: boolean;
-}) {
-  return (
-    <AudioRuntime manifest={HOST_AUDIO_MANIFEST}>
-      <HostAudioLifecycle muted={muted}>{children}</HostAudioLifecycle>
-    </AudioRuntime>
-  );
-}
-
-function HostAudioLifecycle({
   children,
   muted,
 }: {

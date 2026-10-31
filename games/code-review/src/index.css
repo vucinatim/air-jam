@@ -2,24 +2,24 @@
 @import "@fontsource/press-start-2p/400.css";
 
 :root {
-  --ring-mat-color: #e5e7eb;
-  --ring-markings-color: #9ca3af;
-  --ring-rope-primary-color: #dc2626;
-  --ring-rope-secondary-color: #1d4ed8;
-  --ring-corner-red-color: #dc2626;
-  --ring-corner-blue-color: #2563eb;
-  --ring-post-body-color: #94a3b8;
-  --ring-post-top-color: #e2e8f0;
-  --team-1-color: #f97316;
-  --team-2-color: #38bdf8;
-  --fighter-head-color: #111827;
-  --fighter-gloves-color: #f8fafc;
-  --fighter-shadow-color: rgba(0, 0, 0, 0.35);
-  --fighter-highlight-color: rgba(255, 255, 255, 0.32);
+  --ring-mat-color: var(--airjam-color-ring-mat);
+  --ring-markings-color: var(--airjam-color-ring-markings);
+  --ring-rope-primary-color: var(--airjam-color-ring-rope-primary);
+  --ring-rope-secondary-color: var(--airjam-color-ring-rope-secondary);
+  --ring-corner-red-color: var(--airjam-color-ring-rope-primary);
+  --ring-corner-blue-color: var(--airjam-color-ring-corner-blue);
+  --ring-post-body-color: var(--airjam-color-ring-post-body);
+  --ring-post-top-color: var(--airjam-color-ring-post-top);
+  --team-1-color: var(--airjam-color-team1);
+  --team-2-color: var(--airjam-color-team2);
+  --fighter-head-color: var(--airjam-color-fighter-head);
+  --fighter-gloves-color: var(--airjam-color-fighter-gloves);
+  --fighter-shadow-color: var(--airjam-color-fighter-shadow);
+  --fighter-highlight-color: var(--airjam-color-fighter-highlight);
 }
 
 .pixel-font {
-  font-family: "Press Start 2P", "Courier New", monospace;
+  font-family: var(--airjam-font-display);
 }
 
 .host-view-shell

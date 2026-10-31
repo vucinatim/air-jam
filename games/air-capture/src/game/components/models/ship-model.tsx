@@ -18,6 +18,7 @@ import {
   Vector3,
   type Group,
 } from "three";
+import { airCaptureTheme } from "../../theme";
 import { Trail } from "../effects/trail";
 
 // ==========================================
@@ -26,7 +27,7 @@ import { Trail } from "../effects/trail";
 const SHIP_DESIGN = {
   BODY: {
     size: [1.2, 0.8, 3.0] as [number, number, number],
-    color: 0x8899aa,
+    color: airCaptureTheme.colors.body,
     roughness: 0.4,
   },
   NOSE: {
@@ -46,21 +47,21 @@ const SHIP_DESIGN = {
   COCKPIT: {
     size: [0.9, 0.4, 1.2] as [number, number, number],
     position: [0, 0.45, -0.5] as [number, number, number],
-    color: 0x111111,
+    color: airCaptureTheme.colors.cockpit,
   },
   GUNS: {
     position: [1.6, 0.0, 0.2] as [number, number, number],
     size: [0.1, 0.1, 1.5, 6] as const,
-    color: 0x222222,
+    color: airCaptureTheme.colors.rocketBandDark,
   },
   ENGINE: {
     position: [0.5, 0, 1.8] as [number, number, number],
     nozzleSize: [0.35, 0.25, 0.8, 8] as const,
-    color: 0x333333,
+    color: airCaptureTheme.colors.engine,
   },
   // NEW: ALL EXHAUST SETTINGS CENTRALIZED
   EXHAUST: {
-    trailColor: new Color(0x00fff0), // neon cyan
+    trailColor: new Color(airCaptureTheme.colors.trailColor), // neon cyan
     trailWidth: 0.8,
     trailLength: 0.1,
 
@@ -76,7 +77,7 @@ const SHIP_DESIGN = {
   },
   PARTICLES: {
     maxParticles: 150,
-    color: new Color("#00ffff"),
+    color: new Color(airCaptureTheme.colors.cyan),
     size: 1.2,
     sizeVariance: 0.2,
     opacity: 0.6,
@@ -122,7 +123,7 @@ const createFinShape = () => {
 // --- PARTICLE SHADER ---
 const ParticleShaderMaterial = new ShaderMaterial({
   uniforms: {
-    color: { value: new Color("cyan") },
+    color: { value: new Color(airCaptureTheme.colors.cyan) },
     pointSize: { value: 1.0 },
     dpr: { value: 1.0 },
     opacity: { value: 1.0 },

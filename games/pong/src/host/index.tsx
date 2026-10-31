@@ -4,7 +4,6 @@
  * feedback and shows the lobby, match and results screens.
  */
 import {
-  AudioRuntime,
   captureAgentCanvas,
   useAirJamHost,
   useAirJamStore,
@@ -14,7 +13,6 @@ import {
 } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
-import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
 import {
   drawFrame,
   FIELD_HEIGHT,
@@ -31,14 +29,6 @@ import { usePongCanvas } from "./hooks/use-pong-canvas";
 import { usePongFeedback } from "./hooks/use-pong-feedback";
 
 export function HostView() {
-  return (
-    <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
-      <PongHost />
-    </AudioRuntime>
-  );
-}
-
-function PongHost() {
   const players = useAirJamHost((state) => state.players);
   const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
   const teamAssignments = useAirJamStore(
@@ -78,7 +68,10 @@ function PongHost() {
       {/* Host tokens scale to a 1600×900 reference; in a small embedded host
           (e.g. 715×626) that made body text ~6px. A floor keeps scores and
           captions readable; the screens scroll or stack when content grows. */}
-      <SurfaceViewport className="bg-[#02030a]" minScale={0.8}>
+      <SurfaceViewport
+        className="bg-[var(--airjam-color-background-deep)]"
+        minScale={0.8}
+      >
         {matchPhase === "lobby" ? (
           <LobbyScreen />
         ) : matchPhase === "ended" ? (

@@ -1,5 +1,6 @@
 import { PlayerAvatar } from "@air-jam/sdk/ui";
 import type { TeamSlotVisual } from "../domain/team-slots";
+import { airCaptureTheme } from "../theme";
 
 const cx = (...parts: Array<string | false | null | undefined>): string =>
   parts.filter(Boolean).join(" ");
@@ -7,7 +8,7 @@ const cx = (...parts: Array<string | false | null | undefined>): string =>
 const BOT_AVATAR_PLAYER = {
   id: "bot-slot",
   label: "Bot Slot",
-  color: "#22d3ee",
+  color: airCaptureTheme.colors.botAccent,
 } as const;
 
 type TeamSlotTileProps = {

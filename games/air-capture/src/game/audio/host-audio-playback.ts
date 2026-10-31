@@ -1,5 +1,5 @@
 import { type AudioHandle, type PlayOptions } from "@air-jam/sdk";
-import { type HostSfxId } from "./sounds";
+import { type HostSfxId } from "../assets";
 
 type HostAudioDriver = Pick<
   AudioHandle<HostSfxId>,

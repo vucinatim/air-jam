@@ -7,8 +7,8 @@ import {
   useSimulationFrame,
 } from "@air-jam/sdk";
 import { useRef, useState, type MutableRefObject } from "react";
+import type { CodeReviewSfxId } from "../../game/assets";
 import { codeReviewSettings } from "../../game/contracts/settings";
-import type { CodeReviewSfxId } from "../../game/contracts/sounds";
 import type {
   CodeReviewSimulationEvent,
   CodeReviewSimulationState,

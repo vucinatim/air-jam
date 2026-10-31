@@ -136,3 +136,16 @@ export {
   type AirJamGameDescription,
 } from "./core/game-description";
 export { airJamInputDescriptionSchema } from "./core/input";
+
+export {
+  airJamAssetsSchema,
+  defineAirJamAssets,
+  soundConfigSchema,
+  type AirJamAssets,
+  type SoundConfig,
+} from "./core/assets";
+export {
+  airJamThemeSchema,
+  defineAirJamTheme,
+  type AirJamTheme,
+} from "./core/theme";

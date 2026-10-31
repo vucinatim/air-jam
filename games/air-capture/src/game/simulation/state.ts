@@ -1,7 +1,7 @@
 import type RAPIER from "@dimforge/rapier3d-compat";
 import { Quaternion, Vector3 } from "three";
 import type { AbilityData, AbilityId } from "../abilities/definitions";
-import type { HostSfxId } from "../audio/sounds";
+import type { HostSfxId } from "../assets";
 import { BotController } from "../bot-system/bot-controller";
 import type { AirCaptureSettings } from "../contracts/settings";
 import type { CaptureTheFlagSnapshot } from "../domain/capture-the-flag";

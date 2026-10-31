@@ -10,6 +10,7 @@ import {
   type Mesh,
   type PointLight,
 } from "three";
+import { airCaptureTheme } from "../../theme";
 
 interface Particle {
   position: Vector3;
@@ -44,8 +45,8 @@ export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
   const particleMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xff8800, // Brighter orange
-        emissive: 0xff5500, // More intense emissive
+        color: airCaptureTheme.colors.explosionAmber, // Brighter orange
+        emissive: airCaptureTheme.colors.explosionGlow, // More intense emissive
         emissiveIntensity: 8, // More intense (was 5)
         transparent: true,
         opacity: 1,
@@ -61,8 +62,8 @@ export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
   const flashMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xffcc00, // Brighter yellow
-        emissive: 0xffcc00,
+        color: airCaptureTheme.colors.explosionFlash, // Brighter yellow
+        emissive: airCaptureTheme.colors.explosionFlash,
         emissiveIntensity: 15, // More intense (was 10)
         transparent: true,
         opacity: 1,
@@ -182,7 +183,7 @@ export function ShipExplosion({ position, onComplete }: ShipExplosionProps) {
       {/* Point light for dramatic effect - brighter and larger */}
       <pointLight
         ref={lightRef}
-        color={0xffcc00}
+        color={airCaptureTheme.colors.explosionFlash}
         intensity={30}
         distance={35}
         decay={1.5}

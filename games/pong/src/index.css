@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
-@theme {
-  --color-pong-bg: #050816;
-  --color-pong-bg-deep: #02030a;
-  --color-pong-surface: rgba(8, 12, 24, 0.82);
-  --color-pong-surface-strong: rgba(9, 12, 23, 0.94);
-  --color-pong-border: rgba(255, 255, 255, 0.14);
-  --color-pong-border-strong: rgba(255, 255, 255, 0.22);
-  --color-pong-text: #f8fafc;
-  --color-pong-text-soft: rgba(226, 232, 240, 0.78);
-  --color-pong-text-muted: rgba(148, 163, 184, 0.72);
-  --color-pong-orange: #f97316;
-  --color-pong-cyan: #38bdf8;
-  --font-pong: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+@theme inline {
+  --color-pong-bg: var(--airjam-color-background);
+  --color-pong-bg-deep: var(--airjam-color-background-deep);
+  --color-pong-surface: var(--airjam-color-surface);
+  --color-pong-surface-strong: var(--airjam-color-surface-strong);
+  --color-pong-border: var(--airjam-color-border);
+  --color-pong-border-strong: var(--airjam-color-border-strong);
+  --color-pong-text: var(--airjam-color-text);
+  --color-pong-text-soft: var(--airjam-color-text-soft);
+  --color-pong-text-muted: var(--airjam-color-text-muted);
+  --color-pong-orange: var(--airjam-color-team1);
+  --color-pong-cyan: var(--airjam-color-team2);
+  --font-pong: var(--airjam-font-display);
   --shadow-pong-stage: 0 28px 80px rgba(1, 4, 12, 0.52);
   --shadow-pong-panel: 0 18px 50px rgba(2, 6, 23, 0.34);
 }
@@ -114,10 +114,10 @@
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--airjam-color-panel-border);
   border-radius: 999px;
   padding: 0.45rem 0.8rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--airjam-color-status-background);
   color: var(--color-pong-text-soft);
   font-size: 0.72rem;
   font-weight: 700;
@@ -142,7 +142,7 @@
     linear-gradient(
       180deg,
       rgba(255, 255, 255, 0.06),
-      rgba(255, 255, 255, 0.03)
+      var(--airjam-color-panel-gradient-end)
     ),
     rgba(6, 10, 20, 0.82);
   box-shadow: var(--shadow-pong-stage);
@@ -159,12 +159,12 @@
   }
 
   &::before {
-    background: rgba(249, 115, 22, 0.18);
+    background: var(--airjam-color-team1-glow);
     transform: translateX(-24%);
   }
 
   &::after {
-    background: rgba(56, 189, 248, 0.18);
+    background: var(--airjam-color-team2-glow);
     transform: translateX(24%);
   }
 
@@ -186,7 +186,11 @@
       rgba(249, 115, 22, 0.12),
       transparent 32%
     ),
-    linear-gradient(180deg, #060913 0%, #02040a 100%);
+    linear-gradient(
+      180deg,
+      #060913 0%,
+      var(--airjam-color-controller-background) 100%
+    );
   &::before {
     content: "";
     position: absolute;
@@ -215,14 +219,14 @@
 }
 
 @utility pong-controller-touch {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--airjam-color-panel-border);
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.08),
-      rgba(255, 255, 255, 0.03)
+      var(--airjam-color-panel-gradient-start),
+      var(--airjam-color-panel-gradient-end)
     ),
-    rgba(12, 18, 33, 0.92);
+    var(--airjam-color-controller-panel);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     var(--shadow-pong-panel);
@@ -230,7 +234,7 @@
 
 @utility pong-controller-touch-active {
   box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.18),
-    inset 0 12px 24px rgba(255, 255, 255, 0.05),
+    inset 0 0 0 2px var(--airjam-color-arena-markings),
+    inset 0 12px 24px var(--airjam-color-status-background),
     var(--shadow-pong-panel);
 }

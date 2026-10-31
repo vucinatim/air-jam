@@ -13,6 +13,7 @@ import { isMatchActive } from "../../simulation/match";
 import { SHIP_COLLIDER_CENTER_Y } from "../../simulation/physics";
 import type { AirCaptureSim } from "../../simulation/state";
 import { useDebugStore } from "../../stores/debug/debug-store";
+import { airCaptureTheme } from "../../theme";
 import { AbilityVisual } from "./ability-visual";
 
 const SHIP_GAMEPLAY_HITBOX_RADIUS = 3.8;
@@ -37,7 +38,8 @@ function ShipComponent({ controllerId }: { controllerId: string }) {
   );
 
   const color = useSimulationSelector(
-    (sim: AirCaptureSim) => sim.ships.get(controllerId)?.color ?? "#ff4444",
+    (sim: AirCaptureSim) =>
+      sim.ships.get(controllerId)?.color ?? airCaptureTheme.colors.warning,
   );
   const dead = useSimulationSelector(
     (sim: AirCaptureSim) => sim.ships.get(controllerId)?.dead ?? true,

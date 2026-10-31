@@ -12,6 +12,7 @@ import { AIR_CAPTURE_PREFABS } from "../game/prefabs";
 import { AIR_CAPTURE_ARENA_PREFAB } from "../game/prefabs/arena/prefab";
 import { resolveAirCaptureArenaProps } from "../game/prefabs/arena/schema";
 import { SpaceEnvironment } from "../game/prefabs/arena/space-environment";
+import { airCaptureTheme } from "../game/theme";
 import { StaticArenaView } from "../game/view/arena-view";
 import type { ArenaView } from "../game/view/arena-view-context";
 import {
@@ -67,7 +68,9 @@ function PrefabFootprintOverlay({
           args={[Math.max(footprint.radius - 0.45, 0.05), footprint.radius, 48]}
         />
         <meshBasicMaterial
-          color={prefab.preview?.accentColor ?? "#60a5fa"}
+          color={
+            prefab.preview?.accentColor ?? airCaptureTheme.colors.previewAccent
+          }
           transparent
           opacity={0.32}
         />
@@ -84,7 +87,9 @@ function PrefabFootprintOverlay({
       <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[footprint.width, footprint.depth]} />
         <meshBasicMaterial
-          color={prefab.preview?.accentColor ?? "#60a5fa"}
+          color={
+            prefab.preview?.accentColor ?? airCaptureTheme.colors.previewAccent
+          }
           transparent
           opacity={0.18}
         />
@@ -112,9 +117,9 @@ function UnitPreviewEnvironment({
           y: 42,
           z: 18,
         },
-        forcefieldColor: accentColor ?? "#4cc9f0",
-        gridColorMajor: "#374151",
-        gridColorMinor: "#1f2937",
+        forcefieldColor: accentColor ?? airCaptureTheme.colors.forcefieldColor,
+        gridColorMajor: airCaptureTheme.colors.arenaGridMajor,
+        gridColorMinor: airCaptureTheme.colors.gridColorMinor,
       }),
     [accentColor],
   );

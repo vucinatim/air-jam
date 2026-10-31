@@ -18,7 +18,7 @@ const ControllerView = lazy(async () => {
 
 const RouteFallback = () => {
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-[#fdf6e3] text-[#5b4636]">
+    <div className="flex h-screen w-screen items-center justify-center bg-[var(--airjam-color-paper-cream)] text-[var(--airjam-color-text-muted-brown)]">
       <div className="text-xs tracking-[0.2em] uppercase opacity-70">
         Loading office floor
       </div>
@@ -30,26 +30,28 @@ export function App() {
   return (
     <>
       <Toaster position="bottom-right" theme="light" />
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <app.Host>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <app.Host>
+              <Suspense fallback={<RouteFallback />}>
                 <HostView />
-              </app.Host>
-            }
-          />
-          <Route
-            path={app.paths.controller}
-            element={
-              <app.Controller>
+              </Suspense>
+            </app.Host>
+          }
+        />
+        <Route
+          path={app.paths.controller}
+          element={
+            <app.Controller>
+              <Suspense fallback={<RouteFallback />}>
                 <ControllerView />
-              </app.Controller>
-            }
-          />
-        </Routes>
-      </Suspense>
+              </Suspense>
+            </app.Controller>
+          }
+        />
+      </Routes>
     </>
   );
 }

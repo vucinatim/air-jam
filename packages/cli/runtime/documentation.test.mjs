@@ -12,15 +12,16 @@ import { promisify } from "node:util";
 const execute = promisify(execFile);
 const packageRoot = fileURLToPath(new URL("../", import.meta.url));
 
+const catalog = JSON.parse(
+  await fs.readFile(
+    new URL("../../../content/docs/catalog.json", import.meta.url),
+    "utf8",
+  ),
+);
+
 test("the public snapshot owns every creator page without private imports", async () => {
   const snapshot = await readDocumentationSnapshot();
-  const catalog = JSON.parse(
-    await fs.readFile(
-      new URL("../../../content/docs/catalog.json", import.meta.url),
-      "utf8",
-    ),
-  );
-  assert.equal(snapshot.documents.length, 17);
+  assert.equal(snapshot.documents.length, catalog.length);
   assert.deepEqual(
     snapshot.requiredComponents,
     JSON.parse(
@@ -60,7 +61,7 @@ test("documentation discovery and reads have clean JSON output", async () => {
     "list",
     "--json",
   ]);
-  assert.equal(JSON.parse(list.stdout).documents.length, 17);
+  assert.equal(JSON.parse(list.stdout).documents.length, catalog.length);
   const read = await execute(process.execPath, [
     path.join(packageRoot, "bin/airjam.mjs"),
     "docs",
@@ -94,7 +95,7 @@ test("a packaged consumer fails on tampered bytes and unsafe identities", async 
       pathToFileURL(path.join(root, "dist/documentation.js"))
     );
     const initial = await readSnapshot();
-    assert.equal(initial.documents.length, 17);
+    assert.equal(initial.documents.length, catalog.length);
     const first = initial.documents[0];
     const sourcePath = path.join(
       root,
