@@ -1,4 +1,5 @@
 import type { Position, Team } from "../domain/team-assignments";
+import { codeReviewTheme } from "../theme";
 import type { ArenaColors, PlayerKey } from "./types";
 
 const clamp = (value: number, min: number, max: number) =>
@@ -18,7 +19,7 @@ export const PLAYER_INSET_X = PLAYER_DRAW_SIZE * 0.25 - HITBOX_CENTER;
 export const PUNCH_HITBOX_EXTENSION = 30;
 export const PUNCH_REACH = PLAYER_SIZE + PUNCH_HITBOX_EXTENSION * 2;
 export const HIT_FLASH_TINT_ALPHA = 0.32;
-export const EMPOWER_GLOW_COLOR = "#fbbf24";
+export const EMPOWER_GLOW_COLOR = codeReviewTheme.colors.empowerGlow;
 
 export const HOST_STATUS_COPY: Record<string, string> = {
   idle: "Idle",
@@ -57,14 +58,14 @@ export const SPAWN_X_PLAYER2_BACK = clamp(
 );
 
 export const DEFAULT_ARENA_COLORS: ArenaColors = {
-  ringMat: "#e5e7eb",
-  ringMarkings: "#9ca3af",
-  ringRopePrimary: "#dc2626",
-  ringRopeSecondary: "#1d4ed8",
-  cornerRed: "#dc2626",
-  cornerBlue: "#2563eb",
-  postBody: "#94a3b8",
-  postTop: "#e2e8f0",
+  ringMat: codeReviewTheme.colors.ringMat,
+  ringMarkings: codeReviewTheme.colors.ringMarkings,
+  ringRopePrimary: codeReviewTheme.colors.ringRopePrimary,
+  ringRopeSecondary: codeReviewTheme.colors.ringRopeSecondary,
+  cornerRed: codeReviewTheme.colors.ringRopePrimary,
+  cornerBlue: codeReviewTheme.colors.ringCornerBlue,
+  postBody: codeReviewTheme.colors.ringPostBody,
+  postTop: codeReviewTheme.colors.ringPostTop,
 };
 
 export const PLAYER_KEYS: PlayerKey[] = [
@@ -120,5 +121,5 @@ export const BOT_DEFEND_DISTANCE = PUNCH_REACH + 8;
 export const BOT_PUNCH_DISTANCE = PUNCH_REACH;
 export const BOT_STRAFE_DISTANCE = 210;
 
-export const TEAM1_COLOR = "#dc2626";
-export const TEAM2_COLOR = "#2563eb";
+export const TEAM1_COLOR = codeReviewTheme.colors.ringRopePrimary;
+export const TEAM2_COLOR = codeReviewTheme.colors.ringCornerBlue;

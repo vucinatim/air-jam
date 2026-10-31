@@ -1,3 +1,5 @@
+import { airCaptureAssets } from "../assets";
+import { airCaptureTheme } from "../theme";
 export type AbilityId = "speed_boost" | "rocket" | "health_pack";
 
 /** A picked-up ability; `startTime` is the game time it was activated, or null while queued. */
@@ -21,27 +23,27 @@ export interface RarityInfo {
 export const RARITY_INFO: Record<Rarity, RarityInfo> = {
   common: {
     name: "Common",
-    color: 0x888888, // Gray
+    color: Number.parseInt(airCaptureTheme.colors.common.slice(1), 16), // Gray
     spawnWeight: 30, // Reduced from 50
   },
   uncommon: {
     name: "Uncommon",
-    color: 0x00ff88, // Green (current collectible color)
+    color: Number.parseInt(airCaptureTheme.colors.uncommon.slice(1), 16), // Green (current collectible color)
     spawnWeight: 40, // Increased from 30
   },
   rare: {
     name: "Rare",
-    color: 0x0088ff, // Blue
+    color: Number.parseInt(airCaptureTheme.colors.rare.slice(1), 16), // Blue
     spawnWeight: 30, // Increased from 15
   },
   epic: {
     name: "Epic",
-    color: 0xaa00ff, // Purple
+    color: Number.parseInt(airCaptureTheme.colors.epic.slice(1), 16), // Purple
     spawnWeight: 4,
   },
   legendary: {
     name: "Legendary",
-    color: 0xffaa00, // Gold/Orange
+    color: Number.parseInt(airCaptureTheme.colors.legendary.slice(1), 16), // Gold/Orange
     spawnWeight: 1, // Rarest
   },
 };
@@ -87,7 +89,11 @@ export function getAllAbilityDefinitions(): AbilityDefinition[] {
  * Get the image path for an ability icon
  */
 export function getAbilityIconPath(abilityId: AbilityId): string {
-  return `/images/ability-icons/${abilityId}.png`;
+  return {
+    health_pack: airCaptureAssets.images.healthPack,
+    speed_boost: airCaptureAssets.images.speedBoost,
+    rocket: airCaptureAssets.images.rocket,
+  }[abilityId].src;
 }
 
 /**

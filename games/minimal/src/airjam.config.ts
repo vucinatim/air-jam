@@ -1,9 +1,13 @@
 import { defineAirJamGame } from "@air-jam/sdk/core";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+import { minimalAssets } from "./game/assets";
 import { agentContract } from "./game/contracts/agent";
 import { minimalStore } from "./game/store";
+import { minimalTheme } from "./game/theme";
 
 export const airjam = defineAirJamGame({
+  assets: minimalAssets,
+  theme: minimalTheme,
   metadata: defineAirJamGameMetadata({
     slug: "minimal",
     name: "Minimal",

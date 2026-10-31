@@ -5,13 +5,13 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/outfit";
 
-@theme {
-  --color-primary: #0984e3;
-  --color-primary-foreground: #f5f6fa;
-  --color-accent: #00cec9;
-  --color-accent-foreground: #1e272e;
-  --color-foreground: #f5f6fa;
-  --color-background: #1e272e;
+@theme inline {
+  --color-primary: var(--airjam-color-primary);
+  --color-primary-foreground: var(--airjam-color-primary-foreground);
+  --color-accent: var(--airjam-color-accent);
+  --color-accent-foreground: var(--airjam-color-accent-foreground);
+  --color-foreground: var(--airjam-color-primary-foreground);
+  --color-background: var(--airjam-color-accent-foreground);
 }
 
 @layer base {
@@ -44,48 +44,48 @@
 }
 
 .title {
-  font-family: "Chewy", sans-serif;
+  font-family: var(--airjam-font-display);
   color: var(--foreground);
   text-shadow: 0.2rem 0.2rem 0 var(--primary);
 }
 
 :root {
-  --background: #1e272e;
-  --foreground: #f5f6fa;
-  --card: #26323c;
-  --card-foreground: #f5f6fa;
-  --popover: #26323c;
-  --popover-foreground: #f5f6fa;
-  --primary: #0984e3;
-  --primary-foreground: #f5f6fa;
-  --secondary: #31404b;
-  --secondary-foreground: #f5f6fa;
-  --muted: #31404b;
-  --muted-foreground: #c7d1db;
-  --accent: #00cec9;
-  --accent-foreground: #1e272e;
-  --destructive: #e74c3c;
-  --border: #3a4a56;
-  --input: #3a4a56;
-  --ring: #0984e3;
-  --chart-1: #0984e3;
-  --chart-2: #00cec9;
-  --chart-3: #74b9ff;
-  --chart-4: #81ecec;
-  --chart-5: #a29bfe;
+  --background: var(--airjam-color-accent-foreground);
+  --foreground: var(--airjam-color-primary-foreground);
+  --card: var(--airjam-color-card);
+  --card-foreground: var(--airjam-color-primary-foreground);
+  --popover: var(--airjam-color-card);
+  --popover-foreground: var(--airjam-color-primary-foreground);
+  --primary: var(--airjam-color-primary);
+  --primary-foreground: var(--airjam-color-primary-foreground);
+  --secondary: var(--airjam-color-secondary);
+  --secondary-foreground: var(--airjam-color-primary-foreground);
+  --muted: var(--airjam-color-secondary);
+  --muted-foreground: var(--airjam-color-muted-foreground);
+  --accent: var(--airjam-color-accent);
+  --accent-foreground: var(--airjam-color-accent-foreground);
+  --destructive: var(--airjam-color-destructive);
+  --border: var(--airjam-color-border);
+  --input: var(--airjam-color-border);
+  --ring: var(--airjam-color-primary);
+  --chart-1: var(--airjam-color-primary);
+  --chart-2: var(--airjam-color-accent);
+  --chart-3: var(--airjam-color-chart3);
+  --chart-4: var(--airjam-color-chart4);
+  --chart-5: var(--airjam-color-chart5);
   --radius: 0.625rem;
-  --sidebar: #26323c;
-  --sidebar-foreground: #f5f6fa;
-  --sidebar-primary: #0984e3;
-  --sidebar-primary-foreground: #f5f6fa;
-  --sidebar-accent: #00cec9;
-  --sidebar-accent-foreground: #1e272e;
-  --sidebar-border: #3a4a56;
-  --sidebar-ring: #0984e3;
+  --sidebar: var(--airjam-color-card);
+  --sidebar-foreground: var(--airjam-color-primary-foreground);
+  --sidebar-primary: var(--airjam-color-primary);
+  --sidebar-primary-foreground: var(--airjam-color-primary-foreground);
+  --sidebar-accent: var(--airjam-color-accent);
+  --sidebar-accent-foreground: var(--airjam-color-accent-foreground);
+  --sidebar-border: var(--airjam-color-border);
+  --sidebar-ring: var(--airjam-color-primary);
 }
 
 @theme inline {
-  --font-sans: "Outfit Variable", sans-serif;
+  --font-sans: var(--airjam-font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

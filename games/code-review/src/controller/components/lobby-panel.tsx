@@ -6,12 +6,13 @@ import {
   type TeamId,
 } from "../../game/domain/team-slots";
 import { gameStore } from "../../game/stores";
+import { codeReviewTheme } from "../../game/theme";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { useCodeReviewControllerTeams } from "../hooks/use-code-review-controller-teams";
 import { PRESS_FEEL_CLASS } from "./classes";
 
-const TEAM1_COLOR = "#dc2626";
-const TEAM2_COLOR = "#2563eb";
+const TEAM1_COLOR = codeReviewTheme.colors.ringRopePrimary;
+const TEAM2_COLOR = codeReviewTheme.colors.ringCornerBlue;
 
 const TEAM_LABEL: Record<TeamId, string> = {
   team1: "Coder",
@@ -82,7 +83,9 @@ export const LobbyPanel = () => {
                       background: joined
                         ? `linear-gradient(180deg, ${teamColor}, color-mix(in srgb, ${teamColor} 72%, black))`
                         : "linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.04)), #18181b",
-                      borderColor: joined ? teamColor : "rgb(82 82 91)",
+                      borderColor: joined
+                        ? teamColor
+                        : codeReviewTheme.colors.neutralAccent,
                       boxShadow: joined
                         ? `4px 4px 0 color-mix(in srgb, ${teamColor} 35%, transparent)`
                         : undefined,

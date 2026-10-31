@@ -5,9 +5,10 @@ import {
   getMatchReadiness,
 } from "../../game/domain/match-readiness";
 import { gameStore } from "../../game/stores";
+import { codeReviewTheme } from "../../game/theme";
 
-const TEAM1_COLOR = "#dc2626";
-const TEAM2_COLOR = "#2563eb";
+const TEAM1_COLOR = codeReviewTheme.colors.ringRopePrimary;
+const TEAM2_COLOR = codeReviewTheme.colors.ringCornerBlue;
 
 export const useCodeReviewControllerTeams = () => {
   const controllerId = useAirJamController((state) => state.controllerId);
@@ -26,7 +27,7 @@ export const useCodeReviewControllerTeams = () => {
   const myTeam = myAssignment?.team ?? null;
   const teamColor =
     myTeam === "team1" ? TEAM1_COLOR : myTeam === "team2" ? TEAM2_COLOR : null;
-  const teamAccent = teamColor ?? "#27272a";
+  const teamAccent = teamColor ?? codeReviewTheme.colors.teamAccent;
 
   const connectedPlayerIdSet = useMemo(
     () => new Set(players.map((player) => player.id)),

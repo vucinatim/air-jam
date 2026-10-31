@@ -1,16 +1,11 @@
 /**
- * Controller surface for pong. The exported view mounts the game audio
- * runtime; the private controller child renders the phone UI beneath that
- * provider. Game panels read SDK/session and replicated store state directly.
+ * Controller surface for pong. The binding supplies audio; game panels read
+ * SDK/session and replicated store state directly.
  */
-import {
-  AudioRuntime,
-  useAirJamStore,
-  useControllerToasts,
-} from "@air-jam/sdk";
+import { useAirJamStore, useControllerToasts } from "@air-jam/sdk";
 import { SurfaceViewport } from "@air-jam/sdk/ui";
-import { PONG_SOUND_MANIFEST } from "../game/contracts/sounds";
 import { pongStore } from "../game/stores";
+import { pongTheme } from "../game/theme";
 import { ControllerHeader } from "./components/controller-header";
 import { EndedPanel } from "./components/ended-panel";
 import { LobbyPanel } from "./components/lobby-panel";
@@ -18,14 +13,6 @@ import { PlayingControls } from "./components/playing-controls";
 import { useControllerConnectionNotice } from "./hooks/use-controller-connection-notice";
 
 export function ControllerView() {
-  return (
-    <AudioRuntime manifest={PONG_SOUND_MANIFEST}>
-      <PongController />
-    </AudioRuntime>
-  );
-}
-
-function PongController() {
   const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
   const { latestToast } = useControllerToasts();
   const { connectionNotice } = useControllerConnectionNotice();
@@ -44,9 +31,9 @@ function PongController() {
           <div
             className="rounded-b-xl border-b px-3 py-2 text-[0.6875rem] font-semibold tracking-[0.12em] uppercase"
             style={{
-              borderColor: `${latestToast.color ?? "#38bdf8"}55`,
-              backgroundColor: `${latestToast.color ?? "#38bdf8"}1a`,
-              color: latestToast.color ?? "#bae6fd",
+              borderColor: `${latestToast.color ?? pongTheme.colors.team2}55`,
+              backgroundColor: `${latestToast.color ?? pongTheme.colors.team2}1a`,
+              color: latestToast.color ?? pongTheme.colors.controllerAccent,
             }}
           >
             {latestToast.message}

@@ -7,11 +7,9 @@
  * wrapper in `./youtube` handles cued playback without exposing
  * the iframe API directly to the rest of the code.
  */
-import { AudioRuntime } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
 import { AnimatePresence } from "framer-motion";
-import { soundManifest } from "../game/contracts/sounds";
 import { FullscreenToggle } from "./components/fullscreen-toggle";
 import { HostGameOver } from "./components/host-game-over";
 import { HostLobby } from "./components/host-lobby";
@@ -22,14 +20,6 @@ import { HostVideoStage } from "./components/host-video-stage";
 import { useHostRoundVideoRuntime } from "./hooks/use-host-round-video-runtime";
 
 export const HostView = () => {
-  return (
-    <AudioRuntime manifest={soundManifest}>
-      <HostScreen />
-    </AudioRuntime>
-  );
-};
-
-const HostScreen = () => {
   const runtime = useHostRoundVideoRuntime();
 
   return (

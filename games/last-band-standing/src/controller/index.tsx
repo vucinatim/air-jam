@@ -5,11 +5,7 @@
  * on the networked `matchPhase`. The active-round panel exposes the buzz-in
  * button; the reveal panel shows round results once the host finalises them.
  */
-import {
-  AudioRuntime,
-  useAirJamController,
-  useAirJamStore,
-} from "@air-jam/sdk";
+import { useAirJamController, useAirJamStore } from "@air-jam/sdk";
 import {
   LifecycleActionGroup,
   RuntimeShellHeader,
@@ -20,7 +16,6 @@ import {
 } from "@air-jam/sdk/ui";
 import { AnimatePresence } from "framer-motion";
 import { getUniqueSongCountForBuckets } from "../game/content/song-bank";
-import { soundManifest } from "../game/contracts/sounds";
 import { toShellMatchPhase } from "../game/domain/match-phase";
 import { isMatchReadyToStart } from "../game/domain/match-readiness";
 import { gameStore } from "../game/stores";
@@ -32,14 +27,6 @@ import { ControllerRoundReveal } from "./components/controller-round-reveal";
 import { useControllerAudioCues } from "./hooks/use-controller-audio-cues";
 
 export const ControllerView = () => {
-  return (
-    <AudioRuntime manifest={soundManifest}>
-      <ControllerScreen />
-    </AudioRuntime>
-  );
-};
-
-const ControllerScreen = () => {
   const roomId = useAirJamController((state) => state.roomId);
   const connectionStatus = useAirJamController(
     (state) => state.connectionStatus,

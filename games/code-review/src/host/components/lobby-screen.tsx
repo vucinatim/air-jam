@@ -5,6 +5,7 @@ import {
   LifecycleActionGroup,
   useHostJoinControls,
 } from "@air-jam/sdk/ui";
+import { codeReviewAssets } from "../../game/assets";
 import { HOST_STATUS_COPY } from "../../game/engine/constants";
 import { useClipboardCopy } from "../hooks/use-clipboard-copy";
 import type { CodeReviewHostTeams } from "../hooks/use-code-review-host-teams";
@@ -47,7 +48,7 @@ export const LobbyScreen = ({
             <div className="grid h-full min-h-0 gap-3 md:gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.7fr)]">
               <div className="order-1 flex h-44 items-center justify-center rounded-none border-4 border-zinc-700 bg-black p-1 sm:h-52 md:h-60 xl:h-auto xl:min-h-0">
                 <img
-                  src="/sprites/cover.png"
+                  src={codeReviewAssets.images.cover.src}
                   alt="Game cover"
                   className="h-full w-full object-cover object-center"
                 />

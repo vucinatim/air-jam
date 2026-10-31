@@ -237,7 +237,7 @@ When extending this template, inspect these modules before adding new code:
 - `src/game/stores/pong-store-lobby.ts` for lobby-phase transitions and team setup rules
 - `src/game/stores/pong-store-match.ts` for match lifecycle and scoring reducers
 - `src/game/contracts/input.ts` for the declared controls
-- `src/game/contracts/sounds.ts` for the shared sound manifest
+- `src/game/assets.ts` for declared sounds and loaded files
 - `src/game/contracts/controller-signals.ts` for host-to-controller signal payloads and transport-facing mapping
 - `src/game/domain/team-slots.ts` for the canonical mixed human/bot slot model used by both surfaces
 - `src/game/domain/teams-snapshot.ts` for the shared team projection used by host and controller UI

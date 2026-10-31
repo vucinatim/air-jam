@@ -1,6 +1,6 @@
 import { useAudio, type AudioHandle, type PlayOptions } from "@air-jam/sdk";
 import { useMemo } from "react";
-import type { ControllerSoundId } from "./sounds";
+import type { ControllerSoundId } from "../assets";
 
 type ControllerAudioDriver = Pick<
   AudioHandle<ControllerSoundId>,

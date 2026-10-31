@@ -1,5 +1,6 @@
 import { airJamGameDescriptionSchema } from "@air-jam/sdk/core";
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -228,4 +229,27 @@ it("serializes declaration imports and releases the boundary after failure", asy
   expect(events).toEqual(["first-start", "first-end", "second"]);
   const require = createRequire(path.join(root, "games/pong/package.json"));
   expect(() => require("react").createElement("div")).not.toThrow();
+});
+
+it("reports a missing declared image", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "airjam-assets-"));
+  try {
+    mkdirSync(path.join(directory, "src"));
+    mkdirSync(path.join(directory, "public"));
+    const config = path.join(directory, "src/airjam.config.ts");
+    writeFileSync(
+      config,
+      declarationSource(
+        {},
+        'assets: { sounds: {}, images: { portrait: { src: "/portrait.png" } }, files: {} },',
+      ),
+    );
+    const missing = describe([config]);
+    expect(missing.ok).toBe(false);
+    expect(missing.stderr).toContain("AJ_ASSET_MISSING");
+    expect(missing.stderr).toContain("images.portrait");
+    expect(missing.stderr).toContain("/portrait.png");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

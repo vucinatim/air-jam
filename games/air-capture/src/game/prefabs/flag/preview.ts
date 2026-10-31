@@ -1,7 +1,8 @@
+import { airCaptureTheme } from "../../theme";
 export const AIR_CAPTURE_FLAG_PREVIEW = {
   summary:
     "A team flag that can be carried, dropped, returned, and scored against bases.",
-  accentColor: "#f97316",
+  accentColor: airCaptureTheme.colors.solaris,
   dimensions: {
     radius: 4.5,
     height: 6,

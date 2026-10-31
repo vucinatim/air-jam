@@ -1,3 +1,4 @@
+import { theOfficeAssets } from "../assets";
 /**
  * Player capability mapping based on PM requirements.
  *
@@ -60,7 +61,7 @@ function createPlayer(
 
 export const PLAYERS: Player[] = [
   // Špela: emails and meetings fastest (5), coding slowest (1-2), rest average (3)
-  createPlayer("spela", "Špela", "/team/spela.webp", {
+  createPlayer("spela", "Špela", theOfficeAssets.images.spela.src, {
     maili: 5,
     "sestanek-v-sejni": 5,
     "interni-sestanek": 5,
@@ -69,7 +70,7 @@ export const PLAYERS: Player[] = [
   }),
 
   // Žiga: maili and sestanek-v-sejni fast, opravek slow
-  createPlayer("ziga", "Žiga", "/team/ziga.webp", {
+  createPlayer("ziga", "Žiga", theOfficeAssets.images.ziga.src, {
     maili: 5,
     "sestanek-v-sejni": 4,
     opravek: 1,
@@ -77,7 +78,7 @@ export const PLAYERS: Player[] = [
   }),
 
   // Miha: sestanek-v-sejni and opravek fast, coding slower
-  createPlayer("miha", "Miha", "/team/miha.webp", {
+  createPlayer("miha", "Miha", theOfficeAssets.images.miha.src, {
     "sestanek-v-sejni": 5,
     opravek: 1,
     coding: 2,
@@ -85,7 +86,7 @@ export const PLAYERS: Player[] = [
   }),
 
   // Matej: coding and internet-down fast, sestanek-v-sejni slow
-  createPlayer("matej", "Matej", "/team/matej.webp", {
+  createPlayer("matej", "Matej", theOfficeAssets.images.matej.src, {
     coding: 5,
     "internet-down": 4,
     "sestanek-v-sejni": 1,
@@ -93,7 +94,7 @@ export const PLAYERS: Player[] = [
   }),
 
   // Niki: narisi-strip and internet-down fast
-  createPlayer("niki", "Niki", "/team/niki.webp", {
+  createPlayer("niki", "Niki", theOfficeAssets.images.niki.src, {
     "narisi-strip": 5,
     "internet-down": 1,
     "vibe-coding": 2,
@@ -101,7 +102,7 @@ export const PLAYERS: Player[] = [
   }),
 
   // Vane: hisninska-dela and internet-down fast
-  createPlayer("vane", "Vane", "/team/vane.webp", {
+  createPlayer("vane", "Vane", theOfficeAssets.images.vane.src, {
     "hisninska-dela": 1,
     "internet-down": 5,
     "interni-sestanek": 2,
@@ -109,7 +110,7 @@ export const PLAYERS: Player[] = [
   }),
 
   // Domen: hisninska-dela and sestanek-v-sejni fast
-  createPlayer("domen", "Domen", "/team/domen.webp", {
+  createPlayer("domen", "Domen", theOfficeAssets.images.domen.src, {
     "hisninska-dela": 5,
     "sestanek-v-sejni": 1,
     maili: 2,
@@ -117,7 +118,7 @@ export const PLAYERS: Player[] = [
   }),
 
   // TimK: coding and narisi-strip fast
-  createPlayer("timk", "TimK", "/team/timk.webp", {
+  createPlayer("timk", "TimK", theOfficeAssets.images.timk.src, {
     coding: 5,
     "narisi-strip": 1,
     "vibe-coding": 2,
@@ -125,7 +126,7 @@ export const PLAYERS: Player[] = [
   }),
 
   // TimV: vibe-coding and opravek fast
-  createPlayer("timv", "TimV", "/team/timv.webp", {
+  createPlayer("timv", "TimV", theOfficeAssets.images.timv.src, {
     "vibe-coding": 5,
     opravek: 1,
     maili: 2,

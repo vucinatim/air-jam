@@ -7,10 +7,9 @@
  * host is chrome over the networked `spaceStore` state and the declared
  * simulation (`game/engine/office-simulation.ts`), which plays the match.
  */
-import { AudioRuntime, useHostAudioMutePreference } from "@air-jam/sdk";
+import { useHostAudioMutePreference } from "@air-jam/sdk";
 import { HostPreviewControllerWorkspace } from "@air-jam/sdk/preview";
 import { HostMuteButton, SurfaceViewport } from "@air-jam/sdk/ui";
-import { OFFICE_SOUND_MANIFEST } from "../game/contracts/sounds";
 import { OfficeHostGameplaySurface } from "./components/host-gameplay-surface";
 import { OfficeHostOverlays } from "./components/host-overlays";
 import { OfficeHostPlayerStrip } from "./components/host-player-strip";
@@ -19,21 +18,13 @@ import { useOfficeHostSession } from "./hooks/use-office-host-session";
 import { useOfficeTimeRemainingMs } from "./hooks/use-office-match-view";
 
 export function HostView() {
-  return (
-    <AudioRuntime manifest={OFFICE_SOUND_MANIFEST}>
-      <OfficeHostScreen />
-    </AudioRuntime>
-  );
-}
-
-function OfficeHostScreen() {
   const session = useOfficeHostSession();
   const audioPreference = useHostAudioMutePreference("the-office");
   const timeRemainingMs = useOfficeTimeRemainingMs();
 
   return (
     <>
-      <SurfaceViewport className="bg-[#fdf6e3]">
+      <SurfaceViewport className="bg-[var(--airjam-color-paper-cream)]">
         <div className="relative flex h-full w-full flex-col overflow-hidden p-2">
           <OfficeHostTopHud timeRemainingMs={timeRemainingMs} />
           <OfficeHostGameplaySurface

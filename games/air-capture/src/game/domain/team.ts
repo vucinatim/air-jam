@@ -1,16 +1,17 @@
+import { airCaptureTheme } from "../theme";
 export const TEAM_CONFIG = {
   solaris: {
     id: "solaris",
     label: "Solaris",
-    color: "#f97316",
-    accent: "#fde047",
+    color: airCaptureTheme.colors.solaris,
+    accent: airCaptureTheme.colors.solarisAccent,
     basePosition: [-120, 0, 40] as [number, number, number],
   },
   nebulon: {
     id: "nebulon",
     label: "Nebulon",
-    color: "#38bdf8",
-    accent: "#a5f3fc",
+    color: airCaptureTheme.colors.nebulon,
+    accent: airCaptureTheme.colors.nebulonAccent,
     basePosition: [120, 0, -40] as [number, number, number],
   },
 } as const;

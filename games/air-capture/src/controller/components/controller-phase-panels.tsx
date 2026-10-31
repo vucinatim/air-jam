@@ -13,6 +13,7 @@ import type { TeamCounts } from "../../game/domain/match-readiness";
 import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import { buildTeamSlots, MAX_TEAM_SLOTS } from "../../game/domain/team-slots";
 import type { MatchSummary } from "../../game/stores/match/match-store";
+import { airCaptureTheme } from "../../game/theme";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { PRESS_FEEL_CLASS } from "../constants";
 
@@ -93,7 +94,7 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
                         : "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)), rgba(12,18,33,0.92)",
                       borderColor: joined
                         ? `${teamColor}aa`
-                        : "rgba(255,255,255,0.12)",
+                        : airCaptureTheme.colors.panelBorder,
                       boxShadow: joined
                         ? `0 16px 28px color-mix(in srgb, ${teamColor} 22%, transparent)`
                         : undefined,
@@ -192,7 +193,9 @@ export const ControllerEndedPanel = memo(function ControllerEndedPanel({
   onRestart: () => void;
 }) {
   const winner = matchSummary?.winner ?? null;
-  const winnerColor = winner ? TEAM_CONFIG[winner].color : "#ffffff";
+  const winnerColor = winner
+    ? TEAM_CONFIG[winner].color
+    : airCaptureTheme.colors.white;
 
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center px-3 py-4">

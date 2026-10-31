@@ -363,5 +363,23 @@
       "sinceVersion": "1.0.0",
       "lastVerifiedVersion": "1.0.0"
     }
+  },
+  {
+    "source": "sdk/assets-and-theme/page.mdx",
+    "output": "assets-and-theme.md",
+    "page": {
+      "title": "Game Assets and Theme",
+      "href": "/docs/sdk/assets-and-theme",
+      "description": "Declare loaded files, surface-specific sounds, colours and fonts in one game declaration.",
+      "section": "SDK",
+      "icon": "zap",
+      "keywords": ["assets", "sounds", "images", "theme", "fonts"],
+      "docType": "contract",
+      "order": 5,
+      "stability": "evolving",
+      "audience": "user",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
   }
 ]

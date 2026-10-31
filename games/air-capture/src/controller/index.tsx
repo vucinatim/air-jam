@@ -2,9 +2,7 @@
  * Controller surface for air-capture.
  *
  * Flow:
- *  1. `ControllerView` wraps the screen in `ControllerAudioProvider` so
- *     host-triggered sounds (shot cues, flag pickups) play through a
- *     controller-local audio manager.
+ *  1. The binding supplies the controller audio runtime.
  *  2. Phase-specific panels (`ControllerLobbyPanel`,
  *     `ControllerPlayingControls`, `ControllerEndedPanel`) are picked from
  *     the networked `matchPhase`.
@@ -23,7 +21,6 @@ import { ControllerPlayerNameField, SurfaceViewport } from "@air-jam/sdk/ui";
 import type { JSX } from "react";
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { ControllerAudioProvider } from "../game/audio/controller-audio";
 import {
   getLobbyReadinessText,
   getMatchReadiness,
@@ -240,9 +237,5 @@ const ControllerScreen = () => {
 };
 
 export const ControllerView = (): JSX.Element => {
-  return (
-    <ControllerAudioProvider>
-      <ControllerScreen />
-    </ControllerAudioProvider>
-  );
+  return <ControllerScreen />;
 };
