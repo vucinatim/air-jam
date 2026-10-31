@@ -22,8 +22,6 @@ export const codeReviewTheme = defineAirJamTheme({
     overlayStrong: "rgba(0, 0, 0, 0.7)",
     white: "#ffffff",
     botAccent: "#22d3ee",
-    team1ControllerAccent: "rgb(220, 38, 38)",
-    team2ControllerAccent: "rgb(37, 99, 235)",
   },
   fonts: {
     canvas: "'Press Start 2P', monospace",

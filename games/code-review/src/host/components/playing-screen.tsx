@@ -19,7 +19,7 @@ export const PlayingScreen = ({ canvasRef, hpDisplay }: PlayingScreenProps) => (
         <div className="relative">
           <span
             style={{
-              color: codeReviewTheme.colors.team1ControllerAccent,
+              color: codeReviewTheme.colors.ringRopePrimary,
               whiteSpace: "nowrap",
             }}
             className="pixel-font text-7xl leading-none"
@@ -37,7 +37,7 @@ export const PlayingScreen = ({ canvasRef, hpDisplay }: PlayingScreenProps) => (
         <div className="relative">
           <span
             style={{
-              color: codeReviewTheme.colors.team2ControllerAccent,
+              color: codeReviewTheme.colors.ringCornerBlue,
               whiteSpace: "nowrap",
             }}
             className="pixel-font text-7xl leading-none"
