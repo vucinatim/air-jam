@@ -127,8 +127,8 @@ export const HostLobby = () => {
                 )}
               >
                 {hasPlayers
-                  ? "More friends? Open the QR overlay to join."
-                  : "Open the QR overlay to join the game."}
+                  ? "More friends? Join from your phone."
+                  : "Join from your phone to play."}
               </p>
               <JoinUrlControls
                 value={hostJoinControls.joinUrlValue}

@@ -559,8 +559,12 @@ export class ControllerRuntime {
         data: { socketId: socket.id, reason },
       });
       const state = store.getState();
-      if (reason) state.setError(reason);
-      state.setStatus("disconnected");
+      if (socket.active) {
+        state.setStatus("reconnecting");
+      } else {
+        if (reason) state.setError(reason);
+        state.setStatus("disconnected");
+      }
       state.resetRuntimeState();
       this.lastObservedStateVersion = null;
     };
