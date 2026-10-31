@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
+import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { buildArcadeGameIframeSrc } from "../src/arcade/url";
 import { JoinUrlActionButtons, JoinUrlControls, JoinUrlField } from "../src/ui";
 
 describe("join url controls", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
   it("renders the field label, value, and helper text", () => {
     render(
       <JoinUrlField
@@ -63,5 +69,34 @@ describe("join url controls", () => {
         .getByRole("button", { name: "Open join link" })
         .hasAttribute("disabled"),
     ).toBe(false);
+  });
+
+  it("leaves joining to the Arcade when the game runs inside it", () => {
+    const origin = window.location.origin;
+    const gameUrl = new URL(
+      buildArcadeGameIframeSrc({
+        normalizedUrl: `${origin}/play`,
+        roomId: "ABCD",
+        launchCapability: { token: "join_123", expiresAt: 1_700_000_000_000 },
+        joinUrl: `${origin}/controller?room=ABCD`,
+        topology: resolveRuntimeTopology({
+          runtimeMode: "arcade-live",
+          surfaceRole: "host",
+          appOrigin: origin,
+          backendOrigin: origin,
+          publicHost: origin,
+          embedded: true,
+          embedParentOrigin: origin,
+        }),
+        arcadeSurface: { epoch: 1, kind: "game", gameId: "pong" },
+      }),
+    );
+    window.history.replaceState(null, "", `${gameUrl.pathname}${gameUrl.search}`);
+
+    const { container } = render(
+      <JoinUrlControls value={`${origin}/controller?room=ABCD&aj_cap=x`} />,
+    );
+
+    expect(container.innerHTML).toBe("");
   });
 });
