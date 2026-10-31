@@ -9,6 +9,7 @@ import {
   Vector3,
 } from "three";
 import { useDecalsStore } from "../../stores/world/decals-store";
+import { airCaptureTheme } from "../../theme";
 
 const DECAL_LIFETIME = 5; // seconds
 const DECAL_SIZE = 0.2; // Size of the hit mark decal
@@ -30,8 +31,8 @@ function Decal({ id, position, normal }: DecalProps) {
   const material = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0x00ffff,
-        emissive: 0x00ffff,
+        color: airCaptureTheme.colors.cyan,
+        emissive: airCaptureTheme.colors.cyan,
         emissiveIntensity: 10, // Make it brighter
         toneMapped: false,
         transparent: true,

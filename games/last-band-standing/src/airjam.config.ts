@@ -1,11 +1,15 @@
 import { defineAirJamGame } from "@air-jam/sdk/core";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+import { lastBandStandingAssets } from "./game/assets";
 import { agentContract } from "./game/contracts/agent";
 import { roundClock } from "./game/engine/round-clock";
 import { gameStore } from "./game/stores/create-store";
+import { lastBandStandingTheme } from "./game/theme";
 
 import { quizSettings } from "./game/contracts/settings";
 export const airjam = defineAirJamGame({
+  assets: lastBandStandingAssets,
+  theme: lastBandStandingTheme,
   metadata: defineAirJamGameMetadata({
     slug: "last-band-standing",
     name: "Last Band Standing",

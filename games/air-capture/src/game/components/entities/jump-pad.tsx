@@ -9,6 +9,7 @@ import {
   type Mesh,
 } from "three";
 import { JUMP_PAD_RADIUS } from "../../constants";
+import { airCaptureTheme } from "../../theme";
 import { useArenaEvents } from "../../view/arena-view-context";
 
 interface JumpPadProps {
@@ -71,8 +72,8 @@ export function JumpPad({ position, id }: JumpPadProps) {
   const baseMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xff6600, // Orange
-        emissive: 0xff4400,
+        color: airCaptureTheme.colors.explosionOrange, // Orange
+        emissive: airCaptureTheme.colors.explosionRed,
         emissiveIntensity: 0.5,
         metalness: 0.3,
         roughness: 0.7,
@@ -94,10 +95,10 @@ export function JumpPad({ position, id }: JumpPadProps) {
   const bandMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0x666666, // Dark metal
+        color: airCaptureTheme.colors.rocketBand, // Dark metal
         metalness: 0.9,
         roughness: 0.2,
-        emissive: 0x222222,
+        emissive: airCaptureTheme.colors.rocketBandDark,
         emissiveIntensity: 0.1,
       }),
     [],
@@ -111,8 +112,8 @@ export function JumpPad({ position, id }: JumpPadProps) {
   const ringMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xff8800,
-        emissive: 0xff6600,
+        color: airCaptureTheme.colors.explosionAmber,
+        emissive: airCaptureTheme.colors.explosionOrange,
         emissiveIntensity: 1,
         transparent: true,
         opacity: 0.8,
@@ -150,8 +151,8 @@ export function JumpPad({ position, id }: JumpPadProps) {
   const animatedRingMaterialBase = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0xff8800,
-        emissive: 0xff6600,
+        color: airCaptureTheme.colors.explosionAmber,
+        emissive: airCaptureTheme.colors.explosionOrange,
         emissiveIntensity: 2,
         transparent: true,
         opacity: 0,

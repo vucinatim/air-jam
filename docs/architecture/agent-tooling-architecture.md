@@ -32,7 +32,13 @@ The intended architecture is:
 `src/airjam.config.ts` exports one branded `defineAirJamGame` declaration from
 `@air-jam/sdk/core`. Its graph is framework-free; React binds it in `app.tsx`
 with `createAirJamApp(game, { runtime })`. Metadata owns identity and room
-capacity. Agent contracts also come from core.
+capacity. Agent contracts also come from core. Assets declare sounds, images
+and other served public files; the loader rejects missing files with
+`AJ_ASSET_MISSING`. The description includes assets and theme. The React
+binding owns each surface's audio runtime, filtering sounds by their optional
+`surface`, and renders theme colours and fonts as `--airjam-color-*` and
+`--airjam-font-*` properties with the surface. Game CSS maps its existing
+names to these properties; canvas and 3D drawing read the declared theme.
 
 Devtools' `load-game.ts` serializes declaration imports. One synchronous Node
 resolve hook rejects framework imports throughout each declaration load,

@@ -17,6 +17,7 @@ import {
 import { TEAM_CONFIG, type TeamId } from "../../game/domain/team";
 import { buildTeamSlots } from "../../game/domain/team-slots";
 import type { MatchSummary } from "../../game/stores/match/match-store";
+import { airCaptureTheme } from "../../game/theme";
 
 export type HostConnectionStatus =
   | "idle"
@@ -263,7 +264,9 @@ export const EndedOverlay = ({
   const winnerLabel = winner
     ? `${TEAM_CONFIG[winner].label} Wins`
     : "Match Ended";
-  const winnerColor = winner ? TEAM_CONFIG[winner].color : "#ffffff";
+  const winnerColor = winner
+    ? TEAM_CONFIG[winner].color
+    : airCaptureTheme.colors.white;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6 py-10 text-white">
@@ -426,7 +429,7 @@ export const GameplayFallback = () => {
 
 export const StageBackdrop = () => {
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[#020611]">
+    <div className="absolute inset-0 overflow-hidden bg-[var(--airjam-color-controller-background)]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_bottom,rgba(249,115,22,0.18),transparent_34%),linear-gradient(180deg,rgba(6,11,21,0.9),rgba(2,6,17,1))]" />
       <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-size-[72px_72px] opacity-30" />
     </div>

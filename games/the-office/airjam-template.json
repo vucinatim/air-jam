@@ -9,7 +9,8 @@
       "dist-ssr",
       "node_modules",
       "coverage",
-      "tsconfig.tsbuildinfo"
+      "tsconfig.tsbuildinfo",
+      "tests/app-loading.test.tsx"
     ]
   }
 }

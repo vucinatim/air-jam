@@ -2,6 +2,7 @@ import { type PlayerProfile } from "@air-jam/sdk";
 import { PlayerAvatar } from "@air-jam/sdk/ui";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useEffect, useState } from "react";
+import { lastBandStandingAssets } from "../assets";
 import { cn } from "./classes";
 
 interface PlayerAvatarWithFireProps {
@@ -67,14 +68,14 @@ export const PlayerAvatarWithFire = ({
           />
           {prefersReducedMotion ? (
             <img
-              src="/lottie/Fire.png"
+              src={lastBandStandingAssets.images.fire.src}
               alt=""
               className="relative z-0 h-full w-full scale-[1.7] object-contain"
               loading="lazy"
             />
           ) : (
             <DotLottieReact
-              src="/lottie/Fire.json"
+              src={lastBandStandingAssets.files.fireAnimation.src}
               loop
               autoplay
               className="relative z-0 h-full w-full origin-bottom scale-[1.7]"

@@ -1,6 +1,7 @@
 import { AxisButton } from "@air-jam/sdk/ui";
 import { pongInput } from "../../game/contracts/input";
 import { getTeamColor, getTeamLabel } from "../../game/domain/team";
+import { pongTheme } from "../../game/theme";
 import { useControllerConnectionNotice } from "../hooks/use-controller-connection-notice";
 import { usePongControllerTeams } from "../hooks/use-pong-controller-teams";
 import { PRESS_FEEL_CLASS } from "./classes";
@@ -10,7 +11,7 @@ const DIRECTION_BUTTON_CLASS = `pong-controller-touch flex flex-1 items-center j
 export const PlayingControls = () => {
   const { controlsDisabled } = useControllerConnectionNotice();
   const { myTeam } = usePongControllerTeams();
-  const teamColor = myTeam ? getTeamColor(myTeam) : "#f8fafc";
+  const teamColor = myTeam ? getTeamColor(myTeam) : pongTheme.colors.text;
 
   return (
     <div

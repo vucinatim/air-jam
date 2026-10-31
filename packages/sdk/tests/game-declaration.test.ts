@@ -49,6 +49,8 @@ describe("game declaration", () => {
       simulation: false,
       input,
       settings: {},
+      assets: { sounds: {}, images: {}, files: {} },
+      theme: { colors: {}, fonts: {} },
       agent: null,
       testing: true,
     });

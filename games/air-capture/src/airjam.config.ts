@@ -1,14 +1,18 @@
 import { defineAirJamGame } from "@air-jam/sdk/core";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+import { airCaptureAssets } from "./game/assets";
 import { agentContract } from "./game/contracts/agent";
 import {
   airCaptureInput,
   airCaptureInputBindings,
 } from "./game/contracts/input";
 import { prototypeMatchStore } from "./game/stores/match/match-store";
+import { airCaptureTheme } from "./game/theme";
 
 import { airCaptureSettings } from "./game/contracts/settings";
 export const airjam = defineAirJamGame({
+  assets: airCaptureAssets,
+  theme: airCaptureTheme,
   metadata: defineAirJamGameMetadata({
     slug: "air-capture",
     name: "Air Capture",

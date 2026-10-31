@@ -1,7 +1,8 @@
+import { airCaptureTheme } from "../../theme";
 export const AIR_CAPTURE_SHIP_PREVIEW = {
   summary:
     "The standard playable ship unit used by controllers and bots during Air Capture matches.",
-  accentColor: "#f97316",
+  accentColor: airCaptureTheme.colors.solaris,
   dimensions: {
     width: 4,
     height: 3,

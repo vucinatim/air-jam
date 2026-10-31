@@ -1,13 +1,17 @@
 import { defineAirJamGame } from "@air-jam/sdk/core";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+import { pongAssets } from "./game/assets";
 import { agentContract } from "./game/contracts/agent";
 import { pongInput, pongInputBindings } from "./game/contracts/input";
 import { pongSimulation } from "./game/engine/pong-simulation";
 import { pongStore } from "./game/stores/pong-store";
+import { pongTheme } from "./game/theme";
 
 import { pongSettings } from "./game/contracts/settings";
 
 export const airjam = defineAirJamGame({
+  assets: pongAssets,
+  theme: pongTheme,
   metadata: defineAirJamGameMetadata({
     slug: "pong",
     name: "Pong",

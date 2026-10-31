@@ -6,6 +6,7 @@ import type { TeamId } from "../../game/domain/team";
 import { getTeamColor } from "../../game/domain/team";
 import { buildTeamSlots, MAX_TEAM_SLOTS } from "../../game/domain/team-slots";
 import { pongStore } from "../../game/stores";
+import { pongTheme } from "../../game/theme";
 import { TeamName } from "../../game/ui";
 import { TeamSlotTile } from "../../game/ui/team-slot-tile";
 import { useControllerConnectionNotice } from "../hooks/use-controller-connection-notice";
@@ -67,10 +68,10 @@ export const LobbyPanel = () => {
                     style={{
                       background: joined
                         ? `linear-gradient(180deg, ${getTeamColor(team)}, color-mix(in srgb, ${getTeamColor(team)} 70%, black))`
-                        : "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)), rgba(12,18,33,0.92)",
+                        : "linear-gradient(180deg, var(--airjam-color-panel-gradient-start), var(--airjam-color-panel-gradient-end)), var(--airjam-color-controller-panel)",
                       borderColor: joined
                         ? `${getTeamColor(team)}aa`
-                        : "rgba(255,255,255,0.12)",
+                        : pongTheme.colors.panelBorder,
                       boxShadow: joined
                         ? `0 16px 28px color-mix(in srgb, ${getTeamColor(team)} 22%, transparent)`
                         : undefined,

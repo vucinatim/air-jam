@@ -113,7 +113,7 @@ export function ControllerView() {
 
   return (
     <SurfaceViewport orientation={desiredOrientation}>
-      <div className="flex h-full w-full flex-col gap-3 bg-[radial-gradient(circle_at_top,#6b5336_0%,#413323_34%,#221a13_100%)] p-3 text-[#5c4a2e]">
+      <div className="flex h-full w-full flex-col gap-3 bg-[radial-gradient(circle_at_top,#6b5336_0%,#413323_34%,#221a13_100%)] p-3 text-[var(--airjam-color-text-paper)]">
         <RuntimeShellHeader
           connectionStatus={connectionStatus}
           leftSlot={
@@ -122,18 +122,18 @@ export function ControllerView() {
                 <img
                   src={myPlayer.image}
                   alt={myPlayer.name}
-                  className="h-10 w-10 rounded-full border border-[#9d8450] object-cover object-top"
+                  className="h-10 w-10 rounded-full border border-[var(--airjam-color-text-faded-brown)] object-cover object-top"
                 />
               ) : (
-                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#9d8450] bg-[#4a3925] text-[0.6875rem] font-bold text-[#f7e7b1]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--airjam-color-text-faded-brown)] bg-[var(--airjam-color-text-warm)] text-[0.6875rem] font-bold text-[var(--airjam-color-paper-gold)]">
                   {shellStatus.identityInitial}
                 </span>
               )}
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-[#fff1c4]">
+                <p className="truncate text-sm font-bold text-[var(--airjam-color-paper-light)]">
                   {shellStatus.displayName}
                 </p>
-                <p className="text-[0.625rem] tracking-[0.16em] text-[#d9bb63] uppercase sm:text-[0.6875rem]">
+                <p className="text-[0.625rem] tracking-[0.16em] text-[var(--airjam-color-border-gold)] uppercase sm:text-[0.6875rem]">
                   {shellStatus.roomLine}
                 </p>
               </div>
@@ -154,11 +154,11 @@ export function ControllerView() {
                     ? ["pause-toggle", "back-to-lobby"]
                     : ["restart", "back-to-lobby"]
                 }
-                buttonClassName="rounded-none border-[#d9bb63]/40 bg-[#fff1c4]/10 text-[#fff1c4] hover:bg-[#fff1c4]/20"
+                buttonClassName="rounded-none border-[var(--airjam-color-border-gold)]/40 bg-[var(--airjam-color-paper-light)]/10 text-[var(--airjam-color-paper-light)] hover:bg-[var(--airjam-color-paper-light)]/20"
               />
             )
           }
-          className="border-[#7d6640] bg-[#3a2f22]/92"
+          className="border-[var(--airjam-color-text-soft-brown)] bg-[var(--airjam-color-text-brown)]/92"
         />
 
         {showLobbyView ? (
@@ -265,8 +265,10 @@ function OfficeControllerLobbyView({
                     playerId: playerOption.id,
                   });
                 }}
-                className={`border-2 bg-[#fef3c7] p-2 text-left shadow-sm transition ${
-                  selectedByMe ? "border-[#8b6914]" : "border-[#e5d4ab]"
+                className={`border-2 bg-[var(--airjam-color-paper-pale-gold)] p-2 text-left shadow-sm transition ${
+                  selectedByMe
+                    ? "border-[var(--airjam-color-button)]"
+                    : "border-[var(--airjam-color-border-light)]"
                 } ${takenByOtherController ? "opacity-45" : "active:scale-[0.98]"}`}
               >
                 <div className="mb-2 flex items-center gap-2">
@@ -278,10 +280,10 @@ function OfficeControllerLobbyView({
                     }`}
                   />
                   <div>
-                    <p className="text-sm font-bold text-[#5c4a2e]">
+                    <p className="text-sm font-bold text-[var(--airjam-color-text-paper)]">
                       {playerOption.name}
                     </p>
-                    <p className="text-[10px] tracking-[0.12em] text-[#8b6914] uppercase">
+                    <p className="text-[10px] tracking-[0.12em] text-[var(--airjam-color-button)] uppercase">
                       {takenByOtherController
                         ? "Taken"
                         : selectedByMe
@@ -294,7 +296,7 @@ function OfficeControllerLobbyView({
                   {highlights.map((highlight) => (
                     <div
                       key={`${playerOption.id}:${highlight.taskId}`}
-                      className="flex items-center justify-between text-[10px] text-[#5c4a2e]"
+                      className="flex items-center justify-between text-[10px] text-[var(--airjam-color-text-paper)]"
                     >
                       <span>{highlight.label}</span>
                       <span className="font-semibold">
@@ -311,12 +313,12 @@ function OfficeControllerLobbyView({
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <span className="text-sm font-bold text-[#fff1c4]">
+        <span className="text-sm font-bold text-[var(--airjam-color-paper-light)]">
           {hasCharacterSelection
             ? `${myPlayer?.name ?? "Worker"} selected`
             : "Pick a coworker first"}
         </span>
-        <span className="text-[10px] tracking-[0.12em] text-[#d9bb63] uppercase">
+        <span className="text-[10px] tracking-[0.12em] text-[var(--airjam-color-border-gold)] uppercase">
           {selectedPlayerCount}/{connectedPlayerCount}
         </span>
       </div>
@@ -327,7 +329,7 @@ function OfficeControllerLobbyView({
         disabled={!canStartMatch}
         onPress={() => actions.startMatch()}
         icon={<BriefcaseBusiness className="h-6 w-6" />}
-        buttonClassName="rounded-none border-[#8b6914]/30 bg-[#8b6914] text-[#fdf6e3] hover:bg-[#7a5b11] disabled:bg-[#c7b384] disabled:text-[#fff8df]"
+        buttonClassName="rounded-none border-[var(--airjam-color-button)]/30 bg-[var(--airjam-color-button)] text-[var(--airjam-color-paper-cream)] hover:bg-[var(--airjam-color-button-hover)] disabled:bg-[var(--airjam-color-button-disabled)] disabled:text-[var(--airjam-color-paper-disabled)]"
       />
     </div>
   );
@@ -335,12 +337,12 @@ function OfficeControllerLobbyView({
 
 function OfficeControllerPausedView() {
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center rounded-[28px] border border-[#7d6640] bg-[#2e241a]/90 p-4 shadow-md">
+    <div className="flex min-h-0 flex-1 items-center justify-center rounded-[28px] border border-[var(--airjam-color-text-soft-brown)] bg-[var(--airjam-color-text-deep-brown)]/90 p-4 shadow-md">
       <div className="max-w-sm text-center">
-        <p className="text-xs tracking-[0.2em] text-[#d9bb63] uppercase">
+        <p className="text-xs tracking-[0.2em] text-[var(--airjam-color-border-gold)] uppercase">
           Match Paused
         </p>
-        <p className="mt-2 text-sm text-[#f3e7bf]">
+        <p className="mt-2 text-sm text-[var(--airjam-color-paper-warm)]">
           Waiting for runtime sync...
         </p>
       </div>
@@ -364,13 +366,15 @@ function OfficeControllerEndedView({
   const finalTotalMoney = useOfficeFinalTotalMoney();
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center bg-[#fef3c7] p-4 shadow-md">
-      <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-[28px] border border-[#e5d4ab] bg-[#fff8df] px-5 py-6 text-center shadow-sm">
-        <p className="text-xs tracking-[0.2em] text-[#8b6914] uppercase">
+    <div className="flex min-h-0 flex-1 items-center justify-center bg-[var(--airjam-color-paper-pale-gold)] p-4 shadow-md">
+      <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-[28px] border border-[var(--airjam-color-border-light)] bg-[var(--airjam-color-paper-disabled)] px-5 py-6 text-center shadow-sm">
+        <p className="text-xs tracking-[0.2em] text-[var(--airjam-color-button)] uppercase">
           Shift Ended
         </p>
-        <p className="mt-2 text-2xl font-bold text-[#5c4a2e]">Final Earnings</p>
-        <p className="mt-2 text-3xl font-black text-[#8b6914]">
+        <p className="mt-2 text-2xl font-bold text-[var(--airjam-color-text-paper)]">
+          Final Earnings
+        </p>
+        <p className="mt-2 text-3xl font-black text-[var(--airjam-color-button)]">
           EUR {finalTotalMoney}
         </p>
         <LifecycleActionGroup
@@ -382,7 +386,7 @@ function OfficeControllerEndedView({
           presentation="pill"
           visibleKinds={["back-to-lobby", "restart"]}
           className="w-full flex-col items-stretch gap-2 pt-1"
-          buttonClassName="h-11 w-full justify-center rounded-none border-[#8b6914]/30 bg-[#8b6914] px-4 text-[0.6875rem] font-black tracking-[0.16em] text-[#fdf6e3] uppercase hover:bg-[#7a5b11]"
+          buttonClassName="h-11 w-full justify-center rounded-none border-[var(--airjam-color-button)]/30 bg-[var(--airjam-color-button)] px-4 text-[0.6875rem] font-black tracking-[0.16em] text-[var(--airjam-color-paper-cream)] uppercase hover:bg-[var(--airjam-color-button-hover)]"
         />
       </div>
     </div>
@@ -401,15 +405,15 @@ function OfficeControllerGameplayView({
 
   if (gameOver) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-5 text-center shadow-md">
+      <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[var(--airjam-color-border-paper)] bg-[var(--airjam-color-paper-disabled)] p-5 text-center shadow-md">
         <div className="max-w-sm">
-          <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
+          <p className="text-xs tracking-[0.22em] text-[var(--airjam-color-button)] uppercase">
             Konec igre
           </p>
-          <p className="mt-2 text-2xl font-bold text-[#c06030]">
+          <p className="mt-2 text-2xl font-bold text-[var(--airjam-color-warning)]">
             Vsi igralci so umrli
           </p>
-          <p className="mt-2 text-base text-[#5c4a2e]">
+          <p className="mt-2 text-base text-[var(--airjam-color-text-paper)]">
             Skupaj zbrano: {totalMoney} EUR
           </p>
         </div>
@@ -419,15 +423,15 @@ function OfficeControllerGameplayView({
 
   if (isDead) {
     return (
-      <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[#d8c58a] bg-[#fff8df] p-5 text-center shadow-md">
+      <div className="flex flex-1 items-center justify-center rounded-[28px] border border-[var(--airjam-color-border-paper)] bg-[var(--airjam-color-paper-disabled)] p-5 text-center shadow-md">
         <div className="max-w-sm">
-          <p className="text-xs tracking-[0.22em] text-[#8b6914] uppercase">
+          <p className="text-xs tracking-[0.22em] text-[var(--airjam-color-button)] uppercase">
             Ste mrtvi
           </p>
-          <p className="mt-2 text-xl font-bold text-[#5c4a2e]">
+          <p className="mt-2 text-xl font-bold text-[var(--airjam-color-text-paper)]">
             Opazujete iz onstranstva
           </p>
-          <p className="mt-2 text-sm text-[#6b7280]">
+          <p className="mt-2 text-sm text-[var(--airjam-color-text-gray)]">
             Vaš del igre je končan. Počakajte na naslednji krog.
           </p>
         </div>
@@ -439,8 +443,10 @@ function OfficeControllerGameplayView({
 }
 
 const padArrowClass = (lit: boolean) =>
-  `flex items-center justify-center border text-[#5c4a2e] transition ${
-    lit ? "border-[#8b6914] bg-[#facc15]/35" : "border-[#d8c58a] bg-[#fff6d8]"
+  `flex items-center justify-center border text-[var(--airjam-color-text-paper)] transition ${
+    lit
+      ? "border-[var(--airjam-color-button)] bg-[var(--airjam-color-control-active)]/35"
+      : "border-[var(--airjam-color-border-paper)] bg-[var(--airjam-color-paper)]"
   }`;
 
 function OfficeControllerPlayingControls({
@@ -455,7 +461,7 @@ function OfficeControllerPlayingControls({
         directions="4-way"
         deadzone={0.22}
         aria-label="Movement pad"
-        className="min-h-0 rounded-[28px] border border-[#d8c58a] bg-[#fff8df] shadow-md"
+        className="min-h-0 rounded-[28px] border border-[var(--airjam-color-border-paper)] bg-[var(--airjam-color-paper-disabled)] shadow-md"
       >
         {({ value }) => (
           <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 gap-2 p-4">
@@ -467,7 +473,7 @@ function OfficeControllerPlayingControls({
             <div className={padArrowClass(value.x === -1)}>
               <ChevronLeft className="h-8 w-8" />
             </div>
-            <div className="border border-[#d8c58a] bg-[#fff1bd]/60" />
+            <div className="border border-[var(--airjam-color-border-paper)] bg-[var(--airjam-color-paper-light-gold)]/60" />
             <div className={padArrowClass(value.x === 1)}>
               <ChevronRight className="h-8 w-8" />
             </div>
@@ -485,7 +491,7 @@ function OfficeControllerPlayingControls({
 
         <ControlButton
           control={officeInput.action}
-          className="flex min-h-[50%] flex-1 items-center justify-center border border-[#d8c58a] bg-[#fff1bd] px-5 text-4xl font-black text-[#5c4a2e] shadow-lg transition-transform active:scale-[0.98] data-[active=true]:scale-[0.98]"
+          className="flex min-h-[50%] flex-1 items-center justify-center border border-[var(--airjam-color-border-paper)] bg-[var(--airjam-color-paper-light-gold)] px-5 text-4xl font-black text-[var(--airjam-color-text-paper)] shadow-lg transition-transform active:scale-[0.98] data-[active=true]:scale-[0.98]"
         >
           WORK
         </ControlButton>
@@ -506,43 +512,55 @@ function OfficeControllerGameplayStatusCard({
   const boredomValue = myStats?.boredom ?? 0;
 
   return (
-    <div className="grid gap-1.5 border border-[#d8c58a] bg-[#fff8df] p-3 shadow-sm">
+    <div className="grid gap-1.5 border border-[var(--airjam-color-border-paper)] bg-[var(--airjam-color-paper-disabled)] p-3 shadow-sm">
       <div className="flex items-center justify-between text-[10px] tracking-[0.14em] uppercase">
-        <span className="text-[#8b6914]">Earned</span>
-        <span className="font-black text-[#5c4a2e]">EUR {totalMoney}</span>
+        <span className="text-[var(--airjam-color-button)]">Earned</span>
+        <span className="font-black text-[var(--airjam-color-text-paper)]">
+          EUR {totalMoney}
+        </span>
       </div>
       <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] uppercase">
-        <span className="w-16 shrink-0 text-[#8b6914]">Energy</span>
-        <div className="h-2 flex-1 overflow-hidden bg-[#eadcbc]">
+        <span className="w-16 shrink-0 text-[var(--airjam-color-button)]">
+          Energy
+        </span>
+        <div className="h-2 flex-1 overflow-hidden bg-[var(--airjam-color-paper-muted)]">
           <div
             className={`h-full transition-all duration-300 ${
-              energyValue > 30 ? "bg-[#d46060]" : "bg-[#a03030]"
+              energyValue > 30
+                ? "bg-[var(--airjam-color-energy-bar)]"
+                : "bg-[var(--airjam-color-energy-bar-low)]"
             }`}
             style={{ width: `${energyValue}%` }}
           />
         </div>
-        <span className="w-8 text-right font-black text-[#5c4a2e]">
+        <span className="w-8 text-right font-black text-[var(--airjam-color-text-paper)]">
           {Math.round(energyValue)}
         </span>
       </div>
       <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] uppercase">
-        <span className="w-16 shrink-0 text-[#8b6914]">Happy</span>
-        <div className="h-2 flex-1 overflow-hidden bg-[#eadcbc]">
+        <span className="w-16 shrink-0 text-[var(--airjam-color-button)]">
+          Happy
+        </span>
+        <div className="h-2 flex-1 overflow-hidden bg-[var(--airjam-color-paper-muted)]">
           <div
             className={`h-full transition-all duration-300 ${
-              boredomValue > 30 ? "bg-[#5b9bd5]" : "bg-[#3a7bb5]"
+              boredomValue > 30
+                ? "bg-[var(--airjam-color-player2)]"
+                : "bg-[var(--airjam-color-boredom-bar-low)]"
             }`}
             style={{ width: `${boredomValue}%` }}
           />
         </div>
-        <span className="w-8 text-right font-black text-[#5c4a2e]">
+        <span className="w-8 text-right font-black text-[var(--airjam-color-text-paper)]">
           {Math.round(boredomValue)}
         </span>
       </div>
       {myTaskName ? (
         <div className="flex items-center justify-between text-[10px] tracking-[0.14em] uppercase">
-          <span className="truncate text-[#8b6914]">Working</span>
-          <span className="truncate font-black text-[#5c4a2e]">
+          <span className="truncate text-[var(--airjam-color-button)]">
+            Working
+          </span>
+          <span className="truncate font-black text-[var(--airjam-color-text-paper)]">
             {myTaskName}
           </span>
         </div>

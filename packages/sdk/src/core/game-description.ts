@@ -4,9 +4,11 @@ import {
   createAirJamAgentEvaluator,
 } from "../agent/agent-evaluator";
 import { airJamGameMetadataSchema } from "../metadata/manifest";
+import { airJamAssetsSchema } from "./assets";
 import type { AirJamGame } from "./game";
 import { airJamInputDescriptionSchema } from "./input";
 import { airJamSettingSchema } from "./settings";
+import { airJamThemeSchema } from "./theme";
 
 export const airJamGameDescriptionSchema = z
   .object({
@@ -18,6 +20,8 @@ export const airJamGameDescriptionSchema = z
     agent: agentContractDescriptionSchema.nullable(),
     testing: z.boolean(),
     settings: z.record(z.string(), airJamSettingSchema),
+    assets: airJamAssetsSchema,
+    theme: airJamThemeSchema,
   })
   .strict();
 export type AirJamGameDescription = z.infer<typeof airJamGameDescriptionSchema>;
@@ -34,5 +38,7 @@ export function describeAirJamGame(game: AirJamGame): AirJamGameDescription {
       : null,
     testing: Boolean(game.testing),
     settings: game.settings ?? {},
+    assets: game.assets ?? { sounds: {}, images: {}, files: {} },
+    theme: game.theme ?? { colors: {}, fonts: {} },
   });
 }

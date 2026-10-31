@@ -1,4 +1,6 @@
 import type { JSX, ReactNode } from "react";
+import type { SoundManifest } from "../audio/audio-manager";
+import { AudioRuntime } from "../audio/hooks";
 import { type AirJamProviderProps } from "../context/session-providers";
 import { isAirJamGame, type AirJamGame } from "../core/game";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
@@ -165,6 +167,24 @@ export const createAirJamApp = (
     inputBindings,
   } = game;
 
+  const soundsFor = (surface: "host" | "controller"): SoundManifest =>
+    Object.fromEntries(
+      Object.entries(game.assets?.sounds ?? {}).filter(
+        ([, sound]) => !sound.surface || sound.surface === surface,
+      ),
+    );
+  const hostSounds = soundsFor("host");
+  const controllerSounds = soundsFor("controller");
+  const themeProperties = Object.entries(game.theme ?? {})
+    .flatMap(([kind, tokens]) =>
+      Object.entries(tokens).map(
+        ([id, value]) =>
+          `--airjam-${kind === "colors" ? "color" : "font"}-${id.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${value};`,
+      ),
+    )
+    .join("");
+  const themeStyle = `:root{${themeProperties}}`;
+
   const hostSession: HostSessionProps = {
     ...runtime,
     maxPlayers: metadata.maxPlayers,
@@ -206,7 +226,8 @@ export const createAirJamApp = (
             renderFallback={hostErrorBoundary?.renderFallback}
             onError={hostErrorBoundary?.onError}
           >
-            {children}
+            <style>{themeStyle}</style>
+            <AudioRuntime manifest={hostSounds}>{children}</AudioRuntime>
           </ConnectedRuntimeErrorBoundary>
         </AirJamHostRuntime>
       </AirJamErrorBoundary>
@@ -239,7 +260,8 @@ export const createAirJamApp = (
             renderFallback={controllerErrorBoundary?.renderFallback}
             onError={controllerErrorBoundary?.onError}
           >
-            {children}
+            <style>{themeStyle}</style>
+            <AudioRuntime manifest={controllerSounds}>{children}</AudioRuntime>
           </ConnectedRuntimeErrorBoundary>
         </AirJamControllerRuntime>
       </AirJamErrorBoundary>

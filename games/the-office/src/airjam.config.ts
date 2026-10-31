@@ -1,12 +1,16 @@
 import { defineAirJamGame } from "@air-jam/sdk/core";
 import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+import { theOfficeAssets } from "./game/assets";
 import { agentContract } from "./game/contracts/agent";
 import { officeInput, officeInputBindings } from "./game/contracts/input";
 import { officeSimulation } from "./game/engine/office-simulation";
 import { spaceStore } from "./game/stores/space-store";
+import { theOfficeTheme } from "./game/theme";
 
 import { officeSettings } from "./game/contracts/settings";
 export const airjam = defineAirJamGame({
+  assets: theOfficeAssets,
+  theme: theOfficeTheme,
   metadata: defineAirJamGameMetadata({
     slug: "the-office",
     name: "The Office",

@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { CylinderGeometry, DoubleSide, PlaneGeometry, type Mesh } from "three";
+import { airCaptureTheme } from "../../theme";
 
 const FLAG_HEIGHT = 8;
 
@@ -81,8 +82,8 @@ export function FlagModel({
       {/* Flag pole */}
       <mesh geometry={poleGeometry} position={[0, FLAG_HEIGHT / 2, 0]}>
         <meshStandardMaterial
-          color="#f3f4f6"
-          emissive="#9ca3af"
+          color={airCaptureTheme.colors.flagPole}
+          emissive={airCaptureTheme.colors.flagBase}
           roughness={0.4}
           metalness={0.1}
         />

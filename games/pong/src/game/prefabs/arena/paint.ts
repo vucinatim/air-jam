@@ -1,3 +1,4 @@
+import { pongTheme } from "../../theme";
 import type { PongArenaPrefabProps } from "./schema";
 
 interface PaintPongArenaOptions {
@@ -21,7 +22,7 @@ export const paintPongArena = (
 
   if (options.showBounds) {
     ctx.setLineDash([]);
-    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.strokeStyle = pongTheme.colors.arenaMarkings;
     ctx.strokeRect(0.5, 0.5, props.fieldWidth - 1, props.fieldHeight - 1);
   }
 };

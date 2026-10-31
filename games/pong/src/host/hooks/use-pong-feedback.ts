@@ -1,10 +1,10 @@
 import { useAirJamStore, useAudio, useSendSignal } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef } from "react";
+import type { PongSoundId } from "../../game/assets";
 import {
   createMatchWinnerToastSignal,
   createPaddleHitHapticSignal,
 } from "../../game/contracts/controller-signals";
-import type { PongSoundId } from "../../game/contracts/sounds";
 import type { TeamId } from "../../game/domain/team";
 import { pongStore } from "../../game/stores";
 

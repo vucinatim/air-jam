@@ -1,9 +1,6 @@
 import { useAudio, useHostAudioMutePreference } from "@air-jam/sdk";
 import { useCallback, useEffect, useRef } from "react";
-import type {
-  CodeReviewSfxId,
-  CodeReviewSoundId,
-} from "../../game/contracts/sounds";
+import type { CodeReviewSfxId, CodeReviewSoundId } from "../../game/assets";
 import type { CodeReviewMatchPhase } from "../../game/stores/code-review-store-types";
 
 export const useCodeReviewAudio = (matchPhase: CodeReviewMatchPhase) => {

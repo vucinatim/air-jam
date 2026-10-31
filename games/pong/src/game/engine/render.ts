@@ -1,4 +1,5 @@
 import { PONG_ARENA_PREFAB } from "../prefabs/arena";
+import { pongTheme } from "../theme";
 import {
   BALL_SIZE,
   FIELD_HEIGHT,
@@ -73,7 +74,7 @@ export const drawFrame = ({
       ? TEAM1_COLOR
       : state.lastTouchedTeam === "team2"
         ? TEAM2_COLOR
-        : "#fff";
+        : pongTheme.colors.white;
   ctx.beginPath();
   ctx.arc(
     state.ballX + BALL_SIZE / 2,
@@ -85,8 +86,8 @@ export const drawFrame = ({
   ctx.fill();
 
   if (countdown !== null) {
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 120px Arial";
+    ctx.fillStyle = pongTheme.colors.white;
+    ctx.font = `bold 120px ${pongTheme.fonts.canvas}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(countdown.toString(), FIELD_WIDTH / 2, FIELD_HEIGHT / 2);

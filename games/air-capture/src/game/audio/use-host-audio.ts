@@ -1,10 +1,10 @@
 import { useAudio } from "@air-jam/sdk";
 import { useMemo } from "react";
+import type { HostSfxId } from "../assets";
 import {
   createHostAudioFacade,
   type HostAudioFacade,
 } from "./host-audio-playback";
-import type { HostSfxId } from "./sounds";
 
 export function useHostAudio(): HostAudioFacade {
   const audio = useAudio<HostSfxId>();

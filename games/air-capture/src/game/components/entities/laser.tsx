@@ -4,6 +4,7 @@ import type { Mesh } from "three";
 import { BoxGeometry, MeshStandardMaterial } from "three";
 import { getProjectileRotation } from "../../engine/projectiles/flight";
 import type { AirCaptureSim, LaserSim } from "../../simulation/state";
+import { airCaptureTheme } from "../../theme";
 
 /** Draws one laser where the simulation flies it. */
 const LaserComponent = ({ laser }: { laser: LaserSim }) => {
@@ -12,8 +13,8 @@ const LaserComponent = ({ laser }: { laser: LaserSim }) => {
   const material = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0x00ffff,
-        emissive: 0x00ffff,
+        color: airCaptureTheme.colors.cyan,
+        emissive: airCaptureTheme.colors.cyan,
         emissiveIntensity: 5,
         toneMapped: false,
       }),

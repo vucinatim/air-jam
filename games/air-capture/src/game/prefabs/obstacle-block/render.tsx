@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { BoxGeometry, MeshStandardMaterial } from "three";
+import { airCaptureTheme } from "../../theme";
 import type { AirCaptureObstacleBlockPrefabProps } from "./schema";
 
 export function AirCaptureObstacleBlock({
@@ -14,7 +15,7 @@ export function AirCaptureObstacleBlock({
   const material = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: 0x666666,
+        color: airCaptureTheme.colors.rocketBand,
         roughness: 0.7,
         metalness: 0.3,
       }),
