@@ -189,4 +189,48 @@ describe("core controller runtime", () => {
     expect(() => controls.press("paddle")).toThrow(/not a declared button/);
     stop();
   });
+
+  it("reports reconnecting while the transport retries and disconnected when it stops", () => {
+    const socket = createMemorySocket((event, payload) =>
+      event === "controller:join"
+        ? {
+            ok: true,
+            controllerId: (payload as { controllerId: string }).controllerId,
+          }
+        : undefined,
+    );
+    const { environment } = createMemoryEnvironment(socket);
+    const store = createConnectionStore();
+    const runtime = new ControllerRuntime(
+      {
+        store,
+        getSocket: () => {
+          throw new Error("The memory transport needs no socket.");
+        },
+        disconnectSocket: () => {},
+        environment,
+        stores: [],
+      },
+      { controllerId: "ctrl_1" },
+    );
+    const stop = runtime.start();
+
+    socket.connected = false;
+    socket.fire("disconnect", "transport close");
+    expect(store.getState()).toMatchObject({
+      connectionStatus: "reconnecting",
+      lastError: undefined,
+    });
+
+    socket.connect();
+    expect(store.getState().connectionStatus).toBe("connected");
+
+    socket.connected = false;
+    socket.fire("disconnect", "io server disconnect");
+    expect(store.getState()).toMatchObject({
+      connectionStatus: "disconnected",
+      lastError: "io server disconnect",
+    });
+    stop();
+  });
 });

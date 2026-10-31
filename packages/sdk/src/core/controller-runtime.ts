@@ -45,6 +45,11 @@ import type { AttachableStore } from "./replicated-store";
 const HOST_LEFT_RECONNECT_DELAY_MS = 1000;
 /** How often a controller repeats its controls, so a host that rejoined holds them. */
 const INPUT_KEEPALIVE_MS = 1000;
+/** Socket.IO reconnects on its own after every disconnect except these deliberate ones. */
+const FINAL_DISCONNECT_REASONS = new Set([
+  "io server disconnect",
+  "io client disconnect",
+]);
 
 /** Options that decide which seat a controller takes. */
 export interface ControllerRuntimeIdentityOptions {
@@ -559,8 +564,12 @@ export class ControllerRuntime {
         data: { socketId: socket.id, reason },
       });
       const state = store.getState();
-      if (reason) state.setError(reason);
-      state.setStatus("disconnected");
+      if (reason && !FINAL_DISCONNECT_REASONS.has(reason)) {
+        state.setStatus("reconnecting");
+      } else {
+        if (reason) state.setError(reason);
+        state.setStatus("disconnected");
+      }
       state.resetRuntimeState();
       this.lastObservedStateVersion = null;
     };
