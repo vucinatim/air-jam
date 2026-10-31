@@ -31,25 +31,27 @@ const LoadingScreen = () => (
 
 export function App() {
   return (
-    <Suspense fallback={<LoadingScreen />}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <app.Host>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <app.Host>
+            <Suspense fallback={<LoadingScreen />}>
               <HostView />
-            </app.Host>
-          }
-        />
-        <Route
-          path={app.paths.controller}
-          element={
-            <app.Controller>
+            </Suspense>
+          </app.Host>
+        }
+      />
+      <Route
+        path={app.paths.controller}
+        element={
+          <app.Controller>
+            <Suspense fallback={<LoadingScreen />}>
               <ControllerView />
-            </app.Controller>
-          }
-        />
-      </Routes>
-    </Suspense>
+            </Suspense>
+          </app.Controller>
+        }
+      />
+    </Routes>
   );
 }

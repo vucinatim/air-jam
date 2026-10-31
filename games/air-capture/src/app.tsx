@@ -63,25 +63,27 @@ const HostSurface = (): JSX.Element => {
 
 export const App = (): JSX.Element => {
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <app.Host>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <app.Host>
+            <Suspense fallback={<RouteFallback />}>
               <HostSurface />
-            </app.Host>
-          }
-        />
-        <Route
-          path={app.paths.controller}
-          element={
-            <app.Controller>
+            </Suspense>
+          </app.Host>
+        }
+      />
+      <Route
+        path={app.paths.controller}
+        element={
+          <app.Controller>
+            <Suspense fallback={<RouteFallback />}>
               <ControllerView />
-            </app.Controller>
-          }
-        />
-      </Routes>
-    </Suspense>
+            </Suspense>
+          </app.Controller>
+        }
+      />
+    </Routes>
   );
 };
