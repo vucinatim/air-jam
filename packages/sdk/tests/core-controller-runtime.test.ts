@@ -226,6 +226,7 @@ describe("core controller runtime", () => {
     expect(store.getState().connectionStatus).toBe("connected");
 
     socket.connected = false;
+    socket.active = false;
     socket.fire("disconnect", "io server disconnect");
     expect(store.getState()).toMatchObject({
       connectionStatus: "disconnected",

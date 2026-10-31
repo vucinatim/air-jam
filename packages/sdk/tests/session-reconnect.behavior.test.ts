@@ -27,6 +27,7 @@ import { frameInParent } from "./fixtures/framed-window";
 
 interface MockSocket {
   connected: boolean;
+  active: boolean;
   on: ReturnType<typeof vi.fn>;
   off: ReturnType<typeof vi.fn>;
   emit: ReturnType<typeof vi.fn>;
@@ -41,6 +42,7 @@ const mocked = vi.hoisted(() => ({
 
     const socket = {
       connected: true,
+      active: true,
       on: vi.fn((event: string, handler: Listener) => {
         const current = listeners.get(event) ?? new Set<Listener>();
         current.add(handler);
