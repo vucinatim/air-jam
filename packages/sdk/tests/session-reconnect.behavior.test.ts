@@ -419,7 +419,7 @@ describe("session reconnect behavior", () => {
       disconnectHandler?.("transport close");
     });
 
-    expect(result.current.connectionStatus).toBe("disconnected");
+    expect(result.current.connectionStatus).toBe("reconnecting");
     expect(result.current.runtimeState).toBe("playing");
   });
 
