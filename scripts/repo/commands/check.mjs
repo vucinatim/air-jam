@@ -2,6 +2,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
+  gamesRoot,
+  listScaffoldableRepoGameDirectories,
+} from "../../../packages/create-airjam/scripts/lib/scaffold-source-manifests.mjs";
+import {
   buildChangedCheckPlan,
   integrationBranch,
 } from "../lib/check-plan.mjs";
@@ -120,6 +124,9 @@ const emitPlan = (plan, json) => {
   console.log(`Changed files: ${plan.changedFiles.length}`);
   console.log(`Lint files: ${plan.changed.lintFiles.length}`);
   console.log(
+    `Template freshness: ${plan.changed.templateGameDirectories.join(", ") || "none"}`,
+  );
+  console.log(
     `TypeScript projects: ${plan.changed.typecheckProjects.join(", ") || "none"}`,
   );
   console.log(`Batch required: ${plan.batchRequired ? "yes" : "no"}`);
@@ -160,19 +167,29 @@ const handleAsyncAction = (action) => async (options) => {
   }
 };
 
-const preparePlan = (base, selectedFiles) => {
+const preparePlan = (base, selectedFiles, checkTemplates = true) => {
   const changed = collectChangedFiles(base);
+  const files = normalizeSelectedFiles(selectedFiles) ?? changed.files;
+  const gamesDirectory = path
+    .relative(repoRoot, gamesRoot)
+    .split(path.sep)
+    .join("/");
+  const scaffoldGameDirectories =
+    checkTemplates &&
+    files.some((file) => file.startsWith(`${gamesDirectory}/`))
+      ? listScaffoldableRepoGameDirectories().map((gameDir) =>
+          path.relative(repoRoot, gameDir).split(path.sep).join("/"),
+        )
+      : [];
   return {
     base,
     mergeBase: changed.mergeBase,
-    ...buildChangedCheckPlan(
-      normalizeSelectedFiles(selectedFiles) ?? changed.files,
-    ),
+    ...buildChangedCheckPlan(files, { scaffoldGameDirectories }),
   };
 };
 
 const runInstantCommand = async (options) => {
-  const plan = preparePlan(options.base, options.files);
+  const plan = await preparePlan(options.base, options.files, false);
   const result = await runInstant(plan, plan.mergeBase);
   emitResult(
     {
@@ -189,7 +206,8 @@ const runInstantCommand = async (options) => {
 };
 
 const runChangedCommand = async (options) => {
-  const plan = preparePlan(options.base, options.files);
+  const startedAt = performance.now();
+  const plan = await preparePlan(options.base, options.files);
   if (plan.batchRequired) {
     throw new Error(
       `The changed gate stays bounded and will not expand into a slow repo check:\n- ${plan.batchReasons.join("\n- ")}\nRun pnpm check:batch for this change.`,
@@ -197,8 +215,19 @@ const runChangedCommand = async (options) => {
   }
 
   mkdirSync(cacheRoot, { recursive: true });
-  const startedAt = performance.now();
   const instant = await runInstant(plan, plan.mergeBase);
+  const templateChecks = [];
+  if (plan.changed.templateGameDirectories.length > 0) {
+    templateChecks.push(
+      await runCommandCaptured(process.execPath, [
+        "packages/create-airjam/scripts/check-scaffold-sources.mjs",
+        ...plan.changed.templateGameDirectories.flatMap((directory) => [
+          "--game",
+          path.basename(directory),
+        ]),
+      ]),
+    );
+  }
   const checks = await Promise.all([
     ...lintTasks(plan.changed.lintFiles),
     ...typecheckTasks(plan.changed.typecheckProjects),
@@ -213,14 +242,17 @@ const runChangedCommand = async (options) => {
       changedFiles: plan.changedFiles,
       lintFiles: plan.changed.lintFiles,
       typecheckProjects: plan.changed.typecheckProjects,
+      templateGameDirectories: plan.changed.templateGameDirectories,
       durationMs,
       instantDurationMs: instant.durationMs,
       targetWarmMs: plan.changed.targetWarmMs,
       targetExceeded: durationMs > plan.changed.targetWarmMs,
-      checks: checks.map(({ command, durationMs: checkDurationMs }) => ({
-        command,
-        durationMs: checkDurationMs,
-      })),
+      checks: [...templateChecks, ...checks].map(
+        ({ command, durationMs: checkDurationMs }) => ({
+          command,
+          durationMs: checkDurationMs,
+        }),
+      ),
     },
     options.json,
   );
@@ -257,8 +289,10 @@ export const registerCheckCommands = (program) => {
       "Limit an in-between check to explicit repository files",
     )
     .option("--json", "Print stdout-only JSON")
-    .action((options) =>
-      emitPlan(preparePlan(options.base, options.files), options.json),
+    .action(
+      handleAsyncAction(async (options) =>
+        emitPlan(await preparePlan(options.base, options.files), options.json),
+      ),
     );
 
   checkCommand
@@ -281,7 +315,7 @@ export const registerCheckCommands = (program) => {
   checkCommand
     .command("changed")
     .description(
-      "Run cached lint and affected TypeScript checks; warm target <=5s",
+      "Run cached lint, affected TypeScript and scaffold freshness checks; warm target <=5s",
     )
     .option(
       "--base <ref>",

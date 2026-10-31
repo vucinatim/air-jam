@@ -76,7 +76,11 @@ const affectsProjectTypes = (file) => {
 
 export const buildChangedCheckPlan = (
   changedFiles,
-  { projects = discoverTypecheckProjects(), fileExists = existsSync } = {},
+  {
+    projects = discoverTypecheckProjects(),
+    fileExists = existsSync,
+    scaffoldGameDirectories = [],
+  } = {},
 ) => {
   const files = [...new Set(changedFiles.map(normalizePath))].sort();
   const existingFiles = files.filter((file) =>
@@ -132,6 +136,11 @@ export const buildChangedCheckPlan = (
     changed: {
       lintFiles,
       typecheckProjects,
+      templateGameDirectories: scaffoldGameDirectories
+        .filter((directory) =>
+          files.some((file) => file.startsWith(`${directory}/`)),
+        )
+        .sort(),
       targetWarmMs: fastCheckTargets.changedWarmMs,
     },
     batchRequired: batchReasons.length > 0,
