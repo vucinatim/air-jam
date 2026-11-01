@@ -929,25 +929,43 @@ export class GameRunOwner {
           (candidate) => candidate.id === step.seatId,
         );
         if (!seat) throw new Error("Setup seat is not initialized.");
-        const observation = await this.observe(run, seat, false);
-        const receipt = await this.control(
-          run,
-          seat,
-          observation,
-          {
-            kind: "action",
-            actionId: step.actionId,
-            input: step.input,
-            deadlineMs: this.deadline(observation),
-          },
-          "setup",
-        );
-        if (
-          receipt.status !== "applied" ||
-          receipt.operation.kind !== "action" ||
-          !receipt.operation.result.ok
-        )
-          throw new Error(`Setup action ${step.actionId} was not accepted.`);
+        while (true) {
+          if (run.abort.signal.aborted) return;
+          if (performance.now() >= run.deadline) {
+            // Teardown waits for startup, so it cannot be awaited here.
+            void this.terminate(
+              run,
+              "budget",
+              "Run reached its time budget.",
+            ).catch((error) => console.error(error));
+            return;
+          }
+          const observation = await this.observe(run, seat, false);
+          const receipt = await this.control(
+            run,
+            seat,
+            observation,
+            {
+              kind: "action",
+              actionId: step.actionId,
+              input: step.input,
+              deadlineMs: this.deadline(observation),
+            },
+            "setup",
+          );
+          if (
+            receipt.status === "rejected" &&
+            receipt.reason === "stale_decision"
+          )
+            continue;
+          if (
+            receipt.status !== "applied" ||
+            receipt.operation.kind !== "action" ||
+            !receipt.operation.result.ok
+          )
+            throw new Error(`Setup action ${step.actionId} was not accepted.`);
+          break;
+        }
       }
     }
     await this.persist(run);
