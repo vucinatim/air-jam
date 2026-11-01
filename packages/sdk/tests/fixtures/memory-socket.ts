@@ -15,6 +15,7 @@ export const createMemorySocket = (
   };
   const socket = {
     connected: false,
+    active: false,
     id: "memory-socket",
     on: (event: string, listener: Listener) => {
       listeners.set(event, (listeners.get(event) ?? new Set()).add(listener));
@@ -27,11 +28,13 @@ export const createMemorySocket = (
     },
     connect: () => {
       socket.connected = true;
+      socket.active = true;
       fire("connect");
       return socket;
     },
     disconnect: () => {
       socket.connected = false;
+      socket.active = false;
       fire("disconnect", "io client disconnect");
       return socket;
     },

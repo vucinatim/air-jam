@@ -52,6 +52,9 @@ const createReplayRoom = () => {
     get connected() {
       return connected;
     },
+    get active() {
+      return connected;
+    },
     id: "replay",
     connect() {
       connected = true;

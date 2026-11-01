@@ -18,10 +18,11 @@ import {
   type HostBridgeServerEventArgs,
   type HostBridgeServerEventName,
 } from "./host-bridge";
-import type {
-  AirJamRealtimeClient,
-  BridgeListener,
-  DirectSocketGetter,
+import {
+  isFinalSocketDisconnect,
+  type AirJamRealtimeClient,
+  type BridgeListener,
+  type DirectSocketGetter,
 } from "./realtime-client";
 import { readChildHostRuntimeParams } from "./runtime-session-params";
 import { validateArcadeBridgeAttachEpoch } from "./validate-arcade-bridge-attach";
@@ -43,6 +44,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
   private requested = false;
   private lastAttachedArcadeEpoch: number | null = null;
   private allowReconnect = true;
+  private parentSocketRetrying = true;
   private pendingAcks = new Map<
     string,
     {
@@ -51,6 +53,14 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
       timeoutId: ReturnType<typeof setTimeout>;
     }
   >();
+
+  get active(): boolean {
+    return (
+      this.connectTimeout !== null ||
+      this.reconnectTimeout !== null ||
+      (this.port !== null && this.parentSocketRetrying)
+    );
+  }
 
   connect(): this {
     const runtimeParams = readChildHostRuntimeParams();
@@ -75,6 +85,7 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
     }
 
     this.allowReconnect = true;
+    this.parentSocketRetrying = true;
     this.clearReconnectTimeout();
     this.clearPort(false);
     this.requested = true;
@@ -301,10 +312,14 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
 
       if (event === "connect") {
         this.connected = true;
+        this.parentSocketRetrying = true;
       }
 
       if (event === "disconnect") {
         this.connected = false;
+        this.parentSocketRetrying = !isFinalSocketDisconnect(
+          args[0] as string | undefined,
+        );
       }
 
       if (
@@ -340,11 +355,11 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
         readChildHostRuntimeParams(),
         { reason: closeMessage.payload.reason },
       );
-      this.clearPort(true, closeMessage.payload.reason);
       this.scheduleReconnect(
         closeMessage.payload.reason,
         BRIDGE_TRANSIENT_CLOSE_REASONS,
       );
+      this.clearPort(true, closeMessage.payload.reason);
     }
   }
 

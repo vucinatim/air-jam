@@ -14,6 +14,10 @@ export class DirectRealtimeClient implements AirJamRealtimeClient {
     return this.socket.connected;
   }
 
+  get active(): boolean {
+    return this.socket.active;
+  }
+
   get id(): string | undefined {
     return this.socket.id;
   }

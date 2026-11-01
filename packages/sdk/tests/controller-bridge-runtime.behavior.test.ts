@@ -15,6 +15,12 @@ import {
   AIRJAM_DEV_RUNTIME_EVENT,
   type AirJamDevRuntimeEventDetail,
 } from "../src/runtime/dev-runtime-events";
+import {
+  ControllerRuntime,
+  createConnectionStore,
+  type AirJamControllerEnvironment,
+} from "../src/core";
+import { createControllerBridgeEventMessage } from "../src/runtime/controller-bridge";
 import { frameInParent } from "./fixtures/framed-window";
 
 describe("embedded controller bridge runtime", () => {
@@ -500,6 +506,114 @@ describe("embedded controller bridge runtime", () => {
     expect(client.connected).toBe(true);
     expect(connectSpy).toHaveBeenCalledTimes(2);
   });
+
+  describe("through the controller runtime", () => {
+    const attachMessage = (controllerBridge: boolean) => ({
+      type: "AIRJAM_CONTROLLER_BRIDGE_ATTACH",
+      payload: {
+        handshake: {
+          protocolVersion: "2",
+          sdkVersion: "1.0.0",
+          runtimeKind: "arcade-controller-runtime",
+          capabilityFlags: { controllerBridge },
+        },
+        snapshot: {
+          roomId: "ROOM1",
+          controllerId: "ctrl_1",
+          connected: true,
+          players: [{ id: "ctrl_1", label: "Player 1" }],
+          arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
+        },
+      },
+    });
+
+    const startRuntime = () => {
+      const postMessageSpy = vi.spyOn(window.parent, "postMessage");
+      const client = getControllerRealtimeClient(() => {
+        throw new Error("direct socket should not be requested");
+      });
+      const store = createConnectionStore();
+      const environment: AirJamControllerEnvironment = {
+        embedded: { roomId: "ROOM1", controllerId: "ctrl_1" },
+        requestedRoomId: "ROOM1",
+        requestedControllerId: "ctrl_1",
+        capabilityToken: null,
+        deviceId: "device-1",
+        leaveOnStop: false,
+        runMode: "standalone",
+        defaultStoreDomain: "default",
+        readBinding: () => null,
+        writeBinding: () => {},
+        clearBinding: () => {},
+        vibrate: () => {},
+        requestFrame: () => {},
+        transport: () => client,
+        emitDevEvent: () => {},
+        setDevLogContext: () => {},
+      };
+      const runtime = new ControllerRuntime(
+        {
+          store,
+          getSocket: () => {
+            throw new Error("direct socket should not be requested");
+          },
+          disconnectSocket: () => {},
+          environment,
+          stores: [],
+        },
+        { controllerId: "ctrl_1" },
+      );
+      const stop = runtime.start();
+      const port = (
+        getMockCall(postMessageSpy)?.[2] as MessagePort[] | undefined
+      )?.[0];
+      if (!port) throw new Error("Expected a bridge request port.");
+      port.start?.();
+      return { client, store, port, stop };
+    };
+
+    it("reports a rejected bridge handshake as a failure, not a retry", async () => {
+      const { client, store, port, stop } = startRuntime();
+
+      port.postMessage(attachMessage(false));
+
+      await vi.waitFor(() =>
+        expect(store.getState()).toMatchObject({
+          connectionStatus: "disconnected",
+          lastError: "Embedded controller bridge handshake rejected.",
+        }),
+      );
+      expect(client.active).toBe(false);
+      stop();
+    });
+
+    it("reports reconnecting while the Arcade's socket retries, and disconnected once it stops", async () => {
+      const { client, store, port, stop } = startRuntime();
+      port.postMessage(attachMessage(true));
+      await vi.waitFor(() => expect(client.connected).toBe(true));
+
+      port.postMessage(
+        createControllerBridgeEventMessage("disconnect", "transport close"),
+      );
+      await vi.waitFor(() =>
+        expect(store.getState().connectionStatus).toBe("reconnecting"),
+      );
+      expect(client.active).toBe(true);
+
+      port.postMessage(createControllerBridgeEventMessage("connect"));
+      port.postMessage(
+        createControllerBridgeEventMessage("disconnect", "io server disconnect"),
+      );
+      await vi.waitFor(() =>
+        expect(store.getState()).toMatchObject({
+          connectionStatus: "disconnected",
+          lastError: "io server disconnect",
+        }),
+      );
+      expect(client.active).toBe(false);
+      stop();
+    });
+  });
 });
 
 it("renders the acting controller through a read-only harness bridge without requesting a socket", async () => {
@@ -627,4 +741,5 @@ it("renders the acting controller through a read-only harness bridge without req
   window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, recordRuntimeEvent);
   window.history.replaceState({}, "", "/");
   vi.restoreAllMocks();
+
 });
