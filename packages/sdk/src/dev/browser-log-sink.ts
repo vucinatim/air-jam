@@ -103,6 +103,7 @@ export interface DevBrowserLogContext {
 }
 
 const FLUSH_INTERVAL_MS = 200;
+const OUTAGE_RETRY_MS = 2_000;
 const CONSOLE_REPEAT_COALESCE_WINDOW_MS = 1000;
 
 const resolveNodeEnvMode = (): string | undefined => {
@@ -333,6 +334,8 @@ class BrowserLogSinkRuntime {
   private nextSourceSeq = 1;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private hasReset = false;
+  /** Set once the endpoint accepts a batch: later network failures are outages, not misconfiguration. */
+  private delivered = false;
   private readonly originalConsole = new Map<
     ConsoleMethodName,
     Console[ConsoleMethodName]
@@ -821,12 +824,23 @@ class BrowserLogSinkRuntime {
     }
     this.queue.splice(0, this.queue.length);
     this.hasReset = true;
-    await this.postPayload(body, useBeacon);
+    if ((await this.postPayload(body, useBeacon)) === "unreachable") {
+      // The device lost its network, as a dropped phone does: keep the batch
+      // and send it once the connection is back.
+      this.queue.unshift(...entries);
+      this.flushTimer ??= setTimeout(() => {
+        void this.flush();
+      }, OUTAGE_RETRY_MS);
+    }
   }
 
-  private async postPayload(body: string, useBeacon: boolean): Promise<void> {
+  /** Sends a batch; only a network outage after earlier delivery is `unreachable`, everything else that fails is reported. */
+  private async postPayload(
+    body: string,
+    useBeacon: boolean,
+  ): Promise<"sent" | "unreachable" | "failed"> {
     if (!this.endpoint) {
-      return;
+      return "failed";
     }
 
     if (
@@ -840,7 +854,7 @@ class BrowserLogSinkRuntime {
             ? new Blob([body], { type: "application/json" })
             : body;
         if (navigator.sendBeacon(this.endpoint, requestBody)) {
-          return;
+          return "sent";
         }
       } catch {
         // Fall through to fetch keepalive transport.
@@ -862,13 +876,18 @@ class BrowserLogSinkRuntime {
           `Browser log sink endpoint returned ${response.status}`,
           { status: response.status },
         );
+        return "failed";
       }
+      this.delivered = true;
+      return "sent";
     } catch (error) {
+      if (this.delivered) return "unreachable";
       const reason =
         error instanceof Error
           ? error.message
           : "Unknown browser log sink transport failure";
       this.reportTransportFailure(reason);
+      return "failed";
     }
   }
 }
