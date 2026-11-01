@@ -1,4 +1,7 @@
-import type { ControllerLeasedControlAck } from "@air-jam/sdk/protocol";
+import {
+  PARTICIPANT_CONTROL_DEADLINE_MS,
+  type ControllerLeasedControlAck,
+} from "@air-jam/sdk/protocol";
 import type { HostObservation } from "@air-jam/sdk/runtime-control";
 import { randomUUID } from "node:crypto";
 import {
@@ -1089,6 +1092,163 @@ it("checks every seat around judging so a disconnected extra cannot become a sco
   expect(io.evaluate).not.toHaveBeenCalled();
   expect(record.evaluation).toBeUndefined();
 });
+
+async function participantSetupFixture() {
+  const f = await fixture();
+  io.startPolicy.mockImplementation(async (options) => ({
+    profiles: [
+      {
+        ...profile,
+        setup: [{ lane: "participant", seatId: "player", actionId: "tap" }],
+      },
+    ],
+    decide: io.decide,
+    evaluate: io.evaluate,
+    busy: () => false,
+    stop: options.role === "evaluator" ? io.stopEvaluator : io.stopPolicy,
+  }));
+  return f;
+}
+
+it.each([1, 4])(
+  "re-observes and completes setup after %i stale setup controls",
+  async (lateAnswers) => {
+    const f = await participantSetupFixture();
+    const observe = f.session.observe;
+    let observations = 0;
+    f.session.observe = vi.fn(async (options) => {
+      const observation = await observe(options);
+      if (!observation.clock) throw new Error("Expected an observation clock.");
+      if (++observations > 1 && observations <= lateAnswers + 1)
+        observation.clock.startedAtMs -= PARTICIPANT_CONTROL_DEADLINE_MS + 1;
+      return observation;
+    });
+    const control = f.session.control;
+    f.session.control = vi.fn(async (request) =>
+      request.operation.kind === "action" &&
+      performance.now() > request.operation.deadlineMs
+        ? ({ status: "rejected", reason: "stale_decision" } as const)
+        : control(request),
+    );
+    io.decide.mockResolvedValue({
+      control: { kind: "action", actionId: "tap" },
+    });
+    passAfterEffect("Setup recovered.");
+    await f.owner.start(f.request);
+    const record = await f.ended();
+    expect(record.end?.reason).toBe("completed");
+    expect(record.counters.rejected).toBe(lateAnswers);
+    const trace = (
+      await readFile(
+        path.join(
+          f.root,
+          ".airjam/artifacts/runs",
+          f.request.runId,
+          "trace.ndjson",
+        ),
+        "utf8",
+      )
+    )
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const setup = trace.filter(
+      (event) =>
+        event.kind === "control" &&
+        event.phase === "setup" &&
+        event.operation.kind === "action",
+    );
+    expect(setup).toHaveLength(lateAnswers + 1);
+    expect(new Set(setup.map((event) => event.observationId)).size).toBe(
+      setup.length,
+    );
+    expect(new Set(setup.map((event) => event.sequence)).size).toBe(
+      setup.length,
+    );
+    expect(setup.at(-1).acknowledgement.status).toBe("applied");
+    expect(io.decide.mock.calls[0][0].receipts).toMatchObject([
+      { phase: "setup", operation: { kind: "release" } },
+      ...setup.map((event) => ({
+        sequence: event.sequence,
+        acknowledgement: event.acknowledgement,
+      })),
+    ]);
+  },
+);
+
+it("ends stale setup retries at the run deadline without judging gameplay", async () => {
+  const f = await participantSetupFixture();
+  const control = f.session.control;
+  let rejected = 0;
+  const now = vi.spyOn(performance, "now");
+  f.session.control = vi.fn(async (request) => {
+    if (request.operation.kind !== "action") return control(request);
+    if (++rejected === 4)
+      now.mockReturnValue(performance.now() + f.request.budget.durationMs);
+    return { status: "rejected", reason: "stale_decision" } as const;
+  });
+  try {
+    await f.owner.start(f.request);
+    const record = await f.ended();
+    expect(record.end).toMatchObject({
+      reason: "budget",
+      outcome: "inconclusive",
+    });
+    expect(rejected).toBe(4);
+    expect(io.decide).not.toHaveBeenCalled();
+    expect(io.evaluate).not.toHaveBeenCalled();
+    expect(record.cleanup?.close?.closed).toBe(true);
+  } finally {
+    now.mockRestore();
+  }
+});
+
+it.each(["rejected", "unconfirmed", "failed_action"] as const)(
+  "does not retry a participant setup %s failure",
+  async (failure) => {
+    const f = await participantSetupFixture();
+    const control = f.session.control;
+    let attempts = 0;
+    f.session.control = vi.fn(async (request) => {
+      if (request.operation.kind !== "action") return control(request);
+      attempts++;
+      if (failure === "rejected")
+        return { status: "rejected", reason: "invalid_action" } as const;
+      if (failure === "unconfirmed")
+        return {
+          status: "unconfirmed",
+          reason: "transport_ack_unavailable",
+        } as const;
+      const receipt = await control(request);
+      if (receipt.status !== "applied" || receipt.operation.kind !== "action")
+        throw new Error("Expected an applied action.");
+      return {
+        ...receipt,
+        operation: {
+          ...receipt.operation,
+          result: {
+            ok: false,
+            status: "rejected",
+            source: "host",
+            reason: "setup_failed",
+            message: "Setup failed.",
+          } as const,
+        },
+      };
+    });
+    await f.owner.start(f.request);
+    const record = await f.ended();
+    expect(record.end).toMatchObject({
+      reason: "error",
+      outcome: "inconclusive",
+      message: "Setup action tap was not accepted.",
+    });
+    expect(attempts).toBe(failure === "unconfirmed" ? 2 : 1);
+    expect(io.decide).not.toHaveBeenCalled();
+    expect(io.evaluate).not.toHaveBeenCalled();
+    expect(record.cleanup?.close?.closed).toBe(true);
+  },
+);
 
 it("retains setup failure without letting an uninitialized scenario judge it as gameplay", async () => {
   const f = await fixture();

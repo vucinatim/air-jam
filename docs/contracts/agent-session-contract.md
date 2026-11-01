@@ -273,6 +273,11 @@ within the remaining run budget. Preparation is measured separately from each
 decision. Evaluator factories and verdicts remain synchronous. Optional bounded
 decision diagnostics enter the trace, never the game controls or evaluator.
 
+Participant setup actions rejected as `stale_decision` are retried with a fresh
+observation and control sequence within the remaining run time budget. Each
+rejection stays in the trace and receipts. Other setup failures stop the run
+before gameplay evaluation.
+
 Owned tests pin source, policy and evaluator into one sealed build. Source is
 hashed before and after copying; installation and compilation must preserve it.
 The frozen dependency installer uses independent copies and records PNPM's actual
