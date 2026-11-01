@@ -77,6 +77,24 @@ export interface AirJamConnectionState {
  * Factory function to create a new AirJamConnectionState instance.
  * Each AirJamProvider creates its own store for multi-instance support.
  */
+/**
+ * Players still in the room whose phone dropped and is trying to resume, sorted.
+ * They stay in `players` until their resume lease ends.
+ */
+export const getReconnectingPlayerIds = (
+  players: readonly PlayerProfile[],
+  controllers: readonly ControllerPresenceNotice[],
+): string[] => {
+  const playerIds = new Set(players.map((player) => player.id));
+  return controllers
+    .filter(
+      (controller) =>
+        !controller.connected && playerIds.has(controller.controllerId),
+    )
+    .map((controller) => controller.controllerId)
+    .sort();
+};
+
 export const createConnectionStore = (): StoreApi<AirJamConnectionState> =>
   createStore<AirJamConnectionState>((set) => ({
     role: null,

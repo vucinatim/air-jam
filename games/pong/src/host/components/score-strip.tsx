@@ -4,6 +4,7 @@ import { PlayerAvatar } from "@air-jam/sdk/ui";
 import { getTeamColor, type TeamId } from "../../game/domain/team";
 import { pongStore } from "../../game/stores";
 import { MatchScoreDisplay, TeamName } from "../../game/ui";
+import { useAwaitedPlayers } from "../hooks/use-awaited-players";
 import { usePongHostTeams } from "../hooks/use-pong-host-teams";
 
 const buildBotAvatarPlayer = (team: TeamId, index: number): PlayerProfile => ({
@@ -16,6 +17,11 @@ export const ScoreStrip = () => {
   const scores = useAirJamStore(pongStore, (state) => state.scores);
   const { botCounts, pointsToWin, team1Players, team2Players } =
     usePongHostTeams();
+  const awaitedIds = new Set(useAwaitedPlayers().map((player) => player.id));
+  const humanAvatarClassName = (player: PlayerProfile) =>
+    awaitedIds.has(player.id)
+      ? "h-7 w-7 border-2 opacity-40 grayscale"
+      : "h-7 w-7 border-2";
 
   return (
     <div
@@ -46,7 +52,7 @@ export const ScoreStrip = () => {
             key={player.id}
             player={player}
             size="sm"
-            className="h-7 w-7 border-2"
+            className={humanAvatarClassName(player)}
           />
         ))}
       </div>
@@ -77,7 +83,7 @@ export const ScoreStrip = () => {
             key={player.id}
             player={player}
             size="sm"
-            className="h-7 w-7 border-2"
+            className={humanAvatarClassName(player)}
           />
         ))}
         <div className="hidden @xl:block">

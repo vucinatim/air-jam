@@ -2,6 +2,7 @@ import { AIRJAM_DEV_LOG_EVENTS } from "@air-jam/sdk/protocol";
 import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
+  emitControllerDisconnectedNotice,
   emitControllerLeftNotice,
   getChildHostDisconnectTeardownMs,
   getControllerResumeLeaseMsForSource,
@@ -258,6 +259,7 @@ export const registerDisconnectHandler = (
 
       if (resumeLeaseMs > 0) {
         if (controllerSession && resumeLeaseExpiresAt !== null) {
+          emitControllerDisconnectedNotice(io, session, controllerSession);
           void realtimeAdmissionService.markControllerDisconnected(
             controllerSession.admissionLease,
             resumeLeaseMs,

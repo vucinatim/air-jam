@@ -25,6 +25,7 @@ const room = (direction: number) => ({
   beginStep: () => {},
   input: () => ({ direction }),
   players: () => [],
+  reconnectingPlayerIds: () => [],
   runtimeState: () => "playing" as const,
 });
 

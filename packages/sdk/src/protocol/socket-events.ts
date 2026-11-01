@@ -33,6 +33,7 @@ import type {
 import type {
   ControllerJoinedNotice,
   ControllerLeftNotice,
+  ControllerPresenceNotice,
   ControllerWelcomePayload,
   HostLeftNotice,
   PlayerUpdatedNotice,
@@ -132,6 +133,7 @@ export interface ServerToClientEvents {
   "server:roomReady": (payload: RoomReadyNotice) => void;
   "server:controllerJoined": (payload: ControllerJoinedNotice) => void;
   "server:controllerLeft": (payload: ControllerLeftNotice) => void;
+  "server:controllerDisconnected": (payload: ControllerPresenceNotice) => void;
   "server:playerUpdated": (payload: PlayerUpdatedNotice) => void;
   "server:input": (payload: ControllerInputEvent) => void;
   "server:leasedControl": (

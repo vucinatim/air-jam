@@ -88,6 +88,11 @@ export const ServerEvents = {
   CONTROLLER_LEFT: "server:controllerLeft",
 
   /**
+   * Controller dropped and is holding its seat while it tries to resume
+   */
+  CONTROLLER_DISCONNECTED: "server:controllerDisconnected",
+
+  /**
    * Player profile updated (label / avatar) after join
    */
   PLAYER_UPDATED: "server:playerUpdated",

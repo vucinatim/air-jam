@@ -2,8 +2,10 @@ import { useAirJamHost, useAirJamStore } from "@air-jam/sdk";
 import type { Ref } from "react";
 import { FIELD_HEIGHT, FIELD_WIDTH } from "../../game/engine";
 import { pongStore } from "../../game/stores";
+import { useAwaitedPlayers } from "../hooks/use-awaited-players";
 import { MatchOverlay } from "./match-overlay";
 import { ScoreStrip } from "./score-strip";
+import { WaitingOverlay } from "./waiting-overlay";
 
 interface PlayingScreenProps {
   canvasRef: Ref<HTMLCanvasElement>;
@@ -14,6 +16,7 @@ export const PlayingScreen = ({ canvasRef }: PlayingScreenProps) => {
   const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
   const showPausedOverlay =
     matchPhase === "playing" && runtimeState !== "playing";
+  const awaitedPlayers = useAwaitedPlayers();
 
   return (
     // Container-driven: the host may own only part of the window. The score
@@ -42,7 +45,11 @@ export const PlayingScreen = ({ canvasRef }: PlayingScreenProps) => {
           </div>
         </div>
 
-        {showPausedOverlay ? <MatchOverlay /> : null}
+        {showPausedOverlay ? (
+          <MatchOverlay />
+        ) : awaitedPlayers.length > 0 ? (
+          <WaitingOverlay players={awaitedPlayers} />
+        ) : null}
       </div>
     </div>
   );

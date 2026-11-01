@@ -14,6 +14,7 @@ import {
   defineAirJamSimulation,
   HostRuntime,
   replayAirJamInputLog,
+  getReconnectingPlayerIds,
   setting,
   type AirJamActionContext,
   type AirJamHostEnvironment,
@@ -164,6 +165,76 @@ describe("core host runtime", () => {
     stop();
     expect(scores.attached).toBe(false);
     expect(socket.listenerCount()).toBe(0);
+  });
+
+  it("tells the game at once that a phone dropped, and again when it is back", async () => {
+    const socket = createServerSocket();
+    const { environment } = createMemoryEnvironment(socket);
+    const store = createConnectionStore();
+    const seen: string[][] = [];
+    const runtime = new HostRuntime(
+      {
+        config,
+        store,
+        getSocket: () => {
+          throw new Error("The memory transport needs no socket.");
+        },
+        disconnectSocket: () => {},
+        environment,
+        stores: [],
+        simulation: defineAirJamSimulation({
+          stepMs: 10,
+          create: () => ({}),
+          step: (_sim, { reconnectingPlayerIds }) => {
+            seen.push([...reconnectingPlayerIds]);
+          },
+        }),
+      },
+      { seed: 1, record: true },
+    );
+    const stop = runtime.start();
+    await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+    const reconnecting = () =>
+      getReconnectingPlayerIds(
+        store.getState().players,
+        store.getState().controllerSessions,
+      );
+    const player = { id: "ctrl_1", label: "One", color: "#ff0000" };
+    const presence = {
+      controllerId: "ctrl_1",
+      source: "phone" as const,
+      connected: true,
+      resumeLeaseExpiresAt: null,
+      player,
+    };
+    socket.fire("server:controllerJoined", presence);
+    runtime.simulation?.advance(10);
+
+    socket.fire("server:controllerDisconnected", {
+      ...presence,
+      connected: false,
+      resumeLeaseExpiresAt: 30_000,
+    });
+    expect(store.getState().players).toEqual([player]);
+    expect(store.getState().controllerSessions).toEqual([
+      expect.objectContaining({ controllerId: "ctrl_1", connected: false }),
+    ]);
+    expect(reconnecting()).toEqual(["ctrl_1"]);
+    runtime.simulation?.advance(10);
+
+    socket.fire("server:controllerJoined", { ...presence, resumed: true });
+    expect(reconnecting()).toEqual([]);
+    runtime.simulation?.advance(10);
+
+    expect(seen).toEqual([[], ["ctrl_1"], []]);
+    expect(
+      runtime.inputLog().entries.map((entry) => [entry.tick, entry.event]),
+    ).toEqual([
+      [1, "server:controllerJoined"],
+      [2, "server:controllerDisconnected"],
+      [3, "server:controllerJoined"],
+    ]);
+    stop();
   });
 
   it("publishes the agent contract and the simulation's declared view on the host clock", async () => {
