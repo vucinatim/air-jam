@@ -46,7 +46,33 @@ export function AudioRuntime<M extends SoundManifest>({
   manifest,
   children,
 }: AudioRuntimeProps<M>) {
-  const { manager, status, controls } = useOwnedAudio(manifest);
+  const [manager, setManager] = useState<AudioManager<keyof M & string> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const manager = new AudioManager<keyof M & string>(manifest);
+    setManager(manager);
+    return () => manager.destroy();
+  }, [manifest]);
+
+  if (!manager) {
+    return null;
+  }
+
+  return (
+    <MountedAudioRuntime manifest={manifest} manager={manager}>
+      {children}
+    </MountedAudioRuntime>
+  );
+}
+
+function MountedAudioRuntime<M extends SoundManifest>({
+  manifest,
+  manager,
+  children,
+}: AudioRuntimeProps<M> & { manager: AudioManager<keyof M & string> }) {
+  const { status, controls } = useAudioRuntimeState(manager);
 
   useRemoteSound(manifest, manager);
 
@@ -95,10 +121,7 @@ export function useAudioRuntimeControls(): AudioRuntimeControls {
   return controls;
 }
 
-function useOwnedAudio<M extends SoundManifest>(
-  manifest: M,
-): {
-  manager: AudioManager<keyof M & string>;
+function useAudioRuntimeState(manager: AudioManager): {
   status: AudioRuntimeStatus;
   controls: AudioRuntimeControls;
 } {
@@ -108,11 +131,6 @@ function useOwnedAudio<M extends SoundManifest>(
   const platformSettings = useResolvedPlatformSettingsSnapshot();
   const platformSettingsStatus = usePlatformSettingsRuntimeStatus();
   const platformSettingsReady = platformSettingsStatus === "ready";
-  type SoundId = keyof M & string;
-  const manager = useMemo(
-    () => new AudioManager<SoundId>(manifest),
-    [manifest],
-  );
   const [status, setStatus] = useState<AudioRuntimeStatus>(() =>
     globalInitialized && platformSettingsReady ? "ready" : "idle",
   );
@@ -167,12 +185,6 @@ function useOwnedAudio<M extends SoundManifest>(
   }, [manager, role, roomId, getSocket]);
 
   useEffect(() => {
-    return () => {
-      manager.destroy();
-    };
-  }, [manager]);
-
-  useEffect(() => {
     void retry();
   }, [retry]);
 
@@ -201,7 +213,6 @@ function useOwnedAudio<M extends SoundManifest>(
   }, [retry, status]);
 
   return {
-    manager,
     status,
     controls: {
       retry,

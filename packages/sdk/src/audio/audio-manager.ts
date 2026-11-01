@@ -67,7 +67,11 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
   }
 
   public destroy() {
-    // No-op for now; retained for cleanup symmetry with other runtime owners.
+    this.sounds.forEach((sound) => sound.unload());
+    this.sounds.clear();
+    this.categories.clear();
+    this.activeSoundIds.clear();
+    this.manifest = {};
   }
 
   public getCategory(soundId: string): SoundCategory {
