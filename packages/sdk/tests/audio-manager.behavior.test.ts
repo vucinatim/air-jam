@@ -14,7 +14,10 @@ const mocked = vi.hoisted(() => {
   const howlPannerAttr = vi.fn();
   const howlMute = vi.fn();
 
+  const instances: MockHowl[] = [];
+
   class MockHowl {
+    unload = vi.fn();
     play = howlPlay;
     volume = howlVolume;
     loop = howlLoop;
@@ -27,7 +30,7 @@ const mocked = vi.hoisted(() => {
     mute = howlMute;
 
     constructor(_config: unknown) {
-      // no-op
+      instances.push(this);
     }
   }
 
@@ -45,6 +48,7 @@ const mocked = vi.hoisted(() => {
 
   return {
     MockHowl,
+    instances,
     howler,
     howlPlay,
     howlVolume,
@@ -72,6 +76,7 @@ describe("AudioManager", () => {
     mocked.howlOnce.mockReset();
     mocked.howlStop.mockReset();
     mocked.howlFade.mockReset();
+    mocked.instances.length = 0;
     vi.useRealTimers();
   });
 
@@ -120,6 +125,45 @@ describe("AudioManager", () => {
       2,
       expect.closeTo(0.15, 5),
     );
+  });
+
+  it("unloads every owned sound and clears playback and manifest bookkeeping", () => {
+    mocked.howler.ctx.state = "running";
+    const audio = new AudioManager({
+      hit: { src: ["/sounds/hit.wav"], volume: 0.5, category: "music" },
+    });
+    audio.load({ score: { src: ["/sounds/score.wav"] } });
+    audio.play("hit");
+    const ownedSounds = [...mocked.instances];
+    const otherAudio = new AudioManager({
+      ambient: { src: ["/sounds/ambient.wav"] },
+    });
+    const otherSound = mocked.instances[2];
+
+    audio.destroy();
+    audio.destroy();
+
+    for (const sound of ownedSounds) {
+      expect(sound.unload).toHaveBeenCalledTimes(1);
+    }
+    expect(otherSound.unload).not.toHaveBeenCalled();
+    expect(audio.getCategory("hit")).toBe("sfx");
+
+    mocked.howlVolume.mockClear();
+    audio.applyPlatformAudioSettings({
+      masterVolume: 1,
+      musicVolume: 1,
+      sfxVolume: 1,
+    });
+    expect(mocked.howlVolume).not.toHaveBeenCalled();
+
+    audio.load({ hit: { src: ["/sounds/new-hit.wav"] } });
+    expect(mocked.instances).toHaveLength(4);
+    mocked.howlVolume.mockClear();
+    expect(audio.play("hit")).toBe(101);
+    expect(mocked.howlVolume).toHaveBeenCalledExactlyOnceWith(1, 101);
+    audio.destroy();
+    otherAudio.destroy();
   });
 
   it("fades in local playback when requested", () => {

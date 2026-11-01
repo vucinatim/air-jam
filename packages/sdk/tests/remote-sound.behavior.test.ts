@@ -40,6 +40,7 @@ const mocked = vi.hoisted(() => {
   const howlPlay = vi.fn(() => 101);
 
   class MockHowl {
+    unload = vi.fn();
     play = howlPlay;
     volume = vi.fn();
     loop = vi.fn();
