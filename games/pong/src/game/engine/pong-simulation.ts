@@ -7,6 +7,7 @@
 import { defineAirJamSimulation } from "@air-jam/sdk/core";
 import type { PongInput } from "../contracts/input";
 import type { PongSettings } from "../contracts/settings";
+import { getAwaitedPlayers } from "../domain/awaited-players";
 import type { TeamId } from "../domain/team";
 import { pongStore, type PongState } from "../stores";
 import { FIELD_HEIGHT, FIELD_WIDTH } from "./constants";
@@ -41,6 +42,8 @@ export interface PongSimulationState {
   tick: number;
   serve: number;
   awaitingServe: boolean;
+  /** Seated players whose phone dropped; the match holds until they are back. */
+  waitingFor: string[];
   goals: PongGoal[];
   previousPhase: PongState["matchPhase"];
   previousScores: PongState["scores"];
@@ -101,6 +104,7 @@ export const pongSimulation = defineAirJamSimulation<
       tick: 0,
       serve: 0,
       awaitingServe: false,
+      waitingFor: [],
       goals: [],
       previousPhase: matchPhase,
       previousScores: scores,
@@ -134,9 +138,29 @@ export const pongSimulation = defineAirJamSimulation<
     }
     sim.previousPhase = matchPhase;
     sim.previousScores = scores;
-    if (matchPhase === "lobby") return;
 
     const isPlaying = matchPhase === "playing";
+    const wasWaiting = sim.waitingFor.length > 0;
+    sim.waitingFor = isPlaying
+      ? getAwaitedPlayers(
+          context.players,
+          context.reconnectingPlayerIds,
+          teamAssignments,
+        ).map((player) => player.id)
+      : [];
+    if (matchPhase === "lobby" || sim.waitingFor.length > 0) return;
+    // Everyone is back: the interrupted rally scores nobody and play
+    // restarts from a fresh serve after the usual countdown.
+    if (wasWaiting && isPlaying) {
+      resetRuntimeStateBufferBall(
+        sim.buffers,
+        context.random,
+        context.settings.ballSpeed,
+      );
+      sim.countdown = context.settings.countdownSeconds;
+      sim.countdownElapsedMs = 0;
+    }
+
     if (sim.countdown !== null && isPlaying) {
       sim.countdownElapsedMs += context.stepMs;
       const remaining =
@@ -189,6 +213,7 @@ export const pongSimulation = defineAirJamSimulation<
     field: { width: FIELD_WIDTH, height: FIELD_HEIGHT },
     simulation: { ...sim.buffers.current },
     countdown: sim.countdown,
+    waitingFor: sim.waitingFor,
     goals: sim.goals,
   }),
 });

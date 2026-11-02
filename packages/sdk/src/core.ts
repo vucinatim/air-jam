@@ -1,6 +1,7 @@
 export { createAirJamConfig, type AirJamConfig } from "./core/config";
 export {
   createConnectionStore,
+  getReconnectingPlayerIds,
   type AirJamConnectionState,
 } from "./core/connection-store";
 export { ControllerInput } from "./core/controller-input";

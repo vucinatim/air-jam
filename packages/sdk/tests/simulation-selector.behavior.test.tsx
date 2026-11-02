@@ -25,6 +25,7 @@ describe("useSimulationSelector", () => {
         beginStep: () => {},
         input: () => undefined,
         players: () => [],
+        reconnectingPlayerIds: () => [],
         runtimeState: () => "playing",
       },
       1,

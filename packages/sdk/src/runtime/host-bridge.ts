@@ -7,6 +7,7 @@ import type {
   ControllerJoinedNotice,
   ControllerLeasedControl,
   ControllerLeftNotice,
+  ControllerPresenceNotice,
   ControllerStateMessage,
   ControllerSystemPayload,
   HostLeftNotice,
@@ -48,6 +49,7 @@ export const hostBridgeServerEvents = [
   "airjam:state_sync_request",
   "server:controllerJoined",
   "server:controllerLeft",
+  "server:controllerDisconnected",
   "server:playerUpdated",
   "server:input",
   "server:leasedControl",
@@ -85,6 +87,7 @@ export type HostBridgeServerEventArgs = {
   "airjam:state_sync_request": [payload: AirJamStateSyncRequestPayload];
   "server:controllerJoined": [payload: ControllerJoinedNotice];
   "server:controllerLeft": [payload: ControllerLeftNotice];
+  "server:controllerDisconnected": [payload: ControllerPresenceNotice];
   "server:playerUpdated": [payload: PlayerUpdatedNotice];
   "server:input": [payload: ControllerInputEvent];
   "server:leasedControl": [

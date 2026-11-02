@@ -5,6 +5,7 @@ import { airJamSettingsValuesSchema } from "./settings";
 export const AIR_JAM_INPUT_LOG_EVENTS = [
   "server:controllerJoined",
   "server:controllerLeft",
+  "server:controllerDisconnected",
   "server:playerUpdated",
   "server:state",
   "server:input",
@@ -23,7 +24,7 @@ const inputLogEntrySchema = z
 
 /**
  * Everything that reached a host's game from outside, by simulation step:
- * players joining and leaving, runtime state, store actions applied between
+ * players joining, dropping and leaving, runtime state, store actions applied between
  * steps, and each seat's controls whenever they changed. Fed back to a host
  * with the same seed, it plays the same match.
  */

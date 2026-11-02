@@ -222,6 +222,52 @@ describe("browser log sink", () => {
     );
   });
 
+  it("keeps logs through a network outage and sends them once it is back", async () => {
+    const fetchMock = vi.mocked(fetch);
+    const reported = vi.fn();
+    console.error = reported;
+    ensureDevBrowserLogSink({});
+    const logError = (message: string) =>
+      window.dispatchEvent(new ErrorEvent("error", { message }));
+    const sentMessages = () =>
+      fetchMock.mock.calls.flatMap(([, init]) =>
+        (
+          JSON.parse((init as RequestInit).body as string) as {
+            entries: Array<{ message?: string }>;
+          }
+        ).entries.map((entry) => entry.message),
+      );
+
+    logError("before the drop");
+    await vi.advanceTimersByTimeAsync(250);
+    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    logError("during the drop");
+    await vi.advanceTimersByTimeAsync(250);
+    expect(reported).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(
+      sentMessages().filter((message) => message === "during the drop"),
+    ).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(reported).not.toHaveBeenCalled();
+  });
+
+  it("reports an endpoint that has never been reachable", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"));
+    const reported = vi.fn();
+    console.error = reported;
+    ensureDevBrowserLogSink({});
+
+    window.dispatchEvent(new ErrorEvent("error", { message: "first" }));
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(reported).toHaveBeenCalledWith(
+      "[AirJam][AJ_BROWSER_LOG_SINK_POST_FAILED]",
+      expect.objectContaining({ reason: "Failed to fetch" }),
+    );
+  });
+
   it("does not install the browser log sink for hosted release runtimes", async () => {
     const fetchMock = vi.mocked(fetch);
 

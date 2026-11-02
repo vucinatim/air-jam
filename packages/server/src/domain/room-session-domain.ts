@@ -461,6 +461,18 @@ export const emitControllerJoinedNotice = (
   );
 };
 
+/** Tells the game at once that a controller dropped and holds its seat while it tries to resume. */
+export const emitControllerDisconnectedNotice = (
+  io: AirJamIoServer,
+  session: RoomSession,
+  controller: ControllerSession,
+): void => {
+  io.to(getActiveHostSocketId(session)).emit(
+    "server:controllerDisconnected",
+    toControllerPresenceNotice(controller),
+  );
+};
+
 export const emitControllerLeftNotice = (
   io: AirJamIoServer,
   session: RoomSession,

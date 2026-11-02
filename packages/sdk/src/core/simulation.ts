@@ -18,6 +18,11 @@ export interface AirJamStepContext<
   /** A player's controls for this step; released and centred before any input. */
   input: (controllerId: string) => TInput;
   players: readonly PlayerProfile[];
+  /**
+   * Players whose phone dropped and is trying to resume. They stay in
+   * `players` meanwhile; each game decides whether to wait for them.
+   */
+  reconnectingPlayerIds: readonly string[];
   /** Reports something that happened, such as a hit, for sound and feedback. */
   emit: (event: TEvent) => void;
 }
@@ -103,6 +108,7 @@ interface ClockRoom<TInput, TSettings> {
   settings?: () => TSettings;
   input: (controllerId: string) => TInput;
   players: () => readonly PlayerProfile[];
+  reconnectingPlayerIds: () => readonly string[];
   runtimeState: () => RuntimeState;
 }
 
@@ -259,6 +265,7 @@ export class SimulationClock<
         random: this.random,
         input: this.room.input,
         players: this.room.players(),
+        reconnectingPlayerIds: this.room.reconnectingPlayerIds(),
         emit: (event) => {
           for (const listener of this.eventListeners) listener(event);
         },

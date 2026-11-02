@@ -60,7 +60,10 @@ import {
 } from "../runtime/host-runtime-fault";
 import type { AirJamRealtimeClient } from "../runtime/realtime-client";
 import type { AirJamConfig } from "./config";
-import type { AirJamConnectionState } from "./connection-store";
+import {
+  getReconnectingPlayerIds,
+  type AirJamConnectionState,
+} from "./connection-store";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type { AirJamHostEnvironment } from "./environment";
 import { HostInput } from "./host-input";
@@ -252,6 +255,10 @@ export class HostRuntime {
           },
           input: (controllerId) => this.input?.read(controllerId) ?? {},
           players: () => this.store.getState().players,
+          reconnectingPlayerIds: () => {
+            const { players, controllerSessions } = this.store.getState();
+            return getReconnectingPlayerIds(players, controllerSessions);
+          },
           settings: () => this.settings.read().values,
           runtimeState: () => this.store.getState().runtimeState,
         },
@@ -1230,6 +1237,12 @@ export class HostRuntime {
       this.options.onPlayerLeave?.(payload.controllerId);
     };
 
+    const handleDisconnected = (payload: ControllerPresenceNotice): void => {
+      this.recorder?.record("server:controllerDisconnected", payload);
+      this.input?.clearInput(payload.controllerId);
+      store.getState().upsertControllerSession(payload);
+    };
+
     const handlePlayerUpdated = (payload: PlayerUpdatedNotice): void => {
       this.recorder?.record("server:playerUpdated", payload);
       const state = store.getState();
@@ -1260,6 +1273,7 @@ export class HostRuntime {
     socket.on("connect_error", handleConnectError);
     socket.on("server:controllerJoined", handleJoin);
     socket.on("server:controllerLeft", handleLeave);
+    socket.on("server:controllerDisconnected", handleDisconnected);
     socket.on("server:playerUpdated", handlePlayerUpdated);
     socket.on("server:input", handleInput);
     socket.on("server:error", handleError);
@@ -1279,6 +1293,7 @@ export class HostRuntime {
       socket.off("connect_error", handleConnectError);
       socket.off("server:controllerJoined", handleJoin);
       socket.off("server:controllerLeft", handleLeave);
+      socket.off("server:controllerDisconnected", handleDisconnected);
       socket.off("server:playerUpdated", handlePlayerUpdated);
       socket.off("server:input", handleInput);
       socket.off("server:error", handleError);

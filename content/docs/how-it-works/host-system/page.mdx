@@ -116,6 +116,25 @@ step: (sim, { input, players }) => {
 },
 ```
 
+#### When a phone drops
+
+A phone that loses its connection keeps its seat while the server waits for it
+to resume (30 seconds by default). The server tells the game at once with
+`server:controllerDisconnected`, and `server:controllerJoined` again when the
+phone is back. The player stays in `players` the whole time; the simulation
+step also gets `reconnectingPlayerIds`, so each game decides whether to wait,
+let a bot cover or carry on:
+
+```ts
+step: (sim, { players, reconnectingPlayerIds }) => {
+  if (reconnectingPlayerIds.length > 0) return; // hold until everyone is back
+  // ...
+},
+```
+
+Outside the simulation, `getReconnectingPlayerIds(players, controllers)` from
+`@air-jam/sdk/core` gives the same list from `useAirJamHost()` state.
+
 ### 4. Game Exit
 
 ```

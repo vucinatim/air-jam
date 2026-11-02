@@ -365,13 +365,26 @@ describe("server room lifecycle", () => {
       },
     );
     expect(firstJoinAck.ok).toBe(true);
+    const droppedNoticePromise = harness.waitForEvent<{
+      controllerId: string;
+      connected: boolean;
+      resumeLeaseExpiresAt: number | null;
+    }>(host, "server:controllerDisconnected");
     controllerA.disconnect();
 
+    expect(await droppedNoticePromise).toEqual(
+      expect.objectContaining({
+        controllerId: "ctrl_resume_1",
+        connected: false,
+        resumeLeaseExpiresAt: expect.any(Number),
+      }),
+    );
     await harness.expectNoEvent(host, "server:controllerLeft", 15);
 
     const controllerB = await harness.connectSocket();
     const resumedNoticePromise = harness.waitForEvent<{
       controllerId: string;
+      connected: boolean;
       resumed?: boolean;
     }>(host, "server:controllerJoined");
     const [resumeAck, resumedNotice] = await Promise.all([
@@ -395,6 +408,7 @@ describe("server room lifecycle", () => {
     expect(resumedNotice).toEqual(
       expect.objectContaining({
         controllerId: "ctrl_resume_1",
+        connected: true,
         resumed: true,
       }),
     );
