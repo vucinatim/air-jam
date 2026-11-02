@@ -154,7 +154,7 @@ export const LobbyScreen = () => {
                 onOpen={joinControls.handleOpen}
                 qrVisible={joinControls.joinQrVisible}
                 onToggleQr={joinControls.toggleJoinQr}
-                className="mt-4 w-full"
+                className="mt-4 w-full text-left"
                 inputClassName="border-white/15 bg-black/40 text-white"
                 buttonClassName="border-white/15 bg-white/5 text-white hover:bg-white/10"
               />

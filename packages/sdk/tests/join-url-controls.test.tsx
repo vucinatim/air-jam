@@ -3,12 +3,7 @@ import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildArcadeGameIframeSrc } from "../src/arcade/url";
-import {
-  JoinUrlActionButtons,
-  JoinUrlControls,
-  JoinUrlField,
-  toJoinAddress,
-} from "../src/ui";
+import { JoinUrlActionButtons, JoinUrlControls, JoinUrlField } from "../src/ui";
 
 describe("join url controls", () => {
   afterEach(() => {
@@ -76,7 +71,7 @@ describe("join url controls", () => {
     ).toBe(false);
   });
 
-  it("shows only the address to type, never the private link, inside the Arcade", () => {
+  it("leaves joining to the Arcade when the game runs inside it", () => {
     const origin = window.location.origin;
     const gameUrl = new URL(
       buildArcadeGameIframeSrc({
@@ -96,28 +91,12 @@ describe("join url controls", () => {
         arcadeSurface: { epoch: 1, kind: "game", gameId: "pong" },
       }),
     );
-    window.history.replaceState(
-      null,
-      "",
-      `${gameUrl.pathname}${gameUrl.search}`,
-    );
+    window.history.replaceState(null, "", `${gameUrl.pathname}${gameUrl.search}`);
 
     const { container } = render(
       <JoinUrlControls value={`${origin}/controller?room=ABCD&aj_cap=x`} />,
     );
 
-    const host = new URL(origin).host.replace(/^www\./, "");
-    expect(container.textContent).toBe(`Join at ${host}/join`);
-    expect(container.innerHTML).not.toContain("aj_cap");
-    expect(container.querySelector("input")).toBeNull();
-  });
-
-  it("turns a join link into the short address a person types", () => {
-    expect(toJoinAddress("https://www.airjam.io/controller?room=ABCD")).toBe(
-      "airjam.io/join",
-    );
-    expect(toJoinAddress("http://localhost:3100/controller?room=ABCD")).toBe(
-      "localhost:3100/join",
-    );
+    expect(container.innerHTML).toBe("");
   });
 });

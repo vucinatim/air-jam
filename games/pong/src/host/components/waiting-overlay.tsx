@@ -38,7 +38,7 @@ export const WaitingOverlay = ({ players }: WaitingOverlayProps) => (
           <span className="size-2 rounded-full bg-amber-400 motion-safe:animate-pulse" />
           Reconnecting
         </div>
-        <p className="max-w-xs text-sm leading-6 text-slate-300">
+        <p className="max-w-xs text-sm leading-6 text-pretty text-slate-300">
           Play picks up with a fresh serve when they are back.
         </p>
       </div>
