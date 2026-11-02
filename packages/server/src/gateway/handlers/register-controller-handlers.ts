@@ -487,7 +487,7 @@ export const registerControllerHandlers = (
       } else {
         const playerProfile: PlayerProfile = {
           id: controllerId,
-          label: nickname ?? `Player ${session.controllers.size}`,
+          label: nickname ?? `Player ${session.controllers.size + 1}`,
           color,
           ...(avatarId ? { avatarId } : {}),
         };
