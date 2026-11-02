@@ -1799,7 +1799,7 @@ const buildProgram = () => {
     .option("--dir <path>", "Project directory to inspect")
     .option(
       "--profile <profile>",
-      "Profile to render (portable, codex for CLI/IDE/app, or claude-desktop)",
+      "Profile to render (portable, codex, or claude-desktop); Codex supports CLI, IDE and app",
       "portable",
     )
     .option("--json", "Print the rendered profile metadata as JSON", false)
