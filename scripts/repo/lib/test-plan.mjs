@@ -69,7 +69,7 @@ const testFiles = (directory, recursive) =>
     .sort();
 
 export const testProjects = () => [
-  { id: "repo", directory: "scripts/repo", tests: "runtime", runner: "node" },
+  { id: "repo", directory: ".", tests: "scripts/repo/runtime", runner: "node" },
   ...[
     "env",
     "devtools",

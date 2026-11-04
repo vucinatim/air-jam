@@ -36,7 +36,9 @@ test("process and fixture suites stay slow while unit behavior stays fast", () =
   assert.ok(fast.get("devtools").includes("tests/game-run-watch.test.ts"));
   assert.ok(slow.get("devtools").includes("tests/game-run-owner.test.ts"));
   assert.ok(
-    slow.get("repo").includes("runtime/canonical-scanner.slow.test.mjs"),
+    slow
+      .get("repo")
+      .includes("scripts/repo/runtime/canonical-scanner.slow.test.mjs"),
   );
   assert.ok(
     slow.get("server").includes("tests/game-lifecycle.integration.test.ts"),
@@ -52,5 +54,15 @@ test("project selection narrows either tier and rejects unknown input", () => {
   assert.throws(
     () => buildTestPlan({ projects: ["typo"] }),
     /Unknown test project/,
+  );
+});
+
+test("repository CLI tests execute from the repository root", () => {
+  const [project] = buildTestPlan({ tier: "slow", projects: ["repo"] });
+  assert.equal(project.directory, ".");
+  assert.ok(
+    project.files.includes(
+      "scripts/repo/runtime/fast-check-cli-contract.test.mjs",
+    ),
   );
 });
