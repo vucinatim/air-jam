@@ -11,6 +11,7 @@ import {
 } from "../lib/check-plan.mjs";
 import { repoRoot } from "../lib/paths.mjs";
 import { runCommand, runCommandCaptured } from "../lib/shell.mjs";
+import { buildTestPlan } from "../lib/test-plan.mjs";
 const cacheRoot = path.join(repoRoot, "node_modules/.cache/airjam-check");
 
 const gitOutput = (args) =>
@@ -275,6 +276,54 @@ export const registerCheckCommands = (program) => {
   const checkCommand = program
     .command("check")
     .description("Layered local checks that keep the development loop fast");
+
+  checkCommand
+    .command("tests")
+    .description(
+      "Run fast or slow tests against built packages (pnpm build first)",
+    )
+    .option("--tier <tier>", "Test tier: fast or slow", "fast")
+    .option(
+      "--project <projects...>",
+      "Limit to named packages, repo, or games",
+    )
+    .option("--plan", "Inspect selection without running tests")
+    .option(
+      "--json",
+      "Print the test plan as stdout-only JSON (requires --plan)",
+    )
+    .action(
+      handleAsyncAction(async (options) => {
+        if (options.json && !options.plan)
+          throw new Error("--json requires --plan");
+        const plan = buildTestPlan({
+          tier: options.tier,
+          projects: options.project,
+        });
+        if (options.plan) {
+          console.log(
+            JSON.stringify({ tier: options.tier, projects: plan }, null, 2),
+          );
+          return;
+        }
+        for (const project of plan) {
+          const cwd = path.join(repoRoot, project.directory);
+          if (project.runner === "node") {
+            runCommand(
+              process.execPath,
+              ["--import", "tsx", "--test", ...project.files],
+              { cwd },
+            );
+          } else {
+            runCommand(
+              "pnpm",
+              ["exec", "vitest", "run", "--maxWorkers=2", ...project.files],
+              { cwd },
+            );
+          }
+        }
+      }),
+    );
 
   checkCommand
     .command("plan")

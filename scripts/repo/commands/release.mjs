@@ -190,9 +190,7 @@ export const registerReleaseCommands = (program) => {
 
   candidateCommand
     .command("create")
-    .description(
-      "Validate, build, inventory, audit, and pack the public graph once",
-    )
+    .description("Build, inventory, audit, and pack the public graph once")
     .requiredOption("--output <path>", "New candidate directory")
     .option("--json", "Print stable JSON")
     .action((options) => {
