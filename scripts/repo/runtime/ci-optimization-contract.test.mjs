@@ -23,6 +23,11 @@ test("PRs retain fast checks and share one workspace build behind checks", () =>
   );
   assert.match(lanes[0].command, /ai-pack:check.*pnpm lint.*guard:canonical/u);
   assert.equal(lanes[1].command, "pnpm build && pnpm -r typecheck");
+  const archive = workflow.jobs.validate.steps.find((step) =>
+    step.run?.startsWith("tar -czf"),
+  );
+  assert.match(archive.run, /packages\/\*\/dist/u);
+  assert.match(archive.run, /packages\/cli\/template-assets\/documentation/u);
   assert.equal(workflow.jobs.tests.needs, "validate");
   assert.match(
     workflow.jobs.tests.steps.at(-1).run,

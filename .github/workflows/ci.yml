@@ -51,7 +51,9 @@ jobs:
         run: ${{ matrix.command }}
       - name: Archive this revision's workspace build
         if: matrix.name == 'Workspace build and types'
-        run: tar -czf "$RUNNER_TEMP/workspace-build.tgz" packages/*/dist
+        run: >-
+          tar -czf "$RUNNER_TEMP/workspace-build.tgz"
+          packages/*/dist packages/cli/template-assets/documentation
       - name: Share this revision's workspace build
         if: matrix.name == 'Workspace build and types'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
