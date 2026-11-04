@@ -808,8 +808,6 @@ export const createPublicReleaseCandidate = ({
   fs.mkdirSync(path.join(staging, "packages"), { recursive: true });
 
   try {
-    onProgress("gate:release-publish");
-    run("pnpm", ["check:release:publish"]);
     for (const pkg of publicPackages) {
       const packageManifest = JSON.parse(
         fs.readFileSync(

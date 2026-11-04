@@ -27,19 +27,46 @@ to the private managed platform.
    in parallel with a warm target of at most five seconds. Use
    `-- --files <paths...>` for the files in the current edit.
 6. `pnpm check:batch` runs the slower generated-source, typecheck, lint,
-   canonical-guard, and test stages. Use it once before pushing a new system,
+   canonical-guard, and fast-test stages. Use it once before pushing a new system,
    multi-file behavioral refactor, architectural boundary, or roughly `1,000+`
    meaningful changed lines.
-7. `pnpm check:ci` is exhaustive pull-request validation; it is not the normal
+7. `pnpm check:ci` matches the fast pull-request checks; it is not the normal
    local editing loop.
 8. `pnpm run repo -- perf sanity` is the canonical local server perf check.
 9. `pnpm check:release` remains the deeper local prerelease gate with strict
-   perf, server lifecycle smoke, and full scaffold tarball smoke.
+   perf, slow tests, server lifecycle smoke, and full scaffold tarball smoke.
 10. `pnpm run repo -- pack verify-local --json` validates the exact public package
     set in clean typed consumers, including live server traffic and agent helpers.
 11. `pnpm check:release:doctor` enforces a clean frozen install and the heavy
     prerelease gate. Managed platform deployment checks belong to the private repo.
 12. `pnpm check:release:publish` is the GitHub publish-path sanity gate.
+
+## CI tiers
+
+`pnpm test` runs fast tests. `pnpm test:slow` runs tests that own real processes,
+sockets, browsers, subprocesses or durable filesystem fixtures. Both tiers remain
+in `pnpm check:release`. Add new process/fixture tests as `.slow.test.ts` or
+`.slow.test.mjs`; existing suite markings live in `scripts/repo/lib/test-plan.mjs`.
+Package-local test scripts run the entire package suite.
+
+PRs run static checks, one shared build with typechecking, and fast tests. The
+single required verdict remains `checks`. Package-touching PRs also upload
+`public-release-candidate` for exact archive consumers. These jobs together must
+stay within 15 machine-minutes, and each job within five minutes.
+
+Nightly and manually dispatched workflows retain slow tests, installed-package
+qualification, performance smoke, and the Linux/macOS/Windows × Node 22/24 install
+matrix. Publication retains the full matrix and aggregate evidence. Candidate
+archive creation builds and audits packages; scheduled and publication workflows
+run release sanity separately before using them.
+
+To inspect or run a selected tier against built packages:
+
+```bash
+pnpm --silent run repo -- check tests --tier slow --plan --json
+pnpm build
+pnpm --silent run repo -- check tests --tier fast --project sdk
+```
 
 ## Development Workflow
 
@@ -52,7 +79,7 @@ to the private managed platform.
 
 1. `pnpm check:changed` passes for the complete focused change.
 2. `pnpm check:batch` passes when the substantial-batch rule applies.
-3. the pull request's exhaustive CI and required provider previews are green.
+3. the pull request's fast CI and required provider previews are green.
 4. tests relevant to the change exist at the appropriate batch, CI, or release
    layer.
 5. `pnpm test:scaffold` passes for template/CLI-sensitive changes.

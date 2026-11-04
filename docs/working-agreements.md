@@ -77,25 +77,55 @@ and flips to `main` at launch.
    four affected TypeScript projects immediately request `pnpm check:batch`
    instead of turning the fast command into a hidden whole-repo run.
 4. `pnpm check:batch` is intentionally slower. It owns generated-source checks,
-   full typechecking, linting, canonical guards, and tests for a substantial
+   full typechecking, linting, canonical guards, and fast tests for a substantial
    change batch before push.
-5. pull-request CI owns six isolated confidence lanes: static contracts, full
-   type safety, tests, the complete workspace build, hermetic standalone
-   deployment proof, and a short strict performance smoke. They run in parallel
-   and converge on the stable required `checks` result. Release-only smoke,
-   package matrices, and the full strict performance profile stay in the
-   release gate.
+5. pull-request CI runs the fast tier only: static contracts, one workspace
+   build with full type safety, and unit tests consuming that build. These
+   converge on the stable required `checks` result. Package-touching PRs also
+   retain the immutable `public-release-candidate` artifact; creating archives
+   builds and audits packages, without running release sanity processes.
+   Across both workflows a PR must cost at most 15 machine-minutes, with no
+   job exceeding five minutes. Branch protection still requires only `checks`.
+   Real processes, sockets, browsers, subprocesses, durable filesystem fixtures,
+   standalone package qualification and performance smoke run nightly and on
+   `workflow_dispatch`. The full Linux/macOS/Windows × Node 22/24 install matrix
+   and its aggregate evidence run on those triggers and in the publication gate.
+   Release sanity runs before scheduled candidate creation and before either
+   creating or recovering a publication candidate. Archive creation alone is
+   not release qualification; the release-gate evidence contract is unchanged.
 6. use batch validation for a new system or architectural boundary, a coherent
    multi-file behavioral refactor, or roughly `1,000+` meaningful changed
    lines. Do not invoke it between ordinary edits.
 7. treat latency targets as product requirements. Record cold versus warm
    timing honestly, preserve caches between local runs, and narrow or remove a
    slow test when it does not protect a meaningful contract.
-8. exhaustive CI runs once on the protected, up-to-date pull-request merge
+8. fast CI runs once on the protected, up-to-date pull-request merge
    candidate. Do not repeat the same suite after merge; Railway deployment
    status and live health checks own post-merge production verification.
 9. cancel superseded CI revisions so obsolete commits do not consume feedback
    time or runner capacity.
+
+`pnpm test` and `pnpm test:repo-contracts` select the fast tier by default.
+`pnpm test:slow` runs the moved coverage; `pnpm check:release` includes both tiers.
+The canonical test selection lives in `scripts/repo/lib/test-plan.mjs`; existing
+process/fixture suites are marked there, and new slow files use
+`.slow.test.ts` / `.slow.test.mjs` (server integration files are also slow).
+Package-local test scripts still run their complete package suite.
+
+CI builds packages once and restores their `dist` outputs in test jobs. To use
+that same test path locally, build first, then run or inspect a tier:
+
+```bash
+pnpm build
+pnpm --silent run repo -- check tests --tier fast
+pnpm --silent run repo -- check tests --tier slow --project devtools
+pnpm --silent run repo -- check tests --tier slow --plan --json
+```
+
+Both nightly workflows check out `release/1.0` while it is the integration
+branch. GitHub activates schedules only from the default branch, so their
+workflow definitions must also be present on `main`. Manual dispatch runs the
+selected ref and provides pre-merge proof of the scheduled lanes.
 
 Inspect the selected work without running it through:
 

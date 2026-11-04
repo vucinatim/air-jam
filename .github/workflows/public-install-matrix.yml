@@ -1,6 +1,8 @@
 name: Public Install Matrix
 
 on:
+  schedule:
+    - cron: "47 2 * * *"
   workflow_dispatch:
     inputs:
       windows_startup_diagnostics:
@@ -39,7 +41,7 @@ env:
   AIRJAM_RELEASE_NPM_VERSION: "12.2.0"
 
 concurrency:
-  group: public-install-matrix-${{ github.event.pull_request.number || github.ref }}
+  group: public-install-matrix-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -78,13 +80,14 @@ jobs:
     if: ${{ !inputs.windows_startup_diagnostics }}
     name: Build immutable candidate
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           # Candidate provenance inspects source history.
           fetch-depth: 0
+          ref: ${{ github.event_name == 'schedule' && 'release/1.0' || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -101,6 +104,10 @@ jobs:
       - name: Install repository dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Run release sanity checks
+        if: github.event_name != 'pull_request'
+        run: pnpm check:release:publish
+
       - name: Create exact public release candidate
         run: >-
           pnpm --silent run repo -- release candidate create
@@ -116,6 +123,7 @@ jobs:
           retention-days: 30
 
   verify:
+    if: github.event_name != 'pull_request'
     name: ${{ matrix.system.id }} / Node ${{ matrix.node }}
     needs: candidate
     runs-on: ${{ matrix.system.runner }}
@@ -138,6 +146,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 1
+          ref: ${{ github.event_name == 'schedule' && 'release/1.0' || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -192,6 +201,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'release/1.0' || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
