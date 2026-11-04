@@ -123,7 +123,11 @@ pnpm --silent run repo -- check tests --tier slow --plan --json
 ```
 
 Both nightly workflows check out `release/1.0` while it is the integration
-branch. GitHub activates schedules only from the default branch, so their
+branch. The install workflow resolves that branch once in its candidate job;
+every matrix cell and the aggregate check out that exact commit. Candidate
+creation and cell verification use it as their expected source identity,
+retaining strict checkout matching even when the schedule's event SHA is on
+`main`. GitHub activates schedules only from the default branch, so their
 workflow definitions must also be present on `main`. Manual dispatch runs the
 selected ref and provides pre-merge proof of the scheduled lanes.
 

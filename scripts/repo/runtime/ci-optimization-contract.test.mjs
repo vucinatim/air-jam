@@ -170,3 +170,44 @@ test("PR candidate archives remain available without running release processes",
   );
   assert.doesNotMatch(source, /check:release:publish/);
 });
+
+test("scheduled installation qualifies one release commit despite a different event SHA", () => {
+  const { jobs } = YAML.parse(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/public-install-matrix.yml"),
+      "utf8",
+    ),
+  );
+  const checkout = jobs.candidate.steps[0];
+  assert.equal(checkout.id, "source");
+  assert.equal(
+    checkout.with.ref,
+    "${{ github.event_name == 'schedule' && 'release/1.0' || github.sha }}",
+  );
+  assert.equal(
+    jobs.candidate.outputs.commit,
+    "${{ steps.source.outputs.commit }}",
+  );
+  const create = jobs.candidate.steps.find((step) =>
+    step.run?.includes("release candidate create"),
+  );
+  assert.equal(create.env.SOURCE_COMMIT, "${{ steps.source.outputs.commit }}");
+  assert.match(create.run, /^GITHUB_SHA="\$SOURCE_COMMIT" pnpm /u);
+  assert.equal(jobs.verify.needs, "candidate");
+  assert.deepEqual(jobs.aggregate.needs, ["candidate", "verify"]);
+  for (const job of [jobs.verify, jobs.aggregate]) {
+    assert.equal(
+      job.steps[0].with.ref,
+      "${{ needs.candidate.outputs.commit }}",
+    );
+  }
+  const verify = jobs.verify.steps.find((step) =>
+    step.run?.includes("release install-matrix verify"),
+  );
+  assert.equal(verify.shell, "bash");
+  assert.equal(
+    verify.env.SOURCE_COMMIT,
+    "${{ needs.candidate.outputs.commit }}",
+  );
+  assert.match(verify.run, /^GITHUB_SHA="\$SOURCE_COMMIT" pnpm /u);
+});
