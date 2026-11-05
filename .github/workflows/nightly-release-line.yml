@@ -1,0 +1,27 @@
+# Exists only until release/1.0 becomes main at launch.
+name: Nightly release line
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+    - cron: "47 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Start release-line CI
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 2 * * *'
+        run: gh workflow run ci.yml --ref release/1.0
+      - name: Start release-line install matrix
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '47 2 * * *'
+        run: gh workflow run public-install-matrix.yml --ref release/1.0
