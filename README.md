@@ -124,9 +124,11 @@ pnpm check:changed
 ```
 
 Use `pnpm check:batch` before pushing a substantial change. Pull-request CI
-qualifies types, tests, builds, canonical contracts, installed foundation
-packages and a bounded performance smoke test. The full release gate remains
-`pnpm check:release`.
+qualifies types, fast tests, builds and canonical contracts, sharing the
+workspace build across jobs. Package-touching PRs retain immutable candidate
+archives. Slow process and fixture tests, installed foundation packages,
+performance smoke and the full OS/Node installation matrix run nightly and on
+manual dispatch. The full release gate remains `pnpm check:release`.
 
 Fresh installed-package qualification is available as structured evidence:
 

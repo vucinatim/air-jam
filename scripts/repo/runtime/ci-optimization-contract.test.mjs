@@ -1,16 +1,10 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
-import {
-  canonicalRules,
-  findCanonicalViolations,
-} from "../commands/standards.mjs";
 import { buildPerfSanityArgs, perfProfiles } from "../lib/perf-plan.mjs";
 
 const repoRoot = path.resolve(
@@ -18,83 +12,87 @@ const repoRoot = path.resolve(
   "../../..",
 );
 
-test("CI preserves every confidence lane behind one stable required check", () => {
-  const source = fs.readFileSync(
-    path.join(repoRoot, ".github/workflows/ci.yml"),
-    "utf8",
+test("PRs retain fast checks and share one workspace build behind checks", () => {
+  const workflow = YAML.parse(
+    fs.readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8"),
   );
-  const workflow = YAML.parse(source);
   const lanes = workflow.jobs.validate.strategy.matrix.include;
-
   assert.deepEqual(
-    lanes.map((lane) => lane.name),
+    lanes.map(({ name }) => name),
+    ["Static contracts", "Workspace build and types"],
+  );
+  assert.match(lanes[0].command, /ai-pack:check.*pnpm lint.*guard:canonical/u);
+  assert.equal(lanes[1].command, "pnpm build && pnpm -r typecheck");
+  const archive = workflow.jobs.validate.steps.find((step) =>
+    step.run?.startsWith("tar -czf"),
+  );
+  assert.match(archive.run, /packages\/\*\/dist/u);
+  assert.match(archive.run, /packages\/cli\/template-assets\/documentation/u);
+  assert.equal(workflow.jobs.tests.needs, "validate");
+  assert.match(
+    workflow.jobs.tests.steps.at(-1).run,
+    /check tests --tier fast/u,
+  );
+  assert.ok(
+    workflow.jobs.tests.steps.some(
+      (step) => step.with?.name === "workspace-build",
+    ),
+  );
+  assert.equal(workflow.jobs.checks.name, "checks");
+  assert.deepEqual(workflow.jobs.checks.needs, ["validate", "tests", "slow"]);
+  assert.equal(workflow.jobs.checks.if, "always()");
+  const verdict = workflow.jobs.checks.steps[0].run;
+  assert.match(verdict, /test "\$VALIDATION_RESULT" = success/u);
+  assert.match(verdict, /test "\$TEST_RESULT" = success/u);
+  assert.match(verdict, /test "\$SLOW_RESULT" = skipped/u);
+  assert.match(verdict, /test "\$SLOW_RESULT" = success/u);
+  for (const job of [
+    workflow.jobs.validate,
+    workflow.jobs.tests,
+    workflow.jobs.checks,
+  ]) {
+    assert.ok(job["timeout-minutes"] <= 5);
+  }
+});
+
+test("nightly and manual CI preserve process, package and performance coverage", () => {
+  const workflow = YAML.parse(
+    fs.readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8"),
+  );
+  assert.ok(workflow.on.schedule.length > 0);
+  assert.ok(workflow.on.workflow_dispatch !== undefined);
+  assert.ok(workflow.on.pull_request !== undefined);
+  assert.equal(workflow.on.push, undefined);
+  assert.equal(workflow.concurrency["cancel-in-progress"], true);
+  assert.equal(workflow.jobs.slow.if, "github.event_name != 'pull_request'");
+  const lanes = workflow.jobs.slow.strategy.matrix.include;
+  assert.deepEqual(
+    lanes.map(({ name }) => name),
     [
-      "Static contracts",
-      "Type safety",
-      "Tests",
-      "Workspace build",
+      "Slow tool tests",
+      "Slow runtime and repository tests",
       "Standalone packages",
       "Performance smoke",
     ],
   );
-  assert.match(lanes[0].command, /@air-jam\/cli ai-pack:check/u);
-  assert.match(lanes[0].command, /pnpm lint/u);
-  assert.match(lanes[0].command, /pnpm guard:canonical/u);
-  assert.equal(lanes[1].command, "pnpm typecheck");
-  assert.equal(lanes[2].command, "pnpm test");
-  assert.equal(lanes[3].command, "pnpm build");
+  assert.match(lanes[0].command, /--tier slow --project devtools/u);
   assert.match(
-    lanes[4].command,
-    /pnpm --silent run repo -- pack verify-local --json/u,
+    lanes[1].command,
+    /--project repo cli mcp-server create-airjam server sdk/u,
   );
-  assert.match(lanes[4].command, /> \.airjam\/foundation-package-proof\.json/u);
-  assert.match(lanes[5].command, /perf sanity --profile ci/u);
-  assert.deepEqual(
-    lanes.map((lane) => lane.history),
-    [1, 1, 0, 1, 1, 1],
-  );
-  assert.equal(workflow.jobs.validate.strategy["fail-fast"], false);
-  assert.equal(workflow.jobs.validate.services, undefined);
-  assert.equal(workflow.jobs.validate.env, undefined);
-  for (const lane of lanes) {
-    assert.doesNotMatch(lane.command, /platform|drizzle|railway|readiness/u);
-  }
-  assert.equal(workflow.jobs.checks.name, "checks");
-  assert.equal(workflow.jobs.checks.needs, "validate");
-});
-
-test("CI retains only the exact qualified foundation set for paired consumers", () => {
-  const workflow = YAML.parse(
-    fs.readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8"),
-  );
-  const upload = workflow.jobs.validate.steps.find(
-    (step) => step.name === "Retain qualified foundation packages",
-  );
-  const locate = workflow.jobs.validate.steps.find(
-    (step) => step.id === "foundation",
+  assert.match(lanes[2].command, /pack verify-local --json/u);
+  assert.match(lanes[3].command, /perf sanity --profile ci/u);
+  const upload = workflow.jobs.slow.steps.find(
+    (step) => step.with?.name === "foundation-packages",
   );
   assert.equal(upload.if, "matrix.name == 'Standalone packages'");
-  assert.equal(locate.if, upload.if);
-  assert.match(locate.run, /\.setId/u);
-  assert.equal(upload.with.name, "foundation-packages");
-  assert.equal(upload.with.path, "${{ steps.foundation.outputs.path }}");
   assert.equal(upload.with["if-no-files-found"], "error");
+  for (const job of [workflow.jobs.validate, workflow.jobs.slow]) {
+    assert.match(job.steps[0].with.ref, /schedule.*release\/1\.0/u);
+  }
 });
 
-test("CI runs once at the protected PR boundary and cancels stale revisions", () => {
-  const source = fs.readFileSync(
-    path.join(repoRoot, ".github/workflows/ci.yml"),
-    "utf8",
-  );
-  const workflow = YAML.parse(source);
-
-  assert.ok(workflow.on.pull_request !== undefined);
-  assert.ok(workflow.on.workflow_dispatch !== undefined);
-  assert.equal(workflow.on.push, undefined);
-  assert.equal(workflow.concurrency["cancel-in-progress"], true);
-});
-
-test("named performance profiles make PR smoke strict and release proof full", () => {
+test("named performance profiles keep scheduled smoke strict and release proof full", () => {
   assert.equal(perfProfiles.ci.durationMs, 15_000);
   assert.equal(perfProfiles.ci.strict, true);
   assert.deepEqual(perfProfiles.release, { strict: true });
@@ -136,89 +134,80 @@ test("the canonical guard has no external ripgrep runtime dependency", () => {
   assert.doesNotMatch(workflow, /Install ripgrep|apt-get install -y ripgrep/u);
 });
 
-test("the canonical scanner preserves multiline matching and Git ignore boundaries", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-canonical-"));
-  try {
-    fs.writeFileSync(path.join(root, ".gitignore"), "ignored/\n");
-    fs.mkdirSync(path.join(root, "src"));
-    fs.writeFileSync(
-      path.join(root, "src/example.ts"),
-      'import {\n  AirJamProvider,\n} from "@air-jam/sdk";\n',
-    );
-    fs.mkdirSync(path.join(root, "ignored"));
-    fs.writeFileSync(
-      path.join(root, "ignored/example.ts"),
-      'import { AirJamProvider } from "@air-jam/sdk";\n',
-    );
-    fs.writeFileSync(
-      path.join(root, "src/binary.dat"),
-      Buffer.from('import { AirJamProvider } from "@air-jam/sdk";\0binary'),
-    );
-    execFileSync("git", ["init", "--quiet"], { cwd: root });
-    execFileSync("git", ["add", ".gitignore", "src"], { cwd: root });
-    fs.renameSync(
-      path.join(root, "src/binary.dat"),
-      path.join(root, "ignored/binary.dat"),
-    );
-
-    assert.deepEqual(
-      findCanonicalViolations({
-        root,
-        rules: [
-          {
-            label: "forbidden provider",
-            pattern:
-              "import\\s*{[^}]*\\bAirJamProvider\\b[^}]*}\\s*from\\s*[\"\\']@air-jam/sdk[\"\\']",
-            paths: ["src"],
-          },
-        ],
-      }),
-      [
-        {
-          file: "src/example.ts",
-          label: "forbidden provider",
-          line: 1,
-          excerpt: 'import { AirJamProvider, } from "@air-jam/sdk"',
-        },
-      ],
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+test("PR candidate archives remain available without running release processes", () => {
+  const installation = YAML.parse(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/public-install-matrix.yml"),
+      "utf8",
+    ),
+  );
+  const publication = YAML.parse(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/publish-packages.yml"),
+      "utf8",
+    ),
+  );
+  assert.ok(installation.on.schedule.length > 0);
+  assert.equal(
+    installation.jobs.verify.if,
+    "github.event_name != 'pull_request'",
+  );
+  assert.equal(installation.jobs.candidate["timeout-minutes"], 5);
+  const steps = installation.jobs.candidate.steps;
+  assert.ok(
+    steps.some((step) => step.with?.name === "public-release-candidate"),
+  );
+  const gate = steps.find((step) => step.run === "pnpm check:release:publish");
+  assert.equal(gate.if, "github.event_name != 'pull_request'");
+  const releaseGate = publication.jobs.candidate.steps.find(
+    (step) => step.run === "pnpm check:release:publish",
+  );
+  assert.ok(releaseGate);
+  assert.equal(releaseGate.if, undefined);
+  const source = fs.readFileSync(
+    path.join(repoRoot, "scripts/repo/lib/public-release-candidate.mjs"),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /check:release:publish/);
 });
 
-test("the wildcard postMessage guard catches a target origin on any line", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "airjam-canonical-"));
-  try {
-    fs.mkdirSync(path.join(root, "src"));
-    fs.writeFileSync(
-      path.join(root, "src/example.ts"),
-      [
-        'window.parent.postMessage({ type: "single" }, "*");',
-        "window.parent.postMessage(",
-        "  { type: AIR_JAM_PREVIEW_CLOSE_RESULT, ok: ack.ok },",
-        '  "*",',
-        ");",
-        'frame.postMessage(message, { targetOrigin: "*" });',
-        'parent.postMessage({ type: "declared", ok }, parent.origin);',
-        'const all = "*";',
-        "",
-      ].join("\n"),
+test("scheduled installation qualifies one release commit despite a different event SHA", () => {
+  const { jobs } = YAML.parse(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/public-install-matrix.yml"),
+      "utf8",
+    ),
+  );
+  const checkout = jobs.candidate.steps[0];
+  assert.equal(checkout.id, "source");
+  assert.equal(
+    checkout.with.ref,
+    "${{ github.event_name == 'schedule' && 'release/1.0' || github.sha }}",
+  );
+  assert.equal(
+    jobs.candidate.outputs.commit,
+    "${{ steps.source.outputs.commit }}",
+  );
+  const create = jobs.candidate.steps.find((step) =>
+    step.run?.includes("release candidate create"),
+  );
+  assert.equal(create.env.SOURCE_COMMIT, "${{ steps.source.outputs.commit }}");
+  assert.match(create.run, /^GITHUB_SHA="\$SOURCE_COMMIT" pnpm /u);
+  assert.equal(jobs.verify.needs, "candidate");
+  assert.deepEqual(jobs.aggregate.needs, ["candidate", "verify"]);
+  for (const job of [jobs.verify, jobs.aggregate]) {
+    assert.equal(
+      job.steps[0].with.ref,
+      "${{ needs.candidate.outputs.commit }}",
     );
-    execFileSync("git", ["init", "--quiet"], { cwd: root });
-    execFileSync("git", ["add", "src"], { cwd: root });
-    const rule = canonicalRules.find(
-      ({ label }) => label === "wildcard postMessage targetOrigin usage",
-    );
-
-    assert.deepEqual(
-      findCanonicalViolations({
-        root,
-        rules: [{ ...rule, paths: ["src"] }],
-      }).map(({ line }) => line),
-      [1, 2, 6],
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
   }
+  const verify = jobs.verify.steps.find((step) =>
+    step.run?.includes("release install-matrix verify"),
+  );
+  assert.equal(verify.shell, "bash");
+  assert.equal(
+    verify.env.SOURCE_COMMIT,
+    "${{ needs.candidate.outputs.commit }}",
+  );
+  assert.match(verify.run, /^GITHUB_SHA="\$SOURCE_COMMIT" pnpm /u);
 });

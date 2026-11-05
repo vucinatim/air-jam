@@ -3,12 +3,14 @@ name: CI
 on:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -18,63 +20,129 @@ jobs:
   validate:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: Static contracts
-            history: 1
             command: >-
               pnpm --filter @air-jam/cli ai-pack:check &&
               pnpm lint &&
               pnpm guard:canonical
-          - name: Type safety
-            history: 1
-            command: pnpm typecheck
-          - name: Tests
-            history: 0
-            command: pnpm test
-          - name: Workspace build
-            history: 1
-            command: pnpm build
-          - name: Standalone packages
-            history: 1
-            command: >-
-              mkdir -p .airjam &&
-              pnpm --silent run repo -- pack verify-local --json > .airjam/foundation-package-proof.json
-          - name: Performance smoke
-            history: 1
-            command: >-
-              pnpm --filter server... build &&
-              pnpm run repo -- perf sanity --profile ci
+          - name: Workspace build and types
+            command: pnpm build && pnpm -r typecheck
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          # Tests inspect source history; other lanes need only this revision.
-          fetch-depth: ${{ matrix.history }}
-
+          fetch-depth: 1
+          ref: ${{ github.event_name == 'schedule' && 'release/1.0' || github.ref }}
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: "22.23.3"
           package-manager-cache: false
-
       - name: Enable corepack
         run: corepack enable
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Run ${{ matrix.name }}
         run: ${{ matrix.command }}
+      - name: Archive this revision's workspace build
+        if: matrix.name == 'Workspace build and types'
+        run: >-
+          tar -czf "$RUNNER_TEMP/workspace-build.tgz"
+          packages/*/dist packages/cli/template-assets/documentation
+      - name: Share this revision's workspace build
+        if: matrix.name == 'Workspace build and types'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: workspace-build
+          path: ${{ runner.temp }}/workspace-build.tgz
+          if-no-files-found: error
+          retention-days: 1
 
+  tests:
+    name: Fast tests
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event_name == 'schedule' && 'release/1.0' || github.ref }}
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22.23.3"
+          package-manager-cache: false
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Restore this revision's workspace build
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: workspace-build
+          path: ${{ runner.temp }}
+      - name: Extract this revision's workspace build
+        run: tar -xzf "$RUNNER_TEMP/workspace-build.tgz"
+      - name: Run fast tests without rebuilding packages
+        run: pnpm --silent run repo -- check tests --tier fast
+
+  slow:
+    if: github.event_name != 'pull_request'
+    name: ${{ matrix.name }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Slow tool tests
+            command: pnpm --silent run repo -- check tests --tier slow --project devtools
+          - name: Slow runtime and repository tests
+            command: >-
+              pnpm --silent run repo -- check tests --tier slow
+              --project repo cli mcp-server create-airjam server sdk
+          - name: Standalone packages
+            command: >-
+              mkdir -p .airjam &&
+              pnpm --silent run repo -- pack verify-local --json > .airjam/foundation-package-proof.json
+          - name: Performance smoke
+            command: pnpm run repo -- perf sanity --profile ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'schedule' && 'release/1.0' || github.ref }}
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22.23.3"
+          package-manager-cache: false
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Restore this revision's workspace build
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: workspace-build
+          path: ${{ runner.temp }}
+      - name: Extract this revision's workspace build
+        run: tar -xzf "$RUNNER_TEMP/workspace-build.tgz"
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}
       - name: Locate qualified foundation packages
         if: matrix.name == 'Standalone packages'
         id: foundation
         run: jq -r '"path=.airjam/tarballs/sets/\(.setId)"' .airjam/foundation-package-proof.json >> "$GITHUB_OUTPUT"
-
       - name: Retain qualified foundation packages
         if: matrix.name == 'Standalone packages'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -88,14 +156,21 @@ jobs:
   checks:
     name: checks
     if: always()
-    needs: validate
+    needs: [validate, tests, slow]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Verify every confidence lane
+      - name: Verify every selected confidence lane
         env:
           VALIDATION_RESULT: ${{ needs.validate.result }}
+          TEST_RESULT: ${{ needs.tests.result }}
+          SLOW_RESULT: ${{ needs.slow.result }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ "$VALIDATION_RESULT" != "success" ]; then
-            echo "One or more CI confidence lanes did not pass: $VALIDATION_RESULT"
-            exit 1
+          test "$VALIDATION_RESULT" = success
+          test "$TEST_RESULT" = success
+          if [ "$EVENT_NAME" = pull_request ]; then
+            test "$SLOW_RESULT" = skipped
+          else
+            test "$SLOW_RESULT" = success
           fi

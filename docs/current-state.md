@@ -1,7 +1,18 @@
 # Current State
 
-Last updated: 2026-10-24
+Last updated: 2026-11-04
 Status: SDK core layering in review for `release/1.0`; input system phases 1 and 2 built on top; earlier checkpoints retained below
+
+## Public check tiers
+
+Pull requests run static checks, one shared workspace build with typechecking,
+and fast tests behind the single required `checks` verdict. Package-touching
+PRs keep the immutable candidate archive consumed by private development.
+Process and fixture suites, standalone package qualification, performance smoke
+and the full OS/Node installation matrix remain in nightly/manual workflows and
+release gates. The PR budget is 15 machine-minutes total and five per job.
+[Development Check Layers](./working-agreements.md#development-check-layers)
+owns the commands, suite markings and schedule activation requirement.
 
 ## SDK core layering and input — in review
 
