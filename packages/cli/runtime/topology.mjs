@@ -58,7 +58,7 @@ export const resolveProjectSurfaceTopology = ({
       ? loadSecureDevState({
           cwd,
           mode: SECURE_MODE_LOCAL,
-          env,
+          runtimeEnv: env,
           gamePort,
         })
       : null;

@@ -410,7 +410,7 @@ export const runGameDevCli = async ({
       secureState = loadSecureDevState({
         cwd: secureRootDir,
         mode: args.secureMode,
-        env: runtimeEnv,
+        runtimeEnv,
         gamePort: args.port,
       });
       console.log(`[dev] Secure mode: ${secureState.mode}`);
