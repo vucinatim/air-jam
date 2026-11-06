@@ -102,6 +102,10 @@
     "./platform-game-analytics": {
       "types": "./dist/platform-game-analytics.d.ts",
       "import": "./dist/platform-game-analytics.js"
+    },
+    "./platform-game-app-id": {
+      "types": "./dist/platform-game-app-id.d.ts",
+      "import": "./dist/platform-game-app-id.js"
     }
   },
   "files": [
