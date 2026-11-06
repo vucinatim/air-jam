@@ -157,3 +157,13 @@ platform's exact link for both hidden and listed releases.
 `archivePlatformRelease` in devtools owns the authenticated archive request;
 `airjam release archive` and `airjam.release_archive` are thin adapters over it.
 The private platform owns release authorization and lifecycle transitions.
+
+## Hosted catalog media
+
+The CLI's `game media` group uses the existing devtools `platform-game-media`
+client for every request. `list` (an alias for `inspect`) reads the owned game's
+assets and active selections; `assign` and `archive` operate on an exact asset
+ID. Their `--json` output preserves the SDK's validated platform result. The
+private platform owns authorization, assignment eligibility and archival; the
+CLI adds no media policy or duplicate request transport. The public MCP does
+not expose catalog-media tools.

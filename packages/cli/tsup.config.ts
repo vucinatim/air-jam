@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: [
     "src/index.ts",
+    "src/game-media.ts",
     "src/scaffold.ts",
     "src/ai-pack.ts",
     "src/development.ts",
