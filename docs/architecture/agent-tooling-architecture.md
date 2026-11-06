@@ -186,3 +186,11 @@ slug queries for the dashboard and machine routes. Rotation requires `--yes`
 and an explicit `yes: true` request. Clearing origins sends an empty replacement
 list; inspection returns a nullable allowlist and ISO timestamps. This slice
 adds no MCP adapter, publication or deployment behavior.
+
+## Creator profile
+
+`airjam auth profile --display-name <name> [--json]` calls devtools'
+`updatePlatformMachineProfile` through the existing origin-bound CLI session.
+The SDK owns the trimmed 1–50-character input contract and the user result
+schema; the private platform's shared profile service owns persistence for
+both its dashboard and machine route. `auth whoami` reads the current user name.

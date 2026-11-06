@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: [
     "src/index.ts",
+    "src/auth-profile.ts",
     "src/game-media.ts",
     "src/game-app-id.ts",
     "src/game-analytics.ts",

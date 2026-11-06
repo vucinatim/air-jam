@@ -81,6 +81,20 @@ and check its connection status. Rendering a profile does not register it;
 
 ## Platform machine authentication
 
+Sign in, change the creator name shown on games and in rooms, then inspect the current profile:
+
+```bash
+pnpm exec airjam auth login
+pnpm exec airjam auth profile --display-name "Party Maker" --json
+pnpm exec airjam auth whoami
+```
+
+`auth profile` trims the name and requires 1–50 characters. It returns the updated
+user (`id`, `name`, `email`, `role`) with `--json`, or prints the display name.
+Validation errors and missing or expired sessions fail with a nonzero exit.
+`auth whoami` reads the current name from the platform. Both commands accept
+`--platform-url <url>` for the signed-in platform; `auth logout` revokes the session.
+
 CLI and MCP platform operations share one authentication transport. A saved
 login is bound to the platform origin that issued it: changing the platform URL
 cannot silently send that saved token to another server. Log in to the other

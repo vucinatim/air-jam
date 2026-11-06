@@ -5,6 +5,8 @@ import {
   platformMachineDeviceStartResultSchema,
   platformMachineLogoutResultSchema,
   platformMachineMeResultSchema,
+  platformMachineProfileInputSchema,
+  platformMachineUserSchema,
 } from "@air-jam/sdk/platform-machine";
 import { randomUUID } from "node:crypto";
 import {
@@ -411,6 +413,23 @@ export const getPlatformMachineProfile = async ({
     pathname: "/api/cli/auth/me",
     token: resolved.token,
     schema: platformMachineMeResultSchema,
+  });
+};
+
+export const updatePlatformMachineProfile = async ({
+  platformUrl,
+  token,
+  displayName,
+}: GetPlatformMachineProfileOptions & { displayName: string }) => {
+  const input = platformMachineProfileInputSchema.parse({ displayName });
+  const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
+  return requestPlatformMachineApi({
+    baseUrl: resolved.baseUrl,
+    pathname: "/api/cli/auth/profile",
+    method: "POST",
+    token: resolved.token,
+    body: input,
+    schema: platformMachineUserSchema,
   });
 };
 
