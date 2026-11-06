@@ -4,6 +4,7 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/game-media.ts",
+    "src/game-analytics.ts",
     "src/scaffold.ts",
     "src/ai-pack.ts",
     "src/development.ts",

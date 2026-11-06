@@ -98,6 +98,10 @@
     "./game-builds": {
       "types": "./dist/game-builds.d.ts",
       "import": "./dist/game-builds.js"
+    },
+    "./platform-game-analytics": {
+      "types": "./dist/platform-game-analytics.d.ts",
+      "import": "./dist/platform-game-analytics.js"
     }
   },
   "files": [

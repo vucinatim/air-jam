@@ -77,6 +77,7 @@ import {
   runAiPackUpdate,
 } from "./ai-pack";
 import { readDocumentationSnapshot } from "./documentation";
+import { registerGameAnalyticsCommand } from "./game-analytics";
 import { registerGameMediaCommands } from "./game-media";
 import { runMcpConfig, runMcpDoctor, runMcpInit } from "./mcp";
 import {
@@ -1211,6 +1212,7 @@ const buildProgram = () => {
       });
     });
 
+  registerGameAnalyticsCommand(gameCommand);
   registerGameMediaCommands(gameCommand);
 
   gameCommand.action(() => {

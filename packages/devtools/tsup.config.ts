@@ -13,6 +13,7 @@ export default defineConfig({
     games: "src/games.ts",
     logs: "src/logs.ts",
     "platform-auth": "src/platform-auth.ts",
+    "platform-game-analytics": "src/platform-game-analytics.ts",
     "platform-game-media": "src/platform-game-media.ts",
     "platform-games": "src/platform-games.ts",
     quality: "src/quality.ts",
