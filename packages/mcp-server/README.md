@@ -47,3 +47,11 @@ For reliable gameplay assertions, use `airjam.open_game_session`,
 capture the owning room's canonical host and controller views when the client
 cannot launch its own browser. Browser interaction remains visual proof rather
 than the primary automation lane.
+
+## Hosted releases
+
+`airjam.release_inspect` and `airjam.release_list` return exact `playUrl` links,
+including hidden live releases. `airjam.release_archive` accepts `releaseId` and
+optional `platformUrl`, uses the same owner-checked platform service as the
+dashboard, and returns the updated release. Archiving retires the release; it
+does not publish anything. See the [hosted release guide](../../docs/guides/hosted-release-guide.md).

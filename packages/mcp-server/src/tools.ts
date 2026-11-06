@@ -42,6 +42,7 @@ import {
   runQualityGate,
 } from "@air-jam/devtools/quality";
 import {
+  archivePlatformRelease,
   bundleLocalRelease,
   exportPlatformReleaseGeneration,
   finalizePlatformReleaseGeneration,
@@ -195,7 +196,7 @@ const RELEASE_EXPORT_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
   out: z.string().optional(),
 });
 
-const RELEASE_PUBLISH_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
+const RELEASE_MUTATION_INPUT_SCHEMA = RELEASE_PLATFORM_INPUT_SCHEMA.extend({
   releaseId: z.string().min(1),
 });
 
@@ -483,17 +484,27 @@ export const buildToolDefinitions = ({
     },
     "airjam.release_publish": {
       description: "Publish one ready hosted release on the Air Jam platform.",
-      inputSchema: RELEASE_PUBLISH_INPUT_SCHEMA,
+      inputSchema: RELEASE_MUTATION_INPUT_SCHEMA,
       run: async ({
         platformUrl,
         releaseId,
-      }: z.infer<typeof RELEASE_PUBLISH_INPUT_SCHEMA>) =>
+      }: z.infer<typeof RELEASE_MUTATION_INPUT_SCHEMA>) =>
         withJsonText(
           await publishPlatformRelease({
             platformUrl,
             releaseId,
           }),
         ),
+    },
+    "airjam.release_archive": {
+      description:
+        "Retire one exact owned hosted release so it can no longer be played.",
+      inputSchema: RELEASE_MUTATION_INPUT_SCHEMA,
+      run: async ({
+        platformUrl,
+        releaseId,
+      }: z.infer<typeof RELEASE_MUTATION_INPUT_SCHEMA>) =>
+        withJsonText(await archivePlatformRelease({ platformUrl, releaseId })),
     },
     "airjam.start_dev": {
       description:

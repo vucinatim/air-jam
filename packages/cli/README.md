@@ -149,3 +149,11 @@ packaged manifest and a `Map<string, Buffer>` of managed file contents. Consumer
 can serve that exact snapshot without a CLI source checkout, network request or
 second pack generator. Invalid manifests, paths or content hashes fail the read;
 it does not modify the package or a creator's project.
+
+## Hosted release lifecycle
+
+`airjam release inspect --release <id>` and `airjam release list --game <slug-or-id>`
+include the exact play link for hidden and listed releases.
+`airjam release archive --release <id>` retires an owned release and prints its
+updated summary as JSON. Each accepts `--platform-url`; authentication uses the
+existing machine session. See the [hosted release guide](../../docs/guides/hosted-release-guide.md).

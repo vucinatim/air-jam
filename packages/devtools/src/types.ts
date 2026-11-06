@@ -273,6 +273,8 @@ export type InspectPlatformReleaseOptions = {
   releaseId: string;
 };
 
+export type ArchivePlatformReleaseOptions = InspectPlatformReleaseOptions;
+
 export type PublishPlatformReleaseOptions = {
   platformUrl?: string;
   token?: string;
