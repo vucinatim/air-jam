@@ -625,3 +625,30 @@ export const platformMachineGameAnalyticsSessionsSchema = z.array(
     updatedAt: z.iso.datetime(),
   }),
 );
+
+export const platformMachineGameAppIdSchema = z.object({
+  id: z.string(),
+  gameId: z.string(),
+  key: z.string(),
+  allowedOrigins: z.array(z.string()).nullable(),
+  isActive: z.boolean(),
+  createdAt: z.iso.datetime(),
+  lastUsedAt: z.iso.datetime().nullable(),
+});
+
+export const platformMachineGameAppIdOriginsInputSchema = z.object({
+  allowedOrigins: z.array(z.string().url()),
+});
+
+export const platformMachineGameAppIdRegenerateInputSchema = z.object({
+  yes: z.literal(true),
+});
+
+export const platformMachineGameSlugAvailabilityInputSchema = z.object({
+  slug: z.string().min(1),
+  game: z.string().min(1).optional(),
+});
+
+export const platformMachineGameSlugAvailabilitySchema = z.object({
+  available: z.boolean(),
+});

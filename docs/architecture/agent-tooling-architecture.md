@@ -175,3 +175,14 @@ client, using SDK machine schemas for query bounds and JSON responses.
 The overview and recent-session endpoints belong to the private platform and
 reuse its dashboard analytics services. The public client owns no analytics
 queries or calculation policy. No analytics MCP adapter is exposed.
+
+## Game App IDs and slug availability
+
+`airjam game app-id inspect|origins|regenerate --game <slug-or-id>` and
+`airjam game slug-available --slug <slug> [--game <slug-or-id>]` use the devtools
+`platform-game-app-id` client and SDK machine schemas. The private platform's
+shared game service owns authorization, origin normalization, key rotation and
+slug queries for the dashboard and machine routes. Rotation requires `--yes`
+and an explicit `yes: true` request. Clearing origins sends an empty replacement
+list; inspection returns a nullable allowlist and ISO timestamps. This slice
+adds no MCP adapter, publication or deployment behavior.
