@@ -1,6 +1,6 @@
 # Agent And Tooling Architecture
 
-Last updated: 2026-10-30
+Last updated: 2026-11-06
 Status: implemented architecture
 
 Related docs:
@@ -68,6 +68,13 @@ This layer owns:
 5. quality gate execution
 
 This is the machine-operable workspace layer.
+
+Topology reads do not prepare package builds. Devtools inspects the game once
+for its declaration and controller path; the repo topology command selects the
+game directory and delegates its environment and surface resolution to the
+same CLI runtime resolver used by standalone games. It does not reload the
+declaration or start the development stack. Installed workspace dependencies
+must already be built, as for other built-package consumers.
 
 ### 2. Semantic Game Session Tooling
 
