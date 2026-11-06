@@ -311,7 +311,9 @@ then explicitly make it live when you are ready:
 ```bash
 pnpm exec airjam release inspect --release <release-id>
 pnpm exec airjam release publish --release <release-id>
-pnpm exec airjam game media --help
+pnpm exec airjam game media list --game my-game --json
+pnpm exec airjam game media assign --game my-game --asset-id <asset-id> --json
+pnpm exec airjam game media archive --game my-game --asset-id <asset-id> --json
 pnpm exec airjam game update --game my-game --arcade-visibility listed
 ```
 
@@ -319,6 +321,12 @@ Publishing a release and listing its game are separate decisions. A processing
 timeout does not cancel the background job: inspect the same release rather
 than submitting another copy. CLI responses retain the release and generation
 identities needed to resume work.
+
+`game media list` (also `inspect`) returns existing assets with IDs, kinds,
+status and active selections. `assign` reuses an earlier asset for its kind;
+`archive` retires one by ID and clears its slot if active. These commands use
+the saved machine login and accept `--platform-url` and `--help`. Without
+`--json` they print readable output. Use `game media upload` for new files.
 
 ### Dashboard Publishing
 

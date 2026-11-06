@@ -14,6 +14,7 @@ pnpm exec airjam --help
 pnpm exec airjam session --help
 pnpm exec airjam mcp --help
 pnpm exec airjam release --help
+pnpm exec airjam game media --help
 pnpm exec airjam docs --help
 ```
 
@@ -157,3 +158,30 @@ include the exact play link for hidden and listed releases.
 `airjam release archive --release <id>` retires an owned release and prints its
 updated summary as JSON. Each accepts `--platform-url`; authentication uses the
 existing machine session. See the [hosted release guide](../../docs/guides/hosted-release-guide.md).
+
+## Hosted catalog media
+
+Inspect all existing thumbnails, covers and preview clips, restore an earlier
+asset as current for its kind, or archive an asset by ID:
+
+```bash
+pnpm exec airjam game media list --game my-game --json
+pnpm exec airjam game media assign --game my-game --asset-id <asset-id> --json
+pnpm exec airjam game media archive --game my-game --asset-id <asset-id> --json
+```
+
+`list` is an alias for `inspect`. The game accepts its slug or ID. All three
+commands accept `--platform-url` and use the saved machine session. Each has
+`--help`; omit `--json` for readable terminal output.
+
+Listing returns `{ game, active, assets }`. Each asset includes `id`, `kind`
+(`thumbnail`, `cover`, `preview_video`), `status`, `isActive`, and its file
+metadata. `active` holds the current asset ID for each kind. Assign and archive
+return `{ game, active, asset }` from the same platform service. With `--json`,
+stdout contains exactly that JSON document. Missing games or assets fail with
+the platform's not-found message and a nonzero exit status.
+
+Assignment reuses an existing asset without uploading it again. The platform
+validates ownership and whether the asset can be assigned. Archiving clears
+the slot if the asset is current. Use `upload` to add new files and `clear`
+to archive whichever asset is current for a kind.
