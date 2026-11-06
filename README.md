@@ -178,23 +178,3 @@ Before opening a PR:
 ## License
 
 [MIT](./LICENSE)
-
-## Game App IDs and slugs
-
-Sign in with `airjam auth login` to inspect or manage an owned game's App ID:
-
-```bash
-airjam game app-id inspect --game my-game --json
-airjam game app-id origins --game my-game --origin https://game.example --origin http://localhost:5173 --json
-airjam game app-id origins --game my-game --clear --json
-airjam game app-id regenerate --game my-game --yes --json
-airjam game slug-available --slug new-name --game my-game --json
-```
-
-Inspection returns the key, allowed origins, active state, creation time and last
-use. Origins replace the full allowlist; URLs are normalized to origins and
-deduplicated by the platform. `--clear` removes restrictions. Regeneration breaks
-deployed games using the previous key and refuses without `--yes`.
-Slug availability returns `{ "available": true | false }`; omit `--game` for a
-new game, or supply an owned slug or ID to exclude that game when renaming.
-These commands call the hosted platform; they do not publish or deploy a game.
