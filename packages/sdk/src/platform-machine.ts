@@ -356,6 +356,7 @@ export const platformMachineReleaseSummarySchema = z.object({
   checks: z.array(platformMachineReleaseCheckSchema),
   jobs: z.array(platformMachineReleaseJobSchema),
   reports: z.array(platformMachineReleaseReportSchema),
+  playUrl: z.string().url(),
   hostUrl: z.string().url().nullable(),
   controllerUrl: z.string().url().nullable(),
 });
@@ -569,4 +570,12 @@ export const platformMachinePublishReleaseResultSchema = z.object({
 
 export type PlatformMachinePublishReleaseResult = z.infer<
   typeof platformMachinePublishReleaseResultSchema
+>;
+
+export const platformMachineArchiveReleaseResultSchema = z.object({
+  release: platformMachineReleaseSummarySchema,
+});
+
+export type PlatformMachineArchiveReleaseResult = z.infer<
+  typeof platformMachineArchiveReleaseResultSchema
 >;

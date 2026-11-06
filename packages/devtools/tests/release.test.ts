@@ -649,6 +649,7 @@ describe("local release tooling", () => {
       checks: [],
       jobs,
       reports: [],
+      playUrl: "https://platform.airjam.test/play/rel_1",
       hostUrl:
         status === "ready" || status === "live"
           ? "https://cdn.airjam.test/games/game_1/releases/rel_1/"

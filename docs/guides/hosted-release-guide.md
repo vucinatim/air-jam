@@ -45,6 +45,7 @@ The machine release flow should support:
 4. inspect
 5. publish
 6. list
+7. archive
 
 Those operations exist across CLI and MCP because the release pipeline is a
 control-plane workflow, not just a local script.
@@ -91,3 +92,20 @@ contract through `airjam.release_upload`, `airjam.release_finalize`, and
 Finalization returns the exact processing job. If a wait times out or the caller
 disconnects, the job remains durable and inspectable; do not resubmit merely
 because the client stopped waiting.
+
+## Inspect and retire a release
+
+`airjam release inspect --release <release-id>` and `airjam release list --game <slug-or-id>`
+return the exact `playUrl`, including hidden live releases at `/play/<release-id>`.
+A hidden live release also retains its host and controller links. Hidden means
+unlisted, so keep its play link only with the intended audience.
+
+```bash
+pnpm exec airjam release archive --release <release-id>
+```
+
+Archiving uses the platform's existing ownership and lifecycle rules. The command
+prints the updated release as JSON, including its play URL and archived status.
+An archived release cannot be played; retaining its URL identifies the same release.
+MCP clients use `airjam.release_archive` with `releaseId` and optional `platformUrl`.
+`airjam.release_inspect` and `airjam.release_list` expose the same summaries.

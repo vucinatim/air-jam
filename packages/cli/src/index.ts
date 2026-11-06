@@ -54,6 +54,7 @@ import {
 } from "@air-jam/devtools/platform-games";
 import { runCompleteEvaluation } from "@air-jam/devtools/quality";
 import {
+  archivePlatformRelease,
   bundleLocalRelease,
   exportPlatformReleaseGeneration,
   finalizePlatformReleaseGeneration,
@@ -277,7 +278,7 @@ const runReleaseListCommand = async ({
 
     for (const release of result.releases) {
       console.log(
-        `${kleur.cyan(release.id)}  ${kleur.yellow(release.status)}  ${release.versionLabel ?? "(untitled)"}  ${kleur.dim(release.createdAt)}`,
+        `${kleur.cyan(release.id)}  ${kleur.yellow(release.status)}  ${release.versionLabel ?? "(untitled)"}  ${kleur.dim(release.createdAt)}  ${kleur.cyan(release.playUrl)}`,
       );
     }
 
@@ -804,6 +805,7 @@ const runReleaseInspectCommand = async ({
   console.log(`Status: ${kleur.cyan(release.status)}`);
   console.log(`Version: ${kleur.cyan(release.versionLabel ?? "(untitled)")}`);
   console.log(`Created: ${kleur.cyan(release.createdAt)}`);
+  console.log(`Play URL: ${kleur.cyan(release.playUrl)}`);
   if (release.hostUrl) {
     console.log(`Host URL: ${kleur.cyan(release.hostUrl)}`);
   }
@@ -1050,6 +1052,7 @@ const runReleasePublishCommand = async ({
   console.log(kleur.green("\n✓ Hosted release published\n"));
   console.log(`Release: ${kleur.cyan(result.release.id)}`);
   console.log(`Status: ${kleur.cyan(result.release.status)}`);
+  console.log(`Play URL: ${kleur.cyan(result.release.playUrl)}`);
   if (result.release.hostUrl) {
     console.log(`Host URL: ${kleur.cyan(result.release.hostUrl)}`);
   }
@@ -1682,6 +1685,25 @@ const buildProgram = () => {
         platformUrl: resolved.platformUrl,
         releaseId: resolved.release,
       });
+    });
+
+  releaseCommand
+    .command("archive")
+    .description(
+      "Retire one owned hosted release so it can no longer be played",
+    )
+    .requiredOption("--release <id>", "Exact hosted release ID to archive")
+    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
+    .action(async (options: unknown) => {
+      const resolved = resolveActionOptions<{
+        platformUrl?: string;
+        release: string;
+      }>(options);
+      const result = await archivePlatformRelease({
+        platformUrl: resolved.platformUrl,
+        releaseId: resolved.release,
+      });
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     });
 
   releaseCommand

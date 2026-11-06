@@ -148,3 +148,12 @@ That combination is much bigger than "a game framework with some MCP tools."
    only source of truth.
 5. Keep hosted release operations on the same nouns as the platform control
    plane.
+
+## Hosted release clients
+
+The public SDK's machine release summary owns the `playUrl` field alongside
+host and controller links. CLI inspect/list and MCP inspect/list return the
+platform's exact link for both hidden and listed releases.
+`archivePlatformRelease` in devtools owns the authenticated archive request;
+`airjam release archive` and `airjam.release_archive` are thin adapters over it.
+The private platform owns release authorization and lifecycle transitions.

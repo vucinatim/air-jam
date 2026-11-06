@@ -217,6 +217,7 @@ describe("createAirJamMcpServer", () => {
       "airjam.release_finalize",
       "airjam.release_export",
       "airjam.release_publish",
+      "airjam.release_archive",
       "airjam.start_dev",
       "airjam.stop_dev",
       "airjam.status",
@@ -268,6 +269,9 @@ describe("createAirJamMcpServer", () => {
     );
     expect(listed.tools.map((tool) => tool.name)).toContain(
       "airjam.release_publish",
+    );
+    expect(listed.tools.map((tool) => tool.name)).toContain(
+      "airjam.release_archive",
     );
     expect(listed.tools.map((tool) => tool.name)).not.toContain(
       "airjam.release_doctor",
