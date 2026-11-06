@@ -170,7 +170,7 @@ not expose catalog-media tools.
 
 ## Creator gameplay analytics
 
-`airjam game analytics <game>` calls the devtools `platform-game-analytics`
+`airjam game analytics overview|sessions --game <slug-or-id>` calls the devtools `platform-game-analytics`
 client, using SDK machine schemas for query bounds and JSON responses.
 The overview and recent-session endpoints belong to the private platform and
 reuse its dashboard analytics services. The public client owns no analytics

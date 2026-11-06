@@ -101,7 +101,7 @@ const endpoint = (pathname, payload, status = 200) =>
 test("overview is one validated JSON document with the default window", async () => {
   endpoint("/api/cli/games/my%2Fgame/analytics?days=14", overview);
   const output = captureOutput();
-  await run(["my/game", "--json"]);
+  await run(["overview", "--game", "my/game", "--json"]);
   assert.deepEqual(JSON.parse(output()), overview);
 });
 test("custom window and readable summary", async () => {
@@ -110,7 +110,7 @@ test("custom window and readable summary", async () => {
     days: 90,
   });
   const output = captureOutput();
-  await run(["game-1", "--days", "90"]);
+  await run(["overview", "--game", "game-1", "--days", "90"]);
   assert.match(output(), /Sessions: 3/);
   assert.match(output(), /Controller seconds: 900/);
 });
@@ -123,30 +123,35 @@ for (const [args, limit] of [
       session,
     ]);
     const output = captureOutput();
-    await run(["game-1", "--sessions", ...args, "--json"]);
+    await run(["sessions", "--game", "game-1", ...args, "--json"]);
     assert.deepEqual(JSON.parse(output()), [session]);
   });
 }
 test("empty sessions remain an empty array", async () => {
   endpoint("/api/cli/games/game-1/analytics/sessions?limit=8", []);
   const output = captureOutput();
-  await run(["game-1", "--sessions", "--json"]);
+  await run(["sessions", "--game", "game-1", "--json"]);
   assert.deepEqual(JSON.parse(output()), []);
 });
 for (const args of [
-  ["--days", "0"],
-  ["--days", "91"],
-  ["--days", "1.5"],
-  ["--days", "oops"],
-  ["--sessions", "--limit", "0"],
-  ["--sessions", "--limit", "26"],
-  ["--sessions", "--limit", "1.2"],
-  ["--sessions", "--limit", "oops"],
-  ["--limit", "2"],
-  ["--sessions", "--days", "14"],
+  ["overview", "--days", "0"],
+  ["overview", "--days", "91"],
+  ["overview", "--days", "1.5"],
+  ["overview", "--days", "oops"],
+  ["sessions", "--limit", "0"],
+  ["sessions", "--limit", "26"],
+  ["sessions", "--limit", "1.2"],
+  ["sessions", "--limit", "oops"],
+  ["overview", "--limit", "2"],
+  ["sessions", "--days", "14"],
+  ["overview"],
+  ["sessions"],
 ]) {
   test(`invalid options never request data: ${args.join(" ")}`, async () => {
-    await assert.rejects(run(["game-1", ...args]));
+    const [view, ...options] = args;
+    await assert.rejects(
+      run([view, ...(options.length ? ["--game", "game-1"] : []), ...options]),
+    );
     assert.equal(globalThis.fetch.mock.callCount(), 0);
   });
 }
@@ -161,18 +166,25 @@ for (const [status, error] of [
       status,
     );
     const output = captureOutput();
-    await assert.rejects(run(["game-1", "--json"]), /Access refused/);
+    await assert.rejects(
+      run(["overview", "--game", "game-1", "--json"]),
+      /Access refused/,
+    );
     assert.equal(output(), "");
   });
 }
 test("malformed server payload is rejected", async () => {
   endpoint("/api/cli/games/game-1/analytics?days=14", { days: 14, totals: {} });
-  await assert.rejects(run(["game-1", "--json"]));
+  await assert.rejects(run(["overview", "--game", "game-1", "--json"]));
 });
 test("help documents both views and bounds without authentication", async () => {
-  const help = program().commands[0].commands[0].helpInformation();
-  assert.match(help, /--sessions/);
-  assert.match(help, /1–90/);
-  assert.match(help, /1–25/);
+  const analytics = program().commands[0].commands[0];
+  assert.match(analytics.helpInformation(), /overview/);
+  assert.match(analytics.helpInformation(), /sessions/);
+  assert.match(analytics.commands[0].helpInformation(), /1–90/);
+  assert.match(analytics.commands[1].helpInformation(), /1–25/);
+  for (const command of analytics.commands) {
+    assert.match(command.helpInformation(), /--game <slug-or-id>/);
+  }
   assert.equal(globalThis.fetch.mock.callCount(), 0);
 });

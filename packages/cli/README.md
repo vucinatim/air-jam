@@ -192,13 +192,12 @@ to archive whichever asset is current for a kind.
 Sign in with `airjam auth login`, then read the same analytics as the creator dashboard:
 
 ```bash
-airjam game analytics my-game --days 14 --json
-airjam game analytics my-game --sessions --limit 8 --json
+airjam game analytics overview --game my-game --days 14 --json
+airjam game analytics sessions --game my-game --limit 8 --json
 ```
 
-The game argument accepts an owned slug or ID. `--platform-url` selects the platform.
+`--game` accepts an owned slug or ID. `--platform-url` selects the platform.
 Overview days are 1–90 (default 14); session limits are 1–25 (default 8).
-`--limit` requires `--sessions`; `--days` applies only to the overview.
 Without `--json`, the command prints a readable summary.
 The overview JSON contains `days`, `totals` and UTC `daily` buckets; sessions JSON
 is an array of recent session records, newest first. Dates are ISO strings and
