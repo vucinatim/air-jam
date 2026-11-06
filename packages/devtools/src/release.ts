@@ -1,4 +1,5 @@
 import {
+  platformMachineArchiveReleaseResultSchema,
   platformMachineCreateReleaseDraftResultSchema,
   platformMachineFinalizeReleaseUploadResultSchema,
   platformMachineGetReleaseResultSchema,
@@ -51,6 +52,7 @@ import type {
   AirJamLocalReleaseIssue,
   AirJamLocalReleaseValidation,
   AirJamPackageManager,
+  ArchivePlatformReleaseOptions,
   BundleLocalReleaseOptions,
   BundleLocalReleaseResult,
   CommandResult,
@@ -72,6 +74,7 @@ export type {
   AirJamLocalReleaseDoctor,
   AirJamLocalReleaseIssue,
   AirJamLocalReleaseValidation,
+  ArchivePlatformReleaseOptions,
   BundleLocalReleaseOptions,
   BundleLocalReleaseResult,
   ExportPlatformReleaseGenerationOptions,
@@ -1351,6 +1354,22 @@ export const publishPlatformRelease = async ({
     method: "POST",
     token: resolved.token,
     schema: platformMachinePublishReleaseResultSchema,
+  });
+};
+
+export const archivePlatformRelease = async ({
+  platformUrl,
+  token,
+  releaseId,
+}: ArchivePlatformReleaseOptions) => {
+  const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
+
+  return requestPlatformMachineApi({
+    baseUrl: resolved.baseUrl,
+    pathname: `/api/cli/releases/${encodeURIComponent(releaseId)}/archive`,
+    method: "POST",
+    token: resolved.token,
+    schema: platformMachineArchiveReleaseResultSchema,
   });
 };
 
