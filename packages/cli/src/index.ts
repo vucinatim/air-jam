@@ -80,6 +80,7 @@ import { readDocumentationSnapshot } from "./documentation";
 import { registerGameAnalyticsCommand } from "./game-analytics";
 import { registerGameAppIdCommands } from "./game-app-id";
 import { registerGameMediaCommands } from "./game-media";
+import { registerGameSettingsCommand } from "./game-settings";
 import { runMcpConfig, runMcpDoctor, runMcpInit } from "./mcp";
 import {
   captureSessionVisuals,
@@ -1085,7 +1086,7 @@ const buildProgram = () => {
 
   const gameCommand = program
     .command("game")
-    .description("Manage hosted Air Jam game records on the platform");
+    .description("Manage hosted games and local game source");
 
   gameCommand
     .command("list")
@@ -1213,6 +1214,7 @@ const buildProgram = () => {
       });
     });
 
+  registerGameSettingsCommand(gameCommand);
   registerGameAppIdCommands(gameCommand);
   registerGameAnalyticsCommand(gameCommand);
   registerGameMediaCommands(gameCommand);

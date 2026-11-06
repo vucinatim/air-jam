@@ -106,6 +106,10 @@
     "./platform-game-app-id": {
       "types": "./dist/platform-game-app-id.d.ts",
       "import": "./dist/platform-game-app-id.js"
+    },
+    "./game-settings": {
+      "types": "./dist/game-settings.d.ts",
+      "import": "./dist/game-settings.js"
     }
   },
   "files": [

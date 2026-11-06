@@ -141,8 +141,8 @@
     {
       "path": "docs/airjam/generated/settings.md",
       "kind": "docs-generated",
-      "size": 4901,
-      "sha256": "df0dad0152c0c045feb466ed735e2fcea907b5d08307990fd5e902abf4feae5f"
+      "size": 5900,
+      "sha256": "dcb3ead582fcab7d195ee2a011020eb15f7d52708f919361e2c302f64e7b1204"
     },
     {
       "path": "docs/airjam/generated/state-and-rendering.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "78f80d93c789b7fdb60f7e87964294d536a34daaa39dcc7ea43421fe2b8fc3c5"
+  "contentDigest": "8d26a67e8d42c677ccef648cc0ca64b4467b314531a5410bd76b9891b9e285ad"
 }
