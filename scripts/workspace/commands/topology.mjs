@@ -1,5 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
 import { runProjectTopologyCli } from "../../../packages/cli/runtime/topology.mjs";
-import { findRepoGame } from "../lib/repo-games.mjs";
 
 export const runWorkspaceTopologyCommand = async ({
   rootDir = process.cwd(),
@@ -7,10 +8,17 @@ export const runWorkspaceTopologyCommand = async ({
   mode,
   secure = false,
 } = {}) => {
-  const activeGame = await findRepoGame({ rootDir, gameId });
-  if (!activeGame) throw new Error(`Unknown game "${gameId}".`);
+  const gamesRoot = path.join(rootDir, "games");
+  const directory = fs
+    .readdirSync(gamesRoot, { withFileTypes: true })
+    .find((entry) => entry.isDirectory() && entry.name === gameId);
+  if (
+    !directory ||
+    !fs.existsSync(path.join(gamesRoot, directory.name, "airjam-template.json"))
+  )
+    throw new Error(`Unknown game "${gameId}".`);
   await runProjectTopologyCli({
-    cwd: activeGame.dir,
+    cwd: path.join(gamesRoot, directory.name),
     argv: [`--mode=${mode}`, ...(secure ? ["--secure"] : [])],
   });
 };

@@ -7,12 +7,11 @@ let workspaceRuntimePromise;
 const loadWorkspaceRuntime = () => {
   workspaceRuntimePromise ??= (async () => {
     await ensureWorkspacePackageBuild("@air-jam/sdk");
-    const [dev, secureInit, topology] = await Promise.all([
+    const [dev, secureInit] = await Promise.all([
       import("../../workspace/commands/dev.mjs"),
       import("../../workspace/commands/secure-init.mjs"),
-      import("../../workspace/commands/topology.mjs"),
     ]);
-    return { ...dev, ...secureInit, ...topology };
+    return { ...dev, ...secureInit };
   })();
   return workspaceRuntimePromise;
 };
@@ -45,7 +44,8 @@ export const registerWorkspaceCommands = (program) => {
     )
     .option("--secure", "Resolve trusted local HTTPS", false)
     .action(async (options) => {
-      const { runWorkspaceTopologyCommand } = await loadWorkspaceRuntime();
+      const { runWorkspaceTopologyCommand } =
+        await import("../../workspace/commands/topology.mjs");
       await runWorkspaceTopologyCommand({
         gameId: options.game,
         mode: options.mode,
