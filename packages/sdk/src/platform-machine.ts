@@ -579,3 +579,49 @@ export const platformMachineArchiveReleaseResultSchema = z.object({
 export type PlatformMachineArchiveReleaseResult = z.infer<
   typeof platformMachineArchiveReleaseResultSchema
 >;
+
+export const platformMachineGameAnalyticsOverviewInputSchema = z.object({
+  days: z.number().int().min(1).max(90).default(14),
+});
+
+export const platformMachineGameAnalyticsSessionsInputSchema = z.object({
+  limit: z.number().int().min(1).max(25).default(8),
+});
+
+const gameAnalyticsTotalsSchema = z.object({
+  sessionCount: z.number().int(),
+  totalGameActiveSeconds: z.number().int(),
+  totalControllerSeconds: z.number().int(),
+  totalRawEligiblePlaytimeSeconds: z.number().int(),
+  totalEligiblePlaytimeSeconds: z.number().int(),
+  guardedSessionCount: z.number().int(),
+  peakConcurrentControllers: z.number().int(),
+  lastActivityAt: z.iso.datetime().nullable(),
+});
+
+export const platformMachineGameAnalyticsOverviewSchema = z.object({
+  days: z.number().int().min(1).max(90),
+  totals: gameAnalyticsTotalsSchema,
+  daily: z.array(
+    gameAnalyticsTotalsSchema.extend({ bucketDate: z.iso.date() }),
+  ),
+});
+
+export const platformMachineGameAnalyticsSessionsSchema = z.array(
+  z.object({
+    id: z.string(),
+    runtimeSessionId: z.string(),
+    roomId: z.string(),
+    appId: z.string().nullable(),
+    gameId: z.string(),
+    startedAt: z.iso.datetime(),
+    endedAt: z.iso.datetime().nullable(),
+    controllerSeconds: z.number().int(),
+    rawEligiblePlaytimeSeconds: z.number().int(),
+    eligiblePlaytimeSeconds: z.number().int(),
+    trustFlags: z.array(z.string()),
+    peakConcurrentControllers: z.number().int(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  }),
+);

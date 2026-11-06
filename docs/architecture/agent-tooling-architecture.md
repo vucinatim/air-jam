@@ -167,3 +167,11 @@ ID. Their `--json` output preserves the SDK's validated platform result. The
 private platform owns authorization, assignment eligibility and archival; the
 CLI adds no media policy or duplicate request transport. The public MCP does
 not expose catalog-media tools.
+
+## Creator gameplay analytics
+
+`airjam game analytics overview|sessions --game <slug-or-id>` calls the devtools `platform-game-analytics`
+client, using SDK machine schemas for query bounds and JSON responses.
+The overview and recent-session endpoints belong to the private platform and
+reuse its dashboard analytics services. The public client owns no analytics
+queries or calculation policy. No analytics MCP adapter is exposed.

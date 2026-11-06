@@ -14,6 +14,7 @@ pnpm exec airjam --help
 pnpm exec airjam session --help
 pnpm exec airjam mcp --help
 pnpm exec airjam release --help
+pnpm exec airjam game analytics --help
 pnpm exec airjam game media --help
 pnpm exec airjam docs --help
 ```
@@ -185,3 +186,22 @@ Assignment reuses an existing asset without uploading it again. The platform
 validates ownership and whether the asset can be assigned. Archiving clears
 the slot if the asset is current. Use `upload` to add new files and `clear`
 to archive whichever asset is current for a kind.
+
+## Creator gameplay analytics
+
+Sign in with `airjam auth login`, then read the same analytics as the creator dashboard:
+
+```bash
+airjam game analytics overview --game my-game --days 14 --json
+airjam game analytics sessions --game my-game --limit 8 --json
+```
+
+`--game` accepts an owned slug or ID. `--platform-url` selects the platform.
+Overview days are 1–90 (default 14); session limits are 1–25 (default 8).
+Without `--json`, the command prints a readable summary.
+The overview JSON contains `days`, `totals` and UTC `daily` buckets; sessions JSON
+is an array of recent session records, newest first. Dates are ISO strings and
+missing dates remain null. Empty games return zero totals and an empty session
+array. Session records retain room IDs, controller seconds, eligible playtime
+and trust flags; these are recorded runtime facts, not unique-player counts.
+Unauthenticated requests fail and games belonging to someone else return not-found.
