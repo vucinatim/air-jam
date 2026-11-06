@@ -362,11 +362,11 @@ export const loadSecureDevState = ({
   mode,
   env = process.env,
   gamePort = DEFAULT_GAME_PORT,
-} = {}) => {
-  const runtimeEnv = loadCreateAirJamRuntimeEnv({
+  runtimeEnv = loadCreateAirJamRuntimeEnv({
     env,
     boundary: "create-airjam.secure-state",
-  });
+  }),
+} = {}) => {
   const paths = getSecurePaths(cwd);
   const state = readSecureDevState(paths.secureDevStateFile);
   if (!state) {
