@@ -25,6 +25,10 @@ export declare const loadSecureDevState: (options: {
   mode: SecureMode;
   env?: NodeJS.ProcessEnv;
   gamePort?: number;
+  runtimeEnv?: Pick<
+    NodeJS.ProcessEnv,
+    "AIR_JAM_SECURE_PUBLIC_HOST" | "CLOUDFLARE_TUNNEL_NAME"
+  >;
 }) => SecureDevState;
 
 export declare const buildSecureGameEnv: (options: {

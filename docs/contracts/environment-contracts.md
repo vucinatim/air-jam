@@ -40,6 +40,11 @@ fail explicitly rather than fall back to permissive standalone behavior.
 
 Keep schemas boundary-owned; do not introduce a monorepo-wide mega schema.
 
+The creator `dev` and `topology` commands pass their validated runtime settings
+to `loadSecureDevState({ runtimeEnv })`, so loading saved HTTPS setup does not
+parse ports again. Direct callers supplying raw `env` retain validation at the
+secure-state boundary.
+
 ## Error Contract
 
 When env is invalid, startup/runtime command fails with a deterministic terminal report:
