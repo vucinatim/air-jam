@@ -67,6 +67,14 @@ export const platformMachineUserSchema = z.object({
 
 export type PlatformMachineUser = z.infer<typeof platformMachineUserSchema>;
 
+export const platformMachineProfileInputSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .min(1, "Display name is required")
+    .max(50, "Display name must be 50 characters or fewer"),
+});
+
 export const platformMachineSessionSchema = z.object({
   id: z.string().min(1),
   token: z.string().min(1),

@@ -76,6 +76,7 @@ import {
   runAiPackStatus,
   runAiPackUpdate,
 } from "./ai-pack";
+import { registerAuthProfileCommand } from "./auth-profile";
 import { readDocumentationSnapshot } from "./documentation";
 import { registerGameAnalyticsCommand } from "./game-analytics";
 import { registerGameAppIdCommands } from "./game-app-id";
@@ -1522,6 +1523,8 @@ const buildProgram = () => {
         }>(options),
       );
     });
+
+  registerAuthProfileCommand(authCommand);
 
   authCommand.action(() => {
     authCommand.outputHelp();
