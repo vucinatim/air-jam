@@ -1,5 +1,6 @@
 import { airJamSettingSchema, defineAirJamSettings } from "@air-jam/sdk/core";
 import { randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
 import {
   readFile,
   realpath,
@@ -45,21 +46,87 @@ export async function keepGameSettings({
   }
   const fail: (message: string) => never = (message) =>
     refuse("AJ_SETTINGS_DECLARATION", message);
-  const read = async (file: string) => {
-    file = await realpath(file);
-    const relative = path.relative(cwd, file);
-    if (
-      relative.startsWith(`..${path.sep}`) ||
-      relative === ".." ||
-      path.isAbsolute(relative)
-    )
-      fail("The settings declaration must be inside the game project.");
-    return ts.createSourceFile(
-      file,
-      await readFile(file, "utf8"),
-      ts.ScriptTarget.Latest,
-      true,
+  // Bind only game source. SDK/package declarations and ambient libraries are
+  // irrelevant to resolving which local variable the game actually imports.
+  const sourceRoot = path.join(cwd, "src");
+  const localFile = (file: string) => {
+    try {
+      const resolved = realpathSync(file);
+      const relative = path.relative(cwd, resolved);
+      return relative !== ".." &&
+        !relative.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relative) &&
+        !relative.split(path.sep).includes("node_modules")
+        ? resolved
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const options: TS.CompilerOptions = {
+    noLib: true,
+    types: [],
+    skipLibCheck: true,
+    target: ts.ScriptTarget.Latest,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    allowImportingTsExtensions: true,
+  };
+  const host = ts.createCompilerHost(options);
+  host.getCurrentDirectory = () => cwd;
+  host.fileExists = (file) => localFile(file) !== undefined;
+  host.readFile = (file) => {
+    const local = localFile(file);
+    return local ? ts.sys.readFile(local) : undefined;
+  };
+  host.getSourceFile = (file, languageVersion) => {
+    const local = localFile(file);
+    const text = local ? host.readFile(local) : undefined;
+    return local && text !== undefined
+      ? ts.createSourceFile(local, text, languageVersion, true)
+      : undefined;
+  };
+  host.resolveModuleNames = (names, containingFile) =>
+    names.map((name) =>
+      name.startsWith(".")
+        ? ts.resolveModuleName(name, containingFile, options, host)
+            .resolvedModule
+        : undefined,
     );
+  const configPath = path.join(sourceRoot, "airjam.config.ts");
+  const program = ts.createProgram([configPath], options, host);
+  const config = program.getSourceFile(configPath);
+  if (!config) fail("The game's src/airjam.config.ts could not be read.");
+  if (program.getSyntacticDiagnostics().length)
+    fail("Fix the game's source syntax before keeping settings.");
+  const checker = program.getTypeChecker();
+  const resolveVariable = (initial: TS.Symbol | undefined) => {
+    let symbol = initial;
+    const aliases = new Set<TS.Symbol>();
+    while (symbol && symbol.flags & ts.SymbolFlags.Alias) {
+      if (aliases.has(symbol))
+        fail("The settings binding has a circular alias.");
+      aliases.add(symbol);
+      symbol = checker.getAliasedSymbol(symbol);
+    }
+    const declarations = symbol?.getDeclarations();
+    if (
+      declarations?.length !== 1 ||
+      !ts.isVariableDeclaration(declarations[0])
+    )
+      fail("Expected one unambiguous source variable declaration.");
+    const variable = declarations[0];
+    if (
+      !ts.isIdentifier(variable.name) ||
+      !ts.isVariableDeclarationList(variable.parent) ||
+      !(variable.parent.flags & ts.NodeFlags.Const) ||
+      !variable.initializer
+    )
+      fail("Settings must use one directly initialized const binding.");
+    return {
+      source: variable.getSourceFile(),
+      initializer: variable.initializer,
+    };
   };
   const name = (node: TS.PropertyName) => {
     if (ts.isIdentifier(node) || ts.isStringLiteral(node)) return node.text;
@@ -87,7 +154,6 @@ export async function keepGameSettings({
     ts.isCallExpression(node) &&
     ts.isIdentifier(node.expression) &&
     node.expression.text === called;
-  const config = await read(path.join(cwd, "src/airjam.config.ts"));
   const games: TS.CallExpression[] = [];
   const visit = (node: TS.Node) => {
     if (isCall(node, "defineAirJamGame")) games.push(node);
@@ -96,6 +162,24 @@ export async function keepGameSettings({
   visit(config);
   if (games.length !== 1)
     fail("Expected exactly one defineAirJamGame declaration.");
+  const module = checker.getSymbolAtLocation(config);
+  const exportedGame =
+    module &&
+    checker.getExportsOfModule(module).find((entry) => entry.name === "airjam");
+  if (resolveVariable(exportedGame).initializer !== games[0])
+    fail(
+      "The defineAirJamGame declaration must be the game's exported airjam value.",
+    );
+  // A checker may still pick a symbol from invalid duplicate exports. Never
+  // treat that recovery choice as an authoritative source-edit target.
+  if (
+    program
+      .getSemanticDiagnostics()
+      .some(({ code }) => [2300, 2308, 2323, 2451, 2484, 2588].includes(code))
+  )
+    fail(
+      "Duplicate or ambiguous bindings must be resolved before keeping settings.",
+    );
   const selected = properties(games[0].arguments[0]).get(
     "settings",
   )?.initializer;
@@ -103,64 +187,9 @@ export async function keepGameSettings({
   let source = config;
   let declaration = selected;
   if (ts.isIdentifier(selected)) {
-    const bindings: { file: TS.SourceFile; expression: TS.Expression }[] = [];
-    const findBinding = (file: TS.SourceFile, identifier: string) => {
-      for (const statement of file.statements)
-        if (ts.isVariableStatement(statement))
-          for (const variable of statement.declarationList.declarations)
-            if (
-              ts.isIdentifier(variable.name) &&
-              variable.name.text === identifier &&
-              variable.initializer
-            )
-              bindings.push({ file, expression: variable.initializer });
-    };
-    findBinding(config, selected.text);
-    for (const statement of config.statements) {
-      if (
-        !ts.isImportDeclaration(statement) ||
-        !ts.isStringLiteral(statement.moduleSpecifier)
-      )
-        continue;
-      const clause = statement.importClause;
-      const imports = clause?.namedBindings;
-      const binding =
-        imports && ts.isNamedImports(imports)
-          ? imports.elements.filter(
-              (entry) => entry.name.text === selected.text,
-            )
-          : [];
-      const isDefault = clause?.name?.text === selected.text;
-      if (!binding.length && !isDefault) continue;
-      if (!statement.moduleSpecifier.text.startsWith("."))
-        fail("Import the settings from a relative game module.");
-      const resolved = ts.resolveModuleName(
-        statement.moduleSpecifier.text,
-        config.fileName,
-        {
-          moduleResolution: ts.ModuleResolutionKind.Bundler,
-          allowImportingTsExtensions: true,
-        },
-        ts.sys,
-      ).resolvedModule;
-      if (!resolved) fail("The settings module could not be resolved.");
-      const imported = await read(resolved.resolvedFileName);
-      if (isDefault) {
-        for (const entry of imported.statements)
-          if (ts.isExportAssignment(entry)) {
-            if (ts.isIdentifier(entry.expression))
-              findBinding(imported, entry.expression.text);
-            else
-              bindings.push({ file: imported, expression: entry.expression });
-          }
-      }
-      for (const entry of binding)
-        findBinding(imported, entry.propertyName?.text ?? entry.name.text);
-    }
-    if (bindings.length !== 1)
-      fail("Expected one unambiguous settings binding.");
-    source = bindings[0].file;
-    declaration = bindings[0].expression;
+    const binding = resolveVariable(checker.getSymbolAtLocation(selected));
+    source = binding.source;
+    declaration = binding.initializer;
   }
   if (
     !isCall(declaration, "defineAirJamSettings") ||

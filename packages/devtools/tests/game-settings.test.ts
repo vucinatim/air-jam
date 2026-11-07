@@ -199,3 +199,113 @@ describe("keeping declaration defaults", () => {
     ).rejects.toMatchObject({ code: "AJ_SETTINGS_TYPESCRIPT_MISSING" });
   });
 });
+
+it.each(["named alias", "default identifier", "aliased re-export"])(
+  "resolves the used %s declaration and leaves an unexported decoy untouched",
+  async (shape) => {
+    const f = await fixture(undefined, true);
+    const used =
+      "const actual = defineAirJamSettings({ballSpeed: setting.number({default: 360, min: 0, max: 500})});\n";
+    const decoy =
+      "const tuning = defineAirJamSettings({ballSpeed: setting.number({default: 300, min: 0, max: 500})});\n";
+    const target =
+      shape === "aliased re-export" ? "src/other.ts" : "src/settings.ts";
+    const targetText =
+      used +
+      decoy +
+      (shape === "default identifier"
+        ? "export default actual;\n"
+        : shape === "aliased re-export"
+          ? "export {actual};\n"
+          : "export {actual as tuning};\n");
+    await writeFile(path.join(f.cwd, target), targetText);
+    if (shape === "aliased re-export")
+      await writeFile(
+        path.join(f.cwd, "src/settings.ts"),
+        "export {actual as tuning} from './other.js';\n",
+      );
+    await writeFile(
+      path.join(f.cwd, "src/airjam.config.ts"),
+      (shape === "default identifier"
+        ? "import selected from './settings.js';"
+        : "import {tuning as selected} from './settings.js';") +
+        "\nexport const airjam = defineAirJamGame({settings: selected});\n",
+    );
+    const result = await keepGameSettings({
+      cwd: f.cwd,
+      values: { ballSpeed: 400 },
+    });
+    expect(result.file).toBe(target);
+    const output = await readFile(path.join(f.cwd, target), "utf8");
+    expect(output).toBe(targetText.replace("default: 360", "default: 400"));
+    expect(output).toContain(decoy);
+  },
+);
+
+it.each([
+  "let settings = defineAirJamSettings({ballSpeed: setting.number({default: 360})}); settings = other;",
+  "const settings = defineAirJamSettings({ballSpeed: setting.number({default: 360})}); settings = other;",
+  "const {settings} = other;",
+  "const actual = defineAirJamSettings({ballSpeed: setting.number({default: 360})}); const settings = actual;",
+])(
+  "refuses a mutable or indirect binding without touching source: %s",
+  async (binding) => {
+    const f = await fixture();
+    const source =
+      binding +
+      "\nexport const airjam = defineAirJamGame({settings: settings});\n";
+    await writeFile(path.join(f.cwd, f.file), source);
+    await expect(
+      keepGameSettings({ cwd: f.cwd, values: { ballSpeed: 400 } }),
+    ).rejects.toMatchObject({ code: "AJ_SETTINGS_DECLARATION" });
+    expect(await f.read()).toBe(source);
+  },
+);
+
+it("refuses an unresolved exported binding instead of editing an unexported namesake", async () => {
+  const f = await fixture(undefined, true);
+  const source =
+    "const tuning = defineAirJamSettings({ballSpeed: setting.number({default: 360})}); export {};\n";
+  await writeFile(path.join(f.cwd, f.file), source);
+  await writeFile(
+    path.join(f.cwd, "src/airjam.config.ts"),
+    "import {tuning} from './settings.js'; export const airjam = defineAirJamGame({settings: tuning});\n",
+  );
+  await expect(
+    keepGameSettings({ cwd: f.cwd, values: { ballSpeed: 400 } }),
+  ).rejects.toMatchObject({ code: "AJ_SETTINGS_DECLARATION" });
+  expect(await f.read()).toBe(source);
+});
+
+it("never selects an unused game declaration instead of the exported game", async () => {
+  const f = await fixture();
+  const original =
+    (await f.read()).replace("export const airjam =", "const unused =") +
+    "\nexport const airjam = someOtherGame;\n";
+  await writeFile(path.join(f.cwd, f.file), original);
+  await expect(
+    keepGameSettings({ cwd: f.cwd, values: { ballSpeed: 400 } }),
+  ).rejects.toMatchObject({ code: "AJ_SETTINGS_DECLARATION" });
+  expect(await f.read()).toBe(original);
+});
+
+it("refuses ambiguous star exports rather than choosing the first declaration", async () => {
+  const f = await fixture(undefined, true);
+  const declaration =
+    "export const tuning = defineAirJamSettings({ballSpeed: setting.number({default: 360})});\n";
+  await writeFile(path.join(f.cwd, "src/first.ts"), declaration);
+  await writeFile(path.join(f.cwd, "src/second.ts"), declaration);
+  await writeFile(
+    path.join(f.cwd, "src/settings.ts"),
+    "export * from './first.js'; export * from './second.js';\n",
+  );
+  await expect(
+    keepGameSettings({ cwd: f.cwd, values: { ballSpeed: 400 } }),
+  ).rejects.toMatchObject({ code: "AJ_SETTINGS_DECLARATION" });
+  expect(await readFile(path.join(f.cwd, "src/first.ts"), "utf8")).toBe(
+    declaration,
+  );
+  expect(await readFile(path.join(f.cwd, "src/second.ts"), "utf8")).toBe(
+    declaration,
+  );
+});
