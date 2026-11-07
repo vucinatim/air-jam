@@ -11,6 +11,7 @@ export default defineConfig({
     "game-session": "src/game-session.ts",
     "game-session-broker": "src/game-session-broker.ts",
     games: "src/games.ts",
+    "game-settings": "src/game-settings.ts",
     logs: "src/logs.ts",
     "platform-auth": "src/platform-auth.ts",
     "platform-game-app-id": "src/platform-game-app-id.ts",

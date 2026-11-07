@@ -129,3 +129,28 @@ Input logs use `version: 2`, with resolved initial `settings` and ordered
 They share the stream with inputs and actions. `replayAirJamInputLog` creates
 the host with the initial values and applies each update in order before its
 recorded step. Use the same seed and game code to reproduce the final state.
+
+## Keeping a value
+
+A live change lasts for the current room. To make a chosen value the default for
+future rooms and test runs, keep it in the game's declaration:
+
+```bash
+pnpm exec airjam game settings keep --set ballSpeed=400 --json
+```
+
+Use `--dir <game>` from another directory, and repeat `--set` for several values.
+The command requires the game's own `typescript` dependency and rewrites only
+literal `default:` values in the selected `defineAirJamSettings({...})`, even
+when it is imported from another game module. Imported settings must resolve to
+one `const` directly initialized by `defineAirJamSettings`; named and default
+exports and explicit re-export aliases are resolved to that binding. Mutable or
+ambiguous bindings are refused. The config must export the `defineAirJamGame`
+binding as `airjam`, so an unused game declaration is never selected. Comments
+and formatting stay in
+place; the declaration remains the only source of defaults. Commit the change
+as ordinary game source. Shared or computed defaults, ambiguous declarations,
+unknown keys and values outside their declared type, range, step or options are
+refused before writing. The JSON result names the file and each `{ key, from,
+to }`; equal values write nothing. Studio's Keep operation uses this same
+transform and captures the source change in history.

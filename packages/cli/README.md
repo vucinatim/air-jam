@@ -239,3 +239,17 @@ deployed games using the previous key and refuses without `--yes`.
 Slug availability returns `{ "available": true | false }`; omit `--game` for a
 new game, or supply an owned slug or ID to exclude that game when renaming.
 These commands call the hosted platform; they do not publish or deploy a game.
+
+## Keeping local setting defaults
+
+```bash
+airjam game settings keep --set ballSpeed=400 --dir ./pong --json
+```
+
+Repeat `--set name=value` to keep several settings together. Values are parsed
+using each declared kind. This rewrites only the `default:` literals in the
+`defineAirJamSettings` selected by `src/airjam.config.ts`, preserving comments
+and formatting. The game must have its own `typescript` dependency. The JSON
+result contains `file` and `kept: [{ key, from, to }]`; equal values are reported
+unchanged and write nothing. Unknown keys, invalid values and ambiguous or
+computed defaults fail with an `AJ_*` refusal before any source is written.
