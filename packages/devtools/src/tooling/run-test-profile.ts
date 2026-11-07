@@ -5,8 +5,10 @@ import {
   type TestProfileResponse,
 } from "../test-profile-protocol.js";
 import {
+  PLAY_RUN_PLAYER,
   airJamPolicyDecisionSchema,
   airJamScenarioVerdictSchema,
+  createAirJamPlayerPolicy,
   describeAirJamTestProfiles,
   policyPreparationSchema,
   type AirJamRunReceipt,
@@ -60,7 +62,12 @@ process.on("message", (message: unknown) => {
           throw new Error("Test profile already initialized.");
         const game = await loadAirJamGame(request.configPath);
         const testing = await loadAirJamTesting(request.configPath, game);
-        if (!testing) throw new Error("Game does not declare testing.");
+        if (!testing)
+          throw new Error(
+            request.runKind === "play"
+              ? "This game has no player contract; it cannot seat a model player."
+              : "Game does not declare testing.",
+          );
         const profiles = describeAirJamTestProfiles(testing.profiles);
         const preparation = policyPreparationSchema.parse([]);
         const artifacts = request.artifacts;
@@ -69,7 +76,26 @@ process.on("message", (message: unknown) => {
           throw new Error(
             "Only the policy process can receive model artifacts.",
           );
-        if (role !== "discover") {
+        if (request.runKind === "play") {
+          if (role !== "policy" || artifacts)
+            throw new Error("Play initializes only its player policy.");
+          if (!testing.player)
+            throw new Error(
+              "This game has no player contract; it cannot seat a model player.",
+            );
+          const started = performance.now();
+          const instance = await createAirJamPlayerPolicy(
+            testing.player,
+          ).create({
+            seatId: PLAY_RUN_PLAYER.seats[0].id,
+            random: createPolicyRandom(request.seed),
+          });
+          policies.set(PLAY_RUN_PLAYER.seats[0].id, instance);
+          preparation.push({
+            seatId: PLAY_RUN_PLAYER.seats[0].id,
+            prepareMs: performance.now() - started,
+          });
+        } else if (role !== "discover") {
           profile = testing.profiles[request.profileId ?? ""];
           if (!profile) throw new Error("Unknown test profile.");
           if (role === "policy") {

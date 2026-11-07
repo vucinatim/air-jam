@@ -22,8 +22,9 @@ import {
   type GameRunSession,
 } from "../src/game-run-owner.js";
 import {
+  gameRunRecordSchema,
   MAXIMUM_GAME_RUN_TRACE_BYTES,
-  type StartGameRunOptions,
+  startTestGameRunSchema,
 } from "../src/game-run-protocol.js";
 import { readTerminalGameRun } from "../src/game-run-record.js";
 import type {
@@ -282,7 +283,7 @@ async function fixture({
     decisions: decisions && { model: "test-model", ask: decisions },
   });
   fixtures.push({ owner, root });
-  const request: StartGameRunOptions = {
+  const request: import("zod").input<typeof startTestGameRunSchema> = {
     runId: randomUUID(),
     profileId: "counter",
     policyId: "code",
@@ -2257,3 +2258,89 @@ it.each([true, false])(
     expect(saved.end).toEqual(result.end);
   },
 );
+
+it("plays without a profile or evaluator, accepts steering, and cleans up without a verdict", async () => {
+  const f = await fixture();
+  f.session.summary.semanticAccess = "delegated-host";
+  io.decide.mockResolvedValue({
+    control: { kind: "input", input: { direction: 1 } },
+  });
+  await f.owner.start(
+    {
+      kind: "play",
+      runId: f.request.runId,
+      target: { kind: "current" },
+      intent: "Defend the other paddle",
+    },
+    attachment(),
+  );
+  await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
+  expect(io.startPolicy).toHaveBeenCalledTimes(1);
+  expect(io.startPolicy).toHaveBeenCalledWith(
+    expect.objectContaining({ runKind: "play", role: "policy" }),
+  );
+  expect(io.evaluate).not.toHaveBeenCalled();
+  expect(f.session.invokeHost).not.toHaveBeenCalled();
+  expect(f.session.observe).toHaveBeenCalledWith(
+    expect.objectContaining({ scope: "player" }),
+  );
+  const steered = await f.owner.steer({
+    runId: f.request.runId,
+    seatId: "player",
+    intent: "Aim lower",
+    source: "agent",
+  });
+  expect(steered.seats[0].intent).toBe("Aim lower");
+  await f.owner.stop(f.request.runId);
+  const record = await f.owner.read(f.request.runId);
+  expect(record.profile).toBeUndefined();
+  expect(record.end).toMatchObject({ reason: "stopped" });
+  expect(record.end).not.toHaveProperty("outcome");
+  expect(
+    gameRunRecordSchema.safeParse({
+      ...record,
+      end: { ...record.end, outcome: "passed" },
+    }).success,
+  ).toBe(false);
+  expect(
+    gameRunRecordSchema.safeParse({
+      ...record,
+      request: startTestGameRunSchema.parse(f.request),
+    }).success,
+  ).toBe(false);
+  expect(record.cleanup).toMatchObject({
+    processesClosed: true,
+    participantsClosed: true,
+  });
+  expect(io.stopEvaluator).not.toHaveBeenCalled();
+});
+
+it("ends play at its ten-minute safety deadline without a verdict", async () => {
+  const f = await fixture();
+  f.session.summary.semanticAccess = "delegated-host";
+  const timer = vi.spyOn(globalThis, "setTimeout");
+  try {
+    await f.owner.start(
+      { kind: "play", runId: f.request.runId, target: { kind: "current" } },
+      attachment(),
+    );
+    await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
+    const deadline = timer.mock.calls.find(
+      ([, milliseconds]) =>
+        milliseconds !== undefined &&
+        milliseconds > 599_000 &&
+        milliseconds <= 600_000,
+    );
+    expect(deadline).toBeDefined();
+    if (!deadline) throw new Error("Missing safety deadline");
+    deadline[0]();
+    const record = await f.ended();
+    expect(record.end).toMatchObject({ reason: "safety_deadline" });
+    expect(record.end).not.toHaveProperty("outcome");
+    expect(record.evaluation).toBeUndefined();
+    expect(record.cleanup?.participantsClosed).toBe(true);
+    expect(io.stopPolicy).toHaveBeenCalled();
+  } finally {
+    timer.mockRestore();
+  }
+});

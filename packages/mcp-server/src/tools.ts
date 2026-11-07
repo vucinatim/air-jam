@@ -12,6 +12,8 @@ import {
   gameRunSteerSchema,
   gameRunWaitSchema,
   startGameRunSchema,
+  startPlayGameRunSchema,
+  startTestGameRunSchema,
 } from "@air-jam/devtools/game-runs";
 import {
   captureGameSessionVisuals,
@@ -553,9 +555,16 @@ export const buildToolDefinitions = ({
     },
     "airjam.start_game_run": {
       description:
-        "Start a bounded policy run in its own fresh game room. Supply a stable UUID runId; retries return the same admission. Never uses the creator's live room. Target headless plays with no page on game time, far faster than real time; owned plays the built page. Read or stop by runId.",
-      inputSchema: startGameRunSchema,
-      run: async (input) => withJsonText(await startGameRun(input)),
+        "Start an authored test (kind=test, profile, policy and budget) or a profile-free model player (kind=play, current room only, optional intent, ten-minute safety deadline and no verdict). Supply a stable UUID runId; retries return the same admission. Play requires the creator's granted current room. Tests may also target owned or headless rooms. Target headless plays with no page on game time, far faster than real time; owned plays the built page. Read or stop by runId.",
+      inputSchema: z.object({
+        ...startTestGameRunSchema.partial().shape,
+        ...startPlayGameRunSchema.partial().shape,
+        kind: z.enum(["test", "play"]).default("test"),
+        runId: startTestGameRunSchema.shape.runId,
+        target: startTestGameRunSchema.shape.target,
+      }),
+      run: async (input) =>
+        withJsonText(await startGameRun(startGameRunSchema.parse(input))),
     },
     "airjam.read_game_run": {
       description:
