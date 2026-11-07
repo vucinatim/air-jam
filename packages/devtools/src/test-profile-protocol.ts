@@ -32,6 +32,7 @@ export const testProfileRequestSchema = z.discriminatedUnion("kind", [
       rootDir: z.string().min(1),
       configPath: z.string().min(1),
       role: z.enum(["discover", "policy", "evaluator"]),
+      runKind: z.enum(["test", "play"]).default("test"),
       artifacts: z
         .object({
           directory: z.string().min(1),

@@ -78,7 +78,7 @@ export const currentRoomHostRequestSchema = z
 export const seatIntentSchema = z.string().trim().min(1).max(500);
 export const steeringSourceSchema = z.enum(["creator", "agent", "operator"]);
 
-export const startGameRunSchema = z
+const gameRunStartBaseSchema = z
   .object({
     cwd: z.string().min(1).optional(),
     runId: z.uuid(),
@@ -89,10 +89,16 @@ export const startGameRunSchema = z
       /** Plays in a room with no page, on game time, as fast as the host runs. */
       z.object({ kind: z.literal("headless") }).strict(),
     ]),
-    profileId: z.string().min(1).max(64),
-    policyId: z.string().min(1).max(64),
+
     settings: airJamSettingsValuesSchema.optional(),
     seed: z.number().int().min(0).max(0xffff_ffff).default(0),
+  })
+  .strict();
+export const startTestGameRunSchema = gameRunStartBaseSchema
+  .extend({
+    kind: z.literal("test").default("test"),
+    profileId: z.string().min(1).max(64),
+    policyId: z.string().min(1).max(64),
     budget: z
       .object({
         durationMs: z.number().int().min(1000).max(MAXIMUM_GAME_RUN_MS),
@@ -101,7 +107,6 @@ export const startGameRunSchema = z
       .strict(),
     intents: z.record(z.string().min(1).max(64), seatIntentSchema).optional(),
   })
-  .strict()
   .refine(
     (request) =>
       request.settings === undefined || request.target.kind !== "current",
@@ -111,6 +116,17 @@ export const startGameRunSchema = z
       path: ["settings"],
     },
   );
+export const startPlayGameRunSchema = gameRunStartBaseSchema
+  .omit({ settings: true })
+  .extend({
+    kind: z.literal("play"),
+    target: z.object({ kind: z.literal("current") }).strict(),
+    intent: seatIntentSchema.optional(),
+  });
+export const startGameRunSchema = z.union([
+  startTestGameRunSchema,
+  startPlayGameRunSchema,
+]);
 export type StartGameRunOptions = z.input<typeof startGameRunSchema>;
 export const gameRunAddressSchema = z
   .object({ cwd: z.string().min(1).optional(), runId: z.uuid() })
@@ -137,6 +153,7 @@ export const gameRunEndReasonSchema = z.enum([
   "completed",
   "failed",
   "budget",
+  "safety_deadline",
   "stopped",
   "owner_stopping",
   "owner_lost",
@@ -254,7 +271,7 @@ export const gameRunRecordSchema = z
     end: z
       .object({
         reason: gameRunEndReasonSchema,
-        outcome: z.enum(["passed", "failed", "inconclusive"]),
+        outcome: z.enum(["passed", "failed", "inconclusive"]).optional(),
         message: z.string(),
         hostFault: hostRuntimeFaultSchema.optional(),
       })
@@ -325,7 +342,22 @@ export const gameRunRecordSchema = z
       .strict()
       .optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (record) =>
+      record.request.kind !== "play" ||
+      (record.profile === undefined &&
+        record.evaluation === undefined &&
+        record.end?.outcome === undefined),
+    "Play records have no authored profile, evaluation or verdict.",
+  )
+  .refine(
+    (record) =>
+      record.request.kind !== "test" ||
+      record.end === undefined ||
+      record.end.outcome !== undefined,
+    "Finished test records require a verdict.",
+  );
 export type AirJamGameRunRecord = z.infer<typeof gameRunRecordSchema>;
 export const gameRunCancellationSchema = z
   .object({

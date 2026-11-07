@@ -248,10 +248,25 @@ game, so a delayed start cannot create an unsupervised player. The result is
 `{runId, ownerInstanceId, fenced: true, record}`, with `record: null` when no run started. The owner identifies the broker that performed the fence, even when the record belongs to a lost earlier owner. Cancelling
 is an explicit write and may establish an inert project broker; reads never do.
 
+A request has `kind: "test"` (also the default for existing callers) or
+`kind: "play"`. Test requests retain their profile, evaluator, budgets and verdict.
+A play request requires the creator's `current` room and the game's
+`defineAirJamTesting.player`; a missing player contract is a plain admission error.
+It accepts one optional `intent` and supplies one seat (`player`, label `Player`),
+player-scoped observation and controls, no images, a 100 ms cadence, a 1200 ms
+decision deadline and a 1500 ms input lifetime. These match the existing profile
+defaults. It creates only the generic model policy, performs no setup or reset,
+and has no profile, evaluator, decision-count budget or verdict. Stop, room
+revocation and the ten-minute wall-clock safety deadline end play; execution
+errors still trigger the same cleanup. Its record retains the terminal reason,
+decisions, steering and disconnection receipts. The CLI selects this path with
+`airjam session run start --kind play --current --run-id <uuid> --intent "Defend"`;
+MCP `start_game_run` accepts the same kind and intent.
+
 The caller supplies a stable UUID `runId`. An identical retry returns the same
 admission, a changed request conflicts, and a retained run ID from a previous
 owner cannot start another trial. A manifest is persisted before asynchronous
-startup. Time (at most ten minutes, including startup) and decision-count budgets
+startup. For tests, time (at most ten minutes, including startup) and decision-count budgets
 are explicit; an incomplete budget exit is inconclusive, never a passed test.
 
 The trace has a 16 MiB byte allowance, with space reserved for teardown events.

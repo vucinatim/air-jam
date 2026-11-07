@@ -25,6 +25,7 @@ export async function startTestProfileProcess({
   rootDir,
   configPath,
   profileId,
+  runKind = "test",
   policyId,
   seed,
   logPath,
@@ -45,6 +46,7 @@ export async function startTestProfileProcess({
     receipt: z.infer<typeof policyArtifactReceiptSchema>;
   };
   configPath: string;
+  runKind?: "test" | "play";
   profileId?: string;
   policyId?: string;
   seed: number;
@@ -91,6 +93,7 @@ export async function startTestProfileProcess({
         rootDir,
         configPath,
         profileId,
+        runKind,
         policyId,
         seed,
         role,

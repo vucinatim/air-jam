@@ -71,6 +71,17 @@ export type AirJamTestProfileDescription = z.infer<
   typeof airJamTestProfileDescriptionSchema
 >;
 
+export const PLAY_RUN_PLAYER = {
+  seats: [{ id: "player", label: "Player" }],
+  scope: "player",
+  includeImage: false,
+  timing: { intervalMs: 100, decisionMs: 1200, inputTtlMs: 1500 },
+} satisfies AirJamRunPlayers;
+export type AirJamRunPlayers = Pick<
+  AirJamTestProfileDescription,
+  "seats" | "scope" | "includeImage" | "timing"
+>;
+
 const byteLength = (value: unknown) =>
   new TextEncoder().encode(JSON.stringify(value)).byteLength;
 const policyDiagnosticsSchema = z
@@ -314,7 +325,7 @@ export type AirJamPlayerContract = {
  * brief and any seat intent lead every question, so a turn may describe at
  * most 30 state lines.
  */
-function createAirJamPlayerPolicy(
+export function createAirJamPlayerPolicy(
   contract: AirJamPlayerContract,
 ): AirJamTestPolicy {
   airJamDecisionQuestionSchema.shape.state.element.parse(contract.brief);
