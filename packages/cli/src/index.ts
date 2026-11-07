@@ -13,6 +13,7 @@ import {
   GameRunWatchWriter,
   currentRoomAttachmentSchema,
   parseGameRunWatchSurface,
+  startGameRunSchema,
 } from "@air-jam/devtools/game-runs";
 import {
   cancelGameRun,
@@ -1611,11 +1612,12 @@ const buildProgram = () => {
   runCommand
     .command("start")
     .description(
-      "Start a fresh owned test room; repeat the same run ID to retry admission",
+      "Start an authored test or join the current room as a model player",
     )
     .requiredOption("--run-id <uuid>", "Stable caller-generated operation UUID")
-    .requiredOption("--profile <id>", "Authored scenario ID")
-    .requiredOption("--policy <id>", "Scenario policy ID")
+    .option("--kind <kind>", "test or play", "test")
+    .option("--profile <id>", "Authored scenario ID (test only)")
+    .option("--policy <id>", "Scenario policy ID (test only)")
     .option(
       "--current",
       "Join the delegated current room; receive its private attachment through stdin",
@@ -1630,10 +1632,9 @@ const buildProgram = () => {
       "--duration-ms <ms>",
       "Maximum play time (game time when headless) and wall lifetime",
       Number,
-      30_000,
     )
     .option("--settings <json>", "Initial game settings JSON object")
-    .option("--steps <count>", "Maximum policy decisions", Number, 3000)
+    .option("--steps <count>", "Maximum policy decisions (test only)", Number)
     .option(
       "--seed <number>",
       "Policy random seed; a headless room also seeds the game with it",
@@ -1642,18 +1643,19 @@ const buildProgram = () => {
     )
     .option(
       "--intent <seat=text>",
-      "What a seat starts out trying to do; repeat for each seat",
+      "Play intent text, or <seat=text> for each test seat",
       (value: string, previous: string[] = []) => [...previous, value],
     )
     .action(async (options: unknown) => {
       const input = resolveActionOptions<{
         runId: string;
-        profile: string;
-        policy: string;
+        kind: string;
+        profile?: string;
+        policy?: string;
         dir?: string;
         game?: string;
-        durationMs: number;
-        steps: number;
+        durationMs?: number;
+        steps?: number;
         seed: number;
         settings?: string;
         current?: boolean;
@@ -1662,16 +1664,40 @@ const buildProgram = () => {
       }>(options);
       if (input.current && input.headless)
         throw new Error("Choose either --current or --headless.");
-      const intents = input.intent?.length
-        ? Object.fromEntries(
-            input.intent.map((entry) => {
-              const separator = entry.indexOf("=");
-              if (separator < 1)
-                throw new Error("Write each intent as <seat-id>=<text>.");
-              return [entry.slice(0, separator), entry.slice(separator + 1)];
-            }),
-          )
-        : undefined;
+      if (input.kind !== "test" && input.kind !== "play")
+        throw new Error("Choose --kind test or play.");
+      if (
+        input.kind === "play" &&
+        (!input.current ||
+          input.profile ||
+          input.policy ||
+          input.settings ||
+          input.durationMs !== undefined ||
+          input.steps !== undefined ||
+          (input.intent?.length ?? 0) > 1)
+      )
+        throw new Error(
+          "Play requires --current, at most one intent, and no test profile, policy, settings or budget.",
+        );
+      const testPolicy =
+        input.kind === "test"
+          ? (() => {
+              if (!input.profile || !input.policy)
+                throw new Error("Tests require --profile and --policy.");
+              return { profileId: input.profile, policyId: input.policy };
+            })()
+          : undefined;
+      const intents =
+        input.kind === "test" && input.intent?.length
+          ? Object.fromEntries(
+              input.intent.map((entry) => {
+                const separator = entry.indexOf("=");
+                if (separator < 1)
+                  throw new Error("Write each intent as <seat-id>=<text>.");
+                return [entry.slice(0, separator), entry.slice(separator + 1)];
+              }),
+            )
+          : undefined;
       let attachment;
       if (input.current) {
         if (process.stdin.isTTY)
@@ -1698,30 +1724,41 @@ const buildProgram = () => {
         }
       }
       const result = await startGameRun(
-        {
+        startGameRunSchema.parse({
           cwd: input.dir,
           runId: input.runId,
           gameId: input.game,
-          target: {
-            kind: input.current
-              ? "current"
-              : input.headless
-                ? "headless"
-                : "owned",
-          },
-          profileId: input.profile,
-          policyId: input.policy,
           seed: input.seed,
-          ...(input.settings
+          ...(input.kind === "play"
             ? {
-                settings: airJamSettingsValuesSchema.parse(
-                  parseJsonObject(input.settings),
-                ),
+                kind: "play" as const,
+                target: { kind: "current" as const },
+                ...(input.intent?.[0] ? { intent: input.intent[0] } : {}),
               }
-            : {}),
-          budget: { durationMs: input.durationMs, steps: input.steps },
-          ...(intents ? { intents } : {}),
-        },
+            : {
+                kind: "test" as const,
+                target: {
+                  kind: input.current
+                    ? ("current" as const)
+                    : input.headless
+                      ? ("headless" as const)
+                      : ("owned" as const),
+                },
+                ...testPolicy,
+                ...(input.settings
+                  ? {
+                      settings: airJamSettingsValuesSchema.parse(
+                        parseJsonObject(input.settings),
+                      ),
+                    }
+                  : {}),
+                budget: {
+                  durationMs: input.durationMs ?? 30_000,
+                  steps: input.steps ?? 3000,
+                },
+                ...(intents ? { intents } : {}),
+              }),
+        }),
         attachment,
       );
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

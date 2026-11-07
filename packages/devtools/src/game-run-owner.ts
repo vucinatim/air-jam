@@ -31,6 +31,7 @@ import {
   gameRunRecordSchema,
   gameRunSessionIdentitySchema,
   gameRunSteerSchema,
+  MAXIMUM_GAME_RUN_MS,
   MAXIMUM_GAME_RUN_STEERING_CHANGES,
   MAXIMUM_GAME_RUN_TRACE_BYTES,
   startGameRunSchema,
@@ -57,10 +58,12 @@ import { startTestProfileProcess } from "./test-profile-process.js";
 import type {
   AirJamDecisionQuestion,
   AirJamPlayControl,
+  AirJamRunPlayers,
   AirJamRunReceipt,
   AirJamScenarioVerdict,
   AirJamTestProfileDescription,
 } from "./testing.js";
+import { PLAY_RUN_PLAYER } from "./testing.js";
 import type {
   AirJamGameSessionSummary,
   CloseGameSessionResult,
@@ -150,6 +153,7 @@ type RunSeat = {
 };
 type Run = {
   record: AirJamGameRunRecord;
+  players?: AirJamRunPlayers;
   /** The host's simulation pace when play began, to measure play against. */
   paceStart?: NonNullable<HostObservation["pace"]>;
   attachment?: CurrentRoomAttachment;
@@ -392,7 +396,11 @@ export class GameRunOwner {
       receiptIndex: 0,
       effects: new Set(),
       receipts: [],
-      deadline: performance.now() + request.budget.durationMs,
+      deadline:
+        performance.now() +
+        (request.kind === "play"
+          ? MAXIMUM_GAME_RUN_MS
+          : request.budget.durationMs),
       persistence: Promise.resolve(),
       tracing: Promise.resolve(),
       traceBytes: 0,
@@ -474,8 +482,10 @@ export class GameRunOwner {
       () => {
         void this.terminate(
           run,
-          "budget",
-          "Run reached its time budget.",
+          run.record.request.kind === "play" ? "safety_deadline" : "budget",
+          run.record.request.kind === "play"
+            ? "Play reached its ten-minute safety deadline."
+            : "Run reached its time budget.",
         ).catch((error) => console.error(error));
       },
       Math.max(0, run.deadline - performance.now()),
@@ -511,7 +521,9 @@ export class GameRunOwner {
         state: "ended" as const,
         end: {
           reason: "owner_lost" as const,
-          outcome: "inconclusive" as const,
+          ...(record.request.kind === "test"
+            ? { outcome: "inconclusive" as const }
+            : {}),
           message:
             "The session owner was replaced. This run cannot resume and has no confirmed teardown.",
         },
@@ -730,7 +742,10 @@ export class GameRunOwner {
       rootDir: run.build?.rootDir ?? game.rootDir,
       ...(run.build ? { toolingRootDir: run.build.rootDir } : {}),
       configPath: run.build?.configPath ?? game.configPath,
-      profileId: run.record.request.profileId,
+      runKind: run.record.request.kind,
+      ...(run.record.request.kind === "test"
+        ? { profileId: run.record.request.profileId }
+        : {}),
       seed: run.record.request.seed,
       onScope: this.observeScopes(run),
       startupSignal: run.abort.signal,
@@ -742,41 +757,54 @@ export class GameRunOwner {
             rootDir: common.rootDir,
             configPath: common.configPath,
             seed: run.record.request.seed,
-            settings: run.record.request.settings,
+            settings:
+              run.record.request.kind === "test"
+                ? run.record.request.settings
+                : undefined,
             logPath: path.join(run.directory, "room.log"),
             onScope: common.onScope,
             startupSignal: run.abort.signal,
           })
         : undefined;
     room?.catch(() => undefined);
-    run.evaluator = await startTestProfileProcess({
-      ...common,
-      role: "evaluator",
-      logPath: path.join(run.directory, "evaluator.log"),
-    });
-    if (run.abort.signal.aborted) return;
-    const profile = run.evaluator.profiles.find(
-      (candidate) => candidate.id === run.record.request.profileId,
-    );
-    if (!profile) throw new Error("Unknown test profile.");
+    const request = run.record.request;
+    let profile: AirJamTestProfileDescription | undefined;
+    if (request.kind === "test") {
+      run.evaluator = await startTestProfileProcess({
+        ...common,
+        role: "evaluator",
+        logPath: path.join(run.directory, "evaluator.log"),
+      });
+      if (run.abort.signal.aborted) return;
+      profile = run.evaluator.profiles.find(
+        (candidate) => candidate.id === request.profileId,
+      );
+      if (!profile) throw new Error("Unknown test profile.");
+      const seats = profile.seats;
+      const unknownIntent = Object.keys(request.intents ?? {}).find(
+        (seatId) => !seats.some((seat) => seat.id === seatId),
+      );
+      if (unknownIntent)
+        throw new Error(
+          `run_intent_invalid: Profile ${profile.id} has no seat ${unknownIntent}.`,
+        );
+      run.record.profile = profile;
+    }
+    const players = profile ?? PLAY_RUN_PLAYER;
+    run.players = players;
     if (
       run.attachment &&
-      profile.seats.length > run.attachment.controllerIds.length
+      players.seats.length > run.attachment.controllerIds.length
     )
       throw new Error(
-        `current_profile_invalid: Profile ${profile.id} needs ${profile.seats.length} seats; the creator's room issued ${run.attachment.controllerIds.length}.`,
+        "current_profile_invalid: The creator's room issued too few seats.",
       );
-    const unknownIntent = Object.keys(run.record.request.intents ?? {}).find(
-      (seatId) => !profile.seats.some((seat) => seat.id === seatId),
-    );
-    if (unknownIntent)
-      throw new Error(
-        `run_intent_invalid: Profile ${profile.id} has no seat ${unknownIntent}.`,
-      );
-    run.record.profile = profile;
-    const policy = profile.policies.find(
-      (candidate) => candidate.id === run.record.request.policyId,
-    );
+    const policy =
+      request.kind === "test"
+        ? profile?.policies.find(
+            (candidate) => candidate.id === request.policyId,
+          )
+        : { id: "model", label: "Decision model", artifacts: undefined };
     if (!policy) throw new Error("Unknown test policy.");
     const artifacts =
       policy.artifacts === undefined
@@ -794,7 +822,7 @@ export class GameRunOwner {
       role: "policy",
       initializationDeadline: run.deadline,
       ...(artifacts ? { artifacts } : {}),
-      policyId: run.record.request.policyId,
+      policyId: policy.id,
       logPath: path.join(run.directory, "policy.log"),
     });
     if (run.abort.signal.aborted) return;
@@ -815,7 +843,10 @@ export class GameRunOwner {
       runId: run.record.runId,
       gameId: run.record.request.gameId,
       nickname: agentNickname(0),
-      settings: run.record.request.settings,
+      settings:
+        run.record.request.kind === "test"
+          ? run.record.request.settings
+          : undefined,
       attachment: run.attachment,
       build: run.build,
       room: run.room,
@@ -834,7 +865,7 @@ export class GameRunOwner {
       throw new Error(
         "current_room_scope: The delegated participant did not attach to its authorized room.",
       );
-    for (const [index, description] of profile.seats.entries()) {
+    for (const [index, description] of players.seats.entries()) {
       if (index > 0 && run.abort.signal.aborted) return;
       const extra =
         index === 0
@@ -858,7 +889,10 @@ export class GameRunOwner {
       run.record.seats.push({
         seatId: description.id,
         controllerId,
-        intent: run.record.request.intents?.[description.id] ?? null,
+        intent:
+          request.kind === "play"
+            ? (request.intent ?? null)
+            : (request.intents?.[description.id] ?? null),
         counters: {
           decisions: 0,
           applied: 0,
@@ -915,7 +949,7 @@ export class GameRunOwner {
       expected: run.record.expected,
       ...participants,
     });
-    for (const step of profile.setup) {
+    for (const step of profile?.setup ?? []) {
       if (run.abort.signal.aborted) return;
       if (step.lane === "host") {
         const result = await run.session.invokeHost(step.actionId, step.input);
@@ -1163,9 +1197,9 @@ export class GameRunOwner {
     includeImage: boolean,
     diagnostic = false,
   ) {
-    if (!run.record.profile) throw new Error("Run profile is not initialized.");
+    if (!run.players) throw new Error("Run players are not initialized.");
     const observation = await seat.participant.observe({
-      scope: diagnostic ? "diagnostic" : run.record.profile.scope,
+      scope: diagnostic ? "diagnostic" : run.players.scope,
       includeImage,
       expected: seat.expected,
     });
@@ -1210,7 +1244,8 @@ export class GameRunOwner {
   private pruneReceipts(run: Run) {
     run.receipts = run.receipts.filter(
       (receipt) =>
-        receipt.index > run.evaluationCursor ||
+        (run.record.request.kind === "test" &&
+          receipt.index > run.evaluationCursor) ||
         receipt.sequence >
           (run.seats.find((seat) => seat.id === receipt.seatId)?.policyCursor ??
             0),
@@ -1223,7 +1258,12 @@ export class GameRunOwner {
     const checkSeats = () =>
       Promise.all(run.seats.map((seat) => seat.participant.checkConnected()));
     await checkSeats();
-    const observation = await this.observe(run, primary, includeImage, true);
+    const observation = await this.observe(
+      run,
+      primary,
+      includeImage,
+      run.record.request.kind === "test",
+    );
     await checkSeats();
     return observation;
   }
@@ -1366,7 +1406,8 @@ export class GameRunOwner {
     return pending;
   }
   private async play(run: Run) {
-    const profile = run.record.profile;
+    const profile = run.players;
+    const request = run.record.request;
     const policy = run.policy;
     const primary = run.seats[0];
     if (!profile || !policy || !primary)
@@ -1382,52 +1423,58 @@ export class GameRunOwner {
     while (!run.abort.signal.aborted) {
       const roundStarted = clock.now();
       if (
-        this.elapsed(run) >= run.record.request.budget.durationMs ||
-        run.record.counters.steps >= run.record.request.budget.steps
+        request.kind === "test" &&
+        (this.elapsed(run) >= request.budget.durationMs ||
+          run.record.counters.steps >= request.budget.steps)
       )
         return this.terminate(
           run,
           "budget",
           "Run reached its bounded play budget.",
         );
-      let verdict: AirJamScenarioVerdict;
-      try {
-        verdict = await this.evaluate(run, "play");
-      } catch (error) {
+      if (request.kind === "test") {
+        let verdict: AirJamScenarioVerdict;
+        try {
+          verdict = await this.evaluate(run, "play");
+        } catch (error) {
+          if (run.abort.signal.aborted) return;
+          if (
+            !(error instanceof Error) ||
+            !/^policy_(timeout|busy):/.test(error.message)
+          )
+            throw error;
+          return this.terminate(
+            run,
+            "evaluator_unresponsive",
+            error instanceof Error ? error.message : String(error),
+          );
+        }
         if (run.abort.signal.aborted) return;
-        if (
-          !(error instanceof Error) ||
-          !/^policy_(timeout|busy):/.test(error.message)
-        )
-          throw error;
-        return this.terminate(
-          run,
-          "evaluator_unresponsive",
-          error instanceof Error ? error.message : String(error),
-        );
-      }
-      if (run.abort.signal.aborted) return;
-      if (verdict.status === "failed")
-        return this.terminate(
-          run,
-          "failed",
-          verdict.message ?? "Scenario failed.",
-        );
-      if (verdict.status === "passed") {
-        const tested = run.record.seats.every(
-          (seat) => seat.counters.effects > 0,
-        );
-        return this.terminate(
-          run,
-          tested ? "completed" : "untested_seat",
-          tested
-            ? (verdict.message ?? "Scenario passed.")
-            : "The scenario passed before every seat produced an applied play effect.",
-        );
+        if (verdict.status === "failed")
+          return this.terminate(
+            run,
+            "failed",
+            verdict.message ?? "Scenario failed.",
+          );
+        if (verdict.status === "passed") {
+          const tested = run.record.seats.every(
+            (seat) => seat.counters.effects > 0,
+          );
+          return this.terminate(
+            run,
+            tested ? "completed" : "untested_seat",
+            tested
+              ? (verdict.message ?? "Scenario passed.")
+              : "The scenario passed before every seat produced an applied play effect.",
+          );
+        }
       }
       for (const seat of run.seats) {
         if (run.abort.signal.aborted) return;
-        if (run.record.counters.steps >= run.record.request.budget.steps)
+        if (
+          request.kind === "test" &&
+          run.record.counters.steps >= request.budget.steps
+        )
           return this.terminate(
             run,
             "budget",
@@ -1574,7 +1621,8 @@ export class GameRunOwner {
               : { ...control, deadlineMs: this.deadline(observation) };
         if (
           operation.kind === "action" &&
-          !profile.actions.includes(operation.actionId)
+          request.kind === "test" &&
+          !run.record.profile?.actions.includes(operation.actionId)
         )
           throw new Error(
             "policy_action_forbidden: Decision requested an action outside the profile.",
@@ -1650,7 +1698,9 @@ export class GameRunOwner {
       run.record.state = "stopping";
       run.record.end = {
         reason,
-        outcome: "inconclusive",
+        ...(run.record.request.kind === "test"
+          ? { outcome: "inconclusive" as const }
+          : {}),
         message,
         ...(hostFault ? { hostFault } : {}),
       };
@@ -1703,13 +1753,13 @@ export class GameRunOwner {
         const primary = run.seats[0];
         let finalObservation: HostObservation | undefined;
         try {
-          if (!primary || !run.record.profile)
+          if (!primary || !run.players)
             throw new Error("Run has no initialized observation seat.");
           const before = await this.evaluationObservation(run, false);
           const settleUntil = session.clock.now() + 2000;
           let settled: HostObservation;
           do {
-            await session.clock.wait(run.record.profile.timing.intervalMs);
+            await session.clock.wait(run.players.timing.intervalMs);
             settled = await this.evaluationObservation(run, false);
           } while (
             before.ticks.after !== null &&
@@ -1881,7 +1931,9 @@ export class GameRunOwner {
           run.record.build.integrity = "changed";
           run.record.end = {
             reason: "runtime_replaced",
-            outcome: "inconclusive",
+            ...(run.record.request.kind === "test"
+              ? { outcome: "inconclusive" as const }
+              : {}),
             message: error instanceof Error ? error.message : String(error),
           };
         }
@@ -1892,7 +1944,9 @@ export class GameRunOwner {
       if (run.traceTruncated)
         run.record.end = {
           reason: "trace_budget",
-          outcome: "inconclusive",
+          ...(run.record.request.kind === "test"
+            ? { outcome: "inconclusive" as const }
+            : {}),
           message:
             "Trace byte allowance was exhausted; evidence is incomplete.",
         };
