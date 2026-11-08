@@ -7,6 +7,7 @@ import type { LocalInputOperation } from "../src/core/local-input";
 import {
   connectParentSeats,
   localSeatMessages,
+  serveLocalSeats,
   startLocalPlayers,
   type LocalSeat,
   type LocalSeatProvider,
@@ -205,5 +206,89 @@ describe("a parent's seats", () => {
     fromParent(parent, localSeatMessages.closed(seat.key));
     await settle();
     expect(closed).toHaveBeenCalled();
+  });
+});
+
+describe("seats served to a game frame", () => {
+  const gameOrigin = "https://game.test";
+  const seat = { key: "keyboard-1", label: "Keyboard 1" };
+  const serve = () => {
+    const frame = { postMessage: vi.fn() };
+    const server = serveLocalSeats({
+      window: () => frame as unknown as Window,
+      origin: gameOrigin,
+    });
+    stops.push(() => server.stop());
+    const fromGame = (data: unknown, source: unknown = frame) => {
+      const event = new Event("message");
+      Object.assign(event, { data, origin: gameOrigin, source });
+      window.dispatchEvent(event);
+    };
+    const said = () => frame.postMessage.mock.calls.map(([message]) => message);
+    return { frame, server, fromGame, said };
+  };
+
+  it("offers nothing without a provider and refuses its seats", () => {
+    const { fromGame, said } = serve();
+    fromGame({ type: "airjam.local-seat.query" });
+    fromGame({ type: "airjam.local-seat.request", seat });
+    expect(said()).toEqual([localSeatMessages.refused(seat.key)]);
+  });
+
+  it("opens a seat from its provider and relays the seat's input", async () => {
+    const { server, fromGame, said } = serve();
+    const { seats, asked, open } = provider();
+    server.provide(seats);
+    expect(said()).toEqual([localSeatMessages.available()]);
+    fromGame({ type: "airjam.local-seat.request", seat });
+    fromGame({ type: "airjam.local-seat.request", seat });
+    expect(asked).toHaveLength(1);
+    const { sent } = open(0);
+    await settle();
+    expect(said().at(-1)).toEqual(localSeatMessages.opened(seat.key));
+    const operation = { op: "release-all" } as const;
+    fromGame({ type: "airjam.local-seat.input", seat: seat.key, operation });
+    fromGame(
+      { type: "airjam.local-seat.input", seat: seat.key, operation },
+      window,
+    );
+    expect(sent).toEqual([operation]);
+    fromGame({ type: "airjam.local-seat.request", seat });
+    expect(said().at(-1)).toEqual(localSeatMessages.opened(seat.key));
+  });
+
+  it("closes a seat whose phone goes away", async () => {
+    const { server, fromGame, said } = serve();
+    const { seats, open } = provider();
+    server.provide(seats);
+    fromGame({ type: "airjam.local-seat.request", seat });
+    const { close } = open(0);
+    await settle();
+    close();
+    await settle();
+    expect(said().at(-1)).toEqual(localSeatMessages.closed(seat.key));
+  });
+
+  it("closes and refuses its seats when its provider is withdrawn, and offers them again", async () => {
+    const { server, fromGame, said } = serve();
+    const { seats, asked, open } = provider();
+    server.provide(seats);
+    fromGame({ type: "airjam.local-seat.request", seat });
+    open(0);
+    await settle();
+    const gamepad = { key: "gamepad-1", label: "Gamepad 1" };
+    fromGame({ type: "airjam.local-seat.request", seat: gamepad });
+    server.provide(null);
+    expect(said().slice(-2)).toEqual([
+      localSeatMessages.refused(gamepad.key),
+      localSeatMessages.closed(seat.key),
+    ]);
+    open(1);
+    await settle();
+    expect(said().at(-1)).toEqual(localSeatMessages.closed(seat.key));
+    server.provide(seats);
+    expect(said().at(-1)).toEqual(localSeatMessages.available());
+    fromGame({ type: "airjam.local-seat.request", seat });
+    expect(asked).toHaveLength(3);
   });
 });

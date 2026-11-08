@@ -154,6 +154,12 @@ Local development's preview phones and Studio provide these seats; a page
 with nobody to provide them leaves keys and gamepads alone. Game code never
 listens to keys or polls gamepads itself.
 
+A product framing a game offers its preview workspace's phones as that
+game's seats by passing the game frame to `PreviewControllerWorkspace` as
+`localPlayersGame`; `localPlayers={false}` offers none and closes the seats
+it opened. The Arcade offers them only once a player turns keyboard and
+gamepad players on.
+
 A product framing its own phones launches each with
 `createPreviewControllerLaunch` from `@air-jam/sdk/preview`, passing its
 page's origin as `parentOrigin` and, for a seat, its label as `localSeat`. A

@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -11,7 +12,9 @@ import type { AirJamInputBindings } from "../core/input-bindings";
 import { embeddedRuntimeParent } from "./embedded-parent";
 import {
   connectParentSeats,
+  serveLocalSeats,
   startLocalPlayers,
+  type LocalSeatGame,
   type LocalSeatProvider,
 } from "./local-seats";
 
@@ -64,4 +67,26 @@ export const useProvideLocalSeats = (provider: LocalSeatProvider | null) => {
     register(provider);
     return () => register(null);
   }, [register, provider]);
+};
+
+/**
+ * Offers `provider`'s seats to an embedded game frame for as long as `game`
+ * names it; a null provider offers none, and its game asks again once one
+ * returns.
+ */
+export const useServeLocalSeats = (
+  game: LocalSeatGame | null,
+  provider: LocalSeatProvider | null,
+) => {
+  const server = useRef<ReturnType<typeof serveLocalSeats> | null>(null);
+  useEffect(() => {
+    if (!game) return;
+    const served = serveLocalSeats(game);
+    server.current = served;
+    return () => {
+      served.stop();
+      server.current = null;
+    };
+  }, [game]);
+  useEffect(() => server.current?.provide(provider), [game, provider]);
 };

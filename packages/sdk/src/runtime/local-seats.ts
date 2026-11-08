@@ -192,6 +192,78 @@ export const connectParentSeats = (
   return () => stop.abort();
 };
 
+/** An embedded game frame, as the product that frames it reaches it. */
+export interface LocalSeatGame {
+  /** The game document's window, while its frame is mounted. */
+  window: () => Window | null;
+  origin: string;
+}
+
+/**
+ * The product side of the seat protocol for one embedded game frame. While
+ * it is given a provider, it tells the game it provides seats, opens each
+ * seat the game asks for from that provider and relays the seat's input.
+ * Without one it refuses seats and closes those it opened, so the game asks
+ * again once seats return. A reloaded game gets its open seats back at once.
+ */
+export const serveLocalSeats = (game: LocalSeatGame) => {
+  let provider: LocalSeatProvider | null = null;
+  const opened = new Map<string, OpenedLocalSeat>();
+  /** Seats being opened, each by its own request. */
+  const opening = new Map<string, object>();
+  const post = (message: object) =>
+    game.window()?.postMessage(message, game.origin);
+  const close = (key: string, seat: OpenedLocalSeat) => {
+    if (opened.get(key) !== seat) return;
+    opened.delete(key);
+    post(localSeatMessages.closed(key));
+  };
+  const open = (seat: LocalSeat) => {
+    if (opened.has(seat.key)) return post(localSeatMessages.opened(seat.key));
+    if (opening.has(seat.key)) return;
+    if (!provider) return post(localSeatMessages.refused(seat.key));
+    const request = {};
+    opening.set(seat.key, request);
+    void provider.open(seat).then((result) => {
+      if (opening.get(seat.key) !== request) return;
+      opening.delete(seat.key);
+      if (!result) return post(localSeatMessages.refused(seat.key));
+      opened.set(seat.key, result);
+      post(localSeatMessages.opened(seat.key));
+      void result.closed.then(() => close(seat.key, result));
+    });
+  };
+  const receive = (event: MessageEvent) => {
+    if (event.origin !== game.origin || event.source !== game.window()) return;
+    if (localSeatQuerySchema.safeParse(event.data).success) {
+      if (provider) post(localSeatMessages.available());
+      return;
+    }
+    const request = localSeatRequestSchema.safeParse(event.data);
+    if (request.success) return open(request.data.seat);
+    const relay = localSeatRelaySchema.safeParse(event.data);
+    if (relay.success) opened.get(relay.data.seat)?.send(relay.data.operation);
+  };
+  window.addEventListener("message", receive);
+  return {
+    /** Offers this provider's seats from now on, or none. */
+    provide(next: LocalSeatProvider | null) {
+      if (next === provider) return;
+      provider = next;
+      for (const key of opening.keys()) post(localSeatMessages.refused(key));
+      opening.clear();
+      for (const [key, seat] of opened) close(key, seat);
+      if (next) post(localSeatMessages.available());
+    },
+    stop() {
+      window.removeEventListener("message", receive);
+      provider = null;
+      opening.clear();
+      opened.clear();
+    },
+  };
+};
+
 const MAX_QUEUED_OPERATIONS = 256;
 
 /**

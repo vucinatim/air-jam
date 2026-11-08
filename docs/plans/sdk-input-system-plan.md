@@ -191,8 +191,10 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    requests seats, and the parent answers `opened`, `refused` or later
    `closed`. Studio answers with Studio phones, relays operations to the
    phone's frame or, through a page of its own, its window, and grants its
-   game frame the `gamepad` permission. The Arcade doesn't answer until a game
-   opts in, so its keys stay its own. Games configure nothing.
+   game frame the `gamepad` permission. The Arcade answers with its preview
+   workspace's phones (`localPlayersGame`) only once a player turns keyboard
+   and gamepad players on; until then a game's keys stay its own. Games
+   configure nothing.
 
 Agents prove mappings with SDK tests over simulated keys and gamepad
 snapshots, and seats with key presses in a local game page. Tim proves real
