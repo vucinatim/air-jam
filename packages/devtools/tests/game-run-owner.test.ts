@@ -4,11 +4,7 @@ import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, it, vi } from "vitest";
 import type { DecisionProvider } from "../src/decision-provider.js";
-import {
-  wallClock,
-  type GameRunOwner,
-  type GameRunSession,
-} from "../src/game-run-owner.js";
+import type { GameRunOwner, GameRunSession } from "../src/game-run-owner.js";
 import {
   gameRunRecordSchema,
   MAXIMUM_GAME_RUN_TRACE_BYTES,
@@ -2115,7 +2111,7 @@ it.each([
     if (status === "headless") {
       f.request.target = { kind: "headless" };
       io.headless.mockResolvedValue({
-        clock: wallClock,
+        clock: f.session.clock,
         stop: async () => {},
         saveInputLog: null,
       });

@@ -558,7 +558,7 @@ last 15 s / 150 frames and 4 MiB decoded image bytes; frames over 160 KiB or
 null captures are skipped. Pages contain at most 768 KiB base64 characters.
 Four recordings may be retained; each self-stops at ten minutes and stopped
 recordings expire after a minute without reads. When full, a new recording
-evicts the stopped, fully delivered retry buffer with the oldest
+evicts only a stopped, fully delivered retry buffer, choosing the oldest
 `max(stopped, lastRead)`. Reading the final page marks a stopped clip delivered;
 unfinished transfers are protected from capacity eviction and still expire
 after a minute without reads. `clip_busy:` means all four clips are recording
