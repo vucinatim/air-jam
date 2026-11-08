@@ -224,10 +224,6 @@ export const PreviewControllerWorkspace = ({
         .sort((left, right) => left.ordinal - right.ordinal),
     [sessions],
   );
-  const openSessions = useMemo(
-    () => sessions.filter((session) => !session.minimized),
-    [sessions],
-  );
   const launcherVisible =
     showLauncherWhenIdle || launcherOpen || sessions.length > 0;
   const sortedControllers = useMemo(
@@ -296,7 +292,9 @@ export const PreviewControllerWorkspace = ({
       className="fixed inset-0"
       style={{ zIndex: PREVIEW_WORKSPACE_Z_INDEX, pointerEvents: "none" }}
     >
-      {openSessions.map((session) => (
+      {/* A minimized phone stays mounted and connected, hidden, so a
+          keyboard or gamepad playing through it keeps playing. */}
+      {sessions.map((session) => (
         <PreviewControllerWindow
           key={session.id}
           session={session}
