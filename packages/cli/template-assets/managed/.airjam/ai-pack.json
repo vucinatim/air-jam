@@ -99,8 +99,8 @@
     {
       "path": "docs/airjam/generated/input-system.md",
       "kind": "docs-generated",
-      "size": 10140,
-      "sha256": "130a7525d922c030272387b384bdb46eae87bc26991ec2fe3d4d613077ad2ab6"
+      "size": 10486,
+      "sha256": "59076307117a834d830d2c1d7d06d9dd446a4117ccf38883ff9d08adb67e44c4"
     },
     {
       "path": "docs/airjam/generated/introduction.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "7be1e5e5241011e8b4dfae2df82d0ba37f6a1b02a34fcdcf33775970d32b5ace"
+  "contentDigest": "83c13e88e5e20951b9c1048fd8d6993fa3a7c19f8f26eb86241f0e8ada72d7a4"
 }

@@ -21,6 +21,7 @@ import {
 import { getControllerRealtimeClient } from "./controller-realtime-client";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import { readEmbeddedControllerChildSession } from "./embedded-runtime-adapters";
+import { readLocalSeatLabel } from "./local-seats";
 
 /** The controller environment of a browser page: its URL, storage and device. */
 export const createBrowserControllerEnvironment =
@@ -44,6 +45,7 @@ export const createBrowserControllerEnvironment =
       deviceId: embedded
         ? null
         : (previewDeviceId ?? getOrCreateControllerDeviceId()),
+      localSeatLabel: readLocalSeatLabel(),
       leaveOnStop: previewDeviceId !== null,
       runMode: detectRunMode(),
       defaultStoreDomain: resolveImplicitReplicatedStoreDomainFromWindow(),

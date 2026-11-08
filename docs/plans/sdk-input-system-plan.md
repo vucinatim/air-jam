@@ -175,6 +175,10 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    "Gamepad 1", queuing its operations until the seat is ready. The seat stays
    until its phone is removed; a refused or closed seat is asked for again on
    the next input.
+   A local-seat launch sends its label separately from the controller's ordinary
+   nickname (`controller:join.localSeatLabel`). The server displays the seat
+   label while present and restores the ordinary chosen or default name on a
+   reconnect without it; moving a seat never transfers a phone's ordinary name.
 5. **One sender per seat.** The host page forwards a seat's operations to its
    preview phone, which applies them to the `ControllerInput` its own screen
    uses. The phone stays the seat's only input sender, so keepalives, the
@@ -189,10 +193,14 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    parent whether it provides seats (`airjam.local-seat.query`, answered with
    `available`) and takes keys and gamepads only after a yes; it then
    requests seats, and the parent answers `opened`, `refused` or later
-   `closed`. Studio answers with Studio phones, relays operations to the
+   `closed`. Withdrawing seats releases their controls before closing routes,
+   then sends `unavailable`; the host stops its keyboard listeners and gamepad
+   polling until the next `available`. Studio answers with Studio phones, relays operations to the
    phone's frame or, through a page of its own, its window, and grants its
-   game frame the `gamepad` permission. The Arcade doesn't answer until a game
-   opts in, so its keys stay its own. Games configure nothing.
+   game frame the `gamepad` permission. The Arcade answers with its preview
+   workspace's phones (`localPlayersGame`) only once a player turns keyboard
+   and gamepad players on; until then a game's keys stay its own. Games
+   configure nothing.
 
 Agents prove mappings with SDK tests over simulated keys and gamepad
 snapshots, and seats with key presses in a local game page. Tim proves real

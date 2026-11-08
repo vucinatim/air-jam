@@ -86,6 +86,8 @@ export const controllerJoinSchema = z.object({
    */
   deviceId: z.string().min(8).max(128).optional(),
   nickname: z.string().trim().min(1).max(24).optional(),
+  /** Temporary device label while a local seat plays as this controller. */
+  localSeatLabel: z.string().trim().min(1).max(32).optional(),
   /** Preset avatar key (platform-defined); optional at join. */
   avatarId: z.string().trim().min(1).max(48).optional(),
   capabilityToken: z.string().min(1).optional(),

@@ -57,6 +57,9 @@ const phoneInputSchema = z
 const availableSchema = z
   .object({ type: z.literal("airjam.local-seat.available") })
   .strict();
+const unavailableSchema = z
+  .object({ type: z.literal("airjam.local-seat.unavailable") })
+  .strict();
 const openedSchema = seatMessage("airjam.local-seat.opened");
 const refusedSchema = seatMessage("airjam.local-seat.refused");
 const closedSchema = seatMessage("airjam.local-seat.closed");
@@ -67,10 +70,12 @@ const closedSchema = seatMessage("airjam.local-seat.closed");
  *
  * - host → parent `airjam.local-seat.query`; a parent that provides seats
  *   answers `airjam.local-seat.available`, and only then does the host take
- *   keys and gamepads.
+ *   keys and gamepads. Withdrawing the provider releases each seat before
+ *   `closed`, then sends `unavailable`; the host stops taking input until
+ *   the next `available`. This cycle may repeat.
  * - host → parent `airjam.local-seat.request` with a seat; the parent answers
  *   `opened` once that seat's phone takes input, or `refused`, and later
- *   `closed` when the phone is removed.
+ *   `closed` when the phone is removed, after releasing its controls.
  * - host → parent `airjam.local-seat.input` with the seat's key and one
  *   operation, which the parent hands to the seat's phone.
  *
@@ -109,6 +114,7 @@ export const isLocalSeatReadyMessage = (data: unknown): boolean =>
 /** What a product tells an embedded game frame about its seats. */
 export const localSeatMessages = {
   available: () => ({ type: "airjam.local-seat.available" }) as const,
+  unavailable: () => ({ type: "airjam.local-seat.unavailable" }) as const,
   opened: (seat: string) =>
     ({ type: "airjam.local-seat.opened", seat }) as const,
   refused: (seat: string) =>
@@ -125,13 +131,14 @@ export interface LocalSeatParent {
 
 /**
  * An embedded host asks its declared parent whether it provides seats and
- * calls `onAvailable` with a provider once it says so; a parent that never
- * answers leaves the host's keys and gamepads alone. Stops listening when
- * the returned function is called.
+ * calls `onAvailable` each time seats become available and `onUnavailable`
+ * when withdrawn or disconnected. A parent that never answers leaves the
+ * host's keys and gamepads alone.
  */
 export const connectParentSeats = (
   parent: LocalSeatParent,
   onAvailable: (provider: LocalSeatProvider) => void,
+  onUnavailable: () => void = () => {},
 ): (() => void) => {
   const stop = new AbortController();
   const fromParent = (event: MessageEvent) =>
@@ -150,7 +157,19 @@ export const connectParentSeats = (
   const closings = new Map<string, () => void>();
   const pending = new Map<string, (opened: OpenedLocalSeat | null) => void>();
   let announced = false;
+  const withdraw = () => {
+    if (announced) onUnavailable();
+    announced = false;
+    for (const resolve of pending.values()) resolve(null);
+    pending.clear();
+    for (const close of closings.values()) close();
+    closings.clear();
+  };
   listen((event) => {
+    if (unavailableSchema.safeParse(event.data).success) {
+      withdraw();
+      return;
+    }
     if (availableSchema.safeParse(event.data).success) {
       if (announced) return;
       announced = true;
@@ -189,7 +208,85 @@ export const connectParentSeats = (
     }
   });
   post({ type: "airjam.local-seat.query" });
-  return () => stop.abort();
+  return () => {
+    withdraw();
+    stop.abort();
+  };
+};
+
+/** An embedded game frame, as the product that frames it reaches it. */
+export interface LocalSeatGame {
+  /** The game document's window, while its frame is mounted. */
+  window: () => Window | null;
+  origin: string;
+}
+
+/**
+ * The product side of the seat protocol for one embedded game frame. While
+ * it is given a provider, it tells the game it provides seats, opens each
+ * seat the game asks for from that provider and relays the seat's input.
+ * Without one it refuses seats and closes those it opened, so the game asks
+ * again once seats return. A reloaded game gets its open seats back at once.
+ */
+export const serveLocalSeats = (game: LocalSeatGame) => {
+  let provider: LocalSeatProvider | null = null;
+  const opened = new Map<string, OpenedLocalSeat>();
+  /** Seats being opened, each by its own request. */
+  const opening = new Map<string, object>();
+  const post = (message: object) =>
+    game.window()?.postMessage(message, game.origin);
+  const close = (key: string, seat: OpenedLocalSeat) => {
+    if (opened.get(key) !== seat) return;
+    // The host's eventual stop cannot release through a deleted route.
+    seat.send({ op: "release-all" });
+    opened.delete(key);
+    post(localSeatMessages.closed(key));
+  };
+  const open = (seat: LocalSeat) => {
+    if (opened.has(seat.key)) return post(localSeatMessages.opened(seat.key));
+    if (opening.has(seat.key)) return;
+    if (!provider) return post(localSeatMessages.refused(seat.key));
+    const request = {};
+    opening.set(seat.key, request);
+    void provider.open(seat).then((result) => {
+      if (opening.get(seat.key) !== request) return;
+      opening.delete(seat.key);
+      if (!result) return post(localSeatMessages.refused(seat.key));
+      opened.set(seat.key, result);
+      post(localSeatMessages.opened(seat.key));
+      void result.closed.then(() => close(seat.key, result));
+    });
+  };
+  const receive = (event: MessageEvent) => {
+    if (event.origin !== game.origin || event.source !== game.window()) return;
+    if (localSeatQuerySchema.safeParse(event.data).success) {
+      if (provider) post(localSeatMessages.available());
+      return;
+    }
+    const request = localSeatRequestSchema.safeParse(event.data);
+    if (request.success) return open(request.data.seat);
+    const relay = localSeatRelaySchema.safeParse(event.data);
+    if (relay.success) opened.get(relay.data.seat)?.send(relay.data.operation);
+  };
+  window.addEventListener("message", receive);
+  /** Offers this provider's seats from now on, or none. */
+  const provide = (next: LocalSeatProvider | null) => {
+    if (next === provider) return;
+    const wasAvailable = provider !== null;
+    provider = next;
+    for (const key of opening.keys()) post(localSeatMessages.refused(key));
+    opening.clear();
+    for (const [key, seat] of opened) close(key, seat);
+    if (wasAvailable) post(localSeatMessages.unavailable());
+    if (next) post(localSeatMessages.available());
+  };
+  return {
+    provide,
+    stop() {
+      provide(null);
+      window.removeEventListener("message", receive);
+    },
+  };
 };
 
 const MAX_QUEUED_OPERATIONS = 256;

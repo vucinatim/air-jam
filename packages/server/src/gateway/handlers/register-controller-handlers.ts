@@ -236,6 +236,7 @@ export const registerControllerHandlers = (
         controllerId,
         deviceId: rawDeviceId,
         nickname,
+        localSeatLabel,
         avatarId,
         capabilityToken,
         resumeCapabilityToken,
@@ -464,6 +465,14 @@ export const registerControllerHandlers = (
 
       let controllerSession = existing;
       if (controllerSession) {
+        const ordinaryLabel =
+          nickname ??
+          controllerSession.nickname ??
+          controllerSession.localSeat?.ordinaryLabel ??
+          controllerSession.playerProfile.label;
+        controllerSession.localSeat = localSeatLabel
+          ? { label: localSeatLabel, ordinaryLabel }
+          : undefined;
         controllerSession.retiredAt = undefined;
         controllerSession.nickname = nickname ?? controllerSession.nickname;
         controllerSession.connected = true;
@@ -473,10 +482,7 @@ export const registerControllerHandlers = (
         controllerSession.admissionLease = admission.lease;
         controllerSession.playerProfile = {
           ...controllerSession.playerProfile,
-          label:
-            nickname ??
-            controllerSession.nickname ??
-            controllerSession.playerProfile.label,
+          label: localSeatLabel ?? ordinaryLabel,
           ...(avatarId !== undefined
             ? { avatarId }
             : controllerSession.playerProfile.avatarId
@@ -485,9 +491,11 @@ export const registerControllerHandlers = (
         };
         session.controllers.set(controllerId, controllerSession);
       } else {
+        const ordinaryLabel =
+          nickname ?? `Player ${session.controllers.size + 1}`;
         const playerProfile: PlayerProfile = {
           id: controllerId,
-          label: nickname ?? `Player ${session.controllers.size + 1}`,
+          label: localSeatLabel ?? ordinaryLabel,
           color,
           ...(avatarId ? { avatarId } : {}),
         };
@@ -497,6 +505,9 @@ export const registerControllerHandlers = (
           resumeCapabilityToken: randomBytes(32).toString("base64url"),
           deviceId,
           nickname,
+          ...(localSeatLabel
+            ? { localSeat: { label: localSeatLabel, ordinaryLabel } }
+            : {}),
           socketId: socket.id,
           connected: true,
           resumeLeaseExpiresAt: null,
@@ -665,13 +676,17 @@ export const registerControllerHandlers = (
       }
       const nextProfile: PlayerProfile = {
         ...controllerSession.playerProfile,
-        ...(patch.label !== undefined ? { label: patch.label } : {}),
+        ...(patch.label !== undefined
+          ? { label: controllerSession.localSeat?.label ?? patch.label }
+          : {}),
         ...(patch.avatarId !== undefined ? { avatarId: patch.avatarId } : {}),
       };
 
       controllerSession.playerProfile = nextProfile;
       if (patch.label !== undefined) {
         controllerSession.nickname = patch.label;
+        if (controllerSession.localSeat)
+          controllerSession.localSeat.ordinaryLabel = patch.label;
       }
 
       const notice = { player: nextProfile };

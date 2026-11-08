@@ -11,10 +11,7 @@ import {
   createBrowserControllerEnvironment,
   listenForPreviewClose,
 } from "../../runtime/browser-controller-environment";
-import {
-  listenForLocalSeatInput,
-  readLocalSeatLabel,
-} from "../../runtime/local-seats";
+import { listenForLocalSeatInput } from "../../runtime/local-seats";
 import type {
   AirJamControllerOptions,
   AirJamControllerRuntimeControls,
@@ -60,7 +57,7 @@ export const useControllerRuntimeApi = (
 
   // Declared before start so the runtime joins with the current profile.
   useEffect(
-    () => runtime.setNickname(options.nickname ?? readLocalSeatLabel() ?? ""),
+    () => runtime.setNickname(options.nickname ?? ""),
     [runtime, options.nickname],
   );
   useEffect(

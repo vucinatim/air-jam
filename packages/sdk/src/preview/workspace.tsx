@@ -16,7 +16,11 @@ import {
 } from "../components/shell-classes";
 import { Button } from "../components/ui/button";
 import type { ControllerPresenceNotice } from "../protocol";
-import { useProvideLocalSeats } from "../runtime/local-players";
+import {
+  useProvideLocalSeats,
+  useServeLocalSeats,
+} from "../runtime/local-players";
+import type { LocalSeatGame } from "../runtime/local-seats";
 import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import {
@@ -51,6 +55,13 @@ export interface PreviewControllerWorkspaceProps {
   launcherVariant?: "full" | "compact";
   showLauncherWhenIdle?: boolean;
   waitingLabel?: string;
+  /** Whether keyboards and gamepads play as this workspace's phones. */
+  localPlayers?: boolean;
+  /**
+   * The embedded game frame whose keyboards and gamepads play as this
+   * workspace's phones; without one, this page's own game is theirs.
+   */
+  localPlayersGame?: LocalSeatGame | null;
 }
 
 interface DragState {
@@ -117,6 +128,8 @@ export const PreviewControllerWorkspace = ({
   launcherVariant = "full",
   showLauncherWhenIdle = true,
   waitingLabel = "Waiting for room",
+  localPlayers = true,
+  localPlayersGame = null,
 }: PreviewControllerWorkspaceProps) => {
   const [mounted, setMounted] = useState(false);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -152,13 +165,14 @@ export const PreviewControllerWorkspace = ({
   });
   const [frames] = useState(() => new Map<string, HTMLIFrameElement>());
   const localSeats = useWorkspaceLocalSeats({
-    enabled,
+    enabled: enabled && localPlayers,
     sessions,
     canSpawn,
     spawn: spawnPreviewController,
     frames,
   });
-  useProvideLocalSeats(localSeats);
+  useProvideLocalSeats(localPlayersGame ? null : localSeats);
+  useServeLocalSeats(localPlayersGame, localSeats);
   const platformSettings = useResolvedPlatformSettingsSnapshot();
   const activeOpacity = platformSettings.previewControllers.activeOpacity;
   const sortedSessions = useMemo(
@@ -208,10 +222,6 @@ export const PreviewControllerWorkspace = ({
       sessions
         .filter((session) => session.minimized)
         .sort((left, right) => left.ordinal - right.ordinal),
-    [sessions],
-  );
-  const openSessions = useMemo(
-    () => sessions.filter((session) => !session.minimized),
     [sessions],
   );
   const launcherVisible =
@@ -282,7 +292,9 @@ export const PreviewControllerWorkspace = ({
       className="fixed inset-0"
       style={{ zIndex: PREVIEW_WORKSPACE_Z_INDEX, pointerEvents: "none" }}
     >
-      {openSessions.map((session) => (
+      {/* A minimized phone stays mounted and connected, hidden, so a
+          keyboard or gamepad playing through it keeps playing. */}
+      {sessions.map((session) => (
         <PreviewControllerWindow
           key={session.id}
           session={session}

@@ -144,8 +144,8 @@ defineAirJamGame({ input: shipInput, inputBindings: shipInputBindings, ... });
 3. A layout's first key, or a gamepad's first button or stick push, opens a
    seat: a preview phone named "Keyboard 1" or "Gamepad 1" that joins like any
    phone. Its own screen answers menus and lobby buttons; the keys or buttons
-   drive play. Removing that phone frees the seat, and the next key opens a
-   new one.
+   drive play. Minimizing that phone keeps it playing; removing it frees the
+   seat, and the next key opens a new one.
 4. Keys and gamepads count only while the game page has focus, key repeats
    never press, and losing focus or unplugging a gamepad releases what it
    held. Keys aimed at the page's own buttons and fields stay theirs.
@@ -153,6 +153,12 @@ defineAirJamGame({ input: shipInput, inputBindings: shipInputBindings, ... });
 Local development's preview phones and Studio provide these seats; a page
 with nobody to provide them leaves keys and gamepads alone. Game code never
 listens to keys or polls gamepads itself.
+
+A product framing a game offers its preview workspace's phones as that
+game's seats by passing the game frame to `PreviewControllerWorkspace` as
+`localPlayersGame`; `localPlayers={false}` offers none and closes the seats
+it opened. The Arcade offers them only once a player turns keyboard and
+gamepad players on.
 
 A product framing its own phones launches each with
 `createPreviewControllerLaunch` from `@air-jam/sdk/preview`, passing its
