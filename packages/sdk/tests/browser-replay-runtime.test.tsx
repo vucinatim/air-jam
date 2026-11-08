@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
 import { act, cleanup, render } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { defineAirJamAgentContract } from "../src/agent/agent-contract";
+import {
+  AudioRuntime,
+  useAudio,
+  useAudioRuntimeStatus,
+} from "../src/audio/hooks";
+import { useAirJamContext } from "../src/context/air-jam-context";
 import { SocketManager } from "../src/context/socket-manager";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
+import { useSendSignal } from "../src/hooks/use-send-signal";
 import { useSimulationFrame } from "../src/hooks/use-simulation";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
+import { ConnectedRuntimeErrorBoundary } from "../src/runtime/connected-runtime-error-boundary";
+import { getHostRealtimeClient } from "../src/runtime/host-realtime-client";
 import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
 
 afterEach(() => {
@@ -27,8 +37,18 @@ it("renders the replay's contexts and installs drawing before answering open, wi
   const socket = vi.spyOn(SocketManager.prototype, "getSocket");
   const draw = vi.fn();
   const seen = vi.fn();
+  const manifest = {};
   function Game() {
     const host = useAirJamHost();
+    const { getSocket } = useAirJamContext();
+    const sendSignal = useSendSignal();
+    useAudio();
+    useAudioRuntimeStatus();
+    expect(getSocket("host")).toBe(host.socket);
+    expect(getHostRealtimeClient(getSocket)).toBe(host.socket);
+    useEffect(() => {
+      sendSignal("TOAST", { title: "Replayed" });
+    }, [sendSignal]);
     seen(host.roomId);
     useSimulationFrame(draw);
     return <div>{host.roomId}</div>;
@@ -55,7 +75,11 @@ it("renders the replay's contexts and installs drawing before answering open, wi
         agent={agent}
         simulation={{ stepMs: 10, create: () => ({}), step: () => {} }}
       >
-        <Game />
+        <ConnectedRuntimeErrorBoundary role="host">
+          <AudioRuntime manifest={manifest}>
+            <Game />
+          </AudioRuntime>
+        </ConnectedRuntimeErrorBoundary>
       </AirJamHostRuntime>,
     );
     expect(socket).not.toHaveBeenCalled();

@@ -48,12 +48,18 @@ import { isLocalDevControlSurfaceTopology } from "../runtime-topology";
 import type { AirJamConfig } from "../runtime/air-jam-config";
 import { resolveAirJamConfig } from "../runtime/air-jam-config";
 import { isAirJamReplayDocument } from "../runtime/browser-replay";
+import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import {
   AIRJAM_DEV_PROVIDER_MOUNTED,
   emitAirJamDevRuntimeEvent,
 } from "../runtime/dev-runtime-events";
 import { embeddedRuntimeParent } from "../runtime/embedded-parent";
-import { SocketManager, type AirJamSocket } from "./socket-manager";
+import { getHostRealtimeClient } from "../runtime/host-realtime-client";
+import type {
+  AirJamRealtimeClient,
+  DirectSocketGetter,
+} from "../runtime/realtime-client";
+import { SocketManager } from "./socket-manager";
 
 // ============================================================================
 // Configuration Types
@@ -130,7 +136,7 @@ export interface AirJamContextValue {
   /** Socket manager for this provider instance */
   socketManager: SocketManager;
   /** Get socket for a specific role */
-  getSocket: (role: ConnectionRole) => AirJamSocket;
+  getSocket: DirectSocketGetter<ConnectionRole>;
   /** Disconnect socket for a specific role */
   disconnectSocket: (role: ConnectionRole) => void;
 }
@@ -439,9 +445,15 @@ export const useAirJamState = <T,>(
  * socket.emit("custom:event", { data: "value" });
  * ```
  */
-export const useAirJamSocket = (role: ConnectionRole): AirJamSocket => {
+export const useAirJamSocket = (role: ConnectionRole): AirJamRealtimeClient => {
   const { getSocket } = useAirJamContext();
-  return useMemo(() => getSocket(role), [getSocket, role]);
+  return useMemo(
+    () =>
+      role === "host"
+        ? getHostRealtimeClient(getSocket)
+        : getControllerRealtimeClient(getSocket),
+    [getSocket, role],
+  );
 };
 
 // ============================================================================

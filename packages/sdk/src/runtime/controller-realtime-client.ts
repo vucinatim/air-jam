@@ -520,7 +520,7 @@ class EmbeddedControllerBridgeClient implements AirJamRealtimeClient {
 
 let embeddedControllerClient: EmbeddedControllerBridgeClient | null = null;
 const directControllerClients = new WeakMap<
-  AirJamSocket,
+  AirJamSocket | AirJamRealtimeClient,
   DirectRealtimeClient
 >();
 

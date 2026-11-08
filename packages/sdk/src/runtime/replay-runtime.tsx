@@ -97,10 +97,10 @@ export function ReplayRuntime({
       value={{
         ...context,
         store: runtime.store,
-        getSocket: () => {
-          throw new Error("A replay needs no server socket.");
+        getSocket: () => runtime.socket,
+        disconnectSocket: () => {
+          runtime.socket.disconnect();
         },
-        disconnectSocket: () => {},
       }}
     >
       <hostRuntimeContext.Provider value={controls}>
