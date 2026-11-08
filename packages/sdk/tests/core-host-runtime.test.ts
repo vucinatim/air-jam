@@ -12,9 +12,9 @@ import {
   defineAirJamInput,
   defineAirJamSettings,
   defineAirJamSimulation,
+  getReconnectingPlayerIds,
   HostRuntime,
   replayAirJamInputLog,
-  getReconnectingPlayerIds,
   setting,
   type AirJamActionContext,
   type AirJamHostEnvironment,
@@ -28,47 +28,10 @@ import {
   type HostRuntimeControl,
 } from "../src/runtime/contracts/control";
 import { hostObservationSchema } from "../src/runtime/contracts/observation";
-import { createMemorySocket } from "./fixtures/memory-socket";
-
-const createServerSocket = () =>
-  createMemorySocket((event) => {
-    if (event === "host:bootstrap") return { ok: true, traceId: "trace-1" };
-    if (event === "host:createRoom")
-      return {
-        ok: true,
-        roomId: "ROOM1",
-        players: [],
-        controllers: [],
-        hostResumeCapability: { token: "resume-token" },
-      };
-    throw new Error(`Unexpected ${event}`);
-  });
-
-const createMemoryEnvironment = (
-  socket: ReturnType<typeof createServerSocket>,
-) => {
-  let resume: { roomId: string; token: string } | null = null;
-  const environment: AirJamHostEnvironment = {
-    embedded: null,
-    requestedRoomId: null,
-    runMode: "standalone",
-    defaultStoreDomain: "default",
-    controlTarget: {},
-    readResume: () => resume,
-    writeResume: (next) => {
-      resume = next;
-    },
-    requestHostGrant: async () => "grant",
-    controllerUrl: async (roomId) =>
-      `https://play.test/controller?room=${roomId}`,
-    transport: () => socket,
-    emitDevEvent: () => {},
-    setDevLogContext: () => {},
-    seed: () => 1,
-    now: () => performance.now(),
-  };
-  return { environment, readStoredResume: () => resume };
-};
+import {
+  createMemoryEnvironment,
+  createServerSocket,
+} from "./fixtures/host-environment";
 
 const config = resolveAirJamConfig({
   topology: resolveRuntimeTopology({
@@ -190,7 +153,7 @@ describe("core host runtime", () => {
           },
         }),
       },
-      { seed: 1, record: true },
+      { seed: 1 },
     );
     const stop = runtime.start();
     await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
@@ -406,7 +369,7 @@ describe("core host runtime", () => {
         simulation: live.walker,
         input: walkerInput,
       },
-      { seed: 3, record: true },
+      { seed: 3 },
     );
     const stop = runtime.start();
     await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
@@ -534,7 +497,7 @@ describe("core host runtime", () => {
           }),
         },
       },
-      { settings: { speed: 3, seats: 6 }, record: true },
+      { settings: { speed: 3, seats: 6 } },
     );
     const stop = runtime.start();
     try {

@@ -9,19 +9,15 @@ it.each([false, true])(
       return import("../../../src/airjam.config");
     };
     const { airjam } = await loadGame();
-    const live = await replayAirJamInputLog(
-      (dependencies, options) =>
-        airjam.createHostRuntime(dependencies, { ...options, record: true }),
-      {
-        version: 2,
-        seed: 7,
-        settings: { ballSpeed: 600 },
-        stepMs: 1000 / 60,
-        ticks: 0,
-        storeDomain: "default",
-        entries: [],
-      },
-    );
+    const live = await replayAirJamInputLog(airjam.createHostRuntime, {
+      version: 2,
+      seed: 7,
+      settings: { ballSpeed: 600 },
+      stepMs: 1000 / 60,
+      ticks: 0,
+      storeDomain: "default",
+      entries: [],
+    });
     let log: AirJamInputLog;
     let final: unknown;
     try {

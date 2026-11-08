@@ -59,8 +59,18 @@ export {
   type AirJamKeyCode,
   type AirJamKeyboardLayout,
 } from "./core/input-bindings";
-export { airJamInputLogSchema, type AirJamInputLog } from "./core/input-log";
-export { replayAirJamInputLog } from "./core/replay-input-log";
+export {
+  AIR_JAM_INPUT_LOG_MAX_ENTRY_BYTES,
+  AIR_JAM_INPUT_LOG_MAX_GAME_MS,
+  airJamInputLogSchema,
+  type AirJamInputLog,
+  type AirJamInputLogCut,
+} from "./core/input-log";
+export {
+  openAirJamReplay,
+  replayAirJamInputLog,
+  type AirJamReplay,
+} from "./core/replay-input-log";
 export {
   acceptAirJamAction,
   createAirJamStore,

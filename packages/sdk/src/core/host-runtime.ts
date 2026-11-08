@@ -69,7 +69,11 @@ import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type { AirJamHostEnvironment } from "./environment";
 import { HostInput } from "./host-input";
 import type { AirJamInput } from "./input";
-import { InputRecorder, type AirJamInputLog } from "./input-log";
+import {
+  InputRecorder,
+  type AirJamInputLog,
+  type AirJamInputLogCut,
+} from "./input-log";
 import type { AttachableStore } from "./replicated-store";
 import {
   HostSettings,
@@ -94,8 +98,6 @@ export interface HostRuntimeOptions {
   /** Seeds the simulation; a recorded seed and inputs replay the same game. */
   seed?: number;
   settings?: SettingsValues;
-  /** Records the input log that replays this game, read with `inputLog()`. */
-  record?: boolean;
   onPlayerJoin?: (player: PlayerProfile) => void;
   onPlayerLeave?: (controllerId: string) => void;
 }
@@ -231,11 +233,7 @@ export class HostRuntime {
     this.input = dependencies.input
       ? new HostInput(dependencies.input, () => this.environment.now())
       : null;
-    if (options.record && !dependencies.simulation)
-      throw new Error(
-        "An input log is kept by simulation step. Declare a simulation to record one.",
-      );
-    this.recorder = options.record ? new InputRecorder() : null;
+    this.recorder = dependencies.simulation ? new InputRecorder() : null;
     this.environment = dependencies.environment;
     this.disconnectSocket = dependencies.disconnectSocket;
     this.stores = dependencies.stores;
@@ -264,6 +262,7 @@ export class HostRuntime {
                 event: "server:input" as const,
                 payload: structuredClone({ controllerId, input }),
               })),
+              simulation.stepMs,
             );
           },
           input: (controllerId) => this.input?.read(controllerId) ?? {},
@@ -318,23 +317,31 @@ export class HostRuntime {
       ? (this.clock?.timeMs ?? 0)
       : this.environment.now();
 
-  /**
-   * Everything that reached the game so far, by step: replaying it on a host
-   * with the same seed plays the same match. Needs `{ record: true }`.
-   */
-  inputLog(): AirJamInputLog {
-    const simulation = this.simulationDeclaration;
-    if (!this.recorder || !simulation)
+  /** Whether this match's input log has reached its time or entry limit. */
+  get inputLogFull(): boolean {
+    return this.recorder?.full ?? false;
+  }
+
+  /** Everything that reached this simulated game, from its real seed. */
+  inputLog(cut?: AirJamInputLogCut): AirJamInputLog {
+    if (!this.recorder)
       throw new Error(
-        "This host keeps no input log. Start it with { record: true } once its simulation has loaded.",
+        "replay_unsupported: This game has no simulation, so its matches cannot be replayed; record a clip instead.",
       );
-    return this.recorder.log({
-      seed: this.seed,
-      settings: this.hostSettings.initial,
-      stepMs: simulation.stepMs,
-      ticks: this.clock?.ticks ?? 0,
-      storeDomain: this.environment.defaultStoreDomain,
-    });
+    const simulation = this.simulationDeclaration;
+    if (!simulation)
+      throw new Error(
+        "replay_loading: This game's simulation is still loading.",
+      );
+    return this.recorder.log(
+      {
+        seed: this.seed,
+        settings: this.hostSettings.initial,
+        stepMs: simulation.stepMs,
+        storeDomain: this.environment.defaultStoreDomain,
+      },
+      cut,
+    );
   }
 
   readonly updateSettings = (
@@ -810,6 +817,8 @@ export class HostRuntime {
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
       now: () => this.environment.now(),
       clips: this.clips,
+      inputLog: (cut) => this.inputLog(cut),
+      inputLogFull: () => this.inputLogFull,
       input: this.input ?? undefined,
       readState: () => {
         const state = this.store.getState();
