@@ -559,6 +559,41 @@ The run owner records clips for test and play runs reached through host-agent
 requests, with an integrity receipt beside the final observation. Clip failure
 never changes a gameplay verdict or end reason.
 
+Simulated hosts also record their input log from construction, including their
+real seed and initial settings. `input-log-read {roomId, runtimeId, cut,
+fromEntry}` reads it through this same channel without a room grant. Start
+with `cut: null` and `fromEntry: 0`. The response's `page` contains the host
+observation `identity`, `header` (`version`, `seed`, `settings`, `stepMs`,
+`ticks`, `storeDomain`), `entryCount`, `full`, `entries` and `nextEntry`.
+Subsequent requests pass `cut: {ticks: header.ticks, entryCount}` and follow
+`nextEntry` until null. Entries, including pending events, keep their indexes
+and ticks when flushed. Pages target 512 KiB of serialized entries; an
+indivisible entry can exceed that target. A cut remains readable if the
+recorder fills during the transfer.
+
+The start is retained, bounded to 30 minutes of played game time and 16 MiB
+of entries (each entry's JSON length). Crossing either freezes the recording
+at the last whole step, excluding pending events from new reads. `full` is
+recorder status outside the unchanged version 2 log. A new game load starts
+a new recording under a new runtime identity.
+
+`readHostInputLog(request, expectedIdentity)` from
+`@air-jam/sdk/runtime-control` assembles and validates the cut and rejects
+changed headers or stalled cursors. It returns `{status: "recorded", log,
+full}` or `{status: "not-replayable", reason, message}`. Stable error prefixes
+map `replay_unsupported:` to `no-simulation`, `replay_loading:` to `loading`
+and `runtime_replaced:` to `runtime-replaced`; transport failures map to
+`host-unavailable`. Without a simulation the plain message is "This game has
+no simulation, so its matches cannot be replayed; record a clip instead."
+
+`openAirJamReplay` from `@air-jam/sdk/core` opens a paused replay on a fresh
+load of the same game. Its `advance({steps})` or `advance({ms})` returns the
+current tick, carries fractional milliseconds, clamps at the recorded total
+and applies trailing events once at the end. Reopening on a fresh load is the
+backward seek path, because stores are module singletons. The existing
+`replayAirJamInputLog` still runs to completion. Game code must use seeded
+step randomness for exact replay.
+
 Observations identify document, room, contract, store runtime, local surface
 and participant receiver registration, plus a sequence, host-clock capture
 interval, before/after ticks and store

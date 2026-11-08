@@ -49,6 +49,15 @@ Do not mix lanes:
 2. Do not mutate authoritative game state via signals.
 3. Do not dispatch state actions via `store.getState().actions.*`; use `store.actions`.
 
+## Match Recording And Replay
+
+Hosts whose game declares a simulation record the match's input log with its
+real seed. Agents read it with `readHostInputLog` from
+`@air-jam/sdk/runtime-control`, and `openAirJamReplay` from `@air-jam/sdk/core`
+steps it forward to the same state. See
+[Input Log And Replays](../../content/docs/sdk/input-system/page.mdx) and the
+[agent channel contract](../../docs/contracts/agent-session-contract.md).
+
 ## Installation
 
 ```bash
