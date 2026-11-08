@@ -86,22 +86,30 @@ const createReplayRoom = () => {
   return client;
 };
 
-/**
- * Plays a recorded input log on a fresh host of the same game, with no
- * server, browser or wall clock: each recorded event reaches the game before
- * the step it reached it before in the recording. With the same seed and
- * game code, the match plays out the same way; read its stores when it ends.
- */
-export const replayAirJamInputLog = async (
-  createHostRuntime: HostRuntimeFactory,
-  recorded: AirJamInputLog,
-): Promise<{
+export interface AirJamReplay {
   runtime: HostRuntime;
   roomId: string;
-  /** Asks the replayed host what agents ask a live one, such as for an observation. */
   agent: HostRuntimeControl["agent"];
   stop: () => void;
-}> => {
+  stepMs: number;
+  /** Total recorded steps. */
+  ticks: number;
+  readonly tick: number;
+  readonly done: boolean;
+  advance(by: { steps: number } | { ms: number }): number;
+}
+
+/**
+ * Opens a recorded match paused on a fresh host of the same game source.
+ * Advance in whole steps or game milliseconds (fractions carry between calls).
+ * Reaching the end applies trailing events once. To go back, open a new replay
+ * on a fresh load of the game: its stores are module singletons, so it cannot
+ * share a game module with a live host or another replay.
+ */
+export const openAirJamReplay = async (
+  createHostRuntime: HostRuntimeFactory,
+  recorded: AirJamInputLog,
+): Promise<AirJamReplay> => {
   const log = airJamInputLogSchema.parse(recorded);
   const room = createReplayRoom();
   const store = createConnectionStore();
@@ -171,9 +179,11 @@ export const replayAirJamInputLog = async (
     if (clock.ticks !== 0 || clock.stepMs !== log.stepMs)
       throw new Error("The replayed game does not match the recorded one.");
     let next = 0;
-    // Events after the last step still affect settings, actions and observations.
-    for (let tick = 1; tick <= log.ticks + 1; tick += 1) {
-      for (; log.entries[next]?.tick === tick; next += 1) {
+    let tick = 0;
+    let remainderMs = 0;
+    let trailingApplied = false;
+    const fireEntries = (at: number) => {
+      for (; log.entries[next]?.tick === at; next += 1) {
         const { event, payload } = log.entries[next];
         if (event === "airjam:settings") {
           const accepted = settingsLogEventSchema.parse(payload);
@@ -187,8 +197,13 @@ export const replayAirJamInputLog = async (
             : payload,
         );
       }
-      if (tick <= log.ticks) clock.advance(log.stepMs);
-    }
+    };
+    const finish = () => {
+      if (tick !== log.ticks || trailingApplied) return;
+      fireEntries(log.ticks + 1);
+      trailingApplied = true;
+    };
+    finish();
     return {
       runtime,
       roomId: REPLAY_ROOM_ID,
@@ -204,9 +219,62 @@ export const replayAirJamInputLog = async (
         return control.agent(request);
       },
       stop,
+      stepMs: log.stepMs,
+      ticks: log.ticks,
+      get tick() {
+        return tick;
+      },
+      get done() {
+        return trailingApplied;
+      },
+      advance(by) {
+        const amount = "steps" in by ? by.steps : by.ms;
+        if (
+          !Number.isFinite(amount) ||
+          amount < 0 ||
+          ("steps" in by && !Number.isInteger(amount))
+        )
+          throw new Error(
+            "Replay advance needs nonnegative whole steps or finite milliseconds.",
+          );
+        let steps: number;
+        if ("ms" in by) {
+          remainderMs += by.ms;
+          steps = Math.floor(remainderMs / log.stepMs);
+          remainderMs -= steps * log.stepMs;
+        } else steps = by.steps;
+        const end = tick + Math.min(steps, log.ticks - tick);
+        while (tick < end) {
+          fireEntries(tick + 1);
+          clock.advance(log.stepMs);
+          tick += 1;
+        }
+        finish();
+        return tick;
+      },
     };
   } catch (error) {
     stop();
+    throw error;
+  }
+};
+
+/** Plays a recorded match to completion; stop the returned host when finished. */
+export const replayAirJamInputLog = async (
+  createHostRuntime: HostRuntimeFactory,
+  recorded: AirJamInputLog,
+): Promise<Pick<AirJamReplay, "runtime" | "roomId" | "agent" | "stop">> => {
+  const replay = await openAirJamReplay(createHostRuntime, recorded);
+  try {
+    replay.advance({ steps: replay.ticks });
+    return {
+      runtime: replay.runtime,
+      roomId: replay.roomId,
+      agent: replay.agent,
+      stop: replay.stop,
+    };
+  } catch (error) {
+    replay.stop();
     throw error;
   }
 };

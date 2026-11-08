@@ -100,7 +100,8 @@
             "dist-ssr",
             "node_modules",
             "coverage",
-            "tsconfig.tsbuildinfo"
+            "tsconfig.tsbuildinfo",
+            "tests/game/engine/live-input-log-replay.test.ts"
           ]
         },
         "id": "pong",

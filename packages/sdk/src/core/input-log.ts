@@ -46,47 +46,90 @@ export type AirJamInputLog = z.infer<typeof airJamInputLogSchema>;
 export type AirJamInputLogEntry = AirJamInputLog["entries"][number];
 export type AirJamInputLogEvent = AirJamInputLogEntry["event"];
 
-/** Collects a host's input log while it runs. */
+/** Maximum played game time retained from the start of a match. */
+export const AIR_JAM_INPUT_LOG_MAX_GAME_MS = 30 * 60 * 1000;
+/** Sum of JSON lengths of entries, without serializing the whole log per step. */
+export const AIR_JAM_INPUT_LOG_MAX_ENTRY_BYTES = 16 * 1024 * 1024;
+
+/** A stable prefix, including any events pending after its last step. */
+export interface AirJamInputLogCut {
+  ticks: number;
+  entryCount: number;
+}
+
+/** Collects a bounded input log. Entry positions and ticks never change. */
 export class InputRecorder {
   private readonly entries: AirJamInputLogEntry[] = [];
-  private pending: Omit<AirJamInputLogEntry, "tick">[] = [];
+  private bytes = 0;
+  private ticks = 0;
+  private committedCount = 0;
+  private frozen = false;
 
-  /** Notes an event that arrived between steps; it takes the next step's tick. */
+  get full(): boolean {
+    return this.frozen;
+  }
+
+  private append(entry: AirJamInputLogEntry): boolean {
+    const bytes = JSON.stringify(entry).length;
+    if (this.bytes + bytes > AIR_JAM_INPUT_LOG_MAX_ENTRY_BYTES) {
+      this.frozen = true;
+      return false;
+    }
+    this.entries.push(entry);
+    this.bytes += bytes;
+    return true;
+  }
+
+  /** Notes an event between steps with the tick it will reach. */
   record(event: AirJamInputLogEvent, payload: object): void {
-    this.pending.push({
+    if (this.full) return;
+    this.append({
+      tick: this.ticks + 1,
       event,
       payload: structuredClone(payload) as Record<string, unknown>,
     });
   }
 
-  /** Stamps pending events with the step about to run, then adds `entries`. */
+  /** Commits a whole step only if its time and all its entries fit. */
   flush(
     tick: number,
-    entries: readonly Omit<AirJamInputLogEntry, "tick">[] = [],
+    entries: readonly Omit<AirJamInputLogEntry, "tick">[],
+    stepMs: number,
   ): void {
-    for (const entry of [...this.pending, ...entries])
-      this.entries.push({ tick, ...entry });
-    this.pending = [];
+    if (this.full) return;
+    if (tick * stepMs > AIR_JAM_INPUT_LOG_MAX_GAME_MS) {
+      this.frozen = true;
+      return;
+    }
+    for (const entry of entries) {
+      if (!this.append({ tick, ...entry })) return;
+    }
+    this.ticks = tick;
+    this.committedCount = this.entries.length;
   }
 
-  log({
-    seed,
-    settings,
-    stepMs,
-    ticks,
-    storeDomain,
-  }: Omit<AirJamInputLog, "version" | "entries">): AirJamInputLog {
+  log(
+    header: Omit<AirJamInputLog, "version" | "entries" | "ticks">,
+    cut?: AirJamInputLogCut,
+  ): AirJamInputLog {
+    const ticks = cut?.ticks ?? this.ticks;
+    const count =
+      cut?.entryCount ??
+      (this.full ? this.committedCount : this.entries.length);
+    if (
+      cut &&
+      (ticks > this.ticks ||
+        count > this.entries.length ||
+        (count > 0 && this.entries[count - 1].tick > ticks + 1))
+    )
+      throw new Error("Invalid input log cut.");
     return {
       version: 2,
-      settings,
-      seed,
-      stepMs,
+      ...header,
       ticks,
-      storeDomain,
-      entries: [
-        ...this.entries,
-        ...this.pending.map((entry) => ({ tick: ticks + 1, ...entry })),
-      ],
+      // Retain the bounded backing prefix even on overflow: a previously read
+      // cut may include pending entries, although a new full log excludes them.
+      entries: this.entries.slice(0, count),
     };
   }
 }

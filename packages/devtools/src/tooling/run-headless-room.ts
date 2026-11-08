@@ -128,7 +128,7 @@ async function openRoom(
       environment,
     },
     // A game with a simulation keeps the input log that replays the run.
-    { seed, settings, record: Boolean(app.simulation) },
+    { seed, settings },
   );
   const stop = runtime.start();
   const close = async () => {

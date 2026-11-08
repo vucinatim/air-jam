@@ -232,7 +232,7 @@ game and contract suites:
 2. **Agents as a source.** Leases set values (a button `true` or `false`, an
    axis a number, a stick `{ x, y }`) and a button's rising edge is one press.
    The raw `send_game_session_input` path converts the same way.
-3. **Input log and replay.** A host started with `{ record: true }` keeps
+3. **Input log and replay.** Every host whose game declares a simulation keeps
    everything that reached its game, stamped with the step it reached it
    before: joins, leaves, profile updates, runtime state, store actions
    applied between steps and each seat's controls when they changed. Actions

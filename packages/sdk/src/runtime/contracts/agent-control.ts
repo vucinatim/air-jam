@@ -10,6 +10,7 @@ import {
 } from "./observation";
 
 import { clipReadSchema } from "./clip";
+import { hostInputLogPageSchema, inputLogCutSchema } from "./input-log";
 
 const identity = z.object({
   roomId: roomCodeSchema,
@@ -28,6 +29,15 @@ const actionRequest = identity.extend({
     .optional(),
 });
 export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
+  z
+    .object({
+      operation: z.literal("input-log-read"),
+      roomId: roomCodeSchema,
+      runtimeId: z.string().min(1),
+      cut: inputLogCutSchema.nullable(),
+      fromEntry: z.number().int().nonnegative(),
+    })
+    .strict(),
   hostObservationRequestSchema
     .extend({ operation: z.literal("observe") })
     .strict(),
@@ -95,6 +105,12 @@ export const hostAgentSnapshotSchema = agentContractDescriptionSchema.extend({
 });
 
 export const hostAgentResponseSchema = z.discriminatedUnion("operation", [
+  z
+    .object({
+      operation: z.literal("input-log-read"),
+      page: hostInputLogPageSchema,
+    })
+    .strict(),
   z
     .object({
       operation: z.literal("clip-start"),
