@@ -6,6 +6,7 @@ import {
   createAirJamAgentEvaluator,
 } from "../../agent/agent-evaluator";
 import type { HostInput } from "../../core/host-input";
+import type { AirJamInputLog, AirJamInputLogCut } from "../../core/input-log";
 import type { HostSettings, SettingsValues } from "../../core/settings";
 import { roomCodeSchema } from "../../protocol/core";
 import type {
@@ -25,6 +26,7 @@ import {
   type HostAgentRequest,
   type HostAgentResponse,
 } from "./agent-control";
+import { INPUT_LOG_PAGE_BYTES } from "./input-log";
 import type { HostObservation } from "./observation";
 import {
   notifyHostRuntimeChanged,
@@ -72,6 +74,8 @@ type ActionStore = {
 
 type ParticipantReceiver = {
   clips?: HostClipRecorder;
+  inputLog?: (cut?: AirJamInputLogCut) => AirJamInputLog;
+  inputLogFull?: () => boolean;
   /** The host clock that command deadlines and input leases run on. */
   now: () => number;
   readState: () => NonNullable<NonNullable<HostObservation["host"]>["before"]>;
@@ -239,6 +243,45 @@ function controlEntry(target: object) {
                 };
               },
             }),
+          };
+        }
+        if (request.operation === "input-log-read") {
+          const identity = readHostRuntimeIdentity(target, request.roomId);
+          if (!identity)
+            throw new Error("host_unavailable: No live host owns this room.");
+          if (identity.runtimeId !== request.runtimeId)
+            throw new Error(
+              "runtime_replaced: The recording runtime was replaced.",
+            );
+          const receiver = receivers.get(request.roomId);
+          if (!receiver?.inputLog)
+            throw new Error("host_unavailable: No live host owns this room.");
+          const { entries, ...header } = receiver.inputLog(
+            request.cut ?? undefined,
+          );
+          if (request.fromEntry > entries.length)
+            throw new Error("Invalid input log page cursor.");
+          const page = [];
+          let size = 2;
+          let nextEntry = request.fromEntry;
+          for (; nextEntry < entries.length; nextEntry++) {
+            const entry = entries[nextEntry];
+            const length = JSON.stringify(entry).length + 1;
+            // One indivisible entry can exceed the page target.
+            if (page.length && size + length > INPUT_LOG_PAGE_BYTES) break;
+            page.push(entry);
+            size += length;
+          }
+          return {
+            operation: "input-log-read",
+            page: {
+              identity,
+              header,
+              entryCount: entries.length,
+              full: receiver.inputLogFull?.() ?? false,
+              entries: page,
+              nextEntry: nextEntry < entries.length ? nextEntry : null,
+            },
           };
         }
         if (

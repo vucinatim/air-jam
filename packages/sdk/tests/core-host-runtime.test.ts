@@ -12,9 +12,9 @@ import {
   defineAirJamInput,
   defineAirJamSettings,
   defineAirJamSimulation,
+  getReconnectingPlayerIds,
   HostRuntime,
   replayAirJamInputLog,
-  getReconnectingPlayerIds,
   setting,
   type AirJamActionContext,
   type AirJamHostEnvironment,
@@ -28,47 +28,10 @@ import {
   type HostRuntimeControl,
 } from "../src/runtime/contracts/control";
 import { hostObservationSchema } from "../src/runtime/contracts/observation";
-import { createMemorySocket } from "./fixtures/memory-socket";
-
-const createServerSocket = () =>
-  createMemorySocket((event) => {
-    if (event === "host:bootstrap") return { ok: true, traceId: "trace-1" };
-    if (event === "host:createRoom")
-      return {
-        ok: true,
-        roomId: "ROOM1",
-        players: [],
-        controllers: [],
-        hostResumeCapability: { token: "resume-token" },
-      };
-    throw new Error(`Unexpected ${event}`);
-  });
-
-const createMemoryEnvironment = (
-  socket: ReturnType<typeof createServerSocket>,
-) => {
-  let resume: { roomId: string; token: string } | null = null;
-  const environment: AirJamHostEnvironment = {
-    embedded: null,
-    requestedRoomId: null,
-    runMode: "standalone",
-    defaultStoreDomain: "default",
-    controlTarget: {},
-    readResume: () => resume,
-    writeResume: (next) => {
-      resume = next;
-    },
-    requestHostGrant: async () => "grant",
-    controllerUrl: async (roomId) =>
-      `https://play.test/controller?room=${roomId}`,
-    transport: () => socket,
-    emitDevEvent: () => {},
-    setDevLogContext: () => {},
-    seed: () => 1,
-    now: () => performance.now(),
-  };
-  return { environment, readStoredResume: () => resume };
-};
+import {
+  createMemoryEnvironment,
+  createServerSocket,
+} from "./fixtures/host-environment";
 
 const config = resolveAirJamConfig({
   topology: resolveRuntimeTopology({
@@ -190,7 +153,7 @@ describe("core host runtime", () => {
           },
         }),
       },
-      { seed: 1, record: true },
+      { seed: 1 },
     );
     const stop = runtime.start();
     await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
@@ -406,7 +369,7 @@ describe("core host runtime", () => {
         simulation: live.walker,
         input: walkerInput,
       },
-      { seed: 3, record: true },
+      { seed: 3 },
     );
     const stop = runtime.start();
     await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
@@ -534,7 +497,7 @@ describe("core host runtime", () => {
           }),
         },
       },
-      { settings: { speed: 3, seats: 6 }, record: true },
+      { settings: { speed: 3, seats: 6 } },
     );
     const stop = runtime.start();
     try {
@@ -684,6 +647,78 @@ describe("core host runtime", () => {
       ticks: { after: 3 },
     });
     stop();
+  });
+
+  it("refuses settings while a loaded simulation is pending, so its log replays from its real creation settings", async () => {
+    const settings = defineAirJamSettings({
+      speed: setting.number({ default: 1, min: 1, max: 4, live: true }),
+    });
+    type Values = AirJamSettingsValues<typeof settings>;
+    const mover = defineAirJamSimulation<
+      { initialSpeed: number; distance: number },
+      Record<string, never>,
+      never,
+      Values
+    >({
+      stepMs: 10,
+      create: ({ settings }) => ({ initialSpeed: settings.speed, distance: 0 }),
+      step: (sim, { settings }) => {
+        sim.distance += settings.speed;
+      },
+    });
+    let release: () => void = () => {};
+    const loaded = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const socket = createServerSocket();
+    const { environment } = createMemoryEnvironment(socket);
+    const runtime = new HostRuntime({
+      config,
+      store: createConnectionStore(),
+      getSocket: () => {
+        throw new Error("The memory transport needs no socket.");
+      },
+      disconnectSocket: () => {},
+      environment,
+      stores: [],
+      settings,
+      simulation: () => loaded.then(() => mover),
+    });
+    const stop = runtime.start();
+    await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+    expect(() => runtime.updateSettings({ speed: 2 }, 0)).toThrow(
+      "AJ_SETTING_INVALID: Settings change once the game's simulation has loaded.",
+    );
+
+    release();
+    await runtime.ready;
+    socket.fire("server:state", {
+      roomId: "ROOM1",
+      state: { runtimeState: "playing" },
+      version: 1,
+    });
+    runtime.updateSettings({ speed: 3 }, 0);
+    runtime.simulation?.advance(10);
+    const played = structuredClone(runtime.simulation?.sim);
+    const log = runtime.inputLog();
+    stop();
+    expect(played).toEqual({ initialSpeed: 1, distance: 3 });
+
+    const replayed = await replayAirJamInputLog(
+      (dependencies, options) =>
+        new HostRuntime(
+          {
+            ...dependencies,
+            stores: [],
+            settings,
+            simulation: async () => mover,
+          },
+          options,
+        ),
+      JSON.parse(JSON.stringify(log)),
+    );
+    expect(replayed.runtime.simulation?.sim).toEqual(played);
+    replayed.stop();
   });
 });
 

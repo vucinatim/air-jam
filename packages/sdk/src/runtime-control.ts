@@ -32,3 +32,9 @@ export { describeHostRuntimeFault } from "./runtime/host-runtime-fault";
 
 export * from "./runtime/contracts/clip";
 export { clipFailureReason, readHostClip } from "./runtime/host-clip-reader";
+
+export * from "./runtime/contracts/input-log";
+export {
+  inputLogFailureReason,
+  readHostInputLog,
+} from "./runtime/host-input-log-reader";

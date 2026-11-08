@@ -180,19 +180,54 @@ declaration.
 
 ## Input Log And Replays
 
-A host started with `{ record: true }` keeps an input log: players joining and
-leaving, runtime state, store actions applied between steps, and every seat's
-controls whenever they changed, each stamped with the step it reached the game
-before. Headless runs keep it in their evidence, and
+Every host whose game declares a simulation keeps a version 2 input log,
+from construction, in the browser as well as headless. It contains the real
+seed, resolved initial settings, players joining and leaving, room state,
+store actions applied between steps, controls when they change and accepted
+settings updates. Each event carries the step it reached the game before.
+Actions a step causes replay with the simulation and are not logged again.
+`runtime.inputLog()` reads it locally; it throws while the simulation is
+loading or when the game declares none.
+
+The recorder retains the start of the match. It freezes before a step would
+exceed 30 minutes of played game time or 16 MiB (the sum of each entry's JSON
+length). A full log ends at the last whole step and excludes pending events.
+`runtime.inputLogFull` reports this without changing the version 2 format.
+Reload the game to start a new recording.
+
+Agents use `readHostInputLog(request, observation.identity)` from
+`@air-jam/sdk/runtime-control` through the existing host-agent channel. It
+returns `{ status: "recorded", log, full }`, or `{ status: "not-replayable",
+reason, message }`. Reasons are `no-simulation`, `loading`, `runtime-replaced`
+and `host-unavailable`. A game without a simulation says:
+"This game has no simulation, so its matches cannot be replayed; record a clip instead."
+Reading needs no room grant. The first `input-log-read` request fixes a cut;
+later pages read the same prefix while the match keeps playing.
+
+Headless runs keep the log in their evidence. Running
 
 ```bash
 airjam session run replay <run-id>
 ```
 
 plays it on a fresh copy of the game, with no server or page, and reports
-whether the replay ends where the run ended. In code,
+whether the replay ends where the run ended.
 `replayAirJamInputLog(airjam.createHostRuntime, log)` from
-`@air-jam/sdk/core` does the same.
+`@air-jam/sdk/core` remains the run-to-completion form.
+
+For playback, `await openAirJamReplay(airjam.createHostRuntime, log)` returns
+`{ runtime, roomId, agent, stop, stepMs, ticks, tick, done, advance }`.
+It stays paused between calls. `advance({ steps: 10 })` runs whole steps;
+`advance({ ms: elapsed * speed })` carries fractions between calls, so a
+caller can drive any speed per animation frame. Both return the current tick
+and clamp at `ticks`. Reaching the end applies events after the final step
+once, including on a recording with zero steps. Call `stop()` when finished.
+
+There is no backward seek. Open a new replay and advance to the desired tick.
+Each replay needs a fresh load of the same game source, in its own page or
+headless process: game stores are module singletons and cannot share the load
+with the live game or another replay. Exact replay also requires game code to
+draw randomness from the step's seeded `random`.
 
 ### A Control Does Nothing
 

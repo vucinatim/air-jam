@@ -5,7 +5,9 @@
 
 Declare the numbers, switches and choices a creator tunes while playtesting in
 `airjam.config.ts`. The host owns their values and revision. A live update takes
-effect between simulation steps and is recorded for exact replay.
+effect between simulation steps and is recorded for exact replay. While a
+simulation declared as a loader is still loading, updates are refused, so a
+replay starts from the settings the simulation was created with.
 
 ## Declare settings in core
 
