@@ -44,13 +44,17 @@ export const LocalPlayersHost = ({
     const parent = topology ? embeddedRuntimeParent(topology) : null;
     if (!parent) return;
     let stopPlayers = () => {};
-    const disconnect = connectParentSeats(parent, (provider) => {
-      stopPlayers = startLocalPlayers(input, bindings, provider);
-    });
-    return () => {
-      disconnect();
+    const stop = () => {
       stopPlayers();
+      stopPlayers = () => {};
     };
+    return connectParentSeats(
+      parent,
+      (provider) => {
+        stopPlayers = startLocalPlayers(input, bindings, provider);
+      },
+      stop,
+    );
   }, [input, bindings, registered, topology]);
   return (
     <localSeatRegistry.Provider value={setRegistered}>

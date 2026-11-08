@@ -468,6 +468,7 @@ export class ControllerRuntime {
         controllerId,
         deviceId: this.environment.deviceId ?? undefined,
         nickname: this.nickname || undefined,
+        localSeatLabel: this.environment.localSeatLabel ?? undefined,
         avatarId: this.avatarId || undefined,
         capabilityToken: this.capabilityToken ?? undefined,
         resumeCapabilityToken:

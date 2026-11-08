@@ -3,13 +3,13 @@ import type {
   ChildHostCapability,
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
-  ControllerRoomSettingsState as RoomPlatformSettingsSnapshot,
   ControllerSource,
   ControllerStateMessage,
   HostResumeCapability,
   HostSessionKind,
   PlayerProfile,
   RoomCode,
+  ControllerRoomSettingsState as RoomPlatformSettingsSnapshot,
   RuntimeState,
 } from "@air-jam/sdk/protocol";
 import type {
@@ -30,6 +30,8 @@ export interface ControllerSession {
   resumeCapabilityToken: string;
   deviceId: string;
   nickname?: string;
+  /** Ordinary name to restore when a temporary local-seat label is withdrawn. */
+  localSeat?: { label: string; ordinaryLabel: string };
   socketId?: string;
   connected: boolean;
   resumeLeaseExpiresAt: number | null;

@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ControllerInput } from "../src/core/controller-input";
 import { button, defineAirJamInput, stick } from "../src/core/input";
 import { defineAirJamInputBindings, wasd } from "../src/core/input-bindings";
-import type { LocalInputOperation } from "../src/core/local-input";
+import {
+  LocalInputReceiver,
+  type LocalInputOperation,
+} from "../src/core/local-input";
 import {
   connectParentSeats,
   localSeatMessages,
@@ -64,6 +68,7 @@ const start = (seats: LocalSeatProvider) => {
 afterEach(() => {
   for (const stop of stops) stop();
   stops = [];
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
 });
@@ -262,10 +267,11 @@ describe("seats served to a game frame", () => {
     const { seats, open } = provider();
     server.provide(seats);
     fromGame({ type: "airjam.local-seat.request", seat });
-    const { close } = open(0);
+    const { sent, close } = open(0);
     await settle();
     close();
     await settle();
+    expect(sent).toEqual([{ op: "release-all" }]);
     expect(said().at(-1)).toEqual(localSeatMessages.closed(seat.key));
   });
 
@@ -279,16 +285,152 @@ describe("seats served to a game frame", () => {
     const gamepad = { key: "gamepad-1", label: "Gamepad 1" };
     fromGame({ type: "airjam.local-seat.request", seat: gamepad });
     server.provide(null);
-    expect(said().slice(-2)).toEqual([
+    expect(said().slice(-3)).toEqual([
       localSeatMessages.refused(gamepad.key),
       localSeatMessages.closed(seat.key),
+      localSeatMessages.unavailable(),
     ]);
     open(1);
     await settle();
-    expect(said().at(-1)).toEqual(localSeatMessages.closed(seat.key));
+    expect(said().at(-1)).toEqual(localSeatMessages.unavailable());
     server.provide(seats);
     expect(said().at(-1)).toEqual(localSeatMessages.available());
     fromGame({ type: "airjam.local-seat.request", seat });
     expect(asked).toHaveLength(3);
   });
+});
+
+describe("the local players protocol lifecycle", () => {
+  /** Two frame endpoints, with postMessage's asynchronous delivery and source/origin. */
+  const connect = () => {
+    const parentOrigin = "https://studio.test";
+    const gameOrigin = "https://game.test";
+    const deliver = (data: object, source: unknown, origin: string) => {
+      queueMicrotask(() => {
+        const event = new Event("message");
+        Object.assign(event, { data, source, origin });
+        window.dispatchEvent(event);
+      });
+    };
+    const parent = {
+      postMessage: (data: object, origin: string) => {
+        expect(origin).toBe(parentOrigin);
+        deliver(data, game, gameOrigin);
+      },
+    };
+    const game = {
+      postMessage: (data: object, origin: string) => {
+        expect(origin).toBe(gameOrigin);
+        deliver(data, parent, parentOrigin);
+      },
+    };
+    const server = serveLocalSeats({
+      window: () => game as unknown as Window,
+      origin: gameOrigin,
+    });
+    stops.push(() => server.stop());
+    let stopPlayers = () => {};
+    const available = vi.fn((seats: LocalSeatProvider) => {
+      stopPlayers = startLocalPlayers(input, bindings, seats);
+    });
+    const unavailable = vi.fn(() => {
+      stopPlayers();
+      stopPlayers = () => {};
+    });
+    stops.push(
+      connectParentSeats(
+        { window: parent as unknown as Window, origin: parentOrigin },
+        available,
+        unavailable,
+      ),
+    );
+    return { server, available, unavailable };
+  };
+
+  it("returns keys and gamepads to the game on off, releases held input, and starts again on on", async () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let frameId = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.set(++frameId, callback);
+      return frameId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+    const getGamepads = vi.fn(() => []);
+    vi.stubGlobal("navigator", { getGamepads });
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const tick = () => {
+      const ready = [...frames.values()];
+      frames.clear();
+      for (const callback of ready) callback(0);
+    };
+    const phone = new ControllerInput(input, {
+      send: () => {},
+      requestFrame: () => {},
+    });
+    const receiver = new LocalInputReceiver(phone);
+    const sent: LocalInputOperation[] = [];
+    const seats: LocalSeatProvider = {
+      open: vi.fn(async () => ({
+        send: (operation: LocalInputOperation) => {
+          sent.push(operation);
+          receiver.apply(operation);
+        },
+        closed: new Promise<void>(() => {}),
+      })),
+    };
+    const { server, available, unavailable } = connect();
+    await settle();
+    expect(key("keydown", "KeyW").defaultPrevented).toBe(false);
+    tick();
+    expect(getGamepads).not.toHaveBeenCalled();
+
+    server.provide(seats);
+    await settle();
+    expect(available).toHaveBeenCalledTimes(1);
+    expect(key("keydown", "KeyW").defaultPrevented).toBe(true);
+    key("keydown", "Space");
+    tick();
+    await settle();
+    expect(getGamepads).toHaveBeenCalledTimes(1);
+    expect(phone.value("move")).toEqual({ x: 0, y: -1 });
+    expect(phone.isDown("jump")).toBe(true);
+
+    // No keyup: withdrawal itself must release the phone, before closing its route.
+    server.provide(null);
+    expect(sent.at(-1)).toEqual({ op: "release-all" });
+    expect(phone.value("move")).toEqual({ x: 0, y: 0 });
+    expect(phone.isDown("jump")).toBe(false);
+    await settle();
+    expect(unavailable).toHaveBeenCalledTimes(1);
+    expect(frames.size).toBe(0);
+    expect(key("keydown", "KeyW").defaultPrevented).toBe(false);
+    tick();
+    expect(getGamepads).toHaveBeenCalledTimes(1);
+
+    server.provide(seats);
+    await settle();
+    expect(available).toHaveBeenCalledTimes(2);
+    expect(key("keydown", "KeyW").defaultPrevented).toBe(true);
+    tick();
+    await settle();
+    expect(getGamepads).toHaveBeenCalledTimes(2);
+    expect(phone.value("move")).toEqual({ x: 0, y: -1 });
+    expect(seats.open).toHaveBeenCalledTimes(2);
+  }, 1000);
+
+  it("settles a pending open on withdrawal so it cannot send queued holds after off", async () => {
+    const { seats, asked, open } = provider();
+    const { server } = connect();
+    server.provide(seats);
+    await settle();
+    key("keydown", "KeyW");
+    await settle();
+    expect(asked).toHaveLength(1);
+    server.provide(null);
+    await settle();
+    const { sent } = open(0);
+    await settle();
+    expect(sent).toEqual([]);
+    expect(key("keydown", "KeyW").defaultPrevented).toBe(false);
+  }, 1000);
 });
