@@ -11,6 +11,8 @@ import {
 
 const MAXIMUM_RESPONSE_BYTES = 2 * 1024 * 1024;
 
+export class CurrentRoomStopped extends Error {}
+
 /**
  * The creator's host, reached through the editor that granted the room. The
  * endpoint is an ephemeral delegation, never part of a run record or trace.
@@ -46,7 +48,7 @@ export function currentRoomHost(
       );
     }
     if (!response.ok) {
-      if ([401, 403, 409].includes(response.status)) {
+      if ([401, 403, 409, 410].includes(response.status)) {
         let message = "The creator's room is no longer granted.";
         try {
           if (response.body) {
@@ -57,6 +59,7 @@ export function currentRoomHost(
         } catch {
           // Missing, invalid or oversized refusal bodies use the generic cause.
         }
+        if (response.status === 410) throw new CurrentRoomStopped(message);
         throw new Error(`runtime_replaced: ${message}`);
       }
       await response.body?.cancel();

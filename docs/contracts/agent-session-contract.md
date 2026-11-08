@@ -258,8 +258,10 @@ decision deadline and a 1500 ms input lifetime. These match the existing profile
 defaults. It creates only the generic model policy, performs no setup or reset,
 and has no profile, evaluator, decision-count budget or verdict. Stop, room
 revocation and the ten-minute wall-clock safety deadline end play; execution
-errors still trigger the same cleanup. Its record retains the terminal reason,
-decisions, steering and disconnection receipts. The CLI selects this path with
+errors still trigger cleanup. Play releases input and disconnects before stopping
+the policy helper; final settling, evaluation, images and input-log capture belong
+only to tests. Its record retains the terminal reason, decisions, steering and
+disconnection receipts. The CLI selects this path with
 `airjam session run start --kind play --current --run-id <uuid> --intent "Defend"`;
 MCP `start_game_run` accepts the same kind and intent.
 
@@ -415,7 +417,8 @@ run. Three expired effect admissions end with `decision_latency`.
 
 One indexed journal records each logical effect, including its phase, seat,
 lease sequence, attempts and actual acknowledgement. An uncertain control is
-retried once with the identical envelope, without renewing movement. Each child
+retried once with the identical envelope, without renewing movement; after abort,
+only release may retry. Late policy answers cannot send controls. Each child
 receives new receipts exactly once when its request is dispatched, even if its
 response later times out. Policies receive their own seat's receipts; the judge
 receives all seats. The harness rejects receipt gaps, duplicates and oversized
@@ -423,9 +426,9 @@ batches. Authored code need not deduplicate. Freeze the receipt boundary before
 observing so a judge never compares a future effect with older state.
 
 Stop, completion, time budget, expiry and owner shutdown use one idempotent
-termination path. It gates decisions, stops the actor, drains effects, releases
-all seats, and waits for bounded host advancement. Final actual evidence and
-judging precede player leave; extras leave before the primary host closes.
+termination path. It gates decisions, drains effects and releases all seats.
+Tests stop the actor first, wait for bounded host advancement, and collect final
+evidence and judging before player leave. Extras leave before the primary host closes.
 A final failed verdict overrides an earlier pass. Passing requires actual play
 effects from every seat, a completed run, matching final identity/evidence and a
 final passed verdict. Stop/budget cannot become a late pass. A failed normal
@@ -446,6 +449,15 @@ describe actual runtime evidence; authored assertions are not an independent
 anti-cheat oracle. Multi-seat ownership, current-room delegation, pinned-build
 formal testing and live watch share this owner.
 
+Each run inspects its game once and reuses that inspection during participant
+attachment. Complete explicit controller targets skip topology discovery. Fresh
+policy preparation and attachment run concurrently, without cross-run helpers or
+caches. Records expose ISO timestamps `rosterJoinedAt` (roster confirmation),
+`stopRequestedAt` (owner receipt), `abortedAt`, `lastInputAt` (last non-release
+control sent) and `releaseAcknowledgedAt` (cleanup release applied). These separate
+join and stop latency from helper shutdown; embedding applications record their
+own stop receipt before forwarding cancellation.
+
 A `current` run plays in a room another editor hosts. Its attachment carries
 one controller identity per seat, issued by that editor, and an endpoint that
 forwards host agent requests to its host. The run reads state, runs host setup
@@ -457,6 +469,9 @@ may use someone's room is that room owner's decision, not the game's.
 HTTP 401/403/409 refusals from the current-room host retain `runtime_replaced`
 and use the editor's JSON `error` text (at most 300 characters). Missing, invalid
 or oversized refusal bodies fall back to the generic room-grant message.
+HTTP 410 means the grant was deliberately revoked: the owner records its receipt
+in `stopRequestedAt` and ends as `stopped`, even before a later cancel command.
+The editor preserves the first refusal, so a real runtime replacement stays one.
 
 ## Live owned-run viewing
 
@@ -546,7 +561,7 @@ last 15 s / 150 frames and 4 MiB decoded image bytes; frames over 160 KiB or
 null captures are skipped. Pages contain at most 768 KiB base64 characters.
 Four recordings may be retained; each self-stops at ten minutes and stopped
 recordings expire after a minute without reads. When full, a new recording
-evicts the stopped, fully delivered retry buffer with the oldest
+evicts only a stopped, fully delivered retry buffer, choosing the oldest
 `max(stopped, lastRead)`. Reading the final page marks a stopped clip delivered;
 unfinished transfers are protected from capacity eviction and still expire
 after a minute without reads. `clip_busy:` means all four clips are recording
