@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { AirJamContext, useAirJamContext } from "../context/air-jam-context";
 import { HostRuntime } from "../core/host-runtime";
 import type { AirJamReplay } from "../core/replay-input-log";
@@ -24,14 +25,6 @@ export function ReplayRuntime({
 }: AirJamHostRuntimeProps & { children: ReactNode }) {
   const context = useAirJamContext();
   const [replay, setReplay] = useState<AirJamReplay | null>(null);
-  const committed = useRef<(() => void) | null>(null);
-  useEffect(() => {
-    if (!replay) return;
-    // Child drawing subscriptions and capture hooks are installed before answering open.
-    replay.runtime.simulation?.advance(0);
-    committed.current?.();
-    committed.current = null;
-  }, [replay]);
   const declared = useMemo(() => new Set(stores), [stores]);
   useEffect(() => {
     const parent = embeddedRuntimeParent(context.config.topology);
@@ -54,11 +47,8 @@ export function ReplayRuntime({
           },
           options,
         ),
-      mounted: (value) =>
-        new Promise<void>((resolve) => {
-          committed.current = resolve;
-          setReplay(value);
-        }),
+      // Commit the game tree and its layout effects before the first observation.
+      mounted: (value) => flushSync(() => setReplay(value)),
       listen: (listener) => {
         window.addEventListener("message", listener);
         return () => window.removeEventListener("message", listener);

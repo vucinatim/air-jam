@@ -287,14 +287,18 @@ export class SimulationClock<
     }
   }
 
-  private notifyFrame(): void {
-    if (this.drawingDeferred) return;
-    if (this.frameListeners.size === 0) return;
-    const frame = {
+  /** The current drawing position; reading it never advances the game. */
+  readFrame(): SimulationFrame<TSim> {
+    return {
       sim: this.sim,
       tick: this.tick,
       alpha: Math.min(1, this.accumulatorMs / this.simulation.stepMs),
     };
+  }
+
+  private notifyFrame(): void {
+    if (this.drawingDeferred || this.frameListeners.size === 0) return;
+    const frame = this.readFrame();
     for (const listener of this.frameListeners) listener(frame);
   }
 }
