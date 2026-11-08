@@ -15,6 +15,7 @@ import {
 /** Evidence failure never determines a game's verdict. */
 export function clipFailureReason(error: unknown): ClipNotCapturedReason {
   const message = error instanceof Error ? error.message : String(error);
+  if (/^clip_busy:/.test(message)) return "busy";
   if (/^clip_unsupported:/.test(message)) return "unsupported";
   if (/^(clip_not_found|runtime_replaced|observation_replaced):/.test(message))
     return "runtime-replaced";

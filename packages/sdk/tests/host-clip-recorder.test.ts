@@ -7,7 +7,10 @@ import {
   clipFrameSchema,
 } from "../src/runtime/contracts/clip";
 import type { HostObservationSurface } from "../src/runtime/contracts/observation";
-import { readHostClip } from "../src/runtime/host-clip-reader";
+import {
+  clipFailureReason,
+  readHostClip,
+} from "../src/runtime/host-clip-reader";
 import { HostClipRecorder } from "../src/runtime/host-clip-recorder";
 import { observationFixture } from "./fixtures/host-observation";
 
@@ -213,13 +216,102 @@ it("keeps still-sized captures that ignore options and skips them over the byte 
     );
   recorder.dispose();
 });
-it("refuses no surface and a fifth retained recording", () => {
+it("refuses no surface and reports busy only when all four clips are recording", () => {
   expect(() => fixture(null).start("clip", identity)).toThrow(
     "clip_unsupported:",
   );
   const recorder = fixture();
   for (let i = 0; i < 4; i++) recorder.start(String(i), identity);
-  expect(() => recorder.start("fifth", identity)).toThrow("clip_busy:");
+  let refusal: unknown;
+  try {
+    recorder.start("fifth", identity);
+  } catch (error) {
+    refusal = error;
+  }
+  expect(String(refusal)).toContain("clip_busy:");
+  expect(clipFailureReason(refusal)).toBe("busy");
+  for (let i = 0; i < 4; i++)
+    expect(recorder.read(String(i), false, 0).state).toBe("recording");
+  recorder.read("0", true, 0);
+  expect(recorder.start("fifth", identity).clipId).toBe("fifth");
+  expect(() => recorder.read("0", false, 0)).toThrow("clip_not_found:");
+  recorder.dispose();
+});
+it("captures eight sequential five-second clips within a minute", async () => {
+  const recorder = fixture();
+  const started = Date.now();
+  for (let i = 0; i < 8; i++) {
+    const clipId = String(i);
+    recorder.start(clipId, identity);
+    await vi.advanceTimersByTimeAsync(5000);
+    const result = await readHostClip(
+      async (request) => {
+        if (request.operation !== "clip-read")
+          throw new Error("Unexpected clip operation.");
+        return {
+          operation: "clip-read",
+          clip: recorder.read(request.clipId, request.stop, request.fromFrame),
+        };
+      },
+      clipId,
+      identity,
+    );
+    expect(result.status).toBe("captured");
+    if (result.status === "captured") {
+      expect(result.artifact.durationMs).toBe(5000);
+      expect(result.artifact.frames).toHaveLength(50);
+    }
+  }
+  expect(Date.now() - started).toBe(40000);
+  expect(() => recorder.read("3", false, 0)).toThrow("clip_not_found:");
+  for (let i = 4; i < 8; i++)
+    expect(recorder.read(String(i), false, 0).state).toBe("stopped");
+  recorder.dispose();
+});
+it("evicts the least recently read stopped clip and preserves active recordings", async () => {
+  const recorder = fixture();
+  for (const id of ["active", "a", "b", "c"]) recorder.start(id, identity);
+  await vi.advanceTimersByTimeAsync(1000);
+  const a = recorder.read("a", true, 0);
+  await vi.advanceTimersByTimeAsync(100);
+  recorder.read("b", true, 0);
+  await vi.advanceTimersByTimeAsync(100);
+  const c = recorder.read("c", true, 0);
+  await vi.advanceTimersByTimeAsync(100);
+  expect(recorder.read("a", false, 0)).toEqual(a);
+  recorder.start("new", identity);
+  expect(() => recorder.read("b", false, 0)).toThrow("clip_not_found:");
+  expect(recorder.read("a", false, 0)).toEqual(a);
+  expect(recorder.read("c", false, 0)).toEqual(c);
+  for (const id of ["active", "new"])
+    expect(recorder.read(id, false, 0).state).toBe("recording");
+  recorder.dispose();
+});
+it("reports a replaced runtime when a stopped clip is evicted between pages", async () => {
+  const recorder = fixture(() => image(CLIP_FRAME_MAX_BYTES));
+  for (const id of ["clip", "a", "b", "c"]) recorder.start(id, identity);
+  await vi.advanceTimersByTimeAsync(400);
+  const result = readHostClip(
+    async (request) => {
+      if (request.operation !== "clip-read")
+        throw new Error("Unexpected clip operation.");
+      const clip = recorder.read(
+        request.clipId,
+        request.stop,
+        request.fromFrame,
+      );
+      expect(clip.nextFrame).not.toBeNull();
+      recorder.start("new", identity);
+      return { operation: "clip-read", clip };
+    },
+    "clip",
+    identity,
+  );
+  await expect(result).rejects.toThrow("clip_not_found:");
+  await expect(result.catch(clipFailureReason)).resolves.toBe(
+    "runtime-replaced",
+  );
+  recorder.dispose();
 });
 it("self-stops at ten minutes and releases stopped unread recordings after a minute", () => {
   let now = 0;

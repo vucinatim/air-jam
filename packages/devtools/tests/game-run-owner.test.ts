@@ -2352,6 +2352,7 @@ it("ends play at its ten-minute safety deadline without a verdict", async () => 
 it.each([
   "captured",
   "play",
+  "busy",
   "unsupported",
   "runtime-replaced",
   "host-unavailable",
@@ -2364,6 +2365,8 @@ it.each([
     f.session.requestHost = vi.fn<NonNullable<GameRunSession["requestHost"]>>(
       async (request) => {
         if (request.operation === "clip-start") {
+          if (status === "busy")
+            throw new Error("clip_busy: Four clips are already recording");
           if (status === "unsupported")
             throw new Error("clip_unsupported: No screen");
           clipId = request.clipId;

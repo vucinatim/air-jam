@@ -13,6 +13,7 @@ export const CLIP_STOPPED_RELEASE_MS = 60_000;
 export const CLIP_MAX_RECORDINGS = 4;
 
 export const clipNotCapturedReasonSchema = z.enum([
+  "busy",
   "unsupported",
   "surface-unavailable",
   "capture-failed",

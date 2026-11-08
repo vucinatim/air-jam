@@ -32,6 +32,11 @@ type Recording = {
   attempts: number;
   errors: number;
 };
+/** When a stopped recording was last needed; null while it records. */
+const idleSince = (recording: Recording) =>
+  recording.stopped === null
+    ? null
+    : Math.max(recording.stopped, recording.lastRead);
 /** One non-queuing sampler per runtime; the clock and scheduler are replaceable in tests. */
 export class HostClipRecorder {
   private readonly recordings = new Map<string, Recording>();
@@ -54,10 +59,20 @@ export class HostClipRecorder {
     this.sweep();
     const previous = this.recordings.get(clipId);
     if (previous) return { clipId, startedAt: previous.startedAt };
-    if (this.recordings.size >= CLIP_MAX_RECORDINGS)
-      throw new Error(
-        "clip_busy: Four recordings are already retained by this runtime.",
-      );
+    if (this.recordings.size >= CLIP_MAX_RECORDINGS) {
+      let oldest: Recording | undefined;
+      for (const recording of this.recordings.values()) {
+        const since = idleSince(recording);
+        if (since !== null && (!oldest || since < idleSince(oldest)!))
+          oldest = recording;
+      }
+      if (!oldest)
+        throw new Error(
+          "clip_busy: Four clips are already recording in this runtime.",
+        );
+      // Stopped clips are retry buffers; make room for a new recording.
+      this.recordings.delete(oldest.clipId);
+    }
     const now = this.source.now();
     const recording: Recording = {
       identity,
@@ -112,11 +127,8 @@ export class HostClipRecorder {
         recording.stopped = recording.start + CLIP_RECORDING_LIFETIME_MS;
         this.trim(recording, recording.stopped);
       }
-      if (
-        recording.stopped !== null &&
-        now - Math.max(recording.stopped, recording.lastRead) >=
-          CLIP_STOPPED_RELEASE_MS
-      )
+      const since = idleSince(recording);
+      if (since !== null && now - since >= CLIP_STOPPED_RELEASE_MS)
         this.recordings.delete(id);
     }
     if (!this.recordings.size) {

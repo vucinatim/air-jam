@@ -545,8 +545,12 @@ options may return frames up to 1280 px; the same byte caps still apply. The ret
 last 15 s / 150 frames and 4 MiB decoded image bytes; frames over 160 KiB or
 null captures are skipped. Pages contain at most 768 KiB base64 characters.
 Four recordings may be retained; each self-stops at ten minutes and stopped
-recordings expire after a minute without reads. Runtime or surface replacement
-releases recordings. Missing captures distinguish unsupported, unavailable,
+recordings expire after a minute without reads. When full, a new recording
+evicts the stopped retry buffer with the oldest `max(stopped, lastRead)`;
+`clip_busy:` means all four clips are still recording and maps to the `busy`
+not-captured reason. A stopped clip evicted during paging returns
+`clip_not_found:`, which maps to `runtime-replaced`. Runtime or surface replacement
+releases recordings. Missing captures distinguish busy, unsupported, unavailable,
 failed, replaced, unreachable and headless screens. `clipArtifactSchema` from
 `@air-jam/sdk/runtime-control` validates `clip.json`; frame offsets and duration
 are measured since the original host-clock start, including any dropped prefix.
