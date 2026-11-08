@@ -13,6 +13,7 @@ import {
 } from "../src/core";
 import {
   bindBrowserReplay,
+  isAirJamReplayDocument,
   replayMessageSchema,
   replayRequestMessageSchema,
 } from "../src/runtime/browser-replay";
@@ -153,4 +154,15 @@ it("opens only for its parent, advances a Pong-like game without intermediate dr
   } finally {
     close();
   }
+});
+
+it("recognizes only the explicit replay query, including embedded topology parameters", () => {
+  expect(isAirJamReplayDocument()).toBe(false);
+  expect(
+    isAirJamReplayDocument(
+      "?airjamReplay=1&embedded=1&parentOrigin=https%3A%2F%2Fstudio.test",
+    ),
+  ).toBe(true);
+  expect(isAirJamReplayDocument("?airjamReplay=0")).toBe(false);
+  expect(isAirJamReplayDocument("?airjamReplay=true")).toBe(false);
 });

@@ -8,6 +8,12 @@ import {
 } from "./contracts/observation";
 
 export const AIR_JAM_REPLAY_QUERY = "airjamReplay";
+/** Whether this document renders a recording instead of owning a live room. */
+export function isAirJamReplayDocument(
+  search = typeof window === "undefined" ? "" : window.location.search,
+): boolean {
+  return new URLSearchParams(search).get(AIR_JAM_REPLAY_QUERY) === "1";
+}
 const whole = z.number().int().nonnegative();
 export const replayAdvanceSchema = z.union([
   z.object({ steps: whole }).strict(),

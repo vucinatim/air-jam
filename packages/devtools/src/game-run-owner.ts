@@ -1955,6 +1955,7 @@ export class GameRunOwner {
                 path: `.airjam/artifacts/runs/${run.record.runId}/input-log.json`,
                 sha256: createHash("sha256").update(inputSource).digest("hex"),
                 ticks: result.log.ticks,
+                stepMs: result.log.stepMs,
                 entries: result.log.entries.length,
                 fromTick: run.fromTick ?? 0,
                 full: result.full,

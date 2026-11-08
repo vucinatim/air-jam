@@ -47,6 +47,7 @@ type Room = {
 type SavedInputLog = {
   sha256: string;
   ticks: number;
+  stepMs: number;
   entries: number;
   full: boolean;
 };
@@ -195,6 +196,7 @@ async function openRoom(
             return {
               sha256: createHash("sha256").update(source).digest("hex"),
               ticks: log.ticks,
+              stepMs: log.stepMs,
               entries: log.entries.length,
               full: runtime.inputLogFull,
             };

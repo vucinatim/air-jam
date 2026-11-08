@@ -2533,6 +2533,7 @@ it.each([
     if (status === "recorded") {
       expect(record.evidence?.inputLog).toMatchObject({
         ticks: 70,
+        stepMs: 10,
         entries: 0,
         fromTick,
         full: false,

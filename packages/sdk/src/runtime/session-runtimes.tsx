@@ -21,7 +21,7 @@ import {
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
-import { AIR_JAM_REPLAY_QUERY } from "./browser-replay";
+import { isAirJamReplayDocument } from "./browser-replay";
 import {
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
@@ -250,10 +250,7 @@ export const AirJamHostRuntime = ({
   ...providerProps
 }: AirJamHostRuntimeProps): JSX.Element | null => {
   if (!useInBrowser()) return null;
-  if (
-    new URLSearchParams(window.location.search).get(AIR_JAM_REPLAY_QUERY) ===
-    "1"
-  )
+  if (isAirJamReplayDocument())
     return (
       <HostSessionProvider {...providerProps}>
         <ReplayRuntime

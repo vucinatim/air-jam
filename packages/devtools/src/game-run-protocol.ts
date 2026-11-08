@@ -362,6 +362,7 @@ export const gameRunRecordSchema = z
             path: z.string().min(1),
             sha256: z.string().regex(/^[a-f0-9]{64}$/),
             ticks: z.number().int().nonnegative(),
+            stepMs: z.number().positive(),
             entries: z.number().int().nonnegative(),
             fromTick: z.number().int().nonnegative(),
             full: z.boolean(),

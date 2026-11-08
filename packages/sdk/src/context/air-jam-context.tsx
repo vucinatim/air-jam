@@ -47,6 +47,7 @@ import type {
 import { isLocalDevControlSurfaceTopology } from "../runtime-topology";
 import type { AirJamConfig } from "../runtime/air-jam-config";
 import { resolveAirJamConfig } from "../runtime/air-jam-config";
+import { isAirJamReplayDocument } from "../runtime/browser-replay";
 import {
   AIRJAM_DEV_PROVIDER_MOUNTED,
   emitAirJamDevRuntimeEvent,
@@ -208,10 +209,7 @@ export const AirJamProvider = ({
   const localDevControlSurfacesEnabled = useMemo(
     () =>
       isLocalDevControlSurfaceTopology(config.topology) &&
-      !(
-        typeof window !== "undefined" &&
-        new URLSearchParams(window.location.search).get("airjamReplay") === "1"
-      ),
+      !isAirJamReplayDocument(),
     [config.topology],
   );
 
@@ -262,11 +260,7 @@ export const AirJamProvider = ({
   ]);
 
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("airjamReplay") === "1"
-    )
-      return;
+    if (isAirJamReplayDocument()) return;
     ensureDevBrowserLogSink({
       appOrigin: config.appOrigin,
       backendOrigin: config.backendOrigin,

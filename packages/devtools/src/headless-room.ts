@@ -35,6 +35,7 @@ export type HeadlessRoom = {
     | ((path: string) => Promise<{
         sha256: string;
         ticks: number;
+        stepMs: number;
         entries: number;
         full: boolean;
       }>)
@@ -133,11 +134,11 @@ export async function startHeadlessRoom({
       },
       saveInputLog: opened.recordsInputLog
         ? async (logPath) => {
-            const { sha256, ticks, entries, full } = await request(
+            const { sha256, ticks, stepMs, entries, full } = await request(
               { kind: "saveInputLog", id: randomUUID(), path: logPath },
               "savedInputLog",
             );
-            return { sha256, ticks, entries, full };
+            return { sha256, ticks, stepMs, entries, full };
           }
         : null,
       stop: channel.stop,
