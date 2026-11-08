@@ -44,7 +44,12 @@ type Room = {
   close: () => Promise<void>;
 };
 
-type SavedInputLog = { sha256: string; ticks: number; entries: number };
+type SavedInputLog = {
+  sha256: string;
+  ticks: number;
+  entries: number;
+  full: boolean;
+};
 
 let room: Room | undefined;
 let initializing = false;
@@ -191,6 +196,7 @@ async function openRoom(
               sha256: createHash("sha256").update(source).digest("hex"),
               ticks: log.ticks,
               entries: log.entries.length,
+              full: runtime.inputLogFull,
             };
           }
         : null,

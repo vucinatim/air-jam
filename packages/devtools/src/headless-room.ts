@@ -32,9 +32,12 @@ export type HeadlessRoom = {
    * null when the game declares no simulation to replay.
    */
   saveInputLog:
-    | ((
-        path: string,
-      ) => Promise<{ sha256: string; ticks: number; entries: number }>)
+    | ((path: string) => Promise<{
+        sha256: string;
+        ticks: number;
+        entries: number;
+        full: boolean;
+      }>)
     | null;
   stop: () => Promise<void>;
 };
@@ -130,11 +133,11 @@ export async function startHeadlessRoom({
       },
       saveInputLog: opened.recordsInputLog
         ? async (logPath) => {
-            const { sha256, ticks, entries } = await request(
+            const { sha256, ticks, entries, full } = await request(
               { kind: "saveInputLog", id: randomUUID(), path: logPath },
               "savedInputLog",
             );
-            return { sha256, ticks, entries };
+            return { sha256, ticks, entries, full };
           }
         : null,
       stop: channel.stop,

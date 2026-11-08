@@ -88,6 +88,7 @@ export const headlessRoomResponseSchema = z.discriminatedUnion("kind", [
       sha256: z.string().regex(/^[a-f0-9]{64}$/),
       ticks: z.number().int().nonnegative(),
       entries: z.number().int().nonnegative(),
+      full: z.boolean(),
     })
     .strict(),
   z

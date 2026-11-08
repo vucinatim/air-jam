@@ -820,7 +820,7 @@ export class HostRuntime {
       : null;
     this.bindObservation(roomId);
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
-      now: () => this.environment.now(),
+      now: this.now,
       clips: this.clips,
       inputLog: (cut) => this.inputLog(cut),
       inputLogFull: () => this.inputLogFull,
@@ -888,8 +888,7 @@ export class HostRuntime {
     this.releaseObservation = null;
     const simulation = this.simulationDeclaration;
     const clock = this.simulation;
-    const observes = Boolean(simulation?.observe && clock);
-    if (!observes && !this.capture) return;
+    if (!clock && !this.capture) return;
     this.releaseObservation = registerHostObservationSurface(
       this.environment.controlTarget,
       roomId,
@@ -903,7 +902,7 @@ export class HostRuntime {
                 }),
                 tick: clock.ticks,
               }
-            : { state: {} },
+            : { state: {}, ...(clock ? { tick: clock.ticks } : {}) },
         ...(this.capture
           ? { capture: (options) => this.capture?.(options) ?? null }
           : {}),

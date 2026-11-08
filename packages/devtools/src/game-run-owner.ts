@@ -7,6 +7,7 @@ import {
   clipFailureReason,
   describeHostRuntimeFault,
   readHostClip,
+  readHostInputLog,
   sameHostRuntimeIdentity,
   type HostAgentRequest,
   type HostAgentResponse,
@@ -170,6 +171,7 @@ type Run = {
   /** The session clock's reading when play began. */
   playStartedAt?: number;
   clipStarted?: boolean;
+  fromTick?: number;
   directory: string;
   abort: AbortController;
   session?: GameRunSession;
@@ -930,7 +932,10 @@ export class GameRunOwner {
       const first = await this.observe(run, seat, false);
       seat.expected = first.identity;
       this.seatRecord(run, seat).expected = first.identity;
-      if (seat === run.seats[0]) run.record.expected = first.identity;
+      if (seat === run.seats[0]) {
+        run.record.expected = first.identity;
+        run.fromTick = first.ticks.after ?? 0;
+      }
       if (run.abort.signal.aborted) return;
       if (
         (await this.control(run, seat, first, { kind: "release" }, "setup"))
@@ -1906,6 +1911,56 @@ export class GameRunOwner {
             );
           }
           finalObservation = await this.evaluationObservation(run, true);
+          if (!run.room && run.record.expected) {
+            const result = await readHostInputLog(
+              (request) => {
+                if (!session.requestHost)
+                  throw new Error(
+                    "host_unavailable: Studio couldn't reach the game.",
+                  );
+                return session.requestHost(request, 5000);
+              },
+              run.record.expected,
+              {
+                scope: finalObservation.scope,
+                controllerId: finalObservation.controllerId,
+              },
+            );
+            run.record.evidence ??= { observation: null, error: null };
+            if (result.status === "not-replayable")
+              run.record.evidence.replay = {
+                reason: result.reason,
+                message: result.message,
+              };
+            else {
+              if (!result.observation)
+                throw new Error("The recording has no cut-bound observation.");
+              // Keep the screen capture, with state sampled at the log cut.
+              finalObservation = {
+                ...result.observation,
+                visual: finalObservation.visual,
+              };
+              const inputSource = `${JSON.stringify(result.log)}\n`;
+              const file = await open(
+                path.join(run.directory, "input-log.json"),
+                "w",
+                0o600,
+              );
+              try {
+                await file.writeFile(inputSource);
+              } finally {
+                await file.close();
+              }
+              run.record.evidence.inputLog = {
+                path: `.airjam/artifacts/runs/${run.record.runId}/input-log.json`,
+                sha256: createHash("sha256").update(inputSource).digest("hex"),
+                ticks: result.log.ticks,
+                entries: result.log.entries.length,
+                fromTick: run.fromTick ?? 0,
+                full: result.full,
+              };
+            }
+          }
           const source = `${JSON.stringify(finalObservation)}\n`;
           const file = await open(
             path.join(run.directory, "final-observation.json"),
@@ -1929,6 +1984,7 @@ export class GameRunOwner {
           if (saveInputLog)
             run.record.evidence.inputLog = {
               path: `.airjam/artifacts/runs/${run.record.runId}/input-log.json`,
+              fromTick: run.fromTick ?? 0,
               ...(await saveInputLog(
                 path.join(run.directory, "input-log.json"),
               )),

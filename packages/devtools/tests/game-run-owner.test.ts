@@ -2455,3 +2455,116 @@ it.each([
     }
   },
 );
+
+it.each([
+  "recorded",
+  "no-simulation",
+  "loading",
+  "runtime-replaced",
+  "host-unavailable",
+] as const)(
+  "pairs browser test evidence with the final log cut (%s)",
+  async (status) => {
+    const f = await fixture();
+    let clock = 0;
+    f.session.clock = {
+      now: () => clock,
+      wait: async (ms) => {
+        clock += ms;
+      },
+    };
+    const observation = await f.session.observe({
+      scope: "diagnostic",
+      includeImage: false,
+    });
+    const fromTick = observation.ticks.after!;
+    vi.mocked(f.session.observe).mockResolvedValueOnce(observation);
+    const cut = {
+      ...observation,
+      id: "final-cut",
+      ticks: { before: 70, after: 70 },
+      snapshot: { score: 17 },
+    };
+    f.session.requestHost = async (request) => {
+      if (request.operation !== "input-log-read")
+        throw new Error("No capture surface");
+      if (status !== "recorded")
+        throw new Error(
+          {
+            "no-simulation":
+              "replay_unsupported: This game has no simulation, so its matches cannot be replayed; record a clip instead.",
+            loading: "replay_loading: This game's simulation is still loading.",
+            "runtime-replaced":
+              "runtime_replaced: The recording runtime was replaced.",
+            "host-unavailable":
+              "host_unavailable: No live host owns this room.",
+          }[status],
+        );
+      expect(request.observe).toEqual({
+        scope: "diagnostic",
+        controllerId: "player",
+      });
+      return {
+        operation: "input-log-read",
+        page: {
+          identity: observation.identity,
+          header: {
+            version: 2,
+            seed: 1,
+            settings: {},
+            stepMs: 10,
+            ticks: 70,
+            storeDomain: "default",
+          },
+          entryCount: 0,
+          full: false,
+          entries: [],
+          nextEntry: null,
+          observation: cut,
+        },
+      };
+    };
+    io.decide.mockResolvedValue({
+      control: { kind: "action", actionId: "tap" },
+    });
+    passAfterEffect("Done.");
+    await f.owner.start(f.request);
+    const record = await f.ended();
+    if (status === "recorded") {
+      expect(record.evidence?.inputLog).toMatchObject({
+        ticks: 70,
+        entries: 0,
+        fromTick,
+        full: false,
+      });
+      const end = JSON.parse(
+        await readFile(
+          path.join(
+            f.root,
+            ".airjam/artifacts/runs",
+            f.request.runId,
+            "final-observation.json",
+          ),
+          "utf8",
+        ),
+      );
+      const log = JSON.parse(
+        await readFile(
+          path.join(
+            f.root,
+            ".airjam/artifacts/runs",
+            f.request.runId,
+            "input-log.json",
+          ),
+          "utf8",
+        ),
+      );
+      expect(end.ticks.after).toBe(log.ticks);
+      expect(end.snapshot).toEqual({ score: 17 });
+    } else {
+      expect(record.evidence?.replay).toMatchObject({ reason: status });
+      expect(record.evidence?.inputLog).toBeUndefined();
+      expect(record.evidence?.observation).not.toBeNull();
+    }
+  },
+);

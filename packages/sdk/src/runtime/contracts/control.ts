@@ -256,6 +256,21 @@ function controlEntry(target: object) {
           const receiver = receivers.get(request.roomId);
           if (!receiver?.inputLog)
             throw new Error("host_unavailable: No live host owns this room.");
+          // No capture awaits: this observation and the log prefix share one JS turn.
+          const observed =
+            request.observe && !request.cut
+              ? await control.agent({
+                  operation: "observe",
+                  roomId: request.roomId,
+                  ...request.observe,
+                  includeImage: false,
+                  expected: identity,
+                })
+              : undefined;
+          const observation =
+            observed?.operation === "observe"
+              ? observed.observation
+              : undefined;
           const { entries, ...header } = receiver.inputLog(
             request.cut ?? undefined,
           );
@@ -276,6 +291,7 @@ function controlEntry(target: object) {
             operation: "input-log-read",
             page: {
               identity,
+              ...(observation ? { observation } : {}),
               header,
               entryCount: entries.length,
               full: receiver.inputLogFull?.() ?? false,

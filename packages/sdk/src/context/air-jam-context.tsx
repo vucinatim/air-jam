@@ -206,7 +206,12 @@ export const AirJamProvider = ({
     ],
   );
   const localDevControlSurfacesEnabled = useMemo(
-    () => isLocalDevControlSurfaceTopology(config.topology),
+    () =>
+      isLocalDevControlSurfaceTopology(config.topology) &&
+      !(
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("airjamReplay") === "1"
+      ),
     [config.topology],
   );
 
@@ -257,6 +262,11 @@ export const AirJamProvider = ({
   ]);
 
   useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("airjamReplay") === "1"
+    )
+      return;
     ensureDevBrowserLogSink({
       appOrigin: config.appOrigin,
       backendOrigin: config.backendOrigin,

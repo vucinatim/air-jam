@@ -129,6 +129,7 @@ export class SimulationClock<
   readonly sim: TSim;
   readonly pace: SimulationPace = { frames: 0, wallMs: 0, simulatedMs: 0 };
   private tick = 0;
+  private drawingDeferred = 0;
   private inStep = false;
   private accumulatorMs = 0;
   private lastFrameAt: number | null = null;
@@ -275,7 +276,19 @@ export class SimulationClock<
     }
   }
 
+  /** Batch replay steps without drawing intermediate states. */
+  batch(advance: () => void): void {
+    this.drawingDeferred += 1;
+    try {
+      advance();
+    } finally {
+      this.drawingDeferred -= 1;
+      this.notifyFrame();
+    }
+  }
+
   private notifyFrame(): void {
+    if (this.drawingDeferred) return;
     if (this.frameListeners.size === 0) return;
     const frame = {
       sim: this.sim,

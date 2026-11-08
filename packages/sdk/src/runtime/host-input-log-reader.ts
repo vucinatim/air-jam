@@ -8,6 +8,10 @@ import {
   type HostInputLogPage,
   type InputLogNotReplayableReason,
 } from "./contracts/input-log";
+import type {
+  HostObservation,
+  HostObservationContext,
+} from "./contracts/observation";
 import {
   sameHostRuntimeIdentity,
   type HostObservationIdentity,
@@ -27,8 +31,14 @@ export function inputLogFailureReason(
 export async function readHostInputLog(
   request: (request: HostAgentRequest) => Promise<HostAgentResponse>,
   expected: HostObservationIdentity,
+  observe?: HostObservationContext,
 ): Promise<
-  | { status: "recorded"; log: AirJamInputLog; full: boolean }
+  | {
+      status: "recorded";
+      log: AirJamInputLog;
+      full: boolean;
+      observation?: HostObservation;
+    }
   | {
       status: "not-replayable";
       reason: InputLogNotReplayableReason;
@@ -49,6 +59,7 @@ export async function readHostInputLog(
           ? { ticks: first.header.ticks, entryCount: first.entryCount }
           : null,
         fromEntry,
+        ...(!first && observe ? { observe } : {}),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -100,5 +111,10 @@ export async function readHostInputLog(
   )
     throw new Error("Invalid input log entry ticks.");
   // Fullness belongs to the cut: a recording that fills after it leaves it whole.
-  return { status: "recorded", log, full: first.full };
+  return {
+    status: "recorded",
+    log,
+    full: first.full,
+    ...(first.observation ? { observation: first.observation } : {}),
+  };
 }
