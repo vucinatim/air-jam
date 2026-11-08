@@ -3,7 +3,7 @@ import {
   type ControllerLeasedControlAck,
 } from "@air-jam/sdk/protocol";
 import type { HostObservation } from "@air-jam/sdk/runtime-control";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   mkdir,
   mkdtemp,
@@ -42,9 +42,13 @@ const io = vi.hoisted(() => ({
   stopEvaluator: vi.fn(),
   stopPolicy: vi.fn(),
   inspectGame: vi.fn(),
+  headless: vi.fn(),
   build: vi.fn(),
   verifyBuild: vi.fn(),
   verifyArtifacts: vi.fn(),
+}));
+vi.mock("../src/headless-room.js", () => ({
+  startHeadlessRoom: (...args: unknown[]) => io.headless(...args),
 }));
 vi.mock("../src/policy-artifacts.js", () => ({
   verifyPolicyArtifacts: (...argumentsList: unknown[]) =>
@@ -2344,3 +2348,110 @@ it("ends play at its ten-minute safety deadline without a verdict", async () => 
     timer.mockRestore();
   }
 });
+
+it.each([
+  "captured",
+  "play",
+  "busy",
+  "unsupported",
+  "runtime-replaced",
+  "host-unavailable",
+  "headless",
+] as const)(
+  "retains honest %s clip evidence without changing the run end",
+  async (status) => {
+    const f = await fixture();
+    let clipId = "";
+    f.session.requestHost = vi.fn<NonNullable<GameRunSession["requestHost"]>>(
+      async (request) => {
+        if (request.operation === "clip-start") {
+          if (status === "busy")
+            throw new Error("clip_busy: Four clips are already recording");
+          if (status === "unsupported")
+            throw new Error("clip_unsupported: No screen");
+          clipId = request.clipId;
+          return {
+            operation: "clip-start",
+            clipId,
+            startedAt: new Date().toISOString(),
+          };
+        }
+        if (request.operation !== "clip-read")
+          throw new Error("Unexpected request");
+        if (status === "runtime-replaced")
+          throw new Error("clip_not_found: disposed");
+        if (status === "host-unavailable")
+          throw new Error("current_host_unavailable: disconnected");
+        const observation = await f.session.observe({
+          scope: "diagnostic",
+          includeImage: false,
+        });
+        return {
+          operation: "clip-read",
+          clip: {
+            clipId,
+            identity: observation.identity,
+            state: "stopped",
+            startedAt: new Date().toISOString(),
+            frameIntervalMs: 100,
+            durationMs: 200,
+            droppedFrames: 0,
+            skippedFrames: 0,
+            frameCount: 1,
+            notCaptured: null,
+            nextFrame: null,
+            frames: [
+              {
+                index: 0,
+                atMs: 100,
+                width: 10,
+                height: 10,
+                mimeType: "image/jpeg",
+                data: "YWJj",
+              },
+            ],
+          },
+        };
+      },
+    );
+    if (status === "headless") {
+      f.request.target = { kind: "headless" };
+      io.headless.mockResolvedValue({
+        clock: wallClock,
+        stop: async () => {},
+        saveInputLog: null,
+      });
+    }
+    if (status === "play") {
+      f.session.summary.semanticAccess = "delegated-host";
+      await f.owner.start(
+        { kind: "play", runId: f.request.runId, target: { kind: "current" } },
+        attachment(),
+      );
+    } else await f.owner.start(f.request);
+    await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
+    const record = await f.owner.stop(f.request.runId);
+    expect(record.end?.reason).toBe("stopped");
+    if (status === "captured" || status === "play") {
+      const receipt = record.evidence?.clip;
+      expect(receipt?.status).toBe("captured");
+      if (receipt?.status !== "captured") throw new Error("missing clip");
+      const bytes = await readFile(path.join(f.root, receipt.path));
+      expect(bytes.byteLength).toBe(receipt.bytes);
+      expect(createHash("sha256").update(bytes).digest("hex")).toBe(
+        receipt.sha256,
+      );
+      expect(JSON.parse(bytes.toString())).toMatchObject({
+        clipId: record.runId,
+        frames: [{ index: 0, atMs: 100 }],
+      });
+    } else {
+      expect(record.evidence?.clip).toEqual({
+        status: "not-captured",
+        reason: status,
+      });
+      if (status === "headless")
+        expect(f.session.requestHost).not.toHaveBeenCalled();
+    }
+  },
+);

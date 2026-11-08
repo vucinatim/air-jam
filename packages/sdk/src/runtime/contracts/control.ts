@@ -14,6 +14,7 @@ import type {
 } from "../../protocol/leased-control";
 import type { AirJamActionInvocationResult } from "../../protocol/sync";
 import { isRpcSerializable } from "../../utils/is-rpc-serializable";
+import type { HostClipRecorder } from "../host-clip-recorder";
 import {
   observeHostRuntime,
   readHostObservationSurfaceId,
@@ -70,6 +71,7 @@ type ActionStore = {
 };
 
 type ParticipantReceiver = {
+  clips?: HostClipRecorder;
   /** The host clock that command deadlines and input leases run on. */
   now: () => number;
   readState: () => NonNullable<NonNullable<HostObservation["host"]>["before"]>;
@@ -237,6 +239,39 @@ function controlEntry(target: object) {
                 };
               },
             }),
+          };
+        }
+        if (
+          request.operation === "clip-start" ||
+          request.operation === "clip-read"
+        ) {
+          const recorder = receivers.get(request.roomId)?.clips;
+          if (request.operation === "clip-read") {
+            if (!recorder)
+              throw new Error(
+                "clip_not_found: No recording runtime owns this room.",
+              );
+            return {
+              operation: "clip-read",
+              clip: recorder.read(
+                request.clipId,
+                request.stop,
+                request.fromFrame,
+              ),
+            };
+          }
+          const identity = readHostRuntimeIdentity(target, request.roomId);
+          if (!identity || identity.runtimeId !== request.runtimeId)
+            throw new Error(
+              "runtime_replaced: The recording runtime was replaced.",
+            );
+          if (!recorder)
+            throw new Error(
+              "clip_unsupported: No capture runtime owns this room.",
+            );
+          return {
+            operation: "clip-start",
+            ...recorder.start(request.clipId, identity),
           };
         }
         const runtime = resolveRoomRuntime(target, request.roomId);

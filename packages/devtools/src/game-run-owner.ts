@@ -4,8 +4,12 @@ import type {
 } from "@air-jam/sdk/protocol";
 import { PARTICIPANT_CONTROL_DEADLINE_MS } from "@air-jam/sdk/protocol";
 import {
+  clipFailureReason,
   describeHostRuntimeFault,
+  readHostClip,
   sameHostRuntimeIdentity,
+  type HostAgentRequest,
+  type HostAgentResponse,
   type HostObservation,
 } from "@air-jam/sdk/runtime-control";
 import { createHash, randomUUID } from "node:crypto";
@@ -127,6 +131,10 @@ export type GameRunSession = Omit<
   summary: AirJamGameSessionSummary;
   clock: GameRunClock;
   watchHost: GameSurfaceWatcher;
+  requestHost?: (
+    request: HostAgentRequest,
+    timeoutMs: number,
+  ) => Promise<HostAgentResponse>;
   readParticipants: () => Promise<{ roomId: string; controllerIds: string[] }>;
   addParticipant: (nickname: string) => Promise<GameRunParticipant>;
   invokeHost: (actionId: string, input: unknown) => Promise<unknown>;
@@ -161,6 +169,7 @@ type Run = {
   room?: HeadlessRoom;
   /** The session clock's reading when play began. */
   playStartedAt?: number;
+  clipStarted?: boolean;
   directory: string;
   abort: AbortController;
   session?: GameRunSession;
@@ -380,6 +389,17 @@ export class GameRunOwner {
         state: "starting",
         startedAt: new Date().toISOString(),
         seats: [],
+        evidence: {
+          observation: null,
+          error: null,
+          clip: {
+            status: "not-captured",
+            reason:
+              request.target.kind === "headless"
+                ? "headless"
+                : "host-unavailable",
+          },
+        },
         counters: {
           steps: 0,
           applied: 0,
@@ -1186,6 +1206,111 @@ export class GameRunOwner {
       durationMs: performance.now() - started,
     };
   }
+  private async startClip(run: Run) {
+    run.record.evidence ??= { observation: null, error: null };
+    if (run.room) {
+      run.record.evidence.clip = { status: "not-captured", reason: "headless" };
+      return;
+    }
+    const expected = run.record.expected;
+    try {
+      if (!run.session?.requestHost || !expected)
+        throw new Error("No host-agent request path is available.");
+      const response = await run.session.requestHost(
+        {
+          operation: "clip-start",
+          roomId: expected.roomId,
+          runtimeId: expected.runtimeId,
+          clipId: run.record.runId,
+        },
+        5000,
+      );
+      if (
+        response.operation !== "clip-start" ||
+        response.clipId !== run.record.runId
+      )
+        throw new Error("Invalid clip start response.");
+      run.clipStarted = true;
+      await this.trace(
+        run,
+        {
+          kind: "clip-start",
+          clipId: run.record.runId,
+        },
+        true,
+      ).catch(() => {});
+    } catch (error) {
+      run.record.evidence.clip = {
+        status: "not-captured",
+        reason: clipFailureReason(error),
+      };
+      await this.trace(
+        run,
+        {
+          kind: "clip-failure",
+          reason: clipFailureReason(error),
+        },
+        true,
+      ).catch(() => {});
+    }
+  }
+
+  private async finishClip(run: Run) {
+    run.record.evidence ??= { observation: null, error: null };
+    run.record.evidence.clip ??= {
+      status: "not-captured",
+      reason: run.room ? "headless" : "host-unavailable",
+    };
+    if (!run.clipStarted) return;
+    try {
+      const session = run.session;
+      const expected = run.record.expected;
+      if (!session?.requestHost || !expected)
+        throw new Error("No recording host is available.");
+      const result = await readHostClip(
+        (request) => session.requestHost!(request, 5000),
+        run.record.runId,
+        expected,
+      );
+      if (result.status === "not-captured") {
+        run.record.evidence.clip = result;
+        return;
+      }
+      const source = `${JSON.stringify(result.artifact)}\n`;
+      const file = await open(
+        path.join(run.directory, "clip.json"),
+        "w",
+        0o600,
+      );
+      try {
+        await file.writeFile(source);
+      } finally {
+        await file.close();
+      }
+      run.record.evidence.clip = {
+        status: "captured",
+        path: `.airjam/artifacts/runs/${run.record.runId}/clip.json`,
+        sha256: createHash("sha256").update(source).digest("hex"),
+        bytes: Buffer.byteLength(source),
+        frames: result.artifact.frames.length,
+        durationMs: result.artifact.durationMs,
+      };
+    } catch (error) {
+      run.record.evidence.clip = {
+        status: "not-captured",
+        reason: clipFailureReason(error),
+      };
+      await this.trace(
+        run,
+        {
+          kind: "clip-failure",
+          reason: clipFailureReason(error),
+        },
+        true,
+      ).catch(() => {});
+    }
+  }
+
   private deadline(observation: HostObservation) {
     if (!observation.clock)
       throw new Error("Host does not advertise command admission deadlines.");
@@ -1415,6 +1540,7 @@ export class GameRunOwner {
     const session = run.session;
     if (!session) throw new Error("Run session is not open.");
     const clock = session.clock;
+    await this.startClip(run);
     run.record.state = "playing";
     await this.persist(run);
     run.playStartedAt = clock.now();
@@ -1750,6 +1876,7 @@ export class GameRunOwner {
           }
           seat.policyCursor = seat.sequence;
         }
+        await this.finishClip(run);
         const primary = run.seats[0];
         let finalObservation: HostObservation | undefined;
         try {

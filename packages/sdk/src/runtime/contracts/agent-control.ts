@@ -9,6 +9,8 @@ import {
   hostObservationSchema,
 } from "./observation";
 
+import { clipReadSchema } from "./clip";
+
 const identity = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(1),
@@ -53,6 +55,23 @@ export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
     .strict(),
   actionRequest.extend({ operation: z.literal("resolve") }).strict(),
   actionRequest.extend({ operation: z.literal("invoke-host") }).strict(),
+  z
+    .object({
+      operation: z.literal("clip-start"),
+      roomId: roomCodeSchema,
+      runtimeId: z.string().min(1),
+      clipId: z.string().min(1).max(128),
+    })
+    .strict(),
+  z
+    .object({
+      operation: z.literal("clip-read"),
+      roomId: roomCodeSchema,
+      clipId: z.string().min(1).max(128),
+      stop: z.boolean(),
+      fromFrame: z.number().int().nonnegative(),
+    })
+    .strict(),
 ]);
 
 export const hostAgentSnapshotSchema = agentContractDescriptionSchema.extend({
@@ -76,6 +95,16 @@ export const hostAgentSnapshotSchema = agentContractDescriptionSchema.extend({
 });
 
 export const hostAgentResponseSchema = z.discriminatedUnion("operation", [
+  z
+    .object({
+      operation: z.literal("clip-start"),
+      clipId: z.string().min(1).max(128),
+      startedAt: z.iso.datetime(),
+    })
+    .strict(),
+  z
+    .object({ operation: z.literal("clip-read"), clip: clipReadSchema })
+    .strict(),
   z.object({
     operation: z.enum(["settings-read", "settings-update"]),
     values: airJamSettingsValuesSchema,

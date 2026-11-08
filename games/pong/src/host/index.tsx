@@ -48,7 +48,9 @@ export function HostView() {
     else triggerScoreFeedback();
   });
 
-  useHostAgentCapture(() => captureAgentCanvas(getContext()?.canvas ?? null));
+  useHostAgentCapture((options) =>
+    captureAgentCanvas(getContext()?.canvas ?? null, options),
+  );
 
   useSimulationFrame<PongSimulationState>(({ sim, alpha }) => {
     const ctx = getContext();

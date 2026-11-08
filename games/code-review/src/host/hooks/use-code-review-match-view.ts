@@ -49,7 +49,9 @@ export const useCodeReviewMatchView = ({
     team2: maxHp,
   }));
 
-  useHostAgentCapture(() => captureAgentCanvas(getContext()?.canvas ?? null));
+  useHostAgentCapture((options) =>
+    captureAgentCanvas(getContext()?.canvas ?? null, options),
+  );
 
   useSimulationEvents<CodeReviewSimulationEvent>((event) => {
     if (event.type === "miss") playSfxFromRef("missed");
