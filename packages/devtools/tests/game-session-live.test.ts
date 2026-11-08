@@ -161,6 +161,8 @@ function fixture() {
           acknowledgement: { ok: true, status: "accepted", source: "host" },
         };
       }
+      if (request.operation !== "resolve")
+        throw new Error("Unsupported fixture host operation");
       return {
         operation: "resolve",
         target: actions[0].target,

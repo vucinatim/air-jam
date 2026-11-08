@@ -725,6 +725,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       return {
         summary,
         clock: room?.clock ?? wallClock,
+        requestHost: session.requestHost,
         watch: watchController(summary.controllerSessionId),
         watchHost: (onEvent, signal) =>
           watchControllerSessionVisuals({

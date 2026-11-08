@@ -29,7 +29,7 @@ export function useHostAgentCapture(capture: HostObservationCapture): void {
   });
   const { setObservationCapture } = runtime;
   useEffect(() => {
-    setObservationCapture(() => current.current());
+    setObservationCapture((options) => current.current(options));
     return () => setObservationCapture(null);
   }, [setObservationCapture]);
 }

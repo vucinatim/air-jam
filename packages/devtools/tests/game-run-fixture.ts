@@ -22,6 +22,7 @@ import type {
 import type { CloseGameSessionResult } from "../src/types.js";
 
 const io = vi.hoisted(() => ({
+  headless: vi.fn(),
   startPolicy: vi.fn(),
   assertScopes: vi.fn(),
   decide: vi.fn(),
@@ -34,6 +35,10 @@ const io = vi.hoisted(() => ({
   verifyArtifacts: vi.fn(),
 }));
 export { io };
+
+vi.mock("../src/headless-room.js", () => ({
+  startHeadlessRoom: (...args: unknown[]) => io.headless(...args),
+}));
 vi.mock("../src/policy-artifacts.js", () => ({
   verifyPolicyArtifacts: (...argumentsList: unknown[]) =>
     io.verifyArtifacts(...argumentsList),

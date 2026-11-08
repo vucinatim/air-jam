@@ -1,6 +1,7 @@
 import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
 import { controllerLeasedControlAckSchema } from "@air-jam/sdk/protocol";
 import {
+  clipNotCapturedReasonSchema,
   hostAgentRequestSchema,
   hostObservationIdentitySchema,
   hostRuntimeFaultSchema,
@@ -311,6 +312,26 @@ export const gameRunRecordSchema = z
       .optional(),
     evidence: z
       .object({
+        clip: z
+          .discriminatedUnion("status", [
+            z
+              .object({
+                status: z.literal("captured"),
+                path: z.string().min(1),
+                sha256: z.string().regex(/^[a-f0-9]{64}$/),
+                bytes: z.number().int().positive(),
+                frames: z.number().int().min(1).max(150),
+                durationMs: z.number().nonnegative(),
+              })
+              .strict(),
+            z
+              .object({
+                status: z.literal("not-captured"),
+                reason: clipNotCapturedReasonSchema,
+              })
+              .strict(),
+          ])
+          .optional(),
         buildLog: gameRunBuildLogSchema.optional(),
         trace: z
           .object({
