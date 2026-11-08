@@ -6,7 +6,10 @@ import {
 /** Captures only this render surface; surrounding DOM is not included. */
 export function captureAgentCanvas(
   canvas: HTMLCanvasElement | null,
-  { maxEdge, quality }: { maxEdge: number; quality: number },
+  { maxEdge, quality }: { maxEdge: number; quality: number } = {
+    maxEdge: 1280,
+    quality: 0.8,
+  },
 ): HostObservationImage | null {
   if (!canvas || !canvas.width || !canvas.height) return null;
   const scale = Math.min(1, maxEdge / canvas.width, maxEdge / canvas.height);

@@ -50,7 +50,10 @@ it("enforces decoded bytes, dimensions, count, order and kept time window", () =
       data: image(CLIP_FRAME_MAX_BYTES + 1).data,
     }).success,
   ).toBe(false);
-  expect(clipFrameSchema.safeParse({ ...valid, width: 641 }).success).toBe(
+  expect(clipFrameSchema.safeParse({ ...valid, width: 1281 }).success).toBe(
+    false,
+  );
+  expect(clipFrameSchema.safeParse({ ...valid, height: 1281 }).success).toBe(
     false,
   );
   const clip = {
@@ -169,6 +172,47 @@ it.each([
     });
   },
 );
+it("keeps still-sized captures that ignore options and skips them over the byte cap", async () => {
+  let oversized = false;
+  const capture = vi.fn(() => ({
+    ...image(CLIP_FRAME_MAX_BYTES + (oversized ? 1 : 0)),
+    width: 1280,
+    height: 720,
+  }));
+  const recorder = fixture(capture);
+  recorder.start("clip", identity);
+  await vi.advanceTimersByTimeAsync(100);
+  expect(capture).toHaveBeenCalledWith({ maxEdge: 640, quality: 0.7 });
+  expect(recorder.read("clip", false, 0)).toMatchObject({
+    frameCount: 1,
+    skippedFrames: 0,
+    frames: [{ width: 1280, height: 720 }],
+  });
+  oversized = true;
+  await vi.advanceTimersByTimeAsync(100);
+  expect(recorder.read("clip", true, 0)).toMatchObject({
+    frameCount: 1,
+    skippedFrames: 1,
+  });
+  const result = await readHostClip(
+    async (request) => {
+      if (request.operation !== "clip-read")
+        throw new Error("Unexpected clip operation.");
+      return {
+        operation: "clip-read",
+        clip: recorder.read(request.clipId, request.stop, request.fromFrame),
+      };
+    },
+    "clip",
+    identity,
+  );
+  expect(result.status).toBe("captured");
+  if (result.status === "captured")
+    expect(clipArtifactSchema.parse(result.artifact).frames[0].width).toBe(
+      1280,
+    );
+  recorder.dispose();
+});
 it("refuses no surface and a fifth retained recording", () => {
   expect(() => fixture(null).start("clip", identity)).toThrow(
     "clip_unsupported:",
@@ -292,8 +336,8 @@ it("passes clip and still dimensions and quality into the canvas encoder", async
     toDataURL: vi.fn(() => "data:image/jpeg;base64,YWJj"),
   };
   const canvas = {
-    width: 1280,
-    height: 720,
+    width: 2560,
+    height: 1440,
     ownerDocument: { createElement: () => output },
   } as unknown as HTMLCanvasElement;
   expect(
@@ -303,5 +347,10 @@ it("passes clip and still dimensions and quality into the canvas encoder", async
   expect(
     captureAgentCanvas(canvas, { maxEdge: 1280, quality: 0.8 }),
   ).toMatchObject({ width: 1280, height: 720 });
+  expect(output.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.8);
+  expect(captureAgentCanvas(canvas)).toMatchObject({
+    width: 1280,
+    height: 720,
+  });
   expect(output.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.8);
 });

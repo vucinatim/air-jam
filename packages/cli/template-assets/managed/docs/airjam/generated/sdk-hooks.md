@@ -313,8 +313,9 @@ plays feedback from it, never advances it:
 - `useSimulationSelector((sim) => value, isEqual?)` reads a value for UI, such
   as a health bar or an entity list, re-rendering only when it changes.
 - `useSimulation()` returns the clock itself.
-- `useHostAgentCapture(() => captureAgentCanvas(canvas))` gives agents an image
-  of what the host draws.
+- `useHostAgentCapture((options) => captureAgentCanvas(canvas, options))` gives agents an image
+  of what the host draws. Passing options lets clips use smaller frames; the
+  one-argument form still works.
 
 Step code reads stores with `gameStore.getState()` and dispatches with
 `gameStore.actions`; it never reads `Date.now()` or `Math.random()`.

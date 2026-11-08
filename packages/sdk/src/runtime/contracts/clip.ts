@@ -27,8 +27,9 @@ export const clipFrameSchema = z
   .object({
     index: z.number().int().nonnegative(),
     atMs: z.number().nonnegative().max(CLIP_RECORDING_LIFETIME_MS),
-    width: z.number().int().positive().max(CLIP_FRAME_MAX_EDGE),
-    height: z.number().int().positive().max(CLIP_FRAME_MAX_EDGE),
+    // Legacy captures may ignore the requested clip size and return a still-sized frame.
+    width: z.number().int().positive().max(1280),
+    height: z.number().int().positive().max(1280),
     mimeType: z.literal("image/jpeg"),
     data: z
       .string()

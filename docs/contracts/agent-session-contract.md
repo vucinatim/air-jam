@@ -527,8 +527,9 @@ without a reported fault keeps the generic reason. Final input-release settling
 also retains a newly observed fault in its evidence error and `end.hostFault`,
 preserving the existing inconclusive verdict for a failed final capture.
 
-`useHostAgentCapture(options => captureAgentCanvas(canvas, options))` passes the requested
+`useHostAgentCapture((options) => captureAgentCanvas(canvas, options))` passes the requested
 `{maxEdge, quality}` into the game capture. Still observations use 1280 px / 0.8.
+Passing options lets clips use smaller frames; the one-argument form still works.
 `captureAgentCanvas(canvas, options)` produces a bounded JPEG of a game-provided canvas. Its
 coverage is `render-surface`; surrounding HTML is excluded. Games without this
 capability report an unsupported image, and an unmounted canvas reports an
@@ -538,8 +539,9 @@ requested game.
 Clips use that same capture surface and host-agent channel, without a room grant:
 `clip-start {roomId, runtimeId, clipId}` starts in the background;
 `clip-read {roomId, clipId, stop, fromFrame}` stops and reads pages. Stop before
-paging to freeze indexes; follow `nextFrame` until null. Capture uses JPEG at
-640 px / 0.7 every 100 ms, with no queued captures. The retained window is the
+paging to freeze indexes; follow `nextFrame` until null. Capture requests JPEG at
+640 px / 0.7 every 100 ms, with no queued captures. Captures that ignore those
+options may return frames up to 1280 px; the same byte caps still apply. The retained window is the
 last 15 s / 150 frames and 4 MiB decoded image bytes; frames over 160 KiB or
 null captures are skipped. Pages contain at most 768 KiB base64 characters.
 Four recordings may be retained; each self-stops at ten minutes and stopped
