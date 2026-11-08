@@ -1,11 +1,94 @@
 import type { ControllerLeasedControlAck } from "@air-jam/sdk/protocol";
 import { expect, it, vi } from "vitest";
+import { currentRoomHost } from "../src/current-room-host.js";
 import type {
   DecisionAnswer,
   DecisionProvider,
 } from "../src/decision-provider.js";
 import type { GameRunSession } from "../src/game-run-owner.js";
 import { attachment, fixture, io, tapOrWait } from "./game-run-fixture.js";
+
+it.each([
+  { status: 410, reason: "stopped", message: "Stopped by the partner." },
+  {
+    status: 403,
+    reason: "runtime_replaced",
+    message: "The game reloaded in the creator's editor.",
+  },
+])(
+  "keeps $reason when the grant refusal arrives before a delayed cancel",
+  async ({ status, reason, message }) => {
+    const f = await fixture();
+    f.session.summary.semanticAccess = "delegated-host";
+    const granted = attachment();
+    const host = currentRoomHost(granted, f.session.summary.ownerInstanceId);
+    const observe = f.session.observe;
+    let revoked = false;
+    const shutdown = Promise.withResolvers<void>();
+    io.stopPolicy.mockReturnValue(shutdown.promise);
+    io.decide.mockResolvedValue({
+      control: { kind: "input", input: { direction: 1 } },
+    });
+    vi.stubGlobal("fetch", async (_url: string, options: RequestInit) => {
+      if (revoked) return Response.json({ error: message }, { status });
+      const { request } = JSON.parse(String(options.body));
+      return Response.json({
+        ok: true,
+        response: { operation: "observe", observation: await observe(request) },
+      });
+    });
+    f.session.observe = vi.fn(async (options) => {
+      const response = await host(
+        {
+          operation: "observe",
+          roomId: "ROOM",
+          controllerId: "player",
+          ...options,
+        },
+        5000,
+      );
+      if (response.operation !== "observe") throw new Error("Expected observe");
+      return response.observation;
+    });
+    try {
+      await f.owner.start(
+        { kind: "play", runId: f.request.runId, target: { kind: "current" } },
+        granted,
+      );
+      await vi.waitFor(() => expect(f.events).toContain("input"));
+      vi.useFakeTimers({ toFake: ["Date"] });
+      const revokedAt = Date.now();
+      revoked = true;
+      await vi.waitFor(() => expect(f.session.close).toHaveBeenCalledOnce());
+      const stopping = await f.owner.read(f.request.runId);
+      expect(stopping.end?.reason).toBe(reason);
+      expect(stopping.end?.message).toContain(message);
+      if (status === 410) {
+        expect(stopping.stopRequestedAt).toBe(stopping.abortedAt);
+        expect(
+          Date.parse(stopping.stopRequestedAt ?? ""),
+        ).toBeGreaterThanOrEqual(revokedAt);
+      } else expect(stopping.stopRequestedAt).toBeUndefined();
+      expect(
+        Date.parse(stopping.releaseAcknowledgedAt ?? "") - revokedAt,
+      ).toBeLessThanOrEqual(2000);
+      const controls = vi.mocked(f.session.control).mock.calls.slice();
+      expect(controls.at(-1)?.[0].operation.kind).toBe("release");
+      expect(Date.parse(stopping.lastInputAt ?? "")).toBeLessThanOrEqual(
+        Date.parse(stopping.abortedAt ?? ""),
+      );
+      vi.setSystemTime(revokedAt + 5000);
+      shutdown.resolve();
+      const ended = await f.ended();
+      expect(await f.owner.stop(f.request.runId)).toEqual(ended);
+      expect(vi.mocked(f.session.control).mock.calls).toEqual(controls);
+    } finally {
+      shutdown.resolve();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  },
+);
 
 it("keeps a completed record unchanged when stop arrives after completion", async () => {
   const f = await fixture();

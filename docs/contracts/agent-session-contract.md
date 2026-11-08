@@ -469,6 +469,9 @@ may use someone's room is that room owner's decision, not the game's.
 HTTP 401/403/409 refusals from the current-room host retain `runtime_replaced`
 and use the editor's JSON `error` text (at most 300 characters). Missing, invalid
 or oversized refusal bodies fall back to the generic room-grant message.
+HTTP 410 means the grant was deliberately revoked: the owner records its receipt
+in `stopRequestedAt` and ends as `stopped`, even before a later cancel command.
+The editor preserves the first refusal, so a real runtime replacement stays one.
 
 ## Live owned-run viewing
 

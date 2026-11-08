@@ -23,6 +23,7 @@ import {
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { ControllerDisconnection } from "./controller-protocol.js";
+import { CurrentRoomStopped } from "./current-room-host.js";
 import type { DecisionAnswer, DecisionProvider } from "./decision-provider.js";
 import {
   gameBuildIdentitySchema,
@@ -1841,9 +1842,13 @@ export class GameRunOwner {
   private failed(run: Run, error: unknown) {
     if (run.abort.signal.aborted) return;
     const message = error instanceof Error ? error.message : String(error);
-    void this.terminate(run, failureReason(message), message).catch((failure) =>
-      console.error(failure),
-    );
+    const stopped = error instanceof CurrentRoomStopped;
+    if (stopped) run.record.stopRequestedAt ??= new Date().toISOString();
+    void this.terminate(
+      run,
+      stopped ? "stopped" : failureReason(message),
+      message,
+    ).catch((failure) => console.error(failure));
   }
   private terminate(
     run: Run,
