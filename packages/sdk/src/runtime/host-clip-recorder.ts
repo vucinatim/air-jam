@@ -23,6 +23,7 @@ type Recording = {
   startedAt: string;
   start: number;
   stopped: number | null;
+  delivered: boolean;
   lastRead: number;
   frames: ClipFrame[];
   bytes: number;
@@ -63,14 +64,18 @@ export class HostClipRecorder {
       let oldest: Recording | undefined;
       for (const recording of this.recordings.values()) {
         const since = idleSince(recording);
-        if (since !== null && (!oldest || since < idleSince(oldest)!))
+        if (
+          since !== null &&
+          recording.delivered &&
+          (!oldest || since < idleSince(oldest)!)
+        )
           oldest = recording;
       }
       if (!oldest)
         throw new Error(
-          "clip_busy: Four clips are already recording in this runtime.",
+          "clip_busy: Four clips are already recording or being delivered in this runtime.",
         );
-      // Stopped clips are retry buffers; make room for a new recording.
+      // Delivered clips are retry buffers; protect unfinished transfers.
       this.recordings.delete(oldest.clipId);
     }
     const now = this.source.now();
@@ -80,6 +85,7 @@ export class HostClipRecorder {
       startedAt: new Date(this.source.wallNow?.() ?? Date.now()).toISOString(),
       start: now,
       stopped: null,
+      delivered: false,
       lastRead: now,
       frames: [],
       bytes: 0,
@@ -224,6 +230,8 @@ export class HostClipRecorder {
       frames.push(frame);
       chars += frame.data.length;
     }
+    if (recording.stopped !== null && nextFrame === null)
+      recording.delivered = true;
     return {
       clipId,
       identity: recording.identity,
