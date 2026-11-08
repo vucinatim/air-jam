@@ -173,8 +173,8 @@ export type HostObservationSurface = {
     /** Publish while this simulation clock is expected to advance; omit for a stationary or event-driven surface. */
     tick?: number;
   };
-  capture?: () =>
-    | HostObservationImage
-    | null
-    | Promise<HostObservationImage | null>;
+  capture?: (options: {
+    maxEdge: number;
+    quality: number;
+  }) => HostObservationImage | null | Promise<HostObservationImage | null>;
 };

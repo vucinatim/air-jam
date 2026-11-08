@@ -1,0 +1,307 @@
+import { afterEach, expect, it, vi } from "vitest";
+import {
+  CLIP_FRAME_MAX_BYTES,
+  CLIP_MAX_BYTES,
+  CLIP_PAGE_BASE64_CHARS,
+  clipArtifactSchema,
+  clipFrameSchema,
+} from "../src/runtime/contracts/clip";
+import type { HostObservationSurface } from "../src/runtime/contracts/observation";
+import { readHostClip } from "../src/runtime/host-clip-reader";
+import { HostClipRecorder } from "../src/runtime/host-clip-recorder";
+import { observationFixture } from "./fixtures/host-observation";
+
+const identity = {
+  roomId: "ROOM",
+  documentId: "doc",
+  contractId: "contract",
+  runtimeId: "runtime",
+  surfaceId: "surface",
+  participantId: "participant",
+};
+const image = (bytes = 3) => ({
+  data: Buffer.alloc(bytes).toString("base64"),
+  width: 640,
+  height: 360,
+  mimeType: "image/jpeg" as const,
+  coverage: "render-surface" as const,
+});
+function fixture(
+  capture: HostObservationSurface["capture"] | null = () => image(),
+) {
+  vi.useFakeTimers();
+  const recorder = new HostClipRecorder({
+    capture: () => capture,
+    now: () => Date.now(),
+    wallNow: () => Date.now(),
+  });
+  return recorder;
+}
+afterEach(() => vi.useRealTimers());
+
+it("enforces decoded bytes, dimensions, count, order and kept time window", () => {
+  const frame = { ...image(), index: 0, atMs: 100 };
+  const { coverage, ...valid } = frame;
+  void coverage;
+  expect(clipFrameSchema.parse(valid)).toEqual(valid);
+  expect(
+    clipFrameSchema.safeParse({
+      ...valid,
+      data: image(CLIP_FRAME_MAX_BYTES + 1).data,
+    }).success,
+  ).toBe(false);
+  expect(clipFrameSchema.safeParse({ ...valid, width: 641 }).success).toBe(
+    false,
+  );
+  const clip = {
+    version: 1,
+    clipId: "clip",
+    identity,
+    startedAt: new Date().toISOString(),
+    frameIntervalMs: 100,
+    durationMs: 1000,
+    droppedFrames: 0,
+    skippedFrames: 0,
+    frames: [valid],
+  };
+  expect(clipArtifactSchema.safeParse(clip).success).toBe(true);
+  for (const frames of [
+    [],
+    [valid, valid],
+    Array.from({ length: 151 }, (_, index) => ({
+      ...valid,
+      index,
+      atMs: index * 100,
+    })),
+  ])
+    expect(clipArtifactSchema.safeParse({ ...clip, frames }).success).toBe(
+      false,
+    );
+  expect(
+    clipArtifactSchema.safeParse({
+      ...clip,
+      durationMs: 15000,
+      frames: Array.from({ length: 151 }, (_, index) => ({
+        ...valid,
+        index,
+        atMs: index * 100,
+      })),
+    }).success,
+  ).toBe(false);
+  expect(
+    clipArtifactSchema.safeParse({ ...clip, durationMs: 16000 }).success,
+  ).toBe(false);
+  const large = clipFrameSchema.parse({
+    ...valid,
+    data: image(CLIP_FRAME_MAX_BYTES).data,
+  });
+  expect(
+    clipArtifactSchema.safeParse({
+      ...clip,
+      durationMs: 3000,
+      frames: Array.from({ length: 30 }, (_, index) => ({
+        ...large,
+        index,
+        atMs: index * 100,
+      })),
+    }).success,
+  ).toBe(false);
+});
+it("keeps the last 15 seconds and at most 150 frames on the original host clock", async () => {
+  const recorder = fixture();
+  recorder.start("clip", identity);
+  await vi.advanceTimersByTimeAsync(16000);
+  const clip = recorder.read("clip", true, 0);
+  expect(clip.frameCount).toBe(150);
+  expect(clip.droppedFrames).toBe(10);
+  expect(clip.frames[0].atMs).toBe(1100);
+  expect(clip.durationMs).toBe(16000);
+});
+it("trims decoded bytes and pages frozen indexes within the socket budget", async () => {
+  const recorder = fixture(() => image(CLIP_FRAME_MAX_BYTES));
+  recorder.start("clip", identity);
+  await vi.advanceTimersByTimeAsync(3000);
+  const first = recorder.read("clip", true, 0);
+  expect(first.frameCount).toBe(
+    Math.floor(CLIP_MAX_BYTES / CLIP_FRAME_MAX_BYTES),
+  );
+  expect(first.droppedFrames).toBe(5);
+  expect(
+    first.frames.reduce((sum, frame) => sum + frame.data.length, 0),
+  ).toBeLessThanOrEqual(CLIP_PAGE_BASE64_CHARS);
+  const result = await readHostClip(
+    async (request) => {
+      if (request.operation !== "clip-read")
+        throw new Error("unexpected request");
+      return {
+        operation: "clip-read",
+        clip: recorder.read(request.clipId, request.stop, request.fromFrame),
+      };
+    },
+    "clip",
+    identity,
+  );
+  expect(result.status).toBe("captured");
+  if (result.status === "captured")
+    expect(result.artifact.frames).toHaveLength(first.frameCount);
+  await vi.advanceTimersByTimeAsync(20000);
+  expect(recorder.read("clip", true, 0)).toEqual(first);
+});
+it.each([
+  [(): null => null, "surface-unavailable"],
+  [() => image(CLIP_FRAME_MAX_BYTES + 1), "surface-unavailable"],
+  [
+    () => {
+      throw new Error("private capture failure");
+    },
+    "capture-failed",
+  ],
+] as const)(
+  "counts unsuccessful attempts honestly",
+  async (capture, reason) => {
+    const recorder = fixture(capture);
+    recorder.start("clip", identity);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(recorder.read("clip", true, 0)).toMatchObject({
+      skippedFrames: 2,
+      frames: [],
+      notCaptured: reason,
+    });
+  },
+);
+it("refuses no surface and a fifth retained recording", () => {
+  expect(() => fixture(null).start("clip", identity)).toThrow(
+    "clip_unsupported:",
+  );
+  const recorder = fixture();
+  for (let i = 0; i < 4; i++) recorder.start(String(i), identity);
+  expect(() => recorder.start("fifth", identity)).toThrow("clip_busy:");
+});
+it("self-stops at ten minutes and releases stopped unread recordings after a minute", () => {
+  let now = 0;
+  let tick!: () => void;
+  const recorder = new HostClipRecorder({
+    capture: () => () => image(),
+    now: () => now,
+    schedule: (callback) => {
+      tick = callback;
+      return () => {};
+    },
+  });
+  recorder.start("clip", identity);
+  now = 600000;
+  tick();
+  expect(recorder.read("clip", false, 0).state).toBe("stopped");
+  now += 60000;
+  tick();
+  expect(() => recorder.read("clip", false, 0)).toThrow("clip_not_found:");
+});
+it("shares one capture, skips busy ticks and discards in-flight work after dispose", async () => {
+  let resolve!: (value: ReturnType<typeof image>) => void;
+  const capture = vi.fn(
+    () =>
+      new Promise<ReturnType<typeof image>>((done) => {
+        resolve = done;
+      }),
+  );
+  const recorder = fixture(capture);
+  recorder.start("a", identity);
+  recorder.start("b", identity);
+  await vi.advanceTimersByTimeAsync(500);
+  expect(capture).toHaveBeenCalledTimes(1);
+  expect(capture).toHaveBeenCalledWith({ maxEdge: 640, quality: 0.7 });
+  resolve(image());
+  await Promise.resolve();
+  expect(recorder.read("a", false, 0).frames).toEqual(
+    recorder.read("b", false, 0).frames,
+  );
+  await vi.advanceTimersByTimeAsync(100);
+  recorder.dispose();
+  resolve(image());
+  await Promise.resolve();
+  expect(() => recorder.read("a", true, 0)).toThrow("clip_not_found:");
+});
+
+it("starts and promptly reads clips through HostRuntimeControl.agent", async () => {
+  const recorder = fixture();
+  const game = observationFixture();
+  const removeSurface = game.surface({ read: () => ({ state: {} }) });
+  const removeReceiver = game.receiver({ clips: recorder });
+  const observation = await game.observe({
+    ...game.request,
+    includeImage: false,
+  });
+  const response = await game.control.agent({
+    operation: "clip-start",
+    roomId: "ROOM",
+    runtimeId: observation.identity.runtimeId,
+    clipId: "clip",
+  });
+  expect(response.operation).toBe("clip-start");
+  await vi.advanceTimersByTimeAsync(100);
+  const read = await game.control.agent({
+    operation: "clip-read",
+    roomId: "ROOM",
+    clipId: "clip",
+    stop: true,
+    fromFrame: 0,
+  });
+  expect(read).toMatchObject({
+    operation: "clip-read",
+    clip: { state: "stopped", frameCount: 1, identity: observation.identity },
+  });
+  await expect(
+    game.control.agent({
+      operation: "clip-start",
+      roomId: "ROOM",
+      runtimeId: "old-runtime",
+      clipId: "another",
+    }),
+  ).rejects.toThrow("runtime_replaced:");
+  recorder.dispose();
+  removeReceiver();
+  removeSurface();
+  game.close();
+});
+
+it("starts sampling a replacement surface even when the disposed capture never answered", async () => {
+  vi.useFakeTimers();
+  let blocked = true;
+  const recorder = new HostClipRecorder({
+    now: () => Date.now(),
+    capture: () => () => (blocked ? new Promise<null>(() => {}) : image()),
+  });
+  recorder.start("old", identity);
+  await vi.advanceTimersByTimeAsync(100);
+  recorder.dispose();
+  blocked = false;
+  recorder.start("new", identity);
+  await vi.advanceTimersByTimeAsync(100);
+  expect(recorder.read("new", true, 0).frameCount).toBe(1);
+  expect(() => recorder.read("old", true, 0)).toThrow("clip_not_found:");
+  recorder.dispose();
+});
+
+it("passes clip and still dimensions and quality into the canvas encoder", async () => {
+  const { captureAgentCanvas } = await import("../src/agent/capture-canvas");
+  const drawImage = vi.fn();
+  const output = {
+    width: 0,
+    height: 0,
+    getContext: () => ({ drawImage }),
+    toDataURL: vi.fn(() => "data:image/jpeg;base64,YWJj"),
+  };
+  const canvas = {
+    width: 1280,
+    height: 720,
+    ownerDocument: { createElement: () => output },
+  } as unknown as HTMLCanvasElement;
+  expect(
+    captureAgentCanvas(canvas, { maxEdge: 640, quality: 0.7 }),
+  ).toMatchObject({ width: 640, height: 360 });
+  expect(output.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.7);
+  expect(
+    captureAgentCanvas(canvas, { maxEdge: 1280, quality: 0.8 }),
+  ).toMatchObject({ width: 1280, height: 720 });
+  expect(output.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.8);
+});

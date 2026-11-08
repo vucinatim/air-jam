@@ -142,7 +142,10 @@ export async function observeHostRuntime(
   const capture = surface?.capture;
   const image =
     request.includeImage && capture
-      ? await beforeDeadline(capture, deadline)
+      ? await beforeDeadline(
+          () => capture({ maxEdge: 1280, quality: 0.8 }),
+          deadline,
+        )
       : null;
   const runtimeAfter = surface ? agentJson(surface.read(request)) : null;
   const after = await semantic();

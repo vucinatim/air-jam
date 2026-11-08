@@ -52,6 +52,7 @@ import type {
   HostObservationSurface,
   HostRuntimeFault,
 } from "../runtime/contracts/observation";
+import { HostClipRecorder } from "../runtime/host-clip-recorder";
 import { registerHostObservationSurface } from "../runtime/host-observation";
 import { trackHostSimulation } from "../runtime/host-pace";
 import {
@@ -181,6 +182,18 @@ export class HostRuntime {
   private stopFrames: (() => void) | null = null;
   private readonly agent: HostRuntimeDependencies["agent"];
   private capture: HostObservationCapture | null = null;
+  private readonly clips = new HostClipRecorder({
+    capture: () => this.capture,
+    now: () => this.environment.now(),
+    onCaptureError: (error) =>
+      this.emitRuntimeEvent({
+        event: AIRJAM_DEV_LOG_EVENTS.runtime.clipCaptureFailed,
+        code: "clip_capture_failed",
+        level: "error",
+        message: error instanceof Error ? error.message : String(error),
+        roomId: this.roomId ?? undefined,
+      }),
+  });
   private options: HostRuntimeOptions;
   private controllerCapability: ControllerPrivilegedCapability | null = null;
   private pendingReset: PendingHostReset | null = null;
@@ -384,6 +397,7 @@ export class HostRuntime {
     const unsubscribe = this.store.subscribe(() => this.handleRoomChange());
     this.stopFrames = this.startFrames();
     return () => {
+      this.clips.dispose();
       for (const stop of stopRecordingActions) stop();
       this.stopFrames?.();
       this.stopFrames = null;
@@ -411,6 +425,7 @@ export class HostRuntime {
   readonly setObservationCapture = (
     capture: HostObservationCapture | null,
   ): void => {
+    if (capture !== this.capture) this.clips.dispose();
     if (Boolean(capture) === Boolean(this.capture)) {
       this.capture = capture;
       return;
@@ -794,6 +809,7 @@ export class HostRuntime {
     this.bindObservation(roomId);
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
       now: () => this.environment.now(),
+      clips: this.clips,
       input: this.input ?? undefined,
       readState: () => {
         const state = this.store.getState();
@@ -853,6 +869,7 @@ export class HostRuntime {
 
   /** Publishes what the simulation declares agents see, and the host's image. */
   private bindObservation(roomId: RoomCode): void {
+    this.clips.dispose();
     this.releaseObservation?.();
     this.releaseObservation = null;
     const simulation = this.simulationDeclaration;
@@ -873,7 +890,9 @@ export class HostRuntime {
                 tick: clock.ticks,
               }
             : { state: {} },
-        ...(this.capture ? { capture: () => this.capture?.() ?? null } : {}),
+        ...(this.capture
+          ? { capture: (options) => this.capture?.(options) ?? null }
+          : {}),
       },
     );
   }

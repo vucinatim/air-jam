@@ -527,11 +527,30 @@ without a reported fault keeps the generic reason. Final input-release settling
 also retains a newly observed fault in its evidence error and `end.hostFault`,
 preserving the existing inconclusive verdict for a failed final capture.
 
-`captureAgentCanvas` produces a bounded JPEG of a game-provided canvas. Its
+`useHostAgentCapture(options => captureAgentCanvas(canvas, options))` passes the requested
+`{maxEdge, quality}` into the game capture. Still observations use 1280 px / 0.8.
+`captureAgentCanvas(canvas, options)` produces a bounded JPEG of a game-provided canvas. Its
 coverage is `render-surface`; surrounding HTML is excluded. Games without this
 capability report an unsupported image, and an unmounted canvas reports an
 unavailable surface. No replacement host or generated image stands in for the
 requested game.
+
+Clips use that same capture surface and host-agent channel, without a room grant:
+`clip-start {roomId, runtimeId, clipId}` starts in the background;
+`clip-read {roomId, clipId, stop, fromFrame}` stops and reads pages. Stop before
+paging to freeze indexes; follow `nextFrame` until null. Capture uses JPEG at
+640 px / 0.7 every 100 ms, with no queued captures. The retained window is the
+last 15 s / 150 frames and 4 MiB decoded image bytes; frames over 160 KiB or
+null captures are skipped. Pages contain at most 768 KiB base64 characters.
+Four recordings may be retained; each self-stops at ten minutes and stopped
+recordings expire after a minute without reads. Runtime or surface replacement
+releases recordings. Missing captures distinguish unsupported, unavailable,
+failed, replaced, unreachable and headless screens. `clipArtifactSchema` from
+`@air-jam/sdk/runtime-control` validates `clip.json`; frame offsets and duration
+are measured since the original host-clock start, including any dropped prefix.
+The run owner records clips for test and play runs reached through host-agent
+requests, with an integrity receipt beside the final observation. Clip failure
+never changes a gameplay verdict or end reason.
 
 Observations identify document, room, contract, store runtime, local surface
 and participant receiver registration, plus a sequence, host-clock capture

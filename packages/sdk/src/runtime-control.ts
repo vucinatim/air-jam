@@ -24,8 +24,11 @@ export {
   type HostObservationSurface,
   type HostRuntimeFault,
 } from "./runtime/contracts/observation";
-export { describeHostRuntimeFault } from "./runtime/host-runtime-fault";
 export {
   sameHostRuntimeIdentity,
   type HostRuntimeIdentity,
 } from "./runtime/contracts/runtime-identity";
+export { describeHostRuntimeFault } from "./runtime/host-runtime-fault";
+
+export * from "./runtime/contracts/clip";
+export { clipFailureReason, readHostClip } from "./runtime/host-clip-reader";

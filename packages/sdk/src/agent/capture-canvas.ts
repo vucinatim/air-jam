@@ -6,9 +6,10 @@ import {
 /** Captures only this render surface; surrounding DOM is not included. */
 export function captureAgentCanvas(
   canvas: HTMLCanvasElement | null,
+  { maxEdge, quality }: { maxEdge: number; quality: number },
 ): HostObservationImage | null {
   if (!canvas || !canvas.width || !canvas.height) return null;
-  const scale = Math.min(1, 1280 / canvas.width, 1280 / canvas.height);
+  const scale = Math.min(1, maxEdge / canvas.width, maxEdge / canvas.height);
   const image = canvas.ownerDocument.createElement("canvas");
   image.width = Math.max(1, Math.round(canvas.width * scale));
   image.height = Math.max(1, Math.round(canvas.height * scale));
@@ -16,7 +17,7 @@ export function captureAgentCanvas(
   if (!context)
     throw new Error("Canvas observation requires a 2D capture context.");
   context.drawImage(canvas, 0, 0, image.width, image.height);
-  const encoded = image.toDataURL("image/jpeg", 0.8);
+  const encoded = image.toDataURL("image/jpeg", quality);
   const prefix = "data:image/jpeg;base64,";
   if (!encoded.startsWith(prefix))
     throw new Error("The renderer did not produce a JPEG observation.");
