@@ -352,6 +352,11 @@ export class HostRuntime {
       throw new Error(
         "AJ_SETTING_INVALID: Settings change between simulation steps.",
       );
+    // The input log starts from the settings the simulation was created with.
+    if (this.declaresSimulation && !this.clock)
+      throw new Error(
+        "AJ_SETTING_INVALID: Settings change once the game's simulation has loaded.",
+      );
     return this.hostSettings.update(patch, expectedRevision, (revision) => {
       this.recorder?.record("airjam:settings", {
         patch: { ...patch },
