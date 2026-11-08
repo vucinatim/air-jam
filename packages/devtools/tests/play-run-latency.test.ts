@@ -7,6 +7,25 @@ import type {
 import type { GameRunSession } from "../src/game-run-owner.js";
 import { attachment, fixture, io, tapOrWait } from "./game-run-fixture.js";
 
+it("keeps a completed record unchanged when stop arrives after completion", async () => {
+  const f = await fixture();
+  io.decide.mockResolvedValue({ control: { kind: "action", actionId: "tap" } });
+  let tested = false;
+  io.evaluate.mockImplementation(async (sample) => {
+    tested ||= sample.receipts.some(
+      (receipt: { phase: string; operation: { kind: string } }) =>
+        receipt.phase === "play" && receipt.operation.kind !== "release",
+    );
+    return { status: tested ? "passed" : "pending" };
+  });
+  await f.owner.start(f.request);
+  const record = await f.ended();
+  expect(record.end?.reason).toBe("completed");
+  expect(record.stopRequestedAt).toBeUndefined();
+  expect(await f.owner.stop(f.request.runId)).toEqual(record);
+  expect(await f.owner.read(f.request.runId)).toEqual(record);
+});
+
 it("overlaps fresh policy preparation with attachment and reuses the run's game inspection", async () => {
   const f = await fixture();
   f.session.summary.semanticAccess = "delegated-host";

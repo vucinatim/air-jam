@@ -567,7 +567,7 @@ export class GameRunOwner {
     reason: EndReason = "stopped",
   ): Promise<AirJamGameRunRecord> {
     const run = this.runs.get(runId);
-    if (!run) return this.read(runId);
+    if (!run || run.record.state === "ended") return this.read(runId);
     run.record.stopRequestedAt ??= new Date().toISOString();
     await this.terminate(
       run,
