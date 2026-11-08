@@ -44,4 +44,5 @@ export {
   localSeatRequestSchema,
   sendLocalSeatOperation,
   type LocalSeat,
+  type LocalSeatGame,
 } from "./runtime/local-seats";

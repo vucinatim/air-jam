@@ -199,6 +199,7 @@ export const PreviewControllerWindow = ({
   return (
     <div
       className="absolute"
+      hidden={session.minimized}
       style={{
         left: session.x,
         top: session.y,

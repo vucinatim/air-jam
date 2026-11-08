@@ -83,6 +83,8 @@ export interface AirJamControllerEnvironment {
   readonly capabilityToken: string | null;
   /** This device's stable id; null when an embedding shell owns identity. */
   readonly deviceId: string | null;
+  /** Temporary local-seat name; the controller's ordinary nickname stays its own. */
+  readonly localSeatLabel?: string | null;
   /** Preview controllers leave their room when their runtime stops. */
   readonly leaveOnStop: boolean;
   readonly runMode: RunMode;
