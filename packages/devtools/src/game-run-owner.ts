@@ -24,6 +24,7 @@ import {
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { ControllerDisconnection } from "./controller-protocol.js";
+import { CurrentRoomStopped } from "./current-room-host.js";
 import type { DecisionAnswer, DecisionProvider } from "./decision-provider.js";
 import {
   gameBuildIdentitySchema,
@@ -70,6 +71,7 @@ import type {
 } from "./testing.js";
 import { PLAY_RUN_PLAYER } from "./testing.js";
 import type {
+  AirJamGameInspection,
   AirJamGameSessionSummary,
   CloseGameSessionResult,
 } from "./types.js";
@@ -215,6 +217,7 @@ export class GameRunOwner {
       openSession: (options: {
         runId: string;
         gameId?: string;
+        game?: AirJamGameInspection;
         nickname: string;
         settings?: Record<string, number | boolean | string>;
         attachment?: CurrentRoomAttachment;
@@ -587,7 +590,8 @@ export class GameRunOwner {
     reason: EndReason = "stopped",
   ): Promise<AirJamGameRunRecord> {
     const run = this.runs.get(runId);
-    if (!run) return this.read(runId);
+    if (!run || run.record.state === "ended") return this.read(runId);
+    run.record.stopRequestedAt ??= new Date().toISOString();
     await this.terminate(
       run,
       reason,
@@ -838,146 +842,161 @@ export class GameRunOwner {
             signal: run.abort.signal,
           });
     run.record.policyArtifacts = artifacts?.receipt;
-    const initializing = performance.now();
-    run.policy = await startTestProfileProcess({
-      ...common,
-      role: "policy",
-      initializationDeadline: run.deadline,
-      ...(artifacts ? { artifacts } : {}),
-      policyId: policy.id,
-      logPath: path.join(run.directory, "policy.log"),
-    });
-    if (run.abort.signal.aborted) return;
-    run.record.policyInitializationMs = performance.now() - initializing;
-    run.record.policyPreparation = run.policy.preparation;
-    await this.trace(run, {
-      kind: "policy_prepared",
-      initializationMs: run.record.policyInitializationMs,
-      preparation: run.policy.preparation,
-      ...(artifacts ? { artifacts: artifacts.receipt } : {}),
-    });
-    if (run.abort.signal.aborted) return;
-    if (room) {
-      run.room = await room;
+    const preparing = (async () => {
+      const initializing = performance.now();
+      run.policy = await startTestProfileProcess({
+        ...common,
+        role: "policy",
+        initializationDeadline: run.deadline,
+        ...(artifacts ? { artifacts } : {}),
+        policyId: policy.id,
+        logPath: path.join(run.directory, "policy.log"),
+      });
       if (run.abort.signal.aborted) return;
-    }
-    run.session = await this.options.openSession({
-      runId: run.record.runId,
-      gameId: run.record.request.gameId,
-      nickname: agentNickname(0),
-      settings:
-        run.record.request.kind === "test"
-          ? run.record.request.settings
-          : undefined,
-      attachment: run.attachment,
-      build: run.build,
-      room: run.room,
-      onScope: this.observeScopes(run),
-    });
-    run.record.session = gameRunSessionIdentitySchema.parse(
-      run.session.summary,
-    );
-    if (
-      run.attachment &&
-      (run.session.summary.controllerId !== run.attachment.controllerIds[0] ||
-        run.session.summary.semanticAccess !== "delegated-host" ||
-        run.session.summary.roomId !==
-          new URL(run.attachment.controllerJoinUrl).searchParams.get("room"))
-    )
-      throw new Error(
-        "current_room_scope: The delegated participant did not attach to its authorized room.",
+      run.record.policyInitializationMs = performance.now() - initializing;
+      run.record.policyPreparation = run.policy.preparation;
+      await this.trace(run, {
+        kind: "policy_prepared",
+        initializationMs: run.record.policyInitializationMs,
+        preparation: run.policy.preparation,
+        ...(artifacts ? { artifacts: artifacts.receipt } : {}),
+      });
+    })();
+    const attaching = (async () => {
+      if (run.abort.signal.aborted) return;
+      if (room) {
+        run.room = await room;
+        if (run.abort.signal.aborted) return;
+      }
+      run.session = await this.options.openSession({
+        runId: run.record.runId,
+        gameId: game.id,
+        game,
+        nickname: agentNickname(0),
+        settings:
+          run.record.request.kind === "test"
+            ? run.record.request.settings
+            : undefined,
+        attachment: run.attachment,
+        build: run.build,
+        room: run.room,
+        onScope: this.observeScopes(run),
+      });
+      run.record.session = gameRunSessionIdentitySchema.parse(
+        run.session.summary,
       );
-    for (const [index, description] of players.seats.entries()) {
-      if (index > 0 && run.abort.signal.aborted) return;
-      const extra =
-        index === 0
-          ? undefined
-          : await run.session.addParticipant(agentNickname(index));
-      const controllerId =
-        extra?.controllerId ?? run.session.summary.controllerId;
-      run.seats.push({
-        id: description.id,
-        controllerId,
-        participant: extra ?? run.session,
-        extra,
-        leaseId: randomUUID(),
-        sequence: 0,
-        policyCursor: 0,
-        misses: 0,
-        staleDecisions: 0,
-        lowConfidenceStreak: 0,
-        lastAnswer: null,
-      });
-      run.record.seats.push({
-        seatId: description.id,
-        controllerId,
-        intent:
-          request.kind === "play"
-            ? (request.intent ?? null)
-            : (request.intents?.[description.id] ?? null),
-        counters: {
-          decisions: 0,
-          applied: 0,
-          rejected: 0,
-          unconfirmed: 0,
-          timeout: 0,
-          blocked: 0,
-          effects: 0,
-        },
-      });
-    }
-    if (run.abort.signal.aborted) return;
-    run.record.state = "setup";
-    for (const seat of run.seats) {
-      const first = await this.observe(run, seat, false);
-      seat.expected = first.identity;
-      this.seatRecord(run, seat).expected = first.identity;
-      if (seat === run.seats[0]) {
-        run.record.expected = first.identity;
-        run.fromTick = first.ticks.after ?? 0;
+      if (
+        run.attachment &&
+        (run.session.summary.controllerId !== run.attachment.controllerIds[0] ||
+          run.session.summary.semanticAccess !== "delegated-host" ||
+          run.session.summary.roomId !==
+            new URL(run.attachment.controllerJoinUrl).searchParams.get("room"))
+      )
+        throw new Error(
+          "current_room_scope: The delegated participant did not attach to its authorized room.",
+        );
+      for (const [index, description] of players.seats.entries()) {
+        if (index > 0 && run.abort.signal.aborted) return;
+        const extra =
+          index === 0
+            ? undefined
+            : await run.session.addParticipant(agentNickname(index));
+        const controllerId =
+          extra?.controllerId ?? run.session.summary.controllerId;
+        run.seats.push({
+          id: description.id,
+          controllerId,
+          participant: extra ?? run.session,
+          extra,
+          leaseId: randomUUID(),
+          sequence: 0,
+          policyCursor: 0,
+          misses: 0,
+          staleDecisions: 0,
+          lowConfidenceStreak: 0,
+          lastAnswer: null,
+        });
+        run.record.seats.push({
+          seatId: description.id,
+          controllerId,
+          intent:
+            request.kind === "play"
+              ? (request.intent ?? null)
+              : (request.intents?.[description.id] ?? null),
+          counters: {
+            decisions: 0,
+            applied: 0,
+            rejected: 0,
+            unconfirmed: 0,
+            timeout: 0,
+            blocked: 0,
+            effects: 0,
+          },
+        });
+      }
+      if (run.abort.signal.aborted) return;
+      run.record.state = "setup";
+      for (const seat of run.seats) {
+        const first = await this.observe(run, seat, false);
+        seat.expected = first.identity;
+        this.seatRecord(run, seat).expected = first.identity;
+        if (seat === run.seats[0]) {
+          run.record.expected = first.identity;
+          run.fromTick = first.ticks.after ?? 0;
+        }
+        if (run.abort.signal.aborted) return;
+        if (
+          (await this.control(run, seat, first, { kind: "release" }, "setup"))
+            .status !== "applied"
+        )
+          throw new Error(
+            "Participant control handshake was not acknowledged.",
+          );
+      }
+      const expectedParticipants = run.seats.map((seat) => seat.controllerId);
+      const participantsDeadline = performance.now() + 5000;
+      let participants = await run.session.readParticipants();
+      while (
+        !expectedParticipants.every((id) =>
+          participants.controllerIds.includes(id),
+        )
+      ) {
+        if (run.abort.signal.aborted) return;
+        if (performance.now() >= participantsDeadline)
+          throw new Error(
+            "seat_replaced: The connected room roster did not include every run player.",
+          );
+        await delay(25);
+        participants = await run.session.readParticipants();
       }
       if (run.abort.signal.aborted) return;
       if (
-        (await this.control(run, seat, first, { kind: "release" }, "setup"))
-          .status !== "applied"
+        participants.roomId !== run.session.summary.roomId ||
+        (run.record.request.target.kind !== "current" &&
+          participants.controllerIds.length !== expectedParticipants.length)
       )
-        throw new Error("Participant control handshake was not acknowledged.");
-    }
-    const expectedParticipants = run.seats.map((seat) => seat.controllerId);
-    const participantsDeadline = performance.now() + 5000;
-    let participants = await run.session.readParticipants();
-    while (
-      !expectedParticipants.every((id) =>
-        participants.controllerIds.includes(id),
-      )
-    ) {
-      if (run.abort.signal.aborted) return;
-      if (performance.now() >= participantsDeadline)
         throw new Error(
-          "seat_replaced: The connected room roster did not include every run player.",
+          "seat_replaced: Owned room membership does not match its controlled players.",
         );
-      await delay(25);
-      participants = await run.session.readParticipants();
-    }
+      run.record.rosterJoinedAt = new Date().toISOString();
+      await this.trace(run, {
+        kind: "participants_ready",
+        gameSessionId: run.session.summary.gameSessionId,
+        expected: run.record.expected,
+        ...participants,
+      });
+    })();
+    const startup = await Promise.allSettled([preparing, attaching]);
+    for (const result of startup)
+      if (result.status === "rejected") throw result.reason;
     if (run.abort.signal.aborted) return;
-    if (
-      participants.roomId !== run.session.summary.roomId ||
-      (run.record.request.target.kind !== "current" &&
-        participants.controllerIds.length !== expectedParticipants.length)
-    )
-      throw new Error(
-        "seat_replaced: Owned room membership does not match its controlled players.",
-      );
-    await this.trace(run, {
-      kind: "participants_ready",
-      gameSessionId: run.session.summary.gameSessionId,
-      expected: run.record.expected,
-      ...participants,
-    });
+    const session = run.session;
+    if (!session)
+      throw new Error("Run participant attachment did not complete.");
     for (const step of profile?.setup ?? []) {
       if (run.abort.signal.aborted) return;
       if (step.lane === "host") {
-        const result = await run.session.invokeHost(step.actionId, step.input);
+        const result = await session.invokeHost(step.actionId, step.input);
         await this.trace(run, {
           kind: "host_setup",
           actionId: step.actionId,
@@ -1427,8 +1446,13 @@ export class GameRunOwner {
       lease: { id: seat.leaseId, sequence: ++seat.sequence },
       operation,
     };
+    const send = () => {
+      if (operation.kind !== "release")
+        run.record.lastInputAt = new Date().toISOString();
+      return seat.participant.control(request);
+    };
     let attempts: 1 | 2 = 1;
-    let acknowledgement = await seat.participant.control(request);
+    let acknowledgement = await send();
     if (acknowledgement.status === "unconfirmed") {
       await this.trace(run, {
         kind: "control_attempt",
@@ -1439,9 +1463,17 @@ export class GameRunOwner {
         operation,
         receipt: acknowledgement,
       });
-      attempts = 2;
-      acknowledgement = await seat.participant.control(request);
+      if (operation.kind === "release" || !run.abort.signal.aborted) {
+        attempts = 2;
+        acknowledgement = await send();
+      }
     }
+    if (
+      phase === "cleanup" &&
+      operation.kind === "release" &&
+      acknowledgement.status === "applied"
+    )
+      run.record.releaseAcknowledgedAt = new Date().toISOString();
     run.record.counters[
       acknowledgement.status === "applied"
         ? "applied"
@@ -1671,6 +1703,7 @@ export class GameRunOwner {
             },
             decisionDeadline - decisionStarted,
           );
+          if (run.abort.signal.aborted) return;
           let answer: AnsweredDecision | undefined;
           if ("ask" in decision) {
             // A missed answer must not leave the previous choice to act on.
@@ -1681,6 +1714,7 @@ export class GameRunOwner {
               decision.ask,
               decisionDeadline,
             );
+            if (run.abort.signal.aborted) return;
             control = answer.control;
             seat.lastAnswer = {
               choice: answer.choice,
@@ -1813,9 +1847,13 @@ export class GameRunOwner {
   private failed(run: Run, error: unknown) {
     if (run.abort.signal.aborted) return;
     const message = error instanceof Error ? error.message : String(error);
-    void this.terminate(run, failureReason(message), message).catch((failure) =>
-      console.error(failure),
-    );
+    const stopped = error instanceof CurrentRoomStopped;
+    if (stopped) run.record.stopRequestedAt ??= new Date().toISOString();
+    void this.terminate(
+      run,
+      stopped ? "stopped" : failureReason(message),
+      message,
+    ).catch((failure) => console.error(failure));
   }
   private terminate(
     run: Run,
@@ -1824,6 +1862,7 @@ export class GameRunOwner {
     hostFault?: NonNullable<AirJamGameRunRecord["end"]>["hostFault"],
   ) {
     return (run.termination ??= (async () => {
+      run.record.abortedAt = new Date().toISOString();
       run.abort.abort();
       clearTimeout(run.timer);
       run.record.state = "stopping";
@@ -1856,7 +1895,8 @@ export class GameRunOwner {
       });
       await Promise.allSettled([...run.watches.values()]);
       const policy = run.policy;
-      if (policy) await attempt(() => policy.stop());
+      if (policy && run.record.request.kind === "test")
+        await attempt(() => policy.stop());
       await Promise.allSettled([...run.effects]);
       const evaluationInFlight = run.evaluation;
       if (evaluationInFlight) await attempt(() => evaluationInFlight);
@@ -1882,136 +1922,142 @@ export class GameRunOwner {
           seat.policyCursor = seat.sequence;
         }
         await this.finishClip(run);
-        const primary = run.seats[0];
-        let finalObservation: HostObservation | undefined;
-        try {
-          if (!primary || !run.players)
-            throw new Error("Run has no initialized observation seat.");
-          const before = await this.evaluationObservation(run, false);
-          const settleUntil = session.clock.now() + 2000;
-          let settled: HostObservation;
-          do {
-            await session.clock.wait(run.players.timing.intervalMs);
-            settled = await this.evaluationObservation(run, false);
-          } while (
-            before.ticks.after !== null &&
-            settled.ticks.after === before.ticks.after &&
-            session.clock.now() < settleUntil
-          );
-          if (
-            before.ticks.after !== null &&
-            settled.ticks.after === before.ticks.after
-          ) {
-            const fault = settled.host?.after?.fault;
-            if (fault) run.record.end.hostFault = fault;
-            throw new Error(
-              fault
-                ? `The host did not advance after input release: ${describeHostRuntimeFault(fault)}`
-                : "The host did not advance after input release.",
+        if (run.record.request.kind === "test") {
+          const primary = run.seats[0];
+          let finalObservation: HostObservation | undefined;
+          try {
+            if (!primary || !run.players)
+              throw new Error("Run has no initialized observation seat.");
+            const before = await this.evaluationObservation(run, false);
+            const settleUntil = session.clock.now() + 2000;
+            let settled: HostObservation;
+            do {
+              await session.clock.wait(run.players.timing.intervalMs);
+              settled = await this.evaluationObservation(run, false);
+            } while (
+              before.ticks.after !== null &&
+              settled.ticks.after === before.ticks.after &&
+              session.clock.now() < settleUntil
             );
-          }
-          finalObservation = await this.evaluationObservation(run, true);
-          if (!run.room && run.record.expected) {
-            const result = await readHostInputLog(
-              (request) => {
-                if (!session.requestHost)
-                  throw new Error(
-                    "host_unavailable: Studio couldn't reach the game.",
-                  );
-                return session.requestHost(request, 5000);
-              },
-              run.record.expected,
-              {
-                scope: finalObservation.scope,
-                controllerId: finalObservation.controllerId,
-              },
-            );
-            run.record.evidence ??= { observation: null, error: null };
-            if (result.status === "not-replayable")
-              run.record.evidence.replay = {
-                reason: result.reason,
-                message: result.message,
-              };
-            else {
-              if (!result.observation)
-                throw new Error("The recording has no cut-bound observation.");
-              // Keep the screen capture, with state sampled at the log cut.
-              finalObservation = {
-                ...result.observation,
-                visual: finalObservation.visual,
-              };
-              const inputSource = `${JSON.stringify(result.log)}\n`;
-              const file = await open(
-                path.join(run.directory, "input-log.json"),
-                "w",
-                0o600,
+            if (
+              before.ticks.after !== null &&
+              settled.ticks.after === before.ticks.after
+            ) {
+              const fault = settled.host?.after?.fault;
+              if (fault) run.record.end.hostFault = fault;
+              throw new Error(
+                fault
+                  ? `The host did not advance after input release: ${describeHostRuntimeFault(fault)}`
+                  : "The host did not advance after input release.",
               );
-              try {
-                await file.writeFile(inputSource);
-              } finally {
-                await file.close();
+            }
+            finalObservation = await this.evaluationObservation(run, true);
+            if (!run.room && run.record.expected) {
+              const result = await readHostInputLog(
+                (request) => {
+                  if (!session.requestHost)
+                    throw new Error(
+                      "host_unavailable: Studio couldn't reach the game.",
+                    );
+                  return session.requestHost(request, 5000);
+                },
+                run.record.expected,
+                {
+                  scope: finalObservation.scope,
+                  controllerId: finalObservation.controllerId,
+                },
+              );
+              run.record.evidence ??= { observation: null, error: null };
+              if (result.status === "not-replayable")
+                run.record.evidence.replay = {
+                  reason: result.reason,
+                  message: result.message,
+                };
+              else {
+                if (!result.observation)
+                  throw new Error(
+                    "The recording has no cut-bound observation.",
+                  );
+                // Keep the screen capture, with state sampled at the log cut.
+                finalObservation = {
+                  ...result.observation,
+                  visual: finalObservation.visual,
+                };
+                const inputSource = `${JSON.stringify(result.log)}\n`;
+                const file = await open(
+                  path.join(run.directory, "input-log.json"),
+                  "w",
+                  0o600,
+                );
+                try {
+                  await file.writeFile(inputSource);
+                } finally {
+                  await file.close();
+                }
+                run.record.evidence.inputLog = {
+                  path: `.airjam/artifacts/runs/${run.record.runId}/input-log.json`,
+                  sha256: createHash("sha256")
+                    .update(inputSource)
+                    .digest("hex"),
+                  ticks: result.log.ticks,
+                  stepMs: result.log.stepMs,
+                  entries: result.log.entries.length,
+                  fromTick: run.fromTick ?? 0,
+                  full: result.full,
+                };
               }
+            }
+            const source = `${JSON.stringify(finalObservation)}\n`;
+            const file = await open(
+              path.join(run.directory, "final-observation.json"),
+              "w",
+              0o600,
+            );
+            try {
+              await file.writeFile(source);
+            } finally {
+              await file.close();
+            }
+            run.record.evidence = {
+              ...run.record.evidence,
+              observation: {
+                path: `.airjam/artifacts/runs/${run.record.runId}/final-observation.json`,
+                sha256: createHash("sha256").update(source).digest("hex"),
+              },
+              error: null,
+            };
+            const saveInputLog = run.room?.saveInputLog;
+            if (saveInputLog)
               run.record.evidence.inputLog = {
                 path: `.airjam/artifacts/runs/${run.record.runId}/input-log.json`,
-                sha256: createHash("sha256").update(inputSource).digest("hex"),
-                ticks: result.log.ticks,
-                stepMs: result.log.stepMs,
-                entries: result.log.entries.length,
                 fromTick: run.fromTick ?? 0,
-                full: result.full,
+                ...(await saveInputLog(
+                  path.join(run.directory, "input-log.json"),
+                )),
               };
-            }
-          }
-          const source = `${JSON.stringify(finalObservation)}\n`;
-          const file = await open(
-            path.join(run.directory, "final-observation.json"),
-            "w",
-            0o600,
-          );
-          try {
-            await file.writeFile(source);
-          } finally {
-            await file.close();
-          }
-          run.record.evidence = {
-            ...run.record.evidence,
-            observation: {
-              path: `.airjam/artifacts/runs/${run.record.runId}/final-observation.json`,
-              sha256: createHash("sha256").update(source).digest("hex"),
-            },
-            error: null,
-          };
-          const saveInputLog = run.room?.saveInputLog;
-          if (saveInputLog)
-            run.record.evidence.inputLog = {
-              path: `.airjam/artifacts/runs/${run.record.runId}/input-log.json`,
-              fromTick: run.fromTick ?? 0,
-              ...(await saveInputLog(
-                path.join(run.directory, "input-log.json"),
-              )),
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            run.record.evidence = {
+              ...run.record.evidence,
+              observation: null,
+              error: message,
             };
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          run.record.evidence = {
-            ...run.record.evidence,
-            observation: null,
-            error: message,
-          };
-          if (run.record.end.reason === "completed")
-            run.record.end = {
-              reason: failureReason(message),
-              outcome: "inconclusive",
-              message,
-              ...(run.record.end.hostFault
-                ? { hostFault: run.record.end.hostFault }
-                : {}),
-            };
+            if (run.record.end.reason === "completed")
+              run.record.end = {
+                reason: failureReason(message),
+                outcome: "inconclusive",
+                message,
+                ...(run.record.end.hostFault
+                  ? { hostFault: run.record.end.hostFault }
+                  : {}),
+              };
+          }
+          if (finalObservation && run.evaluator && run.playEvaluationSent)
+            await attempt(() => this.evaluate(run, "final", finalObservation));
+          const evaluator = run.evaluator;
+          if (evaluator) await attempt(() => evaluator.stop());
         }
-        if (finalObservation && run.evaluator && run.playEvaluationSent)
-          await attempt(() => this.evaluate(run, "final", finalObservation));
-        const evaluator = run.evaluator;
-        if (evaluator) await attempt(() => evaluator.stop());
         for (const seat of run.seats.slice(1)) {
           const extra = seat.extra;
           if (!extra)
@@ -2049,6 +2095,8 @@ export class GameRunOwner {
           );
         }
       }
+      if (policy && run.record.request.kind === "play")
+        await attempt(() => policy.stop());
       const evaluator = run.evaluator;
       if (!run.session && evaluator) await attempt(() => evaluator.stop());
       const scopes = await Promise.allSettled(

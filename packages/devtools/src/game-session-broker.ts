@@ -329,6 +329,7 @@ export async function runGameSessionBroker({
     async openSession({
       runId,
       gameId,
+      game,
       nickname,
       attachment,
       build,
@@ -358,6 +359,7 @@ export async function runGameSessionBroker({
                   }
                 : undefined,
               build,
+              game,
               room,
               settings,
               onScope,

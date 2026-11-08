@@ -38,6 +38,7 @@ import type { HeadlessRoom } from "./headless-room.js";
 import type { ProcessScopeObserver } from "./managed-process-scope.js";
 import type {
   AirJamGameAgentActionDescriptor,
+  AirJamGameInspection,
   AirJamGameSessionActionDescriptor,
   AirJamGameSessionInspection,
   AirJamGameSessionSummary,
@@ -193,6 +194,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
     build?: PinnedGameBuild,
     onScope?: ProcessScopeObserver,
     settings?: Record<string, number | boolean | string>,
+    game?: AirJamGameInspection,
   ): Promise<AirJamGameSessionSummary> => {
     const devProcessId = build ? null : await acquireDevProcessLease(options);
     const timeoutMs = options.timeoutMs ?? DEFAULT_SESSION_OPEN_TIMEOUT_MS;
@@ -213,6 +215,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       const runtime = await resolveControllerSessionGameRuntime({
         controllerSessionId: controllerSession.controllerSessionId,
         timeoutMs,
+        game,
       });
       const gameId =
         runtime.gameId ?? controllerSession.gameId ?? options.gameId ?? null;
@@ -634,6 +637,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       options: OpenGameSessionOptions,
       {
         delegation,
+        game,
         build,
         room,
         settings,
@@ -641,6 +645,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
       }: {
         /** The creator's host and the further seat identities its editor issued. */
         delegation?: { host: HostRequester; seatControllerIds: string[] };
+        game?: AirJamGameInspection;
         build?: PinnedGameBuild;
         /** A headless room this run owns; its players join it on game time. */
         room?: HeadlessRoom;
@@ -665,6 +670,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
         build,
         onScope,
         room ? undefined : settings,
+        game,
       );
       const seatControllerIds = [...(delegation?.seatControllerIds ?? [])];
       const gameSessionId = summary.gameSessionId;

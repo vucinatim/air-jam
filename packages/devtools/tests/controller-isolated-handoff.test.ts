@@ -4,6 +4,7 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getTopology } from "../src/dev.js";
 import { closeScopedProcess } from "../src/managed-process-scope.js";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
@@ -680,4 +681,24 @@ describe("isolated runtime controller handoff", () => {
       controllerSessionId: session.controllerSessionId,
     });
   });
+});
+
+it("joins a complete explicit room without topology discovery", async () => {
+  const { connectController, disconnectController } =
+    await import("../src/controller.js");
+  vi.mocked(getTopology).mockClear();
+  const session = await connectController({
+    cwd: "/tmp/solo",
+    gameId: "solo-fixture",
+    controllerJoinUrl: defaultOwnedJoinUrl,
+  });
+  try {
+    expect(session.roomId).toBe("ROOM2");
+    expect(getTopology).not.toHaveBeenCalled();
+    expect(spawnedOwners).toHaveLength(0);
+  } finally {
+    await disconnectController({
+      controllerSessionId: session.controllerSessionId,
+    });
+  }
 });

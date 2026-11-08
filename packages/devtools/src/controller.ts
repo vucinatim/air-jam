@@ -76,6 +76,7 @@ import {
   type AirJamRuntimeOwnerCaptureResult,
 } from "./runtime-owner-protocol.js";
 import type {
+  AirJamGameInspection,
   AirJamProjectMode,
   AirJamRuntimeSnapshotInspection,
   AirJamRuntimeStoreSnapshot,
@@ -893,10 +894,12 @@ export const inspectControllerSessionContext = (
 
 export const resolveControllerSessionGameRuntime = async ({
   controllerSessionId,
+  game,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: {
   controllerSessionId: string;
   timeoutMs?: number;
+  game?: AirJamGameInspection;
 }): Promise<{
   gameId: string | null;
   defaultStoreDomain: string;
@@ -948,7 +951,7 @@ export const resolveControllerSessionGameRuntime = async ({
 
   const sourceGameId =
     session.projectMode === "standalone-game"
-      ? (await inspectGame({ cwd: session.cwd })).id
+      ? (game ?? (await inspectGame({ cwd: session.cwd }))).id
       : (localReferenceSourceGameId(parsedSurface.data.gameId) ??
         parsedSurface.data.gameId);
   session.summary.gameId = sourceGameId;
@@ -1165,12 +1168,9 @@ export const connectController = async (
       `ctrl_mcp_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const resolvedDeviceId =
       deviceId?.trim() || `aj-mcp-device-${randomUUID()}`;
-    const topology = await getTopology({
-      cwd,
-      gameId,
-      mode,
-      secure,
-    }).catch(() => null);
+    const topology = controllerJoinUrl
+      ? null
+      : await getTopology({ cwd, gameId, mode, secure }).catch(() => null);
     const resolvedGameId = gameId ?? topology?.gameId ?? null;
     const resolvedSocketOrigin =
       parseRuntimeTopologyFromSearchParams(joinUrl.searchParams)
