@@ -74,6 +74,7 @@ describe("runtime usage publisher seam", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_usage_1",
         nickname: "Player 1",
@@ -130,6 +131,7 @@ describe("runtime usage publisher seam", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_usage_disconnect",
       },

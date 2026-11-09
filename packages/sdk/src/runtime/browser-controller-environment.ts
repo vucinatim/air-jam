@@ -46,7 +46,6 @@ export const createBrowserControllerEnvironment =
         ? null
         : (previewDeviceId ?? getOrCreateControllerDeviceId()),
       localSeatLabel: readLocalSeatLabel(),
-      leaveOnStop: previewDeviceId !== null,
       runMode: detectRunMode(),
       defaultStoreDomain: resolveImplicitReplicatedStoreDomainFromWindow(),
       readBinding: readControllerRoomBinding,

@@ -1,5 +1,5 @@
 import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "@air-jam/sdk";
-import type { ControllerJoinPayload } from "@air-jam/sdk/protocol";
+import { ErrorCode, type ControllerJoinPayload } from "@air-jam/sdk/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { registerControllerHandlers } from "../src/gateway/handlers/register-controller-handlers";
 import type { SocketHandlerContext } from "../src/gateway/socket-handler-context";
@@ -39,9 +39,11 @@ const setup = () => {
   const join = async (
     controllerId: string,
     options: Partial<ControllerJoinPayload> = {},
+    expectedOk = true,
+    existingSocketId?: string,
   ) => {
     const socket = {
-      id: `socket-${++socketId}`,
+      id: existingSocketId ?? `socket-${++socketId}`,
       connected: true,
       data: {},
       on: vi.fn(),
@@ -88,13 +90,17 @@ const setup = () => {
         controllerId,
         deviceId: `pd_${controllerId}`,
         resumeCapabilityToken:
-          session.controllers.get(controllerId)?.resumeCapabilityToken,
+          session.controllers.get(controllerId)?.resumeCapabilityToken ??
+          "controller-test-secret-0000000000",
         ...options,
       },
       acknowledge,
     );
     expect(acknowledge).toHaveBeenCalledWith(
-      expect.objectContaining({ ok: true }),
+      expect.objectContaining({
+        ok: expectedOk,
+        ...(!expectedOk ? { code: ErrorCode.UNAUTHORIZED } : {}),
+      }),
     );
     return socket.emit;
   };
@@ -115,7 +121,38 @@ const setup = () => {
   return { join, notice, session, rename };
 };
 
-describe("controller default names", () => {
+describe("controller joins", () => {
+  it("adopts initial authority and refuses forged proof even with the same device hint", async () => {
+    const { join, session } = setup();
+    const resumeCapabilityToken =
+      "owner-secret-000000000000000000000000000000000000000000000000";
+    await join("owner", {
+      deviceId: "same-device-hint",
+      resumeCapabilityToken,
+    });
+    const original = session.controllers.get("owner")!;
+    expect(original.resumeCapabilityToken).toBe(resumeCapabilityToken);
+    const socketId = original.socketId;
+    for (const attackerSocketId of [undefined, socketId]) {
+      await join(
+        "owner",
+        {
+          deviceId: "same-device-hint",
+          resumeCapabilityToken:
+            "forged-secret-00000000000000000000000000000000000000000000000",
+        },
+        false,
+        attackerSocketId,
+      );
+    }
+    expect(session.controllers.get("owner")?.socketId).toBe(socketId);
+    await join("owner", {
+      deviceId: "different-device-hint",
+      resumeCapabilityToken,
+    });
+    expect(session.controllers.get("owner")?.socketId).not.toBe(socketId);
+  }, 1000);
+
   it("moves a seat label between resumed phones and restores each phone's ordinary name", async () => {
     const { join, session, rename } = setup();
     const expectName = (controllerId: string, label: string) =>

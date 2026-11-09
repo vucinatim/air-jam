@@ -75,7 +75,6 @@ class MockSocket {
             roomId?: string;
             controllerId?: string;
             message?: string;
-            resumeCapabilityToken?: string;
           }) => void)
         | undefined;
       joinAttempts.push(payload.roomId);
@@ -84,7 +83,6 @@ class MockSocket {
           ok: true,
           roomId: payload.roomId,
           controllerId: payload.controllerId,
-          resumeCapabilityToken: "private-controller-resume-token",
         });
         queueMicrotask(() => {
           this.serverEmit("server:welcome", {

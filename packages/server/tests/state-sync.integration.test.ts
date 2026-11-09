@@ -41,12 +41,22 @@ describe("server state sync", () => {
     const joinAckA = await harness.emitWithAck<{ ok: boolean }>(
       controllerA,
       "controller:join",
-      { roomId, controllerId: "ctrl_sync_a", nickname: "A" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_sync_a",
+        nickname: "A",
+      },
     );
     const joinAckB = await harness.emitWithAck<{ ok: boolean }>(
       controllerB,
       "controller:join",
-      { roomId, controllerId: "ctrl_sync_b", nickname: "B" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_sync_b",
+        nickname: "B",
+      },
     );
 
     expect(joinAckA.ok).toBe(true);
@@ -281,7 +291,12 @@ describe("server state sync", () => {
     const joinAck = await harness.emitWithAck<{ ok: boolean }>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_sync_guard", nickname: "Guard" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_sync_guard",
+        nickname: "Guard",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -312,7 +327,12 @@ describe("server state sync", () => {
     const joinAck = await harness.emitWithAck<{ ok: boolean }>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_sync_request_1", nickname: "Requester" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_sync_request_1",
+        nickname: "Requester",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -375,6 +395,7 @@ describe("server state sync", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_profile_1",
         nickname: "Old",

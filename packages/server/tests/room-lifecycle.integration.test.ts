@@ -22,7 +22,6 @@ type ControllerJoinAck = {
   controllerId?: string;
   roomId?: string;
   resumed?: boolean;
-  resumeCapabilityToken?: string;
   message?: string;
   code?: ErrorCode | string;
 };
@@ -153,7 +152,12 @@ describe("server room lifecycle", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_existing_1", nickname: "Existing" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_existing_1",
+        nickname: "Existing",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -197,7 +201,12 @@ describe("server room lifecycle", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controllerA,
       "controller:join",
-      { roomId, controllerId: "ctrl_rejoin_1", nickname: "First" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_rejoin_1",
+        nickname: "First",
+      },
     );
 
     expect(joinAck.ok).toBe(true);
@@ -235,7 +244,12 @@ describe("server room lifecycle", () => {
     const rejoinAck = await harness.emitWithAck<ControllerJoinAck>(
       controllerB,
       "controller:join",
-      { roomId, controllerId: "ctrl_rejoin_1", nickname: "Second" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_rejoin_1",
+        nickname: "Second",
+      },
     );
 
     expect(rejoinAck.ok).toBe(true);
@@ -263,7 +277,12 @@ describe("server room lifecycle", () => {
     const joinAckA = await harness.emitWithAck<ControllerJoinAck>(
       controllerA,
       "controller:join",
-      { roomId, controllerId: "ctrl_roster_1", nickname: "Alpha" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_roster_1",
+        nickname: "Alpha",
+      },
     );
 
     expect(joinAckA.ok).toBe(true);
@@ -291,7 +310,12 @@ describe("server room lifecycle", () => {
     const joinAckB = await harness.emitWithAck<ControllerJoinAck>(
       controllerB,
       "controller:join",
-      { roomId, controllerId: "ctrl_roster_2", nickname: "Beta" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_roster_2",
+        nickname: "Beta",
+      },
     );
 
     expect(joinAckB.ok).toBe(true);
@@ -358,6 +382,7 @@ describe("server room lifecycle", () => {
       controllerA,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_resume_1",
         deviceId,
@@ -392,7 +417,7 @@ describe("server room lifecycle", () => {
         roomId,
         controllerId: "ctrl_resume_1",
         deviceId,
-        resumeCapabilityToken: firstJoinAck.resumeCapabilityToken,
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         nickname: "Resume Me",
       }),
       resumedNoticePromise,
@@ -422,7 +447,7 @@ describe("server room lifecycle", () => {
     );
   });
 
-  it("keeps resume proof private and allows only its owner or a same-socket retry to reclaim a slot", async () => {
+  it("keeps resume proof private and allows only a client proving its secret to reclaim a slot", async () => {
     const host = await harness.connectSocket();
     await harness.bootstrapHost(host);
     const room = await harness.emitWithAck<HostCreateRoomAck>(
@@ -432,6 +457,7 @@ describe("server room lifecycle", () => {
     );
     const owner = await harness.connectSocket();
     const identity = {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
       roomId: room.roomId!,
       controllerId: "ctrl_private",
       deviceId: "public_device_hint",
@@ -449,12 +475,13 @@ describe("server room lifecycle", () => {
       "controller:join",
       identity,
     );
-    expect(joined.resumeCapabilityToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(joined.ok).toBe(true);
+    expect(joined).not.toHaveProperty("resumeCapabilityToken");
     expect(JSON.stringify(await welcome)).not.toContain(
-      joined.resumeCapabilityToken!,
+      identity.resumeCapabilityToken,
     );
     expect(JSON.stringify(await presence)).not.toContain(
-      joined.resumeCapabilityToken!,
+      identity.resumeCapabilityToken,
     );
     const retried = await harness.emitWithAck<ControllerJoinAck>(
       owner,
@@ -464,20 +491,24 @@ describe("server room lifecycle", () => {
     expect(retried).toMatchObject({
       ok: true,
       resumed: true,
-      resumeCapabilityToken: joined.resumeCapabilityToken,
     });
     const attacker = await harness.connectSocket();
     const session = harness.getRoomManager().getRoom(room.roomId!)!;
     for (const hints of [
-      {},
-      { resumeCapabilityToken: "wrong-proof" },
-      { capabilityToken: session.controllerCapability!.token },
+      { resumeCapabilityToken: "forged-controller-secret-00000000" },
+      {
+        resumeCapabilityToken: "forged-controller-secret-00000000",
+        capabilityToken: session.controllerCapability!.token,
+      },
     ]) {
       expect(
         await harness.emitWithAck<ControllerJoinAck>(
           attacker,
           "controller:join",
-          { ...identity, ...hints },
+          {
+            ...identity,
+            ...hints,
+          },
         ),
       ).toMatchObject({ ok: false, code: ErrorCode.UNAUTHORIZED });
     }
@@ -491,6 +522,7 @@ describe("server room lifecycle", () => {
         "controller:join",
         {
           ...identity,
+          resumeCapabilityToken: "forged-controller-secret-00000000",
           capabilityToken: session.controllerCapability!.token,
         },
       ),
@@ -504,13 +536,12 @@ describe("server room lifecycle", () => {
           ...identity,
           deviceId: "changed_device_hint",
           capabilityToken: session.controllerCapability!.token,
-          resumeCapabilityToken: joined.resumeCapabilityToken,
+          resumeCapabilityToken: identity.resumeCapabilityToken,
         },
       ),
     ).toMatchObject({
       ok: true,
       resumed: true,
-      resumeCapabilityToken: joined.resumeCapabilityToken,
     });
     expect(
       harness.getRoomManager().getControllerInfo(owner.id!),
@@ -526,12 +557,15 @@ describe("server room lifecycle", () => {
       { maxPlayers: 4 },
     );
     const owner = await harness.connectSocket();
-    const identity = { roomId: room.roomId!, controllerId: "ctrl_retired" };
-    const joined = await harness.emitWithAck<ControllerJoinAck>(
-      owner,
-      "controller:join",
-      { ...identity, nickname: "Old name" },
-    );
+    const identity = {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
+      roomId: room.roomId!,
+      controllerId: "ctrl_retired",
+    };
+    await harness.emitWithAck<ControllerJoinAck>(owner, "controller:join", {
+      ...identity,
+      nickname: "Old name",
+    });
     await harness.emitWithAck(owner, "controller:leave", identity);
     const replacement = await harness.connectSocket();
     const fresh = await harness.emitWithAck<ControllerJoinAck>(
@@ -539,11 +573,10 @@ describe("server room lifecycle", () => {
       "controller:join",
       {
         ...identity,
-        resumeCapabilityToken: joined.resumeCapabilityToken,
+        resumeCapabilityToken: "replacement-controller-secret-0000",
       },
     );
     expect(fresh).toMatchObject({ ok: true, resumed: false });
-    expect(fresh.resumeCapabilityToken).not.toBe(joined.resumeCapabilityToken);
     expect(
       harness
         .getRoomManager()
@@ -553,7 +586,7 @@ describe("server room lifecycle", () => {
     expect(
       await harness.emitWithAck<ControllerJoinAck>(owner, "controller:join", {
         ...identity,
-        resumeCapabilityToken: joined.resumeCapabilityToken,
+        resumeCapabilityToken: identity.resumeCapabilityToken,
       }),
     ).toMatchObject({ ok: false, code: ErrorCode.UNAUTHORIZED });
   });
@@ -576,6 +609,7 @@ describe("server room lifecycle", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_virtual_1",
         deviceId: "aj-mcp-device-test",
@@ -627,7 +661,12 @@ describe("server room lifecycle", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_remove_1", nickname: "Remove Me" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_remove_1",
+        nickname: "Remove Me",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -684,6 +723,7 @@ describe("server room lifecycle", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId: previousRoomId,
         controllerId: "ctrl_reset_1",
         nickname: "Reset Me",
@@ -747,6 +787,7 @@ describe("server room lifecycle", () => {
       controllerA,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_resume_conflict_1",
         deviceId: "device_a_conflict",
@@ -767,6 +808,7 @@ describe("server room lifecycle", () => {
       controllerB,
       "controller:join",
       {
+        resumeCapabilityToken: "forged-controller-secret-00000000",
         roomId,
         controllerId: "ctrl_resume_conflict_1",
         deviceId: "device_a_conflict",
@@ -806,7 +848,12 @@ describe("server room lifecycle", () => {
     const firstJoinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_old_1", nickname: "Old" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_old_1",
+        nickname: "Old",
+      },
     );
     expect(firstJoinAck.ok).toBe(true);
 
@@ -818,7 +865,12 @@ describe("server room lifecycle", () => {
     const secondJoinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_new_1", nickname: "New" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_new_1",
+        nickname: "New",
+      },
     );
 
     expect(secondJoinAck.ok).toBe(true);

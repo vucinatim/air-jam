@@ -102,6 +102,7 @@ describe("dev disconnect lifecycle logs", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_disconnect_1",
         nickname: "Disconnect",

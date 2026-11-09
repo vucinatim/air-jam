@@ -91,8 +91,8 @@ export const controllerJoinSchema = z.object({
   /** Preset avatar key (platform-defined); optional at join. */
   avatarId: z.string().trim().min(1).max(48).optional(),
   capabilityToken: z.string().min(1).optional(),
-  /** Private server-issued proof required to resume an existing controller. */
-  resumeCapabilityToken: z.string().min(1).max(128).optional(),
+  /** Private client-generated secret, persisted before the first join. */
+  resumeCapabilityToken: z.string().min(32).max(128),
 });
 
 export type ControllerJoinPayload = z.infer<typeof controllerJoinSchema>;
@@ -162,8 +162,6 @@ export interface ControllerJoinAck {
   controllerId?: string;
   roomId?: RoomCode;
   resumed?: boolean;
-  /** Private to the joining client; never publish in presence or bridge state. */
-  resumeCapabilityToken?: string;
   message?: string;
   code?: ErrorCode | string;
   retryAfterSeconds?: number;

@@ -120,11 +120,17 @@ when its owned game frame is missing. Closing a session disposes only the
 runtime that session owns. Attaching to someone else's room never starts,
 replaces, or stops their host.
 
-Phone reconnect authority is independent: a server-issued private resume token
-proves ownership of the previous player slot. Public controller/device IDs are
-hints, not credentials. The token travels only in the private join exchange and
-local binding storage, never public presence, game-frame welcome messages,
-inspection snapshots, room URLs, or logs. Ordinary room-code joining and
+Phone reconnect authority is independent: the controller creates a private resume
+secret with `crypto.getRandomValues` (256 bits) and persists it with its room-scoped
+controller binding before sending its first join. The server adopts that secret
+only when creating a seat; every join naming an existing seat must prove the same
+secret, including same-socket joins. Public controller/device IDs are hints, not
+credentials. A provider remount reuses the binding even if its first acknowledgement
+was lost, or if its first join never reached the server. Stopping a runtime releases
+its listeners; only explicit, acknowledged leave retires its seat.
+The secret travels only in the private join request and local binding storage,
+never acknowledgements, public presence, game-frame welcome messages, inspection
+snapshots, room URLs, or logs. Ordinary room-code joining and
 cooperative player controls need no new human approval.
 
 The session contract should stay above the raw transport layer.

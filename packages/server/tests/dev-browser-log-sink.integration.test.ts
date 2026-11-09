@@ -327,6 +327,7 @@ describe("dev browser log sink", () => {
       controllerSocket.emit(
         "controller:join",
         {
+          resumeCapabilityToken: "controller-test-secret-0000000000",
           roomId: createRoomAck.roomId,
           controllerId: "ctrl_dev_logs_1",
           nickname: "Dev Logs",

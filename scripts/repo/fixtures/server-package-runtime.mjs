@@ -1,3 +1,4 @@
+import { generateControllerResumeToken } from "@air-jam/sdk/core";
 import { createAirJamServer, loadServerEnv } from "@air-jam/server";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -61,6 +62,7 @@ try {
   assert.equal(
     (
       await ack(controller, "controller:join", {
+        resumeCapabilityToken: generateControllerResumeToken(),
         roomId,
         controllerId: "artifact-controller",
       })

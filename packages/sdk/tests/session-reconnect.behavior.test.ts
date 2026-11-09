@@ -250,7 +250,6 @@ describe("session reconnect behavior", () => {
             callback?.({
               ok: true,
               controllerId: "ctrl_private",
-              resumeCapabilityToken: "private-proof",
             });
         },
       );
@@ -260,11 +259,10 @@ describe("session reconnect behavior", () => {
           controllerId: "ctrl_private",
         }),
       });
-      expect(
-        mocked.controllerSocket.emit.mock.calls.find(
-          ([event]) => event === "controller:join",
-        )?.[1].resumeCapabilityToken,
-      ).toBeUndefined();
+      const secret = mocked.controllerSocket.emit.mock.calls.find(
+        ([event]) => event === "controller:join",
+      )?.[1].resumeCapabilityToken;
+      expect(secret).toMatch(/^[0-9a-f]{64}$/);
       const welcome = mocked.controllerSocket.on.mock.calls.find(
         ([event]) => event === "server:welcome",
       )![1];
@@ -281,12 +279,10 @@ describe("session reconnect behavior", () => {
       });
       expect(mocked.controllerSocket.emit).toHaveBeenLastCalledWith(
         "controller:join",
-        expect.objectContaining({ resumeCapabilityToken: "private-proof" }),
+        expect.objectContaining({ resumeCapabilityToken: secret }),
         expect.any(Function),
       );
-      expect(JSON.stringify(mocked.store!.getState())).not.toContain(
-        "private-proof",
-      );
+      expect(JSON.stringify(mocked.store!.getState())).not.toContain(secret);
       unmount();
       if (!storageAvailable) return;
       mocked.controllerSocket.emit.mockClear();
@@ -297,7 +293,7 @@ describe("session reconnect behavior", () => {
         "controller:join",
         expect.objectContaining({
           controllerId: "ctrl_private",
-          resumeCapabilityToken: "private-proof",
+          resumeCapabilityToken: secret,
         }),
         expect.any(Function),
       );

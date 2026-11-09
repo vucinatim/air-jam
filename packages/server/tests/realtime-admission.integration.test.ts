@@ -172,6 +172,7 @@ describe("realtime admission socket boundary", () => {
       code?: string;
       message?: string;
     }>(controller, "controller:join", {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
       roomId: room.roomId,
       controllerId: "controller-capacity-test",
       deviceId: "device-capacity-test",
@@ -206,6 +207,7 @@ describe("realtime admission socket boundary", () => {
       controller.emit(
         "controller:join",
         {
+          resumeCapabilityToken: "controller-test-secret-0000000000",
           roomId: room.roomId,
           controllerId: "controller-room-teardown-race",
           deviceId: "device-room-teardown-race",
@@ -250,6 +252,7 @@ describe("realtime admission socket boundary", () => {
     }>(host, "host:createRoom", { maxPlayers: 8 });
     const controller = await harness.connectSocket();
     const identity = {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
       roomId: room.roomId,
       controllerId: "controller-leave-race",
       deviceId: "device-leave-race",
@@ -267,6 +270,7 @@ describe("realtime admission socket boundary", () => {
       .controllers.get(identity.controllerId)!.admissionLease;
 
     const replacementIdentity = {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
       roomId: room.roomId,
       controllerId: "controller-after-leave-race",
       deviceId: "device-after-leave-race",
@@ -328,6 +332,7 @@ describe("realtime admission socket boundary", () => {
     }>(host, "host:createRoom", { maxPlayers: 8 });
     const controller = await harness.connectSocket();
     const identity = {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
       roomId: room.roomId,
       controllerId: "controller-release-race",
       deviceId: "device-release-race",
@@ -375,6 +380,7 @@ describe("realtime admission socket boundary", () => {
     }>(host, "host:createRoom", { maxPlayers: 8 });
     const controller = await harness.connectSocket();
     const identity = {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
       roomId: room.roomId,
       controllerId: "controller-host-remove-race",
       deviceId: "device-host-remove-race",
@@ -417,6 +423,7 @@ describe("realtime admission socket boundary", () => {
     }>(host, "host:createRoom", { maxPlayers: 8 });
     const originalController = await harness.connectSocket();
     const identity = {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
       roomId: room.roomId,
       controllerId: "controller-expiry-race",
       deviceId: "device-expiry-race",
@@ -449,7 +456,10 @@ describe("realtime admission socket boundary", () => {
     const resumeAck = new Promise<{ ok: boolean; code?: string }>((resolve) => {
       resumedController.emit(
         "controller:join",
-        { ...identity, resumeCapabilityToken },
+        {
+          ...identity,
+          resumeCapabilityToken,
+        },
         resolve,
       );
     });
@@ -489,6 +499,7 @@ describe("realtime admission socket boundary", () => {
       { maxPlayers: 8 },
     );
     const identity = {
+      resumeCapabilityToken: "controller-test-secret-0000000000",
       roomId: room.roomId,
       controllerId: "racing_controller",
       deviceId: "shared_public_device",
@@ -541,6 +552,7 @@ describe("realtime admission socket boundary", () => {
     controller.emit(
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId: room.roomId,
         controllerId: "controller-disconnect-race",
         deviceId: "device-disconnect-race",

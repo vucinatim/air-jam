@@ -54,7 +54,12 @@ describe("server routing and security", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_focus_1", nickname: "Focus" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_focus_1",
+        nickname: "Focus",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -126,6 +131,7 @@ describe("server routing and security", () => {
       legitController,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_legit_1",
         nickname: "Legit",
@@ -184,6 +190,7 @@ describe("server routing and security", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_internal_1",
         nickname: "Internal",
@@ -219,6 +226,7 @@ describe("server routing and security", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_host_semantic_1",
         nickname: "HostSemantic",
@@ -266,6 +274,7 @@ describe("server routing and security", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_host_semantic_ack_1",
         nickname: "HostSemanticAck",
@@ -329,6 +338,7 @@ describe("server routing and security", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_arcade_1",
         nickname: "ArcadeCtrl",
@@ -459,7 +469,12 @@ describe("server routing and security", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_sound_1", nickname: "Sound" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_sound_1",
+        nickname: "Sound",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -505,7 +520,12 @@ describe("server routing and security", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_basic_1", nickname: "Basic" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_basic_1",
+        nickname: "Basic",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -568,6 +588,7 @@ describe("server routing and security", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_priv_1",
         nickname: "Privileged",
@@ -617,7 +638,12 @@ describe("server routing and security", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_transition_1", nickname: "Transit" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_transition_1",
+        nickname: "Transit",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -689,7 +715,12 @@ describe("server routing and security", () => {
     const joinAck = await harness.emitWithAck<ControllerJoinAck>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_state_1", nickname: "State" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_state_1",
+        nickname: "State",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
