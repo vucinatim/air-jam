@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { hostObservationImageSchema } from "./observation";
 
+/** DOM/style capture is heavier than a host canvas observation. */
+export const CONTROLLER_CAPTURE_TIMEOUT_MS = 10_000;
+
 export const controllerCaptureSchema = z.discriminatedUnion("status", [
   z
     .object({

@@ -593,8 +593,11 @@ The controller renders its own visible document, including canvas pixels, to JPE
 `coverage: "controller-view"`, longest edge at most 1280 px and the existing
 `HOST_OBSERVATION_IMAGE_BYTES` budget. The MIT-licensed
 [html-to-image](https://github.com/bubkoo/html-to-image) renderer is imported only on
-capture. Ordinary controller loads do not fetch it. One capture runs at a time, with the
-existing three-second observation deadline; `unsupported`, `surface-unavailable` and
+capture. Ordinary controller loads do not fetch it. One capture runs at a time, with its own
+`CONTROLLER_CAPTURE_TIMEOUT_MS = 10_000` deadline, exported from
+`@air-jam/sdk/runtime-control`. Embedding editors and servers must wait longer than
+the layer inside them so a timed-out capture returns its reason and detail. Host
+observations keep their separate three-second deadline; `unsupported`, `surface-unavailable` and
 `timeout` are explicit unavailable reasons. A parent must report a missing mounted phone
 honestly, never replace it with a host capture or another controller.
 

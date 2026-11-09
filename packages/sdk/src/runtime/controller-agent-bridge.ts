@@ -1,11 +1,11 @@
 import type { ControllerRuntime } from "../core/controller-runtime";
 import { readPreviewControllerParent } from "../preview/identity";
 import {
+  CONTROLLER_CAPTURE_TIMEOUT_MS,
   controllerAgentRequestMessageSchema,
   controllerAgentResultMessageSchema,
   type ControllerCapture,
 } from "./contracts/controller-agent";
-import { HOST_OBSERVATION_TIMEOUT_MS } from "./contracts/observation";
 
 export function requestControllerAgent(
   target: Window,
@@ -82,8 +82,14 @@ export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
           work,
           new Promise((resolve) => {
             timer = setTimeout(
-              () => resolve({ status: "unavailable", reason: "timeout" }),
-              HOST_OBSERVATION_TIMEOUT_MS,
+              () =>
+                resolve({
+                  status: "unavailable",
+                  reason: "timeout",
+                  detail:
+                    "The controller page capture did not finish within 10 seconds.",
+                }),
+              CONTROLLER_CAPTURE_TIMEOUT_MS,
             );
           }),
         ]);
