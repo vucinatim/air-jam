@@ -861,3 +861,128 @@ it.each(["frame", "step"])(
     }
   },
 );
+
+it("timestamps appended room facts while paused, including events received during simulation loading", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(0);
+  const socket = createServerSocket();
+  const { environment } = createMemoryEnvironment(socket);
+  const simulation = defineAirJamSimulation({
+    stepMs: 10,
+    create: () => ({}),
+    step: () => {},
+  });
+  let load!: () => void;
+  const loading = new Promise<void>((resolve) => {
+    load = resolve;
+  });
+  const runtime = new HostRuntime({
+    config,
+    store: createConnectionStore(),
+    environment,
+    getSocket: () => {
+      throw new Error("No network");
+    },
+    disconnectSocket: () => {},
+    stores: [createScoreStore()],
+    simulation: () => loading.then(() => simulation),
+    settings: defineAirJamSettings({
+      ballSpeed: setting.number({
+        default: 600,
+        min: 100,
+        max: 1000,
+        live: true,
+      }),
+    }),
+    agent: {
+      gameId: "timeline",
+      contract: defineAirJamAgentContract({
+        stores: defineAirJamAgentStores({
+          default: agentStore<{ score: number }>(),
+        }),
+        projectSnapshot: () => ({}),
+        actions: {},
+      }),
+    },
+  });
+  const stop = runtime.start();
+  try {
+    await vi.advanceTimersByTimeAsync(0);
+    expect(runtime.roomId).toBe("ROOM1");
+    vi.setSystemTime(500);
+    socket.fire("server:controllerJoined", {
+      controllerId: "loading-phone",
+      source: "preview",
+      connected: true,
+      resumeLeaseExpiresAt: null,
+    });
+    vi.setSystemTime(1000);
+    load();
+    await runtime.ready;
+    socket.fire("server:state", {
+      roomId: "ROOM1",
+      state: { runtimeState: "playing" },
+    });
+    runtime.simulation!.advance(10);
+    vi.setSystemTime(2000);
+    socket.fire("server:state", {
+      roomId: "ROOM1",
+      state: { runtimeState: "paused" },
+    });
+    vi.setSystemTime(5000);
+    socket.fire("server:controllerJoined", {
+      controllerId: "phone",
+      source: "preview",
+      connected: true,
+      resumeLeaseExpiresAt: null,
+    });
+    vi.setSystemTime(6000);
+    runtime.updateSettings({ ballSpeed: 900 }, 0);
+    vi.setSystemTime(9000);
+    socket.fire("server:state", {
+      roomId: "ROOM1",
+      state: { runtimeState: "playing" },
+    });
+    const control = Reflect.get(
+      environment.controlTarget,
+      AIR_JAM_RUNTIME_CONTROL_KEY,
+    ) as HostRuntimeControl;
+    const result = await control.agent({
+      operation: "timeline-read",
+      roomId: "ROOM1",
+    });
+    if (
+      result.operation !== "timeline-read" ||
+      result.timeline.status !== "available"
+    )
+      throw new Error("Expected timeline");
+    expect(result.timeline.startedAt).toBe(1000);
+    expect(
+      result.timeline.entries
+        .filter((entry) => entry.kind === "join" || entry.kind === "settings")
+        .map(({ kind, at }) => ({ kind, at })),
+    ).toEqual([
+      { kind: "join", at: 500 },
+      { kind: "join", at: 5000 },
+      { kind: "settings", at: 6000 },
+    ]);
+    const recorded = runtime.inputLog();
+    expect(recorded.version).toBe(2);
+    expect(
+      recorded.entries
+        .filter(
+          (entry) =>
+            (entry.event === "server:controllerJoined" &&
+              entry.payload.controllerId === "phone") ||
+            entry.event === "airjam:settings",
+        )
+        .map((entry) => entry.tick),
+    ).toEqual([2, 2]);
+    expect(recorded.entries.every((entry) => !Reflect.has(entry, "at"))).toBe(
+      true,
+    );
+  } finally {
+    stop();
+    vi.useRealTimers();
+  }
+});

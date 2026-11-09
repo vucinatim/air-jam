@@ -2,34 +2,33 @@ import type { AirJamInputLog } from "../core/input-log";
 import type { SimulationPace } from "../core/simulation";
 import type { HostTimelineEntry, HostTimelinePace } from "./contracts/timeline";
 
-type Anchor = { tick: number; at: number; entry: number };
 const WINDOW_MS = 5_000;
 const RETENTION_MS = 30 * 60_000;
 
 /** Wall-time sensors only. Neither the input log nor replay reads these. */
 export class HostTimeline {
-  readonly startedAt: number;
-  private readonly anchors: Anchor[] = [];
+  startedAt: number;
+  // Only successfully appended recorder entries have a time; the input log bounds this map.
+  private readonly entryTimes = new Map<number, number>();
   private readonly moments: HostTimelineEntry[] = [];
   private readonly windows: HostTimelinePace[] = [];
   private momentSequence = 0;
   private sampledAt: number;
   private sampled: SimulationPace = { frames: 0, wallMs: 0, simulatedMs: 0 };
 
-  constructor(
-    at: number,
-    private readonly stepMs: number,
-  ) {
+  constructor(at: number) {
     this.startedAt = at;
     this.sampledAt = at;
   }
 
-  anchor(tick: number, entry: number, at: number, boundary = false) {
-    const last = this.anchors.at(-1);
-    if (!boundary && last && (tick - last.tick) * this.stepMs < 1000) return;
-    this.anchors.push({ tick, entry, at });
-    // Preserve the start for long recordings, with bounded boundary overhead.
-    if (this.anchors.length > 4096) this.anchors.splice(1, 1);
+  /** Start the loaded simulation without losing room events received during loading. */
+  start(at: number) {
+    this.startedAt = at;
+    this.sampledAt = at;
+  }
+
+  record(entry: number, at: number) {
+    this.entryTimes.set(entry, at);
   }
 
   moment(text: string | null | undefined, tick: number, at: number) {
@@ -67,34 +66,12 @@ export class HostTimeline {
     const names = new Map<string, string>();
     let state: unknown = "paused";
     let settings = { ...log.settings };
-    const anchors = [
-      ...this.anchors,
-      { tick: log.ticks + 1, entry: log.entries.length, at },
-    ];
-    let cursor = 0;
     for (const [index, entry] of log.entries.entries()) {
       const { tick, event, payload } = entry;
-      // Boundary positions distinguish pause and resume at the same future tick.
-      while (
-        cursor + 1 < anchors.length &&
-        (anchors[cursor + 1].tick < tick ||
-          (anchors[cursor + 1].tick === tick &&
-            anchors[cursor + 1].entry <= index))
-      )
-        cursor++;
-      const left = anchors[cursor];
-      const right = anchors[cursor + 1] ?? left;
-      const fraction =
-        right && left && right.tick > left.tick
-          ? Math.max(
-              0,
-              Math.min(1, (tick - left.tick) / (right.tick - left.tick)),
-            )
-          : 0;
-      const time = left
-        ? left.at + ((right?.at ?? left.at) - left.at) * fraction
-        : this.startedAt;
-      const base = { id: `input:${index}`, tick, at: time };
+      const recordedAt = this.entryTimes.get(index);
+      // Sampled controls have no timeline time and are not room facts.
+      if (recordedAt === undefined) continue;
+      const base = { id: `input:${index}`, tick, at: recordedAt };
       const player = payload.player as
         | { id?: string; label?: string }
         | undefined;

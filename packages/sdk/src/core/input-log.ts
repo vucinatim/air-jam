@@ -65,7 +65,7 @@ export class InputRecorder {
   private committedCount = 0;
   private frozen = false;
 
-  /** Position for wall-time anchors; never serialized into the replay log. */
+  /** Number of appended entries, used to index separate wall times; never serialized into the replay log. */
   get entryCount(): number {
     return this.entries.length;
   }

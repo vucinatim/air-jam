@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AirJamInputLog } from "../src/core/input-log";
 import {
   hostAgentRequestSchema,
@@ -21,11 +21,13 @@ const entry = (
   payload: Record<string, unknown>,
 ) => ({ tick, event, payload });
 
+afterEach(() => vi.useRealTimers());
+
 describe("host room timeline", () => {
   it("filters controls, actions, avatar-only player updates and duplicate states, retaining changed settings and names", () => {
-    const timeline = new HostTimeline(1000, 10);
-    timeline.anchor(1, 0, 1000);
-    timeline.anchor(101, 2, 2000);
+    const timeline = new HostTimeline(1000);
+    for (let index = 0; index < 11; index++)
+      timeline.record(index, index < 2 ? 1000 : 2000);
     timeline.moment("Red scored, 2 to 1", 50, 1500);
     const result = timeline.read(
       log([
@@ -75,26 +77,37 @@ describe("host room timeline", () => {
       { name: "Bea" },
     );
   });
-  it("interpolates between step anchors and separates pause/resume boundaries at the same tick", () => {
-    const timeline = new HostTimeline(1000, 10);
-    timeline.anchor(1, 0, 1000);
-    timeline.anchor(101, 2, 2000, true);
-    timeline.anchor(101, 3, 9000, true);
-    const result = timeline.read(
-      log([
-        entry(1, "server:state", { state: { runtimeState: "playing" } }),
-        entry(51, "server:controllerJoined", { controllerId: "phone" }),
-        entry(101, "server:state", { state: { runtimeState: "paused" } }),
-        entry(101, "server:state", { state: { runtimeState: "playing" } }),
-      ]),
-      11_000,
-    );
-    expect(result.entries.map((entry) => entry.at)).toEqual([
-      1000, 1500, 2000, 9000,
+  it("keeps the actual wall times of joins and settings received during a paused tick", () => {
+    vi.useFakeTimers();
+    const timeline = new HostTimeline(1000);
+    const times = [1000, 2000, 5000, 6000, 9000];
+    for (const [index, at] of times.entries()) {
+      vi.setSystemTime(at);
+      timeline.record(index, Date.now());
+    }
+    const recorded = log([
+      entry(1, "server:state", { state: { runtimeState: "playing" } }),
+      entry(101, "server:state", { state: { runtimeState: "paused" } }),
+      entry(101, "server:controllerJoined", { controllerId: "phone" }),
+      entry(101, "airjam:settings", { patch: { ballSpeed: 900 } }),
+      entry(101, "server:state", { state: { runtimeState: "playing" } }),
     ]);
+    const result = timeline.read(recorded, 11_000);
+    expect(result.entries.map(({ kind, at }) => ({ kind, at }))).toEqual([
+      { kind: "state", at: 1000 },
+      { kind: "state", at: 2000 },
+      { kind: "join", at: 5000 },
+      { kind: "settings", at: 6000 },
+      { kind: "state", at: 9000 },
+    ]);
+    expect(timeline.read(recorded, 30_000).entries).toEqual(result.entries);
+    expect(recorded.version).toBe(2);
+    expect(recorded.entries.every((entry) => !Reflect.has(entry, "at"))).toBe(
+      true,
+    );
   });
   it("retains only 200 declared moments and 30 minutes of five-second pace samples", () => {
-    const timeline = new HostTimeline(0, 10);
+    const timeline = new HostTimeline(0);
     timeline.moment(null, 0, 0);
     timeline.moment(undefined, 0, 0);
     for (let count = 1; count <= 400; count++) {

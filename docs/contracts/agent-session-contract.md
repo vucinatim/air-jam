@@ -568,10 +568,11 @@ with a load-local stable `id`, `tick` and epoch `at`. Controller facts include i
 player name; only actual name changes are included. Settings include changed `values`
 and `previousValues`; state entries mark actual pause/play changes. Controls and store
 actions are omitted. The host composes from the existing input log when asked, merging
-moments, and interpolates ticks between bounded wall-time anchors (roughly one per
-second of play plus pause/resume boundaries). It holds at most 4,096 anchors, retaining
-the first and retiring the oldest interior anchor if needed. Boundary positions separate
-pauses and resumes that share a tick. The retained input log keeps its own existing caps.
+moments. Room facts carry the epoch wall time they were recorded, even while the
+simulation is paused; moments carry the wall time of the step that emitted them.
+The host keeps a separate time keyed by input-log entry index only when the recorder
+actually appends that entry. These times share the input log's existing bounds and
+are never written into its version-2 format or used by replay.
 
 `pace` contains at most 360 five-second samples from the last 30 minutes: epoch `at`,
 `fps` (frames / active wall seconds) and `speed` (simulated ms / active wall ms), measured
