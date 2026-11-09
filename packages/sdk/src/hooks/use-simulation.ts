@@ -26,7 +26,7 @@ export const useSimulation = <TSim, TEvent = never>(): SimulationClock<
   return runtime.simulation as SimulationClock<TSim, unknown, TEvent>;
 };
 
-/** Calls `onFrame` after every simulation frame, for drawing. */
+/** Draws the current frame on subscription, then after every simulation frame. */
 export const useSimulationFrame = <TSim>(
   onFrame: (frame: SimulationFrame<TSim>) => void,
 ): void => {
@@ -35,7 +35,11 @@ export const useSimulationFrame = <TSim>(
   useEffect(() => {
     onFrameRef.current = onFrame;
   });
-  useEffect(() => clock.onFrame((frame) => onFrameRef.current(frame)), [clock]);
+  useEffect(() => {
+    const draw = (frame: SimulationFrame<TSim>) => onFrameRef.current(frame);
+    draw(clock.readFrame());
+    return clock.onFrame(draw);
+  }, [clock]);
 };
 
 /** Calls `listener` for every event the simulation emits, such as a hit. */

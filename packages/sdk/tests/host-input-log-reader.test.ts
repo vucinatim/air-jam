@@ -230,9 +230,25 @@ it.each([false, true])(
       if (loading) {
         release();
         await runtime.ready;
-        expect(
-          (await readHostInputLog(agent, observed.observation.identity)).status,
-        ).toBe("recorded");
+        const loaded = await agent({
+          operation: "observe",
+          roomId: "ROOM1",
+          controllerId: null,
+          scope: "diagnostic",
+          includeImage: false,
+        });
+        if (loaded.operation !== "observe")
+          throw new Error("Expected loaded observation.");
+        const recorded = await readHostInputLog(
+          agent,
+          loaded.observation.identity,
+          { scope: "diagnostic", controllerId: null },
+        );
+        expect(recorded.status).toBe("recorded");
+        if (recorded.status === "recorded") {
+          expect(recorded.observation?.ticks.after).toBe(recorded.log.ticks);
+          expect(recorded.observation?.runtime).toEqual({});
+        }
       }
     } finally {
       release();

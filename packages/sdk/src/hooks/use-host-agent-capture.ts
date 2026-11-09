@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useLayoutEffect, useRef } from "react";
 import type { HostObservationCapture } from "../core/host-runtime";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
@@ -24,11 +24,11 @@ export function useHostAgentCapture(capture: HostObservationCapture): void {
       },
     );
   const current = useRef(capture);
-  useEffect(() => {
+  useLayoutEffect(() => {
     current.current = capture;
   });
   const { setObservationCapture } = runtime;
-  useEffect(() => {
+  useLayoutEffect(() => {
     setObservationCapture((options) => current.current(options));
     return () => setObservationCapture(null);
   }, [setObservationCapture]);

@@ -244,12 +244,14 @@ export const openAirJamReplay = async (
           remainderMs -= steps * log.stepMs;
         } else steps = by.steps;
         const end = tick + Math.min(steps, log.ticks - tick);
-        while (tick < end) {
-          fireEntries(tick + 1);
-          clock.advance(log.stepMs);
-          tick += 1;
-        }
-        finish();
+        clock.batch(() => {
+          while (tick < end) {
+            fireEntries(tick + 1);
+            clock.advance(log.stepMs);
+            tick += 1;
+          }
+          finish();
+        });
         return tick;
       },
     };

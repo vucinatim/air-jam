@@ -35,6 +35,9 @@ export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
       roomId: roomCodeSchema,
       runtimeId: z.string().min(1),
       cut: inputLogCutSchema.nullable(),
+      observe: hostObservationRequestSchema
+        .pick({ controllerId: true, scope: true })
+        .optional(),
       fromEntry: z.number().int().nonnegative(),
     })
     .strict(),

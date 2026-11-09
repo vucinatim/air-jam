@@ -1,6 +1,8 @@
-import type { AirJamSocket } from "../context/socket-manager";
 import type { RoomCode, RunMode } from "../protocol";
-import type { AirJamRealtimeClient } from "../runtime/realtime-client";
+import type {
+  AirJamRealtimeClient,
+  DirectSocketGetter,
+} from "../runtime/realtime-client";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 
 /** A host's resumable room, kept across reloads where the platform allows. */
@@ -46,7 +48,7 @@ export interface AirJamHostEnvironment {
     roomId: RoomCode,
     capabilityToken: string | undefined,
   ): Promise<string>;
-  transport(getSocket: (role: "host") => AirJamSocket): AirJamRealtimeClient;
+  transport(getSocket: DirectSocketGetter<"host">): AirJamRealtimeClient;
   emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
   setDevLogContext(context: AirJamDevLogContext): void;
   /** A fresh seed for a game's simulation randomness. */
@@ -99,9 +101,7 @@ export interface AirJamControllerEnvironment {
   vibrate(pattern: number | number[]): void;
   /** Runs `callback` before the next display frame, so control changes send once per frame. */
   requestFrame(callback: () => void): void;
-  transport(
-    getSocket: (role: "controller") => AirJamSocket,
-  ): AirJamRealtimeClient;
+  transport(getSocket: DirectSocketGetter<"controller">): AirJamRealtimeClient;
   emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
   setDevLogContext(context: AirJamDevLogContext): void;
 }
