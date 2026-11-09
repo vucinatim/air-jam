@@ -1,5 +1,4 @@
 import type { StoreApi } from "zustand/vanilla";
-import type { AirJamSocket } from "../context/socket-manager";
 import type {
   ControllerJoinAck,
   ControllerLeaveAck,
@@ -30,7 +29,10 @@ import {
   resolveAdmissionRetry,
   type AdmissionRetryDecision,
 } from "../runtime/admission-retry";
-import type { AirJamRealtimeClient } from "../runtime/realtime-client";
+import type {
+  AirJamRealtimeClient,
+  DirectSocketGetter,
+} from "../runtime/realtime-client";
 import { generateControllerId } from "../utils/ids";
 import type { AirJamConnectionState } from "./connection-store";
 import { ControllerInput } from "./controller-input";
@@ -55,7 +57,7 @@ export interface ControllerRuntimeIdentityOptions {
 
 export interface ControllerRuntimeDependencies {
   store: StoreApi<AirJamConnectionState>;
-  getSocket: (role: "controller") => AirJamSocket;
+  getSocket: DirectSocketGetter<"controller">;
   disconnectSocket: (role: "controller") => void;
   environment: AirJamControllerEnvironment;
   /** The game's replicated stores; they mirror the host while the runtime runs. */

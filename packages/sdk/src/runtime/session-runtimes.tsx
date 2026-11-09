@@ -21,6 +21,7 @@ import {
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
+import { isAirJamReplayDocument } from "./browser-replay";
 import {
   publishRuntimeInspectionContract,
   readRuntimeInspectionContract,
@@ -28,6 +29,7 @@ import {
 import { publishEmbeddedHostAgent } from "./host-agent-bridge";
 import { LocalPlayersHost } from "./local-players";
 import { publishEmbeddedHostPreview } from "./preview-inspection-bridge";
+import { ReplayRuntime } from "./replay-runtime";
 import {
   controllerRuntimeContext,
   declaredStoresContext,
@@ -248,6 +250,22 @@ export const AirJamHostRuntime = ({
   ...providerProps
 }: AirJamHostRuntimeProps): JSX.Element | null => {
   if (!useInBrowser()) return null;
+  if (isAirJamReplayDocument())
+    return (
+      <HostSessionProvider {...providerProps}>
+        <ReplayRuntime
+          {...providerProps}
+          stores={stores}
+          simulation={simulation}
+          settings={settings}
+          input={input}
+          agent={agent}
+          gameId={gameId}
+        >
+          {children}
+        </ReplayRuntime>
+      </HostSessionProvider>
+    );
   return (
     <HostSessionProvider {...providerProps}>
       <PlatformSettingsBoundary>

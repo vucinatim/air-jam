@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -50,7 +51,8 @@ export function AudioRuntime<M extends SoundManifest>({
     null,
   );
 
-  useEffect(() => {
+  // Nested host drawing and capture hooks must mount within this layout commit.
+  useLayoutEffect(() => {
     const manager = new AudioManager<keyof M & string>(manifest);
     setManager(manager);
     return () => manager.destroy();

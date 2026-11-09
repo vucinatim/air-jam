@@ -1,6 +1,7 @@
 import type { AirJamSocket } from "../context/socket-manager";
 import { DirectRealtimeClient } from "../core/direct-realtime-client";
 import { AIRJAM_DEV_LOG_EVENTS, type RoomCode } from "../protocol";
+import { isAirJamReplayDocument } from "./browser-replay";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import { embeddedRuntimeParent } from "./embedded-parent";
 import {
@@ -481,7 +482,10 @@ class EmbeddedHostBridgeClient implements AirJamRealtimeClient {
 }
 
 let embeddedHostClient: EmbeddedHostBridgeClient | null = null;
-const directHostClients = new WeakMap<AirJamSocket, DirectRealtimeClient>();
+const directHostClients = new WeakMap<
+  AirJamSocket | AirJamRealtimeClient,
+  DirectRealtimeClient
+>();
 
 export const isEmbeddedHostRuntime = (): boolean =>
   readChildHostRuntimeParams() !== null;
@@ -489,8 +493,10 @@ export const isEmbeddedHostRuntime = (): boolean =>
 export const getHostRealtimeClient = (
   getSocket: DirectSocketGetter<"host">,
 ): AirJamRealtimeClient => {
-  if (!isEmbeddedHostRuntime()) {
+  if (!isEmbeddedHostRuntime() || isAirJamReplayDocument()) {
     const socket = getSocket("host");
+    // Replay contexts expose their existing memory transport, not Socket.IO.
+    if (isAirJamReplayDocument() && !("io" in socket)) return socket;
     const existing = directHostClients.get(socket);
     if (existing) {
       return existing;

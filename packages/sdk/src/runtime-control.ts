@@ -38,3 +38,5 @@ export {
   inputLogFailureReason,
   readHostInputLog,
 } from "./runtime/host-input-log-reader";
+
+export * from "./runtime/browser-replay";

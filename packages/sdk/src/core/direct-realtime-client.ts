@@ -8,7 +8,7 @@ const ACK_TIMEOUT_MS = 5_000;
 
 /** A realtime client straight over one socket, for pages and Node alike. */
 export class DirectRealtimeClient implements AirJamRealtimeClient {
-  constructor(private readonly socket: AirJamSocket) {}
+  constructor(private readonly socket: AirJamSocket | AirJamRealtimeClient) {}
 
   get connected(): boolean {
     return this.socket.connected;
@@ -50,7 +50,7 @@ export class DirectRealtimeClient implements AirJamRealtimeClient {
   emit(event: string, ...args: unknown[]): this {
     (
       this.socket.emit as unknown as (
-        this: AirJamSocket,
+        this: AirJamSocket | AirJamRealtimeClient,
         event: string,
         ...args: unknown[]
       ) => void
@@ -70,7 +70,7 @@ export class DirectRealtimeClient implements AirJamRealtimeClient {
 
       (
         this.socket.emit as unknown as (
-          this: AirJamSocket,
+          this: AirJamSocket | AirJamRealtimeClient,
           event: string,
           ...args: unknown[]
         ) => void

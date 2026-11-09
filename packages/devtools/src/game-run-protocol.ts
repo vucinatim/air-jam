@@ -5,6 +5,7 @@ import {
   hostAgentRequestSchema,
   hostObservationIdentitySchema,
   hostRuntimeFaultSchema,
+  inputLogNotReplayableReasonSchema,
 } from "@air-jam/sdk/runtime-control";
 import { z } from "zod";
 import { controllerDisconnectionSchema } from "./controller-protocol.js";
@@ -353,13 +354,23 @@ export const gameRunRecordSchema = z
           })
           .strict()
           .nullable(),
-        /** A headless run's input log, which replays the match. */
+        replay: z
+          .object({
+            reason: inputLogNotReplayableReasonSchema,
+            message: z.string(),
+          })
+          .strict()
+          .optional(),
+        /** The match input log paired with the final observation. */
         inputLog: z
           .object({
             path: z.string().min(1),
             sha256: z.string().regex(/^[a-f0-9]{64}$/),
             ticks: z.number().int().nonnegative(),
+            stepMs: z.number().positive(),
             entries: z.number().int().nonnegative(),
+            fromTick: z.number().int().nonnegative(),
+            full: z.boolean(),
           })
           .strict()
           .optional(),

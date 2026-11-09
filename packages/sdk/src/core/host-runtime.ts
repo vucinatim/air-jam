@@ -1,6 +1,5 @@
 import type { StoreApi } from "zustand/vanilla";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
-import type { AirJamSocket } from "../context/socket-manager";
 import { emitAirJamDiagnostic } from "../diagnostics";
 import type {
   ControllerInputEvent,
@@ -59,7 +58,10 @@ import {
   describeHostRuntimeFault,
   hostRuntimeFault,
 } from "../runtime/host-runtime-fault";
-import type { AirJamRealtimeClient } from "../runtime/realtime-client";
+import type {
+  AirJamRealtimeClient,
+  DirectSocketGetter,
+} from "../runtime/realtime-client";
 import type { AirJamConfig } from "./config";
 import {
   getReconnectingPlayerIds,
@@ -105,7 +107,7 @@ export interface HostRuntimeOptions {
 export interface HostRuntimeDependencies {
   config: AirJamConfig;
   store: StoreApi<AirJamConnectionState>;
-  getSocket: (role: "host") => AirJamSocket;
+  getSocket: DirectSocketGetter<"host">;
   disconnectSocket: (role: "host") => void;
   /** The game's declared controls, read in simulation steps. */
   input?: AirJamInput;
@@ -820,7 +822,7 @@ export class HostRuntime {
       : null;
     this.bindObservation(roomId);
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
-      now: () => this.environment.now(),
+      now: this.now,
       clips: this.clips,
       inputLog: (cut) => this.inputLog(cut),
       inputLogFull: () => this.inputLogFull,
@@ -888,8 +890,7 @@ export class HostRuntime {
     this.releaseObservation = null;
     const simulation = this.simulationDeclaration;
     const clock = this.simulation;
-    const observes = Boolean(simulation?.observe && clock);
-    if (!observes && !this.capture) return;
+    if (!clock && !this.capture) return;
     this.releaseObservation = registerHostObservationSurface(
       this.environment.controlTarget,
       roomId,
@@ -903,7 +904,7 @@ export class HostRuntime {
                 }),
                 tick: clock.ticks,
               }
-            : { state: {} },
+            : { state: {}, ...(clock ? { tick: clock.ticks } : {}) },
         ...(this.capture
           ? { capture: (options) => this.capture?.(options) ?? null }
           : {}),

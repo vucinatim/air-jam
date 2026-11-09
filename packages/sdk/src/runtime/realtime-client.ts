@@ -19,7 +19,7 @@ export type BridgeListener = {
 
 export type DirectSocketGetter<T extends "host" | "controller"> = (
   role: T,
-) => AirJamSocket;
+) => AirJamSocket | AirJamRealtimeClient;
 
 /** Socket.IO reconnects on its own after every disconnect except these deliberate ones. */
 export const isFinalSocketDisconnect = (reason: string | undefined): boolean =>

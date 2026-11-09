@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { useEffect, useState, type ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 import {
   defineAirJamSimulation,
   SimulationClock,
 } from "../src/core/simulation";
-import { useSimulationSelector } from "../src/hooks/use-simulation";
+import {
+  useSimulationFrame,
+  useSimulationSelector,
+} from "../src/hooks/use-simulation";
 import { hostRuntimeContext } from "../src/runtime/runtime-owner-contexts";
 
 const counter = defineAirJamSimulation<{ steps: number }>({
@@ -55,4 +58,53 @@ describe("useSimulationSelector", () => {
     act(() => clock.advance(60));
     expect(result.current).toBe(1);
   });
+});
+
+function Later({ depth, children }: { depth: number; children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  return mounted ? (
+    depth ? (
+      <Later depth={depth - 1}>{children}</Later>
+    ) : (
+      children
+    )
+  ) : null;
+}
+
+it("draws the current paused frame when a deeply deferred renderer subscribes, without advancing time", () => {
+  let state: "playing" | "paused" = "playing";
+  const clock = new SimulationClock(
+    counter,
+    {
+      beginStep: () => {},
+      input: () => undefined,
+      players: () => [],
+      reconnectingPlayerIds: () => [],
+      runtimeState: () => state,
+    },
+    1,
+  );
+  clock.advance(755);
+  state = "paused";
+  const draw = vi.fn();
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <hostRuntimeContext.Provider value={{ simulation: clock }}>
+      <Later depth={4}>{children}</Later>
+    </hostRuntimeContext.Provider>
+  );
+  const { unmount } = renderHook(() => useSimulationFrame(draw), { wrapper });
+  expect(draw).toHaveBeenCalledTimes(1);
+  expect(draw.mock.calls[0][0]).toMatchObject({
+    tick: 75,
+    sim: { steps: 75 },
+    alpha: 0.5,
+  });
+  expect(clock.ticks).toBe(75);
+  expect(clock.timeMs).toBe(750);
+  unmount();
+  act(() => clock.advance(0));
+  expect(draw).toHaveBeenCalledTimes(1);
 });

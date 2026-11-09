@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { airJamInputLogSchema } from "../../core/input-log";
+import { hostObservationSchema } from "./observation";
 import { hostObservationIdentitySchema } from "./runtime-identity";
 
 /** Serialized entry bytes one page aims for, so it fits the editor socket. */
@@ -16,6 +17,7 @@ export const inputLogCutSchema = z
 export const hostInputLogPageSchema = z
   .object({
     identity: hostObservationIdentitySchema,
+    observation: hostObservationSchema.optional(),
     header: airJamInputLogSchema.omit({ entries: true }),
     entryCount: z.number().int().nonnegative(),
     full: z.boolean(),
