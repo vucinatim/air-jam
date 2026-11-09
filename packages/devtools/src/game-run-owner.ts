@@ -64,6 +64,7 @@ import { startTestProfileProcess } from "./test-profile-process.js";
 import type {
   AirJamDecisionQuestion,
   AirJamPlayControl,
+  AirJamPolicyDecision,
   AirJamRunPlayers,
   AirJamRunReceipt,
   AirJamScenarioVerdict,
@@ -1581,6 +1582,7 @@ export class GameRunOwner {
     run.record.state = "playing";
     await this.persist(run);
     run.playStartedAt = clock.now();
+    const inFlight = new Map<string, Promise<void>>();
     let lastTick: number | null = null;
     let progressedAt = clock.now();
     while (!run.abort.signal.aborted) {
@@ -1588,7 +1590,8 @@ export class GameRunOwner {
       if (
         request.kind === "test" &&
         (this.elapsed(run) >= request.budget.durationMs ||
-          run.record.counters.steps >= request.budget.steps)
+          (run.record.counters.steps >= request.budget.steps &&
+            inFlight.size === 0))
       )
         return this.terminate(
           run,
@@ -1634,15 +1637,12 @@ export class GameRunOwner {
       }
       for (const seat of run.seats) {
         if (run.abort.signal.aborted) return;
+        if (inFlight.has(seat.id)) continue;
         if (
           request.kind === "test" &&
           run.record.counters.steps >= request.budget.steps
         )
-          return this.terminate(
-            run,
-            "budget",
-            "Run reached its decision budget.",
-          );
+          break;
         const started = performance.now();
         const observation = await this.observe(
           run,
@@ -1671,8 +1671,14 @@ export class GameRunOwner {
           );
         const step = ++run.record.counters.steps;
         const counters = this.seatRecord(run, seat).counters;
-        let control: AirJamPlayControl;
-        try {
+        const decisionStarted = performance.now();
+        const decisionDeadline =
+          decisionStarted +
+          Math.min(
+            profile.timing.decisionMs,
+            Math.max(1, run.deadline - decisionStarted),
+          );
+        const decision = (async () => {
           if (policy.busy()) {
             counters.blocked++;
             throw new Error("policy_busy: Previous decision has not returned.");
@@ -1684,14 +1690,7 @@ export class GameRunOwner {
           );
           seat.policyCursor = seat.sequence;
           counters.decisions++;
-          const decisionStarted = performance.now();
-          const decisionDeadline =
-            decisionStarted +
-            Math.min(
-              profile.timing.decisionMs,
-              Math.max(1, run.deadline - decisionStarted),
-            );
-          const decision = await policy.decide(
+          return policy.decide(
             {
               observation,
               seatId: seat.id,
@@ -1703,137 +1702,30 @@ export class GameRunOwner {
             },
             decisionDeadline - decisionStarted,
           );
-          if (run.abort.signal.aborted) return;
-          let answer: AnsweredDecision | undefined;
-          if ("ask" in decision) {
-            // A missed answer must not leave the previous choice to act on.
-            seat.lastAnswer = null;
-            answer = await this.answerFor(
-              run,
-              seat,
-              decision.ask,
-              decisionDeadline,
-            );
-            if (run.abort.signal.aborted) return;
-            control = answer.control;
-            seat.lastAnswer = {
-              choice: answer.choice,
-              confidence: answer.confidence,
-            };
-          } else control = decision.control;
-          if (run.abort.signal.aborted) return;
-          await this.trace(run, {
-            kind: "policy_decision",
-            seatId: seat.id,
-            step,
-            durationMs: performance.now() - decisionStarted,
-            ...(decision.diagnostics
-              ? { diagnostics: decision.diagnostics }
-              : {}),
-            ...(answer
-              ? {
-                  answer: {
-                    choice: answer.choice,
-                    confidence: answer.confidence,
-                    durationMs: answer.durationMs,
-                  },
-                }
-              : {}),
-          });
-          this.pruneReceipts(run);
-        } catch (error) {
-          if (run.abort.signal.aborted) return;
-          if (
-            !(error instanceof Error) ||
-            !/^(policy_(timeout|busy)|decision_failed):/.test(error.message)
-          )
-            throw error;
-          if (error.message.startsWith("policy_timeout:")) counters.timeout++;
-          run.record.counters.missed++;
-          const reason = error.message.slice(0, 300);
-          await this.trace(run, {
-            kind: "decision_missed",
-            seatId: seat.id,
-            step,
-            reason,
-          });
-          await this.control(
-            run,
-            seat,
-            observation,
-            { kind: "release" },
-            "play",
-          );
-          if (++seat.misses >= 3)
-            return this.terminate(
-              run,
-              "policy_unresponsive",
-              `Seat ${seat.id} missed three consecutive decision opportunities. Last: ${reason}`,
-            );
-          continue;
-        }
-        if (run.abort.signal.aborted) return;
-        seat.misses = 0;
-        const operation: ControllerLeasedControl["operation"] =
-          control.kind === "release"
-            ? { kind: "release" }
-            : control.kind === "input"
-              ? {
-                  ...control,
-                  ttlMs: profile.timing.inputTtlMs,
-                  deadlineMs: this.deadline(observation),
-                }
-              : { ...control, deadlineMs: this.deadline(observation) };
-        if (
-          operation.kind === "action" &&
-          request.kind === "test" &&
-          !run.record.profile?.actions.includes(operation.actionId)
-        )
-          throw new Error(
-            "policy_action_forbidden: Decision requested an action outside the profile.",
-          );
-        const receipt = await this.control(
-          run,
-          seat,
+        })();
+        const pending = this.playDecision(run, seat, {
           observation,
-          operation,
-          "play",
-        );
-        if (receipt.status === "unconfirmed")
-          throw new Error(`control_unconfirmed: ${receipt.reason}`);
-        if (receipt.status === "rejected") {
-          if (receipt.reason === "stale_identity")
-            return this.terminate(
-              run,
-              "runtime_replaced",
-              "The game runtime was replaced.",
-            );
-          if (receipt.reason !== "stale_decision")
-            throw new Error(`control_rejected: ${receipt.reason}`);
-          run.record.counters.missed++;
-          await this.control(
-            run,
-            seat,
-            observation,
-            { kind: "release" },
-            "play",
-          );
-          if (++seat.staleDecisions >= 3)
-            return this.terminate(
-              run,
-              "decision_latency",
-              `Seat ${seat.id} repeatedly arrived too late to apply.`,
-            );
-        } else seat.staleDecisions = 0;
-        await this.trace(run, {
-          kind: "decision",
-          seatId: seat.id,
           step,
-          observationId: observation.id,
-          tick,
-          durationMs: performance.now() - started,
-        });
+          started,
+          decisionStarted,
+          decisionDeadline,
+          decision,
+        })
+          .catch((error) => this.failed(run, error))
+          .finally(() => {
+            inFlight.delete(seat.id);
+          });
+        inFlight.set(seat.id, pending);
+        // The policy helper has one IPC channel; model answers run outside it.
+        await decision.catch(() => undefined);
       }
+      if (
+        inFlight.size > 0 &&
+        (inFlight.size === run.seats.length ||
+          (request.kind === "test" &&
+            run.record.counters.steps >= request.budget.steps))
+      )
+        await Promise.race(inFlight.values());
       await clock
         .wait(
           Math.max(0, profile.timing.intervalMs - (clock.now() - roundStarted)),
@@ -1843,6 +1735,150 @@ export class GameRunOwner {
           if (!run.abort.signal.aborted) throw error;
         });
     }
+  }
+  private async playDecision(
+    run: Run,
+    seat: RunSeat,
+    {
+      observation,
+      step,
+      started,
+      decisionStarted,
+      decisionDeadline,
+      decision: pendingDecision,
+    }: {
+      observation: HostObservation;
+      step: number;
+      started: number;
+      decisionStarted: number;
+      decisionDeadline: number;
+      decision: Promise<AirJamPolicyDecision>;
+    },
+  ) {
+    const profile = run.players;
+    if (!profile) throw new Error("Run players are not initialized.");
+    const request = run.record.request;
+    const tick = observation.ticks.after;
+    const counters = this.seatRecord(run, seat).counters;
+    let control: AirJamPlayControl;
+    try {
+      const decision = await pendingDecision;
+      if (run.abort.signal.aborted) return;
+      let answer: AnsweredDecision | undefined;
+      if ("ask" in decision) {
+        // A missed answer must not leave the previous choice to act on.
+        seat.lastAnswer = null;
+        answer = await this.answerFor(
+          run,
+          seat,
+          decision.ask,
+          decisionDeadline,
+        );
+        if (run.abort.signal.aborted) return;
+        control = answer.control;
+        seat.lastAnswer = {
+          choice: answer.choice,
+          confidence: answer.confidence,
+        };
+      } else control = decision.control;
+      if (run.abort.signal.aborted) return;
+      await this.trace(run, {
+        kind: "policy_decision",
+        seatId: seat.id,
+        step,
+        durationMs: performance.now() - decisionStarted,
+        ...(decision.diagnostics ? { diagnostics: decision.diagnostics } : {}),
+        ...(answer
+          ? {
+              answer: {
+                choice: answer.choice,
+                confidence: answer.confidence,
+                durationMs: answer.durationMs,
+              },
+            }
+          : {}),
+      });
+      this.pruneReceipts(run);
+    } catch (error) {
+      if (run.abort.signal.aborted) return;
+      if (
+        !(error instanceof Error) ||
+        !/^(policy_(timeout|busy)|decision_failed):/.test(error.message)
+      )
+        throw error;
+      if (error.message.startsWith("policy_timeout:")) counters.timeout++;
+      run.record.counters.missed++;
+      const reason = error.message.slice(0, 300);
+      await this.trace(run, {
+        kind: "decision_missed",
+        seatId: seat.id,
+        step,
+        reason,
+      });
+      await this.control(run, seat, observation, { kind: "release" }, "play");
+      if (++seat.misses >= 3)
+        return this.terminate(
+          run,
+          "policy_unresponsive",
+          `Seat ${seat.id} missed three consecutive decision opportunities. Last: ${reason}`,
+        );
+      return;
+    }
+    if (run.abort.signal.aborted) return;
+    seat.misses = 0;
+    const operation: ControllerLeasedControl["operation"] =
+      control.kind === "release"
+        ? { kind: "release" }
+        : control.kind === "input"
+          ? {
+              ...control,
+              ttlMs: profile.timing.inputTtlMs,
+              deadlineMs: this.deadline(observation),
+            }
+          : { ...control, deadlineMs: this.deadline(observation) };
+    if (
+      operation.kind === "action" &&
+      request.kind === "test" &&
+      !run.record.profile?.actions.includes(operation.actionId)
+    )
+      throw new Error(
+        "policy_action_forbidden: Decision requested an action outside the profile.",
+      );
+    const receipt = await this.control(
+      run,
+      seat,
+      observation,
+      operation,
+      "play",
+    );
+    if (receipt.status === "unconfirmed")
+      throw new Error(`control_unconfirmed: ${receipt.reason}`);
+    if (receipt.status === "rejected") {
+      if (receipt.reason === "stale_identity")
+        return this.terminate(
+          run,
+          "runtime_replaced",
+          "The game runtime was replaced.",
+        );
+      if (receipt.reason !== "stale_decision")
+        throw new Error(`control_rejected: ${receipt.reason}`);
+      run.record.counters.missed++;
+      await this.control(run, seat, observation, { kind: "release" }, "play");
+      if (++seat.staleDecisions >= 3)
+        return this.terminate(
+          run,
+          "decision_latency",
+          `Seat ${seat.id} repeatedly arrived too late to apply.`,
+        );
+    } else seat.staleDecisions = 0;
+    await this.trace(run, {
+      kind: "decision",
+      seatId: seat.id,
+      step,
+      observationId: observation.id,
+      tick,
+      durationMs: performance.now() - started,
+    });
   }
   private failed(run: Run, error: unknown) {
     if (run.abort.signal.aborted) return;
