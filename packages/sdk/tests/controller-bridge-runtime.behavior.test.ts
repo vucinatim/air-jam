@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ControllerRuntime,
+  createConnectionStore,
+  type AirJamControllerEnvironment,
+} from "../src/core";
 import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
 import {
   AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX,
   resolveRuntimeTopology,
   runtimeTopologyToQueryParams,
 } from "../src/runtime-topology";
+import { createControllerBridgeEventMessage } from "../src/runtime/controller-bridge";
 import {
   getControllerRealtimeClient,
   resetControllerRealtimeClientForTests,
@@ -15,12 +21,6 @@ import {
   AIRJAM_DEV_RUNTIME_EVENT,
   type AirJamDevRuntimeEventDetail,
 } from "../src/runtime/dev-runtime-events";
-import {
-  ControllerRuntime,
-  createConnectionStore,
-  type AirJamControllerEnvironment,
-} from "../src/core";
-import { createControllerBridgeEventMessage } from "../src/runtime/controller-bridge";
 import { frameInParent } from "./fixtures/framed-window";
 
 describe("embedded controller bridge runtime", () => {
@@ -539,7 +539,6 @@ describe("embedded controller bridge runtime", () => {
         requestedControllerId: "ctrl_1",
         capabilityToken: null,
         deviceId: "device-1",
-        leaveOnStop: false,
         runMode: "standalone",
         defaultStoreDomain: "default",
         readBinding: () => null,
@@ -602,7 +601,10 @@ describe("embedded controller bridge runtime", () => {
 
       port.postMessage(createControllerBridgeEventMessage("connect"));
       port.postMessage(
-        createControllerBridgeEventMessage("disconnect", "io server disconnect"),
+        createControllerBridgeEventMessage(
+          "disconnect",
+          "io server disconnect",
+        ),
       );
       await vi.waitFor(() =>
         expect(store.getState()).toMatchObject({
@@ -741,5 +743,4 @@ it("renders the acting controller through a read-only harness bridge without req
   window.removeEventListener(AIRJAM_DEV_RUNTIME_EVENT, recordRuntimeEvent);
   window.history.replaceState({}, "", "/");
   vi.restoreAllMocks();
-
 });

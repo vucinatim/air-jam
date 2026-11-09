@@ -102,6 +102,7 @@ describe("dev log summaries", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_summary_1",
         nickname: "Summary Controller",
@@ -216,6 +217,7 @@ describe("dev log summaries", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_idle_1",
         nickname: "Idle Controller",

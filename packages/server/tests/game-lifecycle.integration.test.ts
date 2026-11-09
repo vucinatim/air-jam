@@ -46,7 +46,12 @@ describe("server game lifecycle", () => {
     const joinAck = await harness.emitWithAck<{ ok: boolean }>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_launch_1", nickname: "Launch" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_launch_1",
+        nickname: "Launch",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -108,7 +113,12 @@ describe("server game lifecycle", () => {
     const joinAck = await harness.emitWithAck<{ ok: boolean }>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_embed_1", nickname: "Embed" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_embed_1",
+        nickname: "Embed",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -197,7 +207,12 @@ describe("server game lifecycle", () => {
     const joinAck = await harness.emitWithAck<{ ok: boolean }>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_close_1", nickname: "Closer" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_close_1",
+        nickname: "Closer",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -271,7 +286,12 @@ describe("server game lifecycle", () => {
     const joinAck = await harness.emitWithAck<{ ok: boolean }>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_switch_1", nickname: "Switcher" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_switch_1",
+        nickname: "Switcher",
+      },
     );
     expect(joinAck.ok).toBe(true);
 
@@ -389,7 +409,12 @@ describe("server game lifecycle", () => {
     const joinAck = await harness.emitWithAck<{ ok: boolean }>(
       controller,
       "controller:join",
-      { roomId, controllerId: "ctrl_rechild_1", nickname: "Rechild" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId,
+        controllerId: "ctrl_rechild_1",
+        nickname: "Rechild",
+      },
     );
     expect(joinAck.ok).toBe(true);
 

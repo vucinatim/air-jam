@@ -48,6 +48,7 @@ describe("room-scoped guest sockets", () => {
       guest,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId: room.roomId === "ABCD" ? "EFGH" : "ABCD",
         controllerId: "guest-phone",
       },
@@ -57,7 +58,11 @@ describe("room-scoped guest sockets", () => {
     const joined = await harness.emitWithAck<{ ok: boolean; roomId: string }>(
       guest,
       "controller:join",
-      { roomId: room.roomId, controllerId: "guest-phone" },
+      {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
+        roomId: room.roomId,
+        controllerId: "guest-phone",
+      },
     );
     expect(joined.ok).toBe(true);
     expect(joined.roomId).toBe(room.roomId);

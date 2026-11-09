@@ -29,7 +29,6 @@ it("joins a reloaded phone with its current seat label, separately from its ordi
         return {
           ok: true,
           controllerId: "phone-1",
-          resumeCapabilityToken: "resume",
         };
       }
       return { ok: true };

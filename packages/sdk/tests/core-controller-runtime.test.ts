@@ -24,7 +24,6 @@ const createMemoryEnvironment = (
     requestedControllerId: null,
     capabilityToken: null,
     deviceId: "device-1",
-    leaveOnStop: false,
     runMode: "standalone",
     defaultStoreDomain: "default",
     readBinding: (roomId) => bindings.get(roomId) ?? null,
@@ -43,6 +42,102 @@ const createMemoryEnvironment = (
 };
 
 describe("core controller runtime", () => {
+  it.each(["before", "after", "without server receipt of"] as const)(
+    "retains its seat when remounted %s the join acknowledgement",
+    (remount) => {
+      const firstSocket = createMemorySocket(() => undefined);
+      const { environment, bindings } = createMemoryEnvironment(firstSocket);
+      let acceptedToken: string | undefined;
+      let acknowledgeFirst: (() => void) | undefined;
+      const join = (payload: unknown) => {
+        const request = payload as {
+          controllerId: string;
+          resumeCapabilityToken: string;
+        };
+        if (acceptedToken && request.resumeCapabilityToken !== acceptedToken)
+          return { ok: false, message: "invalid_resume_authority" };
+        acceptedToken ??= request.resumeCapabilityToken;
+        return {
+          ok: true,
+          controllerId: request.controllerId,
+        };
+      };
+      firstSocket.emit.mockImplementation((event, ...argumentsList) => {
+        if (event === "controller:join") {
+          const answer =
+            remount === "without server receipt of"
+              ? { ok: true }
+              : join(argumentsList[0]);
+          const acknowledge = argumentsList.at(-1);
+          if (typeof acknowledge !== "function")
+            throw new Error("Expected join acknowledgement.");
+          acknowledgeFirst = () => acknowledge(answer);
+        }
+        return firstSocket;
+      });
+      const createRuntime = (runtimeEnvironment: AirJamControllerEnvironment) =>
+        new ControllerRuntime(
+          {
+            store: createConnectionStore(),
+            environment: runtimeEnvironment,
+            getSocket: () => {
+              throw new Error("The memory transport owns its socket.");
+            },
+            disconnectSocket: () => {},
+            stores: [],
+          },
+          { controllerId: "ctrl_remount" },
+        );
+      const first = createRuntime(environment);
+      const stopFirst = first.start();
+      if (!acknowledgeFirst) throw new Error("Expected initial join.");
+      if (remount === "after") {
+        acknowledgeFirst();
+        expect(bindings.get("ROOM1")?.resumeCapabilityToken).toBe(
+          acceptedToken,
+        );
+      }
+      expect(bindings.get("ROOM1")?.resumeCapabilityToken).toMatch(
+        /^[0-9a-f]{64}$/,
+      );
+      stopFirst();
+      expect(
+        firstSocket.emit.mock.calls.some(
+          ([event]) => event === "controller:leave",
+        ),
+      ).toBe(false);
+      firstSocket.disconnect();
+
+      const secondSocket = createMemorySocket((event, payload) =>
+        event === "controller:join" ? join(payload) : undefined,
+      );
+      const second = createRuntime({
+        ...environment,
+        transport: () => secondSocket,
+      });
+      const stopSecond = second.start();
+      try {
+        expect(second.store.getState()).toMatchObject({
+          controllerId: "ctrl_remount",
+          connectionStatus: "connected",
+          lastError: undefined,
+        });
+        expect(bindings.get("ROOM1")?.resumeCapabilityToken).toBe(
+          acceptedToken,
+        );
+        acknowledgeFirst();
+        expect(
+          secondSocket.emit.mock.calls.filter(
+            ([event]) => event === "controller:join",
+          ),
+        ).toHaveLength(1);
+      } finally {
+        stopSecond();
+      }
+    },
+    1000,
+  );
+
   it("joins a seat, follows the room and leaves without React or DOM", async () => {
     expect(typeof (globalThis as { window?: unknown }).window).toBe(
       "undefined",
@@ -52,7 +147,6 @@ describe("core controller runtime", () => {
         return {
           ok: true,
           controllerId: (payload as { controllerId: string }).controllerId,
-          resumeCapabilityToken: "seat-token",
         };
       if (event === "controller:leave") return { ok: true };
       throw new Error(`Unexpected ${event}`);
@@ -93,7 +187,7 @@ describe("core controller runtime", () => {
     );
     expect(bindings.get("ROOM1")).toEqual({
       controllerId: "ctrl_1",
-      resumeCapabilityToken: "seat-token",
+      resumeCapabilityToken: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
 
     const player = { id: "ctrl_1", label: "Ada" };
@@ -128,7 +222,6 @@ describe("core controller runtime", () => {
         return {
           ok: true,
           controllerId: (payload as { controllerId: string }).controllerId,
-          resumeCapabilityToken: "seat-token",
         };
       return undefined;
     });

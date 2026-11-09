@@ -11,6 +11,7 @@ import {
 } from "@air-jam/sdk/controller-bridge";
 import {
   agentValuesToInputState,
+  generateControllerResumeToken,
   type AirJamInputState,
 } from "@air-jam/sdk/core";
 import type {
@@ -130,7 +131,7 @@ type InternalControllerSession = {
   lastSignal: JsonObject | null;
   lastError: JsonObject | null;
   isolatedRuntimeOwner: ChildProcess | null;
-  resumeCapabilityToken: string | null;
+  resumeCapabilityToken: string;
   participantLeaseId: string | null;
   participantLastCommand: ControllerLeasedControl | null;
   participantControlPending: boolean;
@@ -1227,7 +1228,7 @@ export const connectController = async (
       lastSignal: null,
       lastError: null,
       isolatedRuntimeOwner: ownedRuntimeProcess,
-      resumeCapabilityToken: null,
+      resumeCapabilityToken: generateControllerResumeToken(),
       participantLeaseId: null,
       participantLastCommand: null,
       participantControlPending: false,
@@ -1247,8 +1248,7 @@ export const connectController = async (
           nickname: nickname?.trim() || undefined,
           avatarId: avatarId?.trim() || undefined,
           capabilityToken: resolvedCapabilityToken,
-          resumeCapabilityToken:
-            internalSession.resumeCapabilityToken ?? undefined,
+          resumeCapabilityToken: internalSession.resumeCapabilityToken,
         },
         timeoutMs,
       });
@@ -1259,9 +1259,6 @@ export const connectController = async (
             `Controller join was rejected${ack.code ? ` (${ack.code})` : ""}.`,
         );
       }
-
-      internalSession.resumeCapabilityToken =
-        ack.resumeCapabilityToken ?? internalSession.resumeCapabilityToken;
 
       internalSession.summary.connected = true;
       internalSession.summary.roomId = ack.roomId ?? resolvedRoomId;

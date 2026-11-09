@@ -87,8 +87,6 @@ export interface AirJamControllerEnvironment {
   readonly deviceId: string | null;
   /** Temporary local-seat name; the controller's ordinary nickname stays its own. */
   readonly localSeatLabel?: string | null;
-  /** Preview controllers leave their room when their runtime stops. */
-  readonly leaveOnStop: boolean;
   readonly runMode: RunMode;
   /** The store domain for stores that declare none. */
   readonly defaultStoreDomain: string;

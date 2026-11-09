@@ -304,6 +304,7 @@ describe("server auth and rate limiting", () => {
         ok: boolean;
         code?: ErrorCode | string;
       }>(controller, "controller:join", {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_limit_1",
         nickname: "Limiter",
@@ -315,6 +316,7 @@ describe("server auth and rate limiting", () => {
         ok: boolean;
         code?: ErrorCode | string;
       }>(controller, "controller:join", {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_limit_1",
         nickname: "Limiter",

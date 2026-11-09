@@ -160,3 +160,5 @@ export {
   defineAirJamTheme,
   type AirJamTheme,
 } from "./core/theme";
+
+export { generateControllerResumeToken } from "./utils/ids";

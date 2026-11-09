@@ -30,6 +30,7 @@ describe("leased player input transport", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "lease-player",
         deviceId: "aj-mcp-device-lease-player",

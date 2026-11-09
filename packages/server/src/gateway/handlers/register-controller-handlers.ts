@@ -15,7 +15,6 @@ import {
   type PlayerProfile,
 } from "@air-jam/sdk/protocol";
 import Color from "color";
-import { randomBytes } from "node:crypto";
 import { createRoomRuntimeUsageEvent } from "../../analytics/runtime-usage.js";
 import {
   beginRoomClosing,
@@ -286,8 +285,7 @@ export const registerControllerHandlers = (
         existing.retiredAt === undefined &&
         (existing.resumeLeaseExpiresAt === null ||
           existing.resumeLeaseExpiresAt > Date.now()) &&
-        (existing.socketId === socket.id ||
-          existing.resumeCapabilityToken === resumeCapabilityToken);
+        existing.resumeCapabilityToken === resumeCapabilityToken;
       if (existing && !isResumeCandidate) {
         logControllerEvent(
           "warn",
@@ -502,7 +500,7 @@ export const registerControllerHandlers = (
 
         controllerSession = {
           controllerId,
-          resumeCapabilityToken: randomBytes(32).toString("base64url"),
+          resumeCapabilityToken,
           deviceId,
           nickname,
           ...(localSeatLabel
@@ -575,7 +573,6 @@ export const registerControllerHandlers = (
         controllerId,
         roomId,
         resumed,
-        resumeCapabilityToken: controllerSession.resumeCapabilityToken,
       });
       socket.emit("server:welcome", {
         controllerId,

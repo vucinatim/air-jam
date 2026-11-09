@@ -1,3 +1,4 @@
+import { generateControllerResumeToken } from "@air-jam/sdk/core";
 import type { ControllerJoinAck } from "@air-jam/sdk/protocol";
 import { performance } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -262,7 +263,12 @@ const runBaselineScenario = async (
         const joinAck = await emitWithAck<ControllerJoinAck>(
           socket,
           "controller:join",
-          { roomId, controllerId, nickname: `Perf ${index}` },
+          {
+            roomId,
+            controllerId,
+            resumeCapabilityToken: generateControllerResumeToken(),
+            nickname: `Perf ${index}`,
+          },
         );
 
         if (!joinAck.ok) {
@@ -383,6 +389,7 @@ const runReconnectScenario = async (
 
           const controllerId = `ctrl_reconnect_${index}`;
           const deviceId = `device_reconnect_${index}`;
+          const resumeCapabilityToken = generateControllerResumeToken();
           const joinAck = await emitWithAck<ControllerJoinAck>(
             socket,
             "controller:join",
@@ -390,11 +397,12 @@ const runReconnectScenario = async (
               roomId,
               controllerId,
               deviceId,
+              resumeCapabilityToken,
               nickname: `Reconnect ${index}`,
             },
           );
 
-          if (!joinAck.ok || !joinAck.resumeCapabilityToken) {
+          if (!joinAck.ok) {
             throw new Error(
               `Initial reconnect scenario join failed for ${controllerId}`,
             );
@@ -404,7 +412,7 @@ const runReconnectScenario = async (
             socket,
             controllerId,
             deviceId,
-            resumeCapabilityToken: joinAck.resumeCapabilityToken,
+            resumeCapabilityToken,
           };
         },
       ),
@@ -449,11 +457,6 @@ const runReconnectScenario = async (
               failures += 1;
               return { socket, controllerId, deviceId, resumeCapabilityToken };
             }
-            if (!joinAck.resumeCapabilityToken) {
-              throw new Error(
-                `Reconnect acknowledgement omitted slot authority for ${controllerId}`,
-              );
-            }
             if (!joinAck.resumed) {
               resumedFailures += 1;
             }
@@ -462,7 +465,7 @@ const runReconnectScenario = async (
               socket,
               controllerId,
               deviceId,
-              resumeCapabilityToken: joinAck.resumeCapabilityToken,
+              resumeCapabilityToken,
             };
           },
         ),

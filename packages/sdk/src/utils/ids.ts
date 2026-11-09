@@ -56,3 +56,9 @@ export const generateControllerId = (): string => {
     CONTROLLER_ID_RANDOM_LENGTH,
   )}`;
 };
+
+/** Private seat authority: create once and retain across transport lifetimes. */
+export const generateControllerResumeToken = (): string =>
+  Array.from(crypto.getRandomValues(new Uint8Array(32)), (value) =>
+    value.toString(16).padStart(2, "0"),
+  ).join("");

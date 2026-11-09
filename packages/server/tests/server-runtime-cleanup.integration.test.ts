@@ -82,6 +82,7 @@ describe("server runtime cleanup", () => {
       controller,
       "controller:join",
       {
+        resumeCapabilityToken: "controller-test-secret-0000000000",
         roomId,
         controllerId: "ctrl_cleanup_1",
         nickname: "Cleanup",

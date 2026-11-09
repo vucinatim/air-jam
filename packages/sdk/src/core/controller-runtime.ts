@@ -33,7 +33,10 @@ import type {
   AirJamRealtimeClient,
   DirectSocketGetter,
 } from "../runtime/realtime-client";
-import { generateControllerId } from "../utils/ids";
+import {
+  generateControllerId,
+  generateControllerResumeToken,
+} from "../utils/ids";
 import type { AirJamConnectionState } from "./connection-store";
 import { ControllerInput } from "./controller-input";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
@@ -117,7 +120,6 @@ export class ControllerRuntime {
   private resumeBinding: ControllerRoomBinding | null = null;
   private lastObservedStateVersion: number | null = null;
   private readonly emittedInvariantKeys = new Set<string>();
-  private leaveIssued = false;
   private running = false;
   private releaseSession: (() => void) | null = null;
   private hostLeftTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -227,7 +229,6 @@ export class ControllerRuntime {
       this.releaseSession?.();
       this.releaseSession = null;
       for (const detach of detachStores) detach();
-      this.leaveOnStop();
       this.environment.setDevLogContext({
         role: undefined,
         roomId: undefined,
@@ -270,7 +271,6 @@ export class ControllerRuntime {
       state.setStatus("disconnected");
       state.resetRuntimeState();
     };
-    this.leaveIssued = true;
     if (this.environment.embedded) {
       socket.emit("controller:leave", payload.data);
       applyLocalLeave();
@@ -332,27 +332,6 @@ export class ControllerRuntime {
   private restartSession(): void {
     this.releaseSession?.();
     this.releaseSession = this.startSession();
-  }
-
-  private leaveOnStop(): void {
-    const socket = this.socket;
-    const controllerId = this.store.getState().controllerId;
-    if (
-      !this.environment.leaveOnStop ||
-      this.environment.embedded ||
-      !socket ||
-      !this.roomId ||
-      this.leaveIssued ||
-      !controllerId ||
-      !socket.connected
-    )
-      return;
-    this.leaveIssued = true;
-    socket.emit(
-      "controller:leave",
-      { roomId: this.roomId, controllerId },
-      () => {},
-    );
   }
 
   private vibrate(signal: SignalPayload): void {
@@ -462,9 +441,13 @@ export class ControllerRuntime {
     ): void => {
       if (disposed || epoch !== joinEpoch || !socket.connected || embedded)
         return;
-      const resumeBinding =
-        this.resumeBinding ??
-        this.environment.readBinding(roomId, controllerId);
+      const binding = this.resumeBinding ??
+        this.environment.readBinding(roomId, controllerId) ?? {
+          controllerId,
+          resumeCapabilityToken: generateControllerResumeToken(),
+        };
+      this.resumeBinding = binding;
+      this.environment.writeBinding(roomId, binding);
       const payload = controllerJoinSchema.parse({
         roomId,
         controllerId,
@@ -473,10 +456,7 @@ export class ControllerRuntime {
         localSeatLabel: this.environment.localSeatLabel ?? undefined,
         avatarId: this.avatarId || undefined,
         capabilityToken: this.capabilityToken ?? undefined,
-        resumeCapabilityToken:
-          resumeBinding?.controllerId === controllerId
-            ? resumeBinding.resumeCapabilityToken
-            : undefined,
+        resumeCapabilityToken: binding.resumeCapabilityToken,
       });
       this.emitRuntimeEvent({
         event: AIRJAM_DEV_LOG_EVENTS.runtime.controllerJoinRequested,
@@ -523,14 +503,6 @@ export class ControllerRuntime {
         }
         if (ack.controllerId) {
           state.setControllerId(ack.controllerId);
-          if (ack.resumeCapabilityToken) {
-            const binding = {
-              controllerId: ack.controllerId,
-              resumeCapabilityToken: ack.resumeCapabilityToken,
-            };
-            this.resumeBinding = binding;
-            this.environment.writeBinding(roomId, binding);
-          }
         }
         state.setError(undefined);
         state.setStatus("connected");

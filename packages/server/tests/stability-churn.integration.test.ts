@@ -78,6 +78,7 @@ describe("server stability churn", () => {
         controller,
         "controller:join",
         {
+          resumeCapabilityToken: "controller-test-secret-0000000000",
           roomId,
           controllerId,
           nickname: `Player ${i}`,
