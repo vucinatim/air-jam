@@ -43,6 +43,8 @@ export interface AirJamSimulation<
   stepMs: number;
   create(context: { random: () => number; settings: TSettings }): TSim;
   step(sim: TSim, context: AirJamStepContext<TInput, TEvent, TSettings>): void;
+  /** A short room-timeline line for an emitted event; omit sounds, hits and haptics. */
+  moment?(event: TEvent): string | null | undefined;
   /**
    * What agents and tests see of the simulation: plain JSON, read between
    * steps. The clock's tick is published with it.

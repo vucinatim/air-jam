@@ -58,6 +58,7 @@ import {
   describeHostRuntimeFault,
   hostRuntimeFault,
 } from "../runtime/host-runtime-fault";
+import { HostTimeline } from "../runtime/host-timeline";
 import type {
   AirJamRealtimeClient,
   DirectSocketGetter,
@@ -75,6 +76,7 @@ import {
   InputRecorder,
   type AirJamInputLog,
   type AirJamInputLogCut,
+  type AirJamInputLogEvent,
 } from "./input-log";
 import type { AttachableStore } from "./replicated-store";
 import {
@@ -163,6 +165,8 @@ export class HostRuntime {
   readonly input: HostInput | null;
   private readonly hostSettings: HostSettings;
   readonly settings: Pick<HostSettings, "declaration" | "read" | "subscribe">;
+  private timeline: HostTimeline | null = null;
+  private stepAt = 0;
   private readonly recorder: InputRecorder | null;
   private readonly seed: number;
   private readonly config: AirJamConfig;
@@ -236,6 +240,9 @@ export class HostRuntime {
       ? new HostInput(dependencies.input, () => this.environment.now())
       : null;
     this.recorder = dependencies.simulation ? new InputRecorder() : null;
+    this.timeline = dependencies.simulation
+      ? new HostTimeline(Date.now())
+      : null;
     this.environment = dependencies.environment;
     this.disconnectSocket = dependencies.disconnectSocket;
     this.stores = dependencies.stores;
@@ -248,6 +255,7 @@ export class HostRuntime {
       simulation: AirJamSimulation<unknown, unknown, unknown, SettingsValues>,
     ): void => {
       this.simulationDeclaration = simulation;
+      this.timeline?.start(Date.now());
       this.clock = new SimulationClock<
         unknown,
         unknown,
@@ -257,6 +265,7 @@ export class HostRuntime {
         simulation,
         {
           beginStep: (tick) => {
+            this.stepAt = Date.now();
             const changes = this.input?.sample() ?? [];
             this.recorder?.flush(
               tick,
@@ -278,6 +287,13 @@ export class HostRuntime {
         },
         seed,
       );
+      this.clock.onEvent((event) => {
+        this.timeline?.moment(
+          simulation.moment?.(event),
+          this.clock!.ticks,
+          this.stepAt,
+        );
+      });
     };
     const declared = dependencies.simulation;
     this.declaresSimulation = Boolean(declared);
@@ -360,7 +376,7 @@ export class HostRuntime {
         "AJ_SETTING_INVALID: Settings change once the game's simulation has loaded.",
       );
     return this.hostSettings.update(patch, expectedRevision, (revision) => {
-      this.recorder?.record("airjam:settings", {
+      this.recordRoomEvent("airjam:settings", {
         patch: { ...patch },
         revision,
       });
@@ -630,6 +646,7 @@ export class HostRuntime {
       if (this.frameFault) return;
       try {
         clock.frame(now);
+        this.timeline?.frame(Date.now(), clock.pace);
       } catch (error) {
         this.frameFault = hostRuntimeFault(error);
         stop();
@@ -785,6 +802,15 @@ export class HostRuntime {
     this.environment.setDevLogContext({ traceId });
   }
 
+  /** Wall time belongs only to entries the bounded recorder actually accepted. */
+  private recordRoomEvent(event: AirJamInputLogEvent, payload: object): void {
+    const recorder = this.recorder;
+    if (!recorder) return;
+    const index = recorder.entryCount;
+    recorder.record(event, payload);
+    if (recorder.entryCount > index) this.timeline?.record(index, Date.now());
+  }
+
   /** Records store actions applied between steps; a step's own actions replay with it. */
   private recordActions(): (() => void)[] {
     const recorder = this.recorder;
@@ -793,7 +819,7 @@ export class HostRuntime {
       store.subscribeHostActions(
         ({ actionName, payload, storeDomain, context }) => {
           if (this.clock?.stepping) return;
-          recorder.record("airjam:action_rpc", {
+          this.recordRoomEvent("airjam:action_rpc", {
             actionName,
             payload,
             storeDomain,
@@ -824,6 +850,18 @@ export class HostRuntime {
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
       now: this.now,
       clips: this.clips,
+      timeline: () =>
+        this.timeline && this.simulationDeclaration
+          ? {
+              status: "available" as const,
+              ...this.timeline.read(this.inputLog(), Date.now()),
+            }
+          : {
+              status: "unavailable" as const,
+              reason: this.declaresSimulation
+                ? ("simulation-loading" as const)
+                : ("no-simulation" as const),
+            },
       inputLog: (cut) => this.inputLog(cut),
       inputLogFull: () => this.inputLogFull,
       input: this.input ?? undefined,
@@ -1247,7 +1285,7 @@ export class HostRuntime {
     };
 
     const handleJoin = (payload: ControllerJoinedNotice): void => {
-      this.recorder?.record("server:controllerJoined", payload);
+      this.recordRoomEvent("server:controllerJoined", payload);
       store.getState().upsertControllerSession(payload);
       const player = payload.player;
       if (!player) return;
@@ -1256,7 +1294,7 @@ export class HostRuntime {
     };
 
     const handleLeave = (payload: { controllerId: string }): void => {
-      this.recorder?.record("server:controllerLeft", payload);
+      this.recordRoomEvent("server:controllerLeft", payload);
       this.input?.clearInput(payload.controllerId);
       const roomId = this.roomId;
       if (roomId)
@@ -1272,13 +1310,13 @@ export class HostRuntime {
     };
 
     const handleDisconnected = (payload: ControllerPresenceNotice): void => {
-      this.recorder?.record("server:controllerDisconnected", payload);
+      this.recordRoomEvent("server:controllerDisconnected", payload);
       this.input?.clearInput(payload.controllerId);
       store.getState().upsertControllerSession(payload);
     };
 
     const handlePlayerUpdated = (payload: PlayerUpdatedNotice): void => {
-      this.recorder?.record("server:playerUpdated", payload);
+      this.recordRoomEvent("server:playerUpdated", payload);
       const state = store.getState();
       state.upsertPlayer(payload.player);
       const existing = state.controllerSessions.find(
@@ -1294,7 +1332,7 @@ export class HostRuntime {
 
     const handleState = (payload: ControllerStateMessage): void => {
       if (payload.roomId !== this.roomId) return;
-      this.recorder?.record("server:state", payload);
+      this.recordRoomEvent("server:state", payload);
       this.observeRoomState(payload);
     };
 

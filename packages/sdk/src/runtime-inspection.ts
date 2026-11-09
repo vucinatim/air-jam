@@ -14,3 +14,8 @@ export {
   requestHostPreviewSnapshot,
   type HostPreviewSnapshot,
 } from "./runtime/preview-inspection-bridge";
+
+export {
+  readControllerAgentResult,
+  requestControllerAgent,
+} from "./runtime/controller-agent-bridge";

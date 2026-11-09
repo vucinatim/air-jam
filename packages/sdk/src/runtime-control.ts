@@ -40,3 +40,7 @@ export {
 } from "./runtime/host-input-log-reader";
 
 export * from "./runtime/browser-replay";
+
+export * from "./runtime/contracts/timeline";
+
+export * from "./runtime/contracts/controller-agent";

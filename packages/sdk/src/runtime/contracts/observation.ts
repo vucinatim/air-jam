@@ -152,7 +152,13 @@ export const hostObservationSchema = z.object({
     }),
     z.object({
       status: z.literal("unavailable"),
-      reason: z.enum(["not-requested", "unsupported", "surface-unavailable"]),
+      reason: z.enum([
+        "not-requested",
+        "unsupported",
+        "surface-unavailable",
+        "timeout",
+      ]),
+      detail: z.string().max(1024).optional(),
     }),
   ]),
 });

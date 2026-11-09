@@ -32,6 +32,11 @@ import {
   notifyHostRuntimeChanged,
   subscribeHostRuntimeChanges,
 } from "./runtime-identity";
+import type { HostTimeline } from "./timeline";
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
+  ? Omit<T, K>
+  : never;
 
 /** Callable only inside the owning browser realm; never a network endpoint. */
 export const AIR_JAM_RUNTIME_CONTROL_KEY = "__AIR_JAM_RUNTIME_CONTROL__";
@@ -73,6 +78,7 @@ type ActionStore = {
 };
 
 type ParticipantReceiver = {
+  timeline?: () => DistributiveOmit<HostTimeline, "identity">;
   clips?: HostClipRecorder;
   inputLog?: (cut?: AirJamInputLogCut) => AirJamInputLog;
   inputLogFull?: () => boolean;
@@ -243,6 +249,16 @@ function controlEntry(target: object) {
                 };
               },
             }),
+          };
+        }
+        if (request.operation === "timeline-read") {
+          const identity = readHostRuntimeIdentity(target, request.roomId);
+          const receiver = receivers.get(request.roomId);
+          if (!identity || !receiver?.timeline)
+            throw new Error("host_unavailable: No live host owns this room.");
+          return {
+            operation: "timeline-read",
+            timeline: { ...receiver.timeline(), identity },
           };
         }
         if (request.operation === "input-log-read") {

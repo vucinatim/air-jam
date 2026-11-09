@@ -551,6 +551,59 @@ capability report an unsupported image, and an unmounted canvas reports an
 unavailable surface. No replacement host or generated image stands in for the
 requested game.
 
+### Room timeline and simulation moments
+
+The optional `AirJamSimulation.moment(event): string | null | undefined` names an event
+already emitted by a simulation step: for example `"Red scored, 2 to 1"`. Return nothing
+for sounds, hits and haptics. The host retains at most 200 moments from this load, each
+with its emitting tick and the step's epoch wall time. Air Capture declares match start,
+team score (with both scores) and match win. Moments are observation data, never input-log
+entries; version-2 logs and replay behavior are unchanged.
+
+The read-only host-agent request `{ operation: "timeline-read", roomId }` returns
+`{ operation: "timeline-read", timeline }`. An available timeline has runtime `identity`,
+`startedAt` (epoch ms of simulation creation), `stepMs`, oldest-first `entries` and `pace`.
+Entry kinds are `join`, `drop`, `leave`, `name`, `state`, `settings` and `moment`, each
+with a load-local stable `id`, `tick` and epoch `at`. Controller facts include identity and
+player name; only actual name changes are included. Settings include changed `values`
+and `previousValues`; state entries mark actual pause/play changes. Controls and store
+actions are omitted. The host composes from the existing input log when asked, merging
+moments. Room facts carry the epoch wall time they were recorded, even while the
+simulation is paused; moments carry the wall time of the step that emitted them.
+The host keeps a separate time keyed by input-log entry index only when the recorder
+actually appends that entry. These times share the input log's existing bounds and
+are never written into its version-2 format or used by replay.
+
+`pace` contains at most 360 five-second samples from the last 30 minutes: epoch `at`,
+`fps` (frames / active wall seconds) and `speed` (simulated ms / active wall ms), measured
+from the real host clock's existing pace counters. Paused-only windows add no false
+slowdown. Without a simulation the timeline explicitly says `status: "unavailable"`,
+`reason: "no-simulation"`; a pending loader says `"simulation-loading"`.
+
+### Capturing a mounted controller
+
+A framed preview controller accepts `AIRJAM_CONTROLLER_AGENT` only from its configured
+parent and origin. The request carries a bounded `requestId` and
+`{ operation: "capture", roomId, controllerId }`; the response
+`AIRJAM_CONTROLLER_AGENT_RESULT` echoes all identities and returns `capture`. The public
+`requestControllerAgent` and `readControllerAgentResult` helpers in
+`@air-jam/sdk/runtime-inspection` validate that channel; its schemas and
+`ControllerCapture` live in `@air-jam/sdk/runtime-control`.
+
+The controller renders its own visible document, including canvas pixels, to JPEG with
+`coverage: "controller-view"`, longest edge at most 1280 px and the existing
+`HOST_OBSERVATION_IMAGE_BYTES` budget. The MIT-licensed
+[html-to-image](https://github.com/bubkoo/html-to-image) renderer is imported only on
+capture. Ordinary controller loads do not fetch it. One capture runs at a time, with its own
+`CONTROLLER_CAPTURE_TIMEOUT_MS = 10_000` deadline, exported from
+`@air-jam/sdk/runtime-control`. Embedding editors and servers must wait longer than
+the layer inside them so a timed-out capture returns its reason and detail. Host
+observations keep their separate three-second deadline; `unsupported`, `surface-unavailable` and
+`timeout` are explicit unavailable reasons. A parent must report a missing mounted phone
+honestly, never replace it with a host capture or another controller.
+
+### Clips
+
 Clips use that same capture surface and host-agent channel, without a room grant:
 `clip-start {roomId, runtimeId, clipId}` starts in the background;
 `clip-read {roomId, clipId, stop, fromFrame}` stops and reads pages. Stop before

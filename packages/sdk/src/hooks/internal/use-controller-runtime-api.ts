@@ -11,6 +11,7 @@ import {
   createBrowserControllerEnvironment,
   listenForPreviewClose,
 } from "../../runtime/browser-controller-environment";
+import { publishEmbeddedControllerAgent } from "../../runtime/controller-agent-bridge";
 import { listenForLocalSeatInput } from "../../runtime/local-seats";
 import type {
   AirJamControllerOptions,
@@ -70,6 +71,7 @@ export const useControllerRuntimeApi = (
   );
 
   useEffect(() => runtime.start(), [runtime]);
+  useEffect(() => publishEmbeddedControllerAgent(runtime), [runtime]);
 
   // A phone that loses focus can no longer release what it holds.
   useEffect(() => {

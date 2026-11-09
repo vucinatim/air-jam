@@ -92,6 +92,9 @@ export interface AirCaptureSim {
 }
 
 export type AirCaptureEvent =
+  | { type: "match-started" }
+  | { type: "team-scored"; teamId: TeamId; scores: Record<TeamId, number> }
+  | { type: "match-won"; teamId: TeamId }
   | { type: "sound"; sound: HostSfxId }
   | {
       type: "haptic";

@@ -52,3 +52,13 @@ than expecting tools to infer state from component trees or debug globals.
 2. Prefer semantic runtime facts over transport internals.
 3. Keep reading surfaces machine-friendly and stable.
 4. Do not collapse inspection and control into one muddy abstraction.
+
+## Timeline and controller capture
+
+The host-agent `timeline-read` request reads this simulation load's room facts, declared
+`AirJamSimulation.moment(event)` lines and five-second real host fps/speed windows. It
+changes no room or replay state. Controllers expose a separate
+`AIRJAM_CONTROLLER_AGENT` capture channel to their configured preview parent, returning
+a bounded JPEG of that exact controller document or an explicit unavailable reason.
+The [agent session contract](./agent-session-contract.md#room-timeline-and-simulation-moments)
+owns schemas, timing, limits and capture failure semantics.

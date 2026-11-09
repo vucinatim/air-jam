@@ -65,6 +65,11 @@ export class InputRecorder {
   private committedCount = 0;
   private frozen = false;
 
+  /** Number of appended entries, used to index separate wall times; never serialized into the replay log. */
+  get entryCount(): number {
+    return this.entries.length;
+  }
+
   get full(): boolean {
     return this.frozen;
   }

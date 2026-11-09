@@ -186,11 +186,14 @@ const startRound = (sim: AirCaptureSim, random: () => number) => {
 export const followMatchPhase = (
   sim: AirCaptureSim,
   random: () => number,
+  emit: Emit,
 ): void => {
   const { matchPhase } = prototypeMatchStore.getState();
   if (matchPhase === sim.matchPhase) return;
-  if (!isMatchActive(sim.matchPhase) && isMatchActive(matchPhase))
+  if (!isMatchActive(sim.matchPhase) && isMatchActive(matchPhase)) {
     startRound(sim, random);
+    emit({ type: "match-started" });
+  }
   sim.countdownStartedAt = matchPhase === "countdown" ? sim.time : null;
   sim.matchPhase = matchPhase;
 };
@@ -220,4 +223,5 @@ export const decideMatch = (sim: AirCaptureSim, emit: Emit): void => {
     finalScores: { ...sim.ctf.scores },
   });
   emit({ type: "sound", sound: "success" });
+  emit({ type: "match-won", teamId: winner });
 };
