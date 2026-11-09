@@ -12,6 +12,8 @@ import {
 import { clipReadSchema } from "./clip";
 import { hostInputLogPageSchema, inputLogCutSchema } from "./input-log";
 
+import { hostTimelineSchema } from "./timeline";
+
 const identity = z.object({
   roomId: roomCodeSchema,
   controllerId: z.string().min(1),
@@ -29,6 +31,9 @@ const actionRequest = identity.extend({
     .optional(),
 });
 export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
+  z
+    .object({ operation: z.literal("timeline-read"), roomId: roomCodeSchema })
+    .strict(),
   z
     .object({
       operation: z.literal("input-log-read"),
@@ -108,6 +113,12 @@ export const hostAgentSnapshotSchema = agentContractDescriptionSchema.extend({
 });
 
 export const hostAgentResponseSchema = z.discriminatedUnion("operation", [
+  z
+    .object({
+      operation: z.literal("timeline-read"),
+      timeline: hostTimelineSchema,
+    })
+    .strict(),
   z
     .object({
       operation: z.literal("input-log-read"),

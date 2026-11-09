@@ -58,6 +58,7 @@ import {
   describeHostRuntimeFault,
   hostRuntimeFault,
 } from "../runtime/host-runtime-fault";
+import { HostTimeline } from "../runtime/host-timeline";
 import type {
   AirJamRealtimeClient,
   DirectSocketGetter,
@@ -163,6 +164,8 @@ export class HostRuntime {
   readonly input: HostInput | null;
   private readonly hostSettings: HostSettings;
   readonly settings: Pick<HostSettings, "declaration" | "read" | "subscribe">;
+  private timeline: HostTimeline | null = null;
+  private stepAt = 0;
   private readonly recorder: InputRecorder | null;
   private readonly seed: number;
   private readonly config: AirJamConfig;
@@ -248,6 +251,7 @@ export class HostRuntime {
       simulation: AirJamSimulation<unknown, unknown, unknown, SettingsValues>,
     ): void => {
       this.simulationDeclaration = simulation;
+      this.timeline = new HostTimeline(Date.now(), simulation.stepMs);
       this.clock = new SimulationClock<
         unknown,
         unknown,
@@ -257,6 +261,13 @@ export class HostRuntime {
         simulation,
         {
           beginStep: (tick) => {
+            this.stepAt = Date.now();
+            if (!this.recorder?.full)
+              this.timeline?.anchor(
+                tick,
+                this.recorder?.entryCount ?? 0,
+                this.stepAt,
+              );
             const changes = this.input?.sample() ?? [];
             this.recorder?.flush(
               tick,
@@ -278,6 +289,13 @@ export class HostRuntime {
         },
         seed,
       );
+      this.clock.onEvent((event) => {
+        this.timeline?.moment(
+          simulation.moment?.(event),
+          this.clock!.ticks,
+          this.stepAt,
+        );
+      });
     };
     const declared = dependencies.simulation;
     this.declaresSimulation = Boolean(declared);
@@ -630,6 +648,7 @@ export class HostRuntime {
       if (this.frameFault) return;
       try {
         clock.frame(now);
+        this.timeline?.frame(Date.now(), clock.pace);
       } catch (error) {
         this.frameFault = hostRuntimeFault(error);
         stop();
@@ -824,6 +843,18 @@ export class HostRuntime {
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
       now: this.now,
       clips: this.clips,
+      timeline: () =>
+        this.timeline
+          ? {
+              status: "available" as const,
+              ...this.timeline.read(this.inputLog(), Date.now()),
+            }
+          : {
+              status: "unavailable" as const,
+              reason: this.declaresSimulation
+                ? ("simulation-loading" as const)
+                : ("no-simulation" as const),
+            },
       inputLog: (cut) => this.inputLog(cut),
       inputLogFull: () => this.inputLogFull,
       input: this.input ?? undefined,
@@ -1294,6 +1325,18 @@ export class HostRuntime {
 
     const handleState = (payload: ControllerStateMessage): void => {
       if (payload.roomId !== this.roomId) return;
+      if (
+        !this.recorder?.full &&
+        payload.state.runtimeState !== undefined &&
+        payload.state.runtimeState !== store.getState().runtimeState
+      ) {
+        this.timeline?.anchor(
+          (this.clock?.ticks ?? 0) + 1,
+          this.recorder?.entryCount ?? 0,
+          Date.now(),
+          true,
+        );
+      }
       this.recorder?.record("server:state", payload);
       this.observeRoomState(payload);
     };

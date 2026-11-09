@@ -594,12 +594,18 @@ describe("core host runtime", () => {
     const loaded = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const walker = defineAirJamSimulation<{ x: number }>({
+    const walker = defineAirJamSimulation<
+      { x: number },
+      unknown,
+      { type: "round" }
+    >({
       stepMs: 10,
       create: () => ({ x: 0 }),
-      step: (sim) => {
+      step: (sim, { emit }) => {
         sim.x += 1;
+        if (sim.x === 3) emit({ type: "round" });
       },
+      moment: () => "Round started",
       observe: (sim) => ({ x: sim.x }),
     });
     const runtime = new HostRuntime({
@@ -646,6 +652,34 @@ describe("core host runtime", () => {
       runtime: { x: 3 },
       ticks: { after: 3 },
     });
+    const timeline = await control.agent({
+      operation: "timeline-read",
+      roomId: "ROOM1",
+    });
+    expect(timeline).toMatchObject({
+      operation: "timeline-read",
+      timeline: {
+        status: "available",
+        stepMs: 10,
+        entries: expect.arrayContaining([
+          {
+            id: "moment:1",
+            kind: "moment",
+            text: "Round started",
+            tick: 3,
+            at: expect.any(Number),
+          },
+        ]),
+      },
+    });
+    expect(
+      runtime
+        .inputLog()
+        .entries.every(
+          (entry) =>
+            !Reflect.has(entry, "at") && !Reflect.has(entry.payload, "moment"),
+        ),
+    ).toBe(true);
     stop();
   });
 

@@ -202,9 +202,10 @@ const enterBases = (sim: AirCaptureSim, random: () => number, emit: Emit) => {
           generateRandomBasePositions(random),
         );
         sim.ctf = result.state;
-        if (result.outcome === "scoredPoint")
+        if (result.outcome === "scoredPoint") {
           emit({ type: "sound", sound: "score_point" });
-        else if (result.outcome === "returnedFriendlyFlag")
+          emit({ type: "team-scored", teamId, scores: { ...sim.ctf.scores } });
+        } else if (result.outcome === "returnedFriendlyFlag")
           emit({ type: "sound", sound: "success" });
         else if (result.outcome === "pickedUpEnemyFlag")
           emit({ type: "sound", sound: "pickup_flag" });

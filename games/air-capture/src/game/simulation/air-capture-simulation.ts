@@ -1,4 +1,5 @@
 import type { AirCaptureSettings } from "../contracts/settings";
+import { TEAM_CONFIG, TEAM_IDS } from "../domain/team";
 /**
  * Air Capture's authoritative simulation, stepped by the SDK clock on the
  * host. It owns the whole match: the physics world, ships, weapons, pickups,
@@ -93,6 +94,14 @@ export const airCaptureSimulation = defineAirJamSimulation<
   AirCaptureEvent,
   AirCaptureSettings
 >({
+  moment: (event) => {
+    if (event.type === "match-started") return "Match started";
+    if (event.type === "team-scored")
+      return `${TEAM_CONFIG[event.teamId].label} scored, ${TEAM_IDS.map((id) => event.scores[id]).join(" to ")}`;
+    if (event.type === "match-won")
+      return `${TEAM_CONFIG[event.teamId].label} won the match`;
+    return null;
+  },
   stepMs: AIR_CAPTURE_STEP_MS,
   create: ({ random, settings }) => ({
     settings,
@@ -117,7 +126,7 @@ export const airCaptureSimulation = defineAirJamSimulation<
   step: (sim, context) => {
     sim.settings = context.settings;
     syncRoster(sim, context.players, context.random, context.emit);
-    followMatchPhase(sim, context.random);
+    followMatchPhase(sim, context.random, context.emit);
     if (!isMatchActive(sim.matchPhase)) return;
 
     const delta = context.dtSeconds;
