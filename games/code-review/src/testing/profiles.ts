@@ -148,10 +148,6 @@ export const testing = defineAirJamTesting({
       setup: [
         // The room may hold an earlier match; every run starts from the lobby.
         { lane: "participant", seatId: "coder1", actionId: "return_to_lobby" },
-        join("coder1", "team1"),
-        join("coder2", "team1"),
-        join("reviewer1", "team2"),
-        join("reviewer2", "team2"),
         {
           lane: "participant",
           seatId: "coder1",
@@ -164,6 +160,10 @@ export const testing = defineAirJamTesting({
           actionId: "set_bot_count",
           input: { team: "team2", count: 0 },
         },
+        join("coder1", "team1"),
+        join("coder2", "team1"),
+        join("reviewer1", "team2"),
+        join("reviewer2", "team2"),
         { lane: "participant", seatId: "coder1", actionId: "start_match" },
       ],
       actions: [],

@@ -98,7 +98,7 @@ it("refuses current-room admission without delegated access and refuses access o
 });
 
 it("refuses a profile that needs more seats than the creator's room issued", async () => {
-  const f = await twoSeatFixture();
+  const f = await seatFixture();
   f.request.target = { kind: "current" };
   await f.owner.start(f.request, attachment());
   const record = await f.ended();
@@ -107,7 +107,7 @@ it("refuses a profile that needs more seats than the creator's room issued", asy
 });
 
 it("seats several agents in the creator's room and runs host setup through it", async () => {
-  const f = await twoSeatFixture();
+  const f = await seatFixture();
   io.startPolicy.mockImplementation(async (options) => ({
     profiles: [
       {
@@ -143,17 +143,26 @@ it("seats several agents in the creator's room and runs host setup through it", 
   ]);
 });
 
-async function twoSeatFixture() {
-  const f = await fixture();
-  const twoSeats = {
+async function seatFixture({
+  decisions,
+  seatCount = 2,
+  decisionMs = profile.timing.decisionMs,
+}: {
+  decisions?: DecisionProvider["ask"];
+  seatCount?: number;
+  decisionMs?: number;
+} = {}) {
+  const f = await fixture({ decisions });
+  const players = {
     ...structuredClone(profile),
-    seats: [
-      { id: "left", label: "Left" },
-      { id: "right", label: "Right" },
-    ],
+    timing: { ...profile.timing, decisionMs },
+    seats: Array.from({ length: seatCount }, (_, index) => ({
+      id: ["left", "right"][index] ?? `seat${index + 1}`,
+      label: `Player ${index + 1}`,
+    })),
   };
   io.startPolicy.mockImplementation(async (options) => ({
-    profiles: [twoSeats],
+    profiles: [players],
     decide: io.decide,
     evaluate: io.evaluate,
     busy: () => false,
@@ -179,10 +188,30 @@ async function twoSeatFixture() {
     }),
     forceClose: vi.fn(),
   };
-  f.session.addParticipant = vi.fn(async () => extra);
+  let participants = 1;
+  f.session.addParticipant = vi.fn(async () => {
+    participants++;
+    if (participants === 2) return extra;
+    const controllerId = `controller${participants}`;
+    return {
+      ...extra,
+      controllerId,
+      observe: vi.fn(async (options) => ({
+        ...(await f.session.observe(options)),
+        controllerId,
+      })),
+      control: vi.fn(f.session.control),
+    };
+  });
   f.session.readParticipants = vi.fn(async () => ({
     roomId: "ROOM",
-    controllerIds: ["player", "second"],
+    controllerIds: Array.from({ length: seatCount }, (_, index) =>
+      index === 0
+        ? "player"
+        : index === 1
+          ? "second"
+          : `controller${index + 1}`,
+    ),
   }));
   return { ...f, extra };
 }
@@ -672,7 +701,7 @@ it("Stop kills the actor before release while the independent evaluator still ju
 });
 
 it("binds two actual players to one owned session and leaves extras before closing the host", async () => {
-  const f = await twoSeatFixture();
+  const f = await seatFixture();
   const extra = f.extra;
   io.decide.mockResolvedValue({ control: { kind: "action", actionId: "tap" } });
   const effects = new Set<string>();
@@ -753,7 +782,7 @@ it("classifies the SDK's capture-time identity rejection as runtime replacement"
 });
 
 it("refuses later admission when an extra participant cannot be disposed", async () => {
-  const f = await twoSeatFixture();
+  const f = await seatFixture();
   f.extra.close.mockRejectedValue(new Error("Socket close failed"));
   f.extra.forceClose.mockRejectedValue(new Error("Forced socket close failed"));
   const tracked = fixtures.find((value) => value.owner === f.owner);
@@ -791,7 +820,7 @@ it("does not retain a success reason when the runtime changes during final evide
 });
 
 it("checks every seat around judging so a disconnected extra cannot become a scoring failure", async () => {
-  const f = await twoSeatFixture();
+  const f = await seatFixture();
   f.extra.checkConnected.mockRejectedValue(
     new Error("seat_replaced: Extra player disconnected."),
   );
@@ -1087,7 +1116,7 @@ it("retains a frame fault first observed while settling final input release", as
 });
 
 it("waits for actual room membership and retains it before any scenario actions", async () => {
-  const f = await twoSeatFixture();
+  const f = await seatFixture();
   f.session.readParticipants = vi
     .fn()
     .mockResolvedValueOnce({ roomId: "ROOM", controllerIds: ["player"] })
@@ -1133,7 +1162,7 @@ it("waits for actual room membership and retains it before any scenario actions"
 });
 
 it("refuses an unexpected participant in a fresh owned test room", async () => {
-  const f = await twoSeatFixture();
+  const f = await seatFixture();
   f.session.readParticipants = vi.fn(async () => ({
     roomId: "ROOM",
     controllerIds: ["player", "second", "uncontrolled"],
@@ -1856,6 +1885,10 @@ it("gives each seat its starting intent and lets a steer change only what it rea
       expect.any(Number),
     ),
   );
+  await vi.waitFor(async () => {
+    const record = await f.owner.read(f.request.runId);
+    expect(record.seats[0]?.answers?.answered).toBeGreaterThanOrEqual(3);
+  });
   const record = await f.owner.stop(f.request.runId);
   const answers = record.seats[0]?.answers;
   expect(answers?.answered).toBeGreaterThanOrEqual(3);
@@ -2263,3 +2296,150 @@ it.each([
     }
   },
 );
+
+it.each([1, 4])(
+  "keeps %i model seats at the same cadence with one answer in flight each",
+  async (seatCount) => {
+    let now = 0;
+    const waits: Array<{ at: number; resolve: () => void }> = [];
+    const sleep = (milliseconds: number) =>
+      new Promise<void>((resolve) => {
+        waits.push({ at: now + milliseconds, resolve });
+      });
+    const starts: number[] = [];
+    let pending = 0;
+    let maximumPending = 0;
+    const f = await seatFixture({
+      seatCount,
+      decisionMs: 1000,
+      decisions: async () => {
+        starts.push(now);
+        maximumPending = Math.max(maximumPending, ++pending);
+        await sleep(250);
+        pending--;
+        return { choice: "tap", confidence: 1 };
+      },
+    });
+    const originalClock = f.session.clock;
+    f.session.clock = {
+      now: () => now,
+      wait: (milliseconds, signal) =>
+        new Promise<void>((resolve) => {
+          signal?.addEventListener("abort", () => resolve(), { once: true });
+          waits.push({ at: now + milliseconds, resolve });
+        }),
+    };
+    io.decide.mockResolvedValue(tapOrWait);
+    await f.owner.start(f.request);
+    try {
+      for (let round = 0; round < 3; round++) {
+        await vi.waitFor(
+          async () => {
+            const record = await f.owner.read(f.request.runId);
+            expect(record.end).toBeUndefined();
+            expect(starts).toHaveLength((round + 1) * seatCount);
+          },
+          { interval: 1 },
+        );
+        // Repeated owner ticks while answers are pending must not ask a seat twice.
+        for (const elapsed of [100, 200, 250]) {
+          now = round * 300 + elapsed;
+          for (const wait of waits.splice(0)) {
+            if (wait.at <= now) wait.resolve();
+            else waits.push(wait);
+          }
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          expect(starts).toHaveLength((round + 1) * seatCount);
+        }
+        await vi.waitFor(
+          async () => {
+            const trace = await readFile(
+              path.join(
+                f.root,
+                ".airjam/artifacts/runs",
+                f.request.runId,
+                "trace.ndjson",
+              ),
+              "utf8",
+            );
+            expect(
+              trace
+                .split("\n")
+                .filter((line) => line.includes('"kind":"decision"')),
+            ).toHaveLength((round + 1) * seatCount);
+          },
+          { interval: 1 },
+        );
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        if (round === 2) break;
+        now = (round + 1) * 300;
+        for (const wait of waits.splice(0)) {
+          if (wait.at <= now) wait.resolve();
+          else waits.push(wait);
+        }
+      }
+      expect(starts.slice(0, seatCount * 3)).toEqual(
+        [0, 300, 600].flatMap((time) => Array(seatCount).fill(time)),
+      );
+      expect(maximumPending).toBe(seatCount);
+      const record = await f.owner.read(f.request.runId);
+      expect(record.counters.missed).toBe(0);
+      expect(record.seats.every((seat) => seat.counters.decisions === 3)).toBe(
+        true,
+      );
+    } finally {
+      f.session.clock = originalClock;
+      const stopped = f.owner.stop(f.request.runId);
+      for (const wait of waits.splice(0)) wait.resolve();
+      await stopped;
+    }
+  },
+);
+
+it("keeps a faster seat playing and applies the last answers before ending the decision budget", async () => {
+  let answerSlow = () => {};
+  let questions = 0;
+  let now = 0;
+  const f = await seatFixture({
+    decisionMs: 1000,
+    decisions: () => {
+      if (++questions === 1)
+        return new Promise((resolve) => {
+          answerSlow = () => resolve({ choice: "tap", confidence: 1 });
+        });
+      return Promise.resolve({ choice: "tap", confidence: 1 });
+    },
+  });
+  const originalClock = f.session.clock;
+  f.session.clock = {
+    now: () => now,
+    wait: async (milliseconds) => {
+      now += milliseconds;
+    },
+  };
+  f.request.budget.steps = 4;
+  io.decide.mockResolvedValue(tapOrWait);
+  await f.owner.start(f.request);
+  try {
+    await vi.waitFor(
+      async () => {
+        const record = await f.owner.read(f.request.runId);
+        expect(record.seats.map((seat) => seat.counters.effects)).toEqual([
+          0, 3,
+        ]);
+        expect(record.end).toBeUndefined();
+      },
+      { interval: 1 },
+    );
+    answerSlow();
+    const record = await f.ended();
+    expect(record.end?.reason).toBe("budget");
+    expect(record.counters.steps).toBe(4);
+    expect(record.counters.missed).toBe(0);
+    expect(record.seats.map((seat) => seat.counters.effects)).toEqual([1, 3]);
+  } finally {
+    f.session.clock = originalClock;
+    answerSlow();
+    await f.owner.stop(f.request.runId);
+  }
+});
