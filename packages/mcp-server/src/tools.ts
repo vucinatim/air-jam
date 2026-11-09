@@ -557,8 +557,8 @@ export const buildToolDefinitions = ({
       description:
         "Start an authored test (kind=test, profile, policy and budget) or a profile-free model player (kind=play, current room only, optional intent, ten-minute safety deadline and no verdict). Supply a stable UUID runId; retries return the same admission. Play requires the creator's granted current room. Tests may also target owned or headless rooms. Target headless plays with no page on game time, far faster than real time; owned plays the built page. Read or stop by runId.",
       inputSchema: z.object({
-        ...startTestGameRunSchema.partial().shape,
-        ...startPlayGameRunSchema.partial().shape,
+        ...z.object(startTestGameRunSchema.shape).partial().shape,
+        ...z.object(startPlayGameRunSchema.shape).partial().shape,
         kind: z.enum(["test", "play"]).default("test"),
         runId: startTestGameRunSchema.shape.runId,
         target: startTestGameRunSchema.shape.target,
