@@ -34,6 +34,10 @@ export default defineConfig((options) => ({
   dts: true, // Generate declaration files
   clean: !options.watch,
   sourcemap: true,
+  esbuildOptions(options) {
+    // Maps resolve to the shipped src tree; do not embed it again per bundle.
+    options.sourcesContent = false;
+  },
   external: ["react", "react-dom"],
   // Workspace consumers must not import a partially written bundle generation.
   // tsup calls this only after both JavaScript formats finish successfully.

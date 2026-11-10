@@ -110,6 +110,47 @@ const run = (
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8"));
 
+export const enforcePublicPackageBudgets = ({ packages, budgets }) => {
+  if (
+    stableJson(packages.map((entry) => entry.name).sort(compareStrings)) !==
+    stableJson(Object.keys(budgets.tarballBytes).sort(compareStrings))
+  ) {
+    throw new Error(
+      "Packed packages do not cover the exact public package graph.",
+    );
+  }
+  const packageResults = packages.map((entry) => {
+    const maximumBytes = budgets.tarballBytes[entry.name];
+    if (entry.bytes > maximumBytes) {
+      throw new Error(
+        `${entry.name} tarball is ${entry.bytes} bytes; budget is ${maximumBytes} bytes.`,
+      );
+    }
+    return {
+      name: entry.name,
+      observedBytes: entry.bytes,
+      maximumBytes,
+      remainingBytes: maximumBytes - entry.bytes,
+    };
+  });
+  const totalTarballBytes = packages.reduce(
+    (total, entry) => total + entry.bytes,
+    0,
+  );
+  if (totalTarballBytes > budgets.totalTarballBytes) {
+    throw new Error(
+      `Public package graph is ${totalTarballBytes} bytes; budget is ${budgets.totalTarballBytes} bytes.`,
+    );
+  }
+  return {
+    packages: packageResults,
+    totalTarballBytes: {
+      observed: totalTarballBytes,
+      maximum: budgets.totalTarballBytes,
+    },
+  };
+};
+
 export const parsePublicReleaseRunId = (value) => {
   const runId = Number(value);
   if (!/^[1-9]\d*$/u.test(String(value)) || !Number.isSafeInteger(runId)) {
@@ -853,6 +894,14 @@ export const createPublicReleaseCandidate = ({
         integrity: sha512Integrity(content),
       });
     }
+
+    onProgress("budgets:tarballs");
+    enforcePublicPackageBudgets({
+      packages: artifacts,
+      budgets: readJson(
+        path.join(repoRoot, "scripts/repo/programs/public-install-matrix.json"),
+      ).budgets,
+    });
 
     onProgress("inventory:install-candidate");
     const { consumerDirectory, packages: installedPackages } =

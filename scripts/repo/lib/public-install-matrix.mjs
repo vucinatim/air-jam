@@ -7,6 +7,7 @@ import path from "node:path";
 import { resolvePublicPackages } from "../../release/public-packages.mjs";
 import { runGoldenPathBootstrap } from "./golden-path-bootstrap.mjs";
 import { repoRoot } from "./paths.mjs";
+import { enforcePublicPackageBudgets } from "./public-release-candidate.mjs";
 
 export const defaultPublicInstallMatrixPath = path.join(
   repoRoot,
@@ -315,40 +316,13 @@ const assertExpectedCell = ({
 };
 
 const enforceBudgets = ({ manifest, bootstrap, totalDurationMs }) => {
-  const packages = bootstrap.registry.published;
-  const observedNames = packages.map((entry) => entry.name);
-  if (
-    JSON.stringify(sortStrings(observedNames)) !==
-    JSON.stringify(sortStrings(manifest.packages))
-  ) {
-    throw new Error(
-      "Bootstrap evidence does not cover the exact public package graph.",
-    );
-  }
-
-  const packageResults = packages.map((entry) => {
-    const maximumBytes = manifest.budgets.tarballBytes[entry.name];
-    if (entry.tarballBytes > maximumBytes) {
-      throw new Error(
-        `${entry.name} tarball is ${entry.tarballBytes} bytes; budget is ${maximumBytes} bytes.`,
-      );
-    }
-    return {
-      name: entry.name,
-      observedBytes: entry.tarballBytes,
-      maximumBytes,
-      remainingBytes: maximumBytes - entry.tarballBytes,
-    };
+  const packageBudgets = enforcePublicPackageBudgets({
+    packages: bootstrap.registry.published.map(({ name, tarballBytes }) => ({
+      name,
+      bytes: tarballBytes,
+    })),
+    budgets: manifest.budgets,
   });
-  const totalTarballBytes = packages.reduce(
-    (total, entry) => total + entry.tarballBytes,
-    0,
-  );
-  if (totalTarballBytes > manifest.budgets.totalTarballBytes) {
-    throw new Error(
-      `Public package graph is ${totalTarballBytes} bytes; budget is ${manifest.budgets.totalTarballBytes} bytes.`,
-    );
-  }
 
   const scaffoldCommand = bootstrap.commands.find(
     (entry) => entry.id === "scaffold:create",
@@ -368,11 +342,7 @@ const enforceBudgets = ({ manifest, bootstrap, totalDurationMs }) => {
   }
 
   return {
-    packages: packageResults,
-    totalTarballBytes: {
-      observed: totalTarballBytes,
-      maximum: manifest.budgets.totalTarballBytes,
-    },
+    ...packageBudgets,
     scaffoldInstallMs: {
       observed: scaffoldCommand.durationMs,
       maximum: manifest.budgets.scaffoldInstallMs,

@@ -149,6 +149,13 @@ The machine manifest owns launch budgets rather than prose or CI YAML:
 8. a 32 MiB single extracted-file ceiling
 9. a 100:1 per-file and aggregate compression-ratio ceiling
 
+Candidate creation enforces the same per-package and total tarball ceilings
+immediately after packing, including on pull requests. It reuses the archives
+already built for the candidate; no install cell or additional build is needed.
+Each nightly/manual install cell also enforces those ceilings on its installed
+candidate bytes. The SDK retains source maps pointing to its shipped `src`
+tree without embedding repeated source text in every bundle's map.
+
 The extraction values live in the shipped
 `packages/create-airjam/scaffold-resource-budgets.json` contract. The runtime
 preflights entry type, portable path uniqueness, count, size, and compression

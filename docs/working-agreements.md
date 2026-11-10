@@ -83,7 +83,8 @@ and flips to `main` at launch.
    build with full type safety, and unit tests consuming that build. These
    converge on the stable required `checks` result. Package-touching PRs also
    retain the immutable `public-release-candidate` artifact; creating archives
-   builds and audits packages, without running release sanity processes.
+   builds and audits packages and enforces the install matrix's package-size
+   budgets against those archives, without running release sanity processes.
    Across both workflows a PR must cost at most 15 machine-minutes, with no
    job exceeding five minutes. Branch protection still requires only `checks`.
    Real processes, sockets, browsers, subprocesses, durable filesystem fixtures,

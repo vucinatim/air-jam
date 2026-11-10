@@ -7,7 +7,8 @@ Status: SDK core layering in review for `release/1.0`; input system phases 1 and
 
 Pull requests run static checks, one shared workspace build with typechecking,
 and fast tests behind the single required `checks` verdict. Package-touching
-PRs keep the immutable candidate archive consumed by private development.
+PRs keep the immutable candidate archive consumed by private development and
+enforce the install matrix's package-size budgets during archive creation.
 Process and fixture suites, standalone package qualification, performance smoke
 and the full OS/Node installation matrix remain in nightly/manual workflows and
 release gates. The PR budget is 15 machine-minutes total and five per job.
