@@ -1240,14 +1240,11 @@ it("bounds trace bytes, records truncation, and still releases and closes every 
     control: {
       kind: "action",
       actionId: "tap",
-      input: { payload: "x".repeat(15_000) },
+      input: { payload: "x".repeat(MAXIMUM_GAME_RUN_TRACE_BYTES) },
     },
   });
-  await f.owner.start({
-    ...f.request,
-    budget: { durationMs: 40_000, steps: 5000 },
-  });
-  const record = await f.owner.wait(f.request.runId, 30_000);
+  await f.owner.start(f.request);
+  const record = await f.ended();
   expect(record.end).toMatchObject({
     reason: "trace_budget",
     outcome: "inconclusive",
@@ -1265,7 +1262,7 @@ it("bounds trace bytes, records truncation, and still releases and closes every 
   expect(trace.byteLength).toBeLessThanOrEqual(MAXIMUM_GAME_RUN_TRACE_BYTES);
   expect(record.evidence?.trace?.bytes).toBe(trace.byteLength);
   expect(f.session.close).toHaveBeenCalledOnce();
-}, 40_000);
+});
 
 it("finishes participant cleanup even when the trace file becomes unwritable", async () => {
   const f = await fixture();

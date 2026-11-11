@@ -108,6 +108,16 @@ and flips to `main` at launch.
 
 `pnpm test` and `pnpm test:repo-contracts` select the fast tier by default.
 `pnpm test:slow` runs the moved coverage; `pnpm check:release` includes both tiers.
+Keep the fewest tests that guard behavior callers rely on, at the lowest level
+that proves it: a function before a process, a component before a browser.
+Delete implementation-detail and duplicate tests; shrink slow workloads instead
+of adding timeouts or retries. Each fast test should finish well under a second.
+The budget is 60 CPU seconds for the whole fast suite and 600 for the slow tier,
+counting user and system CPU for the test command and its children. Wall time
+is informational: shared-host load must not determine a test budget. Adding
+coverage past the budget means cutting other tests, never increasing the allowance.
+Locally run only slow files touched by a change; full slow and long workloads
+belong to nightly checks, release gates or explicit requests.
 The canonical test selection lives in `scripts/repo/lib/test-plan.mjs`; existing
 process/fixture suites are marked there, and new slow files use
 `.slow.test.ts` / `.slow.test.mjs` (server integration files are also slow).
@@ -120,6 +130,7 @@ that same test path locally, build first, then run or inspect a tier:
 pnpm build
 pnpm --silent run repo -- check tests --tier fast
 pnpm --silent run repo -- check tests --tier slow --project devtools
+pnpm --silent run repo -- check tests --tier slow --files packages/devtools/tests/play-run-latency.slow.test.ts
 pnpm --silent run repo -- check tests --tier slow --plan --json
 ```
 

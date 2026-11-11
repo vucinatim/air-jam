@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
+import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol/dev-log-events";
 import {
   AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX,
   resolveRuntimeTopology,

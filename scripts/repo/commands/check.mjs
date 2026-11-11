@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import {
   gamesRoot,
@@ -289,6 +290,10 @@ export const registerCheckCommands = (program) => {
     )
     .option("--plan", "Inspect selection without running tests")
     .option(
+      "--files <paths...>",
+      "Run only these repository test files in the selected tier",
+    )
+    .option(
       "--json",
       "Print the test plan as stdout-only JSON (requires --plan)",
     )
@@ -299,6 +304,7 @@ export const registerCheckCommands = (program) => {
         const plan = buildTestPlan({
           tier: options.tier,
           projects: options.project,
+          files: options.files,
         });
         if (options.plan) {
           console.log(
@@ -309,15 +315,17 @@ export const registerCheckCommands = (program) => {
         for (const project of plan) {
           const cwd = path.join(repoRoot, project.directory);
           if (project.runner === "node") {
+            runCommand(process.execPath, ["--test", ...project.files], { cwd });
+          } else {
+            const require = createRequire(path.join(cwd, "package.json"));
             runCommand(
               process.execPath,
-              ["--import", "tsx", "--test", ...project.files],
-              { cwd },
-            );
-          } else {
-            runCommand(
-              "pnpm",
-              ["exec", "vitest", "run", "--maxWorkers=2", ...project.files],
+              [
+                require.resolve("vitest/vitest.mjs"),
+                "run",
+                "--maxWorkers=2",
+                ...project.files,
+              ],
               { cwd },
             );
           }

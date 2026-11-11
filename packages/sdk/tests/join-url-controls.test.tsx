@@ -3,7 +3,9 @@ import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildArcadeGameIframeSrc } from "../src/arcade/url";
-import { JoinUrlActionButtons, JoinUrlControls, JoinUrlField } from "../src/ui";
+import { JoinUrlActionButtons } from "../src/components/join-url-action-buttons";
+import { JoinUrlControls } from "../src/components/join-url-controls";
+import { JoinUrlField } from "../src/components/join-url-field";
 
 describe("join url controls", () => {
   afterEach(() => {
@@ -91,7 +93,11 @@ describe("join url controls", () => {
         arcadeSurface: { epoch: 1, kind: "game", gameId: "pong" },
       }),
     );
-    window.history.replaceState(null, "", `${gameUrl.pathname}${gameUrl.search}`);
+    window.history.replaceState(
+      null,
+      "",
+      `${gameUrl.pathname}${gameUrl.search}`,
+    );
 
     const { container } = render(
       <JoinUrlControls value={`${origin}/controller?room=ABCD&aj_cap=x`} />,
