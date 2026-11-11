@@ -9,7 +9,7 @@ import {
   hostObservationSchema,
 } from "./observation";
 
-import { clipReadSchema } from "./clip";
+import { clipFrameIntervalSchema, clipReadSchema } from "./clip";
 import { hostInputLogPageSchema, inputLogCutSchema } from "./input-log";
 
 import { hostTimelineSchema } from "./timeline";
@@ -76,6 +76,7 @@ export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
   z
     .object({
       operation: z.literal("clip-start"),
+      frameIntervalMs: clipFrameIntervalSchema.optional(),
       roomId: roomCodeSchema,
       runtimeId: z.string().min(1),
       clipId: z.string().min(1).max(128),

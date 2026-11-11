@@ -185,7 +185,7 @@ it("keeps still-sized captures that ignore options and skips them over the byte 
   const recorder = fixture(capture);
   recorder.start("clip", identity);
   await vi.advanceTimersByTimeAsync(100);
-  expect(capture).toHaveBeenCalledWith({ maxEdge: 640, quality: 0.7 });
+  expect(capture).toHaveBeenCalledWith({ maxEdge: 1280, quality: 0.92 });
   expect(recorder.read("clip", false, 0)).toMatchObject({
     frameCount: 1,
     skippedFrames: 0,
@@ -384,7 +384,7 @@ it("shares one capture, skips busy ticks and discards in-flight work after dispo
   recorder.start("b", identity);
   await vi.advanceTimersByTimeAsync(500);
   expect(capture).toHaveBeenCalledTimes(1);
-  expect(capture).toHaveBeenCalledWith({ maxEdge: 640, quality: 0.7 });
+  expect(capture).toHaveBeenCalledWith({ maxEdge: 1280, quality: 0.92 });
   resolve(image());
   await Promise.resolve();
   expect(recorder.read("a", false, 0).frames).toEqual(
@@ -411,6 +411,7 @@ it("starts and promptly reads clips through HostRuntimeControl.agent", async () 
     roomId: "ROOM",
     runtimeId: observation.identity.runtimeId,
     clipId: "clip",
+    frameIntervalMs: 33,
   });
   expect(response.operation).toBe("clip-start");
   await vi.advanceTimersByTimeAsync(100);
@@ -423,7 +424,12 @@ it("starts and promptly reads clips through HostRuntimeControl.agent", async () 
   });
   expect(read).toMatchObject({
     operation: "clip-read",
-    clip: { state: "stopped", frameCount: 1, identity: observation.identity },
+    clip: {
+      state: "stopped",
+      frameCount: 3,
+      frameIntervalMs: 33,
+      identity: observation.identity,
+    },
   });
   await expect(
     game.control.agent({
@@ -484,4 +490,77 @@ it("passes clip and still dimensions and quality into the canvas encoder", async
     height: 720,
   });
   expect(output.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.8);
+});
+
+it("captures at the requested cadence, floors at 33 ms and preserves the 100 ms default", async () => {
+  const recorder = fixture();
+  recorder.start("tool", identity, 33);
+  recorder.start("floor", identity, 1);
+  recorder.start("test", identity);
+  await vi.advanceTimersByTimeAsync(990);
+  const tool = recorder.read("tool", true, 0);
+  expect(tool.frameIntervalMs).toBe(33);
+  expect(tool.frames.map((frame) => frame.atMs)).toEqual(
+    Array.from({ length: 30 }, (_, index) => (index + 1) * 33),
+  );
+  expect(recorder.read("floor", true, 0).frames).toEqual(tool.frames);
+  expect(recorder.read("test", true, 0)).toMatchObject({
+    frameIntervalMs: 100,
+    frameCount: 9,
+  });
+  recorder.dispose();
+});
+it("retains the faster cadence within the same time and byte bounds", async () => {
+  const recorder = fixture();
+  recorder.start("clip", identity, 33);
+  await vi.advanceTimersByTimeAsync(16005);
+  const clip = recorder.read("clip", true, 0);
+  const {
+    identity: observedIdentity,
+    clipId,
+    startedAt,
+    durationMs,
+    droppedFrames,
+    skippedFrames,
+    frames,
+    frameIntervalMs,
+  } = clip;
+  const artifact = {
+    identity: observedIdentity,
+    clipId,
+    startedAt,
+    durationMs,
+    droppedFrames,
+    skippedFrames,
+    frames,
+    frameIntervalMs,
+  };
+  expect(clip.frameCount).toBe(455);
+  expect(
+    clipArtifactSchema.parse({ version: 1, ...artifact }).frameIntervalMs,
+  ).toBe(33);
+  recorder.dispose();
+});
+
+it("keeps the sampler's requested ticks when browser timers arrive slightly early", async () => {
+  let now = 0;
+  let tick!: () => void;
+  const recorder = new HostClipRecorder({
+    capture: () => () => image(),
+    now: () => now,
+    schedule: (callback) => {
+      tick = callback;
+      return () => {};
+    },
+  });
+  recorder.start("clip", identity, 33);
+  for (const timestamp of [32.9, 65.8, 98.7]) {
+    now = timestamp;
+    tick();
+    await Promise.resolve();
+  }
+  expect(
+    recorder.read("clip", true, 0).frames.map((frame) => frame.atMs),
+  ).toEqual([32.9, 65.8, 98.7]);
+  recorder.dispose();
 });

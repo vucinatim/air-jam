@@ -350,7 +350,11 @@ function controlEntry(target: object) {
             );
           return {
             operation: "clip-start",
-            ...recorder.start(request.clipId, identity),
+            ...recorder.start(
+              request.clipId,
+              identity,
+              request.frameIntervalMs,
+            ),
           };
         }
         const runtime = resolveRoomRuntime(target, request.roomId);

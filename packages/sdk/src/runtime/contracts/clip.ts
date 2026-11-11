@@ -2,9 +2,17 @@ import { z } from "zod";
 import { hostObservationIdentitySchema } from "./runtime-identity";
 
 export const CLIP_FRAME_INTERVAL_MS = 100;
-export const CLIP_FRAME_MAX_EDGE = 640;
-export const CLIP_FRAME_QUALITY = 0.7;
+export const CLIP_MIN_FRAME_INTERVAL_MS = 33;
+export const clipFrameIntervalSchema = z
+  .number()
+  .int()
+  .min(CLIP_MIN_FRAME_INTERVAL_MS);
+export const CLIP_FRAME_MAX_EDGE = 1280;
+export const CLIP_FRAME_QUALITY = 0.92;
 export const CLIP_MAX_DURATION_MS = 15_000;
+export const CLIP_MAX_FRAMES = Math.ceil(
+  CLIP_MAX_DURATION_MS / CLIP_MIN_FRAME_INTERVAL_MS,
+);
 export const CLIP_MAX_BYTES = 4 * 1024 * 1024;
 export const CLIP_FRAME_MAX_BYTES = 160 * 1024;
 export const CLIP_PAGE_BASE64_CHARS = 768 * 1024;
@@ -28,7 +36,6 @@ export const clipFrameSchema = z
   .object({
     index: z.number().int().nonnegative(),
     atMs: z.number().nonnegative().max(CLIP_RECORDING_LIFETIME_MS),
-    // Legacy captures may ignore the requested clip size and return a still-sized frame.
     width: z.number().int().positive().max(1280),
     height: z.number().int().positive().max(1280),
     mimeType: z.literal("image/jpeg"),
@@ -48,7 +55,7 @@ const clipMetadata = {
   clipId: z.string().min(1).max(128),
   identity: hostObservationIdentitySchema,
   startedAt: z.iso.datetime(),
-  frameIntervalMs: z.literal(CLIP_FRAME_INTERVAL_MS),
+  frameIntervalMs: clipFrameIntervalSchema,
   // Offsets and duration refer to the original recording, even after old frames drop.
   durationMs: z.number().nonnegative().max(CLIP_RECORDING_LIFETIME_MS),
   droppedFrames: z.number().int().nonnegative(),
@@ -58,14 +65,16 @@ export const clipArtifactSchema = z
   .object({
     version: z.literal(1),
     ...clipMetadata,
-    frames: z
-      .array(clipFrameSchema)
-      .min(1)
-      .max(CLIP_MAX_DURATION_MS / CLIP_FRAME_INTERVAL_MS),
+    frames: z.array(clipFrameSchema).min(1).max(CLIP_MAX_FRAMES),
   })
   .strict()
   .superRefine((clip, ctx) => {
     const frames = clip.frames;
+    if (frames.length > Math.ceil(CLIP_MAX_DURATION_MS / clip.frameIntervalMs))
+      ctx.addIssue({
+        code: "custom",
+        message: "Clip exceeds its cadence frame budget.",
+      });
     if (
       frames.reduce((sum, frame) => sum + clipImageBytes(frame.data), 0) >
       CLIP_MAX_BYTES
@@ -93,11 +102,11 @@ export const clipReadSchema = z
   .object({
     ...clipMetadata,
     state: z.enum(["recording", "stopped"]),
-    frameCount: z.number().int().nonnegative().max(150),
+    frameCount: z.number().int().nonnegative().max(CLIP_MAX_FRAMES),
     notCaptured: clipNotCapturedReasonSchema.nullable(),
     frames: z
       .array(clipFrameSchema)
-      .max(150)
+      .max(CLIP_MAX_FRAMES)
       .refine(
         (frames) =>
           frames.reduce((sum, frame) => sum + frame.data.length, 0) <=
