@@ -6,6 +6,20 @@ The goal is not just to "make Three.js work".
 
 The goal is to keep 3D scenes readable, performant, and authored with stable conventions so LLMs do not create visual chaos.
 
+## Dependencies
+
+The starter does not include 3D dependencies. Before importing them, add
+`three` and `@react-three/fiber` as runtime dependencies and `@types/three` as a
+development dependency. Choose versions compatible with the project's React
+version.
+
+In Studio, call `studio_change_dependency` once per package with
+`action: "add"`, `name`, the chosen `version`, and `dev: true` for `@types/three`.
+This updates the package manifest and lockfile together. Outside Studio, use the
+project's package manager, for example `pnpm add three @react-three/fiber` and
+`pnpm add -D @types/three` in a pnpm project. Install optional libraries such as
+`@react-three/drei` or `@react-three/rapier` only when the game uses them.
+
 ## Render Layer Rule
 
 Treat R3F as the scene and rendering layer.

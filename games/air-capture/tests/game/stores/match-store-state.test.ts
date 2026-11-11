@@ -25,6 +25,7 @@ describe("air-capture match store state", () => {
     "reports start readiness accurately in %s",
     async (matchPhase) => {
       const snapshot = await agentContract.projectSnapshot({
+        players: [],
         controllerId: "p1",
         stores: {
           default: createState({
@@ -40,6 +41,7 @@ describe("air-capture match store state", () => {
 
   it("does not report an unready lobby as startable", async () => {
     const snapshot = await agentContract.projectSnapshot({
+      players: [],
       controllerId: "p1",
       stores: {
         default: createState({

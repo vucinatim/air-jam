@@ -50,6 +50,10 @@ export function takeDecisionProviderFromEnvironment(
     );
   const url = new URL(endpoint);
   const ask: DecisionProvider["ask"] = async (question, signal) => {
+    const options = Object.entries(question.options);
+    const choices = new Map(
+      options.map(([name], index) => [`option_${index}`, name]),
+    );
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -64,10 +68,7 @@ export function takeDecisionProviderFromEnvironment(
             type: "choice",
             instructions: question.question,
             criteria: Object.fromEntries(
-              Object.entries(question.options).map(([option, { when }]) => [
-                option,
-                when,
-              ]),
+              options.map(([, { when }], index) => [`option_${index}`, when]),
             ),
           },
         },
@@ -87,8 +88,13 @@ export function takeDecisionProviderFromEnvironment(
       ),
     );
     if (!parsed.success) throw new Error("Decision model returned no choice.");
+    const choice = choices.get(parsed.data.answers.decision.choice);
+    if (choice === undefined)
+      throw new Error(
+        `Decision model returned unknown choice ${JSON.stringify(parsed.data.answers.decision.choice)}.`,
+      );
     return {
-      choice: parsed.data.answers.decision.choice,
+      choice,
       confidence: parsed.data.answers.decision.confidence,
     };
   };

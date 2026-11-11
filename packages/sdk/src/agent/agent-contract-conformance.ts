@@ -1,6 +1,7 @@
 import {
   describeAirJamAgentAction,
   resolveAirJamAgentActionPayload,
+  type AirJamAgentSnapshotContext,
   type AnyAirJamAgentContract,
 } from "./agent-contract.js";
 
@@ -31,6 +32,7 @@ type InspectAirJamAgentContractConformanceOptions = {
   contract: AnyAirJamAgentContract;
   stores: Record<string, object>;
   controllerId?: string | null;
+  players?: AirJamAgentSnapshotContext["players"];
 };
 
 const representativePayload = (
@@ -111,6 +113,7 @@ export const inspectAirJamAgentContractConformance = async ({
   contract,
   stores,
   controllerId = "conformance-controller",
+  players = [],
 }: InspectAirJamAgentContractConformanceOptions): Promise<AirJamAgentContractConformanceReport> => {
   const issues: AirJamAgentContractConformanceIssue[] = [];
   const storeDomains = Object.keys(contract.stores).sort();
@@ -180,7 +183,11 @@ export const inspectAirJamAgentContractConformance = async ({
   }
 
   try {
-    const snapshot = await contract.projectSnapshot({ controllerId, stores });
+    const snapshot = await contract.projectSnapshot({
+      controllerId,
+      players,
+      stores,
+    });
     inspectJsonValue(snapshot, "snapshot", new Set(), issues);
   } catch (error) {
     issues.push({

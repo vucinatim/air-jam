@@ -21,6 +21,7 @@ import {
   type PlayerProfile,
   type PlayerUpdatedNotice,
   type RoomCode,
+  type RoomReadyNotice,
   type ServerErrorPayload,
   type SignalPayload,
 } from "../protocol";
@@ -64,6 +65,7 @@ export const controllerBridgeServerEvents = [
   "server:controllerJoined",
   "server:controllerLeft",
   "server:state",
+  "server:roomReady",
   "server:hostLeft",
   "server:error",
   "server:signal",
@@ -98,6 +100,7 @@ export type ControllerBridgeServerEventArgs = {
   "server:controllerJoined": [payload: ControllerJoinedNotice];
   "server:controllerLeft": [payload: ControllerLeftNotice];
   "server:state": [payload: ControllerStateMessage];
+  "server:roomReady": [payload: RoomReadyNotice];
   "server:hostLeft": [payload: HostLeftNotice];
   "server:error": [payload: ServerErrorPayload];
   "server:signal": [payload: SignalPayload];

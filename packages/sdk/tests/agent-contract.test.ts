@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+  describeAirJamAgentAction,
+  resolveAirJamAgentActionPayload,
+} from "../src/agent/agent-contract";
+import {
   agentAction,
   agentActionInput,
   agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
 } from "../src/core";
-import {
-  describeAirJamAgentAction,
-  resolveAirJamAgentActionPayload,
-} from "../src/agent/agent-contract";
 
 describe("agentAction", () => {
   it("projects snapshots from declared named stores without generic casts", () => {
@@ -35,6 +35,7 @@ describe("agentAction", () => {
     expect(
       contract.projectSnapshot({
         controllerId: "controller-1",
+        players: [],
         stores: {
           default: { phase: "playing" },
           scoreboard: { home: 2, away: 1 },

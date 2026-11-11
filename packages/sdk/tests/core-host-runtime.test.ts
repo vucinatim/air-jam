@@ -234,8 +234,9 @@ describe("core host runtime", () => {
           stores: defineAirJamAgentStores({
             default: agentStore<{ score: number }>(),
           }),
-          projectSnapshot: ({ stores }) => ({
+          projectSnapshot: ({ stores, players }) => ({
             score: stores.default?.score ?? null,
+            players,
           }),
           actions: {},
         }),
@@ -243,6 +244,14 @@ describe("core host runtime", () => {
     });
     const stop = runtime.start();
     await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+    const player = { id: "ctrl_1", label: "Walker" };
+    socket.fire("server:controllerJoined", {
+      controllerId: player.id,
+      source: "phone",
+      connected: true,
+      resumeLeaseExpiresAt: null,
+      player,
+    });
     socket.fire("server:input", {
       roomId: "ROOM1",
       controllerId: "ctrl_1",
@@ -264,7 +273,7 @@ describe("core host runtime", () => {
     });
     if (response.operation !== "observe") throw new Error("Expected observe.");
     expect(response.observation).toMatchObject({
-      snapshot: { score: 0 },
+      snapshot: { score: 0, players: [player] },
       runtime: { x: 5 },
       ticks: { after: 5 },
       clock: { startedAtMs: 50, finishedAtMs: 50 },

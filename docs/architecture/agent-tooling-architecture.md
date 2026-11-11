@@ -55,6 +55,12 @@ module named by `testing`, exported through `defineAirJamTesting`. A declared
 player supplies the reserved `model` policy to every profile; visual scenarios
 use the game's agent. These modules stay out of browser bundles.
 
+Agent snapshot projection receives the requested controller identity, the
+declared stores and `players`, read from the host's current SDK player roster.
+Player profiles include their labels, so games need no parallel name lookup.
+The conformance inspector accepts a supplied player roster and defaults to an
+empty room.
+
 ## Layers
 
 ### 1. Repo And Dev Loop Tooling

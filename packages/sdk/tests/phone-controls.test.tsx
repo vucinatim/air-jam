@@ -31,6 +31,16 @@ const renderControls = (children: ReactNode) => {
 const pointer = { pointerId: 1, button: 0 };
 
 describe("phone controls", () => {
+  it("names the stick accessibly and lets the game override its name and role", () => {
+    renderControls(
+      <>
+        <Stick control={padInput.move} />
+        <Stick control={padInput.move} role="group" aria-label="Aim" />
+      </>,
+    );
+    expect(screen.getByRole("application", { name: "Joystick" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Aim" })).toBeTruthy();
+  });
   it("counts one press per touch and shows the held state", () => {
     const { input } = renderControls(
       <ControlButton control={padInput.fire}>Fire</ControlButton>,
