@@ -315,7 +315,17 @@ export const registerCheckCommands = (program) => {
         for (const project of plan) {
           const cwd = path.join(repoRoot, project.directory);
           if (project.runner === "node") {
-            runCommand(process.execPath, ["--test", ...project.files], { cwd });
+            runCommand(
+              process.execPath,
+              [
+                ...(project.files.some((file) => /\.tsx?$/.test(file))
+                  ? ["--import", "tsx"]
+                  : []),
+                "--test",
+                ...project.files,
+              ],
+              { cwd },
+            );
           } else {
             const require = createRequire(path.join(cwd, "package.json"));
             const manifestPath = require.resolve("vitest/package.json");
