@@ -116,7 +116,7 @@ export const airJamDecisionQuestionSchema = z
     question: z.string().min(1).max(1000),
     options: z
       .record(
-        id,
+        z.string().min(1, "A decision option key must not be empty."),
         z
           .object({
             when: z.string().min(1).max(500),

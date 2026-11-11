@@ -1,6 +1,9 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import type { AnyAirJamAgentContract } from "../../agent/agent-contract";
+import type {
+  AirJamAgentSnapshotContext,
+  AnyAirJamAgentContract,
+} from "../../agent/agent-contract";
 import {
   agentJson,
   createAirJamAgentEvaluator,
@@ -106,6 +109,7 @@ const controls = new WeakMap<
       id: string;
       roomId: string;
       gameId: string;
+      players: () => AirJamAgentSnapshotContext["players"];
       evaluator: ReturnType<typeof createAirJamAgentEvaluator>;
       settings?: {
         read: HostSettings["read"];
@@ -439,6 +443,7 @@ function controlEntry(target: object) {
         }));
         const snapshot = await binding.evaluator.project({
           controllerId: request.controllerId,
+          players: binding.players(),
           stores: Object.fromEntries(
             selected.map(({ domain }, index) => [
               domain,
@@ -700,6 +705,7 @@ export function registerHostAgentContract(
     roomId: string;
     gameId: string;
     contract: AnyAirJamAgentContract;
+    players: () => AirJamAgentSnapshotContext["players"];
     settings?: {
       read: HostSettings["read"];
       update: (
@@ -714,6 +720,7 @@ export function registerHostAgentContract(
     id: nanoid(),
     roomId: binding.roomId,
     gameId: binding.gameId,
+    players: binding.players,
     evaluator: createAirJamAgentEvaluator(binding.contract),
     settings: binding.settings,
   };

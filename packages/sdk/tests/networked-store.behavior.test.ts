@@ -1581,6 +1581,7 @@ describe("createAirJamStore networked behavior", () => {
     const close = registerHostAgentContract(window, {
       roomId: "ROOM1",
       gameId: "fixture",
+      players: () => mockedContext.state.players,
       contract: defineAirJamAgentContract({
         stores: { default: {} },
         actions: {

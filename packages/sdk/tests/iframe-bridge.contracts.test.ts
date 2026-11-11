@@ -4,6 +4,7 @@ import { splitBridgeEnvelopeArgs } from "../src/runtime/bridge-envelope-args";
 import {
   createControllerBridgeEmitMessage,
   createControllerBridgeEventMessage,
+  parseControllerBridgeEventMessage,
 } from "../src/runtime/controller-bridge";
 import {
   createHostBridgeEmitMessage,
@@ -18,6 +19,12 @@ import {
 } from "../src/runtime/iframe-bridge";
 
 describe("iframe bridge contracts", () => {
+  it("forwards host room readiness to embedded controllers", () => {
+    const message = createControllerBridgeEventMessage("server:roomReady", {
+      roomId: "ROOM",
+    });
+    expect(parseControllerBridgeEventMessage(message)).toEqual(message);
+  });
   it("preserves every required argument before extracting envelope options", () => {
     const payload = { requestId: "payload-id" };
     const options = { requestId: "envelope-id" };

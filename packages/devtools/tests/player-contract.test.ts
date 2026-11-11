@@ -303,7 +303,7 @@ describe("decision provider", () => {
       authorization = header;
       return [
         200,
-        { answers: { decision: { choice: "tap", confidence: 0.9 } } },
+        { answers: { decision: { choice: "option_0", confidence: 0.9 } } },
       ];
     });
     const provider = configured({
@@ -326,8 +326,8 @@ describe("decision provider", () => {
           type: "choice",
           instructions: "Should I tap now?",
           criteria: {
-            tap: "My count is below six.",
-            wait: "My count has reached six.",
+            option_0: "My count is below six.",
+            option_1: "My count has reached six.",
           },
         },
       },

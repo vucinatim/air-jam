@@ -843,6 +843,7 @@ export class HostRuntime {
           roomId,
           gameId: this.agent.gameId,
           contract: this.agent.contract,
+          players: () => this.store.getState().players,
           settings: { read: this.settings.read, update: this.updateSettings },
         })
       : null;

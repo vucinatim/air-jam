@@ -15,6 +15,11 @@ Use this skill for 3D host gameplay surfaces built with React Three Fiber and Th
 
 ## Core Rule
 
+Before importing 3D libraries, follow the dependency setup in
+`docs/airjam/r3f-3d-scene.md`. Starters do not include Three.js or React Three
+Fiber. In Studio, use `studio_change_dependency`; elsewhere use the project's
+package manager. Add only the libraries this game uses.
+
 Treat R3F as a rendering layer.
 
 Keep:

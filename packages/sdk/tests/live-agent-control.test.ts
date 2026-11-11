@@ -15,14 +15,17 @@ function fixture(domain = "default") {
   const target = {};
   let score = 0;
   let revision = 0;
+  let players = [{ id: "player", label: "First player" }];
   const contract = defineAirJamAgentContract({
     stores: { default: {} },
     projectSnapshot: ({
       stores,
       controllerId,
+      players,
     }): Record<string, unknown> | Promise<Record<string, unknown>> => ({
       score: (stores.default as { score: number }).score,
       controllerId,
+      players,
     }),
     actions: {
       score: agentAction.participant(
@@ -62,6 +65,7 @@ function fixture(domain = "default") {
       roomId: "ROOM",
       gameId: "test",
       contract,
+      players: () => players,
     });
   const close = bind();
   const control = () =>
@@ -76,14 +80,34 @@ function fixture(domain = "default") {
       throw Error("missing snapshot");
     return result.snapshot;
   };
-  return { target, contract, bind, close, control, read, mount, closeStore };
+  return {
+    target,
+    contract,
+    bind,
+    close,
+    control,
+    read,
+    mount,
+    closeStore,
+    setPlayers: (next: typeof players) => {
+      players = next;
+    },
+  };
 }
 
 describe("live contract evaluation", () => {
   it("reads authoritative state, maps the embedded default domain and resolves both action lanes", async () => {
     const f = fixture("aj.embedded.game:7:pong");
     const before = await f.read();
-    expect(before.snapshot).toEqual({ score: 0, controllerId: "player" });
+    expect(before.snapshot).toEqual({
+      score: 0,
+      controllerId: "player",
+      players: [{ id: "player", label: "First player" }],
+    });
+    f.setPlayers([{ id: "new-player", label: "New name" }]);
+    expect((await f.read()).snapshot.players).toEqual([
+      { id: "new-player", label: "New name" },
+    ]);
     expect(before.storeDomainBindings).toEqual([
       {
         contractStoreDomain: "default",

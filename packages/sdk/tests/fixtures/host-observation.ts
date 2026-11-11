@@ -40,6 +40,7 @@ export function observationFixture(
   const removeContract = registerHostAgentContract(target, {
     roomId: "ROOM",
     gameId: "fixture",
+    players: () => [],
     contract: defineAirJamAgentContract({
       stores: { default: {} },
       actions,

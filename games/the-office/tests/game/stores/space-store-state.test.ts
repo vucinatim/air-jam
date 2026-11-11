@@ -11,6 +11,7 @@ import {
 describe("space store lifecycle reducers", () => {
   it("describes character selections without claiming full-roster readiness", async () => {
     const snapshot = await agentContract.projectSnapshot({
+      players: [],
       controllerId: "alpha",
       stores: {
         default: {
