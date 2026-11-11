@@ -4,6 +4,7 @@ import {
   controllerStateSchema,
   controllerStateSyncRequestSchema,
   controllerSystemSchema,
+  hostPrivateStateSyncSchema,
   hostStateSyncSchema,
   isAirJamArcadePlatformPrefixAction,
   runtimeErrorReportSchema,
@@ -826,6 +827,17 @@ export const registerRealtimeHandlers = (
     });
   });
 
+  socket.on("host:private_state_sync", (payload: unknown) => {
+    const parsed = hostPrivateStateSyncSchema.safeParse(payload);
+    if (!parsed.success) return;
+    const { roomId, controllerId } = parsed.data;
+    const session = roomManager.getRoom(roomId);
+    if (!session || !isHostAuthorizedForRoom(roomId)) return;
+    const controller = session.controllers.get(controllerId);
+    if (!controller?.socketId) return;
+    io.to(controller.socketId).emit("airjam:private_state_sync", parsed.data);
+  });
+
   socket.on("host:state_sync", (payload: unknown) => {
     const parsed = hostStateSyncSchema.safeParse(payload);
     if (!parsed.success) {
@@ -841,7 +853,8 @@ export const registerRealtimeHandlers = (
       return;
     }
 
-    const { roomId, data, storeDomain, revision, requestId } = parsed.data;
+    const { roomId, data, storeDomain, revision, requestId, privateState } =
+      parsed.data;
     const session = roomManager.getRoom(roomId);
     if (!session) {
       logRealtimeEvent(
@@ -876,12 +889,22 @@ export const registerRealtimeHandlers = (
 
     const syncPayload: AirJamStateSyncPayload = {
       roomId,
-      data,
+      data: privateState
+        ? Object.fromEntries(
+            Object.entries(data).filter(([key]) => key !== privateState.field),
+          )
+        : data,
       storeDomain,
       revision,
       ...(requestId ? { requestId } : {}),
     };
-    session.replicatedStoreSnapshots.set(storeDomain, syncPayload);
+    // Only host lifecycle restoration reads this cache. Controller delivery uses syncPayload.
+    session.replicatedStoreSnapshots.set(storeDomain, {
+      ...syncPayload,
+      data: privateState
+        ? { ...data, [privateState.field]: privateState.entries }
+        : data,
+    });
     io.to(roomId).emit("airjam:state_sync", syncPayload);
     hostStateSyncSummary.record({
       key: `${roomId}:${storeDomain}`,
@@ -936,11 +959,16 @@ export const registerRealtimeHandlers = (
       return;
     }
 
+    const controller = [...session.controllers.values()].find(
+      (entry) => entry.socketId === socket.id,
+    );
+    if (!controller) return;
     io.to(roomManager.getActiveHostId(session)).emit(
       "airjam:state_sync_request",
       {
         roomId,
         storeDomain,
+        controllerId: controller.controllerId,
         ...(requestId ? { requestId } : {}),
       },
     );

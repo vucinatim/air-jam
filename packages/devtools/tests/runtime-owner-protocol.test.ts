@@ -85,6 +85,7 @@ describe("runtime owner visual capture messages", () => {
         connected: true,
         player: { id: "acting-controller", label: "Acting player" },
       },
+      privateStores: [],
       stores: [
         {
           roomId: "ROOM",
@@ -101,6 +102,7 @@ describe("runtime owner visual capture messages", () => {
     expect(
       isRuntimeOwnerCaptureRequest({
         ...request,
+        privateStores: [],
         stores: [{ ...request.stores[0], revision: -1 }],
       }),
     ).toBe(false);

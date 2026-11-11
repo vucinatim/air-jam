@@ -117,6 +117,7 @@ export {
   useSimulationSelector,
 } from "./hooks/use-simulation";
 export {
+  useAirJamPrivateState,
   useAirJamStore,
   useHostActionListener,
 } from "./store/use-air-jam-store";

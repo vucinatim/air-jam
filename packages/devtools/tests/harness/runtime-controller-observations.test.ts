@@ -36,6 +36,7 @@ function fixture() {
       connected: true,
     }),
     stores: [],
+    privateStores: [],
   };
   return { observations, context, send };
 }
