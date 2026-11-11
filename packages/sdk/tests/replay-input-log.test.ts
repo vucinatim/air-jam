@@ -1,12 +1,9 @@
 import { expect, it, vi } from "vitest";
-import {
-  defineAirJamSettings,
-  defineAirJamSimulation,
-  HostRuntime,
-  openAirJamReplay,
-  setting,
-  type AirJamInputLog,
-} from "../src/core";
+import { HostRuntime } from "../src/core/host-runtime";
+import { type AirJamInputLog } from "../src/core/input-log";
+import { openAirJamReplay } from "../src/core/replay-input-log";
+import { defineAirJamSettings, setting } from "../src/core/settings";
+import { defineAirJamSimulation } from "../src/core/simulation";
 
 const log: AirJamInputLog = {
   version: 2,

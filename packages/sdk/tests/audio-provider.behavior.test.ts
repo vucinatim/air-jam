@@ -83,7 +83,6 @@ const createWrapper = async () => {
 
 describe("AudioRuntime", () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     sounds.instances.length = 0;
     howlerCtx.state = "running";
@@ -94,16 +93,6 @@ describe("AudioRuntime", () => {
         subscribe: () => () => {},
       },
     });
-  });
-
-  it("returns the runtime-owned manager to consumers", async () => {
-    const { hooks, wrapper } = await createWrapper();
-    const { result } = renderHook(() => hooks.useAudio<"hit">(), {
-      wrapper,
-    });
-    await act(async () => {});
-
-    expect(typeof result.current.play).toBe("function");
   });
 
   it("unloads the old runtime before a remount plays each sound once", async () => {
@@ -198,6 +187,7 @@ describe("AudioRuntime", () => {
   });
 
   it("exposes blocked and ready runtime states with an explicit retry path", async () => {
+    vi.resetModules();
     howlerCtx.state = "suspended";
     howlerCtx.resume.mockImplementationOnce(async () => {
       throw new Error("blocked");

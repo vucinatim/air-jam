@@ -100,7 +100,11 @@ export const testProjects = () => [
   }),
 ];
 
-export const buildTestPlan = ({ tier = "fast", projects = [] } = {}) => {
+export const buildTestPlan = ({
+  tier = "fast",
+  projects = [],
+  files = [],
+} = {}) => {
   if (!["fast", "slow"].includes(tier))
     throw new Error(`Unknown test tier: ${tier}`);
   const available = testProjects();
@@ -108,7 +112,7 @@ export const buildTestPlan = ({ tier = "fast", projects = [] } = {}) => {
     if (!available.some(({ id }) => id === project))
       throw new Error(`Unknown test project: ${project}`);
   }
-  return available
+  const plan = available
     .filter(({ id }) => projects.length === 0 || projects.includes(id))
     .map((project) => ({
       ...project,
@@ -126,6 +130,27 @@ export const buildTestPlan = ({ tier = "fast", projects = [] } = {}) => {
           return slow === (tier === "slow");
         })
         .map((file) => `${project.tests}/${file}`),
+    }))
+    .filter(({ files }) => files.length > 0);
+  const selected = new Set(files.map((file) => path.posix.normalize(file)));
+  for (const file of selected) {
+    if (
+      !plan.some((project) =>
+        project.files.some(
+          (test) => path.posix.join(project.directory, test) === file,
+        ),
+      )
+    )
+      throw new Error(`Test is not in the selected tier and projects: ${file}`);
+  }
+  return plan
+    .map((project) => ({
+      ...project,
+      files: project.files.filter(
+        (file) =>
+          selected.size === 0 ||
+          selected.has(path.posix.join(project.directory, file)),
+      ),
     }))
     .filter(({ files }) => files.length > 0);
 };

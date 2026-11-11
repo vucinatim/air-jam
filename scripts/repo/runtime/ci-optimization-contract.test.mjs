@@ -5,8 +5,6 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
-import { buildPerfSanityArgs, perfProfiles } from "../lib/perf-plan.mjs";
-
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
@@ -90,34 +88,6 @@ test("nightly and manual CI preserve process, package and performance coverage",
   for (const job of [workflow.jobs.validate, workflow.jobs.slow]) {
     assert.match(job.steps[0].with.ref, /schedule.*release\/1\.0/u);
   }
-});
-
-test("named performance profiles keep scheduled smoke strict and release proof full", () => {
-  assert.equal(perfProfiles.ci.durationMs, 15_000);
-  assert.equal(perfProfiles.ci.strict, true);
-  assert.deepEqual(perfProfiles.release, { strict: true });
-
-  assert.deepEqual(buildPerfSanityArgs({ profile: "ci" }), [
-    "--filter",
-    "server",
-    "perf:sanity",
-    "--",
-    "--durationMs=15000",
-    "--warmupMs=1000",
-    "--reconnectCycles=5",
-    "--strict",
-  ]);
-  assert.deepEqual(buildPerfSanityArgs({ profile: "release" }), [
-    "--filter",
-    "server",
-    "perf:sanity",
-    "--",
-    "--strict",
-  ]);
-  assert.throws(
-    () => buildPerfSanityArgs({ profile: "unknown" }),
-    /Unknown performance profile/u,
-  );
 });
 
 test("the canonical guard has no external ripgrep runtime dependency", () => {

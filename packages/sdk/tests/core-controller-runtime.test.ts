@@ -1,15 +1,12 @@
 // Runs in plain Node: the core controller runtime needs no React and no DOM.
 import { describe, expect, it, vi } from "vitest";
+import { createConnectionStore } from "../src/core/connection-store";
+import { ControllerRuntime } from "../src/core/controller-runtime";
 import {
-  axis,
-  button,
-  ControllerRuntime,
-  createConnectionStore,
-  defineAirJamInput,
-  stick,
   type AirJamControllerEnvironment,
   type ControllerRoomBinding,
-} from "../src/core";
+} from "../src/core/environment";
+import { axis, button, defineAirJamInput, stick } from "../src/core/input";
 import { createMemorySocket } from "./fixtures/memory-socket";
 
 const createMemoryEnvironment = (

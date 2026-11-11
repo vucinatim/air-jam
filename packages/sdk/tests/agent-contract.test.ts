@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import {
-  describeAirJamAgentAction,
-  resolveAirJamAgentActionPayload,
-} from "../src/agent/agent-contract";
+import { agentActionInput } from "../src/agent/agent-action";
 import {
   agentAction,
-  agentActionInput,
   agentStore,
   defineAirJamAgentContract,
   defineAirJamAgentStores,
-} from "../src/core";
+  describeAirJamAgentAction,
+  resolveAirJamAgentActionPayload,
+} from "../src/agent/agent-contract";
 
 describe("agentAction", () => {
   it("projects snapshots from declared named stores without generic casts", () => {
