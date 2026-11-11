@@ -318,10 +318,12 @@ export const registerCheckCommands = (program) => {
             runCommand(process.execPath, ["--test", ...project.files], { cwd });
           } else {
             const require = createRequire(path.join(cwd, "package.json"));
+            const manifestPath = require.resolve("vitest/package.json");
+            const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
             runCommand(
               process.execPath,
               [
-                require.resolve("vitest/vitest.mjs"),
+                path.resolve(path.dirname(manifestPath), manifest.bin.vitest),
                 "run",
                 "--maxWorkers=2",
                 ...project.files,
