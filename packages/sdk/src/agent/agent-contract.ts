@@ -1,3 +1,4 @@
+import type { PlayerProfile } from "../protocol/controller";
 import {
   type AirJamAgentActionInputDefinition,
   type AirJamAgentActionMetadata,
@@ -86,6 +87,7 @@ export type AirJamAgentSnapshotContext<
   TStores extends AirJamAgentStores = AirJamAgentStores,
 > = {
   controllerId: string | null;
+  players: readonly PlayerProfile[];
   stores: Partial<TStores>;
 };
 

@@ -43,6 +43,7 @@ describe("Last Band Standing agent snapshot", () => {
     actions.advanceClock({ ...host, now: round.startedAtMs }, undefined);
 
     const snapshot = await agentContract.projectSnapshot({
+      players: [],
       controllerId: "player-01",
       stores: { default: gameStore.getState() },
     });

@@ -50,6 +50,7 @@ describe("Code Review launch", () => {
     actions.scorePoint(player, { team: "team1" });
     expect(gameStore.getState().scores.team1).toBe(0);
     const snapshot = await agentContract.projectSnapshot({
+      players: [],
       controllerId: "alpha",
       stores: { default: gameStore.getState() },
     });

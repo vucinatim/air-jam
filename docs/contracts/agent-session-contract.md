@@ -747,6 +747,10 @@ change a seat's intent during play.
 `@air-jam/devtools/testing` exports `AirJamPlayerContract`, `AirJamPlayControl`,
 `AirJamDecisionQuestion`, `airJamDecisionQuestionSchema` and
 `createAirJamPlayerPolicy`. Player contracts may declare `act`, and
+decision option names accept any non-empty string. The decision provider maps
+them to wire-safe IDs and restores the original name in its answer; wire IDs
+are not part of a game's contract. Empty option names are rejected with an
+explicit key error.
 `AirJamPolicyStep` carries `answer`. Code that reads `decision.control` must handle a
 question. Pong, the minimal starter, Code Review and The Office declare player
 contracts and offer a `model` policy beside their code policies. Pong gains a

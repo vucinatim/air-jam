@@ -342,6 +342,8 @@ export const Stick = ({
   const marker = "pointer-events-none absolute size-0";
   return (
     <div
+      role="application"
+      aria-label="Joystick"
       {...props}
       data-active={active}
       className={cn("relative touch-none select-none", className)}

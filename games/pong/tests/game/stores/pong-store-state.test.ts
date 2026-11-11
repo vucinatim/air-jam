@@ -42,6 +42,7 @@ describe("pong store state transitions", () => {
     "reports start readiness accurately in %s",
     async (matchPhase) => {
       const snapshot = await agentContract.projectSnapshot({
+        players: [],
         controllerId: "alpha",
         stores: {
           default: createState({

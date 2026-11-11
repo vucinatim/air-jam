@@ -7,6 +7,7 @@ import type {
   AirJamActionPayload,
   AirJamActionRpcPayload,
   AirJamStateSyncPayload,
+  RoomReadyNotice,
 } from "../protocol";
 import {
   isHostRuntimeParticipantLeased,
@@ -1070,7 +1071,10 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     let latestSyncRevision = -1;
 
     const handleSync = (payload: AirJamStateSyncPayload) => {
-      if (payload.storeDomain !== resolvedStoreDomain) {
+      if (
+        payload.roomId !== roomId ||
+        payload.storeDomain !== resolvedStoreDomain
+      ) {
         return;
       }
       if (payload.revision < latestSyncRevision) {
@@ -1081,18 +1085,30 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       store.setState(stateData);
     };
 
-    socket.on("airjam:state_sync", handleSync);
-
-    if (runtimeSnapshotRef.current.connectionStatus === "connected") {
+    const requestState = () => {
       socket.emit("controller:state_sync_request", {
         roomId,
         storeDomain: resolvedStoreDomain,
       });
+    };
+    const handleRoomReady = (payload: RoomReadyNotice) => {
+      if (payload.roomId !== roomId) return;
+      // A reloaded host owns a new revision sequence, while this phone stays open.
+      latestSyncRevision = -1;
+      requestState();
+    };
+
+    socket.on("airjam:state_sync", handleSync);
+    socket.on("server:roomReady", handleRoomReady);
+
+    if (runtimeSnapshotRef.current.connectionStatus === "connected") {
+      requestState();
     }
 
     return {
       cleanup: () => {
         socket.off("airjam:state_sync", handleSync);
+        socket.off("server:roomReady", handleRoomReady);
       },
     };
   };
