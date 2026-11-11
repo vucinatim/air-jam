@@ -102,7 +102,7 @@ export const clipReadSchema = z
   .object({
     ...clipMetadata,
     state: z.enum(["recording", "stopped"]),
-    frameCount: z.number().int().nonnegative().max(CLIP_MAX_FRAMES),
+    frameCount: z.number().int().nonnegative(),
     notCaptured: clipNotCapturedReasonSchema.nullable(),
     frames: z
       .array(clipFrameSchema)
@@ -120,3 +120,8 @@ export type ClipFrame = z.infer<typeof clipFrameSchema>;
 export type ClipArtifact = z.infer<typeof clipArtifactSchema>;
 export type ClipRead = z.infer<typeof clipReadSchema>;
 export type ClipNotCapturedReason = z.infer<typeof clipNotCapturedReasonSchema>;
+
+/** A clip-start bitmap-stream port is owned by one recording and its embedding editor. */
+export type HostClipStreamMessage =
+  | { type: "frame"; index: number; atMs: number; bitmap: ImageBitmap }
+  | { type: "end" };

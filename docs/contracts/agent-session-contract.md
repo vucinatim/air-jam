@@ -611,7 +611,7 @@ honestly, never replace it with a host capture or another controller.
 ### Clips
 
 Clips use that same capture surface and host-agent channel, without a room grant:
-`clip-start {roomId, runtimeId, clipId, frameIntervalMs?}` starts in the background;
+`clip-start {roomId, runtimeId, clipId, frameIntervalMs?, delivery?}` starts in the background;
 `clip-read {roomId, clipId, stop, fromFrame}` stops and reads pages. Stop before
 paging to freeze indexes; follow `nextFrame` until null. Capture requests JPEG at
 1280 px / 0.92 at the requested interval, with a 100 ms default and a 33 ms floor.
@@ -619,6 +619,19 @@ No captures queue. The artifact reports the recording's interval. The retained w
 last 15 s and 4 MiB decoded image bytes, with at most `ceil(15000 / frameIntervalMs)`
 frames (455 at 33 ms, 150 at the default); frames over 160 KiB or
 null captures are skipped. Pages contain at most 768 KiB base64 characters.
+For an embedding editor, `delivery: "bitmap-stream"` attaches one transferred
+MessagePort to `clip-start`. The same sampler requests ImageBitmaps instead of
+JPEG; the game only snapshots and transfers them, leaving composition and
+encoding to the consumer's Worker. Start probes bitmap support and fails with
+`clip_unsupported:` rather than falling back to JPEG. Messages are
+`{type: "frame", index, atMs, bitmap}` with the bitmap transferred; the consumer
+closes each bitmap after use and acknowledges `{type: "ack", index}`. At most
+three frames await acknowledgement; a full consumer skips capture without
+queuing work. Stop sends `{type: "end"}` after the last transferred frame.
+`clip-read` still checks identity and health, returning total streamed frame
+count and no image pages. Paged test recordings retain the JPEG contract and
+100 ms default. Both destinations share one host cadence sampler.
+
 Four recordings may be retained; each self-stops at ten minutes and stopped
 recordings expire after a minute without reads. When full, a new recording
 evicts only a stopped, fully delivered retry buffer, choosing the oldest

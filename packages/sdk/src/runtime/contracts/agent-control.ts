@@ -77,6 +77,7 @@ export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
     .object({
       operation: z.literal("clip-start"),
       frameIntervalMs: clipFrameIntervalSchema.optional(),
+      delivery: z.enum(["pages", "bitmap-stream"]).optional(),
       roomId: roomCodeSchema,
       runtimeId: z.string().min(1),
       clipId: z.string().min(1).max(128),

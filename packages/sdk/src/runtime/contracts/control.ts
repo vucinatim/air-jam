@@ -58,7 +58,10 @@ export type HostRuntimeActionRequest = z.infer<
 >;
 
 export interface HostRuntimeControl {
-  agent(request: HostAgentRequest): Promise<HostAgentResponse>;
+  agent(
+    request: HostAgentRequest,
+    clipPort?: MessagePort,
+  ): Promise<HostAgentResponse>;
   invoke(
     request: HostRuntimeActionRequest,
   ): Promise<AirJamActionInvocationResult>;
@@ -216,7 +219,7 @@ function controlEntry(target: object) {
     const contracts: NonNullable<ReturnType<typeof controls.get>>["contracts"] =
       new Set();
     const control: HostRuntimeControl = {
-      async agent(input) {
+      async agent(input, clipPort) {
         const request = hostAgentRequestSchema.parse(input);
         if (request.operation === "observe") {
           const { operation, ...observationRequest } = request;
@@ -348,13 +351,18 @@ function controlEntry(target: object) {
             throw new Error(
               "clip_unsupported: No capture runtime owns this room.",
             );
+          if ((request.delivery === "bitmap-stream") !== Boolean(clipPort))
+            throw new Error(
+              "clip_unsupported: Bitmap streaming requires its recording port.",
+            );
           return {
             operation: "clip-start",
-            ...recorder.start(
+            ...(await recorder.start(
               request.clipId,
               identity,
               request.frameIntervalMs,
-            ),
+              clipPort,
+            )),
           };
         }
         const runtime = resolveRoomRuntime(target, request.roomId);

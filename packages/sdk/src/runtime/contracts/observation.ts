@@ -182,5 +182,10 @@ export type HostObservationSurface = {
   capture?: (options: {
     maxEdge: number;
     quality: number;
-  }) => HostObservationImage | null | Promise<HostObservationImage | null>;
+    bitmap?: boolean;
+  }) =>
+    | HostObservationImage
+    | ImageBitmap
+    | null
+    | Promise<HostObservationImage | ImageBitmap | null>;
 };
