@@ -1875,7 +1875,7 @@ describe("createAirJamStore networked behavior", () => {
       createAirJamStore<{
         round: number;
         secrets: Record<string, { list: string[] }>;
-        actions: Record<string, never>;
+        actions: Record<never, never>;
       }>(
         () => ({
           round: 1,
