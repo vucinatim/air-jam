@@ -1,6 +1,5 @@
-// @vitest-environment jsdom
-
-import { renderHook } from "@testing-library/react";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useAirJamContext } from "../src/context/air-jam-context";
 import { useAssertSessionScope } from "../src/context/session-scope";
@@ -27,7 +26,12 @@ describe("diagnostics behavior", () => {
     });
 
     expect(() =>
-      renderHook(() => useAssertSessionScope("host", "useAirJamHost")),
+      renderToStaticMarkup(
+        createElement(() => {
+          useAssertSessionScope("host", "useAirJamHost");
+          return null;
+        }),
+      ),
     ).toThrow("[AirJam][AJ_SCOPE_MISMATCH]");
 
     expect(codes).toContain("AJ_SCOPE_MISMATCH");
@@ -40,9 +44,14 @@ describe("diagnostics behavior", () => {
       codes.push(diagnostic.code);
     });
 
-    expect(() => renderHook(() => useAirJamContext())).toThrow(
-      "[AirJam][AJ_MISSING_SESSION_PROVIDER]",
-    );
+    expect(() =>
+      renderToStaticMarkup(
+        createElement(() => {
+          useAirJamContext();
+          return null;
+        }),
+      ),
+    ).toThrow("[AirJam][AJ_MISSING_SESSION_PROVIDER]");
 
     expect(codes).toContain("AJ_MISSING_SESSION_PROVIDER");
     unsubscribe();

@@ -66,3 +66,19 @@ test("repository CLI tests execute from the repository root", () => {
     ),
   );
 });
+
+test("exact file selection cannot silently skip a wrong tier or unknown file", () => {
+  const file = "packages/devtools/tests/play-run-latency.slow.test.ts";
+  const [project] = buildTestPlan({ tier: "slow", files: [file] });
+  assert.equal(project.id, "devtools");
+  assert.deepEqual(project.files, ["tests/play-run-latency.slow.test.ts"]);
+  for (const options of [
+    { files: [file] },
+    { tier: "slow", files: ["missing.test.ts"] },
+    { tier: "slow", projects: ["sdk"], files: [file] },
+  ])
+    assert.throws(
+      () => buildTestPlan(options),
+      /not in the selected tier and projects/,
+    );
+});

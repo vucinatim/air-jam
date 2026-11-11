@@ -4,15 +4,17 @@ import {
   defineAirJamAgentContract,
   defineAirJamAgentStores,
 } from "../src/agent/agent-contract";
+import { createAirJamConfig } from "../src/core/config";
+import { createConnectionStore } from "../src/core/connection-store";
+import { HostRuntime } from "../src/core/host-runtime";
 import {
-  createAirJamConfig,
   createAirJamStore,
-  createConnectionStore,
-  defineAirJamSimulation,
-  HostRuntime,
   type AirJamActionContext,
+} from "../src/core/replicated-store";
+import {
+  defineAirJamSimulation,
   type AirJamSimulationDeclaration,
-} from "../src/core";
+} from "../src/core/simulation";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import {
   hostAgentResponseSchema,

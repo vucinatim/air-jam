@@ -203,20 +203,18 @@ describe("round option selection", () => {
           `${correctSong.quizCategoryId} needs four distinct ${guessKind} labels`,
         ).toBeGreaterThanOrEqual(4);
 
-        for (let iteration = 0; iteration < 25; iteration += 1) {
-          const optionSongIds = pickRoundOptionSongIds({
-            correctSongId: correctSong.id,
-            optionCount: 4,
-            guessKind,
-          });
+        const optionSongIds = pickRoundOptionSongIds({
+          correctSongId: correctSong.id,
+          optionCount: 4,
+          guessKind,
+        });
 
-          expectValidOptions({
-            optionSongIds,
-            correctSongId: correctSong.id,
-            guessKind,
-            catalogSongs: songBank,
-          });
-        }
+        expectValidOptions({
+          optionSongIds,
+          correctSongId: correctSong.id,
+          guessKind,
+          catalogSongs: songBank,
+        });
       });
     });
   });

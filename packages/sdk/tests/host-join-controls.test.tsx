@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useHostJoinControls } from "../src/ui";
+import { useHostJoinControls } from "../src/hooks/use-host-join-controls";
 
 describe("useHostJoinControls", () => {
   it("treats a missing join url as unavailable", () => {

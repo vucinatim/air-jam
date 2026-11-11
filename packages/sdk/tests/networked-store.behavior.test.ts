@@ -26,16 +26,14 @@ import {
   resetAirJamDiagnosticsForTests,
   setAirJamDiagnosticsEnabled,
 } from "../src/diagnostics";
-import { hostStateSyncSchema } from "../src/protocol";
+import { hostStateSyncSchema } from "../src/protocol/sync";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
-  type HostRuntimeControl,
-} from "../src/runtime-control";
-import {
   applyHostRuntimeLeasedControl,
   readHostStateEpochs,
   registerHostAgentContract,
   registerHostRuntimeParticipantReceiver,
+  type HostRuntimeControl,
 } from "../src/runtime/contracts/control";
 import { getControllerRealtimeClient } from "../src/runtime/controller-realtime-client";
 import { getHostRealtimeClient } from "../src/runtime/host-realtime-client";
@@ -1264,85 +1262,6 @@ describe("createAirJamStore networked behavior", () => {
     actionsHook.unmount();
   });
 
-  it("executes host local dispatches with host action context", () => {
-    mockedContext.state.role = "host";
-
-    const store = createTestStore();
-    const actionsHook = renderHook(() => store.actions);
-    const phaseHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.phase),
-    );
-    const actorHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastActor),
-    );
-    const roleHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastRole),
-    );
-    const connectedIdsHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastConnectedPlayerIds),
-    );
-
-    act(() => {
-      actionsHook.result.current.setPhase({ phase: "playing" });
-    });
-
-    expect(phaseHook.result.current).toBe("playing");
-    expect(actorHook.result.current).toBe("host");
-    expect(roleHook.result.current).toBe("host");
-    expect(connectedIdsHook.result.current).toEqual(["ctrl_1", "ctrl_2"]);
-
-    actionsHook.unmount();
-    phaseHook.unmount();
-    actorHook.unmount();
-    roleHook.unmount();
-    connectedIdsHook.unmount();
-  });
-
-  it("executes host player-actions dispatches with controller action context", async () => {
-    mockedContext.state.role = "host";
-
-    const store = createTestStore();
-    const storeHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.phase),
-    );
-    const playerActions = store.asPlayer("ctrl_2");
-    const phaseHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.phase),
-    );
-    const actorHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastActor),
-    );
-    const roleHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastRole),
-    );
-    const connectedIdsHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastConnectedPlayerIds),
-    );
-
-    let acknowledgement:
-      | Awaited<ReturnType<typeof playerActions.joinTeam>>
-      | undefined;
-    await act(async () => {
-      acknowledgement = await playerActions.joinTeam({ team: "blue" });
-    });
-
-    expect(acknowledgement).toEqual({
-      ok: true,
-      status: "accepted",
-      source: "host",
-    });
-    expect(phaseHook.result.current).toBe("blue");
-    expect(actorHook.result.current).toBe("ctrl_2");
-    expect(roleHook.result.current).toBe("controller");
-    expect(connectedIdsHook.result.current).toEqual(["ctrl_1", "ctrl_2"]);
-
-    storeHook.unmount();
-    phaseHook.unmount();
-    actorHook.unmount();
-    roleHook.unmount();
-    connectedIdsHook.unmount();
-  });
-
   it("rejects player-actions dispatches outside the host runtime", async () => {
     const diagnostics: string[] = [];
     const unsubscribe = onAirJamDiagnostic((diagnostic) => {
@@ -1438,6 +1357,12 @@ describe("createAirJamStore networked behavior", () => {
       await actionsHook.result.current.setPhase({ phase: "playing" });
     });
 
+    expect(store.getState()).toMatchObject({
+      phase: "playing",
+      lastActor: "host",
+      lastRole: "host",
+      lastConnectedPlayerIds: ["ctrl_1", "ctrl_2"],
+    });
     expect(observedEvents).toEqual([
       {
         actionName: "setPhase",
@@ -1483,6 +1408,12 @@ describe("createAirJamStore networked behavior", () => {
       await playerActions.setPhase({ phase: "playing" });
     });
 
+    expect(store.getState()).toMatchObject({
+      phase: "playing",
+      lastActor: "ctrl_2",
+      lastRole: "controller",
+      lastConnectedPlayerIds: ["ctrl_1", "ctrl_2"],
+    });
     expect(observedEvents).toEqual([
       {
         actionName: "setPhase",
