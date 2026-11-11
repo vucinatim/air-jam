@@ -6,7 +6,9 @@ import type {
   AirJamActionInvocationResult,
   AirJamActionPayload,
   AirJamActionRpcPayload,
+  AirJamPrivateStateSyncPayload,
   AirJamStateSyncPayload,
+  ControllerJoinedNotice,
   RoomReadyNotice,
 } from "../protocol";
 import {
@@ -29,7 +31,25 @@ const hostStateRevisions = new WeakMap<
   Map<string, { value: number }>
 >();
 
-export interface CreateAirJamStoreOptions {
+export type AirJamPrivateField<T> = {
+  [K in Exclude<keyof T, "actions">]: T[K] extends Record<string, unknown>
+    ? string extends keyof T[K]
+      ? K
+      : never
+    : never;
+}[Exclude<keyof T, "actions">] &
+  string;
+
+export type AirJamPrivateEntry<
+  T,
+  K extends AirJamPrivateField<T> = AirJamPrivateField<T>,
+> = T[K] extends Record<string, infer Entry> ? Entry : never;
+
+export interface CreateAirJamStoreOptions<
+  T = never,
+  K extends AirJamPrivateField<T> = AirJamPrivateField<T>,
+> {
+  privateField?: K;
   storeDomain?: string;
 }
 
@@ -174,6 +194,7 @@ interface StoreRuntimeSnapshot {
   roomId: string | null;
   resolvedStoreDomain: string;
   connectionStatus: string | null;
+  controllerId: string | null;
   canBroadcastHostState: boolean;
   hostStateSyncBlocked: boolean;
   hostStateRevisionFloor: number;
@@ -257,9 +278,11 @@ export interface AttachableStore {
  */
 export interface AirJamStore<
   T extends AirJamNetworkedState,
+  PrivateEntry = AirJamPrivateEntry<T>,
 > extends AttachableStore {
   readonly api: StoreApi<T>;
   getState: () => T;
+  getPrivateState: () => PrivateEntry | undefined;
   subscribe: StoreApi<T>["subscribe"];
   /** Public actions dispatched as the local surface: the host runs them, a controller sends them. */
   readonly actions: AirJamActionDispatchMap<T["actions"]>;
@@ -413,13 +436,40 @@ const AIR_JAM_ACTION_SESSION_WAIT_MS = 10_000;
  * runtime's environment: an explicit `aj_store_domain`, else the embedded
  * Arcade identity, else the default domain.
  */
-export function createAirJamStore<T extends AirJamNetworkedState>(
+export function createAirJamStore<
+  T extends AirJamNetworkedState,
+  K extends AirJamPrivateField<T> = AirJamPrivateField<T>,
+>(
   initializer: InvalidActionPayloadKeys<T["actions"]> extends never
     ? StateCreator<T>
     : StateCreator<T> & AirJamInvalidActionPayloadDiagnostic<T["actions"]>,
-  options?: CreateAirJamStoreOptions,
-): AirJamStore<T> {
+  options?: CreateAirJamStoreOptions<T, K>,
+): AirJamStore<T, AirJamPrivateEntry<T, K>> {
   const store = createStore<T>((set, get, api) => initializer(set, get, api));
+  const privateField = options?.privateField;
+  const privateEntries = (state: Partial<T>): Record<string, unknown> => {
+    if (!privateField) return {};
+    const entries = state[privateField];
+    if (!entries || typeof entries !== "object" || Array.isArray(entries))
+      throw new Error(
+        "A private store field must be a map keyed by controllerId.",
+      );
+    return entries as Record<string, unknown>;
+  };
+  const projectState = (state: Partial<T>, controllerId: string | null) => {
+    const data = { ...state };
+    if (privateField) {
+      const entry = controllerId
+        ? privateEntries(state)[controllerId]
+        : undefined;
+      Object.assign(data, {
+        [privateField]:
+          controllerId && entry !== undefined ? { [controllerId]: entry } : {},
+      });
+    }
+    return data;
+  };
+  if (privateField) privateEntries(store.getState());
   const stateEpoch = nanoid();
   const runtimeSnapshotRef: { current: StoreRuntimeSnapshot } = {
     current: {
@@ -428,6 +478,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       roomId: null,
       resolvedStoreDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
       connectionStatus: null,
+      controllerId: null,
       canBroadcastHostState: false,
       hostStateSyncBlocked: false,
       hostStateRevisionFloor: 0,
@@ -767,7 +818,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     controlTarget: object | null;
   }): StoreRuntimeBinding => {
     if (role === "host") {
-      let syncedStateData = stripActionsFromState(store.getState());
+      let syncedStateData = stripActionsFromState<T>(store.getState());
       let syncedStateSignature = JSON.stringify(syncedStateData);
       let revisions = hostStateRevisions.get(socket);
       if (!revisions) {
@@ -788,6 +839,29 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         revisions.set(revisionKey, syncRevision);
       }
 
+      const privateDeliveries = new Map<
+        string,
+        { signature: string | undefined; revision: number }
+      >();
+      const emitPrivateState = (controllerId: string, force = false) => {
+        if (!privateField || !runtimeSnapshotRef.current.canBroadcastHostState)
+          return;
+        const entry = privateEntries(store.getState())[controllerId];
+        const signature = JSON.stringify(entry);
+        const previous = privateDeliveries.get(controllerId);
+        if (!force && previous && previous.signature === signature) return;
+        const revision = previous
+          ? previous.revision + (previous.signature === signature ? 0 : 1)
+          : 0;
+        privateDeliveries.set(controllerId, { signature, revision });
+        socket.emit("host:private_state_sync", {
+          roomId,
+          storeDomain: resolvedStoreDomain,
+          controllerId,
+          revision,
+          entry,
+        });
+      };
       const emitHostStateSync = (requestId?: string): void => {
         const runtime = runtimeSnapshotRef.current;
         if (
@@ -807,7 +881,21 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
 
         runtime.socket.emit("host:state_sync", {
           roomId,
-          data: syncedStateData,
+          data: privateField
+            ? Object.fromEntries(
+                Object.entries(syncedStateData).filter(
+                  ([key]) => key !== privateField,
+                ),
+              )
+            : syncedStateData,
+          ...(privateField
+            ? {
+                privateState: {
+                  field: privateField,
+                  entries: privateEntries(syncedStateData),
+                },
+              }
+            : {}),
           storeDomain: resolvedStoreDomain,
           revision: syncRevision.value,
           ...(requestId ? { requestId } : {}),
@@ -816,10 +904,14 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
 
       const flushHostStateSync = (requestId?: string): void => {
         emitHostStateSync(requestId);
+        for (const controllerId of runtimeSnapshotRef.current
+          .connectedPlayerIds)
+          emitPrivateState(controllerId);
       };
 
-      const handleControllerJoined = (): void => {
+      const handleControllerJoined = (notice: ControllerJoinedNotice): void => {
         flushHostStateSync();
+        emitPrivateState(notice.controllerId, true);
       };
 
       const unsubscribe = store.subscribe((newState) => {
@@ -832,7 +924,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           return;
         }
 
-        const stateData = stripActionsFromState(newState);
+        const stateData = stripActionsFromState<T>(newState);
         const nextSignature = JSON.stringify(stateData);
         if (nextSignature === syncedStateSignature) {
           return;
@@ -846,7 +938,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         );
         syncRevision.value += 1;
         if (runtime.canBroadcastHostState && runtime.socket) {
-          emitHostStateSync();
+          flushHostStateSync();
         }
       });
 
@@ -948,6 +1040,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         roomId: string;
         storeDomain: string;
         requestId?: string;
+        controllerId?: string;
       }): void => {
         if (payload.roomId !== roomId) {
           return;
@@ -956,6 +1049,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           return;
         }
         flushHostStateSync(payload.requestId);
+        if (payload.controllerId) emitPrivateState(payload.controllerId, true);
       };
 
       const handleSync = (payload: AirJamStateSyncPayload) => {
@@ -972,10 +1066,13 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
           return;
         }
 
-        const nextStateData = stripActionsFromState(payload.data as Partial<T>);
+        const nextStateData = stripActionsFromState<T>({
+          ...store.getState(),
+          ...payload.data,
+        });
         const nextSignature = JSON.stringify(nextStateData);
         const currentSignature = JSON.stringify(
-          stripActionsFromState(store.getState()),
+          stripActionsFromState<T>(store.getState()),
         );
         syncRevision.value = payload.revision;
         syncedStateData = nextStateData;
@@ -1011,11 +1108,17 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
             storeDomain: resolvedStoreDomain,
             stateEpoch,
             contractStoreDomain: options?.storeDomain?.trim() || "default",
-            read: () => {
+            read: (controllerId) => {
               if (!canUseHostControl())
                 throw new Error("host_runtime_not_ready");
               return {
-                data: stripActionsFromState(store.getState()),
+                data:
+                  controllerId === undefined
+                    ? stripActionsFromState<T>(store.getState())
+                    : projectState(
+                        stripActionsFromState<T>(store.getState()),
+                        controllerId,
+                      ),
                 revision: syncRevision.value,
               };
             },
@@ -1069,6 +1172,27 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
     }
 
     let latestSyncRevision = -1;
+    let latestPrivateRevision = -1;
+    const clearPrivateState = () => {
+      if (privateField) store.setState({ [privateField]: {} } as Partial<T>);
+    };
+    clearPrivateState();
+    const handlePrivateSync = (payload: AirJamPrivateStateSyncPayload) => {
+      const controllerId = runtimeSnapshotRef.current.controllerId;
+      if (
+        !privateField ||
+        payload.roomId !== roomId ||
+        payload.storeDomain !== resolvedStoreDomain ||
+        payload.controllerId !== controllerId ||
+        payload.revision < latestPrivateRevision
+      )
+        return;
+      latestPrivateRevision = payload.revision;
+      store.setState({
+        [privateField]:
+          payload.entry === undefined ? {} : { [controllerId]: payload.entry },
+      } as Partial<T>);
+    };
 
     const handleSync = (payload: AirJamStateSyncPayload) => {
       if (
@@ -1081,7 +1205,8 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         return;
       }
       latestSyncRevision = payload.revision;
-      const stateData = stripActionsFromState(payload.data as Partial<T>);
+      const stateData = stripActionsFromState<T>(payload.data as Partial<T>);
+      if (privateField) delete stateData[privateField];
       store.setState(stateData);
     };
 
@@ -1095,10 +1220,13 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       if (payload.roomId !== roomId) return;
       // A reloaded host owns a new revision sequence, while this phone stays open.
       latestSyncRevision = -1;
+      latestPrivateRevision = -1;
+      clearPrivateState();
       requestState();
     };
 
     socket.on("airjam:state_sync", handleSync);
+    socket.on("airjam:private_state_sync", handlePrivateSync);
     socket.on("server:roomReady", handleRoomReady);
 
     if (runtimeSnapshotRef.current.connectionStatus === "connected") {
@@ -1109,6 +1237,8 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
       cleanup: () => {
         socket.off("airjam:state_sync", handleSync);
         socket.off("server:roomReady", handleRoomReady);
+        socket.off("airjam:private_state_sync", handlePrivateSync);
+        clearPrivateState();
       },
     };
   };
@@ -1153,6 +1283,7 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
         roomId,
         resolvedStoreDomain,
         connectionStatus: connection.connectionStatus,
+        controllerId: connection.controllerId,
         canBroadcastHostState,
         hostStateSyncBlocked: blockArcadeShellHostStateSync,
         hostStateRevisionFloor:
@@ -1173,7 +1304,9 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
               roomId,
               resolvedStoreDomain,
               socket.id ?? "socket",
-              role === "controller" ? connection.connectionStatus : "host",
+              role === "controller"
+                ? `${connection.connectionStatus}:${connection.controllerId}`
+                : "host",
             ].join(":")
           : null;
       if (binding?.key !== bindingKey) {
@@ -1248,6 +1381,14 @@ export function createAirJamStore<T extends AirJamNetworkedState>(
   return {
     api: store,
     getState: store.getState,
+    getPrivateState: () => {
+      const controllerId = runtimeSnapshotRef.current.controllerId;
+      return controllerId && privateField
+        ? (privateEntries(store.getState())[controllerId] as
+            | AirJamPrivateEntry<T, K>
+            | undefined)
+        : undefined;
+    },
     subscribe: store.subscribe,
     actions: createDispatchedActions(store, { kind: "default" }),
     asPlayer: (controllerId) =>

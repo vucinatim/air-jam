@@ -14,6 +14,49 @@ Use this lane for replicated game state, not per-frame input.
 A store is a plain object from `@air-jam/sdk/core`, so game logic can use it
 without React. Components read it with `useAirJamStore`.
 
+## Private per-player state
+
+A store can declare one `privateField`: a map keyed by `controllerId`. Use it for
+hidden hands, roles or shopping lists. The host keeps every entry. The room's
+public state broadcast never contains this field; each phone receives only its
+own entry through targeted delivery, including after a reconnect.
+
+```tsx
+import { createAirJamStore } from "@air-jam/sdk/core";
+import { useAirJamPrivateState } from "@air-jam/sdk";
+
+type MarketState = {
+  round: number;
+  secrets: Record<string, { shoppingList: string[] }>;
+  actions: {};
+};
+
+const marketStore = createAirJamStore<MarketState, "secrets">(
+  () => ({ round: 1, secrets: {}, actions: {} }),
+  { privateField: "secrets" },
+);
+
+function ShoppingList() {
+  const ownEntry = useAirJamPrivateState(marketStore);
+  return <p>{ownEntry?.shoppingList.join(", ") ?? "Waiting for your list"}</p>;
+}
+```
+
+When supplying an explicit state type, name the private field as the second type
+argument so the hook infers that entry even when the store has other maps.
+Declare this store in the game just like a public store. The hook returns
+`undefined` until this controller's entry arrives, and when the host removes it.
+Host actions update the map normally. Only changed entries are sent; public-only
+changes do not resend private data. Embedded controllers use the same private
+lane through their MessagePort bridge.
+
+Agent `projectSnapshot` receives the public fields and a private map containing
+only the requested controller's entry (an empty map without a controller).
+Host-authority `rawStores` and host restore retain the whole map. Keep private
+values out of other public fields and explicitly author any end-of-round reveal.
+Private state derives from the replicated store, so headless runs and replays use
+the same authoritative state; it is not a separate RPC or an encrypted channel.
+
 ## Canonical Action Model
 
 Actions always use this shape on the host:

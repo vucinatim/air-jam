@@ -51,10 +51,12 @@ import type {
 import type {
   AirJamActionInvocationResult,
   AirJamActionRpcPayload,
+  AirJamPrivateStateSyncPayload,
   AirJamStateSyncPayload,
   AirJamStateSyncRequestPayload,
   ControllerActionRpcPayload,
   ControllerStateSyncRequestPayload,
+  HostPrivateStateSyncPayload,
   HostStateSyncPayload,
 } from "./sync";
 
@@ -119,6 +121,7 @@ export interface ClientToServerEvents {
   "host:signal": (payload: SignalPayload) => void;
   "host:play_sound": (payload: PlaySoundEventPayload) => void;
   "controller:play_sound": (payload: PlaySoundEventPayload) => void;
+  "host:private_state_sync": (payload: HostPrivateStateSyncPayload) => void;
   "host:state_sync": (payload: HostStateSyncPayload) => void;
   "controller:action_rpc": (
     payload: ControllerActionRpcPayload,
@@ -148,6 +151,7 @@ export interface ServerToClientEvents {
   "server:playSound": (payload: PlaySoundPayload) => void;
   "server:redirect": (url: string) => void;
   "server:closeChild": () => void;
+  "airjam:private_state_sync": (payload: AirJamPrivateStateSyncPayload) => void;
   "airjam:state_sync": (payload: AirJamStateSyncPayload) => void;
   "airjam:action_rpc": (
     payload: AirJamActionRpcPayload,

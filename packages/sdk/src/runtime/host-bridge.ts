@@ -2,6 +2,7 @@ import { z } from "zod";
 import { v2HandshakeSchema, type V2Handshake } from "../contracts/v2";
 import type {
   AirJamActionRpcPayload,
+  AirJamStateSyncPayload,
   AirJamStateSyncRequestPayload,
   ControllerInputEvent,
   ControllerJoinedNotice,
@@ -11,6 +12,7 @@ import type {
   ControllerStateMessage,
   ControllerSystemPayload,
   HostLeftNotice,
+  HostPrivateStateSyncPayload,
   HostStateSyncPayload,
   PlaySoundEventPayload,
   PlaySoundPayload,
@@ -41,12 +43,14 @@ export const hostBridgeClientEvents = [
   "host:play_sound",
   "host:system",
   "host:state_sync",
+  "host:private_state_sync",
 ] as const;
 
 export const hostBridgeServerEvents = [
   "connect",
   "disconnect",
   "airjam:state_sync_request",
+  "airjam:state_sync",
   "server:controllerJoined",
   "server:controllerLeft",
   "server:controllerDisconnected",
@@ -79,12 +83,14 @@ export type HostBridgeClientEventArgs = {
   "host:play_sound": [payload: PlaySoundEventPayload];
   "host:system": [payload: ControllerSystemPayload];
   "host:state_sync": [payload: HostStateSyncPayload];
+  "host:private_state_sync": [payload: HostPrivateStateSyncPayload];
 };
 
 export type HostBridgeServerEventArgs = {
   connect: [];
   disconnect: [reason?: string];
   "airjam:state_sync_request": [payload: AirJamStateSyncRequestPayload];
+  "airjam:state_sync": [payload: AirJamStateSyncPayload];
   "server:controllerJoined": [payload: ControllerJoinedNotice];
   "server:controllerLeft": [payload: ControllerLeftNotice];
   "server:controllerDisconnected": [payload: ControllerPresenceNotice];

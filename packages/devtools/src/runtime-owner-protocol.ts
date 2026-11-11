@@ -6,6 +6,7 @@ import {
 import {
   airJamActionInvocationResultSchema,
   controllerStateSyncRequestSchema,
+  hostPrivateStateSyncSchema,
   hostStateSyncSchema,
 } from "@air-jam/sdk/protocol";
 import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
@@ -66,6 +67,7 @@ const runtimeOwnerCaptureSchema = z.object({
   relativeDir: z.string().min(1),
   snapshot: controllerBridgeSnapshotSchema,
   stores: z.array(hostStateSyncSchema),
+  privateStores: z.array(hostPrivateStateSyncSchema),
 });
 export type AirJamRuntimeOwnerCaptureRequest = z.infer<
   typeof runtimeOwnerCaptureSchema
@@ -191,6 +193,7 @@ export const runtimeOwnerWatchRequestSchema = z.discriminatedUnion("surface", [
       surface: z.literal("controller"),
       snapshot: controllerBridgeSnapshotSchema,
       stores: z.array(hostStateSyncSchema),
+      privateStores: z.array(hostPrivateStateSyncSchema),
     })
     .strict(),
 ]);
