@@ -350,6 +350,7 @@ describe("server state sync", () => {
     await expect(hostRequestPromise).resolves.toEqual({
       roomId,
       storeDomain: "default",
+      controllerId: "ctrl_sync_request_1",
     });
 
     const correlatedRequestPromise = harness.waitForEvent<{
@@ -367,6 +368,7 @@ describe("server state sync", () => {
     await expect(correlatedRequestPromise).resolves.toEqual({
       roomId,
       storeDomain: "default",
+      controllerId: "ctrl_sync_request_1",
       requestId: "sync_req_fixture",
     });
 
