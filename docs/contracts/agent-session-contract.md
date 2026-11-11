@@ -611,12 +611,13 @@ honestly, never replace it with a host capture or another controller.
 ### Clips
 
 Clips use that same capture surface and host-agent channel, without a room grant:
-`clip-start {roomId, runtimeId, clipId}` starts in the background;
+`clip-start {roomId, runtimeId, clipId, frameIntervalMs?}` starts in the background;
 `clip-read {roomId, clipId, stop, fromFrame}` stops and reads pages. Stop before
 paging to freeze indexes; follow `nextFrame` until null. Capture requests JPEG at
-640 px / 0.7 every 100 ms, with no queued captures. Captures that ignore those
-options may return frames up to 1280 px; the same byte caps still apply. The retained window is the
-last 15 s / 150 frames and 4 MiB decoded image bytes; frames over 160 KiB or
+1280 px / 0.92 at the requested interval, with a 100 ms default and a 33 ms floor.
+No captures queue. The artifact reports the recording's interval. The retained window is the
+last 15 s and 4 MiB decoded image bytes, with at most `ceil(15000 / frameIntervalMs)`
+frames (455 at 33 ms, 150 at the default); frames over 160 KiB or
 null captures are skipped. Pages contain at most 768 KiB base64 characters.
 Four recordings may be retained; each self-stops at ten minutes and stopped
 recordings expire after a minute without reads. When full, a new recording
