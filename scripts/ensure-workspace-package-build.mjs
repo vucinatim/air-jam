@@ -1,13 +1,17 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import {
   mkdir,
   readdir,
   readFile,
   rm,
+  rmdir,
   stat,
+  unlink,
   writeFile,
 } from "node:fs/promises";
+import { hostname } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -139,13 +143,56 @@ export const acquireWorkspaceBuildLock = async (
 
   await mkdir(path.dirname(lockDir), { recursive: true });
   const startedAt = Date.now();
+  let waitingLogged = false;
 
   while (true) {
     try {
       await mkdir(lockDir);
-      return;
     } catch (error) {
       if (error && error.code === "EEXIST") {
+        try {
+          const [ownerFile] = await readdir(lockDir);
+          const ownerPath = ownerFile && path.join(lockDir, ownerFile);
+          const owner = ownerPath
+            ? await readJsonFile(ownerPath).catch((error) => {
+                // A waiter can read while the new holder writes its record.
+                if (error instanceof SyntaxError) return null;
+                throw error;
+              })
+            : null;
+          if (
+            Number.isSafeInteger(owner?.pid) &&
+            owner.pid > 0 &&
+            owner.host === hostname()
+          ) {
+            let alive = true;
+            try {
+              process.kill(owner.pid, 0);
+            } catch (error) {
+              if (error.code === "ESRCH") alive = false;
+              else if (error.code !== "EPERM") throw error;
+            }
+            if (!alive) {
+              // Only the waiter that removes this unique record may remove
+              // the directory; a losing waiter cannot delete a new holder.
+              await unlink(ownerPath);
+              await rmdir(lockDir);
+              console.error(
+                `Reclaimed workspace build lock ${lockDir} from dead process ${owner.pid} on ${owner.host}.`,
+              );
+              continue;
+            }
+          }
+          if (!waitingLogged) {
+            console.error(
+              `Waiting for workspace build lock ${lockDir} held by ${owner ? `process ${owner.pid} on ${owner.host}` : "an unrecorded owner"}.`,
+            );
+            waitingLogged = true;
+          }
+        } catch (error) {
+          if (error.code === "ENOENT") continue;
+          throw error;
+        }
         const elapsedMs = Date.now() - startedAt;
         if (elapsedMs >= timeoutMs) {
           throw new Error(
@@ -158,6 +205,18 @@ export const acquireWorkspaceBuildLock = async (
 
       throw error;
     }
+
+    try {
+      await writeFile(
+        path.join(lockDir, `${randomUUID()}.json`),
+        JSON.stringify({ pid: process.pid, host: hostname() }),
+        "utf8",
+      );
+    } catch (error) {
+      await releaseLock(lockDir);
+      throw error;
+    }
+    return;
   }
 };
 

@@ -41,6 +41,11 @@ Startup checks the requested ports and fails without killing their owners.
 Stopping this command shuts down only its own child processes. The SDK's first
 successful build must complete before the game starts.
 
+Workspace package builds record their process ID and hostname in the build lock.
+A later build immediately reclaims a lock whose process has died on this host
+and logs the recovery. A waiting build logs its holder once; the five-minute
+timeout remains for live holders, other hosts and locks without an owner record.
+
 Do not treat preview-only flows or raw lower-level commands as the normal
 starting point unless the task explicitly needs them.
 
