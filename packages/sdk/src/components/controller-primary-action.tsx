@@ -42,7 +42,7 @@ export const ControllerPrimaryAction = ({
             {label}
           </div>
           {helper ? (
-            <div className="mt-1 text-sm/5 font-medium tracking-normal normal-case opacity-80">
+            <div className="mt-1 text-sm/5 font-medium tracking-normal whitespace-normal normal-case opacity-80">
               {helper}
             </div>
           ) : null}
