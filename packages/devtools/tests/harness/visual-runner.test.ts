@@ -47,6 +47,12 @@ vi.mock("../../src/harness/visual/session.js", () => ({
   })),
 }));
 
+vi.mock("../../src/games.js", () => ({
+  inspectGame: vi.fn(async () => ({
+    declaration: { metadata: { inputModalities: ["joystick"] } },
+  })),
+}));
+
 import { runVisualHarness } from "../../src/harness/visual/runner";
 
 const artifactRoots: string[] = [];

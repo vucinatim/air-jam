@@ -3,6 +3,7 @@ export {
   GAME_INPUT_MODALITIES,
   airJamGameMetadataSchema,
   defineAirJamGameMetadata,
+  fixedControllerOrientation,
   type AirJamGameCategory,
   type AirJamGameInputModality,
   type AirJamGameMaintainer,

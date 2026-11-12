@@ -72,7 +72,7 @@ describe("room session domain lifecycle", () => {
     });
   });
 
-  it("resets stale runtime state and starts a new launch in playing state", () => {
+  it("starts a launch without overwriting the declared controller orientation", () => {
     const session = createSession();
     session.runtimeState = "playing";
     session.controllerOrientation = "landscape";
@@ -86,7 +86,7 @@ describe("room session domain lifecycle", () => {
     expect(launchAttempt).toEqual({ ok: true });
     expect(session.lifecycleState).toBe("GAME_LAUNCH_PENDING");
     expect(session.runtimeState).toBe("playing");
-    expect(session.controllerOrientation).toBe("portrait");
+    expect(session.controllerOrientation).toBe("landscape");
   });
 
   it("resets game and routing fields when returning to system state", () => {
@@ -108,7 +108,7 @@ describe("room session domain lifecycle", () => {
     session.controllerOrientation = "landscape";
     resetRoomToSystemState(session, true);
     expect(session.runtimeState).toBe("paused");
-    expect(session.controllerOrientation).toBe("portrait");
+    expect(session.controllerOrientation).toBe("landscape");
   });
 
   it("blocks child-host activation unless launch is pending", () => {

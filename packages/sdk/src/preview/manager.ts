@@ -55,6 +55,7 @@ export interface UsePreviewControllerManagerOptions {
   maxControllers?: number;
   allowedOrigins?: readonly string[];
   embedOrigin?: string | null;
+  fixedControllerOrientation?: "landscape" | null;
 }
 
 export interface UsePreviewControllerManagerResult {
@@ -303,12 +304,51 @@ const mapSessionsAndNormalizeActive = (
   mapSession: (session: PreviewControllerSession) => PreviewControllerSession,
 ) => normalizeActiveSession(sessions.map(mapSession));
 
+const orientSession = (
+  session: PreviewControllerSession,
+  nextOrientation: ControllerOrientation,
+): PreviewControllerSession => {
+  const centerX = session.x + session.width / 2;
+  const centerY = session.y + session.height / 2;
+  const nextWindowBounds = getPreviewWindowBounds(
+    nextOrientation,
+    session.displayScale,
+  );
+  const nextBounds = clampBounds(
+    nextOrientation,
+    {
+      x: centerX - nextWindowBounds.width / 2,
+      y: centerY - nextWindowBounds.height / 2,
+      width: nextWindowBounds.width,
+      height: nextWindowBounds.height,
+    },
+    {},
+  );
+  const clampedWindowBounds = getPreviewWindowBounds(
+    nextOrientation,
+    getPreviewControllerScaleForBounds(nextOrientation, nextBounds),
+  );
+
+  return {
+    ...session,
+    orientation: nextOrientation,
+    x: nextBounds.x,
+    y: nextBounds.y,
+    width: clampedWindowBounds.width,
+    height: clampedWindowBounds.height,
+    viewportWidth: clampedWindowBounds.viewportWidth,
+    viewportHeight: clampedWindowBounds.viewportHeight,
+    displayScale: clampedWindowBounds.displayScale,
+  };
+};
+
 export const usePreviewControllerManager = ({
   joinUrl,
   enabled = true,
   maxControllers = 2,
   allowedOrigins,
   embedOrigin,
+  fixedControllerOrientation = null,
 }: UsePreviewControllerManagerOptions): UsePreviewControllerManagerResult => {
   const [sessions, setSessions] = useState<PreviewControllerSession[]>([]);
   const nextSessionIdRef = useRef(1);
@@ -369,7 +409,8 @@ export const usePreviewControllerManager = ({
         const ordinal = nextOrdinalRef.current++;
         const zIndex = nextZIndexRef.current++;
         const sessionId = `preview_session_${nextSessionIdRef.current++}`;
-        const orientation = DEFAULT_PREVIEW_CONTROLLER_ORIENTATION;
+        const orientation =
+          fixedControllerOrientation ?? DEFAULT_PREVIEW_CONTROLLER_ORIENTATION;
         const defaultBounds = getPreviewWindowBounds(
           orientation,
           DEFAULT_PREVIEW_CONTROLLER_SCALE,
@@ -405,7 +446,14 @@ export const usePreviewControllerManager = ({
 
       return nextSession;
     },
-    [allowedOrigins, embedOrigin, enabled, joinUrl, maxControllers],
+    [
+      allowedOrigins,
+      embedOrigin,
+      enabled,
+      joinUrl,
+      maxControllers,
+      fixedControllerOrientation,
+    ],
   );
 
   const removePreviewController = useCallback((id: string) => {
@@ -508,50 +556,34 @@ export const usePreviewControllerManager = ({
     [],
   );
 
-  const rotatePreviewController = useCallback((id: string) => {
+  const rotatePreviewController = useCallback(
+    (id: string) => {
+      if (fixedControllerOrientation) return;
+      setSessions((current) =>
+        mapSessionsAndNormalizeActive(current, (session) => {
+          if (session.id !== id) {
+            return session;
+          }
+
+          const nextOrientation: ControllerOrientation =
+            session.orientation === "portrait" ? "landscape" : "portrait";
+          return orientSession(session, nextOrientation);
+        }),
+      );
+    },
+    [fixedControllerOrientation],
+  );
+
+  useEffect(() => {
+    if (!fixedControllerOrientation) return;
     setSessions((current) =>
-      mapSessionsAndNormalizeActive(current, (session) => {
-        if (session.id !== id) {
-          return session;
-        }
-
-        const nextOrientation: ControllerOrientation =
-          session.orientation === "portrait" ? "landscape" : "portrait";
-        const centerX = session.x + session.width / 2;
-        const centerY = session.y + session.height / 2;
-        const nextWindowBounds = getPreviewWindowBounds(
-          nextOrientation,
-          session.displayScale,
-        );
-        const nextBounds = clampBounds(
-          nextOrientation,
-          {
-            x: centerX - nextWindowBounds.width / 2,
-            y: centerY - nextWindowBounds.height / 2,
-            width: nextWindowBounds.width,
-            height: nextWindowBounds.height,
-          },
-          {},
-        );
-        const clampedWindowBounds = getPreviewWindowBounds(
-          nextOrientation,
-          getPreviewControllerScaleForBounds(nextOrientation, nextBounds),
-        );
-
-        return {
-          ...session,
-          orientation: nextOrientation,
-          x: nextBounds.x,
-          y: nextBounds.y,
-          width: clampedWindowBounds.width,
-          height: clampedWindowBounds.height,
-          viewportWidth: clampedWindowBounds.viewportWidth,
-          viewportHeight: clampedWindowBounds.viewportHeight,
-          displayScale: clampedWindowBounds.displayScale,
-        };
-      }),
+      current.map((session) =>
+        session.orientation === fixedControllerOrientation
+          ? session
+          : orientSession(session, fixedControllerOrientation),
+      ),
     );
-  }, []);
+  }, [fixedControllerOrientation]);
 
   const markPreviewControllerReady = useCallback((id: string) => {
     setSessions((current) =>

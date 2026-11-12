@@ -12,6 +12,7 @@ import {
   parseControllerPresentationSyncMessage,
 } from "../src/runtime/controller-bridge";
 import { publishEmbeddedControllerPresentation } from "../src/runtime/controller-presentation";
+import { fixedControllerOrientationContext } from "../src/runtime/runtime-owner-contexts";
 
 const setEmbeddedControllerUrl = () => {
   const topology = resolveRuntimeTopology({
@@ -98,6 +99,22 @@ describe("controller presentation sync", () => {
     ).not.toBeNull();
   });
 
+  it("fixes only controller surfaces to the joystick declaration", () => {
+    const renderIn = (scope: "host" | "controller") =>
+      render(
+        <SessionScopeContext.Provider value={scope}>
+          <fixedControllerOrientationContext.Provider value="landscape">
+            <SurfaceViewport orientation="portrait">{scope}</SurfaceViewport>
+          </fixedControllerOrientationContext.Provider>
+        </SessionScopeContext.Provider>,
+      );
+
+    expect(() => renderIn("controller")).toThrow(
+      /inputModalities.*joystick.*airjam.config/,
+    );
+    expect(renderIn("host").getByText("host")).toBeTruthy();
+  });
+
   it("is a no-op outside an embedded controller iframe", () => {
     const postMessage = vi.spyOn(window.parent, "postMessage");
 
@@ -112,7 +129,9 @@ describe("controller presentation sync", () => {
 
     render(
       <SessionScopeContext.Provider value="controller">
-        <SurfaceViewport orientation="landscape">Controller</SurfaceViewport>
+        <fixedControllerOrientationContext.Provider value="landscape">
+          <SurfaceViewport>Controller</SurfaceViewport>
+        </fixedControllerOrientationContext.Provider>
       </SessionScopeContext.Provider>,
     );
 

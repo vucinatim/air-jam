@@ -5,6 +5,7 @@ import { type AirJamProviderProps } from "../context/session-providers";
 import { isAirJamGame, type AirJamGame } from "../core/game";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
+import { fixedControllerOrientation } from "../metadata/manifest";
 import {
   parseRuntimeTopology,
   resolveProjectRuntimeTopology,
@@ -213,6 +214,9 @@ export const createAirJamApp = (
           {...runtimeOptions}
           agent={agent}
           gameId={metadata.slug}
+          fixedControllerOrientation={fixedControllerOrientation(
+            metadata.inputModalities,
+          )}
           stores={stores}
           simulation={simulation}
           settings={settings}
@@ -250,6 +254,9 @@ export const createAirJamApp = (
         <AirJamControllerRuntime
           {...controllerSession}
           {...runtimeOptions}
+          fixedControllerOrientation={fixedControllerOrientation(
+            metadata.inputModalities,
+          )}
           stores={stores}
           input={input}
         >

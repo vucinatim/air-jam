@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   airJamGameMetadataSchema,
   defineAirJamGameMetadata,
+  fixedControllerOrientation,
 } from "../src/metadata";
 
 const baseInput = {
@@ -20,6 +21,10 @@ describe("air jam game metadata manifest", () => {
   it("defines a frozen v1 manifest with defaults applied", () => {
     const metadata = defineAirJamGameMetadata({ ...baseInput });
 
+    expect(fixedControllerOrientation(metadata.inputModalities)).toBe(
+      "landscape",
+    );
+    expect(fixedControllerOrientation(["buttons", "touch"])).toBeNull();
     expect(metadata.version).toBe(1);
     expect(metadata.slug).toBe("my-cool-game");
     expect(metadata.inputModalities).toEqual(["buttons", "joystick"]);

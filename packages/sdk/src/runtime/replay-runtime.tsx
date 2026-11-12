@@ -22,6 +22,7 @@ export function ReplayRuntime({
   input,
   agent,
   gameId,
+  fixedControllerOrientation,
 }: AirJamHostRuntimeProps & { children: ReactNode }) {
   const context = useAirJamContext();
   const [replay, setReplay] = useState<AirJamReplay | null>(null);
@@ -39,6 +40,7 @@ export function ReplayRuntime({
         new HostRuntime(
           {
             ...dependencies,
+            fixedControllerOrientation,
             stores,
             simulation,
             settings,
@@ -62,6 +64,7 @@ export function ReplayRuntime({
     input,
     agent,
     gameId,
+    fixedControllerOrientation,
   ]);
   if (!replay) return null;
   const runtime = replay.runtime;

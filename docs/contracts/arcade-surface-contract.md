@@ -130,15 +130,14 @@ When no game iframe is shown, the outer shell stays portrait.
 
 ### Game Integration
 
-Games configure controller presentation by wrapping the controller root in
-`SurfaceViewport` and passing the live desired `orientation`.
+Games wrap the controller root in `SurfaceViewport`. Non-joystick games may pass a phase-specific `orientation`.
+
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
 
 In Arcade embedded runs, that same component also tells the parent controller
 chrome which orientation to use.
 
-Hosts should not call `sendState({ orientation })` just to rotate controller
-chrome. Host state should only carry gameplay or runtime metadata that truly
-belongs to the host session.
+Game-facing `sendState` cannot set orientation. The authoritative game runtime publishes its declared orientation through the session; launch and system resets preserve that value until the next authoritative host declares its own.
 
 ### `overlay`
 

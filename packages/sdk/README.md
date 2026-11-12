@@ -91,7 +91,7 @@ export const airjam = defineAirJamGame({
     category: "party",
     minPlayers: 1,
     maxPlayers: 4,
-    inputModalities: ["buttons", "touch"],
+    inputModalities: ["buttons", "joystick", "touch"],
     supportedSdkRange: "^1.0.0",
     maintainer: { name: "Your Name" },
   },
@@ -205,7 +205,7 @@ const ControllerShell = () => (
 );
 
 export const ControllerView = () => (
-  <SurfaceViewport orientation="landscape">
+  <SurfaceViewport>
     <section className="grid h-full grid-cols-2 gap-3 p-3">
       <Stick control={gameInput.move} />
       <ControlButton control={gameInput.action}>Action</ControlButton>
@@ -225,7 +225,9 @@ The important rule is:
 
 1. mount `airjam.Host` / `airjam.Controller` once per runtime surface
 2. use `useAirJamHost()` / `useAirJamController()` only as read hooks below that boundary
-3. wrap controller UI in `SurfaceViewport` and set its `orientation` there
+3. wrap controller UI in `SurfaceViewport`
+
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
 
 When the controller runs inside Arcade, `SurfaceViewport` automatically publishes
 its orientation to the parent Arcade chrome. The same component still handles
@@ -280,7 +282,7 @@ The shared preview leaf currently provides:
 3. `usePreviewControllerManager` for host-local preview session state
 4. `buildPreviewControllerUrl` and related launch helpers for explicit launch control
 
-The floating window chrome also supports per-window portrait/landscape rotation,
+For games without joystick input, floating window chrome supports per-window portrait/landscape rotation,
 and active preview-window opacity is driven by the shared platform settings
 runtime so hosts can persist their preferred transparency level.
 

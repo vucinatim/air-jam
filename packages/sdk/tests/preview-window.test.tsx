@@ -26,11 +26,12 @@ const session = (minimized: boolean): PreviewControllerSession => ({
   zIndex: 1,
 });
 
-const show = (minimized: boolean) => {
+const show = (minimized: boolean, fixed: "landscape" | null = null) => {
   const handler = vi.fn();
   return render(
     <PreviewControllerWindow
       session={session(minimized)}
+      fixedControllerOrientation={fixed}
       activeOpacity={1}
       onFocus={handler}
       onMinimize={handler}
@@ -60,4 +61,10 @@ it("keeps a minimized phone's controller playing, out of sight", () => {
 it("shows an open phone", () => {
   const { container } = show(false);
   expect((container.firstElementChild as HTMLElement).hidden).toBe(false);
+  expect(container.querySelector('[aria-label^="Rotate"]')).not.toBeNull();
+});
+
+it("hides Rotate for a fixed game", () => {
+  const { container } = show(false, "landscape");
+  expect(container.querySelector('[aria-label^="Rotate"]')).toBeNull();
 });

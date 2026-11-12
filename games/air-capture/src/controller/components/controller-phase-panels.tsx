@@ -2,6 +2,7 @@ import type { PlayerProfile } from "@air-jam/sdk";
 import type { AirJamButtonControl } from "@air-jam/sdk/core";
 import {
   ControlButton,
+  ControllerPlayerNameField,
   ControllerPrimaryAction,
   LifecycleActionGroup,
   Stick,
@@ -58,102 +59,104 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
   return (
     <div
       data-testid="air-capture-controller-lobby-panel"
-      className="flex min-h-0 flex-1 flex-col"
+      className="flex min-h-0 flex-1 gap-3 p-3"
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pt-3 pb-4">
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(["solaris", "nebulon"] as const).map((teamId) => {
-            const botCount = botCounts[teamId];
-            const humanCount = teamCounts[teamId];
-            const players = teamPlayers[teamId];
-            const slots = buildTeamSlots(players, botCount);
-            const teamIsFull = humanCount + botCount >= MAX_TEAM_SLOTS;
-            const joined = myTeam === teamId;
-            const teamColor = TEAM_CONFIG[teamId].color;
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-y-auto overscroll-contain">
+        {(["solaris", "nebulon"] as const).map((teamId) => {
+          const botCount = botCounts[teamId];
+          const humanCount = teamCounts[teamId];
+          const players = teamPlayers[teamId];
+          const slots = buildTeamSlots(players, botCount);
+          const teamIsFull = humanCount + botCount >= MAX_TEAM_SLOTS;
+          const joined = myTeam === teamId;
+          const teamColor = TEAM_CONFIG[teamId].color;
 
-            return (
+          return (
+            <div
+              key={teamId}
+              className={`${capturePanelClass} flex flex-col gap-2 p-3 text-center`}
+              data-testid={`air-capture-controller-team-card-${teamId}`}
+            >
               <div
-                key={teamId}
-                className={`${capturePanelClass} px-4 py-3 text-center`}
-                data-testid={`air-capture-controller-team-card-${teamId}`}
+                className="text-[0.6875rem] font-black tracking-[0.2em] uppercase"
+                style={{ color: teamColor }}
               >
-                <div
-                  className="text-[0.6875rem] font-black tracking-[0.2em] uppercase"
-                  style={{ color: teamColor }}
-                >
-                  {TEAM_CONFIG[teamId].label}
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    data-testid={`air-capture-controller-join-team-${teamId}`}
-                    className={`rounded-xl border px-3 py-3 text-[0.6875rem] font-black tracking-[0.16em] text-white uppercase ${PRESS_FEEL_CLASS}`}
-                    style={{
-                      background: joined
-                        ? `linear-gradient(180deg, ${teamColor}, color-mix(in srgb, ${teamColor} 70%, black))`
-                        : "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)), rgba(12,18,33,0.92)",
-                      borderColor: joined
-                        ? `${teamColor}aa`
-                        : airCaptureTheme.colors.panelBorder,
-                      boxShadow: joined
-                        ? `0 16px 28px color-mix(in srgb, ${teamColor} 22%, transparent)`
-                        : undefined,
-                    }}
-                    disabled={controlsDisabled || (teamIsFull && !joined)}
-                    onClick={() => onSelectTeam(teamId)}
-                  >
-                    {joined ? "Joined" : teamIsFull ? "Full" : "Join Team"}
-                  </button>
-                  <button
-                    type="button"
-                    data-testid={`air-capture-controller-add-bot-${teamId}`}
-                    className={`rounded-xl border px-3 py-3 text-[0.6875rem] font-black tracking-[0.16em] uppercase ${
-                      teamIsFull
-                        ? "border-white/10 bg-white/4 text-zinc-500"
-                        : "border-cyan-400/40 bg-cyan-400/12 text-cyan-100"
-                    }`}
-                    disabled={controlsDisabled || teamIsFull}
-                    onClick={() => onSetTeamBotCount(teamId, botCount + 1)}
-                  >
-                    Add Bot
-                  </button>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {slots.map((slot, index) => {
-                    const canRemoveBot =
-                      slot.kind === "bot" && !controlsDisabled;
-                    return (
-                      <TeamSlotTile
-                        key={`${teamId}-slot-${index}`}
-                        slot={slot}
-                        testId={`air-capture-controller-team-slot-${teamId}-${index}`}
-                        disabled={!canRemoveBot}
-                        onBotAction={() => {
-                          if (canRemoveBot) {
-                            onSetTeamBotCount(
-                              teamId,
-                              Math.max(0, botCount - 1),
-                            );
-                          }
-                        }}
-                      />
-                    );
-                  })}
-                </div>
+                {TEAM_CONFIG[teamId].label}
               </div>
-            );
-          })}
-        </div>
+              <button
+                type="button"
+                data-testid={`air-capture-controller-join-team-${teamId}`}
+                className={`rounded-xl border px-3 py-3 text-[0.6875rem] font-black tracking-[0.16em] text-white uppercase ${PRESS_FEEL_CLASS}`}
+                style={{
+                  background: joined
+                    ? `linear-gradient(180deg, ${teamColor}, color-mix(in srgb, ${teamColor} 70%, black))`
+                    : "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)), rgba(12,18,33,0.92)",
+                  borderColor: joined
+                    ? `${teamColor}aa`
+                    : airCaptureTheme.colors.panelBorder,
+                  boxShadow: joined
+                    ? `0 16px 28px color-mix(in srgb, ${teamColor} 22%, transparent)`
+                    : undefined,
+                }}
+                disabled={controlsDisabled || (teamIsFull && !joined)}
+                onClick={() => onSelectTeam(teamId)}
+              >
+                {joined ? "Joined" : teamIsFull ? "Full" : "Join Team"}
+              </button>
+              <div className="grid gap-2">
+                {slots.map((slot, index) => {
+                  const canRemoveBot = slot.kind === "bot" && !controlsDisabled;
+                  return (
+                    <TeamSlotTile
+                      key={`${teamId}-slot-${index}`}
+                      slot={slot}
+                      testId={`air-capture-controller-team-slot-${teamId}-${index}`}
+                      disabled={!canRemoveBot}
+                      onBotAction={() => {
+                        if (canRemoveBot) {
+                          onSetTeamBotCount(teamId, Math.max(0, botCount - 1));
+                        }
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                data-testid={`air-capture-controller-add-bot-${teamId}`}
+                className={`mt-auto rounded-xl border px-3 py-2 text-[0.625rem] font-black tracking-[0.16em] uppercase ${
+                  teamIsFull
+                    ? "border-white/10 bg-white/4 text-zinc-500"
+                    : "border-cyan-400/40 bg-cyan-400/12 text-cyan-100"
+                }`}
+                disabled={controlsDisabled || teamIsFull}
+                onClick={() => onSetTeamBotCount(teamId, botCount + 1)}
+              >
+                Add Bot
+              </button>
+            </div>
+          );
+        })}
+      </div>
 
-        <div className={`${capturePanelClass} px-4 py-3`}>
-          <div className="grid grid-cols-4 gap-2">
+      <div className="flex w-64 shrink-0 flex-col gap-3">
+        <ControllerPlayerNameField
+          labelClassName="text-[0.625rem] font-semibold tracking-[0.2em] text-zinc-400 uppercase"
+          inputClassName="mt-1 w-full rounded-xl border border-white/15 bg-zinc-900/85 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-sky-400/45 focus:ring-1 focus:ring-sky-400/25"
+        />
+
+        <div>
+          <div className="text-[0.625rem] font-semibold tracking-[0.2em] text-zinc-400 uppercase">
+            First to
+          </div>
+          <div className="mt-1 grid grid-cols-4 gap-1.5">
             {POINTS_TO_WIN_OPTIONS.map((value) => {
               const selected = pointsToWin === value;
               return (
                 <button
                   key={value}
                   type="button"
-                  className={`rounded-2xl border px-2 py-3 text-sm font-black ${
+                  className={`rounded-xl border py-2 text-sm font-black ${
                     selected
                       ? "border-white/50 bg-white/14 text-white"
                       : "border-white/10 bg-white/6 text-zinc-300 hover:bg-white/10"
@@ -173,7 +176,6 @@ export const ControllerLobbyPanel = memo(function ControllerLobbyPanel({
           helper={readinessText}
           disabled={!canStartMatch}
           onPress={onStartMatch}
-          className="pb-1"
           buttonClassName="border border-sky-400/25 bg-white text-black hover:bg-white/95"
         />
       </div>
@@ -198,8 +200,8 @@ export const ControllerEndedPanel = memo(function ControllerEndedPanel({
     : airCaptureTheme.colors.white;
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center px-3 py-4">
-      <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-[28px] border border-white/10 bg-zinc-950/88 px-5 py-6 text-center shadow-2xl">
+    <div className="flex min-h-0 flex-1 items-center gap-6 p-3">
+      <div className="flex flex-1 flex-col items-center gap-3 text-center">
         <div className="text-[11px] font-semibold tracking-[0.22em] text-zinc-400 uppercase">
           Match Ended
         </div>
@@ -218,38 +220,18 @@ export const ControllerEndedPanel = memo(function ControllerEndedPanel({
             {matchSummary?.finalScores.nebulon ?? 0}
           </span>
         </div>
-        {matchSummary ? (
-          <div className="grid w-full grid-cols-2 gap-2">
-            {(["solaris", "nebulon"] as const).map((teamId) => (
-              <div
-                key={teamId}
-                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3"
-              >
-                <div
-                  className="text-[11px] font-semibold tracking-[0.16em] uppercase"
-                  style={{ color: TEAM_CONFIG[teamId].color }}
-                >
-                  {TEAM_CONFIG[teamId].label}
-                </div>
-                <div className="mt-1 text-xl font-black text-white">
-                  {matchSummary.finalScores[teamId]}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-        <LifecycleActionGroup
-          phase="ended"
-          runtimeState={runtimeState}
-          canInteract
-          onBackToLobby={onBackToLobby}
-          onRestart={onRestart}
-          presentation="pill"
-          visibleKinds={["back-to-lobby", "restart"]}
-          className="w-full flex-col items-stretch gap-2 pt-1"
-          buttonClassName="h-11 w-full justify-center rounded-full px-4 text-[0.6875rem] font-semibold tracking-[0.16em] uppercase"
-        />
       </div>
+      <LifecycleActionGroup
+        phase="ended"
+        runtimeState={runtimeState}
+        canInteract
+        onBackToLobby={onBackToLobby}
+        onRestart={onRestart}
+        presentation="pill"
+        visibleKinds={["restart", "back-to-lobby"]}
+        className="w-64 shrink-0 flex-col items-stretch gap-3"
+        buttonClassName="h-14 w-full justify-center rounded-full px-4 text-xs font-semibold tracking-[0.16em] uppercase"
+      />
     </div>
   );
 });

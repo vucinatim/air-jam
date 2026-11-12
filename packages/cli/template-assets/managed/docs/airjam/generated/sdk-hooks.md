@@ -129,9 +129,11 @@ Players' controls reach the game only in its simulation steps, through
 `input(playerId)`; see [Input System](./input-system.md).
 
 `sendState` is only for lightweight controller presentation metadata such as
-orientation, pause/play status, or short UI messages. It is not the primary
+pause/play status or short UI messages. It is not the primary
 gameplay sync channel. Authoritative multiplayer state should live in the
 networked stores and flow automatically through those boundaries.
+
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
 
 **Sending Haptic Feedback:**
 
@@ -237,7 +239,7 @@ const ControllerView = () => {
     controllerId, // This controller's unique ID
     connectionStatus, // Connection state
     runtimeState, // "playing" | "paused"
-    controllerOrientation, // "portrait" | "landscape"
+    controllerOrientation, // Declared session orientation; always landscape for joystick games
     stateMessage, // Optional message from host
 
     // Functions

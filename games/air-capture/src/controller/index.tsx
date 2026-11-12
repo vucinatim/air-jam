@@ -17,7 +17,7 @@ import {
   useAirJamStore,
   type PlayerProfile,
 } from "@air-jam/sdk";
-import { ControllerPlayerNameField, SurfaceViewport } from "@air-jam/sdk/ui";
+import { SurfaceViewport } from "@air-jam/sdk/ui";
 import type { JSX } from "react";
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -171,13 +171,8 @@ const ControllerScreen = () => {
     [botCounts, pointsToWin, teamCounts],
   );
 
-  const desiredOrientation =
-    matchPhase === "countdown" || matchPhase === "playing"
-      ? "landscape"
-      : "portrait";
-
   return (
-    <SurfaceViewport orientation={desiredOrientation}>
+    <SurfaceViewport>
       <div className="flex h-full w-full flex-col overflow-hidden bg-zinc-950 text-white">
         <ControllerHeaderRuntime
           myProfile={myProfile}
@@ -191,14 +186,6 @@ const ControllerScreen = () => {
           onStartMatch={() => actions.startMatch()}
           onRestartMatch={() => actions.restartMatch()}
         />
-
-        {matchPhase === "lobby" ? (
-          <ControllerPlayerNameField
-            className="border-b border-white/10 bg-black/30 px-3 py-2"
-            labelClassName="text-[0.625rem] font-semibold tracking-[0.2em] text-zinc-400 uppercase"
-            inputClassName="w-full rounded-xl border border-white/15 bg-zinc-900/85 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-sky-400/45 focus:ring-1 focus:ring-sky-400/25"
-          />
-        ) : null}
 
         {matchPhase === "lobby" ? (
           <ControllerLobbyPanel

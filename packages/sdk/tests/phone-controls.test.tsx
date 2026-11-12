@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 import { AxisButton, ControlButton, Stick } from "../src/components/controls";
 import { ControllerInput } from "../src/core/controller-input";
 import { axis, button, defineAirJamInput, stick } from "../src/core/input";
-import { controllerRuntimeContext } from "../src/runtime/runtime-owner-contexts";
+import {
+  controllerRuntimeContext,
+  fixedControllerOrientationContext,
+} from "../src/runtime/runtime-owner-contexts";
 
 const padInput = defineAirJamInput({
   paddle: axis(),
@@ -31,6 +34,15 @@ const renderControls = (children: ReactNode) => {
 const pointer = { pointerId: 1, button: 0 };
 
 describe("phone controls", () => {
+  it("requires joystick in the game declaration when rendering Stick", () => {
+    expect(() =>
+      renderControls(
+        <fixedControllerOrientationContext.Provider value={null}>
+          <Stick control={padInput.move} />
+        </fixedControllerOrientationContext.Provider>,
+      ),
+    ).toThrow(/declare 'joystick' in inputModalities in airjam.config/);
+  });
   it("names the stick accessibly and lets the game override its name and role", () => {
     renderControls(
       <>

@@ -35,6 +35,7 @@ export const previewControllerWindowStateLabel: Record<
 
 export interface PreviewControllerWindowProps {
   session: PreviewControllerSession;
+  fixedControllerOrientation?: "landscape" | null;
   /** Receives the controller frame while it is mounted. */
   frameRef?: (frame: HTMLIFrameElement | null) => void;
   activeOpacity: number;
@@ -153,6 +154,7 @@ export const PreviewControllerWindow = ({
   frameRef,
   activeOpacity,
   highContrast = false,
+  fixedControllerOrientation = null,
   dragging = false,
   onFocus,
   onMinimize,
@@ -256,19 +258,21 @@ export const PreviewControllerWindow = ({
           </div>
 
           <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="h-6 w-6 rounded-full text-white/70 hover:bg-white/[0.08] hover:text-white"
-              style={{ pointerEvents: "auto" }}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={onRotate}
-              aria-label={`Rotate ${session.label} to ${nextOrientationLabel}`}
-              title={`Rotate to ${nextOrientationLabel}`}
-            >
-              <TabletSmartphone className="h-3.5 w-3.5" />
-            </Button>
+            {!fixedControllerOrientation && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="h-6 w-6 rounded-full text-white/70 hover:bg-white/[0.08] hover:text-white"
+                style={{ pointerEvents: "auto" }}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={onRotate}
+                aria-label={`Rotate ${session.label} to ${nextOrientationLabel}`}
+                title={`Rotate to ${nextOrientationLabel}`}
+              >
+                <TabletSmartphone className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {onActiveOpacityChange ? (
               <Button
                 type="button"

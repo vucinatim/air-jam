@@ -231,14 +231,14 @@ const player = host.players.find((p) => p.id === targetId);
 
 Use `sendState` for lightweight controller presentation metadata, not
 authoritative gameplay sync. Networked stores should own the real multiplayer
-state; this path is for controller-facing hints such as orientation, pause/play
-status, and short messages.
+state; this path is for pause/play status and short messages.
+
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
 
 ```tsx
 // Update controller presentation
 host.sendState({
   runtimeState: "playing", // "playing" | "paused"
-  orientation: "landscape", // "portrait" | "landscape"
   message: "Round 3 - Fight!",
 });
 

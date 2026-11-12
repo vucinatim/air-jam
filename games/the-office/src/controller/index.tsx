@@ -103,8 +103,6 @@ export function ControllerView() {
     runtimeState === "playing" &&
     connectionStatus === "connected";
   const showPausedView = matchPhase === "playing" && !showGameplayView;
-  const desiredOrientation =
-    showLobbyView || showEndedView ? "portrait" : "landscape";
   const lobbyPrimaryHelper = canStartMatch
     ? "Everyone has picked a coworker."
     : !hasCharacterSelection
@@ -112,7 +110,7 @@ export function ControllerView() {
       : `${selectedPlayerCount}/${connectedPlayerCount} coworkers picked.`;
 
   return (
-    <SurfaceViewport orientation={desiredOrientation}>
+    <SurfaceViewport>
       <div className="flex h-full w-full flex-col gap-3 bg-[radial-gradient(circle_at_top,#6b5336_0%,#413323_34%,#221a13_100%)] p-3 text-[var(--airjam-color-text-paper)]">
         <RuntimeShellHeader
           connectionStatus={connectionStatus}
@@ -237,9 +235,9 @@ function OfficeControllerLobbyView({
     (state) => state.taskDurationMs,
   );
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 gap-3">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {PLAYERS.map((playerOption) => {
             const ownerControllerId = characterOwnerById.get(playerOption.id);
             const selectedByMe = myPlayerId === playerOption.id;
@@ -265,17 +263,17 @@ function OfficeControllerLobbyView({
                     playerId: playerOption.id,
                   });
                 }}
-                className={`border-2 bg-[var(--airjam-color-paper-pale-gold)] p-2 text-left shadow-sm transition ${
+                className={`border-2 bg-[var(--airjam-color-paper-pale-gold)] px-2 py-1.5 text-left shadow-sm transition ${
                   selectedByMe
                     ? "border-[var(--airjam-color-button)]"
                     : "border-[var(--airjam-color-border-light)]"
                 } ${takenByOtherController ? "opacity-45" : "active:scale-[0.98]"}`}
               >
-                <div className="mb-2 flex items-center gap-2">
+                <div className="mb-1 flex items-center gap-2">
                   <img
                     src={playerOption.image}
                     alt={playerOption.name}
-                    className={`h-12 w-12 object-cover object-top ${
+                    className={`h-9 w-9 object-cover object-top ${
                       takenByOtherController ? "grayscale" : ""
                     }`}
                   />
@@ -292,7 +290,7 @@ function OfficeControllerLobbyView({
                     </p>
                   </div>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {highlights.map((highlight) => (
                     <div
                       key={`${playerOption.id}:${highlight.taskId}`}
@@ -312,25 +310,25 @@ function OfficeControllerLobbyView({
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1">
-        <span className="text-sm font-bold text-[var(--airjam-color-paper-light)]">
+      <div className="flex w-64 shrink-0 flex-col">
+        <p className="text-[10px] tracking-[0.12em] text-[var(--airjam-color-border-gold)] uppercase">
+          {selectedPlayerCount}/{connectedPlayerCount} picked
+        </p>
+        <p className="mt-1 text-lg font-bold text-[var(--airjam-color-paper-light)]">
           {hasCharacterSelection
             ? `${myPlayer?.name ?? "Worker"} selected`
-            : "Pick a coworker first"}
-        </span>
-        <span className="text-[10px] tracking-[0.12em] text-[var(--airjam-color-border-gold)] uppercase">
-          {selectedPlayerCount}/{connectedPlayerCount}
-        </span>
-      </div>
+            : "Pick a coworker"}
+        </p>
 
-      <ControllerPrimaryAction
-        label="Start Match"
-        helper={lobbyPrimaryHelper}
-        disabled={!canStartMatch}
-        onPress={() => actions.startMatch()}
-        icon={<BriefcaseBusiness className="h-6 w-6" />}
-        buttonClassName="rounded-none border-[var(--airjam-color-button)]/30 bg-[var(--airjam-color-button)] text-[var(--airjam-color-paper-cream)] hover:bg-[var(--airjam-color-button-hover)] disabled:bg-[var(--airjam-color-button-disabled)] disabled:text-[var(--airjam-color-paper-disabled)]"
-      />
+        <ControllerPrimaryAction
+          label="Start Match"
+          helper={lobbyPrimaryHelper}
+          disabled={!canStartMatch}
+          onPress={() => actions.startMatch()}
+          icon={<BriefcaseBusiness className="h-6 w-6" />}
+          buttonClassName="rounded-none border-[var(--airjam-color-button)]/30 bg-[var(--airjam-color-button)] text-[var(--airjam-color-paper-cream)] hover:bg-[var(--airjam-color-button-hover)] disabled:bg-[var(--airjam-color-button-disabled)] disabled:text-[var(--airjam-color-paper-disabled)]"
+        />
+      </div>
     </div>
   );
 }
@@ -366,29 +364,29 @@ function OfficeControllerEndedView({
   const finalTotalMoney = useOfficeFinalTotalMoney();
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center bg-[var(--airjam-color-paper-pale-gold)] p-4 shadow-md">
-      <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-[28px] border border-[var(--airjam-color-border-light)] bg-[var(--airjam-color-paper-disabled)] px-5 py-6 text-center shadow-sm">
+    <div className="flex min-h-0 flex-1 items-center gap-6 bg-[var(--airjam-color-paper-pale-gold)] p-4 shadow-md">
+      <div className="flex flex-1 flex-col items-center text-center">
         <p className="text-xs tracking-[0.2em] text-[var(--airjam-color-button)] uppercase">
           Shift Ended
         </p>
         <p className="mt-2 text-2xl font-bold text-[var(--airjam-color-text-paper)]">
           Final Earnings
         </p>
-        <p className="mt-2 text-3xl font-black text-[var(--airjam-color-button)]">
+        <p className="mt-1 text-4xl font-black text-[var(--airjam-color-button)]">
           EUR {finalTotalMoney}
         </p>
-        <LifecycleActionGroup
-          phase={matchPhase}
-          runtimeState={runtimeState}
-          canInteract={canInteract}
-          onBackToLobby={onBackToLobby}
-          onRestart={onRestart}
-          presentation="pill"
-          visibleKinds={["back-to-lobby", "restart"]}
-          className="w-full flex-col items-stretch gap-2 pt-1"
-          buttonClassName="h-11 w-full justify-center rounded-none border-[var(--airjam-color-button)]/30 bg-[var(--airjam-color-button)] px-4 text-[0.6875rem] font-black tracking-[0.16em] text-[var(--airjam-color-paper-cream)] uppercase hover:bg-[var(--airjam-color-button-hover)]"
-        />
       </div>
+      <LifecycleActionGroup
+        phase={matchPhase}
+        runtimeState={runtimeState}
+        canInteract={canInteract}
+        onBackToLobby={onBackToLobby}
+        onRestart={onRestart}
+        presentation="pill"
+        visibleKinds={["restart", "back-to-lobby"]}
+        className="w-64 shrink-0 flex-col items-stretch gap-3"
+        buttonClassName="h-14 w-full justify-center rounded-none border-[var(--airjam-color-button)]/30 bg-[var(--airjam-color-button)] px-4 text-xs font-black tracking-[0.16em] text-[var(--airjam-color-paper-cream)] uppercase hover:bg-[var(--airjam-color-button-hover)]"
+      />
     </div>
   );
 }
