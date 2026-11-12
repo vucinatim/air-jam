@@ -56,10 +56,11 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
     let bytes = 0;
     let data: Uint8Array | undefined;
     let failure: Error | undefined;
+    let started = false;
     let drawsAttempted = 1;
     let drawsMade = 1;
     const drawIntervalMs = Math.max(intervalMs, 1000 / 30);
-    let nextAt = performance.now() + drawIntervalMs;
+    let nextAt = performance.now();
     let resolveStopped: () => void;
     const stopped = new Promise<void>((resolve) => {
       resolveStopped = resolve;
@@ -70,12 +71,15 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
       if (active === binding) active = undefined;
     };
     const stop = () => {
-      if (recorder.state !== "inactive") recorder.stop();
+      if (!started) {
+        release();
+        resolveStopped();
+      } else if (recorder.state !== "inactive") recorder.stop();
     };
     const binding = {
       render() {
         const now = performance.now();
-        if (now < nextAt || recorder.state !== "recording") return;
+        if (now < nextAt || (started && recorder.state !== "recording")) return;
         nextAt +=
           (Math.floor((now - nextAt) / drawIntervalMs) + 1) * drawIntervalMs;
         drawsAttempted++;
@@ -89,6 +93,10 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
               "clip_capture_failed: The capture dimensions changed.",
             );
           drawsMade++;
+          if (!started) {
+            recorder.start(1000);
+            started = true;
+          }
         } catch (error) {
           failure = error instanceof Error ? error : new Error(String(error));
           stop();
@@ -129,12 +137,6 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
       stop();
     }, CLIP_VIDEO_MAX_DURATION_MS + 2000);
     active = binding;
-    try {
-      recorder.start(1000);
-    } catch (error) {
-      release();
-      throw error;
-    }
     let finalizing: Promise<void> | undefined;
     return {
       stop() {
