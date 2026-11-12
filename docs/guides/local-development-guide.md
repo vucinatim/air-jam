@@ -46,6 +46,26 @@ A later build immediately reclaims a lock whose process has died on this host
 and logs the recovery. A waiting build logs its holder once; the five-minute
 timeout remains for live holders, other hosts and locks without an owner record.
 
+The CLI dev launcher merges a source-fence plugin with the game's loaded Vite
+configuration; a game's own plugin list does not disable it. Studio's grouped writer
+atomically raises `.airjam/devtools/source-change.json` with an `applying` phase and
+an absolute `expiresAt` timestamp before changing files. It settles that same marker
+with `phase: "settled"`, a unique `id`, `committed`, and `files` entries containing
+relative `path`, final watcher `event` (`add`, `change`, or `unlink`) and SHA-256
+`hash` (or null for an absent file). The dev server holds watcher dispatch and
+incoming requests while applying. For a commit it replays final file events, waits
+for Vite’s file/cache bookkeeping, invalidates module graphs and sends one full
+reload. Async-local replay context suppresses the per-file browser updates,
+including sends after asynchronous plugin hooks. Configuration and environment changes
+use Vite’s native server restart instead. A rollback settles without reloading;
+final hashes suppress delayed events. An applying fence expires after 60 seconds if
+the writer crashes. Generated `.airjam` artifacts remain outside Vite's normal
+watcher. This protocol affects development only; production builds are unchanged.
+The launcher also serves new public files from disk before the page response when
+Vite's watcher has not registered them yet, including direct shell writes. This
+dev-only fallback stays inside the public directory and retains media headers,
+range requests and conditional responses.
+
 Do not treat preview-only flows or raw lower-level commands as the normal
 starting point unless the task explicitly needs them.
 

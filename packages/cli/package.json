@@ -48,6 +48,9 @@
     "bin",
     "dist",
     "runtime/vite-config.mjs",
+    "runtime/source-fence.mjs",
+    "runtime/public-assets.mjs",
+    "runtime/vite-dev.mjs",
     "runtime/vite-config.d.mts",
     "runtime/vite-https.mjs",
     "runtime/vite-https.d.mts",
@@ -73,6 +76,7 @@
     "cross-spawn": "^7.0.6",
     "fs-extra": "^11.3.0",
     "kleur": "^4.1.5",
+    "sirv": "^3.0.2",
     "zod": "^4.2.1"
   },
   "devDependencies": {
