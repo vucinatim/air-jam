@@ -55,7 +55,12 @@ it("keeps native video out of the still sampler and waits for final bytes before
   const capture = Object.assign(
     vi.fn(() => image()),
     {
-      startVideo: vi.fn(() => ({ stop, dispose, page, frameCount: () => 30 })),
+      startVideo: vi.fn(() => ({
+        stop,
+        dispose,
+        page,
+        stats: () => ({ drawsAttempted: 31, drawsMade: 30 }),
+      })),
     },
   );
   const recorder = fixture(capture);
@@ -70,6 +75,10 @@ it("keeps native video out of the still sampler and waits for final bytes before
     frameIntervalMs: 33,
     frames: [],
     video: { chunks: ["YWJj"] },
+    frameCount: null,
+    droppedFrames: null,
+    skippedFrames: null,
+    nativeCapture: { drawsAttempted: 31, drawsMade: 30 },
   });
   recorder.dispose();
   expect(dispose).toHaveBeenCalledOnce();
@@ -182,7 +191,7 @@ it("trims decoded bytes and pages frozen indexes within the socket budget", asyn
   );
   expect(result.status).toBe("captured");
   if (result.status === "captured")
-    expect(result.artifact.frames).toHaveLength(first.frameCount);
+    expect(result.artifact.frames.length).toBe(first.frameCount);
   await vi.advanceTimersByTimeAsync(20000);
   expect(recorder.read("clip", true, 0)).toEqual(first);
 });

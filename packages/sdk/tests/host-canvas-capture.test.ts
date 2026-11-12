@@ -41,6 +41,7 @@ it("draws native video on the game's rendering cadence and pages bytes after sto
   expect(recording.page(0).chunks).toEqual([]);
   for (now = 0; now <= 100; now += 10) binding.rendered();
   expect(draw).toHaveBeenCalledTimes(4);
+  expect(recording.stats()).toEqual({ drawsAttempted: 4, drawsMade: 4 });
   for (const [target] of draw.mock.calls) expect(target).toBe(canvas);
   await recording.stop();
   expect(recording.page(0)).toMatchObject({

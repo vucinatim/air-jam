@@ -56,7 +56,8 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
     let bytes = 0;
     let data: Uint8Array | undefined;
     let failure: Error | undefined;
-    let count = 1;
+    let drawsAttempted = 1;
+    let drawsMade = 1;
     const drawIntervalMs = Math.max(intervalMs, 1000 / 30);
     let nextAt = performance.now() + drawIntervalMs;
     let resolveStopped: () => void;
@@ -77,6 +78,7 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
         if (now < nextAt || recorder.state !== "recording") return;
         nextAt +=
           (Math.floor((now - nextAt) / drawIntervalMs) + 1) * drawIntervalMs;
+        drawsAttempted++;
         try {
           if (!draw(canvas, { maxEdge: CLIP_FRAME_MAX_EDGE }))
             throw new Error(
@@ -86,7 +88,7 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
             throw new Error(
               "clip_capture_failed: The capture dimensions changed.",
             );
-          count++;
+          drawsMade++;
         } catch (error) {
           failure = error instanceof Error ? error : new Error(String(error));
           stop();
@@ -172,7 +174,7 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
             data && offset + chunkBytes < data.length ? fromChunk + 1 : null,
         };
       },
-      frameCount: () => count,
+      stats: () => ({ drawsAttempted, drawsMade }),
       dispose: binding.dispose,
     };
   };

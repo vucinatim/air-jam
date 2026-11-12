@@ -299,7 +299,8 @@ export class HostClipRecorder {
       (!video || video.nextChunk === null)
     )
       recording.delivered = true;
-    const frameCount = recording.video?.frameCount() ?? recording.frames.length;
+    const nativeCapture = recording.video?.stats();
+    const frameCount = nativeCapture ? null : recording.frames.length;
     return {
       clipId,
       identity: recording.identity,
@@ -311,14 +312,15 @@ export class HostClipRecorder {
         (recording.stopped ?? now) - recording.start,
       ),
       frameCount,
-      ...(video ? { video } : {}),
-      droppedFrames: recording.droppedFrames,
-      skippedFrames: recording.skippedFrames,
-      notCaptured: frameCount
-        ? null
-        : recording.attempts > 0 && recording.errors === recording.attempts
-          ? "capture-failed"
-          : "surface-unavailable",
+      ...(video ? { video, nativeCapture } : {}),
+      droppedFrames: nativeCapture ? null : recording.droppedFrames,
+      skippedFrames: nativeCapture ? null : recording.skippedFrames,
+      notCaptured:
+        (nativeCapture?.drawsMade ?? frameCount)
+          ? null
+          : recording.attempts > 0 && recording.errors === recording.attempts
+            ? "capture-failed"
+            : "surface-unavailable",
       frames,
       nextFrame,
     };

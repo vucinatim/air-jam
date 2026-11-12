@@ -100,6 +100,13 @@ export const clipArtifactSchema = z
         message: "Clip frames must be ordered within the kept time window.",
       });
   });
+export const clipNativeCaptureSchema = z
+  .object({
+    drawsAttempted: z.number().int().nonnegative(),
+    drawsMade: z.number().int().nonnegative(),
+  })
+  .strict();
+
 export const clipVideoPageSchema = z
   .object({
     mimeType: z.string().min(1).max(128),
@@ -124,7 +131,7 @@ export const clipVideoPageSchema = z
 export type NativeClipRecording = {
   stop: () => Promise<void>;
   page: (fromChunk: number) => z.infer<typeof clipVideoPageSchema>;
-  frameCount: () => number;
+  stats: () => z.infer<typeof clipNativeCaptureSchema>;
   dispose: () => void;
 };
 
@@ -132,11 +139,16 @@ export const clipReadSchema = z
   .object({
     ...clipMetadata,
     state: z.enum(["recording", "stopped"]),
+    // Native encoded frames are counted after stop by the video consumer.
+    nativeCapture: clipNativeCaptureSchema.optional(),
+    droppedFrames: clipMetadata.droppedFrames.nullable(),
+    skippedFrames: clipMetadata.skippedFrames.nullable(),
     frameCount: z
       .number()
       .int()
       .nonnegative()
-      .max(Math.ceil(CLIP_RECORDING_LIFETIME_MS / CLIP_MIN_FRAME_INTERVAL_MS)),
+      .max(Math.ceil(CLIP_RECORDING_LIFETIME_MS / CLIP_MIN_FRAME_INTERVAL_MS))
+      .nullable(),
     notCaptured: clipNotCapturedReasonSchema.nullable(),
     frames: z
       .array(clipFrameSchema)
