@@ -61,6 +61,10 @@ use Vite’s native server restart instead. A rollback settles without reloading
 final hashes suppress delayed events. An applying fence expires after 60 seconds if
 the writer crashes. Generated `.airjam` artifacts remain outside Vite's normal
 watcher. This protocol affects development only; production builds are unchanged.
+The launcher also serves new public files from disk before the page response when
+Vite's watcher has not registered them yet, including direct shell writes. This
+dev-only fallback stays inside the public directory and retains media headers,
+range requests and conditional responses.
 
 Do not treat preview-only flows or raw lower-level commands as the normal
 starting point unless the task explicitly needs them.
