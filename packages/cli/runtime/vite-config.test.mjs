@@ -95,14 +95,21 @@ test("source fence holds watcher updates and requests, reloads once, and ignores
   context.mock.method(globalThis, "clearInterval", () => {});
   const watcher = new EventEmitter();
   const changed = [];
-  watcher.on("change", (path) => changed.push(path));
+  watcher.on("change", async (path) => {
+    changed.push(path);
+    if (path.endsWith(".env")) return;
+    await Promise.resolve();
+    plugin.hotUpdate.handler();
+    server.ws.send({ type: "full-reload", path });
+  });
   const sent = [];
   let invalidations = 0;
   let middleware;
   const plugin = sourceFencePlugin();
-  plugin.configureServer({
+  const server = {
     config: {
       root,
+      server: {},
       configFileDependencies: [],
       envDir: root,
       mode: "development",
@@ -111,6 +118,7 @@ test("source fence holds watcher updates and requests, reloads once, and ignores
     watcher,
     environments: {
       client: {
+        hot: { send() {} },
         moduleGraph: {
           invalidateAll() {
             invalidations++;
@@ -128,7 +136,8 @@ test("source fence holds watcher updates and requests, reloads once, and ignores
         middleware = callback;
       },
     },
-  });
+  };
+  plugin.configureServer(server);
   context.after(() => watcher.emit("close"));
   const setState = (state) => writeFile(marker, JSON.stringify(state));
   await setState({
@@ -149,37 +158,38 @@ test("source fence holds watcher updates and requests, reloads once, and ignores
   assert.deepEqual(sent, []);
   const files = ["render.ts", "host.ts"].map((path) => ({
     path,
+    event: "change",
     hash: createHash("sha256").update("new").digest("hex"),
   }));
   await setState({ id: "one", phase: "settled", committed: true, files });
-  tick();
+  await tick();
   watcher.emit("change", join(root, "render.ts"));
   watcher.emit("change", join(root, "host.ts"));
-  tick();
+  await tick();
   assert.equal(served, true);
   assert.deepEqual(sent, [{ type: "full-reload", path: "*" }]);
   assert.equal(invalidations, 1);
-  assert.deepEqual(changed, []);
+  assert.deepEqual(changed, [join(root, "render.ts"), join(root, "host.ts")]);
   await writeFile(join(root, "render.ts"), "next independent edit");
   watcher.emit("change", join(root, "render.ts"));
-  assert.deepEqual(changed, [join(root, "render.ts")]);
+  assert.equal(changed.at(-1), join(root, "render.ts"));
   await setState({ id: "two", phase: "settled", committed: false, files: [] });
-  tick();
-  assert.equal(sent.length, 1);
+  await tick();
+  assert.equal(sent.length, 2);
   await setState({
     id: "crashed",
     phase: "applying",
     expiresAt: Date.now() - 1,
   });
-  tick();
-  assert.equal(sent.length, 2);
+  await tick();
+  assert.equal(sent.length, 3);
   await setState({
     id: "config",
     phase: "settled",
     committed: true,
-    files: [{ path: ".env", hash: null }],
+    files: [{ path: ".env", event: "change", hash: null }],
   });
-  tick();
-  assert.equal(sent.length, 2);
+  await tick();
+  assert.equal(sent.length, 3);
   assert.equal(changed.at(-1), join(root, ".env"));
 });

@@ -51,9 +51,12 @@ configuration; a game's own plugin list does not disable it. Studio's grouped wr
 atomically raises `.airjam/devtools/source-change.json` with an `applying` phase and
 an absolute `expiresAt` timestamp before changing files. It settles that same marker
 with `phase: "settled"`, a unique `id`, `committed`, and `files` entries containing
-relative `path` and SHA-256 `hash` (or null for an absent file). The dev server holds
-watcher dispatch and incoming requests while applying, then invalidates its module
-graphs and sends one full reload for a commit. Configuration and environment changes
+relative `path`, final watcher `event` (`add`, `change`, or `unlink`) and SHA-256
+`hash` (or null for an absent file). The dev server holds watcher dispatch and
+incoming requests while applying. For a commit it replays final file events, waits
+for Vite’s file/cache bookkeeping, invalidates module graphs and sends one full
+reload. Async-local replay context suppresses the per-file browser updates,
+including sends after asynchronous plugin hooks. Configuration and environment changes
 use Vite’s native server restart instead. A rollback settles without reloading;
 final hashes suppress delayed events. An applying fence expires after 60 seconds if
 the writer crashes. Generated `.airjam` artifacts remain outside Vite's normal
