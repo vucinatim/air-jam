@@ -601,11 +601,17 @@ parent and origin. The request carries a bounded `requestId` and
 `@air-jam/sdk/runtime-inspection` validate that channel; its schemas and
 `ControllerCapture` live in `@air-jam/sdk/runtime-control`.
 
-The controller renders its own visible document, including canvas pixels, to JPEG with
-`coverage: "controller-view"`, longest edge at most 1280 px and the existing
-`HOST_OBSERVATION_IMAGE_BYTES` budget. The MIT-licensed
-[html-to-image](https://github.com/bubkoo/html-to-image) renderer is imported only on
-capture. Ordinary controller loads do not fetch it. One capture runs at a time, with its own
+Only Studio preview URLs opt into capture (`buildPreviewControllerUrl({ capture: true })`).
+At mount, a supporting browser wraps the controller in an HTML-in-Canvas drawable
+surface; real phones retain their original DOM. Chrome 157 enables this API by
+default. The phone paints its visible controller, including canvas pixels, and transfers
+an `ImageBitmap` with a maximum edge of 1280 px. `ControllerFrameCapture` describes
+this channel. The embedding Studio encodes it in its own Worker, outside the game's
+and phone's main thread. The persisted `ControllerCapture` remains a JPEG with
+`coverage: "controller-view"` under the `HOST_OBSERVATION_IMAGE_BYTES` budget.
+There is no DOM snapshot renderer. An unsupported phone returns `unsupported`
+explicitly; the editor must not pretend it captured that phone.
+One capture runs at a time, with its own
 `CONTROLLER_CAPTURE_TIMEOUT_MS = 10_000` deadline, exported from
 `@air-jam/sdk/runtime-control`. Embedding editors and servers must wait longer than
 the layer inside them so a timed-out capture returns its reason and detail. Host

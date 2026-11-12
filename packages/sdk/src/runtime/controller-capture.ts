@@ -1,70 +1,72 @@
-import type { ControllerCapture } from "./contracts/controller-agent";
-import {
-  HOST_OBSERVATION_IMAGE_BYTES,
-  hostObservationImageSchema,
-} from "./contracts/observation";
+import type { ControllerFrameCapture } from "./contracts/controller-agent";
 
-/** Loaded only after a framed controller receives a capture request. */
-export async function captureControllerDocument(): Promise<ControllerCapture> {
-  if (
-    typeof document === "undefined" ||
-    typeof HTMLCanvasElement === "undefined"
-  )
-    return { status: "unavailable", reason: "unsupported" };
-  const node = document.documentElement;
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  if (!node || width <= 0 || height <= 0)
-    return { status: "unavailable", reason: "surface-unavailable" };
-  try {
-    // html-to-image clones canvas pixels as images, including 2D controller drawings.
-    const { toJpeg } = await import("html-to-image");
-    const scale = Math.min(1, 1280 / Math.max(width, height));
-    const canvasWidth = Math.max(1, Math.floor(width * scale));
-    const canvasHeight = Math.max(1, Math.floor(height * scale));
-    for (const quality of [0.8, 0.55, 0.3]) {
-      const url = await toJpeg(node, {
-        width,
-        height,
-        canvasWidth,
-        canvasHeight,
-        pixelRatio: 1,
-        quality,
-        backgroundColor:
-          getComputedStyle(document.body).backgroundColor || "#ffffff",
-      });
-      const data = url.slice(url.indexOf(",") + 1);
-      if ((data.length * 3) / 4 > HOST_OBSERVATION_IMAGE_BYTES) continue;
-      const image = hostObservationImageSchema.parse({
-        mimeType: "image/jpeg",
-        data,
-        width: canvasWidth,
-        height: canvasHeight,
-        coverage: "controller-view",
-      });
-      return {
-        status: "captured",
-        image: {
-          ...image,
-          mimeType: "image/jpeg",
-          coverage: "controller-view",
-        },
-      };
-    }
-  } catch (error) {
-    // Tainted canvases or unreachable document resources.
+export const controllerCaptureCanvasSelector =
+  "[data-airjam-controller-capture]";
+export type ControllerCaptureCanvas = HTMLCanvasElement & {
+  content: string;
+  requestPaint: () => void;
+  getContext(contextId: "2d"):
+    | (CanvasRenderingContext2D & {
+        drawElementImage: (
+          element: Element,
+          x: number,
+          y: number,
+          width: number,
+          height: number,
+        ) => void;
+      })
+    | null;
+};
+
+export function supportsControllerCapture() {
+  if (typeof document === "undefined") return false;
+  const canvas = document.createElement("canvas") as ControllerCaptureCanvas;
+  canvas.setAttribute("content", "drawable");
+  return (
+    canvas.content === "drawable" && typeof canvas.requestPaint === "function"
+  );
+}
+
+/** Pixels leave the phone as a transferable bitmap; encoding belongs to Studio. */
+export async function captureControllerDocument(
+  signal: AbortSignal,
+): Promise<ControllerFrameCapture> {
+  const canvas = document.querySelector<ControllerCaptureCanvas>(
+    controllerCaptureCanvasSelector,
+  );
+  if (!canvas)
     return {
       status: "unavailable",
-      reason: "surface-unavailable",
-      detail: String(error instanceof Error ? error.message : error).slice(
-        0,
-        1024,
-      ),
+      reason: "unsupported",
+      detail:
+        "Phone pane unavailable in this browser. Studio preview phone capture requires Chrome 157 or later.",
     };
+  await new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      canvas.removeEventListener("paint", painted);
+      signal.removeEventListener("abort", aborted);
+    };
+    const painted = () => {
+      cleanup();
+      resolve();
+    };
+    const aborted = () => {
+      cleanup();
+      reject(signal.reason);
+    };
+    signal.throwIfAborted();
+    canvas.addEventListener("paint", painted, { once: true });
+    signal.addEventListener("abort", aborted, { once: true });
+    canvas.requestPaint();
+  });
+  const scale = Math.min(1, 1280 / Math.max(canvas.width, canvas.height));
+  const bitmap = await createImageBitmap(canvas, {
+    resizeWidth: Math.max(1, Math.round(canvas.width * scale)),
+    resizeHeight: Math.max(1, Math.round(canvas.height * scale)),
+  });
+  if (signal.aborted) {
+    bitmap.close();
+    signal.throwIfAborted();
   }
-  return {
-    status: "unavailable",
-    reason: "surface-unavailable",
-    detail: "The page exceeds the image budget at the lowest quality.",
-  };
+  return { status: "captured", bitmap };
 }
