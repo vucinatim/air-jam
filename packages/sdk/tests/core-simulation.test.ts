@@ -4,7 +4,7 @@ import {
   createSeededRandom,
   defineAirJamSimulation,
   SimulationClock,
-} from "../src/core";
+} from "../src/core/simulation";
 
 const walker = defineAirJamSimulation<
   { x: number; steps: number; path: number[] },

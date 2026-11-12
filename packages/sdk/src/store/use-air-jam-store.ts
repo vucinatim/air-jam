@@ -38,6 +38,15 @@ export function useAirJamStore<T extends AirJamNetworkedState, U>(
   return useStore(store.api, selector);
 }
 
+/** Reads only this controller’s entry in the declared private field. */
+export function useAirJamPrivateState<
+  T extends AirJamNetworkedState,
+  PrivateEntry,
+>(store: AirJamStore<T, PrivateEntry>) {
+  useRequireDeclaredStore(store);
+  return useStore(store.api, () => store.getPrivateState());
+}
+
 /** Calls the listener for every action the host applies to the store while mounted. */
 export function useHostActionListener<T extends AirJamNetworkedState>(
   store: AirJamStore<T>,

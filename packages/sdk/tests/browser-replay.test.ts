@@ -4,13 +4,12 @@ import {
   defineAirJamAgentContract,
   defineAirJamAgentStores,
 } from "../src/agent/agent-contract";
+import { HostRuntime, type HostRuntimeFactory } from "../src/core/host-runtime";
+import { type AirJamInputLog } from "../src/core/input-log";
 import {
   createAirJamStore,
-  HostRuntime,
   type AirJamActionContext,
-  type AirJamInputLog,
-  type HostRuntimeFactory,
-} from "../src/core";
+} from "../src/core/replicated-store";
 import {
   bindBrowserReplay,
   isAirJamReplayDocument,

@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ControllerRuntime,
-  createConnectionStore,
-  type AirJamControllerEnvironment,
-} from "../src/core";
-import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol";
+import { createConnectionStore } from "../src/core/connection-store";
+import { ControllerRuntime } from "../src/core/controller-runtime";
+import { type AirJamControllerEnvironment } from "../src/core/environment";
+import { AIRJAM_DEV_LOG_EVENTS } from "../src/protocol/dev-log-events";
 import {
   AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX,
   resolveRuntimeTopology,

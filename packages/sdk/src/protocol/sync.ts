@@ -10,6 +10,8 @@ export interface HostStateSyncPayload {
   storeDomain: string;
   revision: number;
   requestId?: string;
+  /** Retained only in the server’s host-restore cache, never broadcast. */
+  privateState?: { field: string; entries: Record<string, unknown> };
 }
 
 export interface ControllerStateSyncRequestPayload {
@@ -72,7 +74,23 @@ export interface AirJamStateSyncPayload {
   requestId?: string;
 }
 
+export const hostPrivateStateSyncSchema = z
+  .object({
+    roomId: roomCodeSchema,
+    storeDomain: z.string().trim().min(1).max(128),
+    controllerId: z.string().min(1),
+    revision: z.number().int().nonnegative(),
+    entry: z.unknown().optional(),
+  })
+  .strict();
+
+export type HostPrivateStateSyncPayload = z.infer<
+  typeof hostPrivateStateSyncSchema
+>;
+export type AirJamPrivateStateSyncPayload = HostPrivateStateSyncPayload;
+
 export interface AirJamStateSyncRequestPayload {
+  controllerId?: string;
   roomId: string;
   storeDomain: string;
   requestId?: string;
@@ -99,6 +117,13 @@ export const hostStateSyncSchema = z
     roomId: roomCodeSchema,
     data: z.record(z.string(), z.unknown()),
     storeDomain: z.string().trim().min(1).max(128),
+    privateState: z
+      .object({
+        field: z.string().min(1),
+        entries: z.record(z.string(), z.unknown()),
+      })
+      .strict()
+      .optional(),
     revision: z.number().int().nonnegative(),
     requestId: stateSyncRequestIdSchema.optional(),
   })

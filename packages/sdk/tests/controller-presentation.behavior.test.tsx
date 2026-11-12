@@ -5,13 +5,13 @@ import {
 } from "@air-jam/sdk/runtime-topology";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SurfaceViewport } from "../src/components/surface-viewport";
 import { SessionScopeContext } from "../src/context/session-scope";
 import {
   AIRJAM_CONTROLLER_PRESENTATION_SYNC,
   parseControllerPresentationSyncMessage,
 } from "../src/runtime/controller-bridge";
 import { publishEmbeddedControllerPresentation } from "../src/runtime/controller-presentation";
-import { SurfaceViewport } from "../src/ui";
 
 const setEmbeddedControllerUrl = () => {
   const topology = resolveRuntimeTopology({

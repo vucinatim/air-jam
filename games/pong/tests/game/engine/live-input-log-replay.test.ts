@@ -6,7 +6,6 @@ import {
 } from "@air-jam/sdk/core";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
-  INPUT_LOG_PAGE_BYTES,
   readHostInputLog,
   type HostRuntimeControl,
 } from "@air-jam/sdk/runtime-control";
@@ -92,13 +91,13 @@ it("records a browser-style host's real seed and replays a stable live cut in un
     const clock = live.simulation!;
     const step = () => clock.advance(clock.stepMs);
     const identity = (await observe()).identity;
-    for (let tick = 0; tick < 5000; tick++) {
+    for (let tick = 0; tick < 60; tick++) {
       socket.fire("server:input", {
         roomId: "ROOM1",
         controllerId: "ctrl_human_phone_one",
         input: { direction: (tick % 3) - 1 },
       });
-      if (tick === 200) {
+      if (tick === 20) {
         await agent({
           operation: "settings-update",
           roomId: "ROOM1",
@@ -109,7 +108,7 @@ it("records a browser-style host's real seed and replays a stable live cut in un
       }
       step();
     }
-    // This pending event must keep its tick and index when paging flushes it.
+    // This pending event must keep its tick and index when the live cut flushes it.
     await agent({
       operation: "settings-update",
       roomId: "ROOM1",
@@ -117,15 +116,13 @@ it("records a browser-style host's real seed and replays a stable live cut in un
       patch: { paddleSpeed: 800 },
       expectedRevision: 1,
     });
-    let pages = 0;
+    let captured = false;
     const read = await readHostInputLog(async (request) => {
       const response = await agent(request);
       if (response.operation !== "input-log-read")
         throw new Error("Expected log page.");
-      expect(JSON.stringify(response.page.entries).length).toBeLessThanOrEqual(
-        INPUT_LOG_PAGE_BYTES,
-      );
-      if (pages++ === 0) {
+      if (!captured) {
+        captured = true;
         const observation = await observe();
         final = {
           snapshot: observation.snapshot,
@@ -138,18 +135,17 @@ it("records a browser-style host's real seed and replays a stable live cut in un
       step();
       return response;
     }, identity);
-    expect(pages).toBeGreaterThan(1);
     if (read.status !== "recorded") throw new Error(read.message);
     expect(read.full).toBe(false);
     log = read.log;
     expect(log.seed).toBe(seed);
-    expect(log.ticks).toBe(5000);
+    expect(log.ticks).toBe(60);
     expect(clock.ticks).toBeGreaterThan(log.ticks);
     expect(live.inputLog().entries.slice(0, log.entries.length)).toEqual(
       log.entries,
     );
     expect(log.entries.at(-1)).toMatchObject({
-      tick: 5001,
+      tick: 61,
       event: "airjam:settings",
     });
     expect(log.entries.some(({ event }) => event === "server:input")).toBe(

@@ -15,6 +15,7 @@ import {
   type AirJamInputState,
 } from "@air-jam/sdk/core";
 import type {
+  AirJamPrivateStateSyncPayload,
   AirJamStateSyncPayload,
   ClientToServerEvents,
   ControllerJoinAck,
@@ -127,6 +128,7 @@ type InternalControllerSession = {
   controllerState: JsonObject | null;
   players: JsonObject[];
   storeSnapshots: Map<string, AirJamRuntimeStoreSnapshot>;
+  privateStoreSnapshots: Map<string, AirJamPrivateStateSyncPayload>;
   pendingSyncWaiters: Map<string, Set<PendingStateSyncWaiter>>;
   lastSignal: JsonObject | null;
   lastError: JsonObject | null;
@@ -701,6 +703,8 @@ function relayControllerObservation(
       );
       return;
     }
+    const privateState = session.privateStoreSnapshots.get(store.storeDomain);
+    if (privateState) forwardEvent("airjam:private_state_sync", privateState);
     forwardEvent("airjam:state_sync", {
       roomId: session.summary.roomId,
       storeDomain: store.storeDomain,
@@ -713,6 +717,7 @@ function relayControllerObservation(
   owner.on("message", readRequest);
   return {
     snapshot,
+    privateStores: [...session.privateStoreSnapshots.values()],
     stores: Array.from(session.storeSnapshots.values(), (store) => ({
       roomId: session.summary.roomId,
       storeDomain: store.storeDomain,
@@ -1075,6 +1080,23 @@ const attachSocketListeners = (session: InternalControllerSession): void => {
     session.lastError = toJsonObject(payload);
   });
 
+  session.socket.on("server:roomReady", () =>
+    session.privateStoreSnapshots.clear(),
+  );
+  session.socket.on(
+    "airjam:private_state_sync",
+    (payload: AirJamPrivateStateSyncPayload) => {
+      if (
+        payload.controllerId !== session.summary.controllerId ||
+        payload.roomId !== session.summary.roomId
+      )
+        return;
+      const previous = session.privateStoreSnapshots.get(payload.storeDomain);
+      if (!previous || payload.revision >= previous.revision)
+        session.privateStoreSnapshots.set(payload.storeDomain, payload);
+    },
+  );
+
   session.socket.on("airjam:state_sync", (payload: AirJamStateSyncPayload) => {
     const previousSnapshot = session.storeSnapshots.get(payload.storeDomain);
     if (previousSnapshot && payload.revision < previousSnapshot.revision) {
@@ -1224,6 +1246,7 @@ export const connectController = async (
       controllerState: null,
       players: [],
       storeSnapshots: new Map(),
+      privateStoreSnapshots: new Map(),
       pendingSyncWaiters: new Map(),
       lastSignal: null,
       lastError: null,

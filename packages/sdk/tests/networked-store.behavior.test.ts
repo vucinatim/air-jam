@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { agentActionInput } from "../src/agent/agent-action";
 import {
   agentAction,
+  agentStore,
   defineAirJamAgentContract,
 } from "../src/agent/agent-contract";
 import type { AirJamSocket } from "../src/context/socket-manager";
@@ -26,16 +27,14 @@ import {
   resetAirJamDiagnosticsForTests,
   setAirJamDiagnosticsEnabled,
 } from "../src/diagnostics";
-import { hostStateSyncSchema } from "../src/protocol";
+import { hostStateSyncSchema } from "../src/protocol/sync";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
-  type HostRuntimeControl,
-} from "../src/runtime-control";
-import {
   applyHostRuntimeLeasedControl,
   readHostStateEpochs,
   registerHostAgentContract,
   registerHostRuntimeParticipantReceiver,
+  type HostRuntimeControl,
 } from "../src/runtime/contracts/control";
 import { getControllerRealtimeClient } from "../src/runtime/controller-realtime-client";
 import { getHostRealtimeClient } from "../src/runtime/host-realtime-client";
@@ -45,6 +44,7 @@ import {
   AIR_JAM_DEFAULT_STORE_DOMAIN,
 } from "../src/store/air-jam-store-domain-constants";
 import {
+  useAirJamPrivateState,
   useAirJamStore,
   useHostActionListener,
 } from "../src/store/use-air-jam-store";
@@ -1264,85 +1264,6 @@ describe("createAirJamStore networked behavior", () => {
     actionsHook.unmount();
   });
 
-  it("executes host local dispatches with host action context", () => {
-    mockedContext.state.role = "host";
-
-    const store = createTestStore();
-    const actionsHook = renderHook(() => store.actions);
-    const phaseHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.phase),
-    );
-    const actorHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastActor),
-    );
-    const roleHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastRole),
-    );
-    const connectedIdsHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastConnectedPlayerIds),
-    );
-
-    act(() => {
-      actionsHook.result.current.setPhase({ phase: "playing" });
-    });
-
-    expect(phaseHook.result.current).toBe("playing");
-    expect(actorHook.result.current).toBe("host");
-    expect(roleHook.result.current).toBe("host");
-    expect(connectedIdsHook.result.current).toEqual(["ctrl_1", "ctrl_2"]);
-
-    actionsHook.unmount();
-    phaseHook.unmount();
-    actorHook.unmount();
-    roleHook.unmount();
-    connectedIdsHook.unmount();
-  });
-
-  it("executes host player-actions dispatches with controller action context", async () => {
-    mockedContext.state.role = "host";
-
-    const store = createTestStore();
-    const storeHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.phase),
-    );
-    const playerActions = store.asPlayer("ctrl_2");
-    const phaseHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.phase),
-    );
-    const actorHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastActor),
-    );
-    const roleHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastRole),
-    );
-    const connectedIdsHook = renderHook(() =>
-      useAirJamStore(store, (state) => state.lastConnectedPlayerIds),
-    );
-
-    let acknowledgement:
-      | Awaited<ReturnType<typeof playerActions.joinTeam>>
-      | undefined;
-    await act(async () => {
-      acknowledgement = await playerActions.joinTeam({ team: "blue" });
-    });
-
-    expect(acknowledgement).toEqual({
-      ok: true,
-      status: "accepted",
-      source: "host",
-    });
-    expect(phaseHook.result.current).toBe("blue");
-    expect(actorHook.result.current).toBe("ctrl_2");
-    expect(roleHook.result.current).toBe("controller");
-    expect(connectedIdsHook.result.current).toEqual(["ctrl_1", "ctrl_2"]);
-
-    storeHook.unmount();
-    phaseHook.unmount();
-    actorHook.unmount();
-    roleHook.unmount();
-    connectedIdsHook.unmount();
-  });
-
   it("rejects player-actions dispatches outside the host runtime", async () => {
     const diagnostics: string[] = [];
     const unsubscribe = onAirJamDiagnostic((diagnostic) => {
@@ -1438,6 +1359,12 @@ describe("createAirJamStore networked behavior", () => {
       await actionsHook.result.current.setPhase({ phase: "playing" });
     });
 
+    expect(store.getState()).toMatchObject({
+      phase: "playing",
+      lastActor: "host",
+      lastRole: "host",
+      lastConnectedPlayerIds: ["ctrl_1", "ctrl_2"],
+    });
     expect(observedEvents).toEqual([
       {
         actionName: "setPhase",
@@ -1483,6 +1410,12 @@ describe("createAirJamStore networked behavior", () => {
       await playerActions.setPhase({ phase: "playing" });
     });
 
+    expect(store.getState()).toMatchObject({
+      phase: "playing",
+      lastActor: "ctrl_2",
+      lastRole: "controller",
+      lastConnectedPlayerIds: ["ctrl_1", "ctrl_2"],
+    });
     expect(observedEvents).toEqual([
       {
         actionName: "setPhase",
@@ -1867,5 +1800,182 @@ describe("createAirJamStore networked behavior", () => {
 
     hostBinding.unmount();
     controllerBinding.unmount();
+  });
+  const createPrivateStore = () =>
+    track(
+      createAirJamStore<{
+        round: number;
+        secrets: Record<string, { list: string[] }>;
+        actions: Record<never, never>;
+      }>(
+        () => ({
+          round: 1,
+          secrets: {
+            ctrl_1: { list: ["moonfruit"] },
+            ctrl_2: { list: ["stardust"] },
+          },
+          actions: {},
+        }),
+        { privateField: "secrets" },
+      ),
+    );
+
+  it("broadcasts public data, targets only changed private entries and re-delivers on reconnect", () => {
+    mockedContext.state.role = "host";
+    const store = createPrivateStore();
+    renderHook(() => useAirJamStore(store));
+    const publicSync = hostSocket.emitted.find(
+      ({ event }) => event === "host:state_sync",
+    )?.args[0];
+    expect(publicSync).toMatchObject({
+      data: { round: 1 },
+      privateState: { field: "secrets", entries: store.getState().secrets },
+    });
+    expect((publicSync as { data: object }).data).not.toHaveProperty("secrets");
+    const privateCalls = () =>
+      hostSocket.emitted
+        .filter(({ event }) => event === "host:private_state_sync")
+        .map(({ args }) => args[0]);
+    expect(privateCalls()).toEqual([
+      {
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        controllerId: "ctrl_1",
+        revision: 0,
+        entry: { list: ["moonfruit"] },
+      },
+      {
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        controllerId: "ctrl_2",
+        revision: 0,
+        entry: { list: ["stardust"] },
+      },
+    ]);
+    act(() => store.api.setState({ round: 2 }));
+    expect(privateCalls()).toHaveLength(2);
+    act(() =>
+      store.api.setState({
+        secrets: { ...store.getState().secrets, ctrl_1: { list: ["comet"] } },
+      }),
+    );
+    expect(privateCalls()).toHaveLength(3);
+    expect(privateCalls()[2]).toMatchObject({
+      controllerId: "ctrl_1",
+      revision: 1,
+      entry: { list: ["comet"] },
+    });
+    hostSocket.trigger("airjam:state_sync_request", {
+      roomId: "ROOM1",
+      storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      controllerId: "ctrl_2",
+    });
+    expect(privateCalls().at(-1)).toMatchObject({
+      controllerId: "ctrl_2",
+      revision: 0,
+      entry: { list: ["stardust"] },
+    });
+  });
+
+  it("a phone mirrors only its own entry and clears it before reconnecting", () => {
+    const store = createPrivateStore();
+    const hook = renderHook(() => useAirJamPrivateState(store));
+    expect(store.getState().secrets).toEqual({});
+    const sync = {
+      roomId: "ROOM1",
+      storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+      revision: 3,
+      controllerId: "ctrl_1",
+      entry: { list: ["moonfruit"] },
+    };
+    act(() =>
+      controllerSocket.trigger("airjam:private_state_sync", {
+        ...sync,
+        controllerId: "ctrl_2",
+        entry: { list: ["stardust"] },
+      }),
+    );
+    expect(hook.result.current).toBeUndefined();
+    act(() => controllerSocket.trigger("airjam:private_state_sync", sync));
+    expect(hook.result.current).toEqual({ list: ["moonfruit"] });
+    expect(store.getState().secrets).toEqual({
+      ctrl_1: { list: ["moonfruit"] },
+    });
+    act(() =>
+      controllerSocket.trigger("server:roomReady", { roomId: "ROOM1" }),
+    );
+    expect(hook.result.current).toBeUndefined();
+    act(() =>
+      controllerSocket.trigger("airjam:private_state_sync", {
+        ...sync,
+        revision: 0,
+      }),
+    );
+    expect(hook.result.current).toEqual({ list: ["moonfruit"] });
+  });
+
+  it("host restore retains every entry while agent projections receive only their own", async () => {
+    mockedContext.state.role = "host";
+    const store = createPrivateStore();
+    renderHook(() => useAirJamStore(store));
+    const secrets = {
+      ctrl_1: { list: ["restored-a"] },
+      ctrl_2: { list: ["restored-b"] },
+    };
+    act(() =>
+      hostSocket.trigger("airjam:state_sync", {
+        roomId: "ROOM1",
+        storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        revision: 50,
+        data: { round: 3, secrets },
+      }),
+    );
+    expect(store.getState().secrets).toEqual(secrets);
+    const close = registerHostAgentContract(window, {
+      roomId: "ROOM1",
+      gameId: "private-fixture",
+      players: () => mockedContext.state.players,
+      contract: defineAirJamAgentContract({
+        stores: {
+          default: agentStore<{
+            round: number;
+            secrets: Record<string, { list: string[] }>;
+          }>(),
+        },
+        actions: {},
+        projectSnapshot: ({ stores }) => {
+          if (!stores.default) throw new Error("Missing store");
+          return stores.default;
+        },
+      }),
+    });
+    try {
+      const control: HostRuntimeControl = Reflect.get(
+        window,
+        AIR_JAM_RUNTIME_CONTROL_KEY,
+      );
+      const read = await control.agent({
+        operation: "read",
+        roomId: "ROOM1",
+        controllerId: "ctrl_1",
+      });
+      if (read.operation !== "read" || !read.snapshot)
+        throw new Error("Missing snapshot");
+      expect(read.snapshot.snapshot).toEqual({
+        round: 3,
+        secrets: { ctrl_1: { list: ["restored-a"] } },
+      });
+      expect(read.snapshot.rawStores[0].data).toEqual({ round: 3, secrets });
+      const host = await control.agent({
+        operation: "read",
+        roomId: "ROOM1",
+        controllerId: null,
+      });
+      if (host.operation !== "read" || !host.snapshot)
+        throw new Error("Missing snapshot");
+      expect(host.snapshot.snapshot).toEqual({ round: 3, secrets: {} });
+    } finally {
+      close();
+    }
   });
 });

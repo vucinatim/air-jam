@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { controllerActionRpcSchema } from "../src/protocol";
+import { controllerActionRpcSchema } from "../src/protocol/sync";
 
 describe("controller action RPC contract", () => {
   it("accepts omitted payloads and plain object payloads", () => {

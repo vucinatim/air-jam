@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ErrorCode } from "../src/protocol";
+import { ErrorCode } from "../src/protocol/errors";
 import { resolveAdmissionRetry } from "../src/runtime/admission-retry";
 
 describe("admission retry policy", () => {

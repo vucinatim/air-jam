@@ -6,21 +6,27 @@ import {
   defineAirJamAgentStores,
 } from "../src/agent/agent-contract";
 import {
-  axis,
-  createAirJamStore,
   createConnectionStore,
-  defineAirJamInput,
-  defineAirJamSettings,
-  defineAirJamSimulation,
   getReconnectingPlayerIds,
-  HostRuntime,
-  replayAirJamInputLog,
-  setting,
-  type AirJamActionContext,
-  type AirJamHostEnvironment,
+} from "../src/core/connection-store";
+import { type AirJamHostEnvironment } from "../src/core/environment";
+import { HostRuntime } from "../src/core/host-runtime";
+import {
+  axis,
+  defineAirJamInput,
   type AirJamInputValues,
+} from "../src/core/input";
+import { replayAirJamInputLog } from "../src/core/replay-input-log";
+import {
+  createAirJamStore,
+  type AirJamActionContext,
+} from "../src/core/replicated-store";
+import {
+  defineAirJamSettings,
+  setting,
   type AirJamSettingsValues,
-} from "../src/core";
+} from "../src/core/settings";
+import { defineAirJamSimulation } from "../src/core/simulation";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
 import {

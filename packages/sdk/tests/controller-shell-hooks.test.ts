@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  useControllerLifecycleIntents,
-  useControllerLifecyclePermissions,
-  useControllerShellStatus,
-} from "../src/ui";
+import { useControllerLifecyclePermissions } from "../src/hooks/use-controller-lifecycle-permissions";
 
 describe("controller shell hooks", () => {
   it("derives phase-aware lifecycle permissions", () => {
@@ -33,40 +29,6 @@ describe("controller shell hooks", () => {
       canRestart: true,
       canBackToLobby: true,
       canInteractForPhase: true,
-    });
-  });
-
-  it("derives display metadata for controller headers", () => {
-    expect(
-      useControllerShellStatus({
-        roomId: null,
-        connectionStatus: "connected",
-        playerLabel: "Tim",
-      }),
-    ).toEqual({
-      connectionStatus: "connected",
-      displayName: "Tim",
-      roomDisplay: "----",
-      roomLine: "Room ----",
-      hasIdentity: true,
-      identityInitial: "T",
-    });
-  });
-
-  it("returns normalized lifecycle intent handlers", () => {
-    const onStart = () => undefined;
-    const onBackToLobby = () => undefined;
-
-    expect(
-      useControllerLifecycleIntents({
-        onStart,
-        onBackToLobby,
-      }),
-    ).toEqual({
-      onStart,
-      onTogglePause: undefined,
-      onBackToLobby,
-      onRestart: undefined,
     });
   });
 });

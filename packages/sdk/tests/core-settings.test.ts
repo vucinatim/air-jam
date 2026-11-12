@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { defineAirJamSettings, setting } from "../src/core";
-import { HostSettings, type SettingsValues } from "../src/core/settings";
+import {
+  defineAirJamSettings,
+  HostSettings,
+  setting,
+  type SettingsValues,
+} from "../src/core/settings";
 
 const declaration = defineAirJamSettings({
   speed: setting.number({ default: 2, min: 1, max: 4, step: 0.5, live: true }),

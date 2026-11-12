@@ -69,7 +69,10 @@ type ActionStore = {
   storeDomain: string;
   stateEpoch: string;
   contractStoreDomain: string;
-  read: () => { data: Record<string, unknown>; revision: number };
+  read: (controllerId?: string | null) => {
+    data: Record<string, unknown>;
+    revision: number;
+  };
   invoke: (
     request: HostRuntimeActionRequest,
   ) => Promise<AirJamActionInvocationResult>;
@@ -452,9 +455,9 @@ function controlEntry(target: object) {
           controllerId: request.controllerId,
           players: binding.players(),
           stores: Object.fromEntries(
-            selected.map(({ domain }, index) => [
+            selected.map(({ domain, store }) => [
               domain,
-              rawStores[index].data,
+              agentJson(store.read(request.controllerId).data),
             ]),
           ),
         });

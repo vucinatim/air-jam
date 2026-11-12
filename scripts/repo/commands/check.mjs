@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import {
   gamesRoot,
@@ -289,6 +290,10 @@ export const registerCheckCommands = (program) => {
     )
     .option("--plan", "Inspect selection without running tests")
     .option(
+      "--files <paths...>",
+      "Run only these repository test files in the selected tier",
+    )
+    .option(
       "--json",
       "Print the test plan as stdout-only JSON (requires --plan)",
     )
@@ -299,6 +304,7 @@ export const registerCheckCommands = (program) => {
         const plan = buildTestPlan({
           tier: options.tier,
           projects: options.project,
+          files: options.files,
         });
         if (options.plan) {
           console.log(
@@ -311,13 +317,27 @@ export const registerCheckCommands = (program) => {
           if (project.runner === "node") {
             runCommand(
               process.execPath,
-              ["--import", "tsx", "--test", ...project.files],
+              [
+                ...(project.files.some((file) => /\.tsx?$/.test(file))
+                  ? ["--import", "tsx"]
+                  : []),
+                "--test",
+                ...project.files,
+              ],
               { cwd },
             );
           } else {
+            const require = createRequire(path.join(cwd, "package.json"));
+            const manifestPath = require.resolve("vitest/package.json");
+            const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
             runCommand(
-              "pnpm",
-              ["exec", "vitest", "run", "--maxWorkers=2", ...project.files],
+              process.execPath,
+              [
+                path.resolve(path.dirname(manifestPath), manifest.bin.vitest),
+                "run",
+                "--maxWorkers=2",
+                ...project.files,
+              ],
               { cwd },
             );
           }

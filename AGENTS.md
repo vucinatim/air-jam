@@ -119,6 +119,12 @@ Follow the canonical
 [Development Check Layers](docs/working-agreements.md#development-check-layers).
 Keep ordinary edits on the fast tiers and escalate only when that agreement
 requires it.
+Tests are a cost: keep one small test per relied-on behavior at the lowest level
+that proves it. Shrink or delete redundant coverage before adding tests. The
+budget is 60 CPU seconds for the fast suite and 600 for slow tests, including
+child processes; wall time is informational on shared hosts.
+Run real-process, browser and real-time tests only for touched files, using
+`check tests --tier slow --files <repository test paths...>`.
 `integrationBranch` in `scripts/repo/lib/check-plan.mjs` sets the default local check base to `release/1.0`
 and flips to `main` at launch.
 

@@ -36,7 +36,10 @@ export class RuntimeControllerObservations {
   ) {}
   async open(
     requestId: string,
-    context: Pick<AirJamRuntimeOwnerCaptureRequest, "snapshot" | "stores">,
+    context: Pick<
+      AirJamRuntimeOwnerCaptureRequest,
+      "snapshot" | "stores" | "privateStores"
+    >,
     onError: Entry["onError"],
   ) {
     if (this.entries.has(requestId))
@@ -64,6 +67,7 @@ export class RuntimeControllerObservations {
         controllerJoinUrl: inspection.joinUrl,
         snapshot: context.snapshot,
         stores: context.stores,
+        privateStores: context.privateStores,
         onMessage: (message) => {
           try {
             const emitted = parseControllerBridgeEmitMessage(message);

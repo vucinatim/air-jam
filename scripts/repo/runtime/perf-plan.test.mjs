@@ -19,6 +19,13 @@ test("existing performance sanity arguments remain unchanged", () => {
     "--reconnectCycles=5",
     "--strict",
   ]);
+  assert.deepEqual(buildPerfSanityArgs({ profile: "release" }), [
+    "--filter",
+    "server",
+    "perf:sanity",
+    "--",
+    "--strict",
+  ]);
   assert.throws(
     () => buildPerfSanityArgs({ profile: "unknown" }),
     /Unknown performance profile/,

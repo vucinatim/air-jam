@@ -117,8 +117,8 @@
     {
       "path": "docs/airjam/generated/networked-state.md",
       "kind": "docs-generated",
-      "size": 8830,
-      "sha256": "01d01e64f65fe1d57f759feedbbb06afa6811bcdfe9922dd2e212e68b2c9c27a"
+      "size": 10698,
+      "sha256": "5c02acc28f19140fd1d36af2b2b3e55adc86d3ca0ad77bd3ba2aed9baf0eaf78"
     },
     {
       "path": "docs/airjam/generated/project-structure.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "19865ce667b25b530ee3db130e77024e92ba6962e1724752d4fc6846eae1468e"
+  "contentDigest": "38764dba24ce723219ae5373cf57cc33b7923e8ece6d9c6e804602958c224561"
 }

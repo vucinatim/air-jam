@@ -4,7 +4,10 @@ import {
   type ControllerBridgeServerEventName,
   type ControllerBridgeSnapshot,
 } from "@air-jam/sdk/controller-bridge";
-import type { HostStateSyncPayload } from "@air-jam/sdk/protocol";
+import type {
+  AirJamPrivateStateSyncPayload,
+  HostStateSyncPayload,
+} from "@air-jam/sdk/protocol";
 import { AIR_JAM_RUNTIME_INSPECTION_KEY } from "@air-jam/sdk/runtime-inspection";
 import {
   parseRuntimeTopologyFromSearchParams,
@@ -20,6 +23,7 @@ export async function openControllerObservation({
   controllerJoinUrl,
   snapshot,
   stores,
+  privateStores,
   onMessage,
   signal,
 }: {
@@ -27,6 +31,7 @@ export async function openControllerObservation({
   controllerJoinUrl: string;
   snapshot: ControllerBridgeSnapshot & { harnessSessionId: string };
   stores: HostStateSyncPayload[];
+  privateStores: AirJamPrivateStateSyncPayload[];
   onMessage: (message: unknown) => void;
   signal?: AbortSignal;
 }) {
@@ -91,9 +96,14 @@ export async function openControllerObservation({
       (_, message: unknown) => onMessage(message),
     );
     await page.goto(parentUrl.href, { waitUntil: "domcontentloaded" });
-    const initialEvents = stores.map((store) =>
-      createControllerBridgeEventMessage("airjam:state_sync", store),
-    );
+    const initialEvents = [
+      ...stores.map((store) =>
+        createControllerBridgeEventMessage("airjam:state_sync", store),
+      ),
+      ...privateStores.map((store) =>
+        createControllerBridgeEventMessage("airjam:private_state_sync", store),
+      ),
+    ];
     await page.evaluate(
       ({ controllerUrl, attach, initialEvents }) => {
         const frame = document.createElement("iframe");

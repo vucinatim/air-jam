@@ -4,6 +4,7 @@ import {
   controllerOrientationSchema,
   controllerStateSchema,
   playerProfileSchema,
+  type AirJamPrivateStateSyncPayload,
   type AirJamStateSyncPayload,
   type AirJamStateSyncRequestPayload,
   type ControllerActionRpcPayload,
@@ -72,6 +73,7 @@ export const controllerBridgeServerEvents = [
   "server:playSound",
   "server:playerUpdated",
   "airjam:state_sync",
+  "airjam:private_state_sync",
 ] as const;
 
 export type ControllerBridgeClientEventName =
@@ -107,6 +109,7 @@ export type ControllerBridgeServerEventArgs = {
   "server:playSound": [payload: PlaySoundPayload];
   "server:playerUpdated": [payload: PlayerUpdatedNotice];
   "airjam:state_sync": [payload: AirJamStateSyncPayload];
+  "airjam:private_state_sync": [payload: AirJamPrivateStateSyncPayload];
 };
 
 export type ControllerBridgeSnapshot = ControllerBridgeContext & {
