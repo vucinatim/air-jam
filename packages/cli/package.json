@@ -48,6 +48,8 @@
     "bin",
     "dist",
     "runtime/vite-config.mjs",
+    "runtime/source-fence.mjs",
+    "runtime/vite-dev.mjs",
     "runtime/vite-config.d.mts",
     "runtime/vite-https.mjs",
     "runtime/vite-https.d.mts",

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { sourceFencePlugin } from "./source-fence.mjs";
 import {
   AIR_JAM_IFRAME_HEADERS,
   createAirJamViteConfig,
@@ -74,4 +75,111 @@ test("createAirJamViteConfig rejects unknown profiles", () => {
     () => createAirJamViteConfig({ profile: "weird" }),
     /Unsupported Air Jam Vite profile/,
   );
+});
+
+test("source fence holds watcher updates and requests, reloads once, and ignores late events", async (context) => {
+  const { EventEmitter } = await import("node:events");
+  const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { createHash } = await import("node:crypto");
+  const root = await mkdtemp(join(tmpdir(), "airjam-fence-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, ".airjam/devtools"), { recursive: true });
+  const marker = join(root, ".airjam/devtools/source-change.json");
+  let tick;
+  context.mock.method(globalThis, "setInterval", (callback) => {
+    tick = callback;
+    return { unref() {} };
+  });
+  context.mock.method(globalThis, "clearInterval", () => {});
+  const watcher = new EventEmitter();
+  const changed = [];
+  watcher.on("change", (path) => changed.push(path));
+  const sent = [];
+  let invalidations = 0;
+  let middleware;
+  const plugin = sourceFencePlugin();
+  plugin.configureServer({
+    config: {
+      root,
+      configFileDependencies: [],
+      envDir: root,
+      mode: "development",
+    },
+    httpServer: watcher,
+    watcher,
+    environments: {
+      client: {
+        moduleGraph: {
+          invalidateAll() {
+            invalidations++;
+          },
+        },
+      },
+    },
+    ws: {
+      send(message) {
+        sent.push(message);
+      },
+    },
+    middlewares: {
+      use(callback) {
+        middleware = callback;
+      },
+    },
+  });
+  context.after(() => watcher.emit("close"));
+  const setState = (state) => writeFile(marker, JSON.stringify(state));
+  await setState({
+    id: "one",
+    phase: "applying",
+    expiresAt: Date.now() + 60_000,
+  });
+  let served = false;
+  middleware({}, {}, () => {
+    served = true;
+  });
+  for (const path of ["render.ts", "host.ts"]) {
+    await writeFile(join(root, path), "new");
+    watcher.emit("change", join(root, path));
+  }
+  assert.equal(served, false);
+  assert.deepEqual(changed, []);
+  assert.deepEqual(sent, []);
+  const files = ["render.ts", "host.ts"].map((path) => ({
+    path,
+    hash: createHash("sha256").update("new").digest("hex"),
+  }));
+  await setState({ id: "one", phase: "settled", committed: true, files });
+  tick();
+  watcher.emit("change", join(root, "render.ts"));
+  watcher.emit("change", join(root, "host.ts"));
+  tick();
+  assert.equal(served, true);
+  assert.deepEqual(sent, [{ type: "full-reload", path: "*" }]);
+  assert.equal(invalidations, 1);
+  assert.deepEqual(changed, []);
+  await writeFile(join(root, "render.ts"), "next independent edit");
+  watcher.emit("change", join(root, "render.ts"));
+  assert.deepEqual(changed, [join(root, "render.ts")]);
+  await setState({ id: "two", phase: "settled", committed: false, files: [] });
+  tick();
+  assert.equal(sent.length, 1);
+  await setState({
+    id: "crashed",
+    phase: "applying",
+    expiresAt: Date.now() - 1,
+  });
+  tick();
+  assert.equal(sent.length, 2);
+  await setState({
+    id: "config",
+    phase: "settled",
+    committed: true,
+    files: [{ path: ".env", hash: null }],
+  });
+  tick();
+  assert.equal(sent.length, 2);
+  assert.equal(changed.at(-1), join(root, ".env"));
 });

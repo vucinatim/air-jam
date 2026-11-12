@@ -2,6 +2,7 @@ import crossSpawn from "cross-spawn";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   createProcessGroup,
   detectLocalIpv4,
@@ -25,6 +26,9 @@ import {
 } from "./secure-dev.mjs";
 
 const START_TIMEOUT_MS = 20_000;
+const viteLauncher = fileURLToPath(
+  new URL("../runtime/vite-dev.mjs", import.meta.url),
+);
 const PREVIEW_MANAGED_SERVER_LOG_RELATIVE_PATH = path.join(
   ".airjam",
   "preview-managed-server.log",
@@ -64,7 +68,9 @@ const usage = () => {
   console.log("");
   console.log("Network isolation:");
   console.log("  VITE_PORT                    Game app port (default: 5173)");
-  console.log("  AIR_JAM_SERVER_PORT          Local server port (default: 4000)");
+  console.log(
+    "  AIR_JAM_SERVER_PORT          Local server port (default: 4000)",
+  );
   console.log("  VITE_AIR_JAM_PUBLIC_HOST     Explicit host/controller origin");
 };
 
@@ -187,7 +193,7 @@ const startGameIfNeeded = async (
     );
   }
 
-  processGroup.run("game", "pnpm", ["exec", "vite"], {
+  processGroup.run("game", process.execPath, [viteLauncher], {
     env: {
       ...process.env,
       ...env,
@@ -251,7 +257,7 @@ const ensurePreviewManagedServer = async ({ cwd, serverPort, env }) => {
 
 const runForegroundGame = ({ cwd, env }) =>
   new Promise((resolve, reject) => {
-    const child = crossSpawn("pnpm", ["exec", "vite"], {
+    const child = crossSpawn(process.execPath, [viteLauncher], {
       cwd,
       stdio: "inherit",
       env: {
