@@ -111,6 +111,8 @@ export interface HostRuntimeDependencies {
   store: StoreApi<AirJamConnectionState>;
   getSocket: DirectSocketGetter<"host">;
   disconnectSocket: (role: "host") => void;
+  /** The orientation fixed by the game declaration, if any. */
+  fixedControllerOrientation?: "landscape" | null;
   /** The game's declared controls, read in simulation steps. */
   input?: AirJamInput;
   settings?: AirJamSettings;
@@ -132,7 +134,12 @@ export interface HostRuntimeDependencies {
 export type HostRuntimeFactory = (
   dependencies: Omit<
     HostRuntimeDependencies,
-    "stores" | "simulation" | "agent" | "input" | "settings"
+    | "stores"
+    | "simulation"
+    | "agent"
+    | "input"
+    | "settings"
+    | "fixedControllerOrientation"
   >,
   options?: HostRuntimeOptions,
 ) => HostRuntime;
@@ -170,6 +177,7 @@ export class HostRuntime {
   private readonly recorder: InputRecorder | null;
   private readonly seed: number;
   private readonly config: AirJamConfig;
+  private readonly fixedControllerOrientation: "landscape" | null;
   private readonly environment: AirJamHostEnvironment;
   private readonly disconnectSocket: (role: "host") => void;
   private readonly stores: readonly AttachableStore[];
@@ -248,6 +256,8 @@ export class HostRuntime {
     this.stores = dependencies.stores;
     this.agent = dependencies.agent;
     this.options = options;
+    this.fixedControllerOrientation =
+      dependencies.fixedControllerOrientation ?? null;
     this.socket = dependencies.environment.transport(dependencies.getSocket);
     const seed = options.seed ?? dependencies.environment.seed();
     this.seed = seed;
@@ -465,7 +475,13 @@ export class HostRuntime {
     if (this.running && roomId) this.bindObservation(roomId);
   };
 
-  readonly sendState = (state: ControllerStatePayload): boolean => {
+  readonly sendState = (
+    state: Omit<ControllerStatePayload, "orientation">,
+  ): boolean => {
+    if ("orientation" in state)
+      throw new Error(
+        "Controller orientation is owned by the game declaration in airjam.config; do not set orientation in sendState.",
+      );
     const roomId = this.roomId;
     if (!this.canEmitAuthoritativeHostState(roomId)) return false;
     const payload = controllerStateSchema.safeParse({ roomId, state });
@@ -611,6 +627,7 @@ export class HostRuntime {
               state.resetRuntimeState();
               this.hydrateRoster(ack.players, ack.controllers);
               state.setRegisteredRoomId(ack.roomId);
+              this.publishControllerOrientation();
               this.setControllerCapability(ack.controllerCapability ?? null);
               this.persistResume(ack);
               resolve(ack);
@@ -756,6 +773,14 @@ export class HostRuntime {
       state.registeredRoomId === roomId &&
       state.hostArcadeRestore.phase === "idle"
     );
+  }
+
+  private publishControllerOrientation(): void {
+    const roomId = this.roomId;
+    if (!this.canEmitAuthoritativeHostState(roomId)) return;
+    const orientation = this.fixedControllerOrientation ?? "portrait";
+    this.store.getState().setControllerOrientation(orientation);
+    this.socket.emit("host:state", { roomId, state: { orientation } });
   }
 
   private persistResume(ack: HostRegistrationAck): void {
@@ -1010,6 +1035,7 @@ export class HostRuntime {
         state.setRoomId(embedded.roomId);
         this.hydrateRoster();
         state.setRegisteredRoomId(embedded.roomId);
+        this.publishControllerOrientation();
         this.setControllerCapability(null);
         return;
       }
@@ -1146,6 +1172,7 @@ export class HostRuntime {
             state.clearHostArcadeRestore();
             this.hydrateRoster(ack.players, ack.controllers);
             state.setRegisteredRoomId(ack.roomId);
+            this.publishControllerOrientation();
             this.setControllerCapability(ack.controllerCapability ?? null);
             this.persistResume(ack);
             return;
@@ -1200,6 +1227,7 @@ export class HostRuntime {
                     : { phase: "idle", session: null, surfaceCheckpoint: null },
                 );
                 state.setRegisteredRoomId(ack.roomId);
+                this.publishControllerOrientation();
                 this.persistResume(ack);
                 return;
               }
@@ -1458,7 +1486,9 @@ export class HostRuntime {
     if (payload.state.runtimeState)
       state.setRuntimeState(payload.state.runtimeState);
     if (payload.state.orientation)
-      state.setControllerOrientation(payload.state.orientation);
+      state.setControllerOrientation(
+        this.fixedControllerOrientation ?? payload.state.orientation,
+      );
     if (payload.state.message !== undefined)
       state.setStateMessage(payload.state.message);
   }

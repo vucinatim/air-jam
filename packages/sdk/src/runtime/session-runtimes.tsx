@@ -33,12 +33,14 @@ import { ReplayRuntime } from "./replay-runtime";
 import {
   controllerRuntimeContext,
   declaredStoresContext,
+  fixedControllerOrientationContext,
   hostRuntimeContext,
 } from "./runtime-owner-contexts";
 
 export type AirJamHostRuntimeProps = AirJamProviderProps &
   AirJamHostOptions & {
     children: ReactNode;
+    fixedControllerOrientation?: "landscape" | null;
     agent?: AnyAirJamAgentContract;
     gameId?: string;
     /** Replicated stores this host owns; they sync while it runs. */
@@ -60,6 +62,7 @@ export type AirJamHostRuntimeProps = AirJamProviderProps &
 export type AirJamControllerRuntimeProps = AirJamProviderProps &
   AirJamControllerOptions & {
     children: ReactNode;
+    fixedControllerOrientation?: "landscape" | null;
     /** Replicated stores this controller mirrors while it runs. */
     stores?: readonly AttachableStore[];
     /** The game's declared controls; this controller sends them. */
@@ -127,6 +130,7 @@ const HostRuntimeOwner = ({
   settings,
   input,
   inputBindings,
+  fixedControllerOrientation,
 }: Pick<
   AirJamHostRuntimeProps,
   | "children"
@@ -140,17 +144,27 @@ const HostRuntimeOwner = ({
   | "settings"
   | "input"
   | "inputBindings"
+  | "fixedControllerOrientation"
 >): JSX.Element => {
   const declared = useMemo(() => new Set(stores), [stores]);
   const game = useMemo(
     () => ({
       stores,
+      fixedControllerOrientation,
       simulation,
       settings,
       input,
       agent: agent && { contract: agent, gameId: gameId ?? "game" },
     }),
-    [stores, simulation, settings, input, agent, gameId],
+    [
+      stores,
+      simulation,
+      settings,
+      input,
+      agent,
+      gameId,
+      fixedControllerOrientation,
+    ],
   );
   const runtime = useHostRuntimeApi(
     {
@@ -247,44 +261,55 @@ export const AirJamHostRuntime = ({
   settings,
   input,
   inputBindings,
+  fixedControllerOrientation,
   ...providerProps
 }: AirJamHostRuntimeProps): JSX.Element | null => {
   if (!useInBrowser()) return null;
   if (isAirJamReplayDocument())
     return (
-      <HostSessionProvider {...providerProps}>
-        <ReplayRuntime
-          {...providerProps}
-          stores={stores}
-          simulation={simulation}
-          settings={settings}
-          input={input}
-          agent={agent}
-          gameId={gameId}
-        >
-          {children}
-        </ReplayRuntime>
-      </HostSessionProvider>
+      <fixedControllerOrientationContext.Provider
+        value={fixedControllerOrientation ?? null}
+      >
+        <HostSessionProvider {...providerProps}>
+          <ReplayRuntime
+            {...providerProps}
+            fixedControllerOrientation={fixedControllerOrientation}
+            stores={stores}
+            simulation={simulation}
+            settings={settings}
+            input={input}
+            agent={agent}
+            gameId={gameId}
+          >
+            {children}
+          </ReplayRuntime>
+        </HostSessionProvider>
+      </fixedControllerOrientationContext.Provider>
     );
   return (
-    <HostSessionProvider {...providerProps}>
-      <PlatformSettingsBoundary>
-        <HostRuntimeOwner
-          roomId={roomId}
-          onPlayerJoin={onPlayerJoin}
-          onPlayerLeave={onPlayerLeave}
-          agent={agent}
-          gameId={gameId}
-          stores={stores}
-          simulation={simulation}
-          settings={settings}
-          input={input}
-          inputBindings={inputBindings}
-        >
-          {children}
-        </HostRuntimeOwner>
-      </PlatformSettingsBoundary>
-    </HostSessionProvider>
+    <fixedControllerOrientationContext.Provider
+      value={fixedControllerOrientation ?? null}
+    >
+      <HostSessionProvider {...providerProps}>
+        <PlatformSettingsBoundary>
+          <HostRuntimeOwner
+            roomId={roomId}
+            onPlayerJoin={onPlayerJoin}
+            onPlayerLeave={onPlayerLeave}
+            agent={agent}
+            gameId={gameId}
+            stores={stores}
+            simulation={simulation}
+            settings={settings}
+            input={input}
+            inputBindings={inputBindings}
+            fixedControllerOrientation={fixedControllerOrientation}
+          >
+            {children}
+          </HostRuntimeOwner>
+        </PlatformSettingsBoundary>
+      </HostSessionProvider>
+    </fixedControllerOrientationContext.Provider>
   );
 };
 
@@ -296,27 +321,32 @@ export const AirJamControllerRuntime = ({
   controllerId,
   capabilityToken,
   onState,
+  fixedControllerOrientation,
   stores,
   input,
   ...providerProps
 }: AirJamControllerRuntimeProps): JSX.Element | null => {
   if (!useInBrowser()) return null;
   return (
-    <ControllerSessionProvider {...providerProps}>
-      <PlatformSettingsBoundary>
-        <ControllerRuntimeOwner
-          roomId={roomId}
-          nickname={nickname}
-          avatarId={avatarId}
-          controllerId={controllerId}
-          capabilityToken={capabilityToken}
-          onState={onState}
-          stores={stores}
-          input={input}
-        >
-          {children}
-        </ControllerRuntimeOwner>
-      </PlatformSettingsBoundary>
-    </ControllerSessionProvider>
+    <fixedControllerOrientationContext.Provider
+      value={fixedControllerOrientation ?? null}
+    >
+      <ControllerSessionProvider {...providerProps}>
+        <PlatformSettingsBoundary>
+          <ControllerRuntimeOwner
+            roomId={roomId}
+            nickname={nickname}
+            avatarId={avatarId}
+            controllerId={controllerId}
+            capabilityToken={capabilityToken}
+            onState={onState}
+            stores={stores}
+            input={input}
+          >
+            {children}
+          </ControllerRuntimeOwner>
+        </PlatformSettingsBoundary>
+      </ControllerSessionProvider>
+    </fixedControllerOrientationContext.Provider>
   );
 };

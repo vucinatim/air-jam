@@ -1,7 +1,8 @@
 import type { CSSProperties, JSX, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSessionScope } from "../context/session-scope";
 import { publishEmbeddedControllerPresentation } from "../runtime/controller-presentation";
+import { fixedControllerOrientationContext } from "../runtime/runtime-owner-contexts";
 import { cn } from "../utils/cn";
 import {
   createSurfaceViewportOuterStyle,
@@ -127,7 +128,7 @@ export interface SurfaceViewportProps {
 
 export const SurfaceViewport = ({
   children,
-  orientation,
+  orientation: requestedOrientation,
   lockOnGesture = true,
   className,
   contentClassName,
@@ -138,6 +139,16 @@ export const SurfaceViewport = ({
   minScale,
   maxScale,
 }: SurfaceViewportProps): JSX.Element => {
+  const fixedOrientation = useContext(fixedControllerOrientationContext);
+  if (
+    fixedOrientation &&
+    requestedOrientation &&
+    requestedOrientation !== fixedOrientation
+  )
+    throw new Error(
+      "SurfaceViewport orientation conflicts with inputModalities: ['joystick'] in airjam.config: joystick games always use landscape; omit orientation.",
+    );
+  const orientation = fixedOrientation ?? requestedOrientation;
   const [viewport, setViewport] = useState<ViewportSize | null>(null);
   const viewportRef = useRef<ViewportSize | null>(null);
   const sessionScope = useSessionScope();

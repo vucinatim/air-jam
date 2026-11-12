@@ -1,3 +1,4 @@
+import { fixedControllerOrientation } from "@air-jam/sdk/metadata";
 import type { VisualScenarioContext, VisualViewport } from "./types.js";
 
 export const STANDARD_HOST_VIEWPORTS = [
@@ -27,7 +28,10 @@ export const captureStandardSurfaces = async (
   }
 
   await context.ensureControllerInteractive();
-  const controllerOrientation = options?.controllerOrientation ?? "portrait";
+  const controllerOrientation =
+    fixedControllerOrientation(context.inputModalities ?? []) ??
+    options?.controllerOrientation ??
+    "portrait";
   const controllerViewports =
     controllerOrientation === "landscape"
       ? STANDARD_CONTROLLER_LANDSCAPE_VIEWPORTS

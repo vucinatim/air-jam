@@ -20,14 +20,26 @@ import type {
 /** What the game declares for its host runtime. */
 export type HostGameDeclaration = Pick<
   HostRuntimeDependencies,
-  "stores" | "simulation" | "agent" | "input" | "settings"
+  | "stores"
+  | "simulation"
+  | "agent"
+  | "input"
+  | "settings"
+  | "fixedControllerOrientation"
 >;
 
 /** Binds one core host runtime to this provider tree for as long as it is mounted. */
 export const useHostRuntimeApi = (
   options: AirJamHostOptions,
   hookName: string,
-  { stores, simulation, agent, input, settings }: HostGameDeclaration,
+  {
+    stores,
+    simulation,
+    agent,
+    input,
+    settings,
+    fixedControllerOrientation,
+  }: HostGameDeclaration,
 ): AirJamHostRuntimeControls => {
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
@@ -38,6 +50,7 @@ export const useHostRuntimeApi = (
     () =>
       new HostRuntime(
         {
+          fixedControllerOrientation,
           config,
           store,
           getSocket,
@@ -69,6 +82,7 @@ export const useHostRuntimeApi = (
       settings,
       simulation,
       agent,
+      fixedControllerOrientation,
     ],
   );
 

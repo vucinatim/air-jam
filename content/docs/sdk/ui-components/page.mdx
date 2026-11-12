@@ -95,6 +95,8 @@ Use it for:
 
 ### `SurfaceViewport`
 
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
+
 Own safe-area, orientation, and page-level UI scaling for a game surface.
 It should fill the available screen while scaling the UI system proportionally, rather than letterboxing a fixed contained stage.
 Internally it publishes a local `--airjam-ui-scale` into Tailwind's own spacing, text, radius, and container variables so normal Tailwind utilities keep working.
@@ -102,7 +104,7 @@ Internally it publishes a local `--airjam-ui-scale` into Tailwind's own spacing,
 ```tsx
 import { SurfaceViewport } from "@air-jam/sdk/ui";
 
-<SurfaceViewport orientation="portrait" className="bg-zinc-950">
+<SurfaceViewport className="bg-zinc-950">
   <ControllerView />
 </SurfaceViewport>;
 ```

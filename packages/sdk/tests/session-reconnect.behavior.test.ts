@@ -1092,6 +1092,13 @@ describe("session reconnect behavior", () => {
       expect(result.current.connectionStatus).toBe("connected");
     });
 
+    expect(result.current.controllerOrientation).toBe("portrait");
+    expect(mocked.hostSocket.emit).toHaveBeenCalledWith("host:state", {
+      roomId: "ROOM1",
+      state: { orientation: "portrait" },
+    });
+    mocked.hostSocket.emit.mockClear();
+
     expect(
       result.current.sendState({
         runtimeState: "playing",

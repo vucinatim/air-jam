@@ -11,8 +11,8 @@ import { z } from "zod";
  * consumers can keep assuming the shape is stable. External creators should be
  * able to target this contract before the first third-party catalog submission.
  *
- * Runtime behavior belongs to the semantic agent contract; metadata describes
- * only what the catalog needs to present the game.
+ * Input modalities also declare controller presentation: joystick games always
+ * use landscape controllers.
  */
 
 /** Broad taxonomy for catalog filtering and landing-page grouping. */
@@ -41,6 +41,12 @@ export const GAME_INPUT_MODALITIES = [
 ] as const;
 
 export type AirJamGameInputModality = (typeof GAME_INPUT_MODALITIES)[number];
+
+/** The controller orientation fixed by the game declaration, if any. */
+export const fixedControllerOrientation = (
+  inputModalities: readonly AirJamGameInputModality[],
+): "landscape" | null =>
+  inputModalities.includes("joystick") ? "landscape" : null;
 
 const slugSchema = z
   .string()

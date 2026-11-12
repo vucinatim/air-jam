@@ -29,6 +29,7 @@ import type { SimulationClock } from "../core/simulation";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   ConnectionStatus,
+  ControllerOrientation,
   ControllerPresenceNotice,
   ControllerStatePayload,
   HapticSignalPayload,
@@ -114,6 +115,8 @@ export interface AirJamHostApi {
   mode: RunMode;
   /** Current runtime pause/play state */
   runtimeState: RuntimeState;
+  /** Controller orientation published by the authoritative game runtime. */
+  controllerOrientation: ControllerOrientation;
   /** Pause the runtime for every connected surface. */
   pauseRuntime: () => void;
   /** Resume the runtime for every connected surface. */
@@ -124,7 +127,7 @@ export interface AirJamHostApi {
    * Send state update to all connected controllers.
    * Use for syncing game state, messages, etc.
    */
-  sendState: (state: ControllerStatePayload) => boolean;
+  sendState: (state: Omit<ControllerStatePayload, "orientation">) => boolean;
   /**
    * Send a signal (haptic feedback or toast) to controllers.
    *
@@ -170,6 +173,7 @@ export interface AirJamHostState {
   lastError?: string;
   mode: RunMode;
   runtimeState: RuntimeState;
+  controllerOrientation: ControllerOrientation;
 }
 
 export type AirJamHostRuntimeControls = Pick<
@@ -200,6 +204,7 @@ const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
   lastError: state.lastError,
   mode: state.mode,
   runtimeState: state.runtimeState,
+  controllerOrientation: state.controllerOrientation,
 });
 
 /**

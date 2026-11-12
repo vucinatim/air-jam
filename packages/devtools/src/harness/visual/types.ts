@@ -2,6 +2,7 @@ import type {
   AirJamAgentContract,
   AnyAirJamAgentContract,
 } from "@air-jam/sdk/core";
+import type { AirJamGameInputModality } from "@air-jam/sdk/metadata";
 import type { Page } from "playwright-core";
 
 export type { AnyAirJamAgentContract } from "@air-jam/sdk/core";
@@ -102,6 +103,7 @@ export type VisualScenarioContext<
   gameId: string;
   scenario: VisualScenario<TAgent>;
   scenarioDir: string;
+  inputModalities?: readonly AirJamGameInputModality[];
   urls: VisualHarnessUrls;
   host: VisualHarnessPageSurface;
   controller: VisualHarnessPageSurface & {

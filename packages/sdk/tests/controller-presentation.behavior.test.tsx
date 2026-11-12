@@ -12,6 +12,7 @@ import {
   parseControllerPresentationSyncMessage,
 } from "../src/runtime/controller-bridge";
 import { publishEmbeddedControllerPresentation } from "../src/runtime/controller-presentation";
+import { fixedControllerOrientationContext } from "../src/runtime/runtime-owner-contexts";
 
 const setEmbeddedControllerUrl = () => {
   const topology = resolveRuntimeTopology({
@@ -98,6 +99,16 @@ describe("controller presentation sync", () => {
     ).not.toBeNull();
   });
 
+  it("rejects an orientation that conflicts with the joystick declaration", () => {
+    expect(() =>
+      render(
+        <fixedControllerOrientationContext.Provider value="landscape">
+          <SurfaceViewport orientation="portrait">Controller</SurfaceViewport>
+        </fixedControllerOrientationContext.Provider>,
+      ),
+    ).toThrow(/inputModalities.*joystick.*airjam.config/);
+  });
+
   it("is a no-op outside an embedded controller iframe", () => {
     const postMessage = vi.spyOn(window.parent, "postMessage");
 
@@ -112,7 +123,9 @@ describe("controller presentation sync", () => {
 
     render(
       <SessionScopeContext.Provider value="controller">
-        <SurfaceViewport orientation="landscape">Controller</SurfaceViewport>
+        <fixedControllerOrientationContext.Provider value="landscape">
+          <SurfaceViewport>Controller</SurfaceViewport>
+        </fixedControllerOrientationContext.Provider>
       </SessionScopeContext.Provider>,
     );
 

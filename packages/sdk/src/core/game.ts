@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AirJamAgentContract } from "../agent/agent-contract";
 import {
   airJamGameMetadataSchema,
+  fixedControllerOrientation,
   type AirJamGameMetadata,
 } from "../metadata/manifest";
 import { airJamAssetsSchema, type AirJamAssets } from "./assets";
@@ -112,6 +113,9 @@ export function defineAirJamGame(
         {
           ...dependencies,
           config: { ...dependencies.config, maxPlayers: metadata.maxPlayers },
+          fixedControllerOrientation: fixedControllerOrientation(
+            metadata.inputModalities,
+          ),
           stores,
           simulation,
           settings,

@@ -10,6 +10,7 @@ import {
   getReconnectingPlayerIds,
 } from "../src/core/connection-store";
 import { type AirJamHostEnvironment } from "../src/core/environment";
+import { defineAirJamGame } from "../src/core/game";
 import { HostRuntime } from "../src/core/host-runtime";
 import {
   axis,
@@ -27,6 +28,7 @@ import {
   type AirJamSettingsValues,
 } from "../src/core/settings";
 import { defineAirJamSimulation } from "../src/core/simulation";
+import { defineAirJamGameMetadata } from "../src/metadata/manifest";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
 import {
@@ -76,7 +78,21 @@ describe("core host runtime", () => {
     const store = createConnectionStore();
     const joined = vi.fn();
     const scores = createScoreStore();
-    const runtime = new HostRuntime(
+    const game = defineAirJamGame({
+      metadata: defineAirJamGameMetadata({
+        slug: "joystick-game",
+        name: "Joystick game",
+        tagline: "Fixture",
+        category: "arcade",
+        minPlayers: 1,
+        maxPlayers: 4,
+        inputModalities: ["joystick"],
+        supportedSdkRange: "^1.0.0",
+        maintainer: { name: "Air Jam" },
+      }),
+      stores: [scores],
+    });
+    const runtime = game.createHostRuntime(
       {
         config,
         store,
@@ -85,7 +101,6 @@ describe("core host runtime", () => {
         },
         disconnectSocket: () => {},
         environment,
-        stores: [scores],
       },
       { onPlayerJoin: joined },
     );
@@ -95,6 +110,17 @@ describe("core host runtime", () => {
       expect(store.getState().connectionStatus).toBe("connected"),
     );
     expect(runtime.roomId).toBe("ROOM1");
+    expect(store.getState().controllerOrientation).toBe("landscape");
+    expect(socket.emit).toHaveBeenCalledWith("host:state", {
+      roomId: "ROOM1",
+      state: { orientation: "landscape" },
+    });
+    expect(() =>
+      runtime.sendState(
+        // @ts-expect-error Game code cannot choose orientation, even if it bypasses types.
+        { orientation: "portrait" },
+      ),
+    ).toThrow(/orientation.*game declaration/);
     expect(readStoredResume()).toEqual({
       roomId: "ROOM1",
       token: "resume-token",

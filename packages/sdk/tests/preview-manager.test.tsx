@@ -13,6 +13,33 @@ import {
 } from "../src/preview/layout";
 
 describe("usePreviewControllerManager", () => {
+  it("follows a fixed declaration at spawn and after spawn without allowing rotation", () => {
+    const { result, rerender } = renderHook(
+      ({ fixed }: { fixed: "landscape" | null }) =>
+        usePreviewControllerManager({
+          joinUrl: "https://platform.example/controller?room=ROOM1",
+          fixedControllerOrientation: fixed,
+        }),
+      { initialProps: { fixed: null } as { fixed: "landscape" | null } },
+    );
+    act(() => {
+      result.current.spawnPreviewController();
+    });
+    expect(result.current.sessions[0]?.orientation).toBe("portrait");
+    rerender({ fixed: "landscape" });
+    expect(result.current.sessions[0]).toMatchObject({
+      orientation: "landscape",
+      viewportWidth: 740,
+      viewportHeight: 393,
+    });
+    act(() => {
+      result.current.rotatePreviewController(result.current.sessions[0]!.id);
+      result.current.spawnPreviewController();
+    });
+    expect(
+      result.current.sessions.map((session) => session.orientation),
+    ).toEqual(["landscape", "landscape"]);
+  });
   it("spawns preview sessions as active floating windows", () => {
     const { result } = renderHook(() =>
       usePreviewControllerManager({

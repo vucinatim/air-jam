@@ -1,4 +1,8 @@
 import {
+  fixedControllerOrientation,
+  type AirJamGameInputModality,
+} from "@air-jam/sdk/metadata";
+import {
   AIR_JAM_RUNTIME_INSPECTION_KEY,
   readRuntimeInspectionContract,
 } from "@air-jam/sdk/runtime-inspection";
@@ -202,6 +206,7 @@ const resolveControllerJoinUrl = async ({
 
 export type OpenVisualHarnessSessionOptions = {
   browser: Browser;
+  inputModalities?: readonly AirJamGameInputModality[];
   runtimeTopology?: ResolvedAirJamRuntimeTopology;
   onDiagnostic?: (message: string) => void;
   urls: Omit<VisualHarnessUrls, "controllerJoinUrl">;
@@ -289,6 +294,7 @@ export const openVisualHarnessHostSession = async ({
 
 export const openVisualHarnessControllerSession = async ({
   browser,
+  inputModalities,
   runtimeTopology,
   urls,
   host,
@@ -296,7 +302,13 @@ export const openVisualHarnessControllerSession = async ({
   host: VisualHarnessPageSurface;
 }): Promise<OpenVisualHarnessControllerSessionResult> => {
   const controllerContext = await browser.newContext({
-    viewport: DEFAULT_CONTROLLER_VIEWPORT,
+    viewport:
+      fixedControllerOrientation(inputModalities ?? []) === "landscape"
+        ? {
+            width: DEFAULT_CONTROLLER_VIEWPORT.height,
+            height: DEFAULT_CONTROLLER_VIEWPORT.width,
+          }
+        : DEFAULT_CONTROLLER_VIEWPORT,
   });
 
   try {
@@ -345,6 +357,7 @@ export const openVisualHarnessControllerSession = async ({
 
 export const openVisualHarnessSession = async ({
   browser,
+  inputModalities,
   runtimeTopology,
   onDiagnostic,
   urls,
@@ -361,6 +374,7 @@ export const openVisualHarnessSession = async ({
   try {
     const controllerSession = await openVisualHarnessControllerSession({
       browser,
+      inputModalities,
       runtimeTopology,
       urls,
       host: hostSession.host,

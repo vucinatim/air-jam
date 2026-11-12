@@ -5,8 +5,8 @@ import type {
   ControllerPrivilegedCapability,
   ControllerPrivilegedGrant,
   ControllerStateMessage,
-  HostArcadeSurfaceCheckpoint,
   HostArcadeSessionSnapshot,
+  HostArcadeSurfaceCheckpoint,
   PlayerProfile,
   RoomCode,
 } from "@air-jam/sdk/protocol";
@@ -213,7 +213,7 @@ export const startGameLaunch = (
   session.launchCapability = launchCapability;
   session.activeGameId = gameId;
   session.runtimeState = "playing";
-  session.controllerOrientation = "portrait";
+  // The authoritative game host publishes its declaration; phase resets retain it.
 };
 
 export const beginGameLaunch = (
@@ -366,7 +366,7 @@ export const resetRoomToSystemState = (
   transitionRoomLifecycle(session, "SYSTEM_IDLE");
   if (resetGameState) {
     session.runtimeState = "paused";
-    session.controllerOrientation = "portrait";
+    // The authoritative game host publishes its declaration; phase resets retain it.
   }
 };
 

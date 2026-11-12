@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Browser, Page } from "playwright-core";
+import { inspectGame } from "../../games.js";
 import {
   DEFAULT_HOST_VIEWPORT,
   dismissHarnessControllerFullscreenPrompt,
@@ -175,7 +176,9 @@ const createScenarioRunContext = async <TAgent extends AnyAirJamAgentContract>({
     options: VisualAgentSessionOptions,
   ) => Promise<VisualScenarioAgent<InferVisualScenarioSnapshot<TAgent>>>;
 }): Promise<VisualScenarioContext<TAgent>> => {
+  const { declaration } = await inspectGame({ gameId });
   const session = await openVisualHarnessSession({
+    inputModalities: declaration.metadata.inputModalities,
     browser,
     urls,
     mode,
@@ -257,6 +260,7 @@ const createScenarioRunContext = async <TAgent extends AnyAirJamAgentContract>({
       captureSurface({ surface: "host", viewportName, ...viewport }),
     captureController: async (viewportName: string, viewport: VisualViewport) =>
       captureSurface({ surface: "controller", viewportName, ...viewport }),
+    inputModalities: declaration.metadata.inputModalities,
     screenshotRecords,
     notes,
     close: async () => {

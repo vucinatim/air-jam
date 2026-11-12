@@ -179,6 +179,8 @@ If the project uses canvas:
 
 ### Controller
 
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
+
 1. gameplay controller UI should live inside an absolute `inset-0` root
 2. prefer large touch targets
 3. disable accidental text selection

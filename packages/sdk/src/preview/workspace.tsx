@@ -7,7 +7,14 @@ import {
   Smartphone,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   shellInsetPanelClassName,
@@ -21,6 +28,7 @@ import {
   useServeLocalSeats,
 } from "../runtime/local-players";
 import type { LocalSeatGame } from "../runtime/local-seats";
+import { fixedControllerOrientationContext } from "../runtime/runtime-owner-contexts";
 import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
 import {
@@ -41,6 +49,7 @@ import { useWorkspaceLocalSeats } from "./workspace-local-seats";
 
 export interface PreviewControllerWorkspaceProps {
   joinUrl: string | null;
+  fixedControllerOrientation?: "landscape" | null;
   embedOrigin?: string | null;
   controllers?: readonly ControllerPresenceNotice[];
   onRemoveController?: (controllerId: string) => Promise<unknown> | unknown;
@@ -114,6 +123,7 @@ const getControllerSourceIcon = (source: ControllerRosterSource) => {
 
 export const PreviewControllerWorkspace = ({
   joinUrl,
+  fixedControllerOrientation: requestedFixedOrientation,
   embedOrigin,
   controllers = [],
   onRemoveController,
@@ -131,6 +141,9 @@ export const PreviewControllerWorkspace = ({
   localPlayers = true,
   localPlayersGame = null,
 }: PreviewControllerWorkspaceProps) => {
+  const declaredOrientation = useContext(fixedControllerOrientationContext);
+  const fixedOrientation =
+    requestedFixedOrientation ?? declaredOrientation ?? null;
   const [mounted, setMounted] = useState(false);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
@@ -158,6 +171,7 @@ export const PreviewControllerWorkspace = ({
     markPreviewControllerReady,
     markPreviewControllerFailed,
   } = usePreviewControllerManager({
+    fixedControllerOrientation: fixedOrientation,
     joinUrl,
     embedOrigin: resolvedEmbedOrigin,
     enabled,
@@ -296,6 +310,7 @@ export const PreviewControllerWorkspace = ({
           keyboard or gamepad playing through it keeps playing. */}
       {sessions.map((session) => (
         <PreviewControllerWindow
+          fixedControllerOrientation={fixedOrientation}
           key={session.id}
           session={session}
           frameRef={(frame) => {

@@ -20,7 +20,10 @@ import type {
 } from "../core/input";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type { AirJamControllerRuntimeControls } from "../hooks/use-air-jam-controller";
-import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
+import {
+  controllerRuntimeContext,
+  fixedControllerOrientationContext,
+} from "../runtime/runtime-owner-contexts";
 import { cn } from "../utils/cn";
 
 const useControllerInput = (): ControllerInput => {
@@ -288,6 +291,11 @@ export const Stick = ({
   className,
   ...props
 }: StickProps) => {
+  const fixedOrientation = useContext(fixedControllerOrientationContext);
+  if (fixedOrientation === null)
+    throw new Error(
+      "Stick requires joystick input: declare 'joystick' in inputModalities in airjam.config.",
+    );
   const input = useControllerInput();
   const origin = useRef<HTMLSpanElement>(null);
   const right = useRef<HTMLSpanElement>(null);

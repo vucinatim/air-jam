@@ -73,10 +73,13 @@ The preview workspace supports:
 2. drag by the title bar
 3. resize from any window edge or corner
 4. minimize and close controls
-5. per-window portrait or landscape rotation from the title bar
+5. per-window portrait or landscape rotation from the title bar for games without joystick input
+
 6. shared active-opacity control for preview windows through platform settings
 7. a room controller roster with source-aware `Kick` controls for manual local recovery
 8. a `Reset room` escape hatch that creates a fresh empty room and reloads the local host page so gameplay state and controller state both reset cleanly
+
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
 
 `host.players` stays the gameplay-facing list.
 
