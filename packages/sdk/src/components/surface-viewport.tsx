@@ -139,7 +139,10 @@ export const SurfaceViewport = ({
   minScale,
   maxScale,
 }: SurfaceViewportProps): JSX.Element => {
-  const fixedOrientation = useContext(fixedControllerOrientationContext);
+  const sessionScope = useSessionScope();
+  const declaredOrientation = useContext(fixedControllerOrientationContext);
+  const fixedOrientation =
+    sessionScope === "controller" ? declaredOrientation : null;
   if (
     fixedOrientation &&
     requestedOrientation &&
@@ -151,7 +154,6 @@ export const SurfaceViewport = ({
   const orientation = fixedOrientation ?? requestedOrientation;
   const [viewport, setViewport] = useState<ViewportSize | null>(null);
   const viewportRef = useRef<ViewportSize | null>(null);
-  const sessionScope = useSessionScope();
 
   useEffect(() => {
     if (typeof window === "undefined") {

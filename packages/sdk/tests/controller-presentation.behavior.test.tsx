@@ -99,14 +99,20 @@ describe("controller presentation sync", () => {
     ).not.toBeNull();
   });
 
-  it("rejects an orientation that conflicts with the joystick declaration", () => {
-    expect(() =>
+  it("fixes only controller surfaces to the joystick declaration", () => {
+    const renderIn = (scope: "host" | "controller") =>
       render(
-        <fixedControllerOrientationContext.Provider value="landscape">
-          <SurfaceViewport orientation="portrait">Controller</SurfaceViewport>
-        </fixedControllerOrientationContext.Provider>,
-      ),
-    ).toThrow(/inputModalities.*joystick.*airjam.config/);
+        <SessionScopeContext.Provider value={scope}>
+          <fixedControllerOrientationContext.Provider value="landscape">
+            <SurfaceViewport orientation="portrait">{scope}</SurfaceViewport>
+          </fixedControllerOrientationContext.Provider>
+        </SessionScopeContext.Provider>,
+      );
+
+    expect(() => renderIn("controller")).toThrow(
+      /inputModalities.*joystick.*airjam.config/,
+    );
+    expect(renderIn("host").getByText("host")).toBeTruthy();
   });
 
   it("is a no-op outside an embedded controller iframe", () => {
