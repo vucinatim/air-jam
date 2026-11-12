@@ -3,6 +3,7 @@ import { generateControllerId } from "../utils/ids";
 export const AIR_JAM_PREVIEW_FLAG_QUERY_PARAM = "aj_preview";
 export const AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM = "aj_preview_device";
 export const AIR_JAM_PREVIEW_PARENT_QUERY_PARAM = "aj_preview_parent";
+export const AIR_JAM_PREVIEW_CAPTURE_QUERY_PARAM = "aj_preview_capture";
 
 export interface PreviewControllerIdentity {
   controllerId: string;

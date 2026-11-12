@@ -548,11 +548,16 @@ without a reported fault keeps the generic reason. Final input-release settling
 also retains a newly observed fault in its evidence error and `end.hostFault`,
 preserving the existing inconclusive verdict for a failed final capture.
 
-`useHostAgentCapture((options) => captureAgentCanvas(canvas, options))` passes the requested
-`{maxEdge, quality}` into the game capture. Still observations use 1280 px / 0.8.
-Passing options lets clips use smaller frames; the one-argument form still works.
-`captureAgentCanvas(canvas, options)` produces a bounded JPEG of a game-provided canvas. Its
-coverage is `render-surface`; surrounding HTML is excluded. Games without this
+`useHostAgentCapture((target, {maxEdge}) => drawAgentCanvas(source, target, {maxEdge}))`
+returns `captureFrame()`, which the game calls immediately after rendering its scene
+and HUD. The callback draws into the SDK's persistent canvas and returns whether a
+surface was available; it does not encode or allocate a replacement canvas. Composite
+renderers draw all layers into that same target. `drawAgentCanvas` handles a single
+canvas, resizing the target only when its dimensions change. Still observations encode
+this canvas at 1280 px / 0.8. Native clip drawing is capped at 30 fps and follows game
+rendering so WebGL drawing buffers are read before the browser discards them.
+`captureAgentCanvas(source, options)` remains a standalone bounded JPEG utility.
+Coverage is `render-surface`; surrounding HTML is excluded. Games without this
 capability report an unsupported image, and an unmounted canvas reports an
 unavailable surface. No replacement host or generated image stands in for the
 requested game.
@@ -596,11 +601,17 @@ parent and origin. The request carries a bounded `requestId` and
 `@air-jam/sdk/runtime-inspection` validate that channel; its schemas and
 `ControllerCapture` live in `@air-jam/sdk/runtime-control`.
 
-The controller renders its own visible document, including canvas pixels, to JPEG with
-`coverage: "controller-view"`, longest edge at most 1280 px and the existing
-`HOST_OBSERVATION_IMAGE_BYTES` budget. The MIT-licensed
-[html-to-image](https://github.com/bubkoo/html-to-image) renderer is imported only on
-capture. Ordinary controller loads do not fetch it. One capture runs at a time, with its own
+Only Studio preview URLs opt into capture (`buildPreviewControllerUrl({ capture: true })`).
+At mount, a supporting browser wraps the controller in an HTML-in-Canvas drawable
+surface; real phones retain their original DOM. Chrome 157 enables this API by
+default. The phone paints its visible controller, including canvas pixels, and transfers
+an `ImageBitmap` with a maximum edge of 1280 px. `ControllerFrameCapture` describes
+this channel. The embedding Studio encodes it in its own Worker, outside the game's
+and phone's main thread. The persisted `ControllerCapture` remains a JPEG with
+`coverage: "controller-view"` under the `HOST_OBSERVATION_IMAGE_BYTES` budget.
+There is no DOM snapshot renderer. An unsupported phone returns `unsupported`
+explicitly; the editor must not pretend it captured that phone.
+One capture runs at a time, with its own
 `CONTROLLER_CAPTURE_TIMEOUT_MS = 10_000` deadline, exported from
 `@air-jam/sdk/runtime-control`. Embedding editors and servers must wait longer than
 the layer inside them so a timed-out capture returns its reason and detail. Host
@@ -611,12 +622,13 @@ honestly, never replace it with a host capture or another controller.
 ### Clips
 
 Clips use that same capture surface and host-agent channel, without a room grant:
-`clip-start {roomId, runtimeId, clipId}` starts in the background;
-`clip-read {roomId, clipId, stop, fromFrame}` stops and reads pages. Stop before
+`clip-start {roomId, runtimeId, clipId, frameIntervalMs?, delivery?}` starts in the background;
+`clip-read {roomId, clipId, stop, fromFrame, fromChunk?}` stops and reads pages. Stop before
 paging to freeze indexes; follow `nextFrame` until null. Capture requests JPEG at
-640 px / 0.7 every 100 ms, with no queued captures. Captures that ignore those
-options may return frames up to 1280 px; the same byte caps still apply. The retained window is the
-last 15 s / 150 frames and 4 MiB decoded image bytes; frames over 160 KiB or
+1280 px / 0.92 at the requested interval, with a 100 ms default and a 33 ms floor.
+No captures queue. The artifact reports the recording's interval. The retained window is the
+last 15 s and 4 MiB decoded image bytes, with at most `ceil(15000 / frameIntervalMs)`
+frames (455 at 33 ms, 150 at the default); frames over 160 KiB or
 null captures are skipped. Pages contain at most 768 KiB base64 characters.
 Four recordings may be retained; each self-stops at ten minutes and stopped
 recordings expire after a minute without reads. When full, a new recording
@@ -632,6 +644,17 @@ are measured since the original host-clock start, including any dropped prefix.
 The run owner records clips for test and play runs reached through host-agent
 requests, with an integrity receipt beside the final observation. Clip failure
 never changes a gameplay verdict or end reason.
+
+On-request Studio clips choose `delivery: "video"` and 33 ms. The SDK records its
+persistent canvas through `captureStream(30)` and VP9 `MediaRecorder` at 4 Mbps,
+with no per-frame image encoding or transfer on the game thread. Recording lasts
+at most 60 seconds and retains at most 32 MiB of encoded video. While recording,
+`video.chunks` is empty. A stopping read waits for the recorder to finish; follow
+`video.nextChunk` with `fromChunk` until null to receive bounded base64 pages,
+each at most 768 KiB. Each page includes stable MIME type and dimensions. Stop is
+idempotent, and replacing the runtime or evicting a delivered clip releases its
+stream and bytes. Test-record clips retain the default `pages` delivery and
+100 ms JPEG sampling described above.
 
 Simulated hosts also record their input log from construction, including their
 real seed and initial settings. `input-log-read {roomId, runtimeId, cut,

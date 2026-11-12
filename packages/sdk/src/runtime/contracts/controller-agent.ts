@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { hostObservationImageSchema } from "./observation";
 
-/** DOM/style capture is heavier than a host canvas observation. */
+/** Includes the phone paint and cross-frame transfer. */
 export const CONTROLLER_CAPTURE_TIMEOUT_MS = 10_000;
 
 export const controllerCaptureSchema = z.discriminatedUnion("status", [
@@ -27,6 +27,26 @@ export const controllerCaptureSchema = z.discriminatedUnion("status", [
     .strict(),
 ]);
 export type ControllerCapture = z.infer<typeof controllerCaptureSchema>;
+export const controllerFrameCaptureSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("captured"),
+      bitmap: z.custom<ImageBitmap>(
+        (value) =>
+          typeof ImageBitmap !== "undefined" &&
+          value instanceof ImageBitmap &&
+          value.width > 0 &&
+          value.height > 0 &&
+          value.width <= 1280 &&
+          value.height <= 1280,
+      ),
+    })
+    .strict(),
+  controllerCaptureSchema.options[1],
+]);
+export type ControllerFrameCapture = z.infer<
+  typeof controllerFrameCaptureSchema
+>;
 export const controllerAgentRequestMessageSchema = z
   .object({
     type: z.literal("AIRJAM_CONTROLLER_AGENT"),
@@ -46,6 +66,6 @@ export const controllerAgentResultMessageSchema = z
     requestId: controllerAgentRequestMessageSchema.shape.requestId,
     roomId: z.string().min(1).max(8),
     controllerId: z.string().min(1).max(128),
-    capture: controllerCaptureSchema,
+    capture: controllerFrameCaptureSchema,
   })
   .strict();

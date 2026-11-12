@@ -11,15 +11,36 @@ export function captureAgentCanvas(
     quality: 0.8,
   },
 ): HostObservationImage | null {
-  if (!canvas || !canvas.width || !canvas.height) return null;
-  const scale = Math.min(1, maxEdge / canvas.width, maxEdge / canvas.height);
+  if (!canvas) return null;
   const image = canvas.ownerDocument.createElement("canvas");
-  image.width = Math.max(1, Math.round(canvas.width * scale));
-  image.height = Math.max(1, Math.round(canvas.height * scale));
+  if (!drawAgentCanvas(canvas, image, { maxEdge })) return null;
+  return encodeAgentCanvas(image, quality);
+}
+
+/** Draws only the game's render surface into the SDK-owned persistent capture canvas. */
+export function drawAgentCanvas(
+  canvas: HTMLCanvasElement | null,
+  image: HTMLCanvasElement,
+  { maxEdge }: { maxEdge: number },
+): boolean {
+  if (!canvas || !canvas.width || !canvas.height) return false;
+  const scale = Math.min(1, maxEdge / canvas.width, maxEdge / canvas.height);
+  const width = Math.max(1, Math.round(canvas.width * scale));
+  if (image.width !== width) image.width = width;
+  const height = Math.max(1, Math.round(canvas.height * scale));
+  if (image.height !== height) image.height = height;
   const context = image.getContext("2d");
   if (!context)
     throw new Error("Canvas observation requires a 2D capture context.");
+  context.clearRect(0, 0, image.width, image.height);
   context.drawImage(canvas, 0, 0, image.width, image.height);
+  return true;
+}
+
+export function encodeAgentCanvas(
+  image: HTMLCanvasElement,
+  quality: number,
+): HostObservationImage {
   const encoded = image.toDataURL("image/jpeg", quality);
   const prefix = "data:image/jpeg;base64,";
   if (!encoded.startsWith(prefix))

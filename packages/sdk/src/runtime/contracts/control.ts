@@ -333,12 +333,14 @@ function controlEntry(target: object) {
               throw new Error(
                 "clip_not_found: No recording runtime owns this room.",
               );
+            if (request.stop) await recorder.stop(request.clipId);
             return {
               operation: "clip-read",
               clip: recorder.read(
                 request.clipId,
                 request.stop,
                 request.fromFrame,
+                request.fromChunk,
               ),
             };
           }
@@ -353,7 +355,12 @@ function controlEntry(target: object) {
             );
           return {
             operation: "clip-start",
-            ...recorder.start(request.clipId, identity),
+            ...recorder.start(
+              request.clipId,
+              identity,
+              request.frameIntervalMs,
+              request.delivery,
+            ),
           };
         }
         const runtime = resolveRoomRuntime(target, request.roomId);

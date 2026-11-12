@@ -1,5 +1,5 @@
 import {
-  captureAgentCanvas,
+  drawAgentCanvas,
   useAirJamSettings,
   useHostAgentCapture,
   useSendSignal,
@@ -49,8 +49,8 @@ export const useCodeReviewMatchView = ({
     team2: maxHp,
   }));
 
-  useHostAgentCapture((options) =>
-    captureAgentCanvas(getContext()?.canvas ?? null, options),
+  const captureFrame = useHostAgentCapture((canvas, options) =>
+    drawAgentCanvas(getContext()?.canvas ?? null, canvas, options),
   );
 
   useSimulationEvents<CodeReviewSimulationEvent>((event) => {
@@ -82,6 +82,7 @@ export const useCodeReviewMatchView = ({
       arenaColors,
       koState: sim.ko,
     });
+    captureFrame();
   });
 
   return { hpDisplay };

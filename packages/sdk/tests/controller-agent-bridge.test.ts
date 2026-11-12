@@ -3,7 +3,7 @@ import type { ControllerRuntime } from "../src/core/controller-runtime";
 import { readPreviewControllerParent } from "../src/preview/identity";
 import {
   CONTROLLER_CAPTURE_TIMEOUT_MS,
-  type ControllerCapture,
+  type ControllerFrameCapture,
 } from "../src/runtime/contracts/controller-agent";
 import { publishEmbeddedControllerAgent } from "../src/runtime/controller-agent-bridge";
 import { captureControllerDocument } from "../src/runtime/controller-capture";
@@ -56,8 +56,8 @@ function fixture() {
 }
 
 describe("controller capture deadline", () => {
-  it("waits ten seconds for DOM capture, then returns its own timeout detail exactly once", async () => {
-    let finish!: (capture: ControllerCapture) => void;
+  it("waits ten seconds for phone paint, then returns its own timeout detail exactly once", async () => {
+    let finish!: (capture: ControllerFrameCapture) => void;
     vi.mocked(captureControllerDocument).mockReturnValue(
       new Promise((resolve) => {
         finish = resolve;
@@ -87,6 +87,7 @@ describe("controller capture deadline", () => {
           },
         }),
         "https://studio.example",
+        [],
       );
       finish({ status: "unavailable", reason: "surface-unavailable" });
       await vi.advanceTimersByTimeAsync(0);
@@ -97,15 +98,15 @@ describe("controller capture deadline", () => {
   });
 
   it("returns a capture that completes after the host observation budget without retrying", async () => {
-    const capture: ControllerCapture = {
+    class Bitmap {
+      width = 100;
+      height = 200;
+      close = vi.fn();
+    }
+    vi.stubGlobal("ImageBitmap", Bitmap);
+    const capture: ControllerFrameCapture = {
       status: "captured",
-      image: {
-        mimeType: "image/jpeg",
-        data: "AAAA",
-        width: 100,
-        height: 200,
-        coverage: "controller-view",
-      },
+      bitmap: new Bitmap() as unknown as ImageBitmap,
     };
     vi.mocked(captureControllerDocument).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(capture), 7_000)),
@@ -118,6 +119,7 @@ describe("controller capture deadline", () => {
       expect(f.parent.postMessage).toHaveBeenCalledWith(
         expect.objectContaining({ capture }),
         "https://studio.example",
+        [capture.bitmap],
       );
       await vi.advanceTimersByTimeAsync(CONTROLLER_CAPTURE_TIMEOUT_MS);
       expect(f.parent.postMessage).toHaveBeenCalledOnce();

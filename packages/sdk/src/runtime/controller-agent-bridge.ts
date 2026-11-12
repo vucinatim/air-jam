@@ -4,7 +4,7 @@ import {
   CONTROLLER_CAPTURE_TIMEOUT_MS,
   controllerAgentRequestMessageSchema,
   controllerAgentResultMessageSchema,
-  type ControllerCapture,
+  type ControllerFrameCapture,
 } from "./contracts/controller-agent";
 
 export function requestControllerAgent(
@@ -38,6 +38,7 @@ export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
   if (!parent) return () => {};
   let closed = false;
   let busy = false;
+  let active: AbortController | undefined;
   const listener = (event: MessageEvent<unknown>) => {
     if (event.source !== parent.window || event.origin !== parent.origin)
       return;
@@ -64,12 +65,19 @@ export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
       return;
     }
     busy = true;
-    const work: Promise<ControllerCapture> = import("./controller-capture")
-      .then((module) => module.captureControllerDocument())
+    const controller = new AbortController();
+    active = controller;
+    const work: Promise<ControllerFrameCapture> = import("./controller-capture")
+      .then((module) => module.captureControllerDocument(controller.signal))
+      .then((capture): ControllerFrameCapture => {
+        if (!controller.signal.aborted) return capture;
+        if (capture.status === "captured") capture.bitmap.close();
+        return { status: "unavailable", reason: "timeout" };
+      })
       .catch(
-        (): ControllerCapture => ({
+        (): ControllerFrameCapture => ({
           status: "unavailable",
-          reason: "unsupported",
+          reason: "surface-unavailable",
         }),
       )
       .finally(() => {
@@ -78,19 +86,18 @@ export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
     void (async () => {
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        const capture = await Promise.race<ControllerCapture>([
+        const capture = await Promise.race<ControllerFrameCapture>([
           work,
           new Promise((resolve) => {
-            timer = setTimeout(
-              () =>
-                resolve({
-                  status: "unavailable",
-                  reason: "timeout",
-                  detail:
-                    "The controller page capture did not finish within 10 seconds.",
-                }),
-              CONTROLLER_CAPTURE_TIMEOUT_MS,
-            );
+            timer = setTimeout(() => {
+              controller.abort();
+              resolve({
+                status: "unavailable",
+                reason: "timeout",
+                detail:
+                  "The controller page capture did not finish within 10 seconds.",
+              });
+            }, CONTROLLER_CAPTURE_TIMEOUT_MS);
           }),
         ]);
         const current = runtime.store.getState();
@@ -108,15 +115,19 @@ export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
               capture,
             }),
             parent.origin,
+            capture.status === "captured" ? [capture.bitmap] : [],
           );
+        else if (capture.status === "captured") capture.bitmap.close();
       } finally {
         clearTimeout(timer);
+        controller.abort();
       }
     })();
   };
   window.addEventListener("message", listener);
   return () => {
     closed = true;
+    active?.abort();
     window.removeEventListener("message", listener);
   };
 }

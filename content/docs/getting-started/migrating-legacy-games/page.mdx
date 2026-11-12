@@ -569,15 +569,15 @@ export const simulation = defineAirJamSimulation<World, GameInput, GameEvent>({
 defineAirJamGame({ simulation, ... });
 ```
 
-| 0.9                                          | 1.0                                                                                         |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `useHostTick({ onTick })`                    | the simulation's `step`                                                                     |
-| `useHostTick({ onFrame })`, `fixedStepAlpha` | `useSimulationFrame(({ sim, alpha }) => draw(sim, alpha))`                                  |
-| `HostTickInfo.deltaSeconds`, `.tick`         | the step context's `dtSeconds`, `tick`                                                      |
-| `Math.random()` in game logic                | the step context's `random`                                                                 |
-| `useHostAgentObservation({ read, capture })` | `read` becomes the simulation's `observe`; `capture` becomes `useHostAgentCapture(capture)` |
-| UI state derived from the world              | `useSimulationSelector((sim) => value)`                                                     |
-| one-off feedback such as sounds              | `emit` in `step`, `useSimulationEvents` in a component                                      |
+| 0.9                                          | 1.0                                                                                                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `useHostTick({ onTick })`                    | the simulation's `step`                                                                                                                                      |
+| `useHostTick({ onFrame })`, `fixedStepAlpha` | `useSimulationFrame(({ sim, alpha }) => draw(sim, alpha))`                                                                                                   |
+| `HostTickInfo.deltaSeconds`, `.tick`         | the step context's `dtSeconds`, `tick`                                                                                                                       |
+| `Math.random()` in game logic                | the step context's `random`                                                                                                                                  |
+| `useHostAgentObservation({ read, capture })` | `read` becomes the simulation's `observe`; `useHostAgentCapture(draw)` draws into the supplied canvas, and its returned function runs after the game renders |
+| UI state derived from the world              | `useSimulationSelector((sim) => value)`                                                                                                                      |
+| one-off feedback such as sounds              | `emit` in `step`, `useSimulationEvents` in a component                                                                                                       |
 
 ### Input Is Declared
 

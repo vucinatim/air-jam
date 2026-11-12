@@ -4,7 +4,7 @@
  * feedback and shows the lobby, match and results screens.
  */
 import {
-  captureAgentCanvas,
+  drawAgentCanvas,
   useAirJamHost,
   useAirJamStore,
   useHostAgentCapture,
@@ -48,8 +48,8 @@ export function HostView() {
     else triggerScoreFeedback();
   });
 
-  useHostAgentCapture((options) =>
-    captureAgentCanvas(getContext()?.canvas ?? null, options),
+  const captureFrame = useHostAgentCapture((canvas, options) =>
+    drawAgentCanvas(getContext()?.canvas ?? null, canvas, options),
   );
 
   useSimulationFrame<PongSimulationState>(({ sim, alpha }) => {
@@ -63,6 +63,7 @@ export function HostView() {
       countdown: sim.countdown,
       botCounts,
     });
+    captureFrame();
   });
 
   return (

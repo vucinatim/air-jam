@@ -6,6 +6,7 @@ import {
   CLIP_MAX_BYTES,
   CLIP_MAX_DURATION_MS,
   CLIP_MAX_RECORDINGS,
+  CLIP_MIN_FRAME_INTERVAL_MS,
   CLIP_PAGE_BASE64_CHARS,
   CLIP_RECORDING_LIFETIME_MS,
   CLIP_STOPPED_RELEASE_MS,
@@ -13,6 +14,7 @@ import {
   clipImageBytes,
   type ClipFrame,
   type ClipRead,
+  type NativeClipRecording,
 } from "./contracts/clip";
 import type { HostObservationSurface } from "./contracts/observation";
 import type { HostObservationIdentity } from "./contracts/runtime-identity";
@@ -22,6 +24,8 @@ type Recording = {
   clipId: string;
   startedAt: string;
   start: number;
+  frameIntervalMs: number;
+  nextCaptureAt: number;
   stopped: number | null;
   delivered: boolean;
   lastRead: number;
@@ -32,6 +36,7 @@ type Recording = {
   skippedFrames: number;
   attempts: number;
   errors: number;
+  video?: NativeClipRecording;
 };
 /** When a stopped recording was last needed; null while it records. */
 const idleSince = (recording: Recording) =>
@@ -42,6 +47,7 @@ const idleSince = (recording: Recording) =>
 export class HostClipRecorder {
   private readonly recordings = new Map<string, Recording>();
   private stopTimer: (() => void) | null = null;
+  private scheduledIntervalMs = 0;
   private capturing = false;
   private generation = 0;
   constructor(
@@ -54,7 +60,15 @@ export class HostClipRecorder {
     },
   ) {}
 
-  start(clipId: string, identity: HostObservationIdentity) {
+  start(
+    clipId: string,
+    identity: HostObservationIdentity,
+    frameIntervalMs = CLIP_FRAME_INTERVAL_MS,
+    delivery: "pages" | "video" = "pages",
+  ) {
+    if (!Number.isInteger(frameIntervalMs) || frameIntervalMs <= 0)
+      throw new Error("Clip frame interval must be a positive integer.");
+    frameIntervalMs = Math.max(CLIP_MIN_FRAME_INTERVAL_MS, frameIntervalMs);
     if (!this.source.capture())
       throw new Error("clip_unsupported: The game has no capture surface.");
     this.sweep();
@@ -76,6 +90,7 @@ export class HostClipRecorder {
           "clip_busy: Four clips are already recording or being delivered in this runtime.",
         );
       // Delivered clips are retry buffers; protect unfinished transfers.
+      oldest.video?.dispose();
       this.recordings.delete(oldest.clipId);
     }
     const now = this.source.now();
@@ -84,6 +99,8 @@ export class HostClipRecorder {
       clipId,
       startedAt: new Date(this.source.wallNow?.() ?? Date.now()).toISOString(),
       start: now,
+      frameIntervalMs,
+      nextCaptureAt: now + frameIntervalMs,
       stopped: null,
       delivered: false,
       lastRead: now,
@@ -95,19 +112,37 @@ export class HostClipRecorder {
       attempts: 0,
       errors: 0,
     };
-    this.recordings.set(clipId, recording);
-    if (!this.stopTimer) {
-      const schedule =
-        this.source.schedule ??
-        ((tick, ms) => {
-          const timer = setInterval(tick, ms);
-          return () => clearInterval(timer);
-        });
-      this.stopTimer = schedule(() => {
-        void this.sample();
-      }, CLIP_FRAME_INTERVAL_MS);
+    if (delivery === "video") {
+      const startVideo = this.source.capture()?.startVideo;
+      if (!startVideo)
+        throw new Error("clip_unsupported: Native recording is unavailable.");
+      recording.video = startVideo(frameIntervalMs);
     }
+    this.recordings.set(clipId, recording);
+    this.schedule();
     return { clipId, startedAt: recording.startedAt };
+  }
+
+  private schedule() {
+    const intervalMs = Math.min(
+      ...[...this.recordings.values()]
+        .filter((recording) => recording.stopped === null && !recording.video)
+        .map((recording) => recording.frameIntervalMs),
+    );
+    if (intervalMs === this.scheduledIntervalMs) return;
+    this.stopTimer?.();
+    this.stopTimer = null;
+    this.scheduledIntervalMs = intervalMs;
+    if (!Number.isFinite(intervalMs)) return;
+    const schedule =
+      this.source.schedule ??
+      ((tick, ms) => {
+        const timer = setInterval(tick, ms);
+        return () => clearInterval(timer);
+      });
+    this.stopTimer = schedule(() => {
+      void this.sample();
+    }, intervalMs);
   }
 
   private trim(recording: Recording, now: number) {
@@ -116,7 +151,7 @@ export class HostClipRecorder {
       (recording.frames[0].atMs <
         now - recording.start - CLIP_MAX_DURATION_MS ||
         recording.frames.length >
-          CLIP_MAX_DURATION_MS / CLIP_FRAME_INTERVAL_MS ||
+          Math.ceil(CLIP_MAX_DURATION_MS / recording.frameIntervalMs) ||
         recording.bytes > CLIP_MAX_BYTES)
     ) {
       recording.bytes -= clipImageBytes(recording.frames.shift()!.data);
@@ -131,27 +166,41 @@ export class HostClipRecorder {
         now - recording.start >= CLIP_RECORDING_LIFETIME_MS
       ) {
         recording.stopped = recording.start + CLIP_RECORDING_LIFETIME_MS;
+        void recording.video
+          ?.stop()
+          .catch((error) => this.source.onCaptureError?.(error));
         this.trim(recording, recording.stopped);
       }
       const since = idleSince(recording);
-      if (since !== null && now - since >= CLIP_STOPPED_RELEASE_MS)
+      if (since !== null && now - since >= CLIP_STOPPED_RELEASE_MS) {
+        recording.video?.dispose();
         this.recordings.delete(id);
+      }
     }
-    if (!this.recordings.size) {
-      this.stopTimer?.();
-      this.stopTimer = null;
-    }
+    this.schedule();
   }
   private async sample() {
     this.sweep();
     if (this.capturing) return;
+    const now = this.source.now();
     const active = [...this.recordings.values()].filter(
-      (recording) => recording.stopped === null,
+      (recording) =>
+        recording.stopped === null &&
+        !recording.video &&
+        (recording.frameIntervalMs === this.scheduledIntervalMs ||
+          now >= recording.nextCaptureAt),
     );
     if (!active.length) return;
     const generation = this.generation;
-    const now = this.source.now();
-    for (const recording of active) this.trim(recording, now);
+    for (const recording of active) {
+      recording.nextCaptureAt +=
+        (Math.floor(
+          (now - recording.nextCaptureAt) / recording.frameIntervalMs,
+        ) +
+          1) *
+        recording.frameIntervalMs;
+      this.trim(recording, now);
+    }
     const capture = this.source.capture();
     this.capturing = true;
     let image: Awaited<ReturnType<NonNullable<typeof capture>>> = null;
@@ -205,7 +254,20 @@ export class HostClipRecorder {
     }
   }
 
-  read(clipId: string, stop: boolean, fromFrame: number): ClipRead {
+  async stop(clipId: string) {
+    const recording = this.recordings.get(clipId);
+    if (!recording) throw new Error("clip_not_found: Recording was released.");
+    if (recording.stopped === null) recording.stopped = this.source.now();
+    await recording.video?.stop();
+    this.schedule();
+  }
+
+  read(
+    clipId: string,
+    stop: boolean,
+    fromFrame: number,
+    fromChunk = 0,
+  ): ClipRead {
     this.sweep();
     const recording = this.recordings.get(clipId);
     if (!recording)
@@ -230,26 +292,35 @@ export class HostClipRecorder {
       frames.push(frame);
       chars += frame.data.length;
     }
-    if (recording.stopped !== null && nextFrame === null)
+    const video = recording.video?.page(fromChunk);
+    if (
+      recording.stopped !== null &&
+      nextFrame === null &&
+      (!video || video.nextChunk === null)
+    )
       recording.delivered = true;
+    const nativeCapture = recording.video?.stats();
+    const frameCount = nativeCapture ? null : recording.frames.length;
     return {
       clipId,
       identity: recording.identity,
       startedAt: recording.startedAt,
       state: recording.stopped === null ? "recording" : "stopped",
-      frameIntervalMs: CLIP_FRAME_INTERVAL_MS,
+      frameIntervalMs: recording.frameIntervalMs,
       durationMs: Math.min(
         CLIP_RECORDING_LIFETIME_MS,
         (recording.stopped ?? now) - recording.start,
       ),
-      frameCount: recording.frames.length,
-      droppedFrames: recording.droppedFrames,
-      skippedFrames: recording.skippedFrames,
-      notCaptured: recording.frames.length
-        ? null
-        : recording.attempts > 0 && recording.errors === recording.attempts
-          ? "capture-failed"
-          : "surface-unavailable",
+      frameCount,
+      ...(video ? { video, nativeCapture } : {}),
+      droppedFrames: nativeCapture ? null : recording.droppedFrames,
+      skippedFrames: nativeCapture ? null : recording.skippedFrames,
+      notCaptured:
+        (nativeCapture?.drawsMade ?? frameCount)
+          ? null
+          : recording.attempts > 0 && recording.errors === recording.attempts
+            ? "capture-failed"
+            : "surface-unavailable",
       frames,
       nextFrame,
     };
@@ -257,8 +328,11 @@ export class HostClipRecorder {
   dispose() {
     this.generation++;
     this.capturing = false;
+    for (const recording of this.recordings.values())
+      recording.video?.dispose();
     this.recordings.clear();
     this.stopTimer?.();
     this.stopTimer = null;
+    this.scheduledIntervalMs = 0;
   }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   controllerAgentRequestMessageSchema,
   controllerAgentResultMessageSchema,
+  controllerCaptureSchema,
 } from "../src/runtime/contracts/controller-agent";
 
 const base = {
@@ -40,10 +41,7 @@ describe("controller capture channel", () => {
       coverage: "controller-view",
     };
     expect(
-      controllerAgentResultMessageSchema.safeParse({
-        ...base,
-        capture: { status: "captured", image },
-      }).success,
+      controllerCaptureSchema.safeParse({ status: "captured", image }).success,
     ).toBe(true);
     for (const patch of [
       { coverage: "render-surface" },
@@ -52,9 +50,9 @@ describe("controller capture channel", () => {
       { data: "AAAA".repeat(220_000) },
     ])
       expect(
-        controllerAgentResultMessageSchema.safeParse({
-          ...base,
-          capture: { status: "captured", image: { ...image, ...patch } },
+        controllerCaptureSchema.safeParse({
+          status: "captured",
+          image: { ...image, ...patch },
         }).success,
       ).toBe(false);
   });

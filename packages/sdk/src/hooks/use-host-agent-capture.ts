@@ -1,5 +1,8 @@
-import { useContext, useLayoutEffect, useRef } from "react";
-import type { HostObservationCapture } from "../core/host-runtime";
+import { useCallback, useContext, useLayoutEffect, useRef } from "react";
+import {
+  createHostCanvasCapture,
+  type HostCanvasDraw,
+} from "../agent/host-canvas-capture";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
 import type { AirJamHostRuntimeControls } from "./use-air-jam-host";
@@ -8,7 +11,7 @@ import type { AirJamHostRuntimeControls } from "./use-air-jam-host";
  * Lets agents receive an image of what this host draws, such as its canvas.
  * What they read of the game comes from the simulation's `observe`.
  */
-export function useHostAgentCapture(capture: HostObservationCapture): void {
+export function useHostAgentCapture(capture: HostCanvasDraw): () => void {
   const runtime = useContext(hostRuntimeContext) as Pick<
     AirJamHostRuntimeControls,
     "setObservationCapture"
@@ -27,9 +30,19 @@ export function useHostAgentCapture(capture: HostObservationCapture): void {
   useLayoutEffect(() => {
     current.current = capture;
   });
+  const binding = useRef<ReturnType<typeof createHostCanvasCapture> | null>(
+    null,
+  );
   const { setObservationCapture } = runtime;
   useLayoutEffect(() => {
-    setObservationCapture((options) => current.current(options));
-    return () => setObservationCapture(null);
+    binding.current = createHostCanvasCapture((canvas, options) =>
+      current.current(canvas, options),
+    );
+    setObservationCapture(binding.current.capture);
+    return () => {
+      setObservationCapture(null);
+      binding.current = null;
+    };
   }, [setObservationCapture]);
+  return useCallback(() => binding.current?.rendered(), []);
 }
