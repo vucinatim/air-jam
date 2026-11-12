@@ -32,6 +32,7 @@ export function drawAgentCanvas(
   const context = image.getContext("2d");
   if (!context)
     throw new Error("Canvas observation requires a 2D capture context.");
+  context.clearRect(0, 0, image.width, image.height);
   context.drawImage(canvas, 0, 0, image.width, image.height);
   return true;
 }

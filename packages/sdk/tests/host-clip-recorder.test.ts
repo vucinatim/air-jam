@@ -511,7 +511,7 @@ it("passes clip and still dimensions and quality into the canvas encoder", async
   const output = {
     width: 0,
     height: 0,
-    getContext: () => ({ drawImage }),
+    getContext: () => ({ clearRect: vi.fn(), drawImage }),
     toDataURL: vi.fn(() => "data:image/jpeg;base64,YWJj"),
   };
   const canvas = {
