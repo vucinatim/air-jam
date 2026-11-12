@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { publicAssetFallback } from "./public-assets.mjs";
 
 function read(path) {
   try {
@@ -175,6 +176,7 @@ export function sourceFencePlugin() {
         waiting.clear();
       };
       server.httpServer?.once("close", cleanup);
+      return () => server.middlewares.use(publicAssetFallback(server));
     },
   };
 }
