@@ -52,7 +52,7 @@ export {
   type AirJamDiagnosticSeverity,
 } from "./diagnostics";
 
-export { captureAgentCanvas } from "./agent/capture-canvas";
+export { captureAgentCanvas, drawAgentCanvas } from "./agent/capture-canvas";
 export {
   useAirJamController,
   type AirJamControllerApi,

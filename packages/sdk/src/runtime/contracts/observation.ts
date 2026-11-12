@@ -7,6 +7,7 @@ import {
 } from "../../protocol/core";
 import { participantInputSchemaDescriptionSchema } from "../../protocol/leased-control";
 import { isRpcSerializable } from "../../utils/is-rpc-serializable";
+import type { NativeClipRecording } from "./clip";
 import { hostObservationIdentitySchema } from "./runtime-identity";
 export { hostObservationIdentitySchema };
 
@@ -179,13 +180,10 @@ export type HostObservationSurface = {
     /** Publish while this simulation clock is expected to advance; omit for a stationary or event-driven surface. */
     tick?: number;
   };
-  capture?: (options: {
+  capture?: ((options: {
     maxEdge: number;
     quality: number;
-    bitmap?: boolean;
-  }) =>
-    | HostObservationImage
-    | ImageBitmap
-    | null
-    | Promise<HostObservationImage | ImageBitmap | null>;
+  }) => HostObservationImage | null | Promise<HostObservationImage | null>) & {
+    startVideo?: (frameIntervalMs: number) => NativeClipRecording;
+  };
 };

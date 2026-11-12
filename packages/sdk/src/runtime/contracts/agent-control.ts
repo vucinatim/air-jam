@@ -76,8 +76,8 @@ export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
   z
     .object({
       operation: z.literal("clip-start"),
+      delivery: z.enum(["pages", "video"]).optional(),
       frameIntervalMs: clipFrameIntervalSchema.optional(),
-      delivery: z.enum(["pages", "bitmap-stream"]).optional(),
       roomId: roomCodeSchema,
       runtimeId: z.string().min(1),
       clipId: z.string().min(1).max(128),
@@ -89,6 +89,7 @@ export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
       roomId: roomCodeSchema,
       clipId: z.string().min(1).max(128),
       stop: z.boolean(),
+      fromChunk: z.number().int().nonnegative().optional(),
       fromFrame: z.number().int().nonnegative(),
     })
     .strict(),

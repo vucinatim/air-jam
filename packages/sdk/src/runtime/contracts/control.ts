@@ -58,10 +58,7 @@ export type HostRuntimeActionRequest = z.infer<
 >;
 
 export interface HostRuntimeControl {
-  agent(
-    request: HostAgentRequest,
-    clipPort?: MessagePort,
-  ): Promise<HostAgentResponse>;
+  agent(request: HostAgentRequest): Promise<HostAgentResponse>;
   invoke(
     request: HostRuntimeActionRequest,
   ): Promise<AirJamActionInvocationResult>;
@@ -219,7 +216,7 @@ function controlEntry(target: object) {
     const contracts: NonNullable<ReturnType<typeof controls.get>>["contracts"] =
       new Set();
     const control: HostRuntimeControl = {
-      async agent(input, clipPort) {
+      async agent(input) {
         const request = hostAgentRequestSchema.parse(input);
         if (request.operation === "observe") {
           const { operation, ...observationRequest } = request;
@@ -333,12 +330,14 @@ function controlEntry(target: object) {
               throw new Error(
                 "clip_not_found: No recording runtime owns this room.",
               );
+            if (request.stop) await recorder.stop(request.clipId);
             return {
               operation: "clip-read",
               clip: recorder.read(
                 request.clipId,
                 request.stop,
                 request.fromFrame,
+                request.fromChunk,
               ),
             };
           }
@@ -351,18 +350,14 @@ function controlEntry(target: object) {
             throw new Error(
               "clip_unsupported: No capture runtime owns this room.",
             );
-          if ((request.delivery === "bitmap-stream") !== Boolean(clipPort))
-            throw new Error(
-              "clip_unsupported: Bitmap streaming requires its recording port.",
-            );
           return {
             operation: "clip-start",
-            ...(await recorder.start(
+            ...recorder.start(
               request.clipId,
               identity,
               request.frameIntervalMs,
-              clipPort,
-            )),
+              request.delivery,
+            ),
           };
         }
         const runtime = resolveRoomRuntime(target, request.roomId);

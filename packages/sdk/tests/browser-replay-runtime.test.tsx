@@ -82,13 +82,7 @@ it.each([false, true])(
       useSimulationFrame<{ x: number }>((frame) =>
         draw({ tick: frame.tick, x: frame.sim.x, alpha: frame.alpha }),
       );
-      useHostAgentCapture(() => ({
-        mimeType: "image/png",
-        data: "YWJj",
-        width: 1,
-        height: 1,
-        coverage: "render-surface",
-      }));
+      useHostAgentCapture(() => false);
       return <div>{host.roomId}</div>;
     }
     const agent = defineAirJamAgentContract({

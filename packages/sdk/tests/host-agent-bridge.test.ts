@@ -230,32 +230,21 @@ describe("delegated host agent requests", () => {
     game.close();
   });
 
-  it("transfers a recording port only with a validated request to the supplied game origin", () => {
+  it("sends only a validated request to the supplied game origin", () => {
     const game = bridgeFixture();
-    const port = {} as MessagePort;
-    const request: HostAgentRequest = {
-      operation: "clip-start",
-      roomId: "ROOM",
-      runtimeId: "runtime",
-      clipId: "clip",
-      delivery: "bitmap-stream",
-      frameIntervalMs: 33,
-    };
     requestHostAgent(
       game.parent,
       "https://game.example",
       "capture-one",
-      request,
-      port,
+      game.observe,
     );
     expect(game.parent.postMessage).toHaveBeenCalledWith(
       {
         type: "AIRJAM_HOST_AGENT",
         requestId: "capture-one",
-        request,
+        request: game.observe,
       },
       "https://game.example",
-      [port],
     );
     game.close();
   });

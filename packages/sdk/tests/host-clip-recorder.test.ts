@@ -40,9 +40,39 @@ function fixture(
   });
   return recorder;
 }
-afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
+afterEach(() => vi.useRealTimers());
+
+it("keeps native video out of the still sampler and waits for final bytes before delivery", async () => {
+  const stop = vi.fn(async () => {});
+  const dispose = vi.fn();
+  const page = vi.fn(() => ({
+    mimeType: "video/webm",
+    width: 1280,
+    height: 720,
+    chunks: ["YWJj"],
+    nextChunk: null,
+  }));
+  const capture = Object.assign(
+    vi.fn(() => image()),
+    {
+      startVideo: vi.fn(() => ({ stop, dispose, page, frameCount: () => 30 })),
+    },
+  );
+  const recorder = fixture(capture);
+  recorder.start("native", identity, 1, "video");
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(capture).not.toHaveBeenCalled();
+  expect(capture.startVideo).toHaveBeenCalledWith(33);
+  await recorder.stop("native");
+  expect(stop).toHaveBeenCalledOnce();
+  expect(recorder.read("native", true, 0)).toMatchObject({
+    state: "stopped",
+    frameIntervalMs: 33,
+    frames: [],
+    video: { chunks: ["YWJj"] },
+  });
+  recorder.dispose();
+  expect(dispose).toHaveBeenCalledOnce();
 });
 
 it("enforces decoded bytes, dimensions, count, order and kept time window", () => {
@@ -118,7 +148,7 @@ it("enforces decoded bytes, dimensions, count, order and kept time window", () =
 });
 it("keeps the last 15 seconds and at most 150 frames on the original host clock", async () => {
   const recorder = fixture();
-  await recorder.start("clip", identity);
+  recorder.start("clip", identity);
   await vi.advanceTimersByTimeAsync(16000);
   const clip = recorder.read("clip", true, 0);
   expect(clip.frameCount).toBe(150);
@@ -128,7 +158,7 @@ it("keeps the last 15 seconds and at most 150 frames on the original host clock"
 });
 it("trims decoded bytes and pages frozen indexes within the socket budget", async () => {
   const recorder = fixture(() => image(CLIP_FRAME_MAX_BYTES));
-  await recorder.start("clip", identity);
+  recorder.start("clip", identity);
   await vi.advanceTimersByTimeAsync(3000);
   const first = recorder.read("clip", true, 0);
   expect(first.frameCount).toBe(
@@ -169,7 +199,7 @@ it.each([
   "counts unsuccessful attempts honestly",
   async (capture, reason) => {
     const recorder = fixture(capture);
-    await recorder.start("clip", identity);
+    recorder.start("clip", identity);
     await vi.advanceTimersByTimeAsync(200);
     expect(recorder.read("clip", true, 0)).toMatchObject({
       skippedFrames: 2,
@@ -186,7 +216,7 @@ it("keeps still-sized captures that ignore options and skips them over the byte 
     height: 720,
   }));
   const recorder = fixture(capture);
-  await recorder.start("clip", identity);
+  recorder.start("clip", identity);
   await vi.advanceTimersByTimeAsync(100);
   expect(capture).toHaveBeenCalledWith({ maxEdge: 1280, quality: 0.92 });
   expect(recorder.read("clip", false, 0)).toMatchObject({
@@ -219,15 +249,15 @@ it("keeps still-sized captures that ignore options and skips them over the byte 
     );
   recorder.dispose();
 });
-it("refuses no surface and reports busy only when all four clips are recording", async () => {
-  await expect(fixture(null).start("clip", identity)).rejects.toThrow(
+it("refuses no surface and reports busy only when all four clips are recording", () => {
+  expect(() => fixture(null).start("clip", identity)).toThrow(
     "clip_unsupported:",
   );
   const recorder = fixture();
-  for (let i = 0; i < 4; i++) await recorder.start(String(i), identity);
+  for (let i = 0; i < 4; i++) recorder.start(String(i), identity);
   let refusal: unknown;
   try {
-    await recorder.start("fifth", identity);
+    recorder.start("fifth", identity);
   } catch (error) {
     refusal = error;
   }
@@ -236,7 +266,7 @@ it("refuses no surface and reports busy only when all four clips are recording",
   for (let i = 0; i < 4; i++)
     expect(recorder.read(String(i), false, 0).state).toBe("recording");
   recorder.read("0", true, 0);
-  expect((await recorder.start("fifth", identity)).clipId).toBe("fifth");
+  expect(recorder.start("fifth", identity).clipId).toBe("fifth");
   expect(() => recorder.read("0", false, 0)).toThrow("clip_not_found:");
   recorder.dispose();
 });
@@ -245,7 +275,7 @@ it("captures eight sequential five-second clips within a minute", async () => {
   const started = Date.now();
   for (let i = 0; i < 8; i++) {
     const clipId = String(i);
-    await recorder.start(clipId, identity);
+    recorder.start(clipId, identity);
     await vi.advanceTimersByTimeAsync(5000);
     const result = await readHostClip(
       async (request) => {
@@ -273,8 +303,7 @@ it("captures eight sequential five-second clips within a minute", async () => {
 });
 it("evicts the least recently read stopped clip and preserves active recordings", async () => {
   const recorder = fixture();
-  for (const id of ["active", "a", "b", "c"])
-    await recorder.start(id, identity);
+  for (const id of ["active", "a", "b", "c"]) recorder.start(id, identity);
   await vi.advanceTimersByTimeAsync(1000);
   const a = recorder.read("a", true, 0);
   await vi.advanceTimersByTimeAsync(100);
@@ -283,7 +312,7 @@ it("evicts the least recently read stopped clip and preserves active recordings"
   const c = recorder.read("c", true, 0);
   await vi.advanceTimersByTimeAsync(100);
   expect(recorder.read("a", false, 0)).toEqual(a);
-  await recorder.start("new", identity);
+  recorder.start("new", identity);
   expect(() => recorder.read("b", false, 0)).toThrow("clip_not_found:");
   expect(recorder.read("a", false, 0)).toEqual(a);
   expect(recorder.read("c", false, 0)).toEqual(c);
@@ -293,7 +322,7 @@ it("evicts the least recently read stopped clip and preserves active recordings"
 });
 it("protects a stopped clip while its remaining pages are being delivered", async () => {
   const recorder = fixture(() => image(CLIP_FRAME_MAX_BYTES));
-  for (const id of ["clip", "a", "b", "c"]) await recorder.start(id, identity);
+  for (const id of ["clip", "a", "b", "c"]) recorder.start(id, identity);
   await vi.advanceTimersByTimeAsync(400);
   const result = await readHostClip(
     async (request) => {
@@ -308,7 +337,7 @@ it("protects a stopped clip while its remaining pages are being delivered", asyn
       if (clip.nextFrame !== null) {
         let refusal: unknown;
         try {
-          await recorder.start("new", identity);
+          recorder.start("new", identity);
         } catch (error) {
           refusal = error;
         }
@@ -332,7 +361,7 @@ it("protects a stopped clip while its remaining pages are being delivered", asyn
 it("reclaims only a delivered stopped buffer while other clips record or transfer", async () => {
   const recorder = fixture(() => image(CLIP_FRAME_MAX_BYTES));
   for (const id of ["undelivered", "delivered", "a", "b"])
-    await recorder.start(id, identity);
+    recorder.start(id, identity);
   await vi.advanceTimersByTimeAsync(100);
   expect(recorder.read("undelivered", false, 0).nextFrame).toBeNull();
   await vi.advanceTimersByTimeAsync(300);
@@ -340,7 +369,7 @@ it("reclaims only a delivered stopped buffer while other clips record or transfe
   expect(undelivered.nextFrame).not.toBeNull();
   const first = recorder.read("delivered", true, 0);
   recorder.read("delivered", true, first.nextFrame!);
-  await recorder.start("new", identity);
+  recorder.start("new", identity);
   expect(() => recorder.read("delivered", false, 0)).toThrow("clip_not_found:");
   expect(recorder.read("undelivered", false, 0)).toEqual(undelivered);
   for (const id of ["a", "b", "new"])
@@ -349,14 +378,14 @@ it("reclaims only a delivered stopped buffer while other clips record or transfe
 });
 it("expires an undelivered stopped clip after a minute without reads", async () => {
   const recorder = fixture(() => image(CLIP_FRAME_MAX_BYTES));
-  await recorder.start("clip", identity);
+  recorder.start("clip", identity);
   await vi.advanceTimersByTimeAsync(400);
   expect(recorder.read("clip", true, 0).nextFrame).not.toBeNull();
   await vi.advanceTimersByTimeAsync(60000);
   expect(() => recorder.read("clip", false, 0)).toThrow("clip_not_found:");
   recorder.dispose();
 });
-it("self-stops at ten minutes and releases stopped unread recordings after a minute", async () => {
+it("self-stops at ten minutes and releases stopped unread recordings after a minute", () => {
   let now = 0;
   let tick!: () => void;
   const recorder = new HostClipRecorder({
@@ -367,7 +396,7 @@ it("self-stops at ten minutes and releases stopped unread recordings after a min
       return () => {};
     },
   });
-  await recorder.start("clip", identity);
+  recorder.start("clip", identity);
   now = 600000;
   tick();
   expect(recorder.read("clip", false, 0).state).toBe("stopped");
@@ -384,8 +413,8 @@ it("shares one capture, skips busy ticks and discards in-flight work after dispo
       }),
   );
   const recorder = fixture(capture);
-  await recorder.start("a", identity);
-  await recorder.start("b", identity);
+  recorder.start("a", identity);
+  recorder.start("b", identity);
   await vi.advanceTimersByTimeAsync(500);
   expect(capture).toHaveBeenCalledTimes(1);
   expect(capture).toHaveBeenCalledWith({ maxEdge: 1280, quality: 0.92 });
@@ -456,11 +485,11 @@ it("starts sampling a replacement surface even when the disposed capture never a
     now: () => Date.now(),
     capture: () => () => (blocked ? new Promise<null>(() => {}) : image()),
   });
-  await recorder.start("old", identity);
+  recorder.start("old", identity);
   await vi.advanceTimersByTimeAsync(100);
   recorder.dispose();
   blocked = false;
-  await recorder.start("new", identity);
+  recorder.start("new", identity);
   await vi.advanceTimersByTimeAsync(100);
   expect(recorder.read("new", true, 0).frameCount).toBe(1);
   expect(() => recorder.read("old", true, 0)).toThrow("clip_not_found:");
@@ -498,9 +527,9 @@ it("passes clip and still dimensions and quality into the canvas encoder", async
 
 it("captures at the requested cadence, floors at 33 ms and preserves the 100 ms default", async () => {
   const recorder = fixture();
-  await recorder.start("tool", identity, 33);
-  await recorder.start("floor", identity, 1);
-  await recorder.start("test", identity);
+  recorder.start("tool", identity, 33);
+  recorder.start("floor", identity, 1);
+  recorder.start("test", identity);
   await vi.advanceTimersByTimeAsync(990);
   const tool = recorder.read("tool", true, 0);
   expect(tool.frameIntervalMs).toBe(33);
@@ -516,7 +545,7 @@ it("captures at the requested cadence, floors at 33 ms and preserves the 100 ms 
 });
 it("retains the faster cadence within the same time and byte bounds", async () => {
   const recorder = fixture();
-  await recorder.start("clip", identity, 33);
+  recorder.start("clip", identity, 33);
   await vi.advanceTimersByTimeAsync(16005);
   const clip = recorder.read("clip", true, 0);
   const {
@@ -557,71 +586,14 @@ it("keeps the sampler's requested ticks when browser timers arrive slightly earl
       return () => {};
     },
   });
-  await recorder.start("clip", identity, 33);
+  recorder.start("clip", identity, 33);
   for (const timestamp of [32.9, 65.8, 98.7]) {
     now = timestamp;
-    await tick();
+    tick();
+    await Promise.resolve();
   }
   expect(
     recorder.read("clip", true, 0).frames.map((frame) => frame.atMs),
   ).toEqual([32.9, 65.8, 98.7]);
   recorder.dispose();
-});
-
-it("streams bounded transferable bitmaps at the requested cadence and ends on stop", async () => {
-  const snapshots: {
-    width: number;
-    height: number;
-    close: ReturnType<typeof vi.fn>;
-  }[] = [];
-  const capture = vi.fn(() => {
-    const bitmap = { width: 1280, height: 720, close: vi.fn() };
-    snapshots.push(bitmap);
-    return bitmap as unknown as ImageBitmap;
-  });
-  const recorder = fixture(capture);
-  const port = {
-    postMessage: vi.fn(),
-    start: vi.fn(),
-    close: vi.fn(),
-    onmessage: null,
-  };
-  await recorder.start("stream", identity, 33, port as unknown as MessagePort);
-  expect(snapshots[0].close).toHaveBeenCalledOnce(); // The startup capability probe.
-  await vi.advanceTimersByTimeAsync(132);
-  expect(port.postMessage).toHaveBeenCalledTimes(3);
-  const frame = port.postMessage.mock.calls[0][0];
-  expect(frame).toMatchObject({ type: "frame", index: 0, atMs: 33 });
-  expect(port.postMessage.mock.calls[0][1]).toEqual([snapshots[1]]);
-  expect(snapshots[1].close).not.toHaveBeenCalled();
-  expect(snapshots).toHaveLength(4);
-  (port.onmessage as unknown as (event: unknown) => void)({
-    data: { type: "ack", index: 0 },
-  });
-  await vi.advanceTimersByTimeAsync(33);
-  expect(port.postMessage).toHaveBeenCalledTimes(4);
-  expect(recorder.read("stream", true, 0)).toMatchObject({
-    frameIntervalMs: 33,
-    frameCount: 4,
-    skippedFrames: 1,
-    frames: [],
-    nextFrame: null,
-  });
-  expect(port.postMessage).toHaveBeenLastCalledWith({ type: "end" });
-  expect(capture).toHaveBeenLastCalledWith({
-    maxEdge: 1280,
-    quality: 0.92,
-    bitmap: true,
-  });
-  recorder.dispose();
-  expect(port.close).toHaveBeenCalledOnce();
-});
-it("refuses bitmap clip-start when the capture surface only supplies JPEG", async () => {
-  const recorder = fixture();
-  const port = { close: vi.fn() };
-  await expect(
-    recorder.start("stream", identity, 33, port as unknown as MessagePort),
-  ).rejects.toThrow("clip_unsupported:");
-  expect(port.close).toHaveBeenCalledOnce();
-  expect(() => recorder.read("stream", false, 0)).toThrow("clip_not_found:");
 });

@@ -111,8 +111,8 @@
     {
       "path": "docs/airjam/generated/migrating-legacy-games.md",
       "kind": "docs-generated",
-      "size": 30925,
-      "sha256": "b7a5376c932a54a3730c9501addcd3fe1e55fc977d9c6702ae34b87ad13a0ea0"
+      "size": 31510,
+      "sha256": "63b66676c7578d37635e542f45149cd67dcc42229c1bf9364280ae76583586ec"
     },
     {
       "path": "docs/airjam/generated/networked-state.md",
@@ -135,8 +135,8 @@
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
       "kind": "docs-generated",
-      "size": 15511,
-      "sha256": "292efe2e115fd9f67cbea1dc66fb1edae455da3fb63d979c1839ad064db42650"
+      "size": 15656,
+      "sha256": "44746a23f9191f57b836553f5093df590478ea22a03ced4b8593bef14cc09d5f"
     },
     {
       "path": "docs/airjam/generated/settings.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "b724b8ec840ef8ed8804f27a5e0daae97aeac4c79a8d311573a5966e9dc56bba"
+  "contentDigest": "19865ce667b25b530ee3db130e77024e92ba6962e1724752d4fc6846eae1468e"
 }

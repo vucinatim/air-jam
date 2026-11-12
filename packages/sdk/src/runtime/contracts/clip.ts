@@ -19,6 +19,8 @@ export const CLIP_PAGE_BASE64_CHARS = 768 * 1024;
 export const CLIP_RECORDING_LIFETIME_MS = 600_000;
 export const CLIP_STOPPED_RELEASE_MS = 60_000;
 export const CLIP_MAX_RECORDINGS = 4;
+export const CLIP_VIDEO_MAX_DURATION_MS = 60_000;
+export const CLIP_VIDEO_MAX_BYTES = 32 * 1024 * 1024;
 
 export const clipNotCapturedReasonSchema = z.enum([
   "busy",
@@ -98,11 +100,43 @@ export const clipArtifactSchema = z
         message: "Clip frames must be ordered within the kept time window.",
       });
   });
+export const clipVideoPageSchema = z
+  .object({
+    mimeType: z.string().min(1).max(128),
+    width: z.number().int().positive().max(1280),
+    height: z.number().int().positive().max(1280),
+    chunks: z
+      .array(
+        z
+          .string()
+          .min(4)
+          .max(CLIP_PAGE_BASE64_CHARS)
+          .regex(
+            /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/,
+          ),
+      )
+      .max(1),
+    nextChunk: z.number().int().nonnegative().nullable(),
+  })
+  .strict();
+
+/** Browser binding supplies native recording; the host core stays DOM-free. */
+export type NativeClipRecording = {
+  stop: () => Promise<void>;
+  page: (fromChunk: number) => z.infer<typeof clipVideoPageSchema>;
+  frameCount: () => number;
+  dispose: () => void;
+};
+
 export const clipReadSchema = z
   .object({
     ...clipMetadata,
     state: z.enum(["recording", "stopped"]),
-    frameCount: z.number().int().nonnegative(),
+    frameCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(Math.ceil(CLIP_RECORDING_LIFETIME_MS / CLIP_MIN_FRAME_INTERVAL_MS)),
     notCaptured: clipNotCapturedReasonSchema.nullable(),
     frames: z
       .array(clipFrameSchema)
@@ -114,14 +148,10 @@ export const clipReadSchema = z
         "Clip page exceeds its transfer budget.",
       ),
     nextFrame: z.number().int().nonnegative().nullable(),
+    video: clipVideoPageSchema.optional(),
   })
   .strict();
 export type ClipFrame = z.infer<typeof clipFrameSchema>;
 export type ClipArtifact = z.infer<typeof clipArtifactSchema>;
 export type ClipRead = z.infer<typeof clipReadSchema>;
 export type ClipNotCapturedReason = z.infer<typeof clipNotCapturedReasonSchema>;
-
-/** A clip-start bitmap-stream port is owned by one recording and its embedding editor. */
-export type HostClipStreamMessage =
-  | { type: "frame"; index: number; atMs: number; bitmap: ImageBitmap }
-  | { type: "end" };

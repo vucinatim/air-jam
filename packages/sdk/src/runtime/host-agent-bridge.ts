@@ -20,12 +20,10 @@ export function requestHostAgent(
   origin: string,
   requestId: string,
   request: HostAgentRequest,
-  clipPort?: MessagePort,
 ) {
   target.postMessage(
     requestSchema.parse({ type: "AIRJAM_HOST_AGENT", requestId, request }),
     origin,
-    clipPort ? [clipPort] : [],
   );
 }
 
@@ -100,7 +98,7 @@ export function publishEmbeddedHostAgent(
     busy = true;
     void (async () => {
       try {
-        const response = await control.agent(request, event.ports[0]);
+        const response = await control.agent(request);
         if (response.operation !== request.operation)
           throw new Error("Invalid host agent response.");
         respond(requestId, { ok: true, response });
