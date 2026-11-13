@@ -15,6 +15,7 @@ import type {
   AirJamPolicyDecision,
   AirJamTestProfileDescription,
 } from "../src/testing.js";
+import { airJamPolicyDecisionSchema } from "../src/testing.js";
 import { declaredModelPolicy } from "./game-declaration-fixture.js";
 import {
   attachment,
@@ -1705,6 +1706,63 @@ it("plays a decision model's choice as the option's own control and traces the a
     "confidence",
   );
 });
+
+it.each([true, false])(
+  "takes the only option without asking a model (provider configured: %s)",
+  async (configured) => {
+    const decisions = vi.fn<DecisionProvider["ask"]>();
+    const f = await fixture({ decisions: configured ? decisions : undefined });
+    const control = { kind: "action", actionId: "tap" } as const;
+    io.decide.mockResolvedValue(
+      airJamPolicyDecisionSchema.parse({
+        ask: {
+          state: ["The match is waiting for players."],
+          question: "Should I join?",
+          options: { join: { when: "I want to play.", control } },
+        },
+      }),
+    );
+    passAfterEffect("Joined.");
+    await f.owner.start(f.request);
+    const record = await f.ended();
+    expect(record.end?.reason).toBe("completed");
+    expect(decisions).not.toHaveBeenCalled();
+    expect(record.decisionModel).toBeUndefined();
+    expect(record.seats[0].answers).toMatchObject({
+      asked: 1,
+      answered: 1,
+      automatic: 1,
+      missed: 0,
+      lowConfidence: 0,
+      choices: { join: 1 },
+    });
+    expect(f.session.control).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: expect.objectContaining(control) }),
+    );
+    const trace = await readFile(
+      path.join(
+        f.root,
+        ".airjam/artifacts/runs",
+        f.request.runId,
+        "trace.ndjson",
+      ),
+      "utf8",
+    );
+    const events = trace
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(
+      events.find((event) => event.kind === "policy_decision").answer,
+    ).toEqual({
+      choice: "join",
+      confidence: 1,
+      durationMs: 0,
+      control,
+      note: "Only option; no model asked.",
+    });
+  },
+);
 
 it("hands the seat's policy the model's latest answer on its next step", async () => {
   const f = await fixture({

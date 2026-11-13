@@ -51,6 +51,12 @@ it("rejects an empty option name with a readable rule", () => {
   ).toThrow("A decision option key must not be empty.");
 });
 
+it("rejects a question with no options", () => {
+  expect(() =>
+    airJamDecisionQuestionSchema.parse({ ...question, options: {} }),
+  ).toThrow("A decision offers between 1 and 16 options.");
+});
+
 it("rejects an unoffered wire choice instead of leaking it into game actions", async () => {
   vi.stubGlobal(
     "fetch",
