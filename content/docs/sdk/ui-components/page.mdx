@@ -95,7 +95,7 @@ Use it for:
 
 ### `SurfaceViewport`
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
 
 Own safe-area, orientation, and page-level UI scaling for a game surface.
 It should fill the available screen while scaling the UI system proportionally, rather than letterboxing a fixed contained stage.
@@ -180,6 +180,27 @@ import { AxisButton, ControlButton, Stick } from "@air-jam/sdk/ui";
 Each sets `data-active` while held. `Stick` takes `directions="4-way"`,
 `deadzone`, `knob`, `knobClassName`, and a function child that draws the whole
 stick from `{ value, active }`.
+
+### `GamepadLayout`
+
+Lays out a sideways controller like a gamepad: `left` and `right` thumb
+controls of the same size, sized from the phone's short side and mirrored about
+the centre, with a compact `center` column between them. It fills its parent, so
+put a header above it. See [Controller UI](/docs/for-agents/controller-ui#sideways-controllers).
+
+```tsx
+import { ControlButton, GamepadLayout, Stick } from "@air-jam/sdk/ui";
+
+<GamepadLayout
+  left={<Stick control={gameInput.move} className="rounded-full bg-white/10" />}
+  center={<span className="text-xs uppercase">Round 1</span>}
+  right={
+    <ControlButton control={gameInput.action} className="rounded-full">
+      Go
+    </ControlButton>
+  }
+/>;
+```
 
 ## Base Primitives
 

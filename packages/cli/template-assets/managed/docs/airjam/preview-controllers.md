@@ -79,7 +79,7 @@ The preview workspace supports:
 7. a room controller roster with source-aware `Kick` controls for manual local recovery
 8. a `Reset room` escape hatch that creates a fresh empty room and reloads the local host page so gameplay state and controller state both reset cleanly
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
 
 `host.players` stays the gameplay-facing list.
 

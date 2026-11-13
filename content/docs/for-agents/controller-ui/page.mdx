@@ -6,7 +6,7 @@ The main failure mode is borrowing desktop web-app patterns for active gameplay 
 
 ## Gameplay Controller Rules
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
 
 For active gameplay:
 
@@ -16,6 +16,33 @@ For active gameplay:
 4. use large touch targets
 5. keep controls visually obvious and single-purpose
 6. minimize text and dense hierarchy
+
+## Sideways Controllers
+
+A sideways phone is held like a gamepad, so its controls use the screen like one. Compose them in `GamepadLayout`:
+
+1. the stick goes in `left` and the main action in `right`; both fill the same square, so they carry the same weight and mirror each other about the centre, each centred in its thumb zone on one line
+2. `center` holds only what a player reads at a glance: a round, a number, a word, a few icons; it never wraps into squeezed lines
+3. a longer message goes in the header bar above the layout, or stays on the TV
+4. a second action shares the right zone with the main one, smaller, rather than starting a third column
+
+```tsx
+import { ControlButton, GamepadLayout, Stick } from "@air-jam/sdk/ui";
+
+// Before: a big stick, a small button pushed to the edge, a sentence wrapping between them.
+<div className="flex h-full items-center justify-between px-6">
+  <Stick control={gameInput.move} className="size-56" />
+  <p className="max-w-48 text-2xl">Splash! Back next round</p>
+  <ControlButton control={gameInput.dash} className="size-28">Dash</ControlButton>
+</div>
+
+// After: equal mirrored thumbs, a glanceable centre, the sentence in the header.
+<GamepadLayout
+  left={<Stick control={gameInput.move} className="rounded-full bg-white/10" />}
+  center={<span className="text-xs uppercase">Round 1</span>}
+  right={<ControlButton control={gameInput.dash} className="rounded-full bg-sky-400">Dash</ControlButton>}
+/>
+```
 
 ## Lobby Rules
 
