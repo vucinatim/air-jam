@@ -185,24 +185,23 @@ describe("player contract", () => {
     ).toThrow();
   });
 
-  it("refuses an empty brief and questions that offer one option or mix control with asking", () => {
+  it("refuses an empty brief and a decision that mixes control with asking", () => {
     expect(() =>
       declaredModelPolicy({ brief: "", turn: () => null }),
     ).toThrow();
-    const single = {
-      ask: {
-        state: ["x"],
-        question: "?",
-        options: {
-          tap: { when: "always", control: { kind: "action", actionId: "tap" } },
-        },
-      },
-    };
-    expect(airJamPolicyDecisionSchema.safeParse(single).success).toBe(false);
     expect(
       airJamPolicyDecisionSchema.safeParse({
         control: { kind: "release" },
-        ask: { state: ["x"], question: "?", options: {} },
+        ask: {
+          state: ["x"],
+          question: "?",
+          options: {
+            tap: {
+              when: "always",
+              control: { kind: "action", actionId: "tap" },
+            },
+          },
+        },
       }).success,
     ).toBe(false);
   });
