@@ -71,7 +71,13 @@ export function ControllerCaptureSurface({
       className="fixed inset-0 block h-dvh w-screen"
       ref={mount}
     >
-      <div {...{ drawable: "" }} className="h-dvh w-screen">
+      {/* Chrome draws a nested canvas's pixels from the drawable root's
+          origin, clipped to the canvas's own box, so a game's canvas shows
+          blank unless it paints in its own containment. */}
+      <div
+        {...{ drawable: "" }}
+        className="h-dvh w-screen [&_canvas]:[contain:paint]"
+      >
         {children}
       </div>
     </canvas>
