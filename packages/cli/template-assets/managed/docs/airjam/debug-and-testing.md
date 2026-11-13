@@ -65,6 +65,18 @@ Use direct file reads or broader filtering when you need:
 3. add focused tests when changing real behavior
 4. prefer observable behavior over implementation details
 
+## Decision-model Playtesting
+
+Declare an `AirJamPlayerContract` from `@air-jam/devtools/testing` with `brief`
+and `turn`. Return `{ state, question, options }` with 1 to 16 named options,
+each carrying `when` and `control`, or `null` when the seat has nothing to do.
+Zero options is invalid. A single sensible move, such as joining a lobby, is
+allowed: the run owner takes that option's control directly with no model call
+or cost. Do not add a fake alternative. Multiple options ask the model to choose.
+The trace keeps the choice and control with the note `Only option; no model
+asked.`; the seat's optional `answers.automatic` count distinguishes these
+automatic answers in the run record.
+
 ## Starter Template Testing Pattern
 
 If the project ships the starter testing layout, keep using it:

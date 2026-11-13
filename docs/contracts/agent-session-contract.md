@@ -334,12 +334,15 @@ records operator-supplied source and licensing information, not a legal verdict.
 A policy may return a question instead of a control: `{ ask: { state, question,
 options } }`. Each option carries the plain condition under which it is correct
 and an ordinary play control (an input, an action, or a release), so a model can
-only choose among controls the game already accepts. The trusted run owner puts
-the question to the run's typed decision model and plays the chosen option's
-control through the same seat, lease and deadlines as any other decision. The
+only choose among controls the game already accepts. Questions accept 1 to 16
+options; zero options is invalid. With exactly one option, the trusted run owner
+takes its control directly without asking a model or incurring model cost,
+even when no model is configured. With multiple options, it puts the question to
+the run's typed decision model. It plays the chosen option's control through
+the same seat, lease and deadlines as any other decision. The
 question shares the policy's `decisionMs` budget. A late, failed or undeclared
-answer is a missed decision and releases the seat; a run whose policy asks
-without a configured model ends as an error. There is no fallback policy.
+answer is a missed decision and releases the seat; a run whose policy offers
+multiple options without a configured model ends as an error. There is no fallback policy.
 
 Games describe how they are played with a player contract, written alongside
 their profiles by whoever writes the game:
@@ -374,8 +377,12 @@ processes, game builds and every other process it spawns never receive the
 endpoint or its credential. Set them only for the process that starts the run
 owner, never in a shell that also runs `pnpm run dev`, because the dev server
 executes game code. The run record names the `decisionModel` a run asked. The
-trace records each answer's choice, confidence and duration, and each missed
+trace records each answer's choice, control, confidence and duration, and each missed
 decision's reason; a run ended by repeated misses names the last reason.
+An automatic answer has confidence 1, duration 0 and the note
+`Only option; no model asked.`; confidence 1 denotes a forced choice here,
+not a model judgment. The policy receives its choice and confidence on the next
+step in the same shape as a model answer.
 
 ### Seat intent and steering
 
@@ -397,7 +404,10 @@ usually means the goal was too vague.
 
 Each seat's record also summarizes how a decision model played it: questions
 asked, answered and missed, the choices it made, answers below 0.6 confidence,
-and stretches of three or more such answers in a row. Reading a run while it
+and stretches of three or more such answers in a row. `asked`, `answered` and
+`choices` include automatic answers; the optional `automatic` count identifies
+that subset, which makes no model calls and does not affect model-confidence
+statistics. Older records omit `automatic`. Reading a run while it
 plays returns the live summary; the final record is the digest. Records also carry
 `hostPace`: the host's frames per second and simulation speed during play (1 =
 real time), from the slowest fixed-step loop on the page. A host that cannot keep
@@ -760,6 +770,12 @@ automatically retried because it may already have executed in the game. The owne
 browser/process is disposed by the existing controller lifecycle.
 
 ## Unreleased tooling behavior changes
+
+`@air-jam/devtools` accepts decision questions with 1 to 16 options. A sole
+option now runs directly with no model call or cost, rather than failing
+validation. Traces retain the choice and control with an explicit only-option
+note, and the additive optional seat `answers.automatic` count marks these
+answers in run records. `@air-jam/cli` ships matching creator and agent guidance.
 
 Runs accept per-seat `intents`, records carry each seat's `intent`, `answers`
 summary and a run `steering` log, `AirJamPolicyStep` carries `intent`, and

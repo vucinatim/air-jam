@@ -81,6 +81,7 @@ type HostObservationIdentity = HostObservation["identity"];
 type AnsweredDecision = DecisionAnswer & {
   control: AirJamPlayControl;
   durationMs: number;
+  note?: "Only option; no model asked.";
 };
 
 type EndReason = NonNullable<AirJamGameRunRecord["end"]>["reason"];
@@ -1175,6 +1176,10 @@ export class GameRunOwner {
     }
     answers.answered++;
     answers.choices[answer.choice] = (answers.choices[answer.choice] ?? 0) + 1;
+    if (answer.note) {
+      answers.automatic = (answers.automatic ?? 0) + 1;
+      return answer;
+    }
     if (answer.confidence < LOW_CONFIDENCE) {
       answers.lowConfidence++;
       if (++seat.lowConfidenceStreak === LOW_CONFIDENCE_STRETCH)
@@ -1183,8 +1188,9 @@ export class GameRunOwner {
     return answer;
   }
   /**
-   * Put a policy's question to the run's decision model and map its choice back
-   * to the option's own control. It shares the policy's decision deadline, and
+   * Take the only option directly, or put the question to the run's decision
+   * model and map its choice back to the option's own control.
+   * It shares the policy's decision deadline, and
    * a late, failed or undeclared answer is a missed decision, never a fallback.
    */
   private async answer(
@@ -1192,6 +1198,17 @@ export class GameRunOwner {
     question: AirJamDecisionQuestion,
     deadline: number,
   ): Promise<AnsweredDecision> {
+    const options = Object.entries(question.options);
+    if (options.length === 1) {
+      const [choice, option] = options[0];
+      return {
+        choice,
+        confidence: 1,
+        control: option.control,
+        durationMs: 0,
+        note: "Only option; no model asked.",
+      };
+    }
     const decisions = this.options.decisions;
     if (!decisions)
       throw new Error(
@@ -1794,6 +1811,8 @@ export class GameRunOwner {
                 choice: answer.choice,
                 confidence: answer.confidence,
                 durationMs: answer.durationMs,
+                control: answer.control,
+                ...(answer.note ? { note: answer.note } : {}),
               },
             }
           : {}),

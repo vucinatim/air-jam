@@ -39,8 +39,8 @@
     {
       "path": "docs/airjam/debug-and-testing.md",
       "kind": "docs-local",
-      "size": 2889,
-      "sha256": "65adf52e5cdcf0648ab56af1c0b639e30cf93495a85e2971b83168b571db97af"
+      "size": 3584,
+      "sha256": "0604993c4f9869e9989e18f0955fb2938ffcac00614e58b3ff7d09d1947cecaa"
     },
     {
       "path": "docs/airjam/development-loop.md",
@@ -81,8 +81,8 @@
     {
       "path": "docs/airjam/generated/for-agents.md",
       "kind": "docs-generated",
-      "size": 3916,
-      "sha256": "fca62f1760b114bc62c6afa981da0107abafce7ce251adc3e38ae4d35b68432e"
+      "size": 4845,
+      "sha256": "fed6ab3c667502c4da82d414d32787701d1c9051a08b52552cce7bada6a13ea5"
     },
     {
       "path": "docs/airjam/generated/game-ideas.md",
@@ -183,8 +183,8 @@
     {
       "path": "docs/airjam/r3f-3d-scene.md",
       "kind": "docs-local",
-      "size": 3701,
-      "sha256": "30a91531d03a911c9f45c3f12ab0f46cc00ccab00a99875e59dbbe7662125872"
+      "size": 5149,
+      "sha256": "25d8bbe90177064730eb2771035306b6adc04478d9e92205e49ded7881ffae2f"
     },
     {
       "path": "docs/airjam/state-lanes-cookbook.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "6867b5410461a0814c19c44a488998eb5453cb2d5b634bfe643e8114aa34c485"
+  "contentDigest": "5b1951129c79d59e4183419f0ef0f1741f8a34fd7c5b292a653e0a06af190d86"
 }

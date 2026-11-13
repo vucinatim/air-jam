@@ -73,6 +73,22 @@ The [Quick Start publishing guide](https://airjam.io/docs/getting-started/quick-
 covers CLI authentication, hosted release submission, inspection, and explicit
 publication. Local development and evaluation do not require hosted publishing.
 
+## Decision-model Players
+
+An `AirJamPlayerContract` from `@air-jam/devtools/testing` describes play with
+`brief` and `turn`. A turn returns `{ state, question, options }` or `null` when
+the seat has nothing to do. Offer 1 to 16 named options, each with a plain-language
+`when` and its `control`. Zero options is invalid; use `null` to wait.
+
+A single sensible move is allowed: for example, a lobby turn can offer only
+`join` with `control: { kind: "action", actionId: "join_match" }`. The run owner
+takes that control directly without calling a decision model or incurring model
+cost. Do not invent a second option to satisfy validation. Multiple options ask
+the run's model to choose. Automatic answers retain the choice and control in the
+trace, marked `Only option; no model asked.`, and count toward the seat's optional
+`answers.automatic` summary. The policy receives the choice just like a model
+answer on its next step.
+
 ## Read These First
 
 1. [Introduction](./introduction.md)
