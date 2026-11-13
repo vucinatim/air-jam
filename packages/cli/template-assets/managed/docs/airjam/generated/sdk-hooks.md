@@ -133,7 +133,7 @@ pause/play status or short UI messages. It is not the primary
 gameplay sync channel. Authoritative multiplayer state should live in the
 networked stores and flow automatically through those boundaries.
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
 
 **Sending Haptic Feedback:**
 

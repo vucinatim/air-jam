@@ -16,7 +16,7 @@ Use this skill for controller gameplay and lobby surfaces.
 
 ## Gameplay Rules
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
+A game whose `inputModalities` include `'joystick'` always gets a sideways controller; lay it out with `GamepadLayout` as the Sideways Controllers section of `docs/airjam/generated/controller-ui.md` describes.
 
 1. gameplay controller UI should live inside an absolute `inset-0` root
 2. avoid scroll during active gameplay

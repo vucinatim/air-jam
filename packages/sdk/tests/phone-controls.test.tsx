@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { AxisButton, ControlButton, Stick } from "../src/components/controls";
+import { GamepadLayout } from "../src/components/gamepad-layout";
 import { ControllerInput } from "../src/core/controller-input";
 import { axis, button, defineAirJamInput, stick } from "../src/core/input";
 import {
@@ -123,5 +124,23 @@ describe("phone controls", () => {
         </controllerRuntimeContext.Provider>,
       ),
     ).toThrow(/defineAirJamGame\(\{ input \}\)/);
+  });
+  it("gives both thumb controls the same mirrored slot around the centre", () => {
+    render(
+      <GamepadLayout
+        left={<i>stick</i>}
+        center={<b>round</b>}
+        right={<i>dash</i>}
+      />,
+    );
+    const [left, right] = ["stick", "dash"].map(
+      (name) => screen.getByText(name).parentElement as HTMLElement,
+    );
+    expect(left.getAttribute("style")).toBe(right.getAttribute("style"));
+    expect(
+      [...left.closest("[style*='container-type']")!.children].map(
+        (child) => child.textContent,
+      ),
+    ).toEqual(["stick", "round", "dash"]);
   });
 });

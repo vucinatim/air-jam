@@ -194,7 +194,12 @@ Selectors receive state fields only; call `useAirJamController()` when a
 component also needs controls such as `sendSystemCommand`.
 
 ```tsx
-import { ControlButton, Stick, SurfaceViewport } from "@air-jam/sdk/ui";
+import {
+  ControlButton,
+  GamepadLayout,
+  Stick,
+  SurfaceViewport,
+} from "@air-jam/sdk/ui";
 import { airjam } from "./app";
 import { gameInput } from "./airjam.config";
 
@@ -206,10 +211,16 @@ const ControllerShell = () => (
 
 export const ControllerView = () => (
   <SurfaceViewport>
-    <section className="grid h-full grid-cols-2 gap-3 p-3">
-      <Stick control={gameInput.move} />
-      <ControlButton control={gameInput.action}>Action</ControlButton>
-    </section>
+    <GamepadLayout
+      left={
+        <Stick control={gameInput.move} className="rounded-full bg-white/10" />
+      }
+      right={
+        <ControlButton control={gameInput.action} className="rounded-full">
+          Action
+        </ControlButton>
+      }
+    />
   </SurfaceViewport>
 );
 ```
@@ -227,7 +238,7 @@ The important rule is:
 2. use `useAirJamHost()` / `useAirJamController()` only as read hooks below that boundary
 3. wrap controller UI in `SurfaceViewport`
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay the controller out for landscape (joystick under the left thumb, main actions under the right).
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
 
 When the controller runs inside Arcade, `SurfaceViewport` automatically publishes
 its orientation to the parent Arcade chrome. The same component still handles
