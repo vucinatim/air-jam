@@ -102,7 +102,8 @@ const QUESTION_STATE_LINES = 32;
 const TURN_STATE_LINES = QUESTION_STATE_LINES - 2;
 
 /**
- * A choice handed to the run's decision model. Every option is an ordinary
+ * A turn resolved by the run owner, asking its decision model only when there
+ * is more than one option. Every option is an ordinary
  * play control (an input, an action, or doing nothing), so the model can only
  * ever pick among controls the game already accepts. The size bound keeps the
  * question inside the fast context of current typed decision models.
@@ -126,8 +127,8 @@ export const airJamDecisionQuestionSchema = z
       )
       .refine((options) => {
         const count = Object.keys(options).length;
-        return count >= 2 && count <= 16;
-      }, "A decision offers between 2 and 16 options."),
+        return count >= 1 && count <= 16;
+      }, "A decision offers between 1 and 16 options."),
   })
   .strict();
 export type AirJamDecisionQuestion = z.infer<

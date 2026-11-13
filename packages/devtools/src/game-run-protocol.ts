@@ -226,6 +226,7 @@ export const gameRunRecordSchema = z
               .object({
                 asked: z.number().int().nonnegative(),
                 answered: z.number().int().nonnegative(),
+                automatic: z.number().int().nonnegative().optional(),
                 missed: z.number().int().nonnegative(),
                 lowConfidence: z.number().int().nonnegative(),
                 lowConfidenceStretches: z.number().int().nonnegative(),

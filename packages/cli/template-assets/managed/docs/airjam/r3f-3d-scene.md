@@ -18,7 +18,7 @@ In Studio, call `studio_change_dependency` once per package with
 This updates the package manifest and lockfile together. Outside Studio, use the
 project's package manager, for example `pnpm add three @react-three/fiber` and
 `pnpm add -D @types/three` in a pnpm project. Install optional libraries such as
-`@react-three/drei` or `@react-three/rapier` only when the game uses them.
+`@react-three/drei` or `@dimforge/rapier3d-compat` only when the game uses them.
 
 ## Render Layer Rule
 
@@ -29,6 +29,39 @@ Keep:
 1. gameplay rules in domain/system modules
 2. orchestration in engine/adapters
 3. scene composition, cameras, lights, and materials in the 3D layer
+
+Movement, collisions and physics belong to the game's simulation, which the
+SDK steps on the host at a fixed rate. R3F components only read the latest
+simulation frame and draw it. A match then runs without a screen, so tests,
+model players and replays play the real game.
+
+## Agent Captures Of The 3D View
+
+A WebGL canvas holds its pixels only until the browser presents the frame, so a
+capture taken at any other moment comes out black. Render each frame yourself
+and hand the canvas to the function `useHostAgentCapture` returns right after
+`gl.render`:
+
+```tsx
+function RenderLoop({
+  onRendered,
+}: {
+  onRendered: (canvas: HTMLCanvasElement) => void;
+}) {
+  useFrame(({ gl, scene, camera }) => {
+    gl.render(scene, camera);
+    onRendered(gl.domElement);
+  }, 1);
+  return null;
+}
+```
+
+Clips draw from that call. A still observation can arrive between frames, so
+keep a 2D copy of the canvas every few frames and let the capture draw the live
+canvas while `onRendered` runs and the copy at any other time. The alternative,
+`preserveDrawingBuffer: true` on the renderer, costs frame time on every frame. Call
+`event.preventDefault()` on the canvas's `webglcontextlost` event so the
+browser can restore a lost context instead of leaving the view blank.
 
 ## Lighting Baseline
 
@@ -85,6 +118,10 @@ Prefer custom movement/collision when:
 3. the game wants deterministic arcade behavior more than simulation fidelity
 
 Do not pay the complexity cost of a full physics engine without clear benefit.
+
+Whichever you choose, step it inside the simulation, not in the scene: a solver
+running in R3F components (`@react-three/rapier`'s `<Physics>`) cannot run a
+match without a screen.
 
 ## Particles And Effects
 
