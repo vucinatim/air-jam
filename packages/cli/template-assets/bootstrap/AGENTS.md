@@ -179,7 +179,7 @@ If the project uses canvas:
 
 ### Controller
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the actions under the right in a square the same size, and only short status between them.
 
 1. gameplay controller UI should live inside an absolute `inset-0` root
 2. prefer large touch targets

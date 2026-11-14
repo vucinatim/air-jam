@@ -132,7 +132,7 @@ When no game iframe is shown, the outer shell stays portrait.
 
 Games wrap the controller root in `SurfaceViewport`. Non-joystick games may pass a phase-specific `orientation`.
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the actions under the right in a square the same size, and only short status between them.
 
 In Arcade embedded runs, that same component also tells the parent controller
 chrome which orientation to use.

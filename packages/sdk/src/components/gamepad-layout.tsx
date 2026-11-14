@@ -7,7 +7,7 @@ export interface GamepadLayoutProps extends Omit<
 > {
   /** The control under the left thumb, usually the `Stick`. */
   left: ReactNode;
-  /** The control under the right thumb, usually the main `ControlButton`. */
+  /** The actions under the right thumb: one `ControlButton`, or several as a cluster around the main one. */
   right: ReactNode;
   /** Short status between the thumbs: a word, a number or a few icons. */
   center?: ReactNode;
@@ -42,7 +42,7 @@ const ThumbZone = ({ children }: { children: ReactNode }) => (
 );
 
 /**
- * A sideways controller laid out like a gamepad: two equal thumb controls
+ * A sideways controller laid out like a gamepad: two equal thumb squares
  * mirrored about the centre on one line, each centred in its thumb zone, with
  * a compact centre column between them. It fills its parent; put a header
  * above it.
