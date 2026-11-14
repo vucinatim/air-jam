@@ -39,8 +39,8 @@
     {
       "path": "docs/airjam/debug-and-testing.md",
       "kind": "docs-local",
-      "size": 3584,
-      "sha256": "0604993c4f9869e9989e18f0955fb2938ffcac00614e58b3ff7d09d1947cecaa"
+      "size": 3997,
+      "sha256": "efe08e5221067069d649605ed64ce7544453ddfcd3055b68c30bd07eb63c6afb"
     },
     {
       "path": "docs/airjam/development-loop.md",
@@ -69,8 +69,8 @@
     {
       "path": "docs/airjam/generated/controller-ui.md",
       "kind": "docs-generated",
-      "size": 3351,
-      "sha256": "a197b495bf69502cd6088a74a9b62761e21856352c2234fbcf120ab0bd687c05"
+      "size": 3854,
+      "sha256": "eb3f6281cd3ddcf4a305d3cf991093feb6a0612f32ac601a01525844b2c48381"
     },
     {
       "path": "docs/airjam/generated/debugging-and-logs.md",
@@ -81,8 +81,8 @@
     {
       "path": "docs/airjam/generated/for-agents.md",
       "kind": "docs-generated",
-      "size": 4845,
-      "sha256": "fed6ab3c667502c4da82d414d32787701d1c9051a08b52552cce7bada6a13ea5"
+      "size": 5258,
+      "sha256": "8d1e54a33c53582697ccc9e3c28422fa5c1cc66893ffb233b15f176d9552c54b"
     },
     {
       "path": "docs/airjam/generated/game-ideas.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "5b1951129c79d59e4183419f0ef0f1741f8a34fd7c5b292a653e0a06af190d86"
+  "contentDigest": "ffed863a72f7325b11c518911881c0e39d5fc73878028418711f75bd53f0a0e9"
 }

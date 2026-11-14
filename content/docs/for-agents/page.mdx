@@ -49,6 +49,12 @@ For gameplay assertions, use `airjam.open_game_session`,
 do not guess game-specific action IDs. `airjam.capture_game_session_visuals`
 adds host and phone-controller screenshots to the same session.
 
+In Studio, `studio_press_phone` taps, holds or types on one named mounted Studio phone
+and returns its private screen in the same call. Coordinates are fractions 0..1 of
+`studio_observe_current_game`'s `surface=phone` image. Tap a field before typing;
+a hold captures while pressed, then releases. Reuse the requestId UUID for retries.
+Guest/real phones and older runtimes return an explicit unavailable reason.
+
 MCP is optional. A terminal agent can use the same services:
 
 ```bash

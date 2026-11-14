@@ -3,16 +3,22 @@ import type { ControllerRuntime } from "../src/core/controller-runtime";
 import { readPreviewControllerParent } from "../src/preview/identity";
 import {
   CONTROLLER_CAPTURE_TIMEOUT_MS,
+  type ControllerAgentRequest,
   type ControllerFrameCapture,
 } from "../src/runtime/contracts/controller-agent";
 import { publishEmbeddedControllerAgent } from "../src/runtime/controller-agent-bridge";
 import { captureControllerDocument } from "../src/runtime/controller-capture";
+import { pressControllerDocument } from "../src/runtime/controller-press";
 
 vi.mock("../src/preview/identity", () => ({
   readPreviewControllerParent: vi.fn(),
 }));
 vi.mock("../src/runtime/controller-capture", () => ({
   captureControllerDocument: vi.fn(),
+}));
+
+vi.mock("../src/runtime/controller-press", () => ({
+  pressControllerDocument: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -36,19 +42,23 @@ function fixture() {
     store: { getState: () => ({ roomId: "ABCD", controllerId: "phone" }) },
   } as unknown as ControllerRuntime;
   const close = publishEmbeddedControllerAgent(runtime);
-  const send = () =>
+  const send = (
+    request: ControllerAgentRequest = {
+      operation: "capture",
+      roomId: "ABCD",
+      controllerId: "phone",
+    },
+    source = parent,
+    origin = "https://studio.example",
+  ) =>
     events.dispatchEvent(
       Object.assign(new Event("message"), {
-        source: parent,
-        origin: "https://studio.example",
+        source,
+        origin,
         data: {
           type: "AIRJAM_CONTROLLER_AGENT",
           requestId: "capture",
-          request: {
-            operation: "capture",
-            roomId: "ABCD",
-            controllerId: "phone",
-          },
+          request,
         },
       }),
     );
@@ -128,4 +138,54 @@ describe("controller capture deadline", () => {
       f.close();
     }
   });
+});
+
+it("presses only from the configured parent for this phone, reports busy and returns its capture", async () => {
+  let finish!: (
+    result: Awaited<ReturnType<typeof pressControllerDocument>>,
+  ) => void;
+  vi.mocked(pressControllerDocument).mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const f = fixture();
+  const request: ControllerAgentRequest = {
+    operation: "press",
+    roomId: "ABCD",
+    controllerId: "phone",
+    action: { kind: "tap", x: 0.5, y: 0.5 },
+  };
+  try {
+    f.send(request, f.parent, "https://other.example");
+    f.send(request, { postMessage: vi.fn() });
+    f.send({ ...request, roomId: "WXYZ" });
+    f.send({ ...request, controllerId: "guest" });
+    expect(f.parent.postMessage).not.toHaveBeenCalled();
+    f.send(request);
+    await vi.dynamicImportSettled();
+    expect(pressControllerDocument).toHaveBeenCalledExactlyOnceWith(
+      request.action,
+      expect.any(AbortSignal),
+    );
+    f.send(request);
+    expect(f.parent.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ press: { status: "missed", reason: "busy" } }),
+      "https://studio.example",
+    );
+    const result = {
+      press: { status: "done", target: { tag: "button" } },
+      capture: { status: "unavailable", reason: "unsupported" },
+    } as const;
+    finish(result);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.parent.postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining(result),
+      "https://studio.example",
+      [],
+    );
+    expect(captureControllerDocument).not.toHaveBeenCalled();
+  } finally {
+    f.close();
+  }
 });
