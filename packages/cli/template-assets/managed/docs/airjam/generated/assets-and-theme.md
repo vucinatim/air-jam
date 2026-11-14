@@ -90,7 +90,9 @@ The declaration graph must remain free of React, the DOM and CSS imports.
 ## Isolated assets and states
 
 Prefabs are the catalog identity. Declare `space` and, for animated assets, named
-`states`. Omitting states creates one static state (`static`). State time is in
+`states`. `space` is optional: it defaults to `"3d"` when `preview.camera` is set,
+otherwise `"2d"`. A rendered `PrefabDefinition` requires `render`; a renderer-free
+`PrefabDeclaration` omits it. Omitting states creates one static state (`static`). State time is in
 seconds; the SDK owns playback and seeking, while the game draws that exact time.
 A state without `seconds` is a static pose. `loop: true` wraps a timed state;
 otherwise it pauses at the end.

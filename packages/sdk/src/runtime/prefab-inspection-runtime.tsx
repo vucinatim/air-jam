@@ -10,8 +10,9 @@ import { flushSync } from "react-dom";
 import type { AirJamProviderProps } from "../context/air-jam-context";
 import type { HostObservationCapture } from "../core/host-runtime";
 import {
+  prefabCatalogMetadataSchema,
   prefabMetadata,
-  type PrefabCatalog,
+  type PrefabDeclarationCatalog,
   type PrefabState,
 } from "../prefabs/types";
 import { DEFAULT_PREFAB_VIEW } from "../prefabs/view";
@@ -39,7 +40,7 @@ function InspectionStage({
   stage: Stage,
 }: {
   selection: PrefabSelection;
-  prefab: PrefabCatalog[number];
+  prefab: PrefabDeclarationCatalog[number];
   state: PrefabState;
   stage: ComponentType;
 }) {
@@ -56,16 +57,30 @@ function InspectionStage({
     </prefabInspectionContext.Provider>
   );
 }
-const NO_PREFABS: PrefabCatalog = [];
+const NO_PREFABS: PrefabDeclarationCatalog = [];
 export function PrefabInspectionRuntime({
   prefabs = NO_PREFABS,
   prefabStage: Stage,
   ...config
 }: Omit<AirJamProviderProps, "children"> & {
-  prefabs?: PrefabCatalog;
+  prefabs?: PrefabDeclarationCatalog;
   prefabStage?: ComponentType;
 }) {
-  const catalog = useMemo(() => prefabs.map(prefabMetadata), [prefabs]);
+  const { catalog, reason } = useMemo(() => {
+    try {
+      const catalog = prefabCatalogMetadataSchema.parse(
+        prefabs.map(prefabMetadata),
+      );
+      for (const prefab of prefabs)
+        prefab.configSchema.parse(prefab.defaultProps);
+      return { catalog, reason: null };
+    } catch (error) {
+      return {
+        catalog: [],
+        reason: `Invalid prefab catalog: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }, [prefabs]);
   const topology = resolveAirJamConfig(config).topology;
   const { embedded, embedParentOrigin } = topology;
   const parent = useMemo(
@@ -112,11 +127,13 @@ export function PrefabInspectionRuntime({
       ),
     [parent],
   );
-  const unavailable = !catalog.length
-    ? "This game declares no prefabs. Add prefabs: createPrefabCatalog([...]) to defineAirJamGame."
-    : !Stage
-      ? "This game has no prefab stage. Pass prefabStage={Stage} to app.Host."
-      : null;
+  const unavailable =
+    reason ??
+    (!catalog.length
+      ? "This game declares no prefabs. Add prefabs: createPrefabCatalog([...]) to defineAirJamGame."
+      : !Stage
+        ? "This game has no prefab stage. Pass prefabStage={Stage} to app.Host."
+        : null);
   const commit = useCallback(
     (next: PrefabSelection) => {
       const prefab = catalog.find((item) => item.id === next.prefabId);
@@ -277,7 +294,9 @@ export function PrefabInspectionRuntime({
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
   }, [selection?.playing, catalog, report]);
-  const prefab = prefabs.find((item) => item.id === selection?.prefabId);
+  const prefab = unavailable
+    ? undefined
+    : prefabs.find((item) => item.id === selection?.prefabId);
   const state = catalog
     .find((item) => item.id === selection?.prefabId)
     ?.states.find((item) => item.id === selection?.stateId);

@@ -20,7 +20,7 @@ import {
 } from "../hooks/internal/use-runtime-inspection-contract";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
-import type { PrefabCatalog } from "../prefabs/types";
+import type { PrefabDeclarationCatalog } from "../prefabs/types";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
 import { isAirJamReplayDocument } from "./browser-replay";
 import {
@@ -43,7 +43,7 @@ import {
 export type AirJamHostRuntimeProps = AirJamProviderProps &
   AirJamHostOptions & {
     children: ReactNode;
-    prefabs?: PrefabCatalog;
+    prefabs?: PrefabDeclarationCatalog;
     prefabStage?: ComponentType;
     fixedControllerOrientation?: "landscape" | null;
     agent?: AnyAirJamAgentContract;

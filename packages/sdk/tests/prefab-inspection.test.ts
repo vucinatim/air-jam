@@ -13,11 +13,10 @@ import {
 import { prefabInspectionRequestSchema } from "../src/runtime/prefab-inspection-bridge";
 import { advancePrefabClock } from "../src/runtime/prefab-inspection-clock";
 
-it("reports one static state, rejects duplicate identities and malformed capture views", () => {
+it("reports inferred space and a static state, preserves catalog identity and rejects malformed capture views", () => {
   const prefab = definePrefab({
     id: "dot",
     label: "Dot",
-    space: "2d",
     category: "actor",
     description: "",
     tags: [],
@@ -25,7 +24,18 @@ it("reports one static state, rejects duplicate identities and malformed capture
     configSchema: z.object({}),
   });
   expect(prefabMetadata(prefab).defaultState).toBe("static");
-  expect(() => createPrefabCatalog([prefab, prefab])).toThrow();
+  expect(prefabMetadata(prefab).space).toBe("2d");
+  const legacy = definePrefab({
+    ...prefab,
+    render: () => null,
+    preview: {
+      summary: "Legacy 3D",
+      camera: { position: [0, 0, 4], target: [0, 0, 0] },
+    },
+  });
+  expect(prefabMetadata(legacy).space).toBe("3d");
+  const duplicate = [prefab, prefab] as const;
+  expect(createPrefabCatalog(duplicate)).toBe(duplicate);
   const view = { stateId: "static", time: 0, view: DEFAULT_PREFAB_VIEW };
   const capture = {
     type: "AIRJAM_PREFAB_CAPTURE",

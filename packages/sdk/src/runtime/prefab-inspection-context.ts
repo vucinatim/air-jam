@@ -1,10 +1,10 @@
 import { createContext, useContext } from "react";
 import type { HostObservationCapture } from "../core/host-runtime";
-import type { PrefabCatalog, PrefabState } from "../prefabs/types";
+import type { PrefabDeclarationCatalog, PrefabState } from "../prefabs/types";
 import type { PrefabSelection } from "./prefab-inspection-bridge";
 
 export type PrefabInspection = Omit<PrefabSelection, "prefabId" | "stateId"> & {
-  prefab: PrefabCatalog[number];
+  prefab: PrefabDeclarationCatalog[number];
   props: unknown;
   state: PrefabState;
 };

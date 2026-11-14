@@ -177,3 +177,48 @@ it("isolates direct-state inspection, captures two rendered views and then shows
     frame.remove();
   }
 });
+
+it.each(["ids", "defaults"] as const)(
+  "reports invalid prefab %s inside the inspection document",
+  (invalid) => {
+    window.history.replaceState({}, "", "/?airjamInspect=1");
+    const postMessage = vi.fn();
+    vi.stubGlobal("parent", { postMessage });
+    const stage = vi.fn(() => null);
+    const prefab = definePrefab({
+      id: "dot",
+      label: "Dot",
+      category: "actor",
+      description: "",
+      tags: [],
+      defaultProps: { size: invalid === "defaults" ? -1 : 4 },
+      configSchema: z.object({ size: z.number().positive() }),
+    });
+    render(
+      <AirJamHostRuntime
+        prefabs={invalid === "ids" ? [prefab, prefab] : [prefab]}
+        prefabStage={stage}
+        resolveEnv={false}
+        topology={resolveRuntimeTopology({
+          runtimeMode: "standalone-dev",
+          surfaceRole: "host",
+          appOrigin: "http://localhost",
+          backendOrigin: "http://localhost",
+          publicHost: "http://localhost",
+          embedded: true,
+          embedParentOrigin: "https://studio.test",
+        })}
+      >
+        <div>Live</div>
+      </AirJamHostRuntime>,
+    );
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        type: "AIRJAM_PREFAB_UNAVAILABLE",
+        reason: expect.stringContaining("Invalid prefab catalog:"),
+      },
+      "https://studio.test",
+    );
+    expect(stage).not.toHaveBeenCalled();
+  },
+);

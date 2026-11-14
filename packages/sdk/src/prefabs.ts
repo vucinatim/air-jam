@@ -3,6 +3,8 @@ export {
   definePrefab,
   type PrefabBoundsDescriptor,
   type PrefabCatalog,
+  type PrefabDeclaration,
+  type PrefabDeclarationCatalog,
   type PrefabDefinition,
   type PrefabFootprintDescriptor,
   type PrefabPlacementDescriptor,

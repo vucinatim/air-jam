@@ -38,51 +38,55 @@ export interface PrefabPlacementDescriptor {
   footprint?: PrefabFootprintDescriptor;
 }
 
-export interface PrefabDefinition<
-  TProps,
-  TRenderContract extends (...args: never[]) => unknown =
-    PrefabRenderFn<TProps>,
-> {
+export interface PrefabDeclaration<TProps> {
   id: string;
   label: string;
   category: string;
   description: string;
   tags: readonly string[];
-  space: "2d" | "3d";
+  space?: "2d" | "3d";
   states?: readonly PrefabState[];
   defaultProps: TProps;
   configSchema: ZodType<TProps>;
-  render?: TRenderContract;
   preview?: PrefabPreviewDescriptor;
   placement?: PrefabPlacementDescriptor;
+}
+
+export interface PrefabDefinition<
+  TProps,
+  TRenderContract extends (...args: never[]) => unknown =
+    PrefabRenderFn<TProps>,
+> extends PrefabDeclaration<TProps> {
+  render: TRenderContract;
 }
 
 export type PrefabCatalog = readonly PrefabDefinition<
   unknown,
   (...args: never[]) => unknown
 >[];
+export type PrefabDeclarationCatalog = readonly PrefabDeclaration<unknown>[];
 
-export const definePrefab = <
-  const TDefinition extends PrefabDefinition<
-    unknown,
-    (...args: never[]) => unknown
-  >,
+export function definePrefab<
+  TProps,
+  TRenderContract extends (...args: never[]) => unknown =
+    PrefabRenderFn<TProps>,
 >(
-  definition: TDefinition,
-): TDefinition => definition;
+  definition: PrefabDefinition<TProps, TRenderContract>,
+): PrefabDefinition<TProps, TRenderContract>;
+export function definePrefab<TProps>(
+  definition: PrefabDeclaration<TProps>,
+): PrefabDeclaration<TProps>;
+export function definePrefab<TProps>(
+  definition: PrefabDeclaration<TProps>,
+): PrefabDeclaration<TProps> {
+  return definition;
+}
 
 export const createPrefabCatalog = <
-  const TPrefabs extends readonly PrefabDefinition<
-    unknown,
-    (...args: never[]) => unknown
-  >[],
+  const TPrefabs extends PrefabDeclarationCatalog,
 >(
   prefabs: TPrefabs,
-): TPrefabs => {
-  prefabCatalogMetadataSchema.parse(prefabs.map(prefabMetadata));
-  for (const prefab of prefabs) prefab.configSchema.parse(prefab.defaultProps);
-  return prefabs;
-};
+): TPrefabs => prefabs;
 
 export const prefabStateSchema = z
   .object({
@@ -130,7 +134,10 @@ export const prefabCatalogMetadataSchema = z
         message: "Prefab ids must be unique.",
       });
   });
-export function prefabMetadata(prefab: PrefabCatalog[number]): PrefabMetadata {
+/** Missing space is inferred as 3d when preview.camera is set, otherwise 2d. */
+export function prefabMetadata(
+  prefab: PrefabDeclaration<unknown>,
+): PrefabMetadata {
   const states =
     prefab.states === undefined ? [STATIC_PREFAB_STATE] : [...prefab.states];
   return prefabMetadataSchema.parse({
@@ -139,7 +146,7 @@ export function prefabMetadata(prefab: PrefabCatalog[number]): PrefabMetadata {
     category: prefab.category,
     description: prefab.description,
     tags: [...prefab.tags],
-    space: prefab.space,
+    space: prefab.space ?? (prefab.preview?.camera ? "3d" : "2d"),
     states,
     defaultState: states[0]?.id,
   });
