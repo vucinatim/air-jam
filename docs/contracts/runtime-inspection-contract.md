@@ -62,3 +62,11 @@ changes no room or replay state. Controllers expose a separate
 a bounded JPEG of that exact controller document or an explicit unavailable reason.
 The [agent session contract](./agent-session-contract.md#room-timeline-and-simulation-moments)
 owns schemas, timing, limits and capture failure semantics.
+
+The same controller-agent channel accepts `operation: "press"` with normalized screen
+coordinates for tap/hold, or text for the focused editable field. Its optional `press`
+result reports the target or a miss alongside the capture; a hold captures while down
+and releases even on failure. Only the configured preview parent and matching room and
+controller identity may request it, with the existing busy and ten-second deadline.
+Capture-only request and result messages are unchanged. Studio owns phone selection,
+requestId idempotency and its `studio_press_phone` MCP adapter.

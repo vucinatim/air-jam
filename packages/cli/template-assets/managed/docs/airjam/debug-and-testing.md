@@ -77,6 +77,12 @@ The trace keeps the choice and control with the note `Only option; no model
 asked.`; the seat's optional `answers.automatic` count distinguishes these
 automatic answers in the run record.
 
+In Studio, `studio_press_phone` taps, holds or types on one named mounted Studio phone
+and returns its private screen in the same call. Coordinates are fractions 0..1 of
+`studio_observe_current_game`'s `surface=phone` image. Tap a field before typing;
+a hold captures while pressed, then releases. Reuse the requestId UUID for retries.
+Guest/real phones and older runtimes return an explicit unavailable reason.
+
 ## Starter Template Testing Pattern
 
 If the project ships the starter testing layout, keep using it:

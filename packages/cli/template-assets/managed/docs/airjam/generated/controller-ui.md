@@ -88,3 +88,13 @@ For template and starter work, a practical split is:
 2. a gameplay-oriented icon set for abilities, pickups, and status effects
 
 Keep icon usage behind local wrappers where practical so the project can curate or replace icons later.
+
+## Private player screens and word games
+
+Keep secret words or cards in a per-controller map declared with
+`createAirJamStore`'s `privateField`; read that phone's entry with
+`useAirJamPrivateState`. The public store excludes this field and each phone
+receives only its own entry. Test a reveal with `studio_press_phone`'s hold action.
+
+A decision-model seat (Jev) answers choice questions only. Give model seats authored
+candidate clues or answers as options; people can type freely into phone fields.

@@ -47,17 +47,71 @@ export const controllerFrameCaptureSchema = z.discriminatedUnion("status", [
 export type ControllerFrameCapture = z.infer<
   typeof controllerFrameCaptureSchema
 >;
+export const controllerPressActionSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("tap"),
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("hold"),
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+      durationMs: z.number().int().min(100).max(5000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("type"),
+      text: z.string().min(1).max(500),
+      submit: z.boolean().optional(),
+    })
+    .strict(),
+]);
+export type ControllerPressAction = z.infer<typeof controllerPressActionSchema>;
+export const controllerPressResultSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("done"),
+      target: z
+        .object({
+          tag: z.string(),
+          role: z.string().optional(),
+          label: z.string().max(120).optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("missed"),
+      reason: z.enum(["no-target", "not-editable", "busy"]),
+    })
+    .strict(),
+]);
+export type ControllerPressResult = z.infer<typeof controllerPressResultSchema>;
+const controllerAgentIdentitySchema = z.object({
+  roomId: z.string().min(1).max(8),
+  controllerId: z.string().min(1).max(128),
+});
 export const controllerAgentRequestMessageSchema = z
   .object({
     type: z.literal("AIRJAM_CONTROLLER_AGENT"),
     requestId: z.string().min(1).max(128),
-    request: z
-      .object({
-        operation: z.literal("capture"),
-        roomId: z.string().min(1).max(8),
-        controllerId: z.string().min(1).max(128),
-      })
-      .strict(),
+    request: z.discriminatedUnion("operation", [
+      controllerAgentIdentitySchema
+        .extend({ operation: z.literal("capture") })
+        .strict(),
+      controllerAgentIdentitySchema
+        .extend({
+          operation: z.literal("press"),
+          action: controllerPressActionSchema,
+        })
+        .strict(),
+    ]),
   })
   .strict();
 export const controllerAgentResultMessageSchema = z
@@ -67,5 +121,10 @@ export const controllerAgentResultMessageSchema = z
     roomId: z.string().min(1).max(8),
     controllerId: z.string().min(1).max(128),
     capture: controllerFrameCaptureSchema,
+    press: controllerPressResultSchema.optional(),
   })
   .strict();
+
+export type ControllerAgentRequest = z.infer<
+  typeof controllerAgentRequestMessageSchema
+>["request"];

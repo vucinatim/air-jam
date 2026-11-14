@@ -4,14 +4,16 @@ import {
   CONTROLLER_CAPTURE_TIMEOUT_MS,
   controllerAgentRequestMessageSchema,
   controllerAgentResultMessageSchema,
+  type ControllerAgentRequest,
   type ControllerFrameCapture,
+  type ControllerPressResult,
 } from "./contracts/controller-agent";
 
 export function requestControllerAgent(
   target: Window,
   origin: string,
   requestId: string,
-  request: { operation: "capture"; roomId: string; controllerId: string },
+  request: ControllerAgentRequest,
 ) {
   target.postMessage(
     controllerAgentRequestMessageSchema.parse({
@@ -32,7 +34,7 @@ export function readControllerAgentResult(
   return parsed.success ? parsed.data : null;
 }
 
-/** Only the configured preview parent can capture this controller's own document. */
+/** Only the configured preview parent can operate this controller's own document. */
 export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
   const parent = readPreviewControllerParent();
   if (!parent) return () => {};
@@ -59,6 +61,9 @@ export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
           roomId: request.roomId,
           controllerId: request.controllerId,
           capture: { status: "unavailable", reason: "timeout" },
+          ...(request.operation === "press"
+            ? { press: { status: "missed", reason: "busy" } }
+            : {}),
         },
         parent.origin,
       );
@@ -67,8 +72,21 @@ export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
     busy = true;
     const controller = new AbortController();
     active = controller;
-    const work: Promise<ControllerFrameCapture> = import("./controller-capture")
-      .then((module) => module.captureControllerDocument(controller.signal))
+    let press: ControllerPressResult | undefined;
+    const work: Promise<ControllerFrameCapture> = (
+      request.operation === "capture"
+        ? import("./controller-capture").then((module) =>
+            module.captureControllerDocument(controller.signal),
+          )
+        : import("./controller-press")
+            .then((module) =>
+              module.pressControllerDocument(request.action, controller.signal),
+            )
+            .then((result) => {
+              press = result.press;
+              return result.capture;
+            })
+    )
       .then((capture): ControllerFrameCapture => {
         if (!controller.signal.aborted) return capture;
         if (capture.status === "captured") capture.bitmap.close();
@@ -113,6 +131,7 @@ export function publishEmbeddedControllerAgent(runtime: ControllerRuntime) {
               roomId: request.roomId,
               controllerId: request.controllerId,
               capture,
+              ...(press ? { press } : {}),
             }),
             parent.origin,
             capture.status === "captured" ? [capture.bitmap] : [],
