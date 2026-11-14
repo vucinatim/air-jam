@@ -1,12 +1,12 @@
 import { definePrefab } from "@air-jam/sdk/prefabs";
 import { AIR_CAPTURE_FLAG_PREVIEW } from "./preview";
-import { AirCaptureFlag } from "./render";
 import {
   AIR_CAPTURE_FLAG_DEFAULT_PROPS,
   airCaptureFlagPrefabSchema,
 } from "./schema";
 
 export const AIR_CAPTURE_FLAG_PREFAB = definePrefab({
+  space: "3d",
   id: "air-capture.flag.team",
   label: "Team Flag",
   category: "objective",
@@ -16,7 +16,6 @@ export const AIR_CAPTURE_FLAG_PREFAB = definePrefab({
   defaultProps: AIR_CAPTURE_FLAG_DEFAULT_PROPS,
   configSchema: airCaptureFlagPrefabSchema,
   preview: AIR_CAPTURE_FLAG_PREVIEW,
-  render: AirCaptureFlag,
   placement: {
     origin: "ground",
     bounds: {

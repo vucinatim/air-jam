@@ -1,12 +1,12 @@
 import { definePrefab } from "@air-jam/sdk/prefabs";
 import { AIR_CAPTURE_PLAYER_BASE_PREVIEW } from "./preview";
-import { AirCapturePlayerBase } from "./render";
 import {
   AIR_CAPTURE_PLAYER_BASE_DEFAULT_PROPS,
   airCapturePlayerBasePrefabSchema,
 } from "./schema";
 
 export const AIR_CAPTURE_PLAYER_BASE_PREFAB = definePrefab({
+  space: "3d",
   id: "air-capture.player-base.team",
   label: "Player Base",
   category: "objective",
@@ -15,7 +15,6 @@ export const AIR_CAPTURE_PLAYER_BASE_PREFAB = definePrefab({
   defaultProps: AIR_CAPTURE_PLAYER_BASE_DEFAULT_PROPS,
   configSchema: airCapturePlayerBasePrefabSchema,
   preview: AIR_CAPTURE_PLAYER_BASE_PREVIEW,
-  render: AirCapturePlayerBase,
   placement: {
     origin: "ground",
     bounds: {

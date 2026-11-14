@@ -5,6 +5,7 @@ import {
   fixedControllerOrientation,
   type AirJamGameMetadata,
 } from "../metadata/manifest";
+import { createPrefabCatalog, type PrefabCatalog } from "../prefabs/types";
 import { airJamAssetsSchema, type AirJamAssets } from "./assets";
 import { HostRuntime, type HostRuntimeFactory } from "./host-runtime";
 import type { AirJamInput } from "./input";
@@ -26,6 +27,7 @@ export interface AirJamGameDeclaration {
   >;
   settings?: AirJamSettings;
   assets?: AirJamAssets;
+  prefabs?: PrefabCatalog;
   theme?: AirJamTheme;
   input?: AirJamInput;
   inputBindings?: AirJamInputBindings;
@@ -96,6 +98,7 @@ export function defineAirJamGame(
   );
   if (declaration.testing !== undefined)
     testingPathSchema.parse(declaration.testing);
+  if (declaration.prefabs) createPrefabCatalog(declaration.prefabs);
   if (declaration.assets) airJamAssetsSchema.parse(declaration.assets);
   if (declaration.theme) airJamThemeSchema.parse(declaration.theme);
   const stores = Object.freeze([...(declaration.stores ?? [])]);

@@ -1,12 +1,16 @@
 import { definePrefab } from "@air-jam/sdk/prefabs";
 import { AIR_CAPTURE_SHIP_PREVIEW } from "./preview";
-import { AirCaptureShip } from "./render";
 import {
   AIR_CAPTURE_SHIP_DEFAULT_PROPS,
   airCaptureShipPrefabSchema,
 } from "./schema";
 
 export const AIR_CAPTURE_SHIP_PREFAB = definePrefab({
+  space: "3d",
+  states: [
+    { id: "idle", label: "Idle" },
+    { id: "boost", label: "Boost" },
+  ],
   id: "air-capture.ship.standard",
   label: "Ship",
   category: "actor",
@@ -15,7 +19,6 @@ export const AIR_CAPTURE_SHIP_PREFAB = definePrefab({
   defaultProps: AIR_CAPTURE_SHIP_DEFAULT_PROPS,
   configSchema: airCaptureShipPrefabSchema,
   preview: AIR_CAPTURE_SHIP_PREVIEW,
-  render: AirCaptureShip,
   placement: {
     origin: "center",
     bounds: {

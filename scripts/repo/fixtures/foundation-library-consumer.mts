@@ -27,11 +27,7 @@ import {
   stopGameRun,
 } from "@air-jam/devtools/game-session";
 import { listGames } from "@air-jam/devtools/games";
-import {
-  capturePrefabAtRuntime,
-  definePrefabCaptureHarness,
-  loadPrefabCapture,
-} from "@air-jam/devtools/harness/visual";
+
 import { defineAirJamTestProfiles } from "@air-jam/devtools/testing";
 import {
   captureVisualsAtRuntime,
@@ -119,13 +115,6 @@ assert.equal(
   ),
   "airjam-sdk",
 );
-const prefabs = definePrefabCaptureHarness({
-  gameId: "consumer",
-  prefabs: [{ id: "arena", prefabId: "arena", buildHostUrl: (url) => url }],
-});
-assert.equal(prefabs.prefabs[0].id, "arena");
-assert.equal(typeof loadPrefabCapture, "function");
-assert.equal(typeof capturePrefabAtRuntime, "function");
 const games = await listGames();
 assert.equal(games.length, 1);
 assert.ok(games[0].configPath?.endsWith("src/airjam.config.ts"));

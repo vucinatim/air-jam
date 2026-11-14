@@ -1,28 +1,13 @@
 import { createAirJamApp, env } from "@air-jam/sdk";
 import type { JSX } from "react";
-import { Suspense, lazy, useMemo } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Suspense, lazy } from "react";
+import { Route, Routes } from "react-router-dom";
 import { airjam } from "./airjam.config";
-import { HostAudioProvider } from "./game/audio/host-audio";
-import {
-  AIR_CAPTURE_PREFAB_CAPTURE_SURFACE,
-  AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM,
-} from "./prefab-preview/params";
-
 const app = createAirJamApp(airjam, { runtime: env.vite(import.meta.env) });
-
-// Prefab-preview is dev-only tooling for inspecting reusable game objects.
-// `import.meta.env.DEV` resolves to a compile-time boolean, so production
-// builds tree-shake the lazy factory (and therefore the chunk for
-// `./prefab-preview`) out of the bundle. Only the tiny params constants and
-// the dead-branch guard below survive — the 255-LOC prefab surface does not
-// ship to production.
-const PrefabCaptureSurface = import.meta.env.DEV
-  ? lazy(async () => {
-      const module = await import("./prefab-preview");
-      return { default: module.PrefabCaptureSurface };
-    })
-  : null;
+const PrefabStage = lazy(async () => {
+  const module = await import("./prefab-stage");
+  return { default: module.PrefabStage };
+});
 
 const HostView = lazy(async () => {
   const module = await import("./host");
@@ -38,28 +23,11 @@ const RouteFallback = (): JSX.Element => {
   return <div className="h-screen w-screen bg-black" />;
 };
 
-const HostSurface = (): JSX.Element => {
-  const location = useLocation();
-  const searchParams = useMemo(
-    () => new URLSearchParams(location.search),
-    [location.search],
-  );
-
-  if (
-    import.meta.env.DEV &&
-    PrefabCaptureSurface &&
-    searchParams.get(AIR_CAPTURE_PREFAB_CAPTURE_SURFACE_PARAM) ===
-      AIR_CAPTURE_PREFAB_CAPTURE_SURFACE
-  ) {
-    return (
-      <HostAudioProvider muted={true}>
-        <PrefabCaptureSurface />
-      </HostAudioProvider>
-    );
-  }
-
-  return <HostView />;
-};
+const InspectionStage = () => (
+  <Suspense fallback={<RouteFallback />}>
+    <PrefabStage />
+  </Suspense>
+);
 
 export const App = (): JSX.Element => {
   return (
@@ -67,9 +35,9 @@ export const App = (): JSX.Element => {
       <Route
         path="/"
         element={
-          <app.Host>
+          <app.Host prefabStage={InspectionStage}>
             <Suspense fallback={<RouteFallback />}>
-              <HostSurface />
+              <HostView />
             </Suspense>
           </app.Host>
         }

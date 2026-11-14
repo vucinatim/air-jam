@@ -1,12 +1,12 @@
 import { definePrefab } from "@air-jam/sdk/prefabs";
 import { AIR_CAPTURE_OBSTACLE_BLOCK_PREVIEW } from "./preview";
-import { AirCaptureObstacleBlock } from "./render";
 import {
   AIR_CAPTURE_OBSTACLE_BLOCK_DEFAULT_PROPS,
   airCaptureObstacleBlockPrefabSchema,
 } from "./schema";
 
 export const AIR_CAPTURE_OBSTACLE_BLOCK_PREFAB = definePrefab({
+  space: "3d",
   id: "air-capture.obstacle.block",
   label: "Obstacle Block",
   category: "obstacle",
@@ -15,7 +15,6 @@ export const AIR_CAPTURE_OBSTACLE_BLOCK_PREFAB = definePrefab({
   defaultProps: AIR_CAPTURE_OBSTACLE_BLOCK_DEFAULT_PROPS,
   configSchema: airCaptureObstacleBlockPrefabSchema,
   preview: AIR_CAPTURE_OBSTACLE_BLOCK_PREVIEW,
-  render: AirCaptureObstacleBlock,
   placement: {
     origin: "ground",
     bounds: {

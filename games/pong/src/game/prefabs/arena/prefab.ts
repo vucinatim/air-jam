@@ -4,6 +4,7 @@ import { PONG_ARENA_PREVIEW } from "./preview";
 import { PONG_ARENA_DEFAULT_PROPS, pongArenaPrefabSchema } from "./schema";
 
 export const PONG_ARENA_PREFAB = definePrefab({
+  space: "2d",
   id: "pong.arena.default",
   label: "Pong Arena",
   category: "arena",

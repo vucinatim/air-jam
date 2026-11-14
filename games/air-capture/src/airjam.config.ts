@@ -6,12 +6,14 @@ import {
   airCaptureInput,
   airCaptureInputBindings,
 } from "./game/contracts/input";
+import { AIR_CAPTURE_PREFABS } from "./game/prefabs/catalog";
 import { prototypeMatchStore } from "./game/stores/match/match-store";
 import { airCaptureTheme } from "./game/theme";
 
 import { airCaptureSettings } from "./game/contracts/settings";
 export const airjam = defineAirJamGame({
   assets: airCaptureAssets,
+  prefabs: AIR_CAPTURE_PREFABS,
   theme: airCaptureTheme,
   metadata: defineAirJamGameMetadata({
     slug: "air-capture",

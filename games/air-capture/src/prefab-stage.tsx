@@ -1,26 +1,31 @@
+import {
+  drawAgentCanvas,
+  useHostAgentCapture,
+  usePrefabInspection,
+} from "@air-jam/sdk";
+import { resolvePrefabOrbitCamera } from "@air-jam/sdk/prefabs";
 import { PerspectiveCamera } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type JSX } from "react";
-import { useSearchParams } from "react-router-dom";
 import type { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import {
   createInitialFlags,
   type TeamPositions,
-} from "../game/domain/capture-the-flag";
-import { TEAM_CONFIG, TEAM_IDS, type TeamId } from "../game/domain/team";
-import { AIR_CAPTURE_PREFABS } from "../game/prefabs";
-import { AIR_CAPTURE_ARENA_PREFAB } from "../game/prefabs/arena/prefab";
-import { resolveAirCaptureArenaProps } from "../game/prefabs/arena/schema";
-import { SpaceEnvironment } from "../game/prefabs/arena/space-environment";
-import { airCaptureTheme } from "../game/theme";
-import { StaticArenaView } from "../game/view/arena-view";
-import type { ArenaView } from "../game/view/arena-view-context";
-import {
-  AIR_CAPTURE_PREFAB_CAPTURE_PREFAB_PARAM,
-  AIR_CAPTURE_PREFAB_CAPTURE_STAGE_TEST_ID,
-  AIR_CAPTURE_PREFAB_CAPTURE_VARIANT_PREFIX,
-} from "./params";
-
+} from "./game/domain/capture-the-flag";
+import { TEAM_CONFIG, type TeamId } from "./game/domain/team";
+import { paintAirCaptureArena } from "./game/prefabs/arena/paint-arena";
+import { AIR_CAPTURE_ARENA_PREFAB } from "./game/prefabs/arena/prefab";
+import { resolveAirCaptureArenaProps } from "./game/prefabs/arena/schema";
+import { SpaceEnvironment } from "./game/prefabs/arena/space-environment";
+import { AIR_CAPTURE_PREFABS } from "./game/prefabs/catalog";
+import { AirCaptureFlag } from "./game/prefabs/flag/render";
+import { AirCaptureJumpPad } from "./game/prefabs/jump-pad/render";
+import { AirCaptureObstacleBlock } from "./game/prefabs/obstacle-block/render";
+import { AirCapturePlayerBase } from "./game/prefabs/player-base/render";
+import { AirCaptureShip } from "./game/prefabs/ship/render";
+import { airCaptureTheme } from "./game/theme";
+import { StaticArenaView } from "./game/view/arena-view";
+import type { ArenaView } from "./game/view/arena-view-context";
 type AirCapturePrefabEntry = (typeof AIR_CAPTURE_PREFABS)[number];
 
 const DEFAULT_CAMERA = {
@@ -134,9 +139,14 @@ function PrefabScene({
   prefab: AirCapturePrefabEntry;
   resolvedProps: Record<string, unknown>;
 }): JSX.Element {
-  const RenderPrefab = prefab.render as (
-    props: Record<string, unknown>,
-  ) => JSX.Element;
+  const RenderPrefab = {
+    "air-capture.arena.default": paintAirCaptureArena,
+    "air-capture.flag.team": AirCaptureFlag,
+    "air-capture.jump-pad.standard": AirCaptureJumpPad,
+    "air-capture.obstacle.block": AirCaptureObstacleBlock,
+    "air-capture.player-base.team": AirCapturePlayerBase,
+    "air-capture.ship.standard": AirCaptureShip,
+  }[prefab.id] as (props: Record<string, unknown>) => JSX.Element;
   const isArenaPreview = prefab.id === AIR_CAPTURE_ARENA_PREFAB.id;
 
   return (
@@ -187,40 +197,52 @@ function StaticPreviewCamera({
   );
 }
 
-const resolveSelectedTeam = (searchParams: URLSearchParams): TeamId => {
-  const teamVariant = searchParams.get(
-    `${AIR_CAPTURE_PREFAB_CAPTURE_VARIANT_PREFIX}team`,
+function CaptureCanvas() {
+  const { gl, scene, camera } = useThree();
+  useHostAgentCapture((canvas, options) => {
+    gl.render(scene, camera);
+    return drawAgentCanvas(gl.domElement, canvas, options);
+  });
+  return null;
+}
+
+export function PrefabStage(): JSX.Element {
+  const { prefab, props, state, view } = usePrefabInspection();
+  const selectedPrefab = AIR_CAPTURE_PREFABS.find(
+    (item) => item.id === prefab.id,
   );
-  return TEAM_IDS.includes(teamVariant as TeamId)
-    ? (teamVariant as TeamId)
-    : "solaris";
-};
-
-export function PrefabCaptureSurface(): JSX.Element {
-  const [searchParams] = useSearchParams();
-  const selectedPrefab = useMemo(() => {
-    const prefabId = searchParams.get(AIR_CAPTURE_PREFAB_CAPTURE_PREFAB_PARAM);
-    return (
-      AIR_CAPTURE_PREFABS.find((prefab) => prefab.id === prefabId) ??
-      AIR_CAPTURE_PREFABS[0]
-    );
-  }, [searchParams]);
-
-  const selectedTeam = resolveSelectedTeam(searchParams);
+  if (!selectedPrefab) throw new Error(`Unknown prefab ${prefab.id}`);
+  return (
+    <AirCapturePrefabStage
+      prefab={selectedPrefab}
+      props={props}
+      stateId={state.id}
+      view={view}
+    />
+  );
+}
+function AirCapturePrefabStage({
+  prefab: selectedPrefab,
+  props,
+  stateId,
+  view,
+}: {
+  prefab: AirCapturePrefabEntry;
+  props: unknown;
+  stateId: string;
+  view: ReturnType<typeof usePrefabInspection>["view"];
+}): JSX.Element {
+  const selectedTeam: TeamId = "solaris";
   const isArenaPreview = selectedPrefab.id === AIR_CAPTURE_ARENA_PREFAB.id;
-  const previewCamera = selectedPrefab.preview?.camera ?? DEFAULT_CAMERA;
-
-  const resolvedProps = useMemo(() => {
-    const props = {
-      ...(selectedPrefab.defaultProps as Record<string, unknown>),
-    };
-
-    if ("teamId" in props) {
-      props.teamId = selectedTeam;
-    }
-
-    return selectedPrefab.configSchema.parse(props) as Record<string, unknown>;
-  }, [selectedPrefab, selectedTeam]);
+  const previewCamera = resolvePrefabOrbitCamera(
+    selectedPrefab.preview?.camera ?? DEFAULT_CAMERA,
+    view,
+  );
+  const resolvedProps = selectedPrefab.configSchema.parse(props);
+  const drawingProps =
+    selectedPrefab.id === "air-capture.ship.standard"
+      ? { ...resolvedProps, thrust: stateId === "boost" ? 1 : 0 }
+      : resolvedProps;
 
   // Prefabs draw a fresh arena: flags at their bases, no ships.
   const arenaView = useMemo<ArenaView>(() => {
@@ -239,7 +261,7 @@ export function PrefabCaptureSurface(): JSX.Element {
   return (
     <div
       className="h-screen w-screen overflow-hidden bg-black"
-      data-testid={AIR_CAPTURE_PREFAB_CAPTURE_STAGE_TEST_ID}
+      data-testid="air-capture-prefab-stage"
     >
       <Canvas
         key={`${selectedPrefab.id}:${selectedTeam}`}
@@ -247,6 +269,7 @@ export function PrefabCaptureSurface(): JSX.Element {
         gl={{ antialias: true }}
         style={{ height: "100vh", width: "100vw" }}
       >
+        <CaptureCanvas />
         <StaticPreviewCamera
           position={previewCamera.position}
           target={previewCamera.target}
@@ -254,10 +277,7 @@ export function PrefabCaptureSurface(): JSX.Element {
         />
         <StaticArenaView view={arenaView}>
           <group>
-            <PrefabScene
-              prefab={selectedPrefab}
-              resolvedProps={resolvedProps}
-            />
+            <PrefabScene prefab={selectedPrefab} resolvedProps={drawingProps} />
           </group>
         </StaticArenaView>
       </Canvas>

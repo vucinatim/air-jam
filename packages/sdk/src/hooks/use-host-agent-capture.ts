@@ -4,6 +4,7 @@ import {
   type HostCanvasDraw,
 } from "../agent/host-canvas-capture";
 import { createAirJamDiagnosticError } from "../diagnostics";
+import { prefabInspectionCaptureContext } from "../runtime/prefab-inspection-context";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
 import type { AirJamHostRuntimeControls } from "./use-air-jam-host";
 
@@ -16,7 +17,9 @@ export function useHostAgentCapture(capture: HostCanvasDraw): () => void {
     AirJamHostRuntimeControls,
     "setObservationCapture"
   > | null;
-  if (!runtime)
+  const inspection = useContext(prefabInspectionCaptureContext);
+  const owner = inspection ?? runtime;
+  if (!owner)
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",
       "useHostAgentCapture requires a mounted host runtime boundary. Wrap the host tree with <airjam.Host>.",
@@ -33,7 +36,7 @@ export function useHostAgentCapture(capture: HostCanvasDraw): () => void {
   const binding = useRef<ReturnType<typeof createHostCanvasCapture> | null>(
     null,
   );
-  const { setObservationCapture } = runtime;
+  const { setObservationCapture } = owner;
   useLayoutEffect(() => {
     binding.current = createHostCanvasCapture((canvas, options) =>
       current.current(canvas, options),

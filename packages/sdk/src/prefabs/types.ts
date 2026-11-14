@@ -1,4 +1,4 @@
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 
 export type PrefabRenderFn<TProps, TRenderOutput = unknown> = (
   props: TProps,
@@ -40,43 +40,107 @@ export interface PrefabPlacementDescriptor {
 
 export interface PrefabDefinition<
   TProps,
-  // Existential wildcard for prefab render contracts that may take additional renderer-specific arguments.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  TRenderContract extends (...args: any[]) => unknown = PrefabRenderFn<TProps>,
+  TRenderContract extends (...args: never[]) => unknown =
+    PrefabRenderFn<TProps>,
 > {
   id: string;
   label: string;
   category: string;
   description: string;
   tags: readonly string[];
+  space: "2d" | "3d";
+  states?: readonly PrefabState[];
   defaultProps: TProps;
   configSchema: ZodType<TProps>;
-  render: TRenderContract;
+  render?: TRenderContract;
   preview?: PrefabPreviewDescriptor;
   placement?: PrefabPlacementDescriptor;
 }
 
 export type PrefabCatalog = readonly PrefabDefinition<
   unknown,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (...args: any[]) => unknown
+  (...args: never[]) => unknown
 >[];
 
 export const definePrefab = <
-  TProps,
-  // Existential wildcard for prefab render contracts that may take additional renderer-specific arguments.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  TRenderContract extends (...args: any[]) => unknown = PrefabRenderFn<TProps>,
+  const TDefinition extends PrefabDefinition<
+    unknown,
+    (...args: never[]) => unknown
+  >,
 >(
-  definition: PrefabDefinition<TProps, TRenderContract>,
-): PrefabDefinition<TProps, TRenderContract> => definition;
+  definition: TDefinition,
+): TDefinition => definition;
 
 export const createPrefabCatalog = <
   const TPrefabs extends readonly PrefabDefinition<
     unknown,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (...args: any[]) => unknown
+    (...args: never[]) => unknown
   >[],
 >(
   prefabs: TPrefabs,
-): TPrefabs => prefabs;
+): TPrefabs => {
+  prefabCatalogMetadataSchema.parse(prefabs.map(prefabMetadata));
+  for (const prefab of prefabs) prefab.configSchema.parse(prefab.defaultProps);
+  return prefabs;
+};
+
+export const prefabStateSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    seconds: z.number().positive().finite().optional(),
+    loop: z.boolean().optional(),
+  })
+  .strict();
+export type PrefabState = z.infer<typeof prefabStateSchema>;
+export const STATIC_PREFAB_STATE: PrefabState = {
+  id: "static",
+  label: "Static",
+};
+export const prefabMetadataSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    category: z.string(),
+    description: z.string(),
+    tags: z.array(z.string()),
+    space: z.enum(["2d", "3d"]),
+    states: z.array(prefabStateSchema).min(1),
+    defaultState: z.string().min(1),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      new Set(value.states.map((state) => state.id)).size !==
+        value.states.length ||
+      !value.states.some((state) => state.id === value.defaultState)
+    )
+      context.addIssue({
+        code: "custom",
+        message: "States must be unique and include defaultState.",
+      });
+  });
+export type PrefabMetadata = z.infer<typeof prefabMetadataSchema>;
+export const prefabCatalogMetadataSchema = z
+  .array(prefabMetadataSchema)
+  .superRefine((catalog, context) => {
+    if (new Set(catalog.map((prefab) => prefab.id)).size !== catalog.length)
+      context.addIssue({
+        code: "custom",
+        message: "Prefab ids must be unique.",
+      });
+  });
+export function prefabMetadata(prefab: PrefabCatalog[number]): PrefabMetadata {
+  const states =
+    prefab.states === undefined ? [STATIC_PREFAB_STATE] : [...prefab.states];
+  return prefabMetadataSchema.parse({
+    id: prefab.id,
+    label: prefab.label,
+    category: prefab.category,
+    description: prefab.description,
+    tags: [...prefab.tags],
+    space: prefab.space,
+    states,
+    defaultState: states[0]?.id,
+  });
+}
