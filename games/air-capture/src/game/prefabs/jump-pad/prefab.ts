@@ -1,13 +1,13 @@
 import { definePrefab } from "@air-jam/sdk/prefabs";
 import { JUMP_PAD_RADIUS } from "../../constants";
 import { AIR_CAPTURE_JUMP_PAD_PREVIEW } from "./preview";
-import { AirCaptureJumpPad } from "./render";
 import {
   AIR_CAPTURE_JUMP_PAD_DEFAULT_PROPS,
   airCaptureJumpPadPrefabSchema,
 } from "./schema";
 
 export const AIR_CAPTURE_JUMP_PAD_PREFAB = definePrefab({
+  space: "3d",
   id: "air-capture.jump-pad.standard",
   label: "Jump Pad",
   category: "mobility",
@@ -16,7 +16,6 @@ export const AIR_CAPTURE_JUMP_PAD_PREFAB = definePrefab({
   defaultProps: AIR_CAPTURE_JUMP_PAD_DEFAULT_PROPS,
   configSchema: airCaptureJumpPadPrefabSchema,
   preview: AIR_CAPTURE_JUMP_PAD_PREVIEW,
-  render: AirCaptureJumpPad,
   placement: {
     origin: "ground",
     bounds: {

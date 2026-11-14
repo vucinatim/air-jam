@@ -1,4 +1,4 @@
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 
 export type PrefabRenderFn<TProps, TRenderOutput = unknown> = (
   props: TProps,
@@ -38,45 +38,116 @@ export interface PrefabPlacementDescriptor {
   footprint?: PrefabFootprintDescriptor;
 }
 
-export interface PrefabDefinition<
-  TProps,
-  // Existential wildcard for prefab render contracts that may take additional renderer-specific arguments.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  TRenderContract extends (...args: any[]) => unknown = PrefabRenderFn<TProps>,
-> {
+export interface PrefabDeclaration<TProps> {
   id: string;
   label: string;
   category: string;
   description: string;
   tags: readonly string[];
+  space?: "2d" | "3d";
+  states?: readonly PrefabState[];
   defaultProps: TProps;
   configSchema: ZodType<TProps>;
-  render: TRenderContract;
   preview?: PrefabPreviewDescriptor;
   placement?: PrefabPlacementDescriptor;
 }
 
+export interface PrefabDefinition<
+  TProps,
+  TRenderContract extends (...args: never[]) => unknown =
+    PrefabRenderFn<TProps>,
+> extends PrefabDeclaration<TProps> {
+  render: TRenderContract;
+}
+
 export type PrefabCatalog = readonly PrefabDefinition<
   unknown,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (...args: any[]) => unknown
+  (...args: never[]) => unknown
 >[];
+export type PrefabDeclarationCatalog = readonly PrefabDeclaration<unknown>[];
 
-export const definePrefab = <
+export function definePrefab<
   TProps,
-  // Existential wildcard for prefab render contracts that may take additional renderer-specific arguments.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  TRenderContract extends (...args: any[]) => unknown = PrefabRenderFn<TProps>,
+  TRenderContract extends (...args: never[]) => unknown =
+    PrefabRenderFn<TProps>,
 >(
   definition: PrefabDefinition<TProps, TRenderContract>,
-): PrefabDefinition<TProps, TRenderContract> => definition;
+): PrefabDefinition<TProps, TRenderContract>;
+export function definePrefab<TProps>(
+  definition: PrefabDeclaration<TProps>,
+): PrefabDeclaration<TProps>;
+export function definePrefab<TProps>(
+  definition: PrefabDeclaration<TProps>,
+): PrefabDeclaration<TProps> {
+  return definition;
+}
 
 export const createPrefabCatalog = <
-  const TPrefabs extends readonly PrefabDefinition<
-    unknown,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (...args: any[]) => unknown
-  >[],
+  const TPrefabs extends PrefabDeclarationCatalog,
 >(
   prefabs: TPrefabs,
 ): TPrefabs => prefabs;
+
+export const prefabStateSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    seconds: z.number().positive().finite().optional(),
+    loop: z.boolean().optional(),
+  })
+  .strict();
+export type PrefabState = z.infer<typeof prefabStateSchema>;
+export const STATIC_PREFAB_STATE: PrefabState = {
+  id: "static",
+  label: "Static",
+};
+export const prefabMetadataSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    category: z.string(),
+    description: z.string(),
+    tags: z.array(z.string()),
+    space: z.enum(["2d", "3d"]),
+    states: z.array(prefabStateSchema).min(1),
+    defaultState: z.string().min(1),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      new Set(value.states.map((state) => state.id)).size !==
+        value.states.length ||
+      !value.states.some((state) => state.id === value.defaultState)
+    )
+      context.addIssue({
+        code: "custom",
+        message: "States must be unique and include defaultState.",
+      });
+  });
+export type PrefabMetadata = z.infer<typeof prefabMetadataSchema>;
+export const prefabCatalogMetadataSchema = z
+  .array(prefabMetadataSchema)
+  .superRefine((catalog, context) => {
+    if (new Set(catalog.map((prefab) => prefab.id)).size !== catalog.length)
+      context.addIssue({
+        code: "custom",
+        message: "Prefab ids must be unique.",
+      });
+  });
+/** Missing space is inferred as 3d when preview.camera is set, otherwise 2d. */
+export function prefabMetadata(
+  prefab: PrefabDeclaration<unknown>,
+): PrefabMetadata {
+  const states =
+    prefab.states === undefined ? [STATIC_PREFAB_STATE] : [...prefab.states];
+  return prefabMetadataSchema.parse({
+    id: prefab.id,
+    label: prefab.label,
+    category: prefab.category,
+    description: prefab.description,
+    tags: [...prefab.tags],
+    space: prefab.space ?? (prefab.preview?.camera ? "3d" : "2d"),
+    states,
+    defaultState: states[0]?.id,
+  });
+}

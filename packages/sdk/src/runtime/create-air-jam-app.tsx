@@ -1,4 +1,4 @@
-import type { JSX, ReactNode } from "react";
+import type { ComponentType, JSX, ReactNode } from "react";
 import type { SoundManifest } from "../audio/audio-manager";
 import { AudioRuntime } from "../audio/hooks";
 import { type AirJamProviderProps } from "../context/session-providers";
@@ -42,7 +42,12 @@ export interface CreateAirJamAppOptions {
 }
 
 export interface AirJamApp {
-  Host: (props: AirJamHostOptions & { children: ReactNode }) => JSX.Element;
+  Host: (
+    props: AirJamHostOptions & {
+      children: ReactNode;
+      prefabStage?: ComponentType;
+    },
+  ) => JSX.Element;
   Controller: (
     props: AirJamControllerOptions & { children: ReactNode },
   ) => JSX.Element;
@@ -199,7 +204,10 @@ export const createAirJamApp = (
   const Host = ({
     children,
     ...runtimeOptions
-  }: AirJamHostOptions & { children: ReactNode }): JSX.Element => {
+  }: AirJamHostOptions & {
+    children: ReactNode;
+    prefabStage?: ComponentType;
+  }): JSX.Element => {
     const hostErrorBoundary = errorBoundary?.host;
     return (
       <AirJamErrorBoundary
@@ -212,6 +220,7 @@ export const createAirJamApp = (
         <AirJamHostRuntime
           {...hostSession}
           {...runtimeOptions}
+          prefabs={game.prefabs}
           agent={agent}
           gameId={metadata.slug}
           fixedControllerOrientation={fixedControllerOrientation(

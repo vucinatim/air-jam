@@ -20,6 +20,7 @@ export default defineConfig((options) => ({
     "src/protocol.ts",
     "src/metadata.ts",
     "src/prefabs.ts",
+    "src/runtime/prefab-inspection-bridge.ts",
     "src/release.ts",
     "src/platform-machine.ts",
     "src/preview.ts",

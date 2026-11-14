@@ -157,6 +157,11 @@
       "types": "./dist/core.d.ts",
       "import": "./dist/core.js",
       "require": "./dist/core.cjs"
+    },
+    "./prefab-inspection": {
+      "types": "./dist/runtime/prefab-inspection-bridge.d.ts",
+      "import": "./dist/runtime/prefab-inspection-bridge.js",
+      "require": "./dist/runtime/prefab-inspection-bridge.cjs"
     }
   },
   "files": [
@@ -221,6 +226,9 @@
       ],
       "controller-bridge": [
         "dist/controller-bridge.d.ts"
+      ],
+      "prefab-inspection": [
+        "dist/runtime/prefab-inspection-bridge.d.ts"
       ]
     }
   },

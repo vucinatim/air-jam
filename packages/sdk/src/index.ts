@@ -128,3 +128,5 @@ export type {
 } from "./types/browser";
 
 export { useAirJamSettings } from "./hooks/use-air-jam-settings";
+
+export { usePrefabInspection } from "./runtime/prefab-inspection-context";

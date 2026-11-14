@@ -74,32 +74,22 @@ for startup, readiness and shutdown on success or failure. Normal standalone
 agents should continue using `captureVisuals` when they want the tool to manage
 that lifecycle.
 
-## Isolated Prefab Capture
+## Isolated prefab inspection
 
-The public `@air-jam/devtools/harness/visual` export owns prefab capture. Define
-`prefabCaptureHarness` in the game project's `visual/prefabs.ts` or
-`visual/prefabs.mjs`, using `definePrefabCaptureHarness`. Add `@air-jam/devtools`
-as a development dependency when the game imports that helper. Each definition chooses
-its capture id, prefab id, viewport, optional ready test id and host URL builder.
-These are trusted game-development modules, not a sandbox for uploaded code.
+Declare the game's `prefabs` catalog on `defineAirJamGame` and pass `prefabStage={Stage}`
+to `app.Host`. Open the host URL with `airjamInspect=1`; optional `prefab`, `state`
+and `time` parameters select an initial paused frame. This document starts no room,
+server connection or simulation. It is supported in production builds too.
 
-Call `loadPrefabCapture` with `gameDirectory`, source `gameId`, `prefabId`, optional
-repeatable `variantPairs` (`key=value`), `mode` and `secure`. It resolves and checks
-the contract before the caller starts a runtime. TypeScript modules require a
-TypeScript-capable caller such as `tsx`, as used by the maintainer CLI.
-Then pass the returned `capture`, the running `hostUrl` and an absolute
-`artifactRoot` to `capturePrefabAtRuntime`. The harness owns its browser and
-capture files; the caller owns runtime startup and shutdown. The result contains
-the artifact directory, metadata path and metadata. Built Arcade readiness
-checks target the embedded game, not the surrounding launcher.
-
-Artifacts live under `<artifactRoot>/<encodedSourceGameId>/prefabs/<capture-and-variants>`.
-Source ids are URL-encoded as a single directory segment, so scoped npm project
-names retain their identity without becoming nested paths.
-Each capture replaces only its own artifact directory. A failed replacement
-cannot leave an earlier successful metadata file behind. In this public
-workspace, discover the wrapper through `pnpm run repo -- visual prefab-capture --help`.
-Other launchers can use the same installed API without this repository.
+Embed the document with the same explicit parent origin/topology used by host previews.
+Use `createPrefabInspectionClient` from `@air-jam/sdk/prefab-inspection` with the frame's
+window and origin. Call `read()` after binding or loading the frame, handle ready,
+unavailable and error messages, then `select(selection)` and `capture(views)`.
+A capture takes up to eight `{ stateId, time, view }` entries for the selected prefab,
+waits two render frames for each and restores the previous selection, including playback.
+It returns canvas JPEG data URLs and dimensions. Dispose the client when replacing the frame.
+The same validated protocol serves agents and Studio; no separate capture catalog or URL
+builder is needed. Do not import creator modules in a trusted parent process.
 
 ## Design Rule
 

@@ -63,8 +63,8 @@
     {
       "path": "docs/airjam/generated/assets-and-theme.md",
       "kind": "docs-generated",
-      "size": 3588,
-      "sha256": "6ea2ceef3a277ffc75349092de2af649c0178c66a83de8dc0afc24fe62df6e14"
+      "size": 7617,
+      "sha256": "472c18703bd9a085ba3b0cf5d2726579c7c729070e01894093e49f9f6a5c7e54"
     },
     {
       "path": "docs/airjam/generated/controller-ui.md",
@@ -171,8 +171,8 @@
     {
       "path": "docs/airjam/prefab-authoring.md",
       "kind": "docs-local",
-      "size": 2887,
-      "sha256": "0383338b0e68386433bc1847a6e2191fe6ce580625431d6332d11da6241ea92c"
+      "size": 6916,
+      "sha256": "4abedb9d6241011b115503b26c59579340f954a6d4480069f304b4ff857f501a"
     },
     {
       "path": "docs/airjam/preview-controllers.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "b1da0109907037683fc64d5fd68e876e5428a49872f03387e48f0d84effba2d0"
+  "contentDigest": "7a65cef9b66379625571277650712f866f6edd5db7412bade553f69f1e435e92"
 }

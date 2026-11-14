@@ -46,3 +46,13 @@ Keep the prefab definition declarative and stable enough that future tooling can
 3. prefab placement rules that depend on trial-and-error offsets
 4. prefab contracts that are too ad hoc for future scanning or preview generation
 5. plural runtime mappers like `Ships` or `Collectibles` living in `src/game/prefabs/` when they are actually population layers over state
+
+Declare every asset once as a prefab with optional `space` and real `states`.
+Without `space`, `preview.camera` implies `"3d"`; otherwise it is `"2d"`.
+Use a renderer-free declaration in config; rendered definitions still require `render`.
+Attach `createPrefabCatalog([...])` as `defineAirJamGame({ prefabs })`, and supply
+`<app.Host prefabStage={Stage}>`. Read the managed prefab-authoring guide for the
+complete stage example. The stage uses `usePrefabInspection()` and
+`useHostAgentCapture`, draws from the SDK clock and applies the canonical view.
+Inspect at least three angles or states through the inspector before presenting
+an asset; then verify it in the live game. Do not create a second capture catalog.

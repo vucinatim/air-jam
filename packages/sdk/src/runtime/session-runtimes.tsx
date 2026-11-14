@@ -1,4 +1,4 @@
-import type { JSX, ReactNode } from "react";
+import type { ComponentType, JSX, ReactNode } from "react";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import { useAirJamConfig } from "../context/air-jam-context";
@@ -20,6 +20,7 @@ import {
 } from "../hooks/internal/use-runtime-inspection-contract";
 import type { AirJamControllerOptions } from "../hooks/use-air-jam-controller";
 import type { AirJamHostOptions } from "../hooks/use-air-jam-host";
+import type { PrefabDeclarationCatalog } from "../prefabs/types";
 import { PlatformSettingsBoundary } from "../settings/platform-settings-runtime";
 import { isAirJamReplayDocument } from "./browser-replay";
 import {
@@ -28,6 +29,8 @@ import {
 } from "./contracts/inspection";
 import { publishEmbeddedHostAgent } from "./host-agent-bridge";
 import { LocalPlayersHost } from "./local-players";
+import { isAirJamInspectionDocument } from "./prefab-inspection-bridge";
+import { PrefabInspectionRuntime } from "./prefab-inspection-runtime";
 import { publishEmbeddedHostPreview } from "./preview-inspection-bridge";
 import { ReplayRuntime } from "./replay-runtime";
 import {
@@ -40,6 +43,8 @@ import {
 export type AirJamHostRuntimeProps = AirJamProviderProps &
   AirJamHostOptions & {
     children: ReactNode;
+    prefabs?: PrefabDeclarationCatalog;
+    prefabStage?: ComponentType;
     fixedControllerOrientation?: "landscape" | null;
     agent?: AnyAirJamAgentContract;
     gameId?: string;
@@ -262,9 +267,19 @@ export const AirJamHostRuntime = ({
   input,
   inputBindings,
   fixedControllerOrientation,
+  prefabs,
+  prefabStage,
   ...providerProps
 }: AirJamHostRuntimeProps): JSX.Element | null => {
   if (!useInBrowser()) return null;
+  if (isAirJamInspectionDocument())
+    return (
+      <PrefabInspectionRuntime
+        {...providerProps}
+        prefabs={prefabs}
+        prefabStage={prefabStage}
+      />
+    );
   if (isAirJamReplayDocument())
     return (
       <fixedControllerOrientationContext.Provider

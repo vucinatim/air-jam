@@ -37,10 +37,20 @@ import {
   captureVisualsAtRuntime,
   listVisualScenarios,
 } from "@air-jam/devtools/visual";
+import { defineAirJamGame } from "@air-jam/sdk/core";
+import { defineAirJamGameMetadata } from "@air-jam/sdk/metadata";
+import {
+  createPrefabCatalog,
+  definePrefab,
+  prefabMetadata,
+  type PrefabCatalog,
+  type PrefabDefinition,
+} from "@air-jam/sdk/prefabs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { z } from "zod";
 const documentation = await readDocumentationSnapshot();
 const controllerOptions: ConnectControllerOptions = { cwd: process.cwd() };
 const developmentOptions: StartDevOptions = {
@@ -126,6 +136,58 @@ const prefabs = definePrefabCaptureHarness({
 assert.equal(prefabs.prefabs[0].id, "arena");
 assert.equal(typeof loadPrefabCapture, "function");
 assert.equal(typeof capturePrefabAtRuntime, "function");
+const prefabProps = z.object({ size: z.number() });
+type Props = z.infer<typeof prefabProps>;
+type Render = (props: Props, color: string) => string;
+const legacyPrefab: PrefabDefinition<Props, Render> = definePrefab<
+  Props,
+  Render
+>({
+  id: "legacy",
+  label: "Legacy",
+  category: "actor",
+  description: "Published renderer contract without space",
+  tags: [],
+  configSchema: prefabProps,
+  defaultProps: { size: 2 },
+  render: (props, color) => `${color}:${props.size}`,
+  preview: {
+    summary: "3D",
+    camera: { position: [0, 0, 4], target: [0, 0, 0] },
+  },
+});
+const renderedCatalog: PrefabCatalog = createPrefabCatalog([legacyPrefab]);
+assert.equal(legacyPrefab.render({ size: 3 }, "red"), "red:3");
+assert.equal(prefabMetadata(renderedCatalog[0]!).space, "3d");
+const declaration = definePrefab({
+  id: "declaration",
+  label: "Declaration",
+  category: "actor",
+  description: "Renderer-free inspection declaration",
+  tags: [],
+  space: "2d",
+  states: [{ id: "idle", label: "Idle", seconds: 1, loop: true }],
+  configSchema: prefabProps,
+  defaultProps: { size: 2 },
+});
+assert.equal(prefabMetadata(declaration).space, "2d");
+const catalog = createPrefabCatalog([...renderedCatalog, declaration] as const);
+const game = defineAirJamGame({
+  metadata: defineAirJamGameMetadata({
+    slug: "prefab-consumer",
+    name: "Prefab consumer",
+    tagline: "Compatibility",
+    category: "arcade",
+    minPlayers: 1,
+    maxPlayers: 2,
+    inputModalities: ["buttons"],
+    supportedSdkRange: "^0.9.3",
+    maintainer: { name: "Air Jam" },
+  }),
+  prefabs: catalog,
+});
+assert.equal(game.prefabs, catalog);
+assert.equal(createPrefabCatalog(catalog), catalog);
 const games = await listGames();
 assert.equal(games.length, 1);
 assert.ok(games[0].configPath?.endsWith("src/airjam.config.ts"));

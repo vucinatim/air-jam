@@ -5,6 +5,7 @@ import {
   fixedControllerOrientation,
   type AirJamGameMetadata,
 } from "../metadata/manifest";
+import type { PrefabDeclarationCatalog } from "../prefabs/types";
 import { airJamAssetsSchema, type AirJamAssets } from "./assets";
 import { HostRuntime, type HostRuntimeFactory } from "./host-runtime";
 import type { AirJamInput } from "./input";
@@ -26,6 +27,7 @@ export interface AirJamGameDeclaration {
   >;
   settings?: AirJamSettings;
   assets?: AirJamAssets;
+  prefabs?: PrefabDeclarationCatalog;
   theme?: AirJamTheme;
   input?: AirJamInput;
   inputBindings?: AirJamInputBindings;
