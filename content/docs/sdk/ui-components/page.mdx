@@ -95,7 +95,7 @@ Use it for:
 
 ### `SurfaceViewport`
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the actions under the right in a square the same size, and only short status between them.
 
 Own safe-area, orientation, and page-level UI scaling for a game surface.
 It should fill the available screen while scaling the UI system proportionally, rather than letterboxing a fixed contained stage.
@@ -184,8 +184,9 @@ stick from `{ value, active }`.
 ### `GamepadLayout`
 
 Lays out a sideways controller like a gamepad: `left` and `right` thumb
-controls of the same size, sized from the phone's short side and mirrored about
-the centre, with a compact `center` column between them. It fills its parent, so
+squares of the same size, sized from the phone's short side and mirrored about
+the centre, with a compact `center` column between them. `right` holds one
+action, or several as a cluster around the main one. It fills its parent, so
 put a header above it. See [Controller UI](/docs/for-agents/controller-ui#sideways-controllers).
 
 ```tsx

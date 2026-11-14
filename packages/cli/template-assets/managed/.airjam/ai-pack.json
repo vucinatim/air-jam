@@ -69,8 +69,8 @@
     {
       "path": "docs/airjam/generated/controller-ui.md",
       "kind": "docs-generated",
-      "size": 3854,
-      "sha256": "eb3f6281cd3ddcf4a305d3cf991093feb6a0612f32ac601a01525844b2c48381"
+      "size": 4722,
+      "sha256": "3f2c6ae3f7f012974f5eea1fbb0b136450edc86d5eee829b32bbcce858786dc7"
     },
     {
       "path": "docs/airjam/generated/debugging-and-logs.md",
@@ -93,8 +93,8 @@
     {
       "path": "docs/airjam/generated/host-system.md",
       "kind": "docs-generated",
-      "size": 10453,
-      "sha256": "d09a9a2d74894609ea4001eb52483b3aafcb7810442e6d231a4a898cbdff060b"
+      "size": 10455,
+      "sha256": "ca1b1d9f10ef5edeb6918c596d2db28585f16c23f5bf9155654737cd479a2e02"
     },
     {
       "path": "docs/airjam/generated/input-system.md",
@@ -135,8 +135,8 @@
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
       "kind": "docs-generated",
-      "size": 15996,
-      "sha256": "000bb7430ef0d275c872fa3f5a88a3f353005acad3fdb4c626969b50d5672648"
+      "size": 15998,
+      "sha256": "5a18179898537f25b49c7d9f2877cb7e029d37efb8f7f0b554a58a2f8b099735"
     },
     {
       "path": "docs/airjam/generated/settings.md",
@@ -153,8 +153,8 @@
     {
       "path": "docs/airjam/generated/ui-components.md",
       "kind": "docs-generated",
-      "size": 7097,
-      "sha256": "1232e96ada666fec7829725bc91627dbdf227c2e6c72d45670a56ba1650b89e3"
+      "size": 7169,
+      "sha256": "87a6e133af6d6ea32b09edd8a731293c4dd99fcbbe8b42c5a6bb79eaa9cdf9f1"
     },
     {
       "path": "docs/airjam/generated/unified-dev-logs.md",
@@ -177,8 +177,8 @@
     {
       "path": "docs/airjam/preview-controllers.md",
       "kind": "docs-local",
-      "size": 4811,
-      "sha256": "cab7bd025c60d7bb74674dfb7b4bd4b9bc53a88c3728506b31225ad30f873883"
+      "size": 4813,
+      "sha256": "0844ba6b2ebd62250affeae6f3b1c6eabb439d1a8f77145916705b45198f0d16"
     },
     {
       "path": "docs/airjam/r3f-3d-scene.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "ffed863a72f7325b11c518911881c0e39d5fc73878028418711f75bd53f0a0e9"
+  "contentDigest": "b1da0109907037683fc64d5fd68e876e5428a49872f03387e48f0d84effba2d0"
 }
