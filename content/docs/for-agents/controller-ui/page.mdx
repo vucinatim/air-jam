@@ -6,7 +6,7 @@ The main failure mode is borrowing desktop web-app patterns for active gameplay 
 
 ## Gameplay Controller Rules
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the actions under the right in a square the same size, and only short status between them.
 
 For active gameplay:
 
@@ -21,10 +21,12 @@ For active gameplay:
 
 A sideways phone is held like a gamepad, so its controls use the screen like one. Compose them in `GamepadLayout`:
 
-1. the stick goes in `left` and the main action in `right`; both fill the same square, so they carry the same weight and mirror each other about the centre, each centred in its thumb zone on one line
-2. `center` holds only what a player reads at a glance: a round, a number, a word, a few icons; it never wraps into squeezed lines
-3. a longer message goes in the header bar above the layout, or stays on the TV
-4. a second action shares the right zone with the main one, smaller, rather than starting a third column
+1. the stick goes in `left` and the actions in `right`; both get the same square, so they carry the same weight and mirror each other about the centre, each centred in its thumb zone on one line
+2. a single action fills its square; several actions share it as one cluster, as phone action games do, rather than starting a third column: the main action sits at the square's centre under the resting thumb at about half the square's width, each other action is about two thirds of the main one's size on a tight arc around its inner side (below, toward the centre, above) with the most used nearest, a rarely used utility goes smaller on the outer side, and every button stays inside the thumb zone
+3. a button with a cooldown shows it on itself: a dark sweep over the icon that shrinks as it recovers, the seconds left when the wait is over a second, and full colour once it is ready again
+4. buttons show icons, not words, drawn as one family: the same grid, the same stroke width with round caps and joins (or all filled), the same optical size of about half the button, one simple silhouette each and no detail finer than the stroke; judge them at real size on a phone
+5. `center` holds only what a player reads at a glance: a round, a number, a word, a few icons; it never wraps into squeezed lines
+6. a longer message goes in the header bar above the layout, or stays on the TV
 
 ```tsx
 import { ControlButton, GamepadLayout, Stick } from "@air-jam/sdk/ui";

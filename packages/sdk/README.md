@@ -238,7 +238,7 @@ The important rule is:
 2. use `useAirJamHost()` / `useAirJamController()` only as read hooks below that boundary
 3. wrap controller UI in `SurfaceViewport`
 
-A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the main action under the right, both the same size, and only short status between them.
+A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the actions under the right in a square the same size, and only short status between them.
 
 When the controller runs inside Arcade, `SurfaceViewport` automatically publishes
 its orientation to the parent Arcade chrome. The same component still handles
