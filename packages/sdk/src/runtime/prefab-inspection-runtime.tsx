@@ -22,6 +22,7 @@ import {
   prefabInspectionMessageSchema,
   prefabInspectionRequestSchema,
   type PrefabCapturedImage,
+  type PrefabCaptureView,
   type PrefabInspectionMessage,
   type PrefabSelection,
 } from "./prefab-inspection-bridge";
@@ -136,7 +137,10 @@ export function PrefabInspectionRuntime({
   );
   useEffect(() => {
     let closed = false;
-    let busy = false;
+    // Captures run one at a time. While one runs, a selection from the parent
+    // becomes the view it returns to, so the creator's last choice wins.
+    let queue = Promise.resolve();
+    let restore: PrefabSelection | null = null;
     const publish = () => {
       if (failure.current)
         report({ type: "AIRJAM_PREFAB_ERROR", reason: failure.current });
@@ -155,39 +159,19 @@ export function PrefabInspectionRuntime({
       new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );
-    const listen = async (event: MessageEvent<unknown>) => {
-      if (
-        !parent ||
-        event.source !== parent.window ||
-        event.origin !== parent.origin
-      )
-        return;
-      const parsed = prefabInspectionRequestSchema.safeParse(event.data);
-      if (!parsed.success) return;
-      const message = parsed.data;
-      if (message.type === "AIRJAM_PREFAB_READ") {
-        publish();
-        return;
-      }
-      const requestId =
-        message.type === "AIRJAM_PREFAB_CAPTURE"
-          ? message.requestId
-          : undefined;
+    const captureViews = async (
+      requestId: string,
+      views: PrefabCaptureView[],
+    ) => {
       try {
         if (unavailable) throw new Error(unavailable);
         if (failure.current) throw new Error(failure.current);
-        if (busy)
-          throw new Error("The asset renderer is capturing another request.");
-        if (message.type === "AIRJAM_PREFAB_SELECT") {
-          commit(message.selection);
-          return;
-        }
         const previous = current.current;
         if (!previous) throw new Error("Select a prefab before capture.");
-        busy = true;
+        restore = previous;
         const images: PrefabCapturedImage[] = [];
         try {
-          for (const view of message.views) {
+          for (const view of views) {
             if (closed) return;
             commit({ ...previous, ...view, playing: false });
             await frames();
@@ -210,15 +194,12 @@ export function PrefabInspectionRuntime({
             });
           }
         } finally {
-          if (!closed) commit(previous);
-          busy = false;
+          const next = restore;
+          restore = null;
+          if (!closed && next) commit(next);
         }
         if (!closed)
-          report({
-            type: "AIRJAM_PREFAB_CAPTURED",
-            requestId: message.requestId,
-            images,
-          });
+          report({ type: "AIRJAM_PREFAB_CAPTURED", requestId, images });
       } catch (error) {
         if (!closed)
           report({
@@ -226,6 +207,35 @@ export function PrefabInspectionRuntime({
             requestId,
             reason: error instanceof Error ? error.message : String(error),
           });
+      }
+    };
+    const listen = (event: MessageEvent<unknown>) => {
+      if (
+        !parent ||
+        event.source !== parent.window ||
+        event.origin !== parent.origin
+      )
+        return;
+      const parsed = prefabInspectionRequestSchema.safeParse(event.data);
+      if (!parsed.success) return;
+      const message = parsed.data;
+      if (message.type === "AIRJAM_PREFAB_READ") publish();
+      else if (message.type === "AIRJAM_PREFAB_CAPTURE")
+        queue = queue.then(() =>
+          captureViews(message.requestId, message.views),
+        );
+      else if (restore) restore = message.selection;
+      else {
+        try {
+          if (unavailable) throw new Error(unavailable);
+          if (failure.current) throw new Error(failure.current);
+          commit(message.selection);
+        } catch (error) {
+          report({
+            type: "AIRJAM_PREFAB_ERROR",
+            reason: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     };
     window.addEventListener("message", listen);

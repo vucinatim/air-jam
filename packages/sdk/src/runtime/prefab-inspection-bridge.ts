@@ -89,6 +89,9 @@ export type PrefabInspectionMessage = z.infer<
   typeof prefabInspectionMessageSchema
 >;
 
+/** A view waits two rendered frames; a throttled hidden page renders slowly. */
+const CAPTURE_SECONDS_PER_VIEW = 5;
+
 /** Binds exactly one document window and origin. Dispose before replacing it. */
 export function createPrefabInspectionClient(options: {
   target: Window;
@@ -142,10 +145,13 @@ export function createPrefabInspectionClient(options: {
     capture: (views: PrefabCaptureView[]) =>
       new Promise<PrefabCapturedImage[]>((resolve, reject) => {
         const requestId = crypto.randomUUID();
-        const timer = setTimeout(() => {
-          pending.delete(requestId);
-          reject(new Error("The asset renderer did not answer capture."));
-        }, 15_000);
+        const timer = setTimeout(
+          () => {
+            pending.delete(requestId);
+            reject(new Error("The asset renderer did not answer capture."));
+          },
+          CAPTURE_SECONDS_PER_VIEW * 1000 * (views.length + 1),
+        );
         pending.set(requestId, { resolve, reject, timer });
         try {
           send({ type: "AIRJAM_PREFAB_CAPTURE", requestId, views });

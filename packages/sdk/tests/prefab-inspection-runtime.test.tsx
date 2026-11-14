@@ -19,7 +19,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   window.history.replaceState({}, "", "/");
 });
-it("isolates direct-state inspection, captures two rendered views and restores selection, checking the parent origin", async () => {
+it("isolates direct-state inspection, captures two rendered views and then shows the selection sent meanwhile, checking the parent origin", async () => {
   window.history.replaceState(
     {},
     "",
@@ -86,8 +86,7 @@ it("isolates direct-state inspection, captures two rendered views and restores s
     </AirJamHostRuntime>,
   );
   try {
-    const initial = result.container.textContent;
-    expect(JSON.parse(initial!)).toMatchObject({
+    expect(JSON.parse(result.container.textContent!)).toMatchObject({
       state: "pulse",
       time: 0.3,
       props: { size: 4 },
@@ -123,16 +122,42 @@ it("isolates direct-state inspection, captures two rendered views and restores s
         }),
       );
     });
-    for (let index = 0; index < 4; index++)
+    for (let index = 0; index < 4; index++) {
       await act(async () => {
         frames.shift()!(index * 16);
       });
+      if (index === 1)
+        await act(async () => {
+          window.dispatchEvent(
+            new MessageEvent("message", {
+              source: parent,
+              origin: "https://studio.test",
+              data: {
+                type: "AIRJAM_PREFAB_SELECT",
+                selection: {
+                  prefabId: "dot",
+                  stateId: "pulse",
+                  time: 0.7,
+                  playing: false,
+                  view: DEFAULT_PREFAB_VIEW,
+                },
+              },
+            }),
+          );
+        });
+    }
     expect(drawn.map((value) => JSON.parse(value).time)).toEqual([0.5, 0.9]);
     expect(JSON.parse(drawn[1]!).view.zoom).toBe(2);
-    expect(result.container.textContent).toBe(initial);
-    const captured = posted.mock.calls
-      .map(([value]) => prefabInspectionMessageSchema.parse(value))
-      .find((value) => value.type === "AIRJAM_PREFAB_CAPTURED");
+    expect(JSON.parse(result.container.textContent!).time).toBe(0.7);
+    const messages = posted.mock.calls.map(([value]) =>
+      prefabInspectionMessageSchema.parse(value),
+    );
+    expect(messages.some((value) => value.type === "AIRJAM_PREFAB_ERROR")).toBe(
+      false,
+    );
+    const captured = messages.find(
+      (value) => value.type === "AIRJAM_PREFAB_CAPTURED",
+    );
     expect(captured).toMatchObject({
       requestId: "capture",
       images: [
