@@ -116,6 +116,14 @@ it("opens only for its parent, advances a Pong-like game without intermediate dr
     expect(factory).not.toHaveBeenCalled();
     send("open", { operation: "open", log });
     await answer("open");
+    const capture = vi.fn(() => ({
+      mimeType: "image/png" as const,
+      data: "YWJj",
+      width: 20,
+      height: 10,
+      coverage: "render-surface" as const,
+    }));
+    replay.runtime.setObservationCapture(capture);
     const draw = vi.fn();
     replay.runtime.simulation!.onFrame(draw);
     send("jump", { operation: "advance", by: { toTick: 150 } });
@@ -131,6 +139,18 @@ it("opens only for its parent, advances a Pong-like game without intermediate dr
       done: true,
       stepMs: 10,
     });
+    expect(capture).not.toHaveBeenCalled();
+    send("plain-read", { operation: "read" });
+    await answer("plain-read");
+    expect(capture).not.toHaveBeenCalled();
+    send("picture", { operation: "read", includeImage: true });
+    const picture = await answer("picture");
+    expect(picture.tick).toBe(200);
+    expect(picture.observation.visual).toEqual({
+      status: "captured",
+      image: capture.mock.results[0].value,
+    });
+    expect(capture).toHaveBeenCalledTimes(1);
     expect(end.observation.ticks.after).toBe(200);
     expect(end.observation.runtime).toEqual({ x: 0, velocity: 1 });
     const original = await readHostInputLog(
