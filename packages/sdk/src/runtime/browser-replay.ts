@@ -33,7 +33,13 @@ export const replayRequestSchema = z.discriminatedUnion("operation", [
   z
     .object({ operation: z.literal("advance"), by: replayAdvanceSchema })
     .strict(),
-  z.object({ operation: z.literal("read") }).strict(),
+  z
+    .object({
+      operation: z.literal("read"),
+      /** Capture the paused frame on this explicit read; open and advance omit images. */
+      includeImage: z.boolean().optional(),
+    })
+    .strict(),
 ]);
 export const replayReadSchema = z
   .object({
@@ -105,13 +111,13 @@ export function bindBrowserReplay(options: {
     { scope: "diagnostic", controllerId: null };
   let queue = Promise.resolve();
   let remainderMs = 0;
-  const read = async (): Promise<AirJamReplayRead> => {
+  const read = async (includeImage = false): Promise<AirJamReplayRead> => {
     if (!replay) throw new Error("Open a recording first.");
     const response = await replay.agent({
       operation: "observe",
       roomId: replay.roomId,
       ...observe,
-      includeImage: false,
+      includeImage,
     });
     if (response.operation !== "observe")
       throw new Error("The replay did not return an observation.");
@@ -165,7 +171,9 @@ export function bindBrowserReplay(options: {
             replay.advance({ steps });
           } else replay.advance(request.by);
         }
-        const response = await read();
+        const response = await read(
+          request.operation === "read" && request.includeImage === true,
+        );
         if (!closed)
           options.parent.postMessage(
             {
