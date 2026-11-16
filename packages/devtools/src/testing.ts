@@ -166,7 +166,7 @@ export const airJamRunReceiptSchema = z
     phase: z.enum(["setup", "play", "cleanup"]),
     sequence: z.number().int().positive(),
     attempts: z.union([z.literal(1), z.literal(2)]),
-    operation: controllerLeasedControlSchema.shape.operation,
+    operation: controllerLeasedControlSchema.out.shape.operation,
     acknowledgement: controllerLeasedControlAckSchema,
   })
   .strict();

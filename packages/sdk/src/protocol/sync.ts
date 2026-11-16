@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { roomCodeSchema } from "./core";
+import { boundedSocketSchema } from "./socket-payload";
 
 const stateSyncRequestIdSchema = z.string().trim().min(1).max(128);
 
@@ -29,7 +30,10 @@ export interface AirJamActionActor {
 
 export type AirJamActionPayload = Record<string, unknown>;
 
-export const airJamActionPayloadSchema = z.record(z.string(), z.unknown());
+export const airJamActionPayloadSchema = boundedSocketSchema(
+  z.record(z.string(), z.unknown()),
+  "controller",
+);
 
 export const airJamActionAcceptedSchema = z.object({
   ok: z.literal(true),
@@ -62,7 +66,7 @@ export type AirJamActionInvocationResult<TResult = unknown> =
 export interface ControllerActionRpcPayload {
   roomId: string;
   actionName: string;
-  payload: AirJamActionPayload | undefined;
+  payload?: AirJamActionPayload;
   storeDomain: string;
 }
 
@@ -74,15 +78,18 @@ export interface AirJamStateSyncPayload {
   requestId?: string;
 }
 
-export const hostPrivateStateSyncSchema = z
-  .object({
-    roomId: roomCodeSchema,
-    storeDomain: z.string().trim().min(1).max(128),
-    controllerId: z.string().min(1),
-    revision: z.number().int().nonnegative(),
-    entry: z.unknown().optional(),
-  })
-  .strict();
+export const hostPrivateStateSyncSchema = boundedSocketSchema(
+  z
+    .object({
+      roomId: roomCodeSchema,
+      storeDomain: z.string().trim().min(1).max(128),
+      controllerId: z.string().min(1),
+      revision: z.number().int().nonnegative(),
+      entry: z.unknown().optional(),
+    })
+    .strict(),
+  "hostState",
+);
 
 export type HostPrivateStateSyncPayload = z.infer<
   typeof hostPrivateStateSyncSchema
@@ -98,41 +105,50 @@ export interface AirJamStateSyncRequestPayload {
 
 export interface AirJamActionRpcPayload {
   actionName: string;
-  payload: AirJamActionPayload | undefined;
+  payload?: AirJamActionPayload;
   actor: AirJamActionActor;
   storeDomain: string;
 }
 
-export const controllerActionRpcSchema = z
-  .object({
-    roomId: roomCodeSchema,
-    actionName: z.string().trim().min(1),
-    payload: z.union([airJamActionPayloadSchema, z.undefined()]).optional(),
-    storeDomain: z.string().trim().min(1).max(128),
-  })
-  .strict();
+export const controllerActionRpcSchema = boundedSocketSchema(
+  z
+    .object({
+      roomId: roomCodeSchema,
+      actionName: z.string().trim().min(1),
+      payload: z.union([airJamActionPayloadSchema, z.undefined()]).optional(),
+      storeDomain: z.string().trim().min(1).max(128),
+    })
+    .strict(),
+  "controller",
+);
 
-export const hostStateSyncSchema = z
-  .object({
-    roomId: roomCodeSchema,
-    data: z.record(z.string(), z.unknown()),
-    storeDomain: z.string().trim().min(1).max(128),
-    privateState: z
-      .object({
-        field: z.string().min(1),
-        entries: z.record(z.string(), z.unknown()),
-      })
-      .strict()
-      .optional(),
-    revision: z.number().int().nonnegative(),
-    requestId: stateSyncRequestIdSchema.optional(),
-  })
-  .strict();
+export const hostStateSyncSchema = boundedSocketSchema(
+  z
+    .object({
+      roomId: roomCodeSchema,
+      data: z.record(z.string(), z.unknown()),
+      storeDomain: z.string().trim().min(1).max(128),
+      privateState: z
+        .object({
+          field: z.string().min(1),
+          entries: z.record(z.string(), z.unknown()),
+        })
+        .strict()
+        .optional(),
+      revision: z.number().int().nonnegative(),
+      requestId: stateSyncRequestIdSchema.optional(),
+    })
+    .strict(),
+  "hostState",
+);
 
-export const controllerStateSyncRequestSchema = z
-  .object({
-    roomId: roomCodeSchema,
-    storeDomain: z.string().trim().min(1).max(128),
-    requestId: stateSyncRequestIdSchema.optional(),
-  })
-  .strict();
+export const controllerStateSyncRequestSchema = boundedSocketSchema(
+  z
+    .object({
+      roomId: roomCodeSchema,
+      storeDomain: z.string().trim().min(1).max(128),
+      requestId: stateSyncRequestIdSchema.optional(),
+    })
+    .strict(),
+  "controller",
+);

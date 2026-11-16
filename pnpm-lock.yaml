@@ -957,6 +957,9 @@ importers:
       socket.io:
         specifier: ^4.8.3
         version: 4.8.3
+      socket.io-parser:
+        specifier: ^4.2.4
+        version: 4.2.4
       uuid:
         specifier: ^13.0.2
         version: 13.0.2

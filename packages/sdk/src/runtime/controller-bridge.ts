@@ -128,7 +128,7 @@ export const controllerBridgeSnapshotSchema = withControllerBridgeContext({
   socketId: z.string().optional(),
   player: playerProfileSchema.optional(),
   players: z.array(playerProfileSchema).optional(),
-  state: controllerStateSchema.shape.state.optional(),
+  state: controllerStateSchema.out.shape.state.optional(),
 });
 
 export interface ControllerBridgeRequestMessage {

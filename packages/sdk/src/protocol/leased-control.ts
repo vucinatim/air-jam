@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { hostObservationIdentitySchema } from "../runtime/contracts/runtime-identity";
 import { roomCodeSchema } from "./core";
+import { boundedSocketSchema } from "./socket-payload";
 import { airJamActionInvocationResultSchema } from "./sync";
 
 const jsonValueSchema = z
@@ -92,24 +93,22 @@ const operationSchema = z.discriminatedUnion("kind", [
   participantActionOperationSchema,
 ]);
 
-export const controllerLeasedControlSchema = z
-  .object({
-    roomId: roomCodeSchema,
-    controllerId: z.string().min(3).max(128),
-    lease: z.object({ id: z.uuid(), sequence: leaseSequenceSchema }).strict(),
-    expected: hostObservationIdentitySchema.strict(),
-    operation: operationSchema,
-  })
-  .strict()
-  .refine(
-    (value) => value.roomId === value.expected.roomId,
-    "Participant control must target the observed room.",
-  )
-  .refine(
-    (value) =>
-      new TextEncoder().encode(JSON.stringify(value)).byteLength <= 16_384,
-    "Participant control exceeds its 16 KB budget.",
-  );
+export const controllerLeasedControlSchema = boundedSocketSchema(
+  z
+    .object({
+      roomId: roomCodeSchema,
+      controllerId: z.string().min(3).max(128),
+      lease: z.object({ id: z.uuid(), sequence: leaseSequenceSchema }).strict(),
+      expected: hostObservationIdentitySchema.strict(),
+      operation: operationSchema,
+    })
+    .strict()
+    .refine(
+      (value) => value.roomId === value.expected.roomId,
+      "Participant control must target the observed room.",
+    ),
+  "controller",
+);
 export type ControllerLeasedControl = z.infer<
   typeof controllerLeasedControlSchema
 >;
@@ -138,6 +137,7 @@ export const controllerLeasedControlAckSchema = z.discriminatedUnion("status", [
       status: z.literal("rejected"),
       reason: z.enum([
         "invalid_request",
+        "rate_limited",
         "invalid_input",
         "invalid_action",
         "invalid_action_lane",

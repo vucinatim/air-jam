@@ -90,6 +90,7 @@ export const AIRJAM_DEV_LOG_EVENTS = {
     startupFailed: "server.startup.failed",
   },
   socket: {
+    ingressRejected: "socket.ingress_rejected",
     connected: "socket.connected",
     disconnected: "socket.disconnected",
   },
