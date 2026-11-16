@@ -200,3 +200,14 @@ adds no MCP adapter, publication or deployment behavior.
 The SDK owns the trimmed 1–50-character input contract and the user result
 schema; the private platform's shared profile service owns persistence for
 both its dashboard and machine route. `auth whoami` reads the current user name.
+
+## Machine sign-ins
+
+Machine authentication uses the SDK's opaque access/refresh pair contract. The
+shared devtools transport binds both to the saved platform origin and refreshes
+near access expiry under a cross-process credential-file lock, then atomically
+replaces the owner-only credential file. Version-1 credentials are read only to
+exchange the former bearer at the refresh endpoint; normal authorization uses
+only short-lived access tokens. CLI session inventory and revocation use the
+same platform service as logout. Device polling adds five seconds to every
+subsequent interval after each `slow_down` response.

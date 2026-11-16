@@ -126,18 +126,20 @@
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:^",
+    "@air-jam/server": "workspace:^",
     "cross-spawn": "^7.0.6",
     "playwright-core": "^1.58.2",
+    "proper-lockfile": "4.1.2",
     "socket.io-client": "^4.8.3",
     "tsx": "4.20.6",
     "yauzl": "^3.2.1",
     "yazl": "^3.3.1",
-    "zod": "^4.2.1",
-    "@air-jam/server": "workspace:^"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
     "@types/cross-spawn": "^6.0.6",
+    "@types/node": "^24.10.1",
+    "@types/proper-lockfile": "4.1.4",
     "@types/yauzl": "^2.10.3",
     "@types/yazl": "^2.4.5",
     "socket.io": "^4.8.1",

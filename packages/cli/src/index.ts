@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { registerAuthSessionsCommand } from "./auth-sessions.js";
+
 import { gameSessionOperationSchemas } from "@air-jam/devtools/game-session";
 import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
 
@@ -1526,6 +1528,7 @@ const buildProgram = () => {
     });
 
   registerAuthProfileCommand(authCommand);
+  registerAuthSessionsCommand(authCommand);
 
   authCommand.action(() => {
     authCommand.outputHelp();

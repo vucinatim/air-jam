@@ -9,7 +9,7 @@ const tempRoots: string[] = [];
 const servers: Server[] = [];
 
 const sessionFixture = (platformBaseUrl = "https://airjam.example.com") => ({
-  version: 1 as const,
+  version: 2 as const,
   platformBaseUrl,
   clientName: "test",
   storedAt: new Date().toISOString(),
@@ -22,6 +22,8 @@ const sessionFixture = (platformBaseUrl = "https://airjam.example.com") => ({
   session: {
     id: "session-1",
     token: "private-session-token",
+    refreshToken: "private-refresh-token",
+    refreshExpiresAt: new Date(Date.now() + 30 * 86400_000).toISOString(),
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
     createdAt: new Date().toISOString(),
     userAgent: "airjam-cli",
@@ -273,6 +275,7 @@ describe("platform auth client", () => {
   it("runs the device login flow and stores the resulting session", async () => {
     const stateDirectory = await createTempStateDirectory();
     vi.stubEnv("AIRJAM_STATE_DIR", stateDirectory);
+    vi.useFakeTimers();
 
     const responses = [
       new Response(
@@ -289,8 +292,8 @@ describe("platform auth client", () => {
       ),
       new Response(
         JSON.stringify({
-          error: "authorization_pending",
-          message: "waiting",
+          error: "slow_down",
+          message: "wait longer",
         }),
         { status: 428 },
       ),
@@ -306,6 +309,10 @@ describe("platform auth client", () => {
           session: {
             id: "session_1",
             token: "token_1",
+            refreshToken: "refresh_1",
+            refreshExpiresAt: new Date(
+              Date.now() + 30 * 86400_000,
+            ).toISOString(),
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
             createdAt: new Date().toISOString(),
             userAgent: "airjam-cli",
@@ -327,7 +334,7 @@ describe("platform auth client", () => {
       await import("../src/platform-auth.js");
 
     const prompts: string[] = [];
-    const result = await loginPlatformWithDeviceFlow({
+    const login = loginPlatformWithDeviceFlow({
       platformUrl: "https://airjam.example.com",
       clientName: "qa-runner",
       onPrompt: async (payload) => {
@@ -335,6 +342,12 @@ describe("platform auth client", () => {
       },
     });
 
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(5999);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    const result = await login;
     expect(prompts).toEqual(["ABCD-EFGH"]);
     expect(result.authenticated.user.email).toBe("tim@example.com");
 
@@ -427,4 +440,92 @@ it("preserves the platform's structured recovery details on a failed request", a
     expect(error).toBeInstanceOf(AirJamPlatformApiError);
     expect(error).toMatchObject({ status: 409, details });
   }
+});
+
+it("serializes expired-token refreshes and atomically saves the rotated pair without leaking it in status", async () => {
+  vi.stubEnv("AIRJAM_STATE_DIR", await createTempStateDirectory());
+  const auth = await import("../src/platform-auth.js");
+  const expired = sessionFixture();
+  expired.session.expiresAt = new Date(Date.now() - 1).toISOString();
+  await auth.writeStoredPlatformMachineSession(expired);
+  const rotated = sessionFixture();
+  rotated.session.token = "rotated-access";
+  rotated.session.refreshToken = "rotated-refresh";
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify(rotated)));
+  globalThis.fetch = fetchMock;
+  const results = await Promise.all([
+    auth.resolvePlatformMachineAuth({}),
+    auth.resolvePlatformMachineAuth({}),
+  ]);
+  expect(results.map((result) => result.token)).toEqual([
+    "rotated-access",
+    "rotated-access",
+  ]);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    refreshToken: "private-refresh-token",
+  });
+  expect((await auth.readStoredPlatformMachineSession())?.session).toEqual(
+    rotated.session,
+  );
+  const status = JSON.stringify(await auth.getPlatformMachineAuthStatus());
+  expect(status).not.toContain("rotated-access");
+  expect(status).not.toContain("rotated-refresh");
+});
+
+it("converts the former credential through refresh and never sends its bearer", async () => {
+  const stateDirectory = await createTempStateDirectory();
+  vi.stubEnv("AIRJAM_STATE_DIR", stateDirectory);
+  const auth = await import("../src/platform-auth.js");
+  const legacy = { ...sessionFixture(), version: 1 };
+  const {
+    refreshToken: _refreshToken,
+    refreshExpiresAt: _refreshExpiresAt,
+    ...session
+  } = legacy.session;
+  await mkdir(path.dirname(auth.getPlatformAuthStoragePath()), {
+    recursive: true,
+  });
+  await writeFile(
+    auth.getPlatformAuthStoragePath(),
+    JSON.stringify({ ...legacy, session }),
+  );
+  const rotated = sessionFixture();
+  rotated.session.token = "converted-access";
+  globalThis.fetch = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify(rotated)));
+  expect((await auth.resolvePlatformMachineAuth({})).token).toBe(
+    "converted-access",
+  );
+  expect(globalThis.fetch).toHaveBeenCalledWith(
+    expect.any(URL),
+    expect.objectContaining({
+      body: JSON.stringify({ refreshToken: "private-session-token" }),
+      headers: { "content-type": "application/json" },
+    }),
+  );
+  expect((await auth.readStoredPlatformMachineSession())?.version).toBe(2);
+});
+
+it("keeps the stored pair and gives a sign-in command when refresh is revoked", async () => {
+  vi.stubEnv("AIRJAM_STATE_DIR", await createTempStateDirectory());
+  const auth = await import("../src/platform-auth.js");
+  const expired = sessionFixture();
+  expired.session.expiresAt = new Date(0).toISOString();
+  await auth.writeStoredPlatformMachineSession(expired);
+  globalThis.fetch = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: "invalid_token", message: "Revoked." }),
+        { status: 401 },
+      ),
+    );
+  await expect(auth.resolvePlatformMachineAuth({})).rejects.toThrow(
+    /airjam auth login/,
+  );
+  expect(await auth.readStoredPlatformMachineSession()).toEqual(expired);
 });

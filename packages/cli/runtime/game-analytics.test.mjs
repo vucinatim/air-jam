@@ -2,6 +2,8 @@ import { Command } from "commander";
 import assert from "node:assert/strict";
 import filesystem from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
+import os from "node:os";
+import path from "node:path";
 import test, { afterEach, beforeEach, mock } from "node:test";
 import { registerGameAnalyticsCommand } from "../dist/game-analytics.js";
 
@@ -38,11 +40,17 @@ const session = {
   createdAt: game.createdAt,
   updatedAt: game.createdAt,
 };
-beforeEach(() => {
+const originalStateDirectory = process.env.AIRJAM_STATE_DIR;
+let stateDirectory;
+beforeEach(async () => {
+  stateDirectory = await filesystem.mkdtemp(
+    path.join(os.tmpdir(), "airjam-cli-auth-"),
+  );
+  process.env.AIRJAM_STATE_DIR = stateDirectory;
   mock.method(filesystem, "readFile", async (filePath) => {
     assert.match(String(filePath), /[/\\]auth[/\\]platform-session\.json$/);
     return JSON.stringify({
-      version: 1,
+      version: 2,
       platformBaseUrl: platformUrl,
       clientName: "analytics-test",
       storedAt: game.createdAt,
@@ -56,6 +64,8 @@ beforeEach(() => {
         id: "session_1",
         token: "fake-analytics-token",
         expiresAt: "2099-01-01T00:00:00.000Z",
+        refreshToken: "fake-refresh-token",
+        refreshExpiresAt: "2099-01-01T00:00:00.000Z",
         createdAt: game.createdAt,
         userAgent: "airjam-cli/analytics-test",
       },
@@ -67,9 +77,12 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   mock.restoreAll();
   syncBuiltinESMExports();
+  if (originalStateDirectory === undefined) delete process.env.AIRJAM_STATE_DIR;
+  else process.env.AIRJAM_STATE_DIR = originalStateDirectory;
+  await filesystem.rm(stateDirectory, { recursive: true, force: true });
 });
 
 const program = () => {
