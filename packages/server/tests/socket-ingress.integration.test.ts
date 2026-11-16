@@ -23,7 +23,7 @@ const nextEvent = (socket: Socket, event: string) =>
 it("contains malformed, spoofed and flooding input while another room keeps playing", async () => {
   expect(
     isSocketPayloadBounded(
-      { chunks: Array(8).fill("é".repeat(2000)) },
+      { chunks: Array(8).fill("é".repeat(500)) },
       "controller",
     ),
   ).toBe(false);
