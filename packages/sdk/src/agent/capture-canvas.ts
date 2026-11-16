@@ -4,13 +4,13 @@ import {
 } from "../runtime/contracts/observation";
 
 /** Captures only this render surface; surrounding DOM is not included. */
-export function captureAgentCanvas(
+export async function captureAgentCanvas(
   canvas: HTMLCanvasElement | null,
   { maxEdge, quality }: { maxEdge: number; quality: number } = {
     maxEdge: 1280,
     quality: 0.8,
   },
-): HostObservationImage | null {
+): Promise<HostObservationImage | null> {
   if (!canvas) return null;
   const image = canvas.ownerDocument.createElement("canvas");
   if (!drawAgentCanvas(canvas, image, { maxEdge })) return null;
@@ -37,11 +37,32 @@ export function drawAgentCanvas(
   return true;
 }
 
-export function encodeAgentCanvas(
+export async function encodeAgentCanvas(
   image: HTMLCanvasElement,
   quality: number,
-): HostObservationImage {
-  const encoded = image.toDataURL("image/jpeg", quality);
+): Promise<HostObservationImage> {
+  const { width, height } = image;
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    image.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else
+          reject(new Error("The renderer did not produce a JPEG observation."));
+      },
+      "image/jpeg",
+      quality,
+    );
+  });
+  const encoded = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else
+        reject(new Error("The renderer did not produce a JPEG observation."));
+    };
+    reader.readAsDataURL(blob);
+  });
   const prefix = "data:image/jpeg;base64,";
   if (!encoded.startsWith(prefix))
     throw new Error("The renderer did not produce a JPEG observation.");
@@ -51,8 +72,8 @@ export function encodeAgentCanvas(
   return {
     mimeType: "image/jpeg",
     data,
-    width: image.width,
-    height: image.height,
+    width,
+    height,
     coverage: "render-surface",
   };
 }

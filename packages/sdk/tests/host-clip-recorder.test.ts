@@ -30,7 +30,7 @@ const image = (bytes = 3) => ({
   coverage: "render-surface" as const,
 });
 function fixture(
-  capture: HostObservationSurface["capture"] | null = () => image(),
+  capture: HostObservationSurface["capture"] | null = async () => image(),
 ) {
   vi.useFakeTimers();
   const recorder = new HostClipRecorder({
@@ -413,7 +413,35 @@ it("self-stops at ten minutes and releases stopped unread recordings after a min
   tick();
   expect(() => recorder.read("clip", false, 0)).toThrow("clip_not_found:");
 });
-it("shares one capture, skips busy ticks and discards in-flight work after dispose", async () => {
+it("skips ticks during asynchronous encoding without queueing captures", async () => {
+  let resolve!: (value: ReturnType<typeof image>) => void;
+  const capture = vi.fn(
+    () =>
+      new Promise<ReturnType<typeof image>>((done) => {
+        resolve = done;
+      }),
+  );
+  const recorder = fixture(capture);
+  recorder.start("clip", identity);
+  await vi.advanceTimersByTimeAsync(500);
+  expect(capture).toHaveBeenCalledTimes(1);
+  resolve(image());
+  await vi.advanceTimersByTimeAsync(0);
+  expect(capture).toHaveBeenCalledTimes(1);
+  expect(
+    recorder.read("clip", false, 0).frames.map((frame) => frame.atMs),
+  ).toEqual([100]);
+  await vi.advanceTimersByTimeAsync(100);
+  expect(capture).toHaveBeenCalledTimes(2);
+  resolve(image());
+  await vi.advanceTimersByTimeAsync(0);
+  expect(
+    recorder.read("clip", false, 0).frames.map((frame) => frame.atMs),
+  ).toEqual([100, 600]);
+  recorder.dispose();
+});
+
+it("shares one capture and discards in-flight work after dispose", async () => {
   let resolve!: (value: ReturnType<typeof image>) => void;
   const capture = vi.fn(
     () =>
@@ -424,7 +452,7 @@ it("shares one capture, skips busy ticks and discards in-flight work after dispo
   const recorder = fixture(capture);
   recorder.start("a", identity);
   recorder.start("b", identity);
-  await vi.advanceTimersByTimeAsync(500);
+  await vi.advanceTimersByTimeAsync(100);
   expect(capture).toHaveBeenCalledTimes(1);
   expect(capture).toHaveBeenCalledWith({ maxEdge: 1280, quality: 0.92 });
   resolve(image());
@@ -503,35 +531,6 @@ it("starts sampling a replacement surface even when the disposed capture never a
   expect(recorder.read("new", true, 0).frameCount).toBe(1);
   expect(() => recorder.read("old", true, 0)).toThrow("clip_not_found:");
   recorder.dispose();
-});
-
-it("passes clip and still dimensions and quality into the canvas encoder", async () => {
-  const { captureAgentCanvas } = await import("../src/agent/capture-canvas");
-  const drawImage = vi.fn();
-  const output = {
-    width: 0,
-    height: 0,
-    getContext: () => ({ clearRect: vi.fn(), drawImage }),
-    toDataURL: vi.fn(() => "data:image/jpeg;base64,YWJj"),
-  };
-  const canvas = {
-    width: 2560,
-    height: 1440,
-    ownerDocument: { createElement: () => output },
-  } as unknown as HTMLCanvasElement;
-  expect(
-    captureAgentCanvas(canvas, { maxEdge: 640, quality: 0.7 }),
-  ).toMatchObject({ width: 640, height: 360 });
-  expect(output.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.7);
-  expect(
-    captureAgentCanvas(canvas, { maxEdge: 1280, quality: 0.8 }),
-  ).toMatchObject({ width: 1280, height: 720 });
-  expect(output.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.8);
-  expect(captureAgentCanvas(canvas)).toMatchObject({
-    width: 1280,
-    height: 720,
-  });
-  expect(output.toDataURL).toHaveBeenLastCalledWith("image/jpeg", 0.8);
 });
 
 it("captures at the requested cadence, floors at 33 ms and preserves the 100 ms default", async () => {

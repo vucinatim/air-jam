@@ -322,6 +322,9 @@ plays feedback from it, never advances it:
   gives agents the host render surface. Call `captureFrame()` immediately after
   drawing the game and its HUD. The SDK owns the persistent capture canvas and
   records native video at 30 fps; still observations use the same drawing callback.
+  Still observations and frame-based test clips encode JPEGs asynchronously. The
+  clip sampler skips ticks while encoding is pending rather than queueing frames.
+  If you call `captureAgentCanvas()` directly, await its image result.
 
 Step code reads stores with `gameStore.getState()` and dispatches with
 `gameStore.actions`; it never reads `Date.now()` or `Math.random()`.
