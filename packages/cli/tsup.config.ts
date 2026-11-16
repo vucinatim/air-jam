@@ -4,6 +4,7 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/auth-profile.ts",
+    "src/auth-sessions.ts",
     "src/game-media.ts",
     "src/game-app-id.ts",
     "src/game-analytics.ts",

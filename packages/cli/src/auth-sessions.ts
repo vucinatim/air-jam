@@ -24,13 +24,13 @@ export const registerAuthSessionsCommand = (authCommand: Command) => {
   sessions
     .command("revoke <id>")
     .description("Revoke one machine session belonging to this account")
-    .option("--platform-url <url>", "Hosted Air Jam platform base URL")
-    .option("--json", "Print one machine-readable JSON document", false)
-    .action(
-      async (id: string, options: { platformUrl?: string; json: boolean }) => {
-        const result = await revokePlatformMachineSession({ ...options, id });
-        if (options.json) process.stdout.write(`${JSON.stringify(result)}\n`);
-        else console.log(`Revoked session ${id}.`);
-      },
-    );
+    .action(async (id: string, _options: unknown, command: Command) => {
+      const options = command.optsWithGlobals<{
+        platformUrl?: string;
+        json: boolean;
+      }>();
+      const result = await revokePlatformMachineSession({ ...options, id });
+      if (options.json) process.stdout.write(`${JSON.stringify(result)}\n`);
+      else console.log(`Revoked session ${id}.`);
+    });
 };
