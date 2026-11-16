@@ -1599,6 +1599,17 @@ export class GameRunOwner {
     run.record.state = "playing";
     await this.persist(run);
     run.playStartedAt = clock.now();
+    if (request.kind === "test") {
+      clearTimeout(run.timer);
+      run.deadline = performance.now() + request.budget.durationMs;
+      run.timer = setTimeout(() => {
+        void this.terminate(
+          run,
+          "budget",
+          "Run reached its bounded play budget.",
+        ).catch((error) => console.error(error));
+      }, request.budget.durationMs);
+    }
     const inFlight = new Map<string, Promise<void>>();
     let lastTick: number | null = null;
     let progressedAt = clock.now();

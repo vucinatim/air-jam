@@ -2498,3 +2498,41 @@ it("keeps a faster seat playing and applies the last answers before ending the d
     await f.owner.stop(f.request.runId);
   }
 });
+
+it("gives a test its full play budget after the sealed build finishes", async () => {
+  const f = await fixture();
+  const build = await io.build();
+  const pendingBuild = Promise.withResolvers<typeof build>();
+  io.build.mockReturnValue(pendingBuild.promise);
+  const now = vi.spyOn(performance, "now").mockReturnValue(100);
+  const timers = vi.spyOn(globalThis, "setTimeout");
+  const cleared = vi.spyOn(globalThis, "clearTimeout");
+  try {
+    await f.owner.start(f.request);
+    await vi.waitFor(() => expect(io.build).toHaveBeenCalledTimes(2));
+    const startupTimer = timers.mock.calls.findIndex(
+      ([, duration]) => duration === 5000,
+    );
+    expect(startupTimer).toBeGreaterThanOrEqual(0);
+    now.mockReturnValue(1100);
+    pendingBuild.resolve(build);
+    await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
+    expect(cleared).toHaveBeenCalledWith(
+      timers.mock.results[startupTimer].value,
+    );
+    const playTimers = timers.mock.calls.filter(
+      ([, duration]) => duration === 5000,
+    );
+    expect(playTimers).toHaveLength(2);
+    expect((await f.owner.read(f.request.runId)).state).toBe("playing");
+    playTimers[1][0]();
+    expect((await f.ended()).end).toMatchObject({
+      reason: "budget",
+      message: "Run reached its bounded play budget.",
+    });
+  } finally {
+    now.mockRestore();
+    timers.mockRestore();
+    cleared.mockRestore();
+  }
+});
