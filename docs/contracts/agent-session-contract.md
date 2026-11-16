@@ -274,7 +274,8 @@ MCP `start_game_run` accepts the same kind and intent.
 The caller supplies a stable UUID `runId`. An identical retry returns the same
 admission, a changed request conflicts, and a retained run ID from a previous
 owner cannot start another trial. A manifest is persisted before asynchronous
-startup. For tests, time (at most ten minutes, including startup) and decision-count budgets
+startup. For tests, the play-time budget (at most ten minutes) begins after setup;
+startup has a separate deadline of the same duration. Decision-count budgets
 are explicit; an incomplete budget exit is inconclusive, never a passed test.
 
 The trace has a 16 MiB byte allowance, with space reserved for teardown events.
