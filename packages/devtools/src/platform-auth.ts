@@ -6,6 +6,9 @@ import {
   platformMachineLogoutResultSchema,
   platformMachineMeResultSchema,
   platformMachineProfileInputSchema,
+  platformMachineRevokeSessionInputSchema,
+  platformMachineSessionSchema,
+  platformMachineSessionsResultSchema,
   platformMachineUserSchema,
 } from "@air-jam/sdk/platform-machine";
 import { randomUUID } from "node:crypto";
@@ -20,6 +23,7 @@ import {
 import { isIP } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import lockfile from "proper-lockfile";
 import { z } from "zod";
 import type {
   AirJamPlatformAuthStatus,
@@ -58,25 +62,46 @@ const resolvePlatformAuthDirectory = () =>
 const resolvePlatformAuthFile = () =>
   path.join(resolvePlatformAuthDirectory(), "platform-session.json");
 
-const storedPlatformSessionSchema = z.object({
-  version: z.literal(1),
+const storedPlatformSessionFields = z.object({
   platformBaseUrl: z.string().url(),
   clientName: z.string().nullable(),
   storedAt: z.string().min(1),
-  user: z.object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    email: z.string().email(),
-    role: z.enum(["creator", "ops_admin"]),
-  }),
-  session: z.object({
-    id: z.string().min(1),
-    token: z.string().min(1),
-    expiresAt: z.string().min(1),
-    createdAt: z.string().min(1),
-    userAgent: z.string().min(1),
+  user: platformMachineUserSchema,
+});
+
+export const storedPlatformSessionSchema = storedPlatformSessionFields.extend({
+  version: z.literal(2),
+  session: platformMachineSessionSchema,
+});
+
+// Read the former credential only to exchange it through the refresh endpoint.
+const legacyStoredPlatformSessionSchema = storedPlatformSessionFields.extend({
+  version: z.literal(1),
+  session: platformMachineSessionSchema.omit({
+    refreshToken: true,
+    refreshExpiresAt: true,
   }),
 });
+
+const readableStoredPlatformSessionSchema = z.discriminatedUnion("version", [
+  storedPlatformSessionSchema,
+  legacyStoredPlatformSessionSchema,
+]);
+
+const withPlatformSessionLock = async <T>(
+  operation: () => Promise<T>,
+): Promise<T> => {
+  await mkdir(resolvePlatformAuthDirectory(), { recursive: true, mode: 0o700 });
+  const release = await lockfile.lock(resolvePlatformAuthFile(), {
+    realpath: false,
+    retries: { retries: 10, minTimeout: 50, maxTimeout: 1000 },
+  });
+  try {
+    return await operation();
+  } finally {
+    await release();
+  }
+};
 
 export class AirJamPlatformApiError extends Error {
   readonly code: PlatformMachineErrorCode;
@@ -213,7 +238,10 @@ export const requestPlatformMachineApi = async <T>({
     if (parsedError.success) {
       throw new AirJamPlatformApiError({
         code: parsedError.data.error,
-        message: parsedError.data.message,
+        message:
+          parsedError.data.error === "invalid_token"
+            ? `${parsedError.data.message} Run airjam auth login to sign in again.`
+            : parsedError.data.message,
         status: response.status,
         details: parsedError.data.details,
         retryAfterSeconds: parsedError.data.retryAfterSeconds,
@@ -230,25 +258,26 @@ export const requestPlatformMachineApi = async <T>({
   return schema.parse(payload);
 };
 
-export const readStoredPlatformMachineSession =
-  async (): Promise<AirJamPlatformMachineSessionStore | null> => {
-    const storagePath = resolvePlatformAuthFile();
-    let source: string;
-    try {
-      source = await readFile(storagePath, "utf8");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
-        return null;
-      }
-      throw error;
+export const readStoredPlatformMachineSession = async () => {
+  const storagePath = resolvePlatformAuthFile();
+  let source: string;
+  try {
+    source = await readFile(storagePath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return null;
     }
+    throw error;
+  }
 
-    try {
-      return storedPlatformSessionSchema.parse(JSON.parse(source) as unknown);
-    } catch (error) {
-      throw new AirJamStoredPlatformSessionError(storagePath, error);
-    }
-  };
+  try {
+    return readableStoredPlatformSessionSchema.parse(
+      JSON.parse(source) as unknown,
+    );
+  } catch (error) {
+    throw new AirJamStoredPlatformSessionError(storagePath, error);
+  }
+};
 
 export const writeStoredPlatformMachineSession = async (
   value: AirJamPlatformMachineSessionStore,
@@ -317,8 +346,10 @@ export const loginPlatformWithDeviceFlow = async ({
   await onPrompt?.(authorization);
 
   const expiresAtMs = Date.parse(authorization.expiresAt);
+  let intervalSeconds = authorization.intervalSeconds;
   while (Date.now() < expiresAtMs) {
-    await sleep(authorization.intervalSeconds * 1000);
+    await sleep(intervalSeconds * 1000);
+    if (Date.now() >= expiresAtMs) break;
 
     try {
       const authenticated = await pollPlatformDeviceAuthorization({
@@ -335,7 +366,7 @@ export const loginPlatformWithDeviceFlow = async ({
         );
       }
       const storedSession: AirJamPlatformMachineSessionStore = {
-        version: 1,
+        version: 2,
         platformBaseUrl: baseUrl,
         clientName: clientName?.trim() || null,
         storedAt: new Date().toISOString(),
@@ -343,7 +374,9 @@ export const loginPlatformWithDeviceFlow = async ({
         session: authenticated.session,
       };
 
-      await writeStoredPlatformMachineSession(storedSession);
+      await withPlatformSessionLock(() =>
+        writeStoredPlatformMachineSession(storedSession),
+      );
 
       return {
         authorization,
@@ -351,11 +384,12 @@ export const loginPlatformWithDeviceFlow = async ({
         storedSession,
       };
     } catch (error) {
-      if (
-        error instanceof AirJamPlatformApiError &&
-        error.code === "authorization_pending"
-      ) {
-        continue;
+      if (error instanceof AirJamPlatformApiError) {
+        if (error.code === "slow_down") {
+          intervalSeconds += 5;
+          continue;
+        }
+        if (error.code === "authorization_pending") continue;
       }
 
       throw error;
@@ -369,7 +403,7 @@ export const loginPlatformWithDeviceFlow = async ({
   });
 };
 
-export const resolvePlatformMachineAuth = async ({
+const resolvePlatformMachineAuthUnlocked = async ({
   platformUrl,
   token,
 }: {
@@ -383,11 +417,12 @@ export const resolvePlatformMachineAuth = async ({
     };
   }
 
-  const stored = await readStoredPlatformMachineSession();
+  let stored = await readStoredPlatformMachineSession();
   if (!stored) {
-    throw new Error("No stored Air Jam platform session was found.");
+    throw new Error(
+      "No stored Air Jam platform session was found. Run airjam auth login to sign in.",
+    );
   }
-
   const baseUrl = resolvePlatformBaseUrl(platformUrl ?? stored.platformBaseUrl);
   if (
     parsePlatformUrl(baseUrl).origin !==
@@ -397,10 +432,76 @@ export const resolvePlatformMachineAuth = async ({
       "The stored Air Jam session belongs to a different platform origin. Log in to that platform or supply an explicit token.",
     );
   }
-  return {
-    baseUrl,
-    token: stored.session.token,
-  };
+  if (
+    stored.version === 1 ||
+    Date.parse(stored.session.expiresAt) <= Date.now() + 30_000
+  ) {
+    const authenticated = await requestPlatformMachineApi({
+      baseUrl,
+      pathname: "/api/cli/auth/refresh",
+      method: "POST",
+      body: {
+        refreshToken:
+          stored.version === 1
+            ? stored.session.token
+            : stored.session.refreshToken,
+      },
+      schema: platformMachineDevicePollResultSchema,
+    });
+    if (
+      parsePlatformUrl(authenticated.platformBaseUrl).origin !==
+      parsePlatformUrl(baseUrl).origin
+    ) {
+      throw new Error(
+        "The refresh response does not match the requested platform origin.",
+      );
+    }
+    stored = {
+      ...stored,
+      version: 2,
+      user: authenticated.user,
+      session: authenticated.session,
+      storedAt: new Date().toISOString(),
+    };
+    await writeStoredPlatformMachineSession(stored);
+  }
+  return { baseUrl, token: stored.session.token };
+};
+
+export const resolvePlatformMachineAuth = async (options: {
+  platformUrl?: string;
+  token?: string;
+}) =>
+  options.token?.trim()
+    ? resolvePlatformMachineAuthUnlocked(options)
+    : withPlatformSessionLock(() =>
+        resolvePlatformMachineAuthUnlocked(options),
+      );
+
+export const listPlatformMachineSessions = async (
+  options: GetPlatformMachineProfileOptions = {},
+) => {
+  const resolved = await resolvePlatformMachineAuth(options);
+  return requestPlatformMachineApi({
+    baseUrl: resolved.baseUrl,
+    pathname: "/api/cli/auth/sessions",
+    token: resolved.token,
+    schema: platformMachineSessionsResultSchema,
+  });
+};
+
+export const revokePlatformMachineSession = async (
+  options: GetPlatformMachineProfileOptions & { id: string },
+) => {
+  const resolved = await resolvePlatformMachineAuth(options);
+  return requestPlatformMachineApi({
+    baseUrl: resolved.baseUrl,
+    pathname: "/api/cli/auth/sessions/revoke",
+    method: "POST",
+    token: resolved.token,
+    body: platformMachineRevokeSessionInputSchema.parse(options),
+    schema: platformMachineLogoutResultSchema,
+  });
 };
 
 export const getPlatformMachineProfile = async ({
@@ -437,16 +538,21 @@ export const logoutPlatformMachineSession = async ({
   platformUrl,
   token,
 }: LogoutPlatformMachineSessionOptions = {}) => {
-  const resolved = await resolvePlatformMachineAuth({ platformUrl, token });
-  const result = await requestPlatformMachineApi({
-    baseUrl: resolved.baseUrl,
-    pathname: "/api/cli/auth/logout",
-    method: "POST",
-    token: resolved.token,
-    schema: platformMachineLogoutResultSchema,
+  return withPlatformSessionLock(async () => {
+    const resolved = await resolvePlatformMachineAuthUnlocked({
+      platformUrl,
+      token,
+    });
+    const result = await requestPlatformMachineApi({
+      baseUrl: resolved.baseUrl,
+      pathname: "/api/cli/auth/logout",
+      method: "POST",
+      token: resolved.token,
+      schema: platformMachineLogoutResultSchema,
+    });
+    if (!token) await clearStoredPlatformMachineSession();
+    return result;
   });
-  await clearStoredPlatformMachineSession();
-  return result;
 };
 
 export const getPlatformMachineAuthStatus =
@@ -475,6 +581,10 @@ export const getPlatformMachineAuthStatus =
       session: {
         id: stored.session.id,
         expiresAt: stored.session.expiresAt,
+        refreshExpiresAt:
+          stored.version === 1
+            ? stored.session.expiresAt
+            : stored.session.refreshExpiresAt,
         createdAt: stored.session.createdAt,
         userAgent: stored.session.userAgent,
       },

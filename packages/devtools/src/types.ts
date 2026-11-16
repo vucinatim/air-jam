@@ -386,6 +386,7 @@ export type AirJamPlatformAuthStatus = {
   session: {
     id: string;
     expiresAt: string;
+    refreshExpiresAt: string;
     createdAt: string;
     userAgent: string;
   } | null;
@@ -892,25 +893,9 @@ export type AirJamVisualCaptureInspection = {
   summary: AirJamVisualCaptureSummary;
 };
 
-export type AirJamPlatformMachineSessionStore = {
-  version: 1;
-  platformBaseUrl: string;
-  clientName: string | null;
-  storedAt: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: "creator" | "ops_admin";
-  };
-  session: {
-    id: string;
-    token: string;
-    expiresAt: string;
-    createdAt: string;
-    userAgent: string;
-  };
-};
+export type AirJamPlatformMachineSessionStore = import("zod").infer<
+  typeof import("./platform-auth.js").storedPlatformSessionSchema
+>;
 
 export type StartPlatformDeviceAuthorizationOptions = {
   platformUrl?: string;

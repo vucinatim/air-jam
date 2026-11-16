@@ -14,6 +14,7 @@ import {
 export const platformMachineErrorCodeValues = [
   "invalid_request",
   "authorization_pending",
+  "slow_down",
   "expired_token",
   "access_denied",
   "invalid_token",
@@ -78,8 +79,10 @@ export const platformMachineProfileInputSchema = z.object({
 export const platformMachineSessionSchema = z.object({
   id: z.string().min(1),
   token: z.string().min(1),
-  expiresAt: z.string().min(1),
-  createdAt: z.string().min(1),
+  expiresAt: z.iso.datetime(),
+  refreshToken: z.string().min(1),
+  refreshExpiresAt: z.iso.datetime(),
+  createdAt: z.iso.datetime(),
   userAgent: z.string().min(1),
 });
 
@@ -129,12 +132,34 @@ export type PlatformMachineDevicePollResult = z.infer<
 export const platformMachineMeResultSchema = z.object({
   platformBaseUrl: z.string().url(),
   user: platformMachineUserSchema,
-  session: platformMachineSessionSchema.omit({ token: true }),
+  session: platformMachineSessionSchema.omit({
+    token: true,
+    refreshToken: true,
+  }),
 });
 
 export type PlatformMachineMeResult = z.infer<
   typeof platformMachineMeResultSchema
 >;
+
+export const platformMachineRefreshInputSchema = z.object({
+  refreshToken: z.string().trim().min(1).max(256),
+});
+
+export const platformMachineSessionInventorySchema = z.object({
+  id: z.string().min(1),
+  clientName: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  lastUsedAt: z.iso.datetime(),
+});
+
+export const platformMachineSessionsResultSchema = z.object({
+  sessions: z.array(platformMachineSessionInventorySchema),
+});
+
+export const platformMachineRevokeSessionInputSchema = z.object({
+  id: z.string().min(1),
+});
 
 export const platformMachineLogoutResultSchema = z.object({
   ok: z.literal(true),

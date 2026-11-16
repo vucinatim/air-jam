@@ -87,6 +87,8 @@ Sign in, change the creator name shown on games and in rooms, then inspect the c
 pnpm exec airjam auth login
 pnpm exec airjam auth profile --display-name "Party Maker" --json
 pnpm exec airjam auth whoami
+pnpm exec airjam auth sessions --json
+pnpm exec airjam auth sessions revoke <session-id> --json
 ```
 
 `auth profile` trims the name and requires 1–50 characters. It returns the updated
@@ -94,6 +96,20 @@ user (`id`, `name`, `email`, `role`) with `--json`, or prints the display name.
 Validation errors and missing or expired sessions fail with a nonzero exit.
 `auth whoami` reads the current name from the platform. Both commands accept
 `--platform-url <url>` for the signed-in platform; `auth logout` revokes the session.
+
+Access tokens expire after one hour. CLI and MCP automatically exchange the
+refresh token and atomically save the new pair in the existing credential file.
+Refresh tokens rotate after each use and expire after 30 idle days; replaying a
+spent token revokes the whole session. Concurrent processes serialize refreshes
+through a credential-file lock. Existing logins convert on their first use
+without browser approval. Explicit access tokens are caller-managed.
+
+`auth sessions` lists this account’s live machine sessions (ID, client name,
+creation and last use); `auth sessions revoke <id>` revokes one. Both support
+`--json` and `--platform-url`. Logout revokes the current session and removes
+the saved credential. A revoked or idle-expired session requires `auth login`.
+The machine contract currently grants one fixed account scope; client names
+are display metadata.
 
 CLI and MCP platform operations share one authentication transport. A saved
 login is bound to the platform origin that issued it: changing the platform URL
