@@ -76,6 +76,13 @@ including unknown fields, before Zod inspects nested values. Socket.IO's explici
 disconnected by Engine.IO before event dispatch. The wire envelope also uses
 part of that buffer.
 
+All protocol payloads are JSON; no event needs binary attachments. A small
+Socket.IO parser wrapper rejects binary event and acknowledgement headers,
+and standalone binary frames, before the stock decoder can allocate an attachment
+reconstructor or retain any attachment bytes. Socket.IO closes the offending
+connection on this protocol error. This also covers a declared attachment count
+larger than the frame limit, which alone cannot bound a reconstructed packet.
+
 The limits were selected from the current games on 2026-11-16. Measurements
 include the whole event payload, with depth counted from zero at the root:
 

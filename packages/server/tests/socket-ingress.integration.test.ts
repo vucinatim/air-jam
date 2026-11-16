@@ -9,7 +9,8 @@ import {
 } from "@air-jam/sdk/protocol";
 import pino from "pino";
 import { io, type Socket } from "socket.io-client";
-import { expect, it } from "vitest";
+import { Decoder, PacketType } from "socket.io-parser";
+import { expect, it, vi } from "vitest";
 import { createAirJamServer } from "../src/index";
 import { RateLimitService } from "../src/services/rate-limit-service";
 import { RoomManager } from "../src/services/room-manager";
@@ -264,10 +265,38 @@ it("contains malformed, spoofed and flooding input while another room keeps play
       text: "x".repeat(SOCKET_MAX_HTTP_BUFFER_SIZE),
     });
     await disconnected;
+    // The stock decoder owns attachment buffering: binary headers and frames
+    // must never reach it, regardless of the declared attachment count.
+    const decode = vi.spyOn(Decoder.prototype, "add");
+    try {
+      for (const type of [PacketType.BINARY_EVENT, PacketType.BINARY_ACK]) {
+        const binary = await connect();
+        const closed = nextEvent(binary, "disconnect");
+        binary.io.engine.write(
+          `${type}1000000-0["controller:input",{"_placeholder":true,"num":0}]`,
+        );
+        for (let index = 0; index < 10; index += 1) {
+          binary.io.engine.write(Buffer.alloc(SOCKET_MAX_HTTP_BUFFER_SIZE - 1));
+        }
+        await closed;
+        await play(6);
+      }
+      expect(decode).toHaveBeenCalled();
+      expect(
+        decode.mock.calls.filter(
+          ([packet]) =>
+            typeof packet !== "string" ||
+            packet.startsWith(String(PacketType.BINARY_EVENT)) ||
+            packet.startsWith(String(PacketType.BINARY_ACK)),
+        ),
+      ).toEqual([]);
+    } finally {
+      decode.mockRestore();
+    }
     expect((await fetch(`http://127.0.0.1:${port}/health`)).ok).toBe(true);
     await play(5);
-    expect(inputs).toBe(9);
-    expect(actions).toBe(9);
+    expect(inputs).toBe(11);
+    expect(actions).toBe(11);
   } finally {
     for (const socket of sockets) socket.disconnect();
     await runtime.stop();
