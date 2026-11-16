@@ -47,9 +47,9 @@ export const gameSessionOperationSchemas = {
     expectedRevision: z.number().int().nonnegative(),
   }),
   control: session.extend({
-    lease: controllerLeasedControlSchema.shape.lease,
-    expected: controllerLeasedControlSchema.shape.expected,
-    operation: controllerLeasedControlSchema.shape.operation,
+    lease: controllerLeasedControlSchema.out.shape.lease,
+    expected: controllerLeasedControlSchema.out.shape.expected,
+    operation: controllerLeasedControlSchema.out.shape.operation,
   }),
   input: session.extend({ input: z.record(z.string(), z.json()) }),
   invoke: session.extend({

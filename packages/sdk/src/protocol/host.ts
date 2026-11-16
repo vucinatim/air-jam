@@ -6,6 +6,7 @@ import type {
 import { roomCodeSchema, type RoomCode } from "./core";
 import type { ErrorCode } from "./errors";
 import type { ControllerPresenceNotice } from "./notices";
+import { boundedSocketSchema } from "./socket-payload";
 
 export const hostSessionKindSchema = z.enum(["game", "system"]);
 export type HostSessionKind = z.infer<typeof hostSessionKindSchema>;
@@ -77,60 +78,84 @@ export interface HostSocketAuthority {
   hostSessionKind: HostSessionKind;
 }
 
-export const hostBootstrapSchema = z.object({
-  appId: z.string().optional(),
-  hostGrant: z.string().min(1).optional(),
-  hostSessionKind: hostSessionKindSchema.default("game"),
-});
+export const hostBootstrapSchema = boundedSocketSchema(
+  z.object({
+    appId: z.string().optional(),
+    hostGrant: z.string().min(1).optional(),
+    hostSessionKind: hostSessionKindSchema.default("game"),
+  }),
+  "lifecycle",
+);
 
 export type HostBootstrapPayload = z.infer<typeof hostBootstrapSchema>;
 
-export const systemLaunchGameSchema = z.object({
-  roomId: roomCodeSchema,
-  gameId: z.string(),
-});
+export const systemLaunchGameSchema = boundedSocketSchema(
+  z.object({
+    roomId: roomCodeSchema,
+    gameId: z.string(),
+  }),
+  "lifecycle",
+);
 
 export type SystemLaunchGamePayload = z.infer<typeof systemLaunchGameSchema>;
 
-export const hostJoinAsChildSchema = z.object({
-  roomId: roomCodeSchema,
-  capabilityToken: z.string().min(1),
-});
+export const hostJoinAsChildSchema = boundedSocketSchema(
+  z.object({
+    roomId: roomCodeSchema,
+    capabilityToken: z.string().min(1),
+  }),
+  "lifecycle",
+);
 
 export type HostJoinAsChildPayload = z.infer<typeof hostJoinAsChildSchema>;
 
-export const hostActivateEmbeddedGameSchema = z.object({
-  roomId: roomCodeSchema,
-  capabilityToken: z.string().min(1),
-});
+export const hostActivateEmbeddedGameSchema = boundedSocketSchema(
+  z.object({
+    roomId: roomCodeSchema,
+    capabilityToken: z.string().min(1),
+  }),
+  "lifecycle",
+);
 
 export type HostActivateEmbeddedGamePayload = z.infer<
   typeof hostActivateEmbeddedGameSchema
 >;
 
-export const hostCreateRoomSchema = z.object({
-  maxPlayers: z.number().int().min(1).max(16).default(8),
-});
+export const hostCreateRoomSchema = boundedSocketSchema(
+  z.object({
+    maxPlayers: z.number().int().min(1).max(16).default(8),
+  }),
+  "lifecycle",
+);
 
 export type HostCreateRoomPayload = z.infer<typeof hostCreateRoomSchema>;
 
-export const hostReconnectSchema = z.object({
-  roomId: roomCodeSchema,
-  resumeCapabilityToken: z.string().min(1),
-});
+export const hostReconnectSchema = boundedSocketSchema(
+  z.object({
+    roomId: roomCodeSchema,
+    resumeCapabilityToken: z.string().min(1),
+  }),
+  "lifecycle",
+);
 
 export type HostReconnectPayload = z.infer<typeof hostReconnectSchema>;
 
-export const hostResetRoomSchema = z.object({
-  roomId: roomCodeSchema,
-});
+export const hostResetRoomSchema = boundedSocketSchema(
+  z.object({
+    roomId: roomCodeSchema,
+  }),
+  "lifecycle",
+);
 
 export type HostResetRoomPayload = z.infer<typeof hostResetRoomSchema>;
 
-export const hostRemoveControllerSchema = z.object({
-  roomId: roomCodeSchema,
-  controllerId: z.string().min(3),
-});
+export const hostRemoveControllerSchema = boundedSocketSchema(
+  z.object({
+    roomId: roomCodeSchema,
+    controllerId: z.string().min(3),
+  }),
+  "lifecycle",
+);
 
 export type HostRemoveControllerPayload = z.infer<
   typeof hostRemoveControllerSchema
@@ -148,3 +173,8 @@ export interface SystemLaunchGameAck {
   message?: string;
   code?: ErrorCode | string;
 }
+
+export const systemCloseGameSchema = boundedSocketSchema(
+  z.object({ roomId: roomCodeSchema }),
+  "lifecycle",
+);

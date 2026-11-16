@@ -3,14 +3,6 @@ import {
   AIRJAM_DEV_LOG_EVENTS,
   DEFAULT_ROOM_PLATFORM_SETTINGS,
   ErrorCode,
-  hostActivateEmbeddedGameSchema,
-  hostBootstrapSchema,
-  hostCreateRoomSchema,
-  hostJoinAsChildSchema,
-  hostReconnectSchema,
-  hostRemoveControllerSchema,
-  hostResetRoomSchema,
-  systemLaunchGameSchema,
   type AirJamDevLogEventName,
   type HostActivateEmbeddedGamePayload,
   type HostBootstrapAck,
@@ -405,30 +397,11 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const parsed = hostBootstrapSchema.safeParse(payload);
-      if (!parsed.success) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.bootstrapRejected,
-          "Rejected host bootstrap with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
       const verification = await authService.verifyHostBootstrap({
-        appId: parsed.data.appId,
-        hostGrant: parsed.data.hostGrant,
+        appId: payload.appId,
+        hostGrant: payload.hostGrant,
         origin: requestOrigin,
-        hostSessionKind: parsed.data.hostSessionKind,
+        hostSessionKind: payload.hostSessionKind,
       });
       if (!socket.connected) {
         return;
@@ -440,8 +413,8 @@ export const registerHostLifecycleHandlers = (
           "Rejected host bootstrap",
           {
             reason: verification.error,
-            appIdHint: redactIdentifier(parsed.data.appId),
-            hasHostGrant: Boolean(parsed.data.hostGrant),
+            appIdHint: redactIdentifier(payload.appId),
+            hasHostGrant: Boolean(payload.hostGrant),
           },
         );
         callback({
@@ -552,26 +525,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const parsed = hostCreateRoomSchema.safeParse(payload);
-      if (!parsed.success) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.createRoomRejected,
-          "Rejected host createRoom with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { maxPlayers } = parsed.data;
+      const { maxPlayers } = payload;
 
       const existingRoomId = roomManager.getRoomByHostId(socket.id);
       if (existingRoomId) {
@@ -701,26 +655,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const parsed = hostReconnectSchema.safeParse(payload);
-      if (!parsed.success) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.reconnectRejected,
-          "Rejected host reconnect with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { roomId, resumeCapabilityToken } = parsed.data;
+      const { roomId, resumeCapabilityToken } = payload;
 
       const session = roomManager.getRoom(roomId);
       if (!session) {
@@ -858,26 +793,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const parsed = hostResetRoomSchema.safeParse(payload);
-      if (!parsed.success) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.host.resetRoomRejected,
-          "Rejected host resetRoom with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { roomId } = parsed.data;
+      const { roomId } = payload;
       const session = roomManager.getRoom(roomId);
       if (!session) {
         logHostEvent(
@@ -1000,17 +916,7 @@ export const registerHostLifecycleHandlers = (
         return;
       }
 
-      const parsed = hostRemoveControllerSchema.safeParse(payload);
-      if (!parsed.success) {
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { roomId, controllerId } = parsed.data;
+      const { roomId, controllerId } = payload;
       const session = roomManager.getRoom(roomId);
       if (!session) {
         callback({
@@ -1084,26 +990,7 @@ export const registerHostLifecycleHandlers = (
   socket.on(
     "system:launchGame",
     (payload: SystemLaunchGamePayload, callback) => {
-      const parsed = systemLaunchGameSchema.safeParse(payload);
-      if (!parsed.success) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.system.launchGameRejected,
-          "Rejected game launch with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { roomId, gameId } = parsed.data;
+      const { roomId, gameId } = payload;
       const session = roomManager.getRoom(roomId);
       if (!session) {
         logHostEvent(
@@ -1256,26 +1143,7 @@ export const registerHostLifecycleHandlers = (
   );
 
   socket.on("host:joinAsChild", (payload: HostJoinAsChildPayload, callback) => {
-    const parsed = hostJoinAsChildSchema.safeParse(payload);
-    if (!parsed.success) {
-      logHostEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.childHost.joinRejected,
-        "Rejected child host join with invalid payload",
-        {
-          reason: "invalid_payload",
-          issues: parsed.error.issues,
-        },
-      );
-      callback({
-        ok: false,
-        message: parsed.error.message,
-        code: ErrorCode.INVALID_PAYLOAD,
-      });
-      return;
-    }
-
-    const { roomId, capabilityToken } = parsed.data;
+    const { roomId, capabilityToken } = payload;
     const session = roomManager.getRoom(roomId);
     if (!session) {
       logHostEvent(
@@ -1513,26 +1381,7 @@ export const registerHostLifecycleHandlers = (
       payload: HostActivateEmbeddedGamePayload,
       callback: (ack: HostRegistrationAck) => void,
     ) => {
-      const parsed = hostActivateEmbeddedGameSchema.safeParse(payload);
-      if (!parsed.success) {
-        logHostEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.embeddedGame.activateRejected,
-          "Rejected embedded game activation with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { roomId, capabilityToken } = parsed.data;
+      const { roomId, capabilityToken } = payload;
       const session = roomManager.getRoom(roomId);
       if (!session) {
         logHostEvent(

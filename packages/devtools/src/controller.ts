@@ -670,7 +670,7 @@ function relayControllerObservation(
       ),
     ),
     players: session.players.map((player) => playerProfileSchema.parse(player)),
-    state: controllerStateSchema.shape.state.parse(session.controllerState),
+    state: controllerStateSchema.out.shape.state.parse(session.controllerState),
   });
   const allowedEvents = new Set<string>(controllerBridgeServerEvents);
   const forwardEvent = (event: string, ...args: unknown[]) => {

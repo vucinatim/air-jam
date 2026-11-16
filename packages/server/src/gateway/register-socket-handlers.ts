@@ -21,6 +21,7 @@ import { registerDisconnectHandler } from "./handlers/register-disconnect-handle
 import { registerHostLifecycleHandlers } from "./handlers/register-host-lifecycle-handlers.js";
 import { registerRealtimeHandlers } from "./handlers/register-realtime-handlers.js";
 import type { SocketHandlerContext } from "./socket-handler-context.js";
+import { registerSocketIngress } from "./socket-ingress.js";
 import type { AirJamIoServer, AirJamSocket } from "./socket-types.js";
 
 export interface RegisterSocketHandlersOptions {
@@ -96,6 +97,8 @@ export const registerSocketHandlers = ({
   const emitError = (socketId: string, payload: ServerErrorPayload): void => {
     io.to(socketId).emit("server:error", payload);
   };
+
+  registerSocketIngress(socket, rateLimitService, socketLogger);
 
   const context: SocketHandlerContext = {
     controllerRoomId,

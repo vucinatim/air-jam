@@ -16,12 +16,14 @@ export class RateLimitService {
   private entries = new Map<string, RateLimitEntry>();
   private checks = 0;
 
+  constructor(readonly now: () => number = Date.now) {}
+
   check(key: string, limit: number, windowMs: number): RateLimitResult {
     if (limit <= 0 || windowMs <= 0) {
       return { allowed: true, retryAfterMs: 0 };
     }
 
-    const now = Date.now();
+    const now = this.now();
     const existing = this.entries.get(key);
 
     if (!existing || now >= existing.resetAt) {

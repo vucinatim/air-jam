@@ -1,10 +1,5 @@
 import {
   AIRJAM_DEV_LOG_EVENTS,
-  controllerInputSchema,
-  controllerJoinSchema,
-  controllerLeaveSchema,
-  controllerSystemSchema,
-  controllerUpdatePlayerProfileSchema,
   ErrorCode,
   inferControllerSourceFromDeviceId,
   type AirJamDevLogEventName,
@@ -12,6 +7,7 @@ import {
   type ControllerJoinPayload,
   type ControllerLeavePayload,
   type ControllerUpdatePlayerProfileAck,
+  type ControllerUpdatePlayerProfilePayload,
   type PlayerProfile,
 } from "@air-jam/sdk/protocol";
 import Color from "color";
@@ -211,25 +207,6 @@ export const registerControllerHandlers = (
         return;
       }
 
-      const parsed = controllerJoinSchema.safeParse(payload);
-      if (!parsed.success) {
-        logControllerEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.controller.joinRejected,
-          "Rejected controller join with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
       const {
         roomId,
         controllerId,
@@ -239,7 +216,7 @@ export const registerControllerHandlers = (
         avatarId,
         capabilityToken,
         resumeCapabilityToken,
-      } = parsed.data;
+      } = payload;
       if (
         context.controllerRoomId !== undefined &&
         context.controllerRoomId !== roomId
@@ -588,32 +565,14 @@ export const registerControllerHandlers = (
   socket.on(
     "controller:updatePlayerProfile",
     (
-      payload: unknown,
+      payload: ControllerUpdatePlayerProfilePayload,
       callback: (ack: ControllerUpdatePlayerProfileAck) => void,
     ) => {
       const respond = (ack: ControllerUpdatePlayerProfileAck): void => {
         callback?.(ack);
       };
 
-      const parsed = controllerUpdatePlayerProfileSchema.safeParse(payload);
-      if (!parsed.success) {
-        logControllerEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.controller.profileUpdateRejected,
-          "Rejected controller profile update with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        respond({
-          ok: false,
-          message: parsed.error.message,
-        });
-        return;
-      }
-
-      const { roomId, controllerId, patch } = parsed.data;
+      const { roomId, controllerId, patch } = payload;
       if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
         logControllerEvent(
           "warn",
@@ -701,7 +660,7 @@ export const registerControllerHandlers = (
         {
           roomId,
           controllerId,
-          patch: parsed.data.patch,
+          patch: payload.patch,
         },
       );
 
@@ -715,26 +674,7 @@ export const registerControllerHandlers = (
       payload: ControllerLeavePayload,
       callback: (ack: { ok: boolean; message?: string; code?: string }) => void,
     ) => {
-      const parsed = controllerLeaveSchema.safeParse(payload);
-      if (!parsed.success) {
-        logControllerEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.controller.leaveRejected,
-          "Rejected controller leave with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: parsed.error.issues,
-          },
-        );
-        callback({
-          ok: false,
-          message: parsed.error.message,
-          code: ErrorCode.INVALID_PAYLOAD,
-        });
-        return;
-      }
-
-      const { roomId, controllerId } = parsed.data;
+      const { roomId, controllerId } = payload;
       const repeatsAcceptedLeave =
         !socket.data.controllerAuthority &&
         lastAcceptedLeave?.roomId === roomId &&
@@ -827,50 +767,20 @@ export const registerControllerHandlers = (
 
   socket.on("controller:input", (payload: ControllerInputEvent) => {
     const now = Date.now();
-    const input = payload?.input;
+    const input = payload.input;
+    const vector = input.vector;
     const hasActiveInput =
-      input &&
-      (input.action === true ||
-        (typeof input.vector === "object" &&
-          input.vector !== null &&
-          (Math.abs((input.vector as { x?: number; y?: number }).x ?? 0) >
-            0.01 ||
-            Math.abs((input.vector as { x?: number; y?: number }).y ?? 0) >
-              0.01)));
+      input.action === true ||
+      (typeof vector === "object" &&
+        vector !== null &&
+        (("x" in vector &&
+          typeof vector.x === "number" &&
+          Math.abs(vector.x) > 0.01) ||
+          ("y" in vector &&
+            typeof vector.y === "number" &&
+            Math.abs(vector.y) > 0.01)));
 
-    const result = controllerInputSchema.safeParse(payload);
-    if (!result.success) {
-      const rawRoomId =
-        typeof payload?.roomId === "string" ? payload.roomId : undefined;
-      const rawControllerId =
-        typeof payload?.controllerId === "string"
-          ? payload.controllerId
-          : undefined;
-      recordInputDrop({
-        roomId: rawRoomId,
-        controllerId: rawControllerId,
-        reason: "invalid_payload",
-        hasActiveInput: Boolean(hasActiveInput),
-      });
-      if (
-        !lastServerInputFailLogTime ||
-        now - lastServerInputFailLogTime > 1000
-      ) {
-        lastServerInputFailLogTime = now;
-        logControllerEvent(
-          "warn",
-          AIRJAM_DEV_LOG_EVENTS.controller.inputRejected,
-          "Rejected controller input with invalid payload",
-          {
-            reason: "invalid_payload",
-            issues: result.error.issues,
-          },
-        );
-      }
-      return;
-    }
-
-    const { roomId, controllerId } = result.data;
+    const { roomId, controllerId } = payload;
     if (!isControllerAuthorizedForRoom(roomId, controllerId)) {
       recordInputDrop({
         roomId,
@@ -926,7 +836,7 @@ export const registerControllerHandlers = (
 
     const targetHostId = roomManager.getActiveHostId(session);
     if (targetHostId) {
-      io.to(targetHostId).emit("server:input", result.data);
+      io.to(targetHostId).emit("server:input", payload);
       controllerInputSummary.record({
         key: `${roomId}:${controllerId}`,
         bindings: {
@@ -965,21 +875,7 @@ export const registerControllerHandlers = (
   });
 
   socket.on("controller:system", (payload) => {
-    const parsed = controllerSystemSchema.safeParse(payload);
-    if (!parsed.success) {
-      logControllerEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.systemRejected,
-        "Rejected controller system command with invalid payload",
-        {
-          reason: "invalid_payload",
-          issues: parsed.error.issues,
-        },
-      );
-      return;
-    }
-
-    const { roomId, command } = parsed.data;
+    const { roomId, command } = payload;
     if (!isControllerAuthorizedForRoom(roomId)) {
       logControllerEvent(
         "warn",
