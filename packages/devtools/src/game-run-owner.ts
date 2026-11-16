@@ -1596,8 +1596,10 @@ export class GameRunOwner {
     if (!session) throw new Error("Run session is not open.");
     const clock = session.clock;
     await this.startClip(run);
+    if (run.abort.signal.aborted) return;
     run.record.state = "playing";
     await this.persist(run);
+    if (run.abort.signal.aborted) return;
     run.playStartedAt = clock.now();
     if (request.kind === "test") {
       clearTimeout(run.timer);

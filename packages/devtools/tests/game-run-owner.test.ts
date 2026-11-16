@@ -26,6 +26,20 @@ import {
   tapOrWait,
 } from "./game-run-fixture.js";
 
+const persistence = vi.hoisted(() => ({
+  afterRename: undefined as (() => Promise<void>) | undefined,
+}));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    rename: async (...argumentsList: Parameters<typeof actual.rename>) => {
+      await actual.rename(...argumentsList);
+      await persistence.afterRename?.();
+    },
+  };
+});
+
 it("joins the creator's room alongside humans and keeps access out of records and traces", async () => {
   const f = await fixture();
   const currentProfile: AirJamTestProfileDescription = {
@@ -2534,5 +2548,49 @@ it("gives a test its full play budget after the sealed build finishes", async ()
     now.mockRestore();
     timers.mockRestore();
     cleared.mockRestore();
+  }
+});
+
+it("does not restart the play timer when stopped during the playing transition", async () => {
+  const f = await fixture();
+  const playing = Promise.withResolvers<void>();
+  const resume = Promise.withResolvers<void>();
+  const timers = vi.spyOn(globalThis, "setTimeout");
+  const now = vi.spyOn(performance, "now").mockReturnValue(100);
+  const recordFile = path.join(
+    f.root,
+    ".airjam/artifacts/runs",
+    f.request.runId,
+    "record.json",
+  );
+  persistence.afterRename = async () => {
+    const record = gameRunRecordSchema.parse(
+      JSON.parse(await readFile(recordFile, "utf8")),
+    );
+    if (record.state !== "playing") return;
+    persistence.afterRename = undefined;
+    playing.resolve();
+    await resume.promise;
+  };
+  try {
+    await f.owner.start(f.request);
+    await playing.promise;
+    const stopped = f.owner.stop(f.request.runId);
+    resume.resolve();
+    expect((await stopped).end?.reason).toBe("stopped");
+    expect(io.decide).not.toHaveBeenCalled();
+    expect(
+      timers.mock.calls.filter(([, duration]) => duration === 5000),
+    ).toHaveLength(1);
+    expect((await f.owner.read(f.request.runId)).state).toBe("ended");
+    expect(f.session.close).toHaveBeenCalledOnce();
+  } finally {
+    persistence.afterRename = undefined;
+    resume.resolve();
+    for (const [index, [, duration]] of timers.mock.calls.entries()) {
+      if (duration === 5000) clearTimeout(timers.mock.results[index].value);
+    }
+    timers.mockRestore();
+    now.mockRestore();
   }
 });
