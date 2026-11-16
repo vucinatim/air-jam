@@ -59,6 +59,70 @@ directly into the server options without converting values.
 This keeps adapter and runtime events in the unified local dev stream instead
 of creating disconnected logging paths.
 
+## Socket ingress
+
+`clientSocketEvents` in `@air-jam/sdk/protocol` declares the shared Zod schema,
+payload lane and acknowledgement policy for every client event. The server's
+socket middleware validates arguments and parses that schema before dispatch;
+handlers receive parsed values and retain their room/identity authority checks.
+Unknown events are rejected too. Adding a client event requires its ingress
+contract in the same map.
+
+`SOCKET_PAYLOAD_BOUNDS` exposes the serialized UTF-8 byte, nesting depth,
+keys per object, string length and events-per-window limits for controller,
+host-state and lifecycle messages. An iterative walk checks the complete input,
+including unknown fields, before Zod inspects nested values. Socket.IO's explicit
+`maxHttpBufferSize` equals `SOCKET_MAX_HTTP_BUFFER_SIZE`; frames above it are
+disconnected by Engine.IO before event dispatch. The wire envelope also uses
+part of that buffer.
+
+All protocol payloads are JSON; no event needs binary attachments. A small
+Socket.IO parser wrapper rejects binary event and acknowledgement headers,
+and standalone binary frames, before the stock decoder can allocate an attachment
+reconstructor or retain any attachment bytes. Socket.IO closes the offending
+connection on this protocol error. This also covers a declared attachment count
+larger than the frame limit, which alone cannot bound a reconstructed packet.
+
+The limits were selected from the current games on 2026-11-16. Measurements
+include the whole event payload, with depth counted from zero at the root:
+
+| Payload measured                                                                               | UTF-8 bytes | Depth | Keys/object | Longest string |
+| ---------------------------------------------------------------------------------------------- | ----------: | ----: | ----------: | -------------: |
+| Pong, four players, started                                                                    |         592 |     4 |           7 |             49 |
+| The Office, four players, populated task statistics                                            |       1,661 |     4 |          11 |             49 |
+| Odd One Out, six players, ten rounds, two clue laps, public state plus private restore entries |       8,046 |     5 |          28 |             49 |
+| Odd One Out, one phone's private entry                                                         |         293 |     2 |           6 |             49 |
+| Largest measured controller input/action (Pong)                                                |         139 |     3 |           3 |             49 |
+| Join with a 24-character name and 128-character resume token                                   |         336 |     1 |           5 |            128 |
+| Hosted bootstrap with a canonical signed grant (fixture identities)                            |         533 |     1 |           2 |            490 |
+
+Pong and The Office use reducer fixtures; Odd One Out uses its exact exported
+source, playing the reducers through a complete match with maximum settings,
+24-character multibyte names and 20-character multibyte clues. These are current
+payload measurements, not a claim about every possible game. The limits retain
+room for larger games and action objects while keeping work per event bounded:
+
+| Lane       | UTF-8 bytes | Depth | Keys/object | String length | Events/second/socket |
+| ---------- | ----------: | ----: | ----------: | ------------: | -------------------: |
+| Controller |       4,096 |     8 |          64 |         1,024 |                  240 |
+| Host state |      65,536 |    12 |         256 |         4,096 |                  480 |
+| Lifecycle  |       8,192 |     8 |          64 |         4,096 |                   30 |
+
+Host state has over eight times the largest measured payload; its event allowance
+covers a six-phone game's public and private updates with headroom. Controller
+and lifecycle allowances cover normal frame-rate input, actions and reconnects.
+A game that exceeds these bounds needs a measured contract review, rather than
+an unbounded payload or a silent increase.
+
+The existing limiter counts each socket's lanes independently over
+`SOCKET_INGRESS_WINDOW_MS`. Invalid and excessive messages are dropped without
+calling their handlers. A supplied acknowledgement receives the event's typed
+invalid-payload or rate-limit response. After `SOCKET_INGRESS_ABUSE_LIMIT`
+rejections in one window, the server emits `server:error` with `SOCKET_ABUSE`
+and disconnects that socket. One `socket.ingress_rejected` warning per socket
+per window summarizes rejected and rate-limited counts in the unified log stream;
+it never includes the rejected payload.
+
 ## Controller-only gateways
 
 A trusted gateway can admit controllers to one existing room without granting

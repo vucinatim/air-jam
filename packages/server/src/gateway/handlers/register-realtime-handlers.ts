@@ -1,19 +1,15 @@
 import {
   AIRJAM_DEV_LOG_EVENTS,
-  controllerActionRpcSchema,
-  controllerStateSchema,
-  controllerStateSyncRequestSchema,
-  controllerSystemSchema,
-  hostPrivateStateSyncSchema,
-  hostStateSyncSchema,
   isAirJamArcadePlatformPrefixAction,
-  runtimeErrorReportSchema,
   type AirJamActionInvocationResult,
   type AirJamActionRpcPayload,
   type AirJamDevLogEventName,
   type AirJamStateSyncPayload,
   type ControllerActionRpcPayload,
   type ControllerStateMessage,
+  type ControllerStateSyncRequestPayload,
+  type HostPrivateStateSyncPayload,
+  type HostStateSyncPayload,
   type PlaySoundEventPayload,
   type RuntimeErrorReportAck,
   type SignalPayload,
@@ -112,19 +108,8 @@ export const registerRealtimeHandlers = (
     const acknowledge = (ack: RuntimeErrorReportAck): void => {
       if (typeof callback === "function") callback(ack);
     };
-    const parsed = runtimeErrorReportSchema.safeParse(payload);
-    if (!parsed.success) {
-      logRealtimeEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.browser.runtime,
-        "Rejected an invalid hosted-runtime error report",
-        { reason: "invalid_payload" },
-      );
-      acknowledge({ ok: false, code: "invalid_payload" });
-      return;
-    }
 
-    const report = parsed.data;
+    const report = payload;
     if (
       context.isRateLimited(
         "runtime-error-report",
@@ -209,31 +194,7 @@ export const registerRealtimeHandlers = (
     payload: ControllerActionRpcPayload;
     callback?: (ack: AirJamActionInvocationResult) => void;
   }): void => {
-    const parsed = controllerActionRpcSchema.safeParse(payload);
-    if (!parsed.success) {
-      logRealtimeEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        `Rejected controller action RPC with invalid payload`,
-        {
-          reason: "invalid_payload",
-          issues: parsed.error.issues,
-        },
-      );
-      rejectActionRpc(
-        callback,
-        "invalid_payload",
-        `Rejected controller action RPC with invalid payload.`,
-      );
-      return;
-    }
-
-    const {
-      roomId,
-      actionName,
-      payload: actionPayload,
-      storeDomain,
-    } = parsed.data;
+    const { roomId, actionName, payload: actionPayload, storeDomain } = payload;
     if (actionName.startsWith("_")) {
       logRealtimeEvent(
         "warn",
@@ -506,21 +467,7 @@ export const registerRealtimeHandlers = (
   };
 
   socket.on("host:system", (payload) => {
-    const parsed = controllerSystemSchema.safeParse(payload);
-    if (!parsed.success) {
-      logRealtimeEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.host.systemRejected,
-        "Rejected host system command with invalid payload",
-        {
-          reason: "invalid_payload",
-          issues: parsed.error.issues,
-        },
-      );
-      return;
-    }
-
-    const { roomId, command } = parsed.data;
+    const { roomId, command } = payload;
     if (!isHostAuthorizedForRoom(roomId)) {
       logRealtimeEvent(
         "warn",
@@ -594,21 +541,7 @@ export const registerRealtimeHandlers = (
   });
 
   socket.on("host:state", (payload: ControllerStateMessage) => {
-    const result = controllerStateSchema.safeParse(payload);
-    if (!result.success) {
-      logRealtimeEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.host.stateRejected,
-        "Rejected host state update with invalid payload",
-        {
-          reason: "invalid_payload",
-          issues: result.error.issues,
-        },
-      );
-      return;
-    }
-
-    const { roomId, state } = result.data;
+    const { roomId, state } = payload;
     if (!isHostAuthorizedForRoom(roomId)) {
       logRealtimeEvent(
         "warn",
@@ -827,34 +760,21 @@ export const registerRealtimeHandlers = (
     });
   });
 
-  socket.on("host:private_state_sync", (payload: unknown) => {
-    const parsed = hostPrivateStateSyncSchema.safeParse(payload);
-    if (!parsed.success) return;
-    const { roomId, controllerId } = parsed.data;
-    const session = roomManager.getRoom(roomId);
-    if (!session || !isHostAuthorizedForRoom(roomId)) return;
-    const controller = session.controllers.get(controllerId);
-    if (!controller?.socketId) return;
-    io.to(controller.socketId).emit("airjam:private_state_sync", parsed.data);
-  });
+  socket.on(
+    "host:private_state_sync",
+    (payload: HostPrivateStateSyncPayload) => {
+      const { roomId, controllerId } = payload;
+      const session = roomManager.getRoom(roomId);
+      if (!session || !isHostAuthorizedForRoom(roomId)) return;
+      const controller = session.controllers.get(controllerId);
+      if (!controller?.socketId) return;
+      io.to(controller.socketId).emit("airjam:private_state_sync", payload);
+    },
+  );
 
-  socket.on("host:state_sync", (payload: unknown) => {
-    const parsed = hostStateSyncSchema.safeParse(payload);
-    if (!parsed.success) {
-      logRealtimeEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.host.stateSyncRejected,
-        "Rejected host state sync with invalid payload",
-        {
-          reason: "invalid_payload",
-          issues: parsed.error.issues,
-        },
-      );
-      return;
-    }
-
+  socket.on("host:state_sync", (payload: HostStateSyncPayload) => {
     const { roomId, data, storeDomain, revision, requestId, privateState } =
-      parsed.data;
+      payload;
     const session = roomManager.getRoom(roomId);
     if (!session) {
       logRealtimeEvent(
@@ -914,65 +834,54 @@ export const registerRealtimeHandlers = (
     });
   });
 
-  socket.on("controller:state_sync_request", (payload: unknown) => {
-    const parsed = controllerStateSyncRequestSchema.safeParse(payload);
-    if (!parsed.success) {
-      logRealtimeEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        "Rejected controller state sync request with invalid payload",
-        {
-          reason: "invalid_payload",
-          issues: parsed.error.issues,
-        },
-      );
-      return;
-    }
+  socket.on(
+    "controller:state_sync_request",
+    (payload: ControllerStateSyncRequestPayload) => {
+      const { roomId, storeDomain, requestId } = payload;
+      if (!isControllerAuthorizedForRoom(roomId)) {
+        logRealtimeEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+          "Rejected controller state sync request because socket is unauthorized",
+          {
+            roomId,
+            storeDomain,
+            reason: "unauthorized",
+          },
+        );
+        return;
+      }
 
-    const { roomId, storeDomain, requestId } = parsed.data;
-    if (!isControllerAuthorizedForRoom(roomId)) {
-      logRealtimeEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        "Rejected controller state sync request because socket is unauthorized",
+      const session = roomManager.getRoom(roomId);
+      if (!session) {
+        logRealtimeEvent(
+          "warn",
+          AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
+          "Rejected controller state sync request because room was not found",
+          {
+            roomId,
+            storeDomain,
+            reason: "room_not_found",
+          },
+        );
+        return;
+      }
+
+      const controller = [...session.controllers.values()].find(
+        (entry) => entry.socketId === socket.id,
+      );
+      if (!controller) return;
+      io.to(roomManager.getActiveHostId(session)).emit(
+        "airjam:state_sync_request",
         {
           roomId,
           storeDomain,
-          reason: "unauthorized",
+          controllerId: controller.controllerId,
+          ...(requestId ? { requestId } : {}),
         },
       );
-      return;
-    }
-
-    const session = roomManager.getRoom(roomId);
-    if (!session) {
-      logRealtimeEvent(
-        "warn",
-        AIRJAM_DEV_LOG_EVENTS.controller.actionRpcRejected,
-        "Rejected controller state sync request because room was not found",
-        {
-          roomId,
-          storeDomain,
-          reason: "room_not_found",
-        },
-      );
-      return;
-    }
-
-    const controller = [...session.controllers.values()].find(
-      (entry) => entry.socketId === socket.id,
-    );
-    if (!controller) return;
-    io.to(roomManager.getActiveHostId(session)).emit(
-      "airjam:state_sync_request",
-      {
-        roomId,
-        storeDomain,
-        controllerId: controller.controllerId,
-        ...(requestId ? { requestId } : {}),
-      },
-    );
-  });
+    },
+  );
 
   socket.on(
     "controller:action_rpc",

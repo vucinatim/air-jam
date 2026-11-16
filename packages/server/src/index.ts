@@ -1,5 +1,6 @@
 import {
   AIRJAM_DEV_LOG_EVENTS,
+  SOCKET_MAX_HTTP_BUFFER_SIZE,
   type ClientToServerEvents,
   type InterServerEvents,
   type ServerToClientEvents,
@@ -15,6 +16,7 @@ import {
 } from "./analytics/runtime-usage.js";
 import { loadServerEnv, type ServerEnvConfig } from "./env/server-env.js";
 import { registerSocketHandlers } from "./gateway/register-socket-handlers.js";
+import { socketParser } from "./gateway/socket-parser.js";
 import type {
   BrowserLogBatchPayload,
   BrowserLogUnloadPayload,
@@ -298,6 +300,8 @@ export const createAirJamServer = (
     SocketData
   >(httpServer, {
     cors: { origin: corsOrigin },
+    parser: socketParser,
+    maxHttpBufferSize: SOCKET_MAX_HTTP_BUFFER_SIZE,
     // Arcade tab: system host + game iframe share one event loop. Heavy WebGL /
     // match start can stall the JS thread for several seconds; the default
     // ~5s ping window drops the master host and tears down the room.

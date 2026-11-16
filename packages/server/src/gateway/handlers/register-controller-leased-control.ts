@@ -1,7 +1,6 @@
 import {
   AIRJAM_DEV_LOG_EVENTS,
   controllerLeasedControlAckSchema,
-  controllerLeasedControlSchema,
   type ControllerLeasedControlAck,
 } from "@air-jam/sdk/protocol";
 import { createWindowedEventSummary } from "../../logging/create-windowed-event-summary.js";
@@ -46,12 +45,8 @@ export function registerControllerLeasedControl(context: SocketHandlerContext) {
       if (socket.disconnected) outcomes.flushAll();
       acknowledge(ack);
     };
-    const parsed = controllerLeasedControlSchema.safeParse(payload);
-    if (!parsed.success) {
-      finish({ status: "rejected", reason: "invalid_request" });
-      return;
-    }
-    const input = parsed.data;
+
+    const input = payload;
     if (!isControllerAuthorizedForRoom(input.roomId, input.controllerId)) {
       finish({ status: "rejected", reason: "unauthorized" });
       return;
