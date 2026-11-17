@@ -64,6 +64,16 @@ it("records actual import methods and refuses shared dependency inodes", () => {
   );
   expect(() => copied.assertIndependentImports()).not.toThrow();
   expect(copied.finish().importMethods).toEqual(["copy"]);
+  const cloned = new DependencyInstallObservation();
+  cloned.accept(
+    JSON.stringify({
+      name: "pnpm:progress",
+      status: "imported",
+      method: "clone",
+    }),
+  );
+  expect(() => cloned.assertIndependentImports()).not.toThrow();
+  expect(cloned.finish().importMethods).toEqual(["clone"]);
   const shared = new DependencyInstallObservation();
   shared.accept(
     JSON.stringify({

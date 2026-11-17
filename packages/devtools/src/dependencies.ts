@@ -86,7 +86,11 @@ export class DependencyInstallObservation {
       throw new Error(
         "Dependency installation did not report its import method.",
       );
-    if ([...this.importMethods].some((method) => method !== "copy"))
+    if (
+      [...this.importMethods].some(
+        (method) => method !== "copy" && method !== "clone",
+      )
+    )
       throw new Error(
         `Dependency installation requires independent copies; pnpm reported ${[...this.importMethods].join(", ")}.`,
       );
