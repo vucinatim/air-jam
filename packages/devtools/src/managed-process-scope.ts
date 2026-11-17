@@ -7,6 +7,7 @@ import {
   resolveDevtoolsHelperArgs,
   resolveDevtoolsHelperScript,
 } from "./helper-scripts.js";
+import { nodeProcessEnvironment } from "./node-process-environment.js";
 import {
   processGuardResponseSchema,
   processGuardStartupTimeoutMs,
@@ -31,22 +32,18 @@ export function assertProcessScopesConfirmed() {
 }
 
 export function processGuardEnvironment() {
-  return Object.fromEntries(
-    [
-      "PATH",
-      "SystemRoot",
-      "WINDIR",
-      "HOME",
-      "TMPDIR",
-      "TEMP",
-      "TMP",
-      "LANG",
-      "LC_ALL",
-      "NODE_DEBUG",
-    ].flatMap((key) =>
-      process.env[key] === undefined ? [] : [[key, process.env[key]]],
-    ),
-  );
+  return nodeProcessEnvironment([
+    "PATH",
+    "SystemRoot",
+    "WINDIR",
+    "HOME",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "LANG",
+    "LC_ALL",
+    "NODE_DEBUG",
+  ]);
 }
 
 class ProcessGuard {

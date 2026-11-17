@@ -63,6 +63,8 @@ PowerShell 7.4+ (`pwsh`), which most Windows desktops do not include by default;
 install it with `winget install Microsoft.PowerShell`. Its packaged job helper
 compiles in memory. Blocked initialization fails admission without weakening the
 machine's policy; unrelated commands do not require the guardian.
+Sanitized Node helper environments preserve the parent's `ELECTRON_RUN_AS_NODE`
+when set, so an embedded Electron executable continues running as Node.
 Set `NODE_DEBUG=airjam-process-scope` to inspect Windows guardian startup phases.
 Failures include bounded startup diagnostics without requiring debug logging.
 
