@@ -26,6 +26,7 @@ const release = {
     description: null,
     url: null,
     arcadeVisibility: "hidden",
+    arcadeListing: { status: "not_requested", reason: null },
     sourceUrl: null,
     templateId: null,
     createdAt: "2026-11-01T00:00:00Z",

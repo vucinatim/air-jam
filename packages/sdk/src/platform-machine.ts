@@ -176,6 +176,15 @@ export const platformMachineOwnedGameSummarySchema = z.object({
   description: z.string().nullable(),
   url: z.string().url().nullable(),
   arcadeVisibility: z.enum(["hidden", "listed"]),
+  arcadeListing: z.object({
+    status: z.enum([
+      "not_requested",
+      "awaiting_approval",
+      "approved",
+      "rejected",
+    ]),
+    reason: z.string().nullable(),
+  }),
   sourceUrl: z.string().url().nullable(),
   templateId: z.string().min(1).nullable(),
   createdAt: z.string().min(1),

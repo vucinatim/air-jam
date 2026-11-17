@@ -15,6 +15,7 @@ const game = {
   description: null,
   url: null,
   arcadeVisibility: "hidden",
+  arcadeListing: { status: "not_requested", reason: null },
   sourceUrl: null,
   templateId: "minimal",
   createdAt: "2026-11-06T08:00:00.000Z",
