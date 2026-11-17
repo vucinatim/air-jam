@@ -99,6 +99,17 @@ The `next` channel contains the 0.9.3 prerelease packages. Release qualification
 uses freshly packed candidate archives from `release/1.0`; npm availability
 does not identify or qualify those archives.
 
+## Hosted game listing status
+
+`airjam game list` and `airjam game inspect --game <slug-or-id>` show the
+Arcade listing decision: Not requested, Waiting for approval, Listed in Arcade,
+or Not approved (with the reason when supplied). Both accept `--json` and return
+`arcadeListing: { status, reason }` on each game. Status is `not_requested`,
+`awaiting_approval`, `approved`, or `rejected`; reason is nullable.
+`arcadeVisibility` (`hidden` or `listed`) remains the creator's request and does
+not establish operator approval. Run through `pnpm --silent exec airjam ... --json`
+when stdout must contain only the JSON document.
+
 ## Repo Development
 
 ```bash

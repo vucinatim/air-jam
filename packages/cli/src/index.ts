@@ -4,6 +4,7 @@ import { registerAuthSessionsCommand } from "./auth-sessions.js";
 
 import { gameSessionOperationSchemas } from "@air-jam/devtools/game-session";
 import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
+import type { PlatformMachineOwnedGameSummary } from "@air-jam/sdk/platform-machine";
 
 import {
   getDevStatus,
@@ -303,22 +304,26 @@ const runReleaseListCommand = async ({
   }
 };
 
+const formatArcadeListing = ({
+  status,
+  reason,
+}: PlatformMachineOwnedGameSummary["arcadeListing"]) => {
+  const labels = {
+    not_requested: "Not requested",
+    awaiting_approval: "Waiting for approval",
+    approved: "Listed in Arcade",
+    rejected: "Not approved",
+  };
+  return status === "rejected" && reason
+    ? `${labels[status]}: ${reason}`
+    : labels[status];
+};
+
 const printHostedGame = ({
   game,
   heading,
 }: {
-  game: {
-    id: string;
-    slug: string | null;
-    name: string;
-    description: string | null;
-    url: string | null;
-    arcadeVisibility: "hidden" | "listed";
-    sourceUrl: string | null;
-    templateId: string | null;
-    createdAt: string;
-    updatedAt: string;
-  };
+  game: PlatformMachineOwnedGameSummary;
   heading: string;
 }) => {
   console.log(kleur.green(`\n✓ ${heading}\n`));
@@ -326,6 +331,9 @@ const printHostedGame = ({
   console.log(`Name: ${kleur.cyan(game.name)}`);
   console.log(`Slug: ${kleur.cyan(game.slug ?? "(none)")}`);
   console.log(`Arcade visibility: ${kleur.cyan(game.arcadeVisibility)}`);
+  console.log(
+    `Arcade listing: ${kleur.cyan(formatArcadeListing(game.arcadeListing))}`,
+  );
   console.log(`Description: ${kleur.cyan(game.description ?? "(none)")}`);
   console.log(`Preview URL: ${kleur.cyan(game.url ?? "(none)")}`);
   console.log(`Source URL: ${kleur.cyan(game.sourceUrl ?? "(none)")}`);
@@ -395,10 +403,16 @@ const resolveCreateGameInput = async ({
 
 const runGameListCommand = async ({
   platformUrl,
+  json,
 }: {
   platformUrl?: string;
+  json?: boolean;
 }) => {
   const result = await listPlatformGames({ platformUrl });
+  if (json) {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
 
   console.log(kleur.green("\n✓ Hosted games\n"));
 
@@ -409,7 +423,7 @@ const runGameListCommand = async ({
 
   for (const game of result.games) {
     console.log(
-      `${kleur.cyan(game.id)}  ${game.slug ? kleur.yellow(game.slug) : kleur.dim("(no slug)")}  ${game.name}  ${kleur.dim(game.arcadeVisibility)}`,
+      `${kleur.cyan(game.id)}  ${game.slug ? kleur.yellow(game.slug) : kleur.dim("(no slug)")}  ${game.name}  ${kleur.dim(game.arcadeVisibility)}  ${formatArcadeListing(game.arcadeListing)}`,
     );
   }
 };
@@ -417,14 +431,21 @@ const runGameListCommand = async ({
 const runGameInspectCommand = async ({
   platformUrl,
   game,
+  json,
 }: {
   platformUrl?: string;
   game: string;
+  json?: boolean;
 }) => {
   const result = await inspectPlatformGame({
     platformUrl,
     slugOrId: game,
   });
+
+  if (json) {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
 
   printHostedGame({
     game: result.game,
@@ -1095,11 +1116,13 @@ const buildProgram = () => {
   gameCommand
     .command("list")
     .description("List owned hosted games")
+    .option("--json", "Print one machine-readable JSON document", false)
     .option("--platform-url <url>", "Hosted Air Jam platform base URL")
     .action(async (options: unknown) => {
       await runGameListCommand(
         resolveActionOptions<{
           platformUrl?: string;
+          json?: boolean;
         }>(options),
       );
     });
@@ -1107,17 +1130,20 @@ const buildProgram = () => {
   gameCommand
     .command("inspect")
     .description("Inspect one owned hosted game")
+    .option("--json", "Print one machine-readable JSON document", false)
     .requiredOption("--game <slug-or-id>", "Owned hosted game slug or ID")
     .option("--platform-url <url>", "Hosted Air Jam platform base URL")
     .action(async (options: unknown) => {
       const resolved = resolveActionOptions<{
         platformUrl?: string;
+        json?: boolean;
         game: string;
       }>(options);
 
       await runGameInspectCommand({
         platformUrl: resolved.platformUrl,
         game: resolved.game,
+        json: resolved.json,
       });
     });
 

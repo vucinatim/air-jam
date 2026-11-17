@@ -401,3 +401,74 @@ test("airjam exposes persistent semantic session lifecycle help", () => {
   assert.match(output, /close/);
   assert.match(output, /broker/);
 });
+
+test("hosted games distinguish the listing decision from the request in text and JSON", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "airjam-listing-"));
+  const game = {
+    id: "game_1",
+    slug: "pong",
+    name: "Pong",
+    description: null,
+    url: null,
+    arcadeVisibility: "listed",
+    arcadeListing: { status: "rejected", reason: "Cover needs updating" },
+    sourceUrl: null,
+    templateId: null,
+    createdAt: "2026-11-17T00:00:00Z",
+    updatedAt: "2026-11-17T00:00:00Z",
+  };
+  try {
+    const preload = path.join(root, "platform.mjs");
+    await writeFile(
+      preload,
+      `
+      import filesystem from "node:fs/promises";
+      import { syncBuiltinESMExports } from "node:module";
+      const readFile = filesystem.readFile;
+      filesystem.readFile = (file, ...options) => String(file).endsWith("platform-session.json")
+        ? Promise.resolve(JSON.stringify({
+            version: 2, platformBaseUrl: "https://platform.airjam.test", clientName: null,
+            storedAt: "2026-11-17T00:00:00Z",
+            user: { id: "creator", name: "Creator", email: "creator@airjam.test", role: "creator" },
+            session: { id: "session", token: "token", refreshToken: "refresh",
+              expiresAt: "2099-01-01T00:00:00Z", refreshExpiresAt: "2099-02-01T00:00:00Z",
+              createdAt: "2026-11-17T00:00:00Z", userAgent: "airjam-cli" }
+          }))
+        : readFile(file, ...options);
+      syncBuiltinESMExports();
+      const game = ${JSON.stringify(game)};
+      globalThis.fetch = async (url) => {
+        if (String(url) === "https://platform.airjam.test/api/cli/games") return Response.json({ games: [game] });
+        if (String(url) === "https://platform.airjam.test/api/cli/games/pong") return Response.json({ game });
+        throw new Error("Unexpected request: " + url);
+      };
+    `,
+    );
+    const run = (...args) =>
+      execFileSync(
+        process.execPath,
+        ["--import", preload, "dist/index.js", "game", ...args],
+        {
+          cwd: packageRoot,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            AIRJAM_STATE_DIR: root,
+            NO_COLOR: "1",
+            FORCE_COLOR: "0",
+          },
+        },
+      );
+    assert.match(run("list"), /listed.*Not approved: Cover needs updating/);
+    assert.match(
+      run("inspect", "--game", "pong"),
+      /Arcade listing: Not approved: Cover needs updating/,
+    );
+    assert.deepEqual(JSON.parse(run("list", "--json")), { games: [game] });
+    assert.deepEqual(JSON.parse(run("inspect", "--game", "pong", "--json")), {
+      game,
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
