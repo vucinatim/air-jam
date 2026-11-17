@@ -165,6 +165,7 @@ export const createAirJamServer = (
   }
 
   const defaultPort = envConfig.port;
+  const bindHost = options.host ?? envConfig.bindHost;
   const rateLimitWindowMs =
     options.rateLimitWindowMs ?? envConfig.rateLimitWindowMs;
   const hostRegistrationRateLimitMax =
@@ -390,7 +391,7 @@ export const createAirJamServer = (
     await new Promise<void>((resolve, reject) => {
       httpServer.once("error", reject);
       httpServer.listen(
-        { port: resolvedPort, ...(options.host ? { host: options.host } : {}) },
+        { port: resolvedPort, ...(bindHost ? { host: bindHost } : {}) },
         () => {
           httpServer.off("error", reject);
           resolve();

@@ -88,7 +88,7 @@ const resolveBuildConfig = (profile) => {
 };
 
 const createSharedDevServerConfig = ({ env, port }) => ({
-  host: true,
+  host: env.AIR_JAM_BIND_HOST?.trim() || true,
   allowedHosts: true,
   https: getAirJamHttpsServerOptions(env),
   port,

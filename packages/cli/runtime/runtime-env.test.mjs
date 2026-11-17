@@ -12,6 +12,7 @@ test("loadCreateAirJamRuntimeEnv parses defaults", () => {
 
   assert.equal(runtimeEnv.VITE_PORT, 5173);
   assert.equal(runtimeEnv.AIR_JAM_SERVER_PORT, 4000);
+  assert.equal(runtimeEnv.AIR_JAM_BIND_HOST, undefined);
   assert.equal(runtimeEnv.AIR_JAM_SECURE_MODE, undefined);
 });
 
@@ -79,5 +80,13 @@ test("resolveLocalBackendOrigin owns default, port, and explicit URL precedence"
       VITE_AIR_JAM_SERVER_URL: "https://backend.example.test",
     }),
     "https://backend.example.test",
+  );
+});
+
+test("the creator runtime retains the bind input for its realtime child", () => {
+  assert.equal(
+    loadCreateAirJamRuntimeEnv({ env: { AIR_JAM_BIND_HOST: " 127.0.0.1 " } })
+      .AIR_JAM_BIND_HOST,
+    "127.0.0.1",
   );
 });

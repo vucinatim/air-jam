@@ -2203,9 +2203,10 @@ const buildProgram = () => {
         "Network isolation:",
         "  VITE_PORT=<port>                 Game app port (default: 5173)",
         "  AIR_JAM_SERVER_PORT=<port>       Local server port (default: 4000)",
+        "  AIR_JAM_BIND_HOST=<address>     Bind address (default: all interfaces)",
         "  VITE_AIR_JAM_PUBLIC_HOST=<url>   Explicit host/controller origin",
         "",
-        "Set all three when parallel agents or local projects need isolated dev stacks.",
+        "Set ports and the public origin when parallel agents or local projects need isolated dev stacks.",
       ].join("\n"),
     )
     .action(async () => {

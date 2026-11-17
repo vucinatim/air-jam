@@ -95,6 +95,22 @@ it("records actual import methods and refuses shared dependency inodes", () => {
 
 it.each([
   {
+    options: {},
+    flags: [
+      "--frozen-lockfile",
+      "--reporter=ndjson",
+      "--package-import-method=copy",
+    ],
+  },
+  {
+    options: { packageImportMethod: "clone-or-copy" as const },
+    flags: [
+      "--frozen-lockfile",
+      "--reporter=ndjson",
+      "--package-import-method=clone-or-copy",
+    ],
+  },
+  {
     options: { network: "offline" as const },
     flags: [
       "--frozen-lockfile",
@@ -117,31 +133,28 @@ it.each([
       "--prefer-offline",
     ],
   },
-])(
-  "pins copy imports for typed install options $options",
-  async ({ options, flags }) => {
-    const child = new ChildProcess();
-    const stdout = new PassThrough();
-    const stderr = new PassThrough();
-    child.stdout = stdout;
-    child.stderr = stderr;
-    vi.mocked(crossSpawn).mockReturnValueOnce(child);
-    const installation = installDependencies("/not-used", options);
-    stdout.end(
-      JSON.stringify({ name: "pnpm:package-import-method", method: "copy" }) +
-        "\n",
-    );
-    stderr.end();
-    child.emit("close", 0, null);
-    expect((await installation).importMethods).toEqual(["copy"]);
-    expect(crossSpawn).toHaveBeenLastCalledWith("pnpm", ["install", ...flags], {
-      cwd: "/not-used",
-      stdio: ["ignore", "pipe", "pipe"],
-      signal: undefined,
-      killSignal: "SIGKILL",
-    });
-  },
-);
+])("honours typed install options $options", async ({ options, flags }) => {
+  const child = new ChildProcess();
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  child.stdout = stdout;
+  child.stderr = stderr;
+  vi.mocked(crossSpawn).mockReturnValueOnce(child);
+  const installation = installDependencies("/not-used", options);
+  stdout.end(
+    JSON.stringify({ name: "pnpm:package-import-method", method: "copy" }) +
+      "\n",
+  );
+  stderr.end();
+  child.emit("close", 0, null);
+  expect((await installation).importMethods).toEqual(["copy"]);
+  expect(crossSpawn).toHaveBeenLastCalledWith("pnpm", ["install", ...flags], {
+    cwd: "/not-used",
+    stdio: ["ignore", "pipe", "pipe"],
+    signal: undefined,
+    killSignal: "SIGKILL",
+  });
+});
 
 it("waits for a real aborted installer to close before removing its writable tree", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "airjam-install-abort-"));

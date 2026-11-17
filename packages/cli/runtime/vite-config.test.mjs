@@ -13,6 +13,7 @@ test("createAirJamViteConfig default profile keeps Air Jam dev contract minimal"
   });
 
   assert.equal(config.server.host, true);
+  assert.equal(config.preview.host, true);
   assert.equal(config.base, "/");
   assert.equal(config.server.allowedHosts, true);
   assert.equal(config.server.port, 5173);
@@ -23,6 +24,18 @@ test("createAirJamViteConfig default profile keeps Air Jam dev contract minimal"
     "http://127.0.0.1:4000",
   );
   assert.equal(config.build.chunkSizeWarningLimit, 1000);
+});
+
+test("the bind input applies to development and preview", () => {
+  const config = createAirJamViteConfig({
+    env: { AIR_JAM_BIND_HOST: " 127.0.0.1 " },
+  });
+  assert.equal(config.server.host, "127.0.0.1");
+  assert.equal(config.preview.host, "127.0.0.1");
+  assert.equal(
+    createAirJamViteConfig({ env: { AIR_JAM_BIND_HOST: " " } }).server.host,
+    true,
+  );
 });
 
 test("builds can use an isolated version directory without changing dev routing", () => {

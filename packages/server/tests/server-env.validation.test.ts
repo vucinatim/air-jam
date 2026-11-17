@@ -6,6 +6,7 @@ describe("standalone server environment", () => {
     const environment = loadServerEnv({});
     expect(environment).toMatchObject({
       port: 4000,
+      bindHost: undefined,
       authMode: "disabled",
       allowedOrigins: "*",
     });
