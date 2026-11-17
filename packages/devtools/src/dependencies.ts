@@ -105,6 +105,7 @@ export async function installDependencies(
     network?: "online" | "prefer-offline" | "offline";
     lockfile?: "frozen" | "update";
     scripts?: "run" | "ignore";
+    packageImportMethod?: "copy" | "clone-or-copy";
   } = {},
 ) {
   options.signal?.throwIfAborted();
@@ -117,7 +118,7 @@ export async function installDependencies(
         ? "--no-frozen-lockfile"
         : "--frozen-lockfile",
       "--reporter=ndjson",
-      "--package-import-method=copy",
+      `--package-import-method=${options.packageImportMethod ?? "copy"}`,
       ...(options.scripts === "ignore" ? ["--ignore-scripts"] : []),
       ...(options.network && options.network !== "online"
         ? [`--${options.network}`]

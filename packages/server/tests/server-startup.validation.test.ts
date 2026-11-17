@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { loadServerEnv } from "../src/env/server-env";
 import { createAirJamServer } from "../src/index";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -29,3 +30,47 @@ describe("createAirJamServer startup validation", () => {
     );
   });
 });
+
+it.each([
+  { environment: {}, host: undefined, expected: { port: 4000 } },
+  {
+    environment: { AIR_JAM_BIND_HOST: " " },
+    host: undefined,
+    expected: { port: 4000 },
+  },
+  {
+    environment: { AIR_JAM_BIND_HOST: " 127.0.0.1 " },
+    host: undefined,
+    expected: { port: 4000, host: "127.0.0.1" },
+  },
+  {
+    environment: { AIR_JAM_BIND_HOST: "127.0.0.1" },
+    host: "::1",
+    expected: { port: 4000, host: "::1" },
+  },
+])(
+  "passes the bind input to the listener and preserves explicit host precedence: $expected",
+  async ({ environment, host, expected }) => {
+    const runtime = createAirJamServer({
+      host,
+      envConfig: loadServerEnv({
+        ...environment,
+        AIR_JAM_DEV_LOG_COLLECTOR: "disabled",
+        AIR_JAM_LOG_LEVEL: "silent",
+      }),
+    });
+    const listen = vi
+      .spyOn(runtime.httpServer, "listen")
+      .mockImplementation((...argumentsList) => {
+        const callback = argumentsList.at(-1);
+        if (typeof callback === "function") callback();
+        return runtime.httpServer;
+      });
+    try {
+      await runtime.start();
+      expect(listen).toHaveBeenCalledWith(expected, expect.any(Function));
+    } finally {
+      await runtime.stop();
+    }
+  },
+);

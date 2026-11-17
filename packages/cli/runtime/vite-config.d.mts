@@ -16,7 +16,7 @@ export declare const AIR_JAM_IFRAME_HEADERS: {
 };
 
 type AirJamViteServerConfig = {
-  host: true;
+  host: string | true;
   allowedHosts: true;
   https: ReturnType<typeof getAirJamHttpsServerOptions>;
   port: number;

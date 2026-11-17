@@ -80,6 +80,7 @@ const normalizeAllowedOrigins = (
 const rawServerEnvSchema = z.object({
   AIR_JAM_CONTROLLER_GATEWAY_KEY: z.string().min(32).optional(),
   NODE_ENV: optionalEnvString,
+  AIR_JAM_BIND_HOST: optionalEnvString,
   PORT: createPositiveIntegerSchema("PORT", 4000),
   AIR_JAM_RATE_LIMIT_WINDOW_MS: createPositiveIntegerSchema(
     "AIR_JAM_RATE_LIMIT_WINDOW_MS",
@@ -145,6 +146,7 @@ export const loadServerEnv = (
       : {}),
     nodeEnv,
     port: parsed.PORT,
+    bindHost: parsed.AIR_JAM_BIND_HOST,
     rateLimitWindowMs: parsed.AIR_JAM_RATE_LIMIT_WINDOW_MS,
     hostRegistrationRateLimitMax:
       parsed.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX,

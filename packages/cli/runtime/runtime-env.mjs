@@ -57,6 +57,7 @@ const createAirJamRuntimeEnvSchema = z.object({
     "AIR_JAM_SERVER_PORT",
     DEFAULT_AIR_JAM_SERVER_PORT,
   ),
+  AIR_JAM_BIND_HOST: optionalEnvValue,
   AIR_JAM_SECURE_MODE: optionalEnumFromEnv("AIR_JAM_SECURE_MODE", [
     "local",
     "tunnel",

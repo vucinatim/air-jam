@@ -45,6 +45,19 @@ to `loadSecureDevState({ runtimeEnv })`, so loading saved HTTPS setup does not
 parse ports again. Direct callers supplying raw `env` retain validation at the
 secure-state boundary.
 
+## Local listener address
+
+`AIR_JAM_BIND_HOST` sets the listening address for the creator Vite dev launcher,
+the `@air-jam/cli/vite-config` dev and preview config, and the standalone realtime
+server. Set `AIR_JAM_BIND_HOST=127.0.0.1` to keep them on IPv4 loopback, for example
+when an embedding host owns network admission. An unset or blank value preserves
+existing defaults: the shared Vite config uses `host: true`, the launcher leaves
+the game's host unchanged, and realtime uses Node's unspecified listening address.
+The server library's explicit `host` option takes precedence over this input.
+
+This controls listening only. `VITE_AIR_JAM_PUBLIC_HOST` still owns the advertised
+host/controller origin, and `VITE_AIR_JAM_SERVER_URL` owns the backend URL.
+
 ## Error Contract
 
 When env is invalid, startup/runtime command fails with a deterministic terminal report:

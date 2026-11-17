@@ -52,6 +52,25 @@ together; documented module exports and their types follow the
 Hosted clients are optional: local development, inspection and evaluation do
 not require an Air Jam platform account.
 
+## Dependency installation
+
+`installDependencies` from `@air-jam/devtools/dependencies` installs with frozen
+lockfiles and independent package copies by default. Its `packageImportMethod`
+option accepts `"copy"` (default) or `"clone-or-copy"`, passed directly to pnpm.
+Use `clone-or-copy` for copy-on-write clones on supporting filesystems such as
+APFS, with pnpm copying elsewhere:
+
+```ts
+import { installDependencies } from "@air-jam/devtools/dependencies";
+
+await installDependencies(projectDirectory, {
+  packageImportMethod: "clone-or-copy",
+});
+```
+
+The returned observation reports actual import methods (`copy` or `clone`).
+Hardlinks remain rejected because workspace writes must not mutate the store.
+
 ## Owned process lifetime
 
 Owned runtimes and policy/evaluator helpers enter a process scope before loading

@@ -71,6 +71,9 @@ const usage = () => {
   console.log(
     "  AIR_JAM_SERVER_PORT          Local server port (default: 4000)",
   );
+  console.log(
+    "  AIR_JAM_BIND_HOST            Bind address (default: all interfaces)",
+  );
   console.log("  VITE_AIR_JAM_PUBLIC_HOST     Explicit host/controller origin");
 };
 
@@ -449,6 +452,8 @@ export const runGameDevCli = async ({
               }
             : {}),
         };
+
+    gameEnv.AIR_JAM_BIND_HOST = runtimeEnv.AIR_JAM_BIND_HOST;
 
     if (args.previewManaged) {
       await ensurePreviewManagedServer({

@@ -8,7 +8,11 @@ const require = createRequire(resolve("package.json"));
 const { createServer } = await import(
   pathToFileURL(require.resolve("vite")).href
 );
-const server = await createServer({ plugins: [sourceFencePlugin()] });
+const host = process.env.AIR_JAM_BIND_HOST?.trim();
+const server = await createServer({
+  plugins: [sourceFencePlugin()],
+  ...(host ? { server: { host } } : {}),
+});
 await server.listen();
 server.printUrls();
 server.bindCLIShortcuts({ print: true });
