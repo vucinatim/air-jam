@@ -11,6 +11,7 @@ import {
   spawnScopedProcess,
   type ProcessScopeObserver,
 } from "./managed-process-scope.js";
+import { nodeProcessEnvironment } from "./node-process-environment.js";
 import { processScopeAdmissionSchema } from "./process-scope-protocol.js";
 
 const environmentKeys = [
@@ -79,11 +80,7 @@ export async function startHelperChannel<
     cwd: rootDir,
     onScope,
     startupSignal,
-    env: Object.fromEntries(
-      environmentKeys.flatMap((key) =>
-        process.env[key] === undefined ? [] : [[key, process.env[key]]],
-      ),
-    ),
+    env: nodeProcessEnvironment(environmentKeys),
   }).catch((error) => {
     closeSync(logDescriptor);
     if (startupSignal?.aborted)
