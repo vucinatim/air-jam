@@ -22,6 +22,15 @@ Controllers dispatch semantic actions with server-bound actor identity.
 Teams, scores, match phase and any fact needed after reconnect belong in a
 replayable snapshot.
 
+A reconnecting host restores a snapshot only when its initializer has the same
+state shape as the store that wrote it. The store fingerprints recursive data
+keys and value kinds once, excluding actions and values. Object key order and
+array item order or repetition do not change that fingerprint. Logic, visual
+and initial-value edits preserve the running state; shape changes (or a legacy
+snapshot without a fingerprint) keep fresh state and broadcast a newer revision.
+The unified dev log records `host.state_restore.discarded` with reason
+`shape_changed`, visible in `air-jam-server logs --view=signal`.
+
 ### Signals and commands
 
 Signals carry explicit one-shot effects such as haptics and toasts. Commands

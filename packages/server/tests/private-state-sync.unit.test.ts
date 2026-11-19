@@ -68,9 +68,13 @@ describe("private replicated state delivery", () => {
       roomId: "ABCD",
       storeDomain: "game",
       revision: 1,
+      shapeFingerprint: "initial-shape",
       data: { round: 1, secrets: entries },
       privateState: { field: "secrets", entries },
     });
+    expect(session.replicatedStoreSnapshots.get("game")?.shapeFingerprint).toBe(
+      "initial-shape",
+    );
     expect(session.replicatedStoreSnapshots.get("game")?.data).toEqual({
       round: 1,
       secrets: entries,
@@ -78,7 +82,13 @@ describe("private replicated state delivery", () => {
     expect(deliver).toHaveBeenCalledExactlyOnceWith(
       "ABCD",
       "airjam:state_sync",
-      { roomId: "ABCD", storeDomain: "game", revision: 1, data: { round: 1 } },
+      {
+        roomId: "ABCD",
+        storeDomain: "game",
+        revision: 1,
+        shapeFingerprint: "initial-shape",
+        data: { round: 1 },
+      },
     );
   });
 
