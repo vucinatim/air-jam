@@ -183,8 +183,8 @@
     {
       "path": "docs/airjam/r3f-3d-scene.md",
       "kind": "docs-local",
-      "size": 5149,
-      "sha256": "25d8bbe90177064730eb2771035306b6adc04478d9e92205e49ded7881ffae2f"
+      "size": 5610,
+      "sha256": "1768ec9fe9279081d978f1ce8e146532f7d3ff50b30fdac8c309ead3f9ac48ae"
     },
     {
       "path": "docs/airjam/state-lanes-cookbook.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "a1adb3469f8202dee1c6307a973a90b67bbb126430a7153b6277c6752886a721"
+  "contentDigest": "dfb0bdc012a49748e70165e165d13a81893786816df65f4ec36eef3bd08b71a3"
 }

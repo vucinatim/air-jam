@@ -20,6 +20,11 @@ Before importing 3D libraries, follow the dependency setup in
 Fiber. In Studio, use `studio_change_dependency`; elsewhere use the project's
 package manager. Add only the libraries this game uses.
 
+In React, create three.js objects inside an effect, keep them in state and free
+them in its cleanup, never during render into a useRef, useMemo or module
+variable: live edits and StrictMode rerun effects, so an object kept from render
+is freed while still shown and the scene goes empty.
+
 Treat R3F as a rendering layer.
 
 Keep:
