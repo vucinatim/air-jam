@@ -10,6 +10,8 @@ export interface HostStateSyncPayload {
   /** Separates concurrent replicated stores in the same room (e.g. arcade shell vs game). */
   storeDomain: string;
   revision: number;
+  /** Initializer data shape; absent on snapshots written by older SDKs. */
+  shapeFingerprint?: string;
   requestId?: string;
   /** Retained only in the server’s host-restore cache, never broadcast. */
   privateState?: { field: string; entries: Record<string, unknown> };
@@ -75,6 +77,8 @@ export interface AirJamStateSyncPayload {
   data: Record<string, unknown>;
   storeDomain: string;
   revision: number;
+  /** Initializer data shape; absent on snapshots written by older SDKs. */
+  shapeFingerprint?: string;
   requestId?: string;
 }
 
@@ -136,6 +140,7 @@ export const hostStateSyncSchema = boundedSocketSchema(
         .strict()
         .optional(),
       revision: z.number().int().nonnegative(),
+      shapeFingerprint: z.string().min(1).optional(),
       requestId: stateSyncRequestIdSchema.optional(),
     })
     .strict(),

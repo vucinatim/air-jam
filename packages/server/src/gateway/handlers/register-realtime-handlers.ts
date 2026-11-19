@@ -773,8 +773,15 @@ export const registerRealtimeHandlers = (
   );
 
   socket.on("host:state_sync", (payload: HostStateSyncPayload) => {
-    const { roomId, data, storeDomain, revision, requestId, privateState } =
-      payload;
+    const {
+      roomId,
+      data,
+      storeDomain,
+      revision,
+      shapeFingerprint,
+      requestId,
+      privateState,
+    } = payload;
     const session = roomManager.getRoom(roomId);
     if (!session) {
       logRealtimeEvent(
@@ -816,6 +823,7 @@ export const registerRealtimeHandlers = (
         : data,
       storeDomain,
       revision,
+      ...(shapeFingerprint ? { shapeFingerprint } : {}),
       ...(requestId ? { requestId } : {}),
     };
     // Only host lifecycle restoration reads this cache. Controller delivery uses syncPayload.

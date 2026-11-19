@@ -427,6 +427,7 @@ export class HostRuntime {
         defaultStoreDomain: this.environment.defaultStoreDomain,
         controlTarget: this.environment.controlTarget,
         now: this.now,
+        emitDevEvent: (detail) => this.environment.emitDevEvent(detail),
         settings: () => this.settings.read().values,
       }),
     );

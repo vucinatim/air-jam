@@ -159,6 +159,7 @@ export const AIRJAM_DEV_LOG_EVENTS = {
     reconnectStateReconcile: "host.reconnect.state_reconcile",
     stateSyncSummary: "host.state_sync.summary",
     stateSyncRejected: "host.state_sync.rejected",
+    stateRestoreDiscarded: "host.state_restore.discarded",
   },
   controller: {
     joinAccepted: "controller.join.accepted",

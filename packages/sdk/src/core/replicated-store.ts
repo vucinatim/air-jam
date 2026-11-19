@@ -11,6 +11,7 @@ import type {
   ControllerJoinedNotice,
   RoomReadyNotice,
 } from "../protocol";
+import { AIRJAM_DEV_LOG_EVENTS } from "../protocol/dev-log-events";
 import {
   isHostRuntimeParticipantLeased,
   registerHostRuntimeActionStore,
@@ -22,6 +23,7 @@ import {
 } from "../store/air-jam-store-domain-constants";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
 import type { AirJamConnectionState } from "./connection-store";
+import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type { SettingsValues } from "./settings";
 
 const INTERNAL_ACTION_PREFIX = "_";
@@ -254,6 +256,7 @@ export interface AirJamStoreSession {
   connection: StoreApi<AirJamConnectionState>;
   /** The store domain used when a store declares none. */
   defaultStoreDomain: string;
+  emitDevEvent?: (detail: AirJamDevRuntimeEventDetail) => void;
   /** Host only: where agent tools and devtools find this store's control. */
   controlTarget: object | null;
   /** The surface's game clock; actions the host runs read it as `ctx.now`. */
@@ -397,6 +400,23 @@ const stripActionsFromState = <T extends AirJamNetworkedState>(
   return stateData as Partial<T>;
 };
 
+const stateShape = (value: unknown): string => {
+  if (value === null) return "null";
+  if (Array.isArray(value)) {
+    return `array[${[...new Set(value.map(stateShape))].sort().join(",")}]`;
+  }
+  if (typeof value === "object") {
+    return `object{${Object.keys(value)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${stateShape(Reflect.get(value, key))}`,
+      )
+      .join(",")}}`;
+  }
+  return typeof value;
+};
+
 const toActionContext = (
   payload: AirJamActionRpcPayload,
   runtime: StoreRuntimeSnapshot,
@@ -446,6 +466,9 @@ export function createAirJamStore<
   options?: CreateAirJamStoreOptions<T, K>,
 ): AirJamStore<T, AirJamPrivateEntry<T, K>> {
   const store = createStore<T>((set, get, api) => initializer(set, get, api));
+  const shapeFingerprint = stateShape(
+    stripActionsFromState<T>(store.getInitialState()),
+  );
   const privateField = options?.privateField;
   const privateEntries = (state: Partial<T>): Record<string, unknown> => {
     if (!privateField) return {};
@@ -898,6 +921,7 @@ export function createAirJamStore<
             : {}),
           storeDomain: resolvedStoreDomain,
           revision: syncRevision.value,
+          shapeFingerprint,
           ...(requestId ? { requestId } : {}),
         });
       };
@@ -1063,6 +1087,21 @@ export function createAirJamStore<
           return;
         }
         if (payload.revision < syncRevision.value) {
+          return;
+        }
+
+        if (payload.shapeFingerprint !== shapeFingerprint) {
+          syncRevision.value = payload.revision + 1;
+          attachedSession?.emitDevEvent?.({
+            event: AIRJAM_DEV_LOG_EVENTS.host.stateRestoreDiscarded,
+            level: "info",
+            role: "host",
+            roomId,
+            message:
+              "Host kept fresh state because the restored store shape changed",
+            data: { storeDomain: resolvedStoreDomain, reason: "shape_changed" },
+          });
+          flushHostStateSync();
           return;
         }
 

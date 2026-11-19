@@ -943,6 +943,118 @@ describe("createAirJamStore networked behavior", () => {
     unmount();
   });
 
+  it.each([
+    { label: "nested value kind", next: { player: "ready" } },
+    { label: "added key", next: { player: { score: 0, ready: true } } },
+    { label: "removed key", next: {} },
+    {
+      label: "array item shape",
+      before: { player: [{ score: 1 }] },
+      next: { player: [{ score: "zero" }] },
+    },
+    { label: "null kind", next: { player: null } },
+  ])(
+    "keeps fresh state and supersedes a restored snapshot after a $label change",
+    ({ next, ...scenario }) => {
+      const connection = createConnectionStore();
+      connection.setState({ ...mockedContext.state, role: "host" });
+      const socket = getHostRealtimeClient(
+        () => hostSocket as unknown as AirJamSocket,
+      );
+      const emitDevEvent = vi.fn();
+      const attach = (store: AttachableStore) =>
+        store.attach({
+          socket,
+          connection,
+          defaultStoreDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+          controlTarget: null,
+          now: () => TEST_GAME_TIME_MS,
+          emitDevEvent,
+        });
+      const previous = createAirJamStore(() => ({
+        ...("before" in scenario ? scenario.before : { player: { score: 1 } }),
+        actions: {},
+      }));
+      const detachPrevious = attach(previous);
+      const snapshot = hostStateSyncSchema.parse(
+        hostSocket.emitted.at(-1)?.args[0],
+      );
+      detachPrevious();
+
+      const current = createAirJamStore(() => ({ ...next, actions: {} }));
+      const detachCurrent = attach(current);
+      hostSocket.emitted.length = 0;
+      hostSocket.trigger("airjam:state_sync", { ...snapshot, revision: 20 });
+
+      expect(current.getState()).toEqual({ ...next, actions: {} });
+      const replacement = hostStateSyncSchema.parse(
+        hostSocket.emitted.at(-1)?.args[0],
+      );
+      expect(replacement).toMatchObject({ data: next, revision: 21 });
+      expect(replacement.shapeFingerprint).not.toBe(snapshot.shapeFingerprint);
+      expect(emitDevEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "host.state_restore.discarded",
+          roomId: "ROOM1",
+          data: {
+            storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+            reason: "shape_changed",
+          },
+        }),
+      );
+      detachCurrent();
+    },
+  );
+
+  it("restores the same initializer shape despite changed values, key order and actions", () => {
+    const connection = createConnectionStore();
+    connection.setState({ ...mockedContext.state, role: "host" });
+    const socket = getHostRealtimeClient(
+      () => hostSocket as unknown as AirJamSocket,
+    );
+    const attach = (store: AttachableStore) =>
+      store.attach({
+        socket,
+        connection,
+        defaultStoreDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
+        controlTarget: null,
+        now: () => TEST_GAME_TIME_MS,
+      });
+    const previous = createAirJamStore(() => ({
+      seed: 123,
+      players: [
+        { name: "one", ready: false },
+        { name: "two", ready: true },
+      ],
+      actions: {},
+    }));
+    const detachPrevious = attach(previous);
+    // Running state can evolve away from the initial shape; the fingerprint stays fixed.
+    previous.api.setState({ players: [] });
+    const snapshot = hostStateSyncSchema.parse(
+      hostSocket.emitted.at(-1)?.args[0],
+    );
+    detachPrevious();
+
+    const current = createAirJamStore(() => ({
+      players: [{ ready: true, name: "fresh" }],
+      seed: 456,
+      actions: {
+        reset: (_context: AirJamActionContext, _payload: undefined) => {},
+      },
+    }));
+    const detachCurrent = attach(current);
+    const fresh = hostStateSyncSchema.parse(hostSocket.emitted.at(-1)?.args[0]);
+    expect(fresh.shapeFingerprint).toBe(snapshot.shapeFingerprint);
+    hostSocket.emitted.length = 0;
+    hostSocket.trigger("airjam:state_sync", { ...snapshot, revision: 20 });
+
+    expect(current.getState()).toMatchObject({ seed: 123, players: [] });
+    expect(current.getState().actions.reset).toBeTypeOf("function");
+    expect(hostSocket.emitted).toEqual([]);
+    detachCurrent();
+  });
+
   it("restores host state from a newer replicated sync payload", () => {
     mockedContext.state.role = "host";
 
@@ -955,6 +1067,11 @@ describe("createAirJamStore networked behavior", () => {
 
     act(() => {
       hostSocket.trigger("airjam:state_sync", {
+        shapeFingerprint: hostStateSyncSchema.parse(
+          hostSocket.emitted
+            .filter((call) => call.event === "host:state_sync")
+            .at(-1)?.args[0],
+        ).shapeFingerprint,
         roomId: "ROOM1",
         data: { phase: "playing" },
         storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
@@ -966,6 +1083,11 @@ describe("createAirJamStore networked behavior", () => {
 
     act(() => {
       hostSocket.trigger("airjam:state_sync", {
+        shapeFingerprint: hostStateSyncSchema.parse(
+          hostSocket.emitted
+            .filter((call) => call.event === "host:state_sync")
+            .at(-1)?.args[0],
+        ).shapeFingerprint,
         roomId: "ROOM1",
         data: { phase: "lobby" },
         storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
@@ -988,6 +1110,11 @@ describe("createAirJamStore networked behavior", () => {
 
     act(() => {
       hostSocket.trigger("airjam:state_sync", {
+        shapeFingerprint: hostStateSyncSchema.parse(
+          hostSocket.emitted
+            .filter((call) => call.event === "host:state_sync")
+            .at(-1)?.args[0],
+        ).shapeFingerprint,
         roomId: "ROOM1",
         data: { phase: "playing" },
         storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
@@ -1924,6 +2051,11 @@ describe("createAirJamStore networked behavior", () => {
     };
     act(() =>
       hostSocket.trigger("airjam:state_sync", {
+        shapeFingerprint: hostStateSyncSchema.parse(
+          hostSocket.emitted
+            .filter((call) => call.event === "host:state_sync")
+            .at(-1)?.args[0],
+        ).shapeFingerprint,
         roomId: "ROOM1",
         storeDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
         revision: 50,
