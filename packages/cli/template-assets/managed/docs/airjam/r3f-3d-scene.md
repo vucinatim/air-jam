@@ -35,6 +35,21 @@ SDK steps on the host at a fixed rate. R3F components only read the latest
 simulation frame and draw it. A match then runs without a screen, so tests,
 model players and replays play the real game.
 
+## Object Lifecycle
+
+In React, create three.js objects inside an effect, keep them in state and free
+them in its cleanup, never during render into a useRef, useMemo or module
+variable: live edits and StrictMode rerun effects, so an object kept from render
+is freed while still shown and the scene goes empty.
+
+```tsx
+useEffect(() => {
+  const material = new THREE.MeshStandardMaterial();
+  setMaterial(material);
+  return () => material.dispose();
+}, []);
+```
+
 ## Agent Captures Of The 3D View
 
 A WebGL canvas holds its pixels only until the browser presents the frame, so a

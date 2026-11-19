@@ -25,7 +25,7 @@ Pick the one that matches the current problem.
 8. `prefab-authoring`
    Use when creating reusable gameplay objects or scene presets that should stay declarative, configurable, and tool-friendly.
 9. `r3f-3d-scene`
-   Use when building or reviewing 3D Air Jam gameplay with React Three Fiber, lighting, shadows, grounding, particles, and physics.
+   For R3F or Three.js work, read `skills/r3f-3d-scene/SKILL.md` before creating scene objects.
 10. `canvas-2d-gameplay`
     Use when building or reviewing 2D canvas gameplay, render/simulation separation, scaling, SVG assets, and lightweight collision patterns.
 
