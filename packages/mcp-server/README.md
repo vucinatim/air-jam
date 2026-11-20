@@ -52,6 +52,6 @@ than the primary automation lane.
 
 `airjam.release_inspect` and `airjam.release_list` return exact `playUrl` links,
 including hidden live releases. `airjam.release_archive` accepts `releaseId` and
-optional `platformUrl`, uses the same owner-checked platform service as the
-dashboard, and returns the updated release. Archiving retires the release; it
+optional `platformUrl`, uses the same owner-checked service as Create's
+**Releases** section, and returns the updated release. Archiving retires the release; it
 does not publish anything. See the [hosted release guide](../../docs/guides/hosted-release-guide.md).
