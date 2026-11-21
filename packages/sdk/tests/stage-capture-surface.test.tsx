@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { ControllerCaptureSurface } from "../src/components/controller-capture-surface";
+import { StageCaptureSurface } from "../src/components/stage-capture-surface";
 import { readPreviewControllerParent } from "../src/preview/identity";
-import { supportsControllerCapture } from "../src/runtime/controller-capture";
+import { supportsStageCapture } from "../src/runtime/stage-capture";
 
 vi.mock("../src/preview/identity", () => ({
   AIR_JAM_PREVIEW_CAPTURE_QUERY_PARAM: "aj_preview_capture",
   readPreviewControllerParent: vi.fn(),
 }));
-vi.mock("../src/runtime/controller-capture", () => ({
-  supportsControllerCapture: vi.fn(),
+vi.mock("../src/runtime/stage-capture", () => ({
+  supportsStageCapture: vi.fn(),
 }));
 
 afterEach(() => {
@@ -22,11 +22,11 @@ afterEach(() => {
 
 it("keeps real phones and unsupported previews in their original DOM", () => {
   vi.mocked(readPreviewControllerParent).mockReturnValue(null);
-  vi.mocked(supportsControllerCapture).mockReturnValue(true);
+  vi.mocked(supportsStageCapture).mockReturnValue(true);
   const real = render(
-    <ControllerCaptureSurface>
+    <StageCaptureSurface role="controller">
       <button>Play</button>
-    </ControllerCaptureSurface>,
+    </StageCaptureSurface>,
   );
   expect(real.container.firstElementChild?.tagName).toBe("BUTTON");
   real.unmount();
@@ -35,11 +35,11 @@ it("keeps real phones and unsupported previews in their original DOM", () => {
     window,
     origin: window.location.origin,
   });
-  vi.mocked(supportsControllerCapture).mockReturnValue(false);
+  vi.mocked(supportsStageCapture).mockReturnValue(false);
   const preview = render(
-    <ControllerCaptureSurface>
+    <StageCaptureSurface role="controller">
       <button>Play</button>
-    </ControllerCaptureSurface>,
+    </StageCaptureSurface>,
   );
   expect(preview.container.firstElementChild?.tagName).toBe("BUTTON");
 });
@@ -50,7 +50,7 @@ it("mounts one native preview surface and preserves its controls across capabili
     window,
     origin: window.location.origin,
   });
-  vi.mocked(supportsControllerCapture).mockReturnValue(true);
+  vi.mocked(supportsStageCapture).mockReturnValue(true);
   const reset = vi.fn();
   const drawElementImage = vi.fn();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
@@ -71,7 +71,7 @@ it("mounts one native preview surface and preserves its controls across capabili
   const tap = vi.fn();
   const children = <button onClick={tap}>Play</button>;
   const view = render(
-    <ControllerCaptureSurface>{children}</ControllerCaptureSurface>,
+    <StageCaptureSurface role="controller">{children}</StageCaptureSurface>,
   );
   const canvas = view.container.querySelector("canvas")!;
   const button = view.getByRole("button", { name: "Play" });
@@ -87,10 +87,10 @@ it("mounts one native preview surface and preserves its controls across capabili
     canvas.width,
     canvas.height,
   );
-  vi.mocked(supportsControllerCapture).mockReturnValue(false);
+  vi.mocked(supportsStageCapture).mockReturnValue(false);
   window.history.replaceState(null, "", "/");
   view.rerender(
-    <ControllerCaptureSurface>{children}</ControllerCaptureSurface>,
+    <StageCaptureSurface role="controller">{children}</StageCaptureSurface>,
   );
   expect(view.container.querySelector("canvas")).toBe(canvas);
   expect(view.getByRole("button")).toBe(button);

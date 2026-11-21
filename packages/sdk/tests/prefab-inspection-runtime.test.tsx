@@ -60,6 +60,8 @@ it("isolates direct-state inspection, captures two rendered views and then shows
       return { mimeType: "image/jpeg", data: "YQ==", width: 64, height: 64 };
     },
     rendered: () => {},
+    recording: () => false,
+    dispose: () => {},
   }));
   function Stage() {
     const { state, time, props, view } = usePrefabInspection();

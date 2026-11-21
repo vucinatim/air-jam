@@ -1,24 +1,14 @@
 import { useCallback, useContext, useLayoutEffect, useRef } from "react";
-import {
-  createHostCanvasCapture,
-  type HostCanvasDraw,
-} from "../agent/host-canvas-capture";
+import type { HostCanvasDraw } from "../agent/host-canvas-capture";
 import { createAirJamDiagnosticError } from "../diagnostics";
-import { prefabInspectionCaptureContext } from "../runtime/prefab-inspection-context";
-import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
-import type { AirJamHostRuntimeControls } from "./use-air-jam-host";
+import { hostCaptureContext } from "../runtime/host-capture-context";
 
 /**
  * Lets agents receive an image of what this host draws, such as its canvas.
  * What they read of the game comes from the simulation's `observe`.
  */
 export function useHostAgentCapture(capture: HostCanvasDraw): () => void {
-  const runtime = useContext(hostRuntimeContext) as Pick<
-    AirJamHostRuntimeControls,
-    "setObservationCapture"
-  > | null;
-  const inspection = useContext(prefabInspectionCaptureContext);
-  const owner = inspection ?? runtime;
+  const owner = useContext(hostCaptureContext);
   if (!owner)
     throw createAirJamDiagnosticError(
       "AJ_SCOPE_MISMATCH",
@@ -33,19 +23,9 @@ export function useHostAgentCapture(capture: HostCanvasDraw): () => void {
   useLayoutEffect(() => {
     current.current = capture;
   });
-  const binding = useRef<ReturnType<typeof createHostCanvasCapture> | null>(
-    null,
-  );
-  const { setObservationCapture } = owner;
   useLayoutEffect(() => {
-    binding.current = createHostCanvasCapture((canvas, options) =>
-      current.current(canvas, options),
-    );
-    setObservationCapture(binding.current.capture);
-    return () => {
-      setObservationCapture(null);
-      binding.current = null;
-    };
-  }, [setObservationCapture]);
-  return useCallback(() => binding.current?.rendered(), []);
+    owner.setDraw((canvas, options) => current.current(canvas, options));
+    return () => owner.setDraw(null);
+  }, [owner]);
+  return useCallback(() => owner.rendered(), [owner]);
 }

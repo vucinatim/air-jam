@@ -6,6 +6,7 @@ import type { AirJamReplay } from "../core/replay-input-log";
 import type { AirJamHostRuntimeControls } from "../hooks/use-air-jam-host";
 import { bindBrowserReplay } from "./browser-replay";
 import { embeddedRuntimeParent } from "./embedded-parent";
+import { HostCaptureBoundary } from "./host-capture-boundary";
 import {
   declaredStoresContext,
   hostRuntimeContext,
@@ -97,9 +98,13 @@ export function ReplayRuntime({
       }}
     >
       <hostRuntimeContext.Provider value={controls}>
-        <declaredStoresContext.Provider value={declared}>
-          {children}
-        </declaredStoresContext.Provider>
+        <HostCaptureBoundary
+          setObservationCapture={runtime.setObservationCapture}
+        >
+          <declaredStoresContext.Provider value={declared}>
+            {children}
+          </declaredStoresContext.Provider>
+        </HostCaptureBoundary>
       </hostRuntimeContext.Provider>
     </AirJamContext.Provider>
   );

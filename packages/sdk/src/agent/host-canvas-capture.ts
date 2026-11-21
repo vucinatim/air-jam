@@ -180,5 +180,10 @@ export function createHostCanvasCapture(draw: HostCanvasDraw) {
       dispose: binding.dispose,
     };
   };
-  return { capture, rendered: () => active?.render() };
+  return {
+    capture,
+    rendered: () => active?.render(),
+    recording: () => active !== undefined,
+    dispose: () => active?.dispose(),
+  };
 }

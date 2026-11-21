@@ -164,10 +164,10 @@ Air Jam separates subjective product authority from implementation assurance:
    business tradeoffs, material risk acceptance, and public-launch judgment
 2. the maintainer is not the routine line-by-line code reviewer and is not
    expected to translate agent findings into a manual GitHub approval
-3. Canonicalizer and the final Claude Opus review are two uses of Opus-class
-   review, not independent model votes: Canonicalizer focuses on local code
-   canonicality before a substantial push, while the final reviewer inspects
-   the complete green pull request on GitHub
+3. Bee's staffed candidate review provides the canonicality pass for every
+   candidate part, public included, replacing the pre-push Canonicalizer
+   session; the integrating lead posts the single final GitHub review on the
+   complete green pull request
 4. the current GitHub policy does not require a routine human approval; this is
    an explicit maintainer decision retained in the private product's production
    rollout incident audit, while CI, review conversations and branch protection
@@ -226,11 +226,11 @@ Use these rules:
    bottom-up only when each slice can safely stand on `main`
 2. use the instant and changed gates during implementation; do not run full CI,
    Canonicalizer, or Claude Opus between ordinary edits
-3. before pushing a substantial batch, run `pnpm check:batch` and one
-   Canonicalizer session focused on code organization, canonicality, unnecessary
-   complexity, and architectural fit. Use that session for the coherent batch,
-   resolve its actionable findings, and do not open duplicate Canonicalizer
-   sessions for later wording, evidence, or typo changes
+3. before pushing a substantial batch, run `pnpm check:batch`. Bee's staffed
+   review of the registered candidate replaces the pre-push Canonicalizer
+   session for every part, public included; it covers code organization,
+   canonicality, unnecessary complexity, and architectural fit. Resolve its
+   actionable findings before acceptance
 4. skip Canonicalizer for a small, focused change that does not introduce a new
    system, cross several implementation files, or carry meaningful structural
    risk

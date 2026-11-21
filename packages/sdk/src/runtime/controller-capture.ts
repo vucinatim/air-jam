@@ -1,38 +1,16 @@
 import type { ControllerFrameCapture } from "./contracts/controller-agent";
 
-export const controllerCaptureCanvasSelector =
-  "[data-airjam-controller-capture]";
-export type ControllerCaptureCanvas = HTMLCanvasElement & {
-  content: string;
-  requestPaint: () => void;
-  getContext(contextId: "2d"):
-    | (CanvasRenderingContext2D & {
-        drawElementImage: (
-          element: Element,
-          x: number,
-          y: number,
-          width: number,
-          height: number,
-        ) => void;
-      })
-    | null;
-};
-
-export function supportsControllerCapture() {
-  if (typeof document === "undefined") return false;
-  const canvas = document.createElement("canvas") as ControllerCaptureCanvas;
-  canvas.setAttribute("content", "drawable");
-  return (
-    canvas.content === "drawable" && typeof canvas.requestPaint === "function"
-  );
-}
+import {
+  stageCaptureCanvasSelector,
+  type StageCaptureCanvas,
+} from "./stage-capture";
 
 /** Pixels leave the phone as a transferable bitmap; encoding belongs to Studio. */
 export async function captureControllerDocument(
   signal: AbortSignal,
 ): Promise<ControllerFrameCapture> {
-  const canvas = document.querySelector<ControllerCaptureCanvas>(
-    controllerCaptureCanvasSelector,
+  const canvas = document.querySelector<StageCaptureCanvas>(
+    stageCaptureCanvasSelector,
   );
   if (!canvas)
     return {

@@ -7,6 +7,7 @@ import {
   type ComponentType,
 } from "react";
 import { flushSync } from "react-dom";
+import { StageCaptureSurface } from "../components/stage-capture-surface";
 import type { AirJamProviderProps } from "../context/air-jam-context";
 import type { HostObservationCapture } from "../core/host-runtime";
 import {
@@ -19,6 +20,7 @@ import { DEFAULT_PREFAB_VIEW } from "../prefabs/view";
 import { resolveAirJamConfig } from "./air-jam-config";
 import { AirJamErrorBoundary } from "./air-jam-error-boundary";
 import { embeddedRuntimeParent } from "./embedded-parent";
+import { HostCaptureBoundary } from "./host-capture-boundary";
 import {
   prefabInspectionMessageSchema,
   prefabInspectionRequestSchema,
@@ -28,10 +30,7 @@ import {
   type PrefabSelection,
 } from "./prefab-inspection-bridge";
 import { advancePrefabClock } from "./prefab-inspection-clock";
-import {
-  prefabInspectionCaptureContext,
-  prefabInspectionContext,
-} from "./prefab-inspection-context";
+import { prefabInspectionContext } from "./prefab-inspection-context";
 
 function InspectionStage({
   selection,
@@ -308,18 +307,22 @@ export function PrefabInspectionRuntime({
         report({ type: "AIRJAM_PREFAB_ERROR", reason: error.message });
       }}
     >
-      <prefabInspectionCaptureContext.Provider value={captureOwner}>
-        {unavailable ? (
-          <p>{unavailable}</p>
-        ) : prefab && state && selection && Stage ? (
-          <InspectionStage
-            selection={selection}
-            prefab={prefab}
-            state={state}
-            stage={Stage}
-          />
-        ) : null}
-      </prefabInspectionCaptureContext.Provider>
+      <StageCaptureSurface role="host">
+        <HostCaptureBoundary
+          setObservationCapture={captureOwner.setObservationCapture}
+        >
+          {unavailable ? (
+            <p>{unavailable}</p>
+          ) : prefab && state && selection && Stage ? (
+            <InspectionStage
+              selection={selection}
+              prefab={prefab}
+              state={state}
+              stage={Stage}
+            />
+          ) : null}
+        </HostCaptureBoundary>
+      </StageCaptureSurface>
     </AirJamErrorBoundary>
   );
 }

@@ -319,7 +319,11 @@ plays feedback from it, never advances it:
   as a health bar or an entity list, re-rendering only when it changes.
 - `useSimulation()` returns the clock itself.
 - `const captureFrame = useHostAgentCapture((target, options) => drawAgentCanvas(canvas, target, options))`
-  gives agents the host render surface. Call `captureFrame()` immediately after
+  optionally gives agents a sharper host render surface. Supporting browsers
+  already capture the visible host stage, including HTML lobbies and nested canvases;
+  this callback takes priority when it returns true. Returning false (for example,
+  before a game canvas mounts) uses the native stage instead.
+  Call `captureFrame()` immediately after
   drawing the game and its HUD. The SDK owns the persistent capture canvas and
   records native video at 30 fps; still observations use the same drawing callback.
   Still observations and frame-based test clips encode JPEGs asynchronously. The

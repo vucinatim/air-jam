@@ -1,5 +1,5 @@
 import { useCallback, useRef, type JSX } from "react";
-import { ControllerCaptureSurface } from "../components/controller-capture-surface";
+import { StageCaptureSurface } from "../components/stage-capture-surface";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import { AirJamProvider, type AirJamProviderProps } from "./air-jam-context";
 import {
@@ -59,9 +59,7 @@ const createScopedSessionProvider = (
       <SessionScopeContext.Provider value={scope}>
         <RuntimeOwnerRegistryContext.Provider value={{ claimOwner }}>
           <AirJamProvider {...providerProps} surfaceRole={scope}>
-            {scope === "controller" ? (
-              <ControllerCaptureSurface>{children}</ControllerCaptureSurface>
-            ) : children}
+            <StageCaptureSurface role={scope}>{children}</StageCaptureSurface>
           </AirJamProvider>
         </RuntimeOwnerRegistryContext.Provider>
       </SessionScopeContext.Provider>
