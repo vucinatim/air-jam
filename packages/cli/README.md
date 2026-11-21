@@ -219,7 +219,7 @@ to archive whichever asset is current for a kind.
 
 ## Creator gameplay analytics
 
-Sign in with `airjam auth login`, then read the same analytics as the creator dashboard:
+Sign in with `airjam auth login`, then read the analytics from your game's **Analytics** section in Create:
 
 ```bash
 airjam game analytics overview --game my-game --days 14 --json

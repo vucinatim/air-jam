@@ -157,7 +157,7 @@ pnpm run dev
 
 1. Ensure `VITE_AIR_JAM_APP_ID` is set in your host platform.
 2. Ensure the server URL points at your real Air Jam backend.
-3. Re-copy the App ID from your game's dashboard settings if bootstrap fails.
+3. Re-copy the App ID from your game's page in Create if bootstrap fails.
 
 ### QR / controller join URL issues
 
@@ -171,18 +171,17 @@ When you're ready to share your game outside local development, first register
 it with Air Jam so the runtime has a stable hosted identity.
 
 1.  **Create a game record**:
-    - Go to the [Platform Dashboard](/dashboard)
-    - Create a game if you do not already have one
-    - Copy its **App ID**
-
-    An agent or terminal user can create the same hosted identity without
-    navigating the dashboard after the one-time browser-assisted login:
+    Register your game from the terminal after a one-time browser-assisted login:
 
     ```bash
     pnpm exec airjam auth login
     pnpm exec airjam game create --dir . --name "My Game" --slug my-game
     pnpm exec airjam game inspect --game my-game
     ```
+
+    Copy the **App ID** from the response. Your game also appears in [Create](/studio)
+    at `/studio/games/<id>`, with **Releases**, **Media**, **Analytics** and **Security**.
+    Studio projects create their game record on the first release.
 
 2.  **Choose your distribution lane**:
     - Deploy your game to a static hosting provider like Vercel, Netlify, or GitHub Pages.
@@ -197,7 +196,7 @@ it with Air Jam so the runtime has a stable hosted identity.
 
 The SDK handles production bootstrap automatically from that `appId`. You do not need to mint tokens or add auth code in your game.
 If you want to lock production bootstrap to your deployed site only, set the
-optional allowed-origin list for the App ID in the dashboard settings.
+allowed origins in your game's **Security** section in Create.
 
 Before publishing your scaffolded game, run the local checks:
 
@@ -299,8 +298,8 @@ The hosted artifact contract is fixed:
 
 ### Terminal or Agent Publishing
 
-The CLI can bundle, upload, and wait for validation using the same release
-services as the dashboard. Use the game slug or ID created in step 5:
+The CLI can bundle, upload, and wait for validation. Use the game slug or ID
+created in step 5:
 
 ```bash
 pnpm exec airjam release submit --game my-game --dir . --wait
@@ -329,14 +328,14 @@ status and active selections. `assign` reuses an earlier asset for its kind;
 the saved machine login and accept `--platform-url` and `--help`. Without
 `--json` they print readable output. Use `game media upload` for new files.
 
-### Dashboard Publishing
+### Publish From Create
 
 Alternatively, upload the zip produced by `airjam release bundle` above:
 
-1. Go to your game's **Releases** page in the [Dashboard](/dashboard).
+1. Open your game in [Create](/studio) and choose **Releases**.
 2. Upload the generated zip artifact.
 3. Make the validated release live.
-4. Upload managed thumbnail, cover, and preview media in the Dashboard.
+4. Upload thumbnail, cover, and preview media in **Media**.
 5. Set the game's Arcade visibility to listed.
 
 Your game is now live in the public Arcade on Air Jam-hosted infrastructure.
