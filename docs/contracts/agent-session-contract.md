@@ -538,7 +538,11 @@ projects the same live semantic contract used by reads. A game declares what
 agents see of its simulation with the simulation's `observe(sim, context)`,
 which receives the requested player/diagnostic scope and controller identity;
 the host runtime publishes it with the clock's tick, with or without a page.
-A host view adds an image with `useHostAgentCapture(capture)`. A game without a
+A supporting browser captures the visible host stage automatically, including
+HTML lobbies and nested canvases. `useHostAgentCapture(capture)` optionally provides
+a sharper game-rendered image, preferred whenever its draw callback returns true.
+When the hook is absent or its surface is unavailable, the native stage is the
+capture source. A game without a
 simulation has no host-local state to show beyond its stores, which the
 contract's snapshot already projects. This is a declared view of game-authored data, not an adversarial
 guarantee of human-equivalent information. Raw stores and callable host actions
@@ -568,8 +572,12 @@ canvas, resizing the target only when its dimensions change. Still observations 
 this canvas at 1280 px / 0.8. Native clip drawing is capped at 30 fps and follows game
 rendering so WebGL drawing buffers are read before the browser discards them.
 `captureAgentCanvas(source, options)` remains a standalone bounded JPEG utility.
-Coverage is `render-surface`; surrounding HTML is excluded. Games without this
-capability report an unsupported image, and an unmounted canvas reports an
+The game hook's coverage is `render-surface`; surrounding HTML is excluded.
+The native stage fallback reports `host-document` and includes the visible HTML
+and nested canvases. Hosts and preview controllers share one HTML-in-Canvas stage
+owner. Hosts enable it at mount whenever supported; preview controllers retain
+the opt-in described below. Unsupported browsers retain the original DOM and can
+still use a game-provided hook. Without either source, capture reports an
 unavailable surface. No replacement host or generated image stands in for the
 requested game.
 
@@ -613,8 +621,8 @@ parent and origin. The request carries a bounded `requestId` and
 `ControllerCapture` live in `@air-jam/sdk/runtime-control`.
 
 Only Studio preview URLs opt into capture (`buildPreviewControllerUrl({ capture: true })`).
-At mount, a supporting browser wraps the controller in an HTML-in-Canvas drawable
-surface; real phones retain their original DOM. Chrome 157 enables this API by
+At mount, a supporting browser wraps the controller in the same native
+HTML-in-Canvas stage used by hosts; real phones retain their original DOM. Chrome 157 enables this API by
 default. The phone paints its visible controller, including canvas pixels, and transfers
 an `ImageBitmap` with a maximum edge of 1280 px. `ControllerFrameCapture` describes
 this channel. The embedding Studio encodes it in its own Worker, outside the game's
@@ -658,7 +666,10 @@ never changes a gameplay verdict or end reason.
 
 On-request Studio clips choose `delivery: "video"` and 33 ms. The SDK records its
 persistent canvas through `captureStream(30)` and VP9 `MediaRecorder` at 4 Mbps,
-with no per-frame image encoding or transfer on the game thread. Recording lasts
+with no per-frame image encoding or transfer on the game thread. A recording that
+starts on the native stage keeps that source throughout the clip, driven by its
+paint events even in a static HTML lobby. Game-hook recordings continue to follow
+the game's render callback. Recording lasts
 at most 60 seconds and retains at most 32 MiB of encoded video. While recording,
 `video.chunks` is empty. A stopping read waits for the recorder to finish; follow
 `video.nextChunk` with `fromChunk` until null to receive bounded base64 pages,

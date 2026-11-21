@@ -28,6 +28,7 @@ import {
   readRuntimeInspectionContract,
 } from "./contracts/inspection";
 import { publishEmbeddedHostAgent } from "./host-agent-bridge";
+import { HostCaptureBoundary } from "./host-capture-boundary";
 import { LocalPlayersHost } from "./local-players";
 import { isAirJamInspectionDocument } from "./prefab-inspection-bridge";
 import { PrefabInspectionRuntime } from "./prefab-inspection-runtime";
@@ -183,13 +184,17 @@ const HostRuntimeOwner = ({
 
   return (
     <hostRuntimeContext.Provider value={runtime}>
-      <declaredStoresContext.Provider value={declared}>
-        <HostRuntimeInspectionPublisher />
-        <LocalPlayersHost input={input} bindings={inputBindings}>
-          {/* The game draws once its declared simulation has loaded. */}
-          {simulation && !runtime.simulation ? null : children}
-        </LocalPlayersHost>
-      </declaredStoresContext.Provider>
+      <HostCaptureBoundary
+        setObservationCapture={runtime.setObservationCapture}
+      >
+        <declaredStoresContext.Provider value={declared}>
+          <HostRuntimeInspectionPublisher />
+          <LocalPlayersHost input={input} bindings={inputBindings}>
+            {/* The game draws once its declared simulation has loaded. */}
+            {simulation && !runtime.simulation ? null : children}
+          </LocalPlayersHost>
+        </declaredStoresContext.Provider>
+      </HostCaptureBoundary>
     </hostRuntimeContext.Provider>
   );
 };

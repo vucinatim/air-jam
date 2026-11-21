@@ -4,28 +4,31 @@ import {
   readPreviewControllerParent,
 } from "../preview/identity";
 import {
-  supportsControllerCapture,
-  type ControllerCaptureCanvas,
-} from "../runtime/controller-capture";
+  supportsStageCapture,
+  type StageCaptureCanvas,
+} from "../runtime/stage-capture";
 
 /** The choice is fixed at mount; real phones keep their original DOM tree. */
-export function ControllerCaptureSurface({
+export function StageCaptureSurface({
   children,
+  role,
 }: {
   children: ReactNode;
+  role: "host" | "controller";
 }) {
   const [enabled] = useState(
     () =>
       typeof window !== "undefined" &&
-      readPreviewControllerParent() !== null &&
-      new URLSearchParams(window.location.search).get(
-        AIR_JAM_PREVIEW_CAPTURE_QUERY_PARAM,
-      ) === "1" &&
-      supportsControllerCapture(),
+      (role === "host" ||
+        (readPreviewControllerParent() !== null &&
+          new URLSearchParams(window.location.search).get(
+            AIR_JAM_PREVIEW_CAPTURE_QUERY_PARAM,
+          ) === "1")) &&
+      supportsStageCapture(),
   );
   const mount = useCallback((element: HTMLCanvasElement | null) => {
     if (!element) return;
-    const canvas = element as ControllerCaptureCanvas;
+    const canvas = element as StageCaptureCanvas;
     const context = canvas.getContext("2d") as
       | (CanvasRenderingContext2D & {
           drawElementImage: (
@@ -39,7 +42,7 @@ export function ControllerCaptureSurface({
       | null;
     const root = canvas.firstElementChild;
     if (!context || !root)
-      throw new Error("The controller capture surface could not mount.");
+      throw new Error("The stage capture surface could not mount.");
     const paint = () => {
       context.reset();
       context.drawElementImage(root, 0, 0, canvas.width, canvas.height);
@@ -67,7 +70,7 @@ export function ControllerCaptureSurface({
   if (!enabled) return children;
   return (
     <canvas
-      {...{ content: "drawable", "data-airjam-controller-capture": "" }}
+      {...{ content: "drawable", "data-airjam-stage-capture": "" }}
       className="fixed inset-0 block h-dvh w-screen"
       ref={mount}
     >
