@@ -1291,6 +1291,7 @@ export class GameRunOwner {
         {
           kind: "clip-failure",
           reason: clipFailureReason(error),
+          message: error instanceof Error ? error.message : String(error),
         },
         true,
       ).catch(() => {});
@@ -1347,6 +1348,7 @@ export class GameRunOwner {
         {
           kind: "clip-failure",
           reason: clipFailureReason(error),
+          message: error instanceof Error ? error.message : String(error),
         },
         true,
       ).catch(() => {});

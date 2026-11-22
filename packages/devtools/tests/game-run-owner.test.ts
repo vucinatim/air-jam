@@ -2248,6 +2248,20 @@ it.each([
       });
       if (status === "headless")
         expect(f.session.requestHost).not.toHaveBeenCalled();
+      if (status === "host-unavailable") {
+        const trace = await readFile(
+          path.join(
+            f.root,
+            ".airjam/artifacts/runs",
+            record.runId,
+            "trace.ndjson",
+          ),
+          "utf8",
+        );
+        expect(trace).toContain(
+          '"message":"current_host_unavailable: disconnected"',
+        );
+      }
     }
   },
 );

@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import {
   CLIP_FRAME_MAX_BYTES,
   CLIP_MAX_BYTES,
+  CLIP_MAX_DURATION_MS,
   CLIP_PAGE_BASE64_CHARS,
   clipArtifactSchema,
   clipFrameSchema,
@@ -164,6 +165,38 @@ it("keeps the last 15 seconds and at most 150 frames on the original host clock"
   expect(clip.droppedFrames).toBe(10);
   expect(clip.frames[0].atMs).toBe(1100);
   expect(clip.durationMs).toBe(16000);
+});
+it("trims at stop time before the reader receives a frozen clip", async () => {
+  const recorder = fixture();
+  recorder.start("clip", identity);
+  await vi.advanceTimersByTimeAsync(CLIP_MAX_DURATION_MS);
+  // The host can stop between samples, including after a delayed timer.
+  vi.setSystemTime(Date.now() + 280);
+  await recorder.stop("clip");
+  const result = await readHostClip(
+    async (request) => {
+      if (request.operation !== "clip-read")
+        throw new Error("Unexpected clip operation.");
+      return {
+        operation: "clip-read",
+        clip: recorder.read(request.clipId, request.stop, request.fromFrame),
+      };
+    },
+    "clip",
+    identity,
+  );
+  expect(result.status).toBe("captured");
+  if (result.status === "captured") {
+    expect(result.artifact.durationMs).toBe(CLIP_MAX_DURATION_MS + 280);
+    expect(result.artifact.frames).toHaveLength(148);
+    for (const frame of result.artifact.frames) {
+      expect(frame.atMs).toBeGreaterThanOrEqual(
+        result.artifact.durationMs - CLIP_MAX_DURATION_MS,
+      );
+      expect(frame.atMs).toBeLessThanOrEqual(result.artifact.durationMs);
+    }
+  }
+  recorder.dispose();
 });
 it("trims decoded bytes and pages frozen indexes within the socket budget", async () => {
   const recorder = fixture(() => image(CLIP_FRAME_MAX_BYTES));
