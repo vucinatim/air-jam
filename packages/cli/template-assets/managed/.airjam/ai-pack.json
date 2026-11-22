@@ -51,8 +51,8 @@
     {
       "path": "docs/airjam/docs-index.md",
       "kind": "docs-local",
-      "size": 2392,
-      "sha256": "35c70672b7401b4f1e14abd8a88d9b50ecb8925b39245072474ac4fa88d27fb2"
+      "size": 2716,
+      "sha256": "b6c3be3b0aa221adafa4ad8245b5854ab043e8d6d8cd268abd9bb3bbecfbe4a6"
     },
     {
       "path": "docs/airjam/generated/architecture.md",
@@ -81,8 +81,8 @@
     {
       "path": "docs/airjam/generated/for-agents.md",
       "kind": "docs-generated",
-      "size": 5258,
-      "sha256": "8d1e54a33c53582697ccc9e3c28422fa5c1cc66893ffb233b15f176d9552c54b"
+      "size": 5338,
+      "sha256": "9d856e6e5f4e914ec0c5870a6a31e6ba78916a4a12664a52f3d14f1715a96e67"
     },
     {
       "path": "docs/airjam/generated/game-ideas.md",
@@ -93,8 +93,8 @@
     {
       "path": "docs/airjam/generated/host-system.md",
       "kind": "docs-generated",
-      "size": 10455,
-      "sha256": "ca1b1d9f10ef5edeb6918c596d2db28585f16c23f5bf9155654737cd479a2e02"
+      "size": 10602,
+      "sha256": "c4e4337f9f2e9d7020c1cac3654b971ad4b3b6ec97ae0a84f97e1565b6528498"
     },
     {
       "path": "docs/airjam/generated/input-system.md",
@@ -129,8 +129,8 @@
     {
       "path": "docs/airjam/generated/quick-start.md",
       "kind": "docs-generated",
-      "size": 13006,
-      "sha256": "c2f4cbb873b713ae1034b94bd1ff2f4527cfc9a1a284fc7ef3b82f2c3317d4a2"
+      "size": 13131,
+      "sha256": "dcc6c7ba6c126034c2df45382ce8f8a5a235471778a1e0e7d3f94c9c259c309c"
     },
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
@@ -149,6 +149,12 @@
       "kind": "docs-generated",
       "size": 3176,
       "sha256": "c9e52a44c5f865db217a5bb538d0ee64b82ef342c78bc85acc830c488e3c8198"
+    },
+    {
+      "path": "docs/airjam/generated/supported-agents.md",
+      "kind": "docs-generated",
+      "size": 1492,
+      "sha256": "2452bf09b3b75ea9c34437e4df8bac6e58813049600c6a2e036cae312705372d"
     },
     {
       "path": "docs/airjam/generated/ui-components.md",
@@ -199,5 +205,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "f9754e86711e8e7467cef44e5a7586da28b0ad7b346ab5c73c6d7fe2a1e10d9d"
+  "contentDigest": "e4c3a044660ad15cf3d665a341e866c84666917c63a9b280ceec896d22a20502"
 }
