@@ -81,11 +81,12 @@ This project is "vibecode friendly"—it includes documentation and AI instructi
 
 - **Check `AGENTS.md`**: Project-wide coding contract and workflow for AI coding assistants.
 - **Check `docs/airjam/docs-index.md`**: Canonical local framework references bundled with the template.
-- **Modify `src/airjam.config.ts`**: Canonical runtime setup and input wiring.
-- **Modify `src/game/input.ts`**: Define your input schema.
+- **Modify `src/airjam.config.ts`**: The game declaration: metadata, controls, stores, settings and simulation.
+- **Modify `src/game/contracts/input.ts`**: Declare the controls each player has.
 - **Use the starter module map in the template `README.md`**: Follow the current starter structure before creating new homes for code.
 - **Modify `src/game/stores/`**: Starter location for shared networked state and pure transitions.
-- **Modify `src/host/index.tsx`**: Starter host/gameplay surface.
+- **Modify `src/game/engine/`**: Starter simulation the host advances in fixed steps.
+- **Modify `src/host/index.tsx`**: Starter host screen.
 - **Modify `src/controller/index.tsx`**: Starter mobile controller surface.
 - **Use `tests/game/`**: Starter testing pattern for domain, stores, engine, adapters, and shared game UI.
 
@@ -107,7 +108,8 @@ pnpm exec airjam mcp config --profile portable --dir .
 The `codex` and `claude-desktop` profiles render their respective registration
 formats. Configuration rendering is read-only: install the rendered entry in
 your client, then check its tool discovery. See [For Agents](./for-agents.md)
-for semantic game control and a CLI-only path.
+for semantic game control and a CLI-only path, and
+[Supported Agents](./supported-agents.md) for the clients tested end to end.
 
 ### Run the Complete Evaluation
 
@@ -288,8 +290,6 @@ That command:
 - bundles the static output from `dist/`
 - writes `.airjam/release-manifest.json`
 - creates a hosted release zip under `.airjam/releases/<version>/`
-
-The scaffolded `release:bundle` script wraps `airjam release bundle --dir .` for you.
 
 The hosted artifact contract is fixed:
 

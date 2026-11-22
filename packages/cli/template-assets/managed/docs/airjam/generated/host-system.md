@@ -11,9 +11,13 @@ The simplest mode—your game connects directly to the Air Jam server.
 
 **Usage:**
 
-```tsx filename="src/components/HostView.tsx"
-import { useAirJamHost } from "@air-jam/sdk";
-import { airjam } from "../airjam.config";
+```tsx filename="src/app.tsx"
+import { createAirJamApp, env } from "@air-jam/sdk";
+import { airjam as game } from "./airjam.config";
+
+export const airjam = createAirJamApp(game, {
+  runtime: env.vite(import.meta.env),
+});
 
 const HostShell = () => (
   <airjam.Host
@@ -28,6 +32,9 @@ const HostShell = () => (
 // step: (sim, { input, players }) => players.forEach((p) => process(sim, input(p.id)))
 const HostView = () => <GameCanvas />;
 ```
+
+`createAirJamApp` binds the game declaration from `src/airjam.config.ts` to the
+browser and returns `Host`, `Controller` and `paths`.
 
 ### Arcade Mode (Outer App + Embedded Game)
 
@@ -92,8 +99,7 @@ This focus system does not replace the normal Air Jam model. It only decides whi
     │                     │                       │                   │
     │                     │ Focus → GAME          │                   │
     │                     │                       │                   │
-    │                     │ Redirect controller   │                   │
-    │                     │ ─────────────────────────────────────────▶│
+    │ Show game controller ──────────────────────────────────────────▶│
     │                     │                       │                   │
     │                     │                       │   Load game UI    │
 ```
@@ -131,21 +137,22 @@ Outside the simulation, `getReconnectingPlayerIds(players, controllers)` from
 ### 4. Game Exit
 
 ```
-[Your Game]           [Server]               [Arcade]           [Controller]
+[Controller]          [Server]               [Arcade]           [Your Game]
     │                     │                       │                   │
-    │ host:exit           │                       │                   │
+    │ controller:system   │                       │                   │
+    │ { command: "exit" } │                       │                   │
     │ ───────────────────▶│                       │                   │
-    │                     │                       │                   │
+    │                     │ Disconnect game host  │                   │
+    │                     │ ─────────────────────────────────────────▶│
     │                     │ Focus → SYSTEM        │                   │
     │                     │                       │                   │
-    │                     │ server:gameEnded      │                   │
+    │                     │ server:closeChild     │                   │
     │                     │ ─────────────────────▶│                   │
-    │                     │                       │                   │
-    │              Destroy iframe ◀────────────── │                   │
-    │                     │                       │                   │
-    │                     │ Restore arcade UI     │                   │
-    │                     │ ─────────────────────────────────────────▶│
+    │                     │                       │ Destroy iframe ──▶│
+    │ ◀──────────────── Show Arcade controller ── │                   │
 ```
+
+The Arcade can also close the game itself with `system:closeGame`.
 
 ### Standalone Mode
 
@@ -186,9 +193,9 @@ const HostShell = () => (
   <airjam.Host
     onPlayerJoin={(player) => {
       // player.id - Unique identifier
-      // player.label - Display name ("Player 1", etc.)
-      // player.color - Assigned color ("#FF5733")
-      // player.nickname - Optional custom name
+      // player.label - Display name ("Player 1", or the name they chose)
+      // player.color - Optional assigned color ("#FF5733")
+      // player.avatarId - Optional chosen avatar
       spawnPlayerEntity(player);
       announceJoin(player.label);
     }}

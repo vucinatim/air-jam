@@ -58,8 +58,8 @@ Node.js 20 is not part of the 1.0 contract because it reached end of life in 202
 decision. Authoring tools (`@air-jam/devtools`, `@air-jam/cli`,
 `@air-jam/mcp-server` and `create-airjam`) and the workspace require Node.js
 22.15 or newer. The declaration loader uses synchronous module hooks to cover
-imports, `require` and `createRequire`. The SDK, server and environment package
-retain `node >=22.0.0`. Newer Node versions are
+imports, `require` and `createRequire`. The SDK and server retain
+`node >=22.0.0`. Newer Node versions are
 not artificially rejected, but a non-LTS or future release is not certified
 until it joins the matrix. See the Node.js project's
 [release lifecycle](https://nodejs.org/en/about/previous-releases).

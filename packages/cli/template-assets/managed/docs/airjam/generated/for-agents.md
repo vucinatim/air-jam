@@ -44,6 +44,8 @@ the server. `mcp doctor` distinguishes project declarations from detected client
 registrations. Confirm that the connected client discovers Air Jam's tools before
 treating the connection as working.
 
+[Supported Agents](./supported-agents.md) lists the clients tested end to end.
+
 ## Operate and Evaluate
 
 For gameplay assertions, use `airjam.open_game_session`,

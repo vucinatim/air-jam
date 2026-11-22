@@ -1,0 +1,18 @@
+# Supported Agents
+
+Any coding agent that can run terminal commands or start a local stdio MCP
+server can build with Air Jam. Tested means the agent made a game through Air
+Jam's CLI and MCP, played it with two phones and released it.
+
+| Agent                              | Status                 | Notes                                   |
+| ---------------------------------- | ---------------------- | --------------------------------------- |
+| Codex CLI                          | Tested                 |                                         |
+| Claude Code                        | Tested                 |                                         |
+| T3 Code                            | Tested                 |                                         |
+| Codex app, over SSH                | Covered by Codex CLI   | Runs the same `codex` program           |
+| Claude Desktop Code tab, over SSH  | Covered by Claude Code | Runs the same `claude` program          |
+| Claude Desktop chat                | Not for building       | Cannot edit project files               |
+| Other terminal or stdio MCP agents | Not tested             | Expected to work through the CLI or MCP |
+
+Air Jam supports its own CLI and MCP, not the agent's interface. To connect an
+agent, see [For Agents](/docs/for-agents).

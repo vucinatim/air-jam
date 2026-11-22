@@ -347,6 +347,24 @@
     }
   },
   {
+    "source": "for-agents/supported-agents/page.mdx",
+    "output": "supported-agents.md",
+    "page": {
+      "title": "Supported Agents",
+      "href": "/docs/for-agents/supported-agents",
+      "description": "Which coding agents are tested with Air Jam's CLI and MCP.",
+      "section": "Agent Docs",
+      "icon": "bot",
+      "keywords": ["agents", "clients", "codex", "claude", "mcp", "supported"],
+      "docType": "agent",
+      "order": 4,
+      "stability": "evolving",
+      "audience": "agent",
+      "sinceVersion": "1.0.0",
+      "lastVerifiedVersion": "1.0.0"
+    }
+  },
+  {
     "source": "sdk/settings/page.mdx",
     "output": "settings.md",
     "page": {
