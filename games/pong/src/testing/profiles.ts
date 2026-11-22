@@ -177,7 +177,10 @@ export const testing = defineAirJamTesting({
       label: "Play a paddle alongside the creator",
       seats: [{ id: "player", label: "Agent paddle" }],
       setup: [],
-      handBack: [],
+      // It may join a match already playing; leave the room in its lobby so no bot plays on.
+      handBack: [
+        { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
+      ],
       actions: ["join_team"],
       scope: "player",
       includeImage: false,

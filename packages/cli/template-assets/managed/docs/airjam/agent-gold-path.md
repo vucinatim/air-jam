@@ -86,9 +86,10 @@ player is offered as the reserved `model` policy in every profile. Optional
 `visual.scenarios` uses the game's declared agent. A profile's `setup` brings
 the room to where its test starts; its `handBack` returns the creator's room,
 usually with `return_to_lobby`, once the test ends and before its players
-leave, so the game never plays on without them. Declare `handBack: []` when the
-room needs nothing; a missing one is reported as `undeclared` in the run
-record. Do not duplicate identity in template flags or read config source with
+leave, so the game never plays on without them. Profiles that join play already
+under way hand it back too. Declare `handBack: []` only when the game has no
+phase to leave, such as a shared counter; a missing one is reported as
+`undeclared` in the run record. Do not duplicate identity in template flags or read config source with
 regular expressions.
 
 ## Declared settings

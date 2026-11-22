@@ -308,9 +308,9 @@ before gameplay evaluation.
 
 A profile's optional `handBack` steps, shaped like `setup`, return the creator's
 room once a test in it ends: after input release, the final evaluation and the
-evaluator's stop, and before the run's players disconnect. First-party profiles
-return to the lobby. A stale participant action is retried twice; other failures
-are cleanup errors. `cleanup.handBack` records `returned`, `failed`, or
+evaluator's stop, and before the run's players disconnect. First-party games
+with a lobby return to it from every profile. A stale participant action is
+retried twice; other failures are cleanup errors. `cleanup.handBack` records `returned`, `failed`, or
 `undeclared` when the profile has none; an empty list declares that the room
 needs nothing. Owned and headless rooms close with the run and skip it, as does
 a run whose players never attached.

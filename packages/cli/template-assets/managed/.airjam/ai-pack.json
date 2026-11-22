@@ -15,14 +15,14 @@
     {
       "path": "docs/airjam/agent-gold-path.md",
       "kind": "docs-local",
-      "size": 8295,
-      "sha256": "3f471b9ba37e86ff3fb24cf5cc6db3a7129c19f58cd4807e690a20f27ed9ecd5"
+      "size": 8394,
+      "sha256": "30cc7eb97cf1177dbb56fed6d5ab1b0723809236b65dfd531ed7bf7de2eaa185"
     },
     {
       "path": "docs/airjam/agent-mcp.md",
       "kind": "docs-local",
-      "size": 9790,
-      "sha256": "ef4dfd1f21bd7d1ff0ba6f625b151d5fac51a05cfdd60bb715ff223d55b6dd62"
+      "size": 9889,
+      "sha256": "1e712de9c1e758acf5c0d509726b87c39d18446ef22c718d117d6ff431b29e72"
     },
     {
       "path": "docs/airjam/canvas-2d-gameplay.md",
@@ -199,5 +199,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "ba637426aa24b71fb5a7505da96d967bd3f532c3bd520b81279a1d29a9b66519"
+  "contentDigest": "f9754e86711e8e7467cef44e5a7586da28b0ad7b346ab5c73c6d7fe2a1e10d9d"
 }
