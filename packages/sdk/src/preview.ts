@@ -42,6 +42,7 @@ export {
   localSeatQuerySchema,
   localSeatRelaySchema,
   localSeatRequestSchema,
+  relayLocalSeatInput,
   sendLocalSeatOperation,
   type LocalSeat,
   type LocalSeatGame,

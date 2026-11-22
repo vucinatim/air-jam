@@ -183,6 +183,7 @@ export const PreviewControllerWorkspace = ({
     sessions,
     canSpawn,
     spawn: spawnPreviewController,
+    remove: removePreviewController,
     frames,
   });
   useProvideLocalSeats(localPlayersGame ? null : localSeats);

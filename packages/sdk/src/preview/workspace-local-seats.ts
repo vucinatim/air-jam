@@ -7,6 +7,7 @@ import {
   type OpenedLocalSeat,
 } from "../runtime/local-seats";
 import type { PreviewControllerSession } from "./manager";
+import { requestPreviewControllerClose } from "./messages";
 
 interface SeatRequest {
   seat: LocalSeat;
@@ -19,19 +20,21 @@ interface SeatRequest {
  * Local players' seats as the workspace's own preview phones. A seat's phone
  * is the session launched for its key; the seat opens once that session's
  * frame says it takes input and closes when the session is removed. A full
- * workspace refuses the seat.
+ * workspace refuses the seat. Once seats are off, their phones leave and close.
  */
 export const useWorkspaceLocalSeats = ({
   enabled,
   sessions,
   canSpawn,
   spawn,
+  remove,
   frames,
 }: {
   enabled: boolean;
   sessions: readonly PreviewControllerSession[];
   canSpawn: boolean;
   spawn: (options: { localSeat: LocalSeat }) => unknown;
+  remove: (sessionId: string) => void;
   /** Each session's controller frame while it is mounted. */
   frames: ReadonlyMap<string, HTMLIFrameElement>;
 }): LocalSeatProvider | null => {
@@ -105,6 +108,22 @@ export const useWorkspaceLocalSeats = ({
         close();
       }
   }, [requested, sessions, canSpawn, spawn, openSeat]);
+
+  const leaving = useRef(new Set<string>());
+  useEffect(() => {
+    if (enabled) return;
+    for (const session of sessions) {
+      if (!session.localSeat || leaving.current.has(session.id)) continue;
+      leaving.current.add(session.id);
+      void requestPreviewControllerClose(
+        frames.get(session.id) ?? null,
+        session.url,
+      ).finally(() => {
+        leaving.current.delete(session.id);
+        remove(session.id);
+      });
+    }
+  }, [enabled, sessions, frames, remove]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {

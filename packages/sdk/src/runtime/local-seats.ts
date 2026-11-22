@@ -11,6 +11,8 @@ import {
   type LocalInputTarget,
 } from "../core/local-input";
 import { readPreviewControllerParent } from "../preview/identity";
+import { embeddedRuntimeParent } from "./embedded-parent";
+import { readEmbeddedControllerChildSession } from "./embedded-runtime-adapters";
 
 /**
  * A preview phone launched for a local player carries its seat's label in
@@ -83,7 +85,9 @@ const closedSchema = seatMessage("airjam.local-seat.closed");
  * parent origin its preview launch declares (`parentOrigin`, else the phone's
  * own origin), and says `airjam.local-seat.ready` to it. A product showing a phone in its own
  * window frames the phone in a page of its own and relays to that page; it
- * never messages a phone in another window directly.
+ * never messages a phone in another window directly. A phone page that
+ * frames its game's own controller relays the same way: it says ready once
+ * that controller says ready to it, its declared embed parent.
  */
 
 /** What a game frame asks of the product that embeds it. */
@@ -437,15 +441,22 @@ export const readLocalSeatLabel = (): string | null =>
         AIR_JAM_LOCAL_SEAT_QUERY_PARAM,
       );
 
+/** A local-seat phone's declared parent, or null for any other page. */
+const localSeatPhoneParent = () =>
+  readLocalSeatLabel() === null ? null : readPreviewControllerParent();
+
 /**
- * The phone side: a local-seat phone applies operations from the parent its
- * preview launch declares to its own controls.
+ * The phone side: a local-seat phone, or the game controller a phone page
+ * embeds, applies operations from its declared parent to its own controls.
  */
 export const listenForLocalSeatInput = (
   target: LocalInputTarget | null,
 ): (() => void) => {
-  const parent = readPreviewControllerParent();
-  if (!target || readLocalSeatLabel() === null || !parent) return () => {};
+  const embedded = readEmbeddedControllerChildSession();
+  const parent = embedded
+    ? embeddedRuntimeParent(embedded.topology)
+    : localSeatPhoneParent();
+  if (!target || !parent) return () => {};
   const receiver = new LocalInputReceiver(target);
   const onMessage = (event: MessageEvent) => {
     if (event.source !== parent.window || event.origin !== parent.origin)
@@ -459,4 +470,34 @@ export const listenForLocalSeatInput = (
     window.removeEventListener("message", onMessage);
     receiver.apply({ op: "release-all" });
   };
+};
+
+/**
+ * A local-seat phone page that shows its game's own controller in a frame
+ * hands its seat to that frame: it says it takes input once the frame does
+ * and passes each operation from its declared parent on to the frame.
+ */
+export const relayLocalSeatInput = (frame: LocalSeatGame): (() => void) => {
+  const parent = localSeatPhoneParent();
+  if (!parent) return () => {};
+  const onMessage = (event: MessageEvent) => {
+    const game = frame.window();
+    if (!game) return;
+    if (event.source === parent.window && event.origin === parent.origin) {
+      const message = phoneInputSchema.safeParse(event.data);
+      if (message.success) game.postMessage(message.data, frame.origin);
+      return;
+    }
+    if (
+      event.source === game &&
+      event.origin === frame.origin &&
+      isLocalSeatReadyMessage(event.data)
+    )
+      parent.window.postMessage(
+        { type: "airjam.local-seat.ready" },
+        parent.origin,
+      );
+  };
+  window.addEventListener("message", onMessage);
+  return () => window.removeEventListener("message", onMessage);
 };
