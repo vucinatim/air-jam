@@ -25,18 +25,18 @@ describe("preview controller launch helpers", () => {
     );
   });
 
-  it("can rebase embedded preview controllers onto a host-local origin", () => {
+  it("can rebase embedded preview controllers onto a host-local origin, port included", () => {
     const result = buildPreviewControllerUrl({
       joinUrl:
-        "https://platform.example/controller?room=ROOM2&aj_controller_cap=cap_123",
+        "http://platform.example:3100/controller?room=ROOM2&aj_controller_cap=cap_123",
       controllerId: "ctrl_preview_1",
       previewDeviceId: "pd_preview_1",
-      embedOrigin: "http://localhost:5173",
-      allowedOrigins: ["https://platform.example"],
+      embedOrigin: "http://airjam.localhost",
+      allowedOrigins: ["http://platform.example:3100"],
     });
 
     expect(result).toBe(
-      "http://localhost:5173/controller?room=ROOM2&aj_controller_cap=cap_123&controllerId=ctrl_preview_1&aj_preview=1&aj_preview_device=pd_preview_1",
+      "http://airjam.localhost/controller?room=ROOM2&aj_controller_cap=cap_123&controllerId=ctrl_preview_1&aj_preview=1&aj_preview_device=pd_preview_1",
     );
   });
 
