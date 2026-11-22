@@ -158,6 +158,11 @@ export class HostClipRecorder {
       recording.droppedFrames++;
     }
   }
+  private freeze(recording: Recording, stopped: number) {
+    if (recording.stopped !== null) return;
+    recording.stopped = stopped;
+    this.trim(recording, stopped);
+  }
   private sweep() {
     const now = this.source.now();
     for (const [id, recording] of this.recordings) {
@@ -165,11 +170,10 @@ export class HostClipRecorder {
         recording.stopped === null &&
         now - recording.start >= CLIP_RECORDING_LIFETIME_MS
       ) {
-        recording.stopped = recording.start + CLIP_RECORDING_LIFETIME_MS;
+        this.freeze(recording, recording.start + CLIP_RECORDING_LIFETIME_MS);
         void recording.video
           ?.stop()
           .catch((error) => this.source.onCaptureError?.(error));
-        this.trim(recording, recording.stopped);
       }
       const since = idleSince(recording);
       if (since !== null && now - since >= CLIP_STOPPED_RELEASE_MS) {
@@ -257,7 +261,7 @@ export class HostClipRecorder {
   async stop(clipId: string) {
     const recording = this.recordings.get(clipId);
     if (!recording) throw new Error("clip_not_found: Recording was released.");
-    if (recording.stopped === null) recording.stopped = this.source.now();
+    this.freeze(recording, this.source.now());
     await recording.video?.stop();
     this.schedule();
   }
@@ -277,8 +281,8 @@ export class HostClipRecorder {
     const now = this.source.now();
     recording.lastRead = now;
     if (recording.stopped === null) {
-      if (stop) recording.stopped = now;
-      this.trim(recording, now);
+      if (stop) this.freeze(recording, now);
+      else this.trim(recording, now);
     }
     const frames: ClipFrame[] = [];
     let chars = 0;

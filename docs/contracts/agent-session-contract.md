@@ -660,9 +660,11 @@ releases recordings. Missing captures distinguish busy, unsupported, unavailable
 failed, replaced, unreachable and headless screens. `clipArtifactSchema` from
 `@air-jam/sdk/runtime-control` validates `clip.json`; frame offsets and duration
 are measured since the original host-clock start, including any dropped prefix.
+Stopping trims the retained frames at the frozen stop time before any pages are read.
 The run owner records clips for test and play runs reached through host-agent
 requests, with an integrity receipt beside the final observation. Clip failure
-never changes a gameplay verdict or end reason.
+never changes a gameplay verdict or end reason. Its `clip-failure` trace keeps the
+original error message alongside the mapped not-captured reason.
 
 On-request Studio clips choose `delivery: "video"` and 33 ms. The SDK records its
 persistent canvas through `captureStream(30)` and VP9 `MediaRecorder` at 4 Mbps,
