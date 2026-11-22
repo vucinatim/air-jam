@@ -51,6 +51,8 @@ Do not mix lanes:
 
 ## Match Recording And Replay
 
+Composing hosts that embed another document use `captureStage={false}` on `AirJamHostRuntime` from `@air-jam/sdk/arcade/runtime` to keep their children outside the capture canvas; games keep automatic stage capture by default.
+
 Hosts whose game declares a simulation record the match's input log with its
 real seed. Agents read it with `readHostInputLog` from
 `@air-jam/sdk/runtime-control`, and `openAirJamReplay` from `@air-jam/sdk/core`

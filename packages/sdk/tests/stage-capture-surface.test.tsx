@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
 import { StageCaptureSurface } from "../src/components/stage-capture-surface";
+import { HostSessionProvider } from "../src/context/session-providers";
 import { readPreviewControllerParent } from "../src/preview/identity";
 import { supportsStageCapture } from "../src/runtime/stage-capture";
 
@@ -18,6 +20,20 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/");
+});
+
+it("keeps composing hosts outside the capture canvas and captures game hosts by default", () => {
+  vi.mocked(supportsStageCapture).mockReturnValue(true);
+  const children = <iframe title="Game" src="https://game.example" />;
+  const composition = renderToStaticMarkup(
+    <HostSessionProvider captureStage={false}>{children}</HostSessionProvider>,
+  );
+  expect(composition).toBe(renderToStaticMarkup(children));
+  const game = renderToStaticMarkup(
+    <HostSessionProvider>{children}</HostSessionProvider>,
+  );
+  expect(game).toContain('data-airjam-stage-capture=""');
+  expect(game).toContain(composition);
 });
 
 it("keeps real phones and unsupported previews in their original DOM", () => {
