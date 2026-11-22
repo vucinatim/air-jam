@@ -13,17 +13,19 @@ The simplest mode—your game connects directly to the Air Jam server.
 
 ```tsx filename="src/app.tsx"
 import { createAirJamApp, env } from "@air-jam/sdk";
-import { airjam } from "./airjam.config";
+import { airjam as game } from "./airjam.config";
 
-const app = createAirJamApp(airjam, { runtime: env.vite(import.meta.env) });
+export const airjam = createAirJamApp(game, {
+  runtime: env.vite(import.meta.env),
+});
 
 const HostShell = () => (
-  <app.Host
+  <airjam.Host
     onPlayerJoin={(player) => spawnPlayer(player)}
     onPlayerLeave={(id) => removePlayer(id)}
   >
     <HostView />
-  </app.Host>
+  </airjam.Host>
 );
 
 // Players' controls reach the game in its simulation steps:
@@ -31,8 +33,8 @@ const HostShell = () => (
 const HostView = () => <GameCanvas />;
 ```
 
-`airjam` is the game declaration from `defineAirJamGame`; `createAirJamApp` binds
-it to the browser and returns `Host`, `Controller` and `paths`.
+`createAirJamApp` binds the game declaration from `src/airjam.config.ts` to the
+browser and returns `Host`, `Controller` and `paths`.
 
 ### Arcade Mode (Outer App + Embedded Game)
 
@@ -155,9 +157,9 @@ The Arcade can also close the game itself with `system:closeGame`.
 ### Standalone Mode
 
 ```tsx
-<app.Host roomId="GAME">
+<airjam.Host roomId="GAME">
   <HostView />
-</app.Host>;
+</airjam.Host>;
 
 // Inside HostView:
 const host = useAirJamHost();
@@ -188,7 +190,7 @@ const host = useAirJamHost();
 
 ```tsx
 const HostShell = () => (
-  <app.Host
+  <airjam.Host
     onPlayerJoin={(player) => {
       // player.id - Unique identifier
       // player.label - Display name ("Player 1", or the name they chose)
@@ -202,7 +204,7 @@ const HostShell = () => (
     }}
   >
     <HostView />
-  </app.Host>
+  </airjam.Host>
 );
 ```
 
