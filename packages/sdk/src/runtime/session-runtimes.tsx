@@ -44,6 +44,8 @@ import {
 export type AirJamHostRuntimeProps = AirJamProviderProps &
   AirJamHostOptions & {
     children: ReactNode;
+    /** Set false at mount for composing hosts that embed another document. */
+    captureStage?: boolean;
     prefabs?: PrefabDeclarationCatalog;
     prefabStage?: ComponentType;
     fixedControllerOrientation?: "landscape" | null;
@@ -261,6 +263,7 @@ const useInBrowser = () =>
 
 export const AirJamHostRuntime = ({
   children,
+  captureStage,
   roomId,
   onPlayerJoin,
   onPlayerLeave,
@@ -290,7 +293,7 @@ export const AirJamHostRuntime = ({
       <fixedControllerOrientationContext.Provider
         value={fixedControllerOrientation ?? null}
       >
-        <HostSessionProvider {...providerProps}>
+        <HostSessionProvider {...providerProps} captureStage={captureStage}>
           <ReplayRuntime
             {...providerProps}
             fixedControllerOrientation={fixedControllerOrientation}
@@ -310,7 +313,7 @@ export const AirJamHostRuntime = ({
     <fixedControllerOrientationContext.Provider
       value={fixedControllerOrientation ?? null}
     >
-      <HostSessionProvider {...providerProps}>
+      <HostSessionProvider {...providerProps} captureStage={captureStage}>
         <PlatformSettingsBoundary>
           <HostRuntimeOwner
             roomId={roomId}

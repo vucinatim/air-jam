@@ -12,12 +12,15 @@ import {
 export function StageCaptureSurface({
   children,
   role,
+  captureStage = true,
 }: {
   children: ReactNode;
   role: "host" | "controller";
+  captureStage?: boolean;
 }) {
   const [enabled] = useState(
     () =>
+      captureStage &&
       typeof window !== "undefined" &&
       (role === "host" ||
         (readPreviewControllerParent() !== null &&

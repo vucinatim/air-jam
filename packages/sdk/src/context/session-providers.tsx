@@ -10,14 +10,16 @@ import {
 } from "./session-scope";
 
 type RuntimeOwnerToken = symbol;
+type SessionProviderProps = AirJamProviderProps & { captureStage?: boolean };
 
 const createScopedSessionProvider = (
   scope: Exclude<SessionScope, "unscoped">,
-): ((props: AirJamProviderProps) => JSX.Element) => {
+): ((props: SessionProviderProps) => JSX.Element) => {
   const ScopedSessionProvider = ({
     children,
+    captureStage,
     ...providerProps
-  }: AirJamProviderProps): JSX.Element => {
+  }: SessionProviderProps): JSX.Element => {
     const runtimeOwnersRef = useRef<
       Map<
         RuntimeOwnerKind,
@@ -59,7 +61,9 @@ const createScopedSessionProvider = (
       <SessionScopeContext.Provider value={scope}>
         <RuntimeOwnerRegistryContext.Provider value={{ claimOwner }}>
           <AirJamProvider {...providerProps} surfaceRole={scope}>
-            <StageCaptureSurface role={scope}>{children}</StageCaptureSurface>
+            <StageCaptureSurface role={scope} captureStage={captureStage}>
+              {children}
+            </StageCaptureSurface>
           </AirJamProvider>
         </RuntimeOwnerRegistryContext.Provider>
       </SessionScopeContext.Provider>
@@ -69,7 +73,8 @@ const createScopedSessionProvider = (
 };
 
 export const HostSessionProvider = createScopedSessionProvider("host");
-export const ControllerSessionProvider =
-  createScopedSessionProvider("controller");
+export const ControllerSessionProvider: (
+  props: AirJamProviderProps,
+) => JSX.Element = createScopedSessionProvider("controller");
 
 export type { AirJamProviderProps };
