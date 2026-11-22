@@ -85,6 +85,7 @@ it("joins the creator's room alongside humans and keeps access out of records an
   });
   const record = await f.owner.stop(f.request.runId);
   expect(record.cleanup?.participantsClosed).toBe(true);
+  expect(record.cleanup?.handBack).toBe("undeclared");
   expect(f.session.addParticipant).not.toHaveBeenCalled();
   const directory = path.join(
     f.root,
@@ -156,6 +157,53 @@ it("seats several agents in the creator's room and runs host setup through it", 
     "player",
     "second",
   ]);
+});
+
+it("hands the creator's room back after judging and before its players leave", async () => {
+  const f = await seatFixture();
+  io.startPolicy.mockImplementation(async (options) => ({
+    profiles: [
+      {
+        ...structuredClone(profile),
+        seats: [
+          { id: "left", label: "Left" },
+          { id: "right", label: "Right" },
+        ],
+        handBack: [
+          { lane: "participant", seatId: "right", actionId: "return_to_lobby" },
+          { lane: "host", actionId: "reset_round" },
+        ],
+      },
+    ],
+    decide: io.decide,
+    evaluate: io.evaluate,
+    busy: () => false,
+    stop: options.role === "evaluator" ? io.stopEvaluator : io.stopPolicy,
+  }));
+  io.stopEvaluator.mockImplementation(async () => {
+    f.events.push("evaluator-stopped");
+  });
+  vi.mocked(f.session.invokeHost).mockImplementation(async (actionId) => {
+    f.events.push(`host:${actionId}`);
+  });
+  f.request.target = { kind: "current" };
+  f.session.summary.semanticAccess = "delegated-host";
+  await f.owner.start(f.request, attachment(["player", "second"]));
+  await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
+  const record = await f.owner.stop(f.request.runId);
+  expect(record.cleanup?.handBack).toBe("returned");
+  expect(record.playStartedAt).toBeDefined();
+  expect(f.extra.control).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      operation: expect.objectContaining({ actionId: "return_to_lobby" }),
+    }),
+  );
+  const handedBack = f.events.indexOf("host:reset_round");
+  expect(f.events.indexOf("evaluator-stopped")).toBeLessThan(handedBack);
+  expect(
+    f.events.indexOf("action", f.events.indexOf("evaluator-stopped")),
+  ).toBeLessThan(handedBack);
+  expect(handedBack).toBeLessThan(f.events.indexOf("extra-left"));
 });
 
 async function seatFixture({

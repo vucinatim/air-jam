@@ -306,6 +306,15 @@ observation and control sequence within the remaining run time budget. Each
 rejection stays in the trace and receipts. Other setup failures stop the run
 before gameplay evaluation.
 
+A profile's optional `handBack` steps, shaped like `setup`, return the creator's
+room once a test in it ends: after input release, the final evaluation and the
+evaluator's stop, and before the run's players disconnect. First-party games
+with a lobby return to it from every profile. A stale participant action is
+retried twice; other failures are cleanup errors. `cleanup.handBack` records `returned`, `failed`, or
+`undeclared` when the profile has none; an empty list declares that the room
+needs nothing. Owned and headless rooms close with the run and skip it, as does
+a run whose players never attached.
+
 Owned tests pin source, policy and evaluator into one sealed build. Source is
 hashed before and after copying; installation and compilation must preserve it.
 The frozen dependency installer uses independent copies and records PNPM's actual
@@ -474,9 +483,11 @@ Each run inspects its game once and reuses that inspection during participant
 attachment. Complete explicit controller targets skip topology discovery. Fresh
 policy preparation and attachment run concurrently, without cross-run helpers or
 caches. Records expose ISO timestamps `rosterJoinedAt` (roster confirmation),
-`stopRequestedAt` (owner receipt), `abortedAt`, `lastInputAt` (last non-release
-control sent) and `releaseAcknowledgedAt` (cleanup release applied). These separate
-join and stop latency from helper shutdown; embedding applications record their
+`playStartedAt` (play begins, after setup), `stopRequestedAt` (owner receipt),
+`abortedAt` (play ends), `lastInputAt` (last non-release control sent) and
+`releaseAcknowledgedAt` (cleanup release applied). These separate join and stop
+latency from helper shutdown, and `playStartedAt` to `abortedAt` is how long the
+run played; embedding applications record their
 own stop receipt before forwarding cancellation.
 
 A `current` run plays in a room another editor hosts. Its attachment carries
