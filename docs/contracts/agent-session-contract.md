@@ -277,6 +277,10 @@ owner cannot start another trial. A manifest is persisted before asynchronous
 startup. For tests, the play-time budget (at most ten minutes) begins after setup;
 startup has a separate deadline of the same duration. Decision-count budgets
 are explicit; an incomplete budget exit is inconclusive, never a passed test.
+Startup completion events identify game resolution, build sealing or reuse (owned
+targets), evaluator startup (tests), policy preparation and session opening. If
+the startup deadline expires, the existing `budget` end names the unfinished
+step; parallel policy and session startup can leave more than one step pending.
 
 The trace has a 16 MiB byte allowance, with space reserved for teardown events.
 Exhaustion stops the run as `trace_budget` and records truncation; it cannot

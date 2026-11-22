@@ -7,7 +7,12 @@ const candidate = fileURLToPath(new URL("../candidate", import.meta.url));
 
 describe("devtools helper execution", () => {
   it("runs built JavaScript helpers directly without the tsx CLI", () => {
-    for (const helperName of ["hold-runtime-host", "managed-dev-supervisor"]) {
+    for (const helperName of [
+      "hold-runtime-host",
+      "managed-dev-supervisor",
+      "describe-game",
+      "run-test-profile",
+    ]) {
       const helperPath = path.join(candidate, `dist/tooling/${helperName}.js`);
       expect(resolveDevtoolsHelperArgs(helperPath)).toEqual([helperPath]);
     }
@@ -15,11 +20,9 @@ describe("devtools helper execution", () => {
 
   it("loads project TypeScript for built helpers that import user config", () => {
     for (const helperName of [
-      "describe-game",
       "run-headless-room",
       "list-visual-scenarios",
       "run-visual-capture",
-      "run-test-profile",
     ]) {
       const helperPath = path.join(candidate, `dist/tooling/${helperName}.js`);
       const args = resolveDevtoolsHelperArgs(helperPath);

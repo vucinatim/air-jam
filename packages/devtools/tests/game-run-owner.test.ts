@@ -2527,6 +2527,48 @@ it("keeps a faster seat playing and applies the last answers before ending the d
   }
 });
 
+it("names an evaluator that never starts when the startup budget expires", async () => {
+  const f = await fixture();
+  f.request.target = { kind: "current" };
+  const starting = Promise.withResolvers<void>();
+  io.startPolicy.mockImplementation(({ startupSignal }) => {
+    starting.resolve();
+    return new Promise((_, reject) => {
+      startupSignal.addEventListener(
+        "abort",
+        () => reject(new Error("policy_stopped")),
+        { once: true },
+      );
+    });
+  });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+  try {
+    await f.owner.start(f.request, attachment());
+    await starting.promise;
+    await vi.advanceTimersByTimeAsync(f.request.budget.durationMs);
+  } finally {
+    vi.useRealTimers();
+  }
+  const record = await f.ended();
+  expect(record.end).toEqual({
+    reason: "budget",
+    outcome: "inconclusive",
+    message:
+      "Run reached its time budget during startup: the evaluator had not started.",
+  });
+  const trace = await readFile(
+    path.join(
+      f.root,
+      ".airjam/artifacts/runs",
+      f.request.runId,
+      "trace.ndjson",
+    ),
+    "utf8",
+  );
+  expect(trace).toContain('"kind":"game_resolved"');
+  expect(trace).not.toContain('"kind":"evaluator_started"');
+});
+
 it("gives a test its full play budget after the sealed build finishes", async () => {
   const f = await fixture();
   const build = await io.build();

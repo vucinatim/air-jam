@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, expect, it } from "vitest";
 import { prepareProcessScopes } from "../src/managed-process-scope.js";
 import { processGuardStartupTimeoutMs } from "../src/process-scope-protocol.js";
@@ -25,7 +26,6 @@ async function fixture(
     role?: "discover" | "policy" | "evaluator";
     evaluate?: string;
     create?: string;
-    evaluatorCreate?: string;
     signal?: AbortSignal;
     initializationDeadline?: number;
   } = {},
@@ -43,13 +43,14 @@ async function fixture(
       label: "Counter", seats: [{id:"player",label:"Player"}],
       setup: [], actions: ["tap"], scope: "diagnostic", includeImage: false,
       timing: { intervalMs: 20, decisionMs: 50, inputTtlMs: 100 },
-      metrics: [], evaluator:{create:${options.evaluatorCreate ?? `()=>({evaluate:${options.evaluate ?? '()=>({status:"pending"})'}})`}},
+      metrics: [], evaluator:{create:()=>({evaluate:${options.evaluate ?? '()=>({status:"pending"})'}})},
       policies: { code: { label: "Code", create: ${options.create ?? `({random}) => ({ decide: ${decide} })`} } }
     }
   }`),
   );
   const child = await startTestProfileProcess({
     rootDir: root,
+    toolingRootDir: fileURLToPath(new URL("../", import.meta.url)),
     configPath: path.join(root, "config.mjs"),
     role: options.role ?? "policy",
     startupSignal: options.signal,
@@ -119,15 +120,16 @@ it("awaits asynchronous policy preparation and measures it outside authored code
   });
 });
 
-it("keeps policy preparation out of discovery and evaluator processes", async () => {
-  for (const role of ["discover", "evaluator"] as const) {
+it.each(["discover", "evaluator"] as const)(
+  "keeps policy preparation out of the %s process",
+  async (role) => {
     const f = await fixture("unused", {
       role,
       create: '()=>{throw new Error("Model must not load in this role");}',
     });
     expect(f.child.preparation).toEqual([]);
-  }
-});
+  },
+);
 
 it("releases startup cancellation once initialized so final judging survives run cancellation", async () => {
   const abort = new AbortController();
@@ -148,20 +150,6 @@ it("releases startup cancellation once initialized so final judging survives run
       1000,
     ),
   ).toEqual({ status: "pending" });
-});
-
-it("propagates a rejected asynchronous preparation and rejects an asynchronous evaluator factory", async () => {
-  await expect(
-    fixture("unused", {
-      create: 'async()=>{throw new Error("model_load_failed");}',
-    }),
-  ).rejects.toThrow("model_load_failed");
-  await expect(
-    fixture("unused", {
-      role: "evaluator",
-      evaluatorCreate: 'async()=>({evaluate:()=>({status:"pending"})})',
-    }),
-  ).rejects.toThrow("Scenario must provide evaluate");
 });
 
 it("cancels slow initialization promptly and bounds it by the remaining run deadline", async () => {

@@ -192,6 +192,7 @@ type Run = {
   seats: RunSeat[];
   receipts: AirJamRunReceipt[];
   startup?: Promise<void>;
+  startupSteps: Set<string>;
   admission?: Promise<void>;
   persistence: Promise<void>;
   tracing: Promise<void>;
@@ -418,6 +419,7 @@ export class GameRunOwner {
       directory: path.join(this.directory, request.runId),
       abort: new AbortController(),
       seats: [],
+      startupSteps: new Set(["the game had not been resolved"]),
       evaluationCursor: 0,
       playEvaluationSent: false,
       receiptIndex: 0,
@@ -512,7 +514,7 @@ export class GameRunOwner {
           run.record.request.kind === "play" ? "safety_deadline" : "budget",
           run.record.request.kind === "play"
             ? "Play reached its ten-minute safety deadline."
-            : "Run reached its time budget.",
+            : this.startupBudgetMessage(run),
         ).catch((error) => console.error(error));
       },
       Math.max(0, run.deadline - performance.now()),
@@ -736,10 +738,19 @@ export class GameRunOwner {
     assertProcessScopesConfirmed();
   }
 
+  private startupBudgetMessage(run: Run) {
+    return run.startupSteps.size
+      ? `Run reached its time budget during startup: ${[...run.startupSteps].join("; ")}.`
+      : "Run reached its time budget.";
+  }
+
   private async initialize(run: Run) {
     const game = await this.game(run.record.request.gameId);
     if (run.abort.signal.aborted) return;
+    run.startupSteps.delete("the game had not been resolved");
+    await this.trace(run, { kind: "game_resolved", gameId: game.id });
     if (run.record.request.target.kind === "owned") {
+      run.startupSteps.add("the build had not been sealed or reused");
       run.build = await sealGameBuild({
         projectDir: game.rootDir,
         configRelative: path.relative(game.rootDir, game.configPath),
@@ -758,6 +769,7 @@ export class GameRunOwner {
         ...gameBuildIdentitySchema.parse(run.build.manifest),
         integrity: "sealed",
       };
+      run.startupSteps.delete("the build had not been sealed or reused");
       await this.trace(run, {
         kind: "build_sealed",
         build: run.record.build,
@@ -798,12 +810,15 @@ export class GameRunOwner {
     const request = run.record.request;
     let profile: AirJamTestProfileDescription | undefined;
     if (request.kind === "test") {
+      run.startupSteps.add("the evaluator had not started");
       run.evaluator = await startTestProfileProcess({
         ...common,
         role: "evaluator",
         logPath: path.join(run.directory, "evaluator.log"),
       });
       if (run.abort.signal.aborted) return;
+      run.startupSteps.delete("the evaluator had not started");
+      await this.trace(run, { kind: "evaluator_started" });
       profile = run.evaluator.profiles.find(
         (candidate) => candidate.id === request.profileId,
       );
@@ -834,6 +849,7 @@ export class GameRunOwner {
           )
         : { id: "model", label: "Decision model", artifacts: undefined };
     if (!policy) throw new Error("Unknown test policy.");
+    run.startupSteps.add("the policy had not been prepared");
     const artifacts =
       policy.artifacts === undefined
         ? undefined
@@ -857,6 +873,7 @@ export class GameRunOwner {
       if (run.abort.signal.aborted) return;
       run.record.policyInitializationMs = performance.now() - initializing;
       run.record.policyPreparation = run.policy.preparation;
+      run.startupSteps.delete("the policy had not been prepared");
       await this.trace(run, {
         kind: "policy_prepared",
         initializationMs: run.record.policyInitializationMs,
@@ -864,6 +881,7 @@ export class GameRunOwner {
         ...(artifacts ? { artifacts: artifacts.receipt } : {}),
       });
     })();
+    run.startupSteps.add("the session had not opened");
     const attaching = (async () => {
       if (run.abort.signal.aborted) return;
       if (room) {
@@ -884,6 +902,13 @@ export class GameRunOwner {
         room: run.room,
         onScope: this.observeScopes(run),
       });
+      if (run.abort.signal.aborted) return;
+      run.startupSteps.delete("the session had not opened");
+      await this.trace(run, {
+        kind: "session_opened",
+        gameSessionId: run.session.summary.gameSessionId,
+      });
+      run.startupSteps.add("the participants had not become ready");
       run.record.session = gameRunSessionIdentitySchema.parse(
         run.session.summary,
       );
@@ -980,6 +1005,7 @@ export class GameRunOwner {
         throw new Error(
           "seat_replaced: Owned room membership does not match its controlled players.",
         );
+      run.startupSteps.delete("the participants had not become ready");
       run.record.rosterJoinedAt = new Date().toISOString();
       await this.trace(run, {
         kind: "participants_ready",
@@ -995,6 +1021,7 @@ export class GameRunOwner {
     const session = run.session;
     if (!session)
       throw new Error("Run participant attachment did not complete.");
+    run.startupSteps.add("the profile setup had not finished");
     for (const step of profile?.setup ?? []) {
       if (run.abort.signal.aborted) return;
       if (step.lane === "host") {
@@ -1016,7 +1043,7 @@ export class GameRunOwner {
             void this.terminate(
               run,
               "budget",
-              "Run reached its time budget.",
+              this.startupBudgetMessage(run),
             ).catch((error) => console.error(error));
             return;
           }
@@ -1049,6 +1076,7 @@ export class GameRunOwner {
       }
     }
     await this.persist(run);
+    run.startupSteps.delete("the profile setup had not finished");
   }
   async watch(
     input: unknown,
