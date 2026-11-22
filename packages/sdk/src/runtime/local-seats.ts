@@ -70,8 +70,10 @@ const closedSchema = seatMessage("airjam.local-seat.closed");
  * The seat protocol between an embedded game host and the product that
  * frames it, with every message posted to a declared origin:
  *
- * - host → parent `airjam.local-seat.query`; a parent that provides seats
- *   answers `airjam.local-seat.available`, and only then does the host take
+ * - host → parent `airjam.local-seat.query` with the protocol `version` the
+ *   game was built with (games from before versions name none and speak 1);
+ *   a parent that provides seats answers `airjam.local-seat.available`, and
+ *   only then does the host take
  *   keys and gamepads. Withdrawing the provider releases each seat before
  *   `closed`, then sends `unavailable`; the host stops taking input until
  *   the next `available`. This cycle may repeat.
@@ -87,16 +89,31 @@ const closedSchema = seatMessage("airjam.local-seat.closed");
  * window frames the phone in a page of its own and relays to that page; it
  * never messages a phone in another window directly. A phone page that
  * frames its game's own controller relays the same way: it says ready once
- * that controller says ready to it, its declared embed parent.
+ * that controller says ready to it, its declared embed parent; a product
+ * whose phones are such pages offers seats only to games of
+ * `LOCAL_SEAT_RELAY_VERSION` or later.
  */
+
+/** The seat protocol version a game built with this SDK speaks. */
+export const LOCAL_SEAT_PROTOCOL_VERSION = 2;
+/** The first version whose controllers take input from a phone page that embeds them. */
+export const LOCAL_SEAT_RELAY_VERSION = 2;
 
 /** What a game frame asks of the product that embeds it. */
 export const localSeatRequestSchema = z
   .object({ type: z.literal("airjam.local-seat.request"), seat: seatSchema })
   .strict();
 export const localSeatQuerySchema = z
-  .object({ type: z.literal("airjam.local-seat.query") })
+  .object({
+    type: z.literal("airjam.local-seat.query"),
+    version: z.number().int().positive().optional(),
+  })
   .strict();
+/** The seat protocol version a game's query declares, or null for another message. */
+export const localSeatQueryVersion = (data: unknown): number | null => {
+  const query = localSeatQuerySchema.safeParse(data);
+  return query.success ? (query.data.version ?? 1) : null;
+};
 export const localSeatRelaySchema = z
   .object({
     type: z.literal("airjam.local-seat.input"),
@@ -211,7 +228,10 @@ export const connectParentSeats = (
       closings.delete(closed.data.seat);
     }
   });
-  post({ type: "airjam.local-seat.query" });
+  post({
+    type: "airjam.local-seat.query",
+    version: LOCAL_SEAT_PROTOCOL_VERSION,
+  });
   return () => {
     withdraw();
     stop.abort();

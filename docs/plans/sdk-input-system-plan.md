@@ -188,11 +188,15 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    origin, as the preview workspace launches it. A seat's phone page that
    frames its game's own controller, like the Arcade's, relays
    (`relayLocalSeatInput`): it says ready once that controller does, and the
-   controller takes operations only from its declared embed parent.
+   controller takes operations only from its declared embed parent. Games
+   built before this speak seat protocol 1, whose controllers ignore such a
+   page, so a game's query states its version and these products offer seats
+   only from version 2.
 6. **Whoever owns the phones provides seats.** In standalone local
    development the SDK's preview workspace launches them, a seat's phone
    being the session launched for its key. An embedded host first asks its
-   parent whether it provides seats (`airjam.local-seat.query`, answered with
+   parent whether it provides seats (`airjam.local-seat.query` with its
+   protocol `version`, answered with
    `available`) and takes keys and gamepads only after a yes; it then
    requests seats, and the parent answers `opened`, `refused` or later
    `closed`. Withdrawing seats releases their controls before closing routes,

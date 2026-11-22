@@ -10,7 +10,9 @@ import {
 } from "../src/core/local-input";
 import {
   connectParentSeats,
+  LOCAL_SEAT_PROTOCOL_VERSION,
   localSeatMessages,
+  localSeatQueryVersion,
   serveLocalSeats,
   startLocalPlayers,
   type LocalSeat,
@@ -171,9 +173,12 @@ describe("a parent's seats", () => {
     );
     stops.push(stop);
     expect(parent.postMessage).toHaveBeenCalledWith(
-      { type: "airjam.local-seat.query" },
+      { type: "airjam.local-seat.query", version: LOCAL_SEAT_PROTOCOL_VERSION },
       parentOrigin,
     );
+    // A game built before versions were declared speaks 1.
+    expect(localSeatQueryVersion({ type: "airjam.local-seat.query" })).toBe(1);
+    expect(localSeatQueryVersion(localSeatMessages.available())).toBeNull();
     fromParent({}, localSeatMessages.available());
     expect(onAvailable).not.toHaveBeenCalled();
     fromParent(parent, localSeatMessages.available());
