@@ -136,6 +136,10 @@ export const testing = defineAirJamTesting({
         },
         { lane: "participant", seatId: "player", actionId: "start_match" },
       ],
+      // Leave the room in its lobby, not mid-match without its players.
+      handBack: [
+        { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
+      ],
       actions: [],
       scope: "player",
       includeImage: false,
@@ -173,6 +177,7 @@ export const testing = defineAirJamTesting({
       label: "Play a paddle alongside the creator",
       seats: [{ id: "player", label: "Agent paddle" }],
       setup: [],
+      handBack: [],
       actions: ["join_team"],
       scope: "player",
       includeImage: false,
@@ -232,6 +237,10 @@ export const testing = defineAirJamTesting({
           input: 5,
         },
         { lane: "participant", seatId: "left", actionId: "start_match" },
+      ],
+      // Leave the room in its lobby, not mid-match without its players.
+      handBack: [
+        { lane: "participant", seatId: "left", actionId: "return_to_lobby" },
       ],
       actions: [],
       scope: "diagnostic",

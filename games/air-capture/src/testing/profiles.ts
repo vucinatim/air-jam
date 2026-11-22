@@ -66,6 +66,10 @@ export const testing = defineAirJamTesting({
         },
         { lane: "participant", seatId: "player", actionId: "start_match" },
       ],
+      // Leave the room in its lobby, not mid-match without its players.
+      handBack: [
+        { lane: "participant", seatId: "player", actionId: "return_to_lobby" },
+      ],
       actions: [],
       scope: "player",
       includeImage: false,

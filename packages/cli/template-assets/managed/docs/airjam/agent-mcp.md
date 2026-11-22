@@ -147,8 +147,13 @@ Capacity comes from `metadata.maxPlayers`. The `testing` path names a module
 exporting `testing = defineAirJamTesting({ player, profiles, visual })` from
 `@air-jam/devtools/testing`. Profiles author scripted policies only; a declared
 player is offered as the reserved `model` policy in every profile. Optional
-`visual.scenarios` uses the game's declared agent. Do not duplicate identity
-in template flags or read config source with regular expressions.
+`visual.scenarios` uses the game's declared agent. A profile's `setup` brings
+the room to where its test starts; its `handBack` returns the creator's room,
+usually with `return_to_lobby`, once the test ends and before its players
+leave, so the game never plays on without them. Declare `handBack: []` when the
+room needs nothing; a missing one is reported as `undeclared` in the run
+record. Do not duplicate identity in template flags or read config source with
+regular expressions.
 
 ## Declared settings
 

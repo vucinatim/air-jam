@@ -46,6 +46,7 @@ export const testing = defineAirJamTesting({
       label: "Tap alongside the creator",
       seats: [{ id: "player", label: "Agent" }],
       setup: [],
+      handBack: [],
       actions: ["tap"],
       scope: "player",
       includeImage: false,
@@ -80,6 +81,7 @@ export const testing = defineAirJamTesting({
       setup: [
         { lane: "participant", seatId: "first", actionId: "reset_counter" },
       ],
+      handBack: [],
       actions: ["tap"],
       scope: "diagnostic",
       includeImage: false,

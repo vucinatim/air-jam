@@ -11,6 +11,23 @@ import type { policyArtifactReceiptSchema } from "./policy-artifact-contract.js"
 import { policyArtifactPathSchema } from "./policy-artifact-contract.js";
 
 const id = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/);
+const profileStepSchema = z.discriminatedUnion("lane", [
+  z
+    .object({
+      lane: z.literal("host"),
+      actionId: participantActionOperationSchema.shape.actionId,
+      input: z.json().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      lane: z.literal("participant"),
+      seatId: id,
+      actionId: participantActionOperationSchema.shape.actionId,
+      input: z.json().optional(),
+    })
+    .strict(),
+]);
 export const airJamTestProfileDescriptionSchema = z
   .object({
     id,
@@ -19,27 +36,14 @@ export const airJamTestProfileDescriptionSchema = z
       .array(z.object({ id, label: z.string().min(1).max(80) }).strict())
       .min(1)
       .max(8),
-    setup: z
-      .array(
-        z.discriminatedUnion("lane", [
-          z
-            .object({
-              lane: z.literal("host"),
-              actionId: participantActionOperationSchema.shape.actionId,
-              input: z.json().optional(),
-            })
-            .strict(),
-          z
-            .object({
-              lane: z.literal("participant"),
-              seatId: id,
-              actionId: participantActionOperationSchema.shape.actionId,
-              input: z.json().optional(),
-            })
-            .strict(),
-        ]),
-      )
-      .max(32),
+    setup: z.array(profileStepSchema).max(32),
+    /**
+     * The steps that return the creator's room to where people pick up after a
+     * test, usually the lobby, run once play ends and before the run's players
+     * leave. Only rooms that outlive the run need them; an empty list says the
+     * room needs nothing.
+     */
+    handBack: z.array(profileStepSchema).max(32).optional(),
     actions: z.array(participantActionOperationSchema.shape.actionId).max(64),
     scope: z.enum(["player", "diagnostic"]),
     includeImage: z.boolean(),
@@ -270,9 +274,12 @@ export function describeAirJamTestProfiles(
       throw new Error(`Duplicate metrics in profile ${profileId}.`);
     if (description.timing.inputTtlMs < description.timing.intervalMs)
       throw new Error("Input lifetime must cover the round interval.");
-    for (const setup of description.setup) {
-      if (setup.lane === "participant" && !seats.has(setup.seatId))
-        throw new Error(`Unknown setup seat ${setup.seatId}.`);
+    for (const step of [
+      ...description.setup,
+      ...(description.handBack ?? []),
+    ]) {
+      if (step.lane === "participant" && !seats.has(step.seatId))
+        throw new Error(`Unknown seat ${step.seatId} in profile ${profileId}.`);
     }
     return description;
   });

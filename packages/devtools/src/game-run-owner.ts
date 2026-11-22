@@ -1022,22 +1022,42 @@ export class GameRunOwner {
     if (!session)
       throw new Error("Run participant attachment did not complete.");
     run.startupSteps.add("the profile setup had not finished");
-    for (const step of profile?.setup ?? []) {
-      if (run.abort.signal.aborted) return;
+    if (
+      !(await this.runProfileSteps(run, session, profile?.setup ?? [], "setup"))
+    )
+      return;
+    await this.persist(run);
+    run.startupSteps.delete("the profile setup had not finished");
+  }
+  /**
+   * A profile's setup or hand-back steps, in order. Setup stops with the run
+   * and its startup budget and retries a stale participant action until then;
+   * hand-back runs after play has stopped and retries a stale action twice.
+   * Returns false when setup stopped early.
+   */
+  private async runProfileSteps(
+    run: Run,
+    session: GameRunSession,
+    steps: AirJamTestProfileDescription["setup"],
+    phase: "setup" | "cleanup",
+  ) {
+    const name = phase === "setup" ? "Setup" : "Hand-back";
+    for (const step of steps) {
+      if (phase === "setup" && run.abort.signal.aborted) return false;
       if (step.lane === "host") {
         const result = await session.invokeHost(step.actionId, step.input);
         await this.trace(run, {
-          kind: "host_setup",
+          kind: phase === "setup" ? "host_setup" : "host_hand_back",
           actionId: step.actionId,
           result,
         });
-      } else {
-        const seat = run.seats.find(
-          (candidate) => candidate.id === step.seatId,
-        );
-        if (!seat) throw new Error("Setup seat is not initialized.");
-        while (true) {
-          if (run.abort.signal.aborted) return;
+        continue;
+      }
+      const seat = run.seats.find((candidate) => candidate.id === step.seatId);
+      if (!seat) throw new Error(`${name} seat is not initialized.`);
+      for (let attempt = 1; ; attempt++) {
+        if (phase === "setup") {
+          if (run.abort.signal.aborted) return false;
           if (performance.now() >= run.deadline) {
             // Teardown waits for startup, so it cannot be awaited here.
             void this.terminate(
@@ -1045,38 +1065,38 @@ export class GameRunOwner {
               "budget",
               this.startupBudgetMessage(run),
             ).catch((error) => console.error(error));
-            return;
+            return false;
           }
-          const observation = await this.observe(run, seat, false);
-          const receipt = await this.control(
-            run,
-            seat,
-            observation,
-            {
-              kind: "action",
-              actionId: step.actionId,
-              input: step.input,
-              deadlineMs: this.deadline(observation),
-            },
-            "setup",
-          );
-          if (
-            receipt.status === "rejected" &&
-            receipt.reason === "stale_decision"
-          )
-            continue;
-          if (
-            receipt.status !== "applied" ||
-            receipt.operation.kind !== "action" ||
-            !receipt.operation.result.ok
-          )
-            throw new Error(`Setup action ${step.actionId} was not accepted.`);
-          break;
         }
+        const observation = await this.observe(run, seat, false);
+        const receipt = await this.control(
+          run,
+          seat,
+          observation,
+          {
+            kind: "action",
+            actionId: step.actionId,
+            input: step.input,
+            deadlineMs: this.deadline(observation),
+          },
+          phase,
+        );
+        if (
+          receipt.status === "rejected" &&
+          receipt.reason === "stale_decision" &&
+          (phase === "setup" || attempt < 3)
+        )
+          continue;
+        if (
+          receipt.status !== "applied" ||
+          receipt.operation.kind !== "action" ||
+          !receipt.operation.result.ok
+        )
+          throw new Error(`${name} action ${step.actionId} was not accepted.`);
+        break;
       }
     }
-    await this.persist(run);
-    run.startupSteps.delete("the profile setup had not finished");
+    return true;
   }
   async watch(
     input: unknown,
@@ -1631,6 +1651,7 @@ export class GameRunOwner {
     await this.persist(run);
     if (run.abort.signal.aborted) return;
     run.playStartedAt = clock.now();
+    run.record.playStartedAt = new Date().toISOString();
     if (request.kind === "test") {
       clearTimeout(run.timer);
       run.deadline = performance.now() + request.budget.durationMs;
@@ -2155,6 +2176,24 @@ export class GameRunOwner {
             await attempt(() => this.evaluate(run, "final", finalObservation));
           const evaluator = run.evaluator;
           if (evaluator) await attempt(() => evaluator.stop());
+        }
+        // A test in the creator's room hands it back before its players leave,
+        // so the room no longer plays on without them.
+        if (
+          run.record.request.kind === "test" &&
+          run.record.request.target.kind === "current" &&
+          run.record.profile &&
+          run.seats.length > 0 &&
+          run.seats.every((seat) => seat.expected)
+        ) {
+          const steps = run.record.profile.handBack;
+          cleanup.handBack = steps
+            ? (await attempt(() =>
+                this.runProfileSteps(run, session, steps, "cleanup"),
+              ))
+              ? "returned"
+              : "failed"
+            : "undeclared";
         }
         for (const seat of run.seats.slice(1)) {
           const extra = seat.extra;

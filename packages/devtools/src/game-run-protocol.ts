@@ -192,6 +192,8 @@ export const gameRunRecordSchema = z
     lastInputAt: z.iso.datetime().optional(),
     releaseAcknowledgedAt: z.iso.datetime().optional(),
     rosterJoinedAt: z.iso.datetime().optional(),
+    /** When play began, after setup; play ends at `abortedAt`. */
+    playStartedAt: z.iso.datetime().optional(),
     watched: z.literal(true).optional(),
     profile: airJamTestProfileDescriptionSchema.optional(),
     policyPreparation: policyPreparationSchema.optional(),
@@ -308,6 +310,11 @@ export const gameRunRecordSchema = z
           .strict()
           .optional(),
         forced: z.literal(true).optional(),
+        /**
+         * Whether a test in the creator's room returned it through its
+         * profile's hand-back steps, had none to run, or failed (see errors).
+         */
+        handBack: z.enum(["returned", "undeclared", "failed"]).optional(),
         errors: z.array(z.string()),
       })
       .strict()
