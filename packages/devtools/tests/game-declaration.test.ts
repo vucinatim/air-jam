@@ -15,7 +15,7 @@ import { expect, it } from "vitest";
 import { runCommandResult } from "../src/commands.js";
 import {
   resolveDevtoolsHelperArgs,
-  resolveDevtoolsHelperScript,
+  resolveProjectDevtoolsHelperScript,
 } from "../src/helper-scripts.js";
 import {
   defineAirJamTesting,
@@ -34,7 +34,10 @@ const describe = (configs: string[]) =>
     cwd: root,
     args: [
       ...resolveDevtoolsHelperArgs(
-        resolveDevtoolsHelperScript("describe-game.ts"),
+        resolveProjectDevtoolsHelperScript(
+          fileURLToPath(new URL("../", import.meta.url)),
+          "describe-game.ts",
+        ),
       ),
       ...configs.flatMap((config) => ["--config", config]),
     ],

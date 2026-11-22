@@ -24,7 +24,7 @@ export const fixtureMetadata = (
 const coreUrl = pathToFileURL(
   fileURLToPath(new URL("../../sdk/dist/core.js", import.meta.url)),
 ).href;
-const testingUrl = new URL("../src/testing.ts", import.meta.url).href;
+const testingUrl = new URL("../dist/testing.js", import.meta.url).href;
 export const declarationSource = (
   metadata: Partial<AirJamGameMetadata> = {},
   fields = "",

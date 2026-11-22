@@ -33,10 +33,8 @@ export const resolveDevtoolsHelperScript = (fileName: string): string => {
 
 const typescriptExtensions = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const projectTypescriptLoaderHelpers = new Set([
-  "describe-game",
   "list-visual-scenarios",
   "run-visual-capture",
-  "run-test-profile",
   "run-headless-room",
 ]);
 
