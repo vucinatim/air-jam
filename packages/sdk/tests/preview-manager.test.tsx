@@ -6,9 +6,11 @@ import { usePreviewControllerManager } from "../src/preview";
 import {
   DEFAULT_PREVIEW_CONTROLLER_SCALE,
   IPHONE_16_PREVIEW_DEVICE,
+  PREVIEW_CONTROLLER_MIN_SCALE,
   PREVIEW_WINDOW_TITLEBAR_HEIGHT,
   getDefaultPreviewWindowBounds,
   getPreviewControllerViewportSize,
+  getPreviewWindowBoundsForScale,
   getResizedPreviewBounds,
 } from "../src/preview/layout";
 
@@ -93,6 +95,55 @@ describe("usePreviewControllerManager", () => {
 
     expect(session.x).toBeCloseTo(expectedX, 0);
     expect(session.y).toBeCloseTo(expectedY, 0);
+  });
+
+  it("opens local seats' phones small in the bottom corners, the first above the dock, a reopened one where it is free", () => {
+    const { result } = renderHook(() =>
+      usePreviewControllerManager({
+        joinUrl: "https://platform.example/controller?room=ROOM1",
+        fixedControllerOrientation: "landscape",
+        maxControllers: 3,
+      }),
+    );
+    const dock = { right: 900, top: 700 };
+
+    act(() => {
+      result.current.spawnPreviewController();
+      result.current.spawnPreviewController({
+        localSeat: { key: "keyboard-1", label: "Keyboard 1" },
+        dock,
+      });
+      result.current.spawnPreviewController({
+        localSeat: { key: "keyboard-2", label: "Keyboard 2" },
+        dock,
+      });
+    });
+
+    const [byHand, first, second] = result.current.sessions;
+    const small = getPreviewWindowBoundsForScale(
+      "landscape",
+      PREVIEW_CONTROLLER_MIN_SCALE,
+    );
+    expect(byHand!.displayScale).toBeCloseTo(DEFAULT_PREVIEW_CONTROLLER_SCALE);
+    expect(first).toMatchObject({
+      label: "Keyboard 1",
+      displayScale: PREVIEW_CONTROLLER_MIN_SCALE,
+    });
+    expect(first!.x).toBeCloseTo(dock.right - small.width);
+    expect(first!.y).toBeCloseTo(dock.top - 12 - small.height);
+    expect(second!.x).toBeCloseTo(window.innerWidth - dock.right);
+    expect(second!.y).toBeCloseTo(first!.y);
+
+    act(() => {
+      result.current.removePreviewController(first!.id);
+      result.current.spawnPreviewController({
+        localSeat: { key: "keyboard-1", label: "Keyboard 1" },
+        dock,
+      });
+    });
+    const reopened = result.current.sessions.at(-1)!;
+    expect(reopened.x).toBeCloseTo(first!.x);
+    expect(reopened.y).toBeCloseTo(first!.y);
   });
 
   it("enforces the max preview-controller count", () => {

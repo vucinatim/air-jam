@@ -6,6 +6,7 @@ import {
   type PreviewControllerBounds,
   type PreviewControllerResizeHandle,
   DEFAULT_PREVIEW_CONTROLLER_SCALE,
+  PREVIEW_CONTROLLER_MIN_SCALE,
   PREVIEW_WINDOW_TITLEBAR_HEIGHT,
   getDefaultPreviewWindowBounds,
   getPreviewControllerScaleConstraints,
@@ -23,6 +24,7 @@ const DEFAULT_VIEWPORT_WIDTH = 1440;
 const DEFAULT_VIEWPORT_HEIGHT = 900;
 const PREVIEW_WINDOW_MARGIN = 24;
 const PREVIEW_WINDOW_CASCADE_OFFSET = 28;
+const PREVIEW_WINDOW_DOCK_GAP = 12;
 const DEFAULT_PREVIEW_CONTROLLER_ORIENTATION: ControllerOrientation =
   "portrait";
 
@@ -49,6 +51,12 @@ export interface PreviewControllerSession {
   zIndex: number;
 }
 
+/** The top edge of the workspace's dock, which local seats' phones open above. */
+export interface PreviewControllerDockEdge {
+  right: number;
+  top: number;
+}
+
 export interface UsePreviewControllerManagerOptions {
   joinUrl: string | null | undefined;
   enabled?: boolean;
@@ -61,9 +69,14 @@ export interface UsePreviewControllerManagerOptions {
 export interface UsePreviewControllerManagerResult {
   sessions: PreviewControllerSession[];
   canSpawn: boolean;
-  /** Opens a phone; `localSeat` launches it as that local player's seat, named after it. */
+  /**
+   * Opens a phone; `localSeat` launches it as that local player's seat, named
+   * after it, small in a bottom corner beside `dock` (by default the
+   * viewport's bottom-right corner).
+   */
   spawnPreviewController: (options?: {
     localSeat?: LocalSeat;
+    dock?: PreviewControllerDockEdge;
   }) => PreviewControllerSession | null;
   removePreviewController: (id: string) => void;
   minimizePreviewController: (id: string) => void;
@@ -241,32 +254,80 @@ const clampBounds = (
   };
 };
 
-const getInitialWindowPosition = (
+const overlap = (
+  start: number,
+  size: number,
+  otherStart: number,
+  otherSize: number,
+) =>
+  Math.max(
+    0,
+    Math.min(start + size, otherStart + otherSize) -
+      Math.max(start, otherStart),
+  );
+
+/**
+ * A phone opened by hand opens at the default size near the centre,
+ * cascading. A local seat's player plays from their keys and needs its phone
+ * only for menus, so it opens at the smallest size in a bottom corner, out of
+ * the game's way: in the place other seats' phones cover least, first just
+ * above the dock, then the mirrored corner, then above those. A minimized
+ * seat phone keeps its place, since restoring brings it back there.
+ */
+const getInitialWindowBounds = (
   sessions: PreviewControllerSession[],
   orientation: ControllerOrientation,
+  seat: { dock?: PreviewControllerDockEdge } | null,
 ) => {
   const viewport = getViewportSize();
-  const defaultBounds = getPreviewWindowBounds(
-    orientation,
-    DEFAULT_PREVIEW_CONTROLLER_SCALE,
-  );
-  const cascadeCount = Math.min(sessions.length, 3);
-  const offset = cascadeCount * PREVIEW_WINDOW_CASCADE_OFFSET;
-  const defaultX = (viewport.width - defaultBounds.width) / 2 + offset;
-  const defaultY = (viewport.height - defaultBounds.height) / 2 + offset;
+  if (!seat) {
+    const bounds = getPreviewWindowBounds(
+      orientation,
+      DEFAULT_PREVIEW_CONTROLLER_SCALE,
+    );
+    const offset = Math.min(sessions.length, 3) * PREVIEW_WINDOW_CASCADE_OFFSET;
+    return {
+      ...bounds,
+      ...clampPosition(
+        orientation,
+        (viewport.width - bounds.width) / 2 + offset,
+        (viewport.height - bounds.height) / 2 + offset,
+        bounds.width,
+        bounds.height,
+      ),
+    };
+  }
 
-  const anchored = clampPosition(
+  const bounds = getPreviewWindowBounds(
     orientation,
-    defaultX,
-    defaultY,
-    defaultBounds.width,
-    defaultBounds.height,
+    PREVIEW_CONTROLLER_MIN_SCALE,
   );
-
-  return {
-    x: anchored.x,
-    y: anchored.y,
-  };
+  const dock = seat.dock ?? { right: viewport.width, top: viewport.height };
+  const place = (index: number) => ({
+    ...bounds,
+    ...clampPosition(
+      orientation,
+      index % 2 === 0 ? dock.right - bounds.width : viewport.width - dock.right,
+      dock.top -
+        (bounds.height + PREVIEW_WINDOW_DOCK_GAP) * (Math.floor(index / 2) + 1),
+      bounds.width,
+      bounds.height,
+    ),
+  });
+  const seatPhones = sessions.filter((session) => session.localSeat);
+  const coveredArea = (candidate: ReturnType<typeof place>) =>
+    seatPhones.reduce(
+      (area, phone) =>
+        area +
+        overlap(candidate.x, candidate.width, phone.x, phone.width) *
+          overlap(candidate.y, candidate.height, phone.y, phone.height),
+      0,
+    );
+  return Array.from({ length: seatPhones.length + 1 }, (_, index) =>
+    place(index),
+  ).reduce((best, candidate) =>
+    coveredArea(candidate) < coveredArea(best) ? candidate : best,
+  );
 };
 
 const getNextTopSessionId = (sessions: PreviewControllerSession[]) =>
@@ -384,7 +445,10 @@ export const usePreviewControllerManager = ({
     sessions.length < maxControllers;
 
   const spawnPreviewController = useCallback(
-    (options?: { localSeat?: LocalSeat }): PreviewControllerSession | null => {
+    (options?: {
+      localSeat?: LocalSeat;
+      dock?: PreviewControllerDockEdge;
+    }): PreviewControllerSession | null => {
       if (!enabled || !joinUrl) {
         return null;
       }
@@ -411,11 +475,11 @@ export const usePreviewControllerManager = ({
         const sessionId = `preview_session_${nextSessionIdRef.current++}`;
         const orientation =
           fixedControllerOrientation ?? DEFAULT_PREVIEW_CONTROLLER_ORIENTATION;
-        const defaultBounds = getPreviewWindowBounds(
+        const bounds = getInitialWindowBounds(
+          current,
           orientation,
-          DEFAULT_PREVIEW_CONTROLLER_SCALE,
+          options?.localSeat ? { dock: options.dock } : null,
         );
-        const position = getInitialWindowPosition(current, orientation);
         nextSession = {
           id: sessionId,
           ordinal,
@@ -428,13 +492,13 @@ export const usePreviewControllerManager = ({
           orientation,
           minimized: false,
           active: true,
-          x: position.x,
-          y: position.y,
-          width: defaultBounds.width,
-          height: defaultBounds.height,
-          viewportWidth: defaultBounds.viewportWidth,
-          viewportHeight: defaultBounds.viewportHeight,
-          displayScale: defaultBounds.displayScale,
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+          viewportWidth: bounds.viewportWidth,
+          viewportHeight: bounds.viewportHeight,
+          displayScale: bounds.displayScale,
           zIndex,
         };
 

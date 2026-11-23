@@ -194,7 +194,11 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    and these products offer seats only to games that say so.
 6. **Whoever owns the phones provides seats.** In standalone local
    development the SDK's preview workspace launches them, a seat's phone
-   being the session launched for its key. An embedded host first asks its
+   being the session launched for its key. Its player needs that phone only
+   for menus, so it opens at the smallest size in a bottom corner, out of the
+   game's way: the first just above the workspace's dock, the next in the
+   mirrored corner, a reopened one in whichever the other phones leave free.
+   An embedded host first asks its
    parent whether it provides seats (`airjam.local-seat.query`, answered with
    `available`) and takes keys and gamepads only after a yes; it then
    requests seats, and the parent answers `opened`, `refused` or later

@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -27,7 +28,7 @@ import {
   useProvideLocalSeats,
   useServeLocalSeats,
 } from "../runtime/local-players";
-import type { LocalSeatGame } from "../runtime/local-seats";
+import type { LocalSeat, LocalSeatGame } from "../runtime/local-seats";
 import { fixedControllerOrientationContext } from "../runtime/runtime-owner-contexts";
 import { useResolvedPlatformSettingsSnapshot } from "../settings/platform-settings-runtime";
 import { cn } from "../utils/cn";
@@ -153,6 +154,7 @@ export const PreviewControllerWorkspace = ({
   >(null);
   const [resettingRoom, setResettingRoom] = useState(false);
   const dockRef = useRef<HTMLDivElement | null>(null);
+  const dockRowRef = useRef<HTMLDivElement | null>(null);
   const resolvedEmbedOrigin =
     embedOrigin ??
     (typeof window !== "undefined" ? window.location.origin : null);
@@ -178,11 +180,19 @@ export const PreviewControllerWorkspace = ({
     maxControllers,
   });
   const [frames] = useState(() => new Map<string, HTMLIFrameElement>());
+  const spawnSeatPhone = useCallback(
+    (options: { localSeat: LocalSeat }) =>
+      spawnPreviewController({
+        ...options,
+        dock: dockRowRef.current?.getBoundingClientRect(),
+      }),
+    [spawnPreviewController],
+  );
   const localSeats = useWorkspaceLocalSeats({
     enabled: enabled && localPlayers,
     sessions,
     canSpawn,
-    spawn: spawnPreviewController,
+    spawn: spawnSeatPhone,
     remove: removePreviewController,
     frames,
   });
@@ -462,6 +472,7 @@ export const PreviewControllerWorkspace = ({
         style={{ pointerEvents: "none" }}
       >
         <div
+          ref={dockRowRef}
           className="flex items-start justify-end gap-2"
           style={{ pointerEvents: "auto" }}
         >
