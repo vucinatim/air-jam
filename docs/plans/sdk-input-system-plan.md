@@ -188,7 +188,12 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    origin, as the preview workspace launches it. A seat's phone page that
    frames its game's own controller, like the Arcade's, relays
    (`relayLocalSeatInput`): it says ready once that controller does, and the
-   controller takes operations only from its declared embed parent.
+   controller takes operations only from its declared embed parent. Keys
+   pressed inside a seat phone return through those same checked parents to
+   the host's existing keyboard capture, so clicking JOIN or READY leaves
+   keyboard play active. Editable fields retain their keys; key release and
+   leaving the phone release held controls. An embedded controller starts
+   returning keys only after it receives a local-seat operation.
    Controllers built before this ignore such a page, so a host whose
    controller takes it says `airjam.local-seat.relayed` beside its query,
    and these products offer seats only to games that say so.
