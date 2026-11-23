@@ -37,6 +37,10 @@ export interface OpenedLocalSeat {
 /** Whoever owns preview phones: opens a phone for a seat, or refuses with null. */
 export interface LocalSeatProvider {
   open(seat: LocalSeat): Promise<OpenedLocalSeat | null>;
+  /** Keys from this provider's focused seat phones, for the host's existing capture. */
+  subscribeKeyboard?: (
+    receive: (message: LocalSeatKeyboardMessage) => void,
+  ) => () => void;
 }
 
 const seatSchema = z
@@ -56,6 +60,25 @@ const phoneInputSchema = z
     operation: localInputOperationSchema,
   })
   .strict();
+/** Key transitions sent back through a seat phone's declared parents. */
+export const localSeatKeyboardSchema = z
+  .object({
+    type: z.literal("airjam.local-seat.keyboard"),
+    event: z.discriminatedUnion("kind", [
+      z
+        .object({
+          kind: z.literal("keydown"),
+          code: z.string(),
+          repeat: z.boolean(),
+        })
+        .strict(),
+      z.object({ kind: z.literal("keyup"), code: z.string() }).strict(),
+      z.object({ kind: z.literal("blur") }).strict(),
+    ]),
+  })
+  .strict();
+export type LocalSeatKeyboardMessage = z.infer<typeof localSeatKeyboardSchema>;
+
 const availableSchema = z
   .object({ type: z.literal("airjam.local-seat.available") })
   .strict();
@@ -170,6 +193,9 @@ export const connectParentSeats = (
   const closings = new Map<string, () => void>();
   const pending = new Map<string, (opened: OpenedLocalSeat | null) => void>();
   let announced = false;
+  let receiveKeyboard:
+    | ((message: LocalSeatKeyboardMessage) => void)
+    | undefined;
   const withdraw = () => {
     if (announced) onUnavailable();
     announced = false;
@@ -187,12 +213,23 @@ export const connectParentSeats = (
       if (announced) return;
       announced = true;
       onAvailable({
+        subscribeKeyboard: (receive) => {
+          receiveKeyboard = receive;
+          return () => {
+            receiveKeyboard = undefined;
+          };
+        },
         open: (seat) =>
           new Promise((resolve) => {
             pending.set(seat.key, resolve);
             post({ type: "airjam.local-seat.request", seat });
           }),
       });
+      return;
+    }
+    const keyboard = localSeatKeyboardSchema.safeParse(event.data);
+    if (keyboard.success && announced) {
+      receiveKeyboard?.(keyboard.data);
       return;
     }
     const opened = openedSchema.safeParse(event.data);
@@ -244,6 +281,7 @@ export interface LocalSeatGame {
  */
 export const serveLocalSeats = (game: LocalSeatGame) => {
   let provider: LocalSeatProvider | null = null;
+  let stopKeyboard: (() => void) | undefined;
   const opened = new Map<string, OpenedLocalSeat>();
   /** Seats being opened, each by its own request. */
   const opening = new Map<string, object>();
@@ -287,7 +325,9 @@ export const serveLocalSeats = (game: LocalSeatGame) => {
   const provide = (next: LocalSeatProvider | null) => {
     if (next === provider) return;
     const wasAvailable = provider !== null;
+    stopKeyboard?.();
     provider = next;
+    stopKeyboard = next?.subscribeKeyboard?.(post);
     for (const key of opening.keys()) post(localSeatMessages.refused(key));
     opening.clear();
     for (const [key, seat] of opened) close(key, seat);
@@ -348,6 +388,13 @@ const seatOnFirstInput = (
   });
 };
 
+const isEditable = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable ||
+    target.closest(
+      "input, select, textarea, [contenteditable]:not([contenteditable=false])",
+    ) !== null);
+
 /** Keys aimed at the page's own controls, such as typing or activating a button. */
 const isInteractive = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
@@ -379,13 +426,15 @@ export const startLocalPlayers = (
   );
   const gamepads = new Map<number, GamepadSource>();
 
+  const pressKey = (code: string, repeat: boolean) => {
+    for (const keyboard of keyboards) keyboard.keyDown(code, repeat);
+  };
   const keydown = (event: KeyboardEvent) => {
     if (isInteractive(event.target)) return;
-    for (const keyboard of keyboards)
-      if (keyboard.handles(event.code)) {
-        event.preventDefault();
-        keyboard.keyDown(event.code, event.repeat);
-      }
+    if (keyboards.some((keyboard) => keyboard.handles(event.code))) {
+      event.preventDefault();
+      pressKey(event.code, event.repeat);
+    }
   };
   const keyup = (event: KeyboardEvent) => {
     for (const keyboard of keyboards) keyboard.keyUp(event.code);
@@ -397,6 +446,13 @@ export const startLocalPlayers = (
   const releaseWhenHidden = () => {
     if (document.hidden) releaseAll();
   };
+
+  const stopKeyboard = provider.subscribeKeyboard?.(({ event }) => {
+    if (event.kind === "keydown") pressKey(event.code, event.repeat);
+    else if (event.kind === "keyup")
+      for (const keyboard of keyboards) keyboard.keyUp(event.code);
+    else releaseAll();
+  });
 
   let frame = 0;
   const poll = () => {
@@ -434,6 +490,7 @@ export const startLocalPlayers = (
   document.addEventListener("visibilitychange", releaseWhenHidden);
   if (bindings.gamepad) frame = requestAnimationFrame(poll);
   return () => {
+    stopKeyboard?.();
     cancelAnimationFrame(frame);
     window.removeEventListener("keydown", keydown);
     window.removeEventListener("keyup", keyup);
@@ -455,6 +512,39 @@ export const readLocalSeatLabel = (): string | null =>
 const localSeatPhoneParent = () =>
   readLocalSeatLabel() === null ? null : readPreviewControllerParent();
 
+/** Reports keys without changing the phone's focus or its own menu behaviour. */
+const relayPhoneKeyboard = (parent: LocalSeatParent): (() => void) => {
+  const page = window;
+  const held = new Set<string>();
+  const send = (event: LocalSeatKeyboardMessage["event"]) =>
+    parent.window.postMessage(
+      { type: "airjam.local-seat.keyboard", event },
+      parent.origin,
+    );
+  const keydown = (event: KeyboardEvent) => {
+    if (isEditable(event.target)) return;
+    held.add(event.code);
+    send({ kind: "keydown", code: event.code, repeat: event.repeat });
+  };
+  const keyup = (event: KeyboardEvent) => {
+    if (held.delete(event.code)) send({ kind: "keyup", code: event.code });
+  };
+  const release = () => {
+    if (held.size === 0) return;
+    held.clear();
+    send({ kind: "blur" });
+  };
+  page.addEventListener("keydown", keydown);
+  page.addEventListener("keyup", keyup);
+  page.addEventListener("blur", release);
+  return () => {
+    page.removeEventListener("keydown", keydown);
+    page.removeEventListener("keyup", keyup);
+    page.removeEventListener("blur", release);
+    release();
+  };
+};
+
 /**
  * The phone side: a local-seat phone, or the game controller a phone page
  * embeds, applies operations from its declared parent to its own controls.
@@ -468,16 +558,21 @@ export const listenForLocalSeatInput = (
     : localSeatPhoneParent();
   if (!target || !parent) return () => {};
   const receiver = new LocalInputReceiver(target);
+  let stopKeyboard = embedded ? undefined : relayPhoneKeyboard(parent);
   const onMessage = (event: MessageEvent) => {
     if (event.source !== parent.window || event.origin !== parent.origin)
       return;
     const message = phoneInputSchema.safeParse(event.data);
-    if (message.success) receiver.apply(message.data.operation);
+    if (message.success) {
+      stopKeyboard ??= relayPhoneKeyboard(parent);
+      receiver.apply(message.data.operation);
+    }
   };
   window.addEventListener("message", onMessage);
   parent.window.postMessage({ type: "airjam.local-seat.ready" }, parent.origin);
   return () => {
     window.removeEventListener("message", onMessage);
+    stopKeyboard?.();
     receiver.apply({ op: "release-all" });
   };
 };
@@ -490,6 +585,7 @@ export const listenForLocalSeatInput = (
 export const relayLocalSeatInput = (frame: LocalSeatGame): (() => void) => {
   const parent = localSeatPhoneParent();
   if (!parent) return () => {};
+  const stopKeyboard = relayPhoneKeyboard(parent);
   const onMessage = (event: MessageEvent) => {
     const game = frame.window();
     if (!game) return;
@@ -498,16 +594,19 @@ export const relayLocalSeatInput = (frame: LocalSeatGame): (() => void) => {
       if (message.success) game.postMessage(message.data, frame.origin);
       return;
     }
-    if (
-      event.source === game &&
-      event.origin === frame.origin &&
-      isLocalSeatReadyMessage(event.data)
-    )
+    if (event.source !== game || event.origin !== frame.origin) return;
+    if (isLocalSeatReadyMessage(event.data))
       parent.window.postMessage(
         { type: "airjam.local-seat.ready" },
         parent.origin,
       );
+    const keyboard = localSeatKeyboardSchema.safeParse(event.data);
+    if (keyboard.success)
+      parent.window.postMessage(keyboard.data, parent.origin);
   };
   window.addEventListener("message", onMessage);
-  return () => window.removeEventListener("message", onMessage);
+  return () => {
+    window.removeEventListener("message", onMessage);
+    stopKeyboard();
+  };
 };

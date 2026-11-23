@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isLocalSeatReadyMessage,
+  localSeatKeyboardSchema,
   sendLocalSeatOperation,
   type LocalSeat,
+  type LocalSeatKeyboardMessage,
   type LocalSeatProvider,
   type OpenedLocalSeat,
 } from "../runtime/local-seats";
@@ -38,6 +40,9 @@ export const useWorkspaceLocalSeats = ({
   /** Each session's controller frame while it is mounted. */
   frames: ReadonlyMap<string, HTMLIFrameElement>;
 }): LocalSeatProvider | null => {
+  const keyboardListener = useRef<
+    ((message: LocalSeatKeyboardMessage) => void) | undefined
+  >(undefined);
   const requests = useRef(new Map<string, SeatRequest>());
   const closings = useRef(new Map<string, () => void>());
   const [requested, setRequested] = useState(0);
@@ -45,6 +50,12 @@ export const useWorkspaceLocalSeats = ({
     () =>
       enabled
         ? {
+            subscribeKeyboard: (receive) => {
+              keyboardListener.current = receive;
+              return () => {
+                keyboardListener.current = undefined;
+              };
+            },
             open: (seat) =>
               new Promise((resolve) => {
                 requests.current.set(seat.key, {
@@ -127,7 +138,7 @@ export const useWorkspaceLocalSeats = ({
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (!isLocalSeatReadyMessage(event.data)) return;
+      if (!provider) return;
       const session = sessions.find(
         (candidate) =>
           candidate.localSeat &&
@@ -135,6 +146,12 @@ export const useWorkspaceLocalSeats = ({
       );
       if (!session?.localSeat || event.origin !== new URL(session.url).origin)
         return;
+      const keyboard = localSeatKeyboardSchema.safeParse(event.data);
+      if (keyboard.success) {
+        keyboardListener.current?.(keyboard.data);
+        return;
+      }
+      if (!isLocalSeatReadyMessage(event.data)) return;
       ready.current.add(session.id);
       const key = session.localSeat.key;
       const request = requests.current.get(key);
@@ -143,7 +160,7 @@ export const useWorkspaceLocalSeats = ({
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [sessions, frames, openSeat]);
+  }, [sessions, frames, openSeat, provider]);
 
   return provider;
 };
