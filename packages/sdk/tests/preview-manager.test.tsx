@@ -97,7 +97,7 @@ describe("usePreviewControllerManager", () => {
     expect(session.y).toBeCloseTo(expectedY, 0);
   });
 
-  it("opens local seats' phones small above the dock, stacked, out of the game's way", () => {
+  it("opens local seats' phones small in the bottom corners, the first above the dock", () => {
     const { result } = renderHook(() =>
       usePreviewControllerManager({
         joinUrl: "https://platform.example/controller?room=ROOM1",
@@ -131,8 +131,8 @@ describe("usePreviewControllerManager", () => {
     });
     expect(first!.x).toBeCloseTo(dock.right - small.width);
     expect(first!.y).toBeCloseTo(dock.top - 12 - small.height);
-    expect(second!.x).toBeCloseTo(first!.x);
-    expect(second!.y).toBeCloseTo(first!.y - 12 - small.height);
+    expect(second!.x).toBeCloseTo(window.innerWidth - dock.right);
+    expect(second!.y).toBeCloseTo(first!.y);
   });
 
   it("enforces the max preview-controller count", () => {

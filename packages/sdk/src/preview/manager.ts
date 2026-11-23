@@ -71,8 +71,8 @@ export interface UsePreviewControllerManagerResult {
   canSpawn: boolean;
   /**
    * Opens a phone; `localSeat` launches it as that local player's seat, named
-   * after it, small and above `dock` (by default the viewport's bottom-right
-   * corner).
+   * after it, small in a bottom corner beside `dock` (by default the
+   * viewport's bottom-right corner).
    */
   spawnPreviewController: (options?: {
     localSeat?: LocalSeat;
@@ -257,8 +257,9 @@ const clampBounds = (
 /**
  * A phone opened by hand opens at the default size near the centre,
  * cascading. A local seat's player plays from their keys and needs its phone
- * only for menus, so it opens at the smallest size just above the dock,
- * stacked over earlier seats' phones, out of the game's way.
+ * only for menus, so it opens at the smallest size in a bottom corner, out of
+ * the game's way: the first just above the dock, the next in the mirrored
+ * corner, and later ones above those.
  */
 const getInitialWindowBounds = (
   sessions: PreviewControllerSession[],
@@ -289,13 +290,16 @@ const getInitialWindowBounds = (
     PREVIEW_CONTROLLER_MIN_SCALE,
   );
   const dock = seat.dock ?? { right: viewport.width, top: viewport.height };
-  const seatsBelow = sessions.filter((session) => session.localSeat).length;
+  const seatIndex = sessions.filter((session) => session.localSeat).length;
+  const row = Math.floor(seatIndex / 2);
   return {
     ...bounds,
     ...clampPosition(
       orientation,
-      dock.right - bounds.width,
-      dock.top - (bounds.height + PREVIEW_WINDOW_DOCK_GAP) * (seatsBelow + 1),
+      seatIndex % 2 === 0
+        ? dock.right - bounds.width
+        : viewport.width - dock.right,
+      dock.top - (bounds.height + PREVIEW_WINDOW_DOCK_GAP) * (row + 1),
       bounds.width,
       bounds.height,
     ),
