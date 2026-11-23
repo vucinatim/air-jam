@@ -197,7 +197,8 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    being the session launched for its key. Its player needs that phone only
    for menus, so it opens at the smallest size in a bottom corner, out of the
    game's way: the first just above the workspace's dock, the next in the
-   mirrored corner. An embedded host first asks its
+   mirrored corner, a reopened one in whichever the other phones leave free.
+   An embedded host first asks its
    parent whether it provides seats (`airjam.local-seat.query`, answered with
    `available`) and takes keys and gamepads only after a yes; it then
    requests seats, and the parent answers `opened`, `refused` or later

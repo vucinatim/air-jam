@@ -254,12 +254,25 @@ const clampBounds = (
   };
 };
 
+const overlap = (
+  start: number,
+  size: number,
+  otherStart: number,
+  otherSize: number,
+) =>
+  Math.max(
+    0,
+    Math.min(start + size, otherStart + otherSize) -
+      Math.max(start, otherStart),
+  );
+
 /**
  * A phone opened by hand opens at the default size near the centre,
  * cascading. A local seat's player plays from their keys and needs its phone
  * only for menus, so it opens at the smallest size in a bottom corner, out of
- * the game's way: the first just above the dock, the next in the mirrored
- * corner, and later ones above those.
+ * the game's way: in the place other seats' phones cover least, first just
+ * above the dock, then the mirrored corner, then above those. A minimized
+ * seat phone keeps its place, since restoring brings it back there.
  */
 const getInitialWindowBounds = (
   sessions: PreviewControllerSession[],
@@ -290,20 +303,31 @@ const getInitialWindowBounds = (
     PREVIEW_CONTROLLER_MIN_SCALE,
   );
   const dock = seat.dock ?? { right: viewport.width, top: viewport.height };
-  const seatIndex = sessions.filter((session) => session.localSeat).length;
-  const row = Math.floor(seatIndex / 2);
-  return {
+  const place = (index: number) => ({
     ...bounds,
     ...clampPosition(
       orientation,
-      seatIndex % 2 === 0
-        ? dock.right - bounds.width
-        : viewport.width - dock.right,
-      dock.top - (bounds.height + PREVIEW_WINDOW_DOCK_GAP) * (row + 1),
+      index % 2 === 0 ? dock.right - bounds.width : viewport.width - dock.right,
+      dock.top -
+        (bounds.height + PREVIEW_WINDOW_DOCK_GAP) * (Math.floor(index / 2) + 1),
       bounds.width,
       bounds.height,
     ),
-  };
+  });
+  const seatPhones = sessions.filter((session) => session.localSeat);
+  const coveredArea = (candidate: ReturnType<typeof place>) =>
+    seatPhones.reduce(
+      (area, phone) =>
+        area +
+        overlap(candidate.x, candidate.width, phone.x, phone.width) *
+          overlap(candidate.y, candidate.height, phone.y, phone.height),
+      0,
+    );
+  return Array.from({ length: seatPhones.length + 1 }, (_, index) =>
+    place(index),
+  ).reduce((best, candidate) =>
+    coveredArea(candidate) < coveredArea(best) ? candidate : best,
+  );
 };
 
 const getNextTopSessionId = (sessions: PreviewControllerSession[]) =>
