@@ -10,9 +10,8 @@ import {
 } from "../src/core/local-input";
 import {
   connectParentSeats,
-  LOCAL_SEAT_PROTOCOL_VERSION,
+  isLocalSeatRelayedMessage,
   localSeatMessages,
-  localSeatQueryVersion,
   serveLocalSeats,
   startLocalPlayers,
   type LocalSeat,
@@ -173,12 +172,9 @@ describe("a parent's seats", () => {
     );
     stops.push(stop);
     expect(parent.postMessage).toHaveBeenCalledWith(
-      { type: "airjam.local-seat.query", version: LOCAL_SEAT_PROTOCOL_VERSION },
+      { type: "airjam.local-seat.query" },
       parentOrigin,
     );
-    // A game built before versions were declared speaks 1.
-    expect(localSeatQueryVersion({ type: "airjam.local-seat.query" })).toBe(1);
-    expect(localSeatQueryVersion(localSeatMessages.available())).toBeNull();
     fromParent({}, localSeatMessages.available());
     expect(onAvailable).not.toHaveBeenCalled();
     fromParent(parent, localSeatMessages.available());
@@ -216,6 +212,47 @@ describe("a parent's seats", () => {
     fromParent(parent, localSeatMessages.closed(seat.key));
     await settle();
     expect(closed).toHaveBeenCalled();
+  });
+  it("gets seats its host already offers after a reload, and says its controllers take relayed seats", async () => {
+    const gameOrigin = "https://game.test";
+    const heard: unknown[] = [];
+    const deliver = (data: object, source: unknown, origin: string) =>
+      queueMicrotask(() => {
+        const event = new Event("message");
+        Object.assign(event, { data, source, origin });
+        window.dispatchEvent(event);
+      });
+    const parent = {
+      postMessage: (data: object) => {
+        heard.push(data);
+        deliver(data, game, gameOrigin);
+      },
+    };
+    const game = {
+      postMessage: (data: object) => deliver(data, parent, parentOrigin),
+    };
+    // Its query is the first seat protocol's, so hosts from before the
+    // announcement answer it as this one does.
+    const server = serveLocalSeats({
+      window: () => game as unknown as Window,
+      origin: gameOrigin,
+    });
+    stops.push(() => server.stop());
+    server.provide(provider().seats);
+    await settle();
+    const available = vi.fn();
+    const connectGame = () =>
+      connectParentSeats(
+        { window: parent as unknown as Window, origin: parentOrigin },
+        available,
+      );
+    const beforeReload = connectGame();
+    await settle();
+    beforeReload();
+    stops.push(connectGame());
+    await settle();
+    expect(available).toHaveBeenCalledTimes(2);
+    expect(heard.filter(isLocalSeatRelayedMessage)).toHaveLength(2);
   });
 });
 
