@@ -6,8 +6,15 @@ import {
   AIR_JAM_PREVIEW_CLOSE_REQUEST,
   AIR_JAM_PREVIEW_CLOSE_RESULT,
 } from "../src/preview/messages";
+import {
+  resolveRuntimeTopology,
+  runtimeTopologyToQueryParams,
+} from "../src/runtime-topology";
 import { listenForPreviewClose } from "../src/runtime/browser-controller-environment";
-import { listenForLocalSeatInput } from "../src/runtime/local-seats";
+import {
+  listenForLocalSeatInput,
+  relayLocalSeatInput,
+} from "../src/runtime/local-seats";
 
 const studio = "https://studio.example";
 const originalParent = window.parent;
@@ -90,6 +97,66 @@ describe("a local-seat phone's parent", () => {
     const controls = target();
     listenForLocalSeatInput(controls)();
     expect(parent.postMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("a local seat through a phone page that frames its game's controller", () => {
+  it("the game's controller takes operations only from its declared embed parent", () => {
+    const shell = "https://platform.example";
+    const topology = resolveRuntimeTopology({
+      runtimeMode: "arcade-live",
+      surfaceRole: "controller",
+      appOrigin: window.location.origin,
+      backendOrigin: window.location.origin,
+      publicHost: window.location.origin,
+      assetBasePath: "/",
+      embedded: true,
+      embedParentOrigin: shell,
+      proxyStrategy: "none",
+    });
+    window.history.replaceState(
+      {},
+      "",
+      `/controller?${new URLSearchParams({ aj_room: "ROOM", aj_controller_id: "controller-1", aj_arcade_epoch: "1", aj_arcade_kind: "game", aj_arcade_game_id: "game", ...runtimeTopologyToQueryParams(topology) })}`,
+    );
+    const parent = { postMessage: vi.fn() } as unknown as Window;
+    Object.defineProperty(window, "parent", {
+      configurable: true,
+      value: parent,
+    });
+    const controls = target();
+    const stop = listenForLocalSeatInput(controls);
+    expect(parent.postMessage).toHaveBeenCalledWith(
+      { type: "airjam.local-seat.ready" },
+      shell,
+    );
+    fromParent(parent, window.location.origin, pressJump);
+    expect(controls.press).not.toHaveBeenCalled();
+    fromParent(parent, shell, pressJump);
+    expect(controls.press).toHaveBeenCalledWith("jump");
+    stop();
+  });
+
+  it("the page says ready once its game's controller does and passes its seat's operations on", () => {
+    const parent = framePhone(
+      `&airjamLocalSeat=Keyboard%201&aj_preview_parent=${encodeURIComponent(studio)}`,
+    );
+    const game = { postMessage: vi.fn() } as unknown as Window;
+    const gameOrigin = "https://game.example";
+    const stop = relayLocalSeatInput({
+      window: () => game,
+      origin: gameOrigin,
+    });
+    const ready = { type: "airjam.local-seat.ready" };
+    fromParent(game, studio, ready);
+    expect(parent.postMessage).not.toHaveBeenCalled();
+    fromParent(game, gameOrigin, ready);
+    expect(parent.postMessage).toHaveBeenCalledWith(ready, studio);
+    fromParent(parent, window.location.origin, pressJump);
+    expect(game.postMessage).not.toHaveBeenCalled();
+    fromParent(parent, studio, pressJump);
+    expect(game.postMessage).toHaveBeenCalledWith(pressJump, gameOrigin);
+    stop();
   });
 });
 

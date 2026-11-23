@@ -85,11 +85,11 @@ export const buildPreviewControllerUrl = ({
       return null;
     }
 
-    const nextUrl = new URL(normalizedJoinUrl);
-    const nextOrigin = new URL(normalizedEmbedOrigin);
-    nextUrl.protocol = nextOrigin.protocol;
-    nextUrl.host = nextOrigin.host;
-    return nextUrl.toString();
+    const { pathname, search, hash } = new URL(normalizedJoinUrl);
+    return new URL(
+      `${pathname}${search}${hash}`,
+      normalizedEmbedOrigin,
+    ).toString();
   })();
 
   if (!previewBaseUrl) {

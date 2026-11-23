@@ -185,8 +185,13 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    input log and replays need nothing new. A phone takes local input only
    when it was launched as a local seat, and only from its direct parent at
    the origin its preview launch declares (`parentOrigin`), else its own
-   origin, as the preview workspace launches it. Embedding flags in its
-   runtime topology play no part.
+   origin, as the preview workspace launches it. A seat's phone page that
+   frames its game's own controller, like the Arcade's, relays
+   (`relayLocalSeatInput`): it says ready once that controller does, and the
+   controller takes operations only from its declared embed parent.
+   Controllers built before this ignore such a page, so a host whose
+   controller takes it says `airjam.local-seat.relayed` beside its query,
+   and these products offer seats only to games that say so.
 6. **Whoever owns the phones provides seats.** In standalone local
    development the SDK's preview workspace launches them, a seat's phone
    being the session launched for its key. An embedded host first asks its
@@ -199,8 +204,9 @@ inputBindings })`. Keys are `KeyboardEvent.code` values. A button binds
    phone's frame or, through a page of its own, its window, and grants its
    game frame the `gamepad` permission. The Arcade answers with its preview
    workspace's phones (`localPlayersGame`) only once a player turns keyboard
-   and gamepad players on; until then a game's keys stay its own. Games
-   configure nothing.
+   and gamepad players on; until then a game's keys stay its own, and turning
+   them off asks each seat's phone to leave and closes it. Games configure
+   nothing.
 
 Agents prove mappings with SDK tests over simulated keys and gamepad
 snapshots, and seats with key presses in a local game page. Tim proves real

@@ -38,10 +38,12 @@ export { requestPreviewControllerClose } from "./preview/messages";
 export {
   AIR_JAM_LOCAL_SEAT_QUERY_PARAM,
   isLocalSeatReadyMessage,
+  isLocalSeatRelayedMessage,
   localSeatMessages,
   localSeatQuerySchema,
   localSeatRelaySchema,
   localSeatRequestSchema,
+  relayLocalSeatInput,
   sendLocalSeatOperation,
   type LocalSeat,
   type LocalSeatGame,

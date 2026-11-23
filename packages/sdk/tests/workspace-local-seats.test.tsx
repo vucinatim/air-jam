@@ -33,28 +33,37 @@ const ready = (source: Window | null, from = origin) => {
 const setup = (canSpawn = true, phoneAppears = true) => {
   const frames = new Map<string, HTMLIFrameElement>();
   const spawn = vi.fn();
-  const hook = renderHook(() => {
-    const [sessions, setSessions] = useState<PreviewControllerSession[]>([]);
-    const spawnPhone = useCallback((options: { localSeat: LocalSeat }) => {
-      spawn(options);
-      if (phoneAppears)
-        setSessions((current) => [
-          ...current,
-          session(`phone-${current.length + 1}`, options.localSeat),
-        ]);
-    }, []);
-    return {
-      provider: useWorkspaceLocalSeats({
-        enabled: true,
-        sessions,
-        canSpawn,
-        spawn: spawnPhone,
-        frames,
-      }),
-      setSessions,
-    };
-  });
-  return { hook, frames, spawn };
+  const remove = vi.fn();
+  const hook = renderHook(
+    ({ enabled }: { enabled: boolean }) => {
+      const [sessions, setSessions] = useState<PreviewControllerSession[]>([]);
+      const spawnPhone = useCallback((options: { localSeat: LocalSeat }) => {
+        spawn(options);
+        if (phoneAppears)
+          setSessions((current) => [
+            ...current,
+            session(`phone-${current.length + 1}`, options.localSeat),
+          ]);
+      }, []);
+      const removePhone = useCallback((id: string) => {
+        remove(id);
+        setSessions((current) => current.filter((phone) => phone.id !== id));
+      }, []);
+      return {
+        provider: useWorkspaceLocalSeats({
+          enabled,
+          sessions,
+          canSpawn,
+          spawn: spawnPhone,
+          remove: removePhone,
+          frames,
+        }),
+        setSessions,
+      };
+    },
+    { initialProps: { enabled: true } },
+  );
+  return { hook, frames, spawn, remove };
 };
 
 describe("the workspace's local seats", () => {
@@ -102,5 +111,30 @@ describe("the workspace's local seats", () => {
       });
       expect(await refused).toBeNull();
     }
+  });
+
+  it("asks each seat's phone to leave and closes it once seats are off", async () => {
+    const { hook, frames, remove } = setup();
+    act(() => {
+      void hook.result.current.provider!.open(seat);
+    });
+    const phone = frame();
+    frames.set("phone-1", phone);
+    const asked = vi.spyOn(phone.contentWindow!, "postMessage");
+    hook.rerender({ enabled: false });
+    expect(asked).toHaveBeenCalledWith(
+      { type: "airjam.preview.close.request" },
+      origin,
+    );
+    expect(remove).not.toHaveBeenCalled();
+    const left = new Event("message");
+    Object.assign(left, {
+      data: { type: "airjam.preview.close.result", ok: true },
+      origin,
+      source: phone.contentWindow,
+    });
+    window.dispatchEvent(left);
+    await vi.waitFor(() => expect(remove).toHaveBeenCalledWith("phone-1"));
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 });
