@@ -62,6 +62,9 @@ const HAPTIC_PATTERNS = {
  * profile, and asks the host to pause or resume. It owns no rendering;
  * bindings subscribe to its store.
  */
+/** Closes after which the phone's binding still names its seat. */
+const KEEPS_BINDING = new Set<string>(["owner", "restarting", "replaced"]);
+
 export class ControllerRuntime {
   readonly store: StoreApi<AirJamConnectionState>;
   /** The room this controller joins, or null when none was given. */
@@ -134,18 +137,23 @@ export class ControllerRuntime {
     state.setStatus("connecting");
     const binding = this.environment.readBinding(roomId);
     const key = binding?.key ?? this.environment.createKey();
+    // The key is kept before the first connection, so a reload before the
+    // welcome joins with it again instead of taking a second seat.
+    if (!binding) this.environment.writeBinding(roomId, { key });
     const profile = this.joinProfile();
     this.emitRuntimeEvent({
       event: AIRJAM_DEV_LOG_EVENTS.runtime.roomStatus,
-      message: binding ? "Controller resuming its seat" : "Controller joining",
+      message: binding?.instance
+        ? "Controller resuming its seat"
+        : "Controller joining",
       roomId,
-      data: { joinSource: this.joinSource, resume: Boolean(binding) },
+      data: { joinSource: this.joinSource, resume: Boolean(binding?.instance) },
     });
     const session = this.environment.joinRoom({
       key,
       code: roomId,
       kind: this.environment.seatKind,
-      ...(binding ? { instance: binding.instance } : {}),
+      ...(binding?.instance ? { instance: binding.instance } : {}),
       ...(profile ? { profile } : {}),
       ...(this.declaredInput ? { input: this.declaredInput } : {}),
     });
@@ -300,7 +308,8 @@ export class ControllerRuntime {
         return;
       }
       case "closed":
-        if (status.reason !== "owner" && status.reason !== "restarting")
+        // Another tab that took the seat over keeps using the same binding.
+        if (!KEEPS_BINDING.has(status.reason))
           this.environment.clearBinding(roomId);
         state.setStatus("disconnected");
         state.resetRuntimeState();

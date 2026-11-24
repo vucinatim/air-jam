@@ -29,9 +29,13 @@ export interface AirJamDevLogContext {
 }
 
 /** What lets a phone resume its seat after a reload. */
+/**
+ * A phone's place in one room: its key, stored before it first connects so
+ * a reload never makes a second seat, and the room instance once welcomed.
+ */
 export interface ControllerRoomBinding {
   key: string;
-  instance: string;
+  instance?: string;
 }
 
 /**

@@ -212,6 +212,56 @@ describe("SDK runtimes in a real room", () => {
     stopHost();
   });
 
+  it("keeps a phone's key from before its first welcome, and keeps it when another tab takes the seat", async () => {
+    const { clock, host, phone, bindings } = openRooms();
+    const hostRuntime = new HostRuntime({
+      config,
+      store: createConnectionStore(),
+      environment: host(),
+      stores: [],
+    });
+    const stopHost = hostRuntime.start();
+    await clock.advance();
+    const code = hostRuntime.roomId ?? "";
+    const open = () =>
+      new ControllerRuntime(
+        {
+          store: createConnectionStore(),
+          environment: phone(code),
+          stores: [],
+        },
+        {},
+      );
+    const players = () =>
+      hostRuntime.store.getState().players.map((seat) => seat.id);
+
+    // A reload before the welcome joins with the stored key: one seat.
+    const stopFirst = open().start();
+    expect(bindings.get(code)).toEqual({ key: "phone-key-0000001" });
+    stopFirst();
+    const second = open();
+    second.start();
+    await clock.advance();
+    expect(players()).toEqual(["p1"]);
+
+    // Another tab with the binding takes the seat over; the replaced tab
+    // leaves the binding the new one uses, whichever writes last.
+    const cleared = vi.spyOn(bindings, "delete");
+    const third = open();
+    const stopThird = third.start();
+    await clock.advance();
+    expect(second.store.getState().connectionStatus).toBe("disconnected");
+    expect(third.store.getState().controllerId).toBe("p1");
+    expect(cleared).not.toHaveBeenCalled();
+    expect(bindings.get(code)).toEqual({
+      key: "phone-key-0000001",
+      instance: expect.any(String),
+    });
+    expect(players()).toEqual(["p1"]);
+    stopThird();
+    stopHost();
+  });
+
   it("gives a reloading host its store back only when the store's shape is the same", async () => {
     const { clock, host } = openRooms();
     const environment = host();

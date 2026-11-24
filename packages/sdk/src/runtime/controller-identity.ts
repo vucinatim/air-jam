@@ -7,7 +7,10 @@ export type { ControllerRoomBinding };
 
 const bindingsSchema = z.record(
   z.string(),
-  z.object({ key: z.string().min(16), instance: z.string().min(1) }),
+  z.object({
+    key: z.string().min(16),
+    instance: z.string().min(1).optional(),
+  }),
 );
 
 const localStorageOrNull = (): Storage | null => {
