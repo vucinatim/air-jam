@@ -6,5 +6,6 @@ export * from "./room-session/loopback-link";
 export * from "./room-session/phone-room-session";
 export * from "./room-session/port-link";
 export * from "./room-session/room-key";
+export * from "./room-session/scoped-connector";
 export * from "./room-session/session-link";
 export * from "./room-session/web-socket-link";

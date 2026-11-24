@@ -84,7 +84,8 @@ export const SESSION_SDK = `air-jam-sdk/${AIR_JAM_SDK_VERSION}`;
 export interface SessionRole {
   /** Where the next link goes; a host that was given a code goes back to it. */
   address(): RoomAddress;
-  hello(): string;
+  /** The link's first frame; a promise when it waits on something, such as a credential. */
+  hello(): string | Promise<string>;
   receive(data: RoomWireData): void;
   /** The link ended; whatever waited on it is now unconfirmed. */
   lost(): void;
@@ -186,8 +187,16 @@ export class SessionLink {
     const link: RoomLink = this.options.connector(this.role.address(), {
       open: () => {
         if (this.link !== link) return;
-        link.send(this.role.hello());
-        this.schedulePing();
+        const hello = this.role.hello();
+        if (typeof hello === "string") return this.greet(link, hello);
+        hello.then(
+          (frame) => {
+            if (this.link === link) this.greet(link, frame);
+          },
+          () => {
+            if (this.link === link) this.end("unauthorised");
+          },
+        );
       },
       message: (data) => {
         if (this.link !== link) return;
@@ -200,6 +209,11 @@ export class SessionLink {
       },
     });
     this.link = link;
+  }
+
+  private greet(link: RoomLink, hello: string): void {
+    link.send(hello);
+    this.schedulePing();
   }
 
   private lost(code: number): void {

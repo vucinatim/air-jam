@@ -156,15 +156,15 @@ const every = (perSecond: number, work: () => void) => {
 let tap: (() => void) | null = null;
 
 const runHost = async (command: Extract<DeviceCommand, { type: "host" }>) => {
+  const credentialCommand = command.credentialCommand;
   const host = new HostRoomSession({
     connector: connectorFor(command.link, reportDialing),
     key: command.key,
     code: command.code,
     instance: command.instance,
-    credential:
-      command.instance === undefined && command.credentialCommand
-        ? await fetchCredential(command.credentialCommand)
-        : undefined,
+    credential: credentialCommand
+      ? () => fetchCredential(credentialCommand)
+      : undefined,
     seats: command.seats,
     input: controls,
     heartbeat: command.heartbeat ? undefined : null,
@@ -347,13 +347,18 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
   };
 
   const openLoadRoom = async (room: number) => {
+    // Fetched before dialing, so the room's open time leaves the grant out.
+    const credential = command.credentialCommand
+      ? await fetchCredential(command.credentialCommand)
+      : undefined;
     const hostLink = sessionLink();
     const host = new HostRoomSession({
       connector: hostLink.connector,
       key: `load-host-${room}-${crypto.randomUUID()}`,
-      credential: command.credentialCommand
-        ? await fetchCredential(command.credentialCommand)
-        : undefined,
+      credential:
+        credential === undefined
+          ? undefined
+          : () => Promise.resolve(credential),
       seats: command.phonesPerRoom,
       input: controls,
       deviceWakeEvents: null,
