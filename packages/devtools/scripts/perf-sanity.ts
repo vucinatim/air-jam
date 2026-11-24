@@ -18,8 +18,15 @@ const { values } = parseArgs({
   },
 });
 
+const rooms = Number(values.rooms);
+const phones = Number(values.phones);
+// Every device connects from this machine, so the per-address admission
+// limits follow the requested load, with room for each device to reconnect.
 const server = createRoomServer({
-  envConfig: loadServerEnv({}),
+  envConfig: loadServerEnv({
+    AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX: String(rooms * 2),
+    AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX: String(rooms * phones * 2),
+  }),
   devLogCollector: false,
   logger: createServerLogger(undefined, undefined, null, { level: "silent" }),
 });
@@ -29,8 +36,8 @@ try {
     url: `http://127.0.0.1:${port}`,
     scenarios: ["load"],
     load: {
-      rooms: Number(values.rooms),
-      phonesPerRoom: Number(values.phones),
+      rooms,
+      phonesPerRoom: phones,
       durationMs: Number(values.durationMs),
       workers: Number(values.workers),
     },
