@@ -1,8 +1,6 @@
 import {
-  applyStatePatch,
+  applyWeighedStatePatch,
   isPlainObject,
-  readStatePath,
-  stateEntryWeight,
   stateWeight,
   type ChannelCopy,
   type HostStateFrame,
@@ -10,7 +8,6 @@ import {
   type RoomStateFrame,
   type SeatId,
   type StateDocument,
-  type StatePath,
 } from "@air-jam/sdk/room-protocol";
 
 interface Copy {
@@ -164,7 +161,9 @@ export class ChannelCopies {
   ): StateOutcome {
     const copy = this.copies.get(frame.channel);
     const applied =
-      copy && copy.revision === frame.base ? this.apply(copy, frame) : null;
+      copy && copy.revision === frame.base
+        ? applyWeighedStatePatch(copy.document, copy.weight, frame)
+        : null;
     if (!copy || !applied) {
       if (this.waiting.has(frame.channel)) return { kind: "waiting" };
       this.waiting.add(frame.channel);
@@ -201,34 +200,5 @@ export class ChannelCopies {
         ),
       }),
     };
-  }
-
-  /** Applies one operation at a time so the weight changes by exactly what each replaces. */
-  private apply(
-    copy: Copy,
-    frame: Exclude<HostStateFrame, { document: StateDocument }>,
-  ): { document: StateDocument; weight: number } | null {
-    let document = copy.document;
-    let weight = copy.weight;
-    const entryWeight = (path: StatePath, value: unknown) =>
-      value === undefined ? 0 : stateEntryWeight(path.at(-1) ?? "", value);
-    for (const path of frame.unset) {
-      const previous = readStatePath(document, path);
-      const next = applyStatePatch(document, { set: [], unset: [path] });
-      if (!next) return null;
-      weight -= entryWeight(path, previous);
-      document = next;
-    }
-    for (const [path, value] of frame.set) {
-      const previous = readStatePath(document, path);
-      const next = applyStatePatch(document, {
-        set: [[path, value]],
-        unset: [],
-      });
-      if (!next) return null;
-      weight += entryWeight(path, value) - entryWeight(path, previous);
-      document = next;
-    }
-    return { document, weight };
   }
 }
