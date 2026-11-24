@@ -48,6 +48,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./room": {
+      "types": "./dist/room.d.ts",
+      "import": "./dist/room.js"
     }
   },
   "files": [

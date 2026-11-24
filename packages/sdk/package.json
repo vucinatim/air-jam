@@ -102,6 +102,11 @@
       "import": "./dist/protocol.js",
       "require": "./dist/protocol.cjs"
     },
+    "./room-protocol": {
+      "types": "./dist/room-protocol.d.ts",
+      "import": "./dist/room-protocol.js",
+      "require": "./dist/room-protocol.cjs"
+    },
     "./metadata": {
       "types": "./dist/metadata.d.ts",
       "import": "./dist/metadata.js",
@@ -196,6 +201,9 @@
       ],
       "protocol": [
         "dist/protocol.d.ts"
+      ],
+      "room-protocol": [
+        "dist/room-protocol.d.ts"
       ],
       "metadata": [
         "dist/metadata.d.ts"

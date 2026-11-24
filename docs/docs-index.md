@@ -45,6 +45,7 @@ acting as another task tracker.
 ## Runtime and authoring contracts
 
 - [Runtime topology](./contracts/runtime-topology-contract.md)
+- [Room protocol](./contracts/room-protocol-contract.md)
 - [Workspace discovery and lifecycle](./contracts/workspace-runtime-contract.md)
 - [Environment contracts](./contracts/environment-contracts.md)
 - [Semantic agent sessions](./contracts/agent-session-contract.md)
