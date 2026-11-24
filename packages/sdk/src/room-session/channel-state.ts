@@ -140,6 +140,16 @@ export class ChannelPublisher {
     this.due.delete(channel);
   }
 
+  /** Every channel's latest document as this host holds it, published or taken back from a welcome. */
+  latest(): ChannelCopy[] {
+    return [...this.channels].map(([channel, published]) => ({
+      channel,
+      revision: published.sentRevision,
+      document: published.latest,
+      ...definedOptions(published.options),
+    }));
+  }
+
   hasDue(): boolean {
     return this.due.size > 0;
   }
@@ -193,6 +203,13 @@ export class ChannelPublisher {
   }
 }
 
+const definedOptions = (options: PublishOptions): PublishOptions => ({
+  ...(options.fingerprint === undefined
+    ? {}
+    : { fingerprint: options.fingerprint }),
+  ...(options.private === undefined ? {} : { private: options.private }),
+});
+
 const optionsOf = (copy: ChannelCopy): PublishOptions => ({
   ...(copy.fingerprint === undefined ? {} : { fingerprint: copy.fingerprint }),
   ...(copy.private === undefined ? {} : { private: copy.private }),
@@ -206,48 +223,53 @@ const assertFits = (channel: string, weight: number, limits: RoomLimits) => {
 };
 
 /**
- * A phone's copy of each channel, as the room relays it. A patch whose base
- * is not the copy's revision means the copy diverged: patches are ignored
- * until the next whole document.
+ * A copy of each channel as frames describe it: a phone's mirror of what the
+ * room relays, or a page's view of what a frame it serves publishes. A patch
+ * whose base is not the copy's revision means the copy diverged: patches are
+ * ignored until the next whole document.
  */
 export class ChannelMirror {
   private readonly copies = new Map<
     string,
-    { revision: number; document: StateDocument; diverged: boolean }
+    { copy: ChannelCopy; diverged: boolean }
   >();
 
   reset(copies: readonly ChannelCopy[]): void {
     this.copies.clear();
     for (const copy of copies)
-      this.copies.set(copy.channel, {
-        revision: copy.revision,
-        document: copy.document,
-        diverged: false,
-      });
+      this.copies.set(copy.channel, { copy, diverged: false });
   }
 
-  /** The channel's new document, or null when the frame changed nothing. */
-  receive(frame: RoomStateFrame): StateDocument | null {
+  /** The channel's new document, or null when the frame did not apply. */
+  receive(frame: RoomStateFrame | HostStateFrame): StateDocument | null {
     if ("document" in frame) {
       this.copies.set(frame.channel, {
-        revision: frame.revision,
-        document: frame.document,
+        copy: {
+          channel: frame.channel,
+          revision: frame.revision,
+          document: frame.document,
+          ...("fingerprint" in frame && frame.fingerprint !== undefined
+            ? { fingerprint: frame.fingerprint }
+            : {}),
+          ...("private" in frame && frame.private !== undefined
+            ? { private: frame.private }
+            : {}),
+        },
         diverged: false,
       });
       return frame.document;
     }
-    const copy = this.copies.get(frame.channel);
-    if (!copy || copy.diverged) return null;
+    const held = this.copies.get(frame.channel);
+    if (!held || held.diverged) return null;
     const next =
-      copy.revision === frame.base
-        ? applyStatePatch(copy.document, frame)
+      held.copy.revision === frame.base
+        ? applyStatePatch(held.copy.document, frame)
         : null;
     if (!next) {
-      copy.diverged = true;
+      held.diverged = true;
       return null;
     }
-    copy.revision = frame.revision;
-    copy.document = next;
+    held.copy = { ...held.copy, revision: frame.revision, document: next };
     return next;
   }
 
@@ -256,12 +278,16 @@ export class ChannelMirror {
   }
 
   document(channel: string): StateDocument | undefined {
-    return this.copies.get(channel)?.document;
+    return this.copies.get(channel)?.copy.document;
+  }
+
+  copy(channel: string): ChannelCopy | undefined {
+    return this.copies.get(channel)?.copy;
   }
 
   documents(): ReadonlyMap<string, StateDocument> {
     return new Map(
-      [...this.copies].map(([channel, copy]) => [channel, copy.document]),
+      [...this.copies].map(([channel, held]) => [channel, held.copy.document]),
     );
   }
 }

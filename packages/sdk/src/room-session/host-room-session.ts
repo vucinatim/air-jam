@@ -31,8 +31,13 @@ export interface HostSessionOptions extends RoomSessionOptions {
    * server choose. A host given a code returns to it on every reconnect.
    */
   readonly code?: string;
-  /** Opaque to the room; the server's gate reads it. */
-  readonly credential?: string;
+  /**
+   * Fetches a fresh credential for the server's gate, opaque to the room.
+   * Called for every hello that opens a room, since a gate may spend each
+   * one once; a host returning to its instance sends none. A rejection ends
+   * the session as `unauthorised`.
+   */
+  readonly credential?: () => Promise<string>;
   /** How many players the game takes. */
   readonly seats: number;
   /** The game's declared controls; a host without them receives no input. */
@@ -51,6 +56,8 @@ export interface HostSessionEvents extends Record<string, unknown> {
   status: RoomSessionStatus;
   seats: readonly SeatView[];
   input: { readonly seat: SeatId; readonly state: AirJamInputState };
+  /** Every input frame as the room sent it, for a frame this page serves. */
+  inputFrame: Uint8Array;
   /** Answer each with `respond(request.seat, request.id, result)`. */
   request: RoomRequest;
 }
@@ -78,6 +85,12 @@ export class HostRoomSession {
   private locked: boolean | null = null;
   private activity: { value: string | null } | null = null;
   private copies: readonly ChannelCopy[] = [];
+  private welcomed: {
+    readonly seatsWanted: number;
+    readonly locked: boolean;
+    readonly activity: string | null;
+    readonly features: readonly string[];
+  } | null = null;
 
   constructor(private readonly options: HostSessionOptions) {
     this.currentCode = options.code;
@@ -118,6 +131,31 @@ export class HostRoomSession {
    */
   get roomCopies(): readonly ChannelCopy[] {
     return this.copies;
+  }
+
+  /**
+   * What the room looks like as this host wants it: its last welcome with
+   * every change asked for since. Null before the first welcome.
+   */
+  get room(): {
+    readonly seatsWanted: number;
+    readonly locked: boolean;
+    readonly activity: string | null;
+    readonly features: readonly string[];
+  } | null {
+    const welcomed = this.welcomed;
+    if (!welcomed) return null;
+    return {
+      seatsWanted: this.seatsWanted,
+      locked: this.locked ?? welcomed.locked,
+      activity: this.activity ? this.activity.value : welcomed.activity,
+      features: welcomed.features,
+    };
+  }
+
+  /** Every channel's latest document as this host holds it, published or taken back from a welcome. */
+  channels(): ChannelCopy[] {
+    return this.publisher.latest();
   }
 
   /**
@@ -184,7 +222,7 @@ export class HostRoomSession {
     return this.link.send(encodeFrame(frame));
   }
 
-  private hello(): string {
+  private hello(): string | Promise<string> {
     const hello: HostHello = {
       type: "hello",
       key: this.options.key,
@@ -193,15 +231,18 @@ export class HostRoomSession {
       ...(this.currentInstance === undefined
         ? {}
         : { instance: this.currentInstance }),
-      ...(this.options.credential === undefined
-        ? {}
-        : { credential: this.options.credential }),
     };
-    return encodeFrame(hello);
+    const credential = this.options.credential;
+    if (this.currentInstance !== undefined || credential === undefined)
+      return encodeFrame(hello);
+    return credential().then((value) =>
+      encodeFrame({ ...hello, credential: value }),
+    );
   }
 
   private receive(data: RoomWireData): void {
     if (typeof data !== "string") {
+      this.events.emit("inputFrame", data);
       for (const record of this.decoder?.decode(data) ?? [])
         this.events.emit("input", record);
       return;
@@ -244,6 +285,12 @@ export class HostRoomSession {
     this.currentInstance = frame.instance;
     this.currentLimits = frame.limits;
     this.copies = frame.channels;
+    this.welcomed = {
+      seatsWanted: frame.seatsWanted,
+      locked: frame.locked,
+      activity: frame.activity,
+      features: frame.features,
+    };
     this.roster.reset(frame.seats);
     // A channel dropped while the link was down is dropped again below, not taken back.
     this.publisher.rebase(

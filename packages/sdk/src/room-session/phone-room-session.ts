@@ -80,6 +80,9 @@ export class PhoneRoomSession {
   private readonly exclusive = new Set<string>();
   private nextRequestId = 1;
   private cancelInput: (() => void) | null = null;
+  private relayedInput: Uint8Array | null = null;
+  private cancelRelayedInput: (() => void) | null = null;
+  private currentFeatures: readonly string[] = [];
   private profile: SeatProfile | undefined;
   private currentInstance: string | undefined;
   private currentSeat: SeatId | null = null;
@@ -129,8 +132,15 @@ export class PhoneRoomSession {
   get limits(): RoomLimits {
     return this.currentLimits;
   }
+  get features(): readonly string[] {
+    return this.currentFeatures;
+  }
   channel(channel: string): StateDocument | undefined {
     return this.mirror.document(channel);
+  }
+  /** Every channel this seat mirrors. */
+  documents(): ReadonlyMap<string, StateDocument> {
+    return this.mirror.documents();
   }
 
   /** The controls' whole state; the session decides when it travels. */
@@ -139,6 +149,15 @@ export class PhoneRoomSession {
       throw new Error("This phone session was created without input controls.");
     this.lane.update(state);
     this.pumpInput();
+  }
+
+  /**
+   * A whole phone input frame from a frame this page serves, whose own
+   * session paced it. Behind a stalled link only the latest waits.
+   */
+  sendInputFrame(frame: Uint8Array): void {
+    this.relayedInput = frame;
+    this.pumpRelayedInput();
   }
 
   request(
@@ -214,6 +233,7 @@ export class PhoneRoomSession {
         this.currentInstance = frame.instance;
         this.currentSeat = frame.seat;
         this.currentLimits = frame.limits;
+        this.currentFeatures = frame.features;
         this.hostPresent = frame.host;
         this.roster.reset(frame.seats);
         this.mirror.reset(frame.channels);
@@ -264,6 +284,9 @@ export class PhoneRoomSession {
   private lost(): void {
     this.cancelInput?.();
     this.cancelInput = null;
+    this.cancelRelayedInput?.();
+    this.cancelRelayedInput = null;
+    this.relayedInput = null;
     for (const [id, pending] of this.requests)
       if (pending.sent) this.settle(id, { status: "unconfirmed" });
   }
@@ -283,6 +306,24 @@ export class PhoneRoomSession {
     const frame = this.lane?.take(this.link.clock.now());
     if (frame) this.link.send(frame);
     this.pumpInput();
+  }
+
+  private pumpRelayedInput(): void {
+    if (!this.relayedInput || !this.link.open || this.cancelRelayedInput)
+      return;
+    const clock = this.link.clock;
+    if (this.link.buffered) {
+      this.cancelRelayedInput = clock.at(
+        clock.now() + this.currentLimits.inputIntervalMs,
+        () => {
+          this.cancelRelayedInput = null;
+          this.pumpRelayedInput();
+        },
+      );
+      return;
+    }
+    this.link.send(this.relayedInput);
+    this.relayedInput = null;
   }
 
   private pumpInput(): void {

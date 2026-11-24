@@ -14,6 +14,7 @@ import {
   type PhoneSessionOptions,
 } from "@air-jam/sdk/room-session";
 import { describe, expect, it } from "vitest";
+import { createMasterKeyRoomGate } from "../src/room/gate.js";
 import {
   createNetwork,
   createRooms,
@@ -150,6 +151,50 @@ describe("room sessions over a loopback room", () => {
         fingerprint: "v1",
       },
     ]);
+  });
+
+  it("fetches a fresh credential for each room it opens and sends none when it returns", async () => {
+    const clock = new ManualClock();
+    const network = createNetwork(
+      createRooms(clock, createMasterKeyRoomGate("master-key")),
+    );
+    const common = {
+      connector: network.connector,
+      clock,
+      random: () => 0.5,
+      deviceWakeEvents: null,
+    };
+    let fetched = 0;
+    const host = new HostRoomSession({
+      ...common,
+      key: HOST_KEY,
+      seats: 2,
+      credential: async () => {
+        fetched += 1;
+        return "master-key";
+      },
+    });
+    await clock.advance();
+    network.links[0]?.break();
+    await clock.advance(250);
+    expect(host.status).toEqual({ phase: "open" });
+    expect(fetched).toBe(1);
+    const hellos = network.links.map((link) =>
+      JSON.parse(String(link.sent[0])),
+    );
+    expect(hellos.map((hello) => hello.credential)).toEqual([
+      "master-key",
+      undefined,
+    ]);
+
+    const refused = new HostRoomSession({
+      ...common,
+      key: "host-key-00000002",
+      seats: 2,
+      credential: () => Promise.reject(new Error("signed out")),
+    });
+    await clock.advance();
+    expect(refused.status).toEqual({ phase: "closed", reason: "unauthorised" });
   });
 
   it("resumes a dropped phone in its seat and stops a replaced one for good", async () => {

@@ -277,12 +277,44 @@ A client is a host or phone session. Its rules are the session's own, so
 every SDK surface behaves the same.
 
 - **Links.** A session runs over a link: a WebSocket to a rooms origin, a
-  `MessagePort` a parent page serves (the parent opens each link the frame
-  asks for and passes frames through unchanged), or a loopback into rooms in
-  the same process. A link never calls its handlers synchronously.
+  `MessagePort` a parent page serves, or a loopback into rooms in the same
+  process. A link never calls its handlers synchronously.
+- **Frames a page serves.** A page serves a frame's port in one of two ways.
+  A frame that is a device of its own, such as a preview controller, gets
+  links the page opens to the room for it, frames passing through unchanged.
+  A frame that shares the page's place in the room, such as a game inside a
+  launcher or its controller inside the launcher's controller page, gets a
+  room that is a view of the page's own session, scoped to the channels the
+  frame may use (`createScopedHostConnector`, `createScopedPhoneConnector`).
+  The page's session stays the room's one connection and one writer, so the
+  room's rules apply once, there:
+  - The frame's welcome is built from the page's session: its seat or seats,
+    limits, and its latest documents of the frame's channels.
+  - Revisions on a scoped link are the link's own. A host frame's documents
+    and patches apply to a copy the page keeps, and the page's session
+    publishes the result to the room with the room's revisions; a phone
+    frame receives whole documents numbered for its link. They are never
+    room revisions.
+  - A host frame publishes, answers the requests the page passed it, signals,
+    configures seats and removes players. A phone frame sends input, makes
+    requests on its channels as the page's seat, changes the profile and
+    leaves. Anything else, a channel outside the scope, `activity` or `end`,
+    closes the frame's link as `unauthorised`; nothing a frame sends reaches
+    the page's session except through these calls.
+  - The page keeps each seat's latest input record, so a host frame attached
+    after the phones last sent theirs starts with every seat's controls. A
+    record is cleared when its seat leaves, so there is at most one per seat.
+  - While the page's session is away, the frame's links close as lost and
+    their hellos wait for its next welcome; when it closes for good, they
+    close with its reason. A page ends a frame's links for good when the
+    surface they belong to ends, and a launcher's host may drop the frame's
+    channels with them.
 - **Hello.** Every new link starts with `hello`. A host that was given a code
   returns to `/v1/host/CODE`; after the first `welcome` every hello is a
-  resume that names the instance.
+  resume that names the instance. A host given a credential provider fetches
+  a fresh credential for each hello that opens a room, since a gate may spend
+  each one once, and sends none when it resumes; a provider that fails ends
+  the session as `unauthorised`.
 - **Heartbeat.** A client sends `ping` every 20 seconds and treats a link
   that has answered nothing 10 seconds later as dead. A host tab whose timers
   are throttled may send none; the server's protocol-level pings keep it.
