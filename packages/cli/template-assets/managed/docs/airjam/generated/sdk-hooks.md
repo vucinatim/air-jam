@@ -90,20 +90,18 @@ const HostView = () => {
     roomId, // "ABCD" - The room code
     joinUrl, // Full URL for controllers to join
     joinUrlStatus, // "loading" | "ready" | "unavailable"
-    connectionStatus, // "connected" | "connecting" | "disconnected" | "idle"
-    players, // Array of PlayerProfile
-    controllers, // Rich controller-session roster with source + lease state
+    connectionStatus, // "connected" | "connecting" | "reconnecting" | "disconnected" | "idle"
+    players, // Array of AirJamPlayer, including phones that are away
+    queuePosition, // Place in a busy hosted service's queue, or null
     runtimeState, // "playing" | "paused"
     lastError, // Error message if any
     mode, // "standalone" | "platform"
 
     // Functions
     sendSignal, // Send haptics/toasts to controllers
-    sendState, // Publish lightweight controller presentation state
     pauseRuntime, // Set runtimeState to "paused"
     resumeRuntime, // Set runtimeState to "playing"
     setRuntimeState, // Explicitly set "playing" | "paused"
-    reconnect, // Force reconnection
   } = host;
 
   return (
@@ -122,16 +120,16 @@ const HostView = () => {
 };
 ```
 
-Use `players` for normal gameplay-facing iteration. Use `controllers` when you
-need controller provenance or local recovery tooling.
+Each player is a seat the room assigned (`p1`, `p2`, …). A phone that drops
+keeps its seat for two minutes and shows `connected: false` meanwhile;
+reconnecting is automatic.
 
 Players' controls reach the game only in its simulation steps, through
 `input(playerId)`; see [Input System](./input-system.md).
 
-`sendState` is only for lightweight controller presentation metadata such as
-pause/play status or short UI messages. It is not the primary
-gameplay sync channel. Authoritative multiplayer state should live in the
-networked stores and flow automatically through those boundaries.
+Pause and orientation are the only presentation the host sends phones
+directly. Authoritative multiplayer state lives in the networked stores; a
+short message for the players is a toast signal or a store field.
 
 A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the actions under the right in a square the same size, and only short status between them.
 
@@ -208,8 +206,8 @@ updates.
 Selectors receive state fields only; call `useAirJamController()` when a
 component also needs controls such as `sendSystemCommand`.
 
-Standalone controller runtimes also keep one stable local device identity and
-automatically attempt same-device resume when reconnecting to the same room.
+A controller page keeps its seat's key for each room it joins, so a reload or a
+dropped network returns the phone to the same seat.
 
 ```tsx
 import { useAirJamController } from "@air-jam/sdk";
@@ -218,15 +216,7 @@ import { airjam } from "../app";
 import { shipInput } from "../game/contracts/input";
 
 const ControllerShell = () => (
-  <airjam.Controller
-    roomId="ABCD"
-    nickname="Player1"
-    onState={(state) => {
-      if (state.message) {
-        showNotification(state.message);
-      }
-    }}
-  >
+  <airjam.Controller roomId="ABCD" nickname="Player1">
     <ControllerView />
   </airjam.Controller>
 );
@@ -236,19 +226,18 @@ const ControllerView = () => {
 
   const {
     roomId, // Room code (from URL or props)
-    controllerId, // This controller's unique ID
+    controllerId, // This phone's seat ("p1", "p2", …)
     connectionStatus, // Connection state
     runtimeState, // "playing" | "paused"
     controllerOrientation, // Declared session orientation; always landscape for joystick games
-    stateMessage, // Optional message from host
 
     // Functions
-    sendSystemCommand, // "exit" | "pause" | "resume"
+    sendSystemCommand, // "pause" | "resume"
     setNickname, // Update nickname
     setAvatarId, // Update avatar selection draft
     updatePlayerProfile, // Patch live label/avatar when connected
     selfPlayer, // This controller's player profile when known
-    reconnect, // Force reconnection
+    leave, // Give up the seat
     input, // This player's declared controls, which phone controls fill
   } = controller;
 
@@ -256,12 +245,8 @@ const ControllerView = () => {
     return <div>Connecting to room {roomId}...</div>;
   }
 
-  if (connectionStatus === "disconnected") {
-    return (
-      <div>
-        Disconnected. <button onClick={reconnect}>Retry</button>
-      </div>
-    );
+  if (connectionStatus === "reconnecting") {
+    return <div>Reconnecting…</div>;
   }
 
   return (
@@ -346,16 +331,15 @@ This is how QR code scanning works—the host generates a URL with the room code
 
 Use these only when integrating platform-specific runtime behavior.
 
-### Raw socket access (escape hatch)
+### Room session access (escape hatch)
 
-```tsx
-const host = useAirJamHost();
-host.socket.emit("custom:event", { value: 1 });
-```
+`host.room` and `controller.session` are the page's sessions in the room
+(`@air-jam/sdk/room-session`). Networked stores and signals cover what games
+need; reach for the session only for a channel of your own.
 
 ### Internal context hooks
 
-`useAirJamContext`, `useAirJamConfig`, `useAirJamState`, and `useAirJamSocket` are intentionally internal and are not part of the root public SDK surface.
+`useAirJamContext`, `useAirJamConfig` and `useAirJamState` are intentionally internal and are not part of the root public SDK surface.
 
 ---
 
@@ -382,7 +366,6 @@ const unsubscribe = onAirJamDiagnostic((diagnostic) => {
 | `AJ_CONFIG_MISSING_RUNTIME_TOPOLOGY`       | Runtime config cannot resolve the complete topology contract.         | Provide `topology` directly or enable environment resolution for a supported runtime mode.               |
 | `AJ_CONFIG_MISSING_APP_ID`                 | Production runtime started without canonical app ID config.           | Set `VITE_AIR_JAM_APP_ID` / `NEXT_PUBLIC_AIR_JAM_APP_ID` or pass `appId` explicitly.                     |
 | `AJ_STORE_ACTION_SESSION_NOT_READY`        | Controller action dispatch attempted before role/room was ready.      | Wait until room/session is established before dispatching store actions.                                 |
-| `AJ_STORE_ACTION_SOCKET_DISCONNECTED`      | Controller state action dispatch attempted while socket disconnected. | Reconnect before dispatching action.                                                                     |
 | `AJ_STORE_ACTION_PAYLOAD_INVALID_SHAPE`    | State action payload root was not omitted or a plain object.          | Dispatch no payload or one plain object payload only.                                                    |
 | `AJ_STORE_ACTION_PAYLOAD_NOT_SERIALIZABLE` | State action payload contained non-serializable values.               | Use JSON-safe payload objects only (no functions/symbols/cycles).                                        |
 | `AJ_INPUT_INVALID`                         | Input from a controller or agent did not match the declared controls. | Send each declared control in its kind's shape; leave out controls not in use.                           |
@@ -390,14 +373,16 @@ const unsubscribe = onAirJamDiagnostic((diagnostic) => {
 
 ---
 
-### `PlayerProfile`
+### `AirJamPlayer`
 
 ```typescript
-interface PlayerProfile {
-  id: string; // Unique controller ID
+interface AirJamPlayer {
+  id: string; // The seat the room assigned ("p1", "p2", …)
   label: string; // Display name (e.g., "Player 1")
-  color?: string; // Assigned color (e.g., "#FF5733")
+  color: string; // Assigned color (e.g., "#FF5733")
   avatarId?: string; // Preset avatar id chosen by the player
+  kind: "phone" | "preview" | "agent";
+  connected: boolean; // false while the phone is away
 }
 ```
 

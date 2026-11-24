@@ -1,149 +1,90 @@
 # Standalone Server and Hosted Composition
 
-The open Air Jam server owns room lifecycle, controller input, game launch,
-replicated state, origin checks, rate limits and draining. Local games do not
-require Air Jam accounts or a product database. An application can embed the
-same server and supply its own identity, admission and reporting services.
+The open Air Jam server keeps rooms: it seats phones, carries their controls to
+the game's host and the host's channels to the phones, holds seats while a
+phone is away and keeps the latest copy of every channel. Local games need no
+Air Jam account or product database. An application can embed the same server
+and decide who may open rooms through its own gate.
 
-The library entrypoint described here is an unreleased separation change. Use
-the exact local candidate package set until it is published; the existing
-registry version must not be assumed to contain the new exports.
+The rooms themselves are plain synchronous code in `@air-jam/server/room`; the
+Node server is one host for them. The protocol between devices and rooms is the
+[room protocol contract](../contracts/room-protocol-contract.md).
 
 ## Standalone development
 
-The existing `air-jam-server` command remains the standalone front door. Local
-development defaults to local room/controller admission and disabled identity
-checks. In production, authentication defaults to required and needs an explicit
-adapter; a local master key is not a production authentication backend.
+The `air-jam-server` command is the standalone front door. Local development
+admits every host. In production, authentication defaults to required: a host
+must present the server's master key (`AIR_JAM_MASTER_KEY`), or the server is
+composed with a gate of its own. The master key suits a private server whose
+hosts you run yourself; it is not a public authentication backend.
 
 The generic Docker image and its Railway configuration run
-`node ./bin/air-jam-server.mjs`. That command has no hosted authentication
-adapter. An intentionally open self-hosted server must explicitly set
-`AIR_JAM_AUTH_MODE=disabled`; it emits a production warning because any host
-can create rooms. For authenticated production hosting, compose the library
-with your own adapter instead. Do not disable authentication to recover the
-private hosted product; its deployment configuration belongs to that product.
+`node ./bin/air-jam-server.mjs`. An intentionally open self-hosted server must
+explicitly set `AIR_JAM_AUTH_MODE=disabled`; it logs a production warning
+because any host can open rooms.
 
-The server does not read a hosted database URL or automatically construct Air
-Jam's managed account, quota or usage services. Those belong to the application
-that operates the hosted service. This changes the previous managed-server env
-integration and must be called out in the package release migration notes.
+The server reads no hosted database and constructs no account, quota or usage
+services. Those belong to the application that operates a hosted service.
 
 ## Application composition
 
 Arcade is Air Jam's first-party library and launcher, not a prerequisite for
 running a game. The public runtime and standalone server can serve compatible
-browser games inside other launchers and embedded browser shells. A proprietary
-first-party client is a separate distribution choice; it must not require a
-private variant of the game runtime. Device compatibility and platform approval
-still need validation for each target; source ownership alone proves neither.
+browser games inside other launchers and embedded browser shells. Device
+compatibility and platform approval still need validation for each target.
 
-Import `createAirJamServer` and contract types from `@air-jam/server`, never from
-unshipped source paths. Supply `authService` for host verification,
-`realtimeAdmissionService` for authoritative capacity/leases,
-`runtimeUsagePublisher` for usage facts and `operationalEventPublisher` for
-runtime failure reports. Reuse the SDK protocol; these adapters do not create
-another transport or game runtime.
+Import `createRoomServer` from `@air-jam/server/room-server` and the gate and
+room types from `@air-jam/server/room`, never from unshipped source paths.
 
-Hosted composition must require its authoritative adapters rather than falling
-back to local admission on a configuration failure. It owns database creation
-and cleanup; the runtime owns sockets, rooms and its admission service lifecycle.
-An injected database remains caller-owned. Stop the runtime and close an owned
-database even if one cleanup fails, retaining both errors when necessary.
+- **`gate`** decides whether a host may open a room, before the room exists:
+  open it with its limits and labels, queue it (`wait` with a position), or
+  refuse it (`unauthorised` or `try-later`). It sees the host's hello,
+  including its opaque `credential`, and the connection's origin. A host
+  returning to its room with its key needs no gate.
+- **`limits`** are the limits the environment's own gates open rooms with
+  (`DEFAULT_ROOM_LIMITS` otherwise). A custom gate states limits per room.
+- **`allowedOrigins`** restricts which page origins may connect.
+- **`otherRequests`** answers HTTP paths the room server does not own, as when
+  one origin serves a built game beside its rooms.
 
 `createServerLogging(options, envConfig)` provides the logger and collector for
-composition. Give its logger to hosted adapters and pass the same logger and
-collector to `createAirJamServer`; use `false` when collection is disabled.
-The helper returns that same `false` sentinel, so its result can be spread
-directly into the server options without converting values.
-This keeps adapter and runtime events in the unified local dev stream instead
-of creating disconnected logging paths.
+composition. Give its logger to your gate and pass the same logger and
+collector to `createRoomServer`, so gate and room events share the unified
+local dev stream. The room server logs every room fact (opened, seat taken,
+left, closed) through that logger.
 
-## Socket ingress
+`stop()` closes every room as `restarting`, so its devices reconnect to the
+next process, then closes the server.
 
-`clientSocketEvents` in `@air-jam/sdk/protocol` declares the shared Zod schema,
-payload lane and acknowledgement policy for every client event. The server's
-socket middleware validates arguments and parses that schema before dispatch;
-handlers receive parsed values and retain their room/identity authority checks.
-Unknown events are rejected too. Adding a client event requires its ingress
-contract in the same map.
+## What a room bounds
 
-`SOCKET_PAYLOAD_BOUNDS` exposes the serialized UTF-8 byte, nesting depth,
-keys per object, string length and events-per-window limits for controller,
-host-state and lifecycle messages. An iterative walk checks the complete input,
-including unknown fields, before Zod inspects nested values. Socket.IO's explicit
-`maxHttpBufferSize` equals `SOCKET_MAX_HTTP_BUFFER_SIZE`; frames above it are
-disconnected by Engine.IO before event dispatch. The wire envelope also uses
-part of that buffer.
+Each room enforces its limits on every connection; nothing reaches a handler
+before it parses against the protocol's schemas. A connection that sends more
+than `strikesPerSecond` frames that do not parse is closed `limits-broken`.
 
-All protocol payloads are JSON; no event needs binary attachments. A small
-Socket.IO parser wrapper rejects binary event and acknowledgement headers,
-and standalone binary frames, before the stock decoder can allocate an attachment
-reconstructor or retain any attachment bytes. Socket.IO closes the offending
-connection on this protocol error. This also covers a declared attachment count
-larger than the frame limit, which alone cannot bound a reconstructed packet.
+| Limit                                 | Default   |
+| ------------------------------------- | --------- |
+| Seats                                 | 16        |
+| Channels                              | 8         |
+| One channel's document or state frame | 64 KB     |
+| Any other text frame                  | 8 KB      |
+| One phone's control state             | 64 bytes  |
+| Input frames per phone per second     | 120       |
+| State frames per second               | 60        |
+| Other text frames per second          | 60        |
+| Seat hold while a phone is away       | 2 minutes |
+| Room wait for its host                | 1 minute  |
+| A room's longest life                 | 24 hours  |
 
-The limits were selected from the current games on 2026-11-16. Measurements
-include the whole event payload, with depth counted from zero at the root:
+A socket that stops reading while still answering pings is cut off once 4 MB
+wait to leave for it; its seat or host is held, and its return is served from
+the room's copies. The front door also counts connection attempts per address
+(`AIR_JAM_RATE_LIMIT_WINDOW_MS`, `AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX`,
+`AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX`). Behind a proxy on a private or
+loopback address, the address counted is the one its `X-Forwarded-For` names.
 
-| Payload measured                                                                               | UTF-8 bytes | Depth | Keys/object | Longest string |
-| ---------------------------------------------------------------------------------------------- | ----------: | ----: | ----------: | -------------: |
-| Pong, four players, started                                                                    |         592 |     4 |           7 |             49 |
-| The Office, four players, populated task statistics                                            |       1,661 |     4 |          11 |             49 |
-| Odd One Out, six players, ten rounds, two clue laps, public state plus private restore entries |       8,046 |     5 |          28 |             49 |
-| Odd One Out, one phone's private entry                                                         |         293 |     2 |           6 |             49 |
-| Largest measured controller input/action (Pong)                                                |         139 |     3 |           3 |             49 |
-| Join with a 24-character name and 128-character resume token                                   |         336 |     1 |           5 |            128 |
-| Hosted bootstrap with a canonical signed grant (fixture identities)                            |         533 |     1 |           2 |            490 |
-
-Pong and The Office use reducer fixtures; Odd One Out uses its exact exported
-source, playing the reducers through a complete match with maximum settings,
-24-character multibyte names and 20-character multibyte clues. These are current
-payload measurements, not a claim about every possible game. The limits retain
-room for larger games and action objects while keeping work per event bounded:
-
-| Lane       | UTF-8 bytes | Depth | Keys/object | String length | Events/second/socket |
-| ---------- | ----------: | ----: | ----------: | ------------: | -------------------: |
-| Controller |       4,096 |     8 |          64 |         1,024 |                  240 |
-| Host state |      65,536 |    12 |         256 |         4,096 |                  480 |
-| Lifecycle  |       8,192 |     8 |          64 |         4,096 |                   30 |
-
-Host state has over eight times the largest measured payload; its event allowance
-covers a six-phone game's public and private updates with headroom. Controller
-and lifecycle allowances cover normal frame-rate input, actions and reconnects.
-A game that exceeds these bounds needs a measured contract review, rather than
-an unbounded payload or a silent increase.
-
-The existing limiter counts each socket's lanes independently over
-`SOCKET_INGRESS_WINDOW_MS`. Invalid and excessive messages are dropped without
-calling their handlers. A supplied acknowledgement receives the event's typed
-invalid-payload or rate-limit response. After `SOCKET_INGRESS_ABUSE_LIMIT`
-rejections in one window, the server emits `server:error` with `SOCKET_ABUSE`
-and disconnects that socket. One `socket.ingress_rejected` warning per socket
-per window summarizes rejected and rate-limited counts in the unified log stream;
-it never includes the rejected payload.
-
-## Controller-only gateways
-
-A trusted gateway can admit controllers to one existing room without granting
-host registration. Set `AIR_JAM_CONTROLLER_GATEWAY_KEY` (at least 32 characters)
-or pass `controllerGatewayKey` to `createAirJamServer`. `/health` then reports
-`controllerIngressVersion: 1`. Without that configuration the capability is
-unavailable and ordinary standalone connections keep their existing behavior.
-
-The gateway supplies SDK protocol headers `CONTROLLER_INGRESS_KEY_HEADER`
-(`x-airjam-controller-key`) and `CONTROLLER_INGRESS_ROOM_HEADER`
-(`x-airjam-controller-room`) on every Engine.IO polling request and WebSocket
-upgrade. It must overwrite client-supplied values and keep the key private.
-Partial, forged or changing scope is denied, including attempts to reuse a
-polling session under another room. Scoped sockets can join only their bound
-room and cannot register hosts or create rooms. Existing controller capabilities,
-input authority, origin validation and rate limits still apply.
-
-The integrating product owns guest invitations, HTTPS delivery, expiry and
-connection revocation. Serve validated built controller assets rather than
-exposing a game's development server. Studio's implementation and operations
-belong to the private product repository.
+`GET /health` reports uptime, open rooms and seats; `GET /ready` answers 503
+while `AIR_JAM_MAINTENANCE_MODE` is on.
 
 ## Package qualification
 
@@ -153,11 +94,13 @@ Pack a candidate with `pnpm run repo -- pack local`. Then run:
 pnpm --silent run repo -- pack verify-server <setDir> --json
 ```
 
-The verifier installs the SDK/server tarballs into a fresh temporary consumer,
-checks strict TypeScript usage without workspace links, inspects shipped server
-artifacts for hosted database code and exercises a real room, controller,
-child-game launch, state synchronization, readiness and draining. It reports
-tarball hashes and structured checks, then removes its owned temporary consumer.
+The verifier installs the SDK and server tarballs into a fresh temporary
+consumer, checks strict TypeScript usage without workspace links, inspects
+shipped server artifacts for hosted database code, opens a real room with a
+host and a phone over WebSockets, checks that a published channel reaches the
+phone, and checks health and readiness. It reports tarball hashes and
+structured checks, then removes its owned temporary consumer.
 
 This proof is separate from fast local checks. It verifies installed package
-behavior, not the private product build, UI, hosted policy or production rollout.
+behaviour, not the private product build, UI, hosted policy or production
+rollout.

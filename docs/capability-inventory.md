@@ -8,10 +8,12 @@ roadmap features or the private product's implementation.
 
 ## Runtime and server
 
-The SDK and standalone server provide rooms, host/controller roles, typed
-input, controller identity and reconnect leases, host authorization, child
-launch capability checks, routing and host-to-controller signals. The host
-remains the authority for gameplay state.
+The SDK and standalone room server provide rooms, room-assigned seats held by
+each device's key across reloads and dropped networks, typed input, a gate for
+opening rooms, per-room limits, channels the room keeps a copy of, requests
+and host-to-controller signals. Embedded game and controller frames get a
+scoped view of their parent's room session. The host remains the authority
+for gameplay state.
 
 The three runtime lanes are transient input, host-owned replicated state and
 explicit signals/commands. Core authoring APIs include `createAirJamApp`,
@@ -19,8 +21,9 @@ explicit signals/commands. Core authoring APIs include `createAirJamApp`,
 `defineAirJamSimulation`, `defineAirJamInput` and the phone controls
 `ControlButton`, `AxisButton` and `Stick`.
 
-The server also exposes its typed composition entrypoint so hosted adapters can
-be injected without importing product persistence into the standalone runtime.
+The server also exposes `createRoomServer` with a gate seam, so a hosted
+service decides who opens rooms without its persistence entering the
+standalone runtime.
 See the [composition guide](./guides/server-composition-guide.md).
 
 ## Game surfaces

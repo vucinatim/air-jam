@@ -1,11 +1,8 @@
 [
   "ArcadeModeDiagram",
   "Callout",
-  "CoreServicesDiagram",
-  "FocusSystemDiagram",
   "HowItWorksDiagram",
   "SdkArchitectureDiagram",
-  "SocketEventsDiagram",
   "StandaloneHostDiagram",
   "SystemOverviewDiagram"
 ]

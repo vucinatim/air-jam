@@ -88,9 +88,10 @@ If you prefer to use the official Air Jam server instead of running locally:
 1. Get your app ID from the [Air Jam Platform](https://airjam.io)
 2. Set in `.env.local`:
    ```bash
-   VITE_AIR_JAM_SERVER_URL=https://api.airjam.io
+   VITE_AIR_JAM_SERVER_URL=https://rooms.airjam.io
    VITE_AIR_JAM_APP_ID=your-app-id-here
    ```
+   and add `http://localhost:5173` to the game's allowed origins in Create.
 3. Start web-only mode:
    ```bash
    pnpm run dev -- --web-only
@@ -286,7 +287,7 @@ Use higher-level host/controller tests only after the pure boundary is already c
 
 ## What SDK Handles For You
 
-- Remote controller sound playback: use `AudioRuntime` instead of manual `server:playSound` socket subscriptions or leaf-level audio ownership.
+- Remote controller sound playback: use `AudioRuntime` instead of subscribing to sound signals by hand or owning audio in leaf components.
 - Controller toast signaling: use `useControllerToasts()` to consume host `sendSignal("TOAST", ...)`.
 - Presence-aware action context: every store action receives `ctx.connectedPlayerIds` (no custom presence sync action needed).
 - Host pause/play: keep match lifecycle in the game store and use explicit runtime pause/resume commands only for pause UI.
@@ -373,58 +374,36 @@ If you want custom routes or a marketing site at `/`, keep using self-hosted mod
 
 Use your self-hosted deployment URL only for private preview, staging, or custom route setups. Use the hosted artifact lane for the public Arcade.
 
-### Optional: Stronger Signed Host Bootstrap
-
-If you want stricter ownership guarantees without giving up static hosting, keep the game static and add one small backend or edge route that returns a signed host grant.
-
-Frontend env:
+### Hosted rooms
 
 ```bash
-VITE_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
+VITE_AIR_JAM_APP_ID=your_app_id_here
+VITE_AIR_JAM_SERVER_URL=https://rooms.airjam.io
 ```
 
-Signing endpoint env:
+Add your site's origin (for example `https://my-game.example`) to the
+allowed origins in your game's **Security** section in Create. When your page
+opens a room, the SDK asks Air Jam for a short-lived host grant for your App
+ID. Air Jam signs one only for an active App ID, asked from one of its allowed
+origins exactly, and the grant names that one origin. You do not mint tokens or
+add auth code to your game.
 
-```bash
-AIR_JAM_HOST_GRANT_SECRET=your_signing_secret
-```
+The origin check keeps other websites from opening rooms under your App ID in
+players' browsers. It is not a secret: a script outside a browser can claim any
+origin, just as it can claim any App ID. What bounds misuse is admission: each
+game and each account may run 20 hosted rooms at once, inside Air Jam's overall
+limit, so rooms someone else opens under your App ID can crowd yours but never
+grow past those caps.
 
-The backend must also verify grants through the authentication adapter supplied
-to `createAirJamServer`. The standalone server does not read this secret or
-automatically enable grant verification. See the
-[server composition guide](../../docs/guides/server-composition-guide.md).
+### Self-hosted rooms
 
-Minimal endpoint shape:
-
-```ts
-import { createHostGrant } from "@air-jam/sdk/protocol";
-
-export async function POST(request: Request) {
-  const { appId } = await request.json();
-  const { gameId, creatorId } = await loadTrustedAppIdentity(appId);
-  const now = Math.floor(Date.now() / 1000);
-
-  const hostGrant = await createHostGrant({
-    secret: process.env.AIR_JAM_HOST_GRANT_SECRET!,
-    claims: {
-      jti: crypto.randomUUID(),
-      aud: "airjam:realtime",
-      appId,
-      gameId,
-      creatorId,
-      iat: now,
-      exp: now + 60,
-      origins: ["https://your-game.example"],
-      sessionKind: "game",
-    },
-  });
-
-  return Response.json({ hostGrant });
-}
-```
-
-The SDK fetches that grant automatically before `host:bootstrap`. Your host/controller game code does not change.
-`loadTrustedAppIdentity` must be a server-side lookup; never trust game or creator identity supplied by the browser.
+Run the open `air-jam-server` yourself and point `VITE_AIR_JAM_SERVER_URL` at
+it. In production it admits hosts with its master key, or you compose it with a
+gate of your own (`createRoomServer({ gate })` from
+`@air-jam/server/room-server`). The SDK sends whatever
+`VITE_AIR_JAM_HOST_GRANT_ENDPOINT` returns (`{ "hostGrant": "..." }`) as the
+credential when it opens a room, so your gate can verify a token your own
+backend signs. Game code stays unchanged.
 
 ### Building for Production
 

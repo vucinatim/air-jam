@@ -1,9 +1,10 @@
 # Room Protocol Contract
 
 Last updated: 2026-11-24
-Status: built and served by the Node room server beside today's socket.io
-server; the Durable Object host serves it in a later phase, and the SDK
-switches to it in one change that deletes socket.io.
+Status: the only protocol between Air Jam devices and rooms. The Node room
+server serves it for self-hosters, local development and Studio workspaces;
+the hosted Arcade serves the same rooms from Durable Objects. The SDK's host
+and controller runtimes speak it through room sessions.
 
 Related docs:
 
@@ -321,7 +322,9 @@ every SDK surface behaves the same.
 - **Reconnecting.** On a close that is not terminal the session reconnects
   after a delay that doubles from 250 ms to at most 5 seconds, with jitter
   over its upper half, and at once when the device comes back online or the
-  page becomes visible. A terminal close ends the session for good.
+  page becomes visible (a browser page passes `browserDeviceWakeEvents`; a
+  session has no wake events otherwise). A terminal close ends the session
+  for good.
 - **Requests.** A request resolves `answered`, `refused` (`host-away`),
   `unconfirmed` when the link dropped after sending it or no answer came in
   time (5 seconds by default), or `busy` when it is exclusive and one of the

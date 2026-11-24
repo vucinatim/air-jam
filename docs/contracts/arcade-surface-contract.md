@@ -1,6 +1,6 @@
 # Arcade Surface Contract
 
-Last updated: 2026-09-12
+Last updated: 2026-11-24
 Status: implemented contract
 
 ## Purpose
@@ -21,9 +21,9 @@ The canonical owner is:
 
 It is not owned by:
 
-1. server room session state
+1. the room
 2. controller page local state
-3. bridge lifecycle state
+3. the room bridge serving a frame
 4. generic shared connection-store state
 
 ## State Shape
@@ -46,20 +46,24 @@ interface ArcadeSurfaceState {
 
 ### `epoch`
 
-Monotonic runtime identity for the current surface instance.
+The stable identity of one showing of one surface. It is the field every
+frame, request and menu command names to prove it belongs to what is showing
+now.
 
 Increment on:
 
 1. browser -> game
 2. game -> browser
 3. game A -> game B
-4. full host-shell restoration, because the embedded runtime process is new
 
 Do not increment on:
 
 1. overlay changes
-2. transport reconnect while the same host-shell process and surface survive
-3. re-attach to the same surface instance
+2. a reconnect of the shell or a phone
+3. a reload of the Arcade shell: the shell takes `arcade.surface` back from
+   the room's copy with the same `epoch`, so the game that was showing keeps
+   showing
+4. a new frame for the same surface, which replaces the old one
 
 ### `kind`
 
@@ -106,8 +110,8 @@ The authority chain is:
    the active Arcade surface identity
 3. platform controller shell accepts presentation sync only from the active
    controller iframe and matching surface identity
-4. server `controllerOrientation` remains only a session-backed startup
-   fallback, not the primary controller chrome authority
+4. the room's presentation channel (`controllerOrientation`) remains only a
+   startup fallback, not the primary controller chrome authority
 
 So:
 
@@ -137,7 +141,9 @@ A game whose `inputModalities` include `'joystick'` always gets a landscape cont
 In Arcade embedded runs, that same component also tells the parent controller
 chrome which orientation to use.
 
-Game-facing `sendState` cannot set orientation. The authoritative game runtime publishes its declared orientation through the session; launch and system resets preserve that value until the next authoritative host declares its own.
+The game runtime publishes its declared orientation in its presentation
+channel; launch and system resets preserve that value until the next game
+declares its own.
 
 ### `overlay`
 
@@ -168,7 +174,7 @@ Responsibilities:
 
 1. render browser controls when `kind === "browser"`
 2. render embedded controller iframe when `kind === "game"`
-3. use `epoch` and surface identity to reject stale bridge sessions
+3. use `epoch` and surface identity to refuse stale bridge requests
 
 ### Embedded Game Runtime
 
@@ -176,57 +182,56 @@ Does not own shell truth.
 
 Responsibilities:
 
-1. attach against the current surface identity
+1. ask for its room with the current surface identity
 2. own only game-local state
-3. accept invalidation when `epoch` changes
+3. accept being closed when `epoch` changes
 
-### Server
+### Room
 
-Does not own `ArcadeSurfaceState`.
+Does not own `ArcadeSurfaceState`; it keeps the latest copy of the shell's
+`arcade.surface` channel like any channel.
 
 Responsibilities:
 
-1. room/runtime invariants
-2. routing and authorization
-3. child launch capability continuity
-4. retain the last observed Arcade surface epoch and replicated revision as a
-   monotonic reconnect checkpoint
+1. seats, input and requests
+2. keeping each channel's copy, so a returning phone or a reloaded shell is
+   served from it
 
-The checkpoint is counter continuity, not a second semantic surface snapshot.
-On full host-shell reconnect,
-`HostRegistrationAck.arcadeSurfaceCheckpoint` carries the checkpoint. The
-fresh shell derives browser/game meaning from the typed session and route,
-creates a new epoch above the checkpoint, and publishes at a revision above
-the checkpoint. The cached `arcade.surface` payload is not replayed into the
-host.
+A reloaded shell takes its channels back from the room's copies when their
+shape fingerprint matches, `arcade.surface` included; there is no separate
+checkpoint. A copy whose shape does not match is discarded and the shell
+starts from the browser at a new `epoch`.
 
 ## Parallel Store Rule
 
 Arcade uses two legitimate replicated domains in one room:
 
 1. the persistent Arcade shell domain
-2. the active embedded game domain
+2. the active embedded game domain, `aj.embedded.game:<gameId>`
 
 Rules:
 
 1. shell state stays live across browser/game switches
-2. embedded game state is scoped to the current surface instance
-3. game store domain is resolved automatically by SDK/runtime
-4. game/app code keeps normal `createAirJamStore(...)` usage
+2. the game domain names the game, not the `epoch`, so after a shell reload a
+   game takes its state back when its shape fingerprint matches
+3. the shell drops a game's channels only when leaving that game
+4. game store domain is resolved automatically by SDK/runtime
+5. game/app code keeps normal `createAirJamStore(...)` usage
 
 ## Menu Command Ownership
 
-Menu gestures do not use gameplay `controller:input`. They use the existing
-`controller:action_rpc` route with `storeDomain: "arcade.surface"`:
+Menu gestures do not use gameplay input. They are requests on the shell's
+`arcade.surface` channel:
 
 | Action                   | Payload                                                     | Meaning                         |
 | ------------------------ | ----------------------------------------------------------- | ------------------------------- |
 | `airjam.arcade.navigate` | `{ epoch, direction: "up" \| "down" \| "left" \| "right" }` | Move the browser selection once |
 | `airjam.arcade.confirm`  | `{ epoch }`                                                 | Launch the selected game once   |
 
-The SDK protocol exports the action names and strict payload schemas. The
-server authenticates the controller and routes the `airjam.arcade.*` namespace
-to the master shell, even when an embedded game is active. The shell accepts
+The SDK protocol exports the action names and strict payload schemas. The room
+stamps each request with the phone's seat and delivers it to the shell, the
+room's only host; a game frame never sees the `arcade.*` channels, even while
+it shows. Leaving a game is a request on the same channel. The shell accepts
 these menu commands only from a current player on the matching browser epoch,
 outside an active launch; confirmation also observes the exit cooldown and
 validates the selected catalog index. Preview mode does not accept menu
@@ -246,25 +251,30 @@ game-defined actions keep their existing APIs.
 
 ## Bridge Rule
 
-Embedded bridge traffic is surface-bound.
+An embedded game or controller page never opens a room of its own. It posts
+`AIRJAM_ROOM_BRIDGE_REQUEST` to its parent frame at the topology's
+`embedParentOrigin`, never to `"*"`, with its role, its surface identity and a
+`MessagePort`. A runtime whose topology declares no parent sends no request
+and reports `parent_origin_missing`.
 
-Required on every embedded bridge request and attach:
+Required surface identity on every request:
 
 1. `epoch`
 2. `kind`
 3. `gameId`
 
-That identity is used to:
+The parent serves a matching request a scoped view of its own session over
+the port (`serveRoomPort` with `createScopedHostConnector` or
+`createScopedPhoneConnector`), and refuses any other. That identity is used
+to:
 
-1. reject stale attachments
-2. close stale forwards after shell drift
+1. refuse stale frames
+2. close a frame's view when the surface changes
 3. keep old iframes from surviving a surface switch
 
-An embedded runtime posts its bridge request, presentation sync and dev
-notices only to its parent frame at the topology's `embedParentOrigin`, never
-to `"*"`: the host request carries its capability token and a `MessagePort`.
-A runtime whose topology declares no parent sends no request and reports
-`parent_origin_missing`.
+A frame's view covers only its own channels; a frame that reaches outside it
+is closed `unauthorised`, and the shell's session is unaffected. A new frame
+for the same surface replaces the old one, which closes as `replaced`.
 
 ## Invariants
 

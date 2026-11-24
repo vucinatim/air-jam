@@ -115,31 +115,34 @@ export const airjam = createAirJamApp(game, {
 
 ## Production Auth Modes
 
-There are two canonical production modes:
-
-1. Static `appId` mode
-2. Optional signed host-grant mode
-
-Static `appId` mode is the default. Set:
+A deployed game opens rooms on Air Jam's hosted rooms with its App ID:
 
 ```bash
-VITE_AIR_JAM_SERVER_URL=https://api.airjam.io
 VITE_AIR_JAM_APP_ID=aj_app_your_app_id
+VITE_AIR_JAM_SERVER_URL=https://rooms.airjam.io
 ```
 
-If you want stricter ownership guarantees while keeping the game static, add:
+Add your site's origin (for example `https://my-game.example`) to the
+allowed origins in your game's **Security** section in Create. When your page
+opens a room, the SDK asks Air Jam for a short-lived host grant for your App
+ID. Air Jam signs one only for an active App ID, asked from one of its allowed
+origins exactly, and the grant names that one origin. You do not mint tokens or
+add auth code to your game.
 
-```bash
-VITE_AIR_JAM_HOST_GRANT_ENDPOINT=/api/airjam/host-grant
-```
+The origin check keeps other websites from opening rooms under your App ID in
+players' browsers. It is not a secret: a script outside a browser can claim any
+origin, just as it can claim any App ID. What bounds misuse is admission: each
+game and each account may run 20 hosted rooms at once, inside Air Jam's overall
+limit, so rooms someone else opens under your App ID can crowd yours but never
+grow past those caps.
 
-and have that endpoint return:
-
-```json
-{ "hostGrant": "..." }
-```
-
-The SDK fetches the host grant automatically before `host:bootstrap`. Game code stays unchanged.
+Self-hosted rooms: run the open `air-jam-server` yourself and point `VITE_AIR_JAM_SERVER_URL` at
+it. In production it admits hosts with its master key, or you compose it with a
+gate of your own (`createRoomServer({ gate })` from
+`@air-jam/server/room-server`). The SDK sends whatever
+`VITE_AIR_JAM_HOST_GRANT_ENDPOINT` returns (`{ "hostGrant": "..." }`) as the
+credential when it opens a room, so your gate can verify a token your own
+backend signs. Game code stays unchanged.
 
 ## Host Usage
 
@@ -175,10 +178,9 @@ export const HostView = () => {
 };
 ```
 
-Use `host.players` for gameplay-facing player iteration. Use `host.controllers`
-when you need the richer controller-session roster with source
-(`phone | preview | virtual`), connected state, and resume-lease metadata.
-Use `host.resetRoom()` when you need a fresh empty room without restarting the
+Each player in `host.players` is a seat the room assigned (`p1`, `p2`, …),
+with its `kind` (`phone | preview | agent`) and whether it is `connected`; a
+phone that drops keeps its seat for two minutes. Use `host.resetRoom()` when you need a fresh empty room without restarting the
 local backend.
 
 Players' controls reach the game only in its simulation steps, through
@@ -229,9 +231,8 @@ export const ControllerView = () => (
 
 Controllers usually join via URL query param: `/controller?room=ABCD`.
 
-Standalone controllers also keep one stable local device identity and the last
-room-scoped controller binding. If the same phone refreshes or briefly
-disconnects, the SDK automatically attempts to resume that controller binding
+A controller page keeps its seat's key for each room it joins. If the same
+phone refreshes or briefly loses its network, it returns to the same seat
 instead of creating a duplicate player.
 
 The important rule is:
@@ -415,7 +416,7 @@ Rules:
 ## Optional UI Primitives
 
 `@air-jam/sdk/ui` exports optional presentational primitives (`Button`, `Slider`, `PlayerAvatar`, `VolumeControls`).
-These components are lifecycle-free: they do not create sockets or own host/controller session state.
+These components are lifecycle-free: they do not open rooms or own host/controller session state.
 `VolumeControls` reads and writes the shared audio slice through the platform settings runtime.
 
 ## Networked State (Host Source of Truth)

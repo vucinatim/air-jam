@@ -297,7 +297,7 @@ controller:
 1. `@air-jam/sdk/core` holds `HostRuntime` and `ControllerRuntime` behind
    environment ports; the React hooks bind to them. The SDK typecheck runs a
    boundary check: the core typechecks against web-worker globals only and may
-   import only zod, zustand/vanilla, nanoid and socket.io. The built core
+   import only zod, zustand/vanilla and nanoid. The built core
    reaches nanoid, zod and zustand/vanilla. Both runtimes run in plain Node in
    tests.
 2. Stores are plain core objects from `createAirJamStore`, declared in

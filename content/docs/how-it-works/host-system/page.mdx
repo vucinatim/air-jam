@@ -45,75 +45,74 @@ The important rule is:
 
 1. Arcade owns platform surface state
 2. your game owns gameplay state
-3. the server owns room membership, focus routing, and runtime invariants
+3. the room owns membership, seats and the latest copy of every channel
 
 <ArcadeModeDiagram />
 
-## Server-Authoritative Focus System
+## One Room, Served to Each Frame
 
-The server maintains authoritative control over which host receives controller inputs through a **focus** state:
+The Arcade's shell is the room's only host. It never hands its connection to a
+game: when it shows a game, it serves that game's frame a view of its room over
+a `MessagePort`, and each game's controller page gets the same kind of view of
+its phone's seat.
 
-<FocusSystemDiagram />
+- A frame sees and publishes only its own channels: everything outside the
+  Arcade's own `arcade.*` channels, such as `airjam.room` and its stores
+- A frame that reaches outside its scope is closed `unauthorised`; the room and
+  the shell carry on
+- A new frame for the same surface replaces the old one, which closes as
+  `replaced`
+- Which game is showing lives in the shell's `arcade.surface` channel; its
+  `epoch` identifies one showing of one game
 
-### Why Server-Authoritative?
-
-1. **Security** - Prevents rogue games from stealing input
-2. **Reliability** - Single source of truth for focus state
-3. **Consistency** - All controllers route to same host
-
-This focus system does not replace the normal Air Jam model. It only decides which host currently receives controller input. Your game still uses the normal input lane, replicated state lane, and signal lane.
+Your game uses the normal input lane, replicated state lane and signal lane, as
+it would standalone.
 
 ## Connection Flow
 
 ### 1. Arcade Launch
 
 ```
-[Platform]                    [Server]                    [Controller]
+[Arcade shell]                [Room]                      [Phone]
     │                             │                            │
-    │ host:createRoom             │                            │
-    │ { maxPlayers: 8 }           │                            │
+    │ hello (host key, seats)     │                            │
     │ ───────────────────────────▶│                            │
     │                             │                            │
-    │ ack: { ok, roomId: "ABCD" } │                            │
+    │ welcome { code: "ABCD" }    │                            │
     │ ◀───────────────────────────│                            │
     │                             │                            │
     │  Display QR Code            │                            │
     │  with room code             │     Scan QR Code           │
     │                             │ ◀──────────────────────────│
     │                             │                            │
-    │                             │     controller:join        │
+    │                             │     hello (phone key)      │
     │                             │ ◀──────────────────────────│
     │                             │                            │
-    │ server:controllerJoined     │     server:welcome         │
+    │ seats [p1]                  │     welcome { seat: p1 }   │
     │ ◀───────────────────────────│ ──────────────────────────▶│
 ```
 
 ### 2. Game Launch
 
 ```
-[Arcade]              [Server]               [Your Game]        [Controller]
-    │                     │                       │                   │
-    │ system:launchGame   │                       │                   │
-    │ ───────────────────▶│                       │                   │
-    │                     │                       │                   │
-    │ ack: { launchCapability } │                 │                   │
-    │ ◀────────────────── │                       │                   │
-    │                     │                       │                   │
-    │ Load iframe ───────────────────────────────▶│                   │
-    │                     │                       │                   │
-    │                     │   host:joinAsChild    │                   │
-    │                     │◀───────────────────── │                   │
-    │                     │                       │                   │
-    │                     │ Focus → GAME          │                   │
-    │                     │                       │                   │
-    │ Show game controller ──────────────────────────────────────────▶│
-    │                     │                       │                   │
-    │                     │                       │   Load game UI    │
+[Arcade shell]                          [Your Game]        [Phone]
+    │                                       │                   │
+    │ arcade.surface → { kind: "game" }     │                   │
+    │ ─────────────────────────────────────────────────────────▶│
+    │                                       │                   │
+    │ Load iframe ─────────────────────────▶│                   │
+    │                                       │                   │
+    │   room bridge request (MessagePort)   │                   │
+    │ ◀─────────────────────────────────────│                   │
+    │                                       │                   │
+    │   serve a scoped view of the room ───▶│                   │
+    │                                       │                   │
+    │                                       │   Load game UI    │
 ```
 
 ### 3. Active Gameplay
 
-With focus set to `GAME`, all controller input routes to your game:
+While the game shows, every seat's input reaches your game:
 
 ```ts
 // Your game's simulation reads controls as usual inside the mounted host runtime.
@@ -124,12 +123,11 @@ step: (sim, { input, players }) => {
 
 #### When a phone drops
 
-A phone that loses its connection keeps its seat while the server waits for it
-to resume (30 seconds by default). The server tells the game at once with
-`server:controllerDisconnected`, and `server:controllerJoined` again when the
-phone is back. The player stays in `players` the whole time; the simulation
-step also gets `reconnectingPlayerIds`, so each game decides whether to wait,
-let a bot cover or carry on:
+A phone that loses its connection keeps its seat while the room waits for it
+to come back (two minutes by default). The game hears at once: the player stays
+in `players` with `connected: false`, and becomes connected again when the
+phone is back. The simulation step also gets `reconnectingPlayerIds`, so each
+game decides whether to wait, let a bot cover or carry on:
 
 ```ts
 step: (sim, { players, reconnectingPlayerIds }) => {
@@ -138,28 +136,22 @@ step: (sim, { players, reconnectingPlayerIds }) => {
 },
 ```
 
-Outside the simulation, `getReconnectingPlayerIds(players, controllers)` from
+Outside the simulation, `getReconnectingPlayerIds(players)` from
 `@air-jam/sdk/core` gives the same list from `useAirJamHost()` state.
 
 ### 4. Game Exit
 
 ```
-[Controller]          [Server]               [Arcade]           [Your Game]
-    │                     │                       │                   │
-    │ controller:system   │                       │                   │
-    │ { command: "exit" } │                       │                   │
-    │ ───────────────────▶│                       │                   │
-    │                     │ Disconnect game host  │                   │
-    │                     │ ─────────────────────────────────────────▶│
-    │                     │ Focus → SYSTEM        │                   │
-    │                     │                       │                   │
-    │                     │ server:closeChild     │                   │
-    │                     │ ─────────────────────▶│                   │
-    │                     │                       │ Destroy iframe ──▶│
-    │ ◀──────────────── Show Arcade controller ── │                   │
+[Phone]               [Arcade shell]                       [Your Game]
+    │                     │                                     │
+    │ exit (arcade.surface request)                             │
+    │ ───────────────────▶│                                     │
+    │                     │ arcade.surface → { kind: "browser" }│
+    │                     │ Close the game's view ─────────────▶│
+    │                     │ Drop the game's channels            │
+    │                     │ Destroy iframe ────────────────────▶│
+    │ ◀── Show Arcade controller                                │
 ```
-
-The Arcade can also close the game itself with `system:closeGame`.
 
 ## Host Registration
 
@@ -176,23 +168,25 @@ const host = useAirJamHost();
 // host.joinUrl contains full URL for QR code
 ```
 
-Production bootstrap remains automatic here:
+Opening the room stays automatic:
 
-1. local dev: no auth ceremony
-2. static deploy: SDK bootstraps with your `appId`
-3. optional signed mode: SDK fetches a host grant from `hostGrantEndpoint` before bootstrap
+1. local dev: no credential
+2. hosted rooms: the SDK fetches a short-lived grant from `hostGrantEndpoint`
+   for each room it opens
+3. after a reload, the host returns to its room with its key and keeps its
+   players
 
 Game code does not change between those modes.
 
 ### Embedded Game Mode (Arcade)
 
 ```tsx
-// SDK auto-detects embedded runtime context from platform-injected params.
-// Game code should not parse those params directly.
+// The SDK detects that it is embedded and asks the page around it for the room.
+// Game code should not parse the embedding params directly.
 const host = useAirJamHost();
 
-// Embedded close/lifecycle handling is owned by the arcade platform adapter.
-// Game hosts should keep gameplay logic in host callbacks/input loops only.
+// Closing and switching games belong to the Arcade.
+// Game hosts keep gameplay logic in host callbacks and simulation steps.
 ```
 
 ## Player Management
@@ -203,9 +197,11 @@ const host = useAirJamHost();
 const HostShell = () => (
   <airjam.Host
     onPlayerJoin={(player) => {
-      // player.id - Unique identifier
+      // player.id - The seat the room gave ("p1", "p2", …)
       // player.label - Display name ("Player 1", or the name they chose)
-      // player.color - Optional assigned color ("#FF5733")
+      // player.color - Assigned color ("#FF5733")
+      // player.kind - "phone", "preview" or "agent"
+      // player.connected - false while the phone is away
       // player.avatarId - Optional chosen avatar
       spawnPlayerEntity(player);
       announceJoin(player.label);
@@ -236,21 +232,19 @@ const player = host.players.find((p) => p.id === targetId);
 
 ## Controller Presentation State
 
-Use `sendState` for lightweight controller presentation metadata, not
-authoritative gameplay sync. Networked stores should own the real multiplayer
-state; this path is for pause/play status and short messages.
+The host publishes a small presentation for the phones: whether the game is
+playing or paused, and how to hold the phone. Networked stores own the real
+multiplayer state; a short message for the players is a toast signal or a
+store field.
 
 A game whose `inputModalities` include `'joystick'` always gets a landscape controller; the SDK applies it, so do not set orientation; lay it out with `GamepadLayout` from `@air-jam/sdk/ui`: the stick under the left thumb, the actions under the right in a square the same size, and only short status between them.
 
 ```tsx
-// Update controller presentation
-host.sendState({
-  runtimeState: "playing", // "playing" | "paused"
-  message: "Round 3 - Fight!",
-});
+const host = useAirJamHost();
+host.pauseRuntime();
+host.resumeRuntime();
 
-// Controllers receive via onState callback
-// or controller.runtimeState / controller.controllerOrientation / controller.stateMessage
+// Controllers read controller.runtimeState and controller.controllerOrientation
 ```
 
 ## Error Handling
@@ -258,16 +252,18 @@ host.sendState({
 ```tsx
 const host = useAirJamHost();
 
-// Check connection
-if (host.connectionStatus === "disconnected") {
+// Reconnecting is automatic; show it while it happens
+if (host.connectionStatus === "reconnecting") {
   showReconnectUI();
+}
+
+// A busy hosted service queues new rooms
+if (host.queuePosition !== null) {
+  showQueue(host.queuePosition);
 }
 
 // Check for errors
 if (host.lastError) {
   showError(host.lastError);
 }
-
-// Force reconnection
-host.reconnect();
 ```
