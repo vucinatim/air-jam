@@ -1,4 +1,11 @@
-import { isPlainObject } from "./patch";
+import {
+  applyStatePatch,
+  isPlainObject,
+  readStatePath,
+  type StateDocument,
+  type StatePatch,
+  type StatePath,
+} from "./patch";
 
 /** UTF-8 length without encoding, so a room can measure frames for free. */
 export const utf8ByteLength = (text: string): number => {
@@ -36,3 +43,34 @@ export const stateWeight = (value: unknown): number => {
 /** What one key and its value add to the weight of the object holding them. */
 export const stateEntryWeight = (key: string, value: unknown): number =>
   jsonBytes(key) + stateWeight(value);
+
+/**
+ * Applies a patch one operation at a time, so the document's weight changes
+ * by exactly what each operation replaces. Returns null when the patch does
+ * not fit, as `applyStatePatch` does.
+ */
+export const applyWeighedStatePatch = (
+  document: StateDocument,
+  weight: number,
+  patch: StatePatch,
+): { document: StateDocument; weight: number } | null => {
+  const entryWeight = (path: StatePath, value: unknown) =>
+    value === undefined ? 0 : stateEntryWeight(path.at(-1) ?? "", value);
+  let current = document;
+  let currentWeight = weight;
+  for (const path of patch.unset) {
+    const previous = readStatePath(current, path);
+    const next = applyStatePatch(current, { set: [], unset: [path] });
+    if (!next) return null;
+    currentWeight -= entryWeight(path, previous);
+    current = next;
+  }
+  for (const [path, value] of patch.set) {
+    const previous = readStatePath(current, path);
+    const next = applyStatePatch(current, { set: [[path, value]], unset: [] });
+    if (!next) return null;
+    currentWeight += entryWeight(path, value) - entryWeight(path, previous);
+    current = next;
+  }
+  return { document: current, weight: currentWeight };
+};

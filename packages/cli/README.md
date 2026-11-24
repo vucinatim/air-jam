@@ -17,6 +17,7 @@ pnpm exec airjam release --help
 pnpm exec airjam game analytics --help
 pnpm exec airjam game media --help
 pnpm exec airjam docs --help
+pnpm exec airjam rooms check --help
 ```
 
 ## Machine-first local lifecycle

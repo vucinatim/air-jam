@@ -26,7 +26,7 @@ export const roomLimitsSchema = z
     frameBytes: count,
     /** Text frames other than state, per connection. */
     framesPerSecond: count,
-    /** Frames dropped for rate or shape within one second before the connection is closed. */
+    /** Frames that do not parse, within one second, before the connection is closed. */
     strikesPerSecond: count,
     seatHoldMs: duration,
     hostGraceMs: duration,

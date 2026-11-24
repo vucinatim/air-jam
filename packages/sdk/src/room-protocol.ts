@@ -6,3 +6,4 @@ export * from "./protocol/room/limits";
 export * from "./protocol/room/patch";
 export * from "./protocol/room/seat-id";
 export * from "./protocol/room/weight";
+export * from "./protocol/room/transport";

@@ -82,6 +82,10 @@
       "types": "./dist/release.d.ts",
       "import": "./dist/release.js"
     },
+    "./rooms-check": {
+      "types": "./dist/rooms-check.d.ts",
+      "import": "./dist/rooms-check.js"
+    },
     "./visual": {
       "types": "./dist/visual.d.ts",
       "import": "./dist/visual.js"
@@ -132,6 +136,7 @@
     "proper-lockfile": "4.1.2",
     "socket.io-client": "^4.8.3",
     "tsx": "4.20.6",
+    "ws": "^8.18.3",
     "yauzl": "^3.2.1",
     "yazl": "^3.3.1",
     "zod": "^4.2.1"
@@ -140,6 +145,7 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/node": "^24.10.1",
     "@types/proper-lockfile": "4.1.4",
+    "@types/ws": "^8.18.1",
     "@types/yauzl": "^2.10.3",
     "@types/yazl": "^2.4.5",
     "socket.io": "^4.8.1",

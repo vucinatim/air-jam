@@ -87,6 +87,7 @@ import { registerGameAppIdCommands } from "./game-app-id";
 import { registerGameMediaCommands } from "./game-media";
 import { registerGameSettingsCommand } from "./game-settings";
 import { runMcpConfig, runMcpDoctor, runMcpInit } from "./mcp";
+import { registerRoomsCommand } from "./rooms";
 import {
   captureSessionVisuals,
   closeSession,
@@ -2146,6 +2147,8 @@ const buildProgram = () => {
     });
 
   sessionCommand.action(() => sessionCommand.outputHelp());
+
+  registerRoomsCommand(program);
 
   program
     .command("status")
