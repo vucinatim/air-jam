@@ -100,19 +100,6 @@ const waitForFrameToLoad = async ({
   return page.frameLocator(`iframe[data-testid="${testId}"]`);
 };
 
-const readRuntimeHref = async ({
-  page,
-  game,
-  embedded,
-}: {
-  page: Page;
-  game: VisualQuerySurface;
-  embedded: boolean;
-}): Promise<string> =>
-  embedded
-    ? game.locator("body").evaluate(() => window.location.href)
-    : page.evaluate(() => window.location.href);
-
 const readHostRuntimeInspection = async ({
   page,
   game,
@@ -174,20 +161,7 @@ const resolveControllerJoinUrl = async ({
       game: hostGame,
       embedded: hostEmbedded,
     });
-    if (inspection?.joinUrlStatus === "ready" && inspection.joinUrl) {
-      resolvedJoinUrl = inspection.joinUrl;
-    }
-
-    if (!resolvedJoinUrl) {
-      const runtimeUrl = new URL(
-        await readRuntimeHref({
-          page: hostPage,
-          game: hostGame,
-          embedded: hostEmbedded,
-        }),
-      );
-      resolvedJoinUrl = runtimeUrl.searchParams.get("aj_join_url");
-    }
+    resolvedJoinUrl = inspection?.localControllerUrl || null;
 
     if (resolvedJoinUrl) {
       break;
@@ -197,7 +171,7 @@ const resolveControllerJoinUrl = async ({
 
   if (!resolvedJoinUrl) {
     throw new Error(
-      "Could not resolve a controller join URL from the host runtime inspection contract or runtime URL.",
+      "Could not resolve a controller join URL from the host runtime inspection contract.",
     );
   }
 

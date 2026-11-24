@@ -44,6 +44,7 @@ describe("embedded host presentation inspection", () => {
       const inspection = createHostRuntimeInspectionContract({
         roomId: "ROOM",
         joinUrl: "https://game.example/controller?room=ROOM",
+        localControllerUrl: "https://game.example/controller?room=ROOM",
         joinUrlStatus: "ready",
         connectionStatus: "connected",
         players: [],
@@ -89,6 +90,7 @@ describe("embedded host presentation inspection", () => {
     const inspection = createHostRuntimeInspectionContract({
       roomId: "ROOM",
       joinUrl: "https://game.example/controller?room=ROOM",
+      localControllerUrl: "https://game.example/controller?room=ROOM",
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [],
@@ -152,6 +154,7 @@ describe("embedded host presentation inspection", () => {
     const inspection = createHostRuntimeInspectionContract({
       roomId: "ROOM",
       joinUrl: "https://game.example/controller?room=ROOM",
+      localControllerUrl: "https://game.example/controller?room=ROOM",
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [],
@@ -200,6 +203,7 @@ describe("embedded host presentation inspection", () => {
     const snapshot = {
       roomId: "ROOM",
       joinUrl: "https://game.example/controller?room=ROOM",
+      localControllerUrl: "https://game.example/controller?room=ROOM",
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       controllers: [],
@@ -219,6 +223,12 @@ describe("embedded host presentation inspection", () => {
         "https://game.example",
       );
     expect(read(snapshot)).not.toBeNull();
+    expect(
+      read({ ...snapshot, joinUrl: "http://192.168.1.2:3101/join?room=ROOM" }),
+    ).not.toBeNull();
+    expect(
+      read({ ...snapshot, joinUrl: "", joinUrlStatus: "unavailable" }),
+    ).not.toBeNull();
     expect(
       read({ ...snapshot, controllerOrientation: "landscape" }),
     ).not.toBeNull();
@@ -256,6 +266,7 @@ describe("embedded host presentation inspection", () => {
       read({
         ...snapshot,
         joinUrl: "https://game.example/custom-controls?room=ROOM",
+        localControllerUrl: "https://game.example/custom-controls?room=ROOM",
       }),
     ).not.toBeNull();
     expect(read(snapshot, {} as Window)).toBeNull();
@@ -264,13 +275,15 @@ describe("embedded host presentation inspection", () => {
     expect(
       read({
         ...snapshot,
-        joinUrl: "https://attacker.example/controller?room=ROOM",
+        joinUrl: "https://relay.example/join?room=ROOM",
+        localControllerUrl: "https://attacker.example/controller?room=ROOM",
       }),
     ).toBeNull();
     expect(
       read({
         ...snapshot,
         joinUrl: "https://game.example/controller?room=ELSE",
+        localControllerUrl: "https://game.example/controller?room=ELSE",
       }),
     ).toBeNull();
     expect(read({ ...snapshot, joinUrl: "javascript:alert(1)" })).toBeNull();

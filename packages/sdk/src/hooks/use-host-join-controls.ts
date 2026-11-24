@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { resolvePhoneJoinUrl } from "../core/phone-join-url";
 
 const copyTextToClipboard = async (text: string): Promise<boolean> => {
   if (!text) {
@@ -69,7 +70,10 @@ export const useHostJoinControls = ({
   const [joinQrVisible, setJoinQrVisible] = useState(false);
   const resetTimerRef = useRef<number | null>(null);
 
-  const joinUrlValue = useMemo(() => joinUrl ?? "", [joinUrl]);
+  const joinUrlValue = useMemo(
+    () => resolvePhoneJoinUrl(joinUrl) ?? "",
+    [joinUrl],
+  );
   const hasJoinUrl = joinUrlValue.length > 0;
 
   useEffect(() => {

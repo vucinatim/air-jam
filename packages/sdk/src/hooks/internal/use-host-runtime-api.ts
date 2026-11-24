@@ -46,17 +46,28 @@ export const useHostRuntimeApi = (
 
   const { config, store, getSocket, disconnectSocket } = useAirJamContext();
 
+  // Phone reach can arrive after the room starts; it does not identify the session.
+  const { publicHost, ...sessionTopology } = config.topology;
+  const sessionConfigKey = JSON.stringify({
+    ...config,
+    topology: sessionTopology,
+  });
+  const sessionConfig = useMemo(
+    () => JSON.parse(sessionConfigKey) as typeof config,
+    [sessionConfigKey],
+  );
+
   const runtime = useMemo(
     () =>
       new HostRuntime(
         {
           fixedControllerOrientation,
-          config,
+          config: sessionConfig,
           store,
           getSocket,
           disconnectSocket,
           input,
-          environment: createBrowserHostEnvironment(config),
+          environment: createBrowserHostEnvironment(),
           stores,
           settings,
           simulation,
@@ -73,7 +84,7 @@ export const useHostRuntimeApi = (
         },
       ),
     [
-      config,
+      sessionConfig,
       store,
       getSocket,
       disconnectSocket,
@@ -85,6 +96,10 @@ export const useHostRuntimeApi = (
       fixedControllerOrientation,
     ],
   );
+
+  useEffect(() => {
+    runtime.setTopology({ ...sessionConfig.topology, publicHost });
+  }, [runtime, sessionConfig, publicHost]);
 
   // Declared before start so the runtime starts with the current options.
   useEffect(() => {
@@ -114,12 +129,17 @@ export const useHostRuntimeApi = (
   const clock = runtime.simulation;
 
   const roomId = useStore(store, () => runtime.roomId);
+  const localControllerUrl = useStore(
+    store,
+    (state) => state.localControllerUrl,
+  );
   const joinUrl = useStore(store, (state) => state.joinUrl);
   const joinUrlStatus = useStore(store, (state) => state.joinUrlStatus);
 
   return useMemo(
     () => ({
       roomId: roomId ?? ("" as RoomCode),
+      localControllerUrl,
       joinUrl,
       joinUrlStatus,
       pauseRuntime: runtime.pauseRuntime,
@@ -135,6 +155,6 @@ export const useHostRuntimeApi = (
       setObservationCapture: runtime.setObservationCapture,
       settings: runtime.settings,
     }),
-    [runtime, roomId, joinUrl, joinUrlStatus, clock],
+    [runtime, roomId, localControllerUrl, joinUrl, joinUrlStatus, clock],
   );
 };

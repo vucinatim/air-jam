@@ -1,4 +1,8 @@
 import { useId, type JSX, type ReactNode } from "react";
+import {
+  PHONE_JOIN_UNAVAILABLE_MESSAGE,
+  resolvePhoneJoinUrl,
+} from "../core/phone-join-url";
 import { cn } from "../utils/cn";
 import {
   shellFieldClassName,
@@ -25,9 +29,16 @@ export const JoinUrlField = ({
   inputId,
   inputName = "airjam-controller-link",
 }: JoinUrlFieldProps): JSX.Element => {
-  const hasValue = Boolean(value && value.trim().length > 0);
+  const joinUrl = resolvePhoneJoinUrl(value);
   const generatedInputId = useId();
   const resolvedInputId = inputId ?? generatedInputId;
+
+  if (!joinUrl)
+    return (
+      <p className={cn(shellHelperTextClassName, className)}>
+        {PHONE_JOIN_UNAVAILABLE_MESSAGE}
+      </p>
+    );
 
   return (
     <div className={cn("space-y-2.5", className)}>
@@ -39,8 +50,7 @@ export const JoinUrlField = ({
         name={inputName}
         type="text"
         readOnly
-        value={value ?? ""}
-        placeholder={hasValue ? undefined : "Generating join link..."}
+        value={joinUrl}
         aria-label={typeof label === "string" ? label : "Controller join link"}
         className={cn(shellFieldClassName, inputClassName)}
       />

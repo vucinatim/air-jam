@@ -177,7 +177,7 @@ describe("runtime config validation", () => {
       ...defaults,
       appOrigin: "http://127.0.0.1:5173",
       socketOrigin: "http://127.0.0.1:5173",
-      publicHost: "http://127.0.0.1:5173",
+      publicHost: undefined,
     });
     globalThis.window = {
       location: {

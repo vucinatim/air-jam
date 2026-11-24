@@ -228,7 +228,7 @@ const resolveProjectTopologyFromEnv = (
     surfaceRole: effectiveSurfaceRole,
     appOrigin,
     backendOrigin: getEnvServerUrl() ?? appOrigin,
-    publicHost: explicitPublicHost ?? appOrigin,
+    publicHost: explicitPublicHost,
     secureTransport,
   });
 };

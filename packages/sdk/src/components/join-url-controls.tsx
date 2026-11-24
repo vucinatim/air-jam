@@ -1,4 +1,8 @@
 import type { JSX, ReactNode } from "react";
+import {
+  PHONE_JOIN_UNAVAILABLE_MESSAGE,
+  resolvePhoneJoinUrl,
+} from "../core/phone-join-url";
 import { isEmbeddedHostRuntime } from "../runtime/host-realtime-client";
 import { cn } from "../utils/cn";
 import { JoinUrlActionButtons } from "./join-url-action-buttons";
@@ -35,20 +39,26 @@ export const JoinUrlControls = ({
   // its child host's link carries a private token that never belongs on screen.
   if (isEmbeddedHostRuntime()) return null;
 
-  const hasValue = Boolean(value && value.trim().length > 0);
+  const joinUrl = resolvePhoneJoinUrl(value);
+  if (!joinUrl)
+    return (
+      <p className={cn("text-sm text-white/70", className)}>
+        {PHONE_JOIN_UNAVAILABLE_MESSAGE}
+      </p>
+    );
 
   return (
     <div className={cn("w-full space-y-3", className)}>
       <div className="flex flex-col gap-3">
         <JoinUrlField
-          value={value}
+          value={joinUrl}
           label={label}
           helperText={helperText}
           className="w-full min-w-0"
           inputClassName={inputClassName}
         />
         <JoinUrlActionButtons
-          hasValue={hasValue}
+          hasValue
           copied={copied}
           onCopy={onCopy}
           onOpen={onOpen}

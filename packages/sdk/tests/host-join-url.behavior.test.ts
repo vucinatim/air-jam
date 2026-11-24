@@ -91,7 +91,7 @@ const PROVIDER_CONFIG = {
     surfaceRole: "host",
     appOrigin: "http://localhost:3000",
     backendOrigin: "http://localhost:3001",
-    publicHost: "http://localhost:3000",
+    publicHost: "https://platform.example",
   }),
   appId: "test_app_id",
 };
@@ -137,10 +137,12 @@ describe("host join url behavior", () => {
 
     let resolveUrl: ((value: string) => void) | null = null;
     vi.spyOn(urlBuilder, "buildControllerUrl").mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveUrl = resolve;
-        }),
+      (_roomId, options) =>
+        options?.host === "http://localhost:3000"
+          ? Promise.resolve("http://localhost:3000/controller?room=ROOM1")
+          : new Promise((resolve) => {
+              resolveUrl = resolve;
+            }),
     );
 
     const { result } = renderHook(() => useAirJamHost(), {
@@ -189,8 +191,10 @@ describe("host join url behavior", () => {
     const { result } = renderHook(() => useAirJamHost(), {
       wrapper: HostRuntimeWrapper,
     });
-    await waitFor(() => expect(result.current.joinUrlStatus).toBe("ready"));
-    const url = new URL(result.current.joinUrl);
+    await waitFor(() => expect(result.current.localControllerUrl).not.toBe(""));
+    expect(result.current.joinUrlStatus).toBe("unavailable");
+    expect(result.current.joinUrl).toBe("");
+    const url = new URL(result.current.localControllerUrl);
     expect(url.searchParams.get("room")).toBe("ROOM1");
     expect(url.searchParams.get("aj_controller_cap")).toBe("retained");
     expect(parseRuntimeTopologyFromSearchParams(url.searchParams)).toEqual(
@@ -204,6 +208,59 @@ describe("host join url behavior", () => {
     expect(
       parseRuntimeTopologyFromSearchParams(url.searchParams),
     ).not.toHaveProperty("embedParentOrigin");
+  });
+
+  it("updates phone reach without restarting the room or local controllers", async () => {
+    mocked.store?.getState().setRoomId("ROOM1");
+    mocked.store?.getState().setRegisteredRoomId("ROOM1");
+    (mocked.hostSocket as { connected: boolean }).connected = false;
+    const context = mocked.useAirJamContext();
+    const setPhoneReach = (publicHost: string | undefined) =>
+      mocked.useAirJamContext.mockReturnValue({
+        ...context,
+        config: {
+          ...context.config,
+          topology: { ...context.config.topology, publicHost },
+        },
+      });
+    setPhoneReach(undefined);
+    vi.spyOn(urlBuilder, "buildControllerUrl").mockImplementation(
+      async (roomId, options) => `${options?.host}/controller?room=${roomId}`,
+    );
+    const { result, rerender } = renderHook(() => useAirJamHost(), {
+      wrapper: HostRuntimeWrapper,
+    });
+    await waitFor(() =>
+      expect(result.current.localControllerUrl).toBe(
+        "http://localhost:3000/controller?room=ROOM1",
+      ),
+    );
+    expect(result.current.joinUrlStatus).toBe("unavailable");
+    const disconnects = context.disconnectSocket.mock.calls.length;
+    const emits = (mocked.hostSocket as { emit: ReturnType<typeof vi.fn> }).emit
+      .mock.calls.length;
+    setPhoneReach("http://192.168.1.2:12345");
+    rerender();
+    await waitFor(() =>
+      expect(result.current.joinUrl).toBe(
+        "http://192.168.1.2:12345/controller?room=ROOM1",
+      ),
+    );
+    expect(result.current.joinUrlStatus).toBe("ready");
+    setPhoneReach(undefined);
+    rerender();
+    await waitFor(() =>
+      expect(result.current.localControllerUrl).toBe(
+        "http://localhost:3000/controller?room=ROOM1",
+      ),
+    );
+    expect(result.current.joinUrl).toBe("");
+    expect(result.current.joinUrlStatus).toBe("unavailable");
+    expect(result.current.roomId).toBe("ROOM1");
+    expect(context.disconnectSocket.mock.calls).toHaveLength(disconnects);
+    expect(
+      (mocked.hostSocket as { emit: ReturnType<typeof vi.fn> }).emit.mock.calls,
+    ).toHaveLength(emits);
   });
 
   it("renders the shared join QR overlay and closes it on backdrop click", () => {
@@ -277,7 +334,7 @@ describe("host join url behavior", () => {
     });
     expect(result.current.joinUrl).toContain("aj_controller_cap=cap_123");
     expect(buildControllerUrlSpy).toHaveBeenCalledWith("ROOM2", {
-      host: "http://localhost:3000",
+      host: "https://platform.example",
       capabilityToken: "cap_123",
     });
   });

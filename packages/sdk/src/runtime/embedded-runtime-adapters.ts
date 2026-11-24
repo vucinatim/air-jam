@@ -18,6 +18,7 @@ import {
 export type EmbeddedHostChildSession = {
   roomId: RoomCode;
   joinUrl?: string;
+  localControllerUrl?: string;
   topology: ResolvedAirJamRuntimeTopology;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 };
@@ -47,6 +48,7 @@ export const readEmbeddedHostChildSession =
     return {
       roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
       joinUrl: raw.joinUrl,
+      localControllerUrl: raw.localControllerUrl,
       topology: raw.topology,
       arcadeSurface: raw.arcadeSurface,
     };

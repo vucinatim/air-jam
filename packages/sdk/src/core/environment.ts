@@ -1,4 +1,5 @@
 import type { RoomCode, RunMode } from "../protocol";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import type {
   AirJamRealtimeClient,
   DirectSocketGetter,
@@ -30,7 +31,11 @@ export interface ControllerRoomBinding {
  */
 export interface AirJamHostEnvironment {
   /** Set when an embedding shell owns the room; the host joins it instead of creating one. */
-  readonly embedded: { roomId: RoomCode; joinUrl?: string } | null;
+  readonly embedded: {
+    roomId: RoomCode;
+    joinUrl?: string;
+    localControllerUrl?: string;
+  } | null;
   /** A room the surrounding page asked for, such as `?room=`. */
   readonly requestedRoomId: RoomCode | null;
   readonly runMode: RunMode;
@@ -44,10 +49,11 @@ export interface AirJamHostEnvironment {
     endpoint: string,
     appId: string | undefined,
   ): Promise<string>;
-  controllerUrl(
+  controllerUrls(
     roomId: RoomCode,
     capabilityToken: string | undefined,
-  ): Promise<string>;
+    topology: ResolvedAirJamRuntimeTopology,
+  ): Promise<{ joinUrl: string; localControllerUrl: string }>;
   transport(getSocket: DirectSocketGetter<"host">): AirJamRealtimeClient;
   emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
   setDevLogContext(context: AirJamDevLogContext): void;

@@ -72,10 +72,12 @@ export function HostView() {
           </div>
 
           <div className="flex flex-col items-center gap-4">
-            <div className="text-xs tracking-[0.2em] text-neutral-400 uppercase">
-              Scan to join
-            </div>
-            {host.joinUrl ? (
+            {host.joinUrlStatus === "ready" && (
+              <div className="text-xs tracking-[0.2em] text-neutral-400 uppercase">
+                Scan to join
+              </div>
+            )}
+            {host.joinUrlStatus !== "loading" ? (
               <RoomQrCode value={host.joinUrl} size={180} />
             ) : (
               <div className="text-sm text-neutral-500">Connecting…</div>

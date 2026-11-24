@@ -125,8 +125,10 @@ export const openAirJamReplay = async (
     writeResume: () => {},
     requestHostGrant: () =>
       Promise.reject(new Error("A replay runs without host grants.")),
-    controllerUrl: async (roomId) =>
-      `${REPLAY_ORIGIN}/controller?room=${roomId}`,
+    controllerUrls: async (roomId) => ({
+      joinUrl: `${REPLAY_ORIGIN}/controller?room=${roomId}`,
+      localControllerUrl: `${REPLAY_ORIGIN}/controller?room=${roomId}`,
+    }),
     transport: () => room,
     emitDevEvent: () => {},
     setDevLogContext: () => {},

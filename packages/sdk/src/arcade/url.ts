@@ -17,6 +17,7 @@ export const buildArcadeGameIframeSrc = ({
   roomId,
   launchCapability,
   joinUrl,
+  localControllerUrl,
   topology,
   arcadeSurface,
 }: {
@@ -24,6 +25,7 @@ export const buildArcadeGameIframeSrc = ({
   roomId: string;
   launchCapability: ChildHostCapability;
   joinUrl?: string | null;
+  localControllerUrl?: string | null;
   topology: ResolvedAirJamRuntimeTopology;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }): string | null =>
@@ -32,6 +34,7 @@ export const buildArcadeGameIframeSrc = ({
     aj_cap: launchCapability.token,
     aj_cap_exp: String(launchCapability.expiresAt),
     aj_join_url: joinUrl,
+    aj_local_controller_url: localControllerUrl,
     ...runtimeTopologyToQueryParams(topology),
     ...arcadeSurfaceRuntimeUrlParams(arcadeSurface),
   });

@@ -30,8 +30,10 @@ export const createMemoryEnvironment = (
       resume = next;
     },
     requestHostGrant: async () => "grant",
-    controllerUrl: async (roomId) =>
-      `https://play.test/controller?room=${roomId}`,
+    controllerUrls: async (roomId) => ({
+      joinUrl: `https://play.test/controller?room=${roomId}`,
+      localControllerUrl: `https://play.test/controller?room=${roomId}`,
+    }),
     transport: () => socket,
     emitDevEvent: () => {},
     setDevLogContext: () => {},

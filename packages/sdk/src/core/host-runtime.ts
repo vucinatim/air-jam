@@ -36,6 +36,7 @@ import {
   type ControllerLeasedControlAck,
 } from "../protocol/leased-control";
 import type { PlayerUpdatedNotice } from "../protocol/notices";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import {
   resolveAdmissionRetry,
   type AdmissionRetryDecision,
@@ -78,6 +79,7 @@ import {
   type AirJamInputLogCut,
   type AirJamInputLogEvent,
 } from "./input-log";
+import { resolvePhoneJoinUrl } from "./phone-join-url";
 import type { AttachableStore } from "./replicated-store";
 import {
   HostSettings,
@@ -221,6 +223,7 @@ export class HostRuntime {
   private running = false;
   private watchedRoomId: RoomCode | null = null;
   private joinUrlKey: string | null = null;
+  private topology: ResolvedAirJamRuntimeTopology;
   private releaseRoomControl: (() => void) | null = null;
   private releaseObservation: (() => void) | null = null;
   private releaseSession: (() => void) | null = null;
@@ -239,6 +242,7 @@ export class HostRuntime {
       subscribe: this.hostSettings.subscribe,
     });
     this.config = dependencies.config;
+    this.topology = dependencies.config.topology;
     this.store = dependencies.store;
     if (dependencies.input && !dependencies.simulation)
       throw new Error(
@@ -409,6 +413,13 @@ export class HostRuntime {
   setOptions(options: HostRuntimeOptions): void {
     this.options = options;
     this.handleRoomChange();
+  }
+
+  setTopology(topology: ResolvedAirJamRuntimeTopology): void {
+    if (JSON.stringify(this.topology) === JSON.stringify(topology)) return;
+    this.topology = topology;
+    this.joinUrlKey = null;
+    this.refreshJoinUrl(true);
   }
 
   /** Connects and keeps the room until the returned stop is called. */
@@ -708,36 +719,48 @@ export class HostRuntime {
     this.refreshJoinUrl();
   }
 
-  private refreshJoinUrl(): void {
+  private refreshJoinUrl(preserveLocalControllerUrl = false): void {
     if (!this.running) return;
     const state = this.store.getState();
-    const embeddedJoinUrl = this.environment.embedded?.joinUrl;
-    if (embeddedJoinUrl) {
-      this.joinUrlKey = null;
-      state.setJoinUrl(embeddedJoinUrl, "ready");
-      return;
-    }
     const roomId = this.roomId;
     if (!roomId) {
       this.joinUrlKey = null;
-      state.setJoinUrl("", "loading");
+      state.setJoinUrls("", "", "loading");
       return;
     }
     const capabilityToken = this.controllerCapability?.token;
-    const key = `${roomId}\0${capabilityToken ?? ""}`;
+    const key = `${roomId}\0${capabilityToken ?? ""}\0${JSON.stringify(this.topology)}`;
     if (key === this.joinUrlKey) return;
     this.joinUrlKey = key;
-    state.setJoinUrl("", "loading");
-    this.environment.controllerUrl(roomId, capabilityToken).then(
-      (url) => {
-        if (this.joinUrlKey === key)
-          this.store.getState().setJoinUrl(url, "ready");
-      },
-      () => {
-        if (this.joinUrlKey === key)
-          this.store.getState().setJoinUrl("", "unavailable");
-      },
+    state.setJoinUrls(
+      "",
+      preserveLocalControllerUrl ? state.localControllerUrl : "",
+      this.topology.publicHost ? "loading" : "unavailable",
     );
+    this.environment
+      .controllerUrls(roomId, capabilityToken, this.topology)
+      .then(
+        ({ joinUrl, localControllerUrl }) => {
+          if (this.joinUrlKey !== key) return;
+          const phoneUrl = this.topology.publicHost
+            ? (resolvePhoneJoinUrl(
+                this.environment.embedded?.joinUrl ?? joinUrl,
+              ) ?? "")
+            : "";
+          this.store
+            .getState()
+            .setJoinUrls(
+              phoneUrl,
+              this.environment.embedded?.localControllerUrl ??
+                localControllerUrl,
+              phoneUrl ? "ready" : "unavailable",
+            );
+        },
+        () => {
+          if (this.joinUrlKey === key)
+            this.store.getState().setJoinUrls("", "", "unavailable");
+        },
+      );
   }
 
   private cancelPendingReset(): void {

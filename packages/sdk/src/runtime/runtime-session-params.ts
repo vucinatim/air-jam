@@ -14,6 +14,7 @@ export interface ChildHostRuntimeParams {
   capabilityToken: string;
   capabilityExpiresAt?: number;
   joinUrl?: string;
+  localControllerUrl?: string;
   topology: ResolvedAirJamRuntimeTopology;
   arcadeSurface: ArcadeSurfaceRuntimeIdentity;
 }
@@ -47,6 +48,7 @@ export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
 
   const joinUrl = params.get("aj_join_url");
   const normalizedJoinUrl = joinUrl ? normalizeRuntimeUrl(joinUrl) : null;
+  const localControllerUrl = params.get("aj_local_controller_url");
   const topology = parseRuntimeTopologyFromSearchParams(params);
   if (!topology) {
     return null;
@@ -64,6 +66,9 @@ export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
       ? parsedCapabilityExpiresAt
       : undefined,
     joinUrl: normalizedJoinUrl ?? undefined,
+    localControllerUrl: localControllerUrl
+      ? (normalizeRuntimeUrl(localControllerUrl) ?? undefined)
+      : undefined,
     topology,
     arcadeSurface,
   };

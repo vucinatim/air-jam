@@ -99,8 +99,10 @@ export interface AirJamHostOptions {
 export interface AirJamHostApi {
   /** The room code for this session (e.g., "ABCD") */
   roomId: RoomCode;
-  /** Full URL for controllers to join (display as QR code) */
+  /** Phone join URL from topology; empty when phones cannot reach this room. */
   joinUrl: string;
+  /** Controller URL for the same computer only; never display as a phone QR. */
+  localControllerUrl: string;
   /** Whether the join URL is still being resolved, ready to render, or unavailable */
   joinUrlStatus: JoinUrlStatus;
   /** Current connection status to the server */
@@ -179,6 +181,7 @@ export interface AirJamHostState {
 export type AirJamHostRuntimeControls = Pick<
   AirJamHostApi,
   | "roomId"
+  | "localControllerUrl"
   | "joinUrl"
   | "joinUrlStatus"
   | "pauseRuntime"

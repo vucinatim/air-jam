@@ -1,8 +1,12 @@
 import { create } from "qrcode";
 import { useMemo, type CSSProperties, type JSX } from "react";
+import {
+  PHONE_JOIN_UNAVAILABLE_MESSAGE,
+  resolvePhoneJoinUrl,
+} from "../core/phone-join-url";
 
 export interface RoomQrCodeProps {
-  value: string;
+  value: string | null | undefined;
   size?: number;
   padding?: number;
   foregroundColor?: string;
@@ -24,7 +28,7 @@ export const RoomQrCode = ({
   style,
   alt = "Room join QR code",
 }: RoomQrCodeProps): JSX.Element => {
-  const trimmed = value.trim();
+  const trimmed = resolvePhoneJoinUrl(value);
   const qr = useMemo(() => {
     if (!trimmed) return null;
 
@@ -43,6 +47,13 @@ export const RoomQrCode = ({
       return null;
     }
   }, [trimmed, errorCorrectionLevel]);
+
+  if (!trimmed)
+    return (
+      <p className="max-w-xs text-center text-sm">
+        {PHONE_JOIN_UNAVAILABLE_MESSAGE}
+      </p>
+    );
 
   return (
     <div

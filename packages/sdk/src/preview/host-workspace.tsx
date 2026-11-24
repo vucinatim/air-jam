@@ -30,8 +30,7 @@ export const HostPreviewControllerWorkspace = ({
     enabled,
     topology: config.topology,
   });
-  const joinUrl =
-    host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;
+  const joinUrl = host.localControllerUrl || null;
   const handleResetRoom = async () => {
     const ack = await host.resetRoom();
     if (!ack.ok || typeof window === "undefined") {

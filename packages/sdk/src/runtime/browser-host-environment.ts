@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { AirJamConfig } from "../core/config";
 import type { AirJamHostEnvironment } from "../core/environment";
 import { updateDevBrowserLogContext } from "../dev/browser-log-sink";
 import { roomCodeSchema, type RoomCode } from "../protocol";
@@ -25,13 +24,15 @@ const readRequestedRoomId = (): RoomCode | null => {
 };
 
 /** The host environment of a browser page: its URL, session storage and frames. */
-export const createBrowserHostEnvironment = (
-  config: AirJamConfig,
-): AirJamHostEnvironment => {
+export const createBrowserHostEnvironment = (): AirJamHostEnvironment => {
   const embedded = readEmbeddedHostChildSession();
   return {
     embedded: embedded
-      ? { roomId: embedded.roomId, joinUrl: embedded.joinUrl }
+      ? {
+          roomId: embedded.roomId,
+          joinUrl: embedded.joinUrl,
+          localControllerUrl: embedded.localControllerUrl,
+        }
       : null,
     requestedRoomId: readRequestedRoomId(),
     runMode: detectRunMode(),
@@ -74,27 +75,37 @@ export const createBrowserHostEnvironment = (
       if (!parsed.success) throw new Error("Invalid host grant response");
       return parsed.data.hostGrant;
     },
-    controllerUrl: async (roomId, capabilityToken) => {
-      const url = new URL(
-        await urlBuilder.buildControllerUrl(roomId, {
-          host: config.topology.publicHost,
-          capabilityToken,
-        }),
-      );
-      if (
-        config.topology.runtimeMode === "standalone-dev" ||
-        config.topology.runtimeMode === "standalone-secure"
-      )
-        for (const [key, value] of Object.entries(
-          runtimeTopologyToQueryParams({
-            ...config.topology,
-            surfaceRole: "controller",
-            embedded: false,
-            embedParentOrigin: undefined,
+    controllerUrls: async (roomId, capabilityToken, topology) => {
+      const buildUrl = async (host: string) => {
+        const url = new URL(
+          await urlBuilder.buildControllerUrl(roomId, {
+            host,
+            capabilityToken,
           }),
-        ))
-          url.searchParams.set(key, value);
-      return url.toString();
+        );
+        if (
+          topology.runtimeMode === "standalone-dev" ||
+          topology.runtimeMode === "standalone-secure"
+        ) {
+          for (const [key, value] of Object.entries(
+            runtimeTopologyToQueryParams({
+              ...topology,
+              surfaceRole: "controller",
+              embedded: false,
+              embedParentOrigin: undefined,
+            }),
+          ))
+            url.searchParams.set(key, value);
+        }
+        return url.toString();
+      };
+      const [localControllerUrl, joinUrl] = await Promise.all([
+        buildUrl(topology.appOrigin),
+        topology.publicHost
+          ? buildUrl(topology.publicHost)
+          : Promise.resolve(""),
+      ]);
+      return { localControllerUrl, joinUrl };
     },
     transport: (getSocket) => getHostRealtimeClient(getSocket),
     emitDevEvent: emitAirJamDevRuntimeEvent,

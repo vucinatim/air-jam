@@ -1380,12 +1380,22 @@ describe("session reconnect behavior", () => {
     );
   });
 
-  it("prefers the injected arcade join url in child-host mode", async () => {
+  it("preserves separate injected phone and local controller URLs in child-host mode", async () => {
+    mocked.useAirJamContext.mockReturnValue({
+      ...mocked.useAirJamContext(),
+      config: {
+        ...TEST_CONFIG,
+        topology: resolveRuntimeTopology({
+          ...PROVIDER_CONFIG.topology,
+          publicHost: "https://platform.example",
+        }),
+      },
+    });
     window.history.replaceState(
       {},
       "",
       withArcadeRuntimeTopology(
-        "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+        "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_local_controller_url=http%3A%2F%2Flocalhost%3A3000%2Fcontroller%3Froom%3DROOM1%26cap%3Dlocal&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
         "host",
       ),
     );
@@ -1398,6 +1408,9 @@ describe("session reconnect behavior", () => {
       expect(result.current.joinUrl).toBe(
         "https://platform.example/controller?room=ROOM1",
       );
+      expect(result.current.localControllerUrl).toBe(
+        "http://localhost:3000/controller?room=ROOM1&cap=local",
+      );
     });
 
     unmount();
@@ -1408,7 +1421,7 @@ describe("session reconnect behavior", () => {
       {},
       "",
       withArcadeRuntimeTopology(
-        "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
+        "/game?aj_room=ROOM1&aj_cap=join_123&aj_cap_exp=1700000000000&aj_join_url=https%3A%2F%2Fplatform.example%2Fcontroller%3Froom%3DROOM1&aj_local_controller_url=http%3A%2F%2Flocalhost%3A3000%2Fcontroller%3Froom%3DROOM1%26cap%3Dlocal&aj_arcade_epoch=2&aj_arcade_kind=game&aj_arcade_game_id=pong",
         "host",
       ),
     );

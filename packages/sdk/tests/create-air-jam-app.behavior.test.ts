@@ -83,6 +83,7 @@ describe("createAirJamApp", () => {
       role: "host",
       roomId: "ROOM1",
       joinUrl: "http://127.0.0.1:5173/controller?room=ROOM1",
+      localControllerUrl: "http://127.0.0.1:5173/controller?room=ROOM1",
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [],

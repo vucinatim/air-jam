@@ -71,6 +71,7 @@ export function ReplayRuntime({
   const runtime = replay.runtime;
   const controls: AirJamHostRuntimeControls = {
     roomId: replay.roomId,
+    localControllerUrl: "",
     joinUrl: "",
     joinUrlStatus: "ready",
     pauseRuntime: runtime.pauseRuntime,

@@ -17,7 +17,7 @@ import {
 
 ### `RoomQrCode`
 
-Render a room join QR code from any URL string.
+Render a phone join QR code from `host.joinUrl`. An absent or loopback URL shows a short explanation instead of a QR code.
 
 ```tsx
 import { RoomQrCode } from "@air-jam/sdk/ui";
@@ -25,10 +25,6 @@ import { useAirJamHost } from "@air-jam/sdk";
 
 const LobbyQr = () => {
   const host = useAirJamHost();
-
-  if (host.joinUrlStatus !== "ready") {
-    return null;
-  }
 
   return (
     <RoomQrCode
@@ -41,11 +37,11 @@ const LobbyQr = () => {
 };
 ```
 
-If you are rendering before the join URL has been resolved, prefer gating with `host.joinUrlStatus === "ready"` and show your own loading state until then.
+You can show your own loading state while `host.joinUrlStatus === "loading"`. Pass the unavailable value through to `RoomQrCode` so it can explain why phones cannot join.
 
 Props:
 
-- `value: string` (required)
+- `value: string | null | undefined` (required)
 - `size?: number` default `180`
 - `padding?: number` default `1`
 - `foregroundColor?: string` default `#111111`

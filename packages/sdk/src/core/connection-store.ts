@@ -41,6 +41,8 @@ export interface AirJamConnectionState {
   registeredRoomId: string | null;
   /** Host only: the link phones open to join this room. */
   joinUrl: string;
+  /** Host only: controller link for this computer, never for a phone QR. */
+  localControllerUrl: string;
   joinUrlStatus: JoinUrlStatus;
   /**
    * Host-only reconnect restore seam used during `host:reconnect`.
@@ -70,7 +72,11 @@ export interface AirJamConnectionState {
   resetControllerSessions: () => void;
   resetRuntimeState: () => void;
   setRegisteredRoomId: (roomId: string | null) => void;
-  setJoinUrl: (joinUrl: string, joinUrlStatus: JoinUrlStatus) => void;
+  setJoinUrls: (
+    joinUrl: string,
+    localControllerUrl: string,
+    joinUrlStatus: JoinUrlStatus,
+  ) => void;
 }
 
 /**
@@ -111,6 +117,7 @@ export const createConnectionStore = (): StoreApi<AirJamConnectionState> =>
     lastError: undefined,
     registeredRoomId: null,
     joinUrl: "",
+    localControllerUrl: "",
     joinUrlStatus: "loading",
     hostArcadeRestore: {
       phase: "idle",
@@ -183,5 +190,6 @@ export const createConnectionStore = (): StoreApi<AirJamConnectionState> =>
         roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
       }),
     setRegisteredRoomId: (roomId) => set({ registeredRoomId: roomId }),
-    setJoinUrl: (joinUrl, joinUrlStatus) => set({ joinUrl, joinUrlStatus }),
+    setJoinUrls: (joinUrl, localControllerUrl, joinUrlStatus) =>
+      set({ joinUrl, localControllerUrl, joinUrlStatus }),
   }));
