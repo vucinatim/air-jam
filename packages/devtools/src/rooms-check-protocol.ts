@@ -94,6 +94,8 @@ export const loadResultSchema = z.object({
   pressesSent: z.number(),
   pressesLost: z.number(),
   stateLatencyMs: z.array(z.number()),
+  /** Joined phones whose copy did not end equal to what their host last published. */
+  phonesWithoutState: z.number(),
   traffic: trafficSchema,
   cpuMs: z.number(),
 });

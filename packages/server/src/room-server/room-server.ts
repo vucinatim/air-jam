@@ -27,13 +27,13 @@ import {
 } from "../logging/server-logging.js";
 import { resolveCorsOrigin, type AllowedOrigins } from "../origin-policy.js";
 import { resolveSocketIdentifier } from "../policies/rate-limit-policy.js";
+import { MemoryRoomHost } from "../room-host/memory-room-host.js";
 import type { RoomFact } from "../room/facts.js";
 import {
   createMasterKeyRoomGate,
   createOpenRoomGate,
   type RoomGate,
 } from "../room/gate.js";
-import { MemoryRoomHost } from "../room-host/memory-room-host.js";
 import { RateLimitService } from "../services/rate-limit-service.js";
 
 export interface RoomServerHeartbeat {
@@ -71,6 +71,12 @@ export interface RoomServerRuntime {
 }
 
 const BODY_LIMIT_BYTES = 512 * 1024;
+/**
+ * What may wait to leave for one socket. A device that stops reading while
+ * still answering pings is cut off past it; its seat or host is held, and
+ * the device's return is served from the room's copies.
+ */
+const OUTBOUND_LIMIT_BYTES = 4 * 1024 * 1024;
 /** How long closing sockets get to finish their closing handshake on shutdown. */
 const CLOSE_GRACE_MS = 2_000;
 
@@ -112,6 +118,12 @@ const parseJson = (text: string): unknown => {
     return undefined;
   }
 };
+
+/** The path a request names, or null when its target is not a URL path. */
+const requestPath = (target = "/"): string | null =>
+  URL.canParse(target, "http://server")
+    ? new URL(target, "http://server").pathname
+    : null;
 
 const rejectUpgrade = (socket: Duplex, status: number): void => {
   socket.end(
@@ -210,7 +222,8 @@ export const createRoomServer = (
       );
       return answer(response, 204);
     }
-    const path = new URL(request.url ?? "/", "http://server").pathname;
+    const path = requestPath(request.url);
+    if (path === null) return answer(response, 400, { ok: false });
     if (request.method === "GET" && path === "/health") {
       const described = rooms.describe();
       return answer(response, 200, {
@@ -263,7 +276,9 @@ export const createRoomServer = (
     lastHeard.set(socket, Date.now());
     const handlers = rooms.accept(address, origin, {
       send: (data) => {
-        if (socket.readyState === socket.OPEN) socket.send(data);
+        if (socket.readyState !== socket.OPEN) return;
+        if (socket.bufferedAmount > OUTBOUND_LIMIT_BYTES) socket.terminate();
+        else socket.send(data);
       },
       close: (code) =>
         socket.close(code, roomCloseReasonForCode(code) ?? undefined),
@@ -283,7 +298,8 @@ export const createRoomServer = (
   };
 
   httpServer.on("upgrade", (request: IncomingMessage, socket: Duplex, head) => {
-    const path = new URL(request.url ?? "/", "http://server").pathname;
+    const path = requestPath(request.url);
+    if (path === null) return rejectUpgrade(socket, 400);
     const address = parseRoomPath(path);
     if (!address) return rejectUpgrade(socket, 404);
     const origin = request.headers.origin ?? null;

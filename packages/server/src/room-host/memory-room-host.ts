@@ -41,6 +41,8 @@ export interface MemoryRoomHostOptions {
 
 /** Frames a device may send before its room exists, while the gate decides. */
 const ADMISSION_BUFFER_FRAMES = 16;
+/** How long a connection may stay open without saying hello. */
+export const HELLO_DEADLINE_MS = 15_000;
 
 type Stage = "hello" | "admitting" | "bound" | "closed";
 
@@ -53,6 +55,7 @@ interface Accepted {
   room: HostedRoom | null;
   readonly buffered: RoomWireData[];
   cancelGateRetry: (() => void) | null;
+  cancelHelloDeadline: (() => void) | null;
 }
 
 interface HostedRoom {
@@ -105,10 +108,20 @@ export class MemoryRoomHost implements RoomAcceptor {
       room: null,
       buffered: [],
       cancelGateRetry: null,
+      cancelHelloDeadline: null,
     };
     this.nextConnection += 1;
     this.connections.set(accepted.id, accepted);
     if (this.stopped) this.closeConnection(accepted, "restarting");
+    else
+      accepted.cancelHelloDeadline = this.clock.at(
+        this.clock.now() + HELLO_DEADLINE_MS,
+        () => {
+          accepted.cancelHelloDeadline = null;
+          if (accepted.stage === "hello")
+            this.closeConnection(accepted, "try-later");
+        },
+      );
     return {
       receive: (data) => this.receive(accepted, data),
       closed: () => this.closed(accepted),
@@ -154,6 +167,8 @@ export class MemoryRoomHost implements RoomAcceptor {
   }
 
   private hello(accepted: Accepted, hello: string): void {
+    accepted.cancelHelloDeadline?.();
+    accepted.cancelHelloDeadline = null;
     const { address } = accepted;
     const existing =
       address.code === null ? undefined : this.rooms.get(address.code);
@@ -338,6 +353,8 @@ export class MemoryRoomHost implements RoomAcceptor {
     accepted.stage = "closed";
     accepted.cancelGateRetry?.();
     accepted.cancelGateRetry = null;
+    accepted.cancelHelloDeadline?.();
+    accepted.cancelHelloDeadline = null;
     this.connections.delete(accepted.id);
     this.pendingInput.delete(accepted.id);
   }

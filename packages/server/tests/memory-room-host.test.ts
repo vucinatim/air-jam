@@ -4,8 +4,11 @@ import {
   type RoomWireData,
 } from "@air-jam/sdk/room-protocol";
 import { describe, expect, it } from "vitest";
+import {
+  HELLO_DEADLINE_MS,
+  MemoryRoomHost,
+} from "../src/room-host/memory-room-host.js";
 import { createOpenRoomGate, type RoomGate } from "../src/room/gate.js";
-import { MemoryRoomHost } from "../src/room-host/memory-room-host.js";
 import { ManualClock, settle } from "./helpers/room-session-harness.js";
 
 const hostHello = JSON.stringify({
@@ -111,6 +114,13 @@ describe("memory room host", () => {
     await clock.advance(1);
     expect(phone.closeCodes).toEqual([4003]);
     expect(rooms.describe()).toEqual([]);
+  });
+
+  it("closes a connection that never says hello", async () => {
+    const { clock, rooms, host } = await withRoom();
+    const silent = connectTo(rooms, { role: "phone", code: "GAME" });
+    await clock.advance(HELLO_DEADLINE_MS);
+    expect([silent.closeCodes, host.closeCodes]).toEqual([[4101], []]);
   });
 
   it("stops every room as restarting and admits nothing after", async () => {

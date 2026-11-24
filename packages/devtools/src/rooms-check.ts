@@ -246,6 +246,33 @@ const measureState = (host: Device, phones: readonly Phone[], from: number) => {
   );
 };
 
+/**
+ * Fails unless every phone saw the match facts of the last tick the host
+ * published before `to`, as each player's screen must.
+ */
+const requireState = (
+  host: Device,
+  phones: readonly Phone[],
+  from: number,
+  to: number,
+) => {
+  const settled = host
+    .since("published", from)
+    .filter((event) => event.at <= to)
+    .at(-1);
+  if (!settled) throw new ScenarioFailure("The host published no state.");
+  const behind = phones.filter(
+    (phone) =>
+      !phone.device
+        .since("state", from)
+        .some((event) => event.tick >= settled.tick),
+  ).length;
+  if (behind > 0)
+    throw new ScenarioFailure(
+      `${behind} of ${phones.length} phones never saw the host's state.`,
+    );
+};
+
 const firstInputAfter = (host: Device, seat: string | null, after: number) =>
   host.until(
     (event) =>
@@ -290,6 +317,7 @@ const scenarios: Record<RoomsCheckScenario, Scenario> = {
       throw new ScenarioFailure(
         `${input.lost} of ${input.pressed} presses never reached the host.`,
       );
+    requireState(room.host, room.phones, from, to);
     return {
       roomOpenMs: room.openMs,
       phoneJoinMs: room.joinMs[0],
@@ -577,6 +605,7 @@ const scenarios: Record<RoomsCheckScenario, Scenario> = {
       throw new ScenarioFailure(
         `${input.lost} of ${input.pressed} presses never reached the host.`,
       );
+    requireState(room.host, room.phones, from, to);
     return {
       phoneJoinMs: summarizeLatency(room.joinMs),
       input: input.latency,
@@ -653,13 +682,15 @@ const summarizeLoad = (
   const roomsOpened = total("roomsOpened");
   const phonesJoined = total("phonesJoined");
   const pressesLost = total("pressesLost");
+  const phonesWithoutState = total("phonesWithoutState");
   if (
     roomsOpened < rooms ||
     phonesJoined < rooms * phonesPerRoom ||
-    pressesLost > 0
+    pressesLost > 0 ||
+    phonesWithoutState > 0
   )
     throw new ScenarioFailure(
-      `${roomsOpened} of ${rooms} rooms opened, ${phonesJoined} of ${rooms * phonesPerRoom} phones joined, ${pressesLost} presses lost.`,
+      `${roomsOpened} of ${rooms} rooms opened, ${phonesJoined} of ${rooms * phonesPerRoom} phones joined, ${pressesLost} presses lost, ${phonesWithoutState} phones without the host's state.`,
     );
   return {
     rooms: roomsOpened,

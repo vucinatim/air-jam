@@ -448,11 +448,16 @@ describe("room core", () => {
       ).toEqual({ stale: "not-found" });
     });
 
-    it("hands the host role to a newer connection with the key", () => {
-      const room = ready(0);
-      expect(
-        closes(room.connect("host2", "host", hostHello({ instance: "r1" }), 0)),
-      ).toEqual({ host: "replaced" });
+    it("hands the host role to a newer connection with the key, and phones send their controls to it", () => {
+      const room = ready(1);
+      const effects = room.connect(
+        "host2",
+        "host",
+        hostHello({ instance: "r1" }),
+        0,
+      );
+      expect(closes(effects)).toEqual({ host: "replaced" });
+      expect(sent(effects, "c1")).toEqual([{ type: "host", present: true }]);
       expect(room.describe().host).toEqual({
         connected: true,
         awayUntil: null,
@@ -706,6 +711,39 @@ describe("room core", () => {
       expect(closes(effects)).toEqual({ host: "limits-broken" });
     });
 
+    it("ends a host that patches more channels than the limit", () => {
+      const room = ready(0, { channels: 1 });
+      const patchFor = (channel: string) =>
+        frame({ type: "state", channel, revision: 2, base: 1, set: [] });
+      expect(sent(room.receive("host", patchFor("a"), 0), "host")).toEqual([
+        { type: "need", channel: "a" },
+      ]);
+      expect(closes(room.receive("host", patchFor("b"), 0))).toEqual({
+        host: "limits-broken",
+      });
+    });
+
+    it("asks again for a document while its copy is behind, until one lands", () => {
+      const room = ready(0, { statesPerSecond: 1 });
+      const needs = (effects: RoomEffect[]) => sent(effects, "host");
+      room.receive("host", document(1, { round: 1 }), 0);
+      // The host's last patch is dropped over the rate, and it sends no more.
+      expect(room.receive("host", patch(2, 1, [[["round"], 2]]), 10)).toEqual(
+        [],
+      );
+      expect(room.nextWake()).toBe(SECOND);
+      expect(needs(room.wake(SECOND))).toEqual([
+        { type: "need", channel: "game" },
+      ]);
+      // The answer never arrives, so the room asks again.
+      expect(room.nextWake()).toBe(2 * SECOND);
+      expect(needs(room.wake(2 * SECOND))).toEqual([
+        { type: "need", channel: "game" },
+      ]);
+      room.receive("host", document(2, { round: 2 }), 2 * SECOND);
+      expect(room.nextWake()).toBe(DEFAULT_ROOM_LIMITS.maximumAgeMs);
+    });
+
     it("discards a dropped channel for phones and later joiners", () => {
       const room = ready(1);
       room.receive("host", document(1, {}), 0);
@@ -751,6 +789,32 @@ describe("room core", () => {
         { type: "response", id: 7, result: { ok: true } },
       ]);
       expect(sent(answer, "c1")).toEqual([]);
+    });
+
+    it("gives an answer only to the connection that asked, once", () => {
+      const room = ready(1);
+      const ask = (connection: string) =>
+        room.receive(
+          connection,
+          frame({ type: "request", id: 1, channel: "game", name: "ready" }),
+          0,
+        );
+      const answer = () =>
+        sent(
+          room.receive(
+            "host",
+            frame({ type: "response", seat: "p1", id: 1, result: "ok" }),
+            0,
+          ),
+          "c1b",
+        );
+      ask("c1");
+      // The page reloads; its request ids start again at 1.
+      room.connect("c1b", "phone", phoneHello(key(1), { instance: "r1" }), 0);
+      expect(answer()).toEqual([]);
+      ask("c1b");
+      expect(answer()).toEqual([{ type: "response", id: 1, result: "ok" }]);
+      expect(answer()).toEqual([]);
     });
 
     it("answers for the host while it is away", () => {
@@ -873,6 +937,26 @@ describe("room core", () => {
       expect(closedAt).toBeLessThan(2 * SECOND);
     });
 
+    it("ends a connection that keeps sending frames the room ignores", () => {
+      const room = ready(1);
+      let closedAt: number | null = null;
+      for (let tick = 0; closedAt === null && tick < 10 * SECOND; tick += 1)
+        if (
+          closes(room.receive("c1", frame({ type: "wave" }), tick)).c1 ===
+          "limits-broken"
+        )
+          closedAt = tick;
+      expect(closedAt).toBeLessThan(2 * SECOND);
+    });
+
+    it("ends a connection whose frame nests deeper than the protocol allows", () => {
+      const room = ready(0);
+      const deep = `{"type":"state","channel":"game","revision":1,"document":${'{"a":'.repeat(8_000)}1${"}".repeat(8_001)}`;
+      expect(closes(room.receive("host", deep, 0))).toEqual({
+        host: "limits-broken",
+      });
+    });
+
     it("ends a connection whose frame is larger than its lane allows", () => {
       const room = ready(1, { frameBytes: 100 });
       const big = frame({
@@ -940,6 +1024,18 @@ describe("room core", () => {
       });
     });
 
+    it("closes for whichever deadline passed first when its wake comes late", () => {
+      const room = ready(0, { maximumAgeMs: 10 * SECOND, hostGraceMs: SECOND });
+      room.disconnect("host", 0);
+      expect(facts(room.wake(20 * SECOND))).toEqual([
+        expect.objectContaining({
+          kind: "closed",
+          cause: "host-gone",
+          at: SECOND,
+        }),
+      ]);
+    });
+
     it("closes at its maximum age even with everyone connected", () => {
       const room = ready(1, { maximumAgeMs: 10 * SECOND });
       expect(room.nextWake()).toBe(10 * SECOND);
@@ -974,7 +1070,11 @@ describe("room core", () => {
         0,
       );
       expect(facts(effects)).toEqual([
-        expect.objectContaining({ kind: "activity", activity: "air-capture" }),
+        expect.objectContaining({
+          kind: "activity",
+          activity: "air-capture",
+          previous: null,
+        }),
       ]);
       expect(
         launcher.receive(
@@ -1069,6 +1169,14 @@ describe("room core", () => {
         10 * SECOND,
       );
       if (!restored) throw new Error("The room should come back.");
+      // Input held over the rate was not saved, so live phones resend theirs.
+      expect(sent(effects, "c1")).toEqual([
+        {
+          type: "seat",
+          seat: expect.objectContaining({ id: "p2", connected: false }),
+        },
+        { type: "host", present: true },
+      ]);
       expect(sent(effects, "host")).toEqual([
         {
           type: "seat",

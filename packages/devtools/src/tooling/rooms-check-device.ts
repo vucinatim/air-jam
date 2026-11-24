@@ -4,14 +4,17 @@
  * worker running whole rooms, so latency is measured on one clock.
  */
 import type { AirJamInput, AirJamInputState } from "@air-jam/sdk/core";
-import { type RoomConnector } from "@air-jam/sdk/room-protocol";
+import {
+  type RoomConnector,
+  type StateDocument,
+} from "@air-jam/sdk/room-protocol";
 import {
   HostRoomSession,
   PhoneRoomSession,
   type RoomSessionStatus,
 } from "@air-jam/sdk/room-session";
 import { exec } from "node:child_process";
-import { promisify } from "node:util";
+import { isDeepStrictEqual, promisify } from "node:util";
 import { CheckNetwork, createCheckConnector } from "../rooms-check-link.js";
 import {
   deviceCommandSchema,
@@ -120,19 +123,29 @@ const createThumb = (
 /** Publishes the match facts with a ticking counter and the time it was published. */
 const createTicker = (
   host: HostRoomSession,
-  onTick: (tick: number) => void,
+  onPublish: (document: MatchDocument) => void,
 ) => {
   let tick = 0;
   return () => {
     tick += 1;
-    onTick(tick);
-    host.publish("game", {
-      tick,
-      publishedAt: sharedNow(),
-      players: MATCH_FACTS,
-    });
+    const document = { tick, publishedAt: sharedNow(), players: MATCH_FACTS };
+    onPublish(document);
+    host.publish("game", document);
   };
 };
+
+interface MatchDocument extends StateDocument {
+  readonly tick: number;
+  readonly publishedAt: number;
+  readonly players: typeof MATCH_FACTS;
+}
+
+/** Whether a phone's copy carries the match facts the host publishes with every tick. */
+const carriesMatchFacts = (
+  document: StateDocument,
+): document is MatchDocument =>
+  typeof document.tick === "number" &&
+  isDeepStrictEqual(document.players, MATCH_FACTS);
 
 const every = (perSecond: number, work: () => void) => {
   if (perSecond <= 0) return () => {};
@@ -191,7 +204,7 @@ const runHost = async (command: Extract<DeviceCommand, { type: "host" }>) => {
     if (status.phase === "open")
       stopTicking = every(
         command.statesPerSecond,
-        createTicker(host, (tick) =>
+        createTicker(host, ({ tick }) =>
           report({ type: "published", at: sharedNow(), tick }),
         ),
       );
@@ -222,7 +235,7 @@ const runPhone = (command: Extract<DeviceCommand, { type: "phone" }>) => {
     report({ type: "host", at: sharedNow(), present }),
   );
   phone.on("state", ({ document }) => {
-    if (typeof document.tick === "number")
+    if (carriesMatchFacts(document))
       report({ type: "state", at: sharedNow(), tick: document.tick });
   });
   const step = createThumb(phone, (count) =>
@@ -296,8 +309,14 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
     pressesSent: 0,
     pressesLost: 0,
     stateLatencyMs: [],
+    phonesWithoutState: 0,
   };
   const stops: Array<() => void> = [];
+  /** Each room's phones and the last document its host published, compared once the rooms go quiet. */
+  const replicas: Array<{
+    phones: PhoneRoomSession[];
+    published: MatchDocument | null;
+  }> = [];
   const sessions: Array<{ close(): void }> = [];
   const pending: Array<Map<number, number>> = [];
   let measuring = false;
@@ -346,6 +365,8 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
     if (roomOpenMs === null || code === undefined) return;
     result.roomsOpened += 1;
     result.roomOpenMs.push(roomOpenMs);
+    const replica: (typeof replicas)[number] = { phones: [], published: null };
+    replicas.push(replica);
     const sentBySeat = new Map<string, Map<number, number>>();
     const seen = new Map<string, number>();
     host.on("input", ({ seat, state }) => {
@@ -380,6 +401,7 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
         const seat = phone.seat;
         if (phoneJoinMs === null || seat === null) return;
         result.phonesJoined += 1;
+        replica.phones.push(phone);
         result.phoneJoinMs.push(phoneJoinMs);
         const sent = new Map<number, number>();
         sentBySeat.set(seat, sent);
@@ -396,7 +418,9 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
     stops.push(
       every(
         command.statesPerSecond,
-        createTicker(host, () => {}),
+        createTicker(host, (document) => {
+          replica.published = document;
+        }),
       ),
     );
   };
@@ -418,6 +442,12 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
   for (const stop of stops) stop();
   await wait(1_000);
   result.pressesLost = pending.reduce((lost, sent) => lost + sent.size, 0);
+  for (const { phones, published } of replicas)
+    for (const phone of phones) {
+      const copy = phone.channel("game");
+      if (!copy || !carriesMatchFacts(copy) || copy.tick !== published?.tick)
+        result.phonesWithoutState += 1;
+    }
   for (const session of sessions) session.close();
   const cpu = process.cpuUsage(cpuAtStart);
   report({

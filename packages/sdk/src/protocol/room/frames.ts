@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAXIMUM_ROOM_SEATS, roomLimitsSchema } from "./limits";
+import { MAXIMUM_ROOM_SEATS, roomLimitsWireSchema } from "./limits";
 import { isPlainObject, type StateDocument } from "./patch";
 import { seatIdSchema } from "./seat-id";
 
@@ -12,6 +12,8 @@ import { seatIdSchema } from "./seat-id";
 export const ROOM_PROTOCOL_VERSION = 1;
 export const PING_FRAME = "ping";
 export const PONG_FRAME = "pong";
+/** How deeply a frame's JSON may nest; nothing walks a deeper frame. */
+export const MAXIMUM_FRAME_DEPTH = 32;
 
 const keySchema = z.string().min(16).max(128);
 const instanceSchema = z.string().min(1).max(64);
@@ -186,7 +188,7 @@ const welcomeFields = {
   instance: instanceSchema,
   seats: z.array(seatViewSchema),
   channels: z.array(channelCopySchema),
-  limits: roomLimitsSchema,
+  limits: roomLimitsWireSchema,
   features: featuresSchema,
 };
 
@@ -261,14 +263,28 @@ export type ParsedFrame<Frame> =
   | { readonly status: "frame"; readonly frame: Frame }
   /** A newer peer's frame type; ignored, not an error. */
   | { readonly status: "unknown" }
-  | { readonly status: "invalid" };
+  | { readonly status: "invalid" }
+  /** Nested past `MAXIMUM_FRAME_DEPTH`; a limit broken, not a mistake. */
+  | { readonly status: "too-deep" };
+
+const nestsWithin = (value: unknown, depth: number): boolean => {
+  if (typeof value !== "object" || value === null) return true;
+  if (depth === 0) return false;
+  for (const child of Object.values(value))
+    if (!nestsWithin(child, depth - 1)) return false;
+  return true;
+};
+
+const TOO_DEEP = Symbol("too deep");
 
 const parseJson = (text: string): unknown => {
+  let value: unknown;
   try {
-    return JSON.parse(text);
+    value = JSON.parse(text);
   } catch {
     return undefined;
   }
+  return nestsWithin(value, MAXIMUM_FRAME_DEPTH) ? value : TOO_DEEP;
 };
 
 const readType = (value: unknown): string | null =>
@@ -278,6 +294,7 @@ const createFrameParser =
   <Schemas extends Record<string, z.ZodType>>(schemas: Schemas) =>
   (text: string): ParsedFrame<FramesOf<Schemas>> => {
     const value = parseJson(text);
+    if (value === TOO_DEEP) return { status: "too-deep" };
     const type = readType(value);
     if (type === null) return { status: "invalid" };
     if (!Object.hasOwn(schemas, type)) return { status: "unknown" };

@@ -27,8 +27,8 @@ const LANES: readonly FrameLane[] = ["input", "state", "frame"];
  *
  * Each lane admits its rate in fixed one-second windows; a frame past it is
  * over-rate and dropped without blame, because a network stall delivers a
- * phone's buffered frames in one burst. Every arrival, admitted or not, also
- * spends the lane's flood allowance, which earns twice the lane's rate each
+ * phone's buffered frames in one burst. Every arrival, admitted, dropped or
+ * ignored, also spends the lane's flood allowance, which earns twice the lane's rate each
  * second the connection lives: a stall's backlog was earned while the
  * connection was silent, so only a connection that keeps sending well over
  * its rate runs the allowance out and floods.
@@ -65,10 +65,15 @@ export class ConnectionBudget {
   }
 
   admit(lane: FrameLane, now: number): Admission {
+    if (!this.spend(lane, now)) return "flooded";
+    return this.fits(lane, now) ? "admitted" : "over-rate";
+  }
+
+  /** Spends one arrival from the lane's flood allowance, as a frame the room ignores does; false once it runs out. */
+  spend(lane: FrameLane, now: number): boolean {
     this.earn(now);
     this.allowance[lane] -= 1;
-    if (this.allowance[lane] < 0) return "flooded";
-    return this.fits(lane, now) ? "admitted" : "over-rate";
+    return this.allowance[lane] >= 0;
   }
 
   /** Takes a frame that arrived earlier into the rate window, without spending allowance again. */

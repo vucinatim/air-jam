@@ -73,65 +73,63 @@ export const isEmptyStatePatch = (patch: StatePatch): boolean =>
 
 // Assigning a key named "__proto__" would change the prototype instead of
 // adding an entry, so entries are defined rather than assigned.
-const withEntry = (
-  object: StateDocument,
-  key: string,
-  value: unknown,
-): StateDocument => {
-  const copy = { ...object };
-  Object.defineProperty(copy, key, {
+const defineEntry = (object: StateDocument, key: string, value: unknown) =>
+  Object.defineProperty(object, key, {
     value,
     writable: true,
     enumerable: true,
     configurable: true,
   });
-  return copy;
-};
-
-const withoutEntry = (object: StateDocument, key: string): StateDocument => {
-  const copy = { ...object };
-  delete copy[key];
-  return copy;
-};
-
-const update = (
-  document: StateDocument,
-  path: StatePath,
-  change: (parent: StateDocument, key: string) => StateDocument | null,
-): StateDocument | null => {
-  const [key, ...rest] = path;
-  if (key === undefined) return null;
-  if (rest.length === 0) return change(document, key);
-  const child = ownValue(document, key);
-  if (!isPlainObject(child)) return null;
-  const updated = update(child, rest, change);
-  return updated && withEntry(document, key, updated);
-};
 
 /**
- * Applies removals, then assignments, without touching `document`. Returns
- * null when the patch does not fit: a path runs through something that is not
- * a plain object, or removes a key that is not there. A receiver that gets
- * null has diverged and needs the full document.
+ * Applies removals, then assignments, without touching `document`. Each
+ * object on a changed path is copied once however many operations reach it,
+ * so a frame costs what it changes rather than what it changes times the
+ * size of the objects it changes. `replaced` hears each operation's key and
+ * the values before and after it, `undefined` meaning absent. Returns null
+ * when the patch does not fit: a path runs through something that is not a
+ * plain object, or removes a key that is not there. A receiver that gets null
+ * has diverged and needs the full document.
  */
 export const applyStatePatch = (
   document: StateDocument,
   patch: StatePatch,
+  replaced?: (key: string, previous: unknown, next: unknown) => void,
 ): StateDocument | null => {
-  let current = document;
+  if (isEmptyStatePatch(patch)) return document;
+  const copies = new Set<StateDocument>();
+  const writable = (object: StateDocument): StateDocument => {
+    if (copies.has(object)) return object;
+    const copy = { ...object };
+    copies.add(copy);
+    return copy;
+  };
+  const root = writable(document);
+  const parentOf = (path: StatePath): StateDocument | null => {
+    let parent = root;
+    for (const key of path.slice(0, -1)) {
+      const child = ownValue(parent, key);
+      if (!isPlainObject(child)) return null;
+      const copy = writable(child);
+      if (copy !== child) defineEntry(parent, key, copy);
+      parent = copy;
+    }
+    return parent;
+  };
   for (const path of patch.unset) {
-    const next = update(current, path, (parent, key) =>
-      Object.hasOwn(parent, key) ? withoutEntry(parent, key) : null,
-    );
-    if (!next) return null;
-    current = next;
+    const key = path.at(-1);
+    const parent = parentOf(path);
+    if (key === undefined || !parent || !Object.hasOwn(parent, key))
+      return null;
+    replaced?.(key, ownValue(parent, key), undefined);
+    delete parent[key];
   }
   for (const [path, value] of patch.set) {
-    const next = update(current, path, (parent, key) =>
-      withEntry(parent, key, value),
-    );
-    if (!next) return null;
-    current = next;
+    const key = path.at(-1);
+    const parent = parentOf(path);
+    if (key === undefined || !parent) return null;
+    replaced?.(key, ownValue(parent, key), value);
+    defineEntry(parent, key, value);
   }
-  return current;
+  return root;
 };

@@ -208,7 +208,7 @@ export class HostRoomSession {
     }
     const parsed = parseRoomToHostFrame(data);
     if (parsed.status === "unknown") return;
-    if (parsed.status === "invalid") return this.link.fail();
+    if (parsed.status !== "frame") return this.link.fail();
     this.handle(parsed.frame);
   }
 
@@ -245,7 +245,10 @@ export class HostRoomSession {
     this.currentLimits = frame.limits;
     this.copies = frame.channels;
     this.roster.reset(frame.seats);
-    this.publisher.rebase(frame.channels);
+    // A channel dropped while the link was down is dropped again below, not taken back.
+    this.publisher.rebase(
+      frame.channels.filter((copy) => !this.droppedChannels.has(copy.channel)),
+    );
     this.link.markOpen();
     if (this.locked !== null && this.locked !== frame.locked)
       this.send({ type: "room", locked: this.locked });
