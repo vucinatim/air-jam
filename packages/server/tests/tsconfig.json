@@ -11,8 +11,6 @@
   },
   "include": [
     "./**/*.ts",
-    "../src/**/*.ts",
-    "../scripts/launch-load/**/*.ts",
-    "../scripts/perf-sanity.ts"
+    "../src/**/*.ts"
   ]
 }

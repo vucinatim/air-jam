@@ -36,7 +36,7 @@
     "check:release:publish": "pnpm typecheck && pnpm test:repo-contracts && pnpm --silent run repo -- check tests --tier slow --project repo && pnpm smoke:server",
     "lint": "eslint .",
     "guard:canonical": "node scripts/repo/cli.mjs standards canonical",
-    "smoke:server": "pnpm --filter @air-jam/server test -- --run tests/game-lifecycle.integration.test.ts tests/routing-security.integration.test.ts",
+    "smoke:server": "pnpm --filter @air-jam/server test tests/room-server.integration.test.ts tests/room-session.test.ts tests/sdk-runtimes.test.ts",
     "playwright:install": "playwright install --with-deps chromium",
     "smoke:release": "pnpm smoke:server && pnpm test:scaffold",
     "test": "node scripts/ensure-workspace-package-build.mjs @air-jam/sdk && pnpm --silent run repo -- check tests --tier fast",
