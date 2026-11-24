@@ -82,6 +82,10 @@
       "types": "./dist/release.d.ts",
       "import": "./dist/release.js"
     },
+    "./rooms-check": {
+      "types": "./dist/rooms-check.d.ts",
+      "import": "./dist/rooms-check.js"
+    },
     "./visual": {
       "types": "./dist/visual.d.ts",
       "import": "./dist/visual.js"

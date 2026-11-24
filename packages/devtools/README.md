@@ -24,6 +24,7 @@ module that owns their operation. There is no catch-all root import.
 | `platform-games`      | Manage optional hosted game metadata                              |
 | `platform-game-media` | Manage optional hosted game media                                 |
 | `release`             | Prepare and operate optional hosted releases                      |
+| `rooms-check`         | Run the room acceptance scenarios against any rooms origin        |
 
 Functions and their public option/result types share an entry point:
 
