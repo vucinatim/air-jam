@@ -86,7 +86,6 @@ describe("createAirJamApp", () => {
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [],
-      controllers: [],
       mode: "standalone",
       runtimeState: "playing",
     });

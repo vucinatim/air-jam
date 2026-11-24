@@ -1,11 +1,8 @@
 import { z } from "zod";
 import { agentActionDescriptorSchema } from "../../agent/agent-evaluator";
-import {
-  connectionStatusSchema,
-  roomCodeSchema,
-  runtimeStateSchema,
-} from "../../protocol/core";
+import { connectionStatusSchema } from "../../protocol/core";
 import { participantInputSchemaDescriptionSchema } from "../../protocol/leased-control";
+import { roomCodeSchema, runtimeStateSchema } from "../../room-protocol";
 import { isRpcSerializable } from "../../utils/is-rpc-serializable";
 import type { NativeClipRecording } from "./clip";
 import { hostObservationIdentitySchema } from "./runtime-identity";

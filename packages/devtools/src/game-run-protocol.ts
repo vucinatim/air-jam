@@ -1,5 +1,6 @@
 import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
 import { controllerLeasedControlAckSchema } from "@air-jam/sdk/protocol";
+import { seatIdSchema } from "@air-jam/sdk/room-protocol";
 import {
   clipNotCapturedReasonSchema,
   hostAgentRequestSchema,
@@ -49,15 +50,11 @@ export const currentRoomAttachmentSchema = z
       (value) => Boolean(new URL(value).searchParams.get("room")),
       "A controller attachment requires a room.",
     ),
-    /** One controller identity per seat, issued by the room's editor. */
-    controllerIds: z
-      .array(z.string().min(3).max(64))
-      .min(1)
-      .max(MAXIMUM_CURRENT_ROOM_SEATS)
-      .refine(
-        (ids) => new Set(ids).size === ids.length,
-        "Seat controller identities must be distinct.",
-      ),
+    /**
+     * How many seats the run may claim in the creator's room. The room
+     * assigns seat ids, so each player joins first and then claims its seat.
+     */
+    seats: z.number().int().min(1).max(MAXIMUM_CURRENT_ROOM_SEATS),
     host: z
       .object({
         endpoint: attachmentUrlSchema,
@@ -75,6 +72,24 @@ export const currentRoomHostRequestSchema = z
     request: hostAgentRequestSchema,
   })
   .strict();
+
+/**
+ * A run's claim on a seat one of its players holds in the creator's room,
+ * made through the editor that granted the room. A claim names the room
+ * instance, since seat ids are unique only within one.
+ */
+export const currentRoomSeatClaimSchema = z
+  .object({
+    targetId: currentRoomAttachmentSchema.shape.host.shape.targetId,
+    ownerInstanceId: z.uuid(),
+    claim: z
+      .object({ instance: z.string().min(1).max(64), seat: seatIdSchema })
+      .strict(),
+  })
+  .strict();
+export type CurrentRoomSeatClaim = z.infer<
+  typeof currentRoomSeatClaimSchema
+>["claim"];
 
 /** What a seat is trying to do, in words its decision model reads. */
 export const seatIntentSchema = z.string().trim().min(1).max(500);

@@ -24,7 +24,7 @@ import {
   type SeatView,
 } from "../room-protocol";
 import { ChannelMirror } from "./channel-state";
-import type { HostRoomSession } from "./host-room-session";
+import type { HostRoom } from "./host-room-session";
 import type { PhoneRoomSession } from "./phone-room-session";
 import type { RoomSessionStatus } from "./session-link";
 
@@ -199,7 +199,7 @@ const rosterOf = (seats: readonly SeatView[]) =>
  * to the room with its own revisions, pacing and answers to `need`.
  */
 export const createScopedHostConnector = (
-  parent: HostRoomSession,
+  parent: HostRoom,
   scope: ChannelScope,
 ): ScopedConnector & {
   /** Closes the frame's links and drops every channel in its scope, as when its game ends. */
@@ -280,6 +280,12 @@ export const createScopedHostConnector = (
         for (const frame of rosterChanges(told, seats))
           link.send(encodeFrame(frame));
       }
+    }),
+    // A seat's new page restarts its controls: the frame decodes them afresh too.
+    parent.on("inputBaseline", (seat) => {
+      latestInput.delete(seat);
+      const view = parent.seats.find((candidate) => candidate.id === seat);
+      if (view) forward({ type: "seat", seat: view, inputBaseline: true });
     }),
     parent.on("inputFrame", (frame) => {
       let records;
@@ -406,9 +412,17 @@ export const createScopedHostConnector = (
 export const createScopedPhoneConnector = (
   parent: PhoneRoomSession,
   scope: ChannelScope,
+  options: {
+    /** Hears each profile change the frame makes for the page's seat, as a page that keeps its player's name does. */
+    readonly onProfile?: (profile: {
+      label?: string;
+      avatarId?: string;
+    }) => void;
+  } = {},
 ): ScopedConnector => {
   const hellos = new WeakSet<FrameLink>();
   const revisions = new WeakMap<FrameLink, Map<string, number>>();
+  const restarted = new WeakSet<FrameLink>();
   const toldSeats = new WeakMap<FrameLink, Map<SeatId, SeatView>>();
 
   const welcome = (link: FrameLink) => {
@@ -424,6 +438,11 @@ export const createScopedPhoneConnector = (
     );
     toldSeats.set(link, rosterOf(parent.seats));
     links.replaceOthers(link);
+    // A new controller frame counts its presses from zero; a re-welcome does not.
+    if (!restarted.has(link)) {
+      restarted.add(link);
+      parent.restartInput();
+    }
     link.welcomed = true;
     link.send(
       encodeFrame({
@@ -515,11 +534,15 @@ export const createScopedPhoneConnector = (
           });
         return;
       }
-      case "profile":
-        return parent.setProfile({
+      case "profile": {
+        const profile = {
           ...(frame.label === undefined ? {} : { label: frame.label }),
           ...(frame.avatarId === undefined ? {} : { avatarId: frame.avatarId }),
-        });
+        };
+        parent.setProfile(profile);
+        options.onProfile?.(profile);
+        return;
+      }
       case "leave":
         return parent.leave();
     }

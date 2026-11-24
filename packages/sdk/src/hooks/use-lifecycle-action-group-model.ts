@@ -1,5 +1,5 @@
 import type { ShellMatchPhase } from "../lifecycle";
-import type { RuntimeState } from "../protocol";
+import { type RuntimeState } from "../room-protocol";
 
 export type LifecycleVisualPhase = ShellMatchPhase;
 

@@ -17,6 +17,7 @@ import { ChannelMirror } from "./channel-state";
 import { spacingForRate } from "./clock";
 import { PhoneInputLane } from "./input-lane";
 import { Listeners } from "./listeners";
+import { createRoomKey } from "./room-key";
 import { Roster } from "./roster";
 import {
   SESSION_SDK,
@@ -196,6 +197,14 @@ export class PhoneRoomSession {
     this.link.send(encodeFrame({ type: "profile", ...profile }));
   }
 
+  /**
+   * Tells the host this seat's controls start again from zero, as when a
+   * page serves a newly loaded controller frame its seat.
+   */
+  restartInput(): void {
+    this.link.send(encodeFrame({ type: "baseline" }));
+  }
+
   /** Gives the seat up for good. */
   leave(): void {
     if (!this.link.send(encodeFrame({ type: "leave" }))) this.close();
@@ -205,12 +214,16 @@ export class PhoneRoomSession {
     this.link.close();
   }
 
+  /** This page's id, the same in every hello it sends; see `PhoneHello.page`. */
+  private readonly page = createRoomKey();
+
   private hello(): string {
     const hello: PhoneHello = {
       type: "hello",
       key: this.options.key,
       sdk: SESSION_SDK,
       kind: this.options.kind ?? "phone",
+      page: this.page,
       ...(this.currentInstance === undefined
         ? {}
         : { instance: this.currentInstance }),

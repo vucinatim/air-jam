@@ -1,11 +1,10 @@
-import { parseControllerBridgeEmitMessage } from "@air-jam/sdk/controller-bridge";
-import { controllerStateSyncRequestSchema } from "@air-jam/sdk/protocol";
 import type { RuntimeInspectionContract } from "@air-jam/sdk/runtime-inspection";
 import type { Browser } from "playwright-core";
 import type { z } from "zod";
-import type {
-  AirJamRuntimeOwnerCaptureRequest,
-  runtimeOwnerCaptureEventSchema,
+import {
+  AIR_JAM_RUNTIME_OWNER_CAPTURE_FRAME,
+  type runtimeOwnerCapturePortSchema,
+  type runtimeOwnerObservedControllerSchema,
 } from "../../runtime-owner-protocol.js";
 import { openControllerObservation } from "./controller-observation.js";
 
@@ -17,12 +16,15 @@ type Entry = {
   observation?: ControllerObservation;
   queued: number;
   abort: AbortController;
-  pending: z.infer<typeof runtimeOwnerCaptureEventSchema>[];
+  pending: z.infer<typeof runtimeOwnerCapturePortSchema>[];
   delivery: Promise<void>;
   error?: unknown;
   closing?: Promise<void>;
   onError: (error: Error) => void;
 };
+
+/** How many room messages may wait for the page before the observation fails. */
+const PENDING_DELIVERIES = 256;
 
 // Both one-shot captures and live watching mirror existing players through this owner.
 export class RuntimeControllerObservations {
@@ -36,10 +38,7 @@ export class RuntimeControllerObservations {
   ) {}
   async open(
     requestId: string,
-    context: Pick<
-      AirJamRuntimeOwnerCaptureRequest,
-      "snapshot" | "stores" | "privateStores"
-    >,
+    context: z.infer<typeof runtimeOwnerObservedControllerSchema>,
     onError: Entry["onError"],
   ) {
     if (this.entries.has(requestId))
@@ -53,44 +52,25 @@ export class RuntimeControllerObservations {
     };
     this.entries.set(requestId, entry);
     entry.opening = (async () => {
-      if (!("harnessSessionId" in context.snapshot))
-        throw new Error("Observation requires a harness controller context.");
       const inspection = await this.options.readInspection();
-      if (
-        inspection?.role !== "host" ||
-        inspection.roomId !== context.snapshot.roomId
-      )
+      if (inspection?.role !== "host" || inspection.roomId !== context.roomId)
         throw new Error("Observation belongs to another host room.");
       const observation = await openControllerObservation({
         browser: this.options.browser,
         signal: entry.abort.signal,
         controllerJoinUrl: inspection.joinUrl,
-        snapshot: context.snapshot,
-        stores: context.stores,
-        privateStores: context.privateStores,
-        onMessage: (message) => {
-          try {
-            const emitted = parseControllerBridgeEmitMessage(message);
-            if (!emitted) return;
-            if (emitted.payload.event !== "controller:state_sync_request")
-              throw new Error("Observation controller mutation denied.");
-            const payload = controllerStateSyncRequestSchema.parse(
-              emitted.payload.args[0],
-            );
-            if (payload.roomId !== context.snapshot.roomId)
-              throw new Error("Observation read belongs to another room.");
-            this.options.send({
-              type: "air-jam-runtime-owner.capture-read/v1",
-              captureRequestId: requestId,
-              payload,
-            });
-          } catch (error) {
-            this.fail(entry, error);
-          }
-        },
+        harnessSessionId: context.harnessSessionId,
+        roomId: context.roomId,
+        onPortMessage: (message) =>
+          this.options.send({
+            type: AIR_JAM_RUNTIME_OWNER_CAPTURE_FRAME,
+            requestId,
+            message,
+          }),
       });
       entry.observation = observation;
       for (const event of entry.pending.splice(0)) this.deliver(event);
+      await observation.ready;
       await entry.delivery;
       if (entry.error) throw entry.error;
       return observation;
@@ -114,10 +94,10 @@ export class RuntimeControllerObservations {
     entry.error = error;
     entry.onError(error instanceof Error ? error : new Error(String(error)));
   }
-  deliver(event: z.infer<typeof runtimeOwnerCaptureEventSchema>) {
+  deliver(event: z.infer<typeof runtimeOwnerCapturePortSchema>) {
     const entry = this.entries.get(event.requestId);
     if (!entry || entry.error || entry.closing) return;
-    if (entry.pending.length + entry.queued >= 64) {
+    if (entry.pending.length + entry.queued >= PENDING_DELIVERIES) {
       this.fail(
         entry,
         new Error("Controller observation event allowance exceeded."),
@@ -133,7 +113,7 @@ export class RuntimeControllerObservations {
     entry.delivery = entry.delivery
       .then(() => {
         if (!entry.closing && !entry.error)
-          return observation.deliver(event.event, event.args);
+          return observation.deliver(event.message);
       })
       .catch((error: unknown) => {
         if (!entry.closing) this.fail(entry, error);

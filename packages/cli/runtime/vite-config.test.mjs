@@ -19,10 +19,7 @@ test("createAirJamViteConfig default profile keeps Air Jam dev contract minimal"
   assert.equal(config.server.port, 5173);
   assert.deepEqual(config.server.headers, AIR_JAM_IFRAME_HEADERS);
   assert.deepEqual(config.server.watch.ignored, ["**/.airjam/**"]);
-  assert.equal(
-    config.server.proxy["/socket.io"].target,
-    "http://127.0.0.1:4000",
-  );
+  assert.equal(config.server.proxy["/v1"].target, "http://127.0.0.1:4000");
   assert.equal(config.build.chunkSizeWarningLimit, 1000);
 });
 

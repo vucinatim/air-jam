@@ -142,13 +142,7 @@ test("agent hosts consume the version-matched toolchain", () => {
   ]) {
     const manifest = readJson(packagePath);
     assert.equal(manifest.dependencies["@air-jam/devtools"], "workspace:*");
-    for (const dependency of [
-      "playwright-core",
-      "socket.io-client",
-      "tsx",
-      "yauzl",
-      "yazl",
-    ])
+    for (const dependency of ["playwright-core", "tsx", "yauzl", "yazl"])
       assert.equal(manifest.dependencies[dependency], undefined);
     assert.ok(manifest.files.includes("dist"));
   }

@@ -1,15 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AIR_JAM_PROTOCOL_V2 } from "../src/contracts/v2";
-import { splitBridgeEnvelopeArgs } from "../src/runtime/bridge-envelope-args";
-import {
-  createControllerBridgeEmitMessage,
-  createControllerBridgeEventMessage,
-  parseControllerBridgeEventMessage,
-} from "../src/runtime/controller-bridge";
-import {
-  createHostBridgeEmitMessage,
-  createHostBridgeEventMessage,
-} from "../src/runtime/host-bridge";
 import {
   AIRJAM_BRIDGE_INIT,
   AIRJAM_SETTINGS_SYNC,
@@ -17,105 +7,9 @@ import {
   isAirJamSettingsSyncMessage,
   parseAirJamBridgeInitMessage,
 } from "../src/runtime/iframe-bridge";
+import { requestEmbeddingRoom } from "../src/runtime/room-bridge";
 
 describe("iframe bridge contracts", () => {
-  it("forwards host room readiness to embedded controllers", () => {
-    const message = createControllerBridgeEventMessage("server:roomReady", {
-      roomId: "ROOM",
-    });
-    expect(parseControllerBridgeEventMessage(message)).toEqual(message);
-  });
-  it("preserves every required argument before extracting envelope options", () => {
-    const payload = { requestId: "payload-id" };
-    const options = { requestId: "envelope-id" };
-    expect(splitBridgeEnvelopeArgs([payload, payload], 2)).toEqual({
-      eventArgs: [payload, payload],
-    });
-    expect(splitBridgeEnvelopeArgs([payload, payload, options], 2)).toEqual({
-      eventArgs: [payload, payload],
-      requestId: "envelope-id",
-    });
-    expect(splitBridgeEnvelopeArgs([options], 0)).toEqual({
-      eventArgs: [],
-      requestId: "envelope-id",
-    });
-    expect(
-      createControllerBridgeEventMessage(
-        "disconnect",
-        "transport close",
-        options,
-      ).payload,
-    ).toEqual({
-      event: "disconnect",
-      args: ["transport close"],
-      requestId: "envelope-id",
-    });
-  });
-
-  it("preserves correlated sync payloads across both sides of the bridge", () => {
-    const request = {
-      roomId: "ABCD",
-      storeDomain: "game",
-      requestId: "sync-1",
-    };
-    const response = { ...request, revision: 1, data: { score: 3 } };
-    const messages = [
-      createHostBridgeEventMessage("airjam:state_sync_request", request),
-      createControllerBridgeEmitMessage(
-        "controller:state_sync_request",
-        request,
-      ),
-      createHostBridgeEmitMessage("host:state_sync", response),
-      createControllerBridgeEventMessage("airjam:state_sync", response),
-    ];
-    for (const [index, message] of messages.entries()) {
-      expect(message.payload.args).toEqual([index < 2 ? request : response]);
-      expect(message.payload.requestId).toBeUndefined();
-    }
-  });
-
-  it("keeps transport acknowledgements distinct from sync correlation IDs", () => {
-    const request = {
-      roomId: "ABCD",
-      storeDomain: "game",
-      requestId: "sync-1",
-    };
-    const options = { requestId: "bridge-ack-1" };
-    const response = { ...request, revision: 1, data: {} };
-    const messages = [
-      createHostBridgeEventMessage(
-        "airjam:state_sync_request",
-        request,
-        options,
-      ),
-      createControllerBridgeEmitMessage(
-        "controller:state_sync_request",
-        request,
-        options,
-      ),
-      createHostBridgeEmitMessage("host:state_sync", response, options),
-      createControllerBridgeEventMessage(
-        "airjam:state_sync",
-        response,
-        options,
-      ),
-    ];
-    for (const [index, message] of messages.entries()) {
-      expect(message.payload.args).toEqual([index < 2 ? request : response]);
-      expect(message.payload.requestId).toBe("bridge-ack-1");
-    }
-    expect(
-      createHostBridgeEventMessage("connect", options).payload,
-    ).toMatchObject({ args: [], requestId: "bridge-ack-1" });
-    expect(
-      createControllerBridgeEventMessage(
-        "disconnect",
-        "transport close",
-        options,
-      ).payload,
-    ).toMatchObject({ args: ["transport close"], requestId: "bridge-ack-1" });
-  });
-
   it("creates a valid v2 handshake for arcade runtime bridge", () => {
     const handshake = createBridgeHandshake({
       sdkVersion: "1.2.3",
@@ -184,5 +78,33 @@ describe("iframe bridge contracts", () => {
         },
       }),
     ).toBe(false);
+  });
+
+  it("asks the parent for a room only when a link opens, with one port per link", () => {
+    const postMessage = vi.fn();
+    const connector = requestEmbeddingRoom({
+      parent: {
+        window: { postMessage } as unknown as Window,
+        origin: "https://arcade.test",
+      },
+      role: "host",
+      context: { arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" } },
+    });
+    expect(postMessage).not.toHaveBeenCalled();
+    const handlers = { open: vi.fn(), message: vi.fn(), close: vi.fn() };
+    const first = connector({ role: "host", code: null }, handlers);
+    connector({ role: "host", code: null }, handlers);
+    expect(postMessage).toHaveBeenCalledTimes(2);
+    const [message, origin, transfer] = postMessage.mock.calls[0] ?? [];
+    expect(origin).toBe("https://arcade.test");
+    expect(message).toMatchObject({
+      type: "AIRJAM_ROOM_BRIDGE_REQUEST",
+      payload: {
+        role: "host",
+        arcadeSurface: { epoch: 2, kind: "game", gameId: "pong" },
+      },
+    });
+    expect(transfer[0]).not.toBe(postMessage.mock.calls[1]?.[2][0]);
+    first.close();
   });
 });

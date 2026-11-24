@@ -1,12 +1,7 @@
+export { serveRoomPort } from "../../room-session/port-link";
+export { createScopedHostConnector } from "../../room-session/scoped-connector";
 export {
-  AIRJAM_HOST_BRIDGE_EVENT,
-  createHostBridgeAttachMessage,
-  createHostBridgeCloseMessage,
-  createHostBridgeResponseMessage,
-  hostBridgeAcknowledgedServerEvents,
-  parseHostBridgeEmitMessage,
-  parseHostBridgeRequestMessage,
-  parseHostBridgeResponseMessage,
-  type HostBridgeServerEventName,
-} from "../../runtime/host-bridge";
-export type { AirJamRealtimeClient } from "../../runtime/realtime-client";
+  readRoomBridgeRequest,
+  refuseRoomBridge,
+  type RoomBridgeRequest,
+} from "../../runtime/room-bridge";

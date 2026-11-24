@@ -72,8 +72,7 @@ describe("AirJamErrorBoundary behavior", () => {
 
     expect(reportError).toHaveBeenCalledOnce();
     expect(reportError.mock.calls[0]?.[0]).toMatchObject({
-      contractVersion: 1,
-      roomId: "ABCD",
+      contractVersion: 2,
       role: "controller",
       code: "AJ_RUNTIME_RENDER_CRASH",
       errorName: "Error",

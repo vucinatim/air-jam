@@ -4,15 +4,16 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { useStore } from "zustand";
-import { useAirJamContext } from "../context/air-jam-context";
-import type { PlaySoundPayload } from "../protocol";
-import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
-import { getHostRealtimeClient } from "../runtime/host-realtime-client";
+import type { AirJamControllerRuntimeControls } from "../hooks/use-air-jam-controller";
+import type { AirJamHostRuntimeControls } from "../hooks/use-air-jam-host";
+import { parseAirJamSignal } from "../room-protocol";
+import {
+  controllerRuntimeContext,
+  hostRuntimeContext,
+} from "../runtime/runtime-owner-contexts";
 import {
   usePlatformSettingsRuntimeStatus,
   useResolvedPlatformSettingsSnapshot,
@@ -127,9 +128,9 @@ function useAudioRuntimeState(manager: AudioManager): {
   status: AudioRuntimeStatus;
   controls: AudioRuntimeControls;
 } {
-  const { store, getSocket } = useAirJamContext();
-  const roomId = useStore(store, (state) => state.roomId);
-  const role = useStore(store, (state) => state.role);
+  const host = useContext(
+    hostRuntimeContext,
+  ) as AirJamHostRuntimeControls | null;
   const platformSettings = useResolvedPlatformSettingsSnapshot();
   const platformSettingsStatus = usePlatformSettingsRuntimeStatus();
   const platformSettingsReady = platformSettingsStatus === "ready";
@@ -171,20 +172,9 @@ function useAudioRuntimeState(manager: AudioManager): {
   }, [platformSettingsReady]);
 
   useEffect(() => {
-    if (role && roomId) {
-      const directSocket = getSocket(role);
-      if (!directSocket) {
-        manager.setSocket(null, roomId, role);
-        return;
-      }
-
-      const realtimeClient =
-        role === "controller"
-          ? getControllerRealtimeClient(() => directSocket)
-          : getHostRealtimeClient(() => directSocket);
-      manager.setSocket(realtimeClient, roomId, role);
-    }
-  }, [manager, role, roomId, getSocket]);
+    manager.setControllerSounds(host?.playSoundOnControllers ?? null);
+    return () => manager.setControllerSounds(null);
+  }, [manager, host]);
 
   useEffect(() => {
     void retry();
@@ -233,42 +223,26 @@ function useRemoteSound<M extends SoundManifest>(
   manifest: M,
   audio: Pick<AudioHandle<keyof M & string>, "play">,
 ): void {
-  const { getSocket, store } = useAirJamContext();
-  const role = useStore(store, (state) => state.role);
-  const connectionStatus = useStore(store, (state) => state.connectionStatus);
-  const socket = useMemo(() => {
-    if (role !== "controller") {
-      return null;
-    }
-
-    const directSocket = getSocket("controller");
-    if (!directSocket) {
-      return null;
-    }
-
-    return getControllerRealtimeClient(() => directSocket);
-  }, [getSocket, role]);
-  const enabled = role === "controller" && connectionStatus === "connected";
+  const session =
+    (
+      useContext(
+        controllerRuntimeContext,
+      ) as AirJamControllerRuntimeControls | null
+    )?.session ?? null;
 
   useEffect(() => {
-    if (!socket || !enabled) {
+    if (!session) {
       return;
     }
 
-    const handlePlaySound = (payload: PlaySoundPayload): void => {
-      if (!isManifestSoundId(manifest, payload.id)) {
-        return;
-      }
-
-      audio.play(payload.id, {
-        volume: payload.volume,
-        loop: payload.loop,
+    return session.on("signal", (received) => {
+      const signal = parseAirJamSignal(received);
+      if (signal?.kind !== "sound") return;
+      if (!isManifestSoundId(manifest, signal.payload.soundId)) return;
+      audio.play(signal.payload.soundId, {
+        volume: signal.payload.volume,
+        loop: signal.payload.loop,
       });
-    };
-
-    socket.on("server:playSound", handlePlaySound);
-    return () => {
-      socket.off("server:playSound", handlePlaySound);
-    };
-  }, [audio, enabled, manifest, socket]);
+    });
+  }, [audio, manifest, session]);
 }

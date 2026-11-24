@@ -69,7 +69,7 @@ it("joins the creator's room alongside humans and keeps access out of records an
       new AbortController().signal,
     ),
   ).rejects.toThrow("active owned");
-  const retry = await f.owner.start(f.request, attachment(["another"]));
+  const retry = await f.owner.start(f.request, attachment(2));
   expect(retry.state).not.toBe("ended");
   expect(f.openSession).toHaveBeenCalledOnce();
   expect(f.openSession).toHaveBeenCalledWith({
@@ -148,7 +148,7 @@ it("seats several agents in the creator's room and runs host setup through it", 
   }));
   io.decide.mockResolvedValue({ control: { kind: "action", actionId: "tap" } });
   passAfterEffect("Both seats played.");
-  await f.owner.start(f.request, attachment(["player", "second"]));
+  await f.owner.start(f.request, attachment(2));
   const record = await f.ended();
   expect(record.end?.outcome).toBe("passed");
   expect(f.session.addParticipant).toHaveBeenCalledOnce();
@@ -188,7 +188,7 @@ it("hands the creator's room back after judging and before its players leave", a
   });
   f.request.target = { kind: "current" };
   f.session.summary.semanticAccess = "delegated-host";
-  await f.owner.start(f.request, attachment(["player", "second"]));
+  await f.owner.start(f.request, attachment(2));
   await vi.waitFor(() => expect(io.decide).toHaveBeenCalled());
   const record = await f.owner.stop(f.request.runId);
   expect(record.cleanup?.handBack).toBe("returned");
@@ -2367,7 +2367,7 @@ it.each([
         page: {
           identity: observation.identity,
           header: {
-            version: 2,
+            version: 3,
             seed: 1,
             settings: {},
             stepMs: 10,

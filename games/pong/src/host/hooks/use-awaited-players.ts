@@ -7,7 +7,7 @@ import { pongStore } from "../../game/stores";
 export const useAwaitedPlayers = () => {
   const players = useAirJamHost((state) => state.players);
   const reconnectingPlayerIds = useAirJamHost((state) =>
-    getReconnectingPlayerIds(state.players, state.controllers),
+    getReconnectingPlayerIds(state.players),
   );
   const matchPhase = useAirJamStore(pongStore, (state) => state.matchPhase);
   const teamAssignments = useAirJamStore(

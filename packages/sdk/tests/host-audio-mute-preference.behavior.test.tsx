@@ -56,10 +56,7 @@ describe("useHostAudioMutePreference", () => {
     );
 
     act(() => {
-      window.localStorage.setItem(
-        getStorageKey("last-band-standing"),
-        "true",
-      );
+      window.localStorage.setItem(getStorageKey("last-band-standing"), "true");
       window.dispatchEvent(
         new StorageEvent("storage", {
           key: getStorageKey("last-band-standing"),

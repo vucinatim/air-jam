@@ -194,7 +194,6 @@ export const createAirJamApp = (
   const hostSession: HostSessionProps = {
     ...runtime,
     maxPlayers: metadata.maxPlayers,
-    hostSessionKind: runtime.hostSessionKind ?? "game",
   };
 
   const controllerSession: ControllerSessionProps = {

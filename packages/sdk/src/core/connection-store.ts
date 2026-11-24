@@ -1,99 +1,50 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import type {
+  AirJamPlayer,
   ConnectionRole,
   ConnectionStatus,
-  ControllerOrientation,
-  ControllerPresenceNotice,
-  ControllerRoomSettingsState,
-  HostArcadeSessionSnapshot,
-  HostArcadeSurfaceCheckpoint,
-  PlayerProfile,
   RunMode,
-  RuntimeState,
 } from "../protocol";
-import { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../settings/platform-settings";
-
-export type HostArcadeRestoreState =
-  | { phase: "idle"; session: null; surfaceCheckpoint: null }
-  | { phase: "awaiting_ack"; session: null; surfaceCheckpoint: null }
-  | {
-      phase: "pending_restore";
-      session: HostArcadeSessionSnapshot | null;
-      surfaceCheckpoint: HostArcadeSurfaceCheckpoint;
-    };
+import type { ControllerOrientation, RuntimeState } from "../room-protocol";
 
 /** Whether a host's controller join link can be shown yet. */
 export type JoinUrlStatus = "loading" | "ready" | "unavailable";
 
+/** What a surface's bindings read about its room: who is in it and how it is going. */
 export interface AirJamConnectionState {
   role: ConnectionRole | null;
   roomId: string | null;
+  /** This phone's seat; null on a host. */
   controllerId: string | null;
   connectionStatus: ConnectionStatus;
+  /** This host's place in the server's queue while its room waits to open. */
+  queuePosition: number | null;
   mode: RunMode;
   runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
-  stateMessage?: string;
-  roomSettings: ControllerRoomSettingsState;
-  players: PlayerProfile[];
-  controllerSessions: ControllerPresenceNotice[];
+  players: AirJamPlayer[];
   lastError?: string;
-  registeredRoomId: string | null;
-  /** Host only: the link phones open to join this room. */
   joinUrl: string;
   joinUrlStatus: JoinUrlStatus;
-  /**
-   * Host-only reconnect restore seam used during `host:reconnect`.
-   * - `awaiting_ack`: reconnect ack is in flight, so arcade shell broadcast must stay suppressed
-   * - `pending_restore`: reconnect ack returned Arcade counter continuity and the platform has not
-   *   reconciled it with the route/session yet
-   * - `idle`: no reconnect restoration is in progress
-   */
-  hostArcadeRestore: HostArcadeRestoreState;
-  setHostArcadeRestore: (next: HostArcadeRestoreState) => void;
-  clearHostArcadeRestore: () => void;
   setRole: (role: ConnectionRole | null) => void;
   setRoomId: (roomId: string | null) => void;
   setControllerId: (controllerId: string | null) => void;
   setStatus: (status: ConnectionStatus) => void;
+  setQueuePosition: (position: number | null) => void;
   setMode: (mode: RunMode) => void;
   setRuntimeState: (state: RuntimeState) => void;
   setControllerOrientation: (orientation: ControllerOrientation) => void;
-  setStateMessage: (message?: string) => void;
-  setRoomSettings: (settings: ControllerRoomSettingsState) => void;
   setError: (message?: string) => void;
-  upsertPlayer: (player: PlayerProfile) => void;
-  removePlayer: (playerId: string) => void;
-  resetPlayers: () => void;
-  upsertControllerSession: (controller: ControllerPresenceNotice) => void;
-  removeControllerSession: (controllerId: string) => void;
-  resetControllerSessions: () => void;
+  setPlayers: (players: readonly AirJamPlayer[]) => void;
   resetRuntimeState: () => void;
-  setRegisteredRoomId: (roomId: string | null) => void;
   setJoinUrl: (joinUrl: string, joinUrlStatus: JoinUrlStatus) => void;
 }
 
-/**
- * Factory function to create a new AirJamConnectionState instance.
- * Each AirJamProvider creates its own store for multi-instance support.
- */
-/**
- * Players still in the room whose phone dropped and is trying to resume, sorted.
- * They stay in `players` until their resume lease ends.
- */
+/** Players whose phone dropped and whose seat the room still holds. */
 export const getReconnectingPlayerIds = (
-  players: readonly PlayerProfile[],
-  controllers: readonly ControllerPresenceNotice[],
-): string[] => {
-  const playerIds = new Set(players.map((player) => player.id));
-  return controllers
-    .filter(
-      (controller) =>
-        !controller.connected && playerIds.has(controller.controllerId),
-    )
-    .map((controller) => controller.controllerId)
-    .sort();
-};
+  players: readonly AirJamPlayer[],
+): string[] =>
+  players.filter((player) => !player.connected).map((player) => player.id);
 
 export const createConnectionStore = (): StoreApi<AirJamConnectionState> =>
   createStore<AirJamConnectionState>((set) => ({
@@ -101,87 +52,26 @@ export const createConnectionStore = (): StoreApi<AirJamConnectionState> =>
     roomId: null,
     controllerId: null,
     connectionStatus: "idle",
+    queuePosition: null,
     mode: "standalone",
     runtimeState: "playing",
     controllerOrientation: "portrait",
-    stateMessage: undefined,
-    roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
     players: [],
-    controllerSessions: [],
     lastError: undefined,
-    registeredRoomId: null,
     joinUrl: "",
     joinUrlStatus: "loading",
-    hostArcadeRestore: {
-      phase: "idle",
-      session: null,
-      surfaceCheckpoint: null,
-    },
-    setHostArcadeRestore: (next) => set({ hostArcadeRestore: next }),
-    clearHostArcadeRestore: () =>
-      set({
-        hostArcadeRestore: {
-          phase: "idle",
-          session: null,
-          surfaceCheckpoint: null,
-        },
-      }),
     setRole: (role) => set({ role }),
     setRoomId: (roomId) => set({ roomId }),
     setControllerId: (controllerId) => set({ controllerId }),
     setStatus: (connectionStatus) => set({ connectionStatus }),
+    setQueuePosition: (queuePosition) => set({ queuePosition }),
     setMode: (mode) => set({ mode }),
     setRuntimeState: (runtimeState) => set({ runtimeState }),
     setControllerOrientation: (controllerOrientation) =>
       set({ controllerOrientation }),
-    setStateMessage: (stateMessage) => set({ stateMessage }),
-    setRoomSettings: (roomSettings) => set({ roomSettings }),
     setError: (message) => set({ lastError: message }),
-    upsertPlayer: (player) =>
-      set((state) => {
-        const existingIndex = state.players.findIndex(
-          (entry) => entry.id === player.id,
-        );
-        if (existingIndex >= 0) {
-          const nextPlayers = [...state.players];
-          nextPlayers[existingIndex] = player;
-          return { players: nextPlayers };
-        }
-        return { players: [...state.players, player] };
-      }),
-    removePlayer: (playerId) =>
-      set((state) => ({
-        players: state.players.filter((player) => player.id !== playerId),
-      })),
-    resetPlayers: () => set({ players: [] }),
-    upsertControllerSession: (controller) =>
-      set((state) => {
-        const existingIndex = state.controllerSessions.findIndex(
-          (entry) => entry.controllerId === controller.controllerId,
-        );
-        if (existingIndex >= 0) {
-          const nextSessions = [...state.controllerSessions];
-          nextSessions[existingIndex] = controller;
-          return { controllerSessions: nextSessions };
-        }
-        return {
-          controllerSessions: [...state.controllerSessions, controller],
-        };
-      }),
-    removeControllerSession: (controllerId) =>
-      set((state) => ({
-        controllerSessions: state.controllerSessions.filter(
-          (controller) => controller.controllerId !== controllerId,
-        ),
-      })),
-    resetControllerSessions: () => set({ controllerSessions: [] }),
+    setPlayers: (players) => set({ players: [...players] }),
     resetRuntimeState: () =>
-      set({
-        runtimeState: "playing",
-        controllerOrientation: "portrait",
-        stateMessage: undefined,
-        roomSettings: DEFAULT_ROOM_PLATFORM_SETTINGS,
-      }),
-    setRegisteredRoomId: (roomId) => set({ registeredRoomId: roomId }),
+      set({ runtimeState: "playing", controllerOrientation: "portrait" }),
     setJoinUrl: (joinUrl, joinUrlStatus) => set({ joinUrl, joinUrlStatus }),
   }));

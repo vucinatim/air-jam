@@ -1,4 +1,4 @@
-import { playerProfileSchema } from "@air-jam/sdk/protocol";
+import { seatViewSchema } from "@air-jam/sdk/room-protocol";
 import type {
   HostAgentRequest,
   HostAgentResponse,
@@ -32,6 +32,7 @@ import {
   type GameRunParticipant,
   type GameRunSession,
 } from "./game-run-owner.js";
+import type { CurrentRoomSeatClaim } from "./game-run-protocol.js";
 import { GameSessionOperations } from "./game-session-operations.js";
 import { gameSessionOperationSchemas } from "./game-session-protocol.js";
 import type { HeadlessRoom } from "./headless-room.js";
@@ -48,6 +49,7 @@ import type {
   CloseGameSessionResult,
   InvokeGameSessionActionOptions,
   InvokeGameSessionActionResult,
+  JsonObject,
   OpenGameSessionOptions,
   ReadGameSessionOptions,
   SendGameSessionInputOptions,
@@ -71,6 +73,23 @@ export type {
 } from "./types.js";
 
 /** Sends one semantic request to the game's host realm. */
+/** Claims a seat a run's player holds in a room it was granted. */
+export type SeatClaimer = (
+  claim: CurrentRoomSeatClaim,
+  timeoutMs: number,
+) => Promise<void>;
+
+/** The seat a connected controller holds, named by its room's instance. */
+const claimOf = (controller: {
+  controllerId: string;
+  welcome: JsonObject | null;
+}): CurrentRoomSeatClaim => {
+  const instance = controller.welcome?.instance;
+  if (typeof instance !== "string")
+    throw new Error("current_room_scope: The room welcomed no seat to claim.");
+  return { instance, seat: controller.controllerId };
+};
+
 export type HostRequester = (
   request: HostAgentRequest,
   timeoutMs: number,
@@ -189,8 +208,16 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
 
   const openGameSession = async (
     options: OpenGameSessionOptions = {},
-    /** A host realm this session reaches directly rather than through its controller. */
-    host?: { access: "owned-host" | "delegated-host"; request: HostRequester },
+    /**
+     * A host realm this session reaches directly rather than through its
+     * controller. A delegated host's seats are claimed before it is asked
+     * anything about them.
+     */
+    host?: {
+      access: "owned-host" | "delegated-host";
+      request: HostRequester;
+      claimSeat?: SeatClaimer;
+    },
     build?: PinnedGameBuild,
     onScope?: ProcessScopeObserver,
     settings?: Record<string, number | boolean | string>,
@@ -212,6 +239,8 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
     }
     const operations = new GameSessionOperations();
     try {
+      if (host?.claimSeat)
+        await host.claimSeat(claimOf(controllerSession), timeoutMs);
       const runtime = await resolveControllerSessionGameRuntime({
         controllerSessionId: controllerSession.controllerSessionId,
         timeoutMs,
@@ -261,7 +290,6 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
         process: controllerSession.process,
         roomId: controllerSession.roomId,
         controllerId: controllerSession.controllerId,
-        deviceId: controllerSession.deviceId,
         controllerJoinUrl: controllerSession.controllerJoinUrl,
         socketOrigin: controllerSession.socketOrigin,
         connected: controllerSession.connected,
@@ -643,8 +671,12 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
         settings,
         onScope,
       }: {
-        /** The creator's host and the further seat identities its editor issued. */
-        delegation?: { host: HostRequester; seatControllerIds: string[] };
+        /** The creator's host, how many seats the run may hold there, and how it claims each. */
+        delegation?: {
+          host: HostRequester;
+          seats: number;
+          claimSeat: SeatClaimer;
+        };
         game?: AirJamGameInspection;
         build?: PinnedGameBuild;
         /** A headless room this run owns; its players join it on game time. */
@@ -666,13 +698,14 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
           : delegation && {
               access: "delegated-host",
               request: delegation.host,
+              claimSeat: delegation.claimSeat,
             },
         build,
         onScope,
         room ? undefined : settings,
         game,
       );
-      const seatControllerIds = [...(delegation?.seatControllerIds ?? [])];
+      let seatsLeft = (delegation?.seats ?? 0) - 1;
       const gameSessionId = summary.gameSessionId;
       const session = getRequiredGameSession(gameSessionId);
       const checkParticipant = async (
@@ -742,7 +775,7 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
             throw new Error("seat_replaced: Primary player is disconnected.");
           return {
             roomId: state.roomId,
-            controllerIds: playerProfileSchema
+            controllerIds: seatViewSchema
               .array()
               .parse(state.players)
               .map((player) => player.id),
@@ -757,20 +790,26 @@ export function createGameSessionRuntime(ownerInstanceId = randomUUID()) {
         control: (input) =>
           controlGameSessionParticipant({ ...input, gameSessionId }),
         async addParticipant(nickname) {
-          const delegatedId = delegation ? seatControllerIds.shift() : null;
-          if (delegation && !delegatedId)
+          if (delegation && seatsLeft <= 0)
             throw new Error(
-              "current_room_scope: The creator's room issued no further seat.",
+              "current_room_scope: The creator's room granted no further seat.",
             );
+          seatsLeft -= 1;
           const controller = await connectController({
             cwd: summary.cwd,
             gameId: summary.gameId ?? undefined,
             controllerJoinUrl: summary.controllerJoinUrl,
-            controllerId:
-              delegatedId ?? `ctrl_agent_${randomUUID().replaceAll("-", "")}`,
-            deviceId: `airjam-agent-${randomUUID()}`,
             nickname,
           });
+          if (delegation)
+            await delegation
+              .claimSeat(claimOf(controller), DEFAULT_TIMEOUT_MS)
+              .catch(async (error: unknown) => {
+                await disconnectController({
+                  controllerSessionId: controller.controllerSessionId,
+                });
+                throw error;
+              });
           let disconnected:
             | Awaited<ReturnType<typeof disconnectController>>
             | undefined;

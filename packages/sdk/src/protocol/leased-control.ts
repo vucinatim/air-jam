@@ -1,8 +1,7 @@
 import { z } from "zod";
+import { roomCodeSchema } from "../room-protocol";
 import { hostObservationIdentitySchema } from "../runtime/contracts/runtime-identity";
-import { roomCodeSchema } from "./core";
-import { boundedSocketSchema } from "./socket-payload";
-import { airJamActionInvocationResultSchema } from "./sync";
+import { airJamActionInvocationResultSchema } from "./actions";
 
 const jsonValueSchema = z
   .unknown()
@@ -93,22 +92,27 @@ const operationSchema = z.discriminatedUnion("kind", [
   participantActionOperationSchema,
 ]);
 
-export const controllerLeasedControlSchema = boundedSocketSchema(
-  z
-    .object({
-      roomId: roomCodeSchema,
-      controllerId: z.string().min(3).max(128),
-      lease: z.object({ id: z.uuid(), sequence: leaseSequenceSchema }).strict(),
-      expected: hostObservationIdentitySchema.strict(),
-      operation: operationSchema,
-    })
-    .strict()
-    .refine(
-      (value) => value.roomId === value.expected.roomId,
-      "Participant control must target the observed room.",
-    ),
-  "controller",
-);
+/** What an agent's phone asks on the control channel; the room stamps its seat. */
+export const leasedControlRequestSchema = z
+  .object({
+    lease: z.object({ id: z.uuid(), sequence: leaseSequenceSchema }).strict(),
+    expected: hostObservationIdentitySchema.strict(),
+    operation: operationSchema,
+  })
+  .strict();
+export type LeasedControlRequest = z.infer<typeof leasedControlRequestSchema>;
+
+/** A leased control request as the host applies it: for one seat of one room. */
+export const controllerLeasedControlSchema = leasedControlRequestSchema
+  .extend({
+    roomId: roomCodeSchema,
+    controllerId: z.string().min(1).max(128),
+  })
+  .strict()
+  .refine(
+    (value) => value.roomId === value.expected.roomId,
+    "Participant control must target the observed room.",
+  );
 export type ControllerLeasedControl = z.infer<
   typeof controllerLeasedControlSchema
 >;

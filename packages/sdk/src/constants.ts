@@ -26,21 +26,6 @@ export const INPUT_DEBOUNCE_MS = 200;
 export const TOGGLE_DEBOUNCE_MS = 300;
 
 /**
- * Socket.IO configuration
- */
-export const SOCKET_CONFIG = {
-  /**
-   * Ping interval in milliseconds
-   */
-  PING_INTERVAL: 2000,
-
-  /**
-   * Ping timeout in milliseconds
-   */
-  PING_TIMEOUT: 5000,
-} as const;
-
-/**
  * Maximum players allowed in a room by default
  */
 export const DEFAULT_MAX_PLAYERS = 8;

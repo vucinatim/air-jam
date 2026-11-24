@@ -1,9 +1,9 @@
-import { controllerBridgeSnapshotSchema } from "@air-jam/sdk/controller-bridge";
 import { randomUUID } from "node:crypto";
 import type { Browser, Page } from "playwright-core";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { openControllerObservation } from "../../src/harness/visual/controller-observation.js";
 import { RuntimeControllerObservations } from "../../src/harness/visual/runtime-controller-observations.js";
+import { AIR_JAM_RUNTIME_OWNER_CAPTURE_PORT } from "../../src/runtime-owner-protocol.js";
 const open = vi.hoisted(() => vi.fn<typeof openControllerObservation>());
 vi.mock("../../src/harness/visual/controller-observation.js", () => ({
   openControllerObservation: open,
@@ -28,16 +28,7 @@ function fixture() {
       runtimeState: "playing",
     }),
   });
-  const context = {
-    snapshot: controllerBridgeSnapshotSchema.parse({
-      harnessSessionId: randomUUID(),
-      roomId: "ROOM",
-      controllerId: "player",
-      connected: true,
-    }),
-    stores: [],
-    privateStores: [],
-  };
+  const context = { harnessSessionId: randomUUID(), roomId: "ROOM" };
   return { observations, context, send };
 }
 it("bounds delivery while a mirror starts and reports the failure instead of growing forever", async () => {
@@ -57,14 +48,18 @@ it("bounds delivery while a mirror starts and reports the failure instead of gro
   await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
   for (let index = 0; index < 1000; index++)
     f.observations.deliver({
-      type: "air-jam-runtime-owner.capture-event/v1",
+      type: AIR_JAM_RUNTIME_OWNER_CAPTURE_PORT,
       requestId: "capture",
-      event: "airjam:state_sync",
-      args: [],
+      message: "{}",
     });
   expect(onError).toHaveBeenCalledOnce();
   const close = vi.fn(async () => {});
-  finish({ page: {} as Page, deliver: vi.fn(), close });
+  finish({
+    page: {} as Page,
+    ready: Promise.resolve(),
+    deliver: vi.fn(),
+    close,
+  });
   await rejected;
   expect(close).toHaveBeenCalledOnce();
 });
@@ -98,16 +93,50 @@ it("cancels in-flight mirror delivery when closing without mistaking that cancel
   const close = vi.fn(async () => {
     interrupt(new Error("Target context closed"));
   });
-  open.mockResolvedValue({ page: {} as Page, deliver, close });
+  open.mockResolvedValue({
+    page: {} as Page,
+    ready: Promise.resolve(),
+    deliver,
+    close,
+  });
   await f.observations.open("watch", f.context, onError);
   f.observations.deliver({
-    type: "air-jam-runtime-owner.capture-event/v1",
+    type: AIR_JAM_RUNTIME_OWNER_CAPTURE_PORT,
     requestId: "watch",
-    event: "airjam:state_sync",
-    args: [],
+    message: "{}",
   });
   await vi.waitFor(() => expect(deliver).toHaveBeenCalledOnce());
   await f.observations.close("watch");
   expect(close).toHaveBeenCalledOnce();
   expect(onError).not.toHaveBeenCalled();
+});
+
+it("delivers the room's replies held while opening before waiting for the controller to connect", async () => {
+  const f = fixture();
+  let connected: () => void = () => {};
+  const ready = new Promise<void>((resolve) => {
+    connected = resolve;
+  });
+  // The controller connects only once the room's welcome reaches it.
+  const deliver = vi.fn(async () => connected());
+  let finish: (
+    observation: Awaited<ReturnType<typeof openControllerObservation>>,
+  ) => void = () => {};
+  open.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const opening = f.observations.open("watch", f.context, vi.fn());
+  await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+  f.observations.deliver({
+    type: AIR_JAM_RUNTIME_OWNER_CAPTURE_PORT,
+    requestId: "watch",
+    message: "welcome",
+  });
+  finish({ page: {} as Page, ready, deliver, close: vi.fn(async () => {}) });
+  await expect(opening).resolves.toBeDefined();
+  expect(deliver).toHaveBeenCalledWith("welcome");
+  await f.observations.close("watch");
 });

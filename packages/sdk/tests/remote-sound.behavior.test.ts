@@ -5,36 +5,12 @@ import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AudioRuntime, useAudio } from "../src/audio/hooks";
 import { ControllerSessionProvider } from "../src/context/session-providers";
+import { controllerRuntimeContext } from "../src/runtime/runtime-owner-contexts";
 
 const mocked = vi.hoisted(() => {
-  const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  const socket = {
-    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-      const current = listeners.get(event) ?? new Set();
-      current.add(handler);
-      listeners.set(event, current);
-      return socket;
-    }),
-    off: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-      const current = listeners.get(event);
-      if (!current) {
-        return socket;
-      }
-      current.delete(handler);
-      if (current.size === 0) {
-        listeners.delete(event);
-      }
-      return socket;
-    }),
-    trigger: (event: string, payload: unknown) => {
-      const current = listeners.get(event);
-      if (!current) {
-        return;
-      }
-      for (const handler of current) {
-        handler(payload);
-      }
-    },
+  const listeners = new Set<(signal: unknown) => void>();
+  const signal = (value: unknown) => {
+    for (const listener of listeners) listener(value);
   };
 
   const howlPlay = vi.fn(() => 101);
@@ -53,7 +29,7 @@ const mocked = vi.hoisted(() => {
   }
 
   return {
-    socket,
+    signal,
     listeners,
     howlPlay,
     useAirJamContext: vi.fn(),
@@ -95,7 +71,6 @@ describe("AudioRuntime controller remote sound playback", () => {
 
   beforeEach(() => {
     mocked.useAirJamContext.mockReturnValue({
-      getSocket: () => mocked.socket,
       store: {
         getState: () => ({
           role: "controller",
@@ -114,28 +89,38 @@ describe("AudioRuntime controller remote sound playback", () => {
   });
 
   it("plays only manifest-known remote sounds", async () => {
+    const session = {
+      on: (_event: "signal", listener: (signal: unknown) => void) => {
+        mocked.listeners.add(listener);
+        return () => mocked.listeners.delete(listener);
+      },
+    };
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(
         ControllerSessionProvider,
         null,
-        createElement(AudioRuntime, { manifest, children }),
+        createElement(
+          controllerRuntimeContext.Provider,
+          { value: { session } },
+          createElement(AudioRuntime, { manifest, children }),
+        ),
       );
 
     renderHook(() => useAudio<"hit" | "score">(), { wrapper });
     await act(async () => {});
 
     act(() => {
-      mocked.socket.trigger("server:playSound", {
-        id: "hit",
-        volume: 0.5,
+      mocked.signal({
+        kind: "sound",
+        payload: { soundId: "hit", volume: 0.5 },
       });
     });
     expect(mocked.howlPlay).toHaveBeenCalledTimes(1);
 
     act(() => {
-      mocked.socket.trigger("server:playSound", {
-        id: "unknown",
-        volume: 0.8,
+      mocked.signal({
+        kind: "sound",
+        payload: { soundId: "unknown", volume: 0.8 },
       });
     });
     expect(mocked.howlPlay).toHaveBeenCalledTimes(1);

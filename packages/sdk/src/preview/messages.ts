@@ -1,5 +1,23 @@
 export const AIR_JAM_PREVIEW_CLOSE_REQUEST = "airjam.preview.close.request";
 export const AIR_JAM_PREVIEW_CLOSE_RESULT = "airjam.preview.close.result";
+/** A preview controller tells its workspace which seat the room gave it. */
+export const AIR_JAM_PREVIEW_SEAT = "airjam.preview.seat";
+
+export interface AirJamPreviewSeatMessage {
+  type: typeof AIR_JAM_PREVIEW_SEAT;
+  deviceId: string;
+  seat: string | null;
+}
+
+export const isPreviewSeatMessage = (
+  value: unknown,
+): value is AirJamPreviewSeatMessage =>
+  typeof value === "object" &&
+  value !== null &&
+  (value as { type?: unknown }).type === AIR_JAM_PREVIEW_SEAT &&
+  typeof (value as { deviceId?: unknown }).deviceId === "string" &&
+  (typeof (value as { seat?: unknown }).seat === "string" ||
+    (value as { seat?: unknown }).seat === null);
 
 export interface AirJamPreviewCloseRequestMessage {
   type: typeof AIR_JAM_PREVIEW_CLOSE_REQUEST;

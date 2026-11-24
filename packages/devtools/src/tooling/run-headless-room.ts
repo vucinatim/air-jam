@@ -1,20 +1,23 @@
 /**
- * One headless room: the Air Jam relay on a loopback port and the game's host
- * core, with no page and no drawing. The game's clock moves only when the
- * owner advances it, so a test plays on game time, as fast as the host runs.
+ * One headless room: the Air Jam room server on a loopback port, which
+ * phones and agents join over the network, and the game's host core joined
+ * straight into its rooms over the loopback link, with no page and no
+ * drawing. The game's clock moves only when the owner advances it, so a test
+ * plays on game time, as fast as the host runs.
  */
 import {
   airJamInputLogSchema,
   createAirJamConfig,
   createConnectionStore,
-  DirectRealtimeClient,
   replayAirJamInputLog,
   type AirJamHostEnvironment,
 } from "@air-jam/sdk/core";
-import type {
-  ClientToServerEvents,
-  ServerToClientEvents,
-} from "@air-jam/sdk/protocol";
+import { AIRJAM_PRESENTATION_CHANNEL } from "@air-jam/sdk/room-protocol";
+import {
+  createLoopbackConnector,
+  createRoomKey,
+  HostRoomSession,
+} from "@air-jam/sdk/room-session";
 import {
   AIR_JAM_RUNTIME_CONTROL_KEY,
   type HostRuntimeControl,
@@ -23,10 +26,10 @@ import {
   resolveRuntimeTopology,
   runtimeTopologyToQueryParams,
 } from "@air-jam/sdk/runtime-topology";
-import { createAirJamServer, loadServerEnv } from "@air-jam/server";
+import { loadServerEnv } from "@air-jam/server";
+import { createRoomServer } from "@air-jam/server/room-server";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { io, type Socket } from "socket.io-client";
 import {
   HEADLESS_ROOM_IPC_MAX_BYTES,
   headlessRoomRequestSchema,
@@ -66,7 +69,7 @@ async function openRoom(
   settings?: Record<string, string | number | boolean>,
 ) {
   const app = await loadAirJamGame(configPath);
-  const server = createAirJamServer({
+  const server = createRoomServer({
     host: "127.0.0.1",
     port: 0,
     envConfig: loadServerEnv({
@@ -87,10 +90,7 @@ async function openRoom(
       proxyStrategy: "none",
       secureTransport: false,
     });
-  const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
-    origin,
-    { autoConnect: false, query: { role: "host" }, transports: ["websocket"] },
-  );
+  const connector = createLoopbackConnector(server.rooms);
   let nowMs = 0;
   const controlTarget = {};
   const environment: AirJamHostEnvironment = {
@@ -98,23 +98,30 @@ async function openRoom(
     requestedRoomId: null,
     runMode: "standalone",
     defaultStoreDomain: "default",
+    presentationChannel: AIRJAM_PRESENTATION_CHANNEL,
     controlTarget,
+    openRoom: (options) =>
+      new HostRoomSession({
+        ...options,
+        connector,
+        deviceWakeEvents: null,
+        heartbeat: null,
+      }),
+    createKey: createRoomKey,
     readResume: () => null,
     writeResume: () => {},
     requestHostGrant: () =>
       Promise.reject(new Error("A headless room runs without host grants.")),
-    controllerUrl: async (roomId, capabilityToken) => {
+    controllerUrl: async (roomId) => {
       const url = new URL(app.controllerPath, origin);
       url.searchParams.set("room", roomId);
-      if (capabilityToken)
-        url.searchParams.set("aj_controller_cap", capabilityToken);
       for (const [key, value] of Object.entries(
         runtimeTopologyToQueryParams(topology("controller")),
       ))
         url.searchParams.set(key, value);
       return url.toString();
     },
-    transport: (getSocket) => new DirectRealtimeClient(getSocket("host")),
+    reportError: () => {},
     emitDevEvent: () => {},
     setDevLogContext: () => {},
     seed: () => seed,
@@ -129,8 +136,6 @@ async function openRoom(
         maxPlayers: app.metadata.maxPlayers,
       }),
       store,
-      getSocket: () => socket,
-      disconnectSocket: () => socket.disconnect(),
       environment,
     },
     // A game with a simulation keeps the input log that replays the run.
@@ -139,7 +144,6 @@ async function openRoom(
   const stop = runtime.start();
   const close = async () => {
     stop();
-    socket.disconnect();
     await server.stop();
   };
   try {

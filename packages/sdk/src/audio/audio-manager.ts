@@ -1,7 +1,6 @@
 import { Howl, Howler } from "howler";
 import type { SoundConfig } from "../core/assets";
-import type { ConnectionRole } from "../protocol";
-import type { AirJamRealtimeClient } from "../runtime/realtime-client";
+import type { SoundSignalPayload } from "../room-protocol";
 import {
   DEFAULT_PLATFORM_SETTINGS,
   type PlatformAudioSettings,
@@ -25,6 +24,7 @@ export function detectSoundCategory(config: SoundConfig): SoundCategory {
 }
 
 export interface PlayOptions {
+  /** On a host, plays the sound on players' phones instead (one when `target` is set). */
   remote?: boolean;
   target?: string;
   volume?: number;
@@ -50,9 +50,10 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
   private categories: Map<string, SoundCategory> = new Map();
   private manifest: SoundManifest = {};
   private _muted = false;
-  private socket: AirJamRealtimeClient | null = null;
-  private roomId: string | null = null;
-  private role: ConnectionRole | null = null;
+  /** Plays a sound on players' phones; set only on a host while its room runs. */
+  private sendToControllers:
+    | ((sound: SoundSignalPayload, targetId?: string) => void)
+    | null = null;
   private activeSoundIds: Map<
     number,
     { soundId: string; category: SoundCategory }
@@ -78,14 +79,10 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     return this.categories.get(soundId) ?? "sfx";
   }
 
-  public setSocket(
-    socket: AirJamRealtimeClient | null,
-    roomId?: string,
-    role?: ConnectionRole,
+  public setControllerSounds(
+    send: ((sound: SoundSignalPayload, targetId?: string) => void) | null,
   ) {
-    this.socket = socket;
-    if (roomId) this.roomId = roomId;
-    if (role) this.role = role;
+    this.sendToControllers = send;
   }
 
   public async init(): Promise<boolean> {
@@ -244,29 +241,14 @@ export class AudioManager<T extends string = string> implements AudioHandle<T> {
     volume?: number,
     loop?: boolean,
   ) {
-    if (!this.socket || !this.roomId) return;
-
-    if (this.isHost()) {
-      this.socket.emit("host:play_sound", {
-        roomId: this.roomId,
-        targetControllerId: target,
+    this.sendToControllers?.(
+      {
         soundId: id,
-        volume,
-        loop,
-      });
-      return;
-    }
-
-    this.socket.emit("controller:play_sound", {
-      roomId: this.roomId,
-      soundId: id,
-      volume,
-      loop,
-    });
-  }
-
-  private isHost(): boolean {
-    return this.role === "host";
+        ...(volume === undefined ? {} : { volume }),
+        ...(loop === undefined ? {} : { loop }),
+      },
+      target,
+    );
   }
 
   public playSpatial(

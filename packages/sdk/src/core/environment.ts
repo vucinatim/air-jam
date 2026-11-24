@@ -1,14 +1,24 @@
 import type { RoomCode, RunMode } from "../protocol";
+import type { RuntimeErrorReporter } from "../protocol/runtime-reporting";
+import type { SeatKind } from "../room-protocol";
 import type {
-  AirJamRealtimeClient,
-  DirectSocketGetter,
-} from "../runtime/realtime-client";
+  HostRoom,
+  HostSessionOptions,
+} from "../room-session/host-room-session";
+import type {
+  PhoneRoomSession,
+  PhoneSessionOptions,
+} from "../room-session/phone-room-session";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 
-/** A host's resumable room, kept across reloads where the platform allows. */
+/**
+ * A host's place in its room, kept across reloads where the platform allows:
+ * the key that reclaims it, the code and the room instance.
+ */
 export interface AirJamHostResume {
-  roomId: string;
-  token: string;
+  key: string;
+  code: string;
+  instance: string;
 }
 
 export interface AirJamDevLogContext {
@@ -18,10 +28,14 @@ export interface AirJamDevLogContext {
   traceId?: string;
 }
 
-/** What lets a controller rejoin its seat after a reload. */
+/** What lets a phone resume its seat after a reload. */
+/**
+ * A phone's place in one room: its key, stored before it first connects so
+ * a reload never makes a second seat, and the room instance once welcomed.
+ */
 export interface ControllerRoomBinding {
-  controllerId: string;
-  resumeCapabilityToken: string;
+  key: string;
+  instance?: string;
 }
 
 /**
@@ -29,26 +43,37 @@ export interface ControllerRoomBinding {
  * provide it from the page; Node and tests provide it in memory.
  */
 export interface AirJamHostEnvironment {
-  /** Set when an embedding shell owns the room; the host joins it instead of creating one. */
-  readonly embedded: { roomId: RoomCode; joinUrl?: string } | null;
-  /** A room the surrounding page asked for, such as `?room=`. */
+  /**
+   * Set when an embedding shell owns the room and serves this host a view of
+   * it; the join link is the shell's.
+   */
+  readonly embedded: { joinUrl?: string } | null;
+  /** A room code the surrounding page asked for, such as `?room=`; a local server honours it. */
   readonly requestedRoomId: RoomCode | null;
   readonly runMode: RunMode;
   /** The store domain for stores that declare none. */
   readonly defaultStoreDomain: string;
+  /** The channel the runtime publishes its presentation on. */
+  readonly presentationChannel: string;
   /** Where agent tools and devtools find this runtime's control registry. */
   readonly controlTarget: object;
+  /** Opens or reclaims this host's room over the platform's link to its rooms. */
+  openRoom(
+    options: Pick<
+      HostSessionOptions,
+      "key" | "code" | "instance" | "credential" | "seats" | "input"
+    >,
+  ): HostRoom;
+  /** A new device key; see `createRoomKey`. */
+  createKey(): string;
   readResume(): AirJamHostResume | null;
   writeResume(resume: AirJamHostResume | null): void;
   requestHostGrant(
     endpoint: string,
     appId: string | undefined,
   ): Promise<string>;
-  controllerUrl(
-    roomId: RoomCode,
-    capabilityToken: string | undefined,
-  ): Promise<string>;
-  transport(getSocket: DirectSocketGetter<"host">): AirJamRealtimeClient;
+  controllerUrl(roomId: RoomCode): Promise<string>;
+  reportError: RuntimeErrorReporter;
   emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
   setDevLogContext(context: AirJamDevLogContext): void;
   /** A fresh seed for a game's simulation randomness. */
@@ -67,39 +92,41 @@ export interface AirJamHostEnvironment {
 }
 
 /**
- * Everything a controller runtime needs from the platform it runs on: who the
- * page says it is, where it may remember its seat, and how it vibrates.
+ * Everything a controller runtime needs from the platform it runs on: which
+ * room the page joins, where it may remember its seat, and how it vibrates.
  */
 export interface AirJamControllerEnvironment {
-  /** Set when an embedding shell admitted this controller already. */
+  /** Set when an embedding shell holds this phone's seat and serves it a view of the room. */
   readonly embedded: {
     roomId: RoomCode;
-    controllerId: string;
     playerProfile?: { label?: string; avatarId?: string };
   } | null;
   /** A room the surrounding page asked for, such as `?room=`. */
   readonly requestedRoomId: string | null;
-  /** A controller id the surrounding page asked for. */
-  readonly requestedControllerId: string | null;
-  /** A privileged controller capability carried by the join link. */
-  readonly capabilityToken: string | null;
-  /** This device's stable id; null when an embedding shell owns identity. */
-  readonly deviceId: string | null;
+  /** What holds this seat: a person's phone, a preview on a screen or an agent. */
+  readonly seatKind: SeatKind;
   /** Temporary local-seat name; the controller's ordinary nickname stays its own. */
   readonly localSeatLabel?: string | null;
   readonly runMode: RunMode;
   /** The store domain for stores that declare none. */
   readonly defaultStoreDomain: string;
-  readBinding(
-    roomId: string,
-    controllerId?: string,
-  ): ControllerRoomBinding | null;
+  /** The channel the host publishes its presentation on. */
+  readonly presentationChannel: string;
+  /** Joins or resumes a seat over the platform's link to its rooms. */
+  joinRoom(
+    options: Pick<
+      PhoneSessionOptions,
+      "key" | "code" | "instance" | "kind" | "profile" | "input"
+    >,
+  ): PhoneRoomSession;
+  createKey(): string;
+  readBinding(roomId: string): ControllerRoomBinding | null;
   writeBinding(roomId: string, binding: ControllerRoomBinding): void;
-  clearBinding(roomId: string, controllerId?: string): void;
+  clearBinding(roomId: string): void;
   vibrate(pattern: number | number[]): void;
   /** Runs `callback` before the next display frame, so control changes send once per frame. */
   requestFrame(callback: () => void): void;
-  transport(getSocket: DirectSocketGetter<"controller">): AirJamRealtimeClient;
+  reportError: RuntimeErrorReporter;
   emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
   setDevLogContext(context: AirJamDevLogContext): void;
 }

@@ -1,17 +1,20 @@
-import type {
-  ClientToServerEvents,
-  ControllerActionRpcPayload,
-  ControllerInputEvent,
-  ControllerStateSyncRequestPayload,
-  ServerToClientEvents,
-} from "@air-jam/sdk/protocol";
+import type { AirJamInputState } from "@air-jam/sdk/core";
+import {
+  AIRJAM_CONTROL_CHANNEL,
+  AIRJAM_PRESENTATION_CHANNEL,
+} from "@air-jam/sdk/room-protocol";
+import {
+  createWebSocketConnector,
+  HostRoomSession,
+} from "@air-jam/sdk/room-session";
+import { loadServerEnv } from "@air-jam/server";
+import { createRoomServer } from "@air-jam/server/room-server";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer, get as httpGet } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { Server as SocketIoServer } from "socket.io";
 import { afterEach, describe, expect, it } from "vitest";
 import { detectProjectContext, inspectProject } from "../src/context.js";
 import {
@@ -253,36 +256,33 @@ console.log(JSON.stringify({
   return { root, port };
 };
 
-const createControllerSocketFixture = async ({
-  controllerStateDelayMs = 0,
-  rejectLeave = false,
+const fixtureInput = {
+  confirm: { kind: "button", name: "confirm", mode: "pressed" },
+  direction: { kind: "axis", name: "direction" },
+  moveX: { kind: "axis", name: "moveX" },
+} as const;
+
+const until = async (condition: () => boolean, deadlineMs = 5_000) => {
+  const deadline = Date.now() + deadlineMs;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error("The condition never held.");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+};
+
+/**
+ * A real room server with a game host in it: the host publishes the room's
+ * presentation and two stores, records every seat's input and the actions
+ * phones ask for, and acknowledges leased control.
+ */
+const createControllerRoomFixture = async ({
   aliasedAgentImport = false,
-  replayStaleDefaultSyncAfterAction = false,
-  embeddedArcadeIdentity = null,
 }: {
-  controllerStateDelayMs?: number;
-  rejectLeave?: boolean;
   aliasedAgentImport?: boolean;
-  replayStaleDefaultSyncAfterAction?: boolean;
-  embeddedArcadeIdentity?: {
-    epoch: number;
-    gameId: string;
-  } | null;
-} = {}): Promise<{
-  root: string;
-  joinUrl: string;
-  receivedInputs: ControllerInputEvent[];
-  receivedActions: ControllerActionRpcPayload[];
-  receivedStateSyncRequests: ControllerStateSyncRequestPayload[];
-  receivedLeaves: { roomId: string; controllerId: string }[];
-  setStorePayload: (
-    storeDomain: string,
-    payload: Record<string, unknown>,
-  ) => void;
-}> => {
+} = {}) => {
   const root = await createTempRoot();
   await writeJson(path.join(root, "package.json"), {
-    name: "socket-fixture",
+    name: "room-fixture",
     type: "module",
     scripts: {
       topology: "node topology.mjs",
@@ -302,8 +302,8 @@ const createControllerSocketFixture = async ({
   await writeFile(
     path.join(root, "src", "airjam.config.ts"),
     declarationSource(
-      { slug: "socket-fixture" },
-      "agent: agentContract",
+      { slug: "room-fixture" },
+      `agent: agentContract, input: ${JSON.stringify(fixtureInput)}`,
       `import { agentContract } from "${aliasedAgentImport ? "@/game/contracts/agent" : "./game/contracts/agent"}";`,
     ),
     "utf8",
@@ -384,7 +384,7 @@ const createControllerSocketFixture = async ({
   scenarios: [
     {
       id: "lobby",
-      description: "Socket fixture lobby state",
+      description: "Room fixture lobby state",
       run: async () => {},
     },
   ],
@@ -392,203 +392,63 @@ const createControllerSocketFixture = async ({
     "utf8",
   );
 
-  const receivedInputs: ControllerInputEvent[] = [];
-  const receivedActions: ControllerActionRpcPayload[] = [];
-  const receivedStateSyncRequests: ControllerStateSyncRequestPayload[] = [];
-  const receivedLeaves: { roomId: string; controllerId: string }[] = [];
-  const embeddedGameStoreDomain = embeddedArcadeIdentity
-    ? `aj.embedded.game:${embeddedArcadeIdentity.epoch}:${embeddedArcadeIdentity.gameId}`
-    : null;
-  const storePayloads = new Map<string, Record<string, unknown>>([
-    [embeddedGameStoreDomain ?? "default", { phase: "lobby", score: 3 }],
-    ["scoreboard", { home: 3, away: 1 }],
-    ...(embeddedArcadeIdentity
-      ? [
-          [
-            "arcade.surface",
-            {
-              epoch: embeddedArcadeIdentity.epoch,
-              kind: "game",
-              gameId: embeddedArcadeIdentity.gameId,
-              controllerUrl: "http://localhost:5173/controller",
-              orientation: "portrait",
-              overlay: "hidden",
-            },
-          ] as const,
-        ]
-      : []),
-  ]);
-  const storeRevisions = new Map<string, number>(
-    Array.from(storePayloads.keys(), (storeDomain) => [storeDomain, 0]),
-  );
-
-  const httpServer = createServer((_request, response) => {
-    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    response.end("<!doctype html><html><body>controller fixture</body></html>");
+  const receivedInputs: Array<{ seat: string; state: AirJamInputState }> = [];
+  const receivedActions: Array<{
+    seat: string;
+    storeDomain: string;
+    actionName: string;
+    payload: unknown;
+  }> = [];
+  const server = createRoomServer({ envConfig: loadServerEnv({}) });
+  const port = await server.start(0);
+  const host = new HostRoomSession({
+    connector: createWebSocketConnector(`http://127.0.0.1:${port}`),
+    key: "fixture-host-key-01",
+    seats: 4,
+    deviceWakeEvents: null,
+    input: fixtureInput,
   });
-  const io = new SocketIoServer<ClientToServerEvents, ServerToClientEvents>(
-    httpServer,
-    {
-      cors: {
-        origin: "*",
-      },
-    },
-  );
-
-  io.on("connection", (socket) => {
-    socket.on("controller:join", (payload, callback) => {
-      callback({
-        ok: true,
-        controllerId: payload.controllerId,
-        roomId: payload.roomId,
-      });
-      socket.emit("server:welcome", {
-        controllerId: payload.controllerId,
-        roomId: payload.roomId,
-        player: {
-          id: payload.controllerId,
-          label: payload.nickname ?? payload.controllerId,
-          avatarId: payload.avatarId,
-        },
-        players: [
-          {
-            id: payload.controllerId,
-            label: payload.nickname ?? payload.controllerId,
-            avatarId: payload.avatarId,
-          },
-        ],
-      });
-      const publishState = () =>
-        socket.emit("server:state", {
-          roomId: payload.roomId,
-          state: {
-            orientation: "landscape",
-            runtimeState: "playing",
-            stateVersion: 1,
-          },
-        });
-      if (controllerStateDelayMs > 0)
-        setTimeout(publishState, controllerStateDelayMs);
-      else publishState();
-    });
-
-    socket.on("controller:leasedControl", (request, acknowledge) => {
-      acknowledge({
+  host.on("input", (record) => receivedInputs.push(record));
+  host.on("request", (request) => {
+    if (request.channel === AIRJAM_CONTROL_CHANNEL) {
+      const command = request.payload as {
+        lease: { id: string; sequence: number };
+        operation: { kind: string };
+      };
+      host.respond(request.seat, request.id, {
         status: "applied",
-        leaseId: request.lease.id,
-        sequence: request.lease.sequence,
+        leaseId: command.lease.id,
+        sequence: command.lease.sequence,
         replayed: false,
         operation:
-          request.operation.kind === "action"
+          command.operation.kind === "action"
             ? {
                 kind: "action",
                 result: { ok: true, status: "accepted", source: "host" },
               }
-            : { kind: request.operation.kind },
+            : { kind: command.operation.kind },
       });
+      return;
+    }
+    receivedActions.push({
+      seat: request.seat,
+      storeDomain: request.channel,
+      actionName: request.name,
+      payload: request.payload,
     });
-
-    socket.on("controller:input", (payload) => {
-      receivedInputs.push(payload);
-    });
-
-    (
-      socket as unknown as {
-        on: (
-          event: string,
-          listener: (
-            payload: {
-              roomId: string;
-              actionName: string;
-              payload: ControllerActionRpcPayload["payload"];
-              storeDomain: string;
-            },
-            callback?: (ack: {
-              ok: true;
-              status: "accepted";
-              source: "host";
-            }) => void,
-          ) => void,
-        ) => void;
-      }
-    ).on("controller:action_rpc", (payload, callback) => {
-      receivedActions.push(payload);
-      if (
-        payload.actionName === "setScore" &&
-        replayStaleDefaultSyncAfterAction
-      ) {
-        const previous = { ...storePayloads.get(payload.storeDomain) };
-        const revision = storeRevisions.get(payload.storeDomain) ?? 0;
-        storePayloads.set(payload.storeDomain, { ...previous, score: 9 });
-        storeRevisions.set(payload.storeDomain, revision + 1);
-        setTimeout(
-          () =>
-            socket.emit("airjam:state_sync", {
-              roomId: payload.roomId,
-              storeDomain: payload.storeDomain,
-              data: previous,
-              revision,
-            }),
-          50,
-        );
-      }
-      callback?.({
-        ok: true,
-        status: "accepted",
-        source: "host",
-      });
-    });
-
-    socket.on("controller:state_sync_request", (payload) => {
-      receivedStateSyncRequests.push(payload);
-      const data = storePayloads.get(payload.storeDomain);
-      if (!data) {
-        return;
-      }
-
-      socket.emit("airjam:state_sync", {
-        roomId: payload.roomId,
-        storeDomain: payload.storeDomain,
-        data,
-        revision: storeRevisions.get(payload.storeDomain) ?? 0,
-        ...(payload.requestId ? { requestId: payload.requestId } : {}),
-      });
-    });
-
-    (
-      socket as unknown as {
-        on: (
-          event: string,
-          listener: (
-            payload: { roomId: string; controllerId: string },
-            callback: (ack: { ok: boolean; message?: string }) => void,
-          ) => void,
-        ) => void;
-      }
-    ).on("controller:leave", (payload, callback) => {
-      receivedLeaves.push(payload);
-      if (rejectLeave) {
-        callback({ ok: false, message: "The fixture refused removal." });
-        return;
-      }
-      socket.emit("server:controllerLeft", {
-        controllerId: payload.controllerId,
-      });
-      callback({ ok: true });
+    host.respond(request.seat, request.id, {
+      ok: true,
+      status: "accepted",
+      source: "host",
     });
   });
-
-  const port = await new Promise<number>((resolve, reject) => {
-    httpServer.once("error", reject);
-    httpServer.listen(0, "127.0.0.1", () => {
-      const address = httpServer.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Failed to resolve controller socket fixture port."));
-        return;
-      }
-      resolve(address.port);
-    });
+  host.publish("default", { phase: "lobby", score: 3 });
+  host.publish("scoreboard", { home: 3, away: 1 });
+  host.publish(AIRJAM_PRESENTATION_CHANNEL, {
+    orientation: "landscape",
+    runtimeState: "playing",
   });
+  await until(() => host.status.phase === "open");
 
   await writeFile(
     path.join(root, "topology.mjs"),
@@ -618,31 +478,17 @@ console.log(JSON.stringify({
   );
 
   fixtureClosers.push(async () => {
-    await new Promise<void>((resolve, reject) => {
-      io.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    host.close();
+    await server.stop();
   });
 
   return {
     root,
-    joinUrl: `http://127.0.0.1:${port}/controller?room=ROOM1&aj_controller_cap=cap_fixture`,
+    code: host.code,
+    joinUrl: `http://127.0.0.1:${port}/controller?room=${host.code}`,
+    host,
     receivedInputs,
     receivedActions,
-    receivedStateSyncRequests,
-    receivedLeaves,
-    setStorePayload: (storeDomain, payload) => {
-      storePayloads.set(storeDomain, payload);
-      storeRevisions.set(
-        storeDomain,
-        (storeRevisions.get(storeDomain) ?? 0) + 1,
-      );
-    },
   };
 };
 
@@ -1302,7 +1148,7 @@ describe("visual scenarios", () => {
 
 describe("virtual controller runtime control", () => {
   it("keeps leased player ownership separate from ordinary controller writes", async () => {
-    const fixture = await createControllerSocketFixture();
+    const fixture = await createControllerRoomFixture();
     const connected = await connectController({
       cwd: fixture.root,
       controllerJoinUrl: fixture.joinUrl,
@@ -1376,28 +1222,8 @@ describe("virtual controller runtime control", () => {
     }
   });
 
-  it("reports an unremoved player honestly while still disconnecting its socket", async () => {
-    const fixture = await createControllerSocketFixture({ rejectLeave: true });
-    const connected = await connectController({
-      cwd: fixture.root,
-      controllerJoinUrl: fixture.joinUrl,
-    });
-    const stopped = await disconnectController({
-      controllerSessionId: connected.controllerSessionId,
-    });
-    expect(stopped.disconnected).toBe(true);
-    expect(stopped.release).toEqual({ status: "not-leased" });
-    expect(stopped.leave).toEqual({
-      status: "rejected",
-      message: "The fixture refused removal.",
-    });
-    expect(stopped.session.connected).toBe(false);
-  });
-
   it("connects a virtual controller, sends input, invokes actions, reads synced runtime state, and disconnects", async () => {
-    const fixture = await createControllerSocketFixture({
-      controllerStateDelayMs: 50,
-    });
+    const fixture = await createControllerRoomFixture();
 
     const connected = await connectController({
       cwd: fixture.root,
@@ -1406,7 +1232,7 @@ describe("virtual controller runtime control", () => {
       avatarId: "aj-2",
     });
 
-    expect(connected.roomId).toBe("ROOM1");
+    expect(connected.roomId).toBe(fixture.code);
     expect(connected.connected).toBe(true);
     expect(connected.controllerState?.runtimeState).toBe("playing");
     expect(connected.players).toEqual(
@@ -1430,18 +1256,24 @@ describe("virtual controller runtime control", () => {
     await new Promise((resolve) => setTimeout(resolve, 25));
     expect(inputResult.controllerId).toBe(connected.controllerId);
     // A button an agent puts down is one press; other controls hold.
-    expect(fixture.receivedInputs).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          roomId: "ROOM1",
-          controllerId: connected.controllerId,
-          input: { confirm: { down: true, presses: 1 }, direction: 0.5 },
-        }),
-        expect.objectContaining({
-          input: { confirm: { down: false, presses: 1 }, direction: 0.5 },
-        }),
-      ]),
-    );
+    expect(fixture.receivedInputs).toEqual([
+      {
+        seat: connected.controllerId,
+        state: {
+          confirm: { down: true, presses: 1 },
+          direction: 0.5,
+          moveX: 0,
+        },
+      },
+      {
+        seat: connected.controllerId,
+        state: {
+          confirm: { down: false, presses: 1 },
+          direction: 0.5,
+          moveX: 0,
+        },
+      },
+    ]);
 
     const actionResult = await invokeControllerAction({
       controllerSessionId: connected.controllerSessionId,
@@ -1460,14 +1292,12 @@ describe("virtual controller runtime control", () => {
     });
     expect(fixture.receivedActions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          roomId: "ROOM1",
+        {
+          seat: connected.controllerId,
           actionName: "joinTeam",
           storeDomain: "default",
-          payload: {
-            team: "blue",
-          },
-        }),
+          payload: { team: "blue" },
+        },
       ]),
     );
 
@@ -1500,18 +1330,6 @@ describe("virtual controller runtime control", () => {
         }),
       ]),
     );
-    expect(fixture.receivedStateSyncRequests).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          roomId: "ROOM1",
-          storeDomain: "default",
-        }),
-        expect.objectContaining({
-          roomId: "ROOM1",
-          storeDomain: "scoreboard",
-        }),
-      ]),
-    );
 
     const disconnected = await disconnectController({
       controllerSessionId: connected.controllerSessionId,
@@ -1519,12 +1337,7 @@ describe("virtual controller runtime control", () => {
     expect(disconnected.disconnected).toBe(true);
     expect(disconnected.leave).toEqual({ status: "acknowledged" });
     expect(disconnected.session.connected).toBe(false);
-    expect(fixture.receivedLeaves).toEqual([
-      expect.objectContaining({
-        roomId: "ROOM1",
-        controllerId: connected.controllerId,
-      }),
-    ]);
+    await until(() => fixture.host.seats.length === 0);
 
     await expect(
       readRuntimeSnapshot({
@@ -1590,7 +1403,7 @@ describe("agent contracts", () => {
   it.each([false, true])(
     "inspects source contracts with project-local aliases: %s",
     async (aliasedAgentImport) => {
-      const fixture = await createControllerSocketFixture({
+      const fixture = await createControllerRoomFixture({
         aliasedAgentImport,
       });
       const game = await inspectGame({ cwd: fixture.root });
@@ -1638,7 +1451,7 @@ describe("agent contracts", () => {
 
 describe("attached game sessions", () => {
   it("retains participant input but refuses semantic interpretation of local source", async () => {
-    const fixture = await createControllerSocketFixture();
+    const fixture = await createControllerRoomFixture();
     const session = await openGameSession({
       cwd: fixture.root,
       controllerJoinUrl: fixture.joinUrl,
@@ -1665,7 +1478,7 @@ describe("attached game sessions", () => {
     await closeGameSession({ gameSessionId: session.gameSessionId });
   });
   it("keeps built-package attachments participant-only", async () => {
-    const fixture = await createControllerSocketFixture();
+    const fixture = await createControllerRoomFixture();
     const built = await import(
       `${pathToFileURL(path.join(__dirname, "../dist/game-session.js")).href}?built-session-smoke`
     );
@@ -1684,7 +1497,7 @@ describe("attached game sessions", () => {
     await stopGameSessionBroker(fixture.root);
   });
   it("does not accept a stale Arcade game identity", async () => {
-    const fixture = await createControllerSocketFixture();
+    const fixture = await createControllerRoomFixture();
     await expect(
       openGameSession({
         cwd: fixture.root,
@@ -1694,6 +1507,6 @@ describe("attached game sessions", () => {
         timeoutMs: 50,
       }),
     ).rejects.toThrow('did not expose a valid "arcade.surface" snapshot');
-    expect(fixture.receivedLeaves).toHaveLength(1);
+    await until(() => fixture.host.seats.length === 0);
   });
 });

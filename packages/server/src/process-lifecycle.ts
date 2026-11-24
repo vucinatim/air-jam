@@ -1,8 +1,13 @@
-import type { AirJamServerRuntime } from "./index.js";
 import { createServerLogger, type ServerLogger } from "./logging/logger.js";
+import type { RoomServerRuntime } from "./room-server/room-server.js";
 
 type ShutdownSignal = "SIGINT" | "SIGTERM";
 
+/**
+ * Stops the room server once on SIGINT or SIGTERM: every room closes its
+ * devices as "restarting", so they come back to the next server. Returns
+ * the call that removes the handlers.
+ */
 export const installServerProcessSignalHandlers = ({
   runtime,
   logger = createServerLogger({
@@ -10,67 +15,31 @@ export const installServerProcessSignalHandlers = ({
     component: "process-lifecycle",
   }),
 }: {
-  runtime: AirJamServerRuntime;
+  runtime: Pick<RoomServerRuntime, "stop">;
   logger?: ServerLogger;
 }): (() => void) => {
-  let shutdownPromise: Promise<void> | null = null;
-  let unsubscribeTerminalFailure: (() => void) | null = null;
+  let stopping = false;
 
   const removeHandlers = (): void => {
     process.off("SIGINT", handleSignal);
     process.off("SIGTERM", handleSignal);
-    unsubscribeTerminalFailure?.();
-    unsubscribeTerminalFailure = null;
   };
 
-  const shutdown = ({
-    signal,
-    failureMessage,
-  }: {
-    signal?: ShutdownSignal;
-    failureMessage?: string;
-  }): void => {
-    if (shutdownPromise) return;
-    if (failureMessage) process.exitCode = 1;
+  const handleSignal = (signal: ShutdownSignal): void => {
+    if (stopping) return;
+    stopping = true;
     removeHandlers();
-    shutdownPromise = (async () => {
-      logger.info(
-        { signal, failureMessage },
-        failureMessage
-          ? "Realtime authority failed; server started bounded drain"
-          : "Realtime server started graceful drain",
-      );
-      const result = await runtime.drain();
-      logger.info(
-        { signal, failureMessage, ...result },
-        result.completed
-          ? "Realtime server drain completed"
-          : "Realtime server drain reached its bounded timeout",
-      );
-      await runtime.stop();
-    })().catch(async (error) => {
-      process.exitCode = 1;
-      logger.error(
-        { err: error, signal, failureMessage },
-        "Realtime server shutdown failed",
-      );
-      try {
-        await runtime.stop();
-      } catch (stopError) {
-        logger.error(
-          { err: stopError, signal },
-          "Realtime server forced cleanup failed",
-        );
-      }
-    });
+    logger.info({ signal }, "Room server stopping");
+    runtime.stop().then(
+      () => logger.info({ signal }, "Room server stopped"),
+      (error: unknown) => {
+        process.exitCode = 1;
+        logger.error({ err: error, signal }, "Room server stop failed");
+      },
+    );
   };
-
-  const handleSignal = (signal: ShutdownSignal): void => shutdown({ signal });
 
   process.once("SIGINT", handleSignal);
   process.once("SIGTERM", handleSignal);
-  unsubscribeTerminalFailure = runtime.onTerminalFailure((failure) => {
-    shutdown({ failureMessage: failure.message });
-  });
   return removeHandlers;
 };

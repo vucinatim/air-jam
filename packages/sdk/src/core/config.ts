@@ -1,9 +1,15 @@
 import { DEFAULT_MAX_PLAYERS } from "../constants";
-import type { HostSessionKind } from "../protocol/host";
+import type { RuntimeErrorReporter } from "../protocol/runtime-reporting";
+import { AIRJAM_PRESENTATION_CHANNEL } from "../room-protocol";
 import type {
   ProxyStrategy,
   ResolvedAirJamRuntimeTopology,
 } from "../runtime-topology";
+import {
+  AIR_JAM_HOSTED_HOST_GRANT_ENDPOINT,
+  AIR_JAM_HOSTED_ROOMS_ORIGIN,
+  hostedRuntimeErrorReporter,
+} from "./hosted-rooms";
 
 /** A surface's resolved runtime configuration; environments resolve it. */
 export interface AirJamConfig {
@@ -11,34 +17,54 @@ export interface AirJamConfig {
   appId?: string;
   hostGrantEndpoint?: string;
   maxPlayers: number;
-  hostSessionKind: HostSessionKind;
+  /**
+   * Where runtime error reports go: on Air Jam's hosted rooms the platform
+   * by default, elsewhere the development log when absent.
+   */
+  reportError?: RuntimeErrorReporter;
+  /** The channel the host publishes its presentation on; a launcher uses its own so its game keeps the default. */
+  presentationChannel: string;
   backendOrigin: string;
   socketOrigin: string;
   appOrigin: string;
   proxyStrategy: ProxyStrategy;
 }
 
-/** The configuration of a surface whose topology is already resolved. */
+/**
+ * The configuration of a surface whose topology is already resolved. A page
+ * on Air Jam's hosted rooms talks to the platform that runs them unless told
+ * otherwise: a host fetches its grants there and every page sends its crash
+ * reports there. A self-hosted server keeps its own gate and reports.
+ */
 export const createAirJamConfig = ({
   topology,
   appId,
   hostGrantEndpoint,
   maxPlayers = DEFAULT_MAX_PLAYERS,
-  hostSessionKind = "game",
+  reportError,
+  presentationChannel = AIRJAM_PRESENTATION_CHANNEL,
 }: {
   topology: ResolvedAirJamRuntimeTopology;
   appId?: string;
   hostGrantEndpoint?: string;
   maxPlayers?: number;
-  hostSessionKind?: HostSessionKind;
-}): AirJamConfig => ({
-  topology,
-  appId,
-  hostGrantEndpoint,
-  maxPlayers,
-  hostSessionKind,
-  backendOrigin: topology.backendOrigin,
-  socketOrigin: topology.socketOrigin,
-  appOrigin: topology.appOrigin,
-  proxyStrategy: topology.proxyStrategy,
-});
+  reportError?: RuntimeErrorReporter;
+  presentationChannel?: string;
+}): AirJamConfig => {
+  const hosted = topology.socketOrigin === AIR_JAM_HOSTED_ROOMS_ORIGIN;
+  return {
+    topology,
+    appId,
+    hostGrantEndpoint:
+      hostGrantEndpoint ??
+      (hosted ? AIR_JAM_HOSTED_HOST_GRANT_ENDPOINT : undefined),
+    maxPlayers,
+    reportError:
+      reportError ?? (hosted ? hostedRuntimeErrorReporter : undefined),
+    presentationChannel,
+    backendOrigin: topology.backendOrigin,
+    socketOrigin: topology.socketOrigin,
+    appOrigin: topology.appOrigin,
+    proxyStrategy: topology.proxyStrategy,
+  };
+};

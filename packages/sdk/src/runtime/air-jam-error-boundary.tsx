@@ -16,6 +16,12 @@ import {
 } from "../protocol";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 
+/** A crash report before the room it happened in is known. */
+export type RuntimeErrorReportDraft = Omit<
+  RuntimeErrorReport,
+  "roomId" | "instance" | "seat"
+>;
+
 export type AirJamRuntimeRole = "host" | "controller";
 
 interface AirJamRuntimeErrorContext {
@@ -38,7 +44,8 @@ export type AirJamErrorFallbackRenderer = (
 export interface AirJamErrorBoundaryProps extends AirJamRuntimeErrorContext {
   children: ReactNode;
   renderFallback?: AirJamErrorFallbackRenderer;
-  reportError?: (report: RuntimeErrorReport) => void;
+  /** Receives the crash report; the room's code, instance and seat are the receiver's to add. */
+  reportError?: (report: RuntimeErrorReportDraft) => void;
   onError?: (
     error: Error,
     errorInfo: ErrorInfo,
@@ -653,12 +660,11 @@ export class AirJamErrorBoundary extends Component<
       data: details,
     });
 
-    if (roomId && reportError) {
+    if (reportError) {
       try {
         reportError({
           contractVersion: AIRJAM_RUNTIME_ERROR_REPORT_CONTRACT_VERSION,
           reportId: createRuntimeReportId(),
-          roomId,
           role,
           code: "AJ_RUNTIME_RENDER_CRASH",
           errorName: /^[A-Za-z][A-Za-z0-9._-]{0,79}$/u.test(error.name)

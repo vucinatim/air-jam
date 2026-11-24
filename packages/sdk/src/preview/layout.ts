@@ -1,5 +1,5 @@
 import { SURFACE_VIEWPORT_REFERENCE_SIZES } from "../components/surface-viewport-layout";
-import type { ControllerOrientation } from "../protocol/controller";
+import { type ControllerOrientation } from "../room-protocol";
 
 export const getPreviewHostViewportSize = () =>
   SURFACE_VIEWPORT_REFERENCE_SIZES.host.landscape;

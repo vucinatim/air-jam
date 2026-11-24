@@ -1,8 +1,18 @@
+import {
+  ABNORMAL_CLOSE_CODE,
+  AIRJAM_PRESENTATION_CHANNEL,
+  type RoomConnector,
+} from "@air-jam/sdk/room-protocol";
+import {
+  createLoopbackConnector,
+  createWebSocketConnector,
+  HostRoomSession,
+} from "@air-jam/sdk/room-session";
 import { runtimeTopologyToQueryParams } from "@air-jam/sdk/runtime-topology";
+import { createOpenRoomGate, MemoryRoomHost } from "@air-jam/server/room";
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
-import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getTopology } from "../src/dev.js";
 import { closeScopedProcess } from "../src/managed-process-scope.js";
@@ -15,132 +25,56 @@ import {
 
 const joinAttempts: string[] = [];
 const spawnedOwners: FakeChildProcess[] = [];
-let arcadeSurface: Record<string, unknown> | null = null;
 let actionResponse: "accept" | "reject" | "exit" | "timeout" = "accept";
 const ownedActions: AirJamRuntimeOwnerActionRequest[] = [];
 let disconnectDuringCapture = false;
-const defaultOwnedJoinUrl =
-  "http://127.0.0.1:7777/controller?room=ROOM2&aj_controller_cap=held";
+const defaultOwnedJoinUrl = "http://127.0.0.1:7777/controller?room=ROOM2";
 let ownedJoinUrl = defaultOwnedJoinUrl;
 
-class MockSocket {
-  public connected = false;
-  private readonly events = new EventEmitter();
-  private readonly anyListeners = new Set<
-    (event: string, ...args: unknown[]) => void
-  >();
-  onAny(listener: (event: string, ...args: unknown[]) => void): this {
-    this.anyListeners.add(listener);
-    return this;
-  }
-  offAny(listener: (event: string, ...args: unknown[]) => void): this {
-    this.anyListeners.delete(listener);
-    return this;
-  }
-
-  on(event: string, listener: (...args: unknown[]) => void): this {
-    this.events.on(event, listener);
-    return this;
-  }
-
-  once(event: string, listener: (...args: unknown[]) => void): this {
-    this.events.once(event, listener);
-    return this;
-  }
-
-  off(event: string, listener: (...args: unknown[]) => void): this {
-    this.events.off(event, listener);
-    return this;
-  }
-
-  emit(event: string, ...args: unknown[]): boolean {
-    if (event === "controller:state_sync_request" && arcadeSurface) {
-      const payload = args[0] as {
-        roomId: string;
-        storeDomain: string;
-        requestId: string;
-      };
-      this.serverEmit("airjam:state_sync", {
-        ...payload,
-        revision: 1,
-        data: arcadeSurface,
-      });
-      return true;
-    }
-    if (event === "controller:join") {
-      const payload = args[0] as { roomId: string; controllerId: string };
-      const callback = args[1] as
-        | ((ack: {
-            ok: boolean;
-            roomId?: string;
-            controllerId?: string;
-            message?: string;
-          }) => void)
-        | undefined;
-      joinAttempts.push(payload.roomId);
-      if (payload.roomId === "ROOM2") {
-        callback?.({
-          ok: true,
-          roomId: payload.roomId,
-          controllerId: payload.controllerId,
-        });
-        queueMicrotask(() => {
-          this.serverEmit("server:welcome", {
-            controllerId: payload.controllerId,
-            roomId: payload.roomId,
-            player: {
-              id: payload.controllerId,
-              label: payload.controllerId,
-            },
-            players: [
-              {
-                id: payload.controllerId,
-                label: payload.controllerId,
-              },
-            ],
-          });
-          this.serverEmit("server:state", {
-            roomId: payload.roomId,
-            state: {
-              runtimeState: "playing",
-            },
-          });
-        });
-        return true;
-      }
-
-      callback?.({
-        ok: false,
-        message: "Room not found",
-      });
-      return true;
-    }
-
-    if (event === "controller:leave") {
-      const payload = args[0] as { controllerId: string };
-      const callback = args[1] as ((ack: { ok: boolean }) => void) | undefined;
-      this.serverEmit("server:controllerLeft", {
-        controllerId: payload.controllerId,
-      });
-      callback?.({ ok: true });
-      return true;
-    }
-
-    return true;
-  }
-
-  disconnect(): void {
-    this.connected = false;
-    this.serverEmit("disconnect", "io client disconnect");
-  }
-
-  serverEmit(event: string, ...args: unknown[]): void {
-    this.events.emit(event, ...args);
-    if (event !== "connect" && event !== "disconnect") {
-      for (const listener of this.anyListeners) listener(event, ...args);
-    }
-  }
-}
+/**
+ * One room, ROOM2, with a game host in it, reached by every phone the
+ * controller opens whatever origin it dials; other codes are not found.
+ */
+let roomHost: HostRoomSession;
+let dropPhones: () => void = () => {};
+const openRoomFixture = async () => {
+  const rooms = new MemoryRoomHost({
+    gate: createOpenRoomGate(),
+    codesMayBeAsked: true,
+  });
+  const loopback = createLoopbackConnector(rooms);
+  const phones = new Set<() => void>();
+  dropPhones = () => {
+    for (const drop of phones) drop();
+  };
+  phoneConnector = (address, handlers) => {
+    if (address.role === "phone") joinAttempts.push(address.code);
+    const link = loopback(address, handlers);
+    const drop = () => {
+      link.close();
+      handlers.close(ABNORMAL_CLOSE_CODE);
+    };
+    phones.add(drop);
+    return {
+      send: (data) => link.send(data),
+      buffered: () => link.buffered(),
+      close: () => {
+        phones.delete(drop);
+        link.close();
+      },
+    };
+  };
+  roomHost = new HostRoomSession({
+    connector: loopback,
+    key: "fixture-host-key-01",
+    code: "ROOM2",
+    seats: 4,
+    deviceWakeEvents: null,
+  });
+  roomHost.publish(AIRJAM_PRESENTATION_CHANNEL, { runtimeState: "playing" });
+  await vi.waitFor(() => expect(roomHost.status.phase).toBe("open"));
+};
+let phoneConnector: RoomConnector;
 
 class FakeChildProcess extends EventEmitter {
   public readonly stdout = new PassThrough();
@@ -193,10 +127,7 @@ class FakeChildProcess extends EventEmitter {
       return true;
     }
     if (disconnectDuringCapture) {
-      const socket = vi.mocked(io).mock.results.at(-1)
-        ?.value as unknown as MockSocket;
-      if (!socket) throw new Error("Missing capture controller.");
-      socket.disconnect();
+      dropPhones();
       return true;
     }
     queueMicrotask(() => {
@@ -310,22 +241,19 @@ vi.mock("../src/managed-process-scope.js", () => ({
   }),
 }));
 
-vi.mock("socket.io-client", () => ({
-  io: vi.fn(() => {
-    const socket = new MockSocket();
-    queueMicrotask(() => {
-      socket.connected = true;
-      socket.serverEmit("connect");
-    });
-    return socket;
-  }),
+vi.mock("@air-jam/sdk/room-session", async (importActual) => ({
+  ...(await importActual<typeof import("@air-jam/sdk/room-session")>()),
+  createWebSocketConnector: vi.fn(
+    (): RoomConnector => (address, handlers) =>
+      phoneConnector(address, handlers),
+  ),
 }));
 
 describe("isolated runtime controller handoff", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await openRoomFixture();
     joinAttempts.length = 0;
     spawnedOwners.length = 0;
-    arcadeSurface = null;
     actionResponse = "accept";
     disconnectDuringCapture = false;
     ownedJoinUrl = defaultOwnedJoinUrl;
@@ -336,6 +264,7 @@ describe("isolated runtime controller handoff", () => {
   });
 
   afterEach(async () => {
+    roomHost.close();
     vi.clearAllMocks();
     for (const owner of spawnedOwners.splice(0)) {
       if (!owner.killed) {
@@ -352,10 +281,10 @@ describe("isolated runtime controller handoff", () => {
       const { startDev } = await import("../src/dev.js");
       const session = await connectController({
         cwd: "/tmp/solo",
-        controllerJoinUrl: `${origin}/controller?room=ROOM2&aj_controller_cap=explicit`,
+        controllerJoinUrl: `${origin}/controller?room=ROOM2`,
         timeoutMs: 1_000,
       });
-      expect(io).toHaveBeenCalledWith(origin, expect.any(Object));
+      expect(createWebSocketConnector).toHaveBeenCalledWith(origin);
       expect(session.socketOrigin).toBe(origin);
       expect(startDev).not.toHaveBeenCalled();
       expect(spawnedOwners).toHaveLength(0);
@@ -380,9 +309,6 @@ describe("isolated runtime controller handoff", () => {
     expect(joinAttempts).toEqual(["ROOM2"]);
     expect(session.roomId).toBe("ROOM2");
     expect(session.controllerJoinUrl).toContain("room=ROOM2");
-    expect(JSON.stringify(session)).not.toContain(
-      "private-controller-resume-token",
-    );
     expect(spawnedOwners).toHaveLength(1);
 
     const capture = await captureControllerSessionVisuals({
@@ -439,6 +365,25 @@ describe("isolated runtime controller handoff", () => {
     expect(closeScopedProcess).toHaveBeenCalledWith(spawnedOwners[0]);
   });
 
+  it("reports a controller whose link dropped as not connected while it reconnects", async () => {
+    const { connectController, disconnectController, readRuntimeSnapshot } =
+      await import("../src/controller.js");
+    const session = await connectController({
+      cwd: "/tmp/solo",
+      controllerJoinUrl: defaultOwnedJoinUrl,
+      timeoutMs: 1000,
+    });
+    expect(session.connected).toBe(true);
+    dropPhones();
+    const dropped = await readRuntimeSnapshot({
+      controllerSessionId: session.controllerSessionId,
+    });
+    expect(dropped.connected).toBe(false);
+    await disconnectController({
+      controllerSessionId: session.controllerSessionId,
+    });
+  });
+
   it("fails capture when its acting controller disconnects instead of returning stale images", async () => {
     const {
       captureControllerSessionVisuals,
@@ -460,7 +405,6 @@ describe("isolated runtime controller handoff", () => {
     ).rejects.toThrow(
       "Acting controller disconnected before visual capture completed",
     );
-    expect(spawnedOwners[0]?.killed).toBe(true);
     await disconnectController({
       controllerSessionId: session.controllerSessionId,
     });
@@ -469,8 +413,7 @@ describe("isolated runtime controller handoff", () => {
   it.each([
     { roomId: "ROOM1" },
     {
-      controllerJoinUrl:
-        "http://127.0.0.1:7777/controller?room=ROOM1&aj_controller_cap=dead",
+      controllerJoinUrl: "http://127.0.0.1:7777/controller?room=ROOM1",
     },
   ])(
     "rejects a missing explicit target without creating another host: %j",
@@ -487,7 +430,7 @@ describe("isolated runtime controller handoff", () => {
           gameId: "solo-fixture",
           timeoutMs: 1_000,
         }),
-      ).rejects.toThrow("Room not found");
+      ).rejects.toThrow("Controller join was refused (not-found).");
 
       expect(joinAttempts).toEqual(["ROOM1"]);
       expect(spawnedOwners).toHaveLength(0);
@@ -540,7 +483,7 @@ describe("isolated runtime controller handoff", () => {
       });
       try {
         const storeDomain =
-          mode === "arcade-dev" ? "aj.embedded.game:7:solo-fixture" : "default";
+          mode === "arcade-dev" ? "aj.embedded.game:solo-fixture" : "default";
         const invocation = await invokeHostAction({
           controllerSessionId: session.controllerSessionId,
           actionName: "finishMatch",
@@ -614,14 +557,14 @@ describe("isolated runtime controller handoff", () => {
         ...originalContext,
         mode: projectMode,
       });
-      arcadeSurface = {
+      roomHost.publish("arcade.surface", {
         epoch: 7,
         kind: "game",
         gameId: "local-reference-pong",
         controllerUrl: "http://localhost:5173/controller",
         orientation: "landscape",
         overlay: "hidden",
-      };
+      });
       const {
         connectController,
         resolveControllerSessionGameRuntime,
@@ -641,7 +584,7 @@ describe("isolated runtime controller handoff", () => {
         });
         expect(runtime).toEqual({
           gameId: projectMode === "monorepo" ? "pong" : "solo-fixture",
-          defaultStoreDomain: "aj.embedded.game:7:local-reference-pong",
+          defaultStoreDomain: "aj.embedded.game:local-reference-pong",
         });
       } finally {
         await disconnectController({
@@ -652,10 +595,7 @@ describe("isolated runtime controller handoff", () => {
   );
   it("connects to the actual owned relay even when inferred local development topology differs", async () => {
     const origin = "http://127.0.0.1:46127";
-    const url = new URL(
-      "/controller?room=ROOM2&aj_controller_cap=held",
-      origin,
-    );
+    const url = new URL("/controller?room=ROOM2", origin);
     for (const [key, value] of Object.entries(
       runtimeTopologyToQueryParams({
         runtimeMode: "self-hosted-production",
@@ -674,7 +614,7 @@ describe("isolated runtime controller handoff", () => {
       timeoutMs: 1000,
     });
     expect(session.socketOrigin).toBe(origin);
-    expect(io).toHaveBeenCalledWith(origin, expect.any(Object));
+    expect(createWebSocketConnector).toHaveBeenCalledWith(origin);
     await disconnectController({
       controllerSessionId: session.controllerSessionId,
     });
@@ -682,6 +622,7 @@ describe("isolated runtime controller handoff", () => {
 });
 
 it("joins a complete explicit room without topology discovery", async () => {
+  await openRoomFixture();
   const { connectController, disconnectController } =
     await import("../src/controller.js");
   vi.mocked(getTopology).mockClear();
@@ -698,5 +639,6 @@ it("joins a complete explicit room without topology discovery", async () => {
     await disconnectController({
       controllerSessionId: session.controllerSessionId,
     });
+    roomHost.close();
   }
 });

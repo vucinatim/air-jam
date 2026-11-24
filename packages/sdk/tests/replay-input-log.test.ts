@@ -6,7 +6,7 @@ import { defineAirJamSettings, setting } from "../src/core/settings";
 import { defineAirJamSimulation } from "../src/core/simulation";
 
 const log: AirJamInputLog = {
-  version: 2,
+  version: 3,
   seed: 123,
   settings: { speed: 1 },
   stepMs: 10,
@@ -15,12 +15,12 @@ const log: AirJamInputLog = {
   entries: [
     {
       tick: 2,
-      event: "airjam:settings",
+      event: "settings",
       payload: { patch: { speed: 2 }, revision: 1 },
     },
     {
       tick: 4,
-      event: "airjam:settings",
+      event: "settings",
       payload: { patch: { speed: 3 }, revision: 2 },
     },
   ],
@@ -90,7 +90,7 @@ it("finishes an empty recording and applies its trailing entries at open", async
     entries: [
       {
         tick: 1,
-        event: "airjam:settings",
+        event: "settings",
         payload: { patch: { speed: 2 }, revision: 1 },
       },
     ],

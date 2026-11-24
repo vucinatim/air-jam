@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAirJamContext } from "../context/air-jam-context";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAssertSessionScope } from "../context/session-scope";
-import type { SignalPayload, ToastSignalPayload } from "../protocol";
-import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
+import { parseAirJamSignal, type ToastSignalPayload } from "../room-protocol";
+import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
+import type { AirJamControllerRuntimeControls } from "./use-air-jam-controller";
 
 export interface ControllerToast extends ToastSignalPayload {
   id: string;
@@ -30,11 +30,12 @@ export const useControllerToasts = (
 } => {
   useAssertSessionScope("controller", "useControllerToasts");
 
-  const { getSocket } = useAirJamContext();
-  const socket = useMemo(
-    () => getControllerRealtimeClient((role) => getSocket(role)),
-    [getSocket],
-  );
+  const session =
+    (
+      useContext(
+        controllerRuntimeContext,
+      ) as AirJamControllerRuntimeControls | null
+    )?.session ?? null;
   const maxToasts = options.maxToasts ?? DEFAULT_MAX_TOASTS;
   const defaultDurationMs =
     options.defaultDurationMs ?? DEFAULT_TOAST_DURATION_MS;
@@ -63,12 +64,13 @@ export const useControllerToasts = (
   }, []);
 
   useEffect(() => {
-    if (!socket) {
+    if (!session) {
       return;
     }
 
-    const handleSignal = (signal: SignalPayload) => {
-      if (signal.type !== "TOAST") {
+    return session.on("signal", (received) => {
+      const signal = parseAirJamSignal(received);
+      if (signal?.kind !== "toast") {
         return;
       }
 
@@ -89,13 +91,8 @@ export const useControllerToasts = (
         dismissToast(toast.id);
       }, duration);
       toastTimeoutsRef.current.set(toast.id, timeout);
-    };
-
-    socket.on("server:signal", handleSignal);
-    return () => {
-      socket.off("server:signal", handleSignal);
-    };
-  }, [defaultDurationMs, dismissToast, maxToasts, socket]);
+    });
+  }, [defaultDurationMs, dismissToast, maxToasts, session]);
 
   useEffect(
     () => () => {

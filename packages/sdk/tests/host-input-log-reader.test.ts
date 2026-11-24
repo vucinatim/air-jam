@@ -26,10 +26,7 @@ import {
 } from "../src/runtime/contracts/control";
 import { hostObservationIdentitySchema } from "../src/runtime/contracts/runtime-identity";
 import { readHostInputLog } from "../src/runtime/host-input-log-reader";
-import {
-  createMemoryEnvironment,
-  createServerSocket,
-} from "./fixtures/host-environment";
+import { createMemoryEnvironment } from "./fixtures/host-environment";
 
 const identity = hostObservationIdentitySchema.parse({
   documentId: "doc",
@@ -45,7 +42,7 @@ const page = (overrides = {}) =>
     page: {
       identity,
       header: {
-        version: 2,
+        version: 3,
         seed: 1,
         settings: {},
         stepMs: 10,
@@ -54,7 +51,7 @@ const page = (overrides = {}) =>
       },
       entryCount: 2,
       full: false,
-      entries: [{ tick: 1, event: "server:state", payload: {} }],
+      entries: [{ tick: 1, event: "runtime", payload: {} }],
       nextEntry: 1,
       ...overrides,
     },
@@ -76,13 +73,13 @@ it.each([
   ).toMatchObject({ status: "not-replayable", reason });
 });
 
-it("fixes the cut, follows its cursor and validates the assembled v2 log", async () => {
+it("fixes the cut, follows its cursor and validates the assembled v3 log", async () => {
   const request = vi
     .fn()
     .mockResolvedValueOnce(page())
     .mockResolvedValueOnce(
       page({
-        entries: [{ tick: 3, event: "server:state", payload: {} }],
+        entries: [{ tick: 3, event: "runtime", payload: {} }],
         nextEntry: null,
       }),
     );
@@ -143,8 +140,7 @@ it("rejects header changes and replacement between pages", async () => {
 it.each([false, true])(
   "answers from the owning host when simulation is absent or loading (%s)",
   async (loading) => {
-    const socket = createServerSocket();
-    const { environment } = createMemoryEnvironment(socket);
+    const { environment } = createMemoryEnvironment();
     let release = () => {};
     const loaded = new Promise<void>((resolve) => {
       release = resolve;
@@ -179,10 +175,6 @@ it.each([false, true])(
       environment,
       stores: [values],
       simulation,
-      getSocket: () => {
-        throw new Error("No socket.");
-      },
-      disconnectSocket: () => {},
       agent: {
         gameId: "test",
         contract: defineAirJamAgentContract({

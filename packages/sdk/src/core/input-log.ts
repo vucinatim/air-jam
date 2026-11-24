@@ -1,16 +1,20 @@
 import { z } from "zod";
 import { airJamSettingsValuesSchema } from "./settings";
 
-/** Room events a host receives that change what its simulation reads. */
+/**
+ * What reaches a host's game from outside and changes what its simulation
+ * reads: a seat joining, changing or dropping (`seat`), a seat freed
+ * (`left`), a seat's controls (`input`), the runtime pausing or playing
+ * (`runtime`), a store action applied between steps (`action`) and a
+ * settings change (`settings`).
+ */
 export const AIR_JAM_INPUT_LOG_EVENTS = [
-  "server:controllerJoined",
-  "server:controllerLeft",
-  "server:controllerDisconnected",
-  "server:playerUpdated",
-  "server:state",
-  "server:input",
-  "airjam:action_rpc",
-  "airjam:settings",
+  "seat",
+  "left",
+  "input",
+  "runtime",
+  "action",
+  "settings",
 ] as const;
 
 const inputLogEntrySchema = z
@@ -30,7 +34,7 @@ const inputLogEntrySchema = z
  */
 export const airJamInputLogSchema = z
   .object({
-    version: z.literal(2),
+    version: z.literal(3),
     settings: airJamSettingsValuesSchema,
     seed: z.number().int().min(0).max(0xffff_ffff),
     stepMs: z.number().positive(),
@@ -129,7 +133,7 @@ export class InputRecorder {
     )
       throw new Error("Invalid input log cut.");
     return {
-      version: 2,
+      version: 3,
       ...header,
       ticks,
       // Retain the bounded backing prefix even on overflow: a previously read

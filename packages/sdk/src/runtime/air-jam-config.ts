@@ -2,7 +2,7 @@ import {
   createAirJamDiagnosticError,
   emitAirJamDiagnostic,
 } from "../diagnostics";
-import type { HostSessionKind } from "../protocol/host";
+import type { RuntimeErrorReporter } from "../protocol/runtime-reporting";
 import {
   isLocalDevControlSurfaceTopology,
   parseRuntimeTopologyFromSearchParams,
@@ -24,7 +24,8 @@ export interface ResolveAirJamConfigInput {
   surfaceRole?: SurfaceRole;
   appId?: string;
   hostGrantEndpoint?: string;
-  hostSessionKind?: HostSessionKind;
+  reportError?: RuntimeErrorReporter;
+  presentationChannel?: string;
   resolveEnv?: boolean;
 }
 
@@ -239,7 +240,8 @@ export const resolveAirJamConfig = (
     surfaceRole,
     appId,
     hostGrantEndpoint,
-    hostSessionKind,
+    reportError,
+    presentationChannel,
     resolveEnv = true,
   }: ResolveAirJamConfigInput,
   maxPlayers?: number,
@@ -280,7 +282,8 @@ export const resolveAirJamConfig = (
     topology: resolvedTopology,
     appId: resolvedAppId,
     hostGrantEndpoint: hostGrantEndpoint ?? getEnvHostGrantEndpoint(),
-    hostSessionKind,
+    reportError,
+    presentationChannel,
     maxPlayers,
   });
 };

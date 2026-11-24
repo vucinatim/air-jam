@@ -14,7 +14,7 @@ const scenarios = {
       ["server-package-consumer.mts", "consumer.mts"],
       ["server-package-runtime.mjs", "verify.mjs"],
     ],
-    dependencies: ["socket.io-client@4.8.3"],
+    dependencies: [],
     typecheckFiles: ["consumer.mts"],
     runtimeArguments: ["verify.mjs"],
   },

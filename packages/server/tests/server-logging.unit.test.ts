@@ -1,23 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadServerEnv } from "../src/env/server-env.js";
-import { createAirJamServer } from "../src/index.js";
 import { createServerLogger } from "../src/logging/logger.js";
-import { createServerLogging } from "../src/logging/server-logging.js";
+import { createRoomServer } from "../src/room-server/room-server.js";
+import { createOpenRoomGate } from "../src/room/gate.js";
 
-describe("server logging composition", () => {
-  it("warns once when the built-in production server accepts any host", async () => {
-    const envConfig = loadServerEnv({
-      NODE_ENV: "production",
-      AIR_JAM_AUTH_MODE: "disabled",
-    });
-    const logger = createServerLogger(undefined, undefined, undefined, {
-      level: "silent",
-    });
+const silentLogger = () =>
+  createServerLogger(undefined, undefined, undefined, { level: "silent" });
+
+describe("room server authentication reporting", () => {
+  it("warns once when a production server admits every host", async () => {
+    const logger = silentLogger();
     const warn = vi.spyOn(logger, "warn");
-    const runtime = createAirJamServer({
+    const runtime = createRoomServer({
       logger,
       devLogCollector: false,
-      envConfig,
+      envConfig: loadServerEnv({
+        NODE_ENV: "production",
+        AIR_JAM_AUTH_MODE: "disabled",
+      }),
     });
     try {
       expect(warn).toHaveBeenCalledExactlyOnceWith(
@@ -29,20 +29,17 @@ describe("server logging composition", () => {
     }
   });
 
-  it("reports local master-key authentication without logging the key", async () => {
-    const envConfig = loadServerEnv({
-      NODE_ENV: "test",
-      AIR_JAM_AUTH_MODE: "required",
-      AIR_JAM_MASTER_KEY: "test-only-key",
-    });
-    const logger = createServerLogger(undefined, undefined, undefined, {
-      level: "silent",
-    });
+  it("reports master-key admission without logging the key", async () => {
+    const logger = silentLogger();
     const info = vi.spyOn(logger, "info");
-    const runtime = createAirJamServer({
+    const runtime = createRoomServer({
       logger,
       devLogCollector: false,
-      envConfig,
+      envConfig: loadServerEnv({
+        NODE_ENV: "test",
+        AIR_JAM_AUTH_MODE: "required",
+        AIR_JAM_MASTER_KEY: "test-only-key",
+      }),
     });
     try {
       expect(info).toHaveBeenCalledExactlyOnceWith(
@@ -54,47 +51,20 @@ describe("server logging composition", () => {
     }
   });
 
-  it("leaves injected authentication reporting to the adapter", async () => {
-    const envConfig = loadServerEnv({
-      NODE_ENV: "production",
-      AIR_JAM_AUTH_MODE: "disabled",
-    });
-    const logger = createServerLogger(undefined, undefined, undefined, {
-      level: "silent",
-    });
+  it("leaves reporting to a gate passed in", async () => {
+    const logger = silentLogger();
     const warn = vi.spyOn(logger, "warn");
-    const runtime = createAirJamServer({
+    const runtime = createRoomServer({
       logger,
       devLogCollector: false,
-      envConfig,
-      authService: { verifyHostBootstrap: async () => ({ isVerified: false }) },
+      gate: createOpenRoomGate(),
+      envConfig: loadServerEnv({
+        NODE_ENV: "production",
+        AIR_JAM_AUTH_MODE: "disabled",
+      }),
     });
     try {
       expect(warn).not.toHaveBeenCalled();
-    } finally {
-      await runtime.stop();
-    }
-  });
-
-  it("preserves disabled collection through exported logging and server options", async () => {
-    const envConfig = loadServerEnv({ NODE_ENV: "test" });
-    const logger = createServerLogger(undefined, undefined, undefined, {
-      level: "silent",
-    });
-    const logging = createServerLogging(
-      { logger, devLogCollector: false },
-      envConfig,
-    );
-    expect(logging.devLogCollector).toBe(false);
-    expect(createServerLogging(logging, envConfig).devLogCollector).toBe(false);
-    const info = vi.spyOn(logger, "info");
-    const runtime = createAirJamServer({ ...logging, envConfig });
-    try {
-      await runtime.start(0);
-      expect(info).toHaveBeenCalledWith(
-        expect.objectContaining({ authMode: "disabled" }),
-        expect.any(String),
-      );
     } finally {
       await runtime.stop();
     }

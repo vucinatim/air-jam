@@ -16,12 +16,11 @@ describe("preview controller launch helpers", () => {
     const result = buildPreviewControllerUrl({
       joinUrl:
         "https://platform.example/controller?room=ROOM2&aj_controller_cap=cap_123",
-      controllerId: "ctrl_preview_1",
       previewDeviceId: "pd_preview_1",
     });
 
     expect(result).toBe(
-      "https://platform.example/controller?room=ROOM2&aj_controller_cap=cap_123&controllerId=ctrl_preview_1&aj_preview=1&aj_preview_device=pd_preview_1",
+      "https://platform.example/controller?room=ROOM2&aj_controller_cap=cap_123&aj_preview=1&aj_preview_device=pd_preview_1",
     );
   });
 
@@ -29,14 +28,13 @@ describe("preview controller launch helpers", () => {
     const result = buildPreviewControllerUrl({
       joinUrl:
         "http://platform.example:3100/controller?room=ROOM2&aj_controller_cap=cap_123",
-      controllerId: "ctrl_preview_1",
       previewDeviceId: "pd_preview_1",
       embedOrigin: "http://airjam.localhost",
       allowedOrigins: ["http://platform.example:3100"],
     });
 
     expect(result).toBe(
-      "http://airjam.localhost/controller?room=ROOM2&aj_controller_cap=cap_123&controllerId=ctrl_preview_1&aj_preview=1&aj_preview_device=pd_preview_1",
+      "http://airjam.localhost/controller?room=ROOM2&aj_controller_cap=cap_123&aj_preview=1&aj_preview_device=pd_preview_1",
     );
   });
 
@@ -44,7 +42,6 @@ describe("preview controller launch helpers", () => {
     expect(
       buildPreviewControllerUrl({
         joinUrl: "javascript:alert(1)",
-        controllerId: "ctrl_preview_1",
       }),
     ).toBeNull();
   });
@@ -53,7 +50,6 @@ describe("preview controller launch helpers", () => {
     expect(
       buildPreviewControllerUrl({
         joinUrl: "https://game.example/controller?room=ROOM2",
-        controllerId: "ctrl_preview_1",
         allowedOrigins: ["https://platform.example"],
       }),
     ).toBeNull();
@@ -61,12 +57,9 @@ describe("preview controller launch helpers", () => {
     expect(
       buildPreviewControllerUrl({
         joinUrl: "https://platform.example/controller?room=ROOM2",
-        controllerId: "ctrl_preview_1",
         allowedOrigins: ["https://platform.example"],
       }),
-    ).toBe(
-      "https://platform.example/controller?room=ROOM2&controllerId=ctrl_preview_1&aj_preview=1",
-    );
+    ).toBe("https://platform.example/controller?room=ROOM2&aj_preview=1");
   });
 
   it("creates a full preview launch contract with fresh ids", () => {
@@ -75,11 +68,10 @@ describe("preview controller launch helpers", () => {
     });
 
     expect(launch).not.toBeNull();
-    expect(launch?.controllerId.length).toBeGreaterThan(0);
     expect(launch?.deviceId.startsWith("pd_")).toBe(true);
 
     const params = new URL(launch!.url).searchParams;
-    expect(params.get("controllerId")).toBe(launch?.controllerId);
+    expect(params.get("controllerId")).toBeNull();
     expect(params.get(AIR_JAM_PREVIEW_FLAG_QUERY_PARAM)).toBe("1");
     expect(params.get(AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM)).toBe(
       launch?.deviceId,
@@ -101,7 +93,6 @@ describe("preview controller launch helpers", () => {
     expect(
       buildPreviewControllerUrl({
         joinUrl: "https://game.example/controller?room=ROOM2",
-        controllerId: "ctrl_preview_1",
         parentOrigin: "javascript:alert(1)",
       }),
     ).toBeNull();

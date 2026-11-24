@@ -112,6 +112,7 @@ interface Seat {
   localSeatLabel?: string;
   avatarId?: string;
   readonly color: string;
+  page?: string;
   connection: ConnectionId | null;
   holdUntil: number | null;
 }
@@ -535,7 +536,9 @@ export class Room {
     let seat =
       existingId === undefined ? undefined : this.seats.get(existingId);
     let resumed: boolean | null = null;
+    let inputBaseline = false;
     if (seat) {
+      inputBaseline = hello.page !== seat.page;
       if (seat.connection !== null) {
         this.connections.delete(seat.connection);
         this.closeConnection(seat.connection, "replaced");
@@ -557,6 +560,7 @@ export class Room {
       seat = this.createSeat(hello);
       resumed = false;
     }
+    seat.page = hello.page;
     seat.connection = connection;
     seat.holdUntil = null;
     this.changedSeats.add(seat.id);
@@ -577,7 +581,7 @@ export class Room {
       features: [],
       host: this.hostConnection !== null,
     });
-    this.announceSeat(seat, seat.id);
+    this.announceSeat(seat, seat.id, inputBaseline);
     if (resumed !== null)
       this.fact(now, {
         kind: "seat-joined",
@@ -792,6 +796,12 @@ export class Room {
         this.connections.delete(connection);
         this.closeConnection(connection, "left");
         return this.freeSeat(seat, "left", now);
+      case "baseline":
+        return this.toHost({
+          type: "seat",
+          seat: this.seatView(seat),
+          inputBaseline: true,
+        });
     }
   }
 
@@ -907,9 +917,13 @@ export class Room {
     this.fact(at, { kind: "closed", cause });
   }
 
-  private announceSeat(seat: Seat, except: SeatId | null): void {
+  private announceSeat(
+    seat: Seat,
+    except: SeatId | null,
+    inputBaseline = false,
+  ): void {
     const frame = { type: "seat", seat: this.seatView(seat) } as const;
-    this.toHost(frame);
+    this.toHost(inputBaseline ? { ...frame, inputBaseline: true } : frame);
     for (const other of this.seats.values())
       if (other.id !== except && other.connection !== null)
         this.send(other.connection, frame);

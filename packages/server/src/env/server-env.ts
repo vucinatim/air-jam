@@ -78,7 +78,6 @@ const normalizeAllowedOrigins = (
 };
 
 const rawServerEnvSchema = z.object({
-  AIR_JAM_CONTROLLER_GATEWAY_KEY: z.string().min(32).optional(),
   NODE_ENV: optionalEnvString,
   AIR_JAM_BIND_HOST: optionalEnvString,
   PORT: createPositiveIntegerSchema("PORT", 4000),
@@ -93,14 +92,6 @@ const rawServerEnvSchema = z.object({
   AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX: createPositiveIntegerSchema(
     "AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX",
     120,
-  ),
-  AIR_JAM_STATIC_APP_RATE_LIMIT_MAX: createPositiveIntegerSchema(
-    "AIR_JAM_STATIC_APP_RATE_LIMIT_MAX",
-    120,
-  ),
-  AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX: createPositiveIntegerSchema(
-    "AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX",
-    30,
   ),
   AIR_JAM_ALLOWED_ORIGINS: optionalEnvString,
   AIR_JAM_DEV_LOG_COLLECTOR: createOptionalEnumSchema(
@@ -141,9 +132,6 @@ export const loadServerEnv = (
   const proxyHeaderTrustMode: ProxyHeaderTrustMode =
     parsed.AIR_JAM_TRUST_PROXY_HEADERS ?? "auto";
   return {
-    ...(parsed.AIR_JAM_CONTROLLER_GATEWAY_KEY
-      ? { controllerGatewayKey: parsed.AIR_JAM_CONTROLLER_GATEWAY_KEY }
-      : {}),
     nodeEnv,
     port: parsed.PORT,
     bindHost: parsed.AIR_JAM_BIND_HOST,
@@ -151,9 +139,6 @@ export const loadServerEnv = (
     hostRegistrationRateLimitMax:
       parsed.AIR_JAM_HOST_REGISTRATION_RATE_LIMIT_MAX,
     controllerJoinRateLimitMax: parsed.AIR_JAM_CONTROLLER_JOIN_RATE_LIMIT_MAX,
-    staticAppRateLimitMax: parsed.AIR_JAM_STATIC_APP_RATE_LIMIT_MAX,
-    runtimeErrorReportRateLimitMax:
-      parsed.AIR_JAM_RUNTIME_ERROR_REPORT_RATE_LIMIT_MAX,
     allowedOrigins: normalizeAllowedOrigins(parsed.AIR_JAM_ALLOWED_ORIGINS),
     devLogCollectorEnabled: parsed.AIR_JAM_DEV_LOG_COLLECTOR
       ? parsed.AIR_JAM_DEV_LOG_COLLECTOR === "enabled"

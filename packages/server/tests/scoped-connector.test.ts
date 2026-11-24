@@ -118,6 +118,32 @@ describe("frames served as a view of the page's session", () => {
     expect(shell.status).toEqual({ phase: "open" });
   });
 
+  it("restarts a reloaded phone's controls in the game frame, so its first press counts once", async () => {
+    const { clock, game, join } = await openLauncher();
+    const presses: number[] = [];
+    game.on("input", ({ state }) =>
+      presses.push((state.jump as { presses: number }).presses),
+    );
+    const before = join("phone-key-000001");
+    await clock.advance(20);
+    before.sendInput({
+      move: { x: 0, y: 0 },
+      jump: { down: false, presses: 50 },
+    });
+    await clock.advance(20);
+    before.close();
+    await clock.advance(20);
+    // Another session with the same key is another page: a reload.
+    const reloaded = join("phone-key-000001");
+    await clock.advance(20);
+    reloaded.sendInput({
+      move: { x: 0, y: 0 },
+      jump: { down: true, presses: 1 },
+    });
+    await clock.advance(20);
+    expect(presses.at(-1)).toBe(1);
+  });
+
   it("gives a relaunched game its documents and every seat's latest controls, and drops them when it ends", async () => {
     const { clock, rooms, scoped, launch, game, join } = await openLauncher();
     game.publish(
@@ -175,7 +201,7 @@ describe("frames served as a view of the page's session", () => {
     expect(phone.channel("game")).toEqual({ round: 9 });
   });
 
-  it("gives an embedded controller the page's seat, its channels and requests", async () => {
+  it("gives an embedded controller the page's seat, its channels, requests and profile", async () => {
     const { clock, network, shell, game } = await openLauncher();
     game.on("request", (request) =>
       game.respond(request.seat, request.id, `answer ${request.payload}`),
@@ -192,7 +218,10 @@ describe("frames served as a view of the page's session", () => {
       code: shell.code ?? "",
     });
     await clock.advance(20);
-    const scoped = createScopedPhoneConnector(page, gameScope);
+    const profiles: unknown[] = [];
+    const scoped = createScopedPhoneConnector(page, gameScope, {
+      onProfile: (profile) => profiles.push(profile),
+    });
     const controller = new PhoneRoomSession({
       connector: scoped.connector,
       clock,
@@ -223,6 +252,11 @@ describe("frames served as a view of the page's session", () => {
       seat: "p1",
       state: { move: { x: 0, y: 0 }, jump: { down: true, presses: 1 } },
     });
+
+    controller.setProfile({ label: "Ana" });
+    await clock.advance(20);
+    expect(profiles).toEqual([{ label: "Ana" }]);
+    expect(page.seats.find((seat) => seat.id === "p1")?.label).toBe("Ana");
 
     void controller.request("arcade.surface", "navigate");
     await clock.advance();
@@ -261,6 +295,49 @@ describe("frames served as a view of the page's session", () => {
     first.link.send(state("old"));
     await clock.advance(20);
     expect(phone.channel("game")).toEqual({ who: "new" });
+  });
+
+  it("restarts a seat's controls when a new controller frame takes it, so its first press counts once", async () => {
+    const { clock, network, shell, game } = await openLauncher();
+    const presses: number[] = [];
+    game.on("input", ({ state }) =>
+      presses.push((state.jump as { presses: number }).presses),
+    );
+    const page = new PhoneRoomSession({
+      connector: network.connector,
+      clock,
+      random: () => 0.5,
+      deviceWakeEvents: null,
+      key: "phone-key-000001",
+      code: shell.code ?? "",
+    });
+    await clock.advance(20);
+    const scoped = createScopedPhoneConnector(page, gameScope);
+    const frame = () =>
+      new PhoneRoomSession({
+        connector: scoped.connector,
+        clock,
+        random: () => 0.5,
+        deviceWakeEvents: null,
+        key: "controller-frame-",
+        code: page.code,
+        input: controls,
+      });
+    const first = frame();
+    await clock.advance(20);
+    first.sendInput({
+      move: { x: 0, y: 0 },
+      jump: { down: false, presses: 50 },
+    });
+    await clock.advance(20);
+    const second = frame();
+    await clock.advance(20);
+    second.sendInput({
+      move: { x: 0, y: 0 },
+      jump: { down: true, presses: 1 },
+    });
+    await clock.advance(20);
+    expect(presses.at(-1)).toBe(1);
   });
 
   it("serves one controller frame at a time: a second link replaces the first, whose later input does nothing", async () => {

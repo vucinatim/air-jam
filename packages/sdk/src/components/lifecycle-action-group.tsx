@@ -5,7 +5,7 @@ import {
   useLifecycleActionGroupModel,
 } from "../hooks/use-lifecycle-action-group-model";
 import type { ShellMatchPhase } from "../lifecycle";
-import type { RuntimeState } from "../protocol";
+import { type RuntimeState } from "../room-protocol";
 import { cn } from "../utils/cn";
 import { Button } from "./ui/button";
 

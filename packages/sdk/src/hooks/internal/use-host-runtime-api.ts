@@ -44,7 +44,7 @@ export const useHostRuntimeApi = (
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
 
-  const { config, store, getSocket, disconnectSocket } = useAirJamContext();
+  const { config, store } = useAirJamContext();
 
   const runtime = useMemo(
     () =>
@@ -53,8 +53,6 @@ export const useHostRuntimeApi = (
           fixedControllerOrientation,
           config,
           store,
-          getSocket,
-          disconnectSocket,
           input,
           environment: createBrowserHostEnvironment(config),
           stores,
@@ -75,8 +73,6 @@ export const useHostRuntimeApi = (
     [
       config,
       store,
-      getSocket,
-      disconnectSocket,
       input,
       stores,
       settings,
@@ -114,6 +110,7 @@ export const useHostRuntimeApi = (
   const clock = runtime.simulation;
 
   const roomId = useStore(store, () => runtime.roomId);
+  const room = useStore(store, () => runtime.room);
   const joinUrl = useStore(store, (state) => state.joinUrl);
   const joinUrlStatus = useStore(store, (state) => state.joinUrlStatus);
 
@@ -125,16 +122,15 @@ export const useHostRuntimeApi = (
       pauseRuntime: runtime.pauseRuntime,
       resumeRuntime: runtime.resumeRuntime,
       setRuntimeState: runtime.setRuntimeState,
-      sendState: runtime.sendState,
       sendSignal: runtime.sendSignal,
-      reconnect: runtime.reconnect,
       removeController: runtime.removeController,
       resetRoom: runtime.resetRoom,
-      socket: runtime.socket,
+      room,
       simulation: clock,
       setObservationCapture: runtime.setObservationCapture,
+      playSoundOnControllers: runtime.playSoundOnControllers,
       settings: runtime.settings,
     }),
-    [runtime, roomId, joinUrl, joinUrlStatus, clock],
+    [runtime, roomId, room, joinUrl, joinUrlStatus, clock],
   );
 };
