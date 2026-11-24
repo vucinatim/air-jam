@@ -7,7 +7,6 @@ test("a profile sizes the load smoke and explicit options override it", () => {
     "--filter",
     "@air-jam/devtools",
     "perf:sanity",
-    "--",
     "--rooms=4",
     "--phones=4",
     "--durationMs=15000",

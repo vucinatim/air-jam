@@ -18,10 +18,6 @@ export const buildPerfSanityArgs = (options = {}) => {
     const value = options[flag] ?? profile?.[flag];
     return value === undefined ? [] : [`--${flag}=${value}`];
   });
-  return [
-    "--filter",
-    "@air-jam/devtools",
-    "perf:sanity",
-    ...(forwarded.length > 0 ? ["--", ...forwarded] : []),
-  ];
+  // pnpm hands everything after the script's name to the script.
+  return ["--filter", "@air-jam/devtools", "perf:sanity", ...forwarded];
 };
