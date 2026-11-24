@@ -120,9 +120,7 @@ it("records a browser-style host's real seed and replays a stable live cut in un
       tick: 61,
       event: "settings",
     });
-    expect(log.entries.some(({ event }) => event === "input")).toBe(
-      true,
-    );
+    expect(log.entries.some(({ event }) => event === "input")).toBe(true);
   } finally {
     stop();
   }

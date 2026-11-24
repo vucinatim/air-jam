@@ -3,12 +3,7 @@
 // packages; React, UI libraries and .tsx modules belong to the binding.
 import { execFileSync } from "node:child_process";
 
-const ALLOWED_PACKAGES = new Set([
-  "typescript",
-  "zod",
-  "zustand",
-  "nanoid",
-]);
+const ALLOWED_PACKAGES = new Set(["typescript", "zod", "zustand", "nanoid"]);
 
 const run = (args) =>
   execFileSync("npx", ["tsc", "-p", "tsconfig.core.json", ...args], {

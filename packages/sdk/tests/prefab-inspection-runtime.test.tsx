@@ -40,7 +40,7 @@ it("isolates direct-state inspection, captures two rendered views and then shows
   vi.stubGlobal("cancelAnimationFrame", vi.fn());
   const drawn: string[] = [];
   const socket = vi.fn();
-    vi.stubGlobal("WebSocket", socket);
+  vi.stubGlobal("WebSocket", socket);
   const start = vi.spyOn(HostRuntime.prototype, "start");
   const live = vi.fn(() => null);
   const prefab = definePrefab({
