@@ -87,6 +87,7 @@ test("public package ownership has one canonical project CLI", () => {
   });
   assert.deepEqual(server.exports, {
     ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+    "./room": { types: "./dist/room.d.ts", import: "./dist/room.js" },
   });
   assert.equal(server.main, undefined);
   assert.equal(server.module, undefined);
