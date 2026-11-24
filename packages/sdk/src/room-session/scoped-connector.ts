@@ -406,6 +406,13 @@ export const createScopedHostConnector = (
 export const createScopedPhoneConnector = (
   parent: PhoneRoomSession,
   scope: ChannelScope,
+  options: {
+    /** Hears each profile change the frame makes for the page's seat, as a page that keeps its player's name does. */
+    readonly onProfile?: (profile: {
+      label?: string;
+      avatarId?: string;
+    }) => void;
+  } = {},
 ): ScopedConnector => {
   const hellos = new WeakSet<FrameLink>();
   const revisions = new WeakMap<FrameLink, Map<string, number>>();
@@ -515,11 +522,15 @@ export const createScopedPhoneConnector = (
           });
         return;
       }
-      case "profile":
-        return parent.setProfile({
+      case "profile": {
+        const profile = {
           ...(frame.label === undefined ? {} : { label: frame.label }),
           ...(frame.avatarId === undefined ? {} : { avatarId: frame.avatarId }),
-        });
+        };
+        parent.setProfile(profile);
+        options.onProfile?.(profile);
+        return;
+      }
       case "leave":
         return parent.leave();
     }
