@@ -53,29 +53,37 @@ export const requestEmbeddingRoom = ({
   role: RoomBridgeRequest["role"];
   context: ControllerBridgeContext;
 }): RoomConnector => {
-  const channel = new MessageChannel();
-  parent.window.postMessage(
-    {
-      type: AIRJAM_ROOM_BRIDGE_REQUEST,
-      payload: {
-        handshake: createBridgeHandshake({
-          sdkVersion: AIR_JAM_SDK_VERSION,
-          runtimeKind:
-            role === "host"
-              ? "arcade-host-iframe"
-              : "harnessSessionId" in context
-                ? "standalone-controller"
-                : "arcade-controller-iframe",
-          capabilityFlags: { roomBridge: true },
-        }),
-        role,
-        ...context,
-      },
+  const request = {
+    type: AIRJAM_ROOM_BRIDGE_REQUEST,
+    payload: {
+      handshake: createBridgeHandshake({
+        sdkVersion: AIR_JAM_SDK_VERSION,
+        runtimeKind:
+          role === "host"
+            ? "arcade-host-iframe"
+            : "harnessSessionId" in context
+              ? "standalone-controller"
+              : "arcade-controller-iframe",
+        capabilityFlags: { roomBridge: true },
+      }),
+      role,
+      ...context,
     },
-    parent.origin,
-    [channel.port2],
-  );
-  return createPortConnector(channel.port1);
+  };
+  // Nothing happens until a session opens a link: each link asks the parent
+  // for its own port, and closing the link closes that port.
+  return (address, handlers) => {
+    const channel = new MessageChannel();
+    parent.window.postMessage(request, parent.origin, [channel.port2]);
+    const link = createPortConnector(channel.port1)(address, handlers);
+    return {
+      ...link,
+      close: () => {
+        link.close();
+        channel.port1.close();
+      },
+    };
+  };
 };
 
 /** The parent's side: a frame's request and the port it sent, or null when the message is not one. */
