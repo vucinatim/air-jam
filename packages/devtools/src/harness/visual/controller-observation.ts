@@ -137,28 +137,33 @@ export async function openControllerObservation({
     const controllerFrame = await frameElement.contentFrame();
     if (!controllerFrame)
       throw new Error("Controller observation document is unavailable.");
-    await controllerFrame.waitForFunction(
-      ({ key, roomId }) => {
-        const inspection = Reflect.get(window, key) as
-          | { roomId?: string; connectionStatus?: string }
-          | undefined;
-        return (
-          inspection?.roomId === roomId &&
-          inspection.connectionStatus === "connected"
-        );
-      },
-      { key: AIR_JAM_RUNTIME_INSPECTION_KEY, roomId },
-    );
-    // Inspection updates in an effect; allow its rendered controller state to reach the compositor.
-    await controllerFrame.evaluate(
-      () =>
-        new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-        ),
-    );
-    signal?.throwIfAborted();
+    // Connecting needs the room's answers delivered, so the caller gets the
+    // delivery handle now and awaits `ready` after draining what it holds.
+    const ready = (async () => {
+      await controllerFrame.waitForFunction(
+        ({ key, roomId }) => {
+          const inspection = Reflect.get(window, key) as
+            | { roomId?: string; connectionStatus?: string }
+            | undefined;
+          return (
+            inspection?.roomId === roomId &&
+            inspection.connectionStatus === "connected"
+          );
+        },
+        { key: AIR_JAM_RUNTIME_INSPECTION_KEY, roomId },
+      );
+      // Inspection updates in an effect; allow its rendered controller state to reach the compositor.
+      await controllerFrame.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      signal?.throwIfAborted();
+    })();
     return {
       page,
+      ready,
       async deliver(message: unknown) {
         await page.evaluate((message) => {
           const deliver = Reflect.get(window, "airJamObservationDeliver") as (

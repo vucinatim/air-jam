@@ -70,6 +70,7 @@ export class RuntimeControllerObservations {
       });
       entry.observation = observation;
       for (const event of entry.pending.splice(0)) this.deliver(event);
+      await observation.ready;
       await entry.delivery;
       if (entry.error) throw entry.error;
       return observation;
