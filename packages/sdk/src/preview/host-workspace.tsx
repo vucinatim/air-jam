@@ -34,8 +34,7 @@ export const HostPreviewControllerWorkspace = ({
     host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;
   // A fresh room starts the game afresh too.
   const handleResetRoom = () => {
-    host.resetRoom();
-    window.location.reload();
+    void host.resetRoom().then(() => window.location.reload());
   };
 
   return (

@@ -25,6 +25,7 @@ import { useAirJamContext } from "../context/air-jam-context";
 import { useAssertSessionScope } from "../context/session-scope";
 import type { AirJamConnectionState } from "../core/connection-store";
 import type { ControllerInput } from "../core/controller-input";
+import type { RoomActionAck } from "../core/room-action-ack";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
   AirJamPlayer,
@@ -117,12 +118,16 @@ export interface AirJamControllerApi {
   setAvatarId: (value: string) => void;
   /**
    * Changes the display name and/or avatar without reconnecting; every
-   * device learns it from the room. False when the patch is invalid or there
-   * is no seat yet.
+   * device learns it from the room. Settles once the room shows the change
+   * on this seat, or as unconfirmed when the patch is invalid, there is no
+   * seat, or the link drops first.
    */
-  updatePlayerProfile: (patch: PlayerProfilePatch) => boolean;
-  /** Gives the seat up for good and forgets it on this device. */
-  leave: () => void;
+  updatePlayerProfile: (patch: PlayerProfilePatch) => Promise<RoomActionAck>;
+  /**
+   * Gives the seat up for good and forgets it on this device; settles once
+   * the room confirms it.
+   */
+  leave: () => Promise<RoomActionAck>;
   /** List of all connected players in the room */
   players: AirJamPlayer[];
   /** This controller's current player profile when known. */

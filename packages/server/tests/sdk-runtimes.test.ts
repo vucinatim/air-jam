@@ -262,6 +262,76 @@ describe("SDK runtimes in a real room", () => {
     stopHost();
   });
 
+  it("settles a profile change, removing a player, leaving and a reset only once the room confirms each", async () => {
+    const { clock, host, phone } = openRooms();
+    const hostRuntime = new HostRuntime({
+      config,
+      store: createConnectionStore(),
+      environment: host(),
+      stores: [],
+    });
+    const stopHost = hostRuntime.start();
+    await clock.advance();
+    const code = hostRuntime.roomId ?? "";
+    const join = () => {
+      const runtime = new ControllerRuntime(
+        {
+          store: createConnectionStore(),
+          environment: phone(code),
+          stores: [],
+        },
+        {},
+      );
+      const stop = runtime.start();
+      return Object.assign(runtime, { stop });
+    };
+    const settledOf = <T>(promise: Promise<T>) => {
+      const state: { value?: T } = {};
+      void promise.then((value) => {
+        state.value = value;
+      });
+      return state;
+    };
+    const first = join();
+    await clock.advance();
+
+    const profile = settledOf(first.updatePlayerProfile({ label: "Ada" }));
+    await Promise.resolve();
+    expect(profile.value).toBeUndefined();
+    await clock.advance();
+    expect(profile.value).toEqual({ ok: true });
+
+    const removal = settledOf(hostRuntime.removeController("p1"));
+    await Promise.resolve();
+    expect(removal.value).toBeUndefined();
+    await clock.advance();
+    expect(removal.value).toEqual({ ok: true });
+
+    const second = join();
+    await clock.advance();
+    const leaving = settledOf(second.leave());
+    await Promise.resolve();
+    expect(leaving.value).toBeUndefined();
+    await clock.advance();
+    expect(leaving.value).toEqual({ ok: true });
+
+    const reset = settledOf(hostRuntime.resetRoom());
+    await Promise.resolve();
+    expect(reset.value).toBeUndefined();
+    await clock.advance();
+    expect(reset.value).toEqual({ ok: true });
+    expect(hostRuntime.roomId).not.toBe(code);
+
+    // A change the link drops before the room shows it stays unconfirmed.
+    const third = join();
+    await clock.advance();
+    const lost = settledOf(third.updatePlayerProfile({ label: "Grace" }));
+    third.stop();
+    await clock.advance();
+    expect(lost.value).toMatchObject({ ok: false });
+    stopHost();
+  });
+
   it("gives a reloading host its store back only when the store's shape is the same", async () => {
     const { clock, host } = openRooms();
     const environment = host();

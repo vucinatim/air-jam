@@ -163,15 +163,21 @@ describe("a local seat through a phone page that frames its game's controller", 
 });
 
 describe("a preview phone and its parent", () => {
-  it("reports its seat, and closes only for its declared parent at that origin", () => {
+  it("reports its seat, and answers a close only for its declared parent, once the room confirms the seat left", async () => {
     const parent = framePhone(
       `&aj_preview_parent=${encodeURIComponent(studio)}`,
     );
     const store = createConnectionStore();
+    let confirm = () => {};
     const runtime = {
       store,
       isEmbedded: false,
-      leave: vi.fn(),
+      leave: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            confirm = () => resolve({ ok: true });
+          }),
+      ),
     } as unknown as ControllerRuntime;
     const stop = followPreviewParent(runtime);
     store.getState().setControllerId("p2");
@@ -185,9 +191,17 @@ describe("a preview phone and its parent", () => {
     expect(runtime.leave).not.toHaveBeenCalled();
     fromParent(parent, studio, close);
     expect(runtime.leave).toHaveBeenCalledOnce();
-    expect(parent.postMessage).toHaveBeenLastCalledWith(
-      { type: AIR_JAM_PREVIEW_CLOSE_RESULT, ok: true },
+    await Promise.resolve();
+    expect(parent.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: AIR_JAM_PREVIEW_CLOSE_RESULT }),
       studio,
+    );
+    confirm();
+    await vi.waitFor(() =>
+      expect(parent.postMessage).toHaveBeenLastCalledWith(
+        { type: AIR_JAM_PREVIEW_CLOSE_RESULT, ok: true },
+        studio,
+      ),
     );
     stop();
   });

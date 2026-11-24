@@ -99,11 +99,14 @@ export const followPreviewParent = (runtime: ControllerRuntime) => {
     if (event.source !== parent.window || event.origin !== parent.origin)
       return;
     if (!isPreviewCloseRequestMessage(event.data)) return;
-    runtime.leave();
-    parent.window.postMessage(
-      { type: AIR_JAM_PREVIEW_CLOSE_RESULT, ok: true },
-      parent.origin,
-    );
+    void runtime
+      .leave()
+      .then((ack) =>
+        parent.window.postMessage(
+          { type: AIR_JAM_PREVIEW_CLOSE_RESULT, ok: ack.ok },
+          parent.origin,
+        ),
+      );
   };
   window.addEventListener("message", handleMessage);
   return () => {

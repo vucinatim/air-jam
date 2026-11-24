@@ -64,6 +64,7 @@ import type {
   AttachableStore,
   StoreActionCall,
 } from "./replicated-store";
+import { awaitRoomConfirmation, type RoomActionAck } from "./room-action-ack";
 import {
   HostSettings,
   type AirJamSettings,
@@ -125,6 +126,14 @@ export type HostObservationCapture = NonNullable<
 >;
 
 /** Closes that mean this host's room is gone, so it opens a new one. */
+/** Calls `changed` whenever the room's seats or link change. */
+const followRoom = (room: HostRoom, changed: () => void): (() => void) => {
+  const releases = [room.on("seats", changed), room.on("status", changed)];
+  return () => {
+    for (const release of releases) release();
+  };
+};
+
 const ROOM_GONE = new Set<string>(["not-found", "closed"]);
 
 /**
@@ -497,8 +506,29 @@ export class HostRuntime {
   };
 
   /** Frees a player's seat and closes their phone for good. */
-  readonly removeController = (controllerId: string): void => {
-    this.currentRoom?.remove(controllerId);
+  /** Frees a player's seat; settles once the room confirms it left. */
+  readonly removeController = (
+    controllerId: string,
+  ): Promise<RoomActionAck> => {
+    const room = this.currentRoom;
+    if (!room || room.status.phase !== "open")
+      return Promise.resolve({
+        ok: false,
+        message: "The host is not connected to a room.",
+      });
+    if (!room.seats.some((seat) => seat.id === controllerId))
+      return Promise.resolve({
+        ok: false,
+        message: "That player is not in the room.",
+      });
+    const confirmation = awaitRoomConfirmation({
+      follow: (changed) => followRoom(room, changed),
+      confirmed: () => !room.seats.some((seat) => seat.id === controllerId),
+      lost: () => room.status.phase !== "open",
+      unconfirmed: "The room did not confirm the player left.",
+    });
+    room.remove(controllerId);
+    return confirmation;
   };
 
   /** Applies an action a recorded match applied between steps, as a replay does. */
@@ -506,9 +536,16 @@ export class HostRuntime {
     for (const store of this.stores) store.replayAction(call);
   };
 
-  /** Ends this room for every device and opens a new one with a new code. */
-  readonly resetRoom = (): void => {
-    if (!this.running) return;
+  /**
+   * Ends this room for every device and opens a new one with a new code;
+   * settles once the new room welcomes this host.
+   */
+  readonly resetRoom = (): Promise<RoomActionAck> => {
+    if (!this.running)
+      return Promise.resolve({
+        ok: false,
+        message: "The host is not running.",
+      });
     this.emitRuntimeEvent({
       event: AIRJAM_DEV_LOG_EVENTS.runtime.hostResetRoomRequested,
       message: "Host ended its room to open a new one",
@@ -521,6 +558,15 @@ export class HostRuntime {
     this.store.getState().resetRuntimeState();
     this.publishPresentation();
     this.openRoom(null);
+    const room = this.currentRoom;
+    if (!room)
+      return Promise.resolve({ ok: false, message: "No new room opened." });
+    return awaitRoomConfirmation({
+      follow: (changed) => followRoom(room, changed),
+      confirmed: () => room.status.phase === "open",
+      lost: () => room.status.phase === "closed",
+      unconfirmed: "The new room did not open.",
+    });
   };
 
   /** The view replicated stores have of this host's room. */

@@ -25,6 +25,7 @@ import type {
   JoinUrlStatus,
 } from "../core/connection-store";
 import type { HostRuntime } from "../core/host-runtime";
+import type { RoomActionAck } from "../core/room-action-ack";
 import type { SimulationClock } from "../core/simulation";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
@@ -141,10 +142,16 @@ export interface AirJamHostApi {
     (type: "HAPTIC", payload: HapticSignalPayload, targetId?: string): void;
     (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
   };
-  /** Frees a player's seat and closes their phone for good. */
-  removeController: (controllerId: string) => void;
-  /** Ends the room for every device and opens a fresh empty room for this host. */
-  resetRoom: () => void;
+  /**
+   * Frees a player's seat and closes their phone for good; settles once the
+   * room confirms the player left.
+   */
+  removeController: (controllerId: string) => Promise<RoomActionAck>;
+  /**
+   * Ends the room for every device and opens a fresh empty room for this
+   * host; settles once the new room welcomes it.
+   */
+  resetRoom: () => Promise<RoomActionAck>;
   /** The room session while the host runs; null before it starts. */
   room: HostRoom | null;
   /** The game's simulation clock, or null when the game declares no simulation. */
