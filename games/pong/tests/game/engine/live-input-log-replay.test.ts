@@ -11,10 +11,7 @@ import {
 } from "@air-jam/sdk/runtime-control";
 import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
 import { expect, it, vi } from "vitest";
-import {
-  createMemoryEnvironment,
-  createServerSocket,
-} from "../../../../../packages/sdk/tests/fixtures/host-environment";
+import { createMemoryEnvironment } from "../../../../../packages/sdk/tests/fixtures/host-environment";
 
 it("records a browser-style host's real seed and replays a stable live cut in uneven chunks", async () => {
   const loadGame = async () => {
@@ -22,8 +19,7 @@ it("records a browser-style host's real seed and replays a stable live cut in un
     return import("../../../src/airjam.config");
   };
   const { airjam } = await loadGame();
-  const socket = createServerSocket();
-  const { environment } = createMemoryEnvironment(socket);
+  const { environment, memory } = createMemoryEnvironment();
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
   const live = airjam.createHostRuntime({
     config: createAirJamConfig({
@@ -36,10 +32,6 @@ it("records a browser-style host's real seed and replays a stable live cut in un
       }),
     }),
     store: createConnectionStore(),
-    getSocket: () => {
-      throw new Error("Memory transport needs no socket.");
-    },
-    disconnectSocket: () => {},
     environment: { ...environment, seed: () => seed },
   });
   const stop = live.start();
@@ -66,25 +58,9 @@ it("records a browser-style host's real seed and replays a stable live cut in un
         throw new Error("Expected observation.");
       return response.observation;
     };
-    socket.fire("server:controllerJoined", {
-      controllerId: "ctrl_human_phone_one",
-      source: "phone",
-      connected: true,
-      resumeLeaseExpiresAt: null,
-      player: { id: "ctrl_human_phone_one", label: "Human", color: "#ff0000" },
-    });
-    socket.fire("server:state", {
-      roomId: "ROOM1",
-      state: { runtimeState: "playing" },
-      version: 1,
-    });
+    memory.seat({ id: "p1", label: "Human" });
     const { pongStore } = await import("../../../src/game/stores/pong-store");
-    socket.fire("airjam:action_rpc", {
-      actionName: "joinTeam",
-      payload: { team: "team1" },
-      storeDomain: "default",
-      actor: { id: "ctrl_human_phone_one", role: "controller" },
-    });
+    memory.request("p1", "default", "joinTeam", { team: "team1" });
     await pongStore.actions.setBotCount({ team: "team2", count: 1 });
     await pongStore.actions.startMatch();
     expect(pongStore.getState().matchPhase).toBe("playing");
@@ -92,11 +68,7 @@ it("records a browser-style host's real seed and replays a stable live cut in un
     const step = () => clock.advance(clock.stepMs);
     const identity = (await observe()).identity;
     for (let tick = 0; tick < 60; tick++) {
-      socket.fire("server:input", {
-        roomId: "ROOM1",
-        controllerId: "ctrl_human_phone_one",
-        input: { direction: (tick % 3) - 1 },
-      });
+      memory.input("p1", { direction: (tick % 3) - 1 });
       if (tick === 20) {
         await agent({
           operation: "settings-update",
@@ -146,9 +118,9 @@ it("records a browser-style host's real seed and replays a stable live cut in un
     );
     expect(log.entries.at(-1)).toMatchObject({
       tick: 61,
-      event: "airjam:settings",
+      event: "settings",
     });
-    expect(log.entries.some(({ event }) => event === "server:input")).toBe(
+    expect(log.entries.some(({ event }) => event === "input")).toBe(
       true,
     );
   } finally {

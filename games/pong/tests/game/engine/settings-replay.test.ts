@@ -10,7 +10,7 @@ it.each([false, true])(
     };
     const { airjam } = await loadGame();
     const live = await replayAirJamInputLog(airjam.createHostRuntime, {
-      version: 2,
+      version: 3,
       seed: 7,
       settings: { ballSpeed: 600 },
       stepMs: 1000 / 60,
@@ -81,16 +81,16 @@ it.each([false, true])(
         runtime: response.observation.runtime,
       };
       log = live.runtime.inputLog();
-      expect(log).toMatchObject({ version: 2, settings: { ballSpeed: 600 } });
+      expect(log).toMatchObject({ version: 3, settings: { ballSpeed: 600 } });
       expect(
         log.entries.filter(
           ({ event, payload }) =>
-            event === "airjam:settings" && payload.revision === 1,
+            event === "settings" && payload.revision === 1,
         ),
       ).toEqual([
         {
           tick: 186,
-          event: "airjam:settings",
+          event: "settings",
           payload: { patch: { ballSpeed: 700 }, revision: 1 },
         },
       ]);
