@@ -26,7 +26,6 @@ import {
   type ServerLoggingOptions,
 } from "../logging/server-logging.js";
 import { resolveCorsOrigin, type AllowedOrigins } from "../origin-policy.js";
-import { resolveSocketIdentifier } from "../policies/rate-limit-policy.js";
 import { MemoryRoomHost } from "../room-host/memory-room-host.js";
 import type { RoomFact } from "../room/facts.js";
 import {
@@ -34,7 +33,7 @@ import {
   createOpenRoomGate,
   type RoomGate,
 } from "../room/gate.js";
-import { RateLimitService } from "../services/rate-limit-service.js";
+import { RateLimitService, resolveClientAddress } from "./connection-limits.js";
 
 export interface RoomServerHeartbeat {
   /** How often the server pings each socket at the protocol level. */
@@ -58,6 +57,14 @@ export interface CreateRoomServerOptions extends ServerLoggingOptions {
   /** The limits the environment's gates open rooms with. */
   readonly limits?: RoomLimits;
   readonly heartbeat?: RoomServerHeartbeat;
+  /**
+   * Answers HTTP requests for paths the room server does not own, as when
+   * one origin serves a built game beside its rooms. Without it they get 404.
+   */
+  readonly otherRequests?: (
+    request: IncomingMessage,
+    response: ServerResponse,
+  ) => void;
 }
 
 export interface RoomServerRuntime {
@@ -143,8 +150,7 @@ const factMessages: Record<RoomFact["kind"], string> = {
 /**
  * The room server for self-hosters, local development and Studio
  * workspaces: rooms in memory behind `node:http` and `ws`, at the protocol's
- * paths. It runs beside the socket.io server until the SDK switches to it;
- * it reads the same environment.
+ * paths. `air-jam-server start` runs it from the environment.
  */
 export const createRoomServer = (
   options: CreateRoomServerOptions = {},
@@ -156,6 +162,24 @@ export const createRoomServer = (
   const gate =
     options.gate ??
     environmentGate(envConfig, options.limits ?? DEFAULT_ROOM_LIMITS);
+  if (!options.gate) {
+    if (envConfig.authMode === "disabled" && envConfig.nodeEnv === "production")
+      logger.warn(
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.auth.modeDisabled,
+          authMode: "disabled",
+        },
+        "Room server is open to every host; set AIR_JAM_AUTH_MODE=required to admit only hosts that present the master key",
+      );
+    else if (envConfig.authMode === "required")
+      logger.info(
+        {
+          event: AIRJAM_DEV_LOG_EVENTS.auth.modeMasterKey,
+          authMode: "required",
+        },
+        "Room server admits hosts that present the master key",
+      );
+  }
   const corsOrigin = resolveCorsOrigin(
     options.allowedOrigins,
     envConfig.allowedOrigins,
@@ -252,6 +276,7 @@ export const createRoomServer = (
       if (body === null) return answer(response, 413, { ok: false });
       return answerDevLog(response, receiveBrowserUnload(collector, body));
     }
+    if (options.otherRequests) return options.otherRequests(request, response);
     answer(response, 404, { ok: false });
   };
 
@@ -305,7 +330,7 @@ export const createRoomServer = (
     const origin = request.headers.origin ?? null;
     if (origin !== null && !allowedOrigin(origin))
       return rejectUpgrade(socket, 403);
-    const client = resolveSocketIdentifier(
+    const client = resolveClientAddress(
       request.headers["x-forwarded-for"],
       request.socket.remoteAddress,
       "unknown-client",

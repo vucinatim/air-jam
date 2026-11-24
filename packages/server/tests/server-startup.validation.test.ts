@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadServerEnv } from "../src/env/server-env";
-import { createAirJamServer } from "../src/index";
+import { createRoomServer } from "../src/room-server/room-server";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -18,15 +18,13 @@ afterEach(() => {
   resetEnv();
 });
 
-describe("createAirJamServer startup validation", () => {
-  it("fails fast when required auth has no configured backend", () => {
+describe("room server startup validation", () => {
+  it("fails fast when required auth has no master key", () => {
     process.env.AIR_JAM_AUTH_MODE = "required";
-    delete process.env.DATABASE_URL;
     delete process.env.AIR_JAM_MASTER_KEY;
-    delete process.env.AIR_JAM_HOST_GRANT_SECRET;
 
-    expect(() => createAirJamServer()).toThrow(
-      "Required authentication needs an explicit authService adapter",
+    expect(() => createRoomServer()).toThrow(
+      "Required authentication needs a gate",
     );
   });
 });
@@ -51,7 +49,7 @@ it.each([
 ])(
   "passes the bind input to the listener and preserves explicit host precedence: $expected",
   async ({ environment, host, expected }) => {
-    const runtime = createAirJamServer({
+    const runtime = createRoomServer({
       host,
       envConfig: loadServerEnv({
         ...environment,

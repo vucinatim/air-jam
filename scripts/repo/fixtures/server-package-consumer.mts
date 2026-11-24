@@ -1,27 +1,16 @@
 import {
-  createAirJamServer,
   createServerLogging,
   loadServerEnv,
-  type HostBootstrapAuthService,
-  type RealtimeAdmissionService,
+  type ServerEnvConfig,
 } from "@air-jam/server";
+import { createMasterKeyRoomGate, type RoomGate } from "@air-jam/server/room";
+import { createRoomServer } from "@air-jam/server/room-server";
 
-const authService: HostBootstrapAuthService = {
-  verifyHostBootstrap: async () => ({ isVerified: false }),
-};
-const server = createAirJamServer({
-  ...createServerLogging(
-    { devLogCollector: false },
-    loadServerEnv({ NODE_ENV: "test" }),
-  ),
-  authService,
-  envConfig: loadServerEnv({ NODE_ENV: "test" }),
+const envConfig: ServerEnvConfig = loadServerEnv({ NODE_ENV: "test" });
+const gate: RoomGate = createMasterKeyRoomGate("typed-consumer-key");
+const server = createRoomServer({
+  ...createServerLogging({ devLogCollector: false }, envConfig),
+  envConfig,
+  gate,
 });
-const admitRoom: RealtimeAdmissionService["admitRoom"] = async ({
-  roomId,
-}) => ({
-  ok: true,
-  lease: { roomId, leaseToken: "typed-consumer" },
-});
-await admitRoom({ roomId: "TEST", maxControllers: 4 });
 await server.stop();

@@ -1,7 +1,9 @@
-import type { RateLimitService } from "../services/rate-limit-service.js";
+import type { ProxyHeaderTrustMode } from "../env/server-env.js";
 
-export type ProxyHeaderTrustMode = "auto" | "enabled" | "disabled";
-
+/**
+ * Connection attempts per address, counted in fixed windows, for the room
+ * server's front door. One process holds the counts.
+ */
 const normalizeIp = (value: string | null | undefined): string | null => {
   if (!value) {
     return null;
@@ -64,7 +66,8 @@ const extractForwardedClientIp = (
   return normalizeIp(rawValue.split(",")[0]);
 };
 
-export const resolveSocketIdentifier = (
+/** The address a connection attempt is counted against. */
+export const resolveClientAddress = (
   forwardedForHeader: string | string[] | undefined,
   handshakeAddress: string | undefined,
   socketId: string,
@@ -84,31 +87,64 @@ export const resolveSocketIdentifier = (
   return normalizedHandshakeAddress || socketId;
 };
 
-export const createRateLimitGuard = (
-  rateLimitService: RateLimitService,
-  socketIdentifier: string,
-  windowMs: number,
-): ((bucket: string, limit: number) => boolean) => {
-  return (bucket: string, limit: number): boolean => {
-    const result = rateLimitService.check(
-      `${bucket}:${socketIdentifier}`,
-      limit,
-      windowMs,
-    );
-    return !result.allowed;
-  };
-};
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
 
-export const createScopedRateLimitGuard = (
-  rateLimitService: RateLimitService,
-  windowMs: number,
-): ((bucket: string, scope: string, limit: number) => boolean) => {
-  return (bucket: string, scope: string, limit: number): boolean => {
-    const result = rateLimitService.check(
-      `${bucket}:${scope}`,
-      limit,
-      windowMs,
-    );
-    return !result.allowed;
-  };
-};
+export interface RateLimitResult {
+  allowed: boolean;
+  retryAfterMs: number;
+}
+
+/**
+ * Minimal in-memory fixed-window limiter.
+ * Good enough for single-instance deployments and lightweight abuse protection.
+ */
+export class RateLimitService {
+  private entries = new Map<string, RateLimitEntry>();
+  private checks = 0;
+
+  constructor(readonly now: () => number = Date.now) {}
+
+  check(key: string, limit: number, windowMs: number): RateLimitResult {
+    if (limit <= 0 || windowMs <= 0) {
+      return { allowed: true, retryAfterMs: 0 };
+    }
+
+    const now = this.now();
+    const existing = this.entries.get(key);
+
+    if (!existing || now >= existing.resetAt) {
+      this.entries.set(key, { count: 1, resetAt: now + windowMs });
+      this.maybeCleanup(now);
+      return { allowed: true, retryAfterMs: 0 };
+    }
+
+    if (existing.count >= limit) {
+      this.maybeCleanup(now);
+      return {
+        allowed: false,
+        retryAfterMs: Math.max(existing.resetAt - now, 0),
+      };
+    }
+
+    existing.count += 1;
+    this.entries.set(key, existing);
+    this.maybeCleanup(now);
+    return { allowed: true, retryAfterMs: 0 };
+  }
+
+  private maybeCleanup(now: number): void {
+    this.checks += 1;
+    if (this.checks % 200 !== 0) {
+      return;
+    }
+
+    for (const [key, entry] of this.entries) {
+      if (now >= entry.resetAt) {
+        this.entries.delete(key);
+      }
+    }
+  }
+}

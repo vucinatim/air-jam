@@ -102,7 +102,7 @@ describe("node room server", () => {
     expect(
       await Promise.all([
         statusOf("/v1/host", { origin: "https://elsewhere.test" }),
-        statusOf("/socket.io/", {}),
+        statusOf("/elsewhere/", {}),
         statusOf("/v1/host", { origin: "https://game.test" }),
       ]),
     ).toEqual([403, 404, 101]);

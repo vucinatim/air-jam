@@ -11,24 +11,23 @@ import { Command } from "commander";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadWorkspaceEnv } from "./env/load-workspace-env.js";
-import type { AirJamServerRuntime } from "./index.js";
 import {
   coerceDevLogsCliOptions,
   configureDevLogsCommand,
   executeDevLogsCliOptions,
 } from "./logging/dev-logs-cli.js";
 import { createServerLogger } from "./logging/logger.js";
+import type { RoomServerRuntime } from "./room-server/room-server.js";
 import { AIR_JAM_SERVER_VERSION } from "./version.js";
 
 const runServer = async (): Promise<number> => {
-  let runtime: AirJamServerRuntime | null = null;
+  let runtime: RoomServerRuntime | null = null;
   try {
     loadWorkspaceEnv();
-    const { createAirJamServer } = await import("./index.js");
-    const { installServerProcessSignalHandlers } = await import(
-      "./process-lifecycle.js"
-    );
-    runtime = createAirJamServer();
+    const { createRoomServer } = await import("./room-server/room-server.js");
+    const { installServerProcessSignalHandlers } =
+      await import("./process-lifecycle.js");
+    runtime = createRoomServer();
     await runtime.start();
     installServerProcessSignalHandlers({ runtime });
     return 0;

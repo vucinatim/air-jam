@@ -1,8 +1,12 @@
-import { generateControllerResumeToken } from "@air-jam/sdk/core";
-import { createAirJamServer, loadServerEnv } from "@air-jam/server";
+import {
+  createWebSocketConnector,
+  HostRoomSession,
+  PhoneRoomSession,
+} from "@air-jam/sdk/room-session";
+import { createServerLogging, loadServerEnv } from "@air-jam/server";
+import { createRoomServer } from "@air-jam/server/room-server";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { io } from "socket.io-client";
 
 const manifest = JSON.parse(
   fs.readFileSync("node_modules/@air-jam/server/package.json", "utf8"),
@@ -21,102 +25,59 @@ for (const file of fs.readdirSync("node_modules/@air-jam/server/dist")) {
     `node_modules/@air-jam/server/dist/${file}`,
     "utf8",
   );
-  assert.doesNotMatch(
-    source,
-    /@air-jam\/(?:database|operations)-contract|DatabaseRealtimeAdmissionService|realtime_host_grant_consumptions|operational_budget_cycles/,
-  );
-  assert.doesNotMatch(source, /from ["']@air-jam\/sdk["']/);
+  assert.doesNotMatch(source, /@air-jam\/(?:database|operations)-contract/);
 }
-const runtime = createAirJamServer({
-  devLogCollector: false,
-  envConfig: loadServerEnv({ NODE_ENV: "test", AIR_JAM_LOG_LEVEL: "silent" }),
+const envConfig = loadServerEnv({
+  NODE_ENV: "test",
+  AIR_JAM_LOG_LEVEL: "silent",
 });
-const sockets = [];
+const runtime = createRoomServer({
+  ...createServerLogging({ devLogCollector: false }, envConfig),
+  envConfig,
+});
+const sessions = [];
+const until = async (condition) => {
+  const deadline = Date.now() + 2000;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error("The condition never held.");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+};
 try {
   const port = await runtime.start(0);
   const baseUrl = `http://localhost:${port}`;
-  const connect = async () => {
-    const socket = io(baseUrl, {
-      transports: ["websocket"],
-      forceNew: true,
-      reconnection: false,
-    });
-    sockets.push(socket);
-    await new Promise((resolve, reject) => {
-      socket.once("connect", resolve);
-      socket.once("connect_error", reject);
-    });
-    return socket;
-  };
-  const ack = (socket, event, payload) =>
-    socket.timeout(2000).emitWithAck(event, payload);
-  const host = await connect();
-  assert.equal(
-    (await ack(host, "host:bootstrap", { hostSessionKind: "system" })).ok,
-    true,
-  );
-  const created = await ack(host, "host:createRoom", { maxPlayers: 2 });
-  assert.equal(created.ok, true);
-  const roomId = created.roomId;
-  const controller = await connect();
-  assert.equal(
-    (
-      await ack(controller, "controller:join", {
-        resumeCapabilityToken: generateControllerResumeToken(),
-        roomId,
-        controllerId: "artifact-controller",
-      })
-    ).ok,
-    true,
-  );
-  const launch = await ack(host, "system:launchGame", {
-    roomId,
-    gameId: "artifact-game",
+  const connector = createWebSocketConnector(baseUrl);
+  const host = new HostRoomSession({
+    connector,
+    key: "artifact-host-key",
+    seats: 2,
+    deviceWakeEvents: null,
   });
-  assert.equal(launch.ok, true);
-  const child = await connect();
-  assert.equal(
-    (
-      await ack(child, "host:joinAsChild", {
-        roomId,
-        capabilityToken: launch.launchCapability.token,
-      })
-    ).ok,
-    true,
-  );
-  const state = new Promise((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error("No replicated state arrived")),
-      2000,
-    );
-    controller.once("airjam:state_sync", (payload) => {
-      clearTimeout(timeout);
-      resolve(payload);
-    });
+  sessions.push(host);
+  await until(() => host.status.phase === "open");
+  const phone = new PhoneRoomSession({
+    connector,
+    key: "artifact-phone-key",
+    code: host.code,
+    deviceWakeEvents: null,
   });
-  child.emit("host:state_sync", {
-    roomId,
-    storeDomain: "default",
-    revision: 0,
-    data: { score: 7 },
-  });
-  assert.deepEqual((await state).data, { score: 7 });
+  sessions.push(phone);
+  await until(() => phone.status.phase === "open");
+  host.publish("default", { score: 7 });
+  await until(() => phone.channel("default")?.score === 7);
   const health = await (await fetch(`${baseUrl}/health`)).json();
-  assert.equal(health.realtimeAdmission.authority, "local");
-  assert.equal(health.controllers, 1);
+  assert.equal(health.ok, true);
   assert.equal((await fetch(`${baseUrl}/ready`)).status, 200);
-  await runtime.drain(0);
-  assert.equal((await fetch(`${baseUrl}/ready`)).status, 503);
   process.stdout.write(
     JSON.stringify({
       installedArtifact: true,
       noPrivateDatabaseCode: true,
-      realRoomAndController: true,
-      childGameAndStateSync: true,
-      readinessAndDrain: true,
+      realRoomAndPhone: true,
+      stateReachesPhone: true,
+      healthAndReadiness: true,
     }) + "\n",
   );
 } finally {
-  for (const socket of sockets) socket.disconnect();
+  for (const session of sessions) session.close();
   await runtime.stop();
 }

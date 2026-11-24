@@ -1,24 +1,10 @@
+/** Named sizes of the room server's load smoke. */
 export const perfProfiles = Object.freeze({
-  ci: {
-    durationMs: 15_000,
-    warmupMs: 1_000,
-    reconnectCycles: 5,
-    strict: true,
-  },
-  release: {
-    strict: true,
-  },
+  ci: { rooms: 10, phones: 4, durationMs: 15_000, workers: 2 },
+  release: { rooms: 100, phones: 4, durationMs: 60_000, workers: 4 },
 });
 
-const forwardedFlags = [
-  "controllers",
-  "hz",
-  "durationMs",
-  "warmupMs",
-  "reconnectControllers",
-  "reconnectCycles",
-  "reconnectPauseMs",
-];
+const forwardedFlags = ["rooms", "phones", "durationMs", "workers"];
 
 export const buildPerfSanityArgs = (options = {}) => {
   const profile = options.profile ? perfProfiles[options.profile] : undefined;
@@ -28,22 +14,14 @@ export const buildPerfSanityArgs = (options = {}) => {
     );
   }
 
-  const args = ["--filter", "server", "perf:sanity"];
-  const forwarded = [];
-
-  for (const flag of forwardedFlags) {
+  const forwarded = forwardedFlags.flatMap((flag) => {
     const value = options[flag] ?? profile?.[flag];
-    if (value !== undefined) {
-      forwarded.push(`--${flag}=${value}`);
-    }
-  }
-
-  if (options.strict || profile?.strict) {
-    forwarded.push("--strict");
-  }
-  if (forwarded.length > 0) {
-    args.push("--", ...forwarded);
-  }
-
-  return args;
+    return value === undefined ? [] : [`--${flag}=${value}`];
+  });
+  return [
+    "--filter",
+    "@air-jam/devtools",
+    "perf:sanity",
+    ...(forwarded.length > 0 ? ["--", ...forwarded] : []),
+  ];
 };
