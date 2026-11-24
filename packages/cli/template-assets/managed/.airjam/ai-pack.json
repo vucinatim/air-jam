@@ -57,8 +57,8 @@
     {
       "path": "docs/airjam/generated/architecture.md",
       "kind": "docs-generated",
-      "size": 12240,
-      "sha256": "b8d2f2b2be4949568c33b161bf1e79a24466e0088ef360582d6c2fafdd9cb696"
+      "size": 12249,
+      "sha256": "6fd0abd0ddbf07ea7e9ae113ef7792cccdfc43c7b78496759fe1ccfb4df1d4ca"
     },
     {
       "path": "docs/airjam/generated/assets-and-theme.md",
@@ -129,8 +129,8 @@
     {
       "path": "docs/airjam/generated/quick-start.md",
       "kind": "docs-generated",
-      "size": 12411,
-      "sha256": "bd63833628fd4e2a798b852538a723df610802dd0cb93948df7eeca1d618f8de"
+      "size": 12495,
+      "sha256": "9d086acefa4f6740a92006eaec79dd8c83f98e3a08445bbcf2a27ca2debee5ec"
     },
     {
       "path": "docs/airjam/generated/sdk-hooks.md",
@@ -205,5 +205,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "1b2a588ba9de9aa8d4f04eb03ced715a137a043a62f1d2fdba853e658a843bd8"
+  "contentDigest": "48166fcfdc2bff7a055ecf2a25aa885ff9e151c6f7a2ded8f6235130090cec2f"
 }

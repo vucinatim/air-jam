@@ -13,10 +13,11 @@ Node server is one host for them. The protocol between devices and rooms is the
 ## Standalone development
 
 The `air-jam-server` command is the standalone front door. Local development
-admits every host. In production, authentication defaults to required: a host
-must present the server's master key (`AIR_JAM_MASTER_KEY`), or the server is
-composed with a gate of its own. The master key suits a private server whose
-hosts you run yourself; it is not a public authentication backend.
+admits every host; a local server or test may instead require its master key
+(`AIR_JAM_MASTER_KEY`), which the server ignores in production. In production,
+authentication defaults to required and the server starts only with a gate of
+its own, composed with `createRoomServer({ gate })`, or with authentication
+explicitly disabled.
 
 The generic Docker image and its Railway configuration run
 `node ./bin/air-jam-server.mjs`. An intentionally open self-hosted server must

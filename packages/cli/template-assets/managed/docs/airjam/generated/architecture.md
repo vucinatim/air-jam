@@ -203,8 +203,8 @@ Controller runs inside platform's runtime wrapper (iframe communication).
 ### Opening a room
 
 - A host's hello may carry a credential for the server's gate; a local server
-  needs none, and a self-hosted server requires its master key or composes
-  its own gate (`createRoomServer({ gate })`)
+  needs none, and a self-hosted production server composes its own gate
+  (`createRoomServer({ gate })`) or runs open to any host
 - A host returning to its room proves itself with its key alone, so a reload
   keeps the room and its players
 - An embedded game never opens a room of its own: the Arcade serves it the

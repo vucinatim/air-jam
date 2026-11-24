@@ -398,9 +398,10 @@ grow past those caps.
 ### Self-hosted rooms
 
 Run the open `air-jam-server` yourself and point `VITE_AIR_JAM_SERVER_URL` at
-it. In production it admits hosts with its master key, or you compose it with a
-gate of your own (`createRoomServer({ gate })` from
-`@air-jam/server/room-server`). The SDK sends whatever
+it. In production it needs a gate of your own: compose it with
+`createRoomServer({ gate })` from `@air-jam/server/room-server`, or set
+`AIR_JAM_AUTH_MODE=disabled` to run it open to any host. Its master key is for
+local development and tests only. The SDK sends whatever
 `VITE_AIR_JAM_HOST_GRANT_ENDPOINT` returns (`{ "hostGrant": "..." }`) as the
 credential when it opens a room, so your gate can verify a token your own
 backend signs. Game code stays unchanged.
