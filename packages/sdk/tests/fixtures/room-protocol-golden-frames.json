@@ -1,0 +1,239 @@
+{
+  "description": "Canonical frames of the Air Jam room protocol, version 1. Each text frame is exactly what the reference implementation encodes; binary frames are hex. See docs/contracts/room-protocol-contract.md.",
+  "text": [
+    {
+      "name": "host opens a room",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"hello\",\"key\":\"k3Jx9QwLm2Vb8RtY\",\"sdk\":\"1.0.0\",\"credential\":\"grant\",\"seats\":8}"
+    },
+    {
+      "name": "host returns",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"hello\",\"key\":\"k3Jx9QwLm2Vb8RtY\",\"instance\":\"r-7f3a\",\"sdk\":\"1.0.0\"}"
+    },
+    {
+      "name": "phone joins",
+      "direction": "phone-to-room",
+      "text": "{\"type\":\"hello\",\"key\":\"u8Hq2NcV5sKx1PzD\",\"sdk\":\"1.0.0\",\"kind\":\"phone\",\"profile\":{\"label\":\"Ana\",\"avatarId\":\"fox\"}}"
+    },
+    {
+      "name": "phone resumes",
+      "direction": "phone-to-room",
+      "text": "{\"type\":\"hello\",\"key\":\"u8Hq2NcV5sKx1PzD\",\"instance\":\"r-7f3a\",\"sdk\":\"1.0.0\",\"kind\":\"phone\"}"
+    },
+    {
+      "name": "welcome to the host",
+      "direction": "room-to-host",
+      "text": "{\"type\":\"welcome\",\"code\":\"ABCD\",\"instance\":\"r-7f3a\",\"seats\":[{\"id\":\"p1\",\"label\":\"Ana\",\"color\":\"#38bdf8\",\"kind\":\"phone\",\"connected\":true}],\"channels\":[{\"channel\":\"game\",\"revision\":4,\"document\":{\"phase\":\"lobby\",\"hands\":{\"p1\":[3,9]}},\"fingerprint\":\"f1\",\"private\":\"hands\"}],\"limits\":{\"seats\":16,\"channels\":8,\"inputIntervalMs\":16,\"inputBytes\":64,\"inputsPerSecond\":120,\"stateBytes\":65536,\"statesPerSecond\":60,\"frameBytes\":8192,\"framesPerSecond\":60,\"strikesPerSecond\":64,\"seatHoldMs\":120000,\"hostGraceMs\":60000,\"maximumAgeMs\":86400000},\"features\":[],\"seatsWanted\":8,\"locked\":false,\"activity\":\"bumper-brawl\"}"
+    },
+    {
+      "name": "welcome to a phone",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"welcome\",\"code\":\"ABCD\",\"instance\":\"r-7f3a\",\"seats\":[{\"id\":\"p1\",\"label\":\"Ana\",\"color\":\"#38bdf8\",\"kind\":\"phone\",\"connected\":true}],\"channels\":[{\"channel\":\"game\",\"revision\":4,\"document\":{\"phase\":\"lobby\",\"hands\":{\"p1\":[3,9]}}}],\"limits\":{\"seats\":16,\"channels\":8,\"inputIntervalMs\":16,\"inputBytes\":64,\"inputsPerSecond\":120,\"stateBytes\":65536,\"statesPerSecond\":60,\"frameBytes\":8192,\"framesPerSecond\":60,\"strikesPerSecond\":64,\"seatHoldMs\":120000,\"hostGraceMs\":60000,\"maximumAgeMs\":86400000},\"features\":[],\"seat\":\"p1\",\"host\":true}"
+    },
+    {
+      "name": "queued at admission",
+      "direction": "room-to-host",
+      "text": "{\"type\":\"wait\",\"position\":3}"
+    },
+    {
+      "name": "a seat changed",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"seat\",\"seat\":{\"id\":\"p1\",\"label\":\"Ana\",\"color\":\"#38bdf8\",\"kind\":\"phone\",\"connected\":false}}"
+    },
+    {
+      "name": "a seat was freed",
+      "direction": "room-to-host",
+      "text": "{\"type\":\"left\",\"seat\":\"p2\"}"
+    },
+    {
+      "name": "the screen went away",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"host\",\"present\":false}"
+    },
+    {
+      "name": "host publishes a document",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"state\",\"channel\":\"game\",\"revision\":4,\"document\":{\"phase\":\"lobby\",\"hands\":{\"p1\":[3,9]}},\"fingerprint\":\"f1\",\"private\":\"hands\"}"
+    },
+    {
+      "name": "host publishes a patch",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"state\",\"channel\":\"game\",\"revision\":5,\"base\":4,\"set\":[[[\"scores\",\"team1\"],3],[[\"winner\"],null]],\"unset\":[[\"readyByPlayerId\",\"p3\"]]}"
+    },
+    {
+      "name": "room relays a patch",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"state\",\"channel\":\"game\",\"revision\":5,\"base\":4,\"set\":[[[\"scores\",\"team1\"],3]],\"unset\":[]}"
+    },
+    {
+      "name": "room relays a document",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"state\",\"channel\":\"game\",\"revision\":4,\"document\":{\"phase\":\"lobby\",\"hands\":{\"p1\":[3,9]}}}"
+    },
+    {
+      "name": "room needs a document",
+      "direction": "room-to-host",
+      "text": "{\"type\":\"need\",\"channel\":\"game\"}"
+    },
+    {
+      "name": "phone requests an action",
+      "direction": "phone-to-room",
+      "text": "{\"type\":\"request\",\"id\":7,\"channel\":\"game\",\"name\":\"ready\",\"payload\":{\"team\":\"red\"}}"
+    },
+    {
+      "name": "room forwards a request",
+      "direction": "room-to-host",
+      "text": "{\"type\":\"request\",\"seat\":\"p1\",\"id\":7,\"channel\":\"game\",\"name\":\"ready\",\"payload\":{\"team\":\"red\"}}"
+    },
+    {
+      "name": "host answers",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"response\",\"seat\":\"p1\",\"id\":7,\"result\":{\"ok\":true}}"
+    },
+    {
+      "name": "room relays the answer",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"response\",\"id\":7,\"result\":{\"ok\":true}}"
+    },
+    {
+      "name": "room answers for an absent host",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"response\",\"id\":7,\"refused\":\"host-away\"}"
+    },
+    {
+      "name": "host signals one seat",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"signal\",\"seat\":\"p1\",\"kind\":\"haptic\",\"payload\":{\"pattern\":\"light\"}}"
+    },
+    {
+      "name": "room relays a signal",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"signal\",\"kind\":\"haptic\",\"payload\":{\"pattern\":\"light\"}}"
+    },
+    {
+      "name": "host sets seats and locks",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"room\",\"seats\":4,\"locked\":true}"
+    },
+    {
+      "name": "host removes a seat",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"remove\",\"seat\":\"p2\"}"
+    },
+    {
+      "name": "host discards a channel",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"drop\",\"channel\":\"game\"}"
+    },
+    {
+      "name": "room relays a discard",
+      "direction": "room-to-phone",
+      "text": "{\"type\":\"drop\",\"channel\":\"game\"}"
+    },
+    {
+      "name": "launcher changes the activity",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"activity\",\"activity\":\"air-capture\"}"
+    },
+    {
+      "name": "host ends the room",
+      "direction": "host-to-room",
+      "text": "{\"type\":\"end\"}"
+    },
+    {
+      "name": "phone renames",
+      "direction": "phone-to-room",
+      "text": "{\"type\":\"profile\",\"label\":\"Ana B\"}"
+    },
+    {
+      "name": "phone gives up its seat",
+      "direction": "phone-to-room",
+      "text": "{\"type\":\"leave\"}"
+    }
+  ],
+  "input": {
+    "controls": {
+      "move": {
+        "kind": "stick",
+        "name": "move",
+        "keepDirection": false
+      },
+      "fire": {
+        "kind": "button",
+        "name": "fire",
+        "mode": "pressed"
+      },
+      "jump": {
+        "kind": "button",
+        "name": "jump",
+        "mode": "held"
+      }
+    },
+    "state": {
+      "move": {
+        "x": 0.5,
+        "y": -1
+      },
+      "fire": {
+        "down": true,
+        "presses": 130
+      },
+      "jump": {
+        "down": false,
+        "presses": 0
+      }
+    },
+    "phoneFrame": "01329c8200",
+    "hostFrame": {
+      "seats": ["p1", "p300"],
+      "hex": "01000104329c8200012c04329c8200"
+    }
+  },
+  "closeCodes": {
+    "replaced": {
+      "code": 4000,
+      "terminal": true
+    },
+    "removed": {
+      "code": 4001,
+      "terminal": true
+    },
+    "left": {
+      "code": 4002,
+      "terminal": true
+    },
+    "closed": {
+      "code": 4003,
+      "terminal": true
+    },
+    "not-found": {
+      "code": 4004,
+      "terminal": true
+    },
+    "full": {
+      "code": 4005,
+      "terminal": true
+    },
+    "unauthorised": {
+      "code": 4006,
+      "terminal": true
+    },
+    "unsupported-version": {
+      "code": 4007,
+      "terminal": true
+    },
+    "limits-broken": {
+      "code": 4008,
+      "terminal": true
+    },
+    "restarting": {
+      "code": 4100,
+      "terminal": false
+    },
+    "try-later": {
+      "code": 4101,
+      "terminal": false
+    }
+  }
+}

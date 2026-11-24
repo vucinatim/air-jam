@@ -18,6 +18,7 @@ export default defineConfig((options) => ({
     "src/arcade/url.ts",
     "src/ui.ts",
     "src/protocol.ts",
+    "src/room-protocol.ts",
     "src/metadata.ts",
     "src/prefabs.ts",
     "src/runtime/prefab-inspection-bridge.ts",
