@@ -19,6 +19,7 @@ export default defineConfig((options) => ({
     "src/ui.ts",
     "src/protocol.ts",
     "src/room-protocol.ts",
+    "src/room-session.ts",
     "src/metadata.ts",
     "src/prefabs.ts",
     "src/runtime/prefab-inspection-bridge.ts",
