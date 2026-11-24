@@ -17,6 +17,7 @@ import { ChannelMirror } from "./channel-state";
 import { spacingForRate } from "./clock";
 import { PhoneInputLane } from "./input-lane";
 import { Listeners } from "./listeners";
+import { createRoomKey } from "./room-key";
 import { Roster } from "./roster";
 import {
   SESSION_SDK,
@@ -205,12 +206,16 @@ export class PhoneRoomSession {
     this.link.close();
   }
 
+  /** This page's id, the same in every hello it sends; see `PhoneHello.page`. */
+  private readonly page = createRoomKey();
+
   private hello(): string {
     const hello: PhoneHello = {
       type: "hello",
       key: this.options.key,
       sdk: SESSION_SDK,
       kind: this.options.kind ?? "phone",
+      page: this.page,
       ...(this.currentInstance === undefined
         ? {}
         : { instance: this.currentInstance }),

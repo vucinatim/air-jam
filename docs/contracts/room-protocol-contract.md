@@ -96,13 +96,13 @@ connection as `limits-broken` before anything walks it.
 
 ### From a phone
 
-| Frame     | Fields                                                     | Meaning                                                  |
-| --------- | ---------------------------------------------------------- | -------------------------------------------------------- |
-| `hello`   | `key`, `instance?`, `sdk`, `features?`, `kind`, `profile?` | Join or resume. `kind` is `phone`, `preview` or `agent`. |
-| binary    | input frame                                                | The seat's whole control state.                          |
-| `request` | `id`, `channel`, `name`, `payload?`                        | A store action or other call the host answers.           |
-| `profile` | `label?`, `avatarId?`                                      | Change name or avatar.                                   |
-| `leave`   | —                                                          | Give the seat up now.                                    |
+| Frame     | Fields                                                              | Meaning                                                                                           |
+| --------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `hello`   | `key`, `instance?`, `sdk`, `features?`, `kind`, `profile?`, `page?` | Join or resume. `kind` is `phone`, `preview` or `agent`; `page` names the page the phone runs in. |
+| binary    | input frame                                                         | The seat's whole control state.                                                                   |
+| `request` | `id`, `channel`, `name`, `payload?`                                 | A store action or other call the host answers.                                                    |
+| `profile` | `label?`, `avatarId?`                                               | Change name or avatar.                                                                            |
+| `leave`   | —                                                                   | Give the seat up now.                                                                             |
 
 A profile is `label` (1–24 characters), `avatarId` (1–48) and
 `localSeatLabel` (1–32), a label shown instead of the player's own while a
@@ -115,7 +115,7 @@ local seat plays through the phone.
 | `welcome`  | host   | `code`, `instance`, `seats`, `channels` (whole, with `fingerprint` and `private`), `limits`, `features`, `seatsWanted`, `locked`, `activity` |
 | `welcome`  | phone  | `code`, `instance`, `seat`, `seats`, `channels` (as this seat may see them), `limits`, `features`, `host`                                    |
 | `wait`     | host   | `position`, while admission is queued                                                                                                        |
-| `seat`     | all    | `seat`: `id`, `label`, `color`, `avatarId?`, `kind`, `connected`                                                                             |
+| `seat`     | all    | `seat`: `id`, `label`, `color`, `avatarId?`, `kind`, `connected`; to the host also `inputBaseline?`                                          |
 | `left`     | all    | `seat`, freed                                                                                                                                |
 | `host`     | phones | `present`: the screen went away or came back                                                                                                 |
 | binary     | host   | one or more input records                                                                                                                    |
@@ -146,7 +146,11 @@ the layout, in declaration order:
 
 A phone frame is the kind byte `1` and those bytes: a stick and two buttons
 are 5 bytes. The host unwraps press counters against the state it last
-decoded for the seat, so a tap is never lost or doubled.
+decoded for the seat, so a tap is never lost or doubled. A phone names its
+page in every `hello`; when a seat returns from another page (a reload, or a
+tab taking it over), its counters start again from zero, so the room's `seat`
+frame to the host carries `inputBaseline: true` and the host decodes that
+seat afresh. A reconnect from the same page keeps its counters.
 
 The room checks the frame's length and rate (see the Limits rule) and
 forwards a host frame: the

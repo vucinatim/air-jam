@@ -56,6 +56,8 @@ export interface HostSessionEvents extends Record<string, unknown> {
   status: RoomSessionStatus;
   seats: readonly SeatView[];
   input: { readonly seat: SeatId; readonly state: AirJamInputState };
+  /** A seat's controls restart from a new page; what was read of them no longer counts. */
+  inputBaseline: SeatId;
   /** Every input frame as the room sent it, for a frame this page serves. */
   inputFrame: Uint8Array;
   /** Answer each with `respond(request.seat, request.id, result)`. */
@@ -261,6 +263,10 @@ export class HostRoomSession {
         return this.link.waiting(frame.position);
       case "seat":
         this.roster.upsert(frame.seat);
+        if (frame.inputBaseline) {
+          this.decoder?.forget(frame.seat.id);
+          this.events.emit("inputBaseline", frame.seat.id);
+        }
         return this.events.emit("seats", this.roster.list());
       case "left":
         this.roster.remove(frame.seat);

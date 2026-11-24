@@ -313,6 +313,29 @@ describe("room core", () => {
       expect(room.describe().seats[0]).toMatchObject({ connected: true });
     });
 
+    it.each([
+      ["reconnects from the same page", "page-a", true, false],
+      ["reloads into a new page", "page-b", true, true],
+      ["is taken over by another tab", "page-b", false, true],
+    ] as const)(
+      "asks the host for a new input baseline only when a seat %s",
+      (_case, page, dropFirst, baseline) => {
+        const room = ready();
+        room.connect("c1", "phone", phoneHello(key(1), { page: "page-a" }), 0);
+        if (dropFirst) room.disconnect("c1", SECOND);
+        const effects = room.connect(
+          "c1b",
+          "phone",
+          phoneHello(key(1), { instance: "r1", page }),
+          2 * SECOND,
+        );
+        const seatFrame = sent(effects, "host").find(
+          (frame) => frame.type === "seat",
+        );
+        expect(seatFrame?.inputBaseline).toBe(baseline ? true : undefined);
+      },
+    );
+
     it("returns a held seat to a phone that was locked for seventy seconds", () => {
       const room = ready(1);
       room.disconnect("c1", 50 * SECOND);

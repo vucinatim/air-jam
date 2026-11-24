@@ -16,6 +16,7 @@ import {
   type SeatView,
   type StateDocument,
 } from "../src/room-protocol";
+import type { PublishOptions } from "../src/room-session/channel-state";
 import type { RoomRequestOutcome } from "../src/room-session/phone-room-session";
 import { declaredStoresContext } from "../src/runtime/runtime-owner-contexts";
 import { useAirJamStore } from "../src/store/use-air-jam-store";
@@ -60,7 +61,8 @@ const seat = (id: string, connected = true): SeatView => ({
 
 /** A host's view of the room: what the store publishes, and phones' requests on its channel. */
 const hostRoom = () => {
-  const published: Array<{ document: StateDocument; options: object }> = [];
+  const published: Array<{ document: StateDocument; options: PublishOptions }> =
+    [];
   const restorers = new Map<string, (copy: ChannelCopy) => void>();
   const answerers = new Map<string, (request: AirJamStoreRequest) => unknown>();
   const room: AirJamStoreRoom = {
@@ -174,14 +176,31 @@ describe("replicated stores", () => {
       const fields = Object.fromEntries(
         Array.from({ length: 80 }, (_, index) => [
           `${extra}field${index}`,
-          { nested: [index, `${index}`], flag: true },
+          { nested: [index], flag: true },
         ]),
       );
-      const store = createAirJamStore<typeof fields & { actions: object }>(
-        () => ({ ...fields, actions: {} }),
-      );
+      const store = createAirJamStore<{
+        fields: Record<string, { nested: number[]; flag: boolean }>;
+        actions: {
+          reset: (ctx: AirJamActionContext, payload: { to: number }) => void;
+        };
+      }>((set) => ({
+        fields,
+        actions: {
+          reset: (_ctx, { to }) =>
+            set({ fields: { reset: { nested: [to], flag: false } } }),
+        },
+      }));
       const host = hostRoom();
-      detachments.push(attach(store, host.room));
+      detachments.push(
+        store.attach({
+          room: host.room,
+          connection: createConnectionStore(),
+          defaultStoreDomain: "default",
+          controlTarget: null,
+          now: () => 42,
+        }),
+      );
       return host.published[0]?.options.fingerprint;
     };
     const fingerprint = fingerprintOf("");

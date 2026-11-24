@@ -281,6 +281,12 @@ export const createScopedHostConnector = (
           link.send(encodeFrame(frame));
       }
     }),
+    // A seat's new page restarts its controls: the frame decodes them afresh too.
+    parent.on("inputBaseline", (seat) => {
+      latestInput.delete(seat);
+      const view = parent.seats.find((candidate) => candidate.id === seat);
+      if (view) forward({ type: "seat", seat: view, inputBaseline: true });
+    }),
     parent.on("inputFrame", (frame) => {
       let records;
       try {

@@ -579,6 +579,8 @@ export class HostRuntime {
       room.on("status", (status) => this.followStatus(room, key, status)),
       room.on("seats", (seats) => this.followSeats(seats)),
       room.on("input", ({ seat, state }) => this.input?.receive(seat, state)),
+      // A seat's new page counts its presses from zero again.
+      room.on("inputBaseline", (seat) => this.input?.clearInput(seat)),
       room.on("request", (request) => this.answer(room, request)),
     ];
     this.releaseRoom = () => {
