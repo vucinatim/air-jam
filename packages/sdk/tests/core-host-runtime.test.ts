@@ -170,6 +170,24 @@ describe("core host runtime", () => {
     }
   });
 
+  it("reopens a vanished room standalone, but stops embedded and leaves replacement to its parent", async () => {
+    for (const embedded of [null, { joinUrl: "https://play.test/join" }]) {
+      const { environment, memory } = createMemoryEnvironment();
+      const openRoom = vi.fn(environment.openRoom);
+      const runtime = new HostRuntime({
+        config,
+        store: createConnectionStore(),
+        environment: { ...environment, embedded, openRoom },
+        stores: [],
+      });
+      const stop = runtime.start();
+      await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+      memory.setStatus({ phase: "closed", reason: "closed" });
+      expect(openRoom).toHaveBeenCalledTimes(embedded ? 1 : 2);
+      stop();
+    }
+  });
+
   it("ends its room and opens a fresh one on reset, forgetting the old room's place", async () => {
     const { environment, memory, readStoredResume } = createMemoryEnvironment();
     const openRoom = vi.fn(environment.openRoom);

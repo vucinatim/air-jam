@@ -647,7 +647,12 @@ export class HostRuntime {
         state.setStatus("disconnected");
         state.setQueuePosition(null);
         if (status.reason === "owner") return;
-        if (ROOM_GONE.has(status.reason) && this.running) {
+        // An embedded host's room is its parent's; the parent replaces it.
+        if (
+          ROOM_GONE.has(status.reason) &&
+          this.running &&
+          !this.environment.embedded
+        ) {
           this.closeRoom();
           this.environment.writeResume(null);
           this.followSeats([]);
