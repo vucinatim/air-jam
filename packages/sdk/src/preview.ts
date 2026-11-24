@@ -4,6 +4,10 @@ export {
 } from "./preview/host-workspace";
 export { readPreviewControllerDeviceIdFromSearchParams } from "./preview/identity";
 export {
+  isPreviewSeatMessage,
+  type AirJamPreviewSeatMessage,
+} from "./preview/messages";
+export {
   getPreviewControllerViewportSize,
   getPreviewHostViewportSize,
 } from "./preview/layout";
