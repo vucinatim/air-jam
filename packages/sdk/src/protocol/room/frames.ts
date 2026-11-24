@@ -80,12 +80,6 @@ const statePatchFields = {
   set: z.array(z.tuple([pathSchema, z.unknown()])).default([]),
   unset: z.array(pathSchema).default([]),
 };
-const statePatchRule = {
-  check: (frame: { revision: number; base: number }) =>
-    frame.revision > frame.base,
-  message: "A patch produces a later revision than its base.",
-};
-
 const stateDocumentFields = {
   type: z.literal("state"),
   channel: channelSchema,
@@ -103,7 +97,10 @@ export const hostStateFrameSchema = z.union([
   }),
   z
     .object(statePatchFields)
-    .refine(statePatchRule.check, statePatchRule.message),
+    .refine(
+      (frame) => frame.revision > frame.base,
+      "A patch produces a later revision than its base.",
+    ),
 ]);
 export type HostStateFrame = z.infer<typeof hostStateFrameSchema>;
 
