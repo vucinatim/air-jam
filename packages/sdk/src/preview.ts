@@ -4,10 +4,6 @@ export {
 } from "./preview/host-workspace";
 export { readPreviewControllerDeviceIdFromSearchParams } from "./preview/identity";
 export {
-  isPreviewSeatMessage,
-  type AirJamPreviewSeatMessage,
-} from "./preview/messages";
-export {
   getPreviewControllerViewportSize,
   getPreviewHostViewportSize,
 } from "./preview/layout";
@@ -18,6 +14,10 @@ export {
   type UsePreviewControllerManagerOptions,
   type UsePreviewControllerManagerResult,
 } from "./preview/manager";
+export {
+  isPreviewSeatMessage,
+  type AirJamPreviewSeatMessage,
+} from "./preview/messages";
 export type { HostPreviewControllerWorkspaceEnabled } from "./preview/ownership";
 export {
   buildPreviewControllerUrl,
