@@ -95,7 +95,12 @@ export class PhoneRoomSession {
       hello: () => this.hello(),
       receive: (data) => this.receive(data),
       lost: () => this.lost(),
-      status: (status) => this.events.emit("status", status),
+      status: (status) => {
+        if (status.phase === "closed")
+          for (const id of [...this.requests.keys()])
+            this.settle(id, { status: "unconfirmed" });
+        this.events.emit("status", status);
+      },
     });
     this.link.start();
   }

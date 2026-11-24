@@ -1,8 +1,8 @@
 import {
   ABNORMAL_CLOSE_CODE,
-  isTerminalRoomClose,
   PING_FRAME,
   PONG_FRAME,
+  roomCloseCodes,
   roomCloseReasonForCode,
   type RoomAddress,
   type RoomCloseReason,
@@ -199,12 +199,9 @@ export class SessionLink {
 
   private lost(code: number): void {
     this.drop();
-    if (isTerminalRoomClose(code)) {
-      const reason = roomCloseReasonForCode(code);
-      if (!reason)
-        throw new Error(`Close code ${code} is terminal but unnamed.`);
+    const reason = roomCloseReasonForCode(code);
+    if (reason !== null && roomCloseCodes[reason].terminal)
       return this.finish(reason);
-    }
     this.attempt += 1;
     this.setStatus({ phase: "reconnecting", attempt: this.attempt });
     const ceiling = Math.min(
@@ -243,7 +240,7 @@ export class SessionLink {
       this.cancelRetry();
       this.cancelRetry = null;
       this.connect();
-    } else if (this.link) this.ping();
+    } else if (this.welcomed) this.ping();
   }
 
   private schedulePing(): void {
