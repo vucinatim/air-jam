@@ -1,4 +1,9 @@
-import { isPlainObject } from "./patch";
+import {
+  applyStatePatch,
+  isPlainObject,
+  type StateDocument,
+  type StatePatch,
+} from "./patch";
 
 /** UTF-8 length without encoding, so a room can measure frames for free. */
 export const utf8ByteLength = (text: string): number => {
@@ -36,3 +41,18 @@ export const stateWeight = (value: unknown): number => {
 /** What one key and its value add to the weight of the object holding them. */
 export const stateEntryWeight = (key: string, value: unknown): number =>
   jsonBytes(key) + stateWeight(value);
+
+/** Applies a patch, as `applyStatePatch` does, and the document's weight with it. */
+export const applyWeighedStatePatch = (
+  document: StateDocument,
+  weight: number,
+  patch: StatePatch,
+): { document: StateDocument; weight: number } | null => {
+  let next = weight;
+  const entryWeight = (key: string, value: unknown) =>
+    value === undefined ? 0 : stateEntryWeight(key, value);
+  const patched = applyStatePatch(document, patch, (key, before, after) => {
+    next += entryWeight(key, after) - entryWeight(key, before);
+  });
+  return patched && { document: patched, weight: next };
+};

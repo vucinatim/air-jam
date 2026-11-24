@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { AirJamInput, AirJamInputState } from "../src/core/input";
 import {
   applyStatePatch,
+  applyWeighedStatePatch,
   decodeHostInputFrame,
   decodeInputPayload,
+  DEFAULT_ROOM_LIMITS,
   diffState,
   encodeFrame,
   encodeHostInputFrame,
@@ -20,7 +22,9 @@ import {
   parseRoomToHostFrame,
   parseRoomToPhoneFrame,
   roomCloseCodes,
+  roomLimitsSchema,
   roomPath,
+  stateWeight,
 } from "../src/room-protocol";
 
 interface GoldenFrames {
@@ -128,6 +132,59 @@ describe("room protocol", () => {
     expect(applied).toEqual(next);
     expect(applied?.untouched).toBe(untouched);
     expect(previous.ready).toEqual({ p1: true, p3: true });
+  });
+
+  it("applies a whole frame in one pass and weighs it exactly", () => {
+    const fields = Object.fromEntries(
+      Array.from({ length: 3_000 }, (_, index) => [`f${index}`, index]),
+    );
+    const placed = { inner: 1 };
+    const previous = { fields, kept: { a: 1 } };
+    const patch = {
+      set: [
+        ...Object.keys(fields).map(
+          (key) => [["fields", key], "changed"] as const,
+        ),
+        [["placed"], placed] as const,
+        [["placed", "added"], 2] as const,
+      ],
+      unset: [["kept", "a"]],
+    };
+    const applied = applyWeighedStatePatch(
+      previous,
+      stateWeight(previous),
+      patch,
+    );
+    expect(applied?.document.fields).toEqual(
+      Object.fromEntries(Object.keys(fields).map((key) => [key, "changed"])),
+    );
+    expect(applied?.document.placed).toEqual({ inner: 1, added: 2 });
+    expect(applied?.document.kept).toEqual({});
+    expect(applied?.weight).toBe(stateWeight(applied?.document));
+    expect([previous.fields.f0, previous.kept.a, placed]).toEqual([
+      0,
+      1,
+      { inner: 1 },
+    ]);
+  });
+
+  it("keeps configured limits strict, and a welcome's limits open to newer fields", () => {
+    expect(
+      roomLimitsSchema.safeParse({ ...DEFAULT_ROOM_LIMITS, newer: 1 }).success,
+    ).toBe(false);
+    expect(
+      roomLimitsSchema.safeParse({ ...DEFAULT_ROOM_LIMITS, hostGraceMs: 0 })
+        .success,
+    ).toBe(false);
+    const welcome = golden.text.find(
+      (entry) =>
+        entry.direction === "room-to-phone" &&
+        JSON.parse(entry.text).type === "welcome",
+    );
+    if (!welcome) throw new Error("The golden frames hold a phone welcome.");
+    const newer = JSON.parse(welcome.text);
+    newer.limits.newer = 1;
+    expect(parseRoomToPhoneFrame(JSON.stringify(newer)).status).toBe("frame");
   });
 
   it("refuses a patch that does not fit the document", () => {

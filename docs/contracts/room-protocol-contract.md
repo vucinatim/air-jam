@@ -1,9 +1,9 @@
 # Room Protocol Contract
 
 Last updated: 2026-11-24
-Status: built, not yet served. The room core and this protocol exist beside
-today's socket.io server; a Node host and the Durable Object host serve it in
-later phases, and the SDK switches to it in one change that deletes socket.io.
+Status: built and served by the Node room server beside today's socket.io
+server; the Durable Object host serves it in a later phase, and the SDK
+switches to it in one change that deletes socket.io.
 
 Related docs:
 
@@ -22,6 +22,14 @@ things in the public packages are its executable form and win over this text:
 2. `packages/sdk/tests/fixtures/room-protocol-golden-frames.json`: the
    canonical encoding of every frame, including binary input as hex.
 3. `@air-jam/server/room`: the `Room` every host runs.
+4. `@air-jam/sdk/room-session`: the client every SDK runtime uses, which
+   owns the client rules below.
+5. `airjam rooms check <url>`: the acceptance scenarios any rooms origin
+   must pass. A gated origin takes the page's `--origin`, a
+   `--host-credential-command` run once for each host that opens a room,
+   and `--connections-per-minute` under its per-address limit; every
+   connection that fails to open or closes unasked is reported with its
+   HTTP status, error or close code.
 
 ## Addressing
 
@@ -65,8 +73,10 @@ literal text frames `ping` and `pong` are the heartbeat: clients send `ping`
 every 20 seconds and the room answers `pong`.
 
 Within a version change is additive. Receivers ignore frame types and fields
-they do not know; `hello` and `welcome` list optional `features`. A breaking
-change is `/v2`, served beside `/v1`.
+they do not know, including new fields in a `welcome`'s `limits`; `hello` and
+`welcome` list optional `features`. A breaking change is `/v2`, served beside
+`/v1`. A frame's JSON may nest at most 32 levels deep; a deeper one closes its
+connection as `limits-broken` before anything walks it.
 
 ### From a host
 
@@ -117,8 +127,10 @@ local seat plays through the phone.
 
 `hello` is acknowledged by `welcome`; nothing else is. A request is answered
 by `response`. If the connection drops first the caller treats the request as
-unconfirmed and decides whether to try again; the room keeps no list of
-pending requests.
+unconfirmed and decides whether to try again. The room delivers an answer
+only to the connection the request arrived on, once, so a reloaded phone,
+whose request ids start again, never takes an answer meant for its earlier
+page; it remembers the latest 256 unanswered requests per connection.
 
 ## Input
 
@@ -135,7 +147,8 @@ A phone frame is the kind byte `1` and those bytes: a stick and two buttons
 are 5 bytes. The host unwraps press counters against the state it last
 decoded for the seat, so a tap is never lost or doubled.
 
-The room checks the frame's length and rate and forwards a host frame: the
+The room checks the frame's length and rate (see the Limits rule) and
+forwards a host frame: the
 kind byte `1`, then per record two bytes of seat number (big-endian), one byte
 of length and the control bytes. A host that pays per message may join records
 that arrive together into one frame; the room never waits to batch. Input is
@@ -153,7 +166,11 @@ launcher's shell, the SDK's presentation state. The room keeps a copy of each.
 
 - A document frame replaces the copy. A patch applies to the copy only when
   its `base` is the copy's revision; otherwise the room drops it and sends
-  `need` once, until a document arrives.
+  `need`. A copy is also behind when one of its state frames was dropped over
+  the rate. A copy that is behind asks again once a second, after the host's
+  state lane has reopened, until a document arrives, since the answer can be
+  dropped too and a host may send nothing more on its own. Copies and copies
+  waiting for their first document together count against `channels`.
 - A patch's `unset` paths are removed, then its `set` pairs assigned. Paths
   descend only through plain objects; arrays and other values are replaced
   whole, and a value may be `null`. A patch that removes a missing key or runs
@@ -175,18 +192,42 @@ plain object; punctuation is not counted. A channel may weigh at most
 
 ## Rules
 
-| Rule       | What the room does                                                                                                                                                                                                   |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Seats      | Ids `p1`, `p2`… in join order, never reused in a room. A free colour, the profile, or "Player N".                                                                                                                    |
-| Admission  | A new player is refused as `full` before the host has said how many seats it wants, beyond them (held seats count) or while `locked`; a returning key is not.                                                        |
-| Seat hold  | A dropped phone's seat is shown disconnected and held for `seatHoldMs` (two minutes; zero for agents), then freed.                                                                                                   |
-| Host grace | A dropped host keeps its room for `hostGraceMs` (60 seconds); phones are told the screen is away. Then the room closes.                                                                                              |
-| Routing    | Input and requests go to the host stamped with the seat; responses and signals go to the seats they name.                                                                                                            |
-| Limits     | Per connection and lane, in one-second windows: over-rate and malformed frames are dropped and counted, and more than `strikesPerSecond` closes the connection. A frame or document over its size closes it at once. |
-| Lifecycle  | The host's `end`, the host grace, `maximumAgeMs` and the operator's stop close the room and every connection.                                                                                                        |
+| Rule       | What the room does                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Seats      | Ids `p1`, `p2`… in join order, never reused in a room. A free colour, the profile, or "Player N".                                                                                                                                                                                                                                                                                 |
+| Admission  | A new player is refused as `full` before the host has said how many seats it wants, beyond them (held seats count) or while `locked`; a returning key is not.                                                                                                                                                                                                                     |
+| Seat hold  | A dropped phone's seat is shown disconnected and held for `seatHoldMs` (two minutes; zero for agents), then freed.                                                                                                                                                                                                                                                                |
+| Host grace | A dropped host keeps its room for `hostGraceMs` (60 seconds, never zero), as does a room whose opening host has yet to arrive; phones are told the screen is away. Then the room closes. Phones are told the screen is present on every new host connection, even one replacing a connection the room still held, and when a room is restored, so they send their controls again. |
+| Routing    | Input and requests go to the host stamped with the seat; responses go to the connection that asked, and signals to the seats they name.                                                                                                                                                                                                                                           |
+| Limits     | See [Rates and floods](#rates-and-floods). Frames that do not parse are struck, and more than `strikesPerSecond` in one second closes the connection. A frame or document over its size closes it at once.                                                                                                                                                                        |
+| Lifecycle  | The host's `end`, the host grace, `maximumAgeMs` and the operator's stop close the room and every connection.                                                                                                                                                                                                                                                                     |
 
 Deadlines are applied whenever the room is called, so a late timer never lets
-a device do something the rules say has expired.
+a device do something the rules say has expired. A late wake closes the room
+for whichever of the host grace and the maximum age passed first, at that
+time.
+
+### Rates and floods
+
+A phone whose network stalls delivers what it sent meanwhile in one burst
+when the network returns, so the room tells a backlog from a flood by how
+much a connection sends over time, not by how its frames arrive.
+
+- **Over rate.** Each lane (input, state, other text frames) admits its rate
+  per connection in one-second windows. A frame past it is dropped without
+  blame. For input the latest state wins: the room holds a phone's newest
+  input that arrived over the rate and forwards it when the window ends, and
+  press counters carry the taps in between. A dropped state patch heals
+  through `need`; a dropped request goes unanswered and resolves
+  `unconfirmed`.
+- **Flood.** Every arrival, admitted, dropped or ignored (a `ping`, a frame
+  type the room does not know, one that does not parse), spends the lane's
+  flood allowance. It starts at ten seconds of the lane's rate, earns twice the
+  rate each second and holds at most thirty seconds of it. A backlog was
+  earned while the connection was silent, so it never closes a phone; a
+  connection that keeps sending well over its rate runs the allowance out
+  and closes as `limits-broken` within seconds (under two at ten times the
+  rate), so a hosted front door does not pay for long for frames it drops.
 
 ### Close codes
 
@@ -205,7 +246,7 @@ visible.
 | `full`                | 4005 | yes      | No seat for a new player                            |
 | `unauthorised`        | 4006 | yes      | The host key or credential is wrong                 |
 | `unsupported-version` | 4007 | yes      | The `hello` could not be read                       |
-| `limits-broken`       | 4008 | yes      | Too large, or too many dropped frames               |
+| `limits-broken`       | 4008 | yes      | Too large, unreadable, or flooding                  |
 | `restarting`          | 4100 | no       | The server is shutting down or cannot read its room |
 | `try-later`           | 4101 | no       | Admission is unavailable for now                    |
 
@@ -230,6 +271,75 @@ them per account or app.
 | `hostGraceMs`      | 60,000     |
 | `maximumAgeMs`     | 86,400,000 |
 
+## Clients
+
+A client is a host or phone session. Its rules are the session's own, so
+every SDK surface behaves the same.
+
+- **Links.** A session runs over a link: a WebSocket to a rooms origin, a
+  `MessagePort` a parent page serves, or a loopback into rooms in the same
+  process. A link never calls its handlers synchronously.
+- **Frames a page serves.** A page serves a frame's port in one of two ways.
+  A frame that is a device of its own, such as a preview controller, gets
+  links the page opens to the room for it, frames passing through unchanged.
+  A frame that shares the page's place in the room, such as a game inside a
+  launcher or its controller inside the launcher's controller page, gets a
+  room that is a view of the page's own session, scoped to the channels the
+  frame may use (`createScopedHostConnector`, `createScopedPhoneConnector`).
+  The page's session stays the room's one connection and one writer, so the
+  room's rules apply once, there:
+  - The frame's welcome is built from the page's session: its seat or seats,
+    limits, and its latest documents of the frame's channels.
+  - Revisions on a scoped link are the link's own. A host frame's documents
+    and patches apply to a copy the page keeps, and the page's session
+    publishes the result to the room with the room's revisions; a phone
+    frame receives whole documents numbered for its link. They are never
+    room revisions.
+  - A host frame publishes, answers the requests the page passed it, signals,
+    configures seats and removes players. A phone frame sends input, makes
+    requests on its channels as the page's seat, changes the profile and
+    leaves. Anything else, a channel outside the scope, `activity` or `end`,
+    closes the frame's link as `unauthorised`; nothing a frame sends reaches
+    the page's session except through these calls.
+  - The page keeps each seat's latest input record, so a host frame attached
+    after the phones last sent theirs starts with every seat's controls. A
+    record is cleared when its seat leaves, so there is at most one per seat.
+  - While the page's session is away, the frame's links close as lost and
+    their hellos wait for its next welcome; when it closes for good, they
+    close with its reason. A page ends a frame's links for good when the
+    surface they belong to ends, and a launcher's host may drop the frame's
+    channels with them.
+- **Hello.** Every new link starts with `hello`. A host that was given a code
+  returns to `/v1/host/CODE`; after the first `welcome` every hello is a
+  resume that names the instance. A host given a credential provider fetches
+  a fresh credential for each hello that opens a room, since a gate may spend
+  each one once, and sends none when it resumes; a provider that fails ends
+  the session as `unauthorised`.
+- **Heartbeat.** A client sends `ping` every 20 seconds and treats a link
+  that has answered nothing 10 seconds later as dead. A host tab whose timers
+  are throttled may send none; the server's protocol-level pings keep it.
+- **Reconnecting.** On a close that is not terminal the session reconnects
+  after a delay that doubles from 250 ms to at most 5 seconds, with jitter
+  over its upper half, and at once when the device comes back online or the
+  page becomes visible. A terminal close ends the session for good.
+- **Requests.** A request resolves `answered`, `refused` (`host-away`),
+  `unconfirmed` when the link dropped after sending it or no answer came in
+  time (5 seconds by default), or `busy` when it is exclusive and one of the
+  same channel and name still waits. Requests made while the link is down
+  are sent once the room welcomes the session again.
+- **Input.** As in [Input](#input). Every frame, edge or movement, is kept at
+  least the room's input rate apart. While the link still holds data sent earlier (a WebSocket's
+  `bufferedAmount` above zero), input waits and only the latest controls go
+  once it drains, so a stall queues no stale input.
+- **State.** A host publishes whole documents; the session sends the patch
+  from the room's copy, or the document when the room holds none, asks with
+  `need`, the fingerprint or private field changed, or the patch would weigh
+  more. Documents published in one turn leave as one frame, and frames are
+  spaced to stay within `statesPerSecond`. After each `welcome` the room's
+  copies are the base of the next patch, except channels the host dropped
+  while its link was down, and what the host wanted the room to look like
+  meanwhile (seats, locked, activity, channels it dropped) is asserted again.
+
 ## Hosts
 
 A host runs `Room` and does only transport:
@@ -251,8 +361,24 @@ A host runs `Room` and does only transport:
    Saved state carries a schema number; a room saved by a newer release
    closes its connections as `restarting` and does not come back.
 
+`MemoryRoomHost` in `@air-jam/server/room` is this wiring for rooms held in
+memory: the Node room server and loopback links share it. It packs host-bound
+input that is ready in the same turn into one frame, sending anything queued
+for a host before a text frame that follows it. `createRoomServer` in
+`@air-jam/server/room-server` puts it behind `node:http` and `ws`: hosts may
+ask for a code, the origin is checked against `AIR_JAM_ALLOWED_ORIGINS`,
+connection attempts per address are limited by the host registration and
+controller join limits, a request target that is not a path is refused with
+400, every socket gets a protocol-level ping every 10 seconds and is dropped
+after 45 seconds of silence, a socket with more than 4 MB waiting to leave is
+dropped (its seat or host is held, and its return is served from the room's
+copies), a connection that says no `hello` within 15 seconds is closed as
+`try-later`, and stopping it closes every device as `restarting`.
+
 The core takes no clock, timer, randomness or storage. The gate, the limits
 object and the facts stream are the only seams for policy: facts are
 `opened`, `seat-joined`, `seat-dropped`, `seat-left`, `activity` and
-`closed`, each with the time, room code, instance and the gate's labels. The
+`closed`, each with the time, room code, instance and the gate's labels. An
+`activity` fact carries the new `activity` and the `previous` one it
+replaced, so it reads on its own. The
 public package ships two gates, open to all and a shared master key.

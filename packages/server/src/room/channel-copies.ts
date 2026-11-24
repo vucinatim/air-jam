@@ -1,8 +1,6 @@
 import {
-  applyStatePatch,
+  applyWeighedStatePatch,
   isPlainObject,
-  readStatePath,
-  stateEntryWeight,
   stateWeight,
   type ChannelCopy,
   type HostStateFrame,
@@ -10,7 +8,6 @@ import {
   type RoomStateFrame,
   type SeatId,
   type StateDocument,
-  type StatePath,
 } from "@air-jam/sdk/room-protocol";
 
 interface Copy {
@@ -38,7 +35,7 @@ export type StateOutcome =
     }
   /** The copy cannot take the patch; ask the host for the document. */
   | { readonly kind: "need"; readonly channel: string }
-  /** The copy is already waiting for the document. */
+  /** The copy has already asked for the document, and asks again when it is due. */
   | { readonly kind: "waiting" }
   | { readonly kind: "too-large" }
   | { readonly kind: "too-many" };
@@ -56,26 +53,60 @@ const projectDocument = (copy: Copy, seat: SeatId): StateDocument =>
       }
     : copy.document;
 
+/** How long the room waits for a document it asked for before asking again; a rate window, so the host's state lane has reopened. */
+export const REPAIR_RETRY_MS = 1_000;
+
 /**
  * The room's copy of each channel's document. The host is the only writer;
  * the room applies its patches so it can serve a joining or returning device
  * without involving the host, and keeps each seat's private entry from every
  * other seat.
+ *
+ * A copy falls behind when a patch does not apply or a state frame for it was
+ * dropped over the rate. It then asks the host for the whole document, and
+ * keeps asking once per `REPAIR_RETRY_MS` until a document lands, since the
+ * answer can itself be dropped and a host may send nothing more on its own.
  */
 export class ChannelCopies {
   private readonly copies = new Map<string, Copy>();
-  private readonly waiting = new Set<string>();
+  /** Channels behind the host, and when each next asks for the document. */
+  private readonly behind = new Map<string, number>();
 
   constructor(private readonly limits: RoomLimits) {}
 
-  receive(frame: HostStateFrame): StateOutcome {
+  receive(frame: HostStateFrame, now: number): StateOutcome {
     return "document" in frame
       ? this.receiveDocument(frame)
-      : this.receivePatch(frame);
+      : this.receivePatch(frame, now);
+  }
+
+  /** A state frame for `channel` was dropped; the copy asks for the document at `askAt`. */
+  fellBehind(channel: string, askAt: number): void {
+    if (this.behind.has(channel) || !this.holds(channel)) return;
+    this.behind.set(channel, askAt);
+  }
+
+  /** The channels whose ask is due at `now`; each next asks a retry later. */
+  due(now: number): string[] {
+    const due: string[] = [];
+    for (const [channel, askAt] of this.behind)
+      if (askAt <= now) {
+        due.push(channel);
+        this.behind.set(channel, now + REPAIR_RETRY_MS);
+      }
+    return due;
+  }
+
+  /** When the next ask is due, or null when no copy is behind. */
+  nextAsk(): number | null {
+    let earliest: number | null = null;
+    for (const askAt of this.behind.values())
+      if (earliest === null || askAt < earliest) earliest = askAt;
+    return earliest;
   }
 
   drop(channel: string): boolean {
-    this.waiting.delete(channel);
+    this.behind.delete(channel);
     return this.copies.delete(channel);
   }
 
@@ -131,11 +162,7 @@ export class ChannelCopies {
   private receiveDocument(
     frame: Extract<HostStateFrame, { document: StateDocument }>,
   ): StateOutcome {
-    if (
-      !this.copies.has(frame.channel) &&
-      this.copies.size >= this.limits.channels
-    )
-      return { kind: "too-many" };
+    if (!this.holds(frame.channel)) return { kind: "too-many" };
     const weight = stateWeight(frame.document);
     if (weight > this.limits.stateBytes) return { kind: "too-large" };
     const copy: Copy = {
@@ -146,7 +173,7 @@ export class ChannelCopies {
       weight,
     };
     this.copies.set(frame.channel, copy);
-    this.waiting.delete(frame.channel);
+    this.behind.delete(frame.channel);
     return {
       kind: "applied",
       channel: frame.channel,
@@ -159,15 +186,28 @@ export class ChannelCopies {
     };
   }
 
+  /** Whether `channel` has a copy, or room for one within the channel limit. */
+  private holds(channel: string): boolean {
+    if (this.copies.has(channel) || this.behind.has(channel)) return true;
+    let named = this.copies.size;
+    for (const name of this.behind.keys())
+      if (!this.copies.has(name)) named += 1;
+    return named < this.limits.channels;
+  }
+
   private receivePatch(
     frame: Exclude<HostStateFrame, { document: StateDocument }>,
+    now: number,
   ): StateOutcome {
     const copy = this.copies.get(frame.channel);
     const applied =
-      copy && copy.revision === frame.base ? this.apply(copy, frame) : null;
+      copy && copy.revision === frame.base
+        ? applyWeighedStatePatch(copy.document, copy.weight, frame)
+        : null;
     if (!copy || !applied) {
-      if (this.waiting.has(frame.channel)) return { kind: "waiting" };
-      this.waiting.add(frame.channel);
+      if (this.behind.has(frame.channel)) return { kind: "waiting" };
+      if (!this.holds(frame.channel)) return { kind: "too-many" };
+      this.behind.set(frame.channel, now + REPAIR_RETRY_MS);
       return { kind: "need", channel: frame.channel };
     }
     if (applied.weight > this.limits.stateBytes) return { kind: "too-large" };
@@ -201,34 +241,5 @@ export class ChannelCopies {
         ),
       }),
     };
-  }
-
-  /** Applies one operation at a time so the weight changes by exactly what each replaces. */
-  private apply(
-    copy: Copy,
-    frame: Exclude<HostStateFrame, { document: StateDocument }>,
-  ): { document: StateDocument; weight: number } | null {
-    let document = copy.document;
-    let weight = copy.weight;
-    const entryWeight = (path: StatePath, value: unknown) =>
-      value === undefined ? 0 : stateEntryWeight(path.at(-1) ?? "", value);
-    for (const path of frame.unset) {
-      const previous = readStatePath(document, path);
-      const next = applyStatePatch(document, { set: [], unset: [path] });
-      if (!next) return null;
-      weight -= entryWeight(path, previous);
-      document = next;
-    }
-    for (const [path, value] of frame.set) {
-      const previous = readStatePath(document, path);
-      const next = applyStatePatch(document, {
-        set: [[path, value]],
-        unset: [],
-      });
-      if (!next) return null;
-      weight += entryWeight(path, value) - entryWeight(path, previous);
-      document = next;
-    }
-    return { document, weight };
   }
 }

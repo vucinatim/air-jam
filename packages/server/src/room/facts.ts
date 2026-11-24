@@ -27,7 +27,12 @@ export type RoomEvent =
       readonly seat: SeatId;
       readonly cause: SeatLeaveCause;
     }
-  | { readonly kind: "activity"; readonly activity: string | null }
+  | {
+      readonly kind: "activity";
+      readonly activity: string | null;
+      /** The activity this one replaced, so the fact reads on its own. */
+      readonly previous: string | null;
+    }
   | { readonly kind: "closed"; readonly cause: RoomCloseCause };
 
 /**
