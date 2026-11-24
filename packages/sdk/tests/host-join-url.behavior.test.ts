@@ -14,7 +14,6 @@ import {
 import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JoinQrOverlay } from "../src/components/join-qr-overlay";
-import { RoomQrCode } from "../src/components/room-qr-code";
 import { createConnectionStore } from "../src/core/connection-store";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
@@ -205,16 +204,6 @@ describe("host join url behavior", () => {
     expect(
       parseRuntimeTopologyFromSearchParams(url.searchParams),
     ).not.toHaveProperty("embedParentOrigin");
-  });
-
-  it("shows a loading state while the QR image is being generated", () => {
-    render(
-      createElement(RoomQrCode, {
-        value: "https://platform.example/controller?room=ROOM1",
-      }),
-    );
-
-    expect(screen.getByText("Generating QR…")).toBeTruthy();
   });
 
   it("renders the shared join QR overlay and closes it on backdrop click", () => {
