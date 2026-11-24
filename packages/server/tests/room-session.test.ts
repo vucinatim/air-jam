@@ -288,6 +288,27 @@ describe("room sessions over a loopback room", () => {
     expect(lane.due(16, 100)).toBe(100);
   });
 
+  it("counts a phone's first press once after it reloads while the host is away", async () => {
+    const { clock, network, host, join } = await openRoom();
+    const presses: number[] = [];
+    host.on("input", ({ state }) =>
+      presses.push((state.jump as { presses: number }).presses),
+    );
+    const before = join();
+    await clock.advance(20);
+    before.sendInput(controlsAt(0, 50));
+    await clock.advance(20);
+    network.links[0]?.break();
+    before.close();
+    // Another session with the same key is another page: a reload.
+    const reloaded = join();
+    await clock.advance(20);
+    reloaded.sendInput(controlsAt(0, 1, true));
+    await clock.advance(1_000);
+    expect(host.status).toEqual({ phase: "open" });
+    expect(presses.at(-1)).toBe(1);
+  });
+
   it("does not take back a channel dropped while the host's link was down", async () => {
     const { clock, network, rooms, host } = await openRoom();
     host.publish("old", { round: 1 });

@@ -56,7 +56,11 @@ export interface HostSessionEvents extends Record<string, unknown> {
   status: RoomSessionStatus;
   seats: readonly SeatView[];
   input: { readonly seat: SeatId; readonly state: AirJamInputState };
-  /** A seat's controls restart from a new page; what was read of them no longer counts. */
+  /**
+   * What was read of a seat's controls no longer counts: its page is new, or
+   * this host's link to the room was just (re)established, so a phone that
+   * reloaded meanwhile is not misread. Its next input starts from zero.
+   */
   inputBaseline: SeatId;
   /** Every input frame as the room sent it, for a frame this page serves. */
   inputFrame: Uint8Array;
@@ -297,7 +301,18 @@ export class HostRoomSession {
       activity: frame.activity,
       features: frame.features,
     };
+    const known = new Set([
+      ...this.roster.list().map((seat) => seat.id),
+      ...frame.seats.map((seat) => seat.id),
+    ]);
     this.roster.reset(frame.seats);
+    // A seat's page may have changed while this link was down, and the room's
+    // word of it went nowhere: every seat starts over, and phones send their
+    // controls again when they hear the host is present.
+    for (const seat of known) {
+      this.decoder?.forget(seat);
+      this.events.emit("inputBaseline", seat);
+    }
     // A channel dropped while the link was down is dropped again below, not taken back.
     this.publisher.rebase(
       frame.channels.filter((copy) => !this.droppedChannels.has(copy.channel)),
