@@ -48,12 +48,15 @@ export class PhoneInputLane {
 
   /**
    * When the latest state should go out, or null when nothing worth sending
-   * changed. `spacingMs` keeps edges within the room's input rate.
+   * changed. `spacingMs` keeps every frame within the room's input rate.
    */
   due(intervalMs: number, spacingMs: number): number | null {
     const change = this.change();
     if (change === "none") return null;
-    return this.sentAt + (change === "edge" ? spacingMs : intervalMs);
+    return (
+      this.sentAt +
+      (change === "edge" ? spacingMs : Math.max(intervalMs, spacingMs))
+    );
   }
 
   /** The frame to send now, whether or not it changed; null before any state. */

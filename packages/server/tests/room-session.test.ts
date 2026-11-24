@@ -1,5 +1,6 @@
 import type { AirJamInput } from "@air-jam/sdk/core";
 import {
+  DEFAULT_ROOM_LIMITS,
   encodeInputPayload,
   encodePhoneInputFrame,
 } from "@air-jam/sdk/room-protocol";
@@ -7,6 +8,7 @@ import {
   createLoopbackConnector,
   createPortConnector,
   HostRoomSession,
+  PhoneInputLane,
   PhoneRoomSession,
   serveRoomPort,
   type PhoneSessionOptions,
@@ -231,6 +233,31 @@ describe("room sessions over a loopback room", () => {
       ),
     );
     expect(inputFrames()).toHaveLength(3);
+  });
+
+  it("spaces stick movement by the room's input rate when it is slower than the interval", () => {
+    const lane = new PhoneInputLane(controls);
+    lane.update(controlsAt(0));
+    lane.take(0);
+    lane.update(controlsAt(0.5));
+    expect(lane.due(16, 100)).toBe(100);
+  });
+
+  it("does not take back a channel dropped while the host's link was down", async () => {
+    const { clock, network, rooms, host } = await openRoom();
+    host.publish("old", { round: 1 });
+    await clock.advance(20);
+    network.links[0]?.break();
+    await clock.advance();
+    host.drop("old");
+    await clock.advance(250);
+    expect(host.status).toEqual({ phase: "open" });
+    for (let index = 0; index < DEFAULT_ROOM_LIMITS.channels; index += 1)
+      host.publish(`c${index}`, {});
+    await clock.advance(1_000);
+    expect(rooms.describe()[0]?.channels).toHaveLength(
+      DEFAULT_ROOM_LIMITS.channels,
+    );
   });
 
   it("holds input behind a stalled link and sends only the latest once it drains", async () => {

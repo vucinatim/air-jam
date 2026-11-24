@@ -4,6 +4,7 @@ import {
   HostRoomSession,
   PhoneRoomSession,
 } from "@air-jam/sdk/room-session";
+import { connect } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 import { loadServerEnv } from "../src/env/server-env.js";
@@ -85,6 +86,19 @@ describe("node room server", () => {
         );
         socket.on("open", () => resolve(101));
       });
+    const statusLineOf = (target: string) =>
+      new Promise<string>((resolve) => {
+        const socket = connect(Number(new URL(origin).port), "127.0.0.1", () =>
+          socket.write(
+            `GET ${target} HTTP/1.1\r\nHost: rooms\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n`,
+          ),
+        );
+        socket.once("data", (data) => {
+          resolve(data.toString().split("\r\n")[0] ?? "");
+          socket.destroy();
+        });
+      });
+    expect(await statusLineOf("//[")).toBe("HTTP/1.1 400 Bad Request");
     expect(
       await Promise.all([
         statusOf("/v1/host", { origin: "https://elsewhere.test" }),
