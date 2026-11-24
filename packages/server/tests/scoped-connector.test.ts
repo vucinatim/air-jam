@@ -297,6 +297,49 @@ describe("frames served as a view of the page's session", () => {
     expect(phone.channel("game")).toEqual({ who: "new" });
   });
 
+  it("restarts a seat's controls when a new controller frame takes it, so its first press counts once", async () => {
+    const { clock, network, shell, game } = await openLauncher();
+    const presses: number[] = [];
+    game.on("input", ({ state }) =>
+      presses.push((state.jump as { presses: number }).presses),
+    );
+    const page = new PhoneRoomSession({
+      connector: network.connector,
+      clock,
+      random: () => 0.5,
+      deviceWakeEvents: null,
+      key: "phone-key-000001",
+      code: shell.code ?? "",
+    });
+    await clock.advance(20);
+    const scoped = createScopedPhoneConnector(page, gameScope);
+    const frame = () =>
+      new PhoneRoomSession({
+        connector: scoped.connector,
+        clock,
+        random: () => 0.5,
+        deviceWakeEvents: null,
+        key: "controller-frame-",
+        code: page.code,
+        input: controls,
+      });
+    const first = frame();
+    await clock.advance(20);
+    first.sendInput({
+      move: { x: 0, y: 0 },
+      jump: { down: false, presses: 50 },
+    });
+    await clock.advance(20);
+    const second = frame();
+    await clock.advance(20);
+    second.sendInput({
+      move: { x: 0, y: 0 },
+      jump: { down: true, presses: 1 },
+    });
+    await clock.advance(20);
+    expect(presses.at(-1)).toBe(1);
+  });
+
   it("serves one controller frame at a time: a second link replaces the first, whose later input does nothing", async () => {
     const { clock, network, shell, game } = await openLauncher();
     const inputs: unknown[] = [];

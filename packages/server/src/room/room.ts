@@ -796,6 +796,12 @@ export class Room {
         this.connections.delete(connection);
         this.closeConnection(connection, "left");
         return this.freeSeat(seat, "left", now);
+      case "baseline":
+        return this.toHost({
+          type: "seat",
+          seat: this.seatView(seat),
+          inputBaseline: true,
+        });
     }
   }
 

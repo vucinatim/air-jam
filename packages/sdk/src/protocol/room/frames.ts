@@ -160,6 +160,8 @@ export const phoneToRoomFrameSchemas = {
       "A profile change names a label or an avatar.",
     ),
   leave: z.object({ type: z.literal("leave") }),
+  /** This seat's controls start again from zero, as a newly loaded controller frame's do. */
+  baseline: z.object({ type: z.literal("baseline") }),
 } as const;
 
 type FramesOf<Schemas extends Record<string, z.ZodType>> = {

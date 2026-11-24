@@ -422,6 +422,7 @@ export const createScopedPhoneConnector = (
 ): ScopedConnector => {
   const hellos = new WeakSet<FrameLink>();
   const revisions = new WeakMap<FrameLink, Map<string, number>>();
+  const restarted = new WeakSet<FrameLink>();
   const toldSeats = new WeakMap<FrameLink, Map<SeatId, SeatView>>();
 
   const welcome = (link: FrameLink) => {
@@ -437,6 +438,11 @@ export const createScopedPhoneConnector = (
     );
     toldSeats.set(link, rosterOf(parent.seats));
     links.replaceOthers(link);
+    // A new controller frame counts its presses from zero; a re-welcome does not.
+    if (!restarted.has(link)) {
+      restarted.add(link);
+      parent.restartInput();
+    }
     link.welcomed = true;
     link.send(
       encodeFrame({

@@ -197,6 +197,14 @@ export class PhoneRoomSession {
     this.link.send(encodeFrame({ type: "profile", ...profile }));
   }
 
+  /**
+   * Tells the host this seat's controls start again from zero, as when a
+   * page serves a newly loaded controller frame its seat.
+   */
+  restartInput(): void {
+    this.link.send(encodeFrame({ type: "baseline" }));
+  }
+
   /** Gives the seat up for good. */
   leave(): void {
     if (!this.link.send(encodeFrame({ type: "leave" }))) this.close();
