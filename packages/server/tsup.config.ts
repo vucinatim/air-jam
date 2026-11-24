@@ -5,9 +5,13 @@ export default defineConfig({
   entry: {
     cli: "src/cli.ts",
     index: "src/index.ts",
+    room: "src/room.ts",
   },
   format: ["esm"],
-  dts: { entry: "src/index.ts", compilerOptions: { composite: false } },
+  dts: {
+    entry: { index: "src/index.ts", room: "src/room.ts" },
+    compilerOptions: { composite: false },
+  },
   clean: true,
   sourcemap: true,
   platform: "node",

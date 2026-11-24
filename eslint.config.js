@@ -99,6 +99,45 @@ export default defineConfig([
     },
   },
   {
+    // The room core and its protocol are pure: time comes in as an argument,
+    // effects go out as values, and every host gets identical behaviour.
+    files: [
+      "packages/server/src/room/**/*.ts",
+      "packages/sdk/src/protocol/room/**/*.ts",
+    ],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: ["node:*"] }],
+      "no-restricted-globals": [
+        "error",
+        "setTimeout",
+        "setInterval",
+        "setImmediate",
+        "queueMicrotask",
+        "process",
+        "Buffer",
+        "performance",
+        "crypto",
+        "fetch",
+      ],
+      "no-restricted-properties": [
+        "error",
+        { object: "Date", property: "now" },
+        { object: "Math", property: "random" },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "NewExpression[callee.name='Date']",
+          message: "The room core is given the time; it never reads a clock.",
+        },
+        {
+          selector: ":function[async=true], AwaitExpression",
+          message: "The room core is synchronous.",
+        },
+      ],
+    },
+  },
+  {
     files: ["packages/sdk/**/*.{ts,tsx}"],
     rules: {
       "react-refresh/only-export-components": "off",
