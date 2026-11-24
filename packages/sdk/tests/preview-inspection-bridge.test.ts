@@ -48,7 +48,6 @@ describe("embedded host presentation inspection", () => {
         joinUrlStatus: "ready",
         connectionStatus: "connected",
         players: [],
-        controllers: [],
         mode: "standalone",
         runtimeState: "playing",
       });
@@ -94,7 +93,6 @@ describe("embedded host presentation inspection", () => {
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [],
-      controllers: [],
       mode: "standalone",
       runtimeState: "playing",
     });
@@ -158,7 +156,6 @@ describe("embedded host presentation inspection", () => {
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [],
-      controllers: [],
       mode: "standalone",
       runtimeState: "paused",
       controllerOrientation: "landscape",

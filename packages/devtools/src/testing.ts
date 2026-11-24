@@ -1,6 +1,6 @@
 import {
   controllerLeasedControlAckSchema,
-  controllerLeasedControlSchema,
+  leasedControlRequestSchema,
   participantActionOperationSchema,
   participantInputOperationSchema,
   participantReleaseOperationSchema,
@@ -170,7 +170,7 @@ export const airJamRunReceiptSchema = z
     phase: z.enum(["setup", "play", "cleanup"]),
     sequence: z.number().int().positive(),
     attempts: z.union([z.literal(1), z.literal(2)]),
-    operation: controllerLeasedControlSchema.out.shape.operation,
+    operation: leasedControlRequestSchema.shape.operation,
     acknowledgement: controllerLeasedControlAckSchema,
   })
   .strict();

@@ -77,6 +77,7 @@ export function observationFixture(
       > = {},
     ) =>
       registerHostRuntimeParticipantReceiver(target, "ROOM", {
+        seats: () => null,
         now: () => performance.now(),
         readState: () => ({ ...hostState }),
         isParticipant: () => true,

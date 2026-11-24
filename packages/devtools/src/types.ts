@@ -685,11 +685,8 @@ export type ConnectControllerOptions = {
   secure?: boolean;
   roomId?: string;
   controllerJoinUrl?: string;
-  controllerId?: string;
-  deviceId?: string;
   nickname?: string;
   avatarId?: string;
-  capabilityToken?: string;
   timeoutMs?: number;
 };
 
@@ -738,8 +735,8 @@ export type AirJamVirtualControllerSessionSummary = {
   secure: boolean;
   process: AirJamManagedDevProcess | null;
   roomId: string;
+  /** The seat the room gave this phone. */
   controllerId: string;
-  deviceId: string;
   controllerJoinUrl: string;
   socketOrigin: string;
   connected: boolean;
@@ -833,8 +830,8 @@ export type AirJamGameSessionSummary = {
   secure: boolean;
   process: AirJamManagedDevProcess | null;
   roomId: string;
+  /** The seat the room gave this phone. */
   controllerId: string;
-  deviceId: string;
   controllerJoinUrl: string;
   socketOrigin: string;
   connected: boolean;

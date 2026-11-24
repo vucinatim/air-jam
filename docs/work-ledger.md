@@ -1,12 +1,29 @@
 # Air Jam Framework Work Ledger
 
-Last updated: 2026-10-16
+Last updated: 2026-11-24
 Status: historical framework memory
 
 This ledger records public framework milestones after ownership separation.
 Earlier whole-product history remains preserved in the private product ledger
 and this repository's Git history. Its local pre-separation snapshot is also
 retained in the ignored migration recovery archive.
+
+## 2026-11-24 Room core switch
+
+Every room moved onto the room core in one change, and socket.io left both the
+code and the lockfile. The SDK's runtimes, stores, signals, leased control and
+replays run on room sessions; embedded frames get a scoped view of their
+parent's session over a `MessagePort`; `air-jam-server` is the Node room
+server; devtools, CLI proxies, headless runs and the performance smoke use it.
+Old builds are not supported: games rebuild on the new SDK with no source
+edits, and input logs are version 3.
+
+The old process-level socket tests were deleted with the server. Behaviour is
+covered at the lowest level that proves it: store and runtime tests on a
+memory room, SDK runtimes on a real loopback room, devtools controllers on a
+real in-process room server, and the scoped connectors' rules. The private
+product lands the Arcade, controller pages, rooms Worker and Studio relay on
+the same build.
 
 ## 2026-10-16 Owned live semantic evaluation
 

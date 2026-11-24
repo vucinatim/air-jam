@@ -11,8 +11,6 @@ import {
 
 export interface ChildHostRuntimeParams {
   room: string;
-  capabilityToken: string;
-  capabilityExpiresAt?: number;
   joinUrl?: string;
   localControllerUrl?: string;
   topology: ResolvedAirJamRuntimeTopology;
@@ -21,7 +19,6 @@ export interface ChildHostRuntimeParams {
 
 export type EmbeddedControllerRuntimeParams = ControllerBridgeContext & {
   room: string;
-  controllerId: string;
   topology: ResolvedAirJamRuntimeTopology;
   playerProfile?: {
     label?: PlayerProfile["label"];
@@ -36,15 +33,9 @@ export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
 
   const params = new URLSearchParams(window.location.search);
   const room = params.get("aj_room");
-  const capabilityToken = params.get("aj_cap");
-  if (!room || !capabilityToken) {
+  if (!room) {
     return null;
   }
-
-  const rawCapabilityExpiresAt = params.get("aj_cap_exp");
-  const parsedCapabilityExpiresAt = rawCapabilityExpiresAt
-    ? Number(rawCapabilityExpiresAt)
-    : NaN;
 
   const joinUrl = params.get("aj_join_url");
   const normalizedJoinUrl = joinUrl ? normalizeRuntimeUrl(joinUrl) : null;
@@ -61,10 +52,6 @@ export const readChildHostRuntimeParams = (): ChildHostRuntimeParams | null => {
 
   return {
     room,
-    capabilityToken,
-    capabilityExpiresAt: Number.isFinite(parsedCapabilityExpiresAt)
-      ? parsedCapabilityExpiresAt
-      : undefined,
     joinUrl: normalizedJoinUrl ?? undefined,
     localControllerUrl: localControllerUrl
       ? (normalizeRuntimeUrl(localControllerUrl) ?? undefined)
@@ -82,8 +69,7 @@ export const readEmbeddedControllerRuntimeParams =
 
     const params = new URLSearchParams(window.location.search);
     const room = params.get("aj_room");
-    const controllerId = params.get("aj_controller_id");
-    if (!room || !controllerId) {
+    if (!room) {
       return null;
     }
 
@@ -118,7 +104,6 @@ export const readEmbeddedControllerRuntimeParams =
 
     return {
       room,
-      controllerId,
       topology,
       ...context.data,
       ...(playerProfile ? { playerProfile } : {}),

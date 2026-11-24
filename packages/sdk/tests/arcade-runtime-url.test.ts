@@ -14,7 +14,7 @@ describe("arcade runtime URL / implicit store domain", () => {
         kind: "game",
         gameId: "pong",
       }),
-    ).toBe("aj.embedded.game:2:pong");
+    ).toBe("aj.embedded.game:pong");
   });
 
   it("derives embedded domain for browser surface", () => {
@@ -24,7 +24,7 @@ describe("arcade runtime URL / implicit store domain", () => {
         kind: "browser",
         gameId: null,
       }),
-    ).toBe("aj.embedded.browser:4");
+    ).toBe("aj.embedded.browser");
   });
 
   it("prefers aj_store_domain when present", () => {
@@ -41,7 +41,7 @@ describe("arcade runtime URL / implicit store domain", () => {
       "aj_arcade_epoch=1&aj_arcade_kind=game&aj_arcade_game_id=alpha",
     );
     expect(resolveImplicitReplicatedStoreDomainFromSearchParams(params)).toBe(
-      "aj.embedded.game:1:alpha",
+      "aj.embedded.game:alpha",
     );
   });
 

@@ -8,19 +8,14 @@ export const registerPerfCommands = (program) => {
 
   perfCommand
     .command("sanity")
-    .description("Run the server performance sanity check")
-    .option("--profile <profile>", "Named confidence profile: ci or release")
-    .option("--controllers <count>", "Controller count")
-    .option("--hz <count>", "Target events per second per controller")
-    .option("--durationMs <ms>", "Measurement duration in milliseconds")
-    .option("--warmupMs <ms>", "Warmup duration in milliseconds")
-    .option(
-      "--reconnectControllers <count>",
-      "Reconnect churn controller count",
+    .description(
+      "Run the room acceptance load scenario against a local Node room server",
     )
-    .option("--reconnectCycles <count>", "Reconnect churn cycle count")
-    .option("--reconnectPauseMs <ms>", "Pause between disconnect and reconnect")
-    .option("--strict", "Fail on threshold violations")
+    .option("--profile <profile>", "Named size: ci or release")
+    .option("--rooms <count>", "Rooms to open")
+    .option("--phones <count>", "Phones in each room")
+    .option("--durationMs <ms>", "How long the rooms play")
+    .option("--workers <count>", "Processes the phones run in")
     .action((options) => {
       runCommand("pnpm", buildPerfSanityArgs(options));
     });

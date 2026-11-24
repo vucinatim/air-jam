@@ -61,7 +61,6 @@ const resolveThreeProfileManualChunk = (id) => {
   if (
     id.includes("/zustand/") ||
     id.includes("/howler/") ||
-    id.includes("/socket.io-client/") ||
     id.includes("/qrcode/")
   ) {
     return "app-runtime";

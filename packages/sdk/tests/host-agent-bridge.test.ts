@@ -59,7 +59,6 @@ function bridgeFixture() {
     joinUrlStatus: "ready",
     connectionStatus: "connected",
     players: [],
-    controllers: [],
     mode: "standalone",
     runtimeState: "playing",
   });

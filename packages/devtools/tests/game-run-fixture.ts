@@ -172,7 +172,6 @@ export async function fixture({
       process: null,
       roomId: "ROOM",
       controllerId: "player",
-      deviceId: "device-player",
       controllerJoinUrl: "http://localhost/controller?room=ROOM",
       socketOrigin: "http://localhost",
       connected: true,
@@ -301,10 +300,10 @@ export async function fixture({
   };
 }
 
-export const attachment = (controllerIds = ["player"]) => ({
+export const attachment = (seats = 1) => ({
   controllerJoinUrl:
-    "http://localhost/controller?room=ROOM&aj_controller_cap=never-persist-this",
-  controllerIds,
+    "http://localhost/controller?room=ROOM&secret=never-persist-this",
+  seats,
   host: {
     endpoint: "https://private-host.invalid/request",
     targetId: "ephemeral-target",

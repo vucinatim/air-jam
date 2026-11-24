@@ -23,8 +23,8 @@ it("has no phone join URL for loopback addresses", () => {
   }
 });
 
-it("preserves a LAN join URL including its room and controller capability", () => {
+it("preserves a LAN join URL including its room and transport", () => {
   const value =
-    "http://192.168.1.20:3000/controller?room=ABCD&aj_controller_cap=secret";
+    "http://192.168.1.20:3000/controller?room=ABCD&aj_topology_runtime_mode=arcade-live";
   expect(resolvePhoneJoinUrl(value)).toBe(value);
 });

@@ -124,6 +124,7 @@
     "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/server && tsup",
     "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/server && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
+    "perf:sanity": "tsx scripts/perf-sanity.ts",
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/server && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
@@ -134,7 +135,6 @@
     "cross-spawn": "^7.0.6",
     "playwright-core": "^1.58.2",
     "proper-lockfile": "4.1.2",
-    "socket.io-client": "^4.8.3",
     "tsx": "4.20.6",
     "ws": "^8.18.3",
     "yauzl": "^3.2.1",
@@ -148,7 +148,6 @@
     "@types/ws": "^8.18.1",
     "@types/yauzl": "^2.10.3",
     "@types/yazl": "^2.4.5",
-    "socket.io": "^4.8.1",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",
     "vitest": "^3.2.4"

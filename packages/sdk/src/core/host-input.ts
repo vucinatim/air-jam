@@ -49,13 +49,14 @@ export class HostInput {
     | undefined;
 
   constructor(
-    private readonly input: AirJamInput,
+    /** The game's declared controls. */
+    readonly declaration: AirJamInput,
     /** The host clock input leases expire on. */
     private readonly now: () => number,
   ) {
-    this.stateSchema = createInputStateSchema(input);
-    this.agentSchema = createAgentInputSchema(input);
-    this.neutral = neutralInputValues(input);
+    this.stateSchema = createInputStateSchema(declaration);
+    this.agentSchema = createAgentInputSchema(declaration);
+    this.neutral = neutralInputValues(declaration);
   }
 
   /** A phone's controls; ignored while an agent lease owns the seat. */
@@ -73,7 +74,7 @@ export class HostInput {
     }
     this.setState(
       controllerId,
-      completeInputState(this.input, parsed.data as AirJamInputState),
+      completeInputState(this.declaration, parsed.data as AirJamInputState),
     );
   }
 
@@ -92,7 +93,7 @@ export class HostInput {
     for (const [controllerId, lease] of this.leases)
       if (!lease.released && now >= lease.deadline) {
         lease.released = true;
-        this.setState(controllerId, completeInputState(this.input, {}));
+        this.setState(controllerId, completeInputState(this.declaration, {}));
       }
     for (const [controllerId, seat] of this.seats) {
       seat.values = this.applyMeanings(seat);
@@ -144,7 +145,7 @@ export class HostInput {
     this.setState(
       controllerId,
       completeInputState(
-        this.input,
+        this.declaration,
         agentValuesToInputState(previous, parsed.data),
       ),
     );
@@ -158,7 +159,7 @@ export class HostInput {
 
   releaseLeasedInput(controllerId: string): void {
     this.leases.set(controllerId, { deadline: 0, released: true });
-    this.setState(controllerId, completeInputState(this.input, {}));
+    this.setState(controllerId, completeInputState(this.declaration, {}));
   }
 
   clearLeasedInputs(): void {
@@ -183,7 +184,7 @@ export class HostInput {
 
   private applyMeanings(seat: Seat): Record<string, unknown> {
     const values: Record<string, unknown> = {};
-    for (const control of Object.values(this.input)) {
+    for (const control of Object.values(this.declaration)) {
       const state = seat.state[control.name];
       if (control.kind === "button") {
         const { down, presses } = state as AirJamButtonState;

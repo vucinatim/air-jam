@@ -31,19 +31,6 @@ export type RoomSessionStatus =
  */
 export type DeviceWakeEvents = (wake: () => void) => () => void;
 
-/** The browser's own online and visibility events. */
-export const browserDeviceWakeEvents: DeviceWakeEvents = (wake) => {
-  const onVisibility = () => {
-    if (document.visibilityState === "visible") wake();
-  };
-  window.addEventListener("online", wake);
-  document.addEventListener("visibilitychange", onVisibility);
-  return () => {
-    window.removeEventListener("online", wake);
-    document.removeEventListener("visibilitychange", onVisibility);
-  };
-};
-
 export interface RoomSessionOptions {
   readonly connector: RoomConnector;
   /** This device's key; see `createRoomKey`. The same key always gets the same place back. */
@@ -53,7 +40,7 @@ export interface RoomSessionOptions {
   readonly clock?: RoomClock;
   /** Jitter for reconnect delays, from 0 inclusive to 1 exclusive. */
   readonly random?: () => number;
-  /** Defaults to the browser's events where there is a browser, and none elsewhere. */
+  /** In a browser, `browserDeviceWakeEvents`; none by default. */
   readonly deviceWakeEvents?: DeviceWakeEvents | null;
   /**
    * The client's own `ping`, which keeps carrier NAT mappings open and finds
@@ -137,13 +124,8 @@ export class SessionLink {
   }
 
   start(): void {
-    const wakeEvents =
-      this.options.deviceWakeEvents === undefined
-        ? typeof window === "undefined" || typeof document === "undefined"
-          ? null
-          : browserDeviceWakeEvents
-        : this.options.deviceWakeEvents;
-    this.stopWakeEvents = wakeEvents?.(() => this.deviceWoke()) ?? null;
+    this.stopWakeEvents =
+      this.options.deviceWakeEvents?.(() => this.deviceWoke()) ?? null;
     this.connect();
   }
 

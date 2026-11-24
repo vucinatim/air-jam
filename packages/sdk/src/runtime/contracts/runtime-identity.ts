@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { roomCodeSchema } from "../../protocol/core";
+import { roomCodeSchema } from "../../room-protocol";
 
 export const hostRuntimeIdentitySchema = z.object({
   documentId: z.string().min(1).max(128),

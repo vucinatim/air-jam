@@ -38,6 +38,8 @@ export interface SavedSeat {
   readonly localSeatLabel?: string;
   readonly avatarId?: string;
   readonly color: string;
+  /** The page the seat's phone last joined from. */
+  readonly page?: string;
   readonly connection: ConnectionId | null;
   /** When the seat is freed unless its phone returns; null while connected. */
   readonly holdUntil: number | null;

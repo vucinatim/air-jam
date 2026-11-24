@@ -211,11 +211,14 @@ export const HostView = () => {
 ## Action Flow
 
 1. Controller calls `actions.someAction()` or `actions.someAction({ ...payload })`.
-2. SDK emits `controller:action_rpc`.
-3. Server validates and injects actor identity from socket ownership.
-4. Host receives `airjam:action_rpc` with `{ actor, payload }`.
-5. Host executes action handler `(ctx, payload)` and updates state.
-6. Host emits `host:state_sync`; controllers receive `airjam:state_sync`.
+2. The phone's session sends a request on the store's channel.
+3. The room stamps it with the phone's seat, which becomes `ctx.actorId`.
+4. Host executes action handler `(ctx, payload)`, updates state and answers.
+5. Host publishes what changed; the room keeps the latest copy and sends each
+   phone the change, with only its own private entry.
+6. If the phone's connection drops before the answer arrives, the action
+   resolves `unconfirmed`: it may or may not have run, and the state the phone
+   mirrors shows which.
 
 ## Rules
 

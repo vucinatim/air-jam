@@ -11,12 +11,12 @@ import {
 import type { HostInput } from "../../core/host-input";
 import type { AirJamInputLog, AirJamInputLogCut } from "../../core/input-log";
 import type { HostSettings, SettingsValues } from "../../core/settings";
-import { roomCodeSchema } from "../../protocol/core";
+import type { AirJamActionInvocationResult } from "../../protocol/actions";
 import type {
   ControllerLeasedControl,
   ControllerLeasedControlAck,
 } from "../../protocol/leased-control";
-import type { AirJamActionInvocationResult } from "../../protocol/sync";
+import { roomCodeSchema, type SeatView } from "../../room-protocol";
 import { isRpcSerializable } from "../../utils/is-rpc-serializable";
 import type { HostClipRecorder } from "../host-clip-recorder";
 import {
@@ -84,6 +84,8 @@ type ActionStore = {
 };
 
 type ParticipantReceiver = {
+  /** The room's instance and its seats; null while the host holds no room. */
+  seats: () => { instance: string; seats: readonly SeatView[] } | null;
   timeline?: () => DistributiveOmit<HostTimeline, "identity">;
   clips?: HostClipRecorder;
   inputLog?: (cut?: AirJamInputLogCut) => AirJamInputLog;
@@ -221,6 +223,12 @@ function controlEntry(target: object) {
     const control: HostRuntimeControl = {
       async agent(input) {
         const request = hostAgentRequestSchema.parse(input);
+        if (request.operation === "seats") {
+          const room = receivers.get(request.roomId)?.seats();
+          if (!room)
+            throw new Error("host_unavailable: No live host owns this room.");
+          return { operation: "seats", ...room, seats: [...room.seats] };
+        }
         if (request.operation === "observe") {
           const { operation, ...observationRequest } = request;
           return {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ControllerOrientation } from "../protocol/controller";
 import { normalizeRuntimeUrl } from "../protocol/url-policy";
+import { type ControllerOrientation } from "../room-protocol";
 import type { LocalSeat } from "../runtime/local-seats";
 import {
   type PreviewControllerBounds,
@@ -16,6 +16,7 @@ import {
   getPreviewWindowBoundsForScale,
   getPreviewWindowSizeConstraints,
 } from "./layout";
+import { isPreviewSeatMessage } from "./messages";
 import { createPreviewControllerLaunch } from "./url";
 
 export type PreviewControllerSurfaceState = "loading" | "ready" | "failed";
@@ -34,7 +35,8 @@ export interface PreviewControllerSession {
   label: string;
   /** The local player's seat this phone plays, if it was launched for one. */
   localSeat: LocalSeat | null;
-  controllerId: string;
+  /** The seat the room gave this phone, once the phone reports it. */
+  seat: string | null;
   deviceId: string;
   url: string;
   surfaceState: PreviewControllerSurfaceState;
@@ -485,7 +487,7 @@ export const usePreviewControllerManager = ({
           ordinal,
           label: options?.localSeat?.label ?? `Preview ${ordinal}`,
           localSeat: options?.localSeat ?? null,
-          controllerId: launch.controllerId,
+          seat: null,
           deviceId: launch.deviceId,
           url: launch.url,
           surfaceState: "loading",
@@ -648,6 +650,25 @@ export const usePreviewControllerManager = ({
       ),
     );
   }, [fixedControllerOrientation]);
+
+  // Each phone reports the seat the room gave it, from its own origin.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (!isPreviewSeatMessage(event.data)) return;
+      const { deviceId, seat } = event.data;
+      setSessions((current) =>
+        current.map((session) =>
+          session.deviceId === deviceId &&
+          new URL(session.url).origin === event.origin &&
+          session.seat !== seat
+            ? { ...session, seat }
+            : session,
+        ),
+      );
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   const markPreviewControllerReady = useCallback((id: string) => {
     setSessions((current) =>

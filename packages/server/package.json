@@ -4,7 +4,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "description": "WebSocket signal server for Air Jam — rooms, presence, and input pipelines for phone-controller multiplayer party games.",
+  "description": "The Air Jam room server — rooms, seats, state and input for phone-controller multiplayer party games, over one WebSocket per device.",
   "keywords": [
     "air-jam",
     "airjam",
@@ -16,13 +16,11 @@
     "party-games",
     "phone-controller",
     "websocket",
-    "socket.io",
     "real-time",
     "realtime",
     "room-management",
     "game-server",
     "node",
-    "express",
     "game-development",
     "gamedev"
   ],
@@ -69,7 +67,6 @@
     "build": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsup",
     "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "perf:sanity": "tsx scripts/perf-sanity.ts",
     "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/sdk && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "prepublishOnly": "pnpm build",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
@@ -77,26 +74,16 @@
   },
   "dependencies": {
     "@air-jam/sdk": "workspace:*",
-    "@types/express": "^5.0.6",
-    "color": "^5.0.3",
     "commander": "^14.0.0",
-    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.2.1",
     "pino": "^10.3.1",
-    "socket.io": "^4.8.3",
-    "socket.io-parser": "^4.2.4",
-    "uuid": "^13.0.2",
     "ws": "^8.18.3",
     "zod": "^4.2.1"
   },
   "devDependencies": {
     "@air-jam/env": "workspace:^",
-    "@types/cors": "^2.8.17",
     "@types/node": "^24.10.1",
-    "@types/uuid": "^11.0.0",
     "@types/ws": "^8.18.1",
-    "socket.io-client": "^4.8.1",
     "tsup": "^8.5.1",
     "tsx": "^4.19.2",
     "typescript": "~5.9.3",

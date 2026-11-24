@@ -8,8 +8,6 @@ import {
   useAudio,
   useAudioRuntimeStatus,
 } from "../src/audio/hooks";
-import { useAirJamContext } from "../src/context/air-jam-context";
-import { SocketManager } from "../src/context/socket-manager";
 import { HostRuntime } from "../src/core/host-runtime";
 import { defineAirJamSimulation } from "../src/core/simulation";
 import { useAirJamHost } from "../src/hooks/use-air-jam-host";
@@ -19,12 +17,12 @@ import { useSimulationFrame } from "../src/hooks/use-simulation";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { ConnectedRuntimeErrorBoundary } from "../src/runtime/connected-runtime-error-boundary";
 import * as hostObservation from "../src/runtime/host-observation";
-import { getHostRealtimeClient } from "../src/runtime/host-realtime-client";
 import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   window.history.replaceState({}, "", "/");
 });
 
@@ -41,7 +39,8 @@ it.each([false, true])(
       value: parent,
     });
     const posted = vi.spyOn(parent, "postMessage").mockImplementation(() => {});
-    const socket = vi.spyOn(SocketManager.prototype, "getSocket");
+    const socket = vi.fn();
+    vi.stubGlobal("WebSocket", socket);
     const draw = vi.fn();
     let captureReady = false;
     const captureAtRead: boolean[] = [];
@@ -69,12 +68,10 @@ it.each([false, true])(
     const manifest = {};
     function Game() {
       const host = useAirJamHost();
-      const { getSocket } = useAirJamContext();
       const sendSignal = useSendSignal();
       useAudio();
       useAudioRuntimeStatus();
-      expect(getSocket("host")).toBe(host.socket);
-      expect(getHostRealtimeClient(getSocket)).toBe(host.socket);
+      expect(host.room?.code ?? null).toBe(host.room ? host.roomId : null);
       useEffect(() => {
         sendSignal("TOAST", { title: "Replayed" });
       }, [sendSignal]);
@@ -140,7 +137,7 @@ it.each([false, true])(
         await send(requestId, {
           operation: "open",
           log: {
-            version: 2,
+            version: 3,
             seed: 1,
             settings: {},
             stepMs: 10,

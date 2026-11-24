@@ -2,29 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildPerfSanityArgs } from "../lib/perf-plan.mjs";
 
-test("existing performance sanity arguments remain unchanged", () => {
-  assert.deepEqual(buildPerfSanityArgs(), [
+test("a profile sizes the load smoke and explicit options override it", () => {
+  assert.deepEqual(buildPerfSanityArgs({ profile: "ci", rooms: 4 }), [
     "--filter",
-    "server",
+    "@air-jam/devtools",
     "perf:sanity",
-  ]);
-  assert.deepEqual(buildPerfSanityArgs({ profile: "ci", controllers: 4 }), [
-    "--filter",
-    "server",
-    "perf:sanity",
-    "--",
-    "--controllers=4",
+    "--rooms=4",
+    "--phones=4",
     "--durationMs=15000",
-    "--warmupMs=1000",
-    "--reconnectCycles=5",
-    "--strict",
-  ]);
-  assert.deepEqual(buildPerfSanityArgs({ profile: "release" }), [
-    "--filter",
-    "server",
-    "perf:sanity",
-    "--",
-    "--strict",
+    "--workers=2",
   ]);
   assert.throws(
     () => buildPerfSanityArgs({ profile: "unknown" }),

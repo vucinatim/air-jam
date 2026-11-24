@@ -72,7 +72,7 @@ it("opens only for its parent, advances a Pong-like game without intermediate dr
     },
   });
   const log: AirJamInputLog = {
-    version: 2,
+    version: 3,
     seed: 42,
     settings: {},
     stepMs: 10,

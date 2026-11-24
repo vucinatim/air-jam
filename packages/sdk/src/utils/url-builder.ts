@@ -83,7 +83,6 @@ class UrlBuilder {
     roomId: RoomCode,
     options?: {
       host?: string;
-      capabilityToken?: string;
     },
   ): Promise<string> {
     const path = CONTROLLER_PATH;
@@ -92,9 +91,6 @@ class UrlBuilder {
     if (options?.host) {
       const url = new URL(path, this.normalizeOrigin(options.host));
       url.searchParams.set("room", roomId);
-      if (options.capabilityToken) {
-        url.searchParams.set("aj_controller_cap", options.capabilityToken);
-      }
       return url.toString();
     }
 
@@ -124,9 +120,6 @@ class UrlBuilder {
 
     const url = new URL(path, base);
     url.searchParams.set("room", roomId);
-    if (options?.capabilityToken) {
-      url.searchParams.set("aj_controller_cap", options.capabilityToken);
-    }
     return url.toString();
   }
 

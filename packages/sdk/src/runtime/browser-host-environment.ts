@@ -1,18 +1,33 @@
 import { z } from "zod";
+import type { AirJamConfig } from "../core/config";
 import type { AirJamHostEnvironment } from "../core/environment";
 import { updateDevBrowserLogContext } from "../dev/browser-log-sink";
-import { roomCodeSchema, type RoomCode } from "../protocol";
-import { runtimeTopologyToQueryParams } from "../runtime-topology";
+import type { RoomCode } from "../protocol";
+import { roomCodeSchema } from "../room-protocol";
+import { browserDeviceWakeEvents } from "../room-session/browser-wake-events";
+import { HostRoomSession } from "../room-session/host-room-session";
+import { createRoomKey } from "../room-session/room-key";
+import {
+  runtimeTopologyToQueryParams,
+  type ResolvedAirJamRuntimeTopology,
+} from "../runtime-topology";
 import { detectRunMode } from "../utils/mode";
 import { urlBuilder } from "../utils/url-builder";
 import { resolveImplicitReplicatedStoreDomainFromWindow } from "./arcade-runtime-url";
+import {
+  browserRoomConnector,
+  devLogRuntimeErrorReporter,
+} from "./browser-room";
 import { emitAirJamDevRuntimeEvent } from "./dev-runtime-events";
 import { readEmbeddedHostChildSession } from "./embedded-runtime-adapters";
-import { getHostRealtimeClient } from "./host-realtime-client";
 
-const HOST_ROOM_SESSION_STORAGE_KEY = "airjam_room_id";
-const HOST_RESUME_CAPABILITY_SESSION_STORAGE_KEY =
-  "airjam_host_resume_capability";
+const HOST_RESUME_STORAGE_KEY = "airjam_host_room";
+
+const hostResumeSchema = z.object({
+  key: z.string().min(16),
+  code: roomCodeSchema,
+  instance: z.string().min(1),
+});
 
 const hostGrantResponseSchema = z.object({ hostGrant: z.string().min(1) });
 
@@ -24,12 +39,18 @@ const readRequestedRoomId = (): RoomCode | null => {
 };
 
 /** The host environment of a browser page: its URL, session storage and frames. */
-export const createBrowserHostEnvironment = (): AirJamHostEnvironment => {
+export const createBrowserHostEnvironment = (
+  config: AirJamConfig,
+): AirJamHostEnvironment => {
   const embedded = readEmbeddedHostChildSession();
+  const connector = browserRoomConnector({
+    topology: config.topology,
+    role: "host",
+    embedding: embedded ? { arcadeSurface: embedded.arcadeSurface } : null,
+  });
   return {
     embedded: embedded
       ? {
-          roomId: embedded.roomId,
           joinUrl: embedded.joinUrl,
           localControllerUrl: embedded.localControllerUrl,
         }
@@ -37,35 +58,43 @@ export const createBrowserHostEnvironment = (): AirJamHostEnvironment => {
     requestedRoomId: readRequestedRoomId(),
     runMode: detectRunMode(),
     defaultStoreDomain: resolveImplicitReplicatedStoreDomainFromWindow(),
+    presentationChannel: config.presentationChannel,
     controlTarget: window,
+    openRoom: (roomOptions) =>
+      new HostRoomSession({
+        ...roomOptions,
+        connector,
+        deviceWakeEvents: browserDeviceWakeEvents,
+      }),
+    createKey: createRoomKey,
+    // An embedded host's place belongs to the page that embeds it.
     readResume: () => {
-      const roomId = sessionStorage.getItem(HOST_ROOM_SESSION_STORAGE_KEY);
-      const token = sessionStorage.getItem(
-        HOST_RESUME_CAPABILITY_SESSION_STORAGE_KEY,
-      );
-      if (roomId && token) return { roomId, token };
-      if (roomId || token) {
-        sessionStorage.removeItem(HOST_ROOM_SESSION_STORAGE_KEY);
-        sessionStorage.removeItem(HOST_RESUME_CAPABILITY_SESSION_STORAGE_KEY);
+      if (embedded) return null;
+      try {
+        const parsed = hostResumeSchema.safeParse(
+          JSON.parse(sessionStorage.getItem(HOST_RESUME_STORAGE_KEY) ?? "null"),
+        );
+        return parsed.success ? parsed.data : null;
+      } catch {
+        return null;
       }
-      return null;
     },
     writeResume: (resume) => {
-      if (!resume) {
-        sessionStorage.removeItem(HOST_ROOM_SESSION_STORAGE_KEY);
-        sessionStorage.removeItem(HOST_RESUME_CAPABILITY_SESSION_STORAGE_KEY);
-        return;
+      if (embedded) return;
+      try {
+        if (resume)
+          sessionStorage.setItem(
+            HOST_RESUME_STORAGE_KEY,
+            JSON.stringify(resume),
+          );
+        else sessionStorage.removeItem(HOST_RESUME_STORAGE_KEY);
+      } catch {
+        // Without storage a reload opens a new room.
       }
-      sessionStorage.setItem(HOST_ROOM_SESSION_STORAGE_KEY, resume.roomId);
-      sessionStorage.setItem(
-        HOST_RESUME_CAPABILITY_SESSION_STORAGE_KEY,
-        resume.token,
-      );
     },
     requestHostGrant: async (endpoint, appId) => {
       const response = await fetch(endpoint, {
         method: "POST",
-        credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(appId ? { appId } : {}),
       });
@@ -75,13 +104,13 @@ export const createBrowserHostEnvironment = (): AirJamHostEnvironment => {
       if (!parsed.success) throw new Error("Invalid host grant response");
       return parsed.data.hostGrant;
     },
-    controllerUrls: async (roomId, capabilityToken, topology) => {
-      const buildUrl = async (host: string) => {
+    controllerUrls: async (roomId, topology) => {
+      const buildUrl = async (
+        host: string,
+        controllerTopology: ResolvedAirJamRuntimeTopology,
+      ) => {
         const url = new URL(
-          await urlBuilder.buildControllerUrl(roomId, {
-            host,
-            capabilityToken,
-          }),
+          await urlBuilder.buildControllerUrl(roomId, { host }),
         );
         if (
           topology.runtimeMode === "standalone-dev" ||
@@ -89,7 +118,7 @@ export const createBrowserHostEnvironment = (): AirJamHostEnvironment => {
         ) {
           for (const [key, value] of Object.entries(
             runtimeTopologyToQueryParams({
-              ...topology,
+              ...controllerTopology,
               surfaceRole: "controller",
               embedded: false,
               embedParentOrigin: undefined,
@@ -100,14 +129,14 @@ export const createBrowserHostEnvironment = (): AirJamHostEnvironment => {
         return url.toString();
       };
       const [localControllerUrl, joinUrl] = await Promise.all([
-        buildUrl(topology.appOrigin),
+        buildUrl(topology.appOrigin, { ...topology, publicHost: undefined }),
         topology.publicHost
-          ? buildUrl(topology.publicHost)
+          ? buildUrl(topology.publicHost, topology)
           : Promise.resolve(""),
       ]);
       return { localControllerUrl, joinUrl };
     },
-    transport: (getSocket) => getHostRealtimeClient(getSocket),
+    reportError: config.reportError ?? devLogRuntimeErrorReporter,
     emitDevEvent: emitAirJamDevRuntimeEvent,
     setDevLogContext: updateDevBrowserLogContext,
     seed: () => crypto.getRandomValues(new Uint32Array(1))[0],

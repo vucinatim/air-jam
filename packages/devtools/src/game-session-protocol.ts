@@ -1,5 +1,5 @@
 import { airJamSettingsValuesSchema } from "@air-jam/sdk/core";
-import { controllerLeasedControlSchema } from "@air-jam/sdk/protocol";
+import { leasedControlRequestSchema } from "@air-jam/sdk/protocol";
 import { hostObservationRequestSchema } from "@air-jam/sdk/runtime-control";
 import { z } from "zod";
 import {
@@ -25,11 +25,8 @@ export const gameSessionOperationSchemas = {
       secure: z.boolean().optional(),
       roomId: z.string().min(1).optional(),
       controllerJoinUrl: z.url().optional(),
-      controllerId: z.string().min(3).optional(),
-      deviceId: z.string().min(8).optional(),
       nickname: z.string().min(1).optional(),
       avatarId: z.string().min(1).optional(),
-      capabilityToken: z.string().min(1).optional(),
       timeoutMs,
     })
     .strict(),
@@ -47,9 +44,9 @@ export const gameSessionOperationSchemas = {
     expectedRevision: z.number().int().nonnegative(),
   }),
   control: session.extend({
-    lease: controllerLeasedControlSchema.out.shape.lease,
-    expected: controllerLeasedControlSchema.out.shape.expected,
-    operation: controllerLeasedControlSchema.out.shape.operation,
+    lease: leasedControlRequestSchema.shape.lease,
+    expected: leasedControlRequestSchema.shape.expected,
+    operation: leasedControlRequestSchema.shape.operation,
   }),
   input: session.extend({ input: z.record(z.string(), z.json()) }),
   invoke: session.extend({

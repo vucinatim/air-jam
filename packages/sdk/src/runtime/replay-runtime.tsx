@@ -77,27 +77,17 @@ export function ReplayRuntime({
     pauseRuntime: runtime.pauseRuntime,
     resumeRuntime: runtime.resumeRuntime,
     setRuntimeState: runtime.setRuntimeState,
-    sendState: runtime.sendState,
     sendSignal: runtime.sendSignal,
-    reconnect: runtime.reconnect,
     removeController: runtime.removeController,
     resetRoom: runtime.resetRoom,
-    socket: runtime.socket,
+    room: runtime.room,
     simulation: runtime.simulation,
     setObservationCapture: runtime.setObservationCapture,
+    playSoundOnControllers: runtime.playSoundOnControllers,
     settings: runtime.settings,
   };
   return (
-    <AirJamContext.Provider
-      value={{
-        ...context,
-        store: runtime.store,
-        getSocket: () => runtime.socket,
-        disconnectSocket: () => {
-          runtime.socket.disconnect();
-        },
-      }}
-    >
+    <AirJamContext.Provider value={{ ...context, store: runtime.store }}>
       <hostRuntimeContext.Provider value={controls}>
         <HostCaptureBoundary
           setObservationCapture={runtime.setObservationCapture}

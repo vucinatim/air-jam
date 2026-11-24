@@ -1,5 +1,5 @@
 import type { RoomCode } from "../protocol";
-import { roomCodeSchema } from "../protocol";
+import { roomCodeSchema } from "../room-protocol";
 import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import type { ArcadeSurfaceRuntimeIdentity } from "./arcade-surface-identity";
 import {
@@ -12,7 +12,7 @@ import {
 } from "./runtime-session-params";
 
 /**
- * Embedded host session for a game running inside the platform shell iframe (`aj_room`, `aj_cap`, …).
+ * Embedded host session for a game running inside the platform shell iframe (`aj_room`, `aj_arcade_*`, …).
  * Standalone hosts do not produce this snapshot — they use normal room create/reconnect flow.
  */
 export type EmbeddedHostChildSession = {
@@ -24,11 +24,10 @@ export type EmbeddedHostChildSession = {
 };
 
 /**
- * Embedded controller session for the secondary controller iframe (`aj_room`, `aj_controller_id`, …).
+ * Embedded controller session for the secondary controller iframe (`aj_room`, …).
  */
 export type EmbeddedControllerChildSession = ControllerBridgeContext & {
   roomId: RoomCode;
-  controllerId: string;
   topology: ResolvedAirJamRuntimeTopology;
   playerProfile?: {
     label?: string;
@@ -65,7 +64,6 @@ export const readEmbeddedControllerChildSession =
     }
     return {
       roomId: roomCodeSchema.parse(raw.room.toUpperCase()),
-      controllerId: raw.controllerId,
       topology: raw.topology,
       ...controllerBridgeContext(raw),
       ...(raw.playerProfile ? { playerProfile: raw.playerProfile } : {}),

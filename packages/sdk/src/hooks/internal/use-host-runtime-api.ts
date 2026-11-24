@@ -44,17 +44,20 @@ export const useHostRuntimeApi = (
   useAssertSessionScope("host", hookName);
   useClaimSessionRuntimeOwner("host-runtime", hookName);
 
-  const { config, store, getSocket, disconnectSocket } = useAirJamContext();
+  const { config, store } = useAirJamContext();
 
-  // Phone reach can arrive after the room starts; it does not identify the session.
   const { publicHost, ...sessionTopology } = config.topology;
+  const { reportError, ...serializableConfig } = config;
   const sessionConfigKey = JSON.stringify({
-    ...config,
+    ...serializableConfig,
     topology: sessionTopology,
   });
   const sessionConfig = useMemo(
-    () => JSON.parse(sessionConfigKey) as typeof config,
-    [sessionConfigKey],
+    () => ({
+      ...(JSON.parse(sessionConfigKey) as typeof config),
+      reportError,
+    }),
+    [sessionConfigKey, reportError],
   );
 
   const runtime = useMemo(
@@ -64,10 +67,8 @@ export const useHostRuntimeApi = (
           fixedControllerOrientation,
           config: sessionConfig,
           store,
-          getSocket,
-          disconnectSocket,
           input,
-          environment: createBrowserHostEnvironment(),
+          environment: createBrowserHostEnvironment(sessionConfig),
           stores,
           settings,
           simulation,
@@ -86,8 +87,6 @@ export const useHostRuntimeApi = (
     [
       sessionConfig,
       store,
-      getSocket,
-      disconnectSocket,
       input,
       stores,
       settings,
@@ -129,6 +128,7 @@ export const useHostRuntimeApi = (
   const clock = runtime.simulation;
 
   const roomId = useStore(store, () => runtime.roomId);
+  const room = useStore(store, () => runtime.room);
   const localControllerUrl = useStore(
     store,
     (state) => state.localControllerUrl,
@@ -145,16 +145,15 @@ export const useHostRuntimeApi = (
       pauseRuntime: runtime.pauseRuntime,
       resumeRuntime: runtime.resumeRuntime,
       setRuntimeState: runtime.setRuntimeState,
-      sendState: runtime.sendState,
       sendSignal: runtime.sendSignal,
-      reconnect: runtime.reconnect,
       removeController: runtime.removeController,
       resetRoom: runtime.resetRoom,
-      socket: runtime.socket,
+      room,
       simulation: clock,
       setObservationCapture: runtime.setObservationCapture,
+      playSoundOnControllers: runtime.playSoundOnControllers,
       settings: runtime.settings,
     }),
-    [runtime, roomId, localControllerUrl, joinUrl, joinUrlStatus, clock],
+    [runtime, roomId, room, localControllerUrl, joinUrl, joinUrlStatus, clock],
   );
 };

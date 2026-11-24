@@ -95,7 +95,6 @@ describe("join url controls", () => {
       buildArcadeGameIframeSrc({
         normalizedUrl: `${origin}/play`,
         roomId: "ABCD",
-        launchCapability: { token: "join_123", expiresAt: 1_700_000_000_000 },
         joinUrl: `${origin}/controller?room=ABCD`,
         topology: resolveRuntimeTopology({
           runtimeMode: "arcade-live",
@@ -116,7 +115,7 @@ describe("join url controls", () => {
     );
 
     const { container } = render(
-      <JoinUrlControls value={`${origin}/controller?room=ABCD&aj_cap=x`} />,
+      <JoinUrlControls value={`${origin}/controller?room=ABCD`} />,
     );
 
     expect(container.innerHTML).toBe("");

@@ -21,14 +21,13 @@ export const getAirJamHttpsServerOptions = (env = process.env) => {
 };
 
 export const getAirJamDevBackendUrl = (env = process.env) =>
-  env.AIR_JAM_DEV_PROXY_BACKEND_URL?.trim() ||
-  resolveLocalBackendOrigin(env);
+  env.AIR_JAM_DEV_PROXY_BACKEND_URL?.trim() || resolveLocalBackendOrigin(env);
 
 export const getAirJamDevProxyOptions = (env = process.env) => {
   const target = getAirJamDevBackendUrl(env);
 
   return {
-    "/socket.io": {
+    "/v1": {
       target,
       ws: true,
       changeOrigin: true,

@@ -1,4 +1,3 @@
-import type { ChildHostCapability } from "../protocol";
 import {
   appendRuntimeQueryParams,
   getRuntimeUrlOrigin,
@@ -15,7 +14,6 @@ export { appendRuntimeQueryParams, getRuntimeUrlOrigin, normalizeRuntimeUrl };
 export const buildArcadeGameIframeSrc = ({
   normalizedUrl,
   roomId,
-  launchCapability,
   joinUrl,
   localControllerUrl,
   topology,
@@ -23,7 +21,6 @@ export const buildArcadeGameIframeSrc = ({
 }: {
   normalizedUrl: string;
   roomId: string;
-  launchCapability: ChildHostCapability;
   joinUrl?: string | null;
   localControllerUrl?: string | null;
   topology: ResolvedAirJamRuntimeTopology;
@@ -31,8 +28,6 @@ export const buildArcadeGameIframeSrc = ({
 }): string | null =>
   appendRuntimeQueryParams(normalizedUrl, {
     aj_room: roomId,
-    aj_cap: launchCapability.token,
-    aj_cap_exp: String(launchCapability.expiresAt),
     aj_join_url: joinUrl,
     aj_local_controller_url: localControllerUrl,
     ...runtimeTopologyToQueryParams(topology),

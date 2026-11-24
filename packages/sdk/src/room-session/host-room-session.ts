@@ -56,6 +56,12 @@ export interface HostSessionEvents extends Record<string, unknown> {
   status: RoomSessionStatus;
   seats: readonly SeatView[];
   input: { readonly seat: SeatId; readonly state: AirJamInputState };
+  /**
+   * What was read of a seat's controls no longer counts: its page is new, or
+   * this host's link to the room was just (re)established, so a phone that
+   * reloaded meanwhile is not misread. Its next input starts from zero.
+   */
+  inputBaseline: SeatId;
   /** Every input frame as the room sent it, for a frame this page serves. */
   inputFrame: Uint8Array;
   /** Answer each with `respond(request.seat, request.id, result)`. */
@@ -261,6 +267,10 @@ export class HostRoomSession {
         return this.link.waiting(frame.position);
       case "seat":
         this.roster.upsert(frame.seat);
+        if (frame.inputBaseline) {
+          this.decoder?.forget(frame.seat.id);
+          this.events.emit("inputBaseline", frame.seat.id);
+        }
         return this.events.emit("seats", this.roster.list());
       case "left":
         this.roster.remove(frame.seat);
@@ -291,7 +301,18 @@ export class HostRoomSession {
       activity: frame.activity,
       features: frame.features,
     };
+    const known = new Set([
+      ...this.roster.list().map((seat) => seat.id),
+      ...frame.seats.map((seat) => seat.id),
+    ]);
     this.roster.reset(frame.seats);
+    // A seat's page may have changed while this link was down, and the room's
+    // word of it went nowhere: every seat starts over, and phones send their
+    // controls again when they hear the host is present.
+    for (const seat of known) {
+      this.decoder?.forget(seat);
+      this.events.emit("inputBaseline", seat);
+    }
     // A channel dropped while the link was down is dropped again below, not taken back.
     this.publisher.rebase(
       frame.channels.filter((copy) => !this.droppedChannels.has(copy.channel)),
@@ -329,3 +350,30 @@ export class HostRoomSession {
     });
   }
 }
+
+/**
+ * What a host runtime and a page serving frames use of a host session. A
+ * browser, devtools and tests give them a real session; a replay gives them
+ * a room of its own that delivers its recorded events in step.
+ */
+export type HostRoom = Pick<
+  HostRoomSession,
+  | "on"
+  | "status"
+  | "code"
+  | "instance"
+  | "seats"
+  | "limits"
+  | "room"
+  | "roomCopies"
+  | "channels"
+  | "publish"
+  | "drop"
+  | "respond"
+  | "signal"
+  | "configure"
+  | "remove"
+  | "setActivity"
+  | "end"
+  | "close"
+>;

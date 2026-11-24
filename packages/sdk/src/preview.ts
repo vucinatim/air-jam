@@ -14,6 +14,10 @@ export {
   type UsePreviewControllerManagerOptions,
   type UsePreviewControllerManagerResult,
 } from "./preview/manager";
+export {
+  isPreviewSeatMessage,
+  type AirJamPreviewSeatMessage,
+} from "./preview/messages";
 export type { HostPreviewControllerWorkspaceEnabled } from "./preview/ownership";
 export {
   buildPreviewControllerUrl,

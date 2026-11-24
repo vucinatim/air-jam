@@ -1,47 +1,56 @@
 // @vitest-environment jsdom
 
 import { afterEach, expect, it } from "vitest";
+import { createAirJamConfig } from "../src/core/config";
 import { createConnectionStore } from "../src/core/connection-store";
 import { ControllerRuntime } from "../src/core/controller-runtime";
 import { buildPreviewControllerUrl } from "../src/preview/url";
-import type { ControllerJoinPayload } from "../src/protocol/controller";
+import type { SeatProfile } from "../src/room-protocol";
+import { PhoneRoomSession } from "../src/room-session/phone-room-session";
+import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { createBrowserControllerEnvironment } from "../src/runtime/browser-controller-environment";
-import { createMemorySocket } from "./fixtures/memory-socket";
 
 afterEach(() => {
   window.history.replaceState(null, "", "/");
   window.localStorage.clear();
 });
 
+const config = createAirJamConfig({
+  topology: resolveRuntimeTopology({
+    runtimeMode: "self-hosted-production",
+    surfaceRole: "controller",
+    appOrigin: "https://play.test",
+    backendOrigin: "https://play.test",
+    publicHost: "https://play.test",
+  }),
+});
+
 it("joins a reloaded phone with its current seat label, separately from its ordinary nickname", () => {
-  const joins: ControllerJoinPayload[] = [];
+  const joins: Array<{ profile?: SeatProfile; kind?: string }> = [];
   const launch = (localSeat?: string, nickname?: string) => {
     const url = buildPreviewControllerUrl({
       joinUrl: `${window.location.origin}/controller?room=ABCD`,
-      controllerId: "phone-1",
       previewDeviceId: "pd_phone-1",
       localSeat,
     });
     window.history.replaceState(null, "", url);
-    const socket = createMemorySocket((event, payload) => {
-      if (event === "controller:join") {
-        joins.push(payload as ControllerJoinPayload);
-        return {
-          ok: true,
-          controllerId: "phone-1",
-        };
-      }
-      return { ok: true };
-    });
+    const environment = createBrowserControllerEnvironment(config);
     const runtime = new ControllerRuntime({
       store: createConnectionStore(),
-      getSocket: () => {
-        throw new Error("Use the in-process transport.");
-      },
-      disconnectSocket: () => {},
       environment: {
-        ...createBrowserControllerEnvironment(),
-        transport: () => socket,
+        ...environment,
+        joinRoom: (options) => {
+          joins.push({ profile: options.profile, kind: options.kind });
+          return new PhoneRoomSession({
+            ...options,
+            connector: () => ({
+              send: () => {},
+              buffered: () => false,
+              close: () => {},
+            }),
+            deviceWakeEvents: null,
+          });
+        },
         emitDevEvent: () => {},
         setDevLogContext: () => {},
       },
@@ -56,18 +65,13 @@ it("joins a reloaded phone with its current seat label, separately from its ordi
   launch(undefined, "Alex");
   launch("Gamepad 1");
   launch();
-  expect(
-    joins.map(({ nickname, localSeatLabel }) => ({ nickname, localSeatLabel })),
-  ).toEqual([
-    { nickname: "Alex", localSeatLabel: "Keyboard 1" },
-    { nickname: "Alex", localSeatLabel: undefined },
-    { nickname: undefined, localSeatLabel: "Gamepad 1" },
-    { nickname: undefined, localSeatLabel: undefined },
+  expect(joins).toEqual([
+    {
+      kind: "preview",
+      profile: { label: "Alex", localSeatLabel: "Keyboard 1" },
+    },
+    { kind: "preview", profile: { label: "Alex" } },
+    { kind: "preview", profile: { localSeatLabel: "Gamepad 1" } },
+    { kind: "preview", profile: undefined },
   ]);
-  expect(
-    joins.every(
-      ({ controllerId, deviceId }) =>
-        controllerId === "phone-1" && deviceId === "pd_phone-1",
-    ),
-  ).toBe(true);
 }, 1000);

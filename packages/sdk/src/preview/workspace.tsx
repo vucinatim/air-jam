@@ -23,7 +23,7 @@ import {
   shellUtilityButtonClassName,
 } from "../components/shell-classes";
 import { Button } from "../components/ui/button";
-import type { ControllerPresenceNotice } from "../protocol";
+import type { AirJamPlayer } from "../protocol";
 import {
   useProvideLocalSeats,
   useServeLocalSeats,
@@ -52,7 +52,8 @@ export interface PreviewControllerWorkspaceProps {
   joinUrl: string | null;
   fixedControllerOrientation?: "landscape" | null;
   embedOrigin?: string | null;
-  controllers?: readonly ControllerPresenceNotice[];
+  /** The room's players; preview phones are matched to theirs by the seat they report. */
+  players?: readonly AirJamPlayer[];
   onRemoveController?: (controllerId: string) => Promise<unknown> | unknown;
   onResetRoom?: () => Promise<unknown> | unknown;
   enabled?: boolean;
@@ -100,10 +101,14 @@ interface ControllerRosterItem {
   label: string;
   source: ControllerRosterSource;
   connected: boolean;
+  /** The room still holds the seat of a phone that dropped. */
   resumable: boolean;
   session: PreviewControllerSession | null;
-  controller: ControllerPresenceNotice | null;
+  controller: AirJamPlayer | null;
 }
+
+const rosterSourceOf = (kind: AirJamPlayer["kind"]): ControllerRosterSource =>
+  kind === "agent" ? "virtual" : kind;
 
 const getControllerSourceLabel = (source: ControllerRosterSource): string => {
   if (source === "virtual") {
@@ -126,7 +131,7 @@ export const PreviewControllerWorkspace = ({
   joinUrl,
   fixedControllerOrientation: requestedFixedOrientation,
   embedOrigin,
-  controllers = [],
+  players = [],
   onRemoveController,
   onResetRoom,
   enabled = false,
@@ -252,41 +257,36 @@ export const PreviewControllerWorkspace = ({
   const launcherVisible =
     showLauncherWhenIdle || launcherOpen || sessions.length > 0;
   const sortedControllers = useMemo(
-    () =>
-      [...controllers].sort((left, right) =>
-        left.controllerId.localeCompare(right.controllerId),
-      ),
-    [controllers],
+    () => [...players].sort((left, right) => left.id.localeCompare(right.id)),
+    [players],
   );
   const controllerRoster = useMemo((): ControllerRosterItem[] => {
-    const sessionsByControllerId = new Map(
-      sortedSessions.map((session) => [session.controllerId, session]),
+    const sessionsBySeat = new Map(
+      sortedSessions.flatMap((session) =>
+        session.seat ? [[session.seat, session] as const] : [],
+      ),
     );
     const controllerItems = sortedControllers.map((controller) => {
-      const session =
-        sessionsByControllerId.get(controller.controllerId) ?? null;
+      const session = sessionsBySeat.get(controller.id) ?? null;
       return {
-        id: controller.controllerId,
-        controllerId: controller.controllerId,
-        label:
-          controller.player?.label ??
-          controller.nickname ??
-          controller.controllerId,
-        source: controller.source,
+        id: controller.id,
+        controllerId: controller.id,
+        label: controller.label,
+        source: rosterSourceOf(controller.kind),
         connected: controller.connected,
-        resumable: Boolean(controller.resumeLeaseExpiresAt),
+        resumable: !controller.connected,
         session,
         controller,
       };
     });
-    const connectedControllerIds = new Set(
-      sortedControllers.map((controller) => controller.controllerId),
+    const seatIds = new Set(
+      sortedControllers.map((controller) => controller.id),
     );
     const pendingPreviewItems = sortedSessions
-      .filter((session) => !connectedControllerIds.has(session.controllerId))
+      .filter((session) => !session.seat || !seatIds.has(session.seat))
       .map((session) => ({
         id: session.id,
-        controllerId: session.controllerId,
+        controllerId: session.seat ?? session.id,
         label: session.label,
         source: "preview" as const,
         connected: session.surfaceState === "ready",
@@ -662,8 +662,7 @@ export const PreviewControllerWorkspace = ({
                                   size="sm"
                                   className="h-7 rounded-full px-3 text-[10px] text-rose-200 hover:bg-rose-400/10 hover:text-rose-100 disabled:text-white/35"
                                   disabled={
-                                    removingControllerId ===
-                                    item.controller.controllerId
+                                    removingControllerId === item.controller.id
                                   }
                                   onClick={async () => {
                                     if (!item.controller) {
@@ -671,15 +670,14 @@ export const PreviewControllerWorkspace = ({
                                     }
                                     try {
                                       setRemovingControllerId(
-                                        item.controller.controllerId,
+                                        item.controller.id,
                                       );
                                       await onRemoveController(
-                                        item.controller.controllerId,
+                                        item.controller.id,
                                       );
                                     } finally {
                                       setRemovingControllerId((current) =>
-                                        current ===
-                                        item.controller?.controllerId
+                                        current === item.controller?.id
                                           ? null
                                           : current,
                                       );

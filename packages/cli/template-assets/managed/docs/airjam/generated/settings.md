@@ -126,8 +126,8 @@ another update changed the revision; read again before applying a new patch.
 `AJ_SETTING_NOT_LIVE` means the setting requires a new room with that initial
 value. Rejected updates leave all values and the revision unchanged.
 
-Input logs use `version: 2`, with resolved initial `settings` and ordered
-`airjam:settings` events containing each accepted `patch` and `revision`.
+Input logs use `version: 3`, with resolved initial `settings` and ordered
+`settings` events containing each accepted `patch` and `revision`.
 They share the stream with inputs and actions. `replayAirJamInputLog` creates
 the host with the initial values and applies each update in order before its
 recorded step. Use the same seed and game code to reproduce the final state.

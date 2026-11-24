@@ -1,16 +1,16 @@
 import { formatEnvValidationError, isEnvValidationError } from "@air-jam/env";
 import { loadWorkspaceEnv } from "./env/load-workspace-env.js";
-import type { AirJamServerRuntime } from "./index.js";
 import { createServerLogger } from "./logging/logger.js";
+import type { RoomServerRuntime } from "./room-server/room-server.js";
 
 const main = async (): Promise<void> => {
-  let runtime: AirJamServerRuntime | null = null;
+  let runtime: RoomServerRuntime | null = null;
   try {
     loadWorkspaceEnv();
-    const { createAirJamServer } = await import("./index.js");
+    const { createRoomServer } = await import("./room-server/room-server.js");
     const { installServerProcessSignalHandlers } =
       await import("./process-lifecycle.js");
-    runtime = createAirJamServer();
+    runtime = createRoomServer();
     await runtime.start();
     installServerProcessSignalHandlers({ runtime });
   } catch (error) {

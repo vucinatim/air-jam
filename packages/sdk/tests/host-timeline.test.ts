@@ -7,7 +7,7 @@ import {
 import { HostTimeline } from "../src/runtime/host-timeline";
 
 const log = (entries: AirJamInputLog["entries"]): AirJamInputLog => ({
-  version: 2,
+  version: 3,
   stepMs: 10,
   seed: 1,
   settings: { ballSpeed: 600 },
@@ -21,6 +21,14 @@ const entry = (
   payload: Record<string, unknown>,
 ) => ({ tick, event, payload });
 
+const seat = (label: string) => ({
+  id: "p1",
+  label,
+  color: "#ff0000",
+  kind: "phone",
+  connected: true,
+});
+
 afterEach(() => vi.useRealTimers());
 
 describe("host room timeline", () => {
@@ -31,27 +39,17 @@ describe("host room timeline", () => {
     timeline.moment("Red scored, 2 to 1", 50, 1500);
     const result = timeline.read(
       log([
-        entry(1, "server:controllerJoined", {
-          controllerId: "phone",
-          player: { id: "phone", label: "Ada" },
-        }),
-        entry(1, "server:playerUpdated", {
-          player: { id: "phone", label: "Ada", avatarId: "new" },
-        }),
-        entry(101, "server:playerUpdated", {
-          player: { id: "phone", label: "Bea" },
-        }),
-        entry(101, "server:input", {
-          controllerId: "phone",
-          input: { fire: true },
-        }),
-        entry(101, "airjam:action_rpc", { action: "hit" }),
-        entry(101, "server:state", { state: { runtimeState: "playing" } }),
-        entry(101, "server:state", { state: { runtimeState: "playing" } }),
-        entry(101, "airjam:settings", { patch: { ballSpeed: 900 } }),
-        entry(101, "airjam:settings", { patch: { ballSpeed: 900 } }),
-        entry(101, "server:controllerDisconnected", { controllerId: "phone" }),
-        entry(101, "server:controllerLeft", { controllerId: "phone" }),
+        entry(1, "seat", { seat: seat("Ada") }),
+        entry(1, "seat", { seat: { ...seat("Ada"), avatarId: "new" } }),
+        entry(101, "seat", { seat: seat("Bea") }),
+        entry(101, "input", { seat: "p1", input: { fire: true } }),
+        entry(101, "action", { actionName: "hit" }),
+        entry(101, "runtime", { runtimeState: "paused" }),
+        entry(101, "runtime", { runtimeState: "paused" }),
+        entry(101, "settings", { patch: { ballSpeed: 900 } }),
+        entry(101, "settings", { patch: { ballSpeed: 900 } }),
+        entry(101, "seat", { seat: { ...seat("Bea"), connected: false } }),
+        entry(101, "left", { seat: "p1" }),
       ]),
       4000,
     );
@@ -80,28 +78,26 @@ describe("host room timeline", () => {
   it("keeps the actual wall times of joins and settings received during a paused tick", () => {
     vi.useFakeTimers();
     const timeline = new HostTimeline(1000);
-    const times = [1000, 2000, 5000, 6000, 9000];
+    const times = [1000, 2000, 5000, 6000];
     for (const [index, at] of times.entries()) {
       vi.setSystemTime(at);
       timeline.record(index, Date.now());
     }
     const recorded = log([
-      entry(1, "server:state", { state: { runtimeState: "playing" } }),
-      entry(101, "server:state", { state: { runtimeState: "paused" } }),
-      entry(101, "server:controllerJoined", { controllerId: "phone" }),
-      entry(101, "airjam:settings", { patch: { ballSpeed: 900 } }),
-      entry(101, "server:state", { state: { runtimeState: "playing" } }),
+      entry(101, "runtime", { runtimeState: "paused" }),
+      entry(101, "seat", { seat: seat("Ada") }),
+      entry(101, "settings", { patch: { ballSpeed: 900 } }),
+      entry(101, "runtime", { runtimeState: "playing" }),
     ]);
     const result = timeline.read(recorded, 11_000);
     expect(result.entries.map(({ kind, at }) => ({ kind, at }))).toEqual([
       { kind: "state", at: 1000 },
-      { kind: "state", at: 2000 },
-      { kind: "join", at: 5000 },
-      { kind: "settings", at: 6000 },
-      { kind: "state", at: 9000 },
+      { kind: "join", at: 2000 },
+      { kind: "settings", at: 5000 },
+      { kind: "state", at: 6000 },
     ]);
     expect(timeline.read(recorded, 30_000).entries).toEqual(result.entries);
-    expect(recorded.version).toBe(2);
+    expect(recorded.version).toBe(3);
     expect(recorded.entries.every((entry) => !Reflect.has(entry, "at"))).toBe(
       true,
     );

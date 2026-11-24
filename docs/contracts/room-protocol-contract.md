@@ -1,9 +1,10 @@
 # Room Protocol Contract
 
 Last updated: 2026-11-24
-Status: built and served by the Node room server beside today's socket.io
-server; the Durable Object host serves it in a later phase, and the SDK
-switches to it in one change that deletes socket.io.
+Status: the only protocol between Air Jam devices and rooms. The Node room
+server serves it for self-hosters, local development and Studio workspaces;
+the hosted Arcade serves the same rooms from Durable Objects. The SDK's host
+and controller runtimes speak it through room sessions.
 
 Related docs:
 
@@ -95,13 +96,14 @@ connection as `limits-broken` before anything walks it.
 
 ### From a phone
 
-| Frame     | Fields                                                     | Meaning                                                  |
-| --------- | ---------------------------------------------------------- | -------------------------------------------------------- |
-| `hello`   | `key`, `instance?`, `sdk`, `features?`, `kind`, `profile?` | Join or resume. `kind` is `phone`, `preview` or `agent`. |
-| binary    | input frame                                                | The seat's whole control state.                          |
-| `request` | `id`, `channel`, `name`, `payload?`                        | A store action or other call the host answers.           |
-| `profile` | `label?`, `avatarId?`                                      | Change name or avatar.                                   |
-| `leave`   | —                                                          | Give the seat up now.                                    |
+| Frame      | Fields                                                              | Meaning                                                                                           |
+| ---------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `hello`    | `key`, `instance?`, `sdk`, `features?`, `kind`, `profile?`, `page?` | Join or resume. `kind` is `phone`, `preview` or `agent`; `page` names the page the phone runs in. |
+| binary     | input frame                                                         | The seat's whole control state.                                                                   |
+| `request`  | `id`, `channel`, `name`, `payload?`                                 | A store action or other call the host answers.                                                    |
+| `profile`  | `label?`, `avatarId?`                                               | Change name or avatar.                                                                            |
+| `leave`    | —                                                                   | Give the seat up now.                                                                             |
+| `baseline` | —                                                                   | The seat's controls start again from zero, as a newly loaded controller frame's do.               |
 
 A profile is `label` (1–24 characters), `avatarId` (1–48) and
 `localSeatLabel` (1–32), a label shown instead of the player's own while a
@@ -114,7 +116,7 @@ local seat plays through the phone.
 | `welcome`  | host   | `code`, `instance`, `seats`, `channels` (whole, with `fingerprint` and `private`), `limits`, `features`, `seatsWanted`, `locked`, `activity` |
 | `welcome`  | phone  | `code`, `instance`, `seat`, `seats`, `channels` (as this seat may see them), `limits`, `features`, `host`                                    |
 | `wait`     | host   | `position`, while admission is queued                                                                                                        |
-| `seat`     | all    | `seat`: `id`, `label`, `color`, `avatarId?`, `kind`, `connected`                                                                             |
+| `seat`     | all    | `seat`: `id`, `label`, `color`, `avatarId?`, `kind`, `connected`; to the host also `inputBaseline?`                                          |
 | `left`     | all    | `seat`, freed                                                                                                                                |
 | `host`     | phones | `present`: the screen went away or came back                                                                                                 |
 | binary     | host   | one or more input records                                                                                                                    |
@@ -145,7 +147,13 @@ the layout, in declaration order:
 
 A phone frame is the kind byte `1` and those bytes: a stick and two buttons
 are 5 bytes. The host unwraps press counters against the state it last
-decoded for the seat, so a tap is never lost or doubled.
+decoded for the seat, so a tap is never lost or doubled. A phone names its
+page in every `hello`; when a seat returns from another page (a reload, or a
+tab taking it over), its counters start again from zero, so the room's `seat`
+frame to the host carries `inputBaseline: true` and the host decodes that
+seat afresh. A reconnect from the same page keeps its counters. A page that
+serves a newly loaded controller frame its seat sends `baseline` for the same
+reason.
 
 The room checks the frame's length and rate (see the Limits rule) and
 forwards a host frame: the
@@ -192,15 +200,16 @@ plain object; punctuation is not counted. A channel may weigh at most
 
 ## Rules
 
-| Rule       | What the room does                                                                                                                                                                                                                                                                                                                                                                |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Seats      | Ids `p1`, `p2`… in join order, never reused in a room. A free colour, the profile, or "Player N".                                                                                                                                                                                                                                                                                 |
-| Admission  | A new player is refused as `full` before the host has said how many seats it wants, beyond them (held seats count) or while `locked`; a returning key is not.                                                                                                                                                                                                                     |
-| Seat hold  | A dropped phone's seat is shown disconnected and held for `seatHoldMs` (two minutes; zero for agents), then freed.                                                                                                                                                                                                                                                                |
-| Host grace | A dropped host keeps its room for `hostGraceMs` (60 seconds, never zero), as does a room whose opening host has yet to arrive; phones are told the screen is away. Then the room closes. Phones are told the screen is present on every new host connection, even one replacing a connection the room still held, and when a room is restored, so they send their controls again. |
-| Routing    | Input and requests go to the host stamped with the seat; responses go to the connection that asked, and signals to the seats they name.                                                                                                                                                                                                                                           |
-| Limits     | See [Rates and floods](#rates-and-floods). Frames that do not parse are struck, and more than `strikesPerSecond` in one second closes the connection. A frame or document over its size closes it at once.                                                                                                                                                                        |
-| Lifecycle  | The host's `end`, the host grace, `maximumAgeMs` and the operator's stop close the room and every connection.                                                                                                                                                                                                                                                                     |
+| Rule         | What the room does                                                                                                                                                                                                                                                                                                                                                                |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Seats        | Ids `p1`, `p2`… in join order, never reused in a room. A free colour, the profile, or "Player N".                                                                                                                                                                                                                                                                                 |
+| Admission    | A new player is refused as `full` before the host has said how many seats it wants, beyond them (held seats count) or while `locked`; a returning key is not.                                                                                                                                                                                                                     |
+| Seat hold    | A dropped phone's seat is shown disconnected and held for `seatHoldMs` (two minutes; zero for agents), then freed.                                                                                                                                                                                                                                                                |
+| Host grace   | A dropped host keeps its room for `hostGraceMs` (60 seconds, never zero), as does a room whose opening host has yet to arrive; phones are told the screen is away. Then the room closes. Phones are told the screen is present on every new host connection, even one replacing a connection the room still held, and when a room is restored, so they send their controls again. |
+| Routing      | Input and requests go to the host stamped with the seat; responses go to the connection that asked, and signals to the seats they name.                                                                                                                                                                                                                                           |
+| Confirmation | Nothing is acknowledged on its own: `left` confirms a `remove` or a `leave`, the room's next `seat` frame for that seat confirms a `profile`, with the name and avatar it stored, and the new room's `welcome` confirms a host opening it. The SDK settles each call from these and reports it unconfirmed when the link closes first.                                            |
+| Limits       | See [Rates and floods](#rates-and-floods). Frames that do not parse are struck, and more than `strikesPerSecond` in one second closes the connection. A frame or document over its size closes it at once.                                                                                                                                                                        |
+| Lifecycle    | The host's `end`, the host grace, `maximumAgeMs` and the operator's stop close the room and every connection.                                                                                                                                                                                                                                                                     |
 
 Deadlines are applied whenever the room is called, so a late timer never lets
 a device do something the rules say has expired. A late wake closes the room
@@ -321,7 +330,9 @@ every SDK surface behaves the same.
 - **Reconnecting.** On a close that is not terminal the session reconnects
   after a delay that doubles from 250 ms to at most 5 seconds, with jitter
   over its upper half, and at once when the device comes back online or the
-  page becomes visible. A terminal close ends the session for good.
+  page becomes visible (a browser page passes `browserDeviceWakeEvents`; a
+  session has no wake events otherwise). A terminal close ends the session
+  for good.
 - **Requests.** A request resolves `answered`, `refused` (`host-away`),
   `unconfirmed` when the link dropped after sending it or no answer came in
   time (5 seconds by default), or `busy` when it is exclusive and one of the

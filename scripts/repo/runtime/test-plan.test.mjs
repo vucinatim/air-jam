@@ -41,7 +41,7 @@ test("process and fixture suites stay slow while unit behavior stays fast", () =
       .includes("scripts/repo/runtime/canonical-scanner.slow.test.mjs"),
   );
   assert.ok(
-    slow.get("server").includes("tests/game-lifecycle.integration.test.ts"),
+    slow.get("server").includes("tests/room-server.integration.test.ts"),
   );
 });
 

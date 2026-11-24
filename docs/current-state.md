@@ -1,7 +1,7 @@
 # Current State
 
 Last updated: 2026-11-24
-Status: SDK core layering in review for `release/1.0`; input system phases 1 and 2 built on top; earlier checkpoints retained below
+Status: room core switch in review for `release/1.0`: every room runs on the room core and socket.io is gone; earlier checkpoints retained below
 
 ## Public check tiers
 
@@ -15,22 +15,31 @@ release gates. The PR budget is 15 machine-minutes total and five per job.
 [Development Check Layers](./working-agreements.md#development-check-layers)
 owns the commands, suite markings and schedule activation requirement.
 
-## Room core — phases 1 and 2 landed
+## Room core — the switch (phase 4) in review
 
-Rooms are moving to one transport-free core under two hosts (Node and a
-Cloudflare Durable Object) with a compact protocol, in five phases owned by
-the private product's room core architecture plan. Phase 1 built
-`@air-jam/sdk/room-protocol` (frames, close codes, limits, state patches and
-the binary input codec) and `@air-jam/server/room` (the synchronous `Room`
-with its gate, limits and facts seams). Phase 2 built the clients and the Node
-host: `@air-jam/sdk/room-session` (host and phone sessions over WebSocket,
-MessagePort and loopback links), `MemoryRoomHost` in `@air-jam/server/room`,
-`createRoomServer` in `@air-jam/server/room-server`, and
-`airjam rooms check <url>`, which runs the hosting plan's edge cases and the
-load scenario against any rooms origin, gated hosted ones included. The
-[room protocol contract](./contracts/room-protocol-contract.md) describes all
-of it. Nothing consumes them yet; socket.io serves every room and
-`air-jam-server start` runs it until the switch.
+Rooms run on one transport-free core under two hosts (Node and a Cloudflare
+Durable Object) with a compact protocol, in five phases owned by the private
+product's room core architecture plan. Phases 1 and 2 built
+`@air-jam/sdk/room-protocol`, `@air-jam/server/room`,
+`@air-jam/sdk/room-session`, `createRoomServer` and `airjam rooms check`.
+Phase 4 moves everything onto them and deletes socket.io:
+
+- the SDK's host and controller runtimes, networked stores, signals, leased
+  control and replays run on room sessions; players are room seats (`p1`,
+  `p2`, …) with `connected` and `kind`; `sendState`, `controllers` and
+  `reconnect` are gone, and input logs are version 3
+- an embedded game or controller page asks its parent frame for a scoped view
+  of the parent's session over a `MessagePort`; there is no launch capability
+  or bridge attach
+- `air-jam-server` is the Node room server; the socket.io server, its
+  gateway, Express and their environment variables are deleted
+- devtools, the CLI's proxies, the MCP server, headless runs, built-game
+  serving and the performance smoke use the room server and sessions; runs in
+  a creator's room claim seats the room assigned
+
+The [room protocol contract](./contracts/room-protocol-contract.md) and the
+[Arcade surface contract](./contracts/arcade-surface-contract.md) describe the
+rules. The private product lands its side of the switch with the same build.
 
 ## SDK core layering and input — in review
 
@@ -114,10 +123,8 @@ The private development branch consumes exact unpublished candidate
 
 ## Live Studio guest foundation
 
-The server now exposes optional controller-only gateway admission, with a
-per-server key and enforced room scope on every polling request/upgrade. Scoped
-clients cannot bootstrap hosts or switch rooms; ordinary connections retain the
-existing standalone path. Health advertises support explicitly. The CLI accepts
+The controller-only gateway this checkpoint added was removed with socket.io in
+the room core switch; guests reach a workspace's room through its relay. The CLI accepts
 `AIR_JAM_BUILD_BASE` for immutable built-asset generations. Product invitations,
 HTTPS ingress and expiry remain private product responsibilities.
 

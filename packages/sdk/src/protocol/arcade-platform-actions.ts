@@ -1,15 +1,9 @@
 import { z } from "zod";
 
 /**
- * Platform (Arcade shell) commands sent as `controller:action_rpc` / `airjam:action_rpc` with
- * `storeDomain: arcade.surface`. The server routes these to the **master** host socket so they
- * always hit the outer Arcade shell, not an embedded child host.
- *
- * Gameplay actions must not use the `airjam.arcade.` prefix.
+ * Commands owned by the Arcade shell, never an embedded game: requests on
+ * the shell's `arcade.surface` channel, which no game frame's view reaches.
  */
-export const AIRJAM_ARCADE_PLATFORM_ACTION_PREFIX = "airjam.arcade." as const;
-
-/** Canonical commands owned by the Arcade shell, never an embedded game. */
 export const airJamArcadePlatformActions = {
   navigate: "airjam.arcade.navigate",
   confirm: "airjam.arcade.confirm",
@@ -37,11 +31,3 @@ export type ArcadeBrowserDirection = z.infer<
 
 export type AirJamArcadePlatformActionName =
   (typeof airJamArcadePlatformActions)[keyof typeof airJamArcadePlatformActions];
-
-/**
- * Server routing: platform UI commands under `airjam.arcade.*` must be delivered to the master
- * host (Arcade shell), not the active embedded game host.
- */
-export const isAirJamArcadePlatformPrefixAction = (
-  actionName: string,
-): boolean => actionName.startsWith(AIRJAM_ARCADE_PLATFORM_ACTION_PREFIX);

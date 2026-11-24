@@ -4,7 +4,7 @@ import {
   PHONE_JOIN_UNAVAILABLE_MESSAGE,
   resolvePhoneJoinUrl,
 } from "../core/phone-join-url";
-import { isEmbeddedHostRuntime } from "../runtime/host-realtime-client";
+import { readEmbeddedHostChildSession } from "../runtime/embedded-runtime-adapters";
 import { cn } from "../utils/cn";
 import { JoinUrlActionButtons } from "./join-url-action-buttons";
 import { JoinUrlField } from "./join-url-field";
@@ -38,9 +38,8 @@ export const JoinUrlControls = ({
   inputClassName,
   buttonClassName,
 }: JoinUrlControlsProps): JSX.Element | null => {
-  // An embedding parent such as the Arcade owns the room's join address and code;
-  // its child host's link carries a private token that never belongs on screen.
-  if (isEmbeddedHostRuntime()) return null;
+  // An embedding parent such as the Arcade owns the room's join address and code.
+  if (readEmbeddedHostChildSession()) return null;
 
   const joinUrl = status === "ready" ? resolvePhoneJoinUrl(value) : null;
   if (status !== "loading" && !joinUrl)

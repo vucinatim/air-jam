@@ -72,6 +72,12 @@ export const phoneHelloSchema = z.object({
   ...helloFields,
   kind: seatKindSchema,
   profile: seatProfileSchema.optional(),
+  /**
+   * The page this phone runs in, the same across its reconnects. A seat
+   * resumed from another page (a reload, or another tab taking it over)
+   * starts its controls afresh, so the host takes a new input baseline.
+   */
+  page: z.string().min(1).max(64).optional(),
 });
 export type PhoneHello = z.infer<typeof phoneHelloSchema>;
 
@@ -154,6 +160,8 @@ export const phoneToRoomFrameSchemas = {
       "A profile change names a label or an avatar.",
     ),
   leave: z.object({ type: z.literal("leave") }),
+  /** This seat's controls start again from zero, as a newly loaded controller frame's do. */
+  baseline: z.object({ type: z.literal("baseline") }),
 } as const;
 
 type FramesOf<Schemas extends Record<string, z.ZodType>> = {
@@ -210,7 +218,12 @@ export const roomToHostFrameSchemas = {
     type: z.literal("wait"),
     position: z.number().int().positive(),
   }),
-  seat: z.object({ type: z.literal("seat"), seat: seatViewSchema }),
+  seat: z.object({
+    type: z.literal("seat"),
+    seat: seatViewSchema,
+    /** The seat's controls restart from a new page: decode them afresh. */
+    inputBaseline: z.literal(true).optional(),
+  }),
   left: z.object({ type: z.literal("left"), seat: seatIdSchema }),
   need: z.object({ type: z.literal("need"), channel: channelSchema }),
   request: z.object({

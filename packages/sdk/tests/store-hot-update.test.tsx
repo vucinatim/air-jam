@@ -3,14 +3,15 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { expect, it } from "vitest";
-import type { AirJamSocket } from "../src/context/socket-manager";
 import { createConnectionStore } from "../src/core/connection-store";
-import { createAirJamStore } from "../src/core/replicated-store";
-import { getControllerRealtimeClient } from "../src/runtime/controller-realtime-client";
-import { getHostRealtimeClient } from "../src/runtime/host-realtime-client";
+import {
+  createAirJamStore,
+  type AirJamStoreRequest,
+  type AirJamStoreRoom,
+} from "../src/core/replicated-store";
+import type { StateDocument } from "../src/room-protocol";
 import { declaredStoresContext } from "../src/runtime/runtime-owner-contexts";
 import { useAirJamStore } from "../src/store/use-air-jam-store";
-import { createMemorySocket } from "./fixtures/memory-socket";
 
 it("keeps an open phone live across host hot updates, including its actions", async () => {
   const makeStore = () =>
@@ -20,42 +21,57 @@ it("keeps an open phone live across host hot updates, including its actions", as
         actions: { play: () => set({ phase: "playing" }) },
       }),
     );
-  const phone = makeStore();
-  const controllerSocket = createMemorySocket(() => undefined);
-  controllerSocket.connect();
-  let hostSocket = createMemorySocket(() => undefined);
-  controllerSocket.emit.mockImplementation((event, ...args) => {
-    if (event === "controller:state_sync_request") {
-      hostSocket.fire("airjam:state_sync_request", args[0]);
-    }
-    if (event === "controller:action_rpc") {
-      hostSocket.fire(
-        "airjam:action_rpc",
-        {
-          ...(args[0] as object),
-          actor: { id: "phone", role: "controller" },
-        },
-        args.at(-1),
-      );
-    }
-    return controllerSocket;
-  });
+  // One room between whichever host store is current and the open phone.
+  let answer: ((request: AirJamStoreRequest) => unknown) | null = null;
+  const phoneListeners = new Set<(document: StateDocument) => void>();
+  let copy: StateDocument | undefined;
+  const phoneRoom: AirJamStoreRoom = {
+    role: "controller",
+    document: () => copy,
+    onDocument: (_channel, listener) => {
+      phoneListeners.add(listener);
+      return () => phoneListeners.delete(listener);
+    },
+    request: async (_channel, name, payload) =>
+      answer
+        ? { status: "answered", result: answer({ seat: "p1", name, payload }) }
+        : { status: "refused", reason: "host-away" },
+  };
+  const hostRoom: AirJamStoreRoom = {
+    role: "host",
+    publish: (_channel, document) => {
+      copy = document;
+      for (const listener of phoneListeners) listener(document);
+    },
+    onRestore: () => () => {},
+    answer: (_channel, handler) => {
+      answer = handler;
+      return () => {
+        if (answer === handler) answer = null;
+      };
+    },
+  };
   const connection = (role: "host" | "controller") => {
     const store = createConnectionStore();
     store.setState({
       role,
       roomId: "ROOM1",
-      registeredRoomId: "ROOM1",
-      controllerId: "phone",
-      connectionStatus: "connected",
-      players: [{ id: "phone", label: "Player 1" }],
+      controllerId: role === "controller" ? "p1" : null,
+      players: [
+        {
+          id: "p1",
+          label: "Player 1",
+          color: "#fff",
+          kind: "phone",
+          connected: true,
+        },
+      ],
     });
     return store;
   };
+  const phone = makeStore();
   const detachPhone = phone.attach({
-    socket: getControllerRealtimeClient(
-      () => controllerSocket as unknown as AirJamSocket,
-    ),
+    room: phoneRoom,
     connection: connection("controller"),
     defaultStoreDomain: "default",
     controlTarget: null,
@@ -78,23 +94,13 @@ it("keeps an open phone live across host hot updates, including its actions", as
       const host = makeStore();
       act(() => {
         detachHost();
-        hostSocket = createMemorySocket(() => undefined);
-        hostSocket.connect();
-        hostSocket.emit.mockImplementation((event, ...args) => {
-          if (event === "host:state_sync")
-            controllerSocket.fire("airjam:state_sync", args[0]);
-          return hostSocket;
-        });
         detachHost = host.attach({
-          socket: getHostRealtimeClient(
-            () => hostSocket as unknown as AirJamSocket,
-          ),
+          room: hostRoom,
           connection: connection("host"),
           defaultStoreDomain: "default",
           controlTarget: null,
           now: () => 0,
         });
-        controllerSocket.fire("server:roomReady", { roomId: "ROOM1" });
       });
       expect(screen.getByRole("button").textContent).toBe("lobby");
       await act(async () => {
@@ -104,22 +110,12 @@ it("keeps an open phone live across host hot updates, including its actions", as
       expect(screen.getByRole("button").textContent).toBe("playing");
       act(() => host.api.setState({ phase: "ended" }));
       expect(screen.getByRole("button").textContent).toBe("ended");
-      act(() => {
-        controllerSocket.fire("server:roomReady", { roomId: "OTHER" });
-        controllerSocket.fire("airjam:state_sync", {
-          roomId: "ROOM1",
-          storeDomain: "default",
-          revision: 0,
-          data: { phase: "old" },
-        });
-      });
-      expect(screen.getByRole("button").textContent).toBe("ended");
     }
   } finally {
     view.unmount();
     detachHost();
     detachPhone();
-    expect(controllerSocket.listenerCount()).toBe(0);
-    expect(hostSocket.listenerCount()).toBe(0);
+    expect(answer).toBeNull();
+    expect(phoneListeners.size).toBe(0);
   }
 });

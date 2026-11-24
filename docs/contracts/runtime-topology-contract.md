@@ -78,7 +78,7 @@ local override must be complete and remain a local development mode.
 
 The standalone dev front door includes the canonical topology in host and
 controller URLs. Host-issued local controller joins propagate that topology
-while retaining the room and controller capability. Harness joins also preserve
+while retaining the room. Harness joins also preserve
 it when attaching to an owned room. Arcade and production admission keep their
 existing contracts.
 

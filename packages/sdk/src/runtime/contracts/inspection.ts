@@ -4,14 +4,15 @@ import type {
   JoinUrlStatus,
 } from "../../hooks/use-air-jam-host";
 import type {
+  AirJamPlayer,
   ConnectionStatus,
-  ControllerOrientation,
-  ControllerPresenceNotice,
-  PlayerProfile,
   RoomCode,
   RunMode,
-  RuntimeState,
 } from "../../protocol";
+import {
+  type ControllerOrientation,
+  type RuntimeState,
+} from "../../room-protocol";
 import { hostRuntimeDocumentId, readHostStateEpochs } from "./control";
 
 type HostInspectionApi = Pick<
@@ -22,7 +23,6 @@ type HostInspectionApi = Pick<
   | "joinUrlStatus"
   | "connectionStatus"
   | "players"
-  | "controllers"
   | "lastError"
   | "mode"
   | "runtimeState"
@@ -36,8 +36,6 @@ type ControllerInspectionApi = Pick<
   | "lastError"
   | "runtimeState"
   | "controllerOrientation"
-  | "roomSettings"
-  | "stateMessage"
   | "players"
   | "selfPlayer"
 >;
@@ -51,8 +49,7 @@ export interface HostRuntimeInspectionContract {
   localControllerUrl: string;
   joinUrlStatus: JoinUrlStatus;
   connectionStatus: ConnectionStatus;
-  players: readonly PlayerProfile[];
-  controllers: readonly ControllerPresenceNotice[];
+  players: readonly AirJamPlayer[];
   controllerOrientation?: ControllerOrientation;
   lastError?: string;
   mode: RunMode;
@@ -64,13 +61,11 @@ export interface ControllerRuntimeInspectionContract {
   roomId: RoomCode | null;
   controllerId: string | null;
   connectionStatus: ConnectionStatus;
-  players: readonly PlayerProfile[];
-  selfPlayer: PlayerProfile | null;
+  players: readonly AirJamPlayer[];
+  selfPlayer: AirJamPlayer | null;
   lastError?: string;
   runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
-  stateMessage?: string;
-  roomSettings: ControllerInspectionApi["roomSettings"];
 }
 
 export type RuntimeInspectionContract =
@@ -99,7 +94,6 @@ export const createHostRuntimeInspectionContract = (
   joinUrlStatus: api.joinUrlStatus,
   connectionStatus: api.connectionStatus,
   players: api.players,
-  controllers: api.controllers,
   controllerOrientation: api.controllerOrientation,
   lastError: api.lastError,
   mode: api.mode,
@@ -118,8 +112,6 @@ export const createControllerRuntimeInspectionContract = (
   lastError: api.lastError,
   runtimeState: api.runtimeState,
   controllerOrientation: api.controllerOrientation,
-  stateMessage: api.stateMessage,
-  roomSettings: api.roomSettings,
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -136,7 +128,6 @@ const isHostRuntimeInspectionContract = (
   typeof value.joinUrlStatus === "string" &&
   typeof value.connectionStatus === "string" &&
   Array.isArray(value.players) &&
-  Array.isArray(value.controllers) &&
   typeof value.mode === "string" &&
   typeof value.runtimeState === "string";
 
@@ -150,10 +141,7 @@ const isControllerRuntimeInspectionContract = (
   typeof value.connectionStatus === "string" &&
   Array.isArray(value.players) &&
   typeof value.runtimeState === "string" &&
-  typeof value.controllerOrientation === "string" &&
-  isRecord(value.roomSettings) &&
-  isRecord(value.roomSettings.audio) &&
-  isRecord(value.roomSettings.previewControllers);
+  typeof value.controllerOrientation === "string";
 
 export const readRuntimeInspectionContract = (
   target: object,
