@@ -329,3 +329,30 @@ export class HostRoomSession {
     });
   }
 }
+
+/**
+ * What a host runtime and a page serving frames use of a host session. A
+ * browser, devtools and tests give them a real session; a replay gives them
+ * a room of its own that delivers its recorded events in step.
+ */
+export type HostRoom = Pick<
+  HostRoomSession,
+  | "on"
+  | "status"
+  | "code"
+  | "instance"
+  | "seats"
+  | "limits"
+  | "room"
+  | "roomCopies"
+  | "channels"
+  | "publish"
+  | "drop"
+  | "respond"
+  | "signal"
+  | "configure"
+  | "remove"
+  | "setActivity"
+  | "end"
+  | "close"
+>;

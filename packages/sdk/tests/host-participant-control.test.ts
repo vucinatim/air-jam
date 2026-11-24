@@ -340,7 +340,8 @@ it("never dispatches an uncertain throwing action again, including after a lost 
   }
 });
 
-it("rejects malformed, oversized and unbounded operations at the wire boundary", async () => {
+// A request's size is the room's to bound: its frame limit closes a connection that sends more.
+it("rejects malformed and unbounded operations at the wire boundary", async () => {
   const { controllerLeasedControlSchema } =
     await import("../src/protocol/leased-control");
   const f = observationFixture();
@@ -352,15 +353,6 @@ it("rejects malformed, oversized and unbounded operations at the wire boundary",
       { ...valid, roomId: "NEXT" },
       { ...valid, operation: { ...valid.operation, ttlMs: 2001 } },
       { ...valid, operation: { kind: "release", ttlMs: 100 } },
-      {
-        ...valid,
-        operation: {
-          kind: "action",
-          deadlineMs: performance.now() + 2000,
-          actionId: "tap",
-          input: "a".repeat(16_384),
-        },
-      },
       { ...valid, host: true },
     ])
       expect(controllerLeasedControlSchema.safeParse(invalid).success).toBe(

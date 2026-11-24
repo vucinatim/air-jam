@@ -8,11 +8,6 @@ const ALLOWED_PACKAGES = new Set([
   "zod",
   "zustand",
   "nanoid",
-  "socket.io-client",
-  "engine.io-client",
-  "engine.io-parser",
-  "socket.io-parser",
-  "@socket.io/component-emitter",
 ]);
 
 const run = (args) =>

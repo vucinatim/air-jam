@@ -10,7 +10,7 @@ import { SessionScopeContext } from "../src/context/session-scope";
 import {
   AIRJAM_CONTROLLER_PRESENTATION_SYNC,
   parseControllerPresentationSyncMessage,
-} from "../src/runtime/controller-bridge";
+} from "../src/runtime/controller-presentation";
 import { publishEmbeddedControllerPresentation } from "../src/runtime/controller-presentation";
 import { fixedControllerOrientationContext } from "../src/runtime/runtime-owner-contexts";
 

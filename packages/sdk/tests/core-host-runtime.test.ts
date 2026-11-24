@@ -28,6 +28,7 @@ import {
   type AirJamSettingsValues,
 } from "../src/core/settings";
 import { defineAirJamSimulation } from "../src/core/simulation";
+import { onAirJamDiagnostic } from "../src/diagnostics";
 import { defineAirJamGameMetadata } from "../src/metadata/manifest";
 import { resolveRuntimeTopology } from "../src/runtime-topology";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
@@ -36,10 +37,7 @@ import {
   type HostRuntimeControl,
 } from "../src/runtime/contracts/control";
 import { hostObservationSchema } from "../src/runtime/contracts/observation";
-import {
-  createMemoryEnvironment,
-  createServerSocket,
-} from "./fixtures/host-environment";
+import { createMemoryEnvironment } from "./fixtures/host-environment";
 
 const config = resolveAirJamConfig({
   topology: resolveRuntimeTopology({
@@ -73,8 +71,7 @@ describe("core host runtime", () => {
     expect(typeof (globalThis as { window?: unknown }).window).toBe(
       "undefined",
     );
-    const socket = createServerSocket();
-    const { environment, readStoredResume } = createMemoryEnvironment(socket);
+    const { environment, memory, readStoredResume } = createMemoryEnvironment();
     const store = createConnectionStore();
     const joined = vi.fn();
     const scores = createScoreStore();
@@ -96,10 +93,6 @@ describe("core host runtime", () => {
       {
         config,
         store,
-        getSocket: () => {
-          throw new Error("The memory transport needs no socket.");
-        },
-        disconnectSocket: () => {},
         environment,
       },
       { onPlayerJoin: joined },
@@ -111,19 +104,14 @@ describe("core host runtime", () => {
     );
     expect(runtime.roomId).toBe("ROOM1");
     expect(store.getState().controllerOrientation).toBe("landscape");
-    expect(socket.emit).toHaveBeenCalledWith("host:state", {
-      roomId: "ROOM1",
-      state: { orientation: "landscape" },
+    expect(memory.published.get("airjam.room")?.document).toEqual({
+      runtimeState: "playing",
+      orientation: "landscape",
     });
-    expect(() =>
-      runtime.sendState(
-        // @ts-expect-error Game code cannot choose orientation, even if it bypasses types.
-        { orientation: "portrait" },
-      ),
-    ).toThrow(/orientation.*game declaration/);
     expect(readStoredResume()).toEqual({
-      roomId: "ROOM1",
-      token: "resume-token",
+      key: "host-key-00000001",
+      code: "ROOM1",
+      instance: "instance-1",
     });
     await vi.waitFor(() =>
       expect(store.getState()).toMatchObject({
@@ -132,49 +120,89 @@ describe("core host runtime", () => {
       }),
     );
 
-    const player = { id: "ctrl_1", label: "One", color: "#ff0000" };
-    socket.fire("server:controllerJoined", {
-      controllerId: "ctrl_1",
-      source: "phone",
-      connected: true,
-      resumeLeaseExpiresAt: null,
-      player,
-    });
-    expect(store.getState().players).toEqual([player]);
+    memory.seat({ id: "p1", label: "One" });
+    const player = store.getState().players[0];
+    expect(player).toMatchObject({ id: "p1", label: "One", connected: true });
     await vi.waitFor(() => expect(joined).toHaveBeenCalledWith(player));
 
-    expect(runtime.sendState({ runtimeState: "paused" })).toBe(true);
-    expect(socket.emit).toHaveBeenCalledWith("host:state", {
-      roomId: "ROOM1",
-      state: { runtimeState: "paused" },
+    // A phone asks to pause; the host owns the presentation and publishes it.
+    expect(memory.request("p1", "airjam.room", "pause")).toEqual({
+      runtimeState: "paused",
+    });
+    expect(memory.published.get("airjam.room")?.document).toEqual({
+      runtimeState: "paused",
+      orientation: "landscape",
     });
 
     // The store syncs with the room although no component reads it.
     expect(scores.attached).toBe(true);
     await scores.actions.score({ by: 2 });
-    expect(socket.emit).toHaveBeenLastCalledWith(
-      "host:state_sync",
-      expect.objectContaining({ roomId: "ROOM1", data: { score: 2 } }),
-    );
+    expect(memory.published.get("default")?.document).toEqual({ score: 2 });
 
     stop();
     expect(scores.attached).toBe(false);
-    expect(socket.listenerCount()).toBe(0);
+    expect(memory.room.status).toEqual({ phase: "closed", reason: "owner" });
+  });
+
+  it("reports a room that refuses the host to the developer and the page", async () => {
+    const { environment, memory } = createMemoryEnvironment();
+    const store = createConnectionStore();
+    const diagnostics = vi.fn();
+    const stopListening = onAirJamDiagnostic(diagnostics);
+    const runtime = new HostRuntime({ config, store, environment, stores: [] });
+    const stop = runtime.start();
+    try {
+      await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+      memory.setStatus({ phase: "closed", reason: "unauthorised" });
+      expect(diagnostics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "AJ_HOST_BOOTSTRAP_FAILED",
+          details: { reason: "unauthorised", roomId: "ROOM1" },
+        }),
+      );
+      expect(store.getState()).toMatchObject({
+        connectionStatus: "disconnected",
+        lastError: "The room closed the connection: unauthorised.",
+      });
+    } finally {
+      stop();
+      stopListening();
+    }
+  });
+
+  it("ends its room and opens a fresh one on reset, forgetting the old room's place", async () => {
+    const { environment, memory, readStoredResume } = createMemoryEnvironment();
+    const openRoom = vi.fn(environment.openRoom);
+    const end = vi.spyOn(memory.room, "end");
+    const store = createConnectionStore();
+    const left = vi.fn();
+    const runtime = new HostRuntime(
+      { config, store, environment: { ...environment, openRoom }, stores: [] },
+      { onPlayerLeave: left },
+    );
+    const stop = runtime.start();
+    try {
+      await vi.waitFor(() => expect(readStoredResume()).not.toBeNull());
+      memory.seat({ id: "p1", label: "One" });
+      runtime.resetRoom();
+      expect(end).toHaveBeenCalledOnce();
+      expect(openRoom).toHaveBeenCalledTimes(2);
+      expect(openRoom.mock.lastCall?.[0].instance).toBeUndefined();
+      expect(store.getState().players).toEqual([]);
+      expect(left).toHaveBeenCalledWith("p1");
+    } finally {
+      stop();
+    }
   });
 
   it("tells the game at once that a phone dropped, and again when it is back", async () => {
-    const socket = createServerSocket();
-    const { environment } = createMemoryEnvironment(socket);
+    const { environment, memory } = createMemoryEnvironment();
     const store = createConnectionStore();
     const seen: string[][] = [];
     const runtime = new HostRuntime(
       {
         config,
         store,
-        getSocket: () => {
-          throw new Error("The memory transport needs no socket.");
-        },
-        disconnectSocket: () => {},
         environment,
         stores: [],
         simulation: defineAirJamSimulation({
@@ -190,51 +218,34 @@ describe("core host runtime", () => {
     const stop = runtime.start();
     await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
     const reconnecting = () =>
-      getReconnectingPlayerIds(
-        store.getState().players,
-        store.getState().controllerSessions,
-      );
-    const player = { id: "ctrl_1", label: "One", color: "#ff0000" };
-    const presence = {
-      controllerId: "ctrl_1",
-      source: "phone" as const,
-      connected: true,
-      resumeLeaseExpiresAt: null,
-      player,
-    };
-    socket.fire("server:controllerJoined", presence);
+      getReconnectingPlayerIds(store.getState().players);
+    memory.seat({ id: "p1", label: "One" });
     runtime.simulation?.advance(10);
 
-    socket.fire("server:controllerDisconnected", {
-      ...presence,
-      connected: false,
-      resumeLeaseExpiresAt: 30_000,
-    });
-    expect(store.getState().players).toEqual([player]);
-    expect(store.getState().controllerSessions).toEqual([
-      expect.objectContaining({ controllerId: "ctrl_1", connected: false }),
+    memory.seat({ id: "p1", label: "One", connected: false });
+    expect(store.getState().players).toEqual([
+      expect.objectContaining({ id: "p1", connected: false }),
     ]);
-    expect(reconnecting()).toEqual(["ctrl_1"]);
+    expect(reconnecting()).toEqual(["p1"]);
     runtime.simulation?.advance(10);
 
-    socket.fire("server:controllerJoined", { ...presence, resumed: true });
+    memory.seat({ id: "p1", label: "One" });
     expect(reconnecting()).toEqual([]);
     runtime.simulation?.advance(10);
 
-    expect(seen).toEqual([[], ["ctrl_1"], []]);
+    expect(seen).toEqual([[], ["p1"], []]);
     expect(
       runtime.inputLog().entries.map((entry) => [entry.tick, entry.event]),
     ).toEqual([
-      [1, "server:controllerJoined"],
-      [2, "server:controllerDisconnected"],
-      [3, "server:controllerJoined"],
+      [1, "seat"],
+      [2, "seat"],
+      [3, "seat"],
     ]);
     stop();
   });
 
   it("publishes the agent contract and the simulation's declared view on the host clock", async () => {
-    const socket = createServerSocket();
-    const { environment } = createMemoryEnvironment(socket);
+    const { environment, memory } = createMemoryEnvironment();
     let gameMs = 0;
     const headless = { ...environment, now: () => gameMs };
     const scores = createScoreStore();
@@ -245,17 +256,13 @@ describe("core host runtime", () => {
       stepMs: 10,
       create: () => ({ x: 0 }),
       step: (sim, { input }) => {
-        sim.x += input("ctrl_1").direction;
+        sim.x += input("p1").direction;
       },
       observe: (sim) => ({ x: sim.x }),
     });
     const runtime = new HostRuntime({
       config,
       store: createConnectionStore(),
-      getSocket: () => {
-        throw new Error("The memory transport needs no socket.");
-      },
-      disconnectSocket: () => {},
       input: walkerInput,
       environment: headless,
       stores: [scores],
@@ -276,19 +283,9 @@ describe("core host runtime", () => {
     });
     const stop = runtime.start();
     await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
-    const player = { id: "ctrl_1", label: "Walker" };
-    socket.fire("server:controllerJoined", {
-      controllerId: player.id,
-      source: "phone",
-      connected: true,
-      resumeLeaseExpiresAt: null,
-      player,
-    });
-    socket.fire("server:input", {
-      roomId: "ROOM1",
-      controllerId: "ctrl_1",
-      input: { direction: 1 },
-    });
+    memory.seat({ id: "p1", label: "Walker" });
+    const player = runtime.store.getState().players[0];
+    memory.input("p1", { direction: 1 });
     gameMs = 50;
     runtime.simulation?.advance(50);
 
@@ -338,16 +335,11 @@ describe("core host runtime", () => {
     const start = async (
       simulation?: ReturnType<typeof defineAirJamSimulation<{ x: number }>>,
     ) => {
-      const socket = createServerSocket();
-      const { environment } = createMemoryEnvironment(socket);
+      const { environment } = createMemoryEnvironment();
       const timed = createTimedStore();
       const runtime = new HostRuntime({
         config,
         store: createConnectionStore(),
-        getSocket: () => {
-          throw new Error("The memory transport needs no socket.");
-        },
-        disconnectSocket: () => {},
         environment: { ...environment, now: () => 9_000 },
         stores: [timed],
         simulation,
@@ -385,7 +377,7 @@ describe("core host runtime", () => {
         stepMs: 10,
         create: () => ({ x: 0, path: [] }),
         step: (sim, { input, random, tick }) => {
-          sim.x += input("ctrl_1").direction + random();
+          sim.x += input("p1").direction + random();
           sim.path.push(sim.x);
           // Outcomes a step causes replay with it rather than from the log.
           if (tick % 7 === 0) void scores.actions.score({ by: 1 });
@@ -394,17 +386,12 @@ describe("core host runtime", () => {
       return { scores, walker };
     };
     const live = createGame();
-    const socket = createServerSocket();
-    const { environment } = createMemoryEnvironment(socket);
+    const { environment, memory } = createMemoryEnvironment();
     let gameMs = 0;
     const runtime = new HostRuntime(
       {
         config,
         store: createConnectionStore(),
-        getSocket: () => {
-          throw new Error("The memory transport needs no socket.");
-        },
-        disconnectSocket: () => {},
         environment: { ...environment, now: () => gameMs },
         stores: [live.scores],
         simulation: live.walker,
@@ -418,32 +405,13 @@ describe("core host runtime", () => {
       gameMs += ms;
       runtime.simulation?.advance(ms);
     };
-    socket.fire("server:controllerJoined", {
-      controllerId: "ctrl_1",
-      source: "phone",
-      connected: true,
-      resumeLeaseExpiresAt: null,
-      player: { id: "ctrl_1", label: "One", color: "#ff0000" },
-    });
+    memory.seat({ id: "p1", label: "One" });
     advance(30);
-    socket.fire("server:input", {
-      roomId: "ROOM1",
-      controllerId: "ctrl_1",
-      input: { direction: 1 },
-    });
+    memory.input("p1", { direction: 1 });
     advance(55);
-    socket.fire("airjam:action_rpc", {
-      actionName: "score",
-      payload: { by: 5 },
-      storeDomain: "default",
-      actor: { id: "ctrl_1", role: "controller" },
-    });
+    memory.request("p1", "default", "score", { by: 5 });
     advance(40);
-    socket.fire("server:input", {
-      roomId: "ROOM1",
-      controllerId: "ctrl_1",
-      input: { direction: -0.5 },
-    });
+    memory.input("p1", { direction: -0.5 });
     advance(100);
     const log = runtime.inputLog();
     const played = {
@@ -454,10 +422,10 @@ describe("core host runtime", () => {
 
     expect(log).toMatchObject({ seed: 3, stepMs: 10, ticks: 22 });
     expect(log.entries.map(({ tick, event }) => [tick, event])).toEqual([
-      [1, "server:controllerJoined"],
-      [4, "server:input"],
-      [9, "airjam:action_rpc"],
-      [13, "server:input"],
+      [1, "seat"],
+      [4, "input"],
+      [9, "action"],
+      [13, "input"],
     ]);
     expect(played.score).toBe(5 + 3);
 
@@ -513,17 +481,12 @@ describe("core host runtime", () => {
       },
       observe: (sim, { settings }) => ({ ...sim, observed: settings.speed }),
     });
-    const socket = createServerSocket();
-    const { environment } = createMemoryEnvironment(socket);
+    const { environment } = createMemoryEnvironment();
     const runtime = new HostRuntime(
       {
         config,
         store: createConnectionStore(),
         environment,
-        getSocket: () => {
-          throw new Error("No socket");
-        },
-        disconnectSocket: () => {},
         stores: [values],
         simulation,
         settings,
@@ -620,8 +583,8 @@ describe("core host runtime", () => {
         },
       });
       expect(runtime.inputLog().entries.map(({ event }) => event)).toEqual([
-        "airjam:settings",
-        "airjam:action_rpc",
+        "settings",
+        "action",
       ]);
     } finally {
       stop();
@@ -629,8 +592,7 @@ describe("core host runtime", () => {
   });
 
   it("loads a simulation declared as a loader before stepping it", async () => {
-    const socket = createServerSocket();
-    const { environment } = createMemoryEnvironment(socket);
+    const { environment } = createMemoryEnvironment();
     let release: () => void = () => {};
     const loaded = new Promise<void>((resolve) => {
       release = resolve;
@@ -652,10 +614,6 @@ describe("core host runtime", () => {
     const runtime = new HostRuntime({
       config,
       store: createConnectionStore(),
-      getSocket: () => {
-        throw new Error("The memory transport needs no socket.");
-      },
-      disconnectSocket: () => {},
       environment,
       stores: [createScoreStore()],
       simulation: () => loaded.then(() => walker),
@@ -745,15 +703,10 @@ describe("core host runtime", () => {
     const loaded = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const socket = createServerSocket();
-    const { environment } = createMemoryEnvironment(socket);
+    const { environment } = createMemoryEnvironment();
     const runtime = new HostRuntime({
       config,
       store: createConnectionStore(),
-      getSocket: () => {
-        throw new Error("The memory transport needs no socket.");
-      },
-      disconnectSocket: () => {},
       environment,
       stores: [],
       settings,
@@ -767,11 +720,6 @@ describe("core host runtime", () => {
 
     release();
     await runtime.ready;
-    socket.fire("server:state", {
-      roomId: "ROOM1",
-      state: { runtimeState: "playing" },
-      version: 1,
-    });
     runtime.updateSettings({ speed: 3 }, 0);
     runtime.simulation?.advance(10);
     const played = structuredClone(runtime.simulation?.sim);
@@ -800,8 +748,7 @@ describe("core host runtime", () => {
 it.each(["frame", "step"])(
   "retains a %s exception once, stops frames and exposes it to agents",
   async (lane) => {
-    const socket = createServerSocket();
-    const { environment } = createMemoryEnvironment(socket);
+    const { environment } = createMemoryEnvironment();
     let frame: (now: number) => void = () => {};
     const cancel = vi.fn();
     const framed: AirJamHostEnvironment = {
@@ -823,10 +770,6 @@ it.each(["frame", "step"])(
     const runtime = new HostRuntime({
       config,
       store,
-      getSocket: () => {
-        throw new Error("The memory transport needs no socket.");
-      },
-      disconnectSocket: () => {},
       environment: framed,
       stores: [scores],
       simulation: defineAirJamSimulation({
@@ -906,8 +849,7 @@ it.each(["frame", "step"])(
 it("timestamps appended room facts while paused, including events received during simulation loading", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  const socket = createServerSocket();
-  const { environment } = createMemoryEnvironment(socket);
+  const { environment, memory } = createMemoryEnvironment();
   const simulation = defineAirJamSimulation({
     stepMs: 10,
     create: () => ({}),
@@ -921,10 +863,6 @@ it("timestamps appended room facts while paused, including events received durin
     config,
     store: createConnectionStore(),
     environment,
-    getSocket: () => {
-      throw new Error("No network");
-    },
-    disconnectSocket: () => {},
     stores: [createScoreStore()],
     simulation: () => loading.then(() => simulation),
     settings: defineAirJamSettings({
@@ -951,39 +889,19 @@ it("timestamps appended room facts while paused, including events received durin
     await vi.advanceTimersByTimeAsync(0);
     expect(runtime.roomId).toBe("ROOM1");
     vi.setSystemTime(500);
-    socket.fire("server:controllerJoined", {
-      controllerId: "loading-phone",
-      source: "preview",
-      connected: true,
-      resumeLeaseExpiresAt: null,
-    });
+    memory.seat({ id: "p1", label: "Loading phone", kind: "preview" });
     vi.setSystemTime(1000);
     load();
     await runtime.ready;
-    socket.fire("server:state", {
-      roomId: "ROOM1",
-      state: { runtimeState: "playing" },
-    });
     runtime.simulation!.advance(10);
     vi.setSystemTime(2000);
-    socket.fire("server:state", {
-      roomId: "ROOM1",
-      state: { runtimeState: "paused" },
-    });
+    runtime.pauseRuntime();
     vi.setSystemTime(5000);
-    socket.fire("server:controllerJoined", {
-      controllerId: "phone",
-      source: "preview",
-      connected: true,
-      resumeLeaseExpiresAt: null,
-    });
+    memory.seat({ id: "p2", label: "Phone", kind: "preview" });
     vi.setSystemTime(6000);
     runtime.updateSettings({ ballSpeed: 900 }, 0);
     vi.setSystemTime(9000);
-    socket.fire("server:state", {
-      roomId: "ROOM1",
-      state: { runtimeState: "playing" },
-    });
+    runtime.resumeRuntime();
     const control = Reflect.get(
       environment.controlTarget,
       AIR_JAM_RUNTIME_CONTROL_KEY,
@@ -1008,14 +926,14 @@ it("timestamps appended room facts while paused, including events received durin
       { kind: "settings", at: 6000 },
     ]);
     const recorded = runtime.inputLog();
-    expect(recorded.version).toBe(2);
+    expect(recorded.version).toBe(3);
     expect(
       recorded.entries
         .filter(
           (entry) =>
-            (entry.event === "server:controllerJoined" &&
-              entry.payload.controllerId === "phone") ||
-            entry.event === "airjam:settings",
+            (entry.event === "seat" &&
+              (entry.payload.seat as { id: string }).id === "p2") ||
+            entry.event === "settings",
         )
         .map((entry) => entry.tick),
     ).toEqual([2, 2]);

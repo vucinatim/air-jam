@@ -15,13 +15,13 @@ const header = {
 it("freezes at the last whole step before 30 minutes, excluding pending events", () => {
   const recorder = new InputRecorder();
   const stepMs = 700_000;
-  recorder.record("server:state", { state: "playing" });
+  recorder.record("runtime", { state: "playing" });
   recorder.flush(1, [], stepMs);
   recorder.flush(2, [], stepMs);
-  recorder.record("server:state", { state: "paused" });
+  recorder.record("runtime", { state: "paused" });
   const before = recorder.log({ ...header, stepMs });
   recorder.flush(3, [], stepMs);
-  recorder.record("server:state", { ignored: true });
+  recorder.record("runtime", { ignored: true });
   recorder.flush(4, [], stepMs);
   expect(recorder.full).toBe(true);
   const log = recorder.log({ ...header, stepMs });
@@ -51,19 +51,19 @@ it.each(["record", "flush"])(
     const payload = {
       value: "x".repeat(AIR_JAM_INPUT_LOG_MAX_ENTRY_BYTES / 4),
     };
-    recorder.record("server:state", payload);
+    recorder.record("runtime", payload);
     recorder.flush(1, [], 10);
-    recorder.record("server:state", payload);
+    recorder.record("runtime", payload);
     const cut = recorder.log(header);
     if (lane === "record") {
-      recorder.record("server:state", payload);
-      recorder.record("server:state", payload);
+      recorder.record("runtime", payload);
+      recorder.record("runtime", payload);
     } else
       recorder.flush(
         2,
         [
-          { event: "server:state", payload },
-          { event: "server:state", payload },
+          { event: "runtime", payload },
+          { event: "runtime", payload },
         ],
         10,
       );
@@ -86,11 +86,11 @@ it.each(["record", "flush"])(
 
 it("keeps pending events at the same positions and ticks when flushed", () => {
   const recorder = new InputRecorder();
-  recorder.record("server:state", { state: "playing" });
+  recorder.record("runtime", { state: "playing" });
   const cut = recorder.log(header);
-  recorder.record("server:controllerLeft", { controllerId: "one" });
-  recorder.flush(1, [{ event: "server:input", payload: { direction: 1 } }], 10);
-  recorder.record("server:state", { state: "paused" });
+  recorder.record("left", { seat: "p1" });
+  recorder.flush(1, [{ event: "input", payload: { direction: 1 } }], 10);
+  recorder.record("runtime", { state: "paused" });
   expect(recorder.log(header).entries.slice(0, cut.entries.length)).toEqual(
     cut.entries,
   );

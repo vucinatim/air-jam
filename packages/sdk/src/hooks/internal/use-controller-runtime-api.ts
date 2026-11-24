@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { useStore } from "zustand";
 import { useAirJamContext } from "../../context/air-jam-context";
 import {
   useAssertSessionScope,
@@ -9,7 +10,7 @@ import type { AirJamInput } from "../../core/input";
 import type { AttachableStore } from "../../core/replicated-store";
 import {
   createBrowserControllerEnvironment,
-  listenForPreviewClose,
+  followPreviewParent,
 } from "../../runtime/browser-controller-environment";
 import { publishEmbeddedControllerAgent } from "../../runtime/controller-agent-bridge";
 import { listenForLocalSeatInput } from "../../runtime/local-seats";
@@ -28,32 +29,21 @@ export const useControllerRuntimeApi = (
   useAssertSessionScope("controller", hookName);
   useClaimSessionRuntimeOwner("controller-runtime", hookName);
 
-  const { store, getSocket, disconnectSocket } = useAirJamContext();
-  const { roomId, controllerId, capabilityToken } = options;
+  const { config, store } = useAirJamContext();
+  const { roomId } = options;
 
   const runtime = useMemo(
     () =>
       new ControllerRuntime(
         {
           store,
-          getSocket,
-          disconnectSocket,
-          environment: createBrowserControllerEnvironment(),
+          environment: createBrowserControllerEnvironment(config),
           stores,
           input,
         },
-        { roomId, controllerId, capabilityToken },
+        { roomId },
       ),
-    [
-      store,
-      getSocket,
-      disconnectSocket,
-      stores,
-      input,
-      roomId,
-      controllerId,
-      capabilityToken,
-    ],
+    [config, store, stores, input, roomId],
   );
 
   // Declared before start so the runtime joins with the current profile.
@@ -64,10 +54,6 @@ export const useControllerRuntimeApi = (
   useEffect(
     () => runtime.setAvatarId(options.avatarId ?? ""),
     [runtime, options.avatarId],
-  );
-  useEffect(
-    () => runtime.setStateListener(options.onState),
-    [runtime, options.onState],
   );
 
   useEffect(() => runtime.start(), [runtime]);
@@ -89,13 +75,12 @@ export const useControllerRuntimeApi = (
     };
   }, [runtime]);
 
-  useEffect(
-    () => listenForPreviewClose(runtime, disconnectSocket),
-    [runtime, disconnectSocket],
-  );
+  useEffect(() => followPreviewParent(runtime), [runtime]);
 
   // A local player's phone takes its keys or gamepad from the host page.
   useEffect(() => listenForLocalSeatInput(runtime.input), [runtime]);
+
+  const session = useStore(store, () => runtime.session);
 
   return useMemo(
     () => ({
@@ -104,10 +89,9 @@ export const useControllerRuntimeApi = (
       setAvatarId: runtime.setAvatarId,
       updatePlayerProfile: runtime.updatePlayerProfile,
       leave: runtime.leave,
-      reconnect: runtime.reconnect,
-      socket: runtime.socket,
+      session,
       input: runtime.input,
     }),
-    [runtime],
+    [runtime, session],
   );
 };

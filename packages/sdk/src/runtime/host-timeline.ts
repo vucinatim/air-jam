@@ -63,8 +63,8 @@ export class HostTimeline {
 
   read(log: AirJamInputLog, at: number) {
     const entries: HostTimelineEntry[] = [];
-    const names = new Map<string, string>();
-    let state: unknown = "paused";
+    const seats = new Map<string, { name: string; connected: boolean }>();
+    let state: unknown = "playing";
     let settings = { ...log.settings };
     for (const [index, entry] of log.entries.entries()) {
       const { tick, event, payload } = entry;
@@ -72,53 +72,54 @@ export class HostTimeline {
       // Sampled controls have no timeline time and are not room facts.
       if (recordedAt === undefined) continue;
       const base = { id: `input:${index}`, tick, at: recordedAt };
-      const player = payload.player as
-        | { id?: string; label?: string }
-        | undefined;
-      const controllerId =
-        typeof payload.controllerId === "string"
-          ? payload.controllerId
-          : player?.id;
-      const runtimeState = (
-        payload.state as { runtimeState?: unknown } | undefined
-      )?.runtimeState;
-      const name =
-        player?.label ??
-        (typeof payload.nickname === "string" ? payload.nickname : undefined);
-      if (event === "server:controllerJoined" && controllerId) {
-        if (name) names.set(controllerId, name);
-        entries.push({ ...base, kind: "join", controllerId, name });
-      } else if (
-        (event === "server:controllerLeft" ||
-          event === "server:controllerDisconnected") &&
-        controllerId
-      ) {
-        entries.push({
-          ...base,
-          kind: event === "server:controllerLeft" ? "leave" : "drop",
-          controllerId,
-          name: names.get(controllerId) ?? name,
-        });
-        if (event === "server:controllerLeft") names.delete(controllerId);
-      } else if (event === "server:playerUpdated" && controllerId && name) {
-        const previousName = names.get(controllerId);
-        if (previousName !== undefined && previousName !== name)
+      if (event === "seat") {
+        const seat = payload.seat as {
+          id: string;
+          label: string;
+          connected: boolean;
+        };
+        const known = seats.get(seat.id);
+        seats.set(seat.id, { name: seat.label, connected: seat.connected });
+        if (!known)
+          entries.push({
+            ...base,
+            kind: "join",
+            controllerId: seat.id,
+            name: seat.label,
+          });
+        else if (known.connected && !seat.connected)
+          entries.push({
+            ...base,
+            kind: "drop",
+            controllerId: seat.id,
+            name: seat.label,
+          });
+        if (known && known.name !== seat.label)
           entries.push({
             ...base,
             kind: "name",
-            controllerId,
-            name,
-            previousName,
+            controllerId: seat.id,
+            name: seat.label,
+            previousName: known.name,
           });
-        names.set(controllerId, name);
-      } else if (
-        event === "server:state" &&
-        (runtimeState === "paused" || runtimeState === "playing")
-      ) {
-        if (state !== runtimeState)
+      } else if (event === "left") {
+        const controllerId = payload.seat as string;
+        entries.push({
+          ...base,
+          kind: "leave",
+          controllerId,
+          name: seats.get(controllerId)?.name,
+        });
+        seats.delete(controllerId);
+      } else if (event === "runtime") {
+        const runtimeState = payload.runtimeState;
+        if (
+          (runtimeState === "paused" || runtimeState === "playing") &&
+          state !== runtimeState
+        )
           entries.push({ ...base, kind: "state", state: runtimeState });
         state = runtimeState;
-      } else if (event === "airjam:settings") {
+      } else if (event === "settings") {
         const values = payload.patch as AirJamInputLog["settings"];
         const changed = Object.fromEntries(
           Object.entries(values).filter(

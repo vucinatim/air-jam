@@ -23,7 +23,6 @@ describe("sdk export surface", () => {
     expect("CONTROLLER_PATH" in sdk).toBe(false);
     expect("INPUT_DEBOUNCE_MS" in sdk).toBe(false);
     expect("TOGGLE_DEBOUNCE_MS" in sdk).toBe(false);
-    expect("SOCKET_CONFIG" in sdk).toBe(false);
     expect("DEFAULT_MAX_PLAYERS" in sdk).toBe(false);
     expect("HostEvents" in sdk).toBe(false);
     expect("ControllerEvents" in sdk).toBe(false);

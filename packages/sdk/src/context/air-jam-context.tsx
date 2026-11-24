@@ -4,8 +4,7 @@
  *
  * Scoped session providers build on top of this internal provider to enable
  * AirJam functionality. It manages:
- * - WebSocket connections to the AirJam server
- * - Global state via Zustand store
+ * - The connection state of the surface's room via a Zustand store
  * - Environment variable resolution for server URLs and app IDs
  *
  * @example Basic Setup
@@ -22,7 +21,6 @@
  */
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -36,9 +34,8 @@ import {
 } from "../core/connection-store";
 import { ensureDevBrowserLogSink } from "../dev/browser-log-sink";
 import { createAirJamDiagnosticError } from "../diagnostics";
-import type { ConnectionRole } from "../protocol";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
-import type { HostSessionKind } from "../protocol/host";
+import type { RuntimeErrorReporter } from "../protocol/runtime-reporting";
 import type {
   ResolvedAirJamRuntimeTopology,
   RuntimeTopologyInput,
@@ -48,18 +45,11 @@ import { isLocalDevControlSurfaceTopology } from "../runtime-topology";
 import type { AirJamConfig } from "../runtime/air-jam-config";
 import { resolveAirJamConfig } from "../runtime/air-jam-config";
 import { isAirJamReplayDocument } from "../runtime/browser-replay";
-import { getControllerRealtimeClient } from "../runtime/controller-realtime-client";
 import {
   AIRJAM_DEV_PROVIDER_MOUNTED,
   emitAirJamDevRuntimeEvent,
 } from "../runtime/dev-runtime-events";
 import { embeddedRuntimeParent } from "../runtime/embedded-parent";
-import { getHostRealtimeClient } from "../runtime/host-realtime-client";
-import type {
-  AirJamRealtimeClient,
-  DirectSocketGetter,
-} from "../runtime/realtime-client";
-import { SocketManager } from "./socket-manager";
 
 // ============================================================================
 // Configuration Types
@@ -101,8 +91,9 @@ export interface AirJamProviderProps {
    */
   appId?: string;
   /**
-   * Optional endpoint that returns a short-lived signed host grant for stronger production bootstrap.
-   * When provided, the host runtime fetches a grant automatically before `host:bootstrap`.
+   * Optional endpoint that returns a short-lived signed host grant. When
+   * provided, the host fetches a fresh grant for each room it opens and
+   * gives it to the room server as its credential.
    */
   hostGrantEndpoint?: string;
   /**
@@ -111,11 +102,16 @@ export interface AirJamProviderProps {
    */
   maxPlayers?: number;
   /**
-   * Declares whether this host provider owns a standalone game room or a system shell room.
-   * Standalone games should use `"game"`; Arcade shell hosts should use `"system"`.
-   * @default "game"
+   * Where runtime error reports go, such as a hosted platform's own route.
+   * Without one they go to the development log.
    */
-  hostSessionKind?: HostSessionKind;
+  reportError?: RuntimeErrorReporter;
+  /**
+   * The channel the host publishes its presentation (paused or playing, how
+   * phones are held) on. A launcher that embeds games passes its own, so the
+   * game it runs keeps the default.
+   */
+  presentationChannel?: string;
   /**
    * Enable environment-variable fallback resolution for config fields.
    * Set to false to require explicit `topology` / `appId` / `hostGrantEndpoint`.
@@ -133,12 +129,6 @@ export interface AirJamContextValue {
   config: AirJamConfig;
   /** Context-bound Zustand store */
   store: ReturnType<typeof createConnectionStore>;
-  /** Socket manager for this provider instance */
-  socketManager: SocketManager;
-  /** Get socket for a specific role */
-  getSocket: DirectSocketGetter<ConnectionRole>;
-  /** Disconnect socket for a specific role */
-  disconnectSocket: (role: ConnectionRole) => void;
 }
 
 const AirJamContext = createContext<AirJamContextValue | null>(null);
@@ -155,11 +145,10 @@ interface DevProviderMountWindow extends Window {
  * Root provider component for the AirJam SDK.
  *
  * Wrap your application (or game component tree) with this provider to enable
- * AirJam functionality. The provider manages WebSocket connections, global state,
- * and the room connection.
+ * AirJam functionality. The provider resolves the surface's configuration and
+ * holds its connection state; the runtimes open the room.
  *
  * **Key responsibilities:**
- * - Creates and manages WebSocket connections to the AirJam server
  * - Provides a Zustand store for connection state (players, game state, etc.)
  * - Resolves configuration from props and environment variables
  *
@@ -185,7 +174,8 @@ export const AirJamProvider = ({
   appId,
   hostGrantEndpoint,
   maxPlayers,
-  hostSessionKind,
+  reportError,
+  presentationChannel,
   resolveEnv = true,
 }: AirJamProviderProps) => {
   // Resolve config via runtime config resolver.
@@ -197,7 +187,8 @@ export const AirJamProvider = ({
           surfaceRole,
           appId,
           hostGrantEndpoint,
-          hostSessionKind,
+          reportError,
+          presentationChannel,
           resolveEnv,
         },
         maxPlayers,
@@ -208,7 +199,8 @@ export const AirJamProvider = ({
       appId,
       hostGrantEndpoint,
       maxPlayers,
-      hostSessionKind,
+      reportError,
+      presentationChannel,
       resolveEnv,
     ],
   );
@@ -221,13 +213,6 @@ export const AirJamProvider = ({
 
   // Create context-bound store (once per provider)
   const store = useMemo(() => createConnectionStore(), []);
-
-  // Create socket manager (once per provider)
-  const socketManager = useMemo(
-    () => new SocketManager(config.socketOrigin),
-    // Only recreate if socketOrigin changes - intentionally omitting config
-    [config.socketOrigin],
-  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -255,14 +240,12 @@ export const AirJamProvider = ({
           // Best effort only
         }
       }
-      socketManager.disconnectAll();
     };
   }, [
     config.appId,
     config.backendOrigin,
     config.socketOrigin,
     localDevControlSurfacesEnabled,
-    socketManager,
   ]);
 
   useEffect(() => {
@@ -331,26 +314,9 @@ export const AirJamProvider = ({
     localDevControlSurfacesEnabled,
   ]);
 
-  // Stable function references - don't recreate when config changes
-  const getSocket = useCallback(
-    (role: ConnectionRole) => socketManager.getSocket(role),
-    [socketManager],
-  );
-
-  const disconnectSocket = useCallback(
-    (role: ConnectionRole) => socketManager.disconnect(role),
-    [socketManager],
-  );
-
   const contextValue = useMemo<AirJamContextValue>(
-    () => ({
-      config,
-      store,
-      socketManager,
-      getSocket,
-      disconnectSocket,
-    }),
-    [config, store, socketManager, getSocket, disconnectSocket],
+    () => ({ config, store }),
+    [config, store],
   );
 
   return (
@@ -428,32 +394,6 @@ export const useAirJamState = <T,>(
 ): T => {
   const { store } = useAirJamContext();
   return useStore(store, useShallow(selector));
-};
-
-/**
- * Get a socket instance for the specified role.
- *
- * Returns the same socket instance across renders (stable reference).
- * The socket is managed by the SocketManager and shared across hooks.
- *
- * @param role - Either "host" or "controller"
- * @returns The Socket.IO socket instance
- *
- * @example
- * ```tsx
- * const socket = useAirJamSocket("host");
- * socket.emit("custom:event", { data: "value" });
- * ```
- */
-export const useAirJamSocket = (role: ConnectionRole): AirJamRealtimeClient => {
-  const { getSocket } = useAirJamContext();
-  return useMemo(
-    () =>
-      role === "host"
-        ? getHostRealtimeClient(getSocket)
-        : getControllerRealtimeClient(getSocket),
-    [getSocket, role],
-  );
 };
 
 // ============================================================================

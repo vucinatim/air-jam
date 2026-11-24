@@ -1,37 +1,27 @@
 import { nanoid } from "nanoid";
 import { createStore, type StateCreator, type StoreApi } from "zustand/vanilla";
 import { emitAirJamDiagnostic } from "../diagnostics";
-import type {
-  AirJamActionActorRole,
-  AirJamActionInvocationResult,
-  AirJamActionPayload,
-  AirJamActionRpcPayload,
-  AirJamPrivateStateSyncPayload,
-  AirJamStateSyncPayload,
-  ControllerJoinedNotice,
-  RoomReadyNotice,
-} from "../protocol";
+import {
+  airJamActionInvocationResultSchema,
+  type AirJamActionActor,
+  type AirJamActionActorRole,
+  type AirJamActionInvocationResult,
+  type AirJamActionPayload,
+} from "../protocol/actions";
 import { AIRJAM_DEV_LOG_EVENTS } from "../protocol/dev-log-events";
+import type { ChannelCopy, SeatId, StateDocument } from "../room-protocol";
+import type { PublishOptions } from "../room-session/channel-state";
+import type { RoomRequestOutcome } from "../room-session/phone-room-session";
 import {
   isHostRuntimeParticipantLeased,
   registerHostRuntimeActionStore,
 } from "../runtime/contracts/control";
-import type { AirJamRealtimeClient } from "../runtime/realtime-client";
-import {
-  AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-  AIR_JAM_DEFAULT_STORE_DOMAIN,
-} from "../store/air-jam-store-domain-constants";
 import { isRpcSerializable } from "../utils/is-rpc-serializable";
 import type { AirJamConnectionState } from "./connection-store";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 import type { SettingsValues } from "./settings";
 
 const INTERNAL_ACTION_PREFIX = "_";
-const UNRESOLVED_ACTOR_ID = "unknown";
-const hostStateRevisions = new WeakMap<
-  AirJamRealtimeClient,
-  Map<string, { value: number }>
->();
 
 export type AirJamPrivateField<T> = {
   [K in Exclude<keyof T, "actions">]: T[K] extends Record<string, unknown>
@@ -191,23 +181,21 @@ export type InferAirJamActionResult<TResult> =
       : TResult;
 
 interface StoreRuntimeSnapshot {
-  socket: AirJamRealtimeClient | null;
-  role: AirJamActionActorRole | null;
+  room: AirJamStoreRoom | null;
   roomId: string | null;
   resolvedStoreDomain: string;
-  connectionStatus: string | null;
   controllerId: string | null;
-  canBroadcastHostState: boolean;
-  hostStateSyncBlocked: boolean;
-  hostStateRevisionFloor: number;
   connectedPlayerIds: string[];
   now: () => number;
   settings?: () => SettingsValues;
 }
 
-interface StoreRuntimeBinding {
-  flushHostStateSync?: () => void;
-  cleanup: () => void;
+/** One invocation of a store action, from the host itself or a phone's request. */
+export interface StoreActionCall {
+  actionName: string;
+  payload: unknown;
+  storeDomain: string;
+  actor: AirJamActionActor;
 }
 
 export type AirJamHostActionEvent<
@@ -250,9 +238,58 @@ interface HostActionListenerRegistration<TActions extends AirJamActionMap> {
   listener: AirJamHostActionListener<TActions>;
 }
 
+/** A phone's request on a store's channel, stamped by the room with its seat. */
+export interface AirJamStoreRequest {
+  readonly seat: SeatId;
+  readonly name: string;
+  readonly payload: unknown;
+}
+
+/**
+ * The room as a replicated store sees it: on the host, the channel it
+ * publishes and the requests it answers; on a phone, the channel it mirrors
+ * and the requests it makes. The store's domain is its channel.
+ */
+export type AirJamStoreRoom =
+  | {
+      readonly role: "host";
+      publish(
+        channel: string,
+        document: StateDocument,
+        options: PublishOptions,
+      ): void;
+      /**
+       * Calls `restore` once, with the room's copy of the channel, when this
+       * host first returns to a room that holds one.
+       */
+      onRestore(
+        channel: string,
+        restore: (copy: ChannelCopy) => void,
+      ): () => void;
+      /** Answers phones' requests on the channel with what `answer` returns. */
+      answer(
+        channel: string,
+        answer: (request: AirJamStoreRequest) => unknown,
+      ): () => void;
+    }
+  | {
+      readonly role: "controller";
+      document(channel: string): StateDocument | undefined;
+      /** Calls `listener` with each new copy of the channel. */
+      onDocument(
+        channel: string,
+        listener: (document: StateDocument) => void,
+      ): () => void;
+      request(
+        channel: string,
+        name: string,
+        payload: unknown,
+      ): Promise<RoomRequestOutcome>;
+    };
+
 /** The room connection a replicated store syncs through while attached. */
 export interface AirJamStoreSession {
-  socket: AirJamRealtimeClient;
+  room: AirJamStoreRoom;
   connection: StoreApi<AirJamConnectionState>;
   /** The store domain used when a store declares none. */
   defaultStoreDomain: string;
@@ -268,6 +305,8 @@ export interface AirJamStoreSession {
 export interface AttachableStore {
   attach: (session: AirJamStoreSession) => () => void;
   readonly attached: boolean;
+  /** Runs an action a recorded match applied between steps, as its recorded actor, when it belongs to this store. */
+  replayAction(call: StoreActionCall): void;
   subscribeHostActions(
     listener: AirJamHostActionListener,
     options?: AirJamHostActionSubscriptionOptions,
@@ -391,6 +430,33 @@ const normalizeAirJamActionInvocationResult = (
   };
 };
 
+/** A phone's action result from how its request on the store's channel ended. */
+export const airJamActionResultOf = (
+  outcome: RoomRequestOutcome,
+): AirJamActionInvocationResult => {
+  switch (outcome.status) {
+    case "answered": {
+      const parsed = airJamActionInvocationResultSchema.safeParse(
+        outcome.result,
+      );
+      return parsed.success
+        ? parsed.data
+        : createServerRejectedActionResult(
+            "invalid_answer",
+            "The host's answer was not an action result.",
+          );
+    }
+    case "refused":
+      return createServerRejectedActionResult(
+        "host_away",
+        "The host is away, so the action did not run.",
+      );
+    case "unconfirmed":
+    case "busy":
+      return { ok: false, status: "unconfirmed", source: "client" };
+  }
+};
+
 const stripActionsFromState = <T extends AirJamNetworkedState>(
   data: Partial<T>,
 ): Partial<T> => {
@@ -418,11 +484,11 @@ const stateShape = (value: unknown): string => {
 };
 
 const toActionContext = (
-  payload: AirJamActionRpcPayload,
+  call: StoreActionCall,
   runtime: StoreRuntimeSnapshot,
 ): AirJamActionContext<SettingsValues> => ({
-  actorId: payload.actor.id || UNRESOLVED_ACTOR_ID,
-  role: payload.actor.role,
+  actorId: call.actor.id,
+  role: call.actor.role,
   connectedPlayerIds: runtime.connectedPlayerIds,
   now: runtime.now(),
   settings: runtime.settings?.() ?? {},
@@ -496,26 +562,20 @@ export function createAirJamStore<
   const stateEpoch = nanoid();
   const runtimeSnapshotRef: { current: StoreRuntimeSnapshot } = {
     current: {
-      socket: null,
-      role: null,
+      room: null,
       roomId: null,
-      resolvedStoreDomain: AIR_JAM_DEFAULT_STORE_DOMAIN,
-      connectionStatus: null,
+      resolvedStoreDomain: "",
       controllerId: null,
-      canBroadcastHostState: false,
-      hostStateSyncBlocked: false,
-      hostStateRevisionFloor: 0,
       connectedPlayerIds: [],
       now: detachedClock,
     },
   };
-  // Actions called while the session is still connecting (for example from
-  // a component that mounts before its room exists) wait for it instead of
-  // being dropped.
+  // Actions called before a runtime attaches the store (for example from a
+  // component that mounts before its runtime starts) wait for it instead of
+  // being dropped. Once attached, a phone's requests wait in its session
+  // while its link is down.
   const sessionWaiters = new Set<() => void>();
-  const sessionReady = (runtime: StoreRuntimeSnapshot) =>
-    runtime.role === "host" ||
-    (runtime.role === "controller" && Boolean(runtime.roomId));
+  const sessionReady = (runtime: StoreRuntimeSnapshot) => runtime.room !== null;
   const waitForSession = () =>
     new Promise<StoreRuntimeSnapshot>((resolve) => {
       const finish = () => {
@@ -576,14 +636,15 @@ export function createAirJamStore<
           ? runtimeSnapshotRef.current
           : await waitForSession();
 
-        if (mode.kind === "player" && runtime.role !== "host") {
+        const role = runtime.room?.role ?? null;
+        if (mode.kind === "player" && role !== "host") {
           emitAirJamDiagnostic({
             code: "AJ_STORE_PLAYER_ACTIONS_HOST_ONLY",
             severity: "warn",
             message: `[AirJamConnectionState] Player impersonation for action "${actionName}" is host-only.`,
             details: {
               actionName,
-              role: runtime.role,
+              role,
               controllerId: mode.controllerId,
             },
           });
@@ -592,7 +653,7 @@ export function createAirJamStore<
             `Store action "${actionName}" cannot impersonate a player outside the host runtime.`,
             {
               actionName,
-              ...(runtime.role ? { role: runtime.role } : {}),
+              ...(role ? { role } : {}),
               controllerId: mode.controllerId,
             },
           );
@@ -640,7 +701,7 @@ export function createAirJamStore<
           }
         }
 
-        if (runtime.role === "host") {
+        if (role === "host") {
           try {
             const context =
               mode.kind === "player"
@@ -707,42 +768,18 @@ export function createAirJamStore<
           }
         }
 
-        if (runtime.role !== "controller" || !runtime.roomId) {
+        const room = runtime.room;
+        if (!room || room.role !== "controller") {
           emitAirJamDiagnostic({
             code: "AJ_STORE_ACTION_SESSION_NOT_READY",
             severity: "error",
             message: `[AirJamConnectionState] Action "${actionName}" dropped: the session was not ready within ${AIR_JAM_ACTION_SESSION_WAIT_MS / 1000} s.`,
-            details: {
-              actionName,
-              role: runtime.role,
-              roomId: runtime.roomId,
-            },
+            details: { actionName },
           });
           return createClientRejectedActionResult(
             "session_not_ready",
             `Store action "${actionName}" cannot run because the controller session is not ready.`,
-            {
-              actionName,
-              ...(runtime.role ? { role: runtime.role } : {}),
-              ...(runtime.roomId ? { roomId: runtime.roomId } : {}),
-            },
-          );
-        }
-
-        const activeSocket = runtime.socket;
-        if (!activeSocket || !activeSocket.connected) {
-          emitAirJamDiagnostic({
-            code: "AJ_STORE_ACTION_SOCKET_DISCONNECTED",
-            severity: "warn",
-            message: `[AirJamConnectionState] Action "${actionName}" blocked: Socket disconnected.`,
-            details: { actionName },
-          });
-          return createClientRejectedActionResult(
-            "socket_disconnected",
-            `Store action "${actionName}" cannot run because the controller socket is disconnected.`,
-            {
-              actionName,
-            },
+            { actionName },
           );
         }
 
@@ -756,9 +793,7 @@ export function createAirJamStore<
           return createClientRejectedActionResult(
             "payload_not_serializable",
             `Store action "${actionName}" requires an RPC-serializable payload.`,
-            {
-              actionName,
-            },
+            { actionName },
           );
         }
 
@@ -775,20 +810,16 @@ export function createAirJamStore<
           return createClientRejectedActionResult(
             "payload_invalid_shape",
             `Store action "${actionName}" requires an omitted payload or a plain object payload.`,
-            {
-              actionName,
-            },
+            { actionName },
           );
         }
 
-        return await activeSocket.emitWithAck<AirJamActionInvocationResult>(
-          "controller:action_rpc",
-          {
-            roomId: runtime.roomId,
+        return airJamActionResultOf(
+          await room.request(
+            runtime.resolvedStoreDomain,
             actionName,
-            payload: normalizedPayload,
-            storeDomain: runtime.resolvedStoreDomain,
-          },
+            normalizedPayload,
+          ),
         );
       };
     }
@@ -827,459 +858,195 @@ export function createAirJamStore<
     }
   };
 
-  const createRuntimeBinding = ({
-    socket,
-    role,
-    roomId,
-    resolvedStoreDomain,
-    controlTarget,
-  }: {
-    socket: AirJamRealtimeClient;
-    role: AirJamActionActorRole;
-    roomId: string;
-    resolvedStoreDomain: string;
-    controlTarget: object | null;
-  }): StoreRuntimeBinding => {
-    if (role === "host") {
-      let syncedStateData = stripActionsFromState<T>(store.getState());
-      let syncedStateSignature = JSON.stringify(syncedStateData);
-      let revisions = hostStateRevisions.get(socket);
-      if (!revisions) {
-        revisions = new Map();
-        hostStateRevisions.set(socket, revisions);
-      }
-      const revisionKey = JSON.stringify([roomId, resolvedStoreDomain]);
-      let syncRevision = revisions.get(revisionKey);
-      if (syncRevision) {
-        syncRevision.value = Math.max(
-          syncRevision.value + 1,
-          runtimeSnapshotRef.current.hostStateRevisionFloor,
-        );
-      } else {
-        syncRevision = {
-          value: runtimeSnapshotRef.current.hostStateRevisionFloor,
-        };
-        revisions.set(revisionKey, syncRevision);
-      }
+  const dispatchActionCall = (
+    call: StoreActionCall,
+  ): AirJamActionInvocationResult => {
+    const { actionName } = call;
+    if (isInternalActionName(actionName)) {
+      return createServerRejectedActionResult(
+        "internal_action",
+        "Internal store actions cannot be invoked by controllers.",
+      );
+    }
 
-      const privateDeliveries = new Map<
-        string,
-        { signature: string | undefined; revision: number }
-      >();
-      const emitPrivateState = (controllerId: string, force = false) => {
-        if (!privateField || !runtimeSnapshotRef.current.canBroadcastHostState)
-          return;
-        const entry = privateEntries(store.getState())[controllerId];
-        const signature = JSON.stringify(entry);
-        const previous = privateDeliveries.get(controllerId);
-        if (!force && previous && previous.signature === signature) return;
-        const revision = previous
-          ? previous.revision + (previous.signature === signature ? 0 : 1)
-          : 0;
-        privateDeliveries.set(controllerId, { signature, revision });
-        socket.emit("host:private_state_sync", {
-          roomId,
-          storeDomain: resolvedStoreDomain,
-          controllerId,
-          revision,
-          entry,
-        });
-      };
-      const emitHostStateSync = (requestId?: string): void => {
-        const runtime = runtimeSnapshotRef.current;
-        if (
-          runtime.role !== "host" ||
-          runtime.roomId !== roomId ||
-          runtime.resolvedStoreDomain !== resolvedStoreDomain ||
-          !runtime.canBroadcastHostState ||
-          !runtime.socket
-        ) {
-          return;
-        }
-
-        syncRevision.value = Math.max(
-          syncRevision.value,
-          runtime.hostStateRevisionFloor,
-        );
-
-        runtime.socket.emit("host:state_sync", {
-          roomId,
-          data: privateField
-            ? Object.fromEntries(
-                Object.entries(syncedStateData).filter(
-                  ([key]) => key !== privateField,
-                ),
-              )
-            : syncedStateData,
-          ...(privateField
-            ? {
-                privateState: {
-                  field: privateField,
-                  entries: privateEntries(syncedStateData),
-                },
-              }
-            : {}),
-          storeDomain: resolvedStoreDomain,
-          revision: syncRevision.value,
-          shapeFingerprint,
-          ...(requestId ? { requestId } : {}),
-        });
-      };
-
-      const flushHostStateSync = (requestId?: string): void => {
-        emitHostStateSync(requestId);
-        for (const controllerId of runtimeSnapshotRef.current
-          .connectedPlayerIds)
-          emitPrivateState(controllerId);
-      };
-
-      const handleControllerJoined = (notice: ControllerJoinedNotice): void => {
-        flushHostStateSync();
-        emitPrivateState(notice.controllerId, true);
-      };
-
-      const unsubscribe = store.subscribe((newState) => {
-        const runtime = runtimeSnapshotRef.current;
-        if (
-          runtime.role !== "host" ||
-          runtime.roomId !== roomId ||
-          runtime.resolvedStoreDomain !== resolvedStoreDomain
-        ) {
-          return;
-        }
-
-        const stateData = stripActionsFromState<T>(newState);
-        const nextSignature = JSON.stringify(stateData);
-        if (nextSignature === syncedStateSignature) {
-          return;
-        }
-
-        syncedStateData = stateData;
-        syncedStateSignature = nextSignature;
-        syncRevision.value = Math.max(
-          syncRevision.value,
-          runtime.hostStateRevisionFloor,
-        );
-        syncRevision.value += 1;
-        if (runtime.canBroadcastHostState && runtime.socket) {
-          flushHostStateSync();
-        }
-      });
-
-      const dispatchActionRpc = (
-        payload: AirJamActionRpcPayload,
-      ): AirJamActionInvocationResult => {
-        const { actionName } = payload;
-        if (isInternalActionName(actionName)) {
-          return createServerRejectedActionResult(
-            "internal_action",
-            "Internal store actions cannot be invoked by controllers.",
-          );
-        }
-
-        const runtime = runtimeSnapshotRef.current;
-        const actionFn = store.getState().actions[actionName];
-        if (typeof actionFn !== "function") {
-          return createServerRejectedActionResult(
-            "action_not_found",
-            `Store action "${actionName}" is not registered on the host.`,
-            {
-              actionName,
-              storeDomain: resolvedStoreDomain,
-            },
-          );
-        }
-
-        try {
-          const context = toActionContext(payload, runtime);
-          const result = actionFn(context, payload.payload);
-          const acknowledgement = normalizeAirJamActionInvocationResult(
-            result,
-            "host",
-          );
-          const actionName = payload.actionName as AirJamActionName<
-            T["actions"]
-          >;
-          notifyHostActionListeners({
-            actionName,
-            payload: payload.payload,
-            context,
-            acknowledgement,
-            invocationKind: "rpc",
-            roomId,
-            storeDomain: resolvedStoreDomain,
-          } as AirJamHostActionEvent<T["actions"], typeof actionName>);
-          return acknowledgement;
-        } catch (error) {
-          const acknowledgement = {
-            ok: false,
-            status: "rejected",
-            source: "host",
-            reason: "handler_error",
-            message: error instanceof Error ? error.message : String(error),
-          } satisfies AirJamActionInvocationResult;
-          const actionName = payload.actionName as AirJamActionName<
-            T["actions"]
-          >;
-          notifyHostActionListeners({
-            actionName,
-            payload: payload.payload,
-            context: toActionContext(payload, runtime),
-            acknowledgement,
-            invocationKind: "rpc",
-            roomId,
-            storeDomain: resolvedStoreDomain,
-          } as AirJamHostActionEvent<T["actions"], typeof actionName>);
-          return acknowledgement;
-        }
-      };
-
-      const handleAction = (
-        payload: AirJamActionRpcPayload,
-        callback?: (ack: AirJamActionInvocationResult) => void,
-      ) => {
-        if (payload.storeDomain !== resolvedStoreDomain) return;
-        if (
-          controlTarget &&
-          payload.actor.role === "controller" &&
-          isHostRuntimeParticipantLeased(
-            controlTarget,
-            roomId,
-            payload.actor.id,
-          )
-        ) {
-          callback?.(
-            createServerRejectedActionResult(
-              "participant_control_leased",
-              "This controller is owned by a participant-control lease.",
-            ),
-          );
-          return;
-        }
-        const acknowledgement = dispatchActionRpc(payload);
-        callback?.(acknowledgement);
-      };
-
-      const handleStateSyncRequest = (payload: {
-        roomId: string;
-        storeDomain: string;
-        requestId?: string;
-        controllerId?: string;
-      }): void => {
-        if (payload.roomId !== roomId) {
-          return;
-        }
-        if (payload.storeDomain !== resolvedStoreDomain) {
-          return;
-        }
-        flushHostStateSync(payload.requestId);
-        if (payload.controllerId) emitPrivateState(payload.controllerId, true);
-      };
-
-      const handleSync = (payload: AirJamStateSyncPayload) => {
-        if (payload.roomId !== roomId) {
-          return;
-        }
-        if (payload.storeDomain !== resolvedStoreDomain) {
-          return;
-        }
-        if (runtimeSnapshotRef.current.hostStateSyncBlocked) {
-          return;
-        }
-        if (payload.revision < syncRevision.value) {
-          return;
-        }
-
-        if (payload.shapeFingerprint !== shapeFingerprint) {
-          syncRevision.value = payload.revision + 1;
-          attachedSession?.emitDevEvent?.({
-            event: AIRJAM_DEV_LOG_EVENTS.host.stateRestoreDiscarded,
-            level: "info",
-            role: "host",
-            roomId,
-            message:
-              "Host kept fresh state because the restored store shape changed",
-            data: { storeDomain: resolvedStoreDomain, reason: "shape_changed" },
-          });
-          flushHostStateSync();
-          return;
-        }
-
-        const nextStateData = stripActionsFromState<T>({
-          ...store.getState(),
-          ...payload.data,
-        });
-        const nextSignature = JSON.stringify(nextStateData);
-        const currentSignature = JSON.stringify(
-          stripActionsFromState<T>(store.getState()),
-        );
-        syncRevision.value = payload.revision;
-        syncedStateData = nextStateData;
-        syncedStateSignature = nextSignature;
-
-        if (nextSignature === currentSignature) {
-          return;
-        }
-
-        store.setState(nextStateData);
-      };
-
-      socket.on("server:controllerJoined", handleControllerJoined);
-      socket.on("airjam:state_sync", handleSync);
-      socket.on("airjam:state_sync_request", handleStateSyncRequest);
-      socket.on("airjam:action_rpc", handleAction);
-
-      const canUseHostControl = () => {
-        const runtime = runtimeSnapshotRef.current;
-        return (
-          runtime.role === "host" &&
-          runtime.roomId === roomId &&
-          runtime.resolvedStoreDomain === resolvedStoreDomain &&
-          runtime.socket === socket &&
-          runtime.canBroadcastHostState
-        );
-      };
-
-      const unregisterControl = !controlTarget
-        ? undefined
-        : registerHostRuntimeActionStore(controlTarget, {
-            roomId,
-            storeDomain: resolvedStoreDomain,
-            stateEpoch,
-            contractStoreDomain: options?.storeDomain?.trim() || "default",
-            read: (controllerId) => {
-              if (!canUseHostControl())
-                throw new Error("host_runtime_not_ready");
-              return {
-                data:
-                  controllerId === undefined
-                    ? stripActionsFromState<T>(store.getState())
-                    : projectState(
-                        stripActionsFromState<T>(store.getState()),
-                        controllerId,
-                      ),
-                revision: syncRevision.value,
-              };
-            },
-            dispatchParticipant: ({ controllerId, actionName, payload }) => {
-              if (!canUseHostControl())
-                return createClientRejectedActionResult(
-                  "host_runtime_not_ready",
-                  "The owning host runtime is not ready for actions.",
-                );
-              return dispatchActionRpc({
-                actionName,
-                payload,
-                storeDomain: resolvedStoreDomain,
-                actor: { id: controllerId, role: "controller" },
-              });
-            },
-            invoke: async ({ actionName, payload }) => {
-              if (!canUseHostControl()) {
-                return createClientRejectedActionResult(
-                  "host_runtime_not_ready",
-                  "The owning host runtime is not ready for actions.",
-                );
-              }
-              const actions = createDispatchedActions(store, {
-                kind: "default",
-              });
-              if (!Object.hasOwn(actions, actionName)) {
-                return createClientRejectedActionResult(
-                  "action_not_found",
-                  "The requested public action is not registered on this host store.",
-                );
-              }
-              const invoke = actions[actionName] as (
-                payload: unknown,
-              ) => Promise<AirJamActionInvocationResult>;
-              return invoke(payload);
-            },
-          });
-
-      return {
-        flushHostStateSync,
-        cleanup: () => {
-          unregisterControl?.();
-          unsubscribe();
-          socket.off("server:controllerJoined", handleControllerJoined);
-          socket.off("airjam:state_sync", handleSync);
-          socket.off("airjam:state_sync_request", handleStateSyncRequest);
-          socket.off("airjam:action_rpc", handleAction);
+    const runtime = runtimeSnapshotRef.current;
+    const actionFn = store.getState().actions[actionName];
+    if (typeof actionFn !== "function") {
+      return createServerRejectedActionResult(
+        "action_not_found",
+        `Store action "${actionName}" is not registered on the host.`,
+        {
+          actionName,
+          storeDomain: call.storeDomain,
         },
+      );
+    }
+
+    const context = toActionContext(call, runtime);
+    let acknowledgement: AirJamActionInvocationResult;
+    try {
+      acknowledgement = normalizeAirJamActionInvocationResult(
+        actionFn(context, call.payload),
+        "host",
+      );
+    } catch (error) {
+      acknowledgement = {
+        ok: false,
+        status: "rejected",
+        source: "host",
+        reason: "handler_error",
+        message: error instanceof Error ? error.message : String(error),
       };
     }
+    const typedActionName = actionName as AirJamActionName<T["actions"]>;
+    notifyHostActionListeners({
+      actionName: typedActionName,
+      payload: call.payload,
+      context,
+      acknowledgement,
+      invocationKind: "rpc",
+      roomId: runtime.roomId,
+      storeDomain: call.storeDomain,
+    } as AirJamHostActionEvent<T["actions"], typeof typedActionName>);
+    return acknowledgement;
+  };
 
-    let latestSyncRevision = -1;
-    let latestPrivateRevision = -1;
-    const clearPrivateState = () => {
-      if (privateField) store.setState({ [privateField]: {} } as Partial<T>);
-    };
-    clearPrivateState();
-    const handlePrivateSync = (payload: AirJamPrivateStateSyncPayload) => {
-      const controllerId = runtimeSnapshotRef.current.controllerId;
+  /** What the host publishes: the state without its actions, private entries whole. */
+  const documentOf = (state: T): StateDocument =>
+    stripActionsFromState<T>(state) as StateDocument;
+  const publishOptions: PublishOptions = {
+    fingerprint: shapeFingerprint,
+    ...(privateField ? { private: privateField } : {}),
+  };
+  /** Counts the host's changes, so agents reading the store can tell one state from the next. */
+  let hostRevision = 0;
+
+  const bindHost = (
+    room: Extract<AirJamStoreRoom, { role: "host" }>,
+    channel: string,
+    session: AirJamStoreSession,
+  ): (() => void) => {
+    room.publish(channel, documentOf(store.getState()), publishOptions);
+    const unsubscribe = store.subscribe((state) => {
+      hostRevision += 1;
+      room.publish(channel, documentOf(state), publishOptions);
+    });
+    const stopRestore = room.onRestore(channel, (copy) => {
+      if (copy.fingerprint !== shapeFingerprint) {
+        session.emitDevEvent?.({
+          event: AIRJAM_DEV_LOG_EVENTS.host.stateRestoreDiscarded,
+          level: "info",
+          role: "host",
+          roomId: runtimeSnapshotRef.current.roomId ?? undefined,
+          message:
+            "Host kept fresh state because the restored store shape changed",
+          data: { storeDomain: channel, reason: "shape_changed" },
+        });
+        return;
+      }
+      store.setState(
+        stripActionsFromState<T>({
+          ...store.getState(),
+          ...(copy.document as Partial<T>),
+        }),
+      );
+    });
+    const stopAnswering = room.answer(channel, (request) => {
+      const controlTarget = session.controlTarget;
+      const roomId = runtimeSnapshotRef.current.roomId;
       if (
-        !privateField ||
-        payload.roomId !== roomId ||
-        payload.storeDomain !== resolvedStoreDomain ||
-        payload.controllerId !== controllerId ||
-        payload.revision < latestPrivateRevision
+        controlTarget &&
+        roomId &&
+        isHostRuntimeParticipantLeased(controlTarget, roomId, request.seat)
       )
-        return;
-      latestPrivateRevision = payload.revision;
-      store.setState({
-        [privateField]:
-          payload.entry === undefined ? {} : { [controllerId]: payload.entry },
-      } as Partial<T>);
-    };
-
-    const handleSync = (payload: AirJamStateSyncPayload) => {
-      if (
-        payload.roomId !== roomId ||
-        payload.storeDomain !== resolvedStoreDomain
-      ) {
-        return;
-      }
-      if (payload.revision < latestSyncRevision) {
-        return;
-      }
-      latestSyncRevision = payload.revision;
-      const stateData = stripActionsFromState<T>(payload.data as Partial<T>);
-      if (privateField) delete stateData[privateField];
-      store.setState(stateData);
-    };
-
-    const requestState = () => {
-      socket.emit("controller:state_sync_request", {
-        roomId,
-        storeDomain: resolvedStoreDomain,
+        return createServerRejectedActionResult(
+          "participant_control_leased",
+          "This controller is owned by a participant-control lease.",
+        );
+      return dispatchActionCall({
+        actionName: request.name,
+        payload: request.payload,
+        storeDomain: channel,
+        actor: { id: request.seat, role: "controller" },
       });
+    });
+    return () => {
+      unsubscribe();
+      stopRestore();
+      stopAnswering();
     };
-    const handleRoomReady = (payload: RoomReadyNotice) => {
-      if (payload.roomId !== roomId) return;
-      // A reloaded host owns a new revision sequence, while this phone stays open.
-      latestSyncRevision = -1;
-      latestPrivateRevision = -1;
-      clearPrivateState();
-      requestState();
+  };
+
+  /** Agent tools and devtools find a host's store through its room's control registry. */
+  const registerControl = (
+    controlTarget: object,
+    roomId: string,
+    channel: string,
+  ): (() => void) => {
+    const canUseHostControl = () => {
+      const runtime = runtimeSnapshotRef.current;
+      return runtime.room?.role === "host" && runtime.roomId === roomId;
     };
-
-    socket.on("airjam:state_sync", handleSync);
-    socket.on("airjam:private_state_sync", handlePrivateSync);
-    socket.on("server:roomReady", handleRoomReady);
-
-    if (runtimeSnapshotRef.current.connectionStatus === "connected") {
-      requestState();
-    }
-
-    return {
-      cleanup: () => {
-        socket.off("airjam:state_sync", handleSync);
-        socket.off("server:roomReady", handleRoomReady);
-        socket.off("airjam:private_state_sync", handlePrivateSync);
-        clearPrivateState();
+    return registerHostRuntimeActionStore(controlTarget, {
+      roomId,
+      storeDomain: channel,
+      stateEpoch,
+      contractStoreDomain: options?.storeDomain?.trim() || "default",
+      read: (controllerId) => {
+        if (!canUseHostControl()) throw new Error("host_runtime_not_ready");
+        return {
+          data:
+            controllerId === undefined
+              ? stripActionsFromState<T>(store.getState())
+              : projectState(
+                  stripActionsFromState<T>(store.getState()),
+                  controllerId,
+                ),
+          revision: hostRevision,
+        };
       },
-    };
+      dispatchParticipant: ({ controllerId, actionName, payload }) => {
+        if (!canUseHostControl())
+          return createClientRejectedActionResult(
+            "host_runtime_not_ready",
+            "The owning host runtime is not ready for actions.",
+          );
+        return dispatchActionCall({
+          actionName,
+          payload,
+          storeDomain: channel,
+          actor: { id: controllerId, role: "controller" },
+        });
+      },
+      invoke: async ({ actionName, payload }) => {
+        if (!canUseHostControl())
+          return createClientRejectedActionResult(
+            "host_runtime_not_ready",
+            "The owning host runtime is not ready for actions.",
+          );
+        const actions = createDispatchedActions(store, { kind: "default" });
+        if (!Object.hasOwn(actions, actionName))
+          return createClientRejectedActionResult(
+            "action_not_found",
+            "The requested public action is not registered on this host store.",
+          );
+        const invoke = actions[actionName] as (
+          payload: unknown,
+        ) => Promise<AirJamActionInvocationResult>;
+        return invoke(payload);
+      },
+    });
+  };
+
+  const bindController = (
+    room: Extract<AirJamStoreRoom, { role: "controller" }>,
+    channel: string,
+  ): (() => void) => {
+    const mirror = (document: StateDocument) =>
+      store.setState(stripActionsFromState<T>(document as Partial<T>));
+    const current = room.document(channel);
+    if (current) mirror(current);
+    return room.onDocument(channel, mirror);
   };
 
   const resolveStoreDomain = (defaultStoreDomain: string): string => {
@@ -1296,103 +1063,50 @@ export function createAirJamStore<
         "This Air Jam store is already attached to a running session.",
       );
     attachedSession = session;
-    const resolvedStoreDomain = resolveStoreDomain(session.defaultStoreDomain);
-    const socket = session.socket;
-    let binding: { key: string; value: StoreRuntimeBinding } | null = null;
-    let lastHostFlushKey: string | null = null;
+    const channel = resolveStoreDomain(session.defaultStoreDomain);
+    let control: { roomId: string; release: () => void } | null = null;
 
     const update = (): void => {
       const connection = session.connection.getState();
-      const role = connection.role;
-      const roomId = connection.roomId;
-      const blockArcadeShellHostStateSync =
-        resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN &&
-        connection.hostArcadeRestore.phase !== "idle";
-      const canBroadcastHostState =
-        role === "host" &&
-        !!roomId &&
-        connection.registeredRoomId === roomId &&
-        !blockArcadeShellHostStateSync;
-      const connectedPlayerIds = Array.from(
-        new Set(connection.players.map((player) => player.id)),
-      ).sort();
       runtimeSnapshotRef.current = {
-        socket,
-        role,
-        roomId,
-        resolvedStoreDomain,
-        connectionStatus: connection.connectionStatus,
+        room: session.room,
+        roomId: connection.roomId,
+        resolvedStoreDomain: channel,
         controllerId: connection.controllerId,
-        canBroadcastHostState,
-        hostStateSyncBlocked: blockArcadeShellHostStateSync,
-        hostStateRevisionFloor:
-          resolvedStoreDomain === AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN
-            ? (connection.hostArcadeRestore.surfaceCheckpoint?.revision ?? 0)
-            : 0,
-        connectedPlayerIds,
+        connectedPlayerIds: connection.players
+          .filter((player) => player.connected)
+          .map((player) => player.id)
+          .sort(),
         now: session.now,
         settings: session.settings,
       };
-      if (sessionReady(runtimeSnapshotRef.current))
-        for (const release of [...sessionWaiters]) release();
-
-      const bindingKey =
-        roomId && role
-          ? [
-              role,
-              roomId,
-              resolvedStoreDomain,
-              socket.id ?? "socket",
-              role === "controller"
-                ? `${connection.connectionStatus}:${connection.controllerId}`
-                : "host",
-            ].join(":")
+      for (const release of [...sessionWaiters]) release();
+      const controlTarget = session.controlTarget;
+      const roomId = connection.roomId;
+      if (control?.roomId === roomId) return;
+      control?.release();
+      control =
+        controlTarget && roomId && session.room.role === "host"
+          ? { roomId, release: registerControl(controlTarget, roomId, channel) }
           : null;
-      if (binding?.key !== bindingKey) {
-        binding?.value.cleanup();
-        binding = null;
-        lastHostFlushKey = null;
-        if (bindingKey && roomId && role)
-          binding = {
-            key: bindingKey,
-            value: createRuntimeBinding({
-              socket,
-              role,
-              roomId,
-              resolvedStoreDomain,
-              controlTarget: role === "host" ? session.controlTarget : null,
-            }),
-          };
-      }
-
-      if (!binding || role !== "host" || !canBroadcastHostState || !roomId)
-        return;
-      const flushKey = [
-        roomId,
-        connection.registeredRoomId,
-        socket.id ?? "socket",
-        resolvedStoreDomain,
-        connectedPlayerIds.join(","),
-        "broadcast",
-      ].join(":");
-      if (lastHostFlushKey === flushKey) return;
-      lastHostFlushKey = flushKey;
-      binding.value.flushHostStateSync?.();
     };
 
     const unsubscribe = session.connection.subscribe(update);
     update();
+    const unbind =
+      session.room.role === "host"
+        ? bindHost(session.room, channel, session)
+        : bindController(session.room, channel);
     return () => {
       unsubscribe();
-      binding?.value.cleanup();
-      binding = null;
+      unbind();
+      control?.release();
+      control = null;
       attachedSession = null;
       runtimeSnapshotRef.current = {
         ...runtimeSnapshotRef.current,
-        socket: null,
-        role: null,
+        room: null,
         roomId: null,
-        canBroadcastHostState: false,
         now: detachedClock,
       };
     };
@@ -1434,6 +1148,14 @@ export function createAirJamStore<
       createDispatchedActions(store, { kind: "player", controllerId }),
     subscribeHostActions,
     attach,
+    replayAction: (call) => {
+      const runtime = runtimeSnapshotRef.current;
+      if (
+        runtime.room?.role === "host" &&
+        call.storeDomain === runtime.resolvedStoreDomain
+      )
+        dispatchActionCall(call);
+    },
     get attached() {
       return attachedSession !== null;
     },

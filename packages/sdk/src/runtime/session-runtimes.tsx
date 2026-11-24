@@ -206,22 +206,11 @@ const ControllerRuntimeOwner = ({
   roomId,
   nickname,
   avatarId,
-  controllerId,
-  capabilityToken,
-  onState,
   stores = NO_STORES,
   input,
 }: Pick<
   AirJamControllerRuntimeProps,
-  | "children"
-  | "roomId"
-  | "nickname"
-  | "avatarId"
-  | "controllerId"
-  | "capabilityToken"
-  | "onState"
-  | "stores"
-  | "input"
+  "children" | "roomId" | "nickname" | "avatarId" | "stores" | "input"
 >): JSX.Element => {
   const declared = useMemo(() => new Set(stores), [stores]);
   const runtime = useControllerRuntimeApi(
@@ -229,9 +218,6 @@ const ControllerRuntimeOwner = ({
       roomId,
       nickname,
       avatarId,
-      controllerId,
-      capabilityToken,
-      onState,
     },
     "AirJamControllerRuntime",
     stores,
@@ -341,9 +327,6 @@ export const AirJamControllerRuntime = ({
   roomId,
   nickname,
   avatarId,
-  controllerId,
-  capabilityToken,
-  onState,
   fixedControllerOrientation,
   stores,
   input,
@@ -360,9 +343,6 @@ export const AirJamControllerRuntime = ({
             roomId={roomId}
             nickname={nickname}
             avatarId={avatarId}
-            controllerId={controllerId}
-            capabilityToken={capabilityToken}
-            onState={onState}
             stores={stores}
             input={input}
           >

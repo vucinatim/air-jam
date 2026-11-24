@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { controllerOrientationSchema } from "../protocol/controller";
+import { controllerOrientationSchema } from "../room-protocol";
 import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import {
   hostStateEpochSchema,
@@ -102,12 +102,10 @@ export function publishEmbeddedHostPreview(
       joinUrl: inspection.joinUrl,
       joinUrlStatus: inspection.joinUrlStatus,
       connectionStatus: inspection.connectionStatus,
-      controllers: inspection.controllers.map(
-        ({ controllerId, connected }) => ({
-          controllerId,
-          connected,
-        }),
-      ),
+      controllers: inspection.players.map(({ id, connected }) => ({
+        controllerId: id,
+        connected,
+      })),
     };
     parent.window.postMessage({ type: snapshotType, snapshot }, parent.origin);
   };

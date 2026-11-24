@@ -1,170 +1,17 @@
 // @vitest-environment jsdom
-
 import {
   parseRuntimeTopologyFromSearchParams,
   resolveRuntimeTopology,
 } from "@air-jam/sdk/runtime-topology";
-import {
-  fireEvent,
-  render,
-  renderHook,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { createElement, type ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { createElement } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { JoinQrOverlay } from "../src/components/join-qr-overlay";
-import { createConnectionStore } from "../src/core/connection-store";
-import { useAirJamHost } from "../src/hooks/use-air-jam-host";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
-import { resetHostRealtimeClientForTests } from "../src/runtime/host-realtime-client";
-import { AirJamHostRuntime } from "../src/runtime/session-runtimes";
-import { urlBuilder } from "../src/utils/url-builder";
+import { createBrowserHostEnvironment } from "../src/runtime/browser-host-environment";
 
-const mocked = vi.hoisted(() => ({
-  createMockSocket: () => {
-    type Listener = (...args: unknown[]) => void;
-    const listeners = new Map<string, Set<Listener>>();
-
-    const socket = {
-      connected: true,
-      on: vi.fn((event: string, handler: Listener) => {
-        const current = listeners.get(event) ?? new Set<Listener>();
-        current.add(handler);
-        listeners.set(event, current);
-        return socket;
-      }),
-      off: vi.fn((event: string, handler: Listener) => {
-        const current = listeners.get(event);
-        if (!current) {
-          return socket;
-        }
-        current.delete(handler);
-        if (current.size === 0) {
-          listeners.delete(event);
-        }
-        return socket;
-      }),
-      emit: vi.fn(),
-      connect: vi.fn(() => socket),
-      disconnect: vi.fn(() => {
-        socket.connected = false;
-        return socket;
-      }),
-    };
-
-    return socket;
-  },
-  store: null as ReturnType<typeof createConnectionStore> | null,
-  hostSocket: null as unknown,
-  useAirJamContext: vi.fn(),
-  useAssertSessionScope: vi.fn(),
-  useClaimSessionRuntimeOwner: vi.fn(),
-}));
-
-vi.mock("../src/context/air-jam-context", async () => {
-  const actual = await vi.importActual<
-    typeof import("../src/context/air-jam-context")
-  >("../src/context/air-jam-context");
-
-  return {
-    ...actual,
-    useAirJamContext: mocked.useAirJamContext,
-  };
-});
-
-vi.mock("../src/context/session-scope", async () => {
-  const actual = await vi.importActual<
-    typeof import("../src/context/session-scope")
-  >("../src/context/session-scope");
-
-  return {
-    ...actual,
-    useAssertSessionScope: mocked.useAssertSessionScope,
-    useClaimSessionRuntimeOwner: mocked.useClaimSessionRuntimeOwner,
-  };
-});
-
-const PROVIDER_CONFIG = {
-  topology: resolveRuntimeTopology({
-    runtimeMode: "self-hosted-production",
-    surfaceRole: "host",
-    appOrigin: "http://localhost:3000",
-    backendOrigin: "http://localhost:3001",
-    publicHost: "http://localhost:3000",
-  }),
-  appId: "test_app_id",
-};
-const TEST_CONFIG = resolveAirJamConfig({
-  topology: PROVIDER_CONFIG.topology,
-  resolveEnv: false,
-});
-
-const HostRuntimeWrapper = ({ children }: { children: ReactNode }) =>
-  createElement(AirJamHostRuntime, {
-    ...PROVIDER_CONFIG,
-    children,
-  });
-
-describe("host join url behavior", () => {
-  beforeEach(() => {
-    window.history.replaceState({}, "", "/");
-    mocked.store = createConnectionStore();
-    mocked.hostSocket = mocked.createMockSocket();
-
-    mocked.useAirJamContext.mockReturnValue({
-      config: {
-        ...TEST_CONFIG,
-        appId: undefined,
-      },
-      store: mocked.store,
-      getSocket: () => mocked.hostSocket,
-      disconnectSocket: vi.fn(),
-      input: undefined,
-    });
-  });
-
-  afterEach(() => {
-    window.history.replaceState({}, "", "/");
-    resetHostRealtimeClientForTests();
-    vi.restoreAllMocks();
-  });
-
-  it("reports loading until the host join url resolves", async () => {
-    mocked.store?.getState().setRoomId("ROOM1");
-    mocked.store?.getState().setRegisteredRoomId("ROOM1");
-    (mocked.hostSocket as { connected: boolean }).connected = false;
-
-    let resolveUrl: ((value: string) => void) | null = null;
-    vi.spyOn(urlBuilder, "buildControllerUrl").mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveUrl = resolve;
-        }),
-    );
-
-    const { result } = renderHook(() => useAirJamHost(), {
-      wrapper: HostRuntimeWrapper,
-    });
-
-    expect(result.current.joinUrlStatus).toBe("loading");
-    expect(result.current.joinUrl).toBe("");
-
-    if (!resolveUrl) {
-      throw new Error("Expected buildControllerUrl resolver to be captured");
-    }
-    const resolveJoinUrl = resolveUrl as (value: string) => void;
-    resolveJoinUrl("https://platform.example/controller?room=ROOM1");
-
-    await waitFor(() => {
-      expect(result.current.joinUrlStatus).toBe("ready");
-    });
-    expect(result.current.joinUrl).toBe(
-      "https://platform.example/controller?room=ROOM1",
-    );
-  });
-
-  it("carries the development host's transport into controller admission without changing its room or capability", async () => {
+describe("host join urls", () => {
+  it("carries the development host's transport into a phone's join link without its embedding", async () => {
     const topology = resolveRuntimeTopology({
       runtimeMode: "standalone-dev",
       surfaceRole: "host",
@@ -173,26 +20,11 @@ describe("host join url behavior", () => {
       embedded: true,
       embedParentOrigin: "http://studio.localhost:3000",
     });
-    mocked.store?.getState().setRoomId("ROOM1");
-    mocked.store?.getState().setRegisteredRoomId("ROOM1");
-    (mocked.hostSocket as { connected: boolean }).connected = false;
-    mocked.useAirJamContext.mockReturnValue({
-      config: resolveAirJamConfig({ topology }),
-      store: mocked.store,
-      getSocket: () => mocked.hostSocket,
-      disconnectSocket: vi.fn(),
-      input: undefined,
-    });
-    vi.spyOn(urlBuilder, "buildControllerUrl").mockResolvedValue(
-      "http://human.localhost:8791/controller?room=ROOM1&aj_controller_cap=retained",
+    const environment = createBrowserHostEnvironment(
+      resolveAirJamConfig({ topology, resolveEnv: false }),
     );
-    const { result } = renderHook(() => useAirJamHost(), {
-      wrapper: HostRuntimeWrapper,
-    });
-    await waitFor(() => expect(result.current.joinUrlStatus).toBe("ready"));
-    const url = new URL(result.current.joinUrl);
+    const url = new URL(await environment.controllerUrl("ROOM1"));
     expect(url.searchParams.get("room")).toBe("ROOM1");
-    expect(url.searchParams.get("aj_controller_cap")).toBe("retained");
     expect(parseRuntimeTopologyFromSearchParams(url.searchParams)).toEqual(
       resolveRuntimeTopology({
         ...topology,
@@ -201,9 +33,6 @@ describe("host join url behavior", () => {
         embedParentOrigin: undefined,
       }),
     );
-    expect(
-      parseRuntimeTopologyFromSearchParams(url.searchParams),
-    ).not.toHaveProperty("embedParentOrigin");
   });
 
   it("renders the shared join QR overlay and closes it on backdrop click", () => {
@@ -232,53 +61,5 @@ describe("host join url behavior", () => {
 
     fireEvent.click(dialog);
     expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it("includes the controller capability token in official host join urls", async () => {
-    const hostSocket = mocked.hostSocket as {
-      emit: ReturnType<typeof vi.fn>;
-    };
-    hostSocket.emit.mockImplementation(
-      (
-        event: string,
-        _payload?: unknown,
-        callback?: (ack: Record<string, unknown>) => void,
-      ) => {
-        if (event === "host:bootstrap" && callback) {
-          callback({ ok: true, traceId: "trace_host_1" });
-          return;
-        }
-        if (event === "host:createRoom" && callback) {
-          callback({
-            ok: true,
-            roomId: "ROOM2",
-            players: [],
-            controllerCapability: {
-              token: "cap_123",
-              expiresAt: Date.now() + 60_000,
-              grants: ["system", "play_sound", "action_rpc"],
-            },
-          });
-        }
-      },
-    );
-    const buildControllerUrlSpy = vi
-      .spyOn(urlBuilder, "buildControllerUrl")
-      .mockResolvedValue(
-        "https://platform.example/controller?room=ROOM2&aj_controller_cap=cap_123",
-      );
-
-    const { result } = renderHook(() => useAirJamHost(), {
-      wrapper: HostRuntimeWrapper,
-    });
-
-    await waitFor(() => {
-      expect(result.current.joinUrlStatus).toBe("ready");
-    });
-    expect(result.current.joinUrl).toContain("aj_controller_cap=cap_123");
-    expect(buildControllerUrlSpy).toHaveBeenCalledWith("ROOM2", {
-      host: "http://localhost:3000",
-      capabilityToken: "cap_123",
-    });
   });
 });

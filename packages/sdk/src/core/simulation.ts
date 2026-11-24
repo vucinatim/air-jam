@@ -1,4 +1,5 @@
-import type { PlayerProfile, RuntimeState } from "../protocol";
+import type { PlayerProfile } from "../protocol";
+import { type RuntimeState } from "../room-protocol";
 import type { HostObservationContext } from "../runtime/contracts/observation";
 import type { SettingsValues } from "./settings";
 

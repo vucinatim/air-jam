@@ -3,7 +3,6 @@ import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import * as canvasCapture from "../src/agent/host-canvas-capture";
-import { SocketManager } from "../src/context/socket-manager";
 import { HostRuntime } from "../src/core/host-runtime";
 import { useHostAgentCapture } from "../src/hooks/use-host-agent-capture";
 import { definePrefab } from "../src/prefabs/types";
@@ -40,7 +39,8 @@ it("isolates direct-state inspection, captures two rendered views and then shows
   );
   vi.stubGlobal("cancelAnimationFrame", vi.fn());
   const drawn: string[] = [];
-  const socket = vi.spyOn(SocketManager.prototype, "getSocket");
+  const socket = vi.fn();
+    vi.stubGlobal("WebSocket", socket);
   const start = vi.spyOn(HostRuntime.prototype, "start");
   const live = vi.fn(() => null);
   const prefab = definePrefab({

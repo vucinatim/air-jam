@@ -24,7 +24,7 @@ import {
   type SeatView,
 } from "../room-protocol";
 import { ChannelMirror } from "./channel-state";
-import type { HostRoomSession } from "./host-room-session";
+import type { HostRoom } from "./host-room-session";
 import type { PhoneRoomSession } from "./phone-room-session";
 import type { RoomSessionStatus } from "./session-link";
 
@@ -199,7 +199,7 @@ const rosterOf = (seats: readonly SeatView[]) =>
  * to the room with its own revisions, pacing and answers to `need`.
  */
 export const createScopedHostConnector = (
-  parent: HostRoomSession,
+  parent: HostRoom,
   scope: ChannelScope,
 ): ScopedConnector & {
   /** Closes the frame's links and drops every channel in its scope, as when its game ends. */

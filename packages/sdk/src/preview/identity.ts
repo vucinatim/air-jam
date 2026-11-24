@@ -1,31 +1,11 @@
-import { generateControllerId } from "../utils/ids";
-
 export const AIR_JAM_PREVIEW_FLAG_QUERY_PARAM = "aj_preview";
 export const AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM = "aj_preview_device";
 export const AIR_JAM_PREVIEW_PARENT_QUERY_PARAM = "aj_preview_parent";
 export const AIR_JAM_PREVIEW_CAPTURE_QUERY_PARAM = "aj_preview_capture";
 
-export interface PreviewControllerIdentity {
-  controllerId: string;
-  deviceId: string;
-}
-
-const generatePreviewDeviceId = (): string => {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return `pd_${crypto.randomUUID()}`;
-  }
-
-  return `pd_${generateControllerId()}_${Date.now().toString(36)}`;
-};
-
-export const createPreviewControllerIdentity =
-  (): PreviewControllerIdentity => ({
-    controllerId: generateControllerId(),
-    deviceId: generatePreviewDeviceId(),
-  });
+/** A preview controller's device id: its workspace's handle for it and the scope its seat is kept under. */
+export const createPreviewControllerDeviceId = (): string =>
+  `pd_${crypto.randomUUID()}`;
 
 export const normalizePreviewDeviceId = (
   value: string | null | undefined,

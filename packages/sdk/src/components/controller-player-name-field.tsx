@@ -17,8 +17,8 @@ export type ControllerPlayerNameFieldProps = {
 
 /**
  * Edits the live room player display name. While connected, changes are sent with
- * {@link AirJamControllerApi.updatePlayerProfile} (debounced) and broadcast to the room via
- * `server:playerUpdated`. Also updates the nickname draft for the next join.
+ * {@link AirJamControllerApi.updatePlayerProfile} (debounced) and reach every
+ * device through the room's roster. Also updates the nickname draft for the next join.
  */
 export const ControllerPlayerNameField = ({
   fieldLabel = "Your name",

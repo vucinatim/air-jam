@@ -1,9 +1,7 @@
+export { serveRoomPort } from "./room-session/port-link";
+export { createScopedPhoneConnector } from "./room-session/scoped-connector";
 export {
-  controllerBridgeServerEvents,
-  controllerBridgeSnapshotSchema,
-  createControllerBridgeAttachMessage,
-  createControllerBridgeEventMessage,
-  parseControllerBridgeEmitMessage,
-  type ControllerBridgeServerEventName,
-  type ControllerBridgeSnapshot,
-} from "./runtime/controller-bridge";
+  readRoomBridgeRequest,
+  refuseRoomBridge,
+  type RoomBridgeRequest,
+} from "./runtime/room-bridge";

@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createConnectionStore } from "../src/core/connection-store";
 import type { ControllerRuntime } from "../src/core/controller-runtime";
 import type { LocalInputTarget } from "../src/core/local-input";
 import {
   AIR_JAM_PREVIEW_CLOSE_REQUEST,
   AIR_JAM_PREVIEW_CLOSE_RESULT,
+  AIR_JAM_PREVIEW_SEAT,
 } from "../src/preview/messages";
 import {
   resolveRuntimeTopology,
   runtimeTopologyToQueryParams,
 } from "../src/runtime-topology";
-import { listenForPreviewClose } from "../src/runtime/browser-controller-environment";
+import { followPreviewParent } from "../src/runtime/browser-controller-environment";
 import {
   listenForLocalSeatInput,
   relayLocalSeatInput,
@@ -160,32 +162,33 @@ describe("a local seat through a phone page that frames its game's controller", 
   });
 });
 
-describe("a preview phone closing for its parent", () => {
-  it("answers only its declared parent, at that origin", async () => {
+describe("a preview phone and its parent", () => {
+  it("reports its seat, and closes only for its declared parent at that origin", () => {
     const parent = framePhone(
       `&aj_preview_parent=${encodeURIComponent(studio)}`,
     );
-    const socket = { disconnect: vi.fn() };
+    const store = createConnectionStore();
     const runtime = {
-      socket,
+      store,
       isEmbedded: false,
-      leave: vi.fn(async () => ({ ok: true })),
+      leave: vi.fn(),
     } as unknown as ControllerRuntime;
-    const disconnect = vi.fn();
-    const stop = listenForPreviewClose(runtime, disconnect);
+    const stop = followPreviewParent(runtime);
+    store.getState().setControllerId("p2");
+    expect(parent.postMessage).toHaveBeenLastCalledWith(
+      { type: AIR_JAM_PREVIEW_SEAT, deviceId: "pd_preview_1", seat: "p2" },
+      studio,
+    );
     const close = { type: AIR_JAM_PREVIEW_CLOSE_REQUEST };
     fromParent(parent, window.location.origin, close);
     fromParent(window, studio, close);
     expect(runtime.leave).not.toHaveBeenCalled();
     fromParent(parent, studio, close);
-    await vi.waitFor(() =>
-      expect(disconnect).toHaveBeenCalledWith("controller"),
-    );
-    expect(parent.postMessage).toHaveBeenCalledWith(
+    expect(runtime.leave).toHaveBeenCalledOnce();
+    expect(parent.postMessage).toHaveBeenLastCalledWith(
       { type: AIR_JAM_PREVIEW_CLOSE_RESULT, ok: true },
       studio,
     );
-    expect(socket.disconnect).toHaveBeenCalled();
     stop();
   });
 });

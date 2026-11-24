@@ -11,18 +11,17 @@ const clampStoreDomain = (value: string): string =>
   value.length > 128 ? value.slice(0, 128) : value;
 
 /**
- * Stable replicated store domain for an embedded Arcade surface identity (epoch-bound).
- * Used for host/controller `createAirJamStore` in iframes so shell `default` and prior runs do not collide.
+ * The replicated store domain of a game embedded in an Arcade surface. It
+ * names the game, not the surface's epoch, so a game relaunched after the
+ * shell reloads finds its own channel again; the shell drops a game's
+ * channels when it leaves that game.
  */
 export const embeddedReplicatedStoreDomainFromArcadeIdentity = (
   identity: ArcadeSurfaceRuntimeIdentity,
-): string => {
-  if (identity.kind === "game") {
-    const gameKey = identity.gameId ?? "_";
-    return clampStoreDomain(`aj.embedded.game:${identity.epoch}:${gameKey}`);
-  }
-  return clampStoreDomain(`aj.embedded.browser:${identity.epoch}`);
-};
+): string =>
+  identity.kind === "game"
+    ? clampStoreDomain(`aj.embedded.game:${identity.gameId ?? "_"}`)
+    : "aj.embedded.browser";
 
 /**
  * Query params used to pass {@link ArcadeSurfaceRuntimeIdentity} and replicated store domain into embedded iframes.

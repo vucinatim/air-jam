@@ -1,3 +1,4 @@
+export * from "./room-session/browser-wake-events";
 export * from "./room-session/channel-state";
 export * from "./room-session/clock";
 export * from "./room-session/host-room-session";

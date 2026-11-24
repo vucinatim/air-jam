@@ -9,13 +9,11 @@ import {
   AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM,
   AIR_JAM_PREVIEW_FLAG_QUERY_PARAM,
   AIR_JAM_PREVIEW_PARENT_QUERY_PARAM,
-  createPreviewControllerIdentity,
-  type PreviewControllerIdentity,
+  createPreviewControllerDeviceId,
 } from "./identity";
 
 export interface BuildPreviewControllerUrlOptions {
   joinUrl: string;
-  controllerId: string;
   previewDeviceId?: string | null;
   allowedOrigins?: readonly string[];
   embedOrigin?: string | null;
@@ -30,7 +28,8 @@ export interface BuildPreviewControllerUrlOptions {
   capture?: boolean;
 }
 
-export interface PreviewControllerLaunch extends PreviewControllerIdentity {
+export interface PreviewControllerLaunch {
+  deviceId: string;
   url: string;
 }
 
@@ -48,7 +47,6 @@ const normalizeAllowedOrigins = (
 
 export const buildPreviewControllerUrl = ({
   joinUrl,
-  controllerId,
   previewDeviceId,
   allowedOrigins,
   embedOrigin,
@@ -104,7 +102,6 @@ export const buildPreviewControllerUrl = ({
   }
 
   return appendRuntimeQueryParams(previewBaseUrl, {
-    controllerId,
     [AIR_JAM_PREVIEW_FLAG_QUERY_PARAM]: "1",
     [AIR_JAM_PREVIEW_DEVICE_QUERY_PARAM]: previewDeviceId,
     [AIR_JAM_PREVIEW_PARENT_QUERY_PARAM]: normalizedParentOrigin,
@@ -122,13 +119,12 @@ export const createPreviewControllerLaunch = ({
   capture,
 }: Omit<
   BuildPreviewControllerUrlOptions,
-  "controllerId" | "previewDeviceId"
+  "previewDeviceId"
 >): PreviewControllerLaunch | null => {
-  const identity = createPreviewControllerIdentity();
+  const deviceId = createPreviewControllerDeviceId();
   const url = buildPreviewControllerUrl({
     joinUrl,
-    controllerId: identity.controllerId,
-    previewDeviceId: identity.deviceId,
+    previewDeviceId: deviceId,
     allowedOrigins,
     embedOrigin,
     parentOrigin,
@@ -140,8 +136,5 @@ export const createPreviewControllerLaunch = ({
     return null;
   }
 
-  return {
-    ...identity,
-    url,
-  };
+  return { deviceId, url };
 };

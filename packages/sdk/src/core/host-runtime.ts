@@ -1,49 +1,33 @@
 import type { StoreApi } from "zustand/vanilla";
 import type { AnyAirJamAgentContract } from "../agent/agent-contract";
 import { emitAirJamDiagnostic } from "../diagnostics";
-import type {
-  ControllerInputEvent,
-  ControllerJoinedNotice,
-  ControllerPresenceNotice,
-  ControllerPrivilegedCapability,
-  ControllerStateMessage,
-  ControllerStatePayload,
-  HapticSignalPayload,
-  HostBootstrapAck,
-  HostBootstrapPayload,
-  HostControllerActionAck,
-  HostRegistrationAck,
-  PlayerProfile,
-  RoomCode,
-  RuntimeState,
-  SignalPayload,
-  SignalType,
-  ToastSignalPayload,
-} from "../protocol";
-import {
-  AIRJAM_DEV_LOG_EVENTS,
-  controllerStateSchema,
-  ErrorCode,
-  hostBootstrapSchema,
-  hostCreateRoomSchema,
-  hostReconnectSchema,
-  hostRemoveControllerSchema,
-  hostResetRoomSchema,
-  roomCodeSchema,
-} from "../protocol";
+import type { AirJamPlayer, RoomCode } from "../protocol";
+import { AIRJAM_DEV_LOG_EVENTS } from "../protocol";
 import {
   controllerLeasedControlSchema,
+  leasedControlRequestSchema,
   type ControllerLeasedControlAck,
 } from "../protocol/leased-control";
-import type { PlayerUpdatedNotice } from "../protocol/notices";
 import {
-  resolveAdmissionRetry,
-  type AdmissionRetryDecision,
-} from "../runtime/admission-retry";
+  AIRJAM_CONTROL_CHANNEL,
+  AIRJAM_LEASED_CONTROL_REQUEST,
+  presentationRequestSchema,
+  roomCodeSchema,
+  type ChannelCopy,
+  type HapticSignalPayload,
+  type PresentationDocument,
+  type RuntimeState,
+  type SeatId,
+  type SoundSignalPayload,
+  type StateDocument,
+  type ToastSignalPayload,
+} from "../room-protocol";
+import type { PublishOptions } from "../room-session/channel-state";
+import type { HostRoom, RoomRequest } from "../room-session/host-room-session";
+import type { RoomSessionStatus } from "../room-session/session-link";
 import {
   applyHostRuntimeLeasedControl,
   clearHostRuntimeParticipant,
-  hostRuntimeDocumentId,
   registerHostAgentContract,
   registerHostRuntimeParticipantReceiver,
 } from "../runtime/contracts/control";
@@ -59,10 +43,6 @@ import {
   hostRuntimeFault,
 } from "../runtime/host-runtime-fault";
 import { HostTimeline } from "../runtime/host-timeline";
-import type {
-  AirJamRealtimeClient,
-  DirectSocketGetter,
-} from "../runtime/realtime-client";
 import type { AirJamConfig } from "./config";
 import {
   getReconnectingPlayerIds,
@@ -78,7 +58,12 @@ import {
   type AirJamInputLogCut,
   type AirJamInputLogEvent,
 } from "./input-log";
-import type { AttachableStore } from "./replicated-store";
+import type {
+  AirJamStoreRequest,
+  AirJamStoreRoom,
+  AttachableStore,
+  StoreActionCall,
+} from "./replicated-store";
 import {
   HostSettings,
   type AirJamSettings,
@@ -90,27 +75,18 @@ import {
   type AirJamSimulationDeclaration,
 } from "./simulation";
 
-const HOST_BOOTSTRAP_TIMEOUT_MESSAGE =
-  "Host bootstrap timed out. The deployed Air Jam server may be out of sync with this client.";
-const HOST_RESET_CANCELLED_MESSAGE =
-  "Host room reset was cancelled because the host session changed.";
-const MAX_RECONNECT_ATTEMPTS = 12;
-const RECONNECT_RETRY_DELAY_MS = 250;
-
 export interface HostRuntimeOptions {
   roomId?: string;
   /** Seeds the simulation; a recorded seed and inputs replay the same game. */
   seed?: number;
   settings?: SettingsValues;
-  onPlayerJoin?: (player: PlayerProfile) => void;
+  onPlayerJoin?: (player: AirJamPlayer) => void;
   onPlayerLeave?: (controllerId: string) => void;
 }
 
 export interface HostRuntimeDependencies {
   config: AirJamConfig;
   store: StoreApi<AirJamConnectionState>;
-  getSocket: DirectSocketGetter<"host">;
-  disconnectSocket: (role: "host") => void;
   /** The orientation fixed by the game declaration, if any. */
   fixedControllerOrientation?: "landscape" | null;
   /** The game's declared controls, read in simulation steps. */
@@ -148,20 +124,16 @@ export type HostObservationCapture = NonNullable<
   HostObservationSurface["capture"]
 >;
 
-interface PendingHostReset {
-  roomId: RoomCode;
-  retryTimeout: ReturnType<typeof setTimeout> | null;
-  resolve: (ack: HostRegistrationAck) => void;
-}
+/** Closes that mean this host's room is gone, so it opens a new one. */
+const ROOM_GONE = new Set<string>(["not-found", "closed"]);
 
 /**
- * The host side of one Air Jam room: it admits the host, creates, resumes or
- * joins the room, tracks players and controllers, receives input and relays
- * runtime state and signals. It owns no rendering; bindings subscribe to its
- * connection store.
+ * The host side of one Air Jam room: it opens or reclaims the room, follows
+ * its players, receives their input and answers their requests, and
+ * publishes the room's presentation and the game's stores. It owns no
+ * rendering; bindings subscribe to its connection store.
  */
 export class HostRuntime {
-  readonly socket: AirJamRealtimeClient;
   /**
    * Settles once the declared simulation is loaded, at once when it needs no
    * loading, and rejects if loading fails.
@@ -177,9 +149,8 @@ export class HostRuntime {
   private readonly recorder: InputRecorder | null;
   private readonly seed: number;
   private readonly config: AirJamConfig;
-  private readonly fixedControllerOrientation: "landscape" | null;
+  private readonly orientation: "portrait" | "landscape";
   private readonly environment: AirJamHostEnvironment;
-  private readonly disconnectSocket: (role: "host") => void;
   private readonly stores: readonly AttachableStore[];
   private readonly declaresSimulation: boolean;
   private simulationDeclaration: AirJamSimulation<
@@ -211,19 +182,25 @@ export class HostRuntime {
       }),
   });
   private options: HostRuntimeOptions;
-  private controllerCapability: ControllerPrivilegedCapability | null = null;
-  private pendingReset: PendingHostReset | null = null;
-  private lastObservedStateVersion: number | null = null;
-  private readonly emittedInvariantKeys = new Set<string>();
-  private reconnectRetryTimeout: ReturnType<typeof setTimeout> | null = null;
-  private admissionRetryTimeout: ReturnType<typeof setTimeout> | null = null;
-  private admissionEpoch = 0;
   private running = false;
-  private watchedRoomId: RoomCode | null = null;
+  private currentRoom: HostRoom | null = null;
+  private releaseRoom: (() => void) | null = null;
+  /** The room's copies from this page's first welcome, taken back once. */
+  private restorable: ReadonlyMap<string, ChannelCopy> | null = null;
+  private readonly restorers = new Map<string, (copy: ChannelCopy) => void>();
+  private readonly answerers = new Map<
+    string,
+    (request: AirJamStoreRequest) => unknown
+  >();
+  /** Every channel's latest document, so a new room starts with all of them. */
+  private readonly published = new Map<
+    string,
+    { document: StateDocument; options: PublishOptions }
+  >();
+  private knownSeats = new Map<SeatId, AirJamPlayer>();
   private joinUrlKey: string | null = null;
   private releaseRoomControl: (() => void) | null = null;
   private releaseObservation: (() => void) | null = null;
-  private releaseSession: (() => void) | null = null;
 
   constructor(
     dependencies: HostRuntimeDependencies,
@@ -252,13 +229,10 @@ export class HostRuntime {
       ? new HostTimeline(Date.now())
       : null;
     this.environment = dependencies.environment;
-    this.disconnectSocket = dependencies.disconnectSocket;
     this.stores = dependencies.stores;
     this.agent = dependencies.agent;
     this.options = options;
-    this.fixedControllerOrientation =
-      dependencies.fixedControllerOrientation ?? null;
-    this.socket = dependencies.environment.transport(dependencies.getSocket);
+    this.orientation = dependencies.fixedControllerOrientation ?? "portrait";
     const seed = options.seed ?? dependencies.environment.seed();
     this.seed = seed;
     const install = (
@@ -266,7 +240,7 @@ export class HostRuntime {
     ): void => {
       this.simulationDeclaration = simulation;
       this.timeline?.start(Date.now());
-      this.clock = new SimulationClock<
+      const clock = new SimulationClock<
         unknown,
         unknown,
         unknown,
@@ -280,27 +254,26 @@ export class HostRuntime {
             this.recorder?.flush(
               tick,
               changes.map(({ controllerId, input }) => ({
-                event: "server:input" as const,
-                payload: structuredClone({ controllerId, input }),
+                event: "input" as const,
+                payload: structuredClone({ seat: controllerId, input }),
               })),
               simulation.stepMs,
             );
           },
           input: (controllerId) => this.input?.read(controllerId) ?? {},
           players: () => this.store.getState().players,
-          reconnectingPlayerIds: () => {
-            const { players, controllerSessions } = this.store.getState();
-            return getReconnectingPlayerIds(players, controllerSessions);
-          },
+          reconnectingPlayerIds: () =>
+            getReconnectingPlayerIds(this.store.getState().players),
           settings: () => this.settings.read().values,
           runtimeState: () => this.store.getState().runtimeState,
         },
         seed,
       );
-      this.clock.onEvent((event) => {
+      this.clock = clock;
+      clock.onEvent((event) => {
         this.timeline?.moment(
           simulation.moment?.(event),
-          this.clock!.ticks,
+          clock.ticks,
           this.stepAt,
         );
       });
@@ -334,6 +307,14 @@ export class HostRuntime {
     SettingsValues
   > | null {
     return this.clock;
+  }
+
+  /**
+   * The room this host holds while it runs: what a launcher serves its
+   * embedded game's frame from, and what it tells which activity is on screen.
+   */
+  get room(): HostRoom | null {
+    return this.currentRoom;
   }
 
   /**
@@ -386,43 +367,44 @@ export class HostRuntime {
         "AJ_SETTING_INVALID: Settings change once the game's simulation has loaded.",
       );
     return this.hostSettings.update(patch, expectedRevision, (revision) => {
-      this.recordRoomEvent("airjam:settings", {
-        patch: { ...patch },
-        revision,
-      });
+      this.recordRoomEvent("settings", { patch: { ...patch }, revision });
     });
   };
 
   /** The room this host is in or asking for, if any. */
   get roomId(): RoomCode | null {
-    const embedded = this.environment.embedded;
-    if (embedded) return embedded.roomId;
-    const storeRoomId = this.store.getState().roomId;
-    if (storeRoomId) return roomCodeSchema.parse(storeRoomId.toUpperCase());
+    return this.currentRoom?.code ?? this.requestedCode ?? null;
+  }
+
+  /** The code the page asked for, which a local server honours. */
+  private get requestedCode(): RoomCode | undefined {
     if (this.environment.requestedRoomId)
       return this.environment.requestedRoomId;
     if (this.options.roomId)
       return roomCodeSchema.parse(this.options.roomId.toUpperCase());
-    return null;
+    return undefined;
   }
 
   setOptions(options: HostRuntimeOptions): void {
     this.options = options;
-    this.handleRoomChange();
   }
 
-  /** Connects and keeps the room until the returned stop is called. */
+  /** Opens or reclaims the room and keeps it until the returned stop is called. */
   start(): () => void {
     if (this.running) throw new Error("Host runtime is already running.");
     this.running = true;
-    this.watchedRoomId = this.roomId;
+    const initial = this.store.getState();
+    initial.setMode(this.environment.runMode);
+    initial.setRole("host");
+    initial.setError(undefined);
     this.environment.setDevLogContext({
       role: "host",
-      roomId: this.watchedRoomId ?? undefined,
+      roomId: this.roomId ?? undefined,
     });
+    const storeRoom = this.storeRoom();
     const detachStores = this.stores.map((store) =>
       store.attach({
-        socket: this.socket,
+        room: storeRoom,
         connection: this.store,
         defaultStoreDomain: this.environment.defaultStoreDomain,
         controlTarget: this.environment.controlTarget,
@@ -431,24 +413,20 @@ export class HostRuntime {
         settings: () => this.settings.read().values,
       }),
     );
+    this.publishPresentation();
     const stopRecordingActions = this.recordActions();
-    this.releaseSession = this.startSession();
-    this.bindRoomControl();
+    this.openRoom(this.environment.readResume());
     this.refreshJoinUrl();
-    const unsubscribe = this.store.subscribe(() => this.handleRoomChange());
     this.stopFrames = this.startFrames();
     return () => {
       this.clips.dispose();
       for (const stop of stopRecordingActions) stop();
       this.stopFrames?.();
       this.stopFrames = null;
-      unsubscribe();
-      this.releaseSession?.();
-      this.releaseSession = null;
+      this.closeRoom();
       for (const detach of detachStores) detach();
       this.releaseRoomControl?.();
       this.releaseRoomControl = null;
-      this.cancelPendingReset();
       this.joinUrlKey = null;
       this.environment.setDevLogContext({
         role: undefined,
@@ -476,25 +454,19 @@ export class HostRuntime {
     if (this.running && roomId) this.bindObservation(roomId);
   };
 
-  readonly sendState = (
-    state: Omit<ControllerStatePayload, "orientation">,
-  ): boolean => {
-    if ("orientation" in state)
-      throw new Error(
-        "Controller orientation is owned by the game declaration in airjam.config; do not set orientation in sendState.",
-      );
-    const roomId = this.roomId;
-    if (!this.canEmitAuthoritativeHostState(roomId)) return false;
-    const payload = controllerStateSchema.safeParse({ roomId, state });
-    if (!payload.success) return false;
-    this.socket.emit("host:state", payload.data);
-    return true;
-  };
-
   readonly setRuntimeState = (runtimeState: RuntimeState): void => {
-    if (this.store.getState().runtimeState === runtimeState) return;
-    if (!this.canEmitAuthoritativeHostState(this.roomId)) return;
-    this.sendState({ runtimeState });
+    const state = this.store.getState();
+    const previous = state.runtimeState;
+    if (previous === runtimeState) return;
+    state.setRuntimeState(runtimeState);
+    this.recordRoomEvent("runtime", { runtimeState });
+    this.emitRuntimeEvent({
+      event: AIRJAM_DEV_LOG_EVENTS.runtime.phaseTransition,
+      message: "Host runtime phase transition",
+      roomId: this.roomId ?? undefined,
+      data: { from: previous, to: runtimeState },
+    });
+    this.publishPresentation();
   };
 
   readonly pauseRuntime = (): void => this.setRuntimeState("paused");
@@ -502,157 +474,274 @@ export class HostRuntime {
   readonly resumeRuntime = (): void => this.setRuntimeState("playing");
 
   readonly sendSignal = ((
-    type: SignalType,
+    type: "HAPTIC" | "TOAST",
     payload: HapticSignalPayload | ToastSignalPayload,
     targetId?: string,
   ): void => {
-    if (!this.socket.connected) return;
-    this.socket.emit("host:signal", {
-      targetId,
-      type,
+    this.currentRoom?.signal(
+      type === "HAPTIC" ? "haptic" : "toast",
       payload,
-    } as SignalPayload);
+      targetId,
+    );
   }) as {
     (type: "HAPTIC", payload: HapticSignalPayload, targetId?: string): void;
     (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
   };
 
-  readonly reconnect = (): void => {
-    this.socket.disconnect();
-    if (!this.environment.embedded) this.disconnectSocket("host");
-    this.socket.connect();
+  /** Plays a sound on one phone or every phone. */
+  readonly playSoundOnControllers = (
+    sound: SoundSignalPayload,
+    targetId?: string,
+  ): void => {
+    this.currentRoom?.signal("sound", sound, targetId);
   };
 
-  readonly removeController = async (
-    controllerId: string,
-  ): Promise<HostControllerActionAck> => {
-    const roomId = this.roomId;
-    if (!roomId)
-      return { ok: false, message: "Host is not connected to a room." };
-    return this.socket.emitWithAck<HostControllerActionAck>(
-      "host:removeController",
-      hostRemoveControllerSchema.parse({ roomId, controllerId }),
-    );
+  /** Frees a player's seat and closes their phone for good. */
+  readonly removeController = (controllerId: string): void => {
+    this.currentRoom?.remove(controllerId);
   };
 
-  readonly resetRoom = (): Promise<HostRegistrationAck> => {
-    const roomId = this.roomId;
-    if (!this.socket.connected || !roomId)
-      return Promise.resolve({
-        ok: false,
-        code: ErrorCode.CONNECTION_FAILED,
-        message: "Host is not connected to a room.",
-      });
-    const payload = hostResetRoomSchema.parse({ roomId });
-    this.cancelPendingReset();
+  /** Applies an action a recorded match applied between steps, as a replay does. */
+  readonly replayAction = (call: StoreActionCall): void => {
+    for (const store of this.stores) store.replayAction(call);
+  };
 
-    return new Promise<HostRegistrationAck>((resolve) => {
-      const operation: PendingHostReset = {
-        roomId,
-        retryTimeout: null,
-        resolve,
-      };
-      this.pendingReset = operation;
+  /** Ends this room for every device and opens a new one with a new code. */
+  readonly resetRoom = (): void => {
+    if (!this.running) return;
+    this.emitRuntimeEvent({
+      event: AIRJAM_DEV_LOG_EVENTS.runtime.hostResetRoomRequested,
+      message: "Host ended its room to open a new one",
+      roomId: this.roomId ?? undefined,
+    });
+    this.currentRoom?.end();
+    this.closeRoom();
+    this.environment.writeResume(null);
+    this.followSeats([]);
+    this.store.getState().resetRuntimeState();
+    this.publishPresentation();
+    this.openRoom(null);
+  };
 
-      const isCurrent = () =>
-        this.pendingReset === operation &&
-        this.roomId === operation.roomId &&
-        this.socket.connected;
-      const cancelIfOwned = () => {
-        if (this.pendingReset === operation) this.cancelPendingReset();
-      };
-      const finish = (ack: HostRegistrationAck) => {
-        if (this.pendingReset !== operation) return;
-        this.pendingReset = null;
-        if (operation.retryTimeout) clearTimeout(operation.retryTimeout);
-        operation.retryTimeout = null;
-        resolve(ack);
-      };
+  /** The view replicated stores have of this host's room. */
+  private storeRoom(): AirJamStoreRoom {
+    return {
+      role: "host",
+      publish: (channel, document, options) => {
+        this.published.set(channel, { document, options });
+        this.currentRoom?.publish(channel, document, options);
+      },
+      onRestore: (channel, restore) => {
+        this.restorers.set(channel, restore);
+        return () => this.restorers.delete(channel);
+      },
+      answer: (channel, answer) => {
+        this.answerers.set(channel, answer);
+        return () => this.answerers.delete(channel);
+      },
+    };
+  }
 
-      const attempt = (
-        completedRetries = 0,
-        retry?: AdmissionRetryDecision,
-      ) => {
-        if (!isCurrent()) {
-          cancelIfOwned();
+  private publishPresentation(): void {
+    const { runtimeState } = this.store.getState();
+    const document: PresentationDocument = {
+      runtimeState,
+      orientation: this.orientation,
+    };
+    this.store.getState().setControllerOrientation(this.orientation);
+    const channel = this.environment.presentationChannel;
+    this.published.set(channel, { document, options: {} });
+    this.currentRoom?.publish(channel, document, {});
+  }
+
+  /** Opens a session to a new room, or to the one `resume` names. */
+  private openRoom(resume: ReturnType<AirJamHostEnvironment["readResume"]>) {
+    const endpoint = this.config.hostGrantEndpoint;
+    const key = resume?.key ?? this.environment.createKey();
+    const room = this.environment.openRoom({
+      key,
+      code: resume?.code ?? this.requestedCode,
+      instance: resume?.instance,
+      seats: this.config.maxPlayers,
+      ...(this.input ? { input: this.input.declaration } : {}),
+      ...(endpoint
+        ? {
+            credential: () =>
+              this.environment.requestHostGrant(endpoint, this.config.appId),
+          }
+        : {}),
+    });
+    this.currentRoom = room;
+    this.restorable = null;
+    for (const [channel, { document, options }] of this.published)
+      room.publish(channel, document, options);
+    const releases = [
+      room.on("status", (status) => this.followStatus(room, key, status)),
+      room.on("seats", (seats) => this.followSeats(seats)),
+      room.on("input", ({ seat, state }) => this.input?.receive(seat, state)),
+      room.on("request", (request) => this.answer(room, request)),
+    ];
+    this.releaseRoom = () => {
+      for (const release of releases) release();
+      room.close();
+    };
+    this.followStatus(room, key, room.status);
+  }
+
+  private closeRoom(): void {
+    this.releaseRoom?.();
+    this.releaseRoom = null;
+    this.currentRoom = null;
+  }
+
+  private followStatus(
+    room: HostRoom,
+    key: string,
+    status: RoomSessionStatus,
+  ): void {
+    if (room !== this.currentRoom) return;
+    const state = this.store.getState();
+    this.emitRuntimeEvent({
+      event: AIRJAM_DEV_LOG_EVENTS.runtime.roomStatus,
+      message: `Host room ${status.phase}`,
+      roomId: room.code ?? undefined,
+      data: { ...status },
+    });
+    switch (status.phase) {
+      case "connecting":
+        state.setStatus("connecting");
+        return;
+      case "waiting":
+        state.setStatus("connecting");
+        state.setQueuePosition(status.position);
+        return;
+      case "reconnecting":
+        state.setStatus("reconnecting");
+        return;
+      case "open": {
+        const code = room.code;
+        const instance = room.instance;
+        if (!code || !instance) return;
+        state.setQueuePosition(null);
+        state.setError(undefined);
+        state.setRoomId(code);
+        state.setStatus("connected");
+        this.environment.writeResume({ key, code, instance });
+        this.environment.setDevLogContext({ role: "host", roomId: code });
+        if (this.restorable === null) {
+          this.restorable = new Map(
+            room.roomCopies.map((copy) => [copy.channel, copy]),
+          );
+          for (const [channel, restore] of this.restorers) {
+            const copy = this.restorable.get(channel);
+            if (copy) restore(copy);
+          }
+        }
+        this.bindRoomControl();
+        this.refreshJoinUrl();
+        return;
+      }
+      case "closed": {
+        state.setStatus("disconnected");
+        state.setQueuePosition(null);
+        if (status.reason === "owner") return;
+        if (ROOM_GONE.has(status.reason) && this.running) {
+          this.closeRoom();
+          this.environment.writeResume(null);
+          this.followSeats([]);
+          this.openRoom(null);
           return;
         }
-        this.emitRuntimeEvent({
-          event: AIRJAM_DEV_LOG_EVENTS.runtime.hostResetRoomRequested,
-          message:
-            completedRetries === 0
-              ? "Host requested local room reset"
-              : "Host retried local room reset after admission denial",
-          roomId,
-          data: {
-            admissionAttempt: completedRetries + 1,
-            ...(retry
-              ? {
-                  retryReasonCode: retry.code,
-                  retryAfterSeconds: retry.retryAfterSeconds,
-                }
-              : {}),
-          },
+        const message = `The room closed the connection: ${status.reason}.`;
+        emitAirJamDiagnostic({
+          code: "AJ_HOST_BOOTSTRAP_FAILED",
+          severity: "error",
+          message,
+          details: { reason: status.reason, roomId: room.code ?? null },
         });
-        void this.socket
-          .emitWithAck<HostRegistrationAck>("host:resetRoom", payload)
-          .then(
-            (ack) => {
-              if (!isCurrent()) {
-                cancelIfOwned();
-                return;
-              }
-              if (!ack.ok) {
-                const decision = resolveAdmissionRetry(ack, completedRetries);
-                if (decision) {
-                  operation.retryTimeout = setTimeout(() => {
-                    operation.retryTimeout = null;
-                    attempt(completedRetries + 1, decision);
-                  }, decision.delayMs);
-                  return;
-                }
-                finish(ack);
-                return;
-              }
-              if (!ack.roomId) {
-                finish(ack);
-                return;
-              }
-              // Detach first: the room this reset assigns must not cancel it.
-              this.pendingReset = null;
-              const state = this.store.getState();
-              state.setStatus("connected");
-              state.setRoomId(ack.roomId);
-              state.setError(undefined);
-              state.clearHostArcadeRestore();
-              state.resetRuntimeState();
-              this.hydrateRoster(ack.players, ack.controllers);
-              state.setRegisteredRoomId(ack.roomId);
-              this.publishControllerOrientation();
-              this.setControllerCapability(ack.controllerCapability ?? null);
-              this.persistResume(ack);
-              resolve(ack);
-            },
-            (error: unknown) => {
-              if (!isCurrent()) {
-                cancelIfOwned();
-                return;
-              }
-              finish({
-                ok: false,
-                code: ErrorCode.CONNECTION_FAILED,
-                message:
-                  error instanceof Error
-                    ? error.message
-                    : "Host room reset failed because the realtime connection was interrupted.",
-              });
-            },
-          );
-      };
+        state.setError(message);
+        return;
+      }
+    }
+  }
 
-      attempt();
+  private followSeats(seats: readonly AirJamPlayer[]): void {
+    const roomId = this.roomId;
+    const next = new Map(seats.map((seat) => [seat.id, seat]));
+    for (const seat of seats) {
+      const known = this.knownSeats.get(seat.id);
+      if (JSON.stringify(known) === JSON.stringify(seat)) continue;
+      this.recordRoomEvent("seat", { seat });
+      if (!seat.connected) this.input?.clearInput(seat.id);
+      if (!known) setTimeout(() => this.options.onPlayerJoin?.(seat), 0);
+    }
+    for (const id of this.knownSeats.keys()) {
+      if (next.has(id)) continue;
+      this.recordRoomEvent("left", { seat: id });
+      this.input?.clearInput(id);
+      if (roomId)
+        clearHostRuntimeParticipant(this.environment.controlTarget, roomId, id);
+      this.options.onPlayerLeave?.(id);
+    }
+    this.knownSeats = next;
+    this.store.getState().setPlayers(seats);
+  }
+
+  /** Answers a phone's request on a channel this host holds; others are not its to answer. */
+  private answer(room: HostRoom, request: RoomRequest): void {
+    const respond = (result: unknown) =>
+      room.respond(request.seat, request.id, result);
+    if (request.channel === this.environment.presentationChannel) {
+      const parsed = presentationRequestSchema.safeParse(request.name);
+      if (!parsed.success) return respond({ ok: false });
+      this.setRuntimeState(parsed.data === "pause" ? "paused" : "playing");
+      return respond({ runtimeState: this.store.getState().runtimeState });
+    }
+    if (request.channel === AIRJAM_CONTROL_CHANNEL) {
+      if (request.name !== AIRJAM_LEASED_CONTROL_REQUEST) return;
+      return respond(this.applyLeasedControl(request));
+    }
+    const answer = this.answerers.get(request.channel);
+    if (!answer) return;
+    respond(
+      answer({
+        seat: request.seat,
+        name: request.name,
+        payload: request.payload,
+      }),
+    );
+  }
+
+  private applyLeasedControl(request: RoomRequest): ControllerLeasedControlAck {
+    const roomId = this.roomId;
+    const parsed = leasedControlRequestSchema.safeParse(request.payload);
+    if (!parsed.success || !roomId)
+      return { status: "rejected", reason: "invalid_request" };
+    const control = controllerLeasedControlSchema.safeParse({
+      ...parsed.data,
+      roomId,
+      controllerId: request.seat,
     });
-  };
+    if (!control.success)
+      return { status: "rejected", reason: "invalid_request" };
+    try {
+      return applyHostRuntimeLeasedControl(
+        this.environment.controlTarget,
+        control.data,
+      );
+    } catch (error) {
+      emitAirJamDiagnostic({
+        code: "AJ_PARTICIPANT_CONTROL_RUNTIME_UNAVAILABLE",
+        severity: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Participant control runtime is unavailable.",
+        details: { roomId },
+      });
+      return { status: "unconfirmed", reason: "runtime_unavailable" };
+    }
+  }
 
   private startFrames(): () => void {
     const clock = this.simulation;
@@ -683,31 +772,6 @@ export class HostRuntime {
     };
   }
 
-  private handleRoomChange(): void {
-    if (!this.running) return;
-    const roomId = this.roomId;
-    if (roomId === this.watchedRoomId) return;
-    this.watchedRoomId = roomId;
-    this.cancelPendingReset();
-    this.environment.setDevLogContext({
-      role: "host",
-      roomId: roomId ?? undefined,
-    });
-    this.bindRoomControl();
-    this.refreshJoinUrl();
-  }
-
-  private setControllerCapability(
-    capability: ControllerPrivilegedCapability | null,
-  ): void {
-    if (this.controllerCapability?.token === capability?.token) {
-      this.controllerCapability = capability;
-      return;
-    }
-    this.controllerCapability = capability;
-    this.refreshJoinUrl();
-  }
-
   private refreshJoinUrl(): void {
     if (!this.running) return;
     const state = this.store.getState();
@@ -717,78 +781,24 @@ export class HostRuntime {
       state.setJoinUrl(embeddedJoinUrl, "ready");
       return;
     }
-    const roomId = this.roomId;
+    const roomId = this.currentRoom?.code ?? null;
     if (!roomId) {
       this.joinUrlKey = null;
       state.setJoinUrl("", "loading");
       return;
     }
-    const capabilityToken = this.controllerCapability?.token;
-    const key = `${roomId}\0${capabilityToken ?? ""}`;
-    if (key === this.joinUrlKey) return;
-    this.joinUrlKey = key;
+    if (roomId === this.joinUrlKey) return;
+    this.joinUrlKey = roomId;
     state.setJoinUrl("", "loading");
-    this.environment.controllerUrl(roomId, capabilityToken).then(
+    this.environment.controllerUrl(roomId).then(
       (url) => {
-        if (this.joinUrlKey === key)
+        if (this.joinUrlKey === roomId)
           this.store.getState().setJoinUrl(url, "ready");
       },
       () => {
-        if (this.joinUrlKey === key)
+        if (this.joinUrlKey === roomId)
           this.store.getState().setJoinUrl("", "unavailable");
       },
-    );
-  }
-
-  private cancelPendingReset(): void {
-    const pending = this.pendingReset;
-    if (!pending) return;
-    this.pendingReset = null;
-    if (pending.retryTimeout) clearTimeout(pending.retryTimeout);
-    pending.resolve({
-      ok: false,
-      code: ErrorCode.CONNECTION_FAILED,
-      message: HOST_RESET_CANCELLED_MESSAGE,
-    });
-  }
-
-  private hydrateRoster(
-    players?: PlayerProfile[],
-    controllers?: ControllerPresenceNotice[],
-  ): void {
-    const state = this.store.getState();
-    state.resetPlayers();
-    players?.forEach((player) => state.upsertPlayer(player));
-    state.resetControllerSessions();
-    controllers?.forEach((controller) =>
-      state.upsertControllerSession(controller),
-    );
-  }
-
-  private canEmitAuthoritativeHostState(
-    roomId: RoomCode | null,
-  ): roomId is RoomCode {
-    if (!this.socket.connected || !roomId) return false;
-    const state = this.store.getState();
-    return (
-      state.registeredRoomId === roomId &&
-      state.hostArcadeRestore.phase === "idle"
-    );
-  }
-
-  private publishControllerOrientation(): void {
-    const roomId = this.roomId;
-    if (!this.canEmitAuthoritativeHostState(roomId)) return;
-    const orientation = this.fixedControllerOrientation ?? "portrait";
-    this.store.getState().setControllerOrientation(orientation);
-    this.socket.emit("host:state", { roomId, state: { orientation } });
-  }
-
-  private persistResume(ack: HostRegistrationAck): void {
-    this.environment.writeResume(
-      ack.roomId && ack.hostResumeCapability
-        ? { roomId: ack.roomId, token: ack.hostResumeCapability.token }
-        : null,
     );
   }
 
@@ -799,33 +809,6 @@ export class HostRuntime {
     event: (typeof AIRJAM_DEV_LOG_EVENTS.runtime)[keyof typeof AIRJAM_DEV_LOG_EVENTS.runtime];
   }): void {
     this.environment.emitDevEvent({ ...detail, level, role: "host" });
-  }
-
-  private emitInvariantOnce({
-    code,
-    roomId,
-    data,
-    message,
-  }: {
-    code: string;
-    roomId?: string;
-    data?: Record<string, unknown>;
-    message: string;
-  }): void {
-    const key = `${roomId ?? "unknown"}:${code}`;
-    if (this.emittedInvariantKeys.has(key)) return;
-    this.emittedInvariantKeys.add(key);
-    this.emitRuntimeEvent({
-      event: AIRJAM_DEV_LOG_EVENTS.runtime.invariantViolation,
-      level: "warn",
-      message,
-      roomId,
-      data: { code, ...data },
-    });
-  }
-
-  private setTraceId(traceId: string | undefined): void {
-    this.environment.setDevLogContext({ traceId });
   }
 
   /** Wall time belongs only to entries the bounded recorder actually accepted. */
@@ -845,7 +828,7 @@ export class HostRuntime {
       store.subscribeHostActions(
         ({ actionName, payload, storeDomain, context }) => {
           if (this.clock?.stepping) return;
-          this.recordRoomEvent("airjam:action_rpc", {
+          this.recordRoomEvent("action", {
             actionName,
             payload,
             storeDomain,
@@ -859,10 +842,10 @@ export class HostRuntime {
 
   /** Admission control for controllers this host leases to agents and tools. */
   private bindRoomControl(): void {
-    this.releaseRoomControl?.();
-    this.releaseRoomControl = null;
     const roomId = this.roomId;
     if (!roomId) return;
+    this.releaseRoomControl?.();
+    this.releaseRoomControl = null;
     const target = this.environment.controlTarget;
     const unregisterContract = this.agent
       ? registerHostAgentContract(target, {
@@ -875,6 +858,12 @@ export class HostRuntime {
       : null;
     this.bindObservation(roomId);
     const unregister = registerHostRuntimeParticipantReceiver(target, roomId, {
+      seats: () => {
+        const room = this.currentRoom;
+        return room?.instance
+          ? { instance: room.instance, seats: this.store.getState().players }
+          : null;
+      },
       now: this.now,
       clips: this.clips,
       timeline: () =>
@@ -903,44 +892,11 @@ export class HostRuntime {
       isParticipant: (controllerId) =>
         this.store
           .getState()
-          .controllerSessions.some(
-            (controller) =>
-              controller.controllerId === controllerId && controller.connected,
+          .players.some(
+            (player) => player.id === controllerId && player.connected,
           ),
     });
-    const handleLeasedControl = (
-      payload: unknown,
-      acknowledge?: (ack: ControllerLeasedControlAck) => void,
-    ) => {
-      if (typeof acknowledge !== "function") return;
-      const parsed = controllerLeasedControlSchema.safeParse(payload);
-      if (!parsed.success) {
-        acknowledge({ status: "rejected", reason: "invalid_request" });
-        return;
-      }
-      if (
-        parsed.data.roomId !== roomId ||
-        parsed.data.expected.documentId !== hostRuntimeDocumentId(target)
-      )
-        return;
-      try {
-        acknowledge(applyHostRuntimeLeasedControl(target, parsed.data));
-      } catch (error) {
-        acknowledge({ status: "unconfirmed", reason: "runtime_unavailable" });
-        emitAirJamDiagnostic({
-          code: "AJ_PARTICIPANT_CONTROL_RUNTIME_UNAVAILABLE",
-          severity: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Participant control runtime is unavailable.",
-          details: { roomId },
-        });
-      }
-    };
-    this.socket.on("server:leasedControl", handleLeasedControl);
     this.releaseRoomControl = () => {
-      this.socket.off("server:leasedControl", handleLeasedControl);
       unregister();
       this.releaseObservation?.();
       this.releaseObservation = null;
@@ -975,522 +931,5 @@ export class HostRuntime {
           : {}),
       },
     );
-  }
-
-  private failAdmission(message: string): void {
-    const state = this.store.getState();
-    state.setError(message);
-    state.setStatus("disconnected");
-    state.clearHostArcadeRestore();
-    state.setRegisteredRoomId(null);
-    this.setTraceId(undefined);
-    this.setControllerCapability(null);
-  }
-
-  private async resolveBootstrapPayload(): Promise<HostBootstrapPayload> {
-    if (!this.config.hostGrantEndpoint)
-      return hostBootstrapSchema.parse({
-        appId: this.config.appId,
-        hostSessionKind: this.config.hostSessionKind,
-      });
-    return hostBootstrapSchema.parse({
-      hostGrant: await this.environment.requestHostGrant(
-        this.config.hostGrantEndpoint,
-        this.config.appId,
-      ),
-      hostSessionKind: this.config.hostSessionKind,
-    });
-  }
-
-  private startSession(): () => void {
-    const socket = this.socket;
-    const store = this.store;
-    let disposed = false;
-    const isStale = (epoch: number) =>
-      disposed || epoch !== this.admissionEpoch;
-    const clearAdmissionRetry = () => {
-      if (this.admissionRetryTimeout) clearTimeout(this.admissionRetryTimeout);
-      this.admissionRetryTimeout = null;
-    };
-
-    const initial = store.getState();
-    const initialRoomId = this.roomId;
-    initial.setMode(this.environment.runMode);
-    initial.setRole("host");
-    if (initialRoomId) initial.setRoomId(initialRoomId);
-    initial.setStatus("connecting");
-    initial.setError(undefined);
-    this.lastObservedStateVersion = null;
-    this.emittedInvariantKeys.clear();
-
-    const bootstrapDetails = () => ({
-      hasAppId: Boolean(this.config.appId),
-      hasHostGrantEndpoint: Boolean(this.config.hostGrantEndpoint),
-    });
-
-    const registerHost = async (epoch: number) => {
-      const embedded = this.environment.embedded;
-      if (embedded) {
-        const state = store.getState();
-        state.setStatus("connected");
-        state.setRoomId(embedded.roomId);
-        this.hydrateRoster();
-        state.setRegisteredRoomId(embedded.roomId);
-        this.publishControllerOrientation();
-        this.setControllerCapability(null);
-        return;
-      }
-
-      let bootstrapPayload: HostBootstrapPayload;
-      try {
-        bootstrapPayload = await this.resolveBootstrapPayload();
-      } catch (error) {
-        if (isStale(epoch)) return;
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Failed to resolve host bootstrap grant";
-        emitAirJamDiagnostic({
-          code: "AJ_HOST_BOOTSTRAP_FAILED",
-          severity: "error",
-          message,
-          details: {
-            stage: "resolve_bootstrap_payload",
-            ...bootstrapDetails(),
-          },
-        });
-        this.failAdmission(message);
-        return;
-      }
-      if (isStale(epoch) || !socket.connected) return;
-
-      let bootstrapAck: HostBootstrapAck;
-      try {
-        bootstrapAck = await socket.emitWithAck<HostBootstrapAck>(
-          "host:bootstrap",
-          bootstrapPayload,
-        );
-      } catch (error) {
-        if (isStale(epoch)) return;
-        const message =
-          error instanceof Error &&
-          error.message.includes(
-            'Timed out waiting for acknowledgement for realtime event "host:bootstrap".',
-          )
-            ? HOST_BOOTSTRAP_TIMEOUT_MESSAGE
-            : error instanceof Error
-              ? error.message
-              : "Failed to authorize host";
-        emitAirJamDiagnostic({
-          code: "AJ_HOST_BOOTSTRAP_FAILED",
-          severity: "error",
-          message,
-          details: { stage: "bootstrap_ack_timeout", ...bootstrapDetails() },
-        });
-        this.failAdmission(message);
-        return;
-      }
-      if (isStale(epoch) || !socket.connected) return;
-
-      if (!bootstrapAck.ok) {
-        const message = bootstrapAck.message ?? "Failed to authorize host";
-        emitAirJamDiagnostic({
-          code: "AJ_HOST_BOOTSTRAP_FAILED",
-          severity: "error",
-          message,
-          details: {
-            stage: "bootstrap_ack",
-            ackCode: bootstrapAck.code,
-            ...bootstrapDetails(),
-          },
-        });
-        this.failAdmission(message);
-        return;
-      }
-
-      this.setTraceId(bootstrapAck.traceId);
-
-      const createNewRoom = (
-        reason: "bootstrap" | "reconnect_fallback" = "bootstrap",
-        details?: Record<string, unknown>,
-        completedRetries = 0,
-        retry?: AdmissionRetryDecision,
-      ): void => {
-        if (isStale(epoch) || !socket.connected) return;
-        const state = store.getState();
-        state.clearHostArcadeRestore();
-        state.resetPlayers();
-        state.setRegisteredRoomId(null);
-        this.setControllerCapability(null);
-        const payload = hostCreateRoomSchema.parse({
-          maxPlayers: this.config.maxPlayers,
-        });
-        this.emitRuntimeEvent({
-          event: AIRJAM_DEV_LOG_EVENTS.runtime.hostCreateRoomRequested,
-          message:
-            completedRetries === 0
-              ? "Host requested room creation"
-              : "Host retried room creation after admission denial",
-          data: {
-            reason,
-            maxPlayers: payload.maxPlayers,
-            admissionAttempt: completedRetries + 1,
-            ...(retry
-              ? {
-                  retryReasonCode: retry.code,
-                  retryAfterSeconds: retry.retryAfterSeconds,
-                }
-              : {}),
-            ...details,
-          },
-        });
-
-        socket.emit("host:createRoom", payload, (ack: HostRegistrationAck) => {
-          if (isStale(epoch)) return;
-          const state = store.getState();
-          if (!ack.ok) {
-            state.setError(ack.message ?? "Failed to create room");
-            state.setRegisteredRoomId(null);
-            this.setControllerCapability(null);
-            const decision = resolveAdmissionRetry(ack, completedRetries);
-            if (decision) {
-              state.setStatus("connecting");
-              clearAdmissionRetry();
-              this.admissionRetryTimeout = setTimeout(() => {
-                this.admissionRetryTimeout = null;
-                createNewRoom(reason, details, completedRetries + 1, decision);
-              }, decision.delayMs);
-              return;
-            }
-            state.setStatus("disconnected");
-            this.setTraceId(undefined);
-            return;
-          }
-          if (ack.roomId) {
-            state.setStatus("connected");
-            state.setRoomId(ack.roomId);
-            state.setError(undefined);
-            state.clearHostArcadeRestore();
-            this.hydrateRoster(ack.players, ack.controllers);
-            state.setRegisteredRoomId(ack.roomId);
-            this.publishControllerOrientation();
-            this.setControllerCapability(ack.controllerCapability ?? null);
-            this.persistResume(ack);
-            return;
-          }
-          state.setError("Server did not return room ID");
-          state.setStatus("disconnected");
-          this.setTraceId(undefined);
-          this.setControllerCapability(null);
-        });
-      };
-
-      const resume = this.environment.readResume();
-      if (resume) {
-        const reconnectPayload = hostReconnectSchema.parse({
-          roomId: resume.roomId,
-          resumeCapabilityToken: resume.token,
-        });
-        const attemptReconnect = (attempt: number) => {
-          if (isStale(epoch) || !socket.connected) return;
-          store.getState().setHostArcadeRestore({
-            phase: "awaiting_ack",
-            session: null,
-            surfaceCheckpoint: null,
-          });
-          this.emitRuntimeEvent({
-            event: AIRJAM_DEV_LOG_EVENTS.runtime.hostReconnectRequested,
-            message: "Host requested room reconnect",
-            roomId: reconnectPayload.roomId,
-            data: { attempt, source: "session_storage_restore" },
-          });
-          socket.emit(
-            "host:reconnect",
-            reconnectPayload,
-            (ack: HostRegistrationAck) => {
-              if (isStale(epoch)) return;
-              const state = store.getState();
-              if (ack.ok && ack.roomId) {
-                state.setStatus("connected");
-                state.setRoomId(ack.roomId);
-                this.hydrateRoster(ack.players, ack.controllers);
-                this.setControllerCapability(ack.controllerCapability ?? null);
-                const surfaceCheckpoint =
-                  ack.arcadeSurfaceCheckpoint ??
-                  (ack.arcadeSession ? { epoch: 1, revision: 0 } : null);
-                state.setHostArcadeRestore(
-                  surfaceCheckpoint
-                    ? {
-                        phase: "pending_restore",
-                        session: ack.arcadeSession ?? null,
-                        surfaceCheckpoint,
-                      }
-                    : { phase: "idle", session: null, surfaceCheckpoint: null },
-                );
-                state.setRegisteredRoomId(ack.roomId);
-                this.publishControllerOrientation();
-                this.persistResume(ack);
-                return;
-              }
-              if (
-                ack.code === ErrorCode.ALREADY_CONNECTED &&
-                attempt < MAX_RECONNECT_ATTEMPTS
-              ) {
-                this.emitRuntimeEvent({
-                  event:
-                    AIRJAM_DEV_LOG_EVENTS.runtime.hostReconnectRetryScheduled,
-                  message: "Host reconnect retry scheduled",
-                  roomId: reconnectPayload.roomId,
-                  data: {
-                    attempt,
-                    nextAttempt: attempt + 1,
-                    retryDelayMs: RECONNECT_RETRY_DELAY_MS,
-                    ackCode: ack.code,
-                  },
-                });
-                this.reconnectRetryTimeout = setTimeout(() => {
-                  this.reconnectRetryTimeout = null;
-                  attemptReconnect(attempt + 1);
-                }, RECONNECT_RETRY_DELAY_MS);
-                return;
-              }
-              state.clearHostArcadeRestore();
-              this.environment.writeResume(null);
-              this.setControllerCapability(null);
-              createNewRoom("reconnect_fallback", {
-                attempt,
-                ackCode: ack.code,
-                ackMessage: ack.message,
-              });
-            },
-          );
-        };
-        attemptReconnect(0);
-        return;
-      }
-
-      createNewRoom();
-    };
-
-    const handleConnect = (): void => {
-      clearAdmissionRetry();
-      this.admissionEpoch += 1;
-      const epoch = this.admissionEpoch;
-      this.emitRuntimeEvent({
-        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnected,
-        message: "Host socket connected",
-        roomId: this.roomId ?? undefined,
-        data: { socketId: socket.id, connected: socket.connected },
-      });
-      store.getState().setStatus("connecting");
-      void registerHost(epoch);
-    };
-
-    const handleDisconnect = (reason: string): void => {
-      this.admissionEpoch += 1;
-      clearAdmissionRetry();
-      this.emitRuntimeEvent({
-        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketDisconnected,
-        message: "Host socket disconnected",
-        roomId: this.roomId ?? undefined,
-        data: { socketId: socket.id, reason },
-      });
-      const state = store.getState();
-      state.setStatus("disconnected");
-      state.resetPlayers();
-      state.resetRuntimeState();
-      this.lastObservedStateVersion = null;
-      state.setRegisteredRoomId(null);
-      this.setTraceId(undefined);
-    };
-
-    const handleConnectError = (error: Error): void => {
-      this.emitRuntimeEvent({
-        event: AIRJAM_DEV_LOG_EVENTS.runtime.socketConnectError,
-        level: "warn",
-        message: "Host socket connect error",
-        roomId: this.roomId ?? undefined,
-        data: { message: error.message, name: error.name },
-      });
-    };
-
-    const handleJoin = (payload: ControllerJoinedNotice): void => {
-      this.recordRoomEvent("server:controllerJoined", payload);
-      store.getState().upsertControllerSession(payload);
-      const player = payload.player;
-      if (!player) return;
-      store.getState().upsertPlayer(player);
-      setTimeout(() => this.options.onPlayerJoin?.(player), 0);
-    };
-
-    const handleLeave = (payload: { controllerId: string }): void => {
-      this.recordRoomEvent("server:controllerLeft", payload);
-      this.input?.clearInput(payload.controllerId);
-      const roomId = this.roomId;
-      if (roomId)
-        clearHostRuntimeParticipant(
-          this.environment.controlTarget,
-          roomId,
-          payload.controllerId,
-        );
-      const state = store.getState();
-      state.removePlayer(payload.controllerId);
-      state.removeControllerSession(payload.controllerId);
-      this.options.onPlayerLeave?.(payload.controllerId);
-    };
-
-    const handleDisconnected = (payload: ControllerPresenceNotice): void => {
-      this.recordRoomEvent("server:controllerDisconnected", payload);
-      this.input?.clearInput(payload.controllerId);
-      store.getState().upsertControllerSession(payload);
-    };
-
-    const handlePlayerUpdated = (payload: PlayerUpdatedNotice): void => {
-      this.recordRoomEvent("server:playerUpdated", payload);
-      const state = store.getState();
-      state.upsertPlayer(payload.player);
-      const existing = state.controllerSessions.find(
-        (controller) => controller.controllerId === payload.player.id,
-      );
-      if (existing)
-        state.upsertControllerSession({ ...existing, player: payload.player });
-    };
-
-    const handleInput = (payload: ControllerInputEvent): void => {
-      this.input?.receive(payload.controllerId, payload.input);
-    };
-
-    const handleState = (payload: ControllerStateMessage): void => {
-      if (payload.roomId !== this.roomId) return;
-      this.recordRoomEvent("server:state", payload);
-      this.observeRoomState(payload);
-    };
-
-    const handleError = (payload: { message: string }): void => {
-      store.getState().setError(payload.message);
-    };
-
-    socket.on("connect", handleConnect);
-    socket.on("disconnect", handleDisconnect);
-    socket.on("connect_error", handleConnectError);
-    socket.on("server:controllerJoined", handleJoin);
-    socket.on("server:controllerLeft", handleLeave);
-    socket.on("server:controllerDisconnected", handleDisconnected);
-    socket.on("server:playerUpdated", handlePlayerUpdated);
-    socket.on("server:input", handleInput);
-    socket.on("server:error", handleError);
-    socket.on("server:state", handleState);
-
-    if (socket.connected) handleConnect();
-    else socket.connect();
-
-    return () => {
-      disposed = true;
-      this.admissionEpoch += 1;
-      clearAdmissionRetry();
-      if (this.reconnectRetryTimeout) clearTimeout(this.reconnectRetryTimeout);
-      this.reconnectRetryTimeout = null;
-      socket.off("connect", handleConnect);
-      socket.off("disconnect", handleDisconnect);
-      socket.off("connect_error", handleConnectError);
-      socket.off("server:controllerJoined", handleJoin);
-      socket.off("server:controllerLeft", handleLeave);
-      socket.off("server:controllerDisconnected", handleDisconnected);
-      socket.off("server:playerUpdated", handlePlayerUpdated);
-      socket.off("server:input", handleInput);
-      socket.off("server:error", handleError);
-      socket.off("server:state", handleState);
-      this.setTraceId(undefined);
-    };
-  }
-
-  private observeRoomState(payload: ControllerStateMessage): void {
-    this.emitRuntimeEvent({
-      event: AIRJAM_DEV_LOG_EVENTS.runtime.hostStateReceived,
-      message: "Host received state update",
-      roomId: payload.roomId,
-      data: {
-        runtimeState: payload.state.runtimeState,
-        orientation: payload.state.orientation,
-        stateVersion: payload.state.stateVersion,
-        hasMessage: payload.state.message !== undefined,
-      },
-    });
-
-    const state = this.store.getState();
-    const previousRuntimeState = state.runtimeState;
-    const nextRuntimeState = payload.state.runtimeState ?? previousRuntimeState;
-    const incomingVersion = payload.state.stateVersion;
-    const previousVersion = this.lastObservedStateVersion;
-    if (typeof incomingVersion === "number") {
-      if (previousVersion === null) {
-        this.emitRuntimeEvent({
-          event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
-          message: "Host received initial room state version",
-          roomId: payload.roomId,
-          data: { stateVersion: incomingVersion, relation: "initial" },
-        });
-      } else if (incomingVersion <= previousVersion) {
-        this.emitRuntimeEvent({
-          event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
-          level: "warn",
-          message: "Host received non-monotonic room state version",
-          roomId: payload.roomId,
-          data: {
-            stateVersion: incomingVersion,
-            previousStateVersion: previousVersion,
-            relation: "non_monotonic",
-          },
-        });
-        this.emitInvariantOnce({
-          code: "state_version_non_monotonic",
-          roomId: payload.roomId,
-          message: "Received non-monotonic room state version in host runtime",
-          data: {
-            stateVersion: incomingVersion,
-            previousStateVersion: previousVersion,
-          },
-        });
-      } else if (incomingVersion !== previousVersion + 1) {
-        this.emitRuntimeEvent({
-          event: AIRJAM_DEV_LOG_EVENTS.runtime.stateVersionReceived,
-          message: "Host detected room state version gap",
-          roomId: payload.roomId,
-          data: {
-            stateVersion: incomingVersion,
-            previousStateVersion: previousVersion,
-            relation: "gap",
-          },
-        });
-      }
-      this.lastObservedStateVersion =
-        previousVersion === null
-          ? incomingVersion
-          : Math.max(previousVersion, incomingVersion);
-    }
-    if (
-      typeof incomingVersion === "number" &&
-      nextRuntimeState !== previousRuntimeState
-    ) {
-      this.emitRuntimeEvent({
-        event: AIRJAM_DEV_LOG_EVENTS.runtime.phaseTransition,
-        message: "Host runtime phase transition",
-        roomId: payload.roomId,
-        data: {
-          from: previousRuntimeState,
-          to: nextRuntimeState,
-          source: "server_state",
-          stateVersion: incomingVersion,
-        },
-      });
-    }
-    if (payload.state.runtimeState)
-      state.setRuntimeState(payload.state.runtimeState);
-    if (payload.state.orientation)
-      state.setControllerOrientation(
-        this.fixedControllerOrientation ?? payload.state.orientation,
-      );
-    if (payload.state.message !== undefined)
-      state.setStateMessage(payload.state.message);
   }
 }

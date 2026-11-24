@@ -28,20 +28,18 @@ import type { HostRuntime } from "../core/host-runtime";
 import type { SimulationClock } from "../core/simulation";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
+  AirJamPlayer,
   ConnectionStatus,
-  ControllerOrientation,
-  ControllerPresenceNotice,
-  ControllerStatePayload,
-  HapticSignalPayload,
-  HostControllerActionAck,
-  HostRegistrationAck,
-  PlayerProfile,
   RoomCode,
   RunMode,
+} from "../protocol";
+import type {
+  ControllerOrientation,
+  HapticSignalPayload,
   RuntimeState,
   ToastSignalPayload,
-} from "../protocol";
-import type { AirJamRealtimeClient } from "../runtime/realtime-client";
+} from "../room-protocol";
+import type { HostRoom } from "../room-session/host-room-session";
 import { hostRuntimeContext } from "../runtime/runtime-owner-contexts";
 
 export type { JoinUrlStatus };
@@ -83,7 +81,7 @@ export interface AirJamHostOptions {
    * Called when a player successfully joins the room.
    * Use this to spawn player entities, update UI, etc.
    */
-  onPlayerJoin?: (player: PlayerProfile) => void;
+  onPlayerJoin?: (player: AirJamPlayer) => void;
   /**
    * Called when a player leaves the room (disconnects or exits).
    * Use this to remove player entities, handle cleanup.
@@ -105,12 +103,12 @@ export interface AirJamHostApi {
   joinUrlStatus: JoinUrlStatus;
   /** Current connection status to the server */
   connectionStatus: ConnectionStatus;
-  /** List of currently connected players */
-  players: PlayerProfile[];
-  /** Full controller-session roster for the current room, including source and lease state. */
-  controllers: ControllerPresenceNotice[];
+  /** The room's players, each with whether their phone is connected and what kind of device holds the seat */
+  players: AirJamPlayer[];
   /** Last error message, if any */
   lastError?: string;
+  /** This host's place in the server's queue while its room waits to open */
+  queuePosition: number | null;
   /** Current run mode (standalone, arcade, platform) */
   mode: RunMode;
   /** Current runtime pause/play state */
@@ -123,11 +121,6 @@ export interface AirJamHostApi {
   resumeRuntime: () => void;
   /** Set the runtime pause/play state explicitly. */
   setRuntimeState: (state: RuntimeState) => void;
-  /**
-   * Send state update to all connected controllers.
-   * Use for syncing game state, messages, etc.
-   */
-  sendState: (state: Omit<ControllerStatePayload, "orientation">) => boolean;
   /**
    * Send a signal (haptic feedback or toast) to controllers.
    *
@@ -148,14 +141,12 @@ export interface AirJamHostApi {
     (type: "HAPTIC", payload: HapticSignalPayload, targetId?: string): void;
     (type: "TOAST", payload: ToastSignalPayload, targetId?: string): void;
   };
-  /** Reconnect to the server */
-  reconnect: () => void;
-  /** Remove one controller from the room immediately. */
-  removeController: (controllerId: string) => Promise<HostControllerActionAck>;
-  /** Tear down the current room and create a fresh empty room for this host. */
-  resetRoom: () => Promise<HostRegistrationAck>;
-  /** Realtime client for host events (socket-backed standalone, bridge-backed in arcade embeds) */
-  socket: AirJamRealtimeClient;
+  /** Frees a player's seat and closes their phone for good. */
+  removeController: (controllerId: string) => void;
+  /** Ends the room for every device and opens a fresh empty room for this host. */
+  resetRoom: () => void;
+  /** The room session while the host runs; null before it starts. */
+  room: HostRoom | null;
   /** The game's simulation clock, or null when the game declares no simulation. */
   simulation: SimulationClock<
     unknown,
@@ -168,9 +159,9 @@ export interface AirJamHostApi {
 export interface AirJamHostState {
   roomId: RoomCode | null;
   connectionStatus: ConnectionStatus;
-  players: PlayerProfile[];
-  controllers: ControllerPresenceNotice[];
+  players: AirJamPlayer[];
   lastError?: string;
+  queuePosition: number | null;
   mode: RunMode;
   runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
@@ -184,15 +175,14 @@ export type AirJamHostRuntimeControls = Pick<
   | "pauseRuntime"
   | "resumeRuntime"
   | "setRuntimeState"
-  | "sendState"
   | "sendSignal"
-  | "reconnect"
   | "removeController"
   | "resetRoom"
-  | "socket"
+  | "room"
   | "simulation"
 > & {
   setObservationCapture: HostRuntime["setObservationCapture"];
+  playSoundOnControllers: HostRuntime["playSoundOnControllers"];
   settings: HostRuntime["settings"];
 };
 
@@ -200,8 +190,8 @@ const toHostState = (state: AirJamConnectionState): AirJamHostState => ({
   roomId: state.roomId,
   connectionStatus: state.connectionStatus,
   players: state.players,
-  controllers: state.controllerSessions,
   lastError: state.lastError,
+  queuePosition: state.queuePosition,
   mode: state.mode,
   runtimeState: state.runtimeState,
   controllerOrientation: state.controllerOrientation,

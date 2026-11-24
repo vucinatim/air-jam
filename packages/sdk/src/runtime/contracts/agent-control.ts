@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { agentContractDescriptionSchema } from "../../agent/agent-evaluator";
 import { airJamSettingsValuesSchema } from "../../core/settings";
-import { roomCodeSchema } from "../../protocol/core";
-import { airJamActionInvocationResultSchema } from "../../protocol/sync";
+import { airJamActionInvocationResultSchema } from "../../protocol/actions";
 import { isRpcSerializable } from "../../utils/is-rpc-serializable";
 import {
   hostObservationRequestSchema,
@@ -12,6 +11,7 @@ import {
 import { clipFrameIntervalSchema, clipReadSchema } from "./clip";
 import { hostInputLogPageSchema, inputLogCutSchema } from "./input-log";
 
+import { roomCodeSchema, seatViewSchema } from "../../room-protocol";
 import { hostTimelineSchema } from "./timeline";
 
 const identity = z.object({
@@ -31,6 +31,8 @@ const actionRequest = identity.extend({
     .optional(),
 });
 export const hostAgentRequestSchema = z.discriminatedUnion("operation", [
+  /** The room's instance and every seat in it, with what kind of device holds each. */
+  z.object({ operation: z.literal("seats"), roomId: roomCodeSchema }).strict(),
   z
     .object({ operation: z.literal("timeline-read"), roomId: roomCodeSchema })
     .strict(),
@@ -116,6 +118,13 @@ export const hostAgentSnapshotSchema = agentContractDescriptionSchema.extend({
 });
 
 export const hostAgentResponseSchema = z.discriminatedUnion("operation", [
+  z
+    .object({
+      operation: z.literal("seats"),
+      instance: z.string().min(1),
+      seats: z.array(seatViewSchema),
+    })
+    .strict(),
   z
     .object({
       operation: z.literal("timeline-read"),

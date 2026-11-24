@@ -14,7 +14,6 @@ export type {
   AirJamDevRuntimeEventDetail,
   AirJamDevRuntimeLogLevel,
 } from "./core/dev-events";
-export { DirectRealtimeClient } from "./core/direct-realtime-client";
 export type {
   AirJamControllerEnvironment,
   AirJamDevLogContext,
@@ -73,6 +72,7 @@ export {
 } from "./core/replay-input-log";
 export {
   acceptAirJamAction,
+  airJamActionResultOf,
   createAirJamStore,
   rejectAirJamAction,
   type AirJamActionAcceptance,
@@ -160,5 +160,3 @@ export {
   defineAirJamTheme,
   type AirJamTheme,
 } from "./core/theme";
-
-export { generateControllerResumeToken } from "./utils/ids";

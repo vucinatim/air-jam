@@ -105,6 +105,23 @@ describe("runtime config validation", () => {
     );
   });
 
+  it("fetches grants from the platform only on Air Jam's hosted rooms", () => {
+    const hostOn = (backendOrigin: string) =>
+      resolveAirJamConfig({
+        topology: resolveRuntimeTopology({
+          runtimeMode: "self-hosted-production",
+          surfaceRole: "host",
+          appOrigin: "https://my-game.example",
+          backendOrigin,
+        }),
+        appId: "aj_app_mine",
+      }).hostGrantEndpoint;
+    expect(hostOn("https://rooms.airjam.io")).toBe(
+      "https://airjam.io/api/airjam/host-grant",
+    );
+    expect(hostOn("https://rooms.my-game.example")).toBeUndefined();
+  });
+
   it("accepts explicit vite env input at the app boundary", () => {
     const runtime = env.vite({
       VITE_AIR_JAM_SERVER_URL: "https://api.example.com",

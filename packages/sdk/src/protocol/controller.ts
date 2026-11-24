@@ -1,138 +1,12 @@
 import { z } from "zod";
+import type { SeatView } from "../room-protocol";
 import type { RoomPlatformSettingsSnapshot } from "../settings/platform-settings";
-import { roomCodeSchema, runtimeStateSchema, type RoomCode } from "./core";
-import type { ErrorCode } from "./errors";
-import { boundedSocketSchema } from "./socket-payload";
 
 export { DEFAULT_ROOM_PLATFORM_SETTINGS } from "../settings/platform-settings";
 
-export const controllerInputSchema = boundedSocketSchema(
-  z.object({
-    roomId: roomCodeSchema,
-    controllerId: z.string().min(3),
-    input: z.record(z.string(), z.unknown()),
-  }),
-  "controller",
-);
-
 export type ControllerInputPayload = Record<string, unknown>;
 
-export interface ControllerInputEvent {
-  roomId: RoomCode;
-  controllerId: string;
-  input: ControllerInputPayload;
-}
-
-export const controllerOrientationSchema = z.enum(["portrait", "landscape"]);
-
-export type ControllerOrientation = z.infer<typeof controllerOrientationSchema>;
-
-export const controllerSourceSchema = z.enum(["phone", "preview", "virtual"]);
-
-export type ControllerSource = z.infer<typeof controllerSourceSchema>;
-
-export const PREVIEW_CONTROLLER_DEVICE_ID_PREFIX = "pd_";
-export const VIRTUAL_CONTROLLER_DEVICE_ID_PREFIX = "aj-mcp-device-";
-
-export const inferControllerSourceFromDeviceId = (
-  deviceId: string | null | undefined,
-): ControllerSource => {
-  const normalized = deviceId?.trim();
-  if (!normalized) {
-    return "phone";
-  }
-  if (normalized.startsWith(PREVIEW_CONTROLLER_DEVICE_ID_PREFIX)) {
-    return "preview";
-  }
-  if (normalized.startsWith(VIRTUAL_CONTROLLER_DEVICE_ID_PREFIX)) {
-    return "virtual";
-  }
-  return "phone";
-};
-
-export const controllerStateSchema = boundedSocketSchema(
-  z.object({
-    roomId: roomCodeSchema,
-    state: z.object({
-      orientation: controllerOrientationSchema.optional(),
-      message: z.string().optional(),
-      roomSettings: z
-        .object({
-          audio: z.object({
-            masterVolume: z.number().min(0).max(1),
-            musicVolume: z.number().min(0).max(1),
-            sfxVolume: z.number().min(0).max(1),
-          }),
-          previewControllers: z.object({
-            activeOpacity: z.number().min(0).max(1),
-          }),
-        })
-        .optional(),
-      runtimeState: runtimeStateSchema.optional(),
-      stateVersion: z.number().int().nonnegative().optional(),
-    }),
-  }),
-  "hostState",
-);
-
-export type ControllerStateMessage = z.infer<typeof controllerStateSchema>;
-
-export type ControllerStatePayload = z.infer<
-  typeof controllerStateSchema
->["state"];
-export type ControllerRoomSettingsState = RoomPlatformSettingsSnapshot;
-
-export const CONTROLLER_INGRESS_KEY_HEADER = "x-airjam-controller-key";
-export const CONTROLLER_INGRESS_ROOM_HEADER = "x-airjam-controller-room";
-
-export const controllerJoinSchema = boundedSocketSchema(
-  z.object({
-    roomId: roomCodeSchema,
-    controllerId: z.string().min(3),
-    /**
-     * Local device/source hint, never authority to resume a controller slot.
-     */
-    deviceId: z.string().min(8).max(128).optional(),
-    nickname: z.string().trim().min(1).max(24).optional(),
-    /** Temporary device label while a local seat plays as this controller. */
-    localSeatLabel: z.string().trim().min(1).max(32).optional(),
-    /** Preset avatar key (platform-defined); optional at join. */
-    avatarId: z.string().trim().min(1).max(48).optional(),
-    capabilityToken: z.string().min(1).optional(),
-    /** Private client-generated secret, persisted before the first join. */
-    resumeCapabilityToken: z.string().min(32).max(128),
-  }),
-  "lifecycle",
-);
-
-export type ControllerJoinPayload = z.infer<typeof controllerJoinSchema>;
-
-export const controllerLeaveSchema = boundedSocketSchema(
-  z.object({
-    roomId: roomCodeSchema,
-    controllerId: z.string().min(3),
-  }),
-  "lifecycle",
-);
-
-export type ControllerLeavePayload = z.infer<typeof controllerLeaveSchema>;
-
-export interface ControllerLeaveAck {
-  ok: boolean;
-  message?: string;
-  code?: ErrorCode | string;
-}
-
-export const controllerSystemSchema = boundedSocketSchema(
-  z.object({
-    roomId: roomCodeSchema,
-    command: z.enum(["exit", "pause", "resume"]),
-  }),
-  "lifecycle",
-);
-
-export type ControllerSystemPayload = z.infer<typeof controllerSystemSchema>;
-
+/** How a player shows: the name, colour and avatar their seat carries. */
 export const playerProfileSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -140,6 +14,12 @@ export const playerProfileSchema = z.object({
   avatarId: z.string().optional(),
 });
 export type PlayerProfile = z.infer<typeof playerProfileSchema>;
+
+/**
+ * A player in the room: the seat the room gave their phone, with its
+ * profile, whether the phone is connected and what kind of device holds it.
+ */
+export type AirJamPlayer = SeatView;
 
 export const playerProfilePatchSchema = z
   .object({
@@ -150,66 +30,4 @@ export const playerProfilePatchSchema = z
 
 export type PlayerProfilePatch = z.infer<typeof playerProfilePatchSchema>;
 
-export const controllerUpdatePlayerProfileSchema = boundedSocketSchema(
-  z
-    .object({
-      roomId: roomCodeSchema,
-      controllerId: z.string().min(3),
-      patch: playerProfilePatchSchema,
-    })
-    .refine(
-      (data) =>
-        data.patch.label !== undefined || data.patch.avatarId !== undefined,
-      { message: "patch must include at least one field" },
-    ),
-  "lifecycle",
-);
-
-export type ControllerUpdatePlayerProfilePayload = z.infer<
-  typeof controllerUpdatePlayerProfileSchema
->;
-
-export interface ControllerUpdatePlayerProfileAck {
-  ok: boolean;
-  message?: string;
-  player?: PlayerProfile;
-  code?: ErrorCode | string;
-}
-
-export interface ControllerJoinAck {
-  ok: boolean;
-  controllerId?: string;
-  roomId?: RoomCode;
-  resumed?: boolean;
-  message?: string;
-  code?: ErrorCode | string;
-  retryAfterSeconds?: number;
-}
-
-export const controllerPrivilegedGrantSchema = z.enum([
-  "system",
-  "play_sound",
-  "action_rpc",
-]);
-
-export type ControllerPrivilegedGrant = z.infer<
-  typeof controllerPrivilegedGrantSchema
->;
-
-export const controllerPrivilegedCapabilitySchema = z.object({
-  token: z.string().min(1),
-  expiresAt: z.number().int().positive(),
-  grants: z.array(controllerPrivilegedGrantSchema).min(1),
-});
-
-export type ControllerPrivilegedCapability = z.infer<
-  typeof controllerPrivilegedCapabilitySchema
->;
-
-export interface ControllerSocketAuthority {
-  roomId: RoomCode;
-  controllerId: string;
-  deviceId: string;
-  joinedAt: number;
-  privilegedGrants: ControllerPrivilegedGrant[];
-}
+export type ControllerRoomSettingsState = RoomPlatformSettingsSnapshot;

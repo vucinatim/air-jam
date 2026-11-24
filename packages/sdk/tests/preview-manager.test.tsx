@@ -199,7 +199,7 @@ describe("usePreviewControllerManager", () => {
     expect(secondSession?.active).toBe(false);
   });
 
-  it("gives concurrent preview sessions distinct controller and device identities", () => {
+  it("gives concurrent preview sessions distinct device identities and records the seat each reports", () => {
     const { result } = renderHook(() =>
       usePreviewControllerManager({
         joinUrl: "https://platform.example/controller?room=ROOM1",
@@ -213,9 +213,23 @@ describe("usePreviewControllerManager", () => {
     });
 
     expect(result.current.sessions).toHaveLength(2);
-    expect(result.current.sessions[0]?.controllerId).not.toBe(
-      result.current.sessions[1]?.controllerId,
-    );
+    const [first] = result.current.sessions;
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          origin: new URL(first!.url).origin,
+          data: {
+            type: "airjam.preview.seat",
+            deviceId: first!.deviceId,
+            seat: "p1",
+          },
+        }),
+      );
+    });
+    expect(result.current.sessions.map((session) => session.seat)).toEqual([
+      "p1",
+      null,
+    ]);
     expect(result.current.sessions[0]?.deviceId).not.toBe(
       result.current.sessions[1]?.deviceId,
     );

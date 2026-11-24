@@ -27,18 +27,13 @@ import type { AirJamConnectionState } from "../core/connection-store";
 import type { ControllerInput } from "../core/controller-input";
 import { createAirJamDiagnosticError } from "../diagnostics";
 import type {
+  AirJamPlayer,
   ConnectionStatus,
-  ControllerLeaveAck,
-  ControllerOrientation,
-  ControllerRoomSettingsState,
-  ControllerStatePayload,
-  ControllerUpdatePlayerProfileAck,
-  PlayerProfile,
   PlayerProfilePatch,
   RoomCode,
-  RuntimeState,
 } from "../protocol";
-import type { AirJamRealtimeClient } from "../runtime/realtime-client";
+import type { ControllerOrientation, RuntimeState } from "../room-protocol";
+import type { PhoneRoomSession } from "../room-session/phone-room-session";
 import { controllerRuntimeContext } from "../runtime/runtime-owner-contexts";
 
 /**
@@ -73,27 +68,13 @@ export interface AirJamControllerOptions {
   roomId?: string;
   /**
    * Player nickname to display in the game.
-   * If not provided, the server assigns a random label.
+   * If not provided, the room names the player "Player N".
    */
   nickname?: string;
   /**
    * Preset avatar id sent on join (optional).
    */
   avatarId?: string;
-  /**
-   * Controller ID for this instance.
-   * Auto-generated if not provided. Persists across reconnects.
-   */
-  controllerId?: string;
-  /**
-   * Optional privileged controller capability token.
-   * Undefined falls back to `aj_controller_cap` from the URL; null explicitly disables URL token use.
-   */
-  capabilityToken?: string | null;
-  /**
-   * Called when the host sends a state update (game state, messages, etc.)
-   */
-  onState?: (state: ControllerStatePayload) => void;
 }
 
 /**
@@ -106,7 +87,7 @@ export interface AirJamControllerApi {
   input: ControllerInput | null;
   /** Room code this controller is connected to (or attempting to join) */
   roomId: RoomCode | null;
-  /** This controller's unique ID */
+  /** This player's seat id (`p1`, `p2`…), given by the room; null until it welcomes the phone */
   controllerId: string | null;
   /** Current connection status */
   connectionStatus: ConnectionStatus;
@@ -116,10 +97,6 @@ export interface AirJamControllerApi {
   runtimeState: RuntimeState;
   /** Intended controller presentation orientation for the active game UI. */
   controllerOrientation: ControllerOrientation;
-  /** Optional message from the host (e.g., "Get Ready!") */
-  stateMessage?: string;
-  /** Current host-owned room settings mirrored onto the controller. */
-  roomSettings: ControllerRoomSettingsState;
   /**
    * Send a system command to the host.
    *
@@ -129,7 +106,7 @@ export interface AirJamControllerApi {
    * controller.sendSystemCommand("resume");
    * ```
    */
-  sendSystemCommand: (command: "exit" | "pause" | "resume") => void;
+  sendSystemCommand: (command: "pause" | "resume") => void;
   /**
    * Update the player nickname (local draft for next join).
    */
@@ -139,23 +116,19 @@ export interface AirJamControllerApi {
    */
   setAvatarId: (value: string) => void;
   /**
-   * Patch display name and/or avatar on the server without reconnecting.
-   * In Arcade (embedded iframe), updates are forwarded through the controller bridge; the room
-   * still learns the new name via `server:playerUpdated` (ack payload is not round-tripped).
+   * Changes the display name and/or avatar without reconnecting; every
+   * device learns it from the room. False when the patch is invalid or there
+   * is no seat yet.
    */
-  updatePlayerProfile: (
-    patch: PlayerProfilePatch,
-  ) => Promise<ControllerUpdatePlayerProfileAck>;
-  /** Explicitly leave the current room and release the controller binding. */
-  leave: () => Promise<ControllerLeaveAck>;
-  /** Force reconnection to the room */
-  reconnect: () => void;
+  updatePlayerProfile: (patch: PlayerProfilePatch) => boolean;
+  /** Gives the seat up for good and forgets it on this device. */
+  leave: () => void;
   /** List of all connected players in the room */
-  players: PlayerProfile[];
+  players: AirJamPlayer[];
   /** This controller's current player profile when known. */
-  selfPlayer: PlayerProfile | null;
-  /** Realtime client for controller events (socket-backed standalone, bridge-backed in arcade embeds) */
-  socket: AirJamRealtimeClient | null;
+  selfPlayer: AirJamPlayer | null;
+  /** The seat's session while the controller runs; null before it starts or without a room. */
+  session: PhoneRoomSession | null;
 }
 
 export interface AirJamControllerState {
@@ -165,10 +138,8 @@ export interface AirJamControllerState {
   lastError?: string;
   runtimeState: RuntimeState;
   controllerOrientation: ControllerOrientation;
-  stateMessage?: string;
-  roomSettings: ControllerRoomSettingsState;
-  players: PlayerProfile[];
-  selfPlayer: PlayerProfile | null;
+  players: AirJamPlayer[];
+  selfPlayer: AirJamPlayer | null;
 }
 
 export type AirJamControllerRuntimeControls = Pick<
@@ -178,8 +149,7 @@ export type AirJamControllerRuntimeControls = Pick<
   | "setAvatarId"
   | "updatePlayerProfile"
   | "leave"
-  | "reconnect"
-  | "socket"
+  | "session"
   | "input"
 >;
 
@@ -197,8 +167,6 @@ const toControllerState = (
     lastError: state.lastError,
     runtimeState: state.runtimeState,
     controllerOrientation: state.controllerOrientation,
-    stateMessage: state.stateMessage,
-    roomSettings: state.roomSettings,
     players: state.players,
     selfPlayer,
   };

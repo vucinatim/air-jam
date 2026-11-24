@@ -85,15 +85,17 @@ export {
 } from "./lifecycle";
 export type { AirJamActionInvocationResult } from "./protocol";
 export type {
-  ControllerOrientation,
+  AirJamPlayer,
   PlayerProfile,
   PlayerProfilePatch,
 } from "./protocol/controller";
-export type { ConnectionStatus, RuntimeState } from "./protocol/core";
+export type { ConnectionStatus } from "./protocol/core";
 export type {
+  ControllerOrientation,
   HapticSignalPayload,
+  RuntimeState,
   ToastSignalPayload,
-} from "./protocol/signals";
+} from "./room-protocol";
 
 export {
   type AirJamErrorFallbackRenderProps,

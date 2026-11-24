@@ -32,21 +32,17 @@ export const HostPreviewControllerWorkspace = ({
   });
   const joinUrl =
     host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;
-  const handleResetRoom = async () => {
-    const ack = await host.resetRoom();
-    if (!ack.ok || typeof window === "undefined") {
-      return ack;
-    }
-
+  // A fresh room starts the game afresh too.
+  const handleResetRoom = () => {
+    host.resetRoom();
     window.location.reload();
-    return ack;
   };
 
   return (
     <PreviewControllerWorkspace
       enabled={resolvedEnabled}
       joinUrl={joinUrl}
-      controllers={host.controllers}
+      players={host.players}
       onRemoveController={host.removeController}
       onResetRoom={handleResetRoom}
       onActiveOpacityChange={(activeOpacity) =>
