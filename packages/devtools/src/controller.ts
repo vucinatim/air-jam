@@ -823,13 +823,13 @@ export const resolveControllerSessionGameRuntime = async ({
 const followRoom = (session: InternalControllerSession): void => {
   const room = session.room;
   room.on("status", (status) => {
+    // Connected means the room link is open now; a reconnecting phone is not.
+    session.summary.connected = status.phase === "open";
     if (status.phase === "open") {
-      session.summary.connected = true;
       session.summary.controllerId = room.seat ?? session.summary.controllerId;
       return;
     }
     if (status.phase !== "closed") return;
-    session.summary.connected = false;
     session.summary.disconnectedAt = nowIso();
     session.summary.disconnectReason = status.reason;
     if (status.reason !== "owner" && status.reason !== "left")

@@ -365,6 +365,25 @@ describe("isolated runtime controller handoff", () => {
     expect(closeScopedProcess).toHaveBeenCalledWith(spawnedOwners[0]);
   });
 
+  it("reports a controller whose link dropped as not connected while it reconnects", async () => {
+    const { connectController, disconnectController, readRuntimeSnapshot } =
+      await import("../src/controller.js");
+    const session = await connectController({
+      cwd: "/tmp/solo",
+      controllerJoinUrl: defaultOwnedJoinUrl,
+      timeoutMs: 1000,
+    });
+    expect(session.connected).toBe(true);
+    dropPhones();
+    const dropped = await readRuntimeSnapshot({
+      controllerSessionId: session.controllerSessionId,
+    });
+    expect(dropped.connected).toBe(false);
+    await disconnectController({
+      controllerSessionId: session.controllerSessionId,
+    });
+  });
+
   it("fails capture when its acting controller disconnects instead of returning stale images", async () => {
     const {
       captureControllerSessionVisuals,
