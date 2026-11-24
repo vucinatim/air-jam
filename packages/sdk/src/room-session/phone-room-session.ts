@@ -296,12 +296,17 @@ export class PhoneRoomSession {
     );
     if (due === null) return;
     const clock = this.link.clock;
-    if (due <= clock.now()) {
+    // Behind a stalled network, input waits until the link drains and then
+    // sends only the latest controls, rather than queueing stale ones.
+    const ready = this.link.buffered
+      ? clock.now() + this.currentLimits.inputIntervalMs
+      : due;
+    if (ready <= clock.now()) {
       const frame = lane.take(clock.now());
       if (frame) this.link.send(frame);
       return;
     }
-    this.cancelInput = clock.at(due, () => {
+    this.cancelInput = clock.at(ready, () => {
       this.cancelInput = null;
       this.pumpInput();
     });

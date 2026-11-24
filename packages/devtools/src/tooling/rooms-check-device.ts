@@ -12,7 +12,7 @@ import {
 } from "@air-jam/sdk/room-session";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { createCheckConnector } from "../rooms-check-link.js";
+import { CheckNetwork, createCheckConnector } from "../rooms-check-link.js";
 import {
   deviceCommandSchema,
   sharedNow,
@@ -59,10 +59,13 @@ const grant = (id: number) => {
   resolve();
 };
 
+const network = new CheckNetwork();
+
 const connectorFor = (link: DeviceLink, onDialing: () => void): RoomConnector =>
   createCheckConnector({
     url: link.url,
     origin: link.origin,
+    network,
     dial,
     onDialing,
     onProblem: (problem) =>
@@ -251,6 +254,7 @@ const metered =
         traffic.bytesIn += size(data);
         link.send(data);
       },
+      buffered: () => link.buffered(),
       close: () => link.close(),
     };
   };
@@ -443,6 +447,8 @@ process.on("message", (message: unknown) => {
       return runPhone(command);
     case "press":
       return tap?.();
+    case "network":
+      return command.stalled ? network.stall() : network.resume();
     case "dial":
       return grant(command.id);
     case "load":

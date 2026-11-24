@@ -48,6 +48,7 @@ export const createLoopbackConnector =
           if (!serverClosed && !clientClosed) server?.receive(delivered);
         });
       },
+      buffered: () => false,
       close: () => {
         if (clientClosed) return;
         clientClosed = true;

@@ -54,6 +54,7 @@ it("passes every room acceptance scenario against the Node room server", async (
     connectionsPerMinute: 6_000,
     scenarios: ROOMS_CHECK_SCENARIOS,
     briefFreezeMs: 1_500,
+    stallMs: 4_000,
     idleMs: 8_000,
     crowdDurationMs: 2_000,
     load: { rooms: 4, phonesPerRoom: 4, durationMs: 2_000, workers: 1 },

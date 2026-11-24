@@ -143,7 +143,8 @@ A phone frame is the kind byte `1` and those bytes: a stick and two buttons
 are 5 bytes. The host unwraps press counters against the state it last
 decoded for the seat, so a tap is never lost or doubled.
 
-The room checks the frame's length and rate and forwards a host frame: the
+The room checks the frame's length and rate (see the Limits rule) and
+forwards a host frame: the
 kind byte `1`, then per record two bytes of seat number (big-endian), one byte
 of length and the control bytes. A host that pays per message may join records
 that arrive together into one frame; the room never waits to batch. Input is
@@ -183,18 +184,39 @@ plain object; punctuation is not counted. A channel may weigh at most
 
 ## Rules
 
-| Rule       | What the room does                                                                                                                                                                                                   |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Seats      | Ids `p1`, `p2`… in join order, never reused in a room. A free colour, the profile, or "Player N".                                                                                                                    |
-| Admission  | A new player is refused as `full` before the host has said how many seats it wants, beyond them (held seats count) or while `locked`; a returning key is not.                                                        |
-| Seat hold  | A dropped phone's seat is shown disconnected and held for `seatHoldMs` (two minutes; zero for agents), then freed.                                                                                                   |
-| Host grace | A dropped host keeps its room for `hostGraceMs` (60 seconds); phones are told the screen is away. Then the room closes.                                                                                              |
-| Routing    | Input and requests go to the host stamped with the seat; responses and signals go to the seats they name.                                                                                                            |
-| Limits     | Per connection and lane, in one-second windows: over-rate and malformed frames are dropped and counted, and more than `strikesPerSecond` closes the connection. A frame or document over its size closes it at once. |
-| Lifecycle  | The host's `end`, the host grace, `maximumAgeMs` and the operator's stop close the room and every connection.                                                                                                        |
+| Rule       | What the room does                                                                                                                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Seats      | Ids `p1`, `p2`… in join order, never reused in a room. A free colour, the profile, or "Player N".                                                                                                          |
+| Admission  | A new player is refused as `full` before the host has said how many seats it wants, beyond them (held seats count) or while `locked`; a returning key is not.                                              |
+| Seat hold  | A dropped phone's seat is shown disconnected and held for `seatHoldMs` (two minutes; zero for agents), then freed.                                                                                         |
+| Host grace | A dropped host keeps its room for `hostGraceMs` (60 seconds); phones are told the screen is away. Then the room closes.                                                                                    |
+| Routing    | Input and requests go to the host stamped with the seat; responses and signals go to the seats they name.                                                                                                  |
+| Limits     | See [Rates and floods](#rates-and-floods). Frames that do not parse are struck, and more than `strikesPerSecond` in one second closes the connection. A frame or document over its size closes it at once. |
+| Lifecycle  | The host's `end`, the host grace, `maximumAgeMs` and the operator's stop close the room and every connection.                                                                                              |
 
 Deadlines are applied whenever the room is called, so a late timer never lets
 a device do something the rules say has expired.
+
+### Rates and floods
+
+A phone whose network stalls delivers what it sent meanwhile in one burst
+when the network returns, so the room tells a backlog from a flood by how
+much a connection sends over time, not by how its frames arrive.
+
+- **Over rate.** Each lane (input, state, other text frames) admits its rate
+  per connection in one-second windows. A frame past it is dropped without
+  blame. For input the latest state wins: the room holds a phone's newest
+  input that arrived over the rate and forwards it when the window ends, and
+  press counters carry the taps in between. A dropped state patch heals
+  through `need`; a dropped request goes unanswered and resolves
+  `unconfirmed`.
+- **Flood.** Every arrival, admitted or not, spends the lane's flood
+  allowance. It starts at ten seconds of the lane's rate, earns twice the
+  rate each second and holds at most thirty seconds of it. A backlog was
+  earned while the connection was silent, so it never closes a phone; a
+  connection that keeps sending well over its rate runs the allowance out
+  and closes as `limits-broken` within seconds (under two at ten times the
+  rate), so a hosted front door does not pay for long for frames it drops.
 
 ### Close codes
 
@@ -213,7 +235,7 @@ visible.
 | `full`                | 4005 | yes      | No seat for a new player                            |
 | `unauthorised`        | 4006 | yes      | The host key or credential is wrong                 |
 | `unsupported-version` | 4007 | yes      | The `hello` could not be read                       |
-| `limits-broken`       | 4008 | yes      | Too large, or too many dropped frames               |
+| `limits-broken`       | 4008 | yes      | Too large, unreadable, or flooding                  |
 | `restarting`          | 4100 | no       | The server is shutting down or cannot read its room |
 | `try-later`           | 4101 | no       | Admission is unavailable for now                    |
 
@@ -263,7 +285,9 @@ every SDK surface behaves the same.
   same channel and name still waits. Requests made while the link is down
   are sent once the room welcomes the session again.
 - **Input.** As in [Input](#input). Edges are kept at least the room's input
-  rate apart.
+  rate apart. While the link still holds data sent earlier (a WebSocket's
+  `bufferedAmount` above zero), input waits and only the latest controls go
+  once it drains, so a stall queues no stale input.
 - **State.** A host publishes whole documents; the session sends the patch
   from the room's copy, or the document when the room holds none, asks with
   `need`, the fingerprint or private field changed, or the patch would weigh

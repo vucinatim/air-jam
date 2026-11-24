@@ -53,6 +53,8 @@ export interface RoomsCheckOptions {
   readonly scenarios?: readonly RoomsCheckScenario[];
   /** A lock shorter than any server's liveness window, which must not cost the seat. */
   readonly briefFreezeMs?: number;
+  /** How long a phone's network stalls while its player keeps pressing. */
+  readonly stallMs?: number;
   /** How long the background-host room sits idle. */
   readonly idleMs?: number;
   readonly crowdDurationMs?: number;
@@ -265,7 +267,10 @@ const seatDropped = (host: Device, seat: string, from: number) =>
 type ScenarioContext = {
   readonly fleet: Fleet;
   readonly options: Required<
-    Pick<RoomsCheckOptions, "briefFreezeMs" | "idleMs" | "crowdDurationMs">
+    Pick<
+      RoomsCheckOptions,
+      "briefFreezeMs" | "stallMs" | "idleMs" | "crowdDurationMs"
+    >
   > & {
     readonly load: Required<RoomsCheckLoadOptions>;
   };
@@ -384,6 +389,48 @@ const scenarios: Record<RoomsCheckScenario, Scenario> = {
       throw new ScenarioFailure("The seat changed hands back and forth.");
     await firstInputAfter(room.host, wifi.seat, sharedNow() - 1_000);
     return { takeoverMs: cellular.joinMs };
+  },
+
+  /**
+   * A phone's network stalls while its player keeps pressing; when it
+   * returns, the backlog arrives in one burst. The phone keeps its link and
+   * seat, and its input flows again.
+   */
+  "network-stall": async ({ fleet, options }) => {
+    const room = await openRoom(fleet, { phones: 1, inputsPerSecond: 60 });
+    const [phone] = room.phones;
+    if (!phone) throw new ScenarioFailure("No phone joined.");
+    const stalledAt = sharedNow();
+    phone.device.send({ type: "network", stalled: true });
+    await wait(options.stallMs);
+    const resumedAt = sharedNow();
+    phone.device.send({ type: "network", stalled: false });
+    const arrived = await firstInputAfter(room.host, phone.seat, resumedAt);
+    await wait(3_000);
+    const lostLink = phone.device
+      .since("status", stalledAt)
+      .find((event) => event.status.phase !== "open");
+    if (lostLink)
+      throw new ScenarioFailure(
+        `The phone went ${lostLink.status.phase}${lostLink.status.reason ? ` (${lostLink.status.reason})` : ""} after a ${options.stallMs} ms stall.`,
+      );
+    if (seatDropped(room.host, phone.seat, stalledAt))
+      throw new ScenarioFailure("The host saw the seat drop during the stall.");
+    const input = measureInput(
+      room.host,
+      [phone],
+      resumedAt + 1_500,
+      sharedNow() - 500,
+    );
+    if (input.pressed === 0 || input.lost > 0)
+      throw new ScenarioFailure(
+        `${input.lost} of ${input.pressed} presses after the stall never reached the host.`,
+      );
+    return {
+      stallMs: options.stallMs,
+      resumeToInputMs: arrived - resumedAt,
+      inputAfter: input.latency,
+    };
   },
 
   /** Two tabs join with one key at once: one seat, and the older tab stops. */
@@ -656,6 +703,7 @@ export const runRoomsCheck = async (
   };
   const resolved: ScenarioContext["options"] = {
     briefFreezeMs: options.briefFreezeMs ?? 5_000,
+    stallMs: options.stallMs ?? 10_000,
     idleMs: options.idleMs ?? 60_000,
     crowdDurationMs: options.crowdDurationMs ?? 10_000,
     load: {

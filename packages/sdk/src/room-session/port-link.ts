@@ -63,6 +63,7 @@ export const createPortConnector = (port: MessagePort): RoomConnector => {
       send: (data) => {
         if (links.has(link)) post({ link, data });
       },
+      buffered: () => false,
       close: () => {
         if (links.delete(link)) post({ link, close: true });
       },

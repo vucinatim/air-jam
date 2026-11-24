@@ -8,8 +8,8 @@ import {
   createLoopbackConnector,
   type RoomClock,
 } from "@air-jam/sdk/room-session";
-import { createOpenRoomGate, type RoomGate } from "../../src/room/gate.js";
 import { MemoryRoomHost } from "../../src/room-host/memory-room-host.js";
+import { createOpenRoomGate, type RoomGate } from "../../src/room/gate.js";
 
 /** Lets every queued microtask, loopback delivery and gate decision run. */
 export const settle = () =>
@@ -55,6 +55,8 @@ interface NetworkLink {
   break(): void;
   /** The room's frames stop arriving, as on a silently dead connection. */
   mute(): void;
+  /** Sent data stays buffered on the device while true, as behind a stalled network. */
+  stalled: boolean;
 }
 
 /**
@@ -74,8 +76,9 @@ export const createNetwork = (acceptor: RoomAcceptor) => {
     };
     const link = loopback(address, watched);
     const sent: RoomWireData[] = [];
-    links.push({
+    const watch: NetworkLink = {
       sent,
+      stalled: false,
       break: () => {
         broken = true;
         link.close();
@@ -84,12 +87,14 @@ export const createNetwork = (acceptor: RoomAcceptor) => {
       mute: () => {
         muted = true;
       },
-    });
+    };
+    links.push(watch);
     return {
       send: (data) => {
         sent.push(data);
         link.send(data);
       },
+      buffered: () => watch.stalled,
       close: () => link.close(),
     };
   };

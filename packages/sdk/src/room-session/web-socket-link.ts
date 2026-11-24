@@ -47,6 +47,7 @@ export const createWebSocketConnector = (origin: string): RoomConnector => {
       send: (data) => {
         if (socket.readyState === WebSocket.OPEN) socket.send(data);
       },
+      buffered: () => socket.bufferedAmount > 0,
       close: () => {
         closedHere = true;
         socket.close(1000);

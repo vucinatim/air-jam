@@ -233,6 +233,31 @@ describe("room sessions over a loopback room", () => {
     expect(inputFrames()).toHaveLength(3);
   });
 
+  it("holds input behind a stalled link and sends only the latest once it drains", async () => {
+    const { clock, network, join } = await openRoom();
+    const player = join();
+    await clock.advance();
+    const link = network.links.at(-1);
+    if (!link) throw new Error("The phone has no link.");
+    const inputFrames = () =>
+      link.sent.filter((data): data is Uint8Array => typeof data !== "string");
+
+    link.stalled = true;
+    for (let presses = 1; presses <= 5; presses += 1) {
+      player.sendInput(controlsAt(0, presses, presses % 2 === 1));
+      await clock.advance(50);
+    }
+    expect(inputFrames()).toHaveLength(0);
+
+    link.stalled = false;
+    await clock.advance(16);
+    expect(inputFrames()).toEqual([
+      encodePhoneInputFrame(
+        encodeInputPayload(controls, controlsAt(0, 5, true)),
+      ),
+    ]);
+  });
+
   it("replaces a link that stops answering, and reconnects at once when the device wakes", async () => {
     const { clock, network, join } = await openRoom();
     let wake = () => {};

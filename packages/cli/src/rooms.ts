@@ -16,6 +16,7 @@ const optionsSchema = z.object({
   hostCredentialCommand: z.string().min(1).optional(),
   connectionsPerMinute: positive.optional(),
   briefFreezeMs: positive.optional(),
+  stallMs: positive.optional(),
   idleMs: positive.optional(),
   crowdDurationMs: positive.optional(),
   loadRooms: positive.optional(),
@@ -80,6 +81,10 @@ export function registerRoomsCommand(program: Command) {
       "A phone lock shorter than the server's liveness window (default 5000)",
     )
     .option(
+      "--stall-ms <ms>",
+      "How long a phone's network stalls while it keeps pressing (default 10000)",
+    )
+    .option(
       "--idle-ms <ms>",
       "How long the background-host room idles (default 60000)",
     )
@@ -108,6 +113,7 @@ export function registerRoomsCommand(program: Command) {
         connectionsPerMinute: options.connectionsPerMinute,
         scenarios: options.scenario,
         briefFreezeMs: options.briefFreezeMs,
+        stallMs: options.stallMs,
         idleMs: options.idleMs,
         crowdDurationMs: options.crowdDurationMs,
         load: {

@@ -477,13 +477,17 @@ describe("room core", () => {
       ).toEqual([]);
     });
 
-    it("drops input over the rate until the next second", () => {
+    it("holds the latest input over the rate and delivers it when the second ends", () => {
       const room = ready(1, { inputsPerSecond: 2 });
-      const forwarded = [0, 1, 2].flatMap((tick) =>
-        binary(room.receive("c1", INPUT, tick), "host"),
+      const latest = new Uint8Array([1, 9, 9, 129, 0]);
+      const forwarded = [INPUT, INPUT, INPUT, latest].flatMap((input, tick) =>
+        binary(room.receive("c1", input, tick), "host"),
       );
       expect(forwarded).toHaveLength(2);
-      expect(binary(room.receive("c1", INPUT, SECOND), "host")).toHaveLength(1);
+      expect(room.nextWake()).toBe(SECOND);
+      expect(binary(room.wake(SECOND), "host")).toEqual([
+        [1, 0, 1, 4, 9, 9, 129, 0],
+      ]);
     });
 
     it("ends a phone that sends more control bytes than the limit", () => {
@@ -840,6 +844,33 @@ describe("room core", () => {
       expect(sent(room.receive("c1", request(3), SECOND), "host")).toHaveLength(
         1,
       );
+    });
+
+    it("lets a stalled phone's backlog arrive at once without closing it", () => {
+      const room = ready(1);
+      const last = new Uint8Array([1, 9, 9, 129, 0]);
+      const stalledFor = 20 * SECOND;
+      const backlog = DEFAULT_ROOM_LIMITS.inputsPerSecond * 20;
+      const effects = Array.from({ length: backlog }, (_, index) =>
+        room.receive("c1", index === backlog - 1 ? last : INPUT, stalledFor),
+      ).flat();
+      expect(closes(effects)).toEqual({});
+      expect(binary(effects, "host")).toHaveLength(
+        DEFAULT_ROOM_LIMITS.inputsPerSecond,
+      );
+      expect(binary(room.wake(stalledFor + SECOND), "host")).toEqual([
+        [1, 0, 1, 4, 9, 9, 129, 0],
+      ]);
+    });
+
+    it("ends a connection that keeps sending far over its rate within seconds", () => {
+      const room = ready(1);
+      let closedAt: number | null = null;
+      for (let tick = 0; closedAt === null && tick < 10 * SECOND; tick += 1)
+        if (closes(room.receive("c1", INPUT, tick)).c1 === "limits-broken")
+          closedAt = tick;
+      expect(closedAt).not.toBeNull();
+      expect(closedAt).toBeLessThan(2 * SECOND);
     });
 
     it("ends a connection whose frame is larger than its lane allows", () => {

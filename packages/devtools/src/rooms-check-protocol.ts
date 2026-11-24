@@ -44,6 +44,8 @@ export const deviceCommandSchema = z.discriminatedUnion("type", [
   }),
   /** An idle phone taps once. */
   z.object({ type: z.literal("press") }),
+  /** The device's network stalls, holding every byte both ways, or comes back. */
+  z.object({ type: z.literal("network"), stalled: z.boolean() }),
   /** The connection the device asked to open with `dial` may open now. */
   z.object({ type: z.literal("dial"), id: z.number().int() }),
   z.object({
@@ -173,6 +175,7 @@ export const ROOMS_CHECK_SCENARIOS = [
   "phone-brief-freeze",
   "phone-long-freeze",
   "network-switch",
+  "network-stall",
   "duplicate-join",
   "host-reload",
   "host-gone",

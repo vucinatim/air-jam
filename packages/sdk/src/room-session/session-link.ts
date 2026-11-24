@@ -130,6 +130,11 @@ export class SessionLink {
     return this.welcomed;
   }
 
+  /** True while the link still holds data sent earlier, so fresher data should wait instead of queueing behind it. */
+  get buffered(): boolean {
+    return this.link?.buffered() ?? false;
+  }
+
   start(): void {
     const wakeEvents =
       this.options.deviceWakeEvents === undefined

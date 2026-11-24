@@ -10,6 +10,8 @@ export type RoomWireData = string | Uint8Array;
  */
 export interface RoomLink {
   send(data: RoomWireData): void;
+  /** True while data sent earlier still waits to leave this device, as behind a stalled network. */
+  buffered(): boolean;
   /** Ends the link from the client's side; its `close` handler is not called. */
   close(): void;
 }

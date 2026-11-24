@@ -1,12 +1,45 @@
 import {
   roomCloseReasonForCode,
   type RoomConnector,
+  type RoomWireData,
 } from "@air-jam/sdk/room-protocol";
 import { roomSocketUrls } from "@air-jam/sdk/room-session";
 import WebSocket from "ws";
 import type { LinkProblem } from "./rooms-check-protocol.js";
 
 const HANDSHAKE_TIMEOUT_MS = 10_000;
+
+interface Stallable {
+  stall(): void;
+  resume(): void;
+}
+
+/**
+ * The device's network as the check controls it. A stall holds every byte
+ * both ways, as a dead cell does: nothing is read, and what the device sends
+ * waits where the device cannot see it, as in the system's socket buffer,
+ * then leaves in one burst when the network returns.
+ */
+export class CheckNetwork {
+  private readonly links = new Set<Stallable>();
+  private stalled = false;
+
+  attach(link: Stallable): () => void {
+    this.links.add(link);
+    if (this.stalled) link.stall();
+    return () => this.links.delete(link);
+  }
+
+  stall(): void {
+    this.stalled = true;
+    for (const link of this.links) link.stall();
+  }
+
+  resume(): void {
+    this.stalled = false;
+    for (const link of this.links) link.resume();
+  }
+}
 
 export interface CheckConnectorOptions {
   /** The rooms origin under check. */
@@ -18,6 +51,7 @@ export interface CheckConnectorOptions {
   readonly onDialing?: () => void;
   /** A connection failed to open, or closed without this side asking. */
   readonly onProblem: (problem: LinkProblem) => void;
+  readonly network?: CheckNetwork;
 }
 
 /**
@@ -32,6 +66,8 @@ export const createCheckConnector = (
   return (address, handlers) => {
     let socket: WebSocket | null = null;
     let closedHere = false;
+    let held: RoomWireData[] | null = null;
+    let detach = () => {};
     void options.dial().then(() => {
       if (closedHere) return;
       options.onDialing?.();
@@ -52,6 +88,19 @@ export const createCheckConnector = (
       });
       opening.on("open", () => {
         opened = true;
+        detach =
+          options.network?.attach({
+            stall: () => {
+              held ??= [];
+              opening.pause();
+            },
+            resume: () => {
+              opening.resume();
+              const burst = held ?? [];
+              held = null;
+              for (const data of burst) opening.send(data);
+            },
+          }) ?? detach;
         handlers.open();
       });
       opening.on("message", (data, isBinary) => {
@@ -61,6 +110,7 @@ export const createCheckConnector = (
         handlers.message(isBinary ? new Uint8Array(bytes) : bytes.toString());
       });
       opening.on("close", (code) => {
+        detach();
         if (closedHere) return;
         options.onProblem(
           opened
@@ -74,8 +124,10 @@ export const createCheckConnector = (
     });
     return {
       send: (data) => {
-        if (socket?.readyState === WebSocket.OPEN) socket.send(data);
+        if (held) held.push(data);
+        else if (socket?.readyState === WebSocket.OPEN) socket.send(data);
       },
+      buffered: () => (socket?.bufferedAmount ?? 0) > 0,
       close: () => {
         closedHere = true;
         if (socket?.readyState === WebSocket.OPEN) socket.close(1000);

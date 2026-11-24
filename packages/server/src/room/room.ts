@@ -99,6 +99,8 @@ interface RoomCounters {
   states: number;
   requests: number;
   signals: number;
+  /** Frames over their lane's rate; a phone's latest input among them still arrives when the rate allows. */
+  overRate: number;
   strikes: number;
 }
 
@@ -159,8 +161,11 @@ export class Room {
     states: 0,
     requests: 0,
     signals: 0,
+    overRate: 0,
     strikes: 0,
   };
+  /** Each phone's latest input that arrived over its rate, delivered when its rate window ends. */
+  private readonly heldInputs = new Map<ConnectionId, Uint8Array>();
   private hostConnection: ConnectionId | null = null;
   private hostAwayUntil: number | null;
   private activity: string | null;
@@ -335,6 +340,10 @@ export class Room {
     for (const seat of this.seats.values())
       if (seat.holdUntil !== null)
         earliest = Math.min(earliest, seat.holdUntil);
+    for (const connection of this.heldInputs.keys()) {
+      const entry = this.connections.get(connection);
+      if (entry) earliest = Math.min(earliest, entry.budget.windowEndsAt);
+    }
     return earliest;
   }
 
@@ -412,6 +421,16 @@ export class Room {
     for (const seat of [...this.seats.values()])
       if (seat.holdUntil !== null && now >= seat.holdUntil)
         this.freeSeat(seat, "dropped", seat.holdUntil);
+    for (const [connection, frame] of [...this.heldInputs]) {
+      const entry = this.connections.get(connection);
+      if (entry?.role !== "phone") {
+        this.heldInputs.delete(connection);
+        continue;
+      }
+      if (now < entry.budget.windowEndsAt) continue;
+      this.heldInputs.delete(connection);
+      if (entry.budget.fits("input", now)) this.forwardInput(entry, frame);
+    }
   }
 
   private reconnect(live: ReadonlySet<ConnectionId>, now: number): void {
@@ -728,20 +747,38 @@ export class Room {
     if (frame[0] !== INPUT_FRAME_KIND) return;
     if (frame.byteLength - 1 > this.limits.inputBytes)
       return this.breakLimits(connection, entry, now);
-    if (!this.admit(connection, entry, "input", now)) return;
+    const admission = entry.budget.admit("input", now);
+    if (admission === "flooded")
+      return this.breakLimits(connection, entry, now);
+    if (admission === "over-rate") {
+      this.counters.overRate += 1;
+      this.heldInputs.set(connection, frame);
+      return;
+    }
+    this.heldInputs.delete(connection);
+    this.forwardInput(entry, frame);
+  }
+
+  private forwardInput(
+    entry: Extract<Connection, { role: "phone" }>,
+    frame: Uint8Array,
+  ): void {
     if (this.hostConnection === null) return;
     this.counters.inputs += 1;
     this.send(this.hostConnection, encodeHostInputFrame(entry.seat, frame));
   }
 
+  /** A text frame over its rate is dropped: a lost state patch heals through `need`, a lost request times out. */
   private admit(
     connection: ConnectionId,
     entry: Connection,
     lane: FrameLane,
     now: number,
   ): boolean {
-    if (entry.budget.admit(lane, now)) return true;
-    this.strike(connection, entry, now);
+    const admission = entry.budget.admit(lane, now);
+    if (admission === "admitted") return true;
+    if (admission === "flooded") this.breakLimits(connection, entry, now);
+    else this.counters.overRate += 1;
     return false;
   }
 
