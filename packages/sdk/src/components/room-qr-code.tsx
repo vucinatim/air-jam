@@ -28,16 +28,20 @@ export const RoomQrCode = ({
   const qr = useMemo(() => {
     if (!trimmed) return null;
 
-    const { modules } = create(trimmed, { errorCorrectionLevel });
-    let path = "";
-    for (let row = 0; row < modules.size; row += 1) {
-      for (let column = 0; column < modules.size; column += 1) {
-        if (modules.data[row * modules.size + column]) {
-          path += `M${column},${row}h1v1h-1z`;
+    try {
+      const { modules } = create(trimmed, { errorCorrectionLevel });
+      let path = "";
+      for (let row = 0; row < modules.size; row += 1) {
+        for (let column = 0; column < modules.size; column += 1) {
+          if (modules.data[row * modules.size + column]) {
+            path += `M${column},${row}h1v1h-1z`;
+          }
         }
       }
+      return { path, size: modules.size };
+    } catch {
+      return null;
     }
-    return { path, size: modules.size };
   }, [trimmed, errorCorrectionLevel]);
 
   return (

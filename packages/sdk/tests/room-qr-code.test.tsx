@@ -17,3 +17,10 @@ it("renders every dark QR module in an SVG with the requested quiet zone", () =>
     modules.data.reduce((count, module) => count + module, 0),
   );
 });
+
+it("shows QR unavailable when a value exceeds QR capacity", () => {
+  const markup = renderToStaticMarkup(<RoomQrCode value={"x".repeat(3000)} />);
+
+  expect(markup).toContain("QR unavailable");
+  expect(markup).not.toContain("<svg");
+});
