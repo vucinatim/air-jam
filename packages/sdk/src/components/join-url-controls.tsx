@@ -1,4 +1,5 @@
 import type { JSX, ReactNode } from "react";
+import type { JoinUrlStatus } from "../core/connection-store";
 import {
   PHONE_JOIN_UNAVAILABLE_MESSAGE,
   resolvePhoneJoinUrl,
@@ -10,6 +11,7 @@ import { JoinUrlField } from "./join-url-field";
 
 export interface JoinUrlControlsProps {
   value: string | null | undefined;
+  status?: JoinUrlStatus;
   label?: ReactNode;
   helperText?: ReactNode;
   copied?: boolean;
@@ -24,6 +26,7 @@ export interface JoinUrlControlsProps {
 
 export const JoinUrlControls = ({
   value,
+  status = "ready",
   label = "Controller link",
   helperText,
   copied = false,
@@ -39,8 +42,8 @@ export const JoinUrlControls = ({
   // its child host's link carries a private token that never belongs on screen.
   if (isEmbeddedHostRuntime()) return null;
 
-  const joinUrl = resolvePhoneJoinUrl(value);
-  if (!joinUrl)
+  const joinUrl = status === "ready" ? resolvePhoneJoinUrl(value) : null;
+  if (status !== "loading" && !joinUrl)
     return (
       <p className={cn("text-sm text-white/70", className)}>
         {PHONE_JOIN_UNAVAILABLE_MESSAGE}
@@ -52,13 +55,14 @@ export const JoinUrlControls = ({
       <div className="flex flex-col gap-3">
         <JoinUrlField
           value={joinUrl}
+          status={status}
           label={label}
           helperText={helperText}
           className="w-full min-w-0"
           inputClassName={inputClassName}
         />
         <JoinUrlActionButtons
-          hasValue
+          hasValue={Boolean(joinUrl)}
           copied={copied}
           onCopy={onCopy}
           onOpen={onOpen}

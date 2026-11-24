@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { resolveRuntimeTopology } from "@air-jam/sdk/runtime-topology";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildArcadeGameIframeSrc } from "../src/arcade/url";
 import { JoinUrlActionButtons } from "../src/components/join-url-action-buttons";
@@ -9,6 +9,7 @@ import { JoinUrlField } from "../src/components/join-url-field";
 
 describe("join url controls", () => {
   afterEach(() => {
+    cleanup();
     window.history.replaceState(null, "", "/");
   });
 
@@ -32,6 +33,21 @@ describe("join url controls", () => {
         .getAttribute("name"),
     ).toBe("airjam-controller-link");
   });
+
+  it.each([JoinUrlField, JoinUrlControls])(
+    "keeps loading distinct from unavailable",
+    (Component) => {
+      const { rerender } = render(<Component value="" status="loading" />);
+      expect(
+        screen.getByPlaceholderText("Generating join link..."),
+      ).toBeTruthy();
+      expect(screen.queryByText(/Phones cannot join/)).toBeNull();
+
+      rerender(<Component value="" status="unavailable" />);
+      expect(screen.getByText(/Phones cannot join/)).toBeTruthy();
+      expect(screen.queryByRole("textbox")).toBeNull();
+    },
+  );
 
   it("disables copy and open buttons when no join url exists", () => {
     render(<JoinUrlActionButtons hasValue={false} />);

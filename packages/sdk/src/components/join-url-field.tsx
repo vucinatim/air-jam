@@ -1,4 +1,5 @@
 import { useId, type JSX, type ReactNode } from "react";
+import type { JoinUrlStatus } from "../core/connection-store";
 import {
   PHONE_JOIN_UNAVAILABLE_MESSAGE,
   resolvePhoneJoinUrl,
@@ -12,6 +13,7 @@ import {
 
 export interface JoinUrlFieldProps {
   value: string | null | undefined;
+  status?: JoinUrlStatus;
   label?: ReactNode;
   helperText?: ReactNode;
   className?: string;
@@ -22,6 +24,7 @@ export interface JoinUrlFieldProps {
 
 export const JoinUrlField = ({
   value,
+  status = "ready",
   label = "Controller link",
   helperText,
   className,
@@ -29,11 +32,11 @@ export const JoinUrlField = ({
   inputId,
   inputName = "airjam-controller-link",
 }: JoinUrlFieldProps): JSX.Element => {
-  const joinUrl = resolvePhoneJoinUrl(value);
+  const joinUrl = status === "ready" ? resolvePhoneJoinUrl(value) : null;
   const generatedInputId = useId();
   const resolvedInputId = inputId ?? generatedInputId;
 
-  if (!joinUrl)
+  if (status !== "loading" && !joinUrl)
     return (
       <p className={cn(shellHelperTextClassName, className)}>
         {PHONE_JOIN_UNAVAILABLE_MESSAGE}
@@ -50,7 +53,10 @@ export const JoinUrlField = ({
         name={inputName}
         type="text"
         readOnly
-        value={joinUrl}
+        value={joinUrl ?? ""}
+        placeholder={
+          status === "loading" ? "Generating join link..." : undefined
+        }
         aria-label={typeof label === "string" ? label : "Controller join link"}
         className={cn(shellFieldClassName, inputClassName)}
       />

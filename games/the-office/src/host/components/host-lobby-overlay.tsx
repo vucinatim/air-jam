@@ -56,6 +56,7 @@ export function OfficeHostLobbyOverlay({
         <div className="mb-4 w-full">
           <JoinUrlControls
             value={joinControls.joinUrlValue}
+            status={session.host.joinUrlStatus}
             label={
               <span className="text-xs tracking-[0.2em] text-[var(--airjam-color-button)] uppercase">
                 Controller link
@@ -146,6 +147,7 @@ export function OfficeHostLobbyOverlay({
         <JoinQrOverlay
           open={joinControls.joinQrVisible}
           value={joinControls.joinUrlValue}
+          status={session.host.joinUrlStatus}
           roomId={roomId}
           onClose={joinControls.hideJoinQr}
           description="Scan with your phone to join The Office as a controller."

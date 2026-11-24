@@ -48,6 +48,10 @@ For the default path, prefer composing from small SDK UI pieces:
 7. `RoomQrCode`
 8. `HostMuteButton` where host audio mute is needed
 
+`JoinUrlField`, `JoinUrlControls` and `JoinQrOverlay` take `status={host.joinUrlStatus}`.
+Loading keeps the neutral join-link placeholder; unavailable reach shows the short
+explanation without an address or QR.
+
 For shared behavior, prefer the headless hooks:
 
 1. `useHostJoinControls`

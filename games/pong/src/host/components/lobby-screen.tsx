@@ -148,6 +148,7 @@ export const LobbyScreen = () => {
               </div>
               <JoinUrlControls
                 value={joinControls.joinUrlValue}
+                status={host.joinUrlStatus}
                 label="Controller link"
                 copied={joinControls.copied}
                 onCopy={joinControls.handleCopy}
@@ -173,6 +174,7 @@ export const LobbyScreen = () => {
       <JoinQrOverlay
         open={joinControls.joinQrVisible}
         value={joinControls.joinUrlValue}
+        status={host.joinUrlStatus}
         roomId={host.roomId}
         onClose={joinControls.hideJoinQr}
         description="Scan with your phone to join this Pong room as a controller."

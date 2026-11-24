@@ -132,6 +132,7 @@ export const HostLobby = () => {
               </p>
               <JoinUrlControls
                 value={hostJoinControls.joinUrlValue}
+                status={host.joinUrlStatus}
                 label="Controller link"
                 copied={hostJoinControls.copied}
                 onCopy={hostJoinControls.handleCopy}
@@ -301,6 +302,7 @@ export const HostLobby = () => {
         <JoinQrOverlay
           open={hostJoinControls.joinQrVisible}
           value={hostJoinControls.joinUrlValue}
+          status={host.joinUrlStatus}
           roomId={roomId}
           onClose={hostJoinControls.hideJoinQr}
           description="Scan with your phone to join Last Band Standing as a controller."
