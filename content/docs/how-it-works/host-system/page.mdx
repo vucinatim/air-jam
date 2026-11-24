@@ -172,7 +172,8 @@ Opening the room stays automatic:
 
 1. local dev: no credential
 2. hosted rooms: the SDK fetches a short-lived grant from `hostGrantEndpoint`
-   for each room it opens
+   for each room it opens, and sends render-crash reports to the platform
+   unless the app passes its own `reportError`
 3. after a reload, the host returns to its room with its key and keeps its
    players
 

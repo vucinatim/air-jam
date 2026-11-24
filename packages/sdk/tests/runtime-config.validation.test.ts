@@ -3,7 +3,7 @@ import {
   resolveRuntimeTopology,
   runtimeTopologyToQueryParams,
 } from "@air-jam/sdk/runtime-topology";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   onAirJamDiagnostic,
   resetAirJamDiagnosticsForTests,
@@ -120,6 +120,38 @@ describe("runtime config validation", () => {
       "https://airjam.io/api/airjam/host-grant",
     );
     expect(hostOn("https://rooms.my-game.example")).toBeUndefined();
+  });
+
+  it("sends crash reports to the platform only on Air Jam's hosted rooms", () => {
+    const reporterOn = (backendOrigin: string) =>
+      resolveAirJamConfig({
+        topology: resolveRuntimeTopology({
+          runtimeMode: "self-hosted-production",
+          surfaceRole: "controller",
+          appOrigin: "https://my-game.example",
+          backendOrigin,
+        }),
+      }).reportError;
+    const sent: Array<[string, RequestInit | undefined]> = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      sent.push([url, init]);
+      return new Response(null, { status: 202 });
+    });
+    const report = { reportId: "report" } as never;
+    reporterOn("https://rooms.airjam.io")?.(report);
+    expect(sent).toEqual([
+      [
+        "https://airjam.io/api/airjam/runtime-errors",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify(report),
+          credentials: "omit",
+          keepalive: true,
+        }),
+      ],
+    ]);
+    expect(reporterOn("https://rooms.my-game.example")).toBeUndefined();
+    vi.unstubAllGlobals();
   });
 
   it("accepts explicit vite env input at the app boundary", () => {

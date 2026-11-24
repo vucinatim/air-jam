@@ -8,6 +8,7 @@ import type {
 import {
   AIR_JAM_HOSTED_HOST_GRANT_ENDPOINT,
   AIR_JAM_HOSTED_ROOMS_ORIGIN,
+  hostedRuntimeErrorReporter,
 } from "./hosted-rooms";
 
 /** A surface's resolved runtime configuration; environments resolve it. */
@@ -16,7 +17,10 @@ export interface AirJamConfig {
   appId?: string;
   hostGrantEndpoint?: string;
   maxPlayers: number;
-  /** Where runtime error reports go; the development log when absent. */
+  /**
+   * Where runtime error reports go: on Air Jam's hosted rooms the platform
+   * by default, elsewhere the development log when absent.
+   */
   reportError?: RuntimeErrorReporter;
   /** The channel the host publishes its presentation on; a launcher uses its own so its game keeps the default. */
   presentationChannel: string;
@@ -27,9 +31,10 @@ export interface AirJamConfig {
 }
 
 /**
- * The configuration of a surface whose topology is already resolved. A host
- * on Air Jam's hosted rooms fetches its grants from the platform unless told
- * otherwise; a self-hosted server keeps its own gate.
+ * The configuration of a surface whose topology is already resolved. A page
+ * on Air Jam's hosted rooms talks to the platform that runs them unless told
+ * otherwise: a host fetches its grants there and every page sends its crash
+ * reports there. A self-hosted server keeps its own gate and reports.
  */
 export const createAirJamConfig = ({
   topology,
@@ -45,19 +50,21 @@ export const createAirJamConfig = ({
   maxPlayers?: number;
   reportError?: RuntimeErrorReporter;
   presentationChannel?: string;
-}): AirJamConfig => ({
-  topology,
-  appId,
-  hostGrantEndpoint:
-    hostGrantEndpoint ??
-    (topology.socketOrigin === AIR_JAM_HOSTED_ROOMS_ORIGIN
-      ? AIR_JAM_HOSTED_HOST_GRANT_ENDPOINT
-      : undefined),
-  maxPlayers,
-  reportError,
-  presentationChannel,
-  backendOrigin: topology.backendOrigin,
-  socketOrigin: topology.socketOrigin,
-  appOrigin: topology.appOrigin,
-  proxyStrategy: topology.proxyStrategy,
-});
+}): AirJamConfig => {
+  const hosted = topology.socketOrigin === AIR_JAM_HOSTED_ROOMS_ORIGIN;
+  return {
+    topology,
+    appId,
+    hostGrantEndpoint:
+      hostGrantEndpoint ??
+      (hosted ? AIR_JAM_HOSTED_HOST_GRANT_ENDPOINT : undefined),
+    maxPlayers,
+    reportError:
+      reportError ?? (hosted ? hostedRuntimeErrorReporter : undefined),
+    presentationChannel,
+    backendOrigin: topology.backendOrigin,
+    socketOrigin: topology.socketOrigin,
+    appOrigin: topology.appOrigin,
+    proxyStrategy: topology.proxyStrategy,
+  };
+};

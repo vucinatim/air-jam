@@ -136,6 +136,11 @@ game and each account may run 20 hosted rooms at once, inside Air Jam's overall
 limit, so rooms someone else opens under your App ID can crowd yours but never
 grow past those caps.
 
+On hosted rooms, a crash your game's error boundary catches is also reported to
+Air Jam, as its error name and a short digest (never its message, stack or any
+player input), so it shows up with your game's other room records. Pass your own
+`reportError` to send reports elsewhere.
+
 Self-hosted rooms: run the open `air-jam-server` yourself and point `VITE_AIR_JAM_SERVER_URL` at
 it. In production it needs a gate of your own: compose it with
 `createRoomServer({ gate })` from `@air-jam/server/room-server`, or set
