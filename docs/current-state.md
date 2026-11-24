@@ -15,16 +15,22 @@ release gates. The PR budget is 15 machine-minutes total and five per job.
 [Development Check Layers](./working-agreements.md#development-check-layers)
 owns the commands, suite markings and schedule activation requirement.
 
-## Room core — phase 1 in review
+## Room core — phase 2 in review
 
 Rooms are moving to one transport-free core under two hosts (Node and a
 Cloudflare Durable Object) with a compact protocol, in five phases owned by
-the private product's room core architecture plan. Phase 1 is built:
-`@air-jam/sdk/room-protocol` holds the frames, close codes, limits, state
-patches and binary input codec, and `@air-jam/server/room` the synchronous
-`Room` with its gate, limits and facts seams, as the
-[room protocol contract](./contracts/room-protocol-contract.md) describes.
-Nothing consumes them yet; socket.io serves every room until the switch.
+the private product's room core architecture plan. Phase 1 built
+`@air-jam/sdk/room-protocol` (frames, close codes, limits, state patches and
+the binary input codec) and `@air-jam/server/room` (the synchronous `Room`
+with its gate, limits and facts seams). Phase 2 adds the clients and the Node
+host: `@air-jam/sdk/room-session` (host and phone sessions over WebSocket,
+MessagePort and loopback links), `MemoryRoomHost` in `@air-jam/server/room`,
+`createRoomServer` in `@air-jam/server/room-server`, and
+`airjam rooms check <url>`, which runs the hosting plan's edge cases and the
+load scenario against any rooms origin. The
+[room protocol contract](./contracts/room-protocol-contract.md) describes all
+of it. Nothing consumes them yet; socket.io serves every room and
+`air-jam-server start` runs it until the switch.
 
 ## SDK core layering and input — in review
 

@@ -1,9 +1,9 @@
 # Room Protocol Contract
 
 Last updated: 2026-11-24
-Status: built, not yet served. The room core and this protocol exist beside
-today's socket.io server; a Node host and the Durable Object host serve it in
-later phases, and the SDK switches to it in one change that deletes socket.io.
+Status: built and served by the Node room server beside today's socket.io
+server; the Durable Object host serves it in a later phase, and the SDK
+switches to it in one change that deletes socket.io.
 
 Related docs:
 
@@ -22,6 +22,10 @@ things in the public packages are its executable form and win over this text:
 2. `packages/sdk/tests/fixtures/room-protocol-golden-frames.json`: the
    canonical encoding of every frame, including binary input as hex.
 3. `@air-jam/server/room`: the `Room` every host runs.
+4. `@air-jam/sdk/room-session`: the client every SDK runtime uses, which
+   owns the client rules below.
+5. `airjam rooms check <url>`: the acceptance scenarios any rooms origin
+   must pass.
 
 ## Addressing
 
@@ -230,6 +234,41 @@ them per account or app.
 | `hostGraceMs`      | 60,000     |
 | `maximumAgeMs`     | 86,400,000 |
 
+## Clients
+
+A client is a host or phone session. Its rules are the session's own, so
+every SDK surface behaves the same.
+
+- **Links.** A session runs over a link: a WebSocket to a rooms origin, a
+  `MessagePort` a parent page serves (the parent opens each link the frame
+  asks for and passes frames through unchanged), or a loopback into rooms in
+  the same process. A link never calls its handlers synchronously.
+- **Hello.** Every new link starts with `hello`. A host that was given a code
+  returns to `/v1/host/CODE`; after the first `welcome` every hello is a
+  resume that names the instance.
+- **Heartbeat.** A client sends `ping` every 20 seconds and treats a link
+  that has answered nothing 10 seconds later as dead. A host tab whose timers
+  are throttled may send none; the server's protocol-level pings keep it.
+- **Reconnecting.** On a close that is not terminal the session reconnects
+  after a delay that doubles from 250 ms to at most 5 seconds, with jitter
+  over its upper half, and at once when the device comes back online or the
+  page becomes visible. A terminal close ends the session for good.
+- **Requests.** A request resolves `answered`, `refused` (`host-away`),
+  `unconfirmed` when the link dropped after sending it or no answer came in
+  time (5 seconds by default), or `busy` when it is exclusive and one of the
+  same channel and name still waits. Requests made while the link is down
+  are sent once the room welcomes the session again.
+- **Input.** As in [Input](#input). Edges are kept at least the room's input
+  rate apart.
+- **State.** A host publishes whole documents; the session sends the patch
+  from the room's copy, or the document when the room holds none, asks with
+  `need`, the fingerprint or private field changed, or the patch would weigh
+  more. Documents published in one turn leave as one frame, and frames are
+  spaced to stay within `statesPerSecond`. After each `welcome` the room's
+  copies are the base of the next patch, and what the host wanted the room
+  to look like while its link was down (seats, locked, activity, channels it
+  dropped) is asserted again.
+
 ## Hosts
 
 A host runs `Room` and does only transport:
@@ -250,6 +289,17 @@ A host runs `Room` and does only transport:
    call `Room.restore` with the merged state and the connections still open.
    Saved state carries a schema number; a room saved by a newer release
    closes its connections as `restarting` and does not come back.
+
+`MemoryRoomHost` in `@air-jam/server/room` is this wiring for rooms held in
+memory: the Node room server and loopback links share it. It packs host-bound
+input that is ready in the same turn into one frame, sending anything queued
+for a host before a text frame that follows it. `createRoomServer` in
+`@air-jam/server/room-server` puts it behind `node:http` and `ws`: hosts may
+ask for a code, the origin is checked against `AIR_JAM_ALLOWED_ORIGINS`,
+connection attempts per address are limited by the host registration and
+controller join limits, every socket gets a protocol-level ping every 10
+seconds and is dropped after 45 seconds of silence, and stopping it closes
+every device as `restarting`.
 
 The core takes no clock, timer, randomness or storage. The gate, the limits
 object and the facts stream are the only seams for policy: facts are
