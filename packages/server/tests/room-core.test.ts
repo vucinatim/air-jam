@@ -18,7 +18,13 @@ const MINUTE = 60 * SECOND;
 const INPUT = new Uint8Array([1, 50, 156, 130, 0]);
 
 const hostHello = (fields: Record<string, unknown> = {}) =>
-  JSON.stringify({ type: "hello", key: HOST_KEY, sdk: "test", ...fields });
+  JSON.stringify({
+    type: "hello",
+    key: HOST_KEY,
+    sdk: "test",
+    seats: 16,
+    ...fields,
+  });
 const phoneHello = (phoneKey: string, fields: Record<string, unknown> = {}) =>
   JSON.stringify({
     type: "hello",
@@ -432,11 +438,7 @@ describe("room core", () => {
           room.connect(
             "thief",
             "host",
-            JSON.stringify({
-              type: "hello",
-              key: "someone-elses-key",
-              sdk: "test",
-            }),
+            hostHello({ key: "someone-elses-key" }),
             0,
           ),
         ),
@@ -861,6 +863,17 @@ describe("room core", () => {
       expect(
         closes(room.connect("c1", "phone", frame({ type: "hello" }), 0)),
       ).toEqual({ c1: "unsupported-version" });
+      const { seats: _seats, ...withoutSeats } = JSON.parse(hostHello());
+      expect(
+        closes(room.connect("h2", "host", JSON.stringify(withoutSeats), 0)),
+      ).toEqual({ h2: "unsupported-version" });
+    });
+
+    it("admits no player before the host says how many its game takes", () => {
+      const room = open();
+      expect(
+        closes(room.connect("c1", "phone", phoneHello(key(1)), 0)),
+      ).toEqual({ c1: "full" });
     });
 
     it("answers the heartbeat", () => {
@@ -1099,6 +1112,7 @@ describe("room core", () => {
       type: "hello" as const,
       key: HOST_KEY,
       sdk: "test",
+      seats: 8,
       credential,
     });
 

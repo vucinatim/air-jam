@@ -36,8 +36,10 @@ protocol's major version.
 | A phone                 | `/v1/play/CODE` |
 
 Codes are 4 to 8 characters of `A-Z0-9`. Front doors assign four from
-`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, which has no look-alikes; a local server
-may honour a code the host asks for.
+`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, which has no look-alikes. A local host
+that wants a particular code, such as `GAME`, connects to `/v1/host/GAME`
+without an `instance`; a local server opens the room with that code when no
+room holds it. Hosted front doors always choose the code.
 
 ## Keys, join and resume
 
@@ -68,18 +70,18 @@ change is `/v2`, served beside `/v1`.
 
 ### From a host
 
-| Frame      | Fields                                                          | Meaning                                                                                      |
-| ---------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `hello`    | `key`, `instance?`, `sdk`, `features?`, `credential?`, `seats?` | Open or reclaim the room. `credential` is for the gate; `seats` the players it wants (1–16). |
-| `state`    | `channel`, `revision`, `document`, `fingerprint?`, `private?`   | A channel's whole document.                                                                  |
-| `state`    | `channel`, `revision`, `base`, `set`, `unset`                   | A patch from revision `base` to `revision`.                                                  |
-| `response` | `seat`, `id`, `result`                                          | The answer to a phone's request.                                                             |
-| `signal`   | `seat?`, `kind`, `payload?`                                     | A one-shot message to one seat or every phone: haptics, toasts, sounds.                      |
-| `room`     | `seats?`, `locked?`                                             | Players wanted; whether new players are admitted at all.                                     |
-| `remove`   | `seat`                                                          | Free a seat and close its phone for good.                                                    |
-| `drop`     | `channel`                                                       | Discard a channel.                                                                           |
-| `activity` | `activity` (string or null)                                     | What is on screen; only where the gate allows it, as for a launcher.                         |
-| `end`      | —                                                               | Close the room now.                                                                          |
+| Frame      | Fields                                                         | Meaning                                                                                                                          |
+| ---------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `hello`    | `key`, `instance?`, `sdk`, `features?`, `credential?`, `seats` | Open or reclaim the room. `credential` is for the gate; `seats` the players its game takes (1–16), which the room never guesses. |
+| `state`    | `channel`, `revision`, `document`, `fingerprint?`, `private?`  | A channel's whole document.                                                                                                      |
+| `state`    | `channel`, `revision`, `base`, `set`, `unset`                  | A patch from revision `base` to `revision`.                                                                                      |
+| `response` | `seat`, `id`, `result`                                         | The answer to a phone's request.                                                                                                 |
+| `signal`   | `seat?`, `kind`, `payload?`                                    | A one-shot message to one seat or every phone: haptics, toasts, sounds.                                                          |
+| `room`     | `seats?`, `locked?`                                            | Players wanted; whether new players are admitted at all.                                                                         |
+| `remove`   | `seat`                                                         | Free a seat and close its phone for good.                                                                                        |
+| `drop`     | `channel`                                                      | Discard a channel.                                                                                                               |
+| `activity` | `activity` (string or null)                                    | What is on screen; only where the gate allows it, as for a launcher.                                                             |
+| `end`      | —                                                              | Close the room now.                                                                                                              |
 
 ### From a phone
 
@@ -176,7 +178,7 @@ plain object; punctuation is not counted. A channel may weigh at most
 | Rule       | What the room does                                                                                                                                                                                                   |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Seats      | Ids `p1`, `p2`… in join order, never reused in a room. A free colour, the profile, or "Player N".                                                                                                                    |
-| Admission  | A new player is refused as `full` beyond `seatsWanted` (held seats count) or while `locked`; a returning key is not.                                                                                                 |
+| Admission  | A new player is refused as `full` before the host has said how many seats it wants, beyond them (held seats count) or while `locked`; a returning key is not.                                                        |
 | Seat hold  | A dropped phone's seat is shown disconnected and held for `seatHoldMs` (two minutes; zero for agents), then freed.                                                                                                   |
 | Host grace | A dropped host keeps its room for `hostGraceMs` (60 seconds); phones are told the screen is away. Then the room closes.                                                                                              |
 | Routing    | Input and requests go to the host stamped with the seat; responses and signals go to the seats they name.                                                                                                            |
@@ -232,7 +234,9 @@ them per account or app.
 
 A host runs `Room` and does only transport:
 
-1. Route by path. A host on `/v1/host` passes its `hello` to the gate first:
+1. Route by path. A host opening a room (on `/v1/host`, or on
+   `/v1/host/CODE` without an `instance` where codes may be asked for)
+   passes its `hello` to the gate first:
    open (with limits, labels, the starting activity and whether the host may
    change it), wait (send `wait` and ask again), or refuse (close
    `unauthorised` or `try-later`). On open it calls `Room.open` with a code

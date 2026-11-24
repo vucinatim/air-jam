@@ -9,7 +9,7 @@
     {
       "name": "host returns",
       "direction": "host-to-room",
-      "text": "{\"type\":\"hello\",\"key\":\"k3Jx9QwLm2Vb8RtY\",\"instance\":\"r-7f3a\",\"sdk\":\"1.0.0\"}"
+      "text": "{\"type\":\"hello\",\"key\":\"k3Jx9QwLm2Vb8RtY\",\"instance\":\"r-7f3a\",\"sdk\":\"1.0.0\",\"seats\":8}"
     },
     {
       "name": "phone joins",

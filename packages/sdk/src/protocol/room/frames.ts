@@ -61,7 +61,8 @@ export const hostHelloSchema = z.object({
   ...helloFields,
   /** Opaque to the room; the gate reads it before the room opens. */
   credential: z.string().min(1).max(8_192).optional(),
-  seats: z.number().int().min(1).max(MAXIMUM_ROOM_SEATS).optional(),
+  /** How many players the game takes; the room admits no more. */
+  seats: z.number().int().min(1).max(MAXIMUM_ROOM_SEATS),
 });
 export type HostHello = z.infer<typeof hostHelloSchema>;
 

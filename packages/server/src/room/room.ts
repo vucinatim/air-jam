@@ -185,7 +185,8 @@ export class Room {
   ) {
     this.channels = new ChannelCopies(limits);
     this.activity = activity;
-    this.seatsWanted = limits.seats;
+    // No player is admitted until the host has said how many its game takes.
+    this.seatsWanted = 0;
     this.hostAwayUntil = openedAt + limits.hostGraceMs;
   }
 
@@ -459,8 +460,7 @@ export class Room {
       role: "host",
       budget: new ConnectionBudget(this.limits, now),
     });
-    if (hello.seats !== undefined)
-      this.seatsWanted = Math.min(hello.seats, this.limits.seats);
+    this.seatsWanted = Math.min(hello.seats, this.limits.seats);
     this.roomChanged = true;
     this.send(connection, {
       type: "welcome",
