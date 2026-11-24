@@ -33,8 +33,8 @@
     {
       "path": "docs/airjam/composition-shell-contract.md",
       "kind": "docs-local",
-      "size": 2666,
-      "sha256": "91bf49cb98f3b94cabd145d960a9562786e73c029b3955904ef45a8f8bf71a06"
+      "size": 2891,
+      "sha256": "b67412d3fb3563ea3b20fc32fceaaa25759752b611fe05864c1b938eec4d23cc"
     },
     {
       "path": "docs/airjam/debug-and-testing.md",
@@ -205,5 +205,5 @@
       "sha256": "0eaa064c38b4568c200fbf5cadb96f16c7c738a29469c4c955fb1ac5f8077edf"
     }
   ],
-  "contentDigest": "cd461f3d47d2485a9785ce7df33296044193b4417bf132824932d09bc4cc392a"
+  "contentDigest": "3cf640718e43f44fe147b1d773025fb486f779f7740c6c9502c7a4d306901e96"
 }

@@ -19,6 +19,10 @@ The host lobby should expose:
 5. open join URL action
 6. primary start/play action
 
+`JoinUrlField`, `JoinUrlControls` and `JoinQrOverlay` take `status={host.joinUrlStatus}`.
+Keep the neutral loading state until phone reach resolves. When it is unavailable,
+show the SDK explanation without an address or QR.
+
 The theme, layout, typography, and art direction stay game-owned.
 
 ## Required Controller Contract
