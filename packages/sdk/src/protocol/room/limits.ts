@@ -10,29 +10,34 @@ const duration = z.number().int().nonnegative();
  * object against the time it passes in; hosted policy may tighten it per
  * account or app without the room knowing why.
  */
-export const roomLimitsSchema = z
-  .object({
-    seats: count.max(MAXIMUM_ROOM_SEATS),
-    channels: count,
-    /** How often a phone may send its controls; phones coalesce to it. */
-    inputIntervalMs: count,
-    /** One phone's whole control state; a host input record states its length in one byte. */
-    inputBytes: count.max(255),
-    inputsPerSecond: count,
-    /** The most a channel's document, or any one state frame, may weigh. */
-    stateBytes: count,
-    statesPerSecond: count,
-    /** The most any other text frame may weigh. */
-    frameBytes: count,
-    /** Text frames other than state, per connection. */
-    framesPerSecond: count,
-    /** Frames that do not parse, within one second, before the connection is closed. */
-    strikesPerSecond: count,
-    seatHoldMs: duration,
-    hostGraceMs: duration,
-    maximumAgeMs: count,
-  })
-  .strict();
+const roomLimitsShape = {
+  seats: count.max(MAXIMUM_ROOM_SEATS),
+  channels: count,
+  /** How often a phone may send its controls; phones coalesce to it. */
+  inputIntervalMs: count,
+  /** One phone's whole control state; a host input record states its length in one byte. */
+  inputBytes: count.max(255),
+  inputsPerSecond: count,
+  /** The most a channel's document, or any one state frame, may weigh. */
+  stateBytes: count,
+  statesPerSecond: count,
+  /** The most any other text frame may weigh. */
+  frameBytes: count,
+  /** Text frames other than state, per connection. */
+  framesPerSecond: count,
+  /** Frames that do not parse, within one second, before the connection is closed. */
+  strikesPerSecond: count,
+  seatHoldMs: duration,
+  /** How long the room waits for its host, as it opens and after the host's connection ends. */
+  hostGraceMs: count,
+  maximumAgeMs: count,
+};
+
+/** Limits as configured: a field this release does not know is a mistake. */
+export const roomLimitsSchema = z.strictObject(roomLimitsShape);
+
+/** Limits as a room states them in its welcome, where a newer room may add fields. */
+export const roomLimitsWireSchema = z.object(roomLimitsShape);
 
 export type RoomLimits = z.infer<typeof roomLimitsSchema>;
 

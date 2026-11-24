@@ -122,7 +122,18 @@ type Connection =
       readonly role: "phone";
       readonly seat: SeatId;
       readonly budget: ConnectionBudget;
+      /**
+       * Requests sent on this connection that the host has yet to answer; an
+       * answer settles only one of these, so a reloaded phone, whose request
+       * ids start again, never takes an answer meant for its earlier page.
+       * Null for a connection restored from saved state, whose requests the
+       * room no longer knows.
+       */
+      readonly requests: Set<number> | null;
     };
+
+/** Requests a phone may have waiting for the host; past it the oldest answer is no longer expected. */
+const MAXIMUM_WAITING_REQUESTS = 256;
 
 const PLAYER_COLORS = [
   "#38bdf8",
@@ -260,6 +271,9 @@ export class Room {
     // to a connection that closed while the room was away.
     room.reconnect(new Set(live), now);
     room.settle(now);
+    // Input held over the rate is not saved, so phones send their controls again.
+    if (room.hostConnection !== null)
+      room.toPhones({ type: "host", present: true });
     return { room, effects: room.effects };
   }
 
@@ -301,14 +315,18 @@ export class Room {
     return this.run(now, () => {
       const entry = this.connections.get(connection);
       if (!entry) return;
-      if (data === PING_FRAME) return this.send(connection, PONG_FRAME);
+      if (data === PING_FRAME) {
+        if (!entry.budget.spend("frame", now))
+          return this.breakLimits(connection, entry, now);
+        return this.send(connection, PONG_FRAME);
+      }
       if (typeof data === "string") {
         if (entry.role === "host")
           this.receiveHostText(connection, entry, data, now);
         else this.receivePhoneText(connection, entry, data, now);
       } else if (entry.role === "phone") {
         this.receiveInput(connection, entry, data, now);
-      }
+      } else this.ignore(connection, entry, "unknown", "frame", now);
     });
   }
 
@@ -344,6 +362,8 @@ export class Room {
       const entry = this.connections.get(connection);
       if (entry) earliest = Math.min(earliest, entry.budget.windowEndsAt);
     }
+    const ask = this.hostConnection === null ? null : this.channels.nextAsk();
+    if (ask !== null) earliest = Math.min(earliest, ask);
     return earliest;
   }
 
@@ -414,10 +434,13 @@ export class Room {
 
   private settle(now: number): void {
     if (this.closed) return;
+    // A late wake closes for whichever deadline passed first.
     const expiresAt = this.openedAt + this.limits.maximumAgeMs;
-    if (now >= expiresAt) return this.closeRoom("expired", expiresAt);
-    if (this.hostAwayUntil !== null && now >= this.hostAwayUntil)
-      return this.closeRoom("host-gone", this.hostAwayUntil);
+    const hostGoneAt = this.hostAwayUntil ?? Number.POSITIVE_INFINITY;
+    if (now >= Math.min(expiresAt, hostGoneAt))
+      return hostGoneAt < expiresAt
+        ? this.closeRoom("host-gone", hostGoneAt)
+        : this.closeRoom("expired", expiresAt);
     for (const seat of [...this.seats.values()])
       if (seat.holdUntil !== null && now >= seat.holdUntil)
         this.freeSeat(seat, "dropped", seat.holdUntil);
@@ -431,6 +454,9 @@ export class Room {
       this.heldInputs.delete(connection);
       if (entry.budget.fits("input", now)) this.forwardInput(entry, frame);
     }
+    if (this.hostConnection !== null)
+      for (const channel of this.channels.due(now))
+        this.send(this.hostConnection, { type: "need", channel });
   }
 
   private reconnect(live: ReadonlySet<ConnectionId>, now: number): void {
@@ -454,6 +480,7 @@ export class Room {
           role: "phone",
           seat: seat.id,
           budget: new ConnectionBudget(this.limits, now),
+          requests: null,
         });
     if (hostDropped) this.hostLeft(now);
     for (const seat of droppedSeats) this.seatLeft(seat, now);
@@ -472,7 +499,6 @@ export class Room {
       this.connections.delete(this.hostConnection);
       this.closeConnection(this.hostConnection, "replaced");
     }
-    const returning = this.hostAwayUntil !== null;
     this.hostConnection = connection;
     this.hostAwayUntil = null;
     this.connections.set(connection, {
@@ -493,7 +519,9 @@ export class Room {
       locked: this.locked,
       activity: this.activity,
     });
-    if (returning) this.toPhones({ type: "host", present: true });
+    // Phones send their controls again to every new host connection, even
+    // one that replaced a connection the room still thought was open.
+    this.toPhones({ type: "host", present: true });
   }
 
   private connectPhone(
@@ -536,6 +564,7 @@ export class Room {
       role: "phone",
       seat: seat.id,
       budget: new ConnectionBudget(this.limits, now),
+      requests: new Set(),
     });
     this.send(connection, {
       type: "welcome",
@@ -594,20 +623,24 @@ export class Room {
     if (bytes > this.limits.stateBytes)
       return this.breakLimits(connection, entry, now);
     const parsed = parseHostToRoomFrame(text);
-    if (parsed.status === "unknown") return;
-    if (parsed.status === "invalid") return this.strike(connection, entry, now);
+    if (parsed.status !== "frame")
+      return this.ignore(connection, entry, parsed.status, "frame", now);
     const frame = parsed.frame;
     if (frame.type !== "state" && bytes > this.limits.frameBytes)
       return this.breakLimits(connection, entry, now);
-    if (
-      !this.admit(
-        connection,
-        entry,
-        frame.type === "state" ? "state" : "frame",
-        now,
-      )
-    )
+    const admission = entry.budget.admit(
+      frame.type === "state" ? "state" : "frame",
+      now,
+    );
+    if (admission === "flooded")
+      return this.breakLimits(connection, entry, now);
+    if (admission === "over-rate") {
+      this.counters.overRate += 1;
+      // A dropped state frame leaves the room's copy behind the host's.
+      if (frame.type === "state")
+        this.channels.fellBehind(frame.channel, entry.budget.windowEndsAt);
       return;
+    }
     this.handleHostFrame(connection, entry, frame, now);
   }
 
@@ -620,7 +653,7 @@ export class Room {
     switch (frame.type) {
       case "state": {
         this.counters.states += 1;
-        const outcome = this.channels.receive(frame);
+        const outcome = this.channels.receive(frame, now);
         if (outcome.kind === "applied") {
           this.changedChannels.add(outcome.channel);
           for (const seat of this.seats.values())
@@ -634,9 +667,14 @@ export class Room {
         return;
       }
       case "response": {
-        const seat = this.seats.get(frame.seat);
-        if (seat?.connection)
-          this.send(seat.connection, {
+        const asker = this.seats.get(frame.seat)?.connection ?? null;
+        const phone = asker === null ? undefined : this.connections.get(asker);
+        if (
+          asker !== null &&
+          phone?.role === "phone" &&
+          (phone.requests === null || phone.requests.delete(frame.id))
+        )
+          this.send(asker, {
             type: "response",
             id: frame.id,
             result: frame.result,
@@ -674,13 +712,19 @@ export class Room {
         if (!this.channels.drop(frame.channel)) return;
         this.changedChannels.add(frame.channel);
         return this.toPhones({ type: "drop", channel: frame.channel });
-      case "activity":
+      case "activity": {
         if (!this.activityChangeable)
           return this.strike(connection, entry, now);
         if (frame.activity === this.activity) return;
+        const previous = this.activity;
         this.activity = frame.activity;
         this.roomChanged = true;
-        return this.fact(now, { kind: "activity", activity: frame.activity });
+        return this.fact(now, {
+          kind: "activity",
+          activity: frame.activity,
+          previous,
+        });
+      }
       case "end":
         return this.closeRoom("ended", now);
     }
@@ -695,18 +739,25 @@ export class Room {
     if (utf8ByteLength(text) > this.limits.frameBytes)
       return this.breakLimits(connection, entry, now);
     const parsed = parsePhoneToRoomFrame(text);
-    if (parsed.status === "unknown") return;
-    if (parsed.status === "invalid") return this.strike(connection, entry, now);
-    if (!this.admit(connection, entry, "frame", now)) return;
-    this.handlePhoneFrame(connection, entry.seat, parsed.frame, now);
+    if (parsed.status !== "frame")
+      return this.ignore(connection, entry, parsed.status, "frame", now);
+    const admission = entry.budget.admit("frame", now);
+    if (admission === "flooded")
+      return this.breakLimits(connection, entry, now);
+    if (admission === "over-rate") {
+      this.counters.overRate += 1;
+      return;
+    }
+    this.handlePhoneFrame(connection, entry, parsed.frame, now);
   }
 
   private handlePhoneFrame(
     connection: ConnectionId,
-    seatId: SeatId,
+    entry: Extract<Connection, { role: "phone" }>,
     frame: PhoneToRoomFrame,
     now: number,
   ): void {
+    const seatId = entry.seat;
     const seat = this.seats.get(seatId);
     if (!seat) throw new Error(`Connection ${connection} has no seat.`);
     switch (frame.type) {
@@ -718,6 +769,12 @@ export class Room {
             id: frame.id,
             refused: "host-away",
           });
+        if (entry.requests) {
+          const oldest = entry.requests.values().next();
+          if (entry.requests.size >= MAXIMUM_WAITING_REQUESTS && !oldest.done)
+            entry.requests.delete(oldest.value);
+          entry.requests.add(frame.id);
+        }
         return this.send(this.hostConnection, {
           type: "request",
           seat: seatId,
@@ -744,7 +801,8 @@ export class Room {
     frame: Uint8Array,
     now: number,
   ): void {
-    if (frame[0] !== INPUT_FRAME_KIND) return;
+    if (frame[0] !== INPUT_FRAME_KIND)
+      return this.ignore(connection, entry, "unknown", "input", now);
     if (frame.byteLength - 1 > this.limits.inputBytes)
       return this.breakLimits(connection, entry, now);
     const admission = entry.budget.admit("input", now);
@@ -768,18 +826,21 @@ export class Room {
     this.send(this.hostConnection, encodeHostInputFrame(entry.seat, frame));
   }
 
-  /** A text frame over its rate is dropped: a lost state patch heals through `need`, a lost request times out. */
-  private admit(
+  /**
+   * A frame the room does not act on still spends its lane's flood
+   * allowance; one that does not parse is also a strike, and one nested too
+   * deep breaks the limits outright.
+   */
+  private ignore(
     connection: ConnectionId,
     entry: Connection,
+    status: "unknown" | "invalid" | "too-deep",
     lane: FrameLane,
     now: number,
-  ): boolean {
-    const admission = entry.budget.admit(lane, now);
-    if (admission === "admitted") return true;
-    if (admission === "flooded") this.breakLimits(connection, entry, now);
-    else this.counters.overRate += 1;
-    return false;
+  ): void {
+    if (status === "too-deep" || !entry.budget.spend(lane, now))
+      return this.breakLimits(connection, entry, now);
+    if (status === "invalid") this.strike(connection, entry, now);
   }
 
   private strike(

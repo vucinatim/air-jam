@@ -204,7 +204,7 @@ export class PhoneRoomSession {
     if (typeof data !== "string") return;
     const parsed = parseRoomToPhoneFrame(data);
     if (parsed.status === "unknown") return;
-    if (parsed.status === "invalid") return this.link.fail();
+    if (parsed.status !== "frame") return this.link.fail();
     this.handle(parsed.frame);
   }
 
