@@ -11,7 +11,11 @@ it("has no phone join URL for loopback addresses", () => {
     "127.42.0.7",
     "[::1]",
     "localhost",
+    "localhost.",
     "game.localhost",
+    "game.localhost.",
+    "[::ffff:127.0.0.1]",
+    "[::ffff:7fff:ffff]",
   ]) {
     expect(
       resolvePhoneJoinUrl(`http://${hostname}:3000/controller?room=ABCD`),

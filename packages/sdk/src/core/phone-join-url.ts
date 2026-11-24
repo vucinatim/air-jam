@@ -13,12 +13,13 @@ export const resolvePhoneJoinUrl = (
     return null;
   }
 
-  const hostname = url.hostname;
+  const hostname = url.hostname.replace(/\.$/, "");
   if (
     (url.protocol !== "http:" && url.protocol !== "https:") ||
     hostname === "localhost" ||
     hostname.endsWith(".localhost") ||
     hostname === "[::1]" ||
+    /^\[::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}\]$/.test(hostname) ||
     hostname.startsWith("127.")
   ) {
     return null;
