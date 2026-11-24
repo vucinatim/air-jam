@@ -203,6 +203,23 @@ describe("room protocol", () => {
     expect(Object.keys(polluted ?? {})).toEqual(["__proto__"]);
   });
 
+  it("accepts a request, signal or answer that carries nothing, as JSON drops an undefined value", () => {
+    for (const [parse, text] of [
+      [
+        parsePhoneToRoomFrame,
+        '{"type":"request","id":1,"channel":"game","name":"start"}',
+      ],
+      [parseHostToRoomFrame, '{"type":"signal","kind":"toast"}'],
+      [parseHostToRoomFrame, '{"type":"response","seat":"p1","id":1}'],
+      [parseRoomToPhoneFrame, '{"type":"response","id":1}'],
+      [
+        parseRoomToHostFrame,
+        '{"type":"request","seat":"p1","id":1,"channel":"game","name":"start"}',
+      ],
+    ] as const)
+      expect(parse(text).status).toBe("frame");
+  });
+
   it("ignores frame types it does not know and rejects malformed ones", () => {
     expect(parsePhoneToRoomFrame('{"type":"wave"}').status).toBe("unknown");
     expect(parsePhoneToRoomFrame('{"type":"request","id":-1}').status).toBe(
