@@ -1,5 +1,11 @@
 import type { AirJamInput } from "@air-jam/sdk/core";
 import {
+  encodeFrame,
+  encodeInputPayload,
+  encodePhoneInputFrame,
+  type RoomConnector,
+} from "@air-jam/sdk/room-protocol";
+import {
   createScopedHostConnector,
   createScopedPhoneConnector,
   HostRoomSession,
@@ -17,6 +23,22 @@ const controls: AirJamInput = {
   jump: { kind: "button", name: "jump", mode: "pressed" },
 };
 const gameScope = (channel: string) => !channel.startsWith("arcade.");
+
+/** A frame's link driven by hand, so a test can send from a link its session would already have dropped. */
+const rawLink = (connector: RoomConnector, role: "host" | "phone") => {
+  const seen = { closed: null as number | null };
+  const link = connector(
+    role === "host" ? { role, code: null } : { role, code: "ABCD" },
+    {
+      open: () => {},
+      message: () => {},
+      close: (code) => {
+        seen.closed = code;
+      },
+    },
+  );
+  return { link, seen };
+};
 
 /** A launcher's screen with its own channel, serving an embedded game. */
 const openLauncher = async () => {
@@ -209,5 +231,75 @@ describe("frames served as a view of the page's session", () => {
       reason: "unauthorised",
     });
     expect(page.status).toEqual({ phase: "open" });
+  });
+
+  it("serves one game frame at a time: a second link replaces the first, whose later frames do nothing", async () => {
+    const { clock, scoped, join } = await openLauncher();
+    const phone = join("phone-key-000001");
+    const hello = encodeFrame({
+      type: "hello",
+      key: "frame-key-0000001",
+      sdk: "test",
+      seats: 4,
+    });
+    const first = rawLink(scoped.connector, "host");
+    first.link.send(hello);
+    await clock.advance();
+    const second = rawLink(scoped.connector, "host");
+    second.link.send(hello);
+    await clock.advance();
+    expect(first.seen.closed).toBe(4000);
+
+    const state = (who: string) =>
+      encodeFrame({
+        type: "state",
+        channel: "game",
+        revision: 1,
+        document: { who },
+      });
+    second.link.send(state("new"));
+    first.link.send(state("old"));
+    await clock.advance(20);
+    expect(phone.channel("game")).toEqual({ who: "new" });
+  });
+
+  it("serves one controller frame at a time: a second link replaces the first, whose later input does nothing", async () => {
+    const { clock, network, shell, game } = await openLauncher();
+    const inputs: unknown[] = [];
+    game.on("input", (input) => inputs.push(input));
+    const page = new PhoneRoomSession({
+      connector: network.connector,
+      clock,
+      random: () => 0.5,
+      deviceWakeEvents: null,
+      key: "phone-key-000001",
+      code: shell.code ?? "",
+    });
+    await clock.advance(20);
+    const scoped = createScopedPhoneConnector(page, gameScope);
+    const hello = encodeFrame({
+      type: "hello",
+      key: "frame-key-0000002",
+      sdk: "test",
+      kind: "phone",
+    });
+    const first = rawLink(scoped.connector, "phone");
+    first.link.send(hello);
+    await clock.advance();
+    const second = rawLink(scoped.connector, "phone");
+    second.link.send(hello);
+    await clock.advance();
+    expect(first.seen.closed).toBe(4000);
+
+    first.link.send(
+      encodePhoneInputFrame(
+        encodeInputPayload(controls, {
+          move: { x: 1, y: 0 },
+          jump: { down: true, presses: 5 },
+        }),
+      ),
+    );
+    await clock.advance(20);
+    expect(inputs).toEqual([]);
   });
 });

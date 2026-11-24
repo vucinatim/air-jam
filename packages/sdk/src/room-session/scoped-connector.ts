@@ -39,7 +39,10 @@ import type { RoomSessionStatus } from "./session-link";
  */
 export interface ScopedConnector {
   readonly connector: RoomConnector;
-  /** Closes the frame's links for good, as when the surface they belong to ends. */
+  /**
+   * Closes the frame's links for good and stops following the page's
+   * session, as when the surface they belong to ends.
+   */
   close(): void;
 }
 
@@ -106,6 +109,20 @@ class FrameLinks {
 
   welcomed(): FrameLink[] {
     return [...this.links].filter((link) => link.live && link.welcomed);
+  }
+
+  /**
+   * A frame has one link at a time, as a host has one connection: welcoming
+   * a link closes every other as `replaced`, which tells the frame it held
+   * not to come back. A reloaded or slow-closing old frame then cannot
+   * publish over the new one or send input for the same seat.
+   */
+  replaceOthers(link: FrameLink): void {
+    for (const other of [...this.links]) {
+      if (other === link) continue;
+      other.close(closeCode("replaced"));
+      this.links.delete(other);
+    }
   }
 
   /**
@@ -215,6 +232,7 @@ export const createScopedHostConnector = (
     mirror.reset(channels);
     mirrors.set(link, mirror);
     toldSeats.set(link, rosterOf(parent.seats));
+    links.replaceOthers(link);
     link.welcomed = true;
     link.send(
       encodeFrame({
@@ -245,43 +263,50 @@ export const createScopedHostConnector = (
     for (const link of links.welcomed()) link.send(data);
   };
 
-  parent.on("status", (status) =>
-    links.follow(status, (link) => hellos.has(link)),
-  );
-  parent.on("seats", (seats) => {
-    const present = new Set(seats.map((seat) => seat.id));
-    for (const seat of [...latestInput.keys()])
-      if (!present.has(seat)) latestInput.delete(seat);
-    for (const entry of [...forwarded])
-      if (!present.has(entry.slice(0, entry.indexOf(":"))))
-        forwarded.delete(entry);
-    for (const link of links.welcomed()) {
-      const told = toldSeats.get(link);
-      if (!told) continue;
-      for (const frame of rosterChanges(told, seats))
-        link.send(encodeFrame(frame));
-    }
-  });
-  parent.on("inputFrame", (frame) => {
-    let records;
-    try {
-      records = decodeHostInputFrame(frame);
-    } catch {
-      return;
-    }
-    for (const record of records)
-      latestInput.set(record.seat, record.payload.slice());
-    for (const link of links.welcomed()) link.send(frame);
-  });
-  parent.on("request", (request) => {
-    if (!scope(request.channel) || links.welcomed().length === 0) return;
-    forwarded.add(`${request.seat}:${request.id}`);
-    if (forwarded.size > MAXIMUM_FORWARDED_REQUESTS)
-      forwarded.delete(forwarded.values().next().value as string);
-    forward({ type: "request", ...request });
-  });
+  const releases = [
+    parent.on("status", (status) =>
+      links.follow(status, (link) => hellos.has(link)),
+    ),
+    parent.on("seats", (seats) => {
+      const present = new Set(seats.map((seat) => seat.id));
+      for (const seat of [...latestInput.keys()])
+        if (!present.has(seat)) latestInput.delete(seat);
+      for (const entry of [...forwarded])
+        if (!present.has(entry.slice(0, entry.indexOf(":"))))
+          forwarded.delete(entry);
+      for (const link of links.welcomed()) {
+        const told = toldSeats.get(link);
+        if (!told) continue;
+        for (const frame of rosterChanges(told, seats))
+          link.send(encodeFrame(frame));
+      }
+    }),
+    parent.on("inputFrame", (frame) => {
+      let records;
+      try {
+        records = decodeHostInputFrame(frame);
+      } catch {
+        return;
+      }
+      for (const record of records)
+        latestInput.set(record.seat, record.payload.slice());
+      for (const link of links.welcomed()) link.send(frame);
+    }),
+    parent.on("request", (request) => {
+      if (!scope(request.channel) || links.welcomed().length === 0) return;
+      forwarded.add(`${request.seat}:${request.id}`);
+      if (forwarded.size > MAXIMUM_FORWARDED_REQUESTS)
+        forwarded.delete(forwarded.values().next().value as string);
+      forward({ type: "request", ...request });
+    }),
+  ];
+  const close = () => {
+    links.closeAll(closeCode("closed"));
+    for (const release of releases.splice(0)) release();
+  };
 
   const receive = (link: FrameLink, data: RoomWireData): void => {
+    if (!link.live) return;
     if (!hellos.has(link)) {
       const hello = typeof data === "string" ? parseHostHello(data) : null;
       if (!hello) return link.close(closeCode("unsupported-version"));
@@ -361,9 +386,9 @@ export const createScopedHostConnector = (
 
   return {
     connector,
-    close: () => links.closeAll(closeCode("closed")),
+    close,
     end: () => {
-      links.closeAll(closeCode("closed"));
+      close();
       for (const copy of parent.channels())
         if (scope(copy.channel)) parent.drop(copy.channel);
     },
@@ -398,6 +423,7 @@ export const createScopedPhoneConnector = (
       new Map(channels.map((copy) => [copy.channel, copy.revision])),
     );
     toldSeats.set(link, rosterOf(parent.seats));
+    links.replaceOthers(link);
     link.welcomed = true;
     link.send(
       encodeFrame({
@@ -419,36 +445,39 @@ export const createScopedPhoneConnector = (
     for (const link of links.welcomed()) link.send(data);
   };
 
-  parent.on("status", (status) =>
-    links.follow(status, (link) => hellos.has(link)),
-  );
-  parent.on("seats", (seats) => {
-    for (const link of links.welcomed()) {
-      const told = toldSeats.get(link);
-      if (!told) continue;
-      for (const frame of rosterChanges(told, seats))
-        link.send(encodeFrame(frame));
-    }
-  });
-  parent.on("host", (present) => forward({ type: "host", present }));
-  parent.on("signal", (signal) => forward({ type: "signal", ...signal }));
-  parent.on("state", ({ channel, document }) => {
-    if (!scope(channel)) return;
-    for (const link of links.welcomed()) {
-      const held = revisions.get(link);
-      if (!held) continue;
-      const revision = (held.get(channel) ?? 0) + 1;
-      held.set(channel, revision);
-      link.send(encodeFrame({ type: "state", channel, revision, document }));
-    }
-  });
-  parent.on("drop", ({ channel }) => {
-    if (!scope(channel)) return;
-    for (const link of links.welcomed()) revisions.get(link)?.delete(channel);
-    forward({ type: "drop", channel });
-  });
+  const releases = [
+    parent.on("status", (status) =>
+      links.follow(status, (link) => hellos.has(link)),
+    ),
+    parent.on("seats", (seats) => {
+      for (const link of links.welcomed()) {
+        const told = toldSeats.get(link);
+        if (!told) continue;
+        for (const frame of rosterChanges(told, seats))
+          link.send(encodeFrame(frame));
+      }
+    }),
+    parent.on("host", (present) => forward({ type: "host", present })),
+    parent.on("signal", (signal) => forward({ type: "signal", ...signal })),
+    parent.on("state", ({ channel, document }) => {
+      if (!scope(channel)) return;
+      for (const link of links.welcomed()) {
+        const held = revisions.get(link);
+        if (!held) continue;
+        const revision = (held.get(channel) ?? 0) + 1;
+        held.set(channel, revision);
+        link.send(encodeFrame({ type: "state", channel, revision, document }));
+      }
+    }),
+    parent.on("drop", ({ channel }) => {
+      if (!scope(channel)) return;
+      for (const link of links.welcomed()) revisions.get(link)?.delete(channel);
+      forward({ type: "drop", channel });
+    }),
+  ];
 
   const receive = (link: FrameLink, data: RoomWireData): void => {
+    if (!link.live) return;
     if (!hellos.has(link)) {
       const hello = typeof data === "string" ? parsePhoneHello(data) : null;
       if (!hello) return link.close(closeCode("unsupported-version"));
@@ -515,5 +544,11 @@ export const createScopedPhoneConnector = (
     };
   };
 
-  return { connector, close: () => links.closeAll(closeCode("closed")) };
+  return {
+    connector,
+    close: () => {
+      links.closeAll(closeCode("closed"));
+      for (const release of releases.splice(0)) release();
+    },
+  };
 };
