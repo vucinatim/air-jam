@@ -466,6 +466,21 @@ const stripActionsFromState = <T extends AirJamNetworkedState>(
   return stateData as Partial<T>;
 };
 
+/**
+ * A store's shape as a bounded fingerprint: two FNV-1a passes over its
+ * canonical shape, 64 bits as hex, so any store fits the state frame.
+ */
+const shapeFingerprintOf = (shape: string): string => {
+  let first = 0x811c9dc5;
+  let second = 0x01000193;
+  for (let index = 0; index < shape.length; index += 1) {
+    const code = shape.charCodeAt(index);
+    first = Math.imul(first ^ code, 0x01000193) >>> 0;
+    second = Math.imul(second ^ code, 0x811c9dc5) >>> 0;
+  }
+  return `${first.toString(16).padStart(8, "0")}${second.toString(16).padStart(8, "0")}`;
+};
+
 const stateShape = (value: unknown): string => {
   if (value === null) return "null";
   if (Array.isArray(value)) {
@@ -532,8 +547,8 @@ export function createAirJamStore<
   options?: CreateAirJamStoreOptions<T, K>,
 ): AirJamStore<T, AirJamPrivateEntry<T, K>> {
   const store = createStore<T>((set, get, api) => initializer(set, get, api));
-  const shapeFingerprint = stateShape(
-    stripActionsFromState<T>(store.getInitialState()),
+  const shapeFingerprint = shapeFingerprintOf(
+    stateShape(stripActionsFromState<T>(store.getInitialState())),
   );
   const privateField = options?.privateField;
   const privateEntries = (state: Partial<T>): Record<string, unknown> => {

@@ -10,10 +10,11 @@ import {
   type AirJamStoreRequest,
   type AirJamStoreRoom,
 } from "../src/core/replicated-store";
-import type {
-  ChannelCopy,
-  SeatView,
-  StateDocument,
+import {
+  hostStateFrameSchema,
+  type ChannelCopy,
+  type SeatView,
+  type StateDocument,
 } from "../src/room-protocol";
 import type { RoomRequestOutcome } from "../src/room-session/phone-room-session";
 import { declaredStoresContext } from "../src/runtime/runtime-owner-contexts";
@@ -166,6 +167,35 @@ describe("replicated stores", () => {
         context: expect.objectContaining({ actorId: "p2", now: 42 }),
       }),
     );
+  });
+
+  it("fits a large store's shape fingerprint in a state frame, one per shape", () => {
+    const fingerprintOf = (extra: string) => {
+      const fields = Object.fromEntries(
+        Array.from({ length: 80 }, (_, index) => [
+          `${extra}field${index}`,
+          { nested: [index, `${index}`], flag: true },
+        ]),
+      );
+      const store = createAirJamStore<typeof fields & { actions: object }>(
+        () => ({ ...fields, actions: {} }),
+      );
+      const host = hostRoom();
+      detachments.push(attach(store, host.room));
+      return host.published[0]?.options.fingerprint;
+    };
+    const fingerprint = fingerprintOf("");
+    expect(
+      hostStateFrameSchema.safeParse({
+        type: "state",
+        channel: "default",
+        revision: 1,
+        document: {},
+        fingerprint,
+      }).success,
+    ).toBe(true);
+    expect(fingerprintOf("")).toBe(fingerprint);
+    expect(fingerprintOf("other")).not.toBe(fingerprint);
   });
 
   it("refuses internal and unknown actions, and passes a handler's rejection back", () => {
