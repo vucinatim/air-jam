@@ -1,5 +1,5 @@
-import { toDataURL } from "qrcode";
-import { useEffect, useState, type CSSProperties, type JSX } from "react";
+import { create } from "qrcode";
+import { useMemo, type CSSProperties, type JSX } from "react";
 
 export interface RoomQrCodeProps {
   value: string;
@@ -25,71 +25,24 @@ export const RoomQrCode = ({
   alt = "Room join QR code",
 }: RoomQrCodeProps): JSX.Element => {
   const trimmed = value.trim();
-  const qrKey = `${trimmed}\0${size}\0${padding}\0${foregroundColor}\0${backgroundColor}\0${errorCorrectionLevel}`;
-  const [qrState, setQrState] = useState<{
-    key: string | null;
-    dataUrl: string | null;
-    error: boolean;
-  }>({
-    key: null,
-    dataUrl: null,
-    error: false,
-  });
+  const qr = useMemo(() => {
+    if (!trimmed) return null;
 
-  useEffect(() => {
-    if (!trimmed) {
-      return;
+    try {
+      const { modules } = create(trimmed, { errorCorrectionLevel });
+      let path = "";
+      for (let row = 0; row < modules.size; row += 1) {
+        for (let column = 0; column < modules.size; column += 1) {
+          if (modules.data[row * modules.size + column]) {
+            path += `M${column},${row}h1v1h-1z`;
+          }
+        }
+      }
+      return { path, size: modules.size };
+    } catch {
+      return null;
     }
-
-    let cancelled = false;
-
-    void toDataURL(trimmed, {
-      width: size,
-      margin: padding,
-      errorCorrectionLevel,
-      color: {
-        dark: foregroundColor,
-        light: backgroundColor,
-      },
-    })
-      .then((nextUrl: string) => {
-        if (!cancelled) {
-          setQrState({
-            key: qrKey,
-            dataUrl: nextUrl,
-            error: false,
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setQrState({
-            key: qrKey,
-            dataUrl: null,
-            error: true,
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    backgroundColor,
-    errorCorrectionLevel,
-    foregroundColor,
-    padding,
-    size,
-    qrKey,
-    trimmed,
-  ]);
-
-  const imageSrc =
-    trimmed && qrState.key === qrKey && qrState.dataUrl
-      ? qrState.dataUrl
-      : null;
-  const isLoading = !!trimmed && qrState.key !== qrKey;
-  const isUnavailable = !trimmed || (qrState.key === qrKey && qrState.error);
+  }, [trimmed, errorCorrectionLevel]);
 
   return (
     <div
@@ -102,22 +55,28 @@ export const RoomQrCode = ({
       aria-live="polite"
       aria-label={alt}
     >
-      {imageSrc ? (
-        <img
-          src={imageSrc}
-          alt={alt}
+      {qr ? (
+        <svg
+          role="img"
+          aria-label={alt}
           width={size}
           height={size}
-          className="h-full w-full rounded-md object-cover"
-        />
-      ) : isLoading ? (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-md bg-black/15 text-xs text-white/70">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
-          <span>Generating QR…</span>
-        </div>
+          viewBox={`${-padding} ${-padding} ${qr.size + padding * 2} ${qr.size + padding * 2}`}
+          shapeRendering="crispEdges"
+          className="h-full w-full rounded-md"
+        >
+          <rect
+            x={-padding}
+            y={-padding}
+            width={qr.size + padding * 2}
+            height={qr.size + padding * 2}
+            fill={backgroundColor}
+          />
+          <path d={qr.path} fill={foregroundColor} />
+        </svg>
       ) : (
         <div className="flex h-full w-full items-center justify-center rounded-md bg-black/15 text-xs text-white/70">
-          {isUnavailable ? "QR unavailable" : "Generating QR…"}
+          QR unavailable
         </div>
       )}
     </div>

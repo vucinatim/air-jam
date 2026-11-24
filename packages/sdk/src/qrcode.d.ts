@@ -1,16 +1,6 @@
 declare module "qrcode" {
-  export interface QRCodeToDataURLOptions {
-    width?: number;
-    margin?: number;
-    errorCorrectionLevel?: "L" | "M" | "Q" | "H";
-    color?: {
-      dark?: string;
-      light?: string;
-    };
-  }
-
-  export function toDataURL(
+  export function create(
     text: string,
-    options?: QRCodeToDataURLOptions,
-  ): Promise<string>;
+    options?: { errorCorrectionLevel?: "L" | "M" | "Q" | "H" },
+  ): { modules: { size: number; data: Uint8Array } };
 }
