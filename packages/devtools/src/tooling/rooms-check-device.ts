@@ -6,16 +6,19 @@
 import type { AirJamInput, AirJamInputState } from "@air-jam/sdk/core";
 import { type RoomConnector } from "@air-jam/sdk/room-protocol";
 import {
-  createWebSocketConnector,
   HostRoomSession,
   PhoneRoomSession,
   type RoomSessionStatus,
 } from "@air-jam/sdk/room-session";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import { createCheckConnector } from "../rooms-check-link.js";
 import {
   deviceCommandSchema,
   sharedNow,
   type DeviceCommand,
   type DeviceEvent,
+  type DeviceLink,
   type LoadResult,
   type RoomTraffic,
 } from "../rooms-check-protocol.js";
@@ -35,6 +38,48 @@ const MATCH_FACTS = Object.fromEntries(
 
 const report = (event: DeviceEvent): void => {
   if (process.connected) process.send?.(event);
+};
+
+const grants = new Map<number, () => void>();
+let nextDial = 0;
+
+/** Waits for the check's grant to open one connection. */
+const dial = () =>
+  new Promise<void>((resolve) => {
+    const id = nextDial;
+    nextDial += 1;
+    grants.set(id, resolve);
+    report({ type: "dial", at: sharedNow(), id });
+  });
+
+const grant = (id: number) => {
+  const resolve = grants.get(id);
+  if (!resolve) throw new Error(`No connection waits for grant ${id}.`);
+  grants.delete(id);
+  resolve();
+};
+
+const connectorFor = (link: DeviceLink, onDialing: () => void): RoomConnector =>
+  createCheckConnector({
+    url: link.url,
+    origin: link.origin,
+    dial,
+    onDialing,
+    onProblem: (problem) =>
+      report({ type: "problem", at: sharedNow(), problem }),
+  });
+
+const reportDialing = () => report({ type: "dialing", at: sharedNow() });
+
+const run = promisify(exec);
+
+/** One fresh credential from the check's command; hosted grants are spent once. */
+const fetchCredential = async (command: string): Promise<string> => {
+  const { stdout } = await run(command);
+  const credential = stdout.trim();
+  if (credential === "")
+    throw new Error("The host credential command printed nothing.");
+  return credential;
 };
 
 const plainStatus = (status: RoomSessionStatus) => ({
@@ -94,12 +139,16 @@ const every = (perSecond: number, work: () => void) => {
 
 let tap: (() => void) | null = null;
 
-const runHost = (command: Extract<DeviceCommand, { type: "host" }>) => {
+const runHost = async (command: Extract<DeviceCommand, { type: "host" }>) => {
   const host = new HostRoomSession({
-    connector: createWebSocketConnector(command.url),
+    connector: connectorFor(command.link, reportDialing),
     key: command.key,
     code: command.code,
     instance: command.instance,
+    credential:
+      command.instance === undefined && command.credentialCommand
+        ? await fetchCredential(command.credentialCommand)
+        : undefined,
     seats: command.seats,
     input: controls,
     heartbeat: command.heartbeat ? undefined : null,
@@ -148,7 +197,7 @@ const runHost = (command: Extract<DeviceCommand, { type: "host" }>) => {
 
 const runPhone = (command: Extract<DeviceCommand, { type: "phone" }>) => {
   const phone = new PhoneRoomSession({
-    connector: createWebSocketConnector(command.url),
+    connector: connectorFor(command.link, reportDialing),
     key: command.key,
     code: command.code,
     instance: command.instance,
@@ -206,12 +255,14 @@ const metered =
     };
   };
 
-const until = (condition: () => boolean, deadlineMs: number) =>
-  new Promise<boolean>((resolve) => {
+/** The first value `read` gives within the deadline, or null. */
+const until = <Value>(read: () => Value | null, deadlineMs: number) =>
+  new Promise<Value | null>((resolve) => {
     const deadline = Date.now() + deadlineMs;
     const check = () => {
-      if (condition()) resolve(true);
-      else if (Date.now() > deadline) resolve(false);
+      const value = read();
+      if (value !== null) resolve(value);
+      else if (Date.now() > deadline) resolve(null);
       else setTimeout(check, 20);
     };
     check();
@@ -219,6 +270,10 @@ const until = (condition: () => boolean, deadlineMs: number) =>
 
 const wait = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+/** Long enough for any connection to get its grant, however slowly the check paces opens. */
+const GRANT_DEADLINE_MS = 30 * 60_000;
+const OPEN_DEADLINE_MS = 30_000;
 
 const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
   const cpuAtStart = process.cpuUsage();
@@ -228,7 +283,6 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
     messagesOut: 0,
     bytesOut: 0,
   };
-  const connector = metered(createWebSocketConnector(command.url), traffic);
   const result: Omit<LoadResult, "traffic" | "cpuMs"> = {
     roomsOpened: 0,
     phonesJoined: 0,
@@ -244,73 +298,108 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
   const pending: Array<Map<number, number>> = [];
   let measuring = false;
 
-  await Promise.all(
-    Array.from({ length: command.rooms }, async (_, room) => {
-      await wait((room * 1000) / command.rooms);
-      const openingAt = sharedNow();
-      const host = new HostRoomSession({
-        connector,
-        key: `load-host-${room}-${crypto.randomUUID()}`,
-        seats: command.phonesPerRoom,
-        input: controls,
-        deviceWakeEvents: null,
-      });
-      sessions.push(host);
-      if (!(await until(() => host.status.phase === "open", 30_000))) return;
-      result.roomsOpened += 1;
-      result.roomOpenMs.push(sharedNow() - openingAt);
-      const sentBySeat = new Map<string, Map<number, number>>();
-      const seen = new Map<string, number>();
-      host.on("input", ({ seat, state }) => {
-        const count = presses(state);
-        const before = seen.get(seat) ?? count - 1;
-        seen.set(seat, count);
-        const sent = sentBySeat.get(seat);
-        for (let reached = before + 1; reached <= count; reached += 1) {
-          const at = sent?.get(reached);
-          if (at === undefined) continue;
-          sent?.delete(reached);
-          if (measuring) result.inputLatencyMs.push(sharedNow() - at);
-        }
-      });
-      await Promise.all(
-        Array.from({ length: command.phonesPerRoom }, async (_, index) => {
-          const joiningAt = sharedNow();
-          const phone = new PhoneRoomSession({
-            connector,
-            key: `load-phone-${room}-${index}-${crypto.randomUUID()}`,
-            code: host.code ?? "",
-            input: controls,
-            deviceWakeEvents: null,
-          });
-          sessions.push(phone);
-          phone.on("state", ({ document }) => {
-            if (measuring && typeof document.publishedAt === "number")
-              result.stateLatencyMs.push(sharedNow() - document.publishedAt);
-          });
-          if (!(await until(() => phone.seat !== null, 30_000))) return;
-          result.phonesJoined += 1;
-          result.phoneJoinMs.push(sharedNow() - joiningAt);
-          const sent = new Map<number, number>();
-          sentBySeat.set(phone.seat ?? "", sent);
-          pending.push(sent);
-          const step = createThumb(phone, (count) => {
-            if (!measuring) return;
-            result.pressesSent += 1;
-            sent.set(count, sharedNow());
-          });
-          await wait(Math.random() * (1000 / command.inputsPerSecond));
-          stops.push(every(command.inputsPerSecond, step));
+  /** One session's metered connector, and how long its first connection took to open from dialing. */
+  const sessionLink = () => {
+    const times: { dialed: number | null; opened: number | null } = {
+      dialed: null,
+      opened: null,
+    };
+    return {
+      connector: metered(
+        connectorFor(command.link, () => {
+          times.dialed ??= sharedNow();
         }),
-      );
-      stops.push(
-        every(
-          command.statesPerSecond,
-          createTicker(host, () => {}),
-        ),
-      );
-    }),
-  );
+        traffic,
+      ),
+      onStatus: (status: RoomSessionStatus) => {
+        if (status.phase === "open") times.opened ??= sharedNow();
+      },
+      openMs: async (): Promise<number | null> => {
+        const dialedAt = await until(() => times.dialed, GRANT_DEADLINE_MS);
+        if (dialedAt === null) return null;
+        const openedAt = await until(() => times.opened, OPEN_DEADLINE_MS);
+        return openedAt === null ? null : openedAt - dialedAt;
+      },
+    };
+  };
+
+  const openLoadRoom = async (room: number) => {
+    const hostLink = sessionLink();
+    const host = new HostRoomSession({
+      connector: hostLink.connector,
+      key: `load-host-${room}-${crypto.randomUUID()}`,
+      credential: command.credentialCommand
+        ? await fetchCredential(command.credentialCommand)
+        : undefined,
+      seats: command.phonesPerRoom,
+      input: controls,
+      deviceWakeEvents: null,
+    });
+    host.on("status", hostLink.onStatus);
+    sessions.push(host);
+    const roomOpenMs = await hostLink.openMs();
+    const code = host.code;
+    if (roomOpenMs === null || code === undefined) return;
+    result.roomsOpened += 1;
+    result.roomOpenMs.push(roomOpenMs);
+    const sentBySeat = new Map<string, Map<number, number>>();
+    const seen = new Map<string, number>();
+    host.on("input", ({ seat, state }) => {
+      const count = presses(state);
+      const before = seen.get(seat) ?? count - 1;
+      seen.set(seat, count);
+      const sent = sentBySeat.get(seat);
+      for (let reached = before + 1; reached <= count; reached += 1) {
+        const at = sent?.get(reached);
+        if (at === undefined) continue;
+        sent?.delete(reached);
+        if (measuring) result.inputLatencyMs.push(sharedNow() - at);
+      }
+    });
+    await Promise.all(
+      Array.from({ length: command.phonesPerRoom }, async (_, index) => {
+        const phoneLink = sessionLink();
+        const phone = new PhoneRoomSession({
+          connector: phoneLink.connector,
+          key: `load-phone-${room}-${index}-${crypto.randomUUID()}`,
+          code,
+          input: controls,
+          deviceWakeEvents: null,
+        });
+        phone.on("status", phoneLink.onStatus);
+        sessions.push(phone);
+        phone.on("state", ({ document }) => {
+          if (measuring && typeof document.publishedAt === "number")
+            result.stateLatencyMs.push(sharedNow() - document.publishedAt);
+        });
+        const phoneJoinMs = await phoneLink.openMs();
+        const seat = phone.seat;
+        if (phoneJoinMs === null || seat === null) return;
+        result.phonesJoined += 1;
+        result.phoneJoinMs.push(phoneJoinMs);
+        const sent = new Map<number, number>();
+        sentBySeat.set(seat, sent);
+        pending.push(sent);
+        const step = createThumb(phone, (count) => {
+          if (!measuring) return;
+          result.pressesSent += 1;
+          sent.set(count, sharedNow());
+        });
+        await wait(Math.random() * (1000 / command.inputsPerSecond));
+        stops.push(every(command.inputsPerSecond, step));
+      }),
+    );
+    stops.push(
+      every(
+        command.statesPerSecond,
+        createTicker(host, () => {}),
+      ),
+    );
+  };
+
+  // Rooms open one after another, so each host's credential is fresh when
+  // its connection is granted.
+  for (let room = 0; room < command.rooms; room += 1) await openLoadRoom(room);
 
   measuring = true;
   const trafficAtStart = { ...traffic };
@@ -338,23 +427,26 @@ const runLoad = async (command: Extract<DeviceCommand, { type: "load" }>) => {
   });
 };
 
+const reportFailure = (error: unknown) =>
+  report({
+    type: "failed",
+    at: sharedNow(),
+    message: (error instanceof Error ? error.message : String(error)).trim(),
+  });
+
 process.on("message", (message: unknown) => {
   const command = deviceCommandSchema.parse(message);
   switch (command.type) {
     case "host":
-      return runHost(command);
+      return void runHost(command).catch(reportFailure);
     case "phone":
       return runPhone(command);
     case "press":
       return tap?.();
+    case "dial":
+      return grant(command.id);
     case "load":
-      return void runLoad(command).catch((error: unknown) =>
-        report({
-          type: "failed",
-          at: sharedNow(),
-          message: error instanceof Error ? error.message : String(error),
-        }),
-      );
+      return void runLoad(command).catch(reportFailure);
   }
 });
 process.on("disconnect", () => process.exit(0));

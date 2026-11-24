@@ -1,6 +1,12 @@
 import { createRoomKey } from "@air-jam/sdk/room-session";
 import { availableParallelism } from "node:os";
-import { Device, Fleet, isOpen, ScenarioFailure } from "./rooms-check-fleet.js";
+import {
+  ConnectionPacer,
+  Device,
+  Fleet,
+  isOpen,
+  ScenarioFailure,
+} from "./rooms-check-fleet.js";
 import {
   DEFAULT_ROOMS_CHECK_SCENARIOS,
   sharedNow,
@@ -13,8 +19,11 @@ import {
 
 export {
   DEFAULT_ROOMS_CHECK_SCENARIOS,
+  describeLinkProblem,
   ROOMS_CHECK_SCENARIOS,
+  type ConnectionProblem,
   type LatencySummary,
+  type LinkProblem,
   type RoomsCheckReport,
   type RoomsCheckScenario,
   type RoomsCheckScenarioResult,
@@ -31,6 +40,16 @@ export interface RoomsCheckLoadOptions {
 export interface RoomsCheckOptions {
   /** The rooms origin, such as `wss://rooms.example.com` or `http://localhost:4000`. */
   readonly url: string;
+  /** The page origin every connection names in its Origin header, for a gate that checks it. */
+  readonly origin?: string;
+  /**
+   * A shell command printing one host credential, run for every host that
+   * opens a room, since a hosted grant is spent once; a host resuming its
+   * room runs none.
+   */
+  readonly hostCredentialCommand?: string;
+  /** At most this many connection opens in any minute, across every device; unpaced when omitted. */
+  readonly connectionsPerMinute?: number;
   readonly scenarios?: readonly RoomsCheckScenario[];
   /** A lock shorter than any server's liveness window, which must not cost the seat. */
   readonly briefFreezeMs?: number;
@@ -43,6 +62,8 @@ export interface RoomsCheckOptions {
 
 const PRESS_COUNTER_SIZE = 128;
 const OPEN_DEADLINE_MS = 15_000;
+/** Long enough for any connection to get its grant, however slowly the check paces opens. */
+const GRANT_DEADLINE_MS = 30 * 60_000;
 /** Bytes of TLS, WebSocket and TCP/IP framing around each message, as the hosting plan measured. */
 const WIRE_FRAMING_BYTES = 78;
 const HOUR_MS = 3_600_000;
@@ -65,16 +86,32 @@ interface OpenRoom {
   readonly joinMs: number[];
 }
 
-/** When the device's session began connecting, after its process started. */
-const startOf = (device: Device) =>
+/** When the device's first connection began opening, after its process started and its grant came. */
+const dialed = (device: Device) =>
   device.until(
+    (event) => (event.type === "dialing" ? event.at : undefined),
+    "dialing",
+    GRANT_DEADLINE_MS,
+  );
+
+/** The device's first open status, counted from when it dialed; a session the room ends for good fails it at once. */
+const firstOpen = async (device: Device, what: string) => {
+  const dialedAt = await dialed(device);
+  const outcome = await device.until(
     (event) =>
-      event.type === "status" && event.status.phase === "connecting"
-        ? event.at
+      event.type === "status" &&
+      (event.status.phase === "open" || event.status.phase === "closed")
+        ? event
         : undefined,
-    "starting",
+    what,
     OPEN_DEADLINE_MS,
   );
+  if (outcome.status.phase === "closed")
+    throw new ScenarioFailure(
+      `${device.name}: ${what} ended with the room closing it as ${outcome.status.reason}.`,
+    );
+  return { opened: outcome, openMs: outcome.at - dialedAt };
+};
 
 const field = <Value>(value: Value | undefined, what: string): Value => {
   if (value === undefined)
@@ -92,23 +129,19 @@ const joinPhone = async (
   const key = options.key ?? createRoomKey();
   device.send({
     type: "phone",
-    url: fleet.url,
+    link: fleet.link,
     key,
     code: room.code,
     instance: options.instance,
     inputsPerSecond: options.inputsPerSecond,
   });
-  const opened = await device.until(
-    (event) => (isOpen(event) ? event : undefined),
-    "joining",
-    OPEN_DEADLINE_MS,
-  );
+  const { opened, openMs } = await firstOpen(device, "joining");
   return {
     device,
     key,
     seat: field(opened.seat, "seat"),
     instance: field(opened.instance, "instance"),
-    joinMs: opened.at - (await startOf(device)),
+    joinMs: openMs,
   };
 };
 
@@ -125,17 +158,14 @@ const openRoom = async (
   const hostKey = createRoomKey();
   host.send({
     type: "host",
-    url: fleet.url,
+    link: fleet.link,
+    credentialCommand: fleet.hostCredentialCommand,
     key: hostKey,
     seats: Math.max(options.phones, 2),
     statesPerSecond: options.statesPerSecond ?? 0,
     heartbeat: options.hostHeartbeat ?? true,
   });
-  const opened = await host.until(
-    (event) => (isOpen(event) ? event : undefined),
-    "opening the room",
-    OPEN_DEADLINE_MS,
-  );
+  const { opened, openMs } = await firstOpen(host, "opening the room");
   const code = field(opened.code, "code");
   const joined = await Promise.all(
     Array.from({ length: options.phones }, (_, index) =>
@@ -155,7 +185,7 @@ const openRoom = async (
     code,
     instance: field(opened.instance, "instance"),
     hostGraceMs: field(opened.hostGraceMs, "host grace"),
-    openMs: opened.at - (await startOf(host)),
+    openMs,
     phones: joined,
     joinMs: joined.map((phone) => phone.joinMs),
   };
@@ -235,7 +265,7 @@ const seatDropped = (host: Device, seat: string, from: number) =>
 type ScenarioContext = {
   readonly fleet: Fleet;
   readonly options: Required<
-    Omit<RoomsCheckOptions, "scenarios" | "onResult" | "load">
+    Pick<RoomsCheckOptions, "briefFreezeMs" | "idleMs" | "crowdDurationMs">
   > & {
     readonly load: Required<RoomsCheckLoadOptions>;
   };
@@ -364,13 +394,14 @@ const scenarios: Record<RoomsCheckScenario, Scenario> = {
       const device = fleet.device(name);
       device.send({
         type: "phone",
-        url: fleet.url,
+        link: fleet.link,
         key,
         code: room.code,
         inputsPerSecond: 0,
       });
       return device;
     });
+    await Promise.all(tabs.map(dialed));
     const outcomes = await Promise.all(
       tabs.map((tab) =>
         tab
@@ -415,7 +446,8 @@ const scenarios: Record<RoomsCheckScenario, Scenario> = {
     const reloaded = fleet.device("reloaded host");
     reloaded.send({
       type: "host",
-      url: fleet.url,
+      link: fleet.link,
+      credentialCommand: fleet.hostCredentialCommand,
       key: room.hostKey,
       code: room.code,
       instance: room.instance,
@@ -423,11 +455,7 @@ const scenarios: Record<RoomsCheckScenario, Scenario> = {
       statesPerSecond: 0,
       heartbeat: true,
     });
-    const opened = await reloaded.until(
-      (event) => (isOpen(event) ? event : undefined),
-      "reclaiming the room",
-      OPEN_DEADLINE_MS,
-    );
+    const { opened } = await firstOpen(reloaded, "reclaiming the room");
     if (opened.code !== room.code)
       throw new ScenarioFailure(`The host came back to ${opened.code}.`);
     const seats = await reloaded.until(
@@ -522,7 +550,8 @@ const scenarios: Record<RoomsCheckScenario, Scenario> = {
         const worker = fleet.device(`load worker ${index + 1}`);
         worker.send({
           type: "load",
-          url: fleet.url,
+          link: fleet.link,
+          credentialCommand: fleet.hostCredentialCommand,
           rooms: share,
           phonesPerRoom,
           inputsPerSecond: 30,
@@ -535,7 +564,7 @@ const scenarios: Record<RoomsCheckScenario, Scenario> = {
               ? event
               : undefined,
           "finishing its rooms",
-          durationMs + 120_000,
+          GRANT_DEADLINE_MS + durationMs,
         );
       }),
     );
@@ -617,8 +646,15 @@ const summarizeLoad = (
 export const runRoomsCheck = async (
   options: RoomsCheckOptions,
 ): Promise<RoomsCheckReport> => {
+  const pacer =
+    options.connectionsPerMinute === undefined
+      ? null
+      : new ConnectionPacer(options.connectionsPerMinute);
+  const target = {
+    link: { url: options.url, origin: options.origin },
+    hostCredentialCommand: options.hostCredentialCommand,
+  };
   const resolved: ScenarioContext["options"] = {
-    url: options.url,
     briefFreezeMs: options.briefFreezeMs ?? 5_000,
     idleMs: options.idleMs ?? 60_000,
     crowdDurationMs: options.crowdDurationMs ?? 10_000,
@@ -633,7 +669,7 @@ export const runRoomsCheck = async (
   };
   const results: RoomsCheckScenarioResult[] = [];
   for (const scenario of options.scenarios ?? DEFAULT_ROOMS_CHECK_SCENARIOS) {
-    const fleet = new Fleet(options.url);
+    const fleet = new Fleet(target, pacer);
     const startedAt = sharedNow();
     let result: RoomsCheckScenarioResult;
     try {
@@ -646,6 +682,7 @@ export const runRoomsCheck = async (
         passed: true,
         durationMs: Math.round(sharedNow() - startedAt),
         measurements: roundAll(measurements),
+        connectionProblems: fleet.problems(startedAt),
       };
     } catch (error) {
       if (!(error instanceof ScenarioFailure)) throw error;
@@ -655,6 +692,7 @@ export const runRoomsCheck = async (
         failure: error.message,
         durationMs: Math.round(sharedNow() - startedAt),
         measurements: {},
+        connectionProblems: fleet.problems(startedAt),
       };
     } finally {
       fleet.close();

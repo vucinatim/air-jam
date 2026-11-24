@@ -1,4 +1,5 @@
 import {
+  describeLinkProblem,
   ROOMS_CHECK_SCENARIOS,
   runRoomsCheck,
   type RoomsCheckScenarioResult,
@@ -11,6 +12,9 @@ const positive = z.coerce.number().int().positive();
 const optionsSchema = z.object({
   scenario: z.array(z.enum(ROOMS_CHECK_SCENARIOS)).optional(),
   json: z.boolean(),
+  origin: z.url().optional(),
+  hostCredentialCommand: z.string().min(1).optional(),
+  connectionsPerMinute: positive.optional(),
   briefFreezeMs: positive.optional(),
   idleMs: positive.optional(),
   crowdDurationMs: positive.optional(),
@@ -20,10 +24,30 @@ const optionsSchema = z.object({
   loadWorkers: positive.optional(),
 });
 
+/** Each kind of connection problem once, with how often and on which devices. */
+const describeProblems = (result: RoomsCheckScenarioResult): string[] => {
+  const byCause = new Map<string, { count: number; devices: Set<string> }>();
+  for (const { device, problem } of result.connectionProblems) {
+    const cause = describeLinkProblem(problem);
+    const entry = byCause.get(cause) ?? { count: 0, devices: new Set() };
+    entry.count += 1;
+    entry.devices.add(device);
+    byCause.set(cause, entry);
+  }
+  return [...byCause].map(
+    ([cause, { count, devices }]) =>
+      `  connection ${cause}: ${count} on ${[...devices].join(", ")}`,
+  );
+};
+
 const describeResult = (result: RoomsCheckScenarioResult): string =>
-  `${result.passed ? kleur.green("pass") : kleur.red("FAIL")} ${result.scenario} (${result.durationMs} ms)${
-    result.failure ? `: ${result.failure}` : ""
-  }${result.passed ? `\n  ${JSON.stringify(result.measurements)}` : ""}`;
+  [
+    `${result.passed ? kleur.green("pass") : kleur.red("FAIL")} ${result.scenario} (${result.durationMs} ms)${
+      result.failure ? `: ${result.failure}` : ""
+    }`,
+    ...(result.passed ? [`  ${JSON.stringify(result.measurements)}`] : []),
+    ...describeProblems(result),
+  ].join("\n");
 
 export function registerRoomsCommand(program: Command) {
   program
@@ -31,7 +55,7 @@ export function registerRoomsCommand(program: Command) {
     .description("Check room servers")
     .command("check <url>")
     .description(
-      "Run the room acceptance scenarios against a rooms origin, with the host and each phone as separate processes that are frozen, killed and replaced. Every scenario but load runs by default; load opens 100 rooms and 400 phones from this machine, so the target must allow that many connections from one address.",
+      "Run the room acceptance scenarios against a rooms origin, with the host and each phone as separate processes that are frozen, killed and replaced. Every scenario but load runs by default; load opens 100 rooms and 400 phones from this machine, so the target must allow that many connections from one address or the check must pace them (--connections-per-minute).",
     )
     .option(
       "--scenario <name>",
@@ -39,6 +63,18 @@ export function registerRoomsCommand(program: Command) {
       (value: string, previous: string[] = []) => [...previous, value],
     )
     .option("--json", "Print one machine-readable JSON document", false)
+    .option(
+      "--origin <origin>",
+      "The page origin every connection sends as its Origin header",
+    )
+    .option(
+      "--host-credential-command <command>",
+      "A shell command printing one fresh host credential, run for every host that opens a room",
+    )
+    .option(
+      "--connections-per-minute <count>",
+      "At most this many connection opens in any minute, across every device (default unpaced)",
+    )
     .option(
       "--brief-freeze-ms <ms>",
       "A phone lock shorter than the server's liveness window (default 5000)",
@@ -67,6 +103,9 @@ export function registerRoomsCommand(program: Command) {
       const options = parsed.data;
       const report = await runRoomsCheck({
         url,
+        origin: options.origin,
+        hostCredentialCommand: options.hostCredentialCommand,
+        connectionsPerMinute: options.connectionsPerMinute,
         scenarios: options.scenario,
         briefFreezeMs: options.briefFreezeMs,
         idleMs: options.idleMs,

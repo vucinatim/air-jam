@@ -9,13 +9,26 @@ import { z } from "zod";
 const keySchema = z.string().min(16).max(128);
 const codeSchema = z.string().min(4).max(8);
 
+/** How every device reaches the room server. */
+const linkSchema = z.object({
+  url: z.string(),
+  /** The Origin header each connection sends. */
+  origin: z.string().optional(),
+});
+export type DeviceLink = z.infer<typeof linkSchema>;
+
+/** A shell command whose trimmed output is one fresh host credential. */
+const credentialCommandSchema = z.string().min(1).optional();
+
 export const deviceCommandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("host"),
-    url: z.string(),
+    link: linkSchema,
     key: keySchema,
     code: codeSchema.optional(),
+    /** A host resuming its instance asks for no credential. */
     instance: z.string().optional(),
+    credentialCommand: credentialCommandSchema,
     seats: z.number().int().min(1).max(16),
     statesPerSecond: z.number().nonnegative(),
     /** False sends no client pings, as a hidden tab's throttled timers do. */
@@ -23,7 +36,7 @@ export const deviceCommandSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("phone"),
-    url: z.string(),
+    link: linkSchema,
     key: keySchema,
     code: codeSchema,
     instance: z.string().optional(),
@@ -31,9 +44,12 @@ export const deviceCommandSchema = z.discriminatedUnion("type", [
   }),
   /** An idle phone taps once. */
   z.object({ type: z.literal("press") }),
+  /** The connection the device asked to open with `dial` may open now. */
+  z.object({ type: z.literal("dial"), id: z.number().int() }),
   z.object({
     type: z.literal("load"),
-    url: z.string(),
+    link: linkSchema,
+    credentialCommand: credentialCommandSchema,
     rooms: z.number().int().positive(),
     phonesPerRoom: z.number().int().min(1).max(16),
     inputsPerSecond: z.number().positive(),
@@ -81,6 +97,31 @@ export const loadResultSchema = z.object({
 });
 export type LoadResult = z.infer<typeof loadResultSchema>;
 
+export const linkProblemSchema = z.discriminatedUnion("kind", [
+  /** The server answered the upgrade with this HTTP status instead of a socket. */
+  z.object({ kind: z.literal("refused"), status: z.number() }),
+  /** No answer: the network or TLS error, or the handshake timing out. */
+  z.object({ kind: z.literal("failed"), error: z.string() }),
+  /** An open connection closed without the device asking, with the room's reason when the code has one. */
+  z.object({
+    kind: z.literal("closed"),
+    code: z.number(),
+    reason: z.string().nullable(),
+  }),
+]);
+export type LinkProblem = z.infer<typeof linkProblemSchema>;
+
+export const describeLinkProblem = (problem: LinkProblem): string => {
+  switch (problem.kind) {
+    case "refused":
+      return `refused with HTTP ${problem.status}`;
+    case "failed":
+      return `failed to open: ${problem.error}`;
+    case "closed":
+      return `closed with ${problem.code}${problem.reason ? ` (${problem.reason})` : ""}`;
+  }
+};
+
 /** Everything a device reports, each stamped with the shared wall clock. */
 export const deviceEventSchema = z.discriminatedUnion("type", [
   z.object({
@@ -115,6 +156,15 @@ export const deviceEventSchema = z.discriminatedUnion("type", [
     result: loadResultSchema,
   }),
   z.object({ type: z.literal("failed"), at: z.number(), message: z.string() }),
+  /** Asks for a grant to open a connection; the check paces opens across devices. */
+  z.object({ type: z.literal("dial"), at: z.number(), id: z.number().int() }),
+  /** A connection began opening. */
+  z.object({ type: z.literal("dialing"), at: z.number() }),
+  z.object({
+    type: z.literal("problem"),
+    at: z.number(),
+    problem: linkProblemSchema,
+  }),
 ]);
 export type DeviceEvent = z.infer<typeof deviceEventSchema>;
 
@@ -145,6 +195,15 @@ export interface RoomsCheckScenarioResult {
   readonly durationMs: number;
   /** What it measured, in milliseconds unless the name says otherwise. */
   readonly measurements: Readonly<Record<string, unknown>>;
+  /** Every connection that failed to open or closed without its device asking, expected or not. */
+  readonly connectionProblems: readonly ConnectionProblem[];
+}
+
+export interface ConnectionProblem {
+  readonly device: string;
+  /** Since the scenario began. */
+  readonly atMs: number;
+  readonly problem: LinkProblem;
 }
 
 export interface RoomsCheckReport {

@@ -25,7 +25,11 @@ things in the public packages are its executable form and win over this text:
 4. `@air-jam/sdk/room-session`: the client every SDK runtime uses, which
    owns the client rules below.
 5. `airjam rooms check <url>`: the acceptance scenarios any rooms origin
-   must pass.
+   must pass. A gated origin takes the page's `--origin`, a
+   `--host-credential-command` run once for each host that opens a room,
+   and `--connections-per-minute` under its per-address limit; every
+   connection that fails to open or closes unasked is reported with its
+   HTTP status, error or close code.
 
 ## Addressing
 

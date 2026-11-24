@@ -780,6 +780,9 @@ importers:
       tsx:
         specifier: 4.20.6
         version: 4.20.6
+      ws:
+        specifier: ^8.18.3
+        version: 8.23.0
       yauzl:
         specifier: ^3.2.1
         version: 3.2.1
@@ -799,6 +802,9 @@ importers:
       '@types/proper-lockfile':
         specifier: 4.1.4
         version: 4.1.4
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.2
       '@types/yauzl':
         specifier: ^2.10.3
         version: 2.10.3
