@@ -24,7 +24,7 @@ import {
   isRuntimeOwnerCaptureRequest,
   resolveProjectRelativeRuntimeCaptureDir,
   runtimeOwnerAgentRequestSchema,
-  runtimeOwnerCaptureEventSchema,
+  runtimeOwnerCapturePortSchema,
   runtimeOwnerWatchRequestSchema,
   runtimeOwnerWatchStopSchema,
   type AirJamRuntimeOwnerCaptureResult,
@@ -171,7 +171,7 @@ process.on("message", (message: unknown) => {
     })();
     return;
   }
-  const captureEvent = runtimeOwnerCaptureEventSchema.safeParse(message);
+  const captureEvent = runtimeOwnerCapturePortSchema.safeParse(message);
   if (captureEvent.success) {
     observations.deliver(captureEvent.data);
     return;

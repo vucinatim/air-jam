@@ -6,7 +6,9 @@ import {
 import { BodyLimitError, readBoundedText } from "./bounded-response.js";
 import {
   currentRoomHostRequestSchema,
+  currentRoomSeatClaimSchema,
   type CurrentRoomAttachment,
+  type CurrentRoomSeatClaim,
 } from "./game-run-protocol.js";
 
 const MAXIMUM_RESPONSE_BYTES = 2 * 1024 * 1024;
@@ -111,5 +113,54 @@ export function currentRoomHost(
         "runtime_replaced: The observation belongs to another runtime or player.",
       );
     return answer;
+  };
+}
+
+/**
+ * Claims, through the editor that granted the room, a seat one of the run's
+ * players joined. The editor accepts it only for a seat its room shows as
+ * an agent's, unclaimed and within the run's count.
+ */
+export function currentRoomSeatClaimer(
+  attachment: CurrentRoomAttachment,
+  ownerInstanceId: string,
+): (claim: CurrentRoomSeatClaim, timeoutMs: number) => Promise<void> {
+  return async (claim, timeoutMs) => {
+    const body = currentRoomSeatClaimSchema.parse({
+      targetId: attachment.host.targetId,
+      ownerInstanceId,
+      claim,
+    });
+    let response: Response;
+    try {
+      response = await fetch(attachment.host.endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+        redirect: "error",
+        credentials: "omit",
+      });
+    } catch {
+      throw new Error(
+        "current_host_unavailable: The creator's editor could not be reached.",
+      );
+    }
+    if (response.ok) {
+      await response.body?.cancel();
+      return;
+    }
+    let message = `The editor refused the seat (HTTP ${response.status}).`;
+    try {
+      if (response.body) {
+        const refusal = JSON.parse(await readBoundedText(response.body, 4096));
+        if (typeof refusal?.error === "string" && refusal.error.trim())
+          message = refusal.error.trim().slice(0, 300);
+      }
+    } catch {
+      // Missing, invalid or oversized refusal bodies keep the generic cause.
+    }
+    if (response.status === 410) throw new CurrentRoomStopped(message);
+    throw new Error(`current_room_scope: ${message}`);
   };
 }

@@ -9,7 +9,10 @@ import {
 } from "node:http";
 import path from "node:path";
 import { z } from "zod";
-import { currentRoomHost } from "./current-room-host.js";
+import {
+  currentRoomHost,
+  currentRoomSeatClaimer,
+} from "./current-room-host.js";
 import { takeDecisionProviderFromEnvironment } from "./decision-provider.js";
 import { GameRunOwner } from "./game-run-owner.js";
 import {
@@ -345,17 +348,15 @@ export async function runGameSessionBroker({
               gameId,
               nickname,
               ...(attachment
-                ? {
-                    controllerJoinUrl: attachment.controllerJoinUrl,
-                    controllerId: attachment.controllerIds[0],
-                  }
+                ? { controllerJoinUrl: attachment.controllerJoinUrl }
                 : {}),
             },
             {
               delegation: attachment
                 ? {
                     host: currentRoomHost(attachment, instanceId),
-                    seatControllerIds: attachment.controllerIds.slice(1),
+                    seats: attachment.seats,
+                    claimSeat: currentRoomSeatClaimer(attachment, instanceId),
                   }
                 : undefined,
               build,

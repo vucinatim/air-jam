@@ -64,8 +64,8 @@ async function fixture(reply: (response: ServerResponse) => void) {
     throw new Error("Expected TCP fixture.");
   const attachment = currentRoomAttachmentSchema.parse({
     controllerJoinUrl:
-      "http://localhost/controller?room=ROOM&aj_controller_cap=private-room-secret",
-    controllerIds: ["agent"],
+      "http://localhost/controller?room=ROOM&secret=private-room-secret",
+    seats: 1,
     host: {
       endpoint: `http://127.0.0.1:${address.port}/private-target`,
       targetId: "target-secret",

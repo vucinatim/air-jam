@@ -1,14 +1,5 @@
 import type { AirJamActionInvocationResult } from "@air-jam/sdk";
-import {
-  controllerBridgeServerEvents,
-  controllerBridgeSnapshotSchema,
-} from "@air-jam/sdk/controller-bridge";
-import {
-  airJamActionInvocationResultSchema,
-  controllerStateSyncRequestSchema,
-  hostPrivateStateSyncSchema,
-  hostStateSyncSchema,
-} from "@air-jam/sdk/protocol";
+import { airJamActionInvocationResultSchema } from "@air-jam/sdk/protocol";
 import type { HostRuntimeActionRequest } from "@air-jam/sdk/runtime-control";
 import {
   hostAgentRequestSchema,
@@ -61,27 +52,41 @@ export const AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST =
 export const AIR_JAM_RUNTIME_OWNER_CAPTURE_RESULT =
   "air-jam-runtime-owner.capture-visuals-result/v1" as const;
 
+/** Who the observed controller page plays as: the acting phone's harness session and room. */
+export const runtimeOwnerObservedControllerSchema = z.object({
+  harnessSessionId: z.uuid(),
+  roomId: z.string().min(1),
+});
+
 const runtimeOwnerCaptureSchema = z.object({
   type: z.literal(AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST),
   requestId: z.uuid(),
   relativeDir: z.string().min(1),
-  snapshot: controllerBridgeSnapshotSchema,
-  stores: z.array(hostStateSyncSchema),
-  privateStores: z.array(hostPrivateStateSyncSchema),
+  ...runtimeOwnerObservedControllerSchema.shape,
 });
 export type AirJamRuntimeOwnerCaptureRequest = z.infer<
   typeof runtimeOwnerCaptureSchema
 >;
-export const runtimeOwnerCaptureReadSchema = z.object({
-  type: z.literal("air-jam-runtime-owner.capture-read/v1"),
-  captureRequestId: z.uuid(),
-  payload: controllerStateSyncRequestSchema,
-});
-export const runtimeOwnerCaptureEventSchema = z.object({
-  type: z.literal("air-jam-runtime-owner.capture-event/v1"),
+/**
+ * The observed controller page's room port, relayed between the owner and
+ * the process that holds the acting phone: the page's messages travel as
+ * capture frames, the answers as capture port messages.
+ */
+export const AIR_JAM_RUNTIME_OWNER_CAPTURE_PORT =
+  "air-jam-runtime-owner.capture-port/v1" as const;
+export const AIR_JAM_RUNTIME_OWNER_CAPTURE_FRAME =
+  "air-jam-runtime-owner.capture-frame/v1" as const;
+
+export const runtimeOwnerCapturePortSchema = z.object({
+  type: z.literal(AIR_JAM_RUNTIME_OWNER_CAPTURE_PORT),
   requestId: z.uuid(),
-  event: z.enum(controllerBridgeServerEvents),
-  args: z.array(z.unknown()),
+  message: z.unknown(),
+});
+
+export const runtimeOwnerCaptureFrameSchema = z.object({
+  type: z.literal(AIR_JAM_RUNTIME_OWNER_CAPTURE_FRAME),
+  requestId: z.uuid(),
+  message: z.unknown(),
 });
 
 export type AirJamRuntimeOwnerScreenshot = {
@@ -191,9 +196,7 @@ export const runtimeOwnerWatchRequestSchema = z.discriminatedUnion("surface", [
       type: z.literal("air-jam-runtime-owner.watch/v1"),
       watchId: z.uuid(),
       surface: z.literal("controller"),
-      snapshot: controllerBridgeSnapshotSchema,
-      stores: z.array(hostStateSyncSchema),
-      privateStores: z.array(hostPrivateStateSyncSchema),
+      ...runtimeOwnerObservedControllerSchema.shape,
     })
     .strict(),
 ]);

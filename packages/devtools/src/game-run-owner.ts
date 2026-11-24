@@ -835,10 +835,7 @@ export class GameRunOwner {
     }
     const players = profile ?? PLAY_RUN_PLAYER;
     run.players = players;
-    if (
-      run.attachment &&
-      players.seats.length > run.attachment.controllerIds.length
-    )
+    if (run.attachment && players.seats.length > run.attachment.seats)
       throw new Error(
         "current_profile_invalid: The creator's room issued too few seats.",
       );
@@ -914,8 +911,7 @@ export class GameRunOwner {
       );
       if (
         run.attachment &&
-        (run.session.summary.controllerId !== run.attachment.controllerIds[0] ||
-          run.session.summary.semanticAccess !== "delegated-host" ||
+        (run.session.summary.semanticAccess !== "delegated-host" ||
           run.session.summary.roomId !==
             new URL(run.attachment.controllerJoinUrl).searchParams.get("room"))
       )

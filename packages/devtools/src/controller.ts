@@ -6,37 +6,34 @@ import {
   localReferenceSourceGameId,
 } from "@air-jam/sdk/arcade/surface";
 import {
-  controllerBridgeServerEvents,
-  controllerBridgeSnapshotSchema,
-} from "@air-jam/sdk/controller-bridge";
-import {
   agentValuesToInputState,
-  generateControllerResumeToken,
+  airJamActionResultOf,
+  type AirJamInput,
   type AirJamInputState,
 } from "@air-jam/sdk/core";
-import type {
-  AirJamPrivateStateSyncPayload,
-  AirJamStateSyncPayload,
-  ClientToServerEvents,
-  ControllerJoinAck,
-  ControllerJoinedNotice,
-  ControllerLeaveAck,
-  ControllerStateMessage,
-  ControllerWelcomePayload,
-  PlayerProfile,
-  PlayerUpdatedNotice,
-  ServerErrorPayload,
-  ServerToClientEvents,
-  SignalPayload,
-} from "@air-jam/sdk/protocol";
 import {
   controllerLeasedControlAckSchema,
-  controllerLeasedControlSchema,
-  controllerStateSchema,
-  playerProfileSchema,
-  type ControllerLeasedControl,
+  leasedControlRequestSchema,
   type ControllerLeasedControlAck,
+  type LeasedControlRequest,
 } from "@air-jam/sdk/protocol";
+import {
+  AIRJAM_CONTROL_CHANNEL,
+  AIRJAM_LEASED_CONTROL_REQUEST,
+  AIRJAM_PRESENTATION_CHANNEL,
+  encodeInputPayload,
+  encodePhoneInputFrame,
+  type RoomLink,
+  type StateDocument,
+} from "@air-jam/sdk/room-protocol";
+import {
+  createRoomKey,
+  createScopedPhoneConnector,
+  createWebSocketConnector,
+  PhoneRoomSession,
+  serveRoomPort,
+  type RoomSessionStatus,
+} from "@air-jam/sdk/room-session";
 import type {
   HostAgentRequest,
   HostAgentResponse,
@@ -50,7 +47,6 @@ import {
 import { parseRuntimeTopologyFromSearchParams } from "@air-jam/sdk/runtime-topology";
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { io, type Socket } from "socket.io-client";
 import { z } from "zod";
 import { detectProjectContext } from "./context.js";
 import { getTopology } from "./dev.js";
@@ -69,11 +65,12 @@ import {
 } from "./managed-process-scope.js";
 import {
   AIR_JAM_RUNTIME_OWNER_ACTION_REQUEST,
+  AIR_JAM_RUNTIME_OWNER_CAPTURE_PORT,
   AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
   isRuntimeOwnerActionResult,
   isRuntimeOwnerCaptureResult,
   runtimeOwnerAgentResultSchema,
-  runtimeOwnerCaptureReadSchema,
+  runtimeOwnerCaptureFrameSchema,
   runtimeOwnerWatchEventSchema,
   type AirJamRuntimeOwnerCaptureResult,
 } from "./runtime-owner-protocol.js";
@@ -81,7 +78,6 @@ import type {
   AirJamGameInspection,
   AirJamProjectMode,
   AirJamRuntimeSnapshotInspection,
-  AirJamRuntimeStoreSnapshot,
   AirJamVirtualControllerSession,
   AirJamVirtualControllerSessionSummary,
   ConnectControllerOptions,
@@ -111,34 +107,22 @@ export type {
   SendControllerInputResult,
 } from "./types.js";
 
-type ControllerSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
-
-type PendingStateSyncWaiter = {
-  requestId: string;
-  minimumRevision: number;
-  resolve: (snapshot: AirJamRuntimeStoreSnapshot | null) => void;
-};
-
 type InternalControllerSession = {
   cwd: string;
   summary: AirJamVirtualControllerSessionSummary;
-  socket: ControllerSocket;
+  room: PhoneRoomSession;
   projectMode: AirJamProjectMode;
-  welcome: JsonObject | null;
-  controllerState: JsonObject | null;
-  players: JsonObject[];
-  storeSnapshots: Map<string, AirJamRuntimeStoreSnapshot>;
-  privateStoreSnapshots: Map<string, AirJamPrivateStateSyncPayload>;
-  pendingSyncWaiters: Map<string, Set<PendingStateSyncWaiter>>;
+  /** When each channel this phone mirrors last changed, and how many times. */
+  storeUpdates: Map<string, { revision: number; updatedAt: string }>;
   lastSignal: JsonObject | null;
   lastError: JsonObject | null;
   isolatedRuntimeOwner: ChildProcess | null;
-  resumeCapabilityToken: string;
   participantLeaseId: string | null;
-  participantLastCommand: ControllerLeasedControl | null;
-  participantControlPending: boolean;
+  participantLastCommand: LeasedControlRequest | null;
   /** The controls this session last sent, so buttons count presses. */
   inputState: AirJamInputState | null;
+  /** The game's declared controls, read once the first input is sent; null when the game declares none. */
+  inputLayout: AirJamInput | null | undefined;
 };
 
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -156,47 +140,6 @@ const toJsonObject = (value: unknown): JsonObject | null => {
 
   return { ...value };
 };
-
-const toJsonObjectArray = (value: unknown): JsonObject[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.flatMap((entry) => {
-    const objectValue = toJsonObject(entry);
-    return objectValue ? [objectValue] : [];
-  });
-};
-
-const upsertPlayer = (
-  players: JsonObject[],
-  incoming: PlayerProfile | JsonObject | null,
-): JsonObject[] => {
-  const nextPlayer = toJsonObject(incoming);
-  const playerId =
-    typeof nextPlayer?.id === "string" && nextPlayer.id ? nextPlayer.id : null;
-  if (!nextPlayer || !playerId) {
-    return players;
-  }
-
-  const nextPlayers = players.slice();
-  const existingIndex = nextPlayers.findIndex((entry) => entry.id === playerId);
-  if (existingIndex === -1) {
-    nextPlayers.push(nextPlayer);
-    return nextPlayers;
-  }
-
-  nextPlayers[existingIndex] = {
-    ...nextPlayers[existingIndex],
-    ...nextPlayer,
-  };
-  return nextPlayers;
-};
-
-const removePlayer = (
-  players: JsonObject[],
-  controllerId: string,
-): JsonObject[] => players.filter((entry) => entry.id !== controllerId);
 
 const nowIso = (): string => new Date().toISOString();
 
@@ -216,114 +159,45 @@ const waitForCondition = async ({
   }
 };
 
-const waitForSocketConnect = async (
-  socket: ControllerSocket,
+/** Waits until the phone's room welcomes it, or ends with why it could not join. */
+const waitForWelcome = (room: PhoneRoomSession, timeoutMs: number) =>
+  new Promise<void>((resolve, reject) => {
+    const settle = (status: RoomSessionStatus) => {
+      if (status.phase === "open") finish();
+      else if (status.phase === "closed")
+        finish(new Error(`Controller join was refused (${status.reason}).`));
+    };
+    const finish = (error?: Error) => {
+      clearTimeout(timer);
+      stop();
+      if (error) reject(error);
+      else resolve();
+    };
+    const timer = setTimeout(
+      () =>
+        finish(
+          new Error(
+            "Timed out waiting for the room to welcome the controller.",
+          ),
+        ),
+      timeoutMs,
+    );
+    const stop = room.on("status", settle);
+    settle(room.status);
+  });
+
+/** A channel's copy as this phone mirrors it, waiting up to `timeoutMs` for its first. */
+const waitForChannel = async (
+  room: PhoneRoomSession,
+  channel: string,
   timeoutMs: number,
-): Promise<void> => {
-  if (socket.connected) {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error("Timed out waiting for controller socket connect."));
-    }, timeoutMs);
-
-    const onConnect = () => {
-      cleanup();
-      resolve();
-    };
-
-    const onConnectError = (error: Error) => {
-      cleanup();
-      reject(error);
-    };
-
-    const cleanup = () => {
-      clearTimeout(timeout);
-      socket.off("connect", onConnect);
-      socket.off("connect_error", onConnectError);
-    };
-
-    socket.once("connect", onConnect);
-    socket.once("connect_error", onConnectError);
+): Promise<StateDocument | null> => {
+  await waitForCondition({
+    timeoutMs,
+    predicate: () => room.channel(channel) !== undefined,
   });
+  return room.channel(channel) ?? null;
 };
-
-const emitJoinWithAck = async ({
-  socket,
-  payload,
-  timeoutMs,
-}: {
-  socket: ControllerSocket;
-  payload: Parameters<ClientToServerEvents["controller:join"]>[0];
-  timeoutMs: number;
-}): Promise<ControllerJoinAck> =>
-  await new Promise<ControllerJoinAck>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(
-        new Error("Timed out waiting for controller join acknowledgement."),
-      );
-    }, timeoutMs);
-
-    socket.emit("controller:join", payload, (ack) => {
-      clearTimeout(timeout);
-      resolve(ack);
-    });
-  });
-
-const emitLeaveWithAck = async ({
-  socket,
-  payload,
-  timeoutMs,
-}: {
-  socket: ControllerSocket;
-  payload: Parameters<ClientToServerEvents["controller:leave"]>[0];
-  timeoutMs: number;
-}): Promise<ControllerLeaveAck> =>
-  await new Promise<ControllerLeaveAck>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(
-        new Error("Timed out waiting for controller leave acknowledgement."),
-      );
-    }, timeoutMs);
-
-    (
-      socket as unknown as {
-        emit: (event: string, ...args: unknown[]) => void;
-      }
-    ).emit("controller:leave", payload, (ack: ControllerLeaveAck) => {
-      clearTimeout(timeout);
-      resolve(ack);
-    });
-  });
-
-const emitControllerActionWithAck = async ({
-  socket,
-  payload,
-  timeoutMs,
-}: {
-  socket: ControllerSocket;
-  payload: Parameters<ClientToServerEvents["controller:action_rpc"]>[0];
-  timeoutMs: number;
-}): Promise<
-  Parameters<
-    NonNullable<Parameters<ClientToServerEvents["controller:action_rpc"]>[1]>
-  >[0]
-> =>
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(
-        new Error("Timed out waiting for controller action acknowledgement."),
-      );
-    }, timeoutMs);
-
-    socket.emit("controller:action_rpc", payload, (ack) => {
-      clearTimeout(timeout);
-      resolve(ack);
-    });
-  });
 
 const requestOwnedHostAction = async ({
   owner,
@@ -396,16 +270,6 @@ const parseJoinRoomId = (joinUrl: URL): string | null => {
   return roomId?.trim().toUpperCase() || null;
 };
 
-const parseJoinCapabilityToken = (joinUrl: URL): string | null =>
-  joinUrl.searchParams.get("aj_controller_cap")?.trim() ||
-  joinUrl.searchParams.get("cap")?.trim() ||
-  null;
-
-const parseJoinControllerId = (joinUrl: URL): string | null =>
-  joinUrl.searchParams.get("controllerId")?.trim() ||
-  joinUrl.searchParams.get("aj_controller_id")?.trim() ||
-  null;
-
 const terminateIsolatedRuntimeOwner = closeScopedProcess;
 
 const resolveSocketOriginFromTopology = async (
@@ -448,14 +312,12 @@ const resolveControllerJoinUrlFromTopology = async ({
   mode,
   secure,
   roomId,
-  capabilityToken,
 }: {
   cwd: string;
   gameId?: string;
   mode: NonNullable<ConnectControllerOptions["mode"]>;
   secure: boolean;
   roomId?: string;
-  capabilityToken?: string;
 }): Promise<string | null> => {
   if (!roomId) {
     return null;
@@ -473,10 +335,6 @@ const resolveControllerJoinUrlFromTopology = async ({
 
   const joinUrl = new URL(topology.urls.controllerBaseUrl);
   joinUrl.searchParams.set("room", roomId);
-  if (capabilityToken?.trim()) {
-    joinUrl.searchParams.set("aj_controller_cap", capabilityToken.trim());
-  }
-
   return joinUrl.toString();
 };
 
@@ -652,81 +510,60 @@ const startIsolatedRuntimeOwner = async ({
   });
 };
 
+/**
+ * Serves the observed controller page the acting phone's room, read-only:
+ * the owner relays the page's room port here over IPC, and this side serves
+ * it as a view of the acting phone's session. The page sees what the phone
+ * sees; nothing it sends reaches the room.
+ */
 function relayControllerObservation(
   session: InternalControllerSession,
   owner: ChildProcess,
   requestId: string,
   onError: (error: Error) => void,
 ) {
-  const snapshot = controllerBridgeSnapshotSchema.parse({
-    harnessSessionId: session.summary.controllerSessionId,
-    roomId: session.summary.roomId,
-    controllerId: session.summary.controllerId,
-    connected: session.summary.connected,
-    socketId: session.socket.id,
-    player: playerProfileSchema.parse(
-      session.players.find(
-        (player) => player.id === session.summary.controllerId,
-      ),
-    ),
-    players: session.players.map((player) => playerProfileSchema.parse(player)),
-    state: controllerStateSchema.out.shape.state.parse(session.controllerState),
-  });
-  const allowedEvents = new Set<string>(controllerBridgeServerEvents);
-  const forwardEvent = (event: string, ...args: unknown[]) => {
-    if (allowedEvents.has(event))
+  const listeners = new Set<(event: MessageEvent) => void>();
+  const fromOwner = (message: unknown) => {
+    const frame = runtimeOwnerCaptureFrameSchema.safeParse(message);
+    if (!frame.success || frame.data.requestId !== requestId) return;
+    for (const listener of listeners)
+      listener({ data: frame.data.message } as MessageEvent);
+  };
+  const port = {
+    addEventListener: (_: "message", listener: (event: MessageEvent) => void) =>
+      listeners.add(listener),
+    removeEventListener: (
+      _: "message",
+      listener: (event: MessageEvent) => void,
+    ) => listeners.delete(listener),
+    start: () => {},
+    postMessage: (message: unknown) =>
       owner.send(
-        {
-          type: "air-jam-runtime-owner.capture-event/v1",
-          requestId,
-          event,
-          args,
-        },
+        { type: AIR_JAM_RUNTIME_OWNER_CAPTURE_PORT, requestId, message },
         (error) => {
           if (error) onError(error);
         },
-      );
-  };
-  const readRequest = (message: unknown) => {
-    const read = runtimeOwnerCaptureReadSchema.safeParse(message);
-    if (!read.success || read.data.captureRequestId !== requestId) return;
-    if (read.data.payload.roomId !== session.summary.roomId) {
-      onError(new Error("Observation read belongs to another room."));
-      return;
-    }
-    const store = session.storeSnapshots.get(read.data.payload.storeDomain);
-    if (!store) {
-      onError(
-        new Error(
-          `Observation state is not available for ${read.data.payload.storeDomain}.`,
-        ),
-      );
-      return;
-    }
-    const privateState = session.privateStoreSnapshots.get(store.storeDomain);
-    if (privateState) forwardEvent("airjam:private_state_sync", privateState);
-    forwardEvent("airjam:state_sync", {
-      roomId: session.summary.roomId,
-      storeDomain: store.storeDomain,
-      requestId: read.data.payload.requestId,
-      revision: store.revision,
-      data: store.data,
-    });
-  };
-  session.socket.onAny(forwardEvent);
-  owner.on("message", readRequest);
+      ),
+  } as unknown as MessagePort;
+  const scoped = createScopedPhoneConnector(session.room, () => true);
+  const stopServing = serveRoomPort(port, (address, handlers) => {
+    const link = scoped.connector(address, handlers);
+    let greeted = false;
+    const readOnly: RoomLink = {
+      ...link,
+      send: (data) => {
+        if (!greeted || data === "ping") link.send(data);
+        greeted = true;
+      },
+    };
+    return readOnly;
+  });
+  owner.on("message", fromOwner);
   return {
-    snapshot,
-    privateStores: [...session.privateStoreSnapshots.values()],
-    stores: Array.from(session.storeSnapshots.values(), (store) => ({
-      roomId: session.summary.roomId,
-      storeDomain: store.storeDomain,
-      data: store.data,
-      revision: store.revision,
-    })),
     close() {
-      session.socket.offAny(forwardEvent);
-      owner.off("message", readRequest);
+      stopServing();
+      scoped.close();
+      owner.off("message", fromOwner);
     },
   };
 }
@@ -762,7 +599,7 @@ export const captureControllerSessionVisuals = async ({
       const cleanup = () => {
         clearTimeout(timeout);
         relay.close();
-        session.socket.off("disconnect", onDisconnect);
+        stopFollowing();
         owner.off("message", onMessage);
         owner.off("error", onError);
         owner.off("exit", onExit);
@@ -785,14 +622,15 @@ export const captureControllerSessionVisuals = async ({
         cleanup();
         reject(error);
       };
-      const onDisconnect = () => {
+      const stopFollowing = session.room.on("status", (status) => {
+        if (status.phase === "open") return;
         cleanup();
         reject(
           new Error(
             "Acting controller disconnected before visual capture completed.",
           ),
         );
-      };
+      });
       const onExit = (code: number | null) => {
         cleanup();
         reject(
@@ -811,14 +649,13 @@ export const captureControllerSessionVisuals = async ({
       owner.on("message", onMessage);
       owner.once("error", onError);
       owner.once("exit", onExit);
-      session.socket.once("disconnect", onDisconnect);
       owner.send(
         {
           type: AIR_JAM_RUNTIME_OWNER_CAPTURE_REQUEST,
           requestId,
           relativeDir,
-          snapshot: relay.snapshot,
-          stores: relay.stores,
+          harnessSessionId: session.summary.controllerSessionId,
+          roomId: session.summary.roomId,
         },
         (error) => {
           if (error) onError(error);
@@ -841,19 +678,36 @@ const buildRuntimeSnapshot = ({
   session: InternalControllerSession;
   requestedStoreDomains?: string[];
   missingStoreDomains?: string[];
-}): AirJamRuntimeSnapshotInspection => ({
-  ...session.summary,
-  welcome: session.welcome,
-  controllerState: session.controllerState,
-  players: session.players.slice(),
-  storeSnapshots: Array.from(session.storeSnapshots.values()).sort(
-    (left, right) => left.storeDomain.localeCompare(right.storeDomain),
-  ),
-  lastSignal: session.lastSignal,
-  lastError: session.lastError,
-  requestedStoreDomains: [...requestedStoreDomains],
-  missingStoreDomains: [...missingStoreDomains],
-});
+}): AirJamRuntimeSnapshotInspection => {
+  const room = session.room;
+  return {
+    ...session.summary,
+    welcome: room.instance
+      ? {
+          roomId: room.code,
+          instance: room.instance,
+          controllerId: room.seat,
+        }
+      : null,
+    controllerState: (room.channel(AIRJAM_PRESENTATION_CHANNEL) ??
+      null) as JsonObject | null,
+    players: room.seats.map((seat) => ({ ...seat })),
+    storeSnapshots: [...room.documents()]
+      .map(([storeDomain, data]) => ({
+        storeDomain,
+        data: data as JsonObject,
+        revision: session.storeUpdates.get(storeDomain)?.revision ?? 0,
+        updatedAt:
+          session.storeUpdates.get(storeDomain)?.updatedAt ??
+          session.summary.connectedAt,
+      }))
+      .sort((left, right) => left.storeDomain.localeCompare(right.storeDomain)),
+    lastSignal: session.lastSignal,
+    lastError: session.lastError,
+    requestedStoreDomains: [...requestedStoreDomains],
+    missingStoreDomains: [...missingStoreDomains],
+  };
+};
 
 const buildSessionSummary = (
   session: InternalControllerSession,
@@ -924,18 +778,13 @@ export const resolveControllerSessionGameRuntime = async ({
     };
   }
 
-  const minimumRevision =
-    session.storeSnapshots.get(AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN)?.revision ??
-    0;
-  const surfaceSnapshot = await waitForStateSync({
-    session,
-    storeDomain: AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
-    minimumRevision,
+  const surfaceData = (await waitForChannel(
+    session.room,
+    AIR_JAM_ARCADE_SURFACE_STORE_DOMAIN,
     timeoutMs,
-  });
+  )) as Record<string, unknown> | null;
   // Replicated surface state also contains presentation fields. Validate its
   // identity projection without weakening the strict bridge identity contract.
-  const surfaceData = surfaceSnapshot?.data;
   const parsedSurface = arcadeSurfaceRuntimeIdentitySchema.safeParse({
     epoch: surfaceData?.epoch,
     kind: surfaceData?.kind,
@@ -970,169 +819,40 @@ export const resolveControllerSessionGameRuntime = async ({
   };
 };
 
-const waitForStateSync = async ({
-  session,
-  storeDomain,
-  minimumRevision,
-  timeoutMs,
-}: {
-  session: InternalControllerSession;
-  storeDomain: string;
-  minimumRevision: number;
-  timeoutMs: number;
-}): Promise<AirJamRuntimeStoreSnapshot | null> =>
-  await new Promise<AirJamRuntimeStoreSnapshot | null>((resolve) => {
-    const requestId = randomUUID();
-    const waiters = session.pendingSyncWaiters.get(storeDomain) ?? new Set();
-    const timeout = setTimeout(() => {
-      waiters.delete(waiter);
-      if (waiters.size === 0) {
-        session.pendingSyncWaiters.delete(storeDomain);
-      }
-      resolve(null);
-    }, timeoutMs);
-
-    const waiter: PendingStateSyncWaiter = {
-      requestId,
-      minimumRevision,
-      resolve: (snapshot) => {
-        clearTimeout(timeout);
-        waiters.delete(waiter);
-        if (waiters.size === 0) {
-          session.pendingSyncWaiters.delete(storeDomain);
-        }
-        resolve(snapshot);
-      },
-    };
-
-    waiters.add(waiter);
-    session.pendingSyncWaiters.set(storeDomain, waiters);
-    session.socket.emit("controller:state_sync_request", {
-      roomId: session.summary.roomId,
-      storeDomain,
-      requestId,
-    });
-  });
-
-const resolvePendingStateSyncWaiters = ({
-  session,
-  snapshot,
-  requestId,
-}: {
-  session: InternalControllerSession;
-  snapshot: AirJamRuntimeStoreSnapshot;
-  requestId?: string;
-}): void => {
-  const waiters = session.pendingSyncWaiters.get(snapshot.storeDomain);
-  if (!waiters) {
-    return;
-  }
-
-  for (const waiter of Array.from(waiters)) {
-    if (requestId !== waiter.requestId) {
-      continue;
-    }
-    if (snapshot.revision < waiter.minimumRevision) {
-      continue;
-    }
-    waiter.resolve(snapshot);
-  }
-};
-
-const attachSocketListeners = (session: InternalControllerSession): void => {
-  session.socket.on("server:welcome", (payload: ControllerWelcomePayload) => {
-    session.welcome = {
-      ...payload,
-    };
-    session.players = toJsonObjectArray(payload.players);
-  });
-
-  session.socket.on("server:state", (payload: ControllerStateMessage) => {
-    session.controllerState = toJsonObject(payload.state);
-  });
-
-  session.socket.on(
-    "server:controllerJoined",
-    (payload: ControllerJoinedNotice) => {
-      const fallbackPlayer =
-        payload.player ??
-        ({
-          id: payload.controllerId,
-          label: payload.nickname ?? payload.controllerId,
-        } satisfies JsonObject);
-      session.players = upsertPlayer(session.players, fallbackPlayer);
-    },
-  );
-
-  session.socket.on("server:controllerLeft", (payload) => {
-    session.players = removePlayer(session.players, payload.controllerId);
-  });
-
-  session.socket.on("server:playerUpdated", (payload: PlayerUpdatedNotice) => {
-    session.players = upsertPlayer(session.players, payload.player);
-  });
-
-  session.socket.on("server:signal", (payload: SignalPayload) => {
-    session.lastSignal = toJsonObject(payload);
-  });
-
-  session.socket.on("server:error", (payload: ServerErrorPayload) => {
-    session.lastError = toJsonObject(payload);
-  });
-
-  session.socket.on("server:roomReady", () =>
-    session.privateStoreSnapshots.clear(),
-  );
-  session.socket.on(
-    "airjam:private_state_sync",
-    (payload: AirJamPrivateStateSyncPayload) => {
-      if (
-        payload.controllerId !== session.summary.controllerId ||
-        payload.roomId !== session.summary.roomId
-      )
-        return;
-      const previous = session.privateStoreSnapshots.get(payload.storeDomain);
-      if (!previous || payload.revision >= previous.revision)
-        session.privateStoreSnapshots.set(payload.storeDomain, payload);
-    },
-  );
-
-  session.socket.on("airjam:state_sync", (payload: AirJamStateSyncPayload) => {
-    const previousSnapshot = session.storeSnapshots.get(payload.storeDomain);
-    if (previousSnapshot && payload.revision < previousSnapshot.revision) {
+/** Follows the phone's room: its status, its channels' changes and its signals. */
+const followRoom = (session: InternalControllerSession): void => {
+  const room = session.room;
+  room.on("status", (status) => {
+    if (status.phase === "open") {
+      session.summary.connected = true;
+      session.summary.controllerId = room.seat ?? session.summary.controllerId;
       return;
     }
-
-    const snapshot: AirJamRuntimeStoreSnapshot = {
-      storeDomain: payload.storeDomain,
-      data: { ...payload.data },
-      updatedAt: nowIso(),
-      revision: payload.revision,
-    };
-    session.storeSnapshots.set(payload.storeDomain, snapshot);
-    resolvePendingStateSyncWaiters({
-      session,
-      snapshot,
-      requestId: payload.requestId,
-    });
-  });
-
-  session.socket.on("disconnect", (reason) => {
+    if (status.phase !== "closed") return;
     session.summary.connected = false;
     session.summary.disconnectedAt = nowIso();
-    session.summary.disconnectReason = reason ?? "unknown";
+    session.summary.disconnectReason = status.reason;
+    if (status.reason !== "owner" && status.reason !== "left")
+      session.lastError = { reason: status.reason };
     void terminateIsolatedRuntimeOwner(session.isolatedRuntimeOwner).then(
       () => {
         session.isolatedRuntimeOwner = null;
       },
       (error) => console.error(error),
     );
-    for (const waiters of session.pendingSyncWaiters.values()) {
-      for (const waiter of waiters) {
-        waiter.resolve(null);
-      }
-    }
-    session.pendingSyncWaiters.clear();
+  });
+  room.on("state", ({ channel }) => {
+    const previous = session.storeUpdates.get(channel)?.revision ?? 0;
+    session.storeUpdates.set(channel, {
+      revision: previous + 1,
+      updatedAt: nowIso(),
+    });
+  });
+  room.on("signal", (signal) => {
+    session.lastSignal = {
+      kind: signal.kind,
+      payload: signal.payload,
+    } as JsonObject;
   });
 };
 
@@ -1144,11 +864,8 @@ export const connectController = async (
     secure = false,
     roomId,
     controllerJoinUrl,
-    controllerId,
-    deviceId,
     nickname,
     avatarId,
-    capabilityToken,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   }: ConnectControllerOptions = {},
   {
@@ -1163,7 +880,6 @@ export const connectController = async (
 ): Promise<AirJamVirtualControllerSession> => {
   const context = await detectProjectContext({ cwd });
   const normalizedRequestedRoomId = roomId?.trim().toUpperCase() || undefined;
-  const normalizedCapabilityToken = capabilityToken?.trim() || undefined;
   const canUseIsolatedOwner =
     !normalizedRequestedRoomId &&
     !controllerJoinUrl &&
@@ -1185,12 +901,6 @@ export const connectController = async (
       );
     }
 
-    const resolvedControllerId =
-      controllerId?.trim() ||
-      parseJoinControllerId(joinUrl) ||
-      `ctrl_mcp_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const resolvedDeviceId =
-      deviceId?.trim() || `aj-mcp-device-${randomUUID()}`;
     const topology = controllerJoinUrl
       ? null
       : await getTopology({ cwd, gameId, mode, secure }).catch(() => null);
@@ -1206,17 +916,25 @@ export const connectController = async (
             mode,
             secure,
           })) ?? joinUrl.origin));
-    const resolvedCapabilityToken =
-      normalizedCapabilityToken ||
-      parseJoinCapabilityToken(joinUrl) ||
-      undefined;
     const controllerSessionId = randomUUID();
+    const label = nickname?.trim().slice(0, 24);
+    const avatar = avatarId?.trim();
 
-    const socket = io(resolvedSocketOrigin, {
-      transports: ["websocket"],
-      forceNew: true,
-      reconnection: false,
-    }) as ControllerSocket;
+    const room = new PhoneRoomSession({
+      connector: createWebSocketConnector(resolvedSocketOrigin),
+      key: createRoomKey(),
+      code: resolvedRoomId,
+      kind: "agent",
+      deviceWakeEvents: null,
+      ...(label || avatar
+        ? {
+            profile: {
+              ...(label ? { label } : {}),
+              ...(avatar ? { avatarId: avatar } : {}),
+            },
+          }
+        : {}),
+    });
 
     const internalSession: InternalControllerSession = {
       cwd,
@@ -1231,8 +949,7 @@ export const connectController = async (
         secure,
         process: topology?.process ?? null,
         roomId: resolvedRoomId,
-        controllerId: resolvedControllerId,
-        deviceId: resolvedDeviceId,
+        controllerId: "",
         controllerJoinUrl: joinUrlString,
         socketOrigin: resolvedSocketOrigin,
         connected: false,
@@ -1240,63 +957,33 @@ export const connectController = async (
         disconnectedAt: null,
         disconnectReason: null,
       },
-      socket,
+      room,
       projectMode: context.mode,
-      welcome: null,
-      controllerState: null,
-      players: [],
-      storeSnapshots: new Map(),
-      privateStoreSnapshots: new Map(),
-      pendingSyncWaiters: new Map(),
+      storeUpdates: new Map(),
       lastSignal: null,
       lastError: null,
       isolatedRuntimeOwner: ownedRuntimeProcess,
-      resumeCapabilityToken: generateControllerResumeToken(),
       participantLeaseId: null,
       participantLastCommand: null,
-      participantControlPending: false,
       inputState: null,
+      inputLayout: undefined,
     };
 
-    attachSocketListeners(internalSession);
+    followRoom(internalSession);
 
     try {
-      await waitForSocketConnect(socket, timeoutMs);
-      const ack = await emitJoinWithAck({
-        socket,
-        payload: {
-          roomId: resolvedRoomId,
-          controllerId: resolvedControllerId,
-          deviceId: resolvedDeviceId,
-          nickname: nickname?.trim() || undefined,
-          avatarId: avatarId?.trim() || undefined,
-          capabilityToken: resolvedCapabilityToken,
-          resumeCapabilityToken: internalSession.resumeCapabilityToken,
-        },
-        timeoutMs,
-      });
-
-      if (!ack.ok) {
-        throw new Error(
-          ack.message ??
-            `Controller join was rejected${ack.code ? ` (${ack.code})` : ""}.`,
-        );
-      }
-
-      internalSession.summary.connected = true;
-      internalSession.summary.roomId = ack.roomId ?? resolvedRoomId;
-      internalSession.summary.controllerId =
-        ack.controllerId ?? resolvedControllerId;
-      await waitForCondition({
-        timeoutMs: Math.min(timeoutMs, 500),
-        predicate: () =>
-          internalSession.welcome !== null &&
-          internalSession.controllerState !== null,
-      });
+      await waitForWelcome(room, timeoutMs);
+      // A host in the room publishes its presentation at once; a summary
+      // without it reads as a room whose host is away.
+      await waitForChannel(
+        room,
+        AIRJAM_PRESENTATION_CHANNEL,
+        Math.min(timeoutMs, 500),
+      );
       virtualControllerSessions.set(controllerSessionId, internalSession);
       return buildRuntimeSnapshot({ session: internalSession });
     } catch (error) {
-      socket.disconnect();
+      room.close();
       await terminateIsolatedRuntimeOwner(ownedRuntimeProcess);
       throw error;
     }
@@ -1311,7 +998,6 @@ export const connectController = async (
         mode,
         secure,
         roomId: normalizedRequestedRoomId,
-        capabilityToken: normalizedCapabilityToken,
       })));
   if (!resolvedJoinUrl) {
     if (!canUseIsolatedOwner) {
@@ -1364,17 +1050,28 @@ export const sendControllerInput = async ({
     throw new Error(
       "participant_control_leased: Use the leased control path for this player.",
     );
+  session.inputLayout ??=
+    (await inspectGame({
+      cwd: session.cwd,
+      ...(session.summary.gameId ? { gameId: session.summary.gameId } : {}),
+    }).then(
+      (game) => game.declaration.input,
+      () => null,
+    )) ?? null;
+  const layout = session.inputLayout;
+  if (!layout)
+    throw new Error(
+      "input_unavailable: This controller's game declares no controls it can read.",
+    );
   // An agent sends values; a button turns into a press each time it goes down.
   const payload = {
     ...session.inputState,
     ...agentValuesToInputState(session.inputState, input),
   };
   session.inputState = payload;
-  session.socket.emit("controller:input", {
-    roomId: session.summary.roomId,
-    controllerId: session.summary.controllerId,
-    input: payload,
-  });
+  session.room.sendInputFrame(
+    encodePhoneInputFrame(encodeInputPayload(layout, payload)),
+  );
 
   return {
     ...buildSessionSummary(session),
@@ -1388,16 +1085,9 @@ export async function controlControllerParticipant({
   ...input
 }: {
   controllerSessionId: string;
-} & Omit<
-  ControllerLeasedControl,
-  "roomId" | "controllerId"
->): Promise<ControllerLeasedControlAck> {
+} & LeasedControlRequest): Promise<ControllerLeasedControlAck> {
   const session = getRequiredSession(controllerSessionId);
-  const request = controllerLeasedControlSchema.parse({
-    ...input,
-    roomId: session.summary.roomId,
-    controllerId: session.summary.controllerId,
-  });
+  const request = leasedControlRequestSchema.parse(input);
   if (!session.summary.connected)
     return { status: "rejected", reason: "unauthorized" };
   if (
@@ -1405,37 +1095,33 @@ export async function controlControllerParticipant({
     session.participantLeaseId !== request.lease.id
   )
     return { status: "rejected", reason: "lease_conflict" };
-  if (session.participantControlPending)
-    return { status: "rejected", reason: "busy" };
   session.participantLeaseId = request.lease.id;
-  session.participantControlPending = true;
   if (
     !session.participantLastCommand ||
     request.lease.sequence > session.participantLastCommand.lease.sequence
   )
     session.participantLastCommand = request;
-  try {
-    let acknowledgement: unknown;
-    try {
-      acknowledgement = await session.socket
-        .timeout(2000)
-        .emitWithAck("controller:leasedControl", request);
-    } catch {
-      return { status: "unconfirmed", reason: "transport_ack_unavailable" };
-    }
-    const parsed = controllerLeasedControlAckSchema.safeParse(acknowledgement);
-    if (
-      !parsed.success ||
-      (parsed.data.status === "applied" &&
-        (parsed.data.leaseId !== request.lease.id ||
-          parsed.data.sequence !== request.lease.sequence ||
-          parsed.data.operation.kind !== request.operation.kind))
-    )
-      return { status: "unconfirmed", reason: "invalid_acknowledgement" };
-    return parsed.data;
-  } finally {
-    session.participantControlPending = false;
-  }
+  const outcome = await session.room.request(
+    AIRJAM_CONTROL_CHANNEL,
+    AIRJAM_LEASED_CONTROL_REQUEST,
+    request,
+    { exclusive: true, timeoutMs: 2000 },
+  );
+  if (outcome.status === "busy") return { status: "rejected", reason: "busy" };
+  if (outcome.status === "refused")
+    return { status: "rejected", reason: "active_host_missing" };
+  if (outcome.status === "unconfirmed")
+    return { status: "unconfirmed", reason: "transport_ack_unavailable" };
+  const parsed = controllerLeasedControlAckSchema.safeParse(outcome.result);
+  if (
+    !parsed.success ||
+    (parsed.data.status === "applied" &&
+      (parsed.data.leaseId !== request.lease.id ||
+        parsed.data.sequence !== request.lease.sequence ||
+        parsed.data.operation.kind !== request.operation.kind))
+  )
+    return { status: "unconfirmed", reason: "invalid_acknowledgement" };
+  return parsed.data;
 }
 
 export const invokeControllerAction = async ({
@@ -1457,16 +1143,11 @@ export const invokeControllerAction = async ({
       "participant_control_leased: Use the leased control path for this player.",
     );
   const normalizedPayload = payload ? { ...payload } : undefined;
-  const acknowledgement = await emitControllerActionWithAck({
-    socket: session.socket,
-    payload: {
-      roomId: session.summary.roomId,
-      actionName,
-      payload: normalizedPayload,
-      storeDomain,
-    },
-    timeoutMs,
-  });
+  const acknowledgement = airJamActionResultOf(
+    await session.room.request(storeDomain, actionName, normalizedPayload, {
+      timeoutMs,
+    }),
+  );
 
   return {
     ...buildSessionSummary(session),
@@ -1549,20 +1230,11 @@ export const readRuntimeSnapshot = async ({
   const missingStoreDomains: string[] = [];
   if (requestSync && normalizedStoreDomains.length > 0) {
     const syncResults = await Promise.all(
-      normalizedStoreDomains.map(async (storeDomain) => {
-        const minimumRevision =
-          session.storeSnapshots.get(storeDomain)?.revision ?? 0;
-        const result = await waitForStateSync({
-          session,
-          storeDomain,
-          minimumRevision,
-          timeoutMs,
-        });
-        return {
-          storeDomain,
-          ok: result !== null,
-        };
-      }),
+      normalizedStoreDomains.map(async (storeDomain) => ({
+        storeDomain,
+        ok:
+          (await waitForChannel(session.room, storeDomain, timeoutMs)) !== null,
+      })),
     );
 
     for (const result of syncResults) {
@@ -1581,7 +1253,7 @@ export const readRuntimeSnapshot = async ({
 
 async function disposeControllerSession(session: InternalControllerSession) {
   const owner = session.isolatedRuntimeOwner;
-  session.socket.disconnect();
+  session.room.close();
   session.summary.connected = false;
   session.summary.disconnectedAt ??= nowIso();
   session.summary.disconnectReason ??= "manual_disconnect";
@@ -1624,39 +1296,19 @@ export const disconnectController = async ({
     : { status: "not-leased" };
   let leave: DisconnectControllerResult["leave"] = { status: "not-connected" };
   if (session.summary.connected) {
-    try {
-      const raw = await emitLeaveWithAck({
-        socket: session.socket,
-        payload: {
-          roomId: session.summary.roomId,
-          controllerId: session.summary.controllerId,
-        },
-        timeoutMs: DEFAULT_TIMEOUT_MS,
-      });
-      const parsed = z
-        .object({
-          ok: z.boolean(),
-          message: z.string().optional(),
-          code: z.string().optional(),
-        })
-        .safeParse(raw);
-      leave = parsed.success
-        ? parsed.data.ok
-          ? { status: "acknowledged" }
-          : {
-              status: "rejected",
-              message: parsed.data.message ?? "Controller leave was rejected.",
-            }
+    session.room.leave();
+    await waitForCondition({
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+      predicate: () => session.room.status.phase === "closed",
+    });
+    const status = session.room.status;
+    leave =
+      status.phase === "closed" && status.reason === "left"
+        ? { status: "acknowledged" }
         : {
             status: "unconfirmed",
-            message: "Invalid controller leave acknowledgement.",
+            message: "The room did not confirm the seat was given up.",
           };
-    } catch (error) {
-      leave = {
-        status: "unconfirmed",
-        message: error instanceof Error ? error.message : String(error),
-      };
-    }
   }
   await disposeControllerSession(session);
 
@@ -1859,7 +1511,12 @@ export async function watchControllerSessionVisuals({
         type: "air-jam-runtime-owner.watch/v1",
         watchId,
         surface: target ? "controller" : "host",
-        ...(relay ? { snapshot: relay.snapshot, stores: relay.stores } : {}),
+        ...(target
+          ? {
+              harnessSessionId: target.summary.controllerSessionId,
+              roomId: target.summary.roomId,
+            }
+          : {}),
       },
       (failure) => {
         if (failure) error(failure);
