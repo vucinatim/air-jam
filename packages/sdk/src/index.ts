@@ -53,7 +53,7 @@ export {
 } from "./diagnostics";
 
 export { captureAgentCanvas, drawAgentCanvas } from "./agent/capture-canvas";
-export type { RoomActionAck } from "./core/room-action-ack";
+export type { PlayerProfileAck, RoomActionAck } from "./core/room-action-ack";
 export {
   useAirJamController,
   type AirJamControllerApi,

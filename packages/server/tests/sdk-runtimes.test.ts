@@ -299,7 +299,10 @@ describe("SDK runtimes in a real room", () => {
     await Promise.resolve();
     expect(profile.value).toBeUndefined();
     await clock.advance();
-    expect(profile.value).toEqual({ ok: true });
+    expect(profile.value).toEqual({
+      ok: true,
+      profile: { label: "Ada" },
+    });
 
     const removal = settledOf(hostRuntime.removeController("p1"));
     await Promise.resolve();

@@ -3,6 +3,14 @@ export type RoomActionAck =
   | { readonly ok: true }
   | { readonly ok: false; readonly message: string };
 
+/** A profile change the room confirmed, with the seat's name and avatar as the room stored them. */
+export type PlayerProfileAck =
+  | {
+      readonly ok: true;
+      readonly profile: { readonly label: string; readonly avatarId?: string };
+    }
+  | { readonly ok: false; readonly message: string };
+
 /**
  * Settles once the room shows the change (`confirmed`), or as unconfirmed
  * when the link stops being able to show it (`lost`); `follow` subscribes

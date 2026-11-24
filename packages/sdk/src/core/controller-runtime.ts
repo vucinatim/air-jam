@@ -63,7 +63,11 @@ const HAPTIC_PATTERNS = {
  * bindings subscribe to its store.
  */
 /** Closes after which the phone's binding still names its seat. */
-import { awaitRoomConfirmation, type RoomActionAck } from "./room-action-ack";
+import {
+  awaitRoomConfirmation,
+  type PlayerProfileAck,
+  type RoomActionAck,
+} from "./room-action-ack";
 
 const KEEPS_BINDING = new Set<string>(["owner", "restarting", "replaced"]);
 
@@ -245,47 +249,57 @@ export class ControllerRuntime {
   };
 
   /**
-   * Changes this player's name or avatar; settles once the room shows the
-   * change on this seat, which it tells every device.
+   * Changes this player's name or avatar; settles with the seat as the room
+   * stored it, from the room's next word on this seat (the room may show a
+   * name of its own over the one asked for), or as unconfirmed when the link
+   * drops first.
    */
   readonly updatePlayerProfile = (
     patch: PlayerProfilePatch,
-  ): Promise<RoomActionAck> => {
+  ): Promise<PlayerProfileAck> => {
     const parsed = playerProfilePatchSchema.safeParse(patch);
     const session = this.currentSession;
     if (!parsed.success)
       return Promise.resolve({ ok: false, message: parsed.error.message });
-    const { label, avatarId } = parsed.data;
-    if (label === undefined && avatarId === undefined)
+    if (parsed.data.label === undefined && parsed.data.avatarId === undefined)
       return Promise.resolve({ ok: false, message: "Nothing to change." });
     if (!session || session.status.phase !== "open")
       return Promise.resolve({
         ok: false,
         message: "Not connected to a room.",
       });
-    const confirmation = awaitRoomConfirmation({
-      follow: (changed) => {
-        const releases = [
-          session.on("seats", changed),
-          session.on("status", changed),
-        ];
-        return () => {
-          for (const release of releases) release();
-        };
-      },
-      confirmed: () => {
-        const own = session.seats.find((seat) => seat.id === session.seat);
-        return (
-          own !== undefined &&
-          (label === undefined || own.label === label) &&
-          (avatarId === undefined || own.avatarId === avatarId)
-        );
-      },
-      lost: () => session.status.phase !== "open",
-      unconfirmed: "The room did not confirm the change.",
+    const ownSeat = () =>
+      session.seats.find((seat) => seat.id === session.seat);
+    const before = ownSeat();
+    return new Promise((resolve) => {
+      const releases = [
+        session.on("seats", () => {
+          const after = ownSeat();
+          if (!after || after === before) return;
+          settle({
+            ok: true,
+            profile: {
+              label: after.label,
+              ...(after.avatarId === undefined
+                ? {}
+                : { avatarId: after.avatarId }),
+            },
+          });
+        }),
+        session.on("status", (status) => {
+          if (status.phase !== "open")
+            settle({
+              ok: false,
+              message: "The room did not confirm the change.",
+            });
+        }),
+      ];
+      const settle = (ack: PlayerProfileAck) => {
+        for (const release of releases) release();
+        resolve(ack);
+      };
+      session.setProfile(parsed.data);
     });
-    session.setProfile(parsed.data);
-    return confirmation;
   };
 
   /** Asks the host to pause or resume play. */
