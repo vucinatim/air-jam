@@ -148,33 +148,36 @@ async function openRoom(
   };
   try {
     await runtime.ready;
-    const joined = await new Promise<{ roomId: string; joinUrl: string }>(
-      (resolve, reject) => {
-        const timer = setTimeout(
-          () =>
-            reject(new Error("room_startup_timeout: The host never joined.")),
-          STARTUP_MS,
-        );
-        const check = () => {
-          const state = store.getState();
-          if (
-            state.connectionStatus === "connected" &&
-            state.roomId &&
-            state.joinUrl
-          ) {
-            clearTimeout(timer);
-            unsubscribe();
-            resolve({ roomId: state.roomId, joinUrl: state.joinUrl });
-          } else if (state.lastError) {
-            clearTimeout(timer);
-            unsubscribe();
-            reject(new Error(`room_unavailable: ${state.lastError}`));
-          }
-        };
-        const unsubscribe = store.subscribe(check);
-        check();
-      },
-    );
+    const joined = await new Promise<{
+      roomId: string;
+      localControllerUrl: string;
+    }>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("room_startup_timeout: The host never joined.")),
+        STARTUP_MS,
+      );
+      const check = () => {
+        const state = store.getState();
+        if (
+          state.connectionStatus === "connected" &&
+          state.roomId &&
+          state.localControllerUrl
+        ) {
+          clearTimeout(timer);
+          unsubscribe();
+          resolve({
+            roomId: state.roomId,
+            localControllerUrl: state.localControllerUrl,
+          });
+        } else if (state.lastError) {
+          clearTimeout(timer);
+          unsubscribe();
+          reject(new Error(`room_unavailable: ${state.lastError}`));
+        }
+      };
+      const unsubscribe = store.subscribe(check);
+      check();
+    });
     room = {
       agent: (request) => {
         const control = Reflect.get(
@@ -211,7 +214,7 @@ async function openRoom(
     return {
       gameId: app.metadata.slug,
       roomId: joined.roomId,
-      controllerJoinUrl: joined.joinUrl,
+      controllerJoinUrl: joined.localControllerUrl,
       nowMs,
       recordsInputLog: Boolean(app.simulation),
     };
