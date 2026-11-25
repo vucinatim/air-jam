@@ -366,44 +366,43 @@ const prereleaseNotice = (version, tag) =>
   `> **Prerelease \`${version}\`** from Air Jam's \`${tag}\` channel. It is not stable and may change or break between ` +
   `prereleases; install \`@latest\` for the stable release.\n\n`;
 
-/**
- * Writes a prerelease version into every public package, its README and the
- * starter's version manifest, and returns how to put the checkout back.
- */
 const rewriteJson = (filePath, value) =>
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 
-const stampPrerelease = ({ publicPackages, version, tag }) => {
-  const files = [
-    "packages/create-airjam/template-version-manifest.json",
-    ...publicPackages.flatMap((pkg) => [
-      path.posix.join(pkg.workingDirectory, "package.json"),
-      path.posix.join(pkg.workingDirectory, "README.md"),
-    ]),
-  ];
-  for (const pkg of publicPackages) {
-    const manifestPath = path.join(
-      repoRoot,
-      pkg.workingDirectory,
-      "package.json",
-    );
-    const manifest = readJson(manifestPath);
-    rewriteJson(manifestPath, { ...manifest, version });
-    const readmePath = path.join(repoRoot, pkg.workingDirectory, "README.md");
-    fs.writeFileSync(
-      readmePath,
-      prereleaseNotice(version, tag) + fs.readFileSync(readmePath, "utf8"),
-    );
+/** The checkout files a prerelease stamp rewrites. */
+const prereleaseFiles = (publicPackages) => [
+  "packages/create-airjam/template-version-manifest.json",
+  ...publicPackages.flatMap((pkg) =>
+    ["package.json", "README.md"]
+      .map((file) => path.posix.join(pkg.workingDirectory, file))
+      .filter((file) => fs.existsSync(path.join(repoRoot, file))),
+  ),
+];
+
+/**
+ * Writes a prerelease version into every public package and the starter's
+ * version manifest, and a prerelease notice atop each package README.
+ */
+const stampPrerelease = ({ files, version, tag }) => {
+  for (const file of files) {
+    const filePath = path.join(repoRoot, file);
+    if (path.basename(file) === "README.md") {
+      fs.writeFileSync(
+        filePath,
+        prereleaseNotice(version, tag) + fs.readFileSync(filePath, "utf8"),
+      );
+    } else if (path.basename(file) === "package.json") {
+      rewriteJson(filePath, { ...readJson(filePath), version });
+    } else {
+      const templateVersions = readJson(filePath);
+      rewriteJson(filePath, {
+        ...templateVersions,
+        packages: Object.fromEntries(
+          Object.keys(templateVersions.packages).map((name) => [name, version]),
+        ),
+      });
+    }
   }
-  const templateVersionsPath = path.join(repoRoot, files[0]);
-  const templateVersions = readJson(templateVersionsPath);
-  rewriteJson(templateVersionsPath, {
-    ...templateVersions,
-    packages: Object.fromEntries(
-      Object.keys(templateVersions.packages).map((name) => [name, version]),
-    ),
-  });
-  return () => run("git", ["checkout", "--", ...files]);
 };
 
 const resolveCleanCommit = () => {
@@ -988,11 +987,9 @@ export const createPublicReleaseCandidate = ({
   try {
     if (prereleaseVersion) {
       onProgress(`stamp:${prereleaseVersion}`);
-      restoreCheckout = stampPrerelease({
-        publicPackages: resolvePublicPackages(),
-        version: prereleaseVersion,
-        tag: prerelease,
-      });
+      const files = prereleaseFiles(resolvePublicPackages());
+      restoreCheckout = () => run("git", ["checkout", "--", ...files]);
+      stampPrerelease({ files, version: prereleaseVersion, tag: prerelease });
     }
     const publicPackages = resolvePublicPackages();
     const candidateVersion = publicPackages[0].version;
