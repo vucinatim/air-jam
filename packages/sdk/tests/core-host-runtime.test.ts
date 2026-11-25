@@ -188,6 +188,25 @@ describe("core host runtime", () => {
     }
   });
 
+  it("asks for a host grant only when it opens its own room, never through its parent's", async () => {
+    for (const embedded of [null, { joinUrl: "https://play.test/join" }]) {
+      const { environment } = createMemoryEnvironment();
+      const openRoom = vi.fn(environment.openRoom);
+      const runtime = new HostRuntime({
+        config: { ...config, hostGrantEndpoint: "https://play.test/grant" },
+        store: createConnectionStore(),
+        environment: { ...environment, embedded, openRoom },
+        stores: [],
+      });
+      const stop = runtime.start();
+      await vi.waitFor(() => expect(runtime.roomId).toBe("ROOM1"));
+      expect(openRoom.mock.lastCall?.[0].credential === undefined).toBe(
+        embedded !== null,
+      );
+      stop();
+    }
+  });
+
   it("ends its room and opens a fresh one on reset, forgetting the old room's place", async () => {
     const { environment, memory, readStoredResume } = createMemoryEnvironment();
     const openRoom = vi.fn(environment.openRoom);
