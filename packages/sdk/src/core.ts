@@ -156,6 +156,11 @@ export {
   type SoundConfig,
 } from "./core/assets";
 export {
+  AIR_JAM_HOSTED_ENVIRONMENTS,
+  findHostedEnvironment,
+  type AirJamHostedEnvironment,
+} from "./core/hosted-rooms";
+export {
   airJamThemeSchema,
   defineAirJamTheme,
   type AirJamTheme,

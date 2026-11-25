@@ -106,7 +106,7 @@ describe("runtime config validation", () => {
     );
   });
 
-  it("fetches grants from the platform only on Air Jam's hosted rooms", () => {
+  it("fetches grants from the platform that runs the hosted rooms, and only there", () => {
     const hostOn = (backendOrigin: string) =>
       resolveAirJamConfig({
         topology: resolveRuntimeTopology({
@@ -119,6 +119,9 @@ describe("runtime config validation", () => {
       }).hostGrantEndpoint;
     expect(hostOn("https://rooms.airjam.io")).toBe(
       "https://airjam.io/api/airjam/host-grant",
+    );
+    expect(hostOn("https://rooms.beta.airjam.io")).toBe(
+      "https://beta.airjam.io/api/airjam/host-grant",
     );
     expect(hostOn("https://rooms.my-game.example")).toBeUndefined();
   });
