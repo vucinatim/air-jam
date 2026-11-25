@@ -371,6 +371,18 @@ describe("room sessions over a loopback room", () => {
     expect(player.seat).toBe("p1");
   });
 
+  it("tries again when a link's hello goes unanswered, without waiting for the room to give up", async () => {
+    const { clock, network, join } = await openRoom();
+    const player = join();
+    // The welcome never arrives, as when the hello was lost on the way.
+    network.links.at(-1)?.mute();
+    await clock.advance(5_000);
+    expect(player.status).toEqual({ phase: "reconnecting", attempt: 1 });
+    await clock.advance(1_000);
+    expect(player.status).toEqual({ phase: "open" });
+    expect(player.seat).toBe("p1");
+  });
+
   it("carries a frame's session over a MessagePort through the page that serves it", async () => {
     const { clock, rooms, host } = await openRoom();
     const channel = new MessageChannel();
