@@ -582,6 +582,10 @@ export const prepareGoldenPathCandidateRegistry = async ({
         registry.registryUrl,
         "--access",
         "public",
+        // npm 11 refuses a prerelease without a tag; this registry exists
+        // only for the run, so its candidate is latest there.
+        "--tag",
+        "latest",
         "--ignore-scripts",
       ]);
     }
