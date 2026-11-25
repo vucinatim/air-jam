@@ -370,6 +370,9 @@ const prereleaseNotice = (version, tag) =>
  * Writes a prerelease version into every public package, its README and the
  * starter's version manifest, and returns how to put the checkout back.
  */
+const rewriteJson = (filePath, value) =>
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+
 const stampPrerelease = ({ publicPackages, version, tag }) => {
   const files = [
     "packages/create-airjam/template-version-manifest.json",
@@ -385,7 +388,7 @@ const stampPrerelease = ({ publicPackages, version, tag }) => {
       "package.json",
     );
     const manifest = readJson(manifestPath);
-    writeJson(manifestPath, { ...manifest, version });
+    rewriteJson(manifestPath, { ...manifest, version });
     const readmePath = path.join(repoRoot, pkg.workingDirectory, "README.md");
     fs.writeFileSync(
       readmePath,
@@ -394,7 +397,7 @@ const stampPrerelease = ({ publicPackages, version, tag }) => {
   }
   const templateVersionsPath = path.join(repoRoot, files[0]);
   const templateVersions = readJson(templateVersionsPath);
-  writeJson(templateVersionsPath, {
+  rewriteJson(templateVersionsPath, {
     ...templateVersions,
     packages: Object.fromEntries(
       Object.keys(templateVersions.packages).map((name) => [name, version]),
