@@ -10,9 +10,11 @@ import {
   writeJsonAtomically,
 } from "../lib/public-install-matrix.mjs";
 import {
+  assertPublicationRef,
   checkPublicReleaseVersionAvailability,
   createPublicReleaseCandidate,
   parsePublicReleaseRunId,
+  publicationBranch,
   publishPublicReleaseCandidate,
   recoverPublicReleaseCandidate,
   validatePublicReleaseCandidate,
@@ -32,12 +34,6 @@ const runCommand = (command, args) => {
   }
 };
 
-const assertChannel = (channel) => {
-  if (channel !== "latest" && channel !== "next") {
-    throw new Error(`Unsupported release channel "${channel}".`);
-  }
-};
-
 const normalizeEmergencyReason = (reason) => {
   if (!reason) return null;
   const normalized = reason.trim();
@@ -52,14 +48,14 @@ const runRepoReleaseTriggerCommand = ({
   emergencyReason,
   candidateRunId,
 }) => {
-  assertChannel(channel);
+  const branch = publicationBranch(channel);
   const normalizedEmergencyReason = normalizeEmergencyReason(emergencyReason);
   const args = [
     "workflow",
     "run",
     "publish-packages.yml",
     "--ref",
-    "main",
+    branch,
     "-f",
     `channel=${channel}`,
   ];
@@ -192,10 +188,15 @@ export const registerReleaseCommands = (program) => {
     .command("create")
     .description("Build, inventory, audit, and pack the public graph once")
     .requiredOption("--output <path>", "New candidate directory")
+    .option(
+      "--prerelease <tag>",
+      "Stamp <version>-<tag>.<n>, one past the highest on npm (beta)",
+    )
     .option("--json", "Print stable JSON")
     .action((options) => {
       const result = createPublicReleaseCandidate({
         outputDirectory: options.output,
+        prerelease: options.prerelease ?? null,
         onProgress: (stage) => {
           process.stderr.write(`[release candidate] ${stage}\n`);
         },
@@ -281,7 +282,7 @@ export const registerReleaseCommands = (program) => {
       "Preview exact-candidate npm publication; apply is GitHub OIDC-only",
     )
     .requiredOption("--candidate <path>", "Immutable candidate directory")
-    .requiredOption("--channel <channel>", "npm dist-tag: latest or next")
+    .requiredOption("--channel <channel>", "npm dist-tag: latest, next or beta")
     .requiredOption("--expected-commit <sha>", "Exact source commit")
     .option("--emergency-reason <reason>", "Retained emergency-release reason")
     .option("--output <path>", "Write publication evidence")
@@ -303,6 +304,18 @@ export const registerReleaseCommands = (program) => {
         console.log(
           `${result.mode} verified for candidate ${result.candidateDigest}.`,
         );
+    });
+
+  releaseCommand
+    .command("assert-ref")
+    .description(
+      "Refuse to publish a channel from any branch but its own (latest and next: main; beta: the integration branch)",
+    )
+    .requiredOption("--channel <channel>", "npm dist-tag")
+    .requiredOption("--ref <ref>", "Git ref, such as refs/heads/main")
+    .action((options) => {
+      const branch = assertPublicationRef(options);
+      console.log(`${options.channel} publishes from ${branch}.`);
     });
 
   releaseCommand
