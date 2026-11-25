@@ -613,7 +613,11 @@ export class HostRuntime {
 
   /** Opens a session to a new room, or to the one `resume` names. */
   private openRoom(resume: ReturnType<AirJamHostEnvironment["readResume"]>) {
-    const endpoint = this.config.hostGrantEndpoint;
+    // An embedded host's room is its parent's, already granted; only a host
+    // that opens its own room proves it may.
+    const endpoint = this.environment.embedded
+      ? undefined
+      : this.config.hostGrantEndpoint;
     const key = resume?.key ?? this.environment.createKey();
     const room = this.environment.openRoom({
       key,
