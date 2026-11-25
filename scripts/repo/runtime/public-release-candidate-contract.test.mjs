@@ -21,15 +21,18 @@ import {
   resolvePublicPackages,
 } from "../../release/public-packages.mjs";
 import {
+  assertPublicationRef,
   assertPublicVersionAvailability,
   assertRecoverablePublicReleaseRun,
   assertRegisteredPublicPackages,
   computeCandidateDigest,
+  isCandidateVersionOf,
   parseNpmDistTags,
   parsePublicReleaseRunId,
   publicReleaseCandidateContract,
   readNpmViewValue,
   resolveCandidatePublicationTag,
+  resolvePrereleaseVersion,
   validatePublicReleaseCandidate,
 } from "../lib/public-release-candidate.mjs";
 
@@ -198,7 +201,10 @@ test("fresh publication checks availability without blocking package qualificati
     step.run?.includes("candidate create"),
   );
   assert.ok(availability >= 0 && availability < creation);
-  assert.equal(steps[availability].if, "inputs.candidate_run_id == ''");
+  assert.equal(
+    steps[availability].if,
+    "inputs.candidate_run_id == '' && env.PRERELEASE != 'true'",
+  );
   assert.ok(
     !installation.jobs.candidate.steps.some((step) =>
       step.run?.includes("check-versions"),
@@ -388,6 +394,63 @@ test("public packages are ordered before packages that depend on them", () => {
   );
 });
 
+test("stable channels publish only from main; beta only from the release line", () => {
+  assert.throws(
+    () =>
+      assertPublicationRef({
+        channel: "latest",
+        ref: "refs/heads/release/1.0",
+      }),
+    /latest publishes only from main/u,
+  );
+  assert.throws(
+    () => assertPublicationRef({ channel: "beta", ref: "refs/heads/main" }),
+    /beta publishes only from release\/1\.0/u,
+  );
+  assert.equal(
+    assertPublicationRef({ channel: "beta", ref: "refs/heads/release/1.0" }),
+    "release/1.0",
+  );
+  const workflow = parseYaml(
+    fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/publish-packages.yml"),
+      "utf8",
+    ),
+  );
+  const steps = workflow.jobs.candidate.steps;
+  const guard = steps.findIndex((step) =>
+    step.run?.includes(
+      'release assert-ref --channel "$CHANNEL" --ref "$GITHUB_REF"',
+    ),
+  );
+  assert.ok(
+    guard >= 0 &&
+      guard < steps.findIndex((step) => step.run?.includes("candidate create")),
+  );
+  assert.equal(
+    workflow.env.CHANNEL,
+    "${{ github.event_name == 'push' && 'beta' || inputs.channel }}",
+  );
+});
+
+test("a beta prerelease numbers one past the highest of the release line's", () => {
+  assert.equal(
+    resolvePrereleaseVersion({
+      version: "1.0.0",
+      tag: "beta",
+      publishedVersions: [
+        "0.9.3",
+        "1.0.0-beta.2",
+        "1.0.0-beta.10",
+        "1.1.0-beta.40",
+      ],
+    }),
+    "1.0.0-beta.11",
+  );
+  assert.equal(isCandidateVersionOf("1.0.0-beta.11", "1.0.0"), true);
+  assert.equal(isCandidateVersionOf("1.0.1", "1.0.0"), false);
+});
+
 test("npm publication uses a candidate-specific non-public channel", () => {
   assert.equal(
     resolveCandidatePublicationTag("a".repeat(64)),
@@ -489,7 +552,8 @@ test("publish workflow validates one candidate before privileged publication", (
       "utf8",
     ),
   );
-  assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
+  assert.deepEqual(Object.keys(workflow.on), ["push", "workflow_dispatch"]);
+  assert.deepEqual(workflow.on.push.branches, ["release/1.0"]);
   assert.deepEqual(workflow.jobs.publish.needs, ["candidate", "aggregate"]);
   assert.equal(
     workflow.jobs.publish.if.replace(/\s+/gu, " ").trim(),
@@ -502,7 +566,7 @@ test("publish workflow validates one candidate before privileged publication", (
   ]);
   assert.equal(
     workflow.jobs.finalize.if.replace(/\s+/gu, " ").trim(),
-    "!cancelled() && needs.candidate.result == 'success' && needs.aggregate.result == 'success' && needs.publish.result == 'success'",
+    "github.event_name != 'push' && inputs.channel != 'beta' && !cancelled() && needs.candidate.result == 'success' && needs.aggregate.result == 'success' && needs.publish.result == 'success'",
   );
   assert.equal(workflow.jobs.publish.permissions["id-token"], "write");
   assert.equal(workflow.jobs.publish.permissions.contents, "read");

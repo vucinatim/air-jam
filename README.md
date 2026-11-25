@@ -95,9 +95,10 @@ The framework package family is:
 - `@air-jam/devtools`
 - `create-airjam`
 
-The `next` channel contains the 0.9.3 prerelease packages. Release qualification
-uses freshly packed candidate archives from `release/1.0`; npm availability
-does not identify or qualify those archives.
+`latest` is the stable release. The `beta` channel carries Air Jam 1.0's
+prereleases (`1.0.0-beta.N`), published from every commit on `release/1.0`:
+they are not stable and may change between prereleases. `npm create airjam@beta`
+starts a game against Air Jam beta at `beta.airjam.io`.
 
 ## Hosted game listing status
 

@@ -1,6 +1,10 @@
 name: Publish Packages
 
 on:
+  # Every commit on the release line (merged only after its checks) publishes
+  # its prerelease under npm's beta tag.
+  push:
+    branches: [release/1.0]
   workflow_dispatch:
     inputs:
       channel:
@@ -11,6 +15,12 @@ on:
         options:
           - next
           - latest
+          - beta
+      prerelease:
+        description: "Beta only: stamp <version>-beta.<n>; off publishes the release version itself under beta"
+        required: false
+        default: true
+        type: boolean
       emergency_reason:
         description: "Optional incident reason; urgency never bypasses release proof"
         required: false
@@ -26,6 +36,8 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   AIRJAM_RELEASE_NPM_VERSION: "12.2.0"
+  CHANNEL: ${{ github.event_name == 'push' && 'beta' || inputs.channel }}
+  PRERELEASE: ${{ github.event_name == 'push' || (inputs.channel == 'beta' && inputs.prerelease) }}
 
 concurrency:
   group: publish-packages
@@ -44,12 +56,10 @@ jobs:
       digest: ${{ steps.identity.outputs.digest }}
       version: ${{ steps.identity.outputs.version }}
     steps:
-      - name: Require the production branch
+      - name: Require a valid emergency reason
         env:
-          RELEASE_REF: ${{ github.ref }}
           EMERGENCY_REASON: ${{ inputs.emergency_reason }}
         run: |
-          test "$RELEASE_REF" = "refs/heads/main"
           if [ -n "$EMERGENCY_REASON" ] && [ "${#EMERGENCY_REASON}" -lt 12 ]; then
             echo "Emergency reason must contain at least 12 characters." >&2
             exit 1
@@ -77,11 +87,14 @@ jobs:
       - name: Install repository dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Require the channel's own branch
+        run: pnpm --silent run repo -- release assert-ref --channel "$CHANNEL" --ref "$GITHUB_REF"
+
       - name: Run release sanity checks
         run: pnpm check:release:publish
 
       - name: Require unpublished versions for a new release
-        if: inputs.candidate_run_id == ''
+        if: inputs.candidate_run_id == '' && env.PRERELEASE != 'true'
         run: pnpm --silent run repo -- release candidate check-versions --json
 
       - name: Create exact public release candidate
@@ -89,6 +102,7 @@ jobs:
         run: >-
           pnpm --silent run repo -- release candidate create
           --output "$RUNNER_TEMP/public-release-candidate"
+          ${{ env.PRERELEASE == 'true' && '--prerelease beta' || '' }}
           --json
 
       - name: Recover retained candidate
@@ -271,13 +285,12 @@ jobs:
 
       - name: Publish and verify exact tarballs
         env:
-          RELEASE_CHANNEL: ${{ inputs.channel }}
           EMERGENCY_REASON: ${{ inputs.emergency_reason }}
           EXPECTED_COMMIT: ${{ needs.candidate.outputs.commit }}
         run: >-
           node scripts/release/publish-public-candidate.mjs
           --candidate artifacts/public-release-candidate
-          --channel "$RELEASE_CHANNEL"
+          --channel "$CHANNEL"
           --expected-commit "$EXPECTED_COMMIT"
           --emergency-reason "$EMERGENCY_REASON"
           --output artifacts/public-release-publication.json
@@ -294,7 +307,10 @@ jobs:
   finalize:
     name: Tag and document verified release
     needs: [candidate, aggregate, publish]
+    # Beta prereleases are not tagged; a version is tagged when a stable
+    # channel publishes or promotes it.
     if: >-
+      github.event_name != 'push' && inputs.channel != 'beta' &&
       !cancelled() && needs.candidate.result == 'success' &&
       needs.aggregate.result == 'success' && needs.publish.result == 'success'
     runs-on: ubuntu-latest

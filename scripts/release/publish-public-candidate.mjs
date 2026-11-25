@@ -16,7 +16,7 @@ const apply = process.argv.includes("--apply");
 
 if (!candidateDirectory || !channel || !expectedCommit) {
   throw new Error(
-    "Usage: publish-public-candidate.mjs --candidate <path> --channel <latest|next> --expected-commit <sha> [--emergency-reason <reason>] [--output <path>] [--apply]",
+    "Usage: publish-public-candidate.mjs --candidate <path> --channel <latest|next|beta> --expected-commit <sha> [--emergency-reason <reason>] [--output <path>] [--apply]",
   );
 }
 

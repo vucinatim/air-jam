@@ -1,6 +1,6 @@
 {
   "name": "@air-jam/devtools",
-  "version": "0.9.3",
+  "version": "1.0.0",
   "engines": {
     "node": ">=22.15.0"
   },
@@ -125,7 +125,7 @@
     "test": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/server && vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "perf:sanity": "tsx scripts/perf-sanity.ts",
-    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/server && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "typecheck": "node ../../scripts/ensure-workspace-package-build.mjs @air-jam/devtools && tsc --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "prepack": "node ../../scripts/release/prepare-public-package-manifest.mjs",
     "postpack": "node ../../scripts/release/restore-public-package-manifest.mjs"
   },
