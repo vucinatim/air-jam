@@ -7,7 +7,10 @@ import { roomCodeSchema } from "../room-protocol";
 import { browserDeviceWakeEvents } from "../room-session/browser-wake-events";
 import { HostRoomSession } from "../room-session/host-room-session";
 import { createRoomKey } from "../room-session/room-key";
-import { runtimeTopologyToQueryParams } from "../runtime-topology";
+import {
+  runtimeTopologyToQueryParams,
+  type ResolvedAirJamRuntimeTopology,
+} from "../runtime-topology";
 import { detectRunMode } from "../utils/mode";
 import { urlBuilder } from "../utils/url-builder";
 import { resolveImplicitReplicatedStoreDomainFromWindow } from "./arcade-runtime-url";
@@ -46,7 +49,12 @@ export const createBrowserHostEnvironment = (
     embedding: embedded ? { arcadeSurface: embedded.arcadeSurface } : null,
   });
   return {
-    embedded: embedded ? { joinUrl: embedded.joinUrl } : null,
+    embedded: embedded
+      ? {
+          joinUrl: embedded.joinUrl,
+          localControllerUrl: embedded.localControllerUrl,
+        }
+      : null,
     requestedRoomId: readRequestedRoomId(),
     runMode: detectRunMode(),
     defaultStoreDomain: resolveImplicitReplicatedStoreDomainFromWindow(),
@@ -96,26 +104,37 @@ export const createBrowserHostEnvironment = (
       if (!parsed.success) throw new Error("Invalid host grant response");
       return parsed.data.hostGrant;
     },
-    controllerUrl: async (roomId) => {
-      const url = new URL(
-        await urlBuilder.buildControllerUrl(roomId, {
-          host: config.topology.publicHost,
-        }),
-      );
-      if (
-        config.topology.runtimeMode === "standalone-dev" ||
-        config.topology.runtimeMode === "standalone-secure"
-      )
-        for (const [key, value] of Object.entries(
-          runtimeTopologyToQueryParams({
-            ...config.topology,
-            surfaceRole: "controller",
-            embedded: false,
-            embedParentOrigin: undefined,
-          }),
-        ))
-          url.searchParams.set(key, value);
-      return url.toString();
+    controllerUrls: async (roomId, topology) => {
+      const buildUrl = async (
+        host: string,
+        controllerTopology: ResolvedAirJamRuntimeTopology,
+      ) => {
+        const url = new URL(
+          await urlBuilder.buildControllerUrl(roomId, { host }),
+        );
+        if (
+          topology.runtimeMode === "standalone-dev" ||
+          topology.runtimeMode === "standalone-secure"
+        ) {
+          for (const [key, value] of Object.entries(
+            runtimeTopologyToQueryParams({
+              ...controllerTopology,
+              surfaceRole: "controller",
+              embedded: false,
+              embedParentOrigin: undefined,
+            }),
+          ))
+            url.searchParams.set(key, value);
+        }
+        return url.toString();
+      };
+      const [localControllerUrl, joinUrl] = await Promise.all([
+        buildUrl(topology.appOrigin, { ...topology, publicHost: undefined }),
+        topology.publicHost
+          ? buildUrl(topology.publicHost, topology)
+          : Promise.resolve(""),
+      ]);
+      return { localControllerUrl, joinUrl };
     },
     reportError: config.reportError ?? devLogRuntimeErrorReporter,
     emitDevEvent: emitAirJamDevRuntimeEvent,

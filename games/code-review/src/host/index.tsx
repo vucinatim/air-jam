@@ -55,6 +55,7 @@ export function HostView() {
           {matchPhase === "lobby" ? (
             <LobbyScreen
               joinUrl={host.joinUrl}
+              joinUrlStatus={host.joinUrlStatus}
               roomId={host.roomId}
               connectionStatus={host.connectionStatus}
               players={host.players}

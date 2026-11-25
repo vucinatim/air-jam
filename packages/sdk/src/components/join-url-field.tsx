@@ -1,4 +1,9 @@
 import { useId, type JSX, type ReactNode } from "react";
+import type { JoinUrlStatus } from "../core/connection-store";
+import {
+  PHONE_JOIN_UNAVAILABLE_MESSAGE,
+  resolvePhoneJoinUrl,
+} from "../core/phone-join-url";
 import { cn } from "../utils/cn";
 import {
   shellFieldClassName,
@@ -8,6 +13,7 @@ import {
 
 export interface JoinUrlFieldProps {
   value: string | null | undefined;
+  status?: JoinUrlStatus;
   label?: ReactNode;
   helperText?: ReactNode;
   className?: string;
@@ -18,6 +24,7 @@ export interface JoinUrlFieldProps {
 
 export const JoinUrlField = ({
   value,
+  status = "ready",
   label = "Controller link",
   helperText,
   className,
@@ -25,9 +32,16 @@ export const JoinUrlField = ({
   inputId,
   inputName = "airjam-controller-link",
 }: JoinUrlFieldProps): JSX.Element => {
-  const hasValue = Boolean(value && value.trim().length > 0);
+  const joinUrl = status === "ready" ? resolvePhoneJoinUrl(value) : null;
   const generatedInputId = useId();
   const resolvedInputId = inputId ?? generatedInputId;
+
+  if (status !== "loading" && !joinUrl)
+    return (
+      <p className={cn(shellHelperTextClassName, className)}>
+        {PHONE_JOIN_UNAVAILABLE_MESSAGE}
+      </p>
+    );
 
   return (
     <div className={cn("space-y-2.5", className)}>
@@ -39,8 +53,10 @@ export const JoinUrlField = ({
         name={inputName}
         type="text"
         readOnly
-        value={value ?? ""}
-        placeholder={hasValue ? undefined : "Generating join link..."}
+        value={joinUrl ?? ""}
+        placeholder={
+          status === "loading" ? "Generating join link..." : undefined
+        }
         aria-label={typeof label === "string" ? label : "Controller join link"}
         className={cn(shellFieldClassName, inputClassName)}
       />

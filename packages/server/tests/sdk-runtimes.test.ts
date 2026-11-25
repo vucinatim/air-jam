@@ -79,7 +79,10 @@ const openRooms = () => {
       resume = next;
     },
     requestHostGrant: async () => "grant",
-    controllerUrl: async (code) => `https://play.test/controller?room=${code}`,
+    controllerUrls: async (code) => ({
+      joinUrl: `https://play.test/controller?room=${code}`,
+      localControllerUrl: `https://play.test/controller?room=${code}`,
+    }),
     reportError: () => {},
     emitDevEvent: () => {},
     setDevLogContext: () => {},

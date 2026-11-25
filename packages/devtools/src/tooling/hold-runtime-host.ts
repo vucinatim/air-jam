@@ -374,13 +374,11 @@ const readInspection = async () => {
   const inspection = readRuntimeInspectionContract({
     [AIR_JAM_RUNTIME_INSPECTION_KEY]: rawValue,
   });
-  return built &&
-    inspection?.role === "host" &&
-    inspection.joinUrlStatus === "ready"
+  return built && inspection?.role === "host" && inspection.localControllerUrl
     ? {
         ...inspection,
-        joinUrl: bindHarnessControllerUrl(
-          inspection.joinUrl,
+        localControllerUrl: bindHarnessControllerUrl(
+          inspection.localControllerUrl,
           built.urls.controllerBaseUrl,
         ),
       }
@@ -393,10 +391,7 @@ try {
 
   while (Date.now() - startedAt < timeoutMs) {
     const nextInspection = await readInspection();
-    if (
-      nextInspection?.role === "host" &&
-      nextInspection.joinUrlStatus === "ready"
-    ) {
+    if (nextInspection?.role === "host" && nextInspection.localControllerUrl) {
       inspection = nextInspection;
       break;
     }
@@ -428,7 +423,7 @@ try {
   process.send?.({
     type: "air-jam-runtime-owner.ready/v1",
     roomId: inspection.roomId,
-    controllerJoinUrl: inspection.joinUrl,
+    controllerJoinUrl: inspection.localControllerUrl,
     inspection,
   });
 

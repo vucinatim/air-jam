@@ -169,6 +169,7 @@ const HostViewContent = ({
               ) : null}
               {hostRuntime.matchPhase === "lobby" ? (
                 <LobbyOverlay
+                  joinUrlStatus={hostRuntime.host.joinUrlStatus}
                   joinQrValue={hostRuntime.joinControls.joinUrlValue}
                   copiedJoinUrl={hostRuntime.joinControls.copied}
                   onCopyJoinUrl={hostRuntime.joinControls.handleCopy}

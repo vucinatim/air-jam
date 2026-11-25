@@ -20,6 +20,7 @@ function fixture() {
       role: "host",
       roomId: "ROOM",
       joinUrl: "http://localhost/controller?room=ROOM",
+      localControllerUrl: "http://localhost/controller?room=ROOM",
       joinUrlStatus: "ready",
       connectionStatus: "connected",
       players: [],

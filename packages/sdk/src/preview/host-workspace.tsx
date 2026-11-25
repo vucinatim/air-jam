@@ -30,8 +30,7 @@ export const HostPreviewControllerWorkspace = ({
     enabled,
     topology: config.topology,
   });
-  const joinUrl =
-    host.joinUrlStatus === "ready" && host.joinUrl ? host.joinUrl : null;
+  const joinUrl = host.localControllerUrl || null;
   // A fresh room starts the game afresh too.
   const handleResetRoom = () => {
     void host.resetRoom().then(() => window.location.reload());

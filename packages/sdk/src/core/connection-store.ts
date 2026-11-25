@@ -25,6 +25,8 @@ export interface AirJamConnectionState {
   players: AirJamPlayer[];
   lastError?: string;
   joinUrl: string;
+  /** Host only: controller link for this computer, never for a phone QR. */
+  localControllerUrl: string;
   joinUrlStatus: JoinUrlStatus;
   setRole: (role: ConnectionRole | null) => void;
   setRoomId: (roomId: string | null) => void;
@@ -37,7 +39,11 @@ export interface AirJamConnectionState {
   setError: (message?: string) => void;
   setPlayers: (players: readonly AirJamPlayer[]) => void;
   resetRuntimeState: () => void;
-  setJoinUrl: (joinUrl: string, joinUrlStatus: JoinUrlStatus) => void;
+  setJoinUrls: (
+    joinUrl: string,
+    localControllerUrl: string,
+    joinUrlStatus: JoinUrlStatus,
+  ) => void;
 }
 
 /** Players whose phone dropped and whose seat the room still holds. */
@@ -59,6 +65,7 @@ export const createConnectionStore = (): StoreApi<AirJamConnectionState> =>
     players: [],
     lastError: undefined,
     joinUrl: "",
+    localControllerUrl: "",
     joinUrlStatus: "loading",
     setRole: (role) => set({ role }),
     setRoomId: (roomId) => set({ roomId }),
@@ -73,5 +80,6 @@ export const createConnectionStore = (): StoreApi<AirJamConnectionState> =>
     setPlayers: (players) => set({ players: [...players] }),
     resetRuntimeState: () =>
       set({ runtimeState: "playing", controllerOrientation: "portrait" }),
-    setJoinUrl: (joinUrl, joinUrlStatus) => set({ joinUrl, joinUrlStatus }),
+    setJoinUrls: (joinUrl, localControllerUrl, joinUrlStatus) =>
+      set({ joinUrl, localControllerUrl, joinUrlStatus }),
   }));

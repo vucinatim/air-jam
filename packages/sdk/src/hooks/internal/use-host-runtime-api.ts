@@ -46,15 +46,29 @@ export const useHostRuntimeApi = (
 
   const { config, store } = useAirJamContext();
 
+  const { publicHost, ...sessionTopology } = config.topology;
+  const { reportError, ...serializableConfig } = config;
+  const sessionConfigKey = JSON.stringify({
+    ...serializableConfig,
+    topology: sessionTopology,
+  });
+  const sessionConfig = useMemo(
+    () => ({
+      ...(JSON.parse(sessionConfigKey) as typeof config),
+      reportError,
+    }),
+    [sessionConfigKey, reportError],
+  );
+
   const runtime = useMemo(
     () =>
       new HostRuntime(
         {
           fixedControllerOrientation,
-          config,
+          config: sessionConfig,
           store,
           input,
-          environment: createBrowserHostEnvironment(config),
+          environment: createBrowserHostEnvironment(sessionConfig),
           stores,
           settings,
           simulation,
@@ -71,7 +85,7 @@ export const useHostRuntimeApi = (
         },
       ),
     [
-      config,
+      sessionConfig,
       store,
       input,
       stores,
@@ -81,6 +95,10 @@ export const useHostRuntimeApi = (
       fixedControllerOrientation,
     ],
   );
+
+  useEffect(() => {
+    runtime.setTopology({ ...sessionConfig.topology, publicHost });
+  }, [runtime, sessionConfig, publicHost]);
 
   // Declared before start so the runtime starts with the current options.
   useEffect(() => {
@@ -111,12 +129,17 @@ export const useHostRuntimeApi = (
 
   const roomId = useStore(store, () => runtime.roomId);
   const room = useStore(store, () => runtime.room);
+  const localControllerUrl = useStore(
+    store,
+    (state) => state.localControllerUrl,
+  );
   const joinUrl = useStore(store, (state) => state.joinUrl);
   const joinUrlStatus = useStore(store, (state) => state.joinUrlStatus);
 
   return useMemo(
     () => ({
       roomId: roomId ?? ("" as RoomCode),
+      localControllerUrl,
       joinUrl,
       joinUrlStatus,
       pauseRuntime: runtime.pauseRuntime,
@@ -131,6 +154,6 @@ export const useHostRuntimeApi = (
       playSoundOnControllers: runtime.playSoundOnControllers,
       settings: runtime.settings,
     }),
-    [runtime, roomId, room, joinUrl, joinUrlStatus, clock],
+    [runtime, roomId, room, localControllerUrl, joinUrl, joinUrlStatus, clock],
   );
 };

@@ -228,6 +228,7 @@ vi.mock("../src/managed-process-scope.js", () => ({
           role: "host",
           roomId: "ROOM2",
           joinUrl: ownedJoinUrl,
+          localControllerUrl: ownedJoinUrl,
           joinUrlStatus: "ready",
           connectionStatus: "connected",
           players: [],

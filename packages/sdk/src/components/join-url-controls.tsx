@@ -1,4 +1,9 @@
 import type { JSX, ReactNode } from "react";
+import type { JoinUrlStatus } from "../core/connection-store";
+import {
+  PHONE_JOIN_UNAVAILABLE_MESSAGE,
+  resolvePhoneJoinUrl,
+} from "../core/phone-join-url";
 import { readEmbeddedHostChildSession } from "../runtime/embedded-runtime-adapters";
 import { cn } from "../utils/cn";
 import { JoinUrlActionButtons } from "./join-url-action-buttons";
@@ -6,6 +11,7 @@ import { JoinUrlField } from "./join-url-field";
 
 export interface JoinUrlControlsProps {
   value: string | null | undefined;
+  status?: JoinUrlStatus;
   label?: ReactNode;
   helperText?: ReactNode;
   copied?: boolean;
@@ -20,6 +26,7 @@ export interface JoinUrlControlsProps {
 
 export const JoinUrlControls = ({
   value,
+  status = "ready",
   label = "Controller link",
   helperText,
   copied = false,
@@ -34,20 +41,27 @@ export const JoinUrlControls = ({
   // An embedding parent such as the Arcade owns the room's join address and code.
   if (readEmbeddedHostChildSession()) return null;
 
-  const hasValue = Boolean(value && value.trim().length > 0);
+  const joinUrl = status === "ready" ? resolvePhoneJoinUrl(value) : null;
+  if (status !== "loading" && !joinUrl)
+    return (
+      <p className={cn("text-sm text-white/70", className)}>
+        {PHONE_JOIN_UNAVAILABLE_MESSAGE}
+      </p>
+    );
 
   return (
     <div className={cn("w-full space-y-3", className)}>
       <div className="flex flex-col gap-3">
         <JoinUrlField
-          value={value}
+          value={joinUrl}
+          status={status}
           label={label}
           helperText={helperText}
           className="w-full min-w-0"
           inputClassName={inputClassName}
         />
         <JoinUrlActionButtons
-          hasValue={hasValue}
+          hasValue={Boolean(joinUrl)}
           copied={copied}
           onCopy={onCopy}
           onOpen={onOpen}

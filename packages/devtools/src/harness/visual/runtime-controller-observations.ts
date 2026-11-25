@@ -58,7 +58,7 @@ export class RuntimeControllerObservations {
       const observation = await openControllerObservation({
         browser: this.options.browser,
         signal: entry.abort.signal,
-        controllerJoinUrl: inspection.joinUrl,
+        controllerJoinUrl: inspection.localControllerUrl,
         harnessSessionId: context.harnessSessionId,
         roomId: context.roomId,
         onPortMessage: (message) =>

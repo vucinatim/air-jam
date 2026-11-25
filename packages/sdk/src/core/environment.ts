@@ -9,6 +9,7 @@ import type {
   PhoneRoomSession,
   PhoneSessionOptions,
 } from "../room-session/phone-room-session";
+import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import type { AirJamDevRuntimeEventDetail } from "./dev-events";
 
 /**
@@ -47,7 +48,7 @@ export interface AirJamHostEnvironment {
    * Set when an embedding shell owns the room and serves this host a view of
    * it; the join link is the shell's.
    */
-  readonly embedded: { joinUrl?: string } | null;
+  readonly embedded: { joinUrl?: string; localControllerUrl?: string } | null;
   /** A room code the surrounding page asked for, such as `?room=`; a local server honours it. */
   readonly requestedRoomId: RoomCode | null;
   readonly runMode: RunMode;
@@ -72,7 +73,10 @@ export interface AirJamHostEnvironment {
     endpoint: string,
     appId: string | undefined,
   ): Promise<string>;
-  controllerUrl(roomId: RoomCode): Promise<string>;
+  controllerUrls(
+    roomId: RoomCode,
+    topology: ResolvedAirJamRuntimeTopology,
+  ): Promise<{ joinUrl: string; localControllerUrl: string }>;
   reportError: RuntimeErrorReporter;
   emitDevEvent(detail: AirJamDevRuntimeEventDetail): void;
   setDevLogContext(context: AirJamDevLogContext): void;

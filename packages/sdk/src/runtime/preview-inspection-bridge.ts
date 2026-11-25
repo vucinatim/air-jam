@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolvePhoneJoinUrl } from "../core/phone-join-url";
 import { controllerOrientationSchema } from "../room-protocol";
 import type { ResolvedAirJamRuntimeTopology } from "../runtime-topology";
 import {
@@ -27,6 +28,7 @@ const snapshotSchema = z.object({
     .optional(),
   roomId: z.string().max(8),
   joinUrl: z.string().max(4096),
+  localControllerUrl: z.string().max(4096),
   joinUrlStatus: z.enum(["loading", "ready", "unavailable"]),
   connectionStatus: z.enum([
     "idle",
@@ -62,10 +64,15 @@ export function readHostPreviewSnapshot(
     .safeParse(event.data);
   if (!parsed.success) return null;
   const snapshot = parsed.data.snapshot;
-  if (snapshot.joinUrlStatus === "ready") {
+  if (
+    snapshot.joinUrlStatus === "ready" &&
+    !resolvePhoneJoinUrl(snapshot.joinUrl)
+  )
+    return null;
+  if (snapshot.localControllerUrl) {
     let join: URL;
     try {
-      join = new URL(snapshot.joinUrl);
+      join = new URL(snapshot.localControllerUrl);
     } catch {
       return null;
     }
@@ -100,6 +107,7 @@ export function publishEmbeddedHostPreview(
       stateEpochs: inspection.stateEpochs,
       roomId: inspection.roomId,
       joinUrl: inspection.joinUrl,
+      localControllerUrl: inspection.localControllerUrl,
       joinUrlStatus: inspection.joinUrlStatus,
       connectionStatus: inspection.connectionStatus,
       controllers: inspection.players.map(({ id, connected }) => ({

@@ -1,4 +1,4 @@
-import type { PlayerProfile } from "@air-jam/sdk";
+import type { JoinUrlStatus, PlayerProfile } from "@air-jam/sdk";
 import {
   JoinQrOverlay,
   JoinUrlControls,
@@ -12,6 +12,7 @@ import type { CodeReviewHostTeams } from "../hooks/use-code-review-host-teams";
 
 interface LobbyScreenProps {
   joinUrl: string;
+  joinUrlStatus: JoinUrlStatus;
   roomId: string | null;
   connectionStatus: string;
   players: PlayerProfile[];
@@ -21,6 +22,7 @@ interface LobbyScreenProps {
 
 export const LobbyScreen = ({
   joinUrl,
+  joinUrlStatus,
   roomId,
   connectionStatus,
   players,
@@ -71,6 +73,7 @@ export const LobbyScreen = ({
 
                   <JoinUrlControls
                     value={hostJoinControls.joinUrlValue}
+                    status={joinUrlStatus}
                     label="Join URL"
                     copied={hostJoinControls.copied}
                     onCopy={hostJoinControls.handleCopy}
@@ -162,6 +165,7 @@ export const LobbyScreen = ({
         <JoinQrOverlay
           open={hostJoinControls.joinQrVisible}
           value={hostJoinControls.joinUrlValue}
+          status={joinUrlStatus}
           roomId={roomId}
           onClose={hostJoinControls.hideJoinQr}
           description="Scan with your phone to join this Code Review room as a controller."

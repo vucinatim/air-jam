@@ -19,6 +19,7 @@ type HostInspectionApi = Pick<
   AirJamHostApi,
   | "roomId"
   | "joinUrl"
+  | "localControllerUrl"
   | "joinUrlStatus"
   | "connectionStatus"
   | "players"
@@ -45,6 +46,7 @@ export interface HostRuntimeInspectionContract {
   role: "host";
   roomId: RoomCode;
   joinUrl: string;
+  localControllerUrl: string;
   joinUrlStatus: JoinUrlStatus;
   connectionStatus: ConnectionStatus;
   players: readonly AirJamPlayer[];
@@ -88,6 +90,7 @@ export const createHostRuntimeInspectionContract = (
   role: "host",
   roomId: api.roomId,
   joinUrl: api.joinUrl,
+  localControllerUrl: api.localControllerUrl,
   joinUrlStatus: api.joinUrlStatus,
   connectionStatus: api.connectionStatus,
   players: api.players,
@@ -121,6 +124,7 @@ const isHostRuntimeInspectionContract = (
   value.role === "host" &&
   typeof value.roomId === "string" &&
   typeof value.joinUrl === "string" &&
+  typeof value.localControllerUrl === "string" &&
   typeof value.joinUrlStatus === "string" &&
   typeof value.connectionStatus === "string" &&
   Array.isArray(value.players) &&

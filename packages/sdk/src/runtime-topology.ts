@@ -1,3 +1,5 @@
+import { resolvePhoneJoinUrl } from "./core/phone-join-url";
+
 export type RuntimeMode =
   | "standalone-dev"
   | "standalone-secure"
@@ -52,7 +54,7 @@ export interface ResolvedAirJamRuntimeTopology {
   appOrigin: string;
   backendOrigin: string;
   socketOrigin: string;
-  publicHost: string;
+  publicHost?: string;
   assetBasePath: string;
   secureTransport: boolean;
   embedded: boolean;
@@ -113,7 +115,6 @@ const REQUIRED_QUERY_KEYS = [
   "surface_role",
   "app_origin",
   "backend_origin",
-  "public_host",
   "asset_base_path",
   "secure_transport",
   "embedded",
@@ -233,15 +234,18 @@ const inferSecureTransport = ({
   appOrigin: string;
   backendOrigin: string;
   socketOrigin: string;
-  publicHost: string;
+  publicHost?: string;
 }): boolean => {
   if (runtimeMode === "standalone-secure") {
     return true;
   }
 
-  return [appOrigin, backendOrigin, socketOrigin, publicHost].every((origin) =>
-    origin.startsWith("https://"),
-  );
+  return [
+    appOrigin,
+    backendOrigin,
+    socketOrigin,
+    ...(publicHost ? [publicHost] : []),
+  ].every((origin) => origin.startsWith("https://"));
 };
 
 export const resolveRuntimeTopology = (
@@ -289,9 +293,11 @@ export const resolveRuntimeTopology = (
       ? assertUrl(input.socketOrigin, "socketOrigin")
       : resolveDefaultSocketOrigin({ proxyStrategy, appOrigin, backendOrigin });
   const publicHost =
-    input.publicHost != null
-      ? assertUrl(input.publicHost, "publicHost")
-      : appOrigin;
+    resolvePhoneJoinUrl(
+      input.publicHost != null
+        ? assertUrl(input.publicHost, "publicHost")
+        : undefined,
+    ) ?? undefined;
   const assetBasePath = normalizeAssetBasePath(input.assetBasePath);
   const embedded =
     input.embedded == null ? false : assertBoolean(input.embedded, "embedded");
@@ -373,9 +379,11 @@ export const resolveProjectRuntimeTopology = (
       ? assertUrl(input.backendOrigin, "backendOrigin")
       : appOrigin;
   const publicHost =
-    input.publicHost != null
-      ? assertUrl(input.publicHost, "publicHost")
-      : appOrigin;
+    resolvePhoneJoinUrl(
+      input.publicHost != null
+        ? assertUrl(input.publicHost, "publicHost")
+        : undefined,
+    ) ?? undefined;
 
   return resolveRuntimeTopology({
     runtimeMode: requestedRuntimeMode,
@@ -478,8 +486,12 @@ export const runtimeTopologyToQueryParams = (
       resolved.backendOrigin,
     [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}socket_origin`]:
       resolved.socketOrigin,
-    [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}public_host`]:
-      resolved.publicHost,
+    ...(resolved.publicHost
+      ? {
+          [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}public_host`]:
+            resolved.publicHost,
+        }
+      : {}),
     [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}asset_base_path`]:
       resolved.assetBasePath,
     [`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}secure_transport`]:
@@ -544,9 +556,9 @@ export const parseRuntimeTopologyFromSearchParams = (
     socketOrigin: params.get(
       `${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}socket_origin`,
     ) as string,
-    publicHost: params.get(
-      `${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}public_host`,
-    ) as string,
+    publicHost:
+      params.get(`${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}public_host`) ??
+      undefined,
     assetBasePath: params.get(
       `${AIR_JAM_RUNTIME_TOPOLOGY_QUERY_PARAM_PREFIX}asset_base_path`,
     ) as string,

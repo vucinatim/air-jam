@@ -1,5 +1,9 @@
 import { useEffect, useState, type JSX, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
+import {
+  PHONE_JOIN_UNAVAILABLE_MESSAGE,
+  resolvePhoneJoinUrl,
+} from "../core/phone-join-url";
 import { cn } from "../utils/cn";
 import { RoomQrCode } from "./room-qr-code";
 import { shellUtilityButtonClassName } from "./shell-classes";
@@ -37,7 +41,7 @@ export const JoinQrOverlay = ({
   title = "Scan QR code to join as a controller",
   roomLabel = "Join room",
   description = "Scan with your phone to connect as a controller.",
-  unavailableLabel = "Join URL unavailable right now.",
+  unavailableLabel = PHONE_JOIN_UNAVAILABLE_MESSAGE,
   loadingLabel = "Preparing join QR…",
   qrAlt,
   showCloseButton = false,
@@ -50,7 +54,7 @@ export const JoinQrOverlay = ({
   closeButtonClassName,
   size = 260,
 }: JoinQrOverlayProps): JSX.Element | null => {
-  const joinUrlValue = value?.trim() ?? "";
+  const joinUrlValue = resolvePhoneJoinUrl(value) ?? "";
   const effectiveStatus =
     status === "ready" && joinUrlValue.length === 0 ? "unavailable" : status;
   const overlaySize = `min(72vw, ${size}px)`;
@@ -117,16 +121,18 @@ export const JoinQrOverlay = ({
         )}
         onClick={handlePanelClick}
       >
-        <div className="space-y-1">
-          <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
-            {roomLabel}
-          </p>
-          {roomId ? (
-            <p className="text-2xl font-semibold tracking-tight text-white tabular-nums">
-              {roomId}
+        {effectiveStatus !== "unavailable" ? (
+          <div className="space-y-1">
+            <p className="text-[11px] tracking-[0.18em] text-slate-400 uppercase">
+              {roomLabel}
             </p>
-          ) : null}
-        </div>
+            {roomId ? (
+              <p className="text-2xl font-semibold tracking-tight text-white tabular-nums">
+                {roomId}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {effectiveStatus === "loading" ? (
           <div
@@ -167,29 +173,21 @@ export const JoinQrOverlay = ({
             }
           />
         ) : (
-          <div
-            className={cn(
-              "flex items-center justify-center rounded-lg border border-white/25 bg-white/6 px-5 py-10 text-sm text-white/70 shadow-sm",
-              messageClassName,
-            )}
-            style={{
-              width: overlaySize,
-              height: "auto",
-              aspectRatio: "1 / 1",
-            }}
-          >
+          <p className={cn("max-w-xs text-sm text-white/70", messageClassName)}>
             {unavailableLabel}
-          </div>
+          </p>
         )}
 
-        <p
-          className={cn(
-            "max-w-xs text-center text-sm text-slate-400",
-            descriptionClassName,
-          )}
-        >
-          {description}
-        </p>
+        {effectiveStatus !== "unavailable" ? (
+          <p
+            className={cn(
+              "max-w-xs text-center text-sm text-slate-400",
+              descriptionClassName,
+            )}
+          >
+            {description}
+          </p>
+        ) : null}
 
         {showCloseButton ? (
           <Button

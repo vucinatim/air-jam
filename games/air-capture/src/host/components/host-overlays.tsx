@@ -1,4 +1,4 @@
-import type { PlayerProfile } from "@air-jam/sdk";
+import type { JoinUrlStatus, PlayerProfile } from "@air-jam/sdk";
 import {
   JoinQrOverlay,
   JoinUrlControls,
@@ -97,6 +97,7 @@ const TeamCard = ({ teamId, players, botCount }: TeamCardProps) => {
 };
 
 interface LobbyOverlayProps {
+  joinUrlStatus: JoinUrlStatus;
   joinQrValue: string;
   copiedJoinUrl: boolean;
   onCopyJoinUrl: () => void | Promise<void>;
@@ -113,6 +114,7 @@ interface LobbyOverlayProps {
 }
 
 export const LobbyOverlay = ({
+  joinUrlStatus,
   joinQrValue,
   copiedJoinUrl,
   onCopyJoinUrl,
@@ -162,6 +164,7 @@ export const LobbyOverlay = ({
 
         <JoinUrlControls
           value={joinQrValue}
+          status={joinUrlStatus}
           label="Controller link"
           copied={copiedJoinUrl}
           onCopy={onCopyJoinUrl}
@@ -229,6 +232,7 @@ export const LobbyOverlay = ({
       <JoinQrOverlay
         open={joinQrVisible}
         value={joinQrValue}
+        status={joinUrlStatus}
         roomId={roomId}
         onClose={onCloseJoinQr}
         description="Scan with your phone to join this Air Capture room as a controller."

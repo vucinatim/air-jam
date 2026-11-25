@@ -98,3 +98,16 @@ The cost of a hard failure is lower than:
 2. controller URLs that look valid but are wrong
 3. mixed preview/prod assumptions
 4. platform/runtime disagreement about public hosts
+
+### Phone reach and local controllers
+
+`publicHost` names the origin phones can open: a public origin or a LAN relay.
+Omit it when no phone can reach the host. The SDK normalizes loopback hosts
+(`127.0.0.0/8`, `::1`, `localhost` and its subdomains) to absent; it never
+substitutes `appOrigin` for missing phone reach. Serialization preserves that absence.
+
+`host.joinUrl` is derived from this phone reach and is empty with
+`joinUrlStatus: "unavailable"` when reach is absent. Join UI then shows a plain
+explanation, with no QR or address. `host.localControllerUrl` uses `appOrigin`
+for on-screen controllers on the same computer. Never show it as a phone QR.
+Updating phone reach refreshes the join link without restarting the room.

@@ -55,6 +55,7 @@ function bridgeFixture() {
   const inspection = createHostRuntimeInspectionContract({
     roomId: "ROOM",
     joinUrl: "https://game.example/controller?room=ROOM",
+    localControllerUrl: "https://game.example/controller?room=ROOM",
     joinUrlStatus: "ready",
     connectionStatus: "connected",
     players: [],

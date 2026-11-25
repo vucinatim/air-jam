@@ -88,7 +88,8 @@ const HostView = () => {
   // Return values
   const {
     roomId, // "ABCD" - The room code
-    joinUrl, // Full URL for controllers to join
+    joinUrl, // Phone join URL; empty when topology has no phone reach
+    localControllerUrl, // On-screen controllers on this computer only
     joinUrlStatus, // "loading" | "ready" | "unavailable"
     connectionStatus, // "connected" | "connecting" | "reconnecting" | "disconnected" | "idle"
     players, // Array of AirJamPlayer, including phones that are away
