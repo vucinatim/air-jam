@@ -119,13 +119,13 @@ export const hostToRoomFrameSchemas = {
     type: z.literal("response"),
     seat: seatIdSchema,
     id: requestIdSchema,
-    result: z.unknown(),
+    result: z.unknown().optional(),
   }),
   signal: z.object({
     type: z.literal("signal"),
     seat: seatIdSchema.optional(),
     kind: z.string().min(1).max(64),
-    payload: z.unknown(),
+    payload: z.unknown().optional(),
   }),
   room: z.object({
     type: z.literal("room"),
@@ -147,7 +147,7 @@ export const phoneToRoomFrameSchemas = {
     id: requestIdSchema,
     channel: channelSchema,
     name: z.string().min(1).max(128),
-    payload: z.unknown(),
+    payload: z.unknown().optional(),
   }),
   profile: z
     .object({
@@ -232,7 +232,7 @@ export const roomToHostFrameSchemas = {
     id: requestIdSchema,
     channel: channelSchema,
     name: z.string(),
-    payload: z.unknown(),
+    payload: z.unknown().optional(),
   }),
 } as const;
 
@@ -259,13 +259,13 @@ export const roomToPhoneFrameSchemas = {
     z.object({
       type: z.literal("response"),
       id: requestIdSchema,
-      result: z.unknown(),
+      result: z.unknown().optional(),
     }),
   ]),
   signal: z.object({
     type: z.literal("signal"),
     kind: z.string(),
-    payload: z.unknown(),
+    payload: z.unknown().optional(),
   }),
 } as const;
 

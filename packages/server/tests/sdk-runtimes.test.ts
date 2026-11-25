@@ -312,6 +312,10 @@ describe("SDK runtimes in a real room", () => {
     expect(removal.value).toBeUndefined();
     await clock.advance();
     expect(removal.value).toEqual({ ok: true });
+    // A phone the room already let go of leaves at once, as when changing rooms.
+    const gone = settledOf(first.leave());
+    await Promise.resolve();
+    expect(gone.value).toMatchObject({ ok: false });
 
     const second = join();
     await clock.advance();

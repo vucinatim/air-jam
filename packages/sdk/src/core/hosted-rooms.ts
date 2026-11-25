@@ -1,4 +1,4 @@
-import type { RuntimeErrorReporter } from "../protocol/runtime-reporting";
+import { createRuntimeErrorReporter } from "../protocol/runtime-reporting";
 
 /** Where Air Jam's hosted rooms live. */
 export const AIR_JAM_HOSTED_ROOMS_ORIGIN = "https://rooms.airjam.io";
@@ -17,15 +17,10 @@ export const AIR_JAM_HOSTED_RUNTIME_ERRORS_ENDPOINT =
 
 /**
  * Sends a page's render-crash report to the platform that runs its rooms,
- * as the hosted rooms' own reports reach it. Fire and forget: the page is
- * already showing its crash, and the report carries no credential.
+ * as the hosted rooms' own reports reach it. The report carries no
+ * credential.
  */
-export const hostedRuntimeErrorReporter: RuntimeErrorReporter = (report) => {
-  void fetch(AIR_JAM_HOSTED_RUNTIME_ERRORS_ENDPOINT, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(report),
-    credentials: "omit",
-    keepalive: true,
-  });
-};
+export const hostedRuntimeErrorReporter = createRuntimeErrorReporter({
+  endpoint: AIR_JAM_HOSTED_RUNTIME_ERRORS_ENDPOINT,
+  credentials: "omit",
+});

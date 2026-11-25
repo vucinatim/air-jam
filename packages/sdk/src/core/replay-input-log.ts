@@ -38,7 +38,7 @@ const inputLogEventSchema = z.object({
 const runtimeLogEventSchema = z.object({ runtimeState: runtimeStateSchema });
 const actionLogEventSchema = z.object({
   actionName: z.string(),
-  payload: z.unknown(),
+  payload: z.unknown().optional(),
   storeDomain: z.string(),
   actor: z.object({
     id: z.string(),
@@ -202,9 +202,12 @@ export const openAirJamReplay = async (
               runtimeLogEventSchema.parse(payload).runtimeState,
             );
             break;
-          case "action":
-            runtime.replayAction(actionLogEventSchema.parse(payload));
+          case "action": {
+            // A logged action without a payload had none when it ran.
+            const action = actionLogEventSchema.parse(payload);
+            runtime.replayAction({ ...action, payload: action.payload });
             break;
+          }
           case "settings": {
             const accepted = settingsLogEventSchema.parse(payload);
             runtime.updateSettings(accepted.patch, accepted.revision - 1);

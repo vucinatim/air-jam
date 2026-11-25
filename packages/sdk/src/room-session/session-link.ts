@@ -55,12 +55,19 @@ export interface RoomSessionOptions {
     readonly firstDelayMs: number;
     readonly maximumDelayMs: number;
   };
+  /**
+   * How long a link waits for the room to welcome or queue it after its
+   * hello; a hello lost on a half-open network otherwise waits for the
+   * room's own timeout before the device tries again.
+   */
+  readonly helloAnswerWithinMs?: number;
 }
 
 export const DEFAULT_HEARTBEAT = {
   intervalMs: 20_000,
   answerWithinMs: 10_000,
 } as const;
+export const DEFAULT_HELLO_ANSWER_WITHIN_MS = 5_000;
 export const DEFAULT_RETRY = {
   firstDelayMs: 250,
   maximumDelayMs: 5_000,
@@ -92,6 +99,7 @@ export class SessionLink {
   private cancelRetry: (() => void) | null = null;
   private cancelPing: (() => void) | null = null;
   private cancelAnswer: (() => void) | null = null;
+  private cancelHello: (() => void) | null = null;
   private stopWakeEvents: (() => void) | null = null;
   private current: RoomSessionStatus = { phase: "connecting" };
   readonly clock: RoomClock;
@@ -138,12 +146,14 @@ export class SessionLink {
 
   /** The room welcomed this link. */
   markOpen(): void {
+    this.answered();
     this.welcomed = true;
     this.attempt = 0;
     this.setStatus({ phase: "open" });
   }
 
   waiting(position: number): void {
+    this.answered();
     this.setStatus({ phase: "waiting", position });
   }
 
@@ -196,6 +206,20 @@ export class SessionLink {
   private greet(link: RoomLink, hello: string): void {
     link.send(hello);
     this.schedulePing();
+    const within =
+      this.options.helloAnswerWithinMs ?? DEFAULT_HELLO_ANSWER_WITHIN_MS;
+    this.cancelHello = this.clock.at(this.clock.now() + within, () => {
+      this.cancelHello = null;
+      if (this.link !== link) return;
+      link.close();
+      this.lost(ABNORMAL_CLOSE_CODE);
+    });
+  }
+
+  /** The room welcomed or queued the link, so its hello arrived. */
+  private answered(): void {
+    this.cancelHello?.();
+    this.cancelHello = null;
   }
 
   private lost(code: number): void {
@@ -225,6 +249,7 @@ export class SessionLink {
     this.cancelPing = null;
     this.cancelAnswer?.();
     this.cancelAnswer = null;
+    this.answered();
     if (hadLink) this.role.lost();
   }
 

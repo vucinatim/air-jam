@@ -37,3 +37,42 @@ export type RuntimeErrorReport = z.infer<typeof runtimeErrorReportSchema>;
  * to keep them with its operational records.
  */
 export type RuntimeErrorReporter = (report: RuntimeErrorReport) => void;
+
+/**
+ * How long to wait before sending a report again after its platform answered
+ * 404: a room's facts reach the platform moments after the room welcomes its
+ * pages, so a crash just after joining can arrive first.
+ */
+const RUNTIME_ERROR_REPORT_RETRY_DELAYS_MS = [1_000, 2_000, 4_000];
+
+/**
+ * A reporter that posts each report to a platform route, fire and forget:
+ * the page is already showing its crash. A 404 means the platform has not
+ * recorded the room yet, so the same report goes again a few times; the
+ * platform keeps a report once, by its id.
+ */
+export const createRuntimeErrorReporter = ({
+  endpoint,
+  credentials,
+}: {
+  endpoint: string;
+  credentials: RequestCredentials;
+}): RuntimeErrorReporter => {
+  return (report) => {
+    const body = JSON.stringify(report);
+    const send = async (retries: readonly number[]): Promise<void> => {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        credentials,
+        keepalive: true,
+      }).catch(() => null);
+      const [delay, ...later] = retries;
+      if (response?.status !== 404 || delay === undefined) return;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      await send(later);
+    };
+    void send(RUNTIME_ERROR_REPORT_RETRY_DELAYS_MS);
+  };
+};
