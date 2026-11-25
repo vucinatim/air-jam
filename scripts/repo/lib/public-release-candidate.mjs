@@ -761,7 +761,18 @@ const validateCandidateEvidence = ({ root, manifest, expectedPackages }) => {
     throw new Error("Candidate production dependency audit is not releasable.");
   }
 
-  const workspacePackages = loadWorkspacePackageIndex(repoRoot);
+  // A prerelease candidate's packages depend on each other at its version.
+  const candidatePackages = new Set(
+    expectedPackages.map((pkg) => pkg.packageName),
+  );
+  const workspacePackages = new Map(
+    [...loadWorkspacePackageIndex(repoRoot)].map(([name, entry]) => [
+      name,
+      candidatePackages.has(name)
+        ? { ...entry, version: manifest.version }
+        : entry,
+    ]),
+  );
   const expectedMetadata = buildPackageMetadata({
     publicPackages: expectedPackages,
     workspacePackages,
