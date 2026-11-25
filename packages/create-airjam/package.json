@@ -1,6 +1,6 @@
 {
   "name": "create-airjam",
-  "version": "0.9.3",
+  "version": "1.0.0",
   "engines": {
     "node": ">=22.15.0"
   },

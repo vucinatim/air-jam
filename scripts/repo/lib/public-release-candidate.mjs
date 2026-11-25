@@ -11,6 +11,7 @@ import {
   resolvePublicPackages,
   resolveUnifiedPublicVersion,
 } from "../../release/public-packages.mjs";
+import { integrationBranch } from "./check-plan.mjs";
 import { repoRoot } from "./paths.mjs";
 
 export const publicReleaseCandidateContract =
@@ -25,6 +26,31 @@ const evidenceFiles = Object.freeze({
 const commandMaxBuffer = 64 * 1024 * 1024;
 const npmRegistry = "https://registry.npmjs.org";
 export const publicReleaseRepository = "vucinatim/air-jam";
+
+// The branch each npm channel may publish from: stable channels only from
+// main; beta, the release line's prereleases, from the integration branch.
+const publicationBranches = Object.freeze({
+  latest: "main",
+  next: "main",
+  beta: integrationBranch,
+});
+
+export const assertPublicationRef = ({ channel, ref }) => {
+  if (!Object.hasOwn(publicationBranches, channel))
+    throw new Error(`Unsupported npm channel "${channel}".`);
+  const branch = publicationBranches[channel];
+  if (ref !== `refs/heads/${branch}`)
+    throw new Error(
+      `npm channel ${channel} publishes only from ${branch}, not ${ref}.`,
+    );
+  return branch;
+};
+
+export const publicationBranch = (channel) =>
+  assertPublicationRef({
+    channel,
+    ref: `refs/heads/${publicationBranches[channel]}`,
+  });
 
 const compareStrings = (left, right) => left.localeCompare(right);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -283,6 +309,97 @@ export const checkPublicReleaseVersionAvailability = () => {
     ok: true,
     packages: observations.map(({ name, version }) => ({ name, version })),
   };
+};
+
+/**
+ * A prerelease of the release line's version: `<version>-<tag>.<n>`, one past
+ * the highest such prerelease of any public package already on npm.
+ */
+export const resolvePrereleaseVersion = ({
+  version,
+  tag,
+  publishedVersions,
+}) => {
+  if (!/^[a-z]+$/u.test(tag))
+    throw new Error(`Prerelease tag "${tag}" must be lowercase letters.`);
+  const prefix = `${version}-${tag}.`;
+  const highest = publishedVersions
+    .filter((published) => published.startsWith(prefix))
+    .map((published) => Number(published.slice(prefix.length)))
+    .filter(Number.isSafeInteger)
+    .reduce((left, right) => Math.max(left, right), 0);
+  return `${prefix}${highest + 1}`;
+};
+
+/** Whether a candidate's version is the release line's version or one of its prereleases. */
+export const isCandidateVersionOf = (candidateVersion, version) =>
+  candidateVersion === version ||
+  (candidateVersion.startsWith(`${version}-`) &&
+    /^[a-z]+\.\d+$/u.test(candidateVersion.slice(version.length + 1)));
+
+const readPublishedVersions = (name) => {
+  const result = run(
+    "npm",
+    [
+      "view",
+      name,
+      "versions",
+      "--json",
+      "--prefer-online",
+      "--registry",
+      npmRegistry,
+    ],
+    { allowFailure: true, timeout: 60_000 },
+  );
+  if (result.status !== 0) {
+    if (/E404|is not in this registry/iu.test(result.stderr)) return [];
+    throw new Error(
+      `Unable to list ${name} versions on npm:\n${result.stderr.trim()}`,
+    );
+  }
+  const versions = readNpmViewValue(result.stdout);
+  return Array.isArray(versions) ? versions : [versions];
+};
+
+const prereleaseNotice = (version, tag) =>
+  `> **Prerelease \`${version}\`** from Air Jam's \`${tag}\` channel. It is not stable and may change or break between ` +
+  `prereleases; install \`@latest\` for the stable release.\n\n`;
+
+/**
+ * Writes a prerelease version into every public package, its README and the
+ * starter's version manifest, and returns how to put the checkout back.
+ */
+const stampPrerelease = ({ publicPackages, version, tag }) => {
+  const files = [
+    "packages/create-airjam/template-version-manifest.json",
+    ...publicPackages.flatMap((pkg) => [
+      path.posix.join(pkg.workingDirectory, "package.json"),
+      path.posix.join(pkg.workingDirectory, "README.md"),
+    ]),
+  ];
+  for (const pkg of publicPackages) {
+    const manifestPath = path.join(
+      repoRoot,
+      pkg.workingDirectory,
+      "package.json",
+    );
+    const manifest = readJson(manifestPath);
+    writeJson(manifestPath, { ...manifest, version });
+    const readmePath = path.join(repoRoot, pkg.workingDirectory, "README.md");
+    fs.writeFileSync(
+      readmePath,
+      prereleaseNotice(version, tag) + fs.readFileSync(readmePath, "utf8"),
+    );
+  }
+  const templateVersionsPath = path.join(repoRoot, files[0]);
+  const templateVersions = readJson(templateVersionsPath);
+  writeJson(templateVersionsPath, {
+    ...templateVersions,
+    packages: Object.fromEntries(
+      Object.keys(templateVersions.packages).map((name) => [name, version]),
+    ),
+  });
+  return () => run("git", ["checkout", "--", ...files]);
 };
 
 const resolveCleanCommit = () => {
@@ -698,7 +815,10 @@ export const validatePublicReleaseCandidate = (
       `Candidate commit ${manifest.source.commit} does not match ${expectedCommit}.`,
     );
   }
-  if (manifest.version !== resolveUnifiedPublicVersion()) {
+  if (
+    typeof manifest.version !== "string" ||
+    !isCandidateVersionOf(manifest.version, resolveUnifiedPublicVersion())
+  ) {
     throw new Error(
       "Candidate version does not match the public package graph.",
     );
@@ -716,7 +836,10 @@ export const validatePublicReleaseCandidate = (
   ) {
     throw new Error("Candidate toolchain or input identity is invalid.");
   }
-  const expectedPackages = resolvePublicPackages();
+  const expectedPackages = resolvePublicPackages().map((pkg) => ({
+    ...pkg,
+    version: manifest.version,
+  }));
   if (
     !Array.isArray(manifest.packages) ||
     manifest.packages.length !== expectedPackages.length
@@ -828,6 +951,7 @@ const buildPackageMetadata = ({ publicPackages, workspacePackages }) =>
 
 export const createPublicReleaseCandidate = ({
   outputDirectory,
+  prerelease = null,
   onProgress = () => {},
 }) => {
   if (!outputDirectory)
@@ -837,7 +961,15 @@ export const createPublicReleaseCandidate = ({
     throw new Error(`Candidate output already exists: ${output}`);
 
   const commit = resolveCleanCommit();
-  const publicPackages = resolvePublicPackages();
+  const prereleaseVersion = prerelease
+    ? resolvePrereleaseVersion({
+        version: resolveUnifiedPublicVersion(),
+        tag: prerelease,
+        publishedVersions: resolvePublicPackages().flatMap((pkg) =>
+          readPublishedVersions(pkg.packageName),
+        ),
+      })
+    : null;
   const parent = path.dirname(output);
   fs.mkdirSync(parent, { recursive: true });
   const staging = path.join(
@@ -848,7 +980,18 @@ export const createPublicReleaseCandidate = ({
     fs.rmSync(staging, { recursive: true, force: true });
   fs.mkdirSync(path.join(staging, "packages"), { recursive: true });
 
+  let restoreCheckout = () => {};
   try {
+    if (prereleaseVersion) {
+      onProgress(`stamp:${prereleaseVersion}`);
+      restoreCheckout = stampPrerelease({
+        publicPackages: resolvePublicPackages(),
+        version: prereleaseVersion,
+        tag: prerelease,
+      });
+    }
+    const publicPackages = resolvePublicPackages();
+    const candidateVersion = publicPackages[0].version;
     for (const pkg of publicPackages) {
       const packageManifest = JSON.parse(
         fs.readFileSync(
@@ -950,6 +1093,7 @@ export const createPublicReleaseCandidate = ({
 
     const rootManifest = fs.readFileSync(path.join(repoRoot, "package.json"));
     const lockfile = fs.readFileSync(path.join(repoRoot, "pnpm-lock.yaml"));
+    restoreCheckout();
     const finalCommit = resolveCleanCommit();
     if (finalCommit !== commit) {
       throw new Error(
@@ -963,7 +1107,7 @@ export const createPublicReleaseCandidate = ({
         repository: `https://github.com/${publicReleaseRepository}`,
         commit,
       },
-      version: resolveUnifiedPublicVersion(),
+      version: candidateVersion,
       toolchain: {
         node: process.versions.node,
         npm: readCommandVersion("npm", ["--version"]),
@@ -984,6 +1128,7 @@ export const createPublicReleaseCandidate = ({
     fs.renameSync(staging, output);
     return validatePublicReleaseCandidate(output, { expectedCommit: commit });
   } catch (error) {
+    restoreCheckout();
     fs.rmSync(staging, { recursive: true, force: true });
     throw error;
   }
@@ -1067,9 +1212,7 @@ export const publishPublicReleaseCandidate = ({
   outputPath,
   onProgress = () => {},
 }) => {
-  if (channel !== "latest" && channel !== "next") {
-    throw new Error(`Unsupported npm channel "${channel}".`);
-  }
+  publicationBranch(channel);
   if (emergencyReason !== null && emergencyReason.trim().length < 12) {
     throw new Error("Emergency reason must contain at least 12 characters.");
   }
