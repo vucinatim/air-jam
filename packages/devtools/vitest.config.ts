@@ -22,5 +22,6 @@ export default defineConfig({
     environment: "node",
     globals: true,
     fileParallelism: false,
+    poolOptions: { forks: { singleFork: true } },
   },
 });
