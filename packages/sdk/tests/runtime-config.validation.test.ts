@@ -9,6 +9,7 @@ import {
   resetAirJamDiagnosticsForTests,
   setAirJamDiagnosticsEnabled,
 } from "../src/diagnostics";
+import { createRuntimeErrorReporter } from "../src/protocol/runtime-reporting";
 import { resolveAirJamConfig } from "../src/runtime/air-jam-config";
 import { env } from "../src/runtime/create-air-jam-app";
 
@@ -152,6 +153,30 @@ describe("runtime config validation", () => {
     ]);
     expect(reporterOn("https://rooms.my-game.example")).toBeUndefined();
     vi.unstubAllGlobals();
+  });
+
+  it("sends a report again while the platform has not yet recorded its room, and only then", async () => {
+    vi.useFakeTimers();
+    const answers = [404, 404, 202, 500];
+    const bodies: unknown[] = [];
+    vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) => {
+      bodies.push(init?.body);
+      return new Response(null, { status: answers.shift() });
+    });
+    const report = createRuntimeErrorReporter({
+      endpoint: "https://platform.test/runtime-errors",
+      credentials: "omit",
+    });
+    report({ reportId: "first" } as never);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(bodies).toEqual(
+      Array(3).fill(JSON.stringify({ reportId: "first" })),
+    );
+    report({ reportId: "second" } as never);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(bodies).toHaveLength(4);
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("accepts explicit vite env input at the app boundary", () => {
