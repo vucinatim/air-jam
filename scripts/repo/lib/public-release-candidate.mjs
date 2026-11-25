@@ -357,7 +357,8 @@ const readPublishedVersions = (name) => {
       `Unable to list ${name} versions on npm:\n${result.stderr.trim()}`,
     );
   }
-  const versions = readNpmViewValue(result.stdout);
+  // One field prints its value alone: an array, or a string for one version.
+  const versions = JSON.parse(result.stdout);
   return Array.isArray(versions) ? versions : [versions];
 };
 
