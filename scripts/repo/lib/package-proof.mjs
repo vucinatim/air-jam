@@ -20,7 +20,7 @@ const scenarios = {
   },
   libraries: {
     packageIds: PUBLIC_PACKAGE_DEFINITIONS.filter(
-      (entry) => !["server", "create-airjam"].includes(entry.id),
+      (entry) => entry.id !== "create-airjam",
     ).map((entry) => entry.id),
     fixtures: [
       ["foundation-library-consumer.mts", "consumer.mts"],

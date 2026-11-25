@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
+import packageManifest from "../package.json";
 import { createServerCli, formatCliHelp, normalizeCliArgv } from "../src/cli";
 import { coerceDevLogsCliOptions } from "../src/logging/dev-logs-cli";
 
 describe("server cli", () => {
   it("registers start and logs commands", () => {
     const cli = createServerCli();
-    expect(cli.version()).toBe("0.9.3");
+    expect(cli.version()).toBe(packageManifest.version);
     expect(
       cli.commands.map((command: { name: () => string }) => command.name()),
     ).toEqual(["start", "logs"]);
