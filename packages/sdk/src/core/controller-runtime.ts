@@ -225,21 +225,30 @@ export class ControllerRuntime {
     this.avatarId = value;
   };
 
-  /** Gives the seat up for good. */
-  /** Gives the seat up for good; settles once the room confirms it. */
+  /**
+   * Gives the seat up for good; settles once the room confirms it, or at
+   * once when the room had already let this phone go, as after a refusal.
+   */
   readonly leave = (): Promise<RoomActionAck> => {
     const roomId = this.roomId;
     const session = this.currentSession;
     if (!session || !roomId)
       return Promise.resolve({ ok: false, message: "Not in a room." });
     this.environment.clearBinding(roomId);
-    const confirmation = awaitRoomConfirmation({
-      follow: (changed) => session.on("status", changed),
-      confirmed: () =>
-        session.status.phase === "closed" && session.status.reason === "left",
-      lost: () => session.status.phase === "closed",
-      unconfirmed: "The room did not confirm the seat was given up.",
-    });
+    const confirmation =
+      session.status.phase === "closed"
+        ? Promise.resolve<RoomActionAck>({
+            ok: false,
+            message: "The room had already let this phone go.",
+          })
+        : awaitRoomConfirmation({
+            follow: (changed) => session.on("status", changed),
+            confirmed: () =>
+              session.status.phase === "closed" &&
+              session.status.reason === "left",
+            lost: () => session.status.phase === "closed",
+            unconfirmed: "The room did not confirm the seat was given up.",
+          });
     session.leave();
     const state = this.store.getState();
     state.setControllerId(null);
