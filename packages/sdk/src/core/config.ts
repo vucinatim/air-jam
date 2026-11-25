@@ -6,8 +6,8 @@ import type {
   ResolvedAirJamRuntimeTopology,
 } from "../runtime-topology";
 import {
-  AIR_JAM_HOSTED_HOST_GRANT_ENDPOINT,
-  AIR_JAM_HOSTED_ROOMS_ORIGIN,
+  findHostedEnvironment,
+  hostedHostGrantEndpoint,
   hostedRuntimeErrorReporter,
 } from "./hosted-rooms";
 
@@ -51,16 +51,16 @@ export const createAirJamConfig = ({
   reportError?: RuntimeErrorReporter;
   presentationChannel?: string;
 }): AirJamConfig => {
-  const hosted = topology.socketOrigin === AIR_JAM_HOSTED_ROOMS_ORIGIN;
+  const hosted = findHostedEnvironment(topology.socketOrigin);
   return {
     topology,
     appId,
     hostGrantEndpoint:
       hostGrantEndpoint ??
-      (hosted ? AIR_JAM_HOSTED_HOST_GRANT_ENDPOINT : undefined),
+      (hosted ? hostedHostGrantEndpoint(hosted) : undefined),
     maxPlayers,
     reportError:
-      reportError ?? (hosted ? hostedRuntimeErrorReporter : undefined),
+      reportError ?? (hosted ? hostedRuntimeErrorReporter(hosted) : undefined),
     presentationChannel,
     backendOrigin: topology.backendOrigin,
     socketOrigin: topology.socketOrigin,

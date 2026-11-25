@@ -3,6 +3,7 @@ import {
   createProjectLocalMcpConfig,
   resolveAirJamBootstrapAssetsDir,
   resolveAirJamManagedAssetsDir,
+  resolveScaffoldHostedEnvironment,
 } from "@air-jam/cli/scaffold";
 import fs from "fs-extra";
 import kleur from "kleur";
@@ -297,6 +298,20 @@ export const runScaffoldCommand = async (
     createAirJamVersion,
   });
 
+  const hosted = resolveScaffoldHostedEnvironment(createAirJamVersion);
+  if (hosted.name === "beta") {
+    await fs.appendFile(
+      path.join(targetDir, ".env.example"),
+      [
+        "",
+        `# Air Jam beta: create-airjam ${createAirJamVersion} is a prerelease, so this game`,
+        `# builds against ${hosted.platformOrigin}, the next release, which may change.`,
+        `# For hosted rooms on your own site: VITE_AIR_JAM_SERVER_URL=${hosted.roomsOrigin}`,
+        "",
+      ].join("\n"),
+    );
+  }
+
   console.log(kleur.green("✓ Project created successfully!\n"));
   if (!options.skipInstall) {
     console.log(kleur.cyan("Installing dependencies...\n"));
@@ -311,5 +326,13 @@ export const runScaffoldCommand = async (
   console.log(kleur.cyan("  pnpm run dev"));
   console.log(
     kleur.dim("Then open http://localhost:5173 and scan the QR code."),
+  );
+  console.log(
+    `\nTo publish, sign in to ${hosted.platformOrigin}${hosted.name === "beta" ? " (Air Jam beta, a prerelease)" : ""}:`,
+  );
+  console.log(
+    kleur.cyan(
+      `  pnpm exec airjam auth login --platform-url ${hosted.platformOrigin}`,
+    ),
   );
 };
