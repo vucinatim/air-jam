@@ -52,10 +52,16 @@ const snapshotSchema = z.object({
 
 export type HostPreviewSnapshot = z.infer<typeof snapshotSchema>;
 
+/**
+ * The game's snapshot, trusted only from its own frame and origin. Its local
+ * controller link must lead to `controllerOrigin` for the same room: the
+ * game's own origin, unless the screen serves its phones itself (the Arcade).
+ */
 export function readHostPreviewSnapshot(
   event: MessageEvent<unknown>,
   expectedWindow: Window,
   expectedOrigin: string,
+  controllerOrigin = expectedOrigin,
 ): HostPreviewSnapshot | null {
   if (event.source !== expectedWindow || event.origin !== expectedOrigin)
     return null;
@@ -80,7 +86,7 @@ export function readHostPreviewSnapshot(
       return null;
     }
     if (
-      join.origin !== expectedOrigin ||
+      join.origin !== controllerOrigin ||
       join.searchParams.get("room") !== snapshot.roomId ||
       join.username ||
       join.password
