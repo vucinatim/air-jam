@@ -222,23 +222,28 @@ function InheritedRuntime({ children }: { children: ReactNode }) {
 }
 
 /**
- * Holds the platform's settings for this page. Embedded in the platform, a
- * page inherits what its parent resolved for it; on its own, it owns its
- * device's settings (and, on a screen, the room's), stored on the device.
+ * The platform's settings for a page the platform owns: its device's settings
+ * and, on a screen, the room's, stored on the device. Every platform page
+ * mounts one at its root, including a phone page the platform shows inside
+ * its own screen.
  */
 export function PlatformSettingsRuntime(props: PlatformSettingsRuntimeProps) {
-  const embedded = window.parent !== window;
-  return embedded ? (
+  return <OwnerRuntime {...props} />;
+}
+
+/**
+ * A game's settings boundary: inside a platform page it uses that page's
+ * settings; in a platform frame it inherits what the platform resolved for
+ * it; on its own it owns its device's settings.
+ */
+export function PlatformSettingsBoundary(props: PlatformSettingsRuntimeProps) {
+  const existing = useContext(runtimeContext);
+  if (existing) return props.children;
+  return window.parent !== window ? (
     <InheritedRuntime>{props.children}</InheritedRuntime>
   ) : (
     <OwnerRuntime {...props} />
   );
-}
-
-/** Mounts a runtime only where no platform runtime is already above. */
-export function PlatformSettingsBoundary(props: PlatformSettingsRuntimeProps) {
-  if (useContext(runtimeContext)) return props.children;
-  return <PlatformSettingsRuntime {...props} />;
 }
 
 /** The settings a platform page owns and changes; only an owning page has it. */

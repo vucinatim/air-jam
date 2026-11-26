@@ -236,10 +236,10 @@ describe("AudioRuntime", () => {
     });
 
     const hooks = await import("../src/audio/hooks");
-    const { PlatformSettingsRuntime } =
+    const { PlatformSettingsBoundary } =
       await import("../src/settings/platform-settings-runtime");
     const wrapper = ({ children }: { children: ReactNode }) =>
-      createElement(PlatformSettingsRuntime, {
+      createElement(PlatformSettingsBoundary, {
         surface: "screen",
         children: createElement(
           HostSessionProvider,
