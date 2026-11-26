@@ -1,4 +1,4 @@
-import { createAirJamApp, env } from "@air-jam/sdk";
+import { HoldReveal, createAirJamApp, env } from "@air-jam/sdk";
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { airjam } from "./airjam.config";
@@ -16,7 +16,11 @@ const ControllerView = lazy(async () => {
 });
 
 const RouteFallback = () => {
-  return <div className="bg-background h-screen w-screen" />;
+  return (
+    <div className="bg-background h-screen w-screen">
+      <HoldReveal />
+    </div>
+  );
 };
 
 export const App = () => {

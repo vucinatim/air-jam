@@ -64,7 +64,7 @@ export const requestEmbeddingRoom = ({
             : "harnessSessionId" in context
               ? "standalone-controller"
               : "arcade-controller-iframe",
-        capabilityFlags: { roomBridge: true },
+        capabilityFlags: { roomBridge: true, hostReveal: role === "host" },
       }),
       role,
       ...context,

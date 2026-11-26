@@ -1,4 +1,4 @@
-import { createAirJamApp, env } from "@air-jam/sdk";
+import { HoldReveal, createAirJamApp, env } from "@air-jam/sdk";
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
@@ -22,6 +22,7 @@ const RouteFallback = () => {
       <div className="text-xs tracking-[0.2em] uppercase opacity-70">
         Loading office floor
       </div>
+      <HoldReveal />
     </div>
   );
 };
