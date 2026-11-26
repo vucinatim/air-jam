@@ -7,7 +7,5 @@ export type { AirJamGameSettingsState } from "../../runtime/iframe-bridge";
 export {
   createParentPlatformSettingsBridge,
   type ParentPlatformSettingsBridgeController,
-  type ParentPlatformSettingsBridgeEventMap,
   type PlatformSettingsBridgeState,
-  type PlatformSettingsBridgeTransport,
 } from "../../settings/platform-settings-bridge";

@@ -15,48 +15,66 @@ import { publishEmbeddedGameSettings } from "../src/settings/embedded-game-setti
 import { DEFAULT_SURFACE_SETTINGS } from "../src/settings/platform-settings";
 import {
   createParentPlatformSettingsBridge,
-  initializeInheritedPlatformSettingsBridge,
   serveEmbeddedGameSettings,
 } from "../src/settings/platform-settings-bridge";
 
 const ORIGIN = "https://platform.example";
 
-const readyEvent = (source: Window) =>
-  new MessageEvent("message", {
-    source: source as MessageEventSource,
-    origin: ORIGIN,
-    data: { type: AIRJAM_SETTINGS_READY, payload: { ready: true } },
-  });
+const READY = { type: AIRJAM_SETTINGS_READY, payload: { ready: true } };
+
+/** The frame's end of a port: it confirms the port and keeps what arrives. */
+const frameEnd = (port: MessagePort) => {
+  const received: unknown[] = [];
+  port.addEventListener("message", (event) => received.push(event.data));
+  port.start();
+  port.postMessage(READY);
+  return received;
+};
 
 describe("platform settings bridge", () => {
-  it("sends the game only the latest settings, once it is ready", () => {
-    const port1 = {
-      postMessage: vi.fn(),
-      addEventListener: vi.fn(),
-      close: vi.fn(),
-      start: vi.fn(),
-    } as unknown as MessagePort;
+  it("sends a frame the latest settings once it confirms its port", async () => {
+    const channel = new MessageChannel();
     const targetWindow = { postMessage: vi.fn() } as unknown as Window;
     const bridge = createParentPlatformSettingsBridge({
-      createMessageChannel: () =>
-        ({ port1, port2: {} as MessagePort }) as MessageChannel,
+      createMessageChannel: () => channel,
     });
-    bridge.attach(targetWindow, ORIGIN);
     const quiet = {
       ...DEFAULT_SURFACE_SETTINGS,
       audio: { volume: 0.25, music: 0.5, effects: 0.75 },
     };
     bridge.updateSettings({ ...quiet, reduceMotion: true });
     bridge.updateSettings(quiet);
-    expect(port1.postMessage).not.toHaveBeenCalled();
+    bridge.attach(targetWindow, ORIGIN);
+    const received = frameEnd(channel.port2);
 
-    bridge.handleMessage(readyEvent(targetWindow), targetWindow, ORIGIN);
+    await vi.waitFor(() => expect(bridge.getState()).toBe("ready"));
+    await vi.waitFor(() =>
+      expect(received).toEqual([
+        { type: AIRJAM_SETTINGS_SYNC, payload: { settings: quiet } },
+      ]),
+    );
+    bridge.detach();
+  });
 
-    expect(port1.postMessage).toHaveBeenCalledTimes(1);
-    expect(port1.postMessage).toHaveBeenCalledWith({
-      type: AIRJAM_SETTINGS_SYNC,
-      payload: { settings: quiet },
-    });
+  it("answers a reloaded frame's ready with a fresh port", () => {
+    const targetWindow = { postMessage: vi.fn() } as unknown as Window;
+    const bridge = createParentPlatformSettingsBridge();
+    const handled = bridge.handleMessage(
+      new MessageEvent("message", {
+        source: targetWindow as MessageEventSource,
+        origin: ORIGIN,
+        data: READY,
+      }),
+      targetWindow,
+      ORIGIN,
+    );
+    expect(handled).toBe(true);
+    const [message, origin, transfer] = vi.mocked(targetWindow.postMessage).mock
+      .calls[0] as unknown as [{ type: string }, string, MessagePort[]];
+    expect(message.type).toBe("AIRJAM_BRIDGE_INIT");
+    expect(origin).toBe(ORIGIN);
+    expect(transfer).toHaveLength(1);
+    bridge.detach();
   });
 
   it("carries a framed game's declared settings to the platform and the platform's changes back", async () => {
@@ -69,7 +87,7 @@ describe("platform settings bridge", () => {
     });
     bridge.attach(targetWindow, ORIGIN);
     const stopServing = serveEmbeddedGameSettings(channel.port2);
-    channel.port2.start();
+    frameEnd(channel.port2);
     const host = new HostSettings(
       defineAirJamSettings({
         speed: setting.number({ default: 1, min: 1, max: 3, live: true }),
@@ -105,46 +123,5 @@ describe("platform settings bridge", () => {
     stopServing();
     bridge.detach();
     expect(states.at(-1)).toBeNull();
-  });
-
-  it("applies settings a parent posts to its window when no port is bound", () => {
-    const originalParent = window.parent;
-    const parentWindow = { postMessage: vi.fn() };
-    Object.defineProperty(window, "parent", {
-      configurable: true,
-      value: parentWindow,
-    });
-    Object.defineProperty(document, "referrer", {
-      configurable: true,
-      value: `${ORIGIN}/arcade`,
-    });
-    const applySettings = vi.fn();
-    const cleanup = initializeInheritedPlatformSettingsBridge({
-      applySettings,
-    });
-    const settings = { ...DEFAULT_SURFACE_SETTINGS, vibration: false };
-
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        source: parentWindow as unknown as MessageEventSource,
-        origin: ORIGIN,
-        data: { type: AIRJAM_SETTINGS_SYNC, payload: { settings } },
-      }),
-    );
-
-    expect(parentWindow.postMessage).toHaveBeenCalledWith(
-      { type: AIRJAM_SETTINGS_READY, payload: { ready: true } },
-      ORIGIN,
-    );
-    expect(applySettings).toHaveBeenCalledWith(settings);
-    cleanup();
-    Object.defineProperty(window, "parent", {
-      configurable: true,
-      value: originalParent,
-    });
-    Object.defineProperty(document, "referrer", {
-      configurable: true,
-      value: "",
-    });
   });
 });

@@ -44,31 +44,14 @@ const createSettingsSyncMessage = (settings: AirJamSurfaceSettings) => ({
 
 export type PlatformSettingsBridgeState = "unbound" | "waiting_ready" | "ready";
 
-export type PlatformSettingsBridgeTransport =
-  | "bridge_port"
-  | "window_postmessage";
-
-export interface ParentPlatformSettingsBridgeEventMap {
-  bridgeAttached: { state: PlatformSettingsBridgeState };
-  settingsReady: { state: PlatformSettingsBridgeState };
-  snapshotFlushed: {
-    phase: "initial" | "update";
-    transports: PlatformSettingsBridgeTransport[];
-    settings: AirJamSurfaceSettings;
-  };
-}
-
 export interface ParentPlatformSettingsBridgeOptions {
   createMessageChannel?: () => MessageChannel;
-  onEvent?<T extends keyof ParentPlatformSettingsBridgeEventMap>(
-    event: T,
-    payload: ParentPlatformSettingsBridgeEventMap[T],
-  ): void;
   /** The framed game's declared settings as they change; null when it has none or left. */
   onGameSettings?(state: AirJamGameSettingsState | null): void;
 }
 
 export interface ParentPlatformSettingsBridgeController {
+  /** Offers the frame a fresh port; the frame answers on it once bound. */
   attach(targetWindow: Window, targetOrigin: string): void;
   detach(): void;
   updateSettings(settings: AirJamSurfaceSettings): void;
@@ -77,6 +60,10 @@ export interface ParentPlatformSettingsBridgeController {
     patch: SettingsValues,
     expectedRevision: number,
   ): Promise<void>;
+  /**
+   * A frame that (re)loaded says it is ready on the window; the bridge
+   * answers with a fresh port. True when the event was that.
+   */
   handleMessage(
     event: MessageEvent<unknown>,
     targetWindow: Window | null,
@@ -85,54 +72,55 @@ export interface ParentPlatformSettingsBridgeController {
   getState(): PlatformSettingsBridgeState;
 }
 
-const noop = () => {};
-
+/**
+ * The platform's end of one game frame's settings link. Settings and the
+ * game's own declared settings travel over one port per frame document; the
+ * frame confirms the port before anything is sent on it.
+ */
 export const createParentPlatformSettingsBridge = (
   options: ParentPlatformSettingsBridgeOptions = {},
 ): ParentPlatformSettingsBridgeController => {
   const createMessageChannel =
     options.createMessageChannel ?? (() => new MessageChannel());
-  const emit = options.onEvent ?? noop;
 
   let state: PlatformSettingsBridgeState = "unbound";
   let latestSettings: AirJamSurfaceSettings | null = null;
   let bridgePort: MessagePort | null = null;
-  let targetWindow: Window | null = null;
-  let targetOrigin: string | null = null;
-  let initialSnapshotFlushed = false;
-  let childReadySeen = false;
   let requestCount = 0;
   const pendingUpdates = new Map<
     string,
     { resolve: () => void; reject: (error: Error) => void }
   >();
 
-  const settlePending = (message: string) => {
-    for (const pending of pendingUpdates.values())
-      pending.reject(new Error(message));
-    pendingUpdates.clear();
+  const flush = () => {
+    if (state === "ready" && bridgePort && latestSettings)
+      bridgePort.postMessage(createSettingsSyncMessage(latestSettings));
   };
 
   const closeBridgePort = () => {
-    if (!bridgePort) {
-      return;
-    }
-
+    if (!bridgePort) return;
     try {
       bridgePort.close();
     } catch {
       // Ignore close errors during teardown or iframe reload.
     }
-
     bridgePort = null;
-    settlePending("The game left before its settings changed.");
+    state = "unbound";
+    for (const pending of pendingUpdates.values())
+      pending.reject(new Error("The game left before its settings changed."));
+    pendingUpdates.clear();
     options.onGameSettings?.(null);
   };
 
   const handlePortMessage = (event: MessageEvent<unknown>) => {
-    const state = airJamGameSettingsMessageSchema.safeParse(event.data);
-    if (state.success) {
-      options.onGameSettings?.(state.data.payload);
+    if (isAirJamSettingsReadyMessage(event.data)) {
+      state = "ready";
+      flush();
+      return;
+    }
+    const gameState = airJamGameSettingsMessageSchema.safeParse(event.data);
+    if (gameState.success) {
+      options.onGameSettings?.(gameState.data.payload);
       return;
     }
     const result = airJamGameSettingsResultMessageSchema.safeParse(event.data);
@@ -144,82 +132,31 @@ export const createParentPlatformSettingsBridge = (
     else pending.reject(new Error(result.data.payload.error));
   };
 
-  const flushSnapshot = (phase: "initial" | "update") => {
-    if (
-      !latestSettings ||
-      !targetWindow ||
-      !targetOrigin ||
-      state !== "ready"
-    ) {
-      return;
-    }
-
-    const payload = createSettingsSyncMessage(latestSettings);
-    const transports: PlatformSettingsBridgeTransport[] = [];
-
-    if (bridgePort) {
-      bridgePort.postMessage(payload);
-      transports.push("bridge_port");
-    }
-
-    targetWindow.postMessage(payload, targetOrigin);
-    transports.push("window_postmessage");
-
-    emit("snapshotFlushed", {
-      phase,
-      transports,
-      settings: latestSettings,
-    });
-    initialSnapshotFlushed = true;
+  const attach = (targetWindow: Window, targetOrigin: string) => {
+    closeBridgePort();
+    const channel = createMessageChannel();
+    bridgePort = channel.port1;
+    bridgePort.addEventListener("message", handlePortMessage);
+    bridgePort.start();
+    state = "waiting_ready";
+    targetWindow.postMessage(createSettingsBridgeInitMessage(), targetOrigin, [
+      channel.port2,
+    ]);
   };
 
   return {
-    attach(nextTargetWindow, nextTargetOrigin) {
-      closeBridgePort();
-
-      const channel = createMessageChannel();
-      bridgePort = channel.port1;
-      bridgePort.addEventListener("message", handlePortMessage);
-      bridgePort.start?.();
-      targetWindow = nextTargetWindow;
-      targetOrigin = nextTargetOrigin;
-      initialSnapshotFlushed = false;
-      state = childReadySeen ? "ready" : "waiting_ready";
-
-      nextTargetWindow.postMessage(
-        createSettingsBridgeInitMessage(),
-        nextTargetOrigin,
-        [channel.port2],
-      );
-
-      emit("bridgeAttached", {
-        state,
-      });
-
-      if (childReadySeen) {
-        flushSnapshot("initial");
-      }
-    },
-
-    detach() {
-      closeBridgePort();
-      targetWindow = null;
-      targetOrigin = null;
-      initialSnapshotFlushed = false;
-      childReadySeen = false;
-      state = "unbound";
-    },
+    attach,
+    detach: closeBridgePort,
 
     updateSettings(settings) {
       latestSettings = settings;
-      if (state === "ready") {
-        flushSnapshot(initialSnapshotFlushed ? "update" : "initial");
-      }
+      flush();
     },
 
     updateGameSettings(patch, expectedRevision) {
       const port = bridgePort;
-      if (!port) return Promise.reject(new Error("The game is not running."));
+      if (!port || state !== "ready")
+        return Promise.reject(new Error("The game is not running."));
       requestCount += 1;
       const requestId = String(requestCount);
       return new Promise<void>((resolve, reject) => {
@@ -231,29 +168,16 @@ export const createParentPlatformSettingsBridge = (
       });
     },
 
-    handleMessage(event, expectedTargetWindow, expectedTargetOrigin) {
-      if (!expectedTargetWindow || !expectedTargetOrigin) {
+    handleMessage(event, targetWindow, targetOrigin) {
+      if (
+        !targetWindow ||
+        !targetOrigin ||
+        event.source !== targetWindow ||
+        event.origin !== targetOrigin ||
+        !isAirJamSettingsReadyMessage(event.data)
+      )
         return false;
-      }
-
-      if (event.source !== expectedTargetWindow) {
-        return false;
-      }
-
-      if (event.origin !== expectedTargetOrigin) {
-        return false;
-      }
-
-      if (!isAirJamSettingsReadyMessage(event.data)) {
-        return false;
-      }
-
-      childReadySeen = true;
-      state = "ready";
-      emit("settingsReady", {
-        state,
-      });
-      flushSnapshot(initialSnapshotFlushed ? "update" : "initial");
+      attach(targetWindow, targetOrigin);
       return true;
     },
 
@@ -355,6 +279,7 @@ export const initializeInheritedPlatformSettingsBridge = ({
     port.addEventListener("message", handlePortMessage as EventListener);
     const stopServing = serveEmbeddedGameSettings(port);
     port.start();
+    port.postMessage({ type: AIRJAM_SETTINGS_READY, payload: { ready: true } });
 
     bridgePortCleanup = () => {
       stopServing();
@@ -374,11 +299,6 @@ export const initializeInheritedPlatformSettingsBridge = ({
     }
 
     if (event.origin !== trustedParentOrigin) {
-      return;
-    }
-
-    if (isAirJamSettingsSyncMessage(event.data)) {
-      applySettings(event.data.payload.settings);
       return;
     }
 
