@@ -42,6 +42,9 @@ const snapshotSchema = z.object({
       z.object({
         controllerId: z.string().min(1).max(128),
         connected: z.boolean(),
+        /** The player's name and colour as the game shows them. */
+        label: z.string().max(64).optional(),
+        color: z.string().max(32).optional(),
       }),
     )
     .max(256),
@@ -110,10 +113,14 @@ export function publishEmbeddedHostPreview(
       localControllerUrl: inspection.localControllerUrl,
       joinUrlStatus: inspection.joinUrlStatus,
       connectionStatus: inspection.connectionStatus,
-      controllers: inspection.players.map(({ id, connected }) => ({
-        controllerId: id,
-        connected,
-      })),
+      controllers: inspection.players.map(
+        ({ id, connected, label, color }) => ({
+          controllerId: id,
+          connected,
+          label,
+          color,
+        }),
+      ),
     };
     parent.window.postMessage({ type: snapshotType, snapshot }, parent.origin);
   };

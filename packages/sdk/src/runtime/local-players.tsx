@@ -50,6 +50,7 @@ export const LocalPlayersHost = ({
     };
     return connectParentSeats(
       parent,
+      bindings,
       (provider) => {
         stopPlayers = startLocalPlayers(input, bindings, provider);
       },

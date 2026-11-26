@@ -103,6 +103,8 @@ const closedSchema = seatMessage("airjam.local-seat.closed");
  *   `closed` when the phone is removed, after releasing its controls.
  * - host → parent `airjam.local-seat.input` with the seat's key and one
  *   operation, which the parent hands to the seat's phone.
+ * - host → parent `airjam.local-seat.bindings` beside its query: the keys
+ *   and gamepad controls of each of its controls, for the product to draw.
  *
  * A seat's phone takes operations only from its direct parent frame, at the
  * parent origin its preview launch declares (`parentOrigin`, else the phone's
@@ -126,6 +128,46 @@ export const localSeatQuerySchema = z
 const relayedSchema = z
   .object({ type: z.literal("airjam.local-seat.relayed") })
   .strict();
+const keyList = z.array(z.string().max(32)).max(8);
+const keyboardBindingSchema = z.union([
+  z.string().max(32),
+  keyList,
+  z
+    .object({
+      kind: z.literal("keys-axis"),
+      negative: keyList,
+      positive: keyList,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("keys-stick"),
+      up: keyList,
+      left: keyList,
+      down: keyList,
+      right: keyList,
+    })
+    .strict(),
+]);
+/**
+ * Which keys and gamepad controls drive each of the game's controls, sent
+ * beside its query so a product can draw them (seat `keyboard-n` plays the
+ * n-th layout; every gamepad seat plays the one mapping).
+ */
+export const localSeatBindingsSchema = z
+  .object({
+    type: z.literal("airjam.local-seat.bindings"),
+    keyboard: z
+      .array(z.record(z.string().max(64), keyboardBindingSchema))
+      .max(16),
+    gamepad: z.record(
+      z.string().max(64),
+      z.union([z.string().max(32), z.array(z.string().max(32)).max(8)]),
+    ),
+  })
+  .strict();
+export type LocalSeatBindings = z.infer<typeof localSeatBindingsSchema>;
+
 /** Whether a game frame says its controllers take seats through a phone page that frames them. */
 export const isLocalSeatRelayedMessage = (data: unknown): boolean =>
   relayedSchema.safeParse(data).success;
@@ -173,6 +215,7 @@ export interface LocalSeatParent {
  */
 export const connectParentSeats = (
   parent: LocalSeatParent,
+  bindings: AirJamInputBindings,
   onAvailable: (provider: LocalSeatProvider) => void,
   onUnavailable: () => void = () => {},
 ): (() => void) => {
@@ -259,6 +302,11 @@ export const connectParentSeats = (
   });
   post({ type: "airjam.local-seat.query" });
   post({ type: "airjam.local-seat.relayed" });
+  post({
+    type: "airjam.local-seat.bindings",
+    keyboard: bindings.keyboard ?? [],
+    gamepad: bindings.gamepad ?? {},
+  });
   return () => {
     withdraw();
     stop.abort();

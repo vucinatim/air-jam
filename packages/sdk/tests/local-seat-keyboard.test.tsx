@@ -153,7 +153,7 @@ it("returns a seat phone's keys through its checked parents to the host capture,
   await act(async () => {
     server.provide(hook.result.current);
     const stop = inPage(host, () =>
-      connectParentSeats({ window: arcade, origin }, (provider) => {
+      connectParentSeats({ window: arcade, origin }, {}, (provider) => {
         const stopPlayers = startLocalPlayers(input, bindings, provider);
         stops.push(() => inPage(host, stopPlayers));
       }),

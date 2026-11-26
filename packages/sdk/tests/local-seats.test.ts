@@ -11,6 +11,7 @@ import {
 import {
   connectParentSeats,
   isLocalSeatRelayedMessage,
+  localSeatBindingsSchema,
   localSeatMessages,
   serveLocalSeats,
   startLocalPlayers,
@@ -168,6 +169,7 @@ describe("a parent's seats", () => {
     const onAvailable = vi.fn();
     const stop = connectParentSeats(
       { window: parent as unknown as Window, origin: parentOrigin },
+      {},
       onAvailable,
     );
     stops.push(stop);
@@ -181,12 +183,35 @@ describe("a parent's seats", () => {
     expect(onAvailable).toHaveBeenCalledTimes(1);
   });
 
+  it("tells the parent which keys and buttons drive each control", () => {
+    const parent = { postMessage: vi.fn() };
+    const bindings = {
+      keyboard: [{ jump: "Space" }],
+      gamepad: { jump: "south" },
+    } as const;
+    stops.push(
+      connectParentSeats(
+        { window: parent as unknown as Window, origin: parentOrigin },
+        bindings,
+        () => {},
+      ),
+    );
+    const sent = parent.postMessage.mock.calls
+      .map(([message]) => localSeatBindingsSchema.safeParse(message))
+      .find((parsed) => parsed.success);
+    expect(sent?.data).toEqual({
+      type: "airjam.local-seat.bindings",
+      ...bindings,
+    });
+  });
+
   it("opens, refuses and closes seats as the parent answers", async () => {
     const parent = { postMessage: vi.fn() };
     let seats: LocalSeatProvider | null = null;
     stops.push(
       connectParentSeats(
         { window: parent as unknown as Window, origin: parentOrigin },
+        {},
         (provider) => (seats = provider),
       ),
     );
@@ -244,6 +269,7 @@ describe("a parent's seats", () => {
     const connectGame = () =>
       connectParentSeats(
         { window: parent as unknown as Window, origin: parentOrigin },
+        {},
         available,
       );
     const beforeReload = connectGame();
@@ -382,6 +408,7 @@ describe("the local players protocol lifecycle", () => {
     stops.push(
       connectParentSeats(
         { window: parent as unknown as Window, origin: parentOrigin },
+        {},
         available,
         unavailable,
       ),
