@@ -266,6 +266,23 @@ describe("embedded host presentation inspection", () => {
         localControllerUrl: "https://game.example/custom-controls?room=ROOM",
       }),
     ).not.toBeNull();
+    const arcadeLink = {
+      ...snapshot,
+      localControllerUrl: "https://arcade.example/controller?room=ROOM",
+    };
+    expect(read(arcadeLink)).toBeNull();
+    expect(
+      readHostPreviewSnapshot(
+        new MessageEvent("message", {
+          data: { type: "AIRJAM_HOST_PREVIEW_SNAPSHOT", snapshot: arcadeLink },
+          source: window,
+          origin: "https://game.example",
+        }),
+        window,
+        "https://game.example",
+        "https://arcade.example",
+      ),
+    ).not.toBeNull();
     expect(read(snapshot, {} as Window)).toBeNull();
     expect(read(snapshot, window, "https://attacker.example")).toBeNull();
     expect(read({ ...snapshot, connectionStatus: "success" })).toBeNull();
