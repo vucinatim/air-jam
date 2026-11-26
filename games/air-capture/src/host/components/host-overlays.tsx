@@ -1,4 +1,8 @@
-import type { JoinUrlStatus, PlayerProfile } from "@air-jam/sdk";
+import {
+  HoldReveal,
+  type JoinUrlStatus,
+  type PlayerProfile,
+} from "@air-jam/sdk";
 import {
   JoinQrOverlay,
   JoinUrlControls,
@@ -427,6 +431,7 @@ export const GameplayFallback = () => {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black text-sm font-semibold tracking-[0.18em] text-white/70 uppercase">
       Loading Match
+      <HoldReveal />
     </div>
   );
 };

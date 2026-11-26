@@ -1,4 +1,4 @@
-import { createAirJamApp, env } from "@air-jam/sdk";
+import { HoldReveal, createAirJamApp, env } from "@air-jam/sdk";
 import type { JSX } from "react";
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
@@ -20,7 +20,11 @@ const ControllerView = lazy(async () => {
 });
 
 const RouteFallback = (): JSX.Element => {
-  return <div className="h-screen w-screen bg-black" />;
+  return (
+    <div className="h-screen w-screen bg-black">
+      <HoldReveal />
+    </div>
+  );
 };
 
 const InspectionStage = () => (

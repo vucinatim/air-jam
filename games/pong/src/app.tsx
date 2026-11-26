@@ -1,4 +1,4 @@
-import { createAirJamApp, env } from "@air-jam/sdk";
+import { HoldReveal, createAirJamApp, env } from "@air-jam/sdk";
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { airjam } from "./airjam.config";
@@ -28,6 +28,7 @@ const LoadingScreen = () => (
         Loading match surface
       </div>
     </div>
+    <HoldReveal />
   </div>
 );
 

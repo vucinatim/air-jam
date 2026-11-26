@@ -115,6 +115,7 @@ export {
   type AirJamRuntimeErrorBoundaryOptions,
   type CreateAirJamAppOptions,
 } from "./runtime/create-air-jam-app";
+export { HoldReveal } from "./runtime/host-reveal";
 export { resolveAirJamBrowserRouterBasename } from "./runtime/router-basename";
 
 export {

@@ -1,4 +1,4 @@
-import { createAirJamApp, env } from "@air-jam/sdk";
+import { HoldReveal, createAirJamApp, env } from "@air-jam/sdk";
 /**
  * Route shell. The host + controller views are lazy-loaded so each surface
  * only pulls the code it needs. The real work happens inside `./host` and
@@ -27,6 +27,7 @@ const RouteFallback = () => {
       <div className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
         Loading match surface
       </div>
+      <HoldReveal />
     </div>
   );
 };

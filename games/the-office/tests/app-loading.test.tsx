@@ -6,10 +6,10 @@ import { airjam } from "../src/airjam.config";
 import { App } from "../src/app";
 import { theOfficeTheme } from "../src/game/theme";
 
-vi.mock(
-  "@air-jam/sdk",
-  () => import("../../../packages/sdk/src/runtime/create-air-jam-app"),
-);
+vi.mock("@air-jam/sdk", async () => ({
+  ...(await import("../../../packages/sdk/src/runtime/create-air-jam-app")),
+  ...(await import("../../../packages/sdk/src/runtime/host-reveal")),
+}));
 vi.mock("../../../packages/sdk/src/runtime/session-runtimes", () => ({
   AirJamHostRuntime: ({ children }: { children: ReactNode }) => children,
   AirJamControllerRuntime: ({ children }: { children: ReactNode }) => children,

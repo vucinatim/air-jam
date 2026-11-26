@@ -1,4 +1,4 @@
-import { createAirJamApp, env } from "@air-jam/sdk";
+import { HoldReveal, createAirJamApp, env } from "@air-jam/sdk";
 /**
  * Route shell. Host + controller views are lazy-loaded so each surface only
  * pulls the code it needs. The real surfaces live in `./host` and
@@ -26,6 +26,7 @@ const LoadingScreen = () => (
     <div className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
       Loading
     </div>
+    <HoldReveal />
   </div>
 );
 

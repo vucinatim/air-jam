@@ -58,6 +58,25 @@ The default order is:
 3. keep rendering integration separate from pure game rules
 4. use instancing when repeated objects justify it
 
+## Loading and the Reveal
+
+In the Arcade and the Studio, the page around a game keeps its own cover up
+until the game's host says it is ready, so players never watch a game assemble
+itself. The host is ready once it has mounted, its fonts have loaded and its
+room is connected. Anything still loading after that holds the reveal with
+`<HoldReveal />` from `@air-jam/sdk`:
+
+1. render it in every Suspense fallback on the host, including the route-level
+   fallback around a lazy host view: `<Suspense fallback={<HoldReveal />}>`
+2. put a Suspense boundary with that fallback around R3F content that loads
+   models or textures (`useGLTF`, `useTexture`), so the scene appears whole
+3. render it conditionally for any other loading the host waits on:
+   `{!ready && <HoldReveal />}`
+
+A fallback can draw its own placeholder and include `<HoldReveal />` inside it.
+The reveal happens once; holding again later changes nothing, and outside a
+host it does nothing.
+
 ## Air Jam Lane Rules
 
 Keep the framework lanes separate:
